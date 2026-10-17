@@ -23,7 +23,7 @@ Before shipping:
 
 ## As a .serps package
 
-<Badge type="info" text="coming soon" /> The built-in Team Simplified addon will import `.serps` packages made with Simplified Studio in the launcher's **Mods** section. The format below is the one the importer is built against ([design](/design/addons-and-mods#_4-2-the-serps-format)).
+The built-in Team Simplified addon imports `.serps` packages made with Simplified Studio in the launcher's **Mods** section and with `swofty mods import`. <Badge type="info" text="coming soon" /> Loading them into the game. The format below is the one the importer reads ([design](/design/addons-and-mods#_4-2-the-serps-format)).
 
 - A package is a zip archive under any name, `.serps` included, or a folder.
 - `mod.serps` at the package root is JSON: `mod_name` or `name` (`mod_name` wins), `author`, `version`, `game` (for example `F1® 25`), `game_version` (for example `1.0.141.7865`) and `studio_version`. Every field is optional.

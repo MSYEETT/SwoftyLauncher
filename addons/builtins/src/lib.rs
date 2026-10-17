@@ -1,5 +1,5 @@
 use swofty_addon::launcher::Builtin;
 
 pub fn all() -> Vec<Builtin> {
-    Vec::new()
+    vec![swofty_addon_simplified::builtin()]
 }

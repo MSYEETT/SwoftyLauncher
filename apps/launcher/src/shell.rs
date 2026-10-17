@@ -664,7 +664,7 @@ impl Shell {
                     Page::Section(i),
                     s.spec.title.clone().into(),
                     crate::sections::icon(s.spec.icon),
-                    None,
+                    self.section_count(i),
                     p,
                     cx,
                 )

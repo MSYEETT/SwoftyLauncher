@@ -165,6 +165,7 @@ pub struct View {
     pub actions: Vec<Button>,
     pub notices: Vec<Notice>,
     pub body: Body,
+    pub footer: Option<String>,
 }
 
 pub enum Body {
@@ -226,12 +227,14 @@ pub enum Effect {
     Reload,
     Notice(String),
     SetAddonEnabled(bool),
+    Open(PathBuf),
 }
 ```
 
 `Fact`, `Tag`, `Notice`, `Tone`, `Style`, `Art` and `Icon` are small value types: label and value, text and tone, a fixed icon set, a monogram or an image path. Every type is serde-serialisable.
 
-- Each section is one page and one sidebar entry. The sidebar lists Profiles, Addons, a divider, the addon sections in registry order, then Maps.
+- Each section is one page and one sidebar entry. The sidebar lists Profiles, Addons, a divider, the addon sections in registry order, then Maps. A section whose body is a list shows its row count.
+- `footer` is a muted line under the body. `Effect::Open` opens a file or folder with the system's handler.
 - The shell renders a `View` with the components the core pages use: page header, list, row, switch, choice button, stats, facts, notices and empty state. A row's `detail` is its expanded body. A `reorder` list gets a drag handle and Move up and Move down entries.
 - The shell keeps each section's `View` and asks again after `Effect::Reload`, a profile switch or a store reload.
 - `view` runs on the UI thread and reads in-memory state only. `event`, `import`, `command` and `build` run on the background executor. The control that sent an event shows as busy until its `Effect` returns.
@@ -496,7 +499,8 @@ Result overlay_file(std::string_view game_path, std::string_view file);
 
 ### 4.1 The addon
 
-- The crate `addons/simplified` (`swofty-addon-simplified`) is Rust and AGPL-3.0-or-later, like the rest of the repository. It is written from the package format and contains no Simplified Suite code. `THIRD_PARTY.md` credits Team Simplified for the `.serps` format and the Simplified Suite. Any Simplified Suite code (GPL-3.0) used later carries its attribution with it.
+- The crate `addons/simplified` (`swofty-addon-simplified`) is Rust and AGPL-3.0-or-later, like the rest of the repository. Its `mod.serps` reader, package root, content root and entry path checks are ported from the Simplified Launcher (GPL-3.0, used with Team Simplified's permission) and carry the Simplified Suite notice. `THIRD_PARTY.md` credits Team Simplified for the `.serps` format and the Simplified Suite, and the Mods section shows the credit.
+- Import, the library, profile state, the section and `swofty mods` are built (work item 13). Diffs, the merge and conflicts are not: until they are, the expanded row lists the package's files by class, and mods do not reach the game.
 - Manifest: id `teamsimplified.mods`, name `Team Simplified`, author `Team Simplified`. No options and no native plugin.
 - Built in and on by default in new profiles. It can be turned off per profile.
 - It uses `swofty-addon` and `swofty-formats` only. Core has no code for it.
@@ -597,7 +601,7 @@ The sidebar entry `Mods` comes after `Addons`, with the library size as its coun
 - **Rows.** Reorderable, in load order. Title from `mod.serps`, subtitle `<author> · <version>`, tags `Database`, `Text`, `<n> archives`, `<n> files`, conflict tags and `Made for <game_version>` when it differs from the game. A switch turns the mod on in the profile.
 - **Expanded row.** Stats: status, version, author, made for, Studio version, size, imported. `WHAT IT CHANGES`: records changed, added and removed; text entries by language; resources by archive; files. `CONFLICTS`. Buttons: Move up, Move down, Show files, and Remove from library with a confirmation.
 - **Empty.** `No mods yet`, `Import a .serps package, a zip or a folder that holds an F1 25 folder.` and `Import…`.
-- **Footer.** `Mod packages in the Simplified Suite's .serps format, by Team Simplified.`
+- **Footer.** `Mod packages in the Simplified Suite's .serps format. Based on Simplified Suite by Team Simplified - https://github.com/TeamSimplified/simplified-suite`
 - **Profile cards.** `summary` adds `MODS` with the enabled mods' names.
 - **CLI.** `swofty mods list`, `import <path>…`, `remove <id>`, `enable <id>`, `disable <id>`, `move <id> <position>`.
 

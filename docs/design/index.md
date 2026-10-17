@@ -71,6 +71,7 @@ The repository is pre-release:
 - Backup and restore code has tests for interrupted changes and game updates.
 - The native menu entry is tested with a test executable under Wine. It currently opens the game's Settings page.
 - Play in the launcher builds the profile, installs it with the in-game loader, and rolls both back when the game exits. This flow has not been tested in game yet.
+- The built-in Team Simplified addon imports `.serps` mods into a library and keeps each profile's order and switches in its **Mods** section and `swofty mods`. It does not load them into the game yet.
 - Addon settings work in the launcher and the command line. The in-game page is generated; saving in-game changes waits on the native bridge's in-game test.
 - Save isolation, offline enforcement and plugin approval are unfinished.
 

@@ -36,6 +36,32 @@ The homepage in `docs/.vitepress/theme/components/Landing.vue` and `docs/.vitepr
 
 `packages/formats/src/nefs.rs` reads the NeFS 1.6 archive layout that NefsEdit documents, <https://github.com/victorbush/ego.nefsedit>. It is written from scratch and contains no NefsEdit code.
 
+## Simplified Suite
+
+The built-in Team Simplified addon, `addons/simplified`, reads the `.serps` package format of the Simplified Suite by Team Simplified, <https://github.com/TeamSimplified/simplified-suite>. Its `mod.serps` reader (`src/serps.rs`) and its package root, content root and entry path checks (`src/package.rs`) are ported from `ModManifest.cs`, `ModImport.cs` and `ModStaging.cs` of the Simplified Launcher, with Team Simplified's permission. The Simplified Suite is licensed under the GNU General Public License version 3, which section 13 lets this AGPL-3.0-or-later program combine with.
+
+Based on Simplified Suite by Team Simplified - https://github.com/TeamSimplified/simplified-suite
+
+```
+Simplified Suite
+Copyright (C) 2026 Team Simplified
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, version 3 of the License. It is distributed WITHOUT ANY WARRANTY;
+see LICENSE for the full terms.
+
+Under section 7(b) of the GNU General Public License version 3, the following
+attribution requirement applies to this work and to every work based on it:
+
+> Any program or library that contains, copies, ports or is based on code from
+> Simplified Suite must credit it, by preserving this notice in its source and
+> by stating, in its credits, About screen or documentation - wherever the
+> program shows its own Appropriate Legal Notices:
+>
+> **Based on Simplified Suite by Team Simplified - https://github.com/TeamSimplified/simplified-suite**
+```
+
 ## Fonts
 
 The site loads Open Sans, Poppins, Quicksand, Source Code Pro and Varela Round from Google Fonts. They use the SIL Open Font License 1.1.

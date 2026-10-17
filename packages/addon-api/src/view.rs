@@ -17,6 +17,8 @@ pub struct View {
     #[serde(default)]
     pub notices: Vec<Notice>,
     pub body: Body,
+    #[serde(default)]
+    pub footer: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -144,6 +146,7 @@ pub enum Effect {
     Reload,
     Notice(String),
     SetAddonEnabled(bool),
+    Open(PathBuf),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -277,6 +280,7 @@ mod tests {
                 }],
                 reorder: true,
             },
+            footer: Some("By Team Simplified.".into()),
         };
         let json = serde_json::to_value(&view).unwrap();
         assert_eq!(json["body"]["list"]["rows"][0]["trailing"]["switch"]["on"], true);

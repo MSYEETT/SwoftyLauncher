@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 swofty-addon.workspace = true
+swofty-addon-simplified.workspace = true
 
 [lints]
 workspace = true

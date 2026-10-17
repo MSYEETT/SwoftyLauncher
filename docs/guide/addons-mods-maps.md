@@ -35,7 +35,7 @@ A mod is content with no code: `.erp` archives and resources, or `.serps` packag
 |---|---|---|
 | Bundled | An addon ships the mod and applies it with [ERP](/reference/ops/erp) and [database](/reference/ops/database) operations in its manifest | Available |
 | Asset API | An addon loads the mod while the game runs: it inserts, replaces or removes resources and ERPs | <Badge type="info" text="coming soon" /> [Asset API](#asset-api) |
-| Team Simplified panel | The player imports, orders and turns mods on and off in the launcher's **Team Simplified** addon panel | <Badge type="info" text="coming soon" /> [Team Simplified](#team-simplified) |
+| Mods section | The player imports, orders and turns mods on and off in the launcher's **Mods** section, from the built-in Team Simplified addon | <Badge type="info" text="coming soon" /> [Team Simplified](#team-simplified) |
 
 ### Asset API {#asset-api}
 
@@ -43,7 +43,9 @@ A mod is content with no code: `.erp` archives and resources, or `.serps` packag
 
 ### Team Simplified {#team-simplified}
 
-<Badge type="info" text="coming soon" /> The player manages `.serps` mods in the launcher.
+The launcher's **Mods** section holds the mod library. Drop `.serps` packages, mod zips or mod folders anywhere on the launcher window, or use **Import…**. Each profile keeps its own order and switches, and a mod lower in the list wins. `swofty mods` does the same from the command line.
+
+<Badge type="info" text="coming soon" /> Loading the enabled mods into the game.
 
 ## Maps
 

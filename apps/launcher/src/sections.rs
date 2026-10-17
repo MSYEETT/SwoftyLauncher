@@ -213,6 +213,10 @@ impl Shell {
                 self.reload(cx);
             }
             Ok(Effect::SetAddonEnabled(on)) => self.update_profile(window, cx, |p| p.set_enabled(addon, on)),
+            Ok(Effect::Open(path)) => {
+                cx.open_with_system(&path);
+                cx.notify();
+            }
             Err(e) => {
                 window.push_notification(Notification::error(e), cx);
                 cx.notify();
@@ -378,7 +382,33 @@ impl Shell {
             ))
             .children(notices)
             .child(body)
+            .children(view.footer.clone().map(|f| {
+                div()
+                    .flex_shrink_0()
+                    .px(px(GUTTER))
+                    .py(px(10.))
+                    .border_t_1()
+                    .border_color(p.border_variant)
+                    .text_size(px(12.))
+                    .text_color(p.text_placeholder)
+                    .child(f)
+            }))
             .into_any_element()
+    }
+
+    pub(crate) fn section_count(&self, index: usize) -> Option<usize> {
+        let s = self.library.sections.get(index)?;
+        match &self
+            .views
+            .get(&format!("{}/{}", s.addon, s.spec.id))?
+            .as_ref()
+            .ok()?
+            .body
+        {
+            Body::List { rows, .. } => Some(rows.len()),
+            Body::Empty { .. } => Some(0),
+            Body::Blocks(_) => None,
+        }
     }
 
     #[allow(clippy::too_many_arguments)]

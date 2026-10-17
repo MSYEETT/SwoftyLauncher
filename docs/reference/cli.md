@@ -61,11 +61,24 @@ See [Restoring the game](/using/profiles-and-restoring).
 | `swofty addons enable <id>` | Enable an addon |
 | `swofty addons disable <id>` | Disable an addon; SwoftyMod cannot be disabled |
 
-`swofty mods` is another name for `swofty addons` while no addon provides a `mods` command. Once one does, `swofty mods install <addon folder>` and `swofty mods enable|disable <addon id>` still run the `swofty addons` command and print a note.
+`swofty mods install <addon folder>` and `swofty mods enable|disable <addon id>` still run the `swofty addons` command and print a note.
 
 Built-in addons add their own top-level commands. `swofty --help` lists them.
 
 Each command first moves addons that an earlier version stored in `$DATA/mods/` to `$DATA/addons/`.
+
+## `swofty mods`
+
+The built-in Team Simplified addon provides these commands. They work on its mod library and on the profile's load order.
+
+| Command | Purpose |
+|---|---|
+| `swofty mods list` | List the library in load order, with each mod's id and whether it is on |
+| `swofty mods import <path>…` | Import `.serps` packages, zips or folders that hold an `F1 25` folder; new mods are turned on |
+| `swofty mods remove <id>` | Delete a mod from the library and from every profile |
+| `swofty mods enable <id>` | Turn a mod on in the profile |
+| `swofty mods disable <id>` | Turn a mod off in the profile |
+| `swofty mods move <id> <position>` | Move a mod in the load order; position 1 loads first, and a later mod wins |
 
 ## `swofty settings`
 

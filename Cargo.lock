@@ -6231,10 +6231,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "swofty-addon-simplified"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "swofty-addon",
+ "swofty-formats",
+ "zip",
+]
+
+[[package]]
 name = "swofty-builtins"
 version = "0.1.0"
 dependencies = [
  "swofty-addon",
+ "swofty-addon-simplified",
 ]
 
 [[package]]
