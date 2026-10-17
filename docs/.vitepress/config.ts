@@ -89,6 +89,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Launching the game", link: "/reference/launch" },
               { text: "Offline play", link: "/reference/safety" },
               { text: "Backups and recovery", link: "/reference/restore" },
+              { text: "How maps are installed", link: "/reference/maps" },
               { text: "Development", link: "/reference/development" },
             ],
           },

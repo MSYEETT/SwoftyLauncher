@@ -20,6 +20,7 @@ When the game exits, it prints a summary with the exit code and any crash detail
 | `--direct` | Launch directly instead of asking Steam |
 | `--winedebug <channels>` | Choose Wine log channels |
 | `--exe <file>` | Use a copy of `F1_25.exe` to identify crash locations |
+| `--apply` | Install the profile (database, maps) before the game starts and roll it back when it exits |
 
 On Linux, the [Steam launch option](/guide/linux) uses `swofty run -- %command%`.
 
@@ -29,11 +30,15 @@ On Linux, the [Steam launch option](/guide/linux) uses `swofty run -- %command%`
 
 ## `swofty build`
 
-`swofty build [--profile <name>]` prepares database changes without starting the game. Output goes to `$DATA/cache/overlay/<profile>/<buildhash>/`, with the session settings file in `swofty/settings.json`.
+`swofty build [--profile <name>]` prepares the profile's database and map files without starting the game. Output goes to `$DATA/cache/overlay/<profile>/<buildhash>/`, with the session settings file in `swofty/settings.json` and `plan.json`, the list of game files to replace and add with their sources. Map archives, menu archives and car handling files are built in `$DATA/cache/maps`, `$DATA/cache/menus` and `$DATA/cache/ers`.
 
-ERP, UI and loose-file operations are currently skipped.
+Mod ERP, UI and loose-file operations are currently skipped.
 
 When the game exits, `swofty run` merges the settings changed in game into the profile. After **APPLY & RESTART** it rebuilds the profile and starts the game again.
+
+## `swofty apply`
+
+`swofty apply [--profile <name>] [--game <dir>]` builds the profile and installs it into the game folder: the database, the enabled maps, their menu entries and the cars' ERS settings. Every change goes through the journal. `swofty restore` or `swofty --profile vanilla apply` removes it. Close the game first.
 
 ## `swofty verify`
 
@@ -71,6 +76,8 @@ See [Restoring the game](/using/profiles-and-restoring).
 | `swofty maps list` | List imported tracks |
 | `swofty maps import <zip>` | Import a community track package |
 | `swofty maps remove <code>` | Remove an imported track |
+| `swofty maps enable <code>` | Enable an imported track in the profile |
+| `swofty maps disable <code>` | Disable a track in the profile |
 
 ## `swofty doctor`
 
