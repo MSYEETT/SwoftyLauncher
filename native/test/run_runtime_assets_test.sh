@@ -203,10 +203,9 @@ for mode in none replace gated late early earlywait; do
         check "loader: early stage off without assets.json" 'early stage: off \(no "early_stage" in swofty.assets\.json\)'
         ;;
     gated)
-        check "gated: asset groups need the experimental group feature" '\[assets\] asset_groups skipped: the runtime group feature is experimental and "features" in swofty/assets\.json does not turn it on'
         check "gated: the file overlay needs the experimental file feature" '\[assets\] overlay skipped: the runtime file feature is experimental'
         check "gated: a whole language file needs the experimental file feature" '\[assets\] lang replace lang/language_eng\.lng skipped: the runtime file feature is experimental'
-        absent "gated: no group registered" '\[assets\] registered asset_groups/'
+        check "gated: stable asset groups still apply" '\[assets\] registered asset_groups/swofty/rt_test\.assetgroup -> 2025_asset_groups/swofty/rt_test\.erp'
         absent "gated: no fs overlay redirect" '\[assets\] overlay: (system/config\.xml|localisation/)'
         check "gated: stable resources still apply" '\[assets\] resources: 2 overlay ERP\(s\) \(2 written, 0 unchanged\)'
         check "gated: stable string tables still apply" "\[assets\] lang: table for 'eng': 2 string\(s\) from assets\.json strings"

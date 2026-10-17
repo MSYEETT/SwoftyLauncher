@@ -19,6 +19,7 @@ pub mod process;
 pub mod profile;
 pub mod registry;
 pub mod resolver;
+pub mod runtime;
 pub mod session;
 pub mod settings;
 pub mod steam;

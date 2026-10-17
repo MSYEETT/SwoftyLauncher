@@ -13,7 +13,7 @@ struct Feature {
     bool stable;
 };
 
-const Feature FEATURES[] = {{"group", false}, {"erp", true}, {"db", true}, {"lang", true}, {"file", false}};
+const Feature FEATURES[] = {{"group", true}, {"erp", true}, {"db", true}, {"lang", true}, {"file", false}};
 
 std::once_flag config_once;
 json::Value config_doc;

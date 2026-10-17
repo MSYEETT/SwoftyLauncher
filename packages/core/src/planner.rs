@@ -13,7 +13,7 @@ use crate::{Error, Result};
 pub const FEATURES_FILE: &str = "swofty/addons/core/features.json";
 
 const BUILD_DELIVERIES: [Kind; 3] = [Kind::Erp, Kind::Db, Kind::File];
-const RUNTIME_DELIVERIES: [Kind; 0] = [];
+const RUNTIME_DELIVERIES: [Kind; 5] = [Kind::Group, Kind::Erp, Kind::Db, Kind::Lang, Kind::File];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Route {
@@ -176,12 +176,8 @@ impl<'a> Planner<'a> {
         let stable = self.features.stable.contains(&kind);
         let experimental = self.features.experimental.contains(&kind);
         let build = BUILD_DELIVERIES.contains(&kind);
-        let runtime = RUNTIME_DELIVERIES.contains(&kind)
-            && if build {
-                stable || (experimental && self.opt_in.contains(&kind))
-            } else {
-                stable || experimental
-            };
+        let runtime =
+            RUNTIME_DELIVERIES.contains(&kind) && (stable || (experimental && self.opt_in.contains(&kind)));
         match (runtime, build) {
             (true, _) => Route::Runtime,
             (false, true) => Route::Build,
@@ -198,9 +194,9 @@ impl<'a> Planner<'a> {
             return;
         };
         match self.route(kind) {
-            Route::Runtime => self.planned.runtime.push(op),
+            Route::Runtime if !matches!(kind, Kind::Db | Kind::Erp) => self.planned.runtime.push(op),
             Route::Waiting => self.planned.waiting.push(op),
-            Route::Build => match op.op {
+            Route::Build | Route::Runtime => match op.op {
                 AssetOp::Db(db) => match self.db.last_mut() {
                     Some((origin, ops)) if *origin == op.origin => ops.ops.push(db),
                     _ => self.db.push((
@@ -220,7 +216,7 @@ impl<'a> Planner<'a> {
 
     pub fn push_file(&mut self, origin: &Origin, kind: FileKind, file: OpFile) {
         let db = file.ops.iter().any(|op| matches!(op, AssetOp::Db(_)));
-        if (kind == FileKind::Database || db) && self.route(Kind::Db) == Route::Build {
+        if kind == FileKind::Database || db {
             let ops = DbOps {
                 schema_version: file.schema_version,
                 fields: file.fields,
@@ -264,6 +260,14 @@ impl<'a> Planner<'a> {
         }
     }
 
+    pub fn features(&self) -> Vec<Kind> {
+        self.features
+            .experimental
+            .intersection(self.opt_in)
+            .copied()
+            .collect()
+    }
+
     pub fn has_db(&self) -> bool {
         !self.db.is_empty()
     }
@@ -296,7 +300,7 @@ impl<'a> Planner<'a> {
     }
 }
 
-pub fn waiting_lines(waiting: &[Op]) -> Vec<String> {
+pub fn waiting_lines(waiting: &[Op], features: &Features) -> Vec<String> {
     let mut counts: BTreeMap<(String, Kind), usize> = BTreeMap::new();
     for op in waiting {
         if let Some(kind) = op.op.kind() {
@@ -305,8 +309,11 @@ pub fn waiting_lines(waiting: &[Op]) -> Vec<String> {
     }
     counts
         .into_iter()
-        .map(|((origin, kind), n)| {
-            format!("{origin}: {n} {kind} op(s) wait for {kind} support in swofty_core")
+        .map(|((origin, kind), n)| match features.experimental.contains(&kind) {
+            true => format!(
+                "{origin}: {n} {kind} op(s) wait; the runtime {kind} feature is experimental and \"runtime_assets\" in config.json does not turn it on"
+            ),
+            false => format!("{origin}: {n} {kind} op(s) wait for {kind} support in swofty_core"),
         })
         .collect()
 }
@@ -346,13 +353,43 @@ mod tests {
         let features = load_features(&dir).unwrap();
         assert_eq!(features.stable, BTreeSet::from([Kind::Group]));
         assert_eq!(features.experimental.len(), 4);
-        let opt_in = BTreeSet::from([Kind::Erp]);
+        let opt_in = BTreeSet::from([Kind::Erp, Kind::Group]);
         let p = Planner::new(&features, &opt_in);
-        assert_eq!(p.route(Kind::Erp), Route::Build);
+        assert_eq!(p.route(Kind::Erp), Route::Runtime);
         assert_eq!(p.route(Kind::Db), Route::Build);
         assert_eq!(p.route(Kind::File), Route::Build);
         assert_eq!(p.route(Kind::Lang), Route::Waiting);
-        assert_eq!(p.route(Kind::Group), Route::Waiting);
+        assert_eq!(p.route(Kind::Group), Route::Runtime);
+        assert_eq!(p.features(), [Kind::Erp]);
+        assert_eq!(
+            waiting_lines(
+                &[op(
+                    "a",
+                    r#"{"op":"lang.set","language":"*","key":"k","value":"v"}"#
+                )],
+                &features
+            ),
+            [
+                "a: 1 lang op(s) wait; the runtime lang feature is experimental and \"runtime_assets\" in config.json does not turn it on"
+            ]
+        );
+        std::fs::write(
+            &path,
+            r#"{ "schema": 1, "features": { "group": "stable", "erp": "stable", "db": "stable", "lang": "stable", "file": "experimental" } }"#,
+        )
+        .unwrap();
+        let shipped = load_features(&dir).unwrap();
+        let none = BTreeSet::new();
+        let p = Planner::new(&shipped, &none);
+        for kind in [Kind::Group, Kind::Erp, Kind::Db, Kind::Lang] {
+            assert_eq!(p.route(kind), Route::Runtime);
+        }
+        assert_eq!(p.route(Kind::File), Route::Build);
+        assert!(p.features().is_empty());
+        let file = BTreeSet::from([Kind::File]);
+        let p = Planner::new(&shipped, &file);
+        assert_eq!(p.route(Kind::File), Route::Runtime);
+        assert_eq!(p.features(), [Kind::File]);
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -382,7 +419,7 @@ mod tests {
         let planned = p.finish();
         assert_eq!(planned.waiting.len(), 1);
         assert_eq!(
-            waiting_lines(&planned.waiting),
+            waiting_lines(&planned.waiting, &features),
             ["a: 1 lang op(s) wait for lang support in swofty_core"]
         );
         let shown: Vec<String> = planned.conflicts.iter().map(Conflict::to_string).collect();

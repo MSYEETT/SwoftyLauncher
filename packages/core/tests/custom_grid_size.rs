@@ -8,6 +8,7 @@ use swofty_core::manifest::{AddonManifest, Binds, OptionType};
 use swofty_core::ops::{DbOp, DbOps, ErpOp, apply_db_ops};
 use swofty_core::pkgedit::value_text;
 use swofty_core::profile::Profile;
+use swofty_core::runtime::db_edits;
 use swofty_core::settings::render_ops;
 use swofty_formats::gvdb::{Gvdb, Record, instance_count_path};
 use swofty_formats::hash::{fnv1a64, fnv1a64_from};
@@ -374,6 +375,35 @@ fn database_builds_for_every_grid_size() {
     for cars in SIZES {
         let b = build(&game, cars);
         check_database(&b, cars);
+    }
+}
+
+#[test]
+fn runtime_database_edits_carry_every_grid_size() {
+    let Some(game) = game() else { return };
+    if !game.join(GVDB).is_file() {
+        eprintln!("no gamedatabases.2025.bin under F1_25_DIR; skipping");
+        return;
+    }
+    for cars in SIZES {
+        let b = build(&game, cars);
+        let stock = Gvdb::parse(&b.before).unwrap();
+        let edits = db_edits(&stock, &b.db).unwrap_or_else(|e| panic!("{cars} cars: {e}"));
+        let mut records: HashMap<u64, (u8, Vec<u8>)> = stock
+            .records
+            .iter()
+            .map(|r| (r.key, (r.tag, r.value.clone())))
+            .collect();
+        for e in &edits {
+            let key = u64::from_str_radix(&e.hash, 16).unwrap();
+            records.insert(key, (e.tag, e.value.clone().into_bytes()));
+        }
+        let built: HashMap<u64, (u8, Vec<u8>)> =
+            b.db.records
+                .iter()
+                .map(|r| (r.key, (r.tag, r.value.clone())))
+                .collect();
+        assert_eq!(records, built, "{cars} cars");
     }
 }
 

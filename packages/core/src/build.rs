@@ -18,10 +18,11 @@ use crate::launcher::BuildCx;
 use crate::manifest::{AddonManifest, relative_inside};
 use crate::map::TrackPackage;
 use crate::owned;
-use crate::planner::{Conflict, Planner, load_features, waiting_lines};
+use crate::planner::{Conflict, Features, Kind, Planner, Route, load_features, waiting_lines};
 use crate::profile::Profile;
 use crate::registry::Host;
 use crate::resolver::resolve;
+use crate::runtime::{Runtime, db_edits};
 use crate::settings::{SessionSettings, SessionUi, render_ops, screen_file, screens};
 use crate::store::Store;
 use crate::ui::{ERPS as MENU_ERPS, READS as MENU_READS, ui_file};
@@ -141,6 +142,10 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         .unwrap_or_default();
     let opt_in = store.config().runtime_assets;
     let mut planner = Planner::new(&features, &opt_in);
+    if features != Features::default() {
+        hasher.update(format!("runtime {features:?} {opt_in:?};"));
+    }
+    let mut runtime = Runtime::new(planner.features());
     for id in &resolved.order {
         let m = &addons[id];
         hasher.update(format!("{id}@{};", m.version));
@@ -286,12 +291,25 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                 built.warnings.push(format!("{}: {w}", pkg.track_code));
             }
         }
+        let staged = (planner.route(Kind::Db) == Route::Runtime && planner.has_db()).then(|| db.clone());
         let added = planner.apply_db(&mut db)?;
         if !added.is_empty() {
             let found = owned::owned_items(&db, &Gvdb::parse(&shipped)?, &added);
             built.lines.extend(found.lines);
             built.warnings.extend(found.warnings);
             session.owned_items = found.items;
+        }
+        let cars = grid_size(&db);
+        if let Some(staged) = staged {
+            match db_edits(&staged, &db) {
+                Ok(edits) => {
+                    runtime.db(edits);
+                    db = staged;
+                }
+                Err(why) => built
+                    .warnings
+                    .push(format!("database: built into the game file; {why}")),
+            }
         }
         let bytes = db.to_bytes();
         if bytes == shipped {
@@ -303,7 +321,6 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             std::fs::write(&out, bytes).map_err(io_err(&out))?;
             built.plan.data.insert(GVDB.into(), out);
         }
-        let cars = grid_size(&db);
         for ((dir, pkg), slot) in maps.iter().zip(SLOTS) {
             let slot_original = original(&store.root, game, &slot_file(slot));
             let placement = place(
@@ -412,10 +429,14 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                 _ => {}
             }
         }
-        for rel in erps.write(&built.overlay)? {
-            let src = built.overlay.join(&rel);
-            if built.plan.data.insert(rel.clone(), src).is_some() && !staged.contains_key(&rel) {
-                return Err(Error::Other(format!("{rel} is replaced twice")));
+        if planner.route(Kind::Erp) == Route::Runtime {
+            runtime.resources(erps.resources(), &built.overlay)?;
+        } else {
+            for rel in erps.write(&built.overlay)? {
+                let src = built.overlay.join(&rel);
+                if built.plan.data.insert(rel.clone(), src).is_some() && !staged.contains_key(&rel) {
+                    return Err(Error::Other(format!("{rel} is replaced twice")));
+                }
             }
         }
     }
@@ -449,7 +470,19 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     }
     built.settings = Some(session);
     let planned = planner.finish();
-    built.warnings.extend(waiting_lines(&planned.waiting));
+    for op in planned.runtime {
+        let resolve = |op: &Op, s: &Source| Ok(s.resolve(&source_dir(store, &op.origin.addon, s.root))?);
+        runtime.push(op, &resolve)?;
+    }
+    if let Some(runtime) = runtime.finish(&built.overlay)? {
+        built.lines.push(runtime.summary());
+        for (rel, src) in runtime.files {
+            if built.plan.loader.insert(rel.clone(), src).is_some() {
+                return Err(Error::Other(format!("{rel} is placed twice")));
+            }
+        }
+    }
+    built.warnings.extend(waiting_lines(&planned.waiting, &features));
     built
         .warnings
         .extend(planned.conflicts.iter().map(|c| format!("conflict: {c}")));

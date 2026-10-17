@@ -260,6 +260,15 @@ impl<'a> ErpBuild<'a> {
         Ok(Some(Pkg::parse(&frag.data()?)?))
     }
 
+    pub fn resources(&self) -> impl Iterator<Item = (&str, &Resource)> {
+        self.erps.iter().flat_map(|(rel, a)| {
+            a.slots.iter().filter_map(move |s| match s {
+                Slot::Owned(r) => Some((rel.as_str(), r)),
+                Slot::Stock(_) => None,
+            })
+        })
+    }
+
     pub fn write(self, out: &Path) -> Result<Vec<String>> {
         let mut written = Vec::new();
         for (rel, Archive { file, slots }) in self.erps {

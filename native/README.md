@@ -26,7 +26,7 @@ Everything logs to `<game>/swofty/loader.log`. Plugins get the C ABI in `package
 
 | Feature | Key in `swofty/assets.json` | Status | Core part |
 |---|---|---|---|
-| `group` | `asset_groups`, `asset_groups_auto` | experimental | `assets.cpp`: entries added to the asset manifest after it is parsed |
+| `group` | `asset_groups`, `asset_groups_auto` | stable | `assets.cpp`: entries added to the asset manifest after it is parsed |
 | `erp` | `resources`, `resources_trace` | stable | `resources.cpp`: overlay archives in `swofty/cache/`, read first by every group that lists a target archive |
 | `db` | `db_edits`, `early_stage` | stable | `gamedb.cpp`: edits applied when the game database loads |
 | `lang` | `lang.<code>.strings`, `lang.<code>.table`, `lang.<code>.priority` | stable | `overlay.cpp`: string tables added after the stock table |

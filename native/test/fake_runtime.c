@@ -1066,14 +1066,10 @@ int main(int argc, char **argv)
         uint64_t *gs = rm_find((RMap *)(fake_manifest + 0x10), fnv64("asset_groups/ui_package/screens/splash.assetgroup"));
         expect(gs && (uint32_t)(gs[1] >> 32) == 2, "resources: splash group = its own overlay + splash.erp");
         uint64_t *rg = rm_find((RMap *)(fake_manifest + 0x10), fnv64("asset_groups/swofty/rt_test.assetgroup"));
-        if (gated)
-            expect(!rg, "asset groups: not registered while the experimental group feature is off");
-        else {
-            load_group("asset_groups/swofty/rt_test.assetgroup");
-            uint8_t *rt = res_of("eaid://swofty/rt_test/thing.bin");
-            expect(rg && rt && *(uint64_t *)(rt + 0x40) == fnv64("2025_asset_groups/swofty/rt_test.erp"),
-                   "asset groups: a registered group loads its own ERP (T007 shape)");
-        }
+        load_group("asset_groups/swofty/rt_test.assetgroup");
+        uint8_t *rt = res_of("eaid://swofty/rt_test/thing.bin");
+        expect(rg && rt && *(uint64_t *)(rt + 0x40) == fnv64("2025_asset_groups/swofty/rt_test.erp"),
+               "asset groups: a registered group loads its own ERP (T007 shape)");
         expect(!rm_find((RMap *)(fake_manifest + 0x10), fnv64("asset_groups/swofty/aliased.assetgroup")),
                "asset groups: an ERP hash that has an alias name is not re-registered");
     } else

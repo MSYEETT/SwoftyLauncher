@@ -66,6 +66,7 @@ The repository is pre-release:
 
 - Addon installation, profiles, map import and command-line logs are implemented.
 - Database operations, `!pkg` edits, resource copies and loose files can be built. Other addon ERP and UI build steps are skipped.
+- When the in-game loader's core has the feature, asset groups, changed ERP resources, database edits and language strings go into `swofty/assets.json` and apply in memory. A Grand Prix has loaded a track through asset groups and database edits. The file overlay is experimental.
 - Enabled maps are activated: database rows, track archive, menu art, minimap and ERS. `swofty apply` installs them through the journal. Neither has been tested in game yet.
 - Backup and restore code has tests for interrupted changes and game updates.
 - The native menu entry is tested with a test executable under Wine. It currently opens the game's Settings page.

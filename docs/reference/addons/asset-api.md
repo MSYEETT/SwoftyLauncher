@@ -49,10 +49,24 @@ Each op kind (`group`, `erp`, `db`, `lang`, `file`) is delivered one of three wa
 | Runtime | swofty_core applies the op in memory while the game boots |
 | Waiting | No delivery exists yet. The build lists the op |
 
-`erp`, `db` and `file` ops are built. `group` and `lang` ops wait. The installed loader states the kinds it delivers at runtime in `swofty/addons/core/features.json`, as `stable` or `experimental`.
+The installed loader states the kinds it delivers at runtime in `swofty/addons/core/features.json`, as `stable` or `experimental`. A `stable` kind takes the runtime route. An `experimental` kind takes it only when `config.json` `"runtime_assets"` names it. Otherwise `erp`, `db` and `file` ops are built, and `group` and `lang` ops wait. The current loader lists `group`, `erp`, `db` and `lang` as `stable` and `file` as `experimental`.
 
 When two addons write the same target, the later addon in the profile's load order wins, and the build lists the conflict.
 
 ## Runtime delivery
 
-<Badge type="warning" text="in progress" /> Runtime delivery of `group`, `lang`, `erp`, `db` and `file` ops through `swofty/assets.json`, and the native `swofty::assets` calls for plugins (API version 4, `swofty/assets.hpp`, the `assets` capability), are being built. This section is filled when they land. See the [design](/design/addons-and-mods).
+The build writes `swofty/assets.json` and its files into the loader folder `swofty/`.
+
+| Kind | `swofty/assets.json` | Files |
+|---|---|---|
+| `group` | `asset_groups`: `group`, `erps`, `deps`, `template` and `origin` | |
+| `erp` | `resources`: each changed resource's `uri`, `type`, `arg`, `fragments` and target `erps` | `assets/resources/<n>.<i>.bin` |
+| `db` | `db_edits`: each record that differs from the database after map activation, as `hash`, `type` (the tag) and `value` (the text), and `early_stage: true` | |
+| `lang` | `lang.<code>.table`, and `lang."*".table` for every language | `assets/lang/<code>.lng`, `assets/lang/all.lng` |
+| `file` | `overlay: true`, and `file` in `features` | `overlay/<target>` |
+
+- Map activation stays in the game database file.
+- A database build that removes records, or writes a record of tag 10, 15 or 16 or one whose value is not text, writes the game file instead, with a warning.
+- swofty_core skips a group that the stock manifest already has.
+
+<Badge type="warning" text="in progress" /> The native `swofty::assets` calls for plugins (API version 4, `swofty/assets.hpp`, the `assets` capability) are being built. See the [design](/design/addons-and-mods).
