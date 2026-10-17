@@ -1,6 +1,7 @@
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
+use gpui_kit::component::spinner::Spinner;
 use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
@@ -307,7 +308,10 @@ impl Shell {
             .when(missing, |d| d.border_1().border_color(p.border))
             .when(running, |d| d.border_1().border_color(p.success.opacity(0.4)))
             .when(enabled, |d| d.cursor_pointer().hover(move |s| s.bg(hover)))
-            .child(Icon::new(icon).size(px(26.)))
+            .map(|d| match icon {
+                IconName::LoaderCircle => d.child(Spinner::new().icon(icon).with_size(px(26.))),
+                _ => d.child(Icon::new(icon).size(px(26.))),
+            })
             .child(
                 div()
                     .text_size(px(22.))
