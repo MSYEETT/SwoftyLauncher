@@ -8,6 +8,7 @@ use crate::ops::DbOp;
 use crate::{Error, Result, io_err};
 
 pub const MANIFEST_FILE: &str = "manifest.json";
+const ART_DIR: &str = ".art";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrackPackage {
@@ -167,6 +168,54 @@ pub fn unwrap_nested(zip_path: &Path, scratch: &Path) -> Result<Option<PathBuf>>
     Ok(found.then_some(dest))
 }
 
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct MapArt {
+    pub flag: Option<PathBuf>,
+    pub preview: Option<PathBuf>,
+}
+
+pub fn art(dir: &Path, pkg: &TrackPackage) -> MapArt {
+    let out = dir.join(ART_DIR);
+    if !out.is_dir() && std::fs::create_dir_all(&out).is_ok() {
+        extract_art(dir, pkg, &out).ok();
+    }
+    let file = |name: &str| Some(out.join(name)).filter(|p| p.is_file());
+    MapArt {
+        flag: file("flag.png"),
+        preview: file("preview.png"),
+    }
+}
+
+fn extract_art(dir: &Path, pkg: &TrackPackage, out: &Path) -> Result<()> {
+    let Some(images) = pkg.ui.as_ref().and_then(|u| u.images_file.as_ref()) else {
+        return Ok(());
+    };
+    let images: serde_json::Value = crate::read_json(&dir.join(images))?;
+    let wanted: Vec<(String, &str)> = [("flag_rectangle", "flag.png"), ("preview_small", "preview.png")]
+        .into_iter()
+        .filter_map(|(key, file)| Some((format!("{}.image", images["resources"][key].as_str()?), file)))
+        .collect();
+    let found = swofty_formats::erp::Erp::read_matching(&dir.join(&pkg.erp), |name| {
+        wanted.iter().any(|(w, _)| w == name)
+    })?;
+    for res in &found {
+        if let Some((_, file)) = wanted.iter().find(|(w, _)| *w == res.name) {
+            write_png(&out.join(file), &swofty_formats::texture::decode(res)?)?;
+        }
+    }
+    Ok(())
+}
+
+fn write_png(path: &Path, image: &swofty_formats::texture::Image) -> Result<()> {
+    let file = std::fs::File::create(path).map_err(io_err(path))?;
+    let mut png = png::Encoder::new(std::io::BufWriter::new(file), image.width, image.height);
+    png.set_color(png::ColorType::Rgba);
+    png.set_depth(png::BitDepth::Eight);
+    png.write_header()
+        .and_then(|mut w| w.write_image_data(&image.rgba))
+        .map_err(|e| Error::Map(format!("{}: {e}", path.display())))
+}
+
 pub fn extract_zip(zip_path: &Path, dest: &Path) -> Result<TrackPackage> {
     let pkg = read_zip_manifest(zip_path)?;
     let file = std::fs::File::open(zip_path).map_err(io_err(zip_path))?;
@@ -238,6 +287,54 @@ pub(crate) mod tests {
     fn rejects_escaping_paths() {
         let bad = OKAYAMA_LIKE.replace("testring.erp", "../x.erp");
         assert!(TrackPackage::parse(bad.as_bytes()).is_err());
+    }
+
+    #[test]
+    fn extracts_flag_art_from_the_erp() {
+        use swofty_formats::erp::{Erp, Fragment, HEADER_LEN, MAGIC, Resource};
+        let dir = std::env::temp_dir().join(format!("swofty-art-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("ui")).unwrap();
+        let pkg = TrackPackage::parse(OKAYAMA_LIKE.as_bytes()).unwrap();
+        std::fs::write(
+            dir.join("ui/images.json"),
+            r#"{ "resources": { "flag_rectangle": "eaid://ui/flag.tif" } }"#,
+        )
+        .unwrap();
+        let fragment = |raw: Vec<u8>| Fragment {
+            name: *b"temp",
+            offset: 0,
+            size: raw.len() as u64,
+            flags: 0,
+            compression: 0,
+            packed: raw.len() as u64,
+            raw,
+        };
+        let mut head = vec![0; 40];
+        for (at, v) in [(8, 0x46u32), (12, 4), (16, 4)] {
+            head[at..at + 4].copy_from_slice(&v.to_le_bytes());
+        }
+        let block = vec![
+            0x40, 0x20, 0x10, 0x02, 0xf9, 0xff, 0xff, 0xff, 0x01, 0, 0, 0, 0, 0, 0, 0,
+        ];
+        let mut header = [0; HEADER_LEN];
+        header[..4].copy_from_slice(MAGIC);
+        let mut erp = Erp {
+            header,
+            version: 3,
+            resources: vec![Resource {
+                name: "eaid://ui/flag.tif.image".into(),
+                kind: [0; 16],
+                unk: vec![0; 4],
+                fragments: vec![fragment(head), fragment(block)],
+                hash: [0; 16],
+            }],
+        };
+        std::fs::write(dir.join(&pkg.erp), erp.to_bytes()).unwrap();
+        let art = art(&dir, &pkg);
+        let flag = std::fs::read(art.flag.unwrap()).unwrap();
+        assert!(flag.starts_with(b"\x89PNG"));
+        assert_eq!(art.preview, None);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

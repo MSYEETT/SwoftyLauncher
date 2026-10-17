@@ -129,7 +129,12 @@ impl Store {
             std::fs::remove_dir_all(&dest).map_err(io_err(&dest))?;
         }
         std::fs::rename(&tmp, &dest).map_err(io_err(&dest))?;
+        map::art(&dest, &pkg);
         Ok(pkg)
+    }
+
+    pub fn map_art(&self, pkg: &TrackPackage) -> map::MapArt {
+        map::art(&self.maps_dir().join(&pkg.track_code), pkg)
     }
 
     pub fn remove_map(&self, code: &str) -> Result<()> {

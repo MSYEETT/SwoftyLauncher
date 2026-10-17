@@ -18,6 +18,7 @@ anyhow = "1"
 bcdec_rs = "0.2"
 clap = { version = "4", features = ["derive", "env"] }
 md-5 = "0.10"
+png = "0.18"
 semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
