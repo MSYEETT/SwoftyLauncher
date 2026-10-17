@@ -128,6 +128,7 @@ pub struct PlaceInput<'a> {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Placement {
+    pub dir: PathBuf,
     pub archive: String,
     pub groups: Vec<String>,
     pub replaced: BTreeMap<String, PathBuf>,
@@ -275,7 +276,10 @@ pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {
             input.pkg.erp
         )));
     }
-    let mut placement = Placement::default();
+    let mut placement = Placement {
+        dir: out.clone(),
+        ..Placement::default()
+    };
     let shipped: BTreeMap<String, PathBuf> = input
         .pkg
         .copy_directories

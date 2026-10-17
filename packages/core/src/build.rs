@@ -261,6 +261,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     if !ui_maps.is_empty() {
         hasher.update(ui_stamp(&ui_maps, &resolve)?);
     }
+    let mut caches = Vec::new();
     let mut session = store.session_settings(profile)?;
     session.set_maps(maps.iter().map(|(_, pkg)| pkg));
     let menus = loader_dir().is_some();
@@ -349,6 +350,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                 },
                 &store.root.join("cache/maps").join(&pkg.track_code),
             )?;
+            caches.push(placement.dir.clone());
             let at = match slot {
                 Some(slot) => format!("slot {slot}"),
                 None => placement.archive.clone(),
@@ -410,6 +412,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     }
     if !ui_maps.is_empty() {
         let ui = build_ui(&ui_maps, &resolve, &store.root.join("cache/menus"))?;
+        caches.push(ui.dir.clone());
         for (code, lists) in &ui.lists {
             built.lines.push(format!(
                 "{code}: menu pictures in {} list(s), minimap and track-select scenes",
@@ -437,6 +440,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         .collect();
     if !ers_maps.is_empty() {
         let ers = build_ers(&ers_maps, &game.dir, &resolve, &store.root.join("cache/ers"))?;
+        caches.extend(ers.dir.clone());
         built.lines.push(format!(
             "ers: {} handling file(s) in {} car archive(s) get the tracks' settings",
             ers.handling_files,
@@ -536,6 +540,18 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             "loader": built.plan.loader,
         });
         crate::write_json(&built.overlay.join(PLAN_FILE), &listing)?;
+    }
+    caches.push(built.overlay.clone());
+    caches.extend(
+        [&built.plan.data, &built.plan.added, &built.plan.loader]
+            .into_iter()
+            .flat_map(|m| m.values().cloned()),
+    );
+    let removed = crate::cache::prune(&store.root.join("cache"), profile, &caches);
+    if removed > 0 {
+        built
+            .lines
+            .push(format!("cache: {removed} stale build folder(s) removed"));
     }
     Ok(built)
 }

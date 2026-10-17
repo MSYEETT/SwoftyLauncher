@@ -32,6 +32,7 @@ pub struct ErsMap<'a> {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ErsBuild {
+    pub dir: Option<PathBuf>,
     pub replaced: BTreeMap<String, PathBuf>,
     pub handling_files: usize,
     pub notes: Vec<String>,
@@ -232,6 +233,7 @@ pub fn build_ers(
     }
     let archives = car_archives(game)?;
     let out = cache.join(stamp(maps, &archives, original)?);
+    build.dir = Some(out.clone());
     let done = out.join(".done");
     if !done.is_file() {
         let mut count = 0;

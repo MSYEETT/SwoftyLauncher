@@ -81,6 +81,7 @@ pub struct MapUi<'a> {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct UiBuild {
+    pub dir: PathBuf,
     pub replaced: BTreeMap<String, PathBuf>,
     pub lists: BTreeMap<String, BTreeSet<String>>,
     pub notes: Vec<String>,
@@ -457,6 +458,7 @@ pub fn build_ui(maps: &[MapUi], original: &dyn Fn(&str) -> PathBuf, cache: &Path
     let out = cache.join(stamp(maps, original)?);
     let (lists, notes) = plan_lists(maps, original)?;
     let mut build = UiBuild {
+        dir: out.clone(),
         lists: lists.clone(),
         notes,
         ..UiBuild::default()
