@@ -650,10 +650,27 @@ The build hook emits ops for each enabled mod, in profile order, with origin `te
 - The ops take the planner's routes ([section 3.4](#_3-4-deliveries)). Without the in-game loader, text ops wait and the build reports how many entries wait.
 - `erp.remove-resource` is not built yet. The hook leaves resource removals out and the build warns with their count.
 - Database records are written as raw `db.put-record` values from `diff/<build key>.db`. Archive and file sources are `{ "root": "data", "path": "library/<id>/files/<game path>" }`.
+- A write that repeats the value already in place, from an earlier mod, is left out.
+
+#### Shader archive carriers
+
+Simplified Studio packages carry a mod's textures and models in archives under `shader_package_2025/`, which the game loads at boot. No asset group the loader patches lists those archives, so an overlay targeting them is never read. This is built.
+
+- Resources a package adds to a shader archive are put into `2025_asset_groups/vfx_package/common.erp` instead. Its overlay loads with the boot groups that list that archive, before any car or UI group, as the shader archive would. Resources the package changes stay on the shader archive.
+- Team logo texture arrays carried in `ui_texture*` archives are merged across every enabled mod. Each `.texarray.image` starts from the game's own array, from the first of eight `ui_package` archives that holds it. Fragment 1 is split into the array's slices, and each mod's slices that differ from the game's go in, later mods winning. An array built for an older game, with fewer slices of the same format and size, merges over the slices it has. An array of another format is used whole, and the build warns. The result is written to `cache/addons/teamsimplified.mods/ui_textures.erp` and put into `2025_asset_groups/vfx_package/param_particles/systemstartup.erp`, so it loads as an overlay of its own with the boot group. Ported from the Simplified Launcher's `merge_resources.py` and the Team Editor's logo code.
+- Simplified Studio's `eaid://tools_package/` marker is left out.
+
+#### Text a package fills in
+
+Team rename packages point the team name records at keys of their own, such as `lng_team_ast_title_26`, and give every team a value: the renamed team's new name, and the game's text for the rest. Those values would undo another package's rename.
+
+- An added key whose text is the game's text of the key the stock record pointed at is a default, kept in the diff's `defaults`. English text counts too, since packages fill in untranslated names.
+- A changed translation whose text is the game's English text of the same key is left out.
+- Defaults go in once for each key no package renames, before every package's own changes. The diff has a `version`, and a cached diff of another version is computed again.
 
 ### 4.7 Conflicts
 
-- The section computes conflicts between enabled mods from their cached diffs, in profile order. A row shows `Overrides <n> in <mod>` when it wins and `<n> overridden by <mod>` when it loses. Its expanded body lists the targets under `CONFLICTS`: resource URIs with their archive, record keys in hex, text keys with their language, and files.
+- The section computes conflicts between enabled mods from their cached diffs, in profile order. A mod counts once for each target. Simplified Studio's marker and the logo texture arrays merged slice by slice are not targets. A row shows `Overrides <n> in <mod>` when it wins and `<n> overridden by <mod>` when it loses. Its expanded body lists the targets under `CONFLICTS`: resource URIs with their archive, record keys in hex, text keys with their language, and files.
 - The build reports conflicts with other addons and maps through the planner ([section 3.5](#_3-5-order-and-conflicts)).
 
 ### 4.8 Section

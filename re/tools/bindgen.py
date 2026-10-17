@@ -415,7 +415,7 @@ def main():
     gdir = os.path.join(a.include, 'game')
     for f in sorted(os.listdir(gdir)) if os.path.isdir(gdir) else []:
         p = os.path.join(gdir, f)
-        if f.endswith('.hpp') and p not in outputs:
+        if f.endswith('.hpp') and os.path.normpath(p) not in {os.path.normpath(k) for k in outputs}:
             stale.append(p)
             if not a.check:
                 os.remove(p)
