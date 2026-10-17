@@ -201,20 +201,6 @@ impl Shell {
             ),
             PlayState::Detecting => row.text_color(p.text_muted).child("Detecting F1 25…"),
             PlayState::Ready => {
-                let last = self.session.as_ref().and_then(|s| {
-                    let ended = s.ended?;
-                    Some(format!(
-                        "Last session ended {}{}",
-                        ago(game::now_secs() - ended),
-                        s.exit_code
-                            .map(|c| format!(" · exit code {c}"))
-                            .unwrap_or_default()
-                    ))
-                });
-                let route = match &self.install {
-                    Some(i) if i.via_steam => "launches via Steam",
-                    _ => "launches via Proton",
-                };
                 if rebuild {
                     return row.text_color(p.text_muted).child(dot(p.warning)).child(
                         div().min_w_0().truncate().child(format!(
@@ -224,13 +210,7 @@ impl Shell {
                         )),
                     );
                 }
-                row.text_color(p.text_muted)
-                    .child(dot(p.success))
-                    .child(div().min_w_0().truncate().child(match last {
-                        Some(l) => l,
-                        None if cfg!(windows) => "Ready".into(),
-                        None => format!("Ready · {route}"),
-                    }))
+                row
             }
         }
     }
