@@ -9,6 +9,7 @@ use crate::activation::ers::{ErsMap, build_ers};
 use crate::activation::place::{PlaceInput, SLOTS, place, slot_asset_group, slot_asset_root, slot_file};
 use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
 use crate::baseline::{Baseline, Objects, sha256_file};
+use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
 use crate::install::{Game, Plan};
 use crate::map::TrackPackage;
 use crate::ops::{DbOps, apply_db_ops};
@@ -250,12 +251,27 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             }
         }
     }
+    match loader_dir() {
+        Some(dir) => {
+            built.plan.loader = loader_files(&dir)?;
+            built.plan.registry_override = true;
+            built.lines.push(format!(
+                "loader: {} file(s) from {}",
+                built.plan.loader.len(),
+                dir.display()
+            ));
+        }
+        None => built.warnings.push(format!(
+            "{CORE_ID}: the in-game loader was not found (native/dist, loader/ beside the swofty command, or {LOADER_ENV}); the game starts without it"
+        )),
+    }
     if !built.plan.is_vanilla() {
         let listing = serde_json::json!({
             "profile": profile,
             "buildhash": built.buildhash,
             "replace": built.plan.data,
             "add": built.plan.added,
+            "loader": built.plan.loader,
         });
         crate::write_json(&built.overlay.join(PLAN_FILE), &listing)?;
     }

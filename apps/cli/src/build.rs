@@ -49,7 +49,7 @@ pub fn build(store: &Store, profile: &str, game: Option<PathBuf>) -> Result<Exit
 fn build_profile(store: &Store, profile: &str, g: &Game) -> Result<swofty_core::build::Built> {
     let mods = store.mods()?;
     let mut p = store.profile(profile)?;
-    let built = swofty_core::build::build(store, profile, g)?;
+    let mut built = swofty_core::build::build(store, profile, g)?;
     if p.is_vanilla() {
         return Ok(built);
     }
@@ -59,6 +59,9 @@ fn build_profile(store: &Store, profile: &str, g: &Game) -> Result<swofty_core::
         &settings,
         serde_json::to_vec_pretty(&store.session_settings(profile)?)?,
     )?;
+    if !built.plan.loader.is_empty() {
+        built.plan.loader.insert(SETTINGS_FILE.into(), settings);
+    }
     p.mark_built(&mods);
     store.save_profile(&p)?;
     Ok(built)
@@ -79,6 +82,9 @@ fn report(profile: &str, built: &swofty_core::build::Built) {
     println!("overlay {}: {}", built.buildhash, built.overlay.display());
     for rel in built.plan.data.keys() {
         println!("  replace {rel}");
+    }
+    for rel in built.plan.loader.keys() {
+        println!("  place {rel}");
     }
     let added = &built.plan.added;
     if !added.is_empty() {
