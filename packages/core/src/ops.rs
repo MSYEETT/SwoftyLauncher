@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
 use swofty_formats::gvdb::{Gvdb, Record, instance_count_path};
@@ -10,6 +10,8 @@ use crate::{Error, Result};
 #[serde(deny_unknown_fields)]
 pub struct DbOps {
     pub schema_version: u32,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub fields: BTreeMap<String, Vec<String>>,
     pub ops: Vec<DbOp>,
 }
 
@@ -90,6 +92,16 @@ pub enum ErpOp {
         source: String,
         target: String,
     },
+    PatchPkg {
+        erp: String,
+        resource: String,
+        #[serde(default)]
+        fragment: usize,
+        edits: Vec<PkgEdit>,
+    },
+    Warn {
+        message: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -163,6 +175,8 @@ pub enum PkgEdit {
     },
     CloneEntry {
         at: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        from: Option<PkgTarget>,
         src: String,
         #[serde(rename = "as")]
         name: String,
@@ -182,6 +196,19 @@ pub trait FieldNames {
 impl FieldNames for BTreeMap<String, Vec<String>> {
     fn fields(&self, table: &str, row: &str) -> Option<Vec<String>> {
         self.get(&format!("{table}.{row}")).cloned()
+    }
+}
+
+struct Schema<'a> {
+    file: &'a BTreeMap<String, Vec<String>>,
+    names: &'a dyn FieldNames,
+}
+
+impl FieldNames for Schema<'_> {
+    fn fields(&self, table: &str, row: &str) -> Option<Vec<String>> {
+        self.file
+            .fields(table, row)
+            .or_else(|| self.names.fields(table, row))
     }
 }
 
@@ -211,6 +238,45 @@ impl Row {
     }
 }
 
+struct Db<'a> {
+    gvdb: &'a mut Gvdb,
+    index: HashMap<u64, usize>,
+}
+
+impl<'a> Db<'a> {
+    fn new(gvdb: &'a mut Gvdb) -> Self {
+        let mut index = HashMap::with_capacity(gvdb.records.len());
+        for (i, r) in gvdb.records.iter().enumerate() {
+            index.entry(r.key).or_insert(i);
+        }
+        Self { gvdb, index }
+    }
+
+    fn get(&self, key: u64) -> Option<&Record> {
+        self.index.get(&key).map(|&i| &self.gvdb.records[i])
+    }
+
+    fn get_mut(&mut self, key: u64) -> Option<&mut Record> {
+        self.index.get(&key).map(|&i| &mut self.gvdb.records[i])
+    }
+
+    fn text(&self, key: u64) -> Option<String> {
+        self.get(key).map(|r| r.text().into_owned())
+    }
+
+    fn push(&mut self, record: Record) {
+        self.index.insert(record.key, self.gvdb.records.len());
+        self.gvdb.records.push(record);
+    }
+
+    fn instance_count(&self, table: &str, row: &str) -> Option<usize> {
+        self.text(fnv1a64(instance_count_path(table, row)))?
+            .trim()
+            .parse()
+            .ok()
+    }
+}
+
 fn parse_base(s: &str) -> Result<Base> {
     if let Some(hex) = s.strip_prefix('{') {
         let (hex, rest) = hex
@@ -235,10 +301,6 @@ fn row_name(base: &Base, idx: usize, row: &str) -> Base {
     }
 }
 
-fn text(db: &Gvdb, key: u64) -> Option<String> {
-    db.get_key(key).map(|r| r.text().into_owned())
-}
-
 fn split_table(path: &str) -> (&str, &str) {
     match path.rsplit_once('.') {
         Some((t, r)) if !t.starts_with('{') || t.contains('}') => (t, r),
@@ -246,7 +308,7 @@ fn split_table(path: &str) -> (&str, &str) {
     }
 }
 
-fn resolve_row(db: &Gvdb, select: &str) -> Result<Row> {
+fn resolve_row(db: &Db, select: &str) -> Result<Row> {
     let Some((path, filter)) = select.strip_suffix(']').and_then(|s| s.split_once('[')) else {
         return Ok(Row {
             base: parse_base(select)?,
@@ -270,8 +332,8 @@ fn resolve_row(db: &Gvdb, select: &str) -> Result<Row> {
         let candidate = Row {
             base: row_name(&base, idx, &row),
         };
-        match text(db, candidate.field("_metadata_")) {
-            Some(_) if text(db, candidate.field(field)).as_deref() == Some(want) => hits.push(candidate),
+        match db.text(candidate.field("_metadata_")) {
+            Some(_) if db.text(candidate.field(field)).as_deref() == Some(want) => hits.push(candidate),
             Some(_) => {}
             None if count.is_none() => break,
             None => {}
@@ -284,7 +346,7 @@ fn resolve_row(db: &Gvdb, select: &str) -> Result<Row> {
     }
 }
 
-fn resolve_value(db: &Gvdb, path: &str) -> Result<String> {
+fn resolve_value(db: &Db, path: &str) -> Result<String> {
     let (select, field) = match path.rfind(']') {
         Some(i) => (&path[..=i], path[i + 1..].trim_start_matches('.')),
         None => path
@@ -292,17 +354,27 @@ fn resolve_value(db: &Gvdb, path: &str) -> Result<String> {
             .ok_or_else(|| Error::Resolve(format!("bad path {path}")))?,
     };
     let row = resolve_row(db, select)?;
-    text(db, row.field(field)).ok_or_else(|| Error::Resolve(format!("{path}: no value")))
+    db.text(row.field(field))
+        .ok_or_else(|| Error::Resolve(format!("{path}: no value")))
 }
 
 pub fn apply_db_ops(db: &mut Gvdb, ops: &DbOps, names: &dyn FieldNames) -> Result<()> {
+    let schema = Schema {
+        file: &ops.fields,
+        names,
+    };
+    let mut db = Db::new(db);
     for op in &ops.ops {
-        apply_db_op(db, op, names)?;
+        apply(&mut db, op, &schema)?;
     }
     Ok(())
 }
 
 pub fn apply_db_op(db: &mut Gvdb, op: &DbOp, names: &dyn FieldNames) -> Result<()> {
+    apply(&mut Db::new(db), op, names)
+}
+
+fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<()> {
     match op {
         DbOp::Set {
             select,
@@ -326,12 +398,12 @@ pub fn apply_db_op(db: &mut Gvdb, op: &DbOp, names: &dyn FieldNames) -> Result<(
                 }
             };
             let key = resolve_row(db, select)?.field(field);
-            match db.records.iter_mut().find(|r| r.key == key) {
+            match db.get_mut(key) {
                 Some(r) => r.value = value.into_bytes(),
                 None if *create => {
                     let tag =
                         tag.ok_or_else(|| Error::Resolve(format!("{select}.{field}: create needs type")))?;
-                    db.records.push(Record {
+                    db.push(Record {
                         key,
                         tag,
                         value: value.into_bytes(),
@@ -362,24 +434,39 @@ pub fn apply_db_op(db: &mut Gvdb, op: &DbOp, names: &dyn FieldNames) -> Result<(
             let fields = names
                 .fields(table, row)
                 .ok_or_else(|| Error::Resolve(format!("{table}.{row}: field names unknown")))?;
+            if let Some(f) = set.keys().find(|f| !fields.contains(f)) {
+                return Err(Error::Resolve(format!("{table}.{row}: unknown field {f}")));
+            }
             let dst = Row {
                 base: Base::Path(format!("{table}.{row}_{n}")),
             };
+            let mut rows = Vec::with_capacity(fields.len());
             for field in &fields {
-                let Some(s) = db.get_key(src.field(field)).cloned() else {
-                    continue;
-                };
-                let value = set.get(field).map(|v| v.clone().into_bytes()).unwrap_or(s.value);
-                db.records.push(Record {
+                if db.get(dst.field(field)).is_some() {
+                    return Err(Error::Resolve(format!(
+                        "{table}.{row}_{n}.{field} already exists"
+                    )));
+                }
+                let s = db
+                    .get(src.field(field))
+                    .ok_or_else(|| Error::Resolve(format!("{from}: has no {field}")))?;
+                let value = set
+                    .get(field)
+                    .map(|v| v.clone().into_bytes())
+                    .unwrap_or_else(|| s.value.clone());
+                rows.push(Record {
                     key: dst.field(field),
                     tag: s.tag,
                     value,
                 });
             }
-            if let Some(f) = set.keys().find(|f| !fields.contains(f)) {
-                return Err(Error::Resolve(format!("{table}.{row}: unknown field {f}")));
+            for r in rows {
+                db.push(r);
             }
-            db.set(&count_path, (n + 1).to_string(), None)?;
+            let count = db
+                .get_mut(fnv1a64(&count_path))
+                .expect("instance_count read it above");
+            count.value = (n + 1).to_string().into_bytes();
             Ok(())
         }
         DbOp::RemoveRow { .. } | DbOp::ListAppend { .. } | DbOp::ListRemove { .. } => Err(Error::Resolve(
@@ -463,6 +550,56 @@ mod tests {
         );
         let bytes = db.to_bytes();
         assert_eq!(Gvdb::parse(&bytes).unwrap().to_bytes(), bytes);
+    }
+
+    #[test]
+    fn add_row_reads_field_names_from_the_file() {
+        let mut db = db();
+        let ops = ops(
+            r#"{"schema_version":1,"fields":{"entrants.teams.team":["_metadata_","stat_id"]},"ops":[
+            {"op":"add-row","table":"entrants.teams","from":"entrants.teams.team[_metadata_=mclaren_26]",
+            "set":{"_metadata_":"team12_26"}}]}"#,
+        );
+        apply_db_ops(&mut db, &ops, &BTreeMap::new()).unwrap();
+        assert_eq!(db.instance_count("entrants.teams", "team"), Some(3));
+        assert_eq!(
+            db.get_text("entrants.teams.team_2.stat_id").as_deref(),
+            Some("100")
+        );
+        assert!(db.get("entrants.teams.team_2.display_name_code").is_none());
+    }
+
+    #[test]
+    fn add_row_needs_every_field_on_the_source_and_a_free_row() {
+        let mut db = db();
+        let missing = ops(
+            r#"{"schema_version":1,"fields":{"entrants.teams.team":["_metadata_","nope"]},"ops":[
+            {"op":"add-row","table":"entrants.teams","from":"entrants.teams.team_0"}]}"#,
+        );
+        let err = apply_db_ops(&mut db, &missing, &BTreeMap::new()).unwrap_err();
+        assert!(err.to_string().contains("has no nope"), "{err}");
+        assert_eq!(db.instance_count("entrants.teams", "team"), Some(2));
+        db.records
+            .push(Record::new("entrants.teams.team_2._metadata_", 4, "stale"));
+        let taken = ops(
+            r#"{"schema_version":1,"ops":[{"op":"add-row","table":"entrants.teams","from":"entrants.teams.team_0"}]}"#,
+        );
+        let err = apply_db_ops(&mut db, &taken, &names()).unwrap_err();
+        assert!(err.to_string().contains("already exists"), "{err}");
+    }
+
+    #[test]
+    fn erp_ops_parse_patch_pkg_and_warn() {
+        let ops: ErpOps = serde_json::from_str(
+            r#"{"schema_version":1,"ops":[
+            {"op":"patch-pkg","erp":"a.erp","resource":"eaid://x.layer","edits":[
+              {"op":"clone-entry","at":"instances","from":{"erp":"b.erp","resource":"eaid://y.layer"},
+               "src":"[name=y$A]","as":"x$B","set":{"overrides.VehPlacement.Id":25}}]},
+            {"op":"warn","message":"Imola has room for 26 cars"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(ops.ops.len(), 2);
+        assert!(serde_json::from_str::<ErpOps>(r#"{"schema_version":1,"ops":[{"op":"warn"}]}"#).is_err());
     }
 
     #[test]

@@ -34,13 +34,13 @@ A direct launch writes the wrapper's output to `$DATA/state/wrapper-run.log`. If
 
 `swofty build [--profile <name>]` prepares the profile's database and map files without starting the game. Output goes to `$DATA/cache/overlay/<profile>/<buildhash>/`, with the session settings file in `swofty/settings.json` and `plan.json`, the list of game files to replace and add with their sources. Map archives, menu archives and car handling files are built in `$DATA/cache/maps`, `$DATA/cache/menus` and `$DATA/cache/ers`.
 
-Mod ERP, UI and loose-file operations are currently skipped.
+It also builds mod ERP files that use only `patch-pkg` and `warn`, and prints their warnings. Other mod ERP, UI and loose-file operations are currently skipped.
 
 When the game exits, `swofty run` merges the settings changed in game into the profile. After **APPLY & RESTART** it rebuilds the profile and starts the game again.
 
 ## `swofty apply`
 
-`swofty apply [--profile <name>] [--game <dir>]` builds the profile and installs it into the game folder: the database, the enabled maps, their menu entries, the cars' ERS settings, and the [in-game loader](/reference/launch#in-game-loader) with the session's `swofty/settings.json`. Every change goes through the journal. `swofty restore` or `swofty --profile vanilla apply` removes it. Close the game first.
+`swofty apply [--profile <name>] [--game <dir>]` builds the profile and installs it into the game folder: the database, the archives mods patch, the enabled maps, their menu entries, the cars' ERS settings, and the [in-game loader](/reference/launch#in-game-loader) with the session's `swofty/settings.json`. Every change goes through the journal. `swofty restore` or `swofty --profile vanilla apply` removes it. Close the game first.
 
 ## `swofty verify`
 

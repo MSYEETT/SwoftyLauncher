@@ -29,6 +29,21 @@ Values are strings. Write arrays as comma-separated values, such as `"0,-0.6,0"`
 
 For `set`, use `create: true` and a `type` tag to add a missing field. `value_from` copies a value from another database path.
 
+`add-row` copies the fields listed for the table in the file's `fields` map, keyed by table and row name. Every listed field must exist on the source row:
+
+```json
+{
+  "schema_version": 1,
+  "fields": { "entrants.teams.team": ["_metadata_", "stat_id", "display_name_code"] },
+  "ops": [
+    { "op": "add-row", "table": "entrants.teams", "from": "entrants.teams.team[_metadata_=williams_26]",
+      "set": { "_metadata_": "team12_26", "stat_id": "500", "display_name_code": "T12" } }
+  ]
+}
+```
+
+List every field of the row, including nested ones such as `ai_vehicle_config.*` on vehicles. A row missing a field the game reads crashes the game.
+
 ## Selecting rows
 
 A selector names a row or finds it by a field:

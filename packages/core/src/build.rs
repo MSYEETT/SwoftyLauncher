@@ -10,10 +10,12 @@ use crate::activation::place::{PlaceInput, SLOTS, place, slot_asset_group, slot_
 use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
 use crate::baseline::{Baseline, Objects, sha256_file};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
+use crate::erpbuild::{ErpBuild, unsupported};
 use crate::install::{Game, LOADER_DIR, Plan};
 use crate::manifest::ModManifest;
 use crate::map::TrackPackage;
-use crate::ops::{DbOps, apply_db_ops};
+use crate::ops::{DbOps, ErpOps, apply_db_ops};
+use crate::profile::Profile;
 use crate::resolver::resolve;
 use crate::settings::{render_ops, screen_file, screens};
 use crate::store::Store;
@@ -70,6 +72,23 @@ pub fn screen_files(order: &[&ModManifest], mods_dir: &Path) -> Result<BTreeMap<
         .collect())
 }
 
+fn render_file<T: serde::de::DeserializeOwned>(
+    path: &Path,
+    m: &ModManifest,
+    p: &Profile,
+    hasher: &mut Sha256,
+) -> Result<T> {
+    let json = |source| Error::Json {
+        path: path.to_owned(),
+        source,
+    };
+    let raw = std::fs::read(path).map_err(io_err(path))?;
+    let mut doc: serde_json::Value = serde_json::from_slice(&raw).map_err(json)?;
+    render_ops(&mut doc, m, p)?;
+    hasher.update(serde_json::to_vec(&doc).expect("serialisable"));
+    serde_json::from_value(doc).map_err(json)
+}
+
 pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     let mods = store.mods()?;
     let p = store.profile(profile)?;
@@ -89,33 +108,35 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     }
     let mut hasher = Sha256::new();
     let mut db_ops = Vec::new();
+    let mut erp_ops = Vec::new();
     for id in &resolved.order {
         let m = &mods[id];
         hasher.update(format!("{id}@{};", m.version));
         let dir = store.mods_dir().join(id);
         for rel in &m.operations.database {
-            let path = dir.join(rel);
-            let raw = std::fs::read(&path).map_err(io_err(&path))?;
-            let mut doc: serde_json::Value = serde_json::from_slice(&raw).map_err(|source| Error::Json {
-                path: path.clone(),
-                source,
-            })?;
-            render_ops(&mut doc, m, &p)?;
-            hasher.update(serde_json::to_vec(&doc).expect("serialisable"));
-            let ops: DbOps = serde_json::from_value(doc).map_err(|source| Error::Json {
-                path: path.clone(),
-                source,
-            })?;
+            let ops: DbOps = render_file(&dir.join(rel), m, &p, &mut hasher)?;
             db_ops.push((id.clone(), ops));
+        }
+        let mut erps = Vec::new();
+        for rel in &m.operations.erp {
+            let ops: ErpOps = render_file(&dir.join(rel), m, &p, &mut hasher)?;
+            erps.push(ops);
+        }
+        match erps.iter().find_map(unsupported) {
+            Some(op) => built
+                .warnings
+                .push(format!("{id}: ERP operations skipped; {op} is not built yet")),
+            None if !erps.is_empty() => erp_ops.push((id.clone(), erps)),
+            None => {}
         }
         for s in &m.operations.screens {
             let path = dir.join(&s.file);
             hasher.update(std::fs::read(&path).map_err(io_err(&path))?);
         }
-        let pending = m.operations.erp.len() + m.operations.ui.len() + m.operations.files.len();
+        let pending = m.operations.ui.len() + m.operations.files.len();
         if pending > 0 {
             built.warnings.push(format!(
-                "{id}: {pending} ERP/UI/file operation file(s) skipped; that stage is not built yet"
+                "{id}: {pending} UI/file operation file(s) skipped; that stage is not built yet"
             ));
         }
     }
@@ -161,7 +182,8 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         .warnings
         .extend(ui_notes.into_iter().map(|n| format!("menus: {n}")));
     if !maps.is_empty() || !db_ops.is_empty() {
-        let mut db = Gvdb::parse(&std::fs::read(&db_src).map_err(io_err(&db_src))?)?;
+        let shipped = std::fs::read(&db_src).map_err(io_err(&db_src))?;
+        let mut db = Gvdb::parse(&shipped)?;
         for ((_, pkg), slot) in maps.iter().zip(SLOTS) {
             let group = slot_asset_group(slot);
             let root = slot_asset_root();
@@ -184,11 +206,16 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         for (id, ops) in &db_ops {
             apply_db_ops(&mut db, ops, &names).map_err(|e| Error::Other(format!("applying {id}: {e}")))?;
         }
-        let out = built.overlay.join(GVDB);
-        let dir = out.parent().expect("has parent");
-        std::fs::create_dir_all(dir).map_err(io_err(dir))?;
-        std::fs::write(&out, db.to_bytes()).map_err(io_err(&out))?;
-        built.plan.data.insert(GVDB.into(), out);
+        let bytes = db.to_bytes();
+        if bytes == shipped {
+            built.lines.push("database: unchanged".into());
+        } else {
+            let out = built.overlay.join(GVDB);
+            let dir = out.parent().expect("has parent");
+            std::fs::create_dir_all(dir).map_err(io_err(dir))?;
+            std::fs::write(&out, bytes).map_err(io_err(&out))?;
+            built.plan.data.insert(GVDB.into(), out);
+        }
         for ((dir, pkg), slot) in maps.iter().zip(SLOTS) {
             let slot_original = original(&store.root, game, &slot_file(slot));
             let placement = place(
@@ -265,6 +292,25 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         for (rel, src) in ers.replaced {
             if built.plan.data.insert(rel.clone(), src).is_some() {
                 return Err(Error::Map(format!("{rel} is replaced twice")));
+            }
+        }
+    }
+    if !erp_ops.is_empty() {
+        let mut erps = ErpBuild::new(&resolve);
+        for (id, files) in &erp_ops {
+            let seen = erps.warnings.len();
+            for ops in files {
+                erps.apply(ops)
+                    .map_err(|e| Error::Other(format!("applying {id}: {e}")))?;
+            }
+            built
+                .warnings
+                .extend(erps.warnings[seen..].iter().map(|w| format!("{id}: {w}")));
+        }
+        for rel in erps.write(&built.overlay)? {
+            let src = built.overlay.join(&rel);
+            if built.plan.data.insert(rel.clone(), src).is_some() {
+                return Err(Error::Other(format!("{rel} is replaced twice")));
             }
         }
     }

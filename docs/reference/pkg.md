@@ -11,6 +11,7 @@ For mod changes, see [UI patches](/modding/ui-patches).
 | `.ui` | Screens, labels, buttons and their events |
 | `.uidb` | Values used by the menus, including input prompts |
 | `.uir` | Routes that open and close screens |
+| `.layer` | Objects placed in a track world, such as grid slots, garages and pit boxes |
 
 Screens contain named nodes. References connect nodes to events, actions and layout entries.
 
@@ -21,3 +22,5 @@ Screens contain named nodes. References connect nodes to events, actions and lay
 - `packages/formats/src/pkg.rs`: Rust format support.
 
 Writers must keep key order, value alignment and node references valid. Unchanged resources should write back with identical bytes.
+
+Value tables are aligned by type: 16 bytes for `vec3`, `vec4`, `quat`, `woid`, `shnm` and `mat4`, 32 for `bbox`, 8 for 64-bit integers and 4 for the rest.

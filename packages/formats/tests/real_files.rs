@@ -133,6 +133,36 @@ fn pkg_round_trip_is_byte_identical() {
 }
 
 #[test]
+fn track_layers_round_trip_byte_identically() {
+    let Some(dir) = game_dir() else { return };
+    let tracks = dir.join("2025_asset_groups/environment_package/tracks");
+    let Ok(entries) = std::fs::read_dir(&tracks) else {
+        eprintln!("no tracks under F1_25_DIR; skipping");
+        return;
+    };
+    let mut checked = 0;
+    for entry in entries.flatten() {
+        let track = entry.file_name().to_string_lossy().into_owned();
+        let path = entry.path().join(format!("wep/{track}_f1_26_myteam.erp"));
+        if !path.is_file() {
+            continue;
+        }
+        let layers = Erp::read_matching(&path, |n| n.ends_with(".layer")).unwrap();
+        for res in &layers {
+            let body = res.fragments[0].data().unwrap();
+            let pkg = Pkg::parse(&body).unwrap_or_else(|e| panic!("{track}: {}: {e}", res.name));
+            assert!(
+                pkg.to_bytes().unwrap() == body,
+                "{track}: {}: !pkg round trip differs",
+                res.name
+            );
+            checked += 1;
+        }
+    }
+    eprintln!("{checked} track layers round-tripped");
+}
+
+#[test]
 fn zstd_recompression_matches_the_cli() {
     let Some(dir) = game_dir() else { return };
     let rel = "2025_asset_groups/ui_package/screens/fe_home.erp";

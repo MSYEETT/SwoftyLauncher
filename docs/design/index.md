@@ -63,7 +63,7 @@ The settings page has a section per mod, built each session from the mods' optio
 The repository is pre-release:
 
 - Mod installation, profiles, map import and command-line logs are implemented.
-- Database operations can be built. Mod ERP, UI and loose-file build steps are skipped.
+- Database operations and `!pkg` edits in archives can be built. Other mod ERP, UI and loose-file build steps are skipped.
 - Enabled maps are activated: database rows, track archive, menu art, minimap and ERS. `swofty apply` installs them through the journal. Neither has been tested in game yet.
 - Backup and restore code has tests for interrupted changes and game updates.
 - The native menu entry is tested with a test executable under Wine. It currently opens the game's Settings page.

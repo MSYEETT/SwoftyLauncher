@@ -2,7 +2,7 @@ import struct, sys, json, base64
 
 ALIGN = {'stri': 4, 'bool': 4, 'ui08': 4, 'ui16': 4, 'ui32': 4, 'si32': 4, 'fp32': 4, 'rgba': 4,
          'ui64': 8, 'si64': 8, 'vec3': 16, 'vec4': 16, 'quat': 16, 'woid': 16, 'shnm': 16,
-         'bbox': 32, 'mat4': 64}
+         'bbox': 32, 'mat4': 16}
 
 
 def fnv1a32(b):

@@ -13,9 +13,8 @@ const OFFSET_MASK: u32 = 0x00ff_ffff;
 fn align_of(ty: &Tag) -> usize {
     match ty {
         b"ui64" | b"si64" => 8,
-        b"vec3" | b"vec4" | b"quat" | b"woid" | b"shnm" => 16,
+        b"vec3" | b"vec4" | b"quat" | b"woid" | b"shnm" | b"mat4" => 16,
         b"bbox" => 32,
-        b"mat4" => 64,
         _ => 4,
     }
 }

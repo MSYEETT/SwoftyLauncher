@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use swofty_core::manifest::ModManifest;
 use swofty_core::ops::{DbOps, apply_db_ops};
+use swofty_core::profile::Profile;
+use swofty_core::settings::render_ops;
 use swofty_formats::gvdb::Gvdb;
 
 #[test]
@@ -15,8 +18,12 @@ fn template_db_ops_resolve_against_the_real_database() {
         return;
     };
     let mut db = Gvdb::parse(&data).unwrap();
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../templates/mod/db/example.json");
-    let ops: DbOps = serde_json::from_slice(&std::fs::read(root).unwrap()).unwrap();
+    let template = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../templates/mod");
+    let m = ModManifest::load(&template).unwrap();
+    let mut doc: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(template.join("db/example.json")).unwrap()).unwrap();
+    render_ops(&mut doc, &m, &Profile::new("test")).unwrap();
+    let ops: DbOps = serde_json::from_value(doc).unwrap();
     apply_db_ops(&mut db, &ops, &BTreeMap::<String, Vec<String>>::new()).unwrap();
     assert_eq!(
         db.get_text("rules.stop_go_penalty.penalty_duration").as_deref(),
