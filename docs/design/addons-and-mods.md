@@ -559,7 +559,7 @@ Result overlay_file(std::string_view game_path, std::string_view file);
 ### 4.1 The addon
 
 - The crate `addons/simplified` (`swofty-addon-simplified`) is Rust and AGPL-3.0-or-later, like the rest of the repository. Its `mod.serps` reader, package root, content root and entry path checks are ported from the Simplified Launcher (GPL-3.0, used with Team Simplified's permission) and carry the Simplified Suite notice. `THIRD_PARTY.md` credits Team Simplified for the `.serps` format and the Simplified Suite, and the Mods section shows the credit.
-- Import, the library, profile state, the section and `swofty mods` are built (work item 13), and so are the diffs (work item 14). The merge and conflicts are not: until they are, mods do not reach the game.
+- Import, the library, profile state, the section and `swofty mods` are built (work item 13), and so are the diffs (work item 14), the merge and conflicts (work item 15).
 - Manifest: id `teamsimplified.mods`, name `Team Simplified`, author `Team Simplified`. No options and no native plugin.
 - Built in and on by default in new profiles. It can be turned off per profile.
 - It uses `swofty-addon` and `swofty-formats` only. Core has no code for it.
@@ -645,11 +645,13 @@ The build hook emits ops for each enabled mod, in profile order, with origin `te
 
 - The planner applies them after map activation and earlier addons. A package's database changes touch only the records it changed, and archives merge per resource.
 - A special livery row a package adds is reported as owned through `owned_items` ([section 3.4](#_3-4-deliveries)), and the livery appears in the picker.
-- Database, archive and file ops take the build route today. Text ops wait for the runtime text delivery, and the build reports how many entries wait.
+- The ops take the planner's routes ([section 3.4](#_3-4-deliveries)). Without the in-game loader, text ops wait and the build reports how many entries wait.
+- `erp.remove-resource` is not built yet. The hook leaves resource removals out and the build warns with their count.
+- Database records are written as raw `db.put-record` values from `diff/<build key>.db`. Archive and file sources are `{ "root": "data", "path": "library/<id>/files/<game path>" }`.
 
 ### 4.7 Conflicts
 
-- The section computes conflicts between enabled mods from their cached diffs, in profile order. A row shows `Overrides <n> in <mod>` when it wins and `<n> overridden by <mod>` when it loses. Its expanded body lists the targets: resource URIs, record keys (named from the catalogue when known), text keys and files.
+- The section computes conflicts between enabled mods from their cached diffs, in profile order. A row shows `Overrides <n> in <mod>` when it wins and `<n> overridden by <mod>` when it loses. Its expanded body lists the targets under `CONFLICTS`: resource URIs with their archive, record keys in hex, text keys with their language, and files.
 - The build reports conflicts with other addons and maps through the planner ([section 3.5](#_3-5-order-and-conflicts)).
 
 ### 4.8 Section
@@ -657,7 +659,7 @@ The build hook emits ops for each enabled mod, in profile order, with origin `te
 The sidebar entry `Mods` comes after `Addons`, with the library size as its count.
 
 - **Header.** Title `Mods`. Subtitle `<n> in library · <k> on in <profile> · lower in the list wins`. Action `Import…`, a picker for `.serps` and `.zip` files and folders, several at once.
-- **Notices.** The addon is off in this profile (button `Turn on`). The vanilla profile is active. Mods are not compared with the installed game build yet (button `Compare`). Text entries are waiting for runtime support.
+- **Notices.** The addon is off in this profile (button `Turn on`). The vanilla profile is active. Mods are not compared with the installed game build yet (button `Compare`).
 - **Rows.** Reorderable, in load order. Title from `mod.serps`, subtitle `<author> · <version>`, tags `Database`, `Text`, `<n> archives`, `<n> files`, conflict tags and `Made for <game_version>` when it differs from the game. A switch turns the mod on in the profile.
 - **Expanded row.** Stats: status, version, author, made for, Studio version, size, imported. `WHAT IT CHANGES`: records changed, added and removed; text entries by language; resources by archive; files. `CONFLICTS`. Buttons: Move up, Move down, Show files, and Remove from library with a confirmation.
 - **Empty.** `No mods yet`, `Import a .serps package, a zip or a folder that holds an F1 25 folder.` and `Import…`.
