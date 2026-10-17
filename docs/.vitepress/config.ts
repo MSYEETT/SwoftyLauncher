@@ -1,7 +1,7 @@
 import { defineConfig } from "vitepress";
 
 const repo = "https://github.com/Swofty-Developments/F1ModManager";
-const base = process.env.DOCS_BASE ?? "/F1ModManager/";
+const base = process.env.DOCS_BASE ?? "/";
 
 export default defineConfig({
   title: "F1 Mod Manager",

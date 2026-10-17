@@ -13,7 +13,7 @@ A desktop app for modding F1 25 on Windows and Linux through Steam and Proton.
 
 ## Install
 
-Follow the [installation guide](https://swofty-developments.github.io/F1ModManager/guide/installation).
+Follow the [installation guide](https://f1.swofty.net/guide/installation).
 
 ## Supported platforms
 
@@ -35,7 +35,7 @@ pnpm install
 pnpm docs:dev
 ```
 
-See the [development guide](https://swofty-developments.github.io/F1ModManager/reference/development) for build details.
+See the [development guide](https://f1.swofty.net/reference/development) for build details.
 
 ## Licence
 
