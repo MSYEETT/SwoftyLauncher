@@ -28,6 +28,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## Geode website
+
+The homepage in `docs/.vitepress/theme/components/Landing.vue` and `docs/.vitepress/theme/styles/landing.css` follows the look of <https://geode-sdk.org/>. It is written from scratch and contains no code or CSS from the Geode website.
+
 ## Fonts
 
 The site loads Open Sans, Poppins, Quicksand, Source Code Pro and Varela Round from Google Fonts. They use the SIL Open Font License 1.1.
