@@ -338,6 +338,19 @@ pub fn heal_stale_backup(game: &Path, journal: &Path) -> Result<Vec<String>> {
         }
         std::fs::remove_file(journal).map_err(io_err(journal))?;
     }
+    notes.extend(heal_launcher(game)?);
+    // A hook left in the loader's slot is ours: the journal is what normally
+    // owns it, and staging cannot drop the new one while it is there.
+    let hook = game.join("swofty/mods/core/f1op_hook.dll");
+    if hook.exists() {
+        std::fs::remove_file(&hook).map_err(io_err(&hook))?;
+        notes.push("removed a stale hook from a previous session".into());
+    }
+    Ok(notes)
+}
+
+fn heal_launcher(game: &Path) -> Result<Vec<String>> {
+    let mut notes = Vec::new();
     let launcher = game.join("EAAntiCheat.GameServiceLauncher.exe");
     let parked = game.join("EAAntiCheat.GameServiceLauncher.exe.bak");
     if !parked.exists() {
@@ -607,9 +620,14 @@ mod tests {
         let launcher = game.join("EAAntiCheat.GameServiceLauncher.exe");
         std::fs::write(&launcher, "stub").unwrap();
         std::fs::write(game.join("EAAntiCheat.GameServiceLauncher.exe.bak"), "original").unwrap();
+        let hook = game.join("swofty/mods/core/f1op_hook.dll");
+        std::fs::create_dir_all(hook.parent().unwrap()).unwrap();
+        std::fs::write(&hook, "stale hook").unwrap();
 
         let journal = d.join("state/offline/staging.jsonl");
         let notes = heal_stale_backup(&game, &journal).unwrap();
+        assert!(!hook.exists(), "the stale hook is swept");
+        assert!(notes.iter().any(|n| n.contains("stale hook")), "{notes:?}");
         assert_eq!(std::fs::read_to_string(&launcher).unwrap(), "original");
         assert!(!game.join("EAAntiCheat.GameServiceLauncher.exe.bak").exists());
         let kept = std::fs::read_dir(game.join("swofty/offline-recovery"))
