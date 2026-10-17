@@ -2,7 +2,7 @@
 
 ERP operations describe changes to artwork and other resources in `.erp` archives. List these files in `operations.erp` in your [manifest](/modding/manifest).
 
-`swofty build` applies `patch-pkg`, `copy-resource` and `warn`. An addon whose ERP files use any other operation has its ERP files skipped.
+`swofty build` applies `patch-pkg`, `copy-resource`, `put-resource` and `warn`. An addon whose ERP files use any other operation has its ERP files skipped.
 
 ## Example
 
@@ -36,6 +36,7 @@ python3 tools/erp.py <archive> '*'
 | `replace-resource` | `erp`, `resource`, `fragment`, `source` | Replace one part of a resource; `fragment` defaults to 0 |
 | `add-resource` | `erp`, `resource`, `type`, `sources` | Add a resource, with one source file per part |
 | `copy-resource` | `from_erp` or `source`, `erp`, `resource`, optional `as` | Copy a resource between archives |
+| `put-resource` | `erp`, `resource`, `source`, optional `as` | Copy a resource from an archive in the addon, replacing a resource of the same name or adding it |
 | `remove-resource` | `erp`, `resource` | Remove a resource |
 | `add-mipmaps` | `source`, `target` | Copy texture files to a game-relative path |
 | `patch-pkg` | `erp`, `resource`, `fragment`, `edits` | Run `clone-entry` and `set-value` edits on a `!pkg` resource |

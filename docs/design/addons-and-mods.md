@@ -281,7 +281,7 @@ Every API type serialises and every call is a request and a response. A later ho
 | `file.put` | `source`, `target` | Replace or add a loose game file |
 | `warn` | `message` | Print a message at build |
 
-Every op takes `when` and `{{id}}` placeholders, as database ops do. `source` paths are relative to the addon folder. The ops and `operations.assets` are built. Until the planner, the build applies `db`, `erp` and `warn` ops as before and skips `group`, `lang` and `file` ops with a warning.
+Every op takes `when` and `{{id}}` placeholders, as database ops do. `source` paths are relative to the addon folder. The ops, `operations.assets` and the planner are built (`packages/core/src/planner.rs`).
 
 ### 3.2 Manifest
 
@@ -405,6 +405,8 @@ pub enum Target {
 | `db` | `ops.rs` rewrites `gamedatabases.2025.bin` | `gamedb.cpp`: edits applied when the database loads, with the early stage from `stage.cpp` | Wine only (T014) | Build |
 | `lang` | none: the game reads `.lng` only from its packed archive | `overlay.cpp`: partial string tables added after the stock table | Wine only (T015) | Waiting |
 | `file` | journaled copy into the game folder | `overlay.cpp`: file system overlay from `swofty/overlay/` | Wine only (T016) | Build |
+
+The launcher has no runtime delivery yet, so `group` and `lang` ops wait and `erp`, `db` and `file` take the build route. Each runtime delivery adds its kind to `RUNTIME_DELIVERIES` in `planner.rs`.
 
 Routing per kind:
 

@@ -34,7 +34,7 @@ A direct launch writes the wrapper's output to `$DATA/state/wrapper-run.log`. If
 
 `swofty build [--profile <name>]` prepares the profile's database and map files without starting the game. Output goes to `$DATA/cache/overlay/<profile>/<buildhash>/`, with the session settings file in `swofty/settings.json` and `plan.json`, the list of game files to replace and add with their sources. Map archives, menu archives and car handling files are built in `$DATA/cache/maps`, `$DATA/cache/menus` and `$DATA/cache/ers`.
 
-It also builds addon ERP files that use only `patch-pkg`, `copy-resource` and `warn`, and prints their warnings. Addon ERP operations apply on top of the archives the map stages built. Other addon ERP, UI and loose-file operations are currently skipped.
+It also builds addon ERP files that use only `patch-pkg`, `copy-resource`, `put-resource` and `warn`, and prints their warnings. Addon ERP operations apply on top of the archives the map stages built. `file.put` operations and `operations.files` entries replace or add loose game files. Other addon ERP and UI operations are currently skipped. `group` and `lang` operations wait for runtime support in `swofty_core`, and the build lists them. The build also lists each conflict: a target that a later addon replaced after an earlier one wrote it.
 
 When the game exits, `swofty run` merges the settings changed in game into the profile. After **APPLY & RESTART** it rebuilds the profile and starts the game again.
 

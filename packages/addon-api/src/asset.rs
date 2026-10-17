@@ -9,6 +9,28 @@ use crate::manifest::{Operations, relative_inside};
 use crate::ops::{DbOp, ErpOp};
 use crate::{Error, Result};
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum Kind {
+    Group,
+    Erp,
+    Db,
+    Lang,
+    File,
+}
+
+impl std::fmt::Display for Kind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Kind::Group => "group",
+            Kind::Erp => "erp",
+            Kind::Db => "db",
+            Kind::Lang => "lang",
+            Kind::File => "file",
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum AssetOp {
     Group(GroupOp),
@@ -53,6 +75,34 @@ pub enum LangOp {
 #[serde(tag = "op", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum FileOp {
     Put { source: Source, target: String },
+}
+
+impl AssetOp {
+    pub fn kind(&self) -> Option<Kind> {
+        match self {
+            AssetOp::Group(_) => Some(Kind::Group),
+            AssetOp::Erp(_) => Some(Kind::Erp),
+            AssetOp::Db(_) => Some(Kind::Db),
+            AssetOp::Lang(_) => Some(Kind::Lang),
+            AssetOp::File(_) => Some(Kind::File),
+            AssetOp::Warn { .. } => None,
+        }
+    }
+
+    pub fn sources(&self) -> Vec<&Source> {
+        match self {
+            AssetOp::Erp(
+                ErpOp::ReplaceResource { source, .. }
+                | ErpOp::PutResource { source, .. }
+                | ErpOp::AddMipmaps { source, .. },
+            )
+            | AssetOp::Lang(LangOp::Table { source, .. })
+            | AssetOp::File(FileOp::Put { source, .. }) => vec![source],
+            AssetOp::Erp(ErpOp::AddResource { sources, .. }) => sources.iter().collect(),
+            AssetOp::Erp(ErpOp::CopyResource { source, .. }) => source.iter().collect(),
+            _ => Vec::new(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -118,6 +168,15 @@ pub struct Origin {
     pub addon: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub item: Option<String>,
+}
+
+impl std::fmt::Display for Origin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.item {
+            Some(item) => write!(f, "{} ({item})", self.addon),
+            None => f.write_str(&self.addon),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -291,6 +350,24 @@ mod tests {
         let again = OpFile::from_value(serde_json::to_value(&file).unwrap(), FileKind::Assets).unwrap();
         assert_eq!(again, file);
         assert_eq!(serde_json::to_value(&file.ops[3]).unwrap(), doc["ops"][3]);
+        let kinds: Vec<Option<Kind>> = file.ops.iter().map(AssetOp::kind).collect();
+        assert_eq!(
+            kinds[..4],
+            [
+                Some(Kind::Erp),
+                Some(Kind::Db),
+                Some(Kind::Lang),
+                Some(Kind::File)
+            ]
+        );
+        assert_eq!(kinds[8], None);
+        let sources: Vec<&str> = file
+            .ops
+            .iter()
+            .flat_map(AssetOp::sources)
+            .map(|s| s.path.as_str())
+            .collect();
+        assert_eq!(sources, ["erp/car.erp", "files/sponsor.dds", "lang/eng.lng"]);
     }
 
     #[test]
