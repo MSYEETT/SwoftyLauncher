@@ -26,6 +26,8 @@ pub struct AddonManifest {
     pub license: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub homepage: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub kind: Vec<Kind>,
     pub compat: Compat,
@@ -329,7 +331,8 @@ impl AddonManifest {
                     .flat_map(|n| std::iter::once(&n.dll).chain(&n.files)),
             )
             .chain(self.operations.screens.iter().map(|s| &s.file))
-            .chain(self.launcher.iter().flat_map(|l| l.program.values()));
+            .chain(self.launcher.iter().flat_map(|l| l.program.values()))
+            .chain(&self.icon);
         if let Some(p) = paths.into_iter().find(|p| !relative_inside(p)) {
             return fail(format!("{p} must be a relative path inside the addon"));
         }

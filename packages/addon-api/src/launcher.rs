@@ -13,6 +13,10 @@ use crate::{Error, Result};
 pub trait Addon: Send + Sync {
     fn manifest(&self) -> &AddonManifest;
 
+    fn icon(&self) -> Option<&'static [u8]> {
+        None
+    }
+
     fn sections(&self) -> Vec<SectionSpec> {
         Vec::new()
     }

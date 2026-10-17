@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use gpui_kit::{Image, ImageFormat};
 use swofty_core::launcher::Summary;
 use swofty_core::manifest::{AddonManifest, Kind};
 use swofty_core::profile::{Profile, VANILLA};
@@ -9,6 +12,23 @@ pub struct AddonItem {
     pub manifest: AddonManifest,
     pub enabled: bool,
     pub locked: bool,
+    pub icon: Option<Arc<Image>>,
+}
+
+fn addon_icon(store: &Store, registry: &Registry, m: &AddonManifest) -> Option<Arc<Image>> {
+    if let Some(bytes) = registry.get(&m.id).and_then(|e| e.addon.icon()) {
+        return Some(Arc::new(Image::from_bytes(ImageFormat::Svg, bytes.to_vec())));
+    }
+    let path = store.addons_dir().join(&m.id).join(m.icon.as_ref()?);
+    let format = match path.extension()?.to_str()?.to_ascii_lowercase().as_str() {
+        "svg" => ImageFormat::Svg,
+        "png" => ImageFormat::Png,
+        "jpg" | "jpeg" => ImageFormat::Jpeg,
+        "webp" => ImageFormat::Webp,
+        _ => return None,
+    };
+    let bytes = std::fs::read(path).ok()?;
+    Some(Arc::new(Image::from_bytes(format, bytes)))
 }
 
 pub struct SectionItem {
@@ -67,6 +87,7 @@ impl Library {
             .map(|m| AddonItem {
                 enabled: enabled.contains(&m.id.as_str()),
                 locked: registry.get(&m.id).is_some_and(|e| e.locked),
+                icon: addon_icon(store, &registry, m),
                 manifest: m.clone(),
             })
             .collect();

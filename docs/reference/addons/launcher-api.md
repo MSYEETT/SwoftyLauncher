@@ -15,6 +15,7 @@ An addon can add pages to the launcher's sidebar, import files dropped on the wi
 ```rust
 pub trait Addon: Send + Sync {
     fn manifest(&self) -> &AddonManifest;
+    fn icon(&self) -> Option<&'static [u8]>;
     fn sections(&self) -> Vec<SectionSpec>;
     fn view(&self, cx: &Cx, section: &str) -> Result<View>;
     fn event(&self, cx: &Cx, section: &str, event: Event) -> Result<Effect>;
@@ -27,7 +28,7 @@ pub trait Addon: Send + Sync {
 }
 ```
 
-Every method except `manifest` has a default that does nothing.
+Every method except `manifest` has a default that does nothing. `icon` returns SVG bytes the launcher shows for the addon; a declared addon names an image with `icon` in `swofty.json` instead.
 
 | Method | Use |
 |---|---|

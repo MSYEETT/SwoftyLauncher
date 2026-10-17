@@ -19,7 +19,7 @@ use swofty_core::view::View;
 
 use crate::game::{self, Install, Launch, Probe};
 use crate::library::Library;
-use crate::pages::{avatar, label};
+use crate::pages::{addon_icon, avatar, label};
 use crate::theme::{Palette, palette};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -583,27 +583,39 @@ impl Shell {
         let active = self.page == page;
         h_flex()
             .id(SharedString::from(format!("nav-{title}")))
-            .h(px(30.))
+            .h(px(46.))
             .px(px(8.))
-            .gap(px(9.))
-            .rounded(px(5.))
+            .gap(px(10.))
+            .rounded(px(8.))
+            .border_1()
             .cursor_pointer()
             .text_size(px(13.))
+            .font_weight(FontWeight::MEDIUM)
             .map(|d| {
                 if active {
-                    d.bg(p.selected)
-                        .text_color(p.text)
-                        .font_weight(FontWeight::MEDIUM)
+                    d.bg(p.selected).border_color(p.border).text_color(p.text)
                 } else {
-                    d.text_color(p.text_muted)
-                        .hover(move |s| s.bg(p.hover).text_color(p.text))
+                    d.bg(p.surface)
+                        .border_color(p.border_variant)
+                        .text_color(p.text_muted)
+                        .hover(move |s| s.bg(p.hover).border_color(p.border).text_color(p.text))
                 }
             })
-            .child(Icon::new(icon).size(px(15.)).text_color(if active {
-                p.accent
-            } else {
-                p.text_placeholder
-            }))
+            .child(
+                div()
+                    .size(px(30.))
+                    .flex_shrink_0()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded(px(7.))
+                    .bg(if active { p.accent } else { p.hover })
+                    .child(Icon::new(icon).size(px(16.)).text_color(if active {
+                        p.on_accent
+                    } else {
+                        p.text_muted
+                    })),
+            )
             .child(div().flex_1().truncate().child(title))
             .children(count.map(|n| {
                 div()
@@ -654,12 +666,23 @@ impl Shell {
 
     fn sidebar(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let root = self.store.root.clone();
-        let sections: Vec<AnyElement> = self
-            .library
-            .sections
-            .iter()
-            .enumerate()
-            .map(|(i, s)| {
+        let mut sections: Vec<AnyElement> = Vec::new();
+        for (i, s) in self.library.sections.iter().enumerate() {
+            if i == 0 || self.library.sections[i - 1].addon != s.addon {
+                let addon = self.library.addons.iter().find(|a| a.manifest.id == s.addon);
+                let name = addon.map_or_else(|| s.addon.clone(), |a| a.manifest.name.clone());
+                sections.push(
+                    h_flex()
+                        .gap(px(6.))
+                        .px(px(4.))
+                        .pt(px(10.))
+                        .pb(px(2.))
+                        .children(addon.and_then(|a| a.icon.clone()).map(|i| addon_icon(i, 16., p)))
+                        .child(label(name.to_uppercase(), p))
+                        .into_any_element(),
+                );
+            }
+            sections.push(
                 self.nav_item(
                     Page::Section(i),
                     s.spec.title.clone().into(),
@@ -668,23 +691,22 @@ impl Shell {
                     p,
                     cx,
                 )
-                .into_any_element()
-            })
-            .collect();
+                .into_any_element(),
+            );
+        }
         v_flex()
             .w(px(220.))
             .h_full()
             .flex_shrink_0()
             .px(px(10.))
             .pb(px(10.))
-            .gap(px(2.))
+            .gap(px(6.))
             .bg(p.chrome)
             .border_r_1()
             .border_color(p.border_variant)
             .pt(px(12.))
             .child(self.core_nav(Page::Profiles, self.library.profiles.len(), p, cx))
             .child(self.core_nav(Page::Addons, self.library.addons.len(), p, cx))
-            .child(div().mx(px(8.)).my(px(6.)).h(px(1.)).bg(p.border_variant))
             .children(sections)
             .child(div().flex_1())
             .child(self.active_profile_card(p, cx))

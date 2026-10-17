@@ -38,7 +38,7 @@ const REMOVE: &str = "remove:";
 pub fn builtin() -> Builtin {
     Builtin {
         addon: Arc::new(Simplified::new()),
-        locked: false,
+        locked: true,
         default_on: true,
     }
 }
@@ -475,6 +475,10 @@ fn row(p: &Package, shown: Shown) -> Row {
 impl Addon for Simplified {
     fn manifest(&self) -> &AddonManifest {
         &self.manifest
+    }
+
+    fn icon(&self) -> Option<&'static [u8]> {
+        Some(include_bytes!("../icon.svg"))
     }
 
     fn sections(&self) -> Vec<SectionSpec> {
