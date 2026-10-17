@@ -44,6 +44,8 @@ For `set`, use `create: true` and a `type` tag to add a missing field. `value_fr
 
 List every field of the row, including nested ones such as `ai_vehicle_config.*` on vehicles. A row missing a field the game reads crashes the game.
 
+An `add-row` of an `unlockable_se_livery` row into an `unlockable_content.unlockable_items.unlockable_item_list_<n>.folder_<m>` table unlocks the new special livery. The build writes the row's ownership key, the djb2 hash of `eSELivery` and the row's `_metadata_`, to the `owned_items` block of `swofty/settings.json`, and `swofty_core.dll` reports that key as owned to the livery picker. A key that any stock database value also gives is left out with a warning.
+
 ## Selecting rows
 
 A selector names a row or finds it by a field:

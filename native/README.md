@@ -5,7 +5,7 @@ The in-game half of F1 Mod Manager. `native/build.sh` writes it to `native/dist/
 | File | Source | Role |
 |---|---|---|
 | `version.dll` | `src/loader/version.c` | Proxy for the system `version.dll`. It forwards every export, does nothing in any process other than `F1_25.exe`, and loads every DLL in `swofty/mods/core/`, then `swofty/mods/*.dll`, just before the game creates its window. |
-| `swofty/mods/core/swofty_core.dll` | `src/core/` | SwoftyMod. Adds MOD SETTINGS directly under CAREER on the home screen, runs the mixin API (version 3) for plugins, bridges MOD SETTINGS commands to `swofty/settings.json` and the requests file, registers mod screens and drives their view models, and writes crash reports. |
+| `swofty/mods/core/swofty_core.dll` | `src/core/` | SwoftyMod. Adds MOD SETTINGS directly under CAREER on the home screen, runs the mixin API (version 3) for plugins, bridges MOD SETTINGS commands to `swofty/settings.json` and the requests file, registers mod screens and drives their view models, reports the special liveries that mods add as owned (`owned_items` in `swofty/settings.json`), and writes crash reports. |
 | `swofty/mods/core/swofty_gamelog.dll` | `src/gamelog/` | Copies the engine's own log lines into `loader.log`. |
 | `swofty/mods/core/bindings.json` | `re/tools/bindgen.py` | Game functions, data and call sites that plugins can bind to, with their signatures. |
 | `swofty/mods/core/symbols.tsv` | `re/tools/bindgen.py` | Function names by address, for crash reports. |
@@ -45,4 +45,4 @@ Wine uses its builtin `version.dll` unless the prefix overrides it for the game.
 native/test/run_wine_test.sh
 ```
 
-Builds a small stand-in `F1_25.exe` that carries the signatures and the real home-menu instructions, nine test plugins and test bindings, then runs it under Wine with `native/dist/` in nine modes. It checks the proxy, the load trigger, the MOD SETTINGS tile, mixin chains, refused and conflicting registrations, the settings bridge with and without a requests path, `session.json`, the game log, the crash report and the `ExitProcess` log. CI runs it on every push.
+Builds a small stand-in `F1_25.exe` that carries the signatures and the real home-menu instructions, nine test plugins and test bindings, then runs it under Wine with `native/dist/` in nine modes. It checks the proxy, the load trigger, the MOD SETTINGS tile, mixin chains, refused and conflicting registrations, the settings bridge with and without a requests path, the ownership check for `owned_items`, `session.json`, the game log, the crash report and the `ExitProcess` log. CI runs it on every push.

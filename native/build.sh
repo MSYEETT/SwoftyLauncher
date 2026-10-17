@@ -40,7 +40,7 @@ python3 ../re/tools/bindgen.py --json "$DIST/swofty/mods/core/bindings.json" --s
 wait
 
 "${PIN[@]}" "${CXX[@]}" -O2 -Wall -Wextra "${DEFS[@]}" -I$SDK -Iinclude -I$SH -shared -o "$OUT/swofty_core.dll" \
-    src/core/manager.cpp src/core/crash.cpp src/core/settings.cpp src/core/swofty_core.cpp src/core/ui.cpp src/core/ui_vm.cpp build/safetyhook.o \
+    src/core/manager.cpp src/core/crash.cpp src/core/settings.cpp src/core/swofty_core.cpp src/core/ui.cpp src/core/ui_vm.cpp src/core/items.cpp build/safetyhook.o \
     build/Zydis.o "${STATIC[@]}"
 
 "${PIN[@]}" "${CXX[@]}" -O2 -Wall -Wextra -I$SDK -Iinclude -shared -o "$OUT/swofty_gamelog.dll" src/gamelog/gamelog.cpp "${STATIC[@]}"

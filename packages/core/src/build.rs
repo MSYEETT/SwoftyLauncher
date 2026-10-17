@@ -15,6 +15,7 @@ use crate::install::{Game, LOADER_DIR, Plan};
 use crate::manifest::ModManifest;
 use crate::map::TrackPackage;
 use crate::ops::{DbOps, ErpOps, apply_db_ops};
+use crate::owned;
 use crate::profile::Profile;
 use crate::resolver::resolve;
 use crate::settings::{SessionSettings, SessionUi, render_ops, screen_file, screens};
@@ -220,8 +221,17 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             }
         }
         let names: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        let mut added = Vec::new();
         for (id, ops) in &db_ops {
+            let watched = owned::watch(&db, ops);
             apply_db_ops(&mut db, ops, &names).map_err(|e| Error::Other(format!("applying {id}: {e}")))?;
+            added.extend(owned::added(&db, id, watched));
+        }
+        if !added.is_empty() {
+            let found = owned::owned_items(&db, &Gvdb::parse(&shipped)?, &added);
+            built.lines.extend(found.lines);
+            built.warnings.extend(found.warnings);
+            session.owned_items = found.items;
         }
         let bytes = db.to_bytes();
         if bytes == shipped {

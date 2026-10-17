@@ -332,5 +332,9 @@
    ],
    "options": []
   }
+ ],
+ "owned_items": [
+  {"key": "0xf01d03c7", "mod": "rmdesigns.alphatauri-orlen-livery", "what": "se_livery 22"},
+  {"key": "f01d03c7", "mod": "rmdesigns.alphatauri-orlen-livery", "what": "no 0x prefix"}
  ]
 }

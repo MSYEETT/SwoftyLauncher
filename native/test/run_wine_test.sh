@@ -6,6 +6,8 @@ if ! command -v wine >/dev/null || ! command -v xvfb-run >/dev/null || ! command
     exec nix shell nixpkgs#zig nixpkgs#wineWow64Packages.stable nixpkgs#xvfb-run -c "$SELF" "$@"
 fi
 OUT=${1:-$PWD/../build/wine-test}
+ITEMS=
+grep -qa '\[items\] ownership check hooked' ../dist/swofty/mods/core/swofty_core.dll && ITEMS=1
 export ZIG_GLOBAL_CACHE_DIR=$PWD/../build/zig-cache ZIG_LOCAL_CACHE_DIR=$PWD/../build/zig-cache
 PIN=(taskset -c 2-7,10,11,14-31 nice -n 10)
 rm -rf "$OUT/game"
@@ -63,7 +65,7 @@ EOF
     gl_level=; gl_rate=
     [[ $mode == gamelog_off ]] && gl_level=off
     [[ $mode == trigger ]] && gl_rate=0
-    SWOFTY_GAME_LOG=$gl_level SWOFTY_GAME_LOG_RATE=$gl_rate SWOFTY_TEST_REQUESTS=${req:+Z:${req//\//\\}} \
+    SWOFTY_GAME_LOG=$gl_level SWOFTY_GAME_LOG_RATE=$gl_rate SWOFTY_TEST_REQUESTS=${req:+Z:${req//\//\\}} SWOFTY_TEST_ITEMS=$ITEMS \
         "${PIN[@]}" xvfb-run -a wine "$OUT/game/F1_25.exe" $mode || status=1
     rm -f "$OUT/game/swofty/session.json" "$OUT/game/swofty/settings.json"
     echo "---- $LOG ($mode)"
@@ -102,6 +104,15 @@ EOF
         count "gamelog: off writes no game lines" 0 '\[game\] '
         ;;
     esac
+    if [[ $ITEMS && $req ]]; then
+        once "items: owned_items summary" '\[items\] settings\.json: 1 mod item\(s\) to report as owned'
+        once "items: key without 0x skipped" "\\[items\\] skipping owned_items entry key 'f01d03c7'"
+        once "items: ownership check hooked" '\[items\] ownership check hooked at base\+0x[0-9a-f]+'
+        once "items: mod key logged once" '\[items\] reporting mod item 0xf01d03c7 \(se_livery 22, rmdesigns\.alphatauri-orlen-livery\) as owned'
+    elif [[ $ITEMS ]]; then
+        check "items: no owned_items, nothing hooked" '\[items\] no "owned_items" in settings\.json'
+        count "items: nothing reported" 0 '\[items\] reporting'
+    fi
     if [[ -z $req ]]; then
         check "$mode: no settings.json, settings stay at their code defaults" '\[settings\] no settings\.json'
         [[ ! -e $OUT/state && ! -e $OUT/game/swofty/requests.json ]] && echo "ok  : $mode: no requests file written" ||

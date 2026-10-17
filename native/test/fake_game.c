@@ -191,6 +191,12 @@ __asm__(
 
     ".globl fake_patchable\nfake_patchable:\n"
     ".byte 0x48,0xB8,0x53,0x57,0x46,0x54,0x50,0x41,0x54,0x43\nmov $1, %eax\nret\n"
+
+    ".globl fake_owned_state\nfake_owned_state:\n"
+    ".byte 0x41,0x56,0x56,0x57,0x55,0x53,0x48,0x83,0xEC,0x20,0x48,0x8B,0x01,0x48,0x8B,0x71,0x08\n"
+    ".byte 0xFF,0x50,0x08,0x8B,0x90,0xA0,0x00,0x00,0x00\n"
+    "mov %edx, %ecx\ncall owned_impl\nadd $0x20, %rsp\n"
+    "pop %rbx\npop %rbp\npop %rdi\npop %rsi\npop %r14\nret\n"
     ".section .data1,\"dwx\"\n"
     ".globl vm_thunk_register\nvm_thunk_register:\n"
     "sub $0x28, %rsp\ncall *__imp_RegisterClassExW(%rip)\nadd $0x28, %rsp\nret\n"
@@ -364,6 +370,42 @@ static int reads_are(void (*read)(void), int64_t verbose, int64_t count, int64_t
            (long long)probe[28], (long long)probe[29], (long long)probe[30]);
     return probe[24] == verbose && probe[25] == count && probe[26] == offset && probe_str(27) &&
            !strcmp(probe_str(27), flavour) && probe[28] == 1 && probe[29] == 42 && probe[30] == 0;
+}
+
+unsigned owned_calls;
+void *unlock_vt[11];
+
+uint32_t owned_impl(uint32_t key)
+{
+    owned_calls++;
+    return key == 0x7f88c309 ? 1 : 3;
+}
+
+uint8_t *unlock_key(uint8_t *item) { return item + 0x18; }
+
+uint32_t fake_owned_state(void *item);
+
+static void test_items(int on)
+{
+    const char *items_on = getenv("SWOFTY_TEST_ITEMS");
+    if (!items_on || !*items_on)
+        return;
+    static uint8_t items[3][0x130];
+    const uint32_t keys[3] = {0xf01d03c7, 0x7f88c309, 0x5b3c2a10};
+    unlock_vt[1] = (void *)unlock_key;
+    for (int i = 0; i < 3; i++) {
+        *(void ***)items[i] = unlock_vt;
+        memcpy(items[i] + 0x18 + 0xa0, &keys[i], 4);
+    }
+    unsigned before = owned_calls;
+    uint32_t mod = fake_owned_state(items[0]), again = fake_owned_state(items[0]);
+    uint32_t stock_owned = fake_owned_state(items[1]), stock_locked = fake_owned_state(items[2]);
+    printf("      owned state: mod %u/%u, stock owned %u, stock locked %u, game check ran %u time(s)\n", mod, again,
+           stock_owned, stock_locked, owned_calls - before);
+    expect(mod == (on ? 1u : 3u) && again == mod,
+           on ? "items: owned_items key 0xf01d03c7 reported owned" : "items: no owned_items, the mod key gets the game's answer");
+    expect(stock_owned == 1 && stock_locked == 3, "items: stock keys keep the game's answer (owned 1, locked 3)");
+    expect(owned_calls - before == (on ? 2u : 4u), "items: the game's check runs for every key not on the list");
 }
 
 static void test_settings(int on, uint64_t chain)
@@ -592,6 +634,7 @@ int main(int argc, char **argv)
     expect(build_leak == 0, "second hooked build leaves no game string reference behind");
 
     test_settings(settings, chain);
+    test_items(settings);
 
     if (argc > 1 && (!strcmp(argv[1], "trigger") || !strcmp(argv[1], "vm") || !strcmp(argv[1], "gamelog_off")))
         test_gamelog(strcmp(argv[1], "gamelog_off") != 0);

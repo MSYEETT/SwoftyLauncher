@@ -10,6 +10,7 @@ pub mod manifest;
 pub mod map;
 pub mod offline;
 pub mod ops;
+pub mod owned;
 pub mod paths;
 pub mod pkgedit;
 pub mod process;

@@ -379,6 +379,17 @@ pub fn apply_db_op(db: &mut Gvdb, op: &DbOp, names: &dyn FieldNames) -> Result<(
     apply(&mut Db::new(db), op, names)
 }
 
+pub fn add_row_name<'a>(table: &str, from: &'a str) -> Option<&'a str> {
+    from.strip_prefix(table)
+        .and_then(|r| r.strip_prefix('.'))
+        .map(|r| r.split(['[', '.']).next().unwrap_or(r))
+        .map(|r| {
+            r.rsplit_once('_')
+                .filter(|(_, n)| n.parse::<u32>().is_ok())
+                .map_or(r, |(n, _)| n)
+        })
+}
+
 fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<()> {
     match op {
         DbOp::Set {
@@ -420,15 +431,7 @@ fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<()> {
         }
         DbOp::AddRow { table, from, set } => {
             let src = resolve_row(db, from)?;
-            let row = from
-                .strip_prefix(table.as_str())
-                .and_then(|r| r.strip_prefix('.'))
-                .map(|r| r.split(['[', '.']).next().unwrap_or(r))
-                .map(|r| {
-                    r.rsplit_once('_')
-                        .filter(|(_, n)| n.parse::<u32>().is_ok())
-                        .map_or(r, |(n, _)| n)
-                })
+            let row = add_row_name(table, from)
                 .ok_or_else(|| Error::Resolve(format!("{from} is not a row of {table}")))?;
             let count_path = instance_count_path(table, row);
             let n = db.instance_count(table, row).ok_or_else(|| {

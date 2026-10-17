@@ -5,6 +5,7 @@ use serde_json::Value;
 
 use crate::manifest::{Binds, ModManifest, ModOption, OptionType, ScreenOp};
 use crate::map::TrackPackage;
+use crate::owned::OwnedItem;
 use crate::profile::Profile;
 use crate::{Error, Result};
 
@@ -252,6 +253,8 @@ pub struct SessionSettings {
     pub maps: Vec<SessionMap>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ui: Option<SessionUi>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub owned_items: Vec<OwnedItem>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -449,6 +452,7 @@ impl SessionSettings {
             mods,
             maps,
             ui,
+            owned_items: Vec::new(),
         };
         out.check_commands()?;
         Ok(out)

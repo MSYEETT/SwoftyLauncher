@@ -571,6 +571,33 @@
    "used_by": [
     "native/src/gamelog/gamelog.cpp"
    ]
+  },
+  {
+   "id": "game.unlockable_owned_state",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 55 53 48 83 EC 20 48 8B 01 48 8B 71 08 FF 50 08 8B 90 A0 00 00 00",
+   "match": "0x142ec37d0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142ec37d0",
+   "kind": "func_start",
+   "expect": "41 56 56 57",
+   "names": [
+    "Game_Get_UnlockableOwnedState"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "mod-items",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/items.cpp"
+   ]
   }
  ]
 }
