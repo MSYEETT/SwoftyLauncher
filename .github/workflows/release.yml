@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: The tag to build, for example v0.1.0
+        description: The tag to build, for example v0.2.0
         required: true
 
 permissions:
@@ -65,7 +65,7 @@ jobs:
 
       - name: Package
         run: |
-          out=f1-mod-manager-$TAG-linux-x86_64
+          out=swofty-launcher-$TAG-linux-x86_64
           mkdir -p $out/bin $out/loader $out/share/applications $out/share/icons/hicolor/256x256/apps $out/share/icons/hicolor/512x512/apps $out/share/icons/hicolor/scalable/apps
           cp target/release/swofty target/release/swofty-launcher $out/bin/
           cp -r native/dist/. $out/loader/
@@ -79,7 +79,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: linux
-          path: f1-mod-manager-*.tar.gz
+          path: swofty-launcher-*.tar.gz
 
   windows:
     name: Windows
@@ -103,7 +103,7 @@ jobs:
       - name: Package
         shell: pwsh
         run: |
-          $out = "f1-mod-manager-$env:TAG-windows-x86_64"
+          $out = "swofty-launcher-$env:TAG-windows-x86_64"
           New-Item -ItemType Directory -Force "$out/bin", "$out/loader" | Out-Null
           Copy-Item target/release/swofty.exe, target/release/swofty-launcher.exe "$out/bin/"
           Copy-Item -Recurse native/dist/* "$out/loader/"
@@ -113,7 +113,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: windows
-          path: f1-mod-manager-*.zip
+          path: swofty-launcher-*.zip
 
   publish:
     name: Publish the release

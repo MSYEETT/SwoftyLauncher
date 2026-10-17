@@ -1,6 +1,6 @@
 # The addon template
 
-Copy [`templates/addon`](https://github.com/Swofty-Developments/F1ModManager/tree/main/templates/addon) to start an addon. It uses the MIT licence.
+Copy [`templates/addon`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/addon) to start an addon. It uses the MIT licence.
 
 ## Get started
 

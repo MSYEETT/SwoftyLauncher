@@ -24,13 +24,13 @@ hero:
   game:
     text: F1 25
     link: https://store.steampowered.com/app/3059520/
-  download: https://github.com/Swofty-Developments/F1ModManager/releases
+  download: https://github.com/Swofty-Developments/SwoftyLauncher/releases
   docs: /guide/
 
 links:
   - { icon: book, text: Documentation, link: /guide/ }
-  - { icon: github, text: Source Code, link: https://github.com/Swofty-Developments/F1ModManager }
-  - { icon: tag, text: Releases, link: https://github.com/Swofty-Developments/F1ModManager/releases }
+  - { icon: github, text: Source Code, link: https://github.com/Swofty-Developments/SwoftyLauncher }
+  - { icon: tag, text: Releases, link: https://github.com/Swofty-Developments/SwoftyLauncher/releases }
 
 intro: Swofty Launcher for F1 25 is a <em>launcher and mod loader</em> for F1 25 on <em>Windows and Linux</em>. Install <em>addons</em> that hook the game engine, add <em>mods</em> and <em>community tracks</em>, change <em>addon settings in game</em> and keep separate <em>profiles</em>. Modded play is <em>offline only</em>, and launching from Steam stays vanilla.
 
@@ -78,7 +78,7 @@ cta:
   actions:
     - { icon: download, text: Installation guide, link: /guide/installation }
     - { icon: book, text: Docs, link: /guide/ }
-    - { icon: github, text: Source, link: https://github.com/Swofty-Developments/F1ModManager }
+    - { icon: github, text: Source, link: https://github.com/Swofty-Developments/SwoftyLauncher }
 ---
 
 <Landing>

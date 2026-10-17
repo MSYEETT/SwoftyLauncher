@@ -357,7 +357,7 @@ A failed helper's sections show its error in a notice with a **Restart** button 
 
 ### The example addon
 
-[`templates/launcher-addon`](https://github.com/Swofty-Developments/F1ModManager/tree/main/templates/launcher-addon) is a helper in Rust that depends only on `serde_json`:
+[`templates/launcher-addon`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/launcher-addon) is a helper in Rust that depends only on `serde_json`:
 
 - an **Example** page that lists imported `.exmod` files with a switch each, stored as per-profile state, and an **Import…** button;
 - an importer that copies `.exmod` files into its `addon-data` folder and reports progress;

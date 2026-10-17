@@ -4,11 +4,11 @@ members = ["addons/builtins", "addons/simplified", "apps/cli", "apps/launcher", 
 default-members = ["addons/builtins", "addons/simplified", "apps/cli", "packages/addon-api", "packages/core", "packages/formats", "packages/sdk", "templates/launcher-addon"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.95"
 license = "AGPL-3.0-or-later"
-repository = "https://github.com/Swofty-Developments/F1ModManager"
+repository = "https://github.com/Swofty-Developments/SwoftyLauncher"
 
 [workspace.dependencies]
 swofty-addon = { path = "packages/addon-api" }

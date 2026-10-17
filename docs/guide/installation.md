@@ -12,7 +12,16 @@ Steam Deck, NixOS and Flatpak Steam are supported. macOS is not supported.
 
 ## Get the app
 
-Release downloads are not available yet. For now, [build from source](/reference/development).
+Download the archive for your platform from [Releases](https://github.com/Swofty-Developments/SwoftyLauncher/releases) and extract it:
+
+| Platform | Archive |
+|---|---|
+| Windows | `swofty-launcher-<version>-windows-x86_64.zip` |
+| Linux and Steam Deck | `swofty-launcher-<version>-linux-x86_64.tar.gz` |
+
+`bin/` holds the launcher, `swofty-launcher`, and the command line, `swofty`. `loader/` holds the in-game loader and stays next to `bin/`. To run the latest code, [build from source](/reference/development).
+
+[0.2.0](/releases/0.2.0) lists what is new.
 
 The app is in development. Some controls and mod features are unfinished; see the [current status](/design/#current-status).
 

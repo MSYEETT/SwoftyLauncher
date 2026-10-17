@@ -1,6 +1,6 @@
 # How the game reads it
 
-Addresses are for `F1_25.exe` build `d873a1c8…` and come from decompiles in the [RE knowledge base](https://github.com/Swofty-Developments/F1ModManager/tree/main/re/db) (`re/db/functions.tsv`). Statements are proven by decompile or by a runtime crash unless marked inferred.
+Addresses are for `F1_25.exe` build `d873a1c8…` and come from decompiles in the [RE knowledge base](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/re/db) (`re/db/functions.tsv`). Statements are proven by decompile or by a runtime crash unless marked inferred.
 
 ## Loading
 

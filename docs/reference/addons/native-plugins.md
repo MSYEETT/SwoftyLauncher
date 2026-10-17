@@ -4,7 +4,7 @@ Native plugins are Windows x86-64 DLLs that run inside F1 25. They are for addon
 
 ## SDK
 
-Use [`packages/sdk/include/swofty_api.h`](https://github.com/Swofty-Developments/F1ModManager/blob/main/packages/sdk/include/swofty_api.h). The SDK uses the MIT licence.
+Use [`packages/sdk/include/swofty_api.h`](https://github.com/Swofty-Developments/SwoftyLauncher/blob/main/packages/sdk/include/swofty_api.h). The SDK uses the MIT licence.
 
 Export this function:
 

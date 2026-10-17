@@ -561,6 +561,12 @@ impl Shell {
                         .text_size(px(13.))
                         .font_weight(FontWeight::MEDIUM)
                         .child("Swofty Launcher for F1 25"),
+                )
+                .child(
+                    div()
+                        .text_size(px(12.))
+                        .text_color(p.text_placeholder)
+                        .child(concat!("v", env!("CARGO_PKG_VERSION"))),
                 ),
         )
     }

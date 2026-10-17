@@ -31,4 +31,4 @@ Contributors can read the [development guide](/reference/development) and [desig
 
 ## Help and source code
 
-Report problems on [GitHub Issues](https://github.com/Swofty-Developments/F1ModManager/issues). The source code is on [GitHub](https://github.com/Swofty-Developments/F1ModManager).
+Report problems on [GitHub Issues](https://github.com/Swofty-Developments/SwoftyLauncher/issues). The source code is on [GitHub](https://github.com/Swofty-Developments/SwoftyLauncher).

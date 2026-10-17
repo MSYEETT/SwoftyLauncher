@@ -5,7 +5,7 @@ import gameApi from "./game-api.json";
 import { flashCodeTheme } from "./theme/code-theme";
 import type { DocsThemeConfig } from "./theme/types";
 
-const repo = "https://github.com/Swofty-Developments/F1ModManager";
+const repo = "https://github.com/Swofty-Developments/SwoftyLauncher";
 const base = process.env.DOCS_BASE ?? "/";
 const site = "https://f1.swofty.net";
 
@@ -145,6 +145,10 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Making a mod", link: "/guide/making-a-mod" },
               { text: "Making an addon", link: "/guide/making-an-addon" },
             ],
+          },
+          {
+            text: "Releases",
+            items: [{ text: "0.2.0", link: "/releases/0.2.0" }],
           },
         ],
       },

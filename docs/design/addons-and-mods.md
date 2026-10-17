@@ -266,7 +266,7 @@ pub enum Effect {
 
 ### Third-party addons {#third-party-addons}
 
-Built. An installed addon gets pages, an importer, a build hook, commands and a profile summary through a helper program it ships. Core runs the helper as `HelperAddon` (`swofty_core::helper`), an `Addon` backed by a process. The registry holds one `HelperAddon` per installed addon with a `launcher` block and marks its entry `helper`. The protocol types are in `swofty_addon::helper`. [`templates/launcher-addon`](https://github.com/Swofty-Developments/F1ModManager/tree/main/templates/launcher-addon) is an example helper in Rust.
+Built. An installed addon gets pages, an importer, a build hook, commands and a profile summary through a helper program it ships. Core runs the helper as `HelperAddon` (`swofty_core::helper`), an `Addon` backed by a process. The registry holds one `HelperAddon` per installed addon with a `launcher` block and marks its entry `helper`. The protocol types are in `swofty_addon::helper`. [`templates/launcher-addon`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/launcher-addon) is an example helper in Rust.
 
 The manifest declares the helper and what it provides:
 
