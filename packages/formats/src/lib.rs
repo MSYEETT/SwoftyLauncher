@@ -2,6 +2,7 @@ pub mod erp;
 pub mod gvdb;
 pub mod hash;
 pub mod pkg;
+pub mod texture;
 
 mod bytes;
 

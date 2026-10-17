@@ -1,3 +1,6 @@
+use std::io::{Read, Seek, SeekFrom};
+use std::path::Path;
+
 use crate::bytes::Reader;
 use crate::{Error, Result};
 use md5::{Digest, Md5};
@@ -7,6 +10,7 @@ pub const HEADER_LEN: usize = 0x30;
 pub const ZSTD: u8 = 0x11;
 pub const STORED: u8 = 0x91;
 pub const ZSTD_LEVEL: i32 = 19;
+const ZSTD_MAGIC: [u8; 4] = [0x28, 0xb5, 0x2f, 0xfd];
 
 #[derive(Debug, Clone)]
 pub struct Fragment {
@@ -27,7 +31,7 @@ impl Fragment {
     }
 
     pub fn data(&self) -> Result<Vec<u8>> {
-        if self.compression == ZSTD {
+        if self.compression == ZSTD || self.compression != STORED && self.raw.starts_with(&ZSTD_MAGIC) {
             Ok(zstd::decode_all(self.raw.as_slice())?)
         } else {
             Ok(self.raw.clone())
@@ -92,6 +96,45 @@ pub struct Erp {
 
 impl Erp {
     pub fn parse(data: &[u8]) -> Result<Self> {
+        let (mut erp, data_off) = Self::parse_index(data)?;
+        for res in &mut erp.resources {
+            for f in &mut res.fragments {
+                f.raw = Reader::new(data, data_off + f.offset as usize)
+                    .take(f.packed as usize)?
+                    .to_vec();
+            }
+        }
+        Ok(erp)
+    }
+
+    pub fn read_matching(path: &Path, want: impl Fn(&str) -> bool) -> Result<Vec<Resource>> {
+        let mut file = std::fs::File::open(path)?;
+        let mut index = vec![0; HEADER_LEN];
+        file.read_exact(&mut index)?;
+        if &index[..4] != MAGIC {
+            return Err(Error::Magic {
+                offset: 0,
+                expected: "ERPK",
+            });
+        }
+        let data_off = u64::from_le_bytes(index[0x20..0x28].try_into().expect("8 bytes"));
+        index.resize(data_off as usize, 0);
+        file.read_exact(&mut index[HEADER_LEN..])?;
+        let mut found: Vec<Resource> = Self::parse_index(&index)?
+            .0
+            .resources
+            .into_iter()
+            .filter(|r| want(&r.name))
+            .collect();
+        for f in found.iter_mut().flat_map(|r| &mut r.fragments) {
+            file.seek(SeekFrom::Start(data_off + f.offset))?;
+            f.raw = vec![0; f.packed as usize];
+            file.read_exact(&mut f.raw)?;
+        }
+        Ok(found)
+    }
+
+    fn parse_index(data: &[u8]) -> Result<(Self, usize)> {
         let mut r = Reader::new(data, 0);
         let header: [u8; HEADER_LEN] = r.array()?;
         if &header[..4] != MAGIC {
@@ -140,18 +183,14 @@ impl Erp {
                 r.pos
             )));
         }
-        for res in &mut resources {
-            for f in &mut res.fragments {
-                f.raw = Reader::new(data, data_off + f.offset as usize)
-                    .take(f.packed as usize)?
-                    .to_vec();
-            }
-        }
-        Ok(Self {
-            header,
-            version,
-            resources,
-        })
+        Ok((
+            Self {
+                header,
+                version,
+                resources,
+            },
+            data_off,
+        ))
     }
 
     pub fn find(&self, name: &str) -> Result<&Resource> {
@@ -286,6 +325,17 @@ mod tests {
         let res = &back.resources[0];
         assert_eq!(res.fragments[0].data().unwrap(), b"changed");
         assert_eq!(res.content_hash().unwrap(), hash);
+    }
+
+    #[test]
+    fn reads_matching_resources_from_a_file() {
+        let path = std::env::temp_dir().join(format!("swofty-erp-{}.erp", std::process::id()));
+        std::fs::write(&path, sample().to_bytes()).unwrap();
+        let found = Erp::read_matching(&path, |n| n.ends_with("sample.ui")).unwrap();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].fragments[0].data().unwrap(), b"!pkg sample payload");
+        assert!(Erp::read_matching(&path, |_| false).unwrap().is_empty());
+        std::fs::remove_file(&path).ok();
     }
 
     #[test]

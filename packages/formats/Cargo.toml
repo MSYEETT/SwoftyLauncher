@@ -8,6 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+bcdec_rs.workspace = true
 md-5.workspace = true
 thiserror.workspace = true
 zstd.workspace = true

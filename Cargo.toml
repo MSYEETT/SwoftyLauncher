@@ -15,6 +15,7 @@ swofty-core = { path = "packages/core" }
 swofty-formats = { path = "packages/formats" }
 swofty-sdk = { path = "packages/sdk" }
 anyhow = "1"
+bcdec_rs = "0.2"
 clap = { version = "4", features = ["derive", "env"] }
 md-5 = "0.10"
 semver = { version = "1", features = ["serde"] }
