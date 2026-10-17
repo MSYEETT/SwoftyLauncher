@@ -92,6 +92,92 @@ pub struct Prompt {
     pub action: Action,
 }
 
+fn section_label(title: &'static str, p: Palette) -> impl IntoElement {
+    div()
+        .text_size(px(11.))
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(p.text_placeholder)
+        .child(title)
+}
+
+fn bullet(text: &'static str, p: Palette) -> impl IntoElement {
+    h_flex()
+        .gap(px(10.))
+        .items_start()
+        .child(
+            div()
+                .mt(px(7.))
+                .size(px(5.))
+                .rounded_full()
+                .bg(p.accent)
+                .flex_shrink_0(),
+        )
+        .child(div().flex_1().text_size(px(13.)).text_color(p.text).child(text))
+}
+
+fn risk_box(p: Palette) -> impl IntoElement {
+    v_flex()
+        .gap(px(6.))
+        .p(px(12.))
+        .rounded(px(6.))
+        .bg(p.elevated)
+        .border_1()
+        .border_color(p.error)
+        .child(
+            h_flex()
+                .gap(px(8.))
+                .items_center()
+                .text_color(p.error)
+                .child(Icon::new(IconName::CircleAlert).size(px(15.)))
+                .child(
+                    div()
+                        .text_size(px(13.))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child("This is outside EA's terms of service"),
+                ),
+        )
+        .child(div().text_size(px(13.)).text_color(p.text).child(
+            "EA can detect modified launch behaviour and may take action \
+                 against your account, including suspension or termination.",
+        ))
+}
+
+fn offline_terms(p: Palette) -> impl IntoElement {
+    v_flex()
+        .gap(px(14.))
+        .child(div().text_size(px(13.)).text_color(p.text_muted).child(
+            "Modded sessions run F1 25 without EA AntiCheat so the loader \
+                 and mods can work. Everything is undone when the game exits.",
+        ))
+        .child(
+            v_flex()
+                .gap(px(7.))
+                .child(section_label("WHAT HAPPENS THIS SESSION", p))
+                .child(bullet(
+                    "EAAntiCheat.GameServiceLauncher.exe is parked as .bak and put back when the game exits",
+                    p,
+                ))
+                .child(bullet(
+                    "A stub starts the game instead of the anti-cheat service",
+                    p,
+                ))
+                .child(bullet(
+                    "The game's launch check is patched for the session; every step is logged",
+                    p,
+                )),
+        )
+        .child(risk_box(p))
+        .child(
+            v_flex()
+                .gap(px(7.))
+                .child(section_label("OFFLINE ONLY", p))
+                .child(div().text_size(px(13.)).text_color(p.text).child(
+                    "Multiplayer is unavailable and cannot be enabled. The component is \
+                         downloaded automatically and verified against pinned SHA-256 digests.",
+                )),
+        )
+}
+
 impl Shell {
     pub fn new(cx: &mut Context<Self>) -> Self {
         let store = Store::open_default();
@@ -239,17 +325,13 @@ impl Shell {
     pub(crate) fn confirm_offline_play(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let shell = cx.entity().downgrade();
         let store = self.store.clone();
+        let p = palette(cx);
         window.open_alert_dialog(cx, move |alert, _, _| {
             let (shell, store) = (shell.clone(), store.clone());
             alert
                 .width(px(560.))
                 .title("Modded play runs offline")
-                .description(format!(
-                    "{}\n\nThe component is downloaded automatically from {} and verified \
-                     against pinned SHA-256 digests before it is used.",
-                    swofty_core::offline::DISCLOSURE,
-                    swofty_core::offline::base_url(),
-                ))
+                .child(offline_terms(p))
                 .ok_text("Accept and launch")
                 .show_cancel(true)
                 .on_ok(move |_, window, cx| {
