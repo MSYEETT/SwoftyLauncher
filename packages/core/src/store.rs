@@ -110,6 +110,14 @@ impl Store {
     }
 
     pub fn import_map(&self, zip: &Path) -> Result<TrackPackage> {
+        let scratch = self.maps_dir().join(".nested");
+        let result = map::unwrap_nested(zip, &scratch)
+            .and_then(|inner| self.import_package(inner.as_deref().unwrap_or(zip)));
+        std::fs::remove_dir_all(&scratch).ok();
+        result
+    }
+
+    fn import_package(&self, zip: &Path) -> Result<TrackPackage> {
         let pkg = map::read_zip_manifest(zip)?;
         let dest = self.maps_dir().join(&pkg.track_code);
         let tmp = self.maps_dir().join(format!(".{}.importing", pkg.track_code));
@@ -305,6 +313,26 @@ mod tests {
         assert_eq!(store.maps().unwrap().len(), 1);
         store.remove_map("testring").unwrap();
         assert!(store.maps().unwrap().is_empty());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn imports_a_package_wrapped_in_another_zip() {
+        let root = tmp("nested");
+        let store = Store::new(root.join("data"));
+        let inner = root.join("testring_testring.zip");
+        write_zip(&inner, OKAYAMA_LIKE, true);
+        let outer = root.join("download.zip");
+        let mut z = zip::ZipWriter::new(std::fs::File::create(&outer).unwrap());
+        let opts = zip::write::SimpleFileOptions::default();
+        z.start_file("readme.txt", opts).unwrap();
+        std::io::Write::write_all(&mut z, b"install with the launcher").unwrap();
+        z.start_file("testring_testring.zip", opts).unwrap();
+        std::io::Write::write_all(&mut z, &std::fs::read(&inner).unwrap()).unwrap();
+        z.finish().unwrap();
+        assert_eq!(store.import_map(&outer).unwrap().track_code, "testring");
+        assert!(store.maps_dir().join("testring/testring.erp").is_file());
+        assert!(!store.maps_dir().join(".nested").exists());
         std::fs::remove_dir_all(&root).ok();
     }
 
