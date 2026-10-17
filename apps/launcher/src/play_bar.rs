@@ -125,6 +125,7 @@ impl Shell {
                             .child("Restart to apply database settings"),
                     )
                 }),
+            PlayState::Restoring => row.child(dot(p.warning)).child("Restoring the game files…"),
             PlayState::Launching => row
                 .child(dot(p.warning))
                 .child(format!(
@@ -267,7 +268,7 @@ impl Shell {
             .dropdown_caret(true)
             .disabled(matches!(
                 self.play_state(),
-                PlayState::Running(_) | PlayState::Launching
+                PlayState::Running(_) | PlayState::Launching | PlayState::Restoring
             ))
             .dropdown_menu_with_anchor(Anchor::BottomRight, move |mut menu, _, _| {
                 menu = menu.min_w(px(300.)).label("Profile");
@@ -306,6 +307,7 @@ impl Shell {
         let (icon, label, bg, fg, enabled) = match state {
             PlayState::Ready | PlayState::Crashed(_) => (IconName::Play, "Play", p.accent, p.on_accent, true),
             PlayState::Launching => (IconName::LoaderCircle, "Launching…", p.elevated, p.accent, false),
+            PlayState::Restoring => (IconName::LoaderCircle, "Restoring…", p.elevated, p.accent, false),
             PlayState::Running(_) => (IconName::Activity, "Running", p.elevated, p.success, false),
             PlayState::NotInstalled => (IconName::FolderSearch, "Locate game", p.elevated, p.text, true),
             PlayState::Detecting => (IconName::LoaderCircle, "Play", p.elevated, p.text_muted, false),
