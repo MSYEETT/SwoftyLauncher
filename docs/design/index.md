@@ -557,7 +557,7 @@ Saves sync through Steam Cloud, so the loader namespaces them per profile by red
 
 **Hook gates (`re/PROTOCOL.md` §2).** A trace-only hook needs an L1 target and a passing signature. A behaviour hook needs every function and field it touches at L2, plus agreement from a second, independent verifier. A hook is enabled by default in the launcher only when all its items are L3 on the shipping build and its runtime test has passed.
 
-**Status of `native/`** (`native/TEST.md`). Stage 0 implements forwarding, the host and build checks, the window wait, mod loading and the version-1 API. `swofty_core.dll` implements the home-tile `MidHook`, checked against a synthetic `F1_25.exe` under Wine (`native/test/run_wine_test.sh`). The gate, VFS, OfflineGuard and bridge are not written yet.
+**Status of `native/`** (`native/README.md`). Stage 0 implements forwarding, the host and build checks, the window wait, mod loading and the version-1 API. `swofty_core.dll` implements the home-tile `MidHook`, checked against a synthetic `F1_25.exe` under Wine (`native/test/run_wine_test.sh`). The gate, VFS, OfflineGuard and bridge are not written yet.
 
 **Toolchain.** `native/build.sh` cross-builds from Linux with `zig cc` and `zig c++ -std=c++23` for `x86_64-windows-gnu`, statically linked, with safetyhook and Zydis vendored in `native/third_party/safetyhook/`. The build is deterministic.
 
@@ -688,7 +688,7 @@ Runs alongside M0–M7 under `re/PROTOCOL.md`, which every agent working on the 
 - `tools/pkg.py`, `tools/uinode.py`: `!pkg` reader/writer and djb2 node ids; the basis for the `!pkg` patch representation (§5.3).
 - `tools/build_home_tile_mod.py`: the proven F9, panel and route edits that become the generated `swofty.core` data (§11).
 - `tools/modswap.py`: the pristine-verify and swap/restore pattern behind the baseline store, the §9 journal and loader placement.
-- `native/src/loader/version.c`, `native/src/core/swofty_core.cpp`, `packages/sdk/include/swofty_api.h`, `native/build.sh`, `native/TEST.md`: the in-game loader as built.
+- `native/src/loader/version.c`, `native/src/core/swofty_core.cpp`, `packages/sdk/include/swofty_api.h`, `native/build.sh`, `native/README.md`: the in-game loader as built.
 - `re/PROTOCOL.md`: evidence levels, hook gates and runtime-test rules (§12, §14.1).
 
 Supporting references: `research/exe.md` (§2 the `version.dll` route, §3 the home-tile `MidHook` and signatures, §4 the world and cap DB fields), `work/grid/bxml.py` (BXML decoder), `work/exe/decomp/` (the home builder 0x14173df80 and the dispatcher 0x141bb3c20), and `work/okayama/pkg/manifest.json` (the EGO track format the adapter consumes).
