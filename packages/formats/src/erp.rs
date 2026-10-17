@@ -108,30 +108,13 @@ impl Erp {
     }
 
     pub fn read_matching(path: &Path, want: impl Fn(&str) -> bool) -> Result<Vec<Resource>> {
-        let mut file = std::fs::File::open(path)?;
-        let mut index = vec![0; HEADER_LEN];
-        file.read_exact(&mut index)?;
-        if &index[..4] != MAGIC {
-            return Err(Error::Magic {
-                offset: 0,
-                expected: "ERPK",
-            });
-        }
-        let data_off = u64::from_le_bytes(index[0x20..0x28].try_into().expect("8 bytes"));
-        index.resize(data_off as usize, 0);
-        file.read_exact(&mut index[HEADER_LEN..])?;
-        let mut found: Vec<Resource> = Self::parse_index(&index)?
-            .0
+        let file = ErpFile::open(path)?;
+        file.erp
             .resources
-            .into_iter()
+            .iter()
             .filter(|r| want(&r.name))
-            .collect();
-        for f in found.iter_mut().flat_map(|r| &mut r.fragments) {
-            file.seek(SeekFrom::Start(data_off + f.offset))?;
-            f.raw = vec![0; f.packed as usize];
-            file.read_exact(&mut f.raw)?;
-        }
-        Ok(found)
+            .map(|r| file.load(r))
+            .collect()
     }
 
     fn parse_index(data: &[u8]) -> Result<(Self, usize)> {
@@ -212,6 +195,16 @@ impl Erp {
     }
 
     pub fn to_bytes(&mut self) -> Vec<u8> {
+        let mut out = self.layout();
+        for res in &self.resources {
+            for f in &res.fragments {
+                out.extend_from_slice(&f.raw);
+            }
+        }
+        out
+    }
+
+    fn layout(&mut self) -> Vec<u8> {
         let mut index = Vec::new();
         let mut fragments = 0u32;
         let mut offset = 0u64;
@@ -249,12 +242,103 @@ impl Erp {
         out.extend_from_slice(&(self.resources.len() as u32).to_le_bytes());
         out.extend_from_slice(&fragments.to_le_bytes());
         out.extend_from_slice(&index);
-        for res in &self.resources {
-            for f in &res.fragments {
-                out.extend_from_slice(&f.raw);
+        out
+    }
+}
+
+pub enum Entry<'a> {
+    Copy(&'a Resource),
+    Owned(Resource),
+}
+
+#[derive(Debug, Clone)]
+pub struct ErpFile {
+    pub path: std::path::PathBuf,
+    pub erp: Erp,
+    pub data_off: u64,
+}
+
+impl ErpFile {
+    pub fn open(path: &Path) -> Result<Self> {
+        let mut file = std::fs::File::open(path)?;
+        let mut index = vec![0; HEADER_LEN];
+        file.read_exact(&mut index)?;
+        if &index[..4] != MAGIC {
+            return Err(Error::Magic {
+                offset: 0,
+                expected: "ERPK",
+            });
+        }
+        let data_off = u64::from_le_bytes(index[0x20..0x28].try_into().expect("8 bytes"));
+        index.resize(data_off as usize, 0);
+        file.read_exact(&mut index[HEADER_LEN..])?;
+        Ok(Self {
+            path: path.to_path_buf(),
+            erp: Erp::parse_index(&index)?.0,
+            data_off,
+        })
+    }
+
+    pub fn load(&self, res: &Resource) -> Result<Resource> {
+        let mut file = std::fs::File::open(&self.path)?;
+        let mut out = res.clone();
+        for f in &mut out.fragments {
+            file.seek(SeekFrom::Start(self.data_off + f.offset))?;
+            f.raw = vec![0; f.packed as usize];
+            file.read_exact(&mut f.raw)?;
+        }
+        Ok(out)
+    }
+
+    pub fn write(&self, entries: Vec<Entry<'_>>, dst: &Path) -> Result<()> {
+        let mut spans = Vec::new();
+        let mut resources = Vec::with_capacity(entries.len());
+        for e in entries {
+            match e {
+                Entry::Copy(r) => {
+                    let mut r = r.clone();
+                    for f in &mut r.fragments {
+                        spans.push(Some((self.data_off + f.offset, f.packed)));
+                        f.raw = Vec::new();
+                    }
+                    resources.push(r);
+                }
+                Entry::Owned(r) => {
+                    spans.extend(r.fragments.iter().map(|_| None));
+                    resources.push(r);
+                }
             }
         }
-        out
+        let mut erp = Erp {
+            header: self.erp.header,
+            version: self.erp.version,
+            resources,
+        };
+        let head = erp.layout();
+        let tmp = dst.with_extension("erp.tmp");
+        let mut src = std::fs::File::open(&self.path)?;
+        let mut out = std::io::BufWriter::with_capacity(1 << 20, std::fs::File::create(&tmp)?);
+        std::io::Write::write_all(&mut out, &head)?;
+        let mut buf = vec![0; 1 << 20];
+        let frags = erp.resources.iter().flat_map(|r| &r.fragments);
+        for (f, span) in frags.zip(spans) {
+            match span {
+                None => std::io::Write::write_all(&mut out, &f.raw)?,
+                Some((at, mut left)) => {
+                    src.seek(SeekFrom::Start(at))?;
+                    while left > 0 {
+                        let n = left.min(buf.len() as u64) as usize;
+                        src.read_exact(&mut buf[..n])?;
+                        std::io::Write::write_all(&mut out, &buf[..n])?;
+                        left -= n as u64;
+                    }
+                }
+            }
+        }
+        std::io::Write::flush(&mut out)?;
+        drop(out);
+        std::fs::rename(&tmp, dst)?;
+        Ok(())
     }
 }
 
@@ -336,6 +420,52 @@ mod tests {
         assert_eq!(found[0].fragments[0].data().unwrap(), b"!pkg sample payload");
         assert!(Erp::read_matching(&path, |_| false).unwrap().is_empty());
         std::fs::remove_file(&path).ok();
+    }
+
+    fn two() -> Erp {
+        let mut erp = sample();
+        let mut res = erp.resources[0].clone();
+        res.name = "eaid://ui_package/screens/other.ui".into();
+        res.set_fragment(0, b"second payload").unwrap();
+        erp.resources.push(res);
+        erp
+    }
+
+    #[test]
+    fn streamed_copy_of_every_resource_is_identical() {
+        let dir = std::env::temp_dir().join(format!("swofty-erpfile-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let src = dir.join("src.erp");
+        let bytes = two().to_bytes();
+        std::fs::write(&src, &bytes).unwrap();
+        let file = ErpFile::open(&src).unwrap();
+        let all = file.erp.resources.iter().map(Entry::Copy).collect();
+        file.write(all, &dir.join("all.erp")).unwrap();
+        assert_eq!(std::fs::read(dir.join("all.erp")).unwrap(), bytes);
+
+        let mut owned = file.load(&file.erp.resources[0]).unwrap();
+        owned.name = "eaid://ui_package/screens/renamed.ui".into();
+        file.write(
+            vec![Entry::Copy(&file.erp.resources[1]), Entry::Owned(owned)],
+            &dir.join("subset.erp"),
+        )
+        .unwrap();
+        let back = Erp::parse(&std::fs::read(dir.join("subset.erp")).unwrap()).unwrap();
+        let names: Vec<&str> = back.resources.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(
+            names,
+            [
+                "eaid://ui_package/screens/other.ui",
+                "eaid://ui_package/screens/renamed.ui"
+            ]
+        );
+        assert_eq!(back.resources[0].fragments[0].data().unwrap(), b"second payload");
+        assert_eq!(
+            back.resources[1].fragments[0].data().unwrap(),
+            b"!pkg sample payload"
+        );
+        assert_eq!(back.resources[1].fragments[1].data().unwrap(), b"abc");
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
