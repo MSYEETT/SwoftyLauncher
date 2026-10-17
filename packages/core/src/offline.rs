@@ -22,7 +22,7 @@ use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 
-use crate::baseline::sha256_file;
+use crate::baseline::{sha256_file, sha256_opt};
 use crate::{Error, Result, io_err, read_json, write_json};
 
 /// The terms shown before consent and by `swofty offline accept`.
@@ -323,13 +323,60 @@ pub fn probe(game: &Path, a: &Artifacts) -> Result<Probe> {
     }
 }
 
+/// Repair a half-staged game folder left by an interrupted session, so a new
+/// session can start without anyone digging files out by hand. The backup is
+/// put back in place; whatever sat in the launcher's slot is kept under
+/// swofty/offline-recovery/ rather than destroyed. Returns what it did.
+pub fn heal_stale_backup(game: &Path, journal: &Path) -> Result<Vec<String>> {
+    let mut notes = Vec::new();
+    if journal.exists() {
+        match restore(journal, false) {
+            Ok(done) => notes.extend(done),
+            Err(e) => notes.push(format!(
+                "a leftover journal could not be replayed ({e}); recovered from the backup instead"
+            )),
+        }
+        std::fs::remove_file(journal).map_err(io_err(journal))?;
+    }
+    let launcher = game.join("EAAntiCheat.GameServiceLauncher.exe");
+    let parked = game.join("EAAntiCheat.GameServiceLauncher.exe.bak");
+    if !parked.exists() {
+        return Ok(notes);
+    }
+    let backup = sha256_file(&parked)?;
+    if sha256_opt(&launcher)?.as_deref() == Some(backup.as_str()) {
+        std::fs::remove_file(&parked).map_err(io_err(&parked))?;
+        notes.push("removed a stale backup identical to the launcher".into());
+        return Ok(notes);
+    }
+    if launcher.exists() {
+        let secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let keep = game
+            .join("swofty/offline-recovery")
+            .join(format!("EAAntiCheat.GameServiceLauncher.exe.{secs}"));
+        if let Some(parent) = keep.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| io_err(parent.to_path_buf())(e))?;
+        }
+        std::fs::rename(&launcher, &keep).map_err(io_err(&launcher))?;
+        notes.push(format!("kept the staged file at {}", keep.display()));
+    }
+    std::fs::rename(&parked, &launcher).map_err(io_err(&launcher))?;
+    notes.push("restored EAAntiCheat.GameServiceLauncher.exe from its backup".into());
+    Ok(notes)
+}
+
 /// Stage the session: park the anti-cheat launcher, drop the stub, and place
 /// the hook where the loader picks it up. Everything goes in the journal.
-pub fn stage(game: &Path, a: &Artifacts, journal: &Path) -> Result<()> {
+/// Repairs leftovers from interrupted sessions first; returns what it did.
+pub fn stage(game: &Path, a: &Artifacts, journal: &Path) -> Result<Vec<String>> {
     // The journal lives under state/offline/, which nothing else creates.
     if let Some(parent) = journal.parent() {
         std::fs::create_dir_all(parent).map_err(|e| io_err(parent.to_path_buf())(e))?;
     }
+    let mut notes = heal_stale_backup(game, journal)?;
     let hook_dest = game.join("swofty/mods/core/f1op_hook.dll");
     let out = Command::new(&a.prelaunch)
         .arg("stage")
@@ -351,7 +398,8 @@ pub fn stage(game: &Path, a: &Artifacts, journal: &Path) -> Result<()> {
             String::from_utf8_lossy(&out.stderr).trim()
         )));
     }
-    Ok(())
+    notes.push("staged offline play for this session".into());
+    Ok(notes)
 }
 
 // ---------------------------------------------------------------------------
@@ -546,6 +594,74 @@ mod tests {
         assert!(restore(&journal, false).is_err());
         assert!(restore(&journal, true).is_ok());
         assert!(!launcher.exists());
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn heal_restores_a_half_staged_folder() {
+        // The exact state an interrupted session leaves: the real launcher is
+        // in .bak and the stub sits in its slot, with no journal.
+        let d = temp("heal");
+        let game = d.join("game");
+        std::fs::create_dir_all(&game).unwrap();
+        let launcher = game.join("EAAntiCheat.GameServiceLauncher.exe");
+        std::fs::write(&launcher, "stub").unwrap();
+        std::fs::write(game.join("EAAntiCheat.GameServiceLauncher.exe.bak"), "original").unwrap();
+
+        let journal = d.join("state/offline/staging.jsonl");
+        let notes = heal_stale_backup(&game, &journal).unwrap();
+        assert_eq!(std::fs::read_to_string(&launcher).unwrap(), "original");
+        assert!(!game.join("EAAntiCheat.GameServiceLauncher.exe.bak").exists());
+        let kept = std::fs::read_dir(game.join("swofty/offline-recovery"))
+            .unwrap()
+            .flatten()
+            .next()
+            .expect("the stub is kept, never destroyed");
+        assert_eq!(std::fs::read_to_string(kept.path()).unwrap(), "stub");
+        assert!(notes.iter().any(|n| n.contains("restored")), "{notes:?}");
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn heal_drops_an_identical_stale_backup() {
+        let d = temp("heal-same");
+        let game = d.join("game");
+        std::fs::create_dir_all(&game).unwrap();
+        let launcher = game.join("EAAntiCheat.GameServiceLauncher.exe");
+        std::fs::write(&launcher, "same").unwrap();
+        std::fs::write(game.join("EAAntiCheat.GameServiceLauncher.exe.bak"), "same").unwrap();
+
+        let journal = d.join("state/offline/staging.jsonl");
+        heal_stale_backup(&game, &journal).unwrap();
+        assert_eq!(std::fs::read_to_string(&launcher).unwrap(), "same");
+        assert!(!game.join("EAAntiCheat.GameServiceLauncher.exe.bak").exists());
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn heal_replays_a_leftover_journal_first() {
+        let d = temp("heal-journal");
+        let game = d.join("game");
+        std::fs::create_dir_all(&game).unwrap();
+        let launcher = game.join("EAAntiCheat.GameServiceLauncher.exe");
+        let parked = game.join("EAAntiCheat.GameServiceLauncher.exe.bak");
+        std::fs::write(&launcher, "stub").unwrap();
+        std::fs::write(&parked, "original").unwrap();
+        let journal = d.join("state/offline/staging.jsonl");
+        let line = serde_json::json!({
+            "op": "rename",
+            "from": launcher.display().to_string(),
+            "to": parked.display().to_string(),
+            "source": "",
+            "sha256": "",
+        });
+        std::fs::create_dir_all(journal.parent().unwrap()).unwrap();
+        std::fs::write(&journal, format!("{line}\n")).unwrap();
+
+        let notes = heal_stale_backup(&game, &journal).unwrap();
+        assert_eq!(std::fs::read_to_string(&launcher).unwrap(), "original");
+        assert!(!journal.exists());
+        assert!(notes.iter().any(|n| n.contains("restored")), "{notes:?}");
         std::fs::remove_dir_all(&d).ok();
     }
 

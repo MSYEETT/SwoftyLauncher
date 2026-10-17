@@ -191,7 +191,9 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs) -> Result<ExitCode> {
         }
         say("info", &format!("game build supported: {}", probe.report));
         let journal = swofty_core::offline::journal_path(&store.root);
-        swofty_core::offline::stage(&game, &artifacts, &journal)?;
+        for note in swofty_core::offline::stage(&game, &artifacts, &journal)? {
+            say("info", &format!("offline play: {note}"));
+        }
         say(
             "info",
             "staged offline play: EA AntiCheat is not started this session; multiplayer is unavailable",

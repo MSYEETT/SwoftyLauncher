@@ -38,7 +38,8 @@ fn stage_creates_the_journal_directory() {
     // The parent directory does not exist yet: this is the regression for the
     // first real run failing with "cannot write journal".
     let journal = tmp.join("state/offline/staging.jsonl");
-    offline::stage(&game, &a, &journal).expect("staging with a nested journal path");
+    let notes = offline::stage(&game, &a, &journal).expect("staging with a nested journal path");
+    assert!(notes.iter().any(|n| n.contains("staged offline play")));
     assert!(journal.is_file());
 
     // And the session unrolls back to vanilla.
