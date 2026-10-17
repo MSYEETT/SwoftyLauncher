@@ -4,7 +4,7 @@
   "name": "SwoftyMod",
   "version": "0.1.0",
   "author": "Swofty",
-  "description": "Adds Mod Settings to the home menu and the F9 shortcut.",
+  "description": "Adds core functionality for Swofty Mod loading and customisation",
   "license": "AGPL-3.0-or-later",
   "kind": ["ui", "native"],
   "compat": { "game": "f1_25", "game_builds": [">=25251167"], "seasons": [] },
