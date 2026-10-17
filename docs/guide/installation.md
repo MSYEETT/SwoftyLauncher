@@ -28,6 +28,6 @@ The docs use `$DATA` to mean this folder:
 |---|---|
 | Linux | `$XDG_DATA_HOME/swofty`, usually `~/.local/share/swofty` |
 | Flatpak Steam | `~/.var/app/com.valvesoftware.Steam/data/swofty` |
-| Windows | `%LOCALAPPDATA%Swofty` |
+| Windows | `%LOCALAPPDATA%\Swofty` |
 
 It holds your mods, maps, profiles, backups and session logs. Keep it until you have [restored the game](/using/profiles-and-restoring).

@@ -17,4 +17,4 @@ Modded play is offline only. Normal Steam launches stay vanilla.
 
 Close the game, then run `swofty restore` before playing vanilla. See [Restoring the game](/using/profiles-and-restoring).
 
-Run `swofty logs` to read the last session's summary. Logs are stored in `$DATAsessions<id>`.
+Run `swofty logs` to read the last session's summary. Logs are stored in `$DATA/sessions/<id>`.
