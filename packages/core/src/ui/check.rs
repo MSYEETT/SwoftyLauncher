@@ -221,6 +221,87 @@ pub fn routes(
     Ok(out)
 }
 
+type Signal = (String, String, String);
+
+fn index<'a>(n: &'a Node, path: &str, out: &mut BTreeMap<String, &'a Node>) {
+    let here = if path.is_empty() {
+        n.name().to_owned()
+    } else {
+        format!("{path}.{}", n.name())
+    };
+    for c in n.slot(CHILDREN).into_iter().flatten().filter(|c| c.is_node()) {
+        index(c, &here, out);
+    }
+    out.insert(here, n);
+}
+
+fn tree(p: &Pkg) -> crate::Result<BTreeMap<String, &Node>> {
+    let mut out = BTreeMap::new();
+    for scr in p.root.o()?.at("Screens")?.a()? {
+        index(scr, "", &mut out);
+    }
+    Ok(out)
+}
+
+fn signals(n: &Node) -> Vec<Signal> {
+    let mut out = Vec::new();
+    for e in [COMMANDS, EVENTS]
+        .into_iter()
+        .flat_map(|i| n.slot(i).into_iter().flatten())
+    {
+        let sigs = e.as_obj().and_then(|o| o.get("signals")).and_then(Node::as_arr);
+        for s in sigs.into_iter().flat_map(|a| &a.items).filter_map(Node::as_obj) {
+            out.push((
+                str_of(s, "to_object_name").unwrap_or_default().to_owned(),
+                str_of(s, "to_pin_name").unwrap_or_default().to_owned(),
+                s.get("attributes").map(canonical).unwrap_or_default(),
+            ));
+        }
+    }
+    out
+}
+
+fn kids(n: &Node) -> Vec<&str> {
+    n.slot(CHILDREN)
+        .map(|k| k.iter().filter(|c| c.is_node()).map(|c| c.name()).collect())
+        .unwrap_or_default()
+}
+
+pub fn stock_kept(stock: &[u8], patched: &[u8], prefix: &str) -> crate::Result<Vec<String>> {
+    let (a, b) = (Pkg::parse(stock)?, Pkg::parse(patched)?);
+    let (old, new) = (tree(&a)?, tree(&b)?);
+    let sent: BTreeSet<Signal> = old.values().flat_map(|n| signals(n)).collect();
+    let mut out = Vec::new();
+    for (path, n) in &old {
+        let Some(m) = new.get(path) else {
+            out.push(format!("{path}: removed"));
+            continue;
+        };
+        let slot = |x: &Node, i: usize| x.a().ok().and_then(|a| a.get(i)).map(canonical);
+        if (0..8)
+            .filter(|i| ![CHILDREN, COMMANDS, EVENTS].contains(i))
+            .any(|i| slot(n, i) != slot(m, i))
+        {
+            out.push(format!("{path}: its properties, layout or behaviours changed"));
+        }
+        let (k0, k1) = (kids(n), kids(m));
+        if !k1.starts_with(&k0) || k1[k0.len()..].iter().any(|k| !k.starts_with(prefix)) {
+            out.push(format!("{path}: its stock children changed"));
+        }
+    }
+    for (path, m) in &new {
+        for sig in signals(m) {
+            if old.contains_key(&sig.0) && !sent.contains(&sig) {
+                out.push(format!(
+                    "{path}: sends {}.{} {}, which no stock node sends",
+                    sig.0, sig.1, sig.2
+                ));
+            }
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
