@@ -100,3 +100,7 @@ pub enum Claim { No, Maybe, Yes }
 ## Commands
 
 `CommandSpec` has `name`, `about`, `args` and `subcommands`. `ArgSpec` has `name`, `help`, `required` and `many`.
+
+## Third-party addons {#third-party-addons}
+
+An installed addon provides the same calls through a helper program named in the `launcher` block of `swofty.json`. The host talks to it in JSON lines over stdin and stdout, starts it on first use and stops it when it hangs, crashes or sends a bad message. The manifest fields, the messages and the failure rules are in the [design](/design/addons-and-mods#third-party-addons). [`templates/launcher-addon`](https://github.com/Swofty-Developments/F1ModManager/tree/main/templates/launcher-addon) is a helper in Rust with a page, an importer for `.exmod` files, a build hook and a command.

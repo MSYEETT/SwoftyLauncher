@@ -35,6 +35,7 @@ Start with [the addon template](/reference/addons/template).
 | `conflicts` | Conflicting addons, as `[{"id": "author.other-addon"}]` |
 | `load_after` | Addon IDs or patterns that should load first |
 | `options` | [Settings](#options) shown in the launcher and in game |
+| `launcher` | A [helper program](./launcher-api#third-party-addons) with launcher pages, an importer, a build hook and commands |
 
 `compat.game` is `f1_25`. Optional fields are `game_builds` (for example `[">=25251167"]`), `launcher` (a version range) and `seasons` (for example `["f1_2026"]`).
 

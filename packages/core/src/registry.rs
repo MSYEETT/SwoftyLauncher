@@ -32,6 +32,7 @@ impl Addon for DeclaredAddon {
 pub struct Entry {
     pub addon: Arc<dyn Addon>,
     pub declared: bool,
+    pub helper: bool,
     pub locked: bool,
     pub default_on: bool,
 }
@@ -57,14 +58,25 @@ impl Registry {
                     Some(b) => Entry {
                         addon: b.addon.clone(),
                         declared: false,
+                        helper: false,
                         locked: b.locked,
                         default_on: b.default_on,
                     },
-                    None => Entry {
-                        locked: m.id == CORE_ID,
-                        default_on: m.id == CORE_ID,
-                        declared: true,
-                        addon: Arc::new(DeclaredAddon::new(m)),
+                    None => match store.helpers().get(&m, &store.addons_dir().join(&m.id)) {
+                        Some(h) => Entry {
+                            addon: h,
+                            declared: false,
+                            helper: true,
+                            locked: false,
+                            default_on: false,
+                        },
+                        None => Entry {
+                            locked: m.id == CORE_ID,
+                            default_on: m.id == CORE_ID,
+                            declared: true,
+                            helper: false,
+                            addon: Arc::new(DeclaredAddon::new(m)),
+                        },
                     },
                 },
             )

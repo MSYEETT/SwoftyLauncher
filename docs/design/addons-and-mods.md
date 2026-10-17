@@ -264,11 +264,70 @@ pub enum Effect {
 - The CLI adds each `CommandSpec` as a top-level subcommand and passes the arguments to `command`. A name already taken by core or an earlier addon is refused when the addon registers.
 - `summary` adds a list to the profile cards, after `ADDONS` and `MAPS`.
 
-### Third-party addons later
+### Third-party addons {#third-party-addons}
 
-Today only built-in addons implement `Addon`, compiled into the apps. Third-party addons use declared asset ops and native plugins.
+Built. An installed addon gets pages, an importer, a build hook, commands and a profile summary through a helper program it ships. Core runs the helper as `HelperAddon` (`swofty_core::helper`), an `Addon` backed by a process. The registry holds one `HelperAddon` per installed addon with a `launcher` block and marks its entry `helper`. The protocol types are in `swofty_addon::helper`. [`templates/launcher-addon`](https://github.com/Swofty-Developments/F1ModManager/tree/main/templates/launcher-addon) is an example helper in Rust.
 
-Every API type serialises and every call is a request and a response. A later host can run a third-party addon out of process, as an executable or a WASM module named in its manifest (`"launcher": { "module": "launcher/addon.wasm" }`), and pass the same calls as JSON messages. The manifest would declare what the addon uses (`sections`, `import`, `build`, `commands`). The host would limit file access to the addon's folder, its `addon-data` folder and clean game files. That host is not designed here.
+The manifest declares the helper and what it provides:
+
+```json
+"launcher": {
+  "program": { "windows": "bin/example-helper.exe", "linux": "bin/example-helper" },
+  "sections": [{ "id": "items", "title": "Example", "icon": "package" }],
+  "imports": ["exmod"],
+  "build": true,
+  "commands": [{ "name": "example", "about": "List the example items" }]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `program` | The helper's path inside the addon folder, keyed by `std::env::consts::OS` (`windows`, `linux`) |
+| `sections` | `SectionSpec`s. The sidebar lists them without starting the helper. |
+| `imports` | File extensions without the dot. A file with one of them gets `Claim::Yes`. |
+| `build` | `true` when the helper has a build hook |
+| `commands` | `CommandSpec`s added to the CLI |
+
+**Start.** The host starts the helper on the first call that needs it: opening one of its sections, a drop routed to it, a build of a profile that enables it, or one of its commands. The working directory is the addon folder. stderr goes to `$DATA/cache/addons/<id>/helper.log`. The launcher asks for a helper section's view only while that section is open. A summary is asked only while the helper runs and has no call in flight. The helper exits when stdin closes.
+
+**Messages.** Each message is one JSON object on one line, UTF-8, over the helper's stdin and stdout. A request carries `id`, `method` and `params`. A reply carries the request's `id` and either `result` or `error` (a string). A notification has no `id`. The host sends one request at a time and waits for its reply.
+
+```text
+host   {"id":0,"method":"hello","params":{"api":1,"addon":"example.launcher-addon","data_dir":"…","cache_dir":"…","profile":{"name":"default","vanilla":false,"enabled":true}}}
+helper {"id":0,"result":{"api":1}}
+host   {"id":1,"method":"view","params":{"section":"items"}}
+helper {"id":0,"method":"get_state"}
+host   {"id":0,"result":{"on":["a.exmod"]}}
+helper {"id":1,"result":{"subtitle":"1 item","body":{"list":{"rows":[…],"reorder":false}}}}
+```
+
+Host to helper:
+
+| Method | `params` | `result` |
+|---|---|---|
+| `hello` | `api`, `addon`, `data_dir`, `cache_dir`, `profile` (`ProfileInfo`) | `{"api": <n>}` |
+| `profile` (notification) | `ProfileInfo` | |
+| `view` | `section` | `View` |
+| `event` | `section`, `event` (`Event`) | `Effect` |
+| `import` | `paths` | lines to show, as strings |
+| `build` | `options`, `features` (`Features`) | `{"ops": [asset op], "lines": [], "warnings": []}` |
+| `command` | `path`, `args` | text to print |
+| `summary` | none | `Summary` or `null` |
+
+Helper to host, while a request is in flight:
+
+| Method | `params` | `result` |
+|---|---|---|
+| `progress` (notification) | `done` (0 to 1), `text` | |
+| `get_state` | none | the profile's state for the addon, or `null` |
+| `set_state` | the new state | `null`. An error on the vanilla profile. |
+
+- Values use the serde forms of the Launcher API and Asset API types: enums are externally tagged in snake_case (`{"toggle":{"id":"a","on":true}}`, `"reload"`), `Icon` is kebab-case, and asset ops are written as in an ops file. Build ops get the origin `<id>`, and their sources resolve against the addon's `addon`, `data` and `cache` roots.
+- `api` is `swofty_addon::helper::API_VERSION`, 1. The host stops a helper that answers `hello` with another version.
+- The host sends `profile` before a request when the active profile changed since the last one.
+- A helper answers a method it does not know with an `error`.
+
+**Failures.** A helper error fails that call only. The host stops the helper and marks it failed when it does not start, does not reply within 5 seconds to `hello`, `view` and `summary` or within 300 seconds to the other calls (a message resets the wait), exits, closes stdout, writes a line that is not a message, replies to another `id` or sends a result of the wrong shape. A failed helper's sections show its error in a notice with a Restart button (`swofty.restart`). Restart clears the failure, and the next call starts the helper again. Other calls to a failed helper return the error. Installing the addon again stops its helper.
 
 ## 3. Asset API
 

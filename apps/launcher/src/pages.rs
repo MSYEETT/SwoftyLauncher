@@ -1251,6 +1251,12 @@ impl Shell {
 
     pub(crate) fn go(&mut self, page: Page, cx: &mut Context<Self>) {
         self.page = page;
+        if let Page::Section(i) = page
+            && let Some(s) = self.library.sections.get(i)
+            && !self.views.contains_key(&format!("{}/{}", s.addon, s.spec.id))
+        {
+            self.refresh_views(cx);
+        }
         cx.notify();
     }
 }

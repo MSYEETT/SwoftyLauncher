@@ -5,6 +5,7 @@ use std::sync::Arc;
 use swofty_addon::launcher::Builtin;
 
 use crate::builtin::{CORE_ID, core_manifest};
+use crate::helper::Helpers;
 use crate::manifest::{AddonManifest, MANIFEST_FILE};
 use crate::map::{self, TrackPackage};
 use crate::profile::{self, Profile};
@@ -20,6 +21,7 @@ const LEGACY_ADDONS_DIR: &str = "mods";
 pub struct Store {
     pub root: PathBuf,
     builtins: Arc<[Builtin]>,
+    helpers: Arc<Helpers>,
 }
 
 impl Store {
@@ -27,6 +29,7 @@ impl Store {
         Self {
             root: root.into(),
             builtins: Arc::new([]),
+            helpers: Arc::default(),
         }
     }
 
@@ -37,6 +40,10 @@ impl Store {
 
     pub fn builtins(&self) -> &[Builtin] {
         &self.builtins
+    }
+
+    pub fn helpers(&self) -> &Helpers {
+        &self.helpers
     }
 
     pub fn registry(&self) -> Result<crate::registry::Registry> {
@@ -201,6 +208,7 @@ impl Store {
             return Err(Error::Other(format!("{} is built in", m.id)));
         }
         let dest = self.addons_dir().join(&m.id);
+        self.helpers.forget(&m.id);
         if dest.exists() {
             std::fs::remove_dir_all(&dest).map_err(io_err(&dest))?;
         }

@@ -22,7 +22,7 @@ use swofty_core::view::{self, Art, Block, Body, ButtonKind, Control, Effect, Eve
 use crate::game::Install;
 use crate::library::plural;
 use crate::pages::{GUTTER, badge, chevron, fact, label, monogram, names, stat, tag};
-use crate::shell::Shell;
+use crate::shell::{Page, Shell};
 use crate::theme::Palette;
 
 type Shared = Arc<Mutex<Option<(f32, String)>>>;
@@ -120,10 +120,16 @@ impl Shell {
         let registry = library.registry.clone();
         let profile = library.profile.clone();
         let install = self.install.clone();
+        let open = match self.page {
+            Page::Section(i) => Some(i),
+            _ => None,
+        };
         let sections: Vec<(String, String)> = library
             .sections
             .iter()
-            .map(|s| (s.addon.clone(), s.spec.id.clone()))
+            .enumerate()
+            .filter(|(i, s)| open == Some(*i) || !registry.get(&s.addon).is_some_and(|e| e.helper))
+            .map(|(_, s)| (s.addon.clone(), s.spec.id.clone()))
             .collect();
         if sections.is_empty() {
             self.views.clear();

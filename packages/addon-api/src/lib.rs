@@ -1,4 +1,5 @@
 pub mod asset;
+pub mod helper;
 pub mod launcher;
 pub mod manifest;
 pub mod ops;

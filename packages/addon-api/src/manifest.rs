@@ -5,6 +5,8 @@ use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use swofty_sdk::Capability;
 
+use crate::launcher::CommandSpec;
+use crate::view::SectionSpec;
 use crate::{Error, Result};
 
 pub const MANIFEST_FILE: &str = "swofty.json";
@@ -37,6 +39,28 @@ pub struct AddonManifest {
     pub options: Vec<AddonOption>,
     #[serde(default)]
     pub operations: Operations,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launcher: Option<Launcher>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Launcher {
+    pub program: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sections: Vec<SectionSpec>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub imports: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub build: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub commands: Vec<CommandSpec>,
+}
+
+impl Launcher {
+    pub fn program(&self) -> Option<&str> {
+        self.program.get(std::env::consts::OS).map(String::as_str)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -295,9 +319,20 @@ impl AddonManifest {
         let paths = paths
             .chain(self.operations.files.iter().map(|f| &f.source))
             .chain(self.operations.native.iter().map(|n| &n.dll))
-            .chain(self.operations.screens.iter().map(|s| &s.file));
+            .chain(self.operations.screens.iter().map(|s| &s.file))
+            .chain(self.launcher.iter().flat_map(|l| l.program.values()));
         if let Some(p) = paths.into_iter().find(|p| !relative_inside(p)) {
             return fail(format!("{p} must be a relative path inside the addon"));
+        }
+        if let Some(l) = &self.launcher {
+            if l.program.is_empty() {
+                return fail("launcher.program names no program".into());
+            }
+            if let Some(e) = l.imports.iter().find(|e| e.is_empty() || e.contains('.')) {
+                return fail(format!(
+                    "launcher.imports: {e:?} must be an extension without the dot"
+                ));
+            }
         }
         Ok(())
     }

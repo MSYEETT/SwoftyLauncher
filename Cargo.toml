@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
-members = ["addons/builtins", "addons/simplified", "apps/cli", "apps/launcher", "packages/addon-api", "packages/core", "packages/formats", "packages/sdk"]
-default-members = ["addons/builtins", "addons/simplified", "apps/cli", "packages/addon-api", "packages/core", "packages/formats", "packages/sdk"]
+members = ["addons/builtins", "addons/simplified", "apps/cli", "apps/launcher", "packages/addon-api", "packages/core", "packages/formats", "packages/sdk", "templates/launcher-addon"]
+default-members = ["addons/builtins", "addons/simplified", "apps/cli", "packages/addon-api", "packages/core", "packages/formats", "packages/sdk", "templates/launcher-addon"]
 
 [workspace.package]
 version = "0.1.0"
