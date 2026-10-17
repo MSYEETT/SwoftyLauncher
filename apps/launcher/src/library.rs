@@ -97,11 +97,8 @@ impl Library {
             })
             .collect();
         addons.sort_by_key(|m| {
-            (
-                !m.manifest.is_builtin(),
-                !m.locked,
-                m.manifest.name.to_lowercase(),
-            )
+            let declared = registry.get(&m.manifest.id).is_none_or(|e| e.declared);
+            (!m.manifest.is_builtin(), declared, m.manifest.name.to_lowercase())
         });
         let profiles = store
             .profile_names()
