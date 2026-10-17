@@ -10,6 +10,7 @@ The in-game half of Swofty Launcher for F1 25. `native/build.sh` writes it to `n
 | `swofty/addons/core/bindings.json` | `re/tools/bindgen.py` | Game functions, data and call sites that plugins can bind to, with their signatures. |
 | `swofty/addons/core/symbols.tsv` | `re/tools/bindgen.py` | Function names by address, for crash reports. |
 | `swofty/addons/core/log_channels.tsv` | `src/gamelog/log_channels.tsv` | The engine's log channels, for the game log filter. |
+| `swofty/addons/core/features.json` | `FEATURES` in `src/core/stage.cpp` | The runtime asset features of this core, each `stable` or `experimental`. |
 
 Everything logs to `<game>/swofty/loader.log`. Plugins get the C ABI in `packages/sdk/include/swofty_api.h` and the C++ helpers in `packages/sdk/include/swofty/mixin.hpp`. The generated game headers are in `include/swofty/game/`.
 
@@ -21,6 +22,17 @@ Everything logs to `<game>/swofty/loader.log`. Plugins get the C ABI in `package
 - **View models.** For each screen with `"view_model": true`, core registers a view model under `view_model_data.<screen>`. `swofty_addon_<N>` pages map to `addons[N]` of `swofty/settings.json`: they publish `title` and `o<k>.label`, `o<k>.text`, `o<k>.value`, `o<k>.min`, `o<k>.max` per option, and handle `swofty_next:<addon>:<option>`, `swofty_prev:<addon>:<option>` and `swofty_set:<addon>:<option>:<index>` through the settings bridge.
 - **Plugins.** A plugin exports `SwoftyAddonInit` (`SWOFTY_ADDON()` in `mixin.hpp`). The loader also calls `SwoftyModInit` when that is the only export, and `SWOFTY_MOD()` is an alias of `SWOFTY_ADDON()`. Core reads `addons` and `owned_items[].addon` from `swofty/settings.json`, or `mods` and `owned_items[].mod` when the new fields are absent.
 - **Mixins.** Plugins wrap functions, call sites and virtual table slots by binding name. Core orders each chain by priority and load order. With a `swofty/session.json`, registrations not declared there are refused.
+- **Runtime assets.** Core reads `swofty/assets.json` and changes game content in memory, with nothing written into the game folder. Without the file it does nothing.
+
+| Feature | Key in `swofty/assets.json` | Status | Core part |
+|---|---|---|---|
+| `group` | `asset_groups`, `asset_groups_auto` | experimental | `assets.cpp`: entries added to the asset manifest after it is parsed |
+| `erp` | `resources`, `resources_trace` | stable | `resources.cpp`: overlay archives in `swofty/cache/`, read first by every group that lists a target archive |
+| `db` | `db_edits`, `early_stage` | stable | `gamedb.cpp`: edits applied when the game database loads |
+| `lang` | `lang.<code>.strings`, `lang.<code>.table`, `lang.<code>.priority` | stable | `overlay.cpp`: string tables added after the stock table |
+| `file` | `overlay`, `lang.<code>.replace` | experimental | `overlay.cpp`: files under `swofty/overlay/` served in place of game paths |
+
+An experimental feature applies only when `"features"` in `swofty/assets.json` lists it. `"early_stage": true` makes the loader load addons inside the game's `CreateMutexW("Codemasters F1 25")` call, before the game database loads, and core runs its window-stage handlers at the window trigger. `SWOFTY_EARLY_STAGE=1` or `0` overrides it. File paths in `swofty/assets.json` are relative to `swofty/`.
 
 ## Game log
 
@@ -32,7 +44,7 @@ Everything logs to `<game>/swofty/loader.log`. Plugins get the C ABI in `package
 native/build.sh
 ```
 
-Runs `re/tools/bindgen.py`, then cross-compiles the three DLLs with zig for `x86_64-windows-gnu` into `native/build/` and copies them to `native/dist/`. safetyhook and Zydis are vendored in `third_party/` with their licences. The build is deterministic.
+Runs `re/tools/bindgen.py`, then cross-compiles the three DLLs with zig for `x86_64-windows-gnu` into `native/build/` and copies them to `native/dist/` with `features.json`. safetyhook, Zydis and zstd 1.5.7 are vendored in `third_party/` with their licences. The build is deterministic.
 
 The launcher takes the files from `loader/` beside its `bin/` folder in a release, from `native/dist/` in a checkout, or from the folder named by `SWOFTY_LOADER_DIR`.
 
@@ -47,3 +59,9 @@ native/test/run_wine_test.sh
 ```
 
 Builds a small stand-in `F1_25.exe` that carries the signatures and the real home-menu instructions, nine test plugins and test bindings, then runs it under Wine with `native/dist/` in nine modes. It checks the proxy, the load trigger, loading from `swofty/addons/` and the legacy `swofty/mods/`, both init exports, the ADDON SETTINGS tile, mixin chains, refused and conflicting registrations, the settings bridge with and without a requests path and with the old settings fields, the ownership check for `owned_items`, `session.json`, the game log, the crash report and the `ExitProcess` log. CI runs it on every push.
+
+```sh
+native/test/run_runtime_assets_test.sh
+```
+
+Builds a stand-in `F1_25.exe` that carries the runtime asset signatures and transcribes the game's asset manifest, archive loader, game database, file system mounts and language tables, then runs it under Wine with `native/dist/` in six modes. It checks the early stage and its wait for a load on another thread, resource overlays and their checks, game database edits with and without the early stage, string tables, the file overlay, asset groups, the experimental gate and that nothing changes without `swofty/assets.json`. CI runs it on every push.

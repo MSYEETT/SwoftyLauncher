@@ -1,0 +1,115 @@
+#pragma once
+#include <windows.h>
+
+#include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <string>
+#include <vector>
+
+#include "json.hpp"
+
+namespace runtime {
+
+enum Stage { STAGE_WINDOW = 1 };
+
+struct Sig {
+    const char *what, *pattern;
+    uintptr_t rva;
+    enum Kind { addr, rel32, riprel } kind = addr;
+    uintptr_t insn = 0, anchor = 0, len = 0;
+};
+
+struct OverlayErp {
+    std::string path;
+    uint64_t size = 0;
+    size_t resources = 0;
+    std::vector<std::string> targets;
+};
+
+struct Overlay {
+    std::vector<OverlayErp> erps;
+    size_t replaced = 0, added = 0;
+};
+
+const json::Value &config();
+const std::string &config_source();
+const std::wstring &game_root();
+const std::wstring &swofty_root();
+bool enabled(const char *feature, const char *what);
+std::string load_stage();
+bool same_build();
+
+uintptr_t find(const Sig &s, const char *tag);
+bool readable(const void *p, size_t n);
+std::string read_file(const std::wstring &path, size_t limit = size_t(512) << 20);
+bool write_file(const std::wstring &path, const std::string &data);
+bool file_size(const std::wstring &path, uint64_t *size);
+std::wstring wide(const std::string &s);
+std::string narrow(const std::wstring &w);
+std::wstring under_swofty(const std::string &rel);
+std::string lower(std::string s);
+uint64_t fnv64(const char *s, size_t n);
+inline uint64_t fnv64(const std::string &s) { return fnv64(s.data(), s.size()); }
+uint32_t fnv32(const char *s);
+void md5(const void *data, size_t n, uint8_t out[16]);
+std::string hex16(uint64_t v);
+
+void on_stage(void (*fn)(int stage));
+
+const Overlay *resource_overlay(DWORD wait_ms);
+void overlay_registered(const std::vector<uint64_t> &erp_hashes, size_t groups);
+void overlay_dropped(const std::string &why);
+std::string erp_name(uint64_t hash);
+
+struct Robin {
+    uint8_t *s;
+
+    template <class T> T at(size_t off) const { return *reinterpret_cast<const T *>(s + off); }
+    uint64_t mult() const { return at<uint64_t>(0x10); }
+    uint64_t *slots() const { return at<uint64_t *>(0x18); }
+    uint8_t *info() const { return at<uint8_t *>(0x20); }
+    uint64_t count() const { return at<uint64_t>(0x28); }
+    uint64_t mask() const { return at<uint64_t>(0x30); }
+    uint32_t inc() const { return at<uint32_t>(0x40); }
+    uint32_t shift() const { return at<uint32_t>(0x44); }
+
+    size_t buffer() const
+    {
+        uint64_t n = mask() + 1, a = n < 0x28f5c28f5c28f5dull ? n * 80 / 100 : (n / 100) * 80;
+        return size_t(n + std::min<uint64_t>(a, 0xff));
+    }
+
+    bool sane() const
+    {
+        if (!readable(s, 0x48))
+            return false;
+        uint64_t n = mask() + 1;
+        return n >= 8 && !(n & (n - 1)) && inc() >= 1 && inc() <= 0x20 && slots() && info() &&
+               readable(info(), 1) && readable(info() + buffer(), 1) && readable(slots(), 16) &&
+               readable(reinterpret_cast<uint8_t *>(slots()) + buffer() * 16 - 16, 16);
+    }
+
+    uint64_t *find(uint64_t key) const
+    {
+        uint64_t h = key * mult();
+        h ^= h >> 33;
+        uint32_t inf = inc() + ((uint32_t(h) & 0x1f) >> (shift() & 0x3f));
+        size_t idx = size_t((h >> 5) & mask());
+        const uint8_t *in = info();
+        uint64_t *sl = slots();
+        do {
+            if (inf == in[idx] && sl[idx * 2] == key)
+                return &sl[idx * 2];
+            ++idx;
+            inf += inc();
+            if (inf == in[idx] && sl[idx * 2] == key)
+                return &sl[idx * 2];
+            ++idx;
+            inf += inc();
+        } while (inf <= in[idx]);
+        return nullptr;
+    }
+};
+
+}

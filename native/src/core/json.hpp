@@ -45,6 +45,32 @@ struct Parser {
             p++;
     }
 
+    bool hex4(unsigned &cp)
+    {
+        cp = 0;
+        for (int i = 0; i < 4; i++, p++) {
+            char c = *p;
+            int d = c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1;
+            if (d < 0)
+                return false;
+            cp = cp << 4 | unsigned(d);
+        }
+        return true;
+    }
+
+    static void utf8(std::string &out, unsigned cp)
+    {
+        if (cp < 0x80)
+            out += char(cp);
+        else if (cp < 0x800)
+            out += char(0xc0 | cp >> 6), out += char(0x80 | (cp & 0x3f));
+        else if (cp < 0x10000)
+            out += char(0xe0 | cp >> 12), out += char(0x80 | (cp >> 6 & 0x3f)), out += char(0x80 | (cp & 0x3f));
+        else
+            out += char(0xf0 | cp >> 18), out += char(0x80 | (cp >> 12 & 0x3f)), out += char(0x80 | (cp >> 6 & 0x3f)),
+                out += char(0x80 | (cp & 0x3f));
+    }
+
     bool string(std::string &out)
     {
         if (*p++ != '"')
@@ -55,16 +81,25 @@ struct Parser {
                 if (!*p)
                     return false;
                 c = *p++;
-                if (c == 'n')
-                    c = '\n';
-                else if (c == 't')
-                    c = '\t';
-                else if (c == 'u') {
-                    if (strnlen(p, 4) < 4)
+                if (c == 'u') {
+                    unsigned cp;
+                    if (!hex4(cp))
                         return false;
-                    c = (char)strtol(std::string(p, 4).c_str(), nullptr, 16);
-                    p += 4;
+                    if (cp >= 0xd800 && cp < 0xdc00 && p[0] == '\\' && p[1] == 'u') {
+                        const char *save = p;
+                        unsigned lo;
+                        p += 2;
+                        if (hex4(lo) && lo >= 0xdc00 && lo < 0xe000)
+                            cp = 0x10000 + ((cp - 0xd800) << 10) + (lo - 0xdc00);
+                        else
+                            p = save;
+                    }
+                    if (!cp || (cp >= 0xd800 && cp < 0xe000))
+                        cp = 0xfffd;
+                    utf8(out, cp);
+                    continue;
                 }
+                c = c == 'n' ? '\n' : c == 't' ? '\t' : c == 'r' ? '\r' : c == 'b' ? '\b' : c == 'f' ? '\f' : c;
             }
             out += c;
         }
@@ -125,6 +160,7 @@ struct Parser {
         if (end == p)
             return false;
         v.type = Value::Num;
+        v.s.assign(p, size_t(end - p));
         p = end;
         return true;
     }

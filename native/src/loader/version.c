@@ -61,8 +61,11 @@ static wchar_t exe_path[MAX_PATH], game_dir[MAX_PATH];
 static uintptr_t image_base;
 static Section sections[96];
 static int section_count, addons_loaded, addons_ready;
-static volatile LONG load_state;
-static DWORD attach_tick;
+static volatile LONG load_state, window_done;
+static DWORD attach_tick, load_thread;
+static HANDLE loaded_event;
+static int early_enabled, loaded_early;
+static char early_source[160] = "off";
 
 static void vlog(const char *fmt, va_list ap)
 {
@@ -214,6 +217,7 @@ static SwoftyApi api = {1, slog, module_base, scan, NULL, NULL, NULL, NULL, NULL
 static const SwoftyApi api_v1 = {1, slog, module_base, scan, NULL, NULL, NULL, NULL, NULL};
 static SwoftyCoreInitFn core_init;
 static SwoftyCoreCommitFn core_commit;
+static SwoftyCoreStageFn core_stage;
 static struct {
     wchar_t name[MAX_PATH];
     const char *symbol;
@@ -260,7 +264,8 @@ static void load_addon(const wchar_t *dir, const wchar_t *name, int core_dir)
         if (ci && cc && attach(&api)) {
             core_init = ci;
             core_commit = cc;
-            slog("addon %ls: provides the mixin API v%u", name, api.version);
+            core_stage = (SwoftyCoreStageFn)(void *)GetProcAddress(m, "SwoftyCoreStage");
+            slog("addon %ls: provides the mixin API v%u%s", name, api.version, core_stage ? ", stage handlers" : "");
         } else {
             slog("addon %ls: exports SwoftyCoreAttach but did not attach", name);
         }
@@ -350,18 +355,29 @@ static BOOL CALLBACK find_window(HWND h, LPARAM out)
 typedef ATOM(WINAPI *RegisterClassExWFn)(const WNDCLASSEXW *);
 typedef HWND(WINAPI *CreateWindowExWFn)(DWORD, LPCWSTR, LPCWSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE,
                                          LPVOID);
+typedef HANDLE(WINAPI *CreateMutexWFn)(LPSECURITY_ATTRIBUTES, BOOL, LPCWSTR);
 static ATOM WINAPI trigger_RegisterClassExW(const WNDCLASSEXW *wc);
 static HWND WINAPI trigger_CreateWindowExW(DWORD ex, LPCWSTR cls, LPCWSTR name, DWORD style, int x, int y, int w,
                                            int h, HWND parent, HMENU menu, HINSTANCE inst, LPVOID param);
+static HANDLE WINAPI trigger_CreateMutexW(LPSECURITY_ATTRIBUTES sa, BOOL owner, LPCWSTR name);
+
+#define STAGE_EARLY 1
+#define STAGE_LATE 2
+#define EARLY_MUTEX L"Codemasters F1 25"
 
 static struct {
-    const char *name;
+    const char *dll, *mod, *name;
     void *hook, **slot, *orig;
+    int stage;
 } iat[] = {
-    {"RegisterClassExW", (void *)trigger_RegisterClassExW, NULL, NULL},
-    {"CreateWindowExW", (void *)trigger_CreateWindowExW, NULL, NULL},
+    {"USER32.dll", "USER32", "RegisterClassExW", (void *)trigger_RegisterClassExW, NULL, NULL, STAGE_LATE},
+    {"USER32.dll", "USER32", "CreateWindowExW", (void *)trigger_CreateWindowExW, NULL, NULL, STAGE_LATE},
+    {"KERNEL32.dll", "KERNEL32", "CreateMutexW", (void *)trigger_CreateMutexW, NULL, NULL, STAGE_EARLY},
 };
 #define NIAT (sizeof iat / sizeof *iat)
+#define IAT_REGISTER 0
+#define IAT_CREATE 1
+#define IAT_MUTEX 2
 
 static int set_slot(void **slot, void *value)
 {
@@ -377,9 +393,12 @@ static void hook_iat(void)
 {
     const IMAGE_NT_HEADERS *nt = (const IMAGE_NT_HEADERS *)(image_base + ((const IMAGE_DOS_HEADER *)image_base)->e_lfanew);
     const IMAGE_DATA_DIRECTORY *dir = &nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+    const IMAGE_DATA_DIRECTORY *iatdir = &nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT];
+    uintptr_t iat_lo = image_base + iatdir->VirtualAddress, iat_hi = iat_lo + iatdir->Size;
     for (const IMAGE_IMPORT_DESCRIPTOR *d = (const IMAGE_IMPORT_DESCRIPTOR *)(image_base + dir->VirtualAddress);
          dir->VirtualAddress && d->Name; d++) {
-        if (strcmp((const char *)(image_base + d->Name), "USER32.dll") || !d->OriginalFirstThunk)
+        const char *dll = (const char *)(image_base + d->Name);
+        if (!d->OriginalFirstThunk)
             continue;
         const IMAGE_THUNK_DATA64 *names = (const IMAGE_THUNK_DATA64 *)(image_base + d->OriginalFirstThunk);
         void **slots = (void **)(image_base + d->FirstThunk);
@@ -388,25 +407,31 @@ static void hook_iat(void)
                 continue;
             const char *fn = (const char *)((const IMAGE_IMPORT_BY_NAME *)(image_base + names[i].u1.AddressOfData))->Name;
             for (size_t k = 0; k < NIAT; k++)
-                if (!iat[k].slot && !strcmp(fn, iat[k].name)) {
+                if (!iat[k].slot && !strcmp(dll, iat[k].dll) && !strcmp(fn, iat[k].name) &&
+                    (!iatdir->Size || ((uintptr_t)&slots[i] >= iat_lo && (uintptr_t)&slots[i] < iat_hi))) {
                     iat[k].slot = &slots[i];
                     iat[k].orig = slots[i];
                 }
         }
     }
     for (size_t k = 0; k < NIAT; k++) {
+        if (iat[k].stage == STAGE_EARLY && !early_enabled)
+            continue;
         if (iat[k].slot && iat[k].orig && set_slot(iat[k].slot, iat[k].hook))
-            slog("trigger armed: game IAT slot USER32!%s at %p (was %p)", iat[k].name, (void *)iat[k].slot, iat[k].orig);
+            slog("trigger armed: game IAT slot %s!%s at %p (was %p)%s", iat[k].mod, iat[k].name, (void *)iat[k].slot,
+                 iat[k].orig, iat[k].stage == STAGE_EARLY ? ", early stage" : "");
         else
-            slog("trigger: game IAT slot USER32!%s not found or not writable", iat[k].name);
+            slog("trigger: game IAT slot %s!%s not found or not writable%s", iat[k].mod, iat[k].name,
+                 iat[k].stage == STAGE_EARLY ? "; the early stage cannot fire" : "");
     }
 }
 
-static void unhook_iat(void)
+static void unhook_iat(int stage)
 {
     for (size_t k = 0; k < NIAT; k++)
-        if (iat[k].slot && *iat[k].slot == iat[k].hook && set_slot(iat[k].slot, iat[k].orig))
-            slog("trigger disarmed: USER32!%s slot restored to %p", iat[k].name, iat[k].orig);
+        if ((!stage || iat[k].stage == stage) && iat[k].slot && *iat[k].slot == iat[k].hook &&
+            set_slot(iat[k].slot, iat[k].orig))
+            slog("trigger disarmed: %s!%s slot restored to %p", iat[k].mod, iat[k].name, iat[k].orig);
 }
 
 static const Section *section_of(uintptr_t a)
@@ -417,15 +442,22 @@ static const Section *section_of(uintptr_t a)
     return NULL;
 }
 
-static void load_addons_once(const char *why, LPCWSTR detail)
+static void load_addons_once(const char *why, LPCWSTR detail, int stage)
 {
     if (InterlockedCompareExchange(&load_state, 1, 0) != 0)
         return;
+    load_thread = GetCurrentThreadId();
     if (detail && !((uintptr_t)detail >> 16))
         detail = NULL;
-    slog("trigger: %s%s%ls%s on thread %lu, %lu ms after attach; loading addons now", why, detail ? " class '" : "",
-         detail ? detail : L"", detail ? "'" : "", GetCurrentThreadId(), GetTickCount() - attach_tick);
-    unhook_iat();
+    loaded_early = stage == STAGE_EARLY;
+    slog("trigger: %s%s%ls%s on thread %lu, %lu ms after attach; loading addons now%s", why,
+         detail ? (loaded_early ? " name '" : " class '") : "", detail ? detail : L"", detail ? "'" : "",
+         GetCurrentThreadId(), GetTickCount() - attach_tick, loaded_early ? " (early stage)" : "");
+    if (early_enabled && !loaded_early)
+        slog("early stage: the early anchor never fired; early-stage mixins (game database, config and file-system "
+             "overlay of files read before the window) missed their first calls");
+    SetEnvironmentVariableW(L"SWOFTY_LOAD_STAGE", loaded_early ? L"early" : L"window");
+    unhook_iat(loaded_early ? STAGE_EARLY : STAGE_LATE);
     load_dir(L"core", 1);
     load_dir(L"", 0);
     if (core_commit)
@@ -435,7 +467,36 @@ static void load_addons_once(const char *why, LPCWSTR detail)
         finish_init(deferred[i].name, deferred[i].symbol, deferred[i].init(&api_v1));
     }
     slog("addons: done, %d addon(s) loaded, %d initialised", addons_loaded, addons_ready);
+    if (!loaded_early)
+        unhook_iat(0);
     InterlockedExchange(&load_state, 2);
+    if (loaded_event)
+        SetEvent(loaded_event);
+}
+
+static void wait_loaded(const char *who)
+{
+    if (load_state != 1 || !loaded_event || load_thread == GetCurrentThreadId())
+        return;
+    DWORD t0 = GetTickCount();
+    DWORD r = WaitForSingleObject(loaded_event, 60000);
+    slog("%s: waited %lu ms for the addon load running on another thread (%s)", who, GetTickCount() - t0,
+         r == WAIT_OBJECT_0 ? "done" : "timed out");
+}
+
+static void stage_window(const char *why)
+{
+    if (!early_enabled || load_state != 2 || InterlockedExchange(&window_done, 1))
+        return;
+    unhook_iat(0);
+    slog("stage: window (%s), addons were loaded at the %s stage", why, loaded_early ? "early" : "window");
+    if (core_stage)
+        core_stage(SWOFTY_STAGE_WINDOW);
+}
+
+static int plain_code(const Section *sec)
+{
+    return sec && (sec->flags & IMAGE_SCN_MEM_EXECUTE) && !(sec->flags & IMAGE_SCN_MEM_WRITE);
 }
 
 static void game_call(const char *fn, void *ret, LPCWSTR cls)
@@ -443,23 +504,90 @@ static void game_call(const char *fn, void *ret, LPCWSTR cls)
     const Section *sec = section_of((uintptr_t)ret);
     char why[160];
     snprintf(why, sizeof why, "USER32!%s from %p (%s)", fn, ret, sec ? sec->name : "outside the exe");
-    if (sec && (sec->flags & IMAGE_SCN_MEM_EXECUTE) && !(sec->flags & IMAGE_SCN_MEM_WRITE))
-        load_addons_once(why, cls);
-    else if (!load_state)
+    if (plain_code(sec)) {
+        load_addons_once(why, cls, STAGE_LATE);
+        if (early_enabled) {
+            wait_loaded("trigger");
+            stage_window(why);
+        }
+    } else if (early_enabled ? load_state != 2 : !load_state)
         slog("trigger skipped: %s is not plain game code, still waiting", why);
 }
 
 static ATOM WINAPI trigger_RegisterClassExW(const WNDCLASSEXW *wc)
 {
     game_call("RegisterClassExW", __builtin_return_address(0), wc ? wc->lpszClassName : NULL);
-    return ((RegisterClassExWFn)iat[0].orig)(wc);
+    return ((RegisterClassExWFn)iat[IAT_REGISTER].orig)(wc);
 }
 
 static HWND WINAPI trigger_CreateWindowExW(DWORD ex, LPCWSTR cls, LPCWSTR name, DWORD style, int x, int y, int w,
                                            int h, HWND parent, HMENU menu, HINSTANCE inst, LPVOID param)
 {
     game_call("CreateWindowExW", __builtin_return_address(0), cls);
-    return ((CreateWindowExWFn)iat[1].orig)(ex, cls, name, style, x, y, w, h, parent, menu, inst, param);
+    return ((CreateWindowExWFn)iat[IAT_CREATE].orig)(ex, cls, name, style, x, y, w, h, parent, menu, inst, param);
+}
+
+static HANDLE WINAPI trigger_CreateMutexW(LPSECURITY_ATTRIBUTES sa, BOOL owner, LPCWSTR name)
+{
+    static volatile LONG skips;
+    void *ret = __builtin_return_address(0);
+    if (load_state != 2) {
+        const Section *sec = section_of((uintptr_t)ret);
+        int named = name && !wcscmp(name, EARLY_MUTEX);
+        if (named && plain_code(sec)) {
+            char why[160];
+            snprintf(why, sizeof why, "KERNEL32!CreateMutexW from %p (%s)", ret, sec->name);
+            load_addons_once(why, name, STAGE_EARLY);
+            wait_loaded("early trigger");
+        } else if (InterlockedIncrement(&skips) <= 8)
+            slog("early trigger skipped: KERNEL32!CreateMutexW from %p (%s) name '%ls' is not the game's single-instance "
+                 "mutex from plain game code",
+                 ret, sec ? sec->name : "outside the exe", name ? name : L"(none)");
+    }
+    return ((CreateMutexWFn)iat[IAT_MUTEX].orig)(sa, owner, name);
+}
+
+static int early_flag(void)
+{
+    wchar_t path[MAX_PATH * 2];
+    swprintf(path, MAX_PATH * 2, L"%ls\\swofty\\assets.json", game_dir);
+    HANDLE f = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    if (f == INVALID_HANDLE_VALUE)
+        return -1;
+    static char buf[1 << 20];
+    DWORD got = 0;
+    ReadFile(f, buf, sizeof buf - 1, &got, NULL);
+    CloseHandle(f);
+    buf[got] = 0;
+    const char *p = strstr(buf, "\"early_stage\"");
+    if (!p)
+        return -1;
+    p += 13;
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')
+        p++;
+    if (*p++ != ':')
+        return -1;
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')
+        p++;
+    return !strncmp(p, "true", 4) ? 1 : !strncmp(p, "false", 5) ? 0 : -1;
+}
+
+static void read_early_flag(void)
+{
+    char env[8] = {0};
+    if (GetEnvironmentVariableA("SWOFTY_EARLY_STAGE", env, sizeof env) && env[0]) {
+        early_enabled = env[0] == '1' || env[0] == 't' || env[0] == 'T';
+        snprintf(early_source, sizeof early_source, "%s (SWOFTY_EARLY_STAGE=%s)", early_enabled ? "on" : "off", env);
+        return;
+    }
+    int v = early_flag();
+    if (v < 0) {
+        snprintf(early_source, sizeof early_source, "off (no \"early_stage\" in swofty\\assets.json)");
+        return;
+    }
+    early_enabled = v;
+    snprintf(early_source, sizeof early_source, "%s (\"early_stage\": %s in swofty\\assets.json)", v ? "on" : "off",
+             v ? "true" : "false");
 }
 
 static DWORD WINAPI worker(LPVOID unused)
@@ -473,12 +601,13 @@ static DWORD WINAPI worker(LPVOID unused)
         if (w) {
             wchar_t cls[128] = {0};
             GetClassNameW(w, cls, 128);
-            load_addons_once("main window visible (fallback, IAT trigger never fired)", cls);
+            load_addons_once("main window visible (fallback, IAT trigger never fired)", cls, STAGE_LATE);
+            stage_window("main window visible (fallback)");
             return 0;
         }
         if (GetTickCount() - attach_tick > WINDOW_TIMEOUT_MS &&
             InterlockedCompareExchange(&load_state, 3, 0) == 0) {
-            unhook_iat();
+            unhook_iat(0);
             slog("fallback watcher: no trigger and no window after %d s, addons NOT loaded", WINDOW_TIMEOUT_MS / 1000);
             return 0;
         }
@@ -580,6 +709,10 @@ BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID reserved)
             slog("  forward %s missing in the real dll (calls return 0)", fwd_names[i]);
     log_build();
     attach_tick = GetTickCount();
+    read_early_flag();
+    slog("early stage: %s", early_source);
+    if (early_enabled)
+        loaded_event = CreateEventW(NULL, TRUE, FALSE, NULL);
     hook_iat();
 
     HANDLE t = CreateThread(NULL, 0, worker, NULL, 0, NULL);

@@ -15,6 +15,7 @@ and the same edit. They are not shipped.
 | `map_check.py` | Checks a profile built with maps against the game it was built from, using the build's `plan.json` |
 | `track_keys.py` | The game-DB names `F1_25.exe` reads, stack-built ones included, and the keys they resolve to on a track's rows |
 | `gdb_hashsim.py` | Replays the game's hash-map load of `gamedatabases.2025.bin` and prints the missing-key sentinel |
+| `rtassets.py` | ERP and LNGT writers for the runtime assets Wine test (`native/test/run_runtime_assets_test.sh`) |
 | `gamedb/catalog.py` | The table and key catalogue of the game database (`gamedb/catalog/`), rerunnable against a game folder |
 
 `packages/formats/tests/real_files.rs` runs the comparison:

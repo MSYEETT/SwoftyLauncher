@@ -98,3 +98,6 @@ jobs:
       # A synthetic F1_25.exe carries the signatures; no game files are used.
       - name: Wine test
         run: native/test/run_wine_test.sh
+
+      - name: Runtime assets Wine test
+        run: native/test/run_runtime_assets_test.sh

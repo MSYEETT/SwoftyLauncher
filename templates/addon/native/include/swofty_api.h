@@ -76,6 +76,9 @@ typedef SwoftyAddonInitFn SwoftyModInitFn;
 typedef int (*SwoftyCoreAttachFn)(SwoftyApi *api);
 typedef int (*SwoftyCoreInitFn)(const wchar_t *name, SwoftyAddonInitFn init);
 typedef int (*SwoftyCoreCommitFn)(void);
+typedef int (*SwoftyCoreStageFn)(int stage);
+
+#define SWOFTY_STAGE_WINDOW 1
 
 #if defined(_WIN32)
 #define SWOFTY_EXPORT __declspec(dllexport)
