@@ -21,14 +21,14 @@ The archive also gets:
 |---|---|
 | `tracks.Track_<n>` | `copy_slot` clones the slot track's row for a new code, with a new `statId`. A code that already has a row (`bahrain24`) keeps it. `track_overrides` are set here. |
 | `tracks.track_resource.TrackResource_<n>` | A row `swofty_<code>` cloned from the track's resource row, with every asset group set to the map's slot. The track row's `track_resource` names it. |
-| Per-track tables: per-race DNFs, pit lane splines and slide settings, practice programmes (2025 and 2026), tyre wear, specialist objectives, replay hero shots | A code without a row gets one cloned from the slot track, or from the base track when the slot has none. The game reads the per-race DNF row without checking it exists, so a new code always needs it. |
+| Per-track tables: per-race DNFs, pit lane splines and slide settings, practice programmes (2025 and 2026), tyre wear and tyre wear scales, specialist objectives, track trivia, replay hero shots | A code without a row gets one cloned from the slot track, or from the base track when the slot has none. The game reads the per-race DNF row without checking it exists, so a new code always needs it. |
 | `<datasets>.TrackDataSet_<i>.TrackData_<j>` | `copy_from_track` clones the base track's row, with its sub-tables, in every dataset that has it. `overrides` are set here, limited to their `datasets`. |
 | Content sets' `available_tracks` | The code is added wherever the base track is listed. This is the Grand Prix track list. |
 | `track_data.sorted_track_order` | A `TrackRef` row for the code. |
 
 Every cloned row copies all keys of the source row listed in `track_tables.json`, plus the keys the manifest's overrides name, and the table's `_<row>_instancecount_` grows by one.
 
-Four tables keyed by track (three of tyre compound shares, one of track names) have no row count in the database, so a new code gets no row in them.
+Some sub-table names exist in `F1_25.exe` only as strings built on the stack. `tools/track_keys.py` collects every name the game-DB readers use, stack-built ones included.
 
 ## Menus
 
@@ -46,5 +46,7 @@ The manifest's `ers` values are per-track `TrackSettings` entries in the car han
 swofty build
 python3 tools/map_check.py <overlay folder> --game <game folder> --maps <maps folder>
 ```
+
+With `F1_25.exe` in the game folder (or `--exe`) and `numpy`, `pefile` and `capstone` installed, `map_check.py` also checks that every key the game reads on a source row (the slot track's Track row, its track resource, per-track rows and TrackData rows) exists on the map's row.
 
 `cargo test -p swofty-core --test real_maps` activates the Sepang and Okayama packages in the database from `F1_25_DIR` and checks the row counts and cloned rows.

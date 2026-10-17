@@ -13,6 +13,7 @@ and the same edit. They are not shipped.
 | `modswap.py` | The pristine-verify, install and restore pattern behind the journal |
 | `vtf.py` | Car handling files (`.vtf`, bxml plus TSMD): read, write, add a track's ERS settings |
 | `map_check.py` | Checks a profile built with maps against the game it was built from, using the build's `plan.json` |
+| `track_keys.py` | The game-DB names `F1_25.exe` reads, stack-built ones included, and the keys they resolve to on a track's rows |
 
 `packages/formats/tests/real_files.rs` runs the comparison:
 
@@ -25,6 +26,8 @@ Check a build with maps (needs `zstandard` or the `zstd` command):
 ```sh
 python3 tools/map_check.py <overlay folder> --game <game folder or pristine copy> --maps <maps folder>
 ```
+
+The reader-key part of the check and `track_keys.py` need `numpy`, `pefile` and `capstone`, and an `F1_25.exe` whose build is listed in `track_keys.BUILDS`.
 
 Scripts that read or write game files take them from `work/`, which is ignored by git, or from `F1_25_DIR`. Never
 commit their output.

@@ -80,6 +80,74 @@ def check_db(rep, path, codes, slots):
     return db
 
 
+def load_db(path):
+    return {r.key: r.value.decode('utf-8', 'replace') for r in gamedb.read(open(path, 'rb').read())}
+
+
+def check_reader_keys(rep, exe, original, built, manifests, codes):
+    try:
+        import track_keys as tk
+        names = tk.exe_names(exe)
+    except ImportError as e:
+        print(f'skip reader keys: {e}; they need numpy, pefile and capstone')
+        return
+    reg = json.load(open(tk.REGISTRY))
+    old, new = load_db(original), built
+    print(f'reader keys: {len(names)} game-DB names from {exe}')
+    cache = {}
+
+    def need(label, src_db, src, dst):
+        if (id(src_db), src) not in cache:
+            cache[(id(src_db), src)] = tk.row_keys(src_db, src, names)
+        keys = cache[(id(src_db), src)]
+        gone = [k for k in keys if tk.fnv('.' + k, dst) not in new]
+        rep.check(not gone, f'{label}: all {len(keys)} keys the game reads on the source row exist {gone[:4]}')
+
+    track_base, track_count = tk.fnv('tracks.Track_'), tk.fnv('tracks._Track_instancecount_')
+    res_base = tk.fnv('tracks.track_resource.TrackResource_')
+    res_count = tk.fnv('tracks.track_resource._TrackResource_instancecount_')
+    old_tracks = tk.table_rows(old, track_base, track_count, 'instanceName')
+    new_tracks = tk.table_rows(new, track_base, track_count, 'instanceName')
+    old_res = tk.table_rows(old, res_base, res_count, '_metadata_')
+    new_res = tk.table_rows(new, res_base, res_count, '_metadata_')
+    ds_base, ds_count = int(reg['datasets']['base'], 16), int(reg['datasets']['count'], 16)
+    for code in codes:
+        act = manifests[code].get('activation', {})
+        base = act.get('copy_from_track') or act.get('copy_slot')
+        slot = act.get('copy_slot') or code
+        if code not in new_tracks:
+            rep.check(False, f'{code}: has a track row')
+            continue
+        row = new_tracks[code]
+        if code not in old_tracks:
+            need(f'{code}: tracks.Track from {slot}', old, old_tracks[slot], row)
+        src_res = old.get(tk.fnv('.track_resource', old_tracks.get(code, old_tracks.get(slot))))
+        mine = new.get(tk.fnv('.track_resource', row))
+        if src_res in old_res and mine in new_res:
+            need(f'{code}: track resource {mine} from {src_res}', old, old_res[src_res], new_res[mine])
+        for t in reg['per_track']:
+            o = tk.table_rows(old, int(t['base'], 16), int(t['count'], 16), t['labels'][0])
+            n = tk.table_rows(new, int(t['base'], 16), int(t['count'], 16), t['labels'][0])
+            src = slot if slot in o else base
+            if code in o or src not in o:
+                continue
+            if code not in n:
+                rep.check(False, f'{code}: {t["id"]} has a row')
+                continue
+            need(f'{code}: {t["id"]} from {src}', old, o[src], n[code])
+        for i in range(int(old.get(ds_count, '0'))):
+            ds = tk.fnv(str(i), ds_base)
+            label = old.get(tk.fnv('._metadata_', ds))
+            o = tk.table_rows(old, tk.fnv('.TrackData_', ds), tk.fnv('._TrackData_instancecount_', ds), 'track')
+            n = tk.table_rows(new, tk.fnv('.TrackData_', ds), tk.fnv('._TrackData_instancecount_', ds), 'track')
+            if base not in o:
+                continue
+            if code not in n:
+                rep.check(False, f'{code}: TrackData in {label} has a row')
+                continue
+            need(f'{code}: TrackData {label} from {base}', old, o[base], n[code])
+
+
 def check_same_layout(rep, label, original, mine, allowed=None):
     a, b = Archive(original), Archive(mine)
     rep.check(a.names() == b.names(), f'{label}: same {len(a.names())} resources in the same order')
@@ -97,7 +165,9 @@ def main():
     ap.add_argument('overlay', help='the overlay folder swofty build printed (holds plan.json)')
     ap.add_argument('--game', required=True, help='game folder or pristine copy the build read')
     ap.add_argument('--maps', default=os.path.expanduser('~/.local/share/swofty/maps'))
+    ap.add_argument('--exe', help='F1_25.exe for the reader-key check (default: the game folder\'s)')
     a = ap.parse_args()
+    exe = a.exe or os.path.join(a.game, 'F1_25.exe')
     plan = json.load(open(os.path.join(a.overlay, 'plan.json')))
     rep = Report()
     codes = [c for c in os.listdir(a.maps) if os.path.isfile(os.path.join(a.maps, c, 'manifest.json'))]
@@ -115,7 +185,11 @@ def main():
     for rel, src in sorted(plan['replace'].items()):
         orig = os.path.join(a.game, rel)
         if rel.endswith('gamedatabases.2025.bin'):
-            check_db(rep, src, codes, slots)
+            built = check_db(rep, src, codes, slots)
+            if os.path.isfile(exe):
+                check_reader_keys(rep, exe, orig, built, manifests, codes)
+            else:
+                print(f'skip reader keys: no {exe}')
         elif any(rel.endswith(f'/{s[0]}.erp') for s in slots.values()):
             code = next(c for c, s in slots.items() if rel.endswith(f'/{s[0]}.erp'))
             mine, stock = Archive(src), Archive(orig)
