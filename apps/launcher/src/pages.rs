@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::sync::{Arc, LazyLock};
 
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants};
@@ -49,6 +50,20 @@ fn tile(size: f32, p: Palette) -> Div {
 
 pub(crate) fn badge(icon: IconName, size: f32, p: Palette) -> Div {
     tile(size, p).child(Icon::new(icon).size(px(size * 0.5)).text_color(p.text_muted))
+}
+
+fn logo(size: f32) -> Div {
+    static LOGO: LazyLock<Arc<Image>> = LazyLock::new(|| {
+        Arc::new(Image::from_bytes(
+            ImageFormat::Png,
+            include_bytes!("../assets/icon-256.png").to_vec(),
+        ))
+    });
+    div()
+        .w(px(size))
+        .h(px(size))
+        .flex_shrink_0()
+        .child(img(LOGO.clone()).size_full())
 }
 
 fn monogram(text: &str, size: f32, p: Palette) -> Div {
@@ -423,15 +438,11 @@ impl Shell {
         };
         let head = self
             .row_head(format!("mod-{id}"), open, p)
-            .child(badge(
-                if builtin {
-                    IconName::Sparkles
-                } else {
-                    IconName::Package
-                },
-                32.,
-                p,
-            ))
+            .child(if builtin {
+                logo(32.)
+            } else {
+                badge(IconName::Package, 32., p)
+            })
             .child(
                 v_flex()
                     .flex_1()
