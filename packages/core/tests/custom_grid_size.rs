@@ -426,7 +426,7 @@ fn tracks_build_for_every_grid_size() {
     for cars in SIZES {
         let mut b = ErpBuild::new(&original);
         for rel in &tracks {
-            b.apply(&erp_ops(rel, cars))
+            b.apply(&erp_ops(rel, cars), &game)
                 .unwrap_or_else(|e| panic!("{rel} at {cars} cars: {e}"));
         }
         if cars <= 24 {

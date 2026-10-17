@@ -2,7 +2,7 @@
 
 ERP operations describe changes to artwork and other resources in `.erp` archives. List these files in `operations.erp` in your [manifest](/modding/manifest).
 
-`swofty build` applies `patch-pkg` and `warn`. A mod whose ERP files use any other operation has its ERP files skipped.
+`swofty build` applies `patch-pkg`, `copy-resource` and `warn`. A mod whose ERP files use any other operation has its ERP files skipped.
 
 ## Example
 
@@ -35,11 +35,27 @@ python3 tools/erp.py <archive> '*'
 |---|---|---|
 | `replace-resource` | `erp`, `resource`, `fragment`, `source` | Replace one part of a resource; `fragment` defaults to 0 |
 | `add-resource` | `erp`, `resource`, `type`, `sources` | Add a resource, with one source file per part |
-| `copy-resource` | `from_erp`, `erp`, `resource` | Copy a resource between archives |
+| `copy-resource` | `from_erp` or `source`, `erp`, `resource`, optional `as` | Copy a resource between archives |
 | `remove-resource` | `erp`, `resource` | Remove a resource |
 | `add-mipmaps` | `source`, `target` | Copy texture files to a game-relative path |
 | `patch-pkg` | `erp`, `resource`, `fragment`, `edits` | Run `clone-entry` and `set-value` edits on a `!pkg` resource |
 | `warn` | `message` | Print a message when the mod is built |
+
+## Copying resources
+
+`copy-resource` appends a resource to the archive `erp`, copying its parts byte for byte. It reads the resource from the game archive `from_erp`, or from `source`, an archive in your mod folder. `as` gives the copy a new name. The copy fails when `erp` already has a resource with that name.
+
+```json
+{
+  "op": "copy-resource",
+  "source": "erp/car.erp",
+  "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
+  "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.wep",
+  "as": "eaid://f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.wep"
+}
+```
+
+Run `patch-pkg` after the copy to change the copy's contents, such as the layer names a renamed world lists.
 
 ## Editing `!pkg` resources
 

@@ -80,9 +80,14 @@ pub enum ErpOp {
         sources: Vec<String>,
     },
     CopyResource {
-        from_erp: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        from_erp: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source: Option<String>,
         erp: String,
         resource: String,
+        #[serde(default, rename = "as", skip_serializing_if = "Option::is_none")]
+        rename: Option<String>,
     },
     RemoveResource {
         erp: String,

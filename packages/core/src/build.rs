@@ -10,7 +10,7 @@ use crate::activation::place::{PlaceInput, SLOTS, place, slot_asset_group, slot_
 use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
 use crate::baseline::{Baseline, Objects, hex, sha256_file};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
-use crate::erpbuild::{ErpBuild, unsupported};
+use crate::erpbuild::{ErpBuild, source_archives, unsupported};
 use crate::install::{Game, LOADER_DIR, Plan};
 use crate::manifest::ModManifest;
 use crate::map::TrackPackage;
@@ -122,13 +122,18 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         let mut erps = Vec::new();
         for rel in &m.operations.erp {
             let ops: ErpOps = render_file(&dir.join(rel), m, &p, &mut hasher)?;
+            for src in source_archives(&ops) {
+                let path = dir.join(src);
+                let meta = std::fs::metadata(&path).map_err(io_err(&path))?;
+                hasher.update(format!("{src}|{}|{:?}", meta.len(), meta.modified().ok()));
+            }
             erps.push(ops);
         }
         match erps.iter().find_map(unsupported) {
             Some(op) => built
                 .warnings
                 .push(format!("{id}: ERP operations skipped; {op} is not built yet")),
-            None if !erps.is_empty() => erp_ops.push((id.clone(), erps)),
+            None if !erps.is_empty() => erp_ops.push((id.clone(), dir.clone(), erps)),
             None => {}
         }
         for s in &m.operations.screens {
@@ -308,11 +313,13 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         }
     }
     if !erp_ops.is_empty() {
-        let mut erps = ErpBuild::new(&resolve);
-        for (id, files) in &erp_ops {
+        let staged = built.plan.data.clone();
+        let base = |rel: &str| staged.get(rel).cloned().unwrap_or_else(|| resolve(rel));
+        let mut erps = ErpBuild::new(&base);
+        for (id, dir, files) in &erp_ops {
             let seen = erps.warnings.len();
             for ops in files {
-                erps.apply(ops)
+                erps.apply(ops, dir)
                     .map_err(|e| Error::Other(format!("applying {id}: {e}")))?;
             }
             built
@@ -321,7 +328,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         }
         for rel in erps.write(&built.overlay)? {
             let src = built.overlay.join(&rel);
-            if built.plan.data.insert(rel.clone(), src).is_some() {
+            if built.plan.data.insert(rel.clone(), src).is_some() && !staged.contains_key(&rel) {
                 return Err(Error::Other(format!("{rel} is replaced twice")));
             }
         }

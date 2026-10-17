@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
-use swofty_formats::erp::Erp;
+use swofty_formats::erp::{Erp, ErpFile};
 use swofty_formats::pkg::{Node, Pkg};
 
 use crate::manifest::relative_inside;
@@ -15,6 +15,7 @@ pub struct ErpBuild<'a> {
     original: &'a dyn Fn(&str) -> PathBuf,
     erps: BTreeMap<String, Erp>,
     sources: HashMap<SourceKey, Node>,
+    archives: HashMap<PathBuf, ErpFile>,
     pub warnings: Vec<String>,
 }
 
@@ -51,8 +52,15 @@ fn op_name(op: &ErpOp) -> &'static str {
 pub fn unsupported(ops: &ErpOps) -> Option<&'static str> {
     ops.ops.iter().find_map(|op| match op {
         ErpOp::PatchPkg { edits, .. } => edits.iter().find(|e| !supported(e)).map(edit_name),
-        ErpOp::Warn { .. } => None,
+        ErpOp::CopyResource { .. } | ErpOp::Warn { .. } => None,
         other => Some(op_name(other)),
+    })
+}
+
+pub fn source_archives(ops: &ErpOps) -> impl Iterator<Item = &str> {
+    ops.ops.iter().filter_map(|op| match op {
+        ErpOp::CopyResource { source: Some(s), .. } => Some(s.as_str()),
+        _ => None,
     })
 }
 
@@ -79,6 +87,7 @@ impl<'a> ErpBuild<'a> {
             original,
             erps: BTreeMap::new(),
             sources: HashMap::new(),
+            archives: HashMap::new(),
             warnings: Vec::new(),
         }
     }
@@ -93,7 +102,7 @@ impl<'a> ErpBuild<'a> {
         Ok(self.erps.get_mut(rel).expect("inserted above"))
     }
 
-    pub fn apply(&mut self, ops: &ErpOps) -> Result<()> {
+    pub fn apply(&mut self, ops: &ErpOps, mod_dir: &Path) -> Result<()> {
         if let Some(op) = unsupported(ops) {
             return Err(fail(format!("{op} is not built yet")));
         }
@@ -121,10 +130,48 @@ impl<'a> ErpBuild<'a> {
                     self.sources = srcs;
                     result?;
                 }
+                ErpOp::CopyResource {
+                    from_erp,
+                    source,
+                    erp,
+                    resource,
+                    rename,
+                } => {
+                    let path = match (from_erp, source) {
+                        (Some(rel), None) => (self.original)(checked(rel)?),
+                        (None, Some(rel)) => mod_dir.join(checked(rel)?),
+                        _ => {
+                            return Err(fail(format!(
+                                "copy-resource {resource}: give exactly one of from_erp and source"
+                            )));
+                        }
+                    };
+                    self.copy(&path, resource, erp, rename.as_deref().unwrap_or(resource))?;
+                }
                 ErpOp::Warn { message } => self.warnings.push(message.clone()),
                 _ => unreachable!("checked by unsupported"),
             }
         }
+        Ok(())
+    }
+
+    fn copy(&mut self, from: &Path, resource: &str, erp: &str, name: &str) -> Result<()> {
+        if !self.archives.contains_key(from) {
+            let file = ErpFile::open(from).map_err(|e| fail(format!("{}: {e}", from.display())))?;
+            self.archives.insert(from.to_path_buf(), file);
+        }
+        let file = &self.archives[from];
+        let found = file
+            .erp
+            .find(resource)
+            .map_err(|e| fail(format!("{}: {e}", from.display())))?;
+        let mut res = file.load(found)?;
+        res.name = name.to_owned();
+        let target = self.erp(erp)?;
+        if target.resources.iter().any(|r| r.name == name) {
+            return Err(fail(format!("{erp}: {name} already exists")));
+        }
+        target.resources.push(res);
         Ok(())
     }
 
@@ -270,7 +317,7 @@ mod tests {
         .unwrap();
         let original = |rel: &str| game.join(rel);
         let mut b = ErpBuild::new(&original);
-        b.apply(&ops).unwrap();
+        b.apply(&ops, &game).unwrap();
         assert_eq!(b.warnings, ["room for 26 cars"]);
         assert_eq!(b.changed().collect::<Vec<_>>(), ["tracks/t/wep/t_world.erp"]);
         let out = game.join("out");
@@ -313,13 +360,116 @@ mod tests {
         )
         .unwrap();
         assert_eq!(unsupported(&replace), Some("replace-resource"));
-        assert!(bad.apply(&replace).is_err());
+        assert!(bad.apply(&replace, &game).is_err());
         let escape: ErpOps = serde_json::from_str(
             r#"{"schema_version":1,"ops":[{"op":"patch-pkg","erp":"../x.erp","resource":"r","edits":[
             {"op":"set-value","path":"a","value":1}]}]}"#,
         )
         .unwrap();
-        assert!(bad.apply(&escape).is_err());
+        assert!(bad.apply(&escape, &game).is_err());
         std::fs::remove_dir_all(&game).ok();
+    }
+
+    #[test]
+    fn copies_resources_from_game_and_mod_archives() {
+        let root = std::env::temp_dir().join(format!("swofty-erpcopy-{}", std::process::id()));
+        let game = root.join("game");
+        let mod_dir = root.join("mod");
+        std::fs::create_dir_all(game.join("cars")).unwrap();
+        std::fs::create_dir_all(mod_dir.join("erp")).unwrap();
+        std::fs::write(
+            game.join("cars/slot.erp"),
+            erp(&[("eaid://slot-a.layer", layer(&["a"]))]),
+        )
+        .unwrap();
+        std::fs::write(
+            game.join("cars/stock.erp"),
+            erp(&[("eaid://stock-b.layer", layer(&["b"]))]),
+        )
+        .unwrap();
+        let src = erp(&[
+            ("eaid://car.wep", layer(&["w"])),
+            ("eaid://car-model.layer", layer(&["m"])),
+        ]);
+        std::fs::write(mod_dir.join("erp/src.erp"), &src).unwrap();
+        let ops: ErpOps = serde_json::from_str(
+            r#"{"schema_version":1,"ops":[
+            {"op":"copy-resource","source":"erp/src.erp","erp":"cars/slot.erp","resource":"eaid://car.wep","as":"eaid://car_alt.wep"},
+            {"op":"copy-resource","source":"erp/src.erp","erp":"cars/slot.erp","resource":"eaid://car-model.layer"},
+            {"op":"copy-resource","from_erp":"cars/stock.erp","erp":"cars/slot.erp","resource":"eaid://stock-b.layer"},
+            {"op":"patch-pkg","erp":"cars/slot.erp","resource":"eaid://car_alt.wep","edits":[
+              {"op":"set-value","path":"instances[0].name","value":"w_alt"}]}]}"#,
+        )
+        .unwrap();
+        assert_eq!(unsupported(&ops), None);
+        assert_eq!(
+            source_archives(&ops).collect::<Vec<_>>(),
+            ["erp/src.erp", "erp/src.erp"]
+        );
+        let original = |rel: &str| game.join(rel);
+        let mut b = ErpBuild::new(&original);
+        b.apply(&ops, &mod_dir).unwrap();
+        let out = root.join("out");
+        assert_eq!(b.write(&out).unwrap(), ["cars/slot.erp"]);
+        let written = Erp::parse(&std::fs::read(out.join("cars/slot.erp")).unwrap()).unwrap();
+        let names: Vec<&str> = written.resources.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(
+            names,
+            [
+                "eaid://slot-a.layer",
+                "eaid://car_alt.wep",
+                "eaid://car-model.layer",
+                "eaid://stock-b.layer"
+            ]
+        );
+        let source = Erp::parse(&src).unwrap();
+        let copied = written.find("eaid://car-model.layer").unwrap();
+        assert_eq!(
+            copied.fragments[0].raw,
+            source.find("eaid://car-model.layer").unwrap().fragments[0].raw
+        );
+        assert_eq!(copied.hash, copied.content_hash().unwrap());
+        let wep = written.find("eaid://car_alt.wep").unwrap();
+        assert_eq!(wep.hash, wep.content_hash().unwrap());
+        let pkg = Pkg::parse(&wep.fragments[0].data().unwrap()).unwrap();
+        let name = pkg
+            .root
+            .as_obj()
+            .unwrap()
+            .get("instances")
+            .unwrap()
+            .as_arr()
+            .unwrap()
+            .items[0]
+            .as_obj()
+            .unwrap()
+            .get("name")
+            .unwrap()
+            .as_val()
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert_eq!(name, "w_alt");
+        let twice: ErpOps = serde_json::from_str(
+            r#"{"schema_version":1,"ops":[
+            {"op":"copy-resource","source":"erp/src.erp","erp":"cars/slot.erp","resource":"eaid://car.wep"},
+            {"op":"copy-resource","source":"erp/src.erp","erp":"cars/slot.erp","resource":"eaid://car.wep"}]}"#,
+        )
+        .unwrap();
+        assert!(ErpBuild::new(&original).apply(&twice, &mod_dir).is_err());
+        let both: ErpOps = serde_json::from_str(
+            r#"{"schema_version":1,"ops":[
+            {"op":"copy-resource","source":"erp/src.erp","from_erp":"cars/stock.erp","erp":"cars/slot.erp","resource":"eaid://car.wep"}]}"#,
+        )
+        .unwrap();
+        assert!(ErpBuild::new(&original).apply(&both, &mod_dir).is_err());
+        let escape: ErpOps = serde_json::from_str(
+            r#"{"schema_version":1,"ops":[
+            {"op":"copy-resource","source":"../game/cars/stock.erp","erp":"cars/slot.erp","resource":"eaid://stock-b.layer"}]}"#,
+        )
+        .unwrap();
+        assert!(ErpBuild::new(&original).apply(&escape, &mod_dir).is_err());
+        std::fs::remove_dir_all(&root).ok();
     }
 }
