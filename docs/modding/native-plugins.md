@@ -1,6 +1,6 @@
-# Hooking game functions
+# Native plugins
 
-Native plugins are Windows x86-64 DLLs that run inside F1 25. They are for addon authors who need code changes beyond data edits.
+Native plugins are Windows x86-64 DLLs that run inside F1 25. They are for addon authors who need code changes beyond data edits. [Hooking a game function](/tutorials/hooking) walks through one.
 
 ## SDK
 
@@ -16,14 +16,21 @@ The loader also calls `SwoftyModInit` when a DLL exports only that name.
 
 Return non-zero on success or 0 on failure. The DLL stays loaded either way, so leave no hooks installed after a failure.
 
-The current API provides:
+`SwoftyApi` has these members:
 
-| Member | Purpose |
-|---|---|
-| `version` | Check the API version |
-| `log` | Write to `swofty/loader.log` |
-| `module_base` | Get the base address of `F1_25.exe` |
-| `scan` | Find a code pattern; use the result only when exactly one match is found |
+| Member | Offered by | Purpose |
+|---|---|---|
+| `version` | `version.dll` | The API version the loader offers |
+| `log(fmt, ...)` | `version.dll` | Write to `swofty/loader.log`. See [Logging](/reference/std/logging) |
+| `module_base()` | `version.dll` | The base address of `F1_25.exe` |
+| `scan(section, pattern, &out)` | `version.dll` | Find a byte pattern such as `"48 89 5C 24 ?? 57"` in a section such as `".xtls"`. Returns the hit count and sets `out` only when there is exactly one |
+| `resolve(id)` | `swofty_core.dll` | The address of a [binding](/reference/std/mixin#bindings), or 0 |
+| `register_mixins(mixins, count)` | `swofty_core.dll` | Register [mixins](/reference/std/mixin#c-abi), from `SwoftyAddonInit` only |
+| `fields(obj, size)` | `swofty_core.dll` | Per-addon storage on a game object. See [fields](/reference/std/mixin#fields) |
+| `setting(id, type, &out)` | `swofty_core.dll` | Read a [setting](/reference/std/settings#c-abi) |
+| `watch_setting(id, fn, user)` | `swofty_core.dll` | Call `fn` when a setting changes |
+
+`version.dll` alone offers version 1. `swofty_core.dll` raises it to 3. `SWOFTY_ADDON()` in `swofty/mixin.hpp` also exports `SwoftyAddonApi`, the version the plugin was built against.
 
 The [Game API](/reference/game/) lists the game functions and structs that plugins can use.
 

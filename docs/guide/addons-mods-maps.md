@@ -20,7 +20,7 @@ Swofty Launcher for F1 25 loads three kinds of content into F1 25.
 
 An addon is a folder with a [`swofty.json`](/modding/manifest) manifest at its root. It can carry:
 
-- **Native plugins.** Windows DLLs that use the **Advanced Mod Mixin System** to edit the F1 25 engine directly: wrap a game function, run code at an instruction, replace a virtual method, redirect a call or patch bytes. Plugins bind to game functions by name from the [Game API](/reference/game/), and SwoftyMod finds each one by signature when the game starts. See [Hooking game functions](/modding/native-plugins).
+- **Native plugins.** Windows DLLs that use the **Advanced Mod Mixin System** to edit the F1 25 engine directly: wrap a game function, run code at an instruction, replace a virtual method, redirect a call or patch bytes. Plugins bind to game functions by name from the [Game API](/reference/game/), and SwoftyMod finds each one by signature when the game starts. See [Hooking a game function](/tutorials/hooking).
 - **Settings.** Toggles, sliders and choices, shown in the launcher and in game. See [the `options` field](/modding/manifest#options).
 - **In-game screens.** Screen files that SwoftyMod registers with the game's own UI system.
 - **Content.** [Database edits](/modding/database-ops) and [ERP edits](/modding/erp-ops), applied when the launcher builds the profile.
@@ -58,5 +58,5 @@ A [profile](/using/profiles) keeps one setup: its addons in load order, its maps
 SwoftyMod adds **ADDON SETTINGS** to the game's home menu, directly under **Career**. It lists every enabled addon and map as a tile, and each tile opens a page with that addon's settings. Changes save to the profile. See [In-game addon settings](/using/swofty-mod).
 
 ::: tip Making your own
-Start with [Making an addon](/modding/template). The [addon manifest](/modding/manifest) lists everything an addon can declare.
+Start with [Your first addon](/tutorials/first-addon). The [Standard library](/reference/std/) lists every API an addon can use.
 :::

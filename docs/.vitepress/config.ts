@@ -102,7 +102,13 @@ export default defineConfigWithTheme<DocsThemeConfig>({
           {
             text: "Tutorials",
             items: [
-              { text: "Making an addon", link: "/modding/template" },
+              { text: "1. Your first addon", link: "/tutorials/first-addon" },
+              { text: "2. Addon settings", link: "/tutorials/addon-settings" },
+              { text: "3. Hooking a game function", link: "/tutorials/hooking" },
+              { text: "4. Custom in-game UI", link: "/tutorials/in-game-ui" },
+              { text: "5. Editing the game database", link: "/tutorials/database" },
+              { text: "6. Replacing and adding ERP assets", link: "/tutorials/erp-assets" },
+              { text: "The addon template", link: "/modding/template" },
               { text: "Maps", link: "/using/importing-maps" },
             ],
           },
@@ -129,11 +135,17 @@ export default defineConfigWithTheme<DocsThemeConfig>({
           {
             text: "Standard library",
             items: [
+              { text: "Overview", link: "/reference/std/", icon: "file" },
               { text: "Addon manifest", link: "/modding/manifest", icon: "file" },
+              { text: "Mixin API", link: "/reference/std/mixin", icon: "file" },
               { text: "Native plugins", link: "/modding/native-plugins", icon: "file" },
+              { text: "Settings", link: "/reference/std/settings", icon: "file" },
+              { text: "UI", link: "/reference/std/ui", icon: "file" },
+              { text: "Logging", link: "/reference/std/logging", icon: "file" },
               { text: "Database operations", link: "/modding/database-ops", icon: "file" },
               { text: "ERP operations", link: "/modding/erp-ops", icon: "file" },
               { text: "UI patches", link: "/modding/ui-patches", icon: "file" },
+              { text: "File operations", link: "/reference/std/files", icon: "file" },
             ],
           },
           {
