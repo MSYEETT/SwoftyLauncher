@@ -1,6 +1,6 @@
 # Archive (ERP) edits
 
-ERP operations describe changes to artwork and other resources in `.erp` archives. List these files in `operations.erp` in your [manifest](/modding/manifest).
+ERP operations describe changes to artwork and other resources in `.erp` archives. List these files in `operations.erp` in your [manifest](/reference/addons/manifest).
 
 `swofty build` applies `patch-pkg`, `copy-resource`, `put-resource` and `warn`. An addon whose ERP files use any other operation has its ERP files skipped.
 
@@ -60,7 +60,7 @@ Run `patch-pkg` after the copy to change the copy's contents, such as the layer 
 
 ## Editing `!pkg` resources
 
-`patch-pkg` changes entries inside a `!pkg` resource, such as a track layer, and keeps the rest of the archive unchanged. Its `edits` work as in [UI patches](/modding/ui-patches#routes-and-ui-databases):
+`patch-pkg` changes entries inside a `!pkg` resource, such as a track layer, and keeps the rest of the archive unchanged. Its `edits` work as in [UI patches](/reference/ops/ui-patches#routes-and-ui-databases):
 
 - `clone-entry` copies the entry `src` in the container at `at` and names the copy `as`. In an array, `src` is a selector such as `[name=vehicles_current_myteam$PitBox12]`, and `as` replaces the selected field.
 - `set` and `set-value` paths use dots and `[field=value]` selectors. A value is written in the type of the value it replaces: numbers for integers and floats, 16 numbers for a `mat4`, a hex string for a `woid`.
@@ -86,6 +86,6 @@ Run `patch-pkg` after the copy to change the copy's contents, such as the layer 
 }
 ```
 
-ERP files take `when` and `{{id}}` settings like [database operations](/modding/database-ops). Only the archives a build changes are written to the overlay.
+ERP files take `when` and `{{id}}` settings like [database operations](/reference/ops/database). Only the archives a build changes are written to the overlay.
 
-For menu changes, see [UI patches](/modding/ui-patches). For the archive format, see [ERP archives](/reference/erp).
+For menu changes, see [UI patches](/reference/ops/ui-patches). For the archive format, see [ERP archives](/reference/erp).

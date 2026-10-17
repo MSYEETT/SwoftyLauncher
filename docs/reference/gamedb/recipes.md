@@ -6,7 +6,7 @@ These rules come from built and runtime-tested variants of the database (the 24 
 
 1. Find the key in the [catalogue](/reference/gamedb/catalogue) or `tools/gamedb/catalog/keys.tsv.gz`. Keep the type the stock key has.
 2. Write the value in the stock form: `True`/`False` for bools, `HH,MM` for times, comma-joined lists and vectors with no spaces.
-3. Express it as a [database operation](/modding/database-ops):
+3. Express it as a [database operation](/reference/ops/database):
 
 ```json
 { "op": "set", "select": "tracks.Track[_metadata_=bahrain]", "field": "numberOfCorners", "value": "16" }
@@ -15,7 +15,7 @@ These rules come from built and runtime-tested variants of the database (the 24 
 - `select` names a row by path (`tracks.Track_3`), by label (`tracks.Track[_metadata_=bahrain]`) or by hash placeholder (`{446668bc25ba571c}[_metadata_=f1_26]`). Use labels; row numbers can change between game builds.
 - `value_from` copies a value from another key: `"value_from": "{446668bc25ba571c}[_metadata_=myteam_26].worldEri"`.
 - `set` on a key that does not exist stops the build with `no such key`. `"create": true` with `"type": <tag>` adds it.
-- Strings in an operation can hold <span v-pre>`{{option}}`</span> placeholders and a `when` condition, filled from the addon's [settings](/modding/manifest#options) at build time.
+- Strings in an operation can hold <span v-pre>`{{option}}`</span> placeholders and a `when` condition, filled from the addon's [settings](/reference/addons/manifest#options) at build time.
 
 The launcher applies database changes in this order: map activation (one per enabled map), then each addon's operations in load order. A later write to the same key wins. It then writes the file sorted by `key_hi`.
 
@@ -51,7 +51,7 @@ New labels have no rows in side tables keyed by team or vehicle label (kits, sho
   "set": { "_metadata_": "team12_26", "stat_id": "500" } }
 ```
 
-It needs the table's real path (`entrants.teams`, not a `{hash}`) and the row's field list in the file's [`fields` map](/modding/database-ops#operations). Every listed field must exist on the source row. `addons/custom-grid-size/db/grid.json` lists every field of team, vehicle and entrant rows.
+It needs the table's real path (`entrants.teams`, not a `{hash}`) and the row's field list in the file's [`fields` map](/reference/ops/database#operations). Every listed field must exist on the source row. `addons/custom-grid-size/db/grid.json` lists every field of team, vehicle and entrant rows.
 
 ## Grid size
 
@@ -76,7 +76,7 @@ For N cars:
 | World variant `{446668bc25ba571c}[_metadata_=f1_26]` `worldEri`, `worldAssetGroup` | the `myteam_26` values, from 24 cars |
 
 - Row 10 must be N + 2. The custom seats are drawn first and removed afterwards; N alone fields N − 2.
-- The world switch is needed from 23 cars: the `_f1_26_myteam` world has 24 grid slots and 12 garages. More than 24 cars needs extra grid slots, garages and pit boxes in each track's world archive, which is outside the database. The Custom Grid Size addon adds them with [`patch-pkg`](/modding/erp-ops#editing-pkg-resources) operations.
+- The world switch is needed from 23 cars: the `_f1_26_myteam` world has 24 grid slots and 12 garages. More than 24 cars needs extra grid slots, garages and pit boxes in each track's world archive, which is outside the database. The Custom Grid Size addon adds them with [`patch-pkg`](/reference/ops/erp#editing-pkg-resources) operations.
 - More than 29 AI cars overruns the game's 30-entry AI vehicle name table (`Sess_Build_AiSystem`). Nothing extends it. The Custom Grid Size addon stops at 30 cars, 29 of them AI when the player drives for a real team.
 - Still sized for 22: `f1_2026_equal_performance` (list 35) and the per-team weighted-random grid table. Use realistic performance and a random grid.
 - Garages follow `garage_assignment` `PreviousSeasonTeamStandings` from `f1_teams_2025`. Teams without a standing are appended.

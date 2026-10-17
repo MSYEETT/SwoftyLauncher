@@ -1,6 +1,6 @@
 # UI patches
 
-UI patches describe changes to menus, labels and routes. Save them as `*.pkgpatch.json` and list them in `operations.ui` in your [manifest](/modding/manifest).
+UI patches describe changes to menus, labels and routes. Save them as `*.pkgpatch.json` and list them in `operations.ui` in your [manifest](/reference/addons/manifest).
 
 The current builder skips UI patches. This is the format for the planned build step.
 

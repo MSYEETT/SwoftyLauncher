@@ -25,7 +25,7 @@ These docs cover playing with addons and making them. To download the app, see t
 
 Read [Installation](/guide/installation), then choose [Windows](/guide/windows) or [Linux and Steam Deck](/guide/linux).
 
-To make an addon, start with [Your first addon](/tutorials/first-addon). The [Standard library](/reference/std/) covers every API, and native plugins can call the functions listed in the [Game API](/reference/game/).
+To make your own content, see [Creating mods](/reference/mods/) and [Creating addons](/reference/addons/) in the Reference. The [Standard library](/reference/std/) covers every API, and native plugins can call the functions listed in the [Game API](/reference/game/).
 
 Contributors can read the [development guide](/reference/development) and [design notes](/design/).
 

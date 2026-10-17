@@ -10,7 +10,7 @@ description: The Advanced Mod Mixin System in swofty/mixin.hpp - bindings, mixin
 #include <swofty/game.hpp>
 ```
 
-The **Advanced Mod Mixin System**. A plugin declares mixins with the macros below, and `SWOFTY_ADDON()` registers them all with SwoftyMod, which installs them when every plugin has loaded. The [tutorial](/tutorials/hooking) walks through one.
+The **Advanced Mod Mixin System**. A plugin declares mixins with the macros below, and `SWOFTY_ADDON()` registers them all with SwoftyMod, which installs them when every plugin has loaded. The [tutorial](/reference/addons/hooking) walks through one.
 
 ## Bindings
 

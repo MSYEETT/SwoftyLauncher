@@ -2,7 +2,7 @@
 
 F1 25 stores most artwork and track assets in `.erp` files under `2025_asset_groups/`. Each archive contains named resources, split into one or more parts called fragments.
 
-To change an asset in an addon, see [ERP operations](/modding/erp-ops).
+To change an asset in an addon, see [ERP operations](/reference/ops/erp).
 
 ## Tools
 

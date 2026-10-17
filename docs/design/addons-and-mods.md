@@ -274,9 +274,9 @@ Every API type serialises and every call is a request and a response. A later ho
 | Op | Fields | Change |
 |---|---|---|
 | `group.register` | `group`, `erp` or `erps`, optional `deps`, `template` | Add an asset group to the engine's manifest |
-| `erp.replace-resource`, `erp.add-resource`, `erp.copy-resource`, `erp.remove-resource`, `erp.add-mipmaps`, `erp.patch-pkg` | As in [archive edits](/modding/erp-ops) | Unchanged |
+| `erp.replace-resource`, `erp.add-resource`, `erp.copy-resource`, `erp.remove-resource`, `erp.add-mipmaps`, `erp.patch-pkg` | As in [archive edits](/reference/ops/erp) | Unchanged |
 | `erp.put-resource` | `erp`, `resource`, `source`, optional `as` | Copy a resource from an archive in the addon, replacing or adding it |
-| `db.set`, `db.add-row`, `db.remove-row`, `db.list-append`, `db.list-remove` | As in [database edits](/modding/database-ops) | Unchanged |
+| `db.set`, `db.add-row`, `db.remove-row`, `db.list-append`, `db.list-remove` | As in [database edits](/reference/ops/database) | Unchanged |
 | `db.put-record` | `key` (path or `0x` and 16 hex digits), `type`, `value` (hex) | Write one raw record |
 | `db.remove-record` | `key` | Remove one record |
 | `lang.set` | `language` (code or `*`), `key`, `value` | Set one string |

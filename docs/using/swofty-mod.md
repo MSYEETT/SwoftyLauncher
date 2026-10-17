@@ -8,7 +8,7 @@ The home screen also has an **F9** keyboard prompt (**R3** on a controller) and 
 
 ADDON SETTINGS lists every enabled addon and map as a tile with its name, author, version and description. Select a tile to open its page.
 
-- An addon's page has a row per [option](/modding/manifest#options). **Left** and **Right** change the value.
+- An addon's page has a row per [option](/reference/addons/manifest#options). **Left** and **Right** change the value.
 - An addon without options shows its id and version.
 - A map's page shows its track code, author and version.
 

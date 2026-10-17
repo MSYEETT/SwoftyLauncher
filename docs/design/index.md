@@ -26,7 +26,7 @@ Keep the interface separate from the shared core. Use the Python tools in `tools
 
 ## Addons and maps
 
-Addons use a [`swofty.json` manifest](/modding/manifest). It lists database changes, assets, UI patches, loose files and plugins.
+Addons use a [`swofty.json` manifest](/reference/addons/manifest). It lists database changes, assets, UI patches, loose files and plugins.
 
 Maps use the existing community track-package format. Import the package unchanged and use its track code in the profile.
 

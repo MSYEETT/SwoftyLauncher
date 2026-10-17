@@ -2,7 +2,7 @@
 
 Every addon needs a `swofty.json` file at its root. It describes the addon and lists the changes to apply.
 
-Start with [the addon template](/modding/template).
+Start with [the addon template](/reference/addons/template).
 
 ## Example
 
@@ -60,19 +60,19 @@ Start with [the addon template](/modding/template).
 | `default` | `true` or `false` for a toggle, a number on the slider's steps, or one of the choice values |
 | `min`, `max`, `step` | Slider range. All three are required, `max - min` must be a whole number of steps, and a slider has at most 100 steps. Whole-number ranges hold whole numbers |
 | `values` | Choice values, 1 to 16. Each is a string, or `{ "value", "label" }` to show a different name |
-| `binds` | `native`: the [plugin](/modding/native-plugins#settings) reads the value while the game runs. `db`: the value is built into the game files, so a change needs a rebuild and a restart |
+| `binds` | `native`: the [plugin](/reference/addons/native-plugins#settings) reads the value while the game runs. `db`: the value is built into the game files, so a change needs a rebuild and a restart |
 
-[Database operations](/modding/database-ops#settings) use `db` options through `{{id}}` placeholders and `when` conditions.
+[Database operations](/reference/ops/database#settings) use `db` options through `{{id}}` placeholders and `when` conditions.
 
 ## Operations
 
 | Field | Contents |
 |---|---|
-| `database` | Paths to [database operation files](/modding/database-ops) |
-| `erp` | Paths to [ERP operation files](/modding/erp-ops) |
-| `ui` | Paths to [UI patches](/modding/ui-patches) |
+| `database` | Paths to [database operation files](/reference/ops/database) |
+| `erp` | Paths to [ERP operation files](/reference/ops/erp) |
+| `ui` | Paths to [UI patches](/reference/ops/ui-patches) |
 | `files` | File copies: `[{"source": "files/example", "target": "game/path"}]` |
-| `native` | [Plugin DLLs](/modding/native-plugins), with `dll` and `capabilities` |
+| `native` | [Plugin DLLs](/reference/addons/native-plugins), with `dll` and `capabilities` |
 | `screens` | Game screens registered in game by swofty_core: `[{"name": "my_page", "file": "ui/my_page.ui", "flow": "flow_options", "anchor": "settings_container", "view_model": false}]` |
 | `assets` | Paths to asset op files: `{"schema_version": 1, "ops": [...]}` with prefixed ops such as `db.set`, `erp.patch-pkg` and `warn` |
 

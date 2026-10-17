@@ -5,7 +5,7 @@ description: Declare addon options in swofty.json and read them from a native pl
 
 # Settings
 
-An addon's settings are its [`options`](/modding/manifest#options) in `swofty.json`. The launcher shows them on the **Addons** page, the game shows them in **ADDON SETTINGS**, and the profile stores the values. The [tutorial](/tutorials/addon-settings) builds one of each type.
+An addon's settings are its [`options`](/reference/addons/manifest#options) in `swofty.json`. The launcher shows them on the **Addons** page, the game shows them in **ADDON SETTINGS**, and the profile stores the values. The [tutorial](/reference/addons/settings) builds one of each type.
 
 ## Declaring
 
@@ -19,7 +19,7 @@ An addon's settings are its [`options`](/modding/manifest#options) in `swofty.js
 | `values` | Choice values, 1 to 16: strings, or `{ "value", "label" }` |
 | `binds` | `native`: read by the plugin while the game runs. `db`: built into the game files, applied after a rebuild |
 
-`db` settings reach operation files through <span v-pre>`{{id}}`</span> and `when`. See [database operations](/modding/database-ops#settings).
+`db` settings reach operation files through <span v-pre>`{{id}}`</span> and `when`. See [database operations](/reference/ops/database#settings).
 
 ## C++
 

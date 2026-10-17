@@ -7,7 +7,7 @@ description: Functions, structs and patch sites of F1 25 that native plugins can
 
 # Game API
 
-The game API lists the functions, structs and patch sites of F1 25 that [native plugins](/modding/native-plugins) can use. Each subsystem has its own header and its own page.
+The game API lists the functions, structs and patch sites of F1 25 that [native plugins](/reference/addons/native-plugins) can use. Each subsystem has its own header and its own page.
 
 ## Build
 

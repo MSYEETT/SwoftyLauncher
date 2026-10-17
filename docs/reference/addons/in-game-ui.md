@@ -9,14 +9,14 @@ An addon changes the game's menus in three ways:
 
 | Goal | Tool |
 |---|---|
-| Settings for your addon | [`options`](/tutorials/addon-settings). SwoftyMod builds the addon's page in ADDON SETTINGS |
+| Settings for your addon | [`options`](/reference/addons/settings). SwoftyMod builds the addon's page in ADDON SETTINGS |
 | A new screen | `operations.screens`. SwoftyMod registers the screen with the game's UI system |
-| A tile on the home screen | A [mixin](/tutorials/hooking) on the home tile builder |
-| A change to an existing screen | [UI patches](/modding/ui-patches) |
+| A tile on the home screen | A [mixin](/reference/addons/hooking) on the home tile builder |
+| A change to an existing screen | [UI patches](/reference/ops/ui-patches) |
 
 ## Settings pages
 
-Most addons need no screen of their own. Each [option](/modding/manifest#options) becomes a row on the addon's page in **ADDON SETTINGS**, and **Left** and **Right** change its value. The launcher generates these pages from the game's own files each time it builds the profile.
+Most addons need no screen of their own. Each [option](/reference/addons/manifest#options) becomes a row on the addon's page in **ADDON SETTINGS**, and **Left** and **Right** change its value. The launcher generates these pages from the game's own files each time it builds the profile.
 
 ## Add a screen
 
@@ -126,12 +126,12 @@ SwoftyMod's own handler also checks that the list ends with a tile and that the 
 Every function and struct used here is in the [Game API](/reference/game/): [`fe_home`](/reference/game/fe_home), [`fe_tiles`](/reference/game/fe_tiles), [`vm`](/reference/game/vm) and [`core`](/reference/game/core).
 
 ::: tip
-SwoftyMod already owns `site_FeHome_AfterCareerCall`. A second site mixin there runs in the same chain, ordered by [priority](/tutorials/hooking#_4-order-the-chain).
+SwoftyMod already owns `site_FeHome_AfterCareerCall`. A second site mixin there runs in the same chain, ordered by [priority](/reference/addons/hooking#_4-order-the-chain).
 :::
 
 ## Change an existing screen
 
-[UI patches](/modding/ui-patches) describe edits to the game's screens, routes and UI databases: clone a node, set a label's text, change properties and add or remove signals. List them in `operations.ui`:
+[UI patches](/reference/ops/ui-patches) describe edits to the game's screens, routes and UI databases: clone a node, set a label's text, change properties and add or remove signals. List them in `operations.ui`:
 
 ```json [ui/example.pkgpatch.json]
 {
@@ -152,5 +152,5 @@ SwoftyMod already owns `site_FeHome_AfterCareerCall`. A second site mixin there 
 ```
 
 ::: warning Not built yet
-The build skips `operations.ui` and prints a warning. The same `clone-entry` and `set-value` edits already run on `!pkg` resources through the [`patch-pkg` ERP operation](/tutorials/erp-assets#edit-a-pkg-resource).
+The build skips `operations.ui` and prints a warning. The same `clone-entry` and `set-value` edits already run on `!pkg` resources through the [`patch-pkg` ERP operation](/reference/mods/erp-assets#edit-a-pkg-resource).
 :::

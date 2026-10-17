@@ -94,7 +94,7 @@ The file holds no names. Names come from the strings the game builds when it loo
 
 ### Unresolved paths
 
-Some tables sit under a container whose name is not known. The catalogue and [database ops](/modding/database-ops) write them with a hash placeholder:
+Some tables sit under a container whose name is not known. The catalogue and [database ops](/reference/ops/database) write them with a hash placeholder:
 
 | Placeholder | Meaning |
 |---|---|

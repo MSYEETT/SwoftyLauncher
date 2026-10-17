@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { defineConfigWithTheme } from "vitepress";
 import gameApi from "./game-api.json";
 import { flashCodeTheme } from "./theme/code-theme";
@@ -13,6 +15,22 @@ const fonts =
 const pickTheme = `try{var t=localStorage.getItem("f1mm-docs-theme");if(t==="dark"||t==="ocean"||t==="peach")document.documentElement.classList.add("flash-theme-"+t)}catch(e){}`;
 
 const pickSidebar = `try{if(localStorage.getItem("f1mm-docs-sidebar")==="closed")document.documentElement.classList.add("flash-sidebar-closed")}catch(e){}`;
+
+const moved: Record<string, string> = {
+  "/tutorials/first-addon": "/reference/addons/first-addon",
+  "/tutorials/addon-settings": "/reference/addons/settings",
+  "/tutorials/hooking": "/reference/addons/hooking",
+  "/tutorials/in-game-ui": "/reference/addons/in-game-ui",
+  "/tutorials/database": "/reference/mods/database",
+  "/tutorials/erp-assets": "/reference/mods/erp-assets",
+  "/modding/template": "/reference/addons/template",
+  "/modding/manifest": "/reference/addons/manifest",
+  "/modding/native-plugins": "/reference/addons/native-plugins",
+  "/modding/database-ops": "/reference/ops/database",
+  "/modding/erp-ops": "/reference/ops/erp",
+  "/modding/ui-patches": "/reference/ops/ui-patches",
+  "/reference/std/files": "/reference/ops/files",
+};
 
 const gameApiItems = gameApi.subsystems.map((s) => ({
   text: s.name,
@@ -30,6 +48,17 @@ export default defineConfigWithTheme<DocsThemeConfig>({
   appearance: "force-dark",
   srcExclude: ["**/public/**", "scripts/**"],
   sitemap: { hostname: site },
+  buildEnd({ outDir }) {
+    for (const [from, to] of Object.entries(moved)) {
+      const url = `${base}${to.slice(1)}.html`;
+      const file = join(outDir, `${from}.html`);
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(
+        file,
+        `<!doctype html><meta charset="utf-8"><title>Moved</title><link rel="canonical" href="${url}"><meta http-equiv="refresh" content="0; url=${url}"><script>location.replace(${JSON.stringify(url)} + location.hash)</script><a href="${url}">${url}</a>\n`,
+      );
+    }
+  },
   head: [
     ["link", { rel: "icon", href: `${base}logo.svg`, type: "image/svg+xml" }],
     ["meta", { name: "theme-color", content: "#2a1b39" }],
@@ -92,36 +121,27 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "1. Installation", link: "/guide/installation" },
               { text: "1.1. Windows", link: "/guide/windows" },
               { text: "1.2. Linux and Steam Deck", link: "/guide/linux" },
-              { text: "2. Addons and maps", link: "/using/mods-and-maps" },
-              { text: "3. Profiles", link: "/using/profiles" },
-              { text: "4. In-game addon settings", link: "/using/swofty-mod" },
-              { text: "5. Restoring the game", link: "/using/profiles-and-restoring" },
-              { text: "6. Uninstalling", link: "/guide/uninstall" },
-            ],
-          },
-          {
-            text: "Tutorials",
-            items: [
-              { text: "1. Your first addon", link: "/tutorials/first-addon" },
-              { text: "2. Addon settings", link: "/tutorials/addon-settings" },
-              { text: "3. Hooking a game function", link: "/tutorials/hooking" },
-              { text: "4. Custom in-game UI", link: "/tutorials/in-game-ui" },
-              { text: "5. Editing the game database", link: "/tutorials/database" },
-              { text: "6. Replacing and adding ERP assets", link: "/tutorials/erp-assets" },
-              { text: "The addon template", link: "/modding/template" },
-              { text: "Maps", link: "/using/importing-maps" },
+              { text: "2. Addons and mods", link: "/using/mods-and-maps" },
+              { text: "3. Maps", link: "/using/importing-maps" },
+              { text: "4. Profiles", link: "/using/profiles" },
+              { text: "5. In-game addon settings", link: "/using/swofty-mod" },
+              { text: "6. Restoring the game", link: "/using/profiles-and-restoring" },
+              { text: "7. Uninstalling", link: "/guide/uninstall" },
             ],
           },
           {
             text: "Handbook",
             items: [
-              { text: "Design notes", link: "/design/" },
-              { text: "Addons and mods", link: "/design/addons-and-mods" },
               { text: "Launching the game", link: "/reference/launch" },
               { text: "Offline play", link: "/reference/safety" },
               { text: "Backups and recovery", link: "/reference/restore" },
-              { text: "How maps are installed", link: "/reference/maps" },
-              { text: "Development", link: "/reference/development" },
+            ],
+          },
+          {
+            text: "Making your own",
+            items: [
+              { text: "Making a mod", link: "/guide/making-a-mod" },
+              { text: "Making an addon", link: "/guide/making-an-addon" },
             ],
           },
         ],
@@ -133,19 +153,34 @@ export default defineConfigWithTheme<DocsThemeConfig>({
         mono: true,
         groups: [
           {
+            text: "Creating mods",
+            items: [
+              { text: "Overview", link: "/reference/mods/", icon: "file" },
+              { text: "Textures and models", link: "/reference/mods/erp-assets", icon: "file" },
+              { text: "Game database", link: "/reference/mods/database", icon: "file" },
+            ],
+          },
+          {
+            text: "Creating addons",
+            items: [
+              { text: "Overview", link: "/reference/addons/", icon: "file" },
+              { text: "Your first addon", link: "/reference/addons/first-addon", icon: "file" },
+              { text: "Addon template", link: "/reference/addons/template", icon: "file" },
+              { text: "Addon manifest", link: "/reference/addons/manifest", icon: "file" },
+              { text: "Settings", link: "/reference/addons/settings", icon: "file" },
+              { text: "Mixin system", link: "/reference/addons/hooking", icon: "file" },
+              { text: "In-game UI", link: "/reference/addons/in-game-ui", icon: "file" },
+              { text: "Native plugins", link: "/reference/addons/native-plugins", icon: "file" },
+            ],
+          },
+          {
             text: "Standard library",
             items: [
               { text: "Overview", link: "/reference/std/", icon: "file" },
-              { text: "Addon manifest", link: "/modding/manifest", icon: "file" },
               { text: "Mixin API", link: "/reference/std/mixin", icon: "file" },
-              { text: "Native plugins", link: "/modding/native-plugins", icon: "file" },
               { text: "Settings", link: "/reference/std/settings", icon: "file" },
               { text: "UI", link: "/reference/std/ui", icon: "file" },
               { text: "Logging", link: "/reference/std/logging", icon: "file" },
-              { text: "Database operations", link: "/modding/database-ops", icon: "file" },
-              { text: "ERP operations", link: "/modding/erp-ops", icon: "file" },
-              { text: "UI patches", link: "/modding/ui-patches", icon: "file" },
-              { text: "File operations", link: "/reference/std/files", icon: "file" },
             ],
           },
           {
@@ -170,11 +205,24 @@ export default defineConfigWithTheme<DocsThemeConfig>({
                 ],
               },
               { text: "!pkg resources", link: "/reference/pkg", icon: "file" },
+              { text: "Database operations", link: "/reference/ops/database", icon: "file" },
+              { text: "ERP operations", link: "/reference/ops/erp", icon: "file" },
+              { text: "UI patches", link: "/reference/ops/ui-patches", icon: "file" },
+              { text: "File operations", link: "/reference/ops/files", icon: "file" },
             ],
           },
           {
             text: "Tools",
             items: [{ text: "swofty (command line)", link: "/reference/cli", icon: "file" }],
+          },
+          {
+            text: "Development",
+            items: [
+              { text: "Development", link: "/reference/development", icon: "file" },
+              { text: "Design notes", link: "/design/", icon: "file" },
+              { text: "Addons and mods design", link: "/design/addons-and-mods", icon: "file" },
+              { text: "How maps are installed", link: "/reference/maps", icon: "file" },
+            ],
           },
         ],
       },

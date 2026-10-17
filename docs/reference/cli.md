@@ -40,7 +40,7 @@ When the game exits, `swofty run` merges the settings changed in game into the p
 
 ## `swofty apply`
 
-`swofty apply [--profile <name>] [--game <dir>]` builds the profile and installs it into the game folder: the database, the archives addons patch, the enabled maps, their menu entries, the cars' ERS settings, and the [in-game loader](/reference/launch#in-game-loader) with the session's `swofty/settings.json`. Every change goes through the journal. `swofty restore` or `swofty --profile vanilla apply` removes it. Close the game first.
+`swofty apply [--profile <name>] [--game <dir>]` builds the profile and installs it into the game folder: the database, the archives addons patch, the enabled maps, their menu entries, the cars' ERS settings, and the [in-game loader](/reference/addons/#in-game-loader) with the session's `swofty/settings.json`. Every change goes through the journal. `swofty restore` or `swofty --profile vanilla apply` removes it. Close the game first.
 
 ## `swofty verify`
 

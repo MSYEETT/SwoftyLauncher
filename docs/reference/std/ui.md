@@ -5,7 +5,7 @@ description: Addon screens, ADDON SETTINGS pages and their view models, home til
 
 # UI
 
-SwoftyMod adds screens to F1 25 through the engine's own screen loader. The [tutorial](/tutorials/in-game-ui) adds a screen and a home tile.
+SwoftyMod adds screens to F1 25 through the engine's own screen loader. The [tutorial](/reference/addons/in-game-ui) adds a screen and a home tile.
 
 ## Screens
 
@@ -80,4 +80,4 @@ A tile is a `HomeItem` whose virtual table has `populate` in slot 4 and `get_act
 
 ## UI patches
 
-[UI patches](/modding/ui-patches) edit the game's own screens, routes and UI databases. The build does not apply them yet.
+[UI patches](/reference/ops/ui-patches) edit the game's own screens, routes and UI databases. The build does not apply them yet.

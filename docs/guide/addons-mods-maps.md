@@ -18,12 +18,12 @@ Swofty Launcher for F1 25 loads three kinds of content into F1 25.
 
 ## Addons
 
-An addon is a folder with a [`swofty.json`](/modding/manifest) manifest at its root. It can carry:
+An addon is a folder with a [`swofty.json`](/reference/addons/manifest) manifest at its root. It can carry:
 
-- **Native plugins.** Windows DLLs that use the **Advanced Mod Mixin System** to edit the F1 25 engine directly: wrap a game function, run code at an instruction, replace a virtual method, redirect a call or patch bytes. Plugins bind to game functions by name from the [Game API](/reference/game/), and SwoftyMod finds each one by signature when the game starts. See [Hooking a game function](/tutorials/hooking).
-- **Settings.** Toggles, sliders and choices, shown in the launcher and in game. See [the `options` field](/modding/manifest#options).
+- **Native plugins.** Windows DLLs that use the **Advanced Mod Mixin System** to edit the F1 25 engine directly: wrap a game function, run code at an instruction, replace a virtual method, redirect a call or patch bytes. Plugins bind to game functions by name from the [Game API](/reference/game/), and SwoftyMod finds each one by signature when the game starts. See [Hooking a game function](/reference/addons/hooking).
+- **Settings.** Toggles, sliders and choices, shown in the launcher and in game. See [the `options` field](/reference/addons/manifest#options).
 - **In-game screens.** Screen files that SwoftyMod registers with the game's own UI system.
-- **Content.** [Database edits](/modding/database-ops) and [ERP edits](/modding/erp-ops), applied when the launcher builds the profile.
+- **Content.** [Database edits](/reference/ops/database) and [ERP edits](/reference/ops/erp), applied when the launcher builds the profile.
 
 Two addons ship with the launcher's source: **SwoftyMod** (`swofty.core`), which is built in and always on in modded profiles, and **Custom Grid Size** (`swofty.custom-grid-size`), which changes how many cars race in F1 2026.
 
@@ -33,7 +33,7 @@ A mod is content with no code: `.erp` archives and resources, or `.serps` packag
 
 | Delivery | How | Status |
 |---|---|---|
-| Bundled | An addon ships the mod and applies it with [ERP](/modding/erp-ops) and [database](/modding/database-ops) operations in its manifest | Available |
+| Bundled | An addon ships the mod and applies it with [ERP](/reference/ops/erp) and [database](/reference/ops/database) operations in its manifest | Available |
 | Asset API | An addon loads the mod while the game runs: it inserts, replaces or removes resources and ERPs | <Badge type="info" text="coming soon" /> [Asset API](#asset-api) |
 | Team Simplified panel | The player imports, orders and turns mods on and off in the launcher's **Team Simplified** addon panel | <Badge type="info" text="coming soon" /> [Team Simplified](#team-simplified) |
 
@@ -58,5 +58,5 @@ A [profile](/using/profiles) keeps one setup: its addons in load order, its maps
 SwoftyMod adds **ADDON SETTINGS** to the game's home menu, directly under **Career**. It lists every enabled addon and map as a tile, and each tile opens a page with that addon's settings. Changes save to the profile. See [In-game addon settings](/using/swofty-mod).
 
 ::: tip Making your own
-Start with [Your first addon](/tutorials/first-addon). The [Standard library](/reference/std/) lists every API an addon can use.
+See [Creating mods](/reference/mods/) and [Creating addons](/reference/addons/). The [Standard library](/reference/std/) lists every API an addon can use.
 :::

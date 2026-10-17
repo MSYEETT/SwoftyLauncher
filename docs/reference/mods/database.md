@@ -5,7 +5,7 @@ description: Change values, copy rows and rename tracks in gamedatabases.2025.bi
 
 # Editing the game database
 
-F1 25 keeps its teams, cars, drivers, tracks and rules in `game_package/gamedatabases/gamedatabases.2025.bin`. An addon changes it with [database operations](/modding/database-ops) listed in `operations.database`. The launcher applies them to a copy of the stock file when it builds the profile.
+F1 25 keeps its teams, cars, drivers, tracks and rules in `game_package/gamedatabases/gamedatabases.2025.bin`. An addon changes it with [database operations](/reference/ops/database) listed in `operations.database`. The launcher applies them to a copy of the stock file when it builds the profile.
 
 ## Find the key
 
@@ -93,7 +93,7 @@ The values are language keys. See [Renaming a track](/reference/gamedb/recipes#r
 
 ## Drive values from settings
 
-A `db` [setting](/tutorials/addon-settings#use-a-db-setting) fills <span v-pre>`{{id}}`</span> placeholders, and `when` keeps an operation only for the listed values:
+A `db` [setting](/reference/addons/settings#use-a-db-setting) fills <span v-pre>`{{id}}`</span> placeholders, and `when` keeps an operation only for the listed values:
 
 ```json
 { "op": "set", "select": "rules.stop_go_penalty", "field": "penalty_duration", "value": "{{penalty_seconds}}" }
@@ -103,4 +103,4 @@ A `db` [setting](/tutorials/addon-settings#use-a-db-setting) fills <span v-pre>`
 
 The launcher applies map activations first, then each addon's operations in load order. A later write to the same key wins. Check a build with `swofty build` before starting the game.
 
-Every operation and field is in the [database operations](/modding/database-ops) reference. The [Game database](/reference/gamedb) section covers the file format and how the game reads it.
+Every operation and field is in the [database operations](/reference/ops/database) reference. The [Game database](/reference/gamedb) section covers the file format and how the game reads it.

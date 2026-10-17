@@ -37,11 +37,11 @@ my-first-addon/
 }
 ```
 
-The `id` uses lowercase letters, digits, `.`, `_` and `-`. The `swofty.` prefix is reserved. Every field is listed in the [addon manifest](/modding/manifest) reference.
+The `id` uses lowercase letters, digits, `.`, `_` and `-`. The `swofty.` prefix is reserved. Every field is listed in the [addon manifest](/reference/addons/manifest) reference.
 
 ## 3. Change a value
 
-`db/penalty.json` holds [database operations](/modding/database-ops). This one sets one field of one row:
+`db/penalty.json` holds [database operations](/reference/ops/database). This one sets one field of one row:
 
 ```json [db/penalty.json]
 {
@@ -92,11 +92,11 @@ Press **Play** in the launcher, or run `swofty run`. The launcher builds the pro
 In game, **ADDON SETTINGS** under **Career** has a tile for **My First Addon** with its author, version and description.
 
 ::: tip Next
-Give the penalty a slider in [Addon settings](/tutorials/addon-settings).
+Give the penalty a slider in [Addon settings](/reference/addons/settings).
 :::
 
 ## Share it
 
 Share the folder. Include your operations, never copies of the game's archives, database or executable.
 
-The [addon template](/modding/template) has every kind of operation and a native plugin to start from.
+The [addon template](/reference/addons/template) has every kind of operation and a native plugin to start from.

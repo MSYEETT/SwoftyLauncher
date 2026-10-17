@@ -1,6 +1,6 @@
 # Native plugins
 
-Native plugins are Windows x86-64 DLLs that run inside F1 25. They are for addon authors who need code changes beyond data edits. [Hooking a game function](/tutorials/hooking) walks through one.
+Native plugins are Windows x86-64 DLLs that run inside F1 25. They are for addon authors who need code changes beyond data edits. [Hooking a game function](/reference/addons/hooking) walks through one.
 
 ## SDK
 
@@ -36,7 +36,7 @@ The [Game API](/reference/game/) lists the game functions and structs that plugi
 
 ## Settings
 
-A plugin reads its addon's [options](/modding/manifest#options) with `swofty/mixin.hpp` from the SDK. Declare each setting with its type and a fallback, using the option `id` as the name:
+A plugin reads its addon's [options](/reference/addons/manifest#options) with `swofty/mixin.hpp` from the SDK. Declare each setting with its type and a fallback, using the option `id` as the name:
 
 ```cpp
 #include <swofty/mixin.hpp>
@@ -92,4 +92,4 @@ Plugin approval and file-hash checks are planned. The current loader loads DLLs 
 
 ## Build
 
-Use [the addon template](/modding/template). It builds with `zig cc -target x86_64-windows-gnu`. Other toolchains that produce Windows x86-64 DLLs, including MSVC, also work.
+Use [the addon template](/reference/addons/template). It builds with `zig cc -target x86_64-windows-gnu`. Other toolchains that produce Windows x86-64 DLLs, including MSVC, also work.

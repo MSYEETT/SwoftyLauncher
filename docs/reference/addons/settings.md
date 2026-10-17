@@ -9,7 +9,7 @@ Settings are declared once, in `options` in `swofty.json`. The launcher shows th
 
 ## Declare the settings
 
-These are the [addon template](/modding/template)'s settings: three read by a plugin and one built into the database.
+These are the [addon template](/reference/addons/template)'s settings: three read by a plugin and one built into the database.
 
 ```json [swofty.json]
 "options": [
@@ -61,7 +61,7 @@ These are the [addon template](/modding/template)'s settings: three read by a pl
 | `slider` | A number on the slider's steps | `min`, `max` and `step` are required. `max - min` is a whole number of steps, at most 100 |
 | `choice` | One of `values` | 1 to 16 values. Each is a string, or `{ "value", "label" }` to show a different name |
 
-The full field list is in [Options](/modding/manifest#options).
+The full field list is in [Options](/reference/addons/manifest#options).
 
 ## Choose where the value goes
 
@@ -69,7 +69,7 @@ The full field list is in [Options](/modding/manifest#options).
 
 | `binds` | Read by | When a change applies |
 |---|---|---|
-| `native` | The addon's [native plugin](/modding/native-plugins), while the game runs | At once |
+| `native` | The addon's [native plugin](/reference/addons/native-plugins), while the game runs | At once |
 | `db` | The build, through `{{id}}` and `when` in operation files | After a rebuild and a restart |
 
 ## Use a `db` setting

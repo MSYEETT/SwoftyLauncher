@@ -4,7 +4,7 @@ Database operations change game values in `game_package/gamedatabases/gamedataba
 
 ## File format
 
-List the operation file in `operations.database` in your [manifest](/modding/manifest):
+List the operation file in `operations.database` in your [manifest](/reference/addons/manifest):
 
 ```json
 {
@@ -68,7 +68,7 @@ Row additions and removals need the table's real path. A `{hash}` placeholder ca
 
 ## Settings
 
-A `db` [option](/modding/manifest#options) changes operations at build time:
+A `db` [option](/reference/addons/manifest#options) changes operations at build time:
 
 - <span v-pre>`{{id}}`</span> in any string is replaced with the option's value: `true` or `false`, the number, or the choice value.
 - `"when": { "id": value }` keeps the operation only when every listed option has that value.

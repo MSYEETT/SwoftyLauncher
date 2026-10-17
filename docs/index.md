@@ -44,7 +44,7 @@ features:
   - icon: chip
     title: Addons
     details: Addons use the <em>Advanced Mod Mixin System</em> to edit the F1 25 engine directly, from new menus and settings to bigger grids.
-    link: /modding/template
+    link: /reference/addons/
   - icon: box
     title: Mods
     details: ERPs and SERPs with no code. An addon can <em>bundle</em> them, load them at runtime through the <em>Asset API</em> to add, replace or remove ERPs, or you can manage them in the launcher's <em>Team Simplified</em> panel.
@@ -69,8 +69,8 @@ features:
 developers:
   text: Swofty Launcher for F1 25 is <em>open source</em>, with a hook system built for modders. Addons <em>hook game functions by name</em>, with <em>priorities</em> and <em>chaining</em> so several addons can change the same function.
   actions:
-    - { icon: book, text: Modding docs, link: /modding/template, style: solid }
-    - { icon: chip, text: Plugin SDK, link: /modding/native-plugins, style: outline }
+    - { icon: book, text: Modding docs, link: /reference/addons/, style: solid }
+    - { icon: chip, text: Plugin SDK, link: /reference/addons/native-plugins, style: outline }
     - { icon: code, text: Game API, link: /reference/game/, style: outline }
 
 cta:

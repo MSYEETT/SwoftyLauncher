@@ -16,23 +16,23 @@ Everything an addon can use, by area. Data operations are JSON files listed in `
 | `swofty/game.hpp` | `native/include/swofty/` | Every subsystem of the [Game API](/reference/game/) |
 | `swofty/game/<subsystem>.hpp` | `native/include/swofty/game/` | One subsystem's functions, structs, data and sites |
 
-The [addon template](/modding/template) ships `swofty_api.h` and `swofty/mixin.hpp`. Copy the game headers from `native/include/swofty/` to hook game functions. The Rust crate `swofty-sdk` (`packages/sdk`) mirrors the C ABI.
+The [addon template](/reference/addons/template) ships `swofty_api.h` and `swofty/mixin.hpp`. Copy the game headers from `native/include/swofty/` to hook game functions. The Rust crate `swofty-sdk` (`packages/sdk`) mirrors the C ABI.
 
 ## APIs
 
 | API | Use it to | Reference |
 |---|---|---|
-| Addon manifest | Describe the addon, its settings and its operations | [Addon manifest](/modding/manifest) |
+| Addon manifest | Describe the addon, its settings and its operations | [Addon manifest](/reference/addons/manifest) |
 | Mixin API | Wrap functions, run code at sites, replace virtual methods, redirect calls, patch bytes | [Mixin API](./mixin) |
 | Game API | Call and hook F1 25's functions, read its structs | [Game API](/reference/game/) |
 | UI | Add screens and home tiles, drive ADDON SETTINGS pages | [UI](./ui) |
 | Settings | Declare options and read them from a plugin | [Settings](./settings) |
 | Logging | Write to `swofty/loader.log`, configure the game log | [Logging](./logging) |
-| Native plugins | The plugin ABI: exports, `SwoftyApi`, loading | [Native plugins](/modding/native-plugins) |
-| Database operations | Change the game database | [Database operations](/modding/database-ops) |
-| ERP operations | Change resources in `.erp` archives | [ERP operations](/modding/erp-ops) |
-| UI patches | Change screens, routes and UI databases | [UI patches](/modding/ui-patches) |
-| File operations | Copy files into the game folder | [File operations](./files) |
+| Native plugins | The plugin ABI: exports, `SwoftyApi`, loading | [Native plugins](/reference/addons/native-plugins) |
+| Database operations | Change the game database | [Database operations](/reference/ops/database) |
+| ERP operations | Change resources in `.erp` archives | [ERP operations](/reference/ops/erp) |
+| UI patches | Change screens, routes and UI databases | [UI patches](/reference/ops/ui-patches) |
+| File operations | Copy files into the game folder | [File operations](/reference/ops/files) |
 
 ## API versions
 
