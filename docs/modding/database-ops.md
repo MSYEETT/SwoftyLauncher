@@ -47,6 +47,21 @@ Adding or removing rows also updates the table's `_instancecount_`. The game ign
 
 Row additions and removals need the table's real path. A `{hash}` placeholder can be used for `set`, but not row changes.
 
+## Settings
+
+A `db` [option](/modding/manifest#options) changes operations at build time:
+
+- `{{id}}` in any string is replaced with the option's value: `true` or `false`, the number, or the choice value.
+- `"when": { "id": value }` keeps the operation only when every listed option has that value.
+
+```json
+{ "op": "set", "select": "rules.stop_go_penalty", "field": "penalty_duration", "value": "{{penalty_seconds}}" },
+{ "op": "set", "select": "entrants.teams.team[_metadata_=gm_cadillac_26]", "field": "display_name_code", "value": "CAD",
+  "when": { "short_names": true } }
+```
+
+Changing a `db` option marks the profile for a rebuild. The next launch, or `swofty build`, applies it.
+
 ## Applying changes
 
 Operations run in mod load order. Later changes to a field replace earlier values.

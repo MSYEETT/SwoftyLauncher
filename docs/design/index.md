@@ -56,7 +56,7 @@ Linux uses a Steam launch option. Windows uses a separate modded launch. Normal 
 
 SwoftyMod adds MOD SETTINGS below Career, an F9/R3 prompt and a launcher panel.
 
-The planned settings page lists the profile, mods and options. Data changes need a restart; plugin settings may apply immediately.
+The settings page has a section per mod, built each session from the mods' options. Database settings need a restart; plugin settings apply immediately.
 
 ## Current status
 
@@ -67,7 +67,8 @@ The repository is pre-release:
 - Backup and restore code has tests for interrupted changes and game updates.
 - The native menu entry is tested with a test executable under Wine. It currently opens the game's Settings page.
 - Desktop controls and the full launch, build and restore flow still need connecting.
-- Save isolation, offline enforcement, plugin approval and the dedicated mod settings page are unfinished.
+- Mod settings work in the launcher and the command line. The in-game page is generated; saving in-game changes waits on the native bridge's in-game test.
+- Save isolation, offline enforcement and plugin approval are unfinished.
 
 These remaining steps must be completed before the full player workflow is ready.
 

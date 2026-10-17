@@ -16,9 +16,10 @@ Use a lowercase ID such as `author.my-mod`. Do not use the reserved `swofty.` pr
 
 | Path | Example |
 |---|---|
-| `db/example.json` | Change a value and add a row |
+| `swofty.json` | Toggle, choice and slider settings, one of them bound to the database |
+| `db/example.json` | Change values, one of them from a setting |
 | `ui/example.pkgpatch.json` | Change a menu label |
-| `native/` | C plugin and build script |
+| `native/` | C++ plugin that reads its settings, and its build script |
 | `README.md` | Build and test instructions |
 
 See [Current status](/design/#current-status) for unfinished operation types.

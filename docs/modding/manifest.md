@@ -34,18 +34,35 @@ Start with [the mod template](/modding/template).
 | `requires` | Required mods, as `[{"id": "swofty.core", "version": ">=0.1.0"}]` |
 | `conflicts` | Conflicting mods, as `[{"id": "author.other-mod"}]` |
 | `load_after` | Mod IDs or patterns that should load first |
+| `options` | [Settings](#options) shown in the launcher and in game |
 
 `compat.game` is `f1_25`. Optional fields are `game_builds` (for example `[">=25251167"]`), `launcher` (a version range) and `seasons` (for example `["f1_2026"]`).
 
 ## Options
 
-Each entry in `options` has an `id`, `type`, `default` and `binds`:
+`options` declares the mod's settings. The launcher shows them in the mod's row, and the game shows them in the mod's section of **MOD SETTINGS**. Values are stored per profile.
 
-- `type`: `bool`, `enum`, `int`, `float` or `string`.
-- `label` and `description`: text shown to players.
-- `values`: choices for an `enum`.
-- `min` and `max`: limits for numbers.
-- `binds`: `db` for a setting that needs a rebuild, or `native` for a plugin setting.
+```json
+"options": [
+  { "id": "show_panel", "type": "toggle", "label": "Show panel", "default": true, "binds": "native" },
+  { "id": "ai_offset", "type": "slider", "label": "AI offset", "min": -10, "max": 10, "step": 1,
+    "default": 0, "binds": "native" },
+  { "id": "team_livery", "type": "choice", "label": "Team livery", "default": "titlesponsor",
+    "values": ["titlesponsor", { "value": "tier01", "label": "Tier 1 sponsor" }, "replica"], "binds": "db" }
+]
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | Lowercase letters, digits and `_`, starting with a letter, at most 40 characters |
+| `type` | `toggle`, `slider` or `choice` |
+| `label`, `description` | Text shown to players; `label` defaults to the `id` |
+| `default` | `true` or `false` for a toggle, a number on the slider's steps, or one of the choice values |
+| `min`, `max`, `step` | Slider range. All three are required, `max - min` must be a whole number of steps, and a slider has at most 100 steps. Whole-number ranges hold whole numbers |
+| `values` | Choice values, 1 to 16. Each is a string, or `{ "value", "label" }` to show a different name |
+| `binds` | `native`: the [plugin](/modding/native-plugins#settings) reads the value while the game runs. `db`: the value is built into the game files, so a change needs a rebuild and a restart |
+
+[Database operations](/modding/database-ops#settings) use `db` options through `{{id}}` placeholders and `when` conditions.
 
 ## Operations
 

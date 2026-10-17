@@ -25,7 +25,8 @@ Profiles are stored in `$DATA/profiles/<name>.json`:
 
 - `mods` lists mods in load order. Set `enabled` to `false` to turn one off.
 - `maps` lists track codes.
-- `options` stores each mod's settings.
+- `options` stores each mod's settings that differ from the default.
+- `applied` records the database settings the last build used. When they differ from `options`, the next launch rebuilds the profile.
 
 The command line uses `--profile <name>` to choose a profile. The default is `default`.
 

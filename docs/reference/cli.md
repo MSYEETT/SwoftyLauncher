@@ -29,9 +29,11 @@ On Linux, the [Steam launch option](/guide/linux) uses `swofty run -- %command%`
 
 ## `swofty build`
 
-`swofty build [--profile <name>]` prepares database changes without starting the game. Output goes to `$DATA/cache/overlay/<profile>/<buildhash>/`.
+`swofty build [--profile <name>]` prepares database changes without starting the game. Output goes to `$DATA/cache/overlay/<profile>/<buildhash>/`, with the session settings file in `swofty/settings.json`.
 
 ERP, UI and loose-file operations are currently skipped.
+
+When the game exits, `swofty run` merges the settings changed in game into the profile. After **APPLY & RESTART** it rebuilds the profile and starts the game again.
 
 ## `swofty verify`
 
@@ -51,6 +53,16 @@ See [Restoring the game](/using/profiles-and-restoring).
 | `swofty mods install <path>` | Install a folder or `.swoftymod` file |
 | `swofty mods enable <id>` | Enable a mod |
 | `swofty mods disable <id>` | Disable a mod; SwoftyMod cannot be disabled |
+
+## `swofty settings`
+
+| Command | Purpose |
+|---|---|
+| `swofty settings list [<id>]` | List mod settings with the profile's values and any pending rebuild |
+| `swofty settings set <id> <option> <value>` | Set a value: `true`, `5`, `replica` |
+| `swofty settings reset <id>` | Put a mod's settings back to their defaults |
+| `swofty settings export [--out <file>]` | Write the session settings file that the game reads |
+| `swofty settings merge` | Merge the changes made in game into the profile |
 
 ## `swofty maps`
 
