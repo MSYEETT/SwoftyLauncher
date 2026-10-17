@@ -128,9 +128,9 @@ impl StateStore for ProfileState {
     }
 
     fn set(&self, addon: &str, value: serde_json::Value) -> swofty_addon::Result<()> {
-        let mut p = self.store.profile(&self.profile).map_err(other)?;
-        p.set_state(addon, value).map_err(other)?;
-        self.store.save_profile(&p).map_err(other)
+        self.store
+            .update_profile(&self.profile, |p| p.set_state(addon, value))
+            .map_err(other)
     }
 }
 

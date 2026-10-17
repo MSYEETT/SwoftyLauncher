@@ -25,5 +25,8 @@ swofty-formats.workspace = true
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
 
+[dev-dependencies]
+swofty-addon.workspace = true
+
 [lints]
 workspace = true

@@ -433,8 +433,7 @@ impl Shell {
         cx: &mut Context<Self>,
         f: impl FnOnce(&mut swofty_core::profile::Profile) -> swofty_core::Result<()>,
     ) {
-        let mut p = self.library.profile.clone();
-        if let Err(e) = f(&mut p).and_then(|_| self.store.save_profile(&p)) {
+        if let Err(e) = self.store.update_profile(&self.library.profile.name, f) {
             window.push_notification(Notification::error(e.to_string()), cx);
         }
         self.reload(cx);

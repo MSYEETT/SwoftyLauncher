@@ -64,7 +64,10 @@ fn build_profile(store: &Store, profile: &str, g: &Game) -> Result<swofty_core::
         built.plan.loader.insert(SETTINGS_FILE.into(), settings);
     }
     p.mark_built(&addons);
-    store.save_profile(&p)?;
+    store.update_profile(profile, |fresh| {
+        fresh.applied = p.applied;
+        Ok(())
+    })?;
     Ok(built)
 }
 
@@ -180,4 +183,60 @@ pub fn restore(store: &Store, game: Option<PathBuf>) -> Result<ExitCode> {
         println!("not restored: {d}");
     }
     Ok(ExitCode::FAILURE)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use swofty_core::asset::AssetBatch;
+    use swofty_core::builtin::loader_dir;
+    use swofty_core::launcher::{Addon, BuildCx, Builtin};
+    use swofty_core::manifest::AddonManifest;
+
+    use super::*;
+
+    struct Writer(AddonManifest);
+
+    impl Addon for Writer {
+        fn manifest(&self) -> &AddonManifest {
+            &self.0
+        }
+
+        fn build(&self, cx: &BuildCx) -> swofty_addon::Result<AssetBatch> {
+            cx.cx.set_state(&serde_json::json!({"built": true}))?;
+            Ok(AssetBatch::default())
+        }
+    }
+
+    #[test]
+    fn keeps_profile_changes_made_during_the_build() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-cli-build-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(GAME_EXE), "exe").unwrap();
+        std::fs::write(dir.join(GVDB), "db").unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let manifest = AddonManifest::parse(
+            r#"{"schema_version":1,"id":"t.writer","name":"Writer","version":"1.0.0","author":"t","compat":{"game":"f1_25"}}"#,
+        )
+        .unwrap();
+        let store = Store::new(root.join("data")).with_builtins(vec![Builtin {
+            addon: Arc::new(Writer(manifest)),
+            locked: false,
+            default_on: true,
+        }]);
+        build_profile(&store, "default", &game).unwrap();
+        let p = store.profile("default").unwrap();
+        assert_eq!(p.state["t.writer"], serde_json::json!({"built": true}));
+        std::fs::remove_dir_all(&root).ok();
+    }
 }
