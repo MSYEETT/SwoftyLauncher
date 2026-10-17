@@ -47,6 +47,7 @@ pub struct MenuBuild {
     pub erps: BTreeMap<String, PathBuf>,
     pub screens: BTreeMap<String, PathBuf>,
     pub session: Vec<SessionScreen>,
+    pub strings: Vec<(String, String)>,
 }
 
 type Patch<'a> = Box<dyn FnOnce(&[u8]) -> Result<Vec<u8>> + 'a>;
@@ -108,7 +109,12 @@ fn core_version(settings: &SessionSettings) -> String {
         .unwrap_or_else(|| crate::builtin::core_manifest().version.to_string())
 }
 
-pub fn build(settings: &SessionSettings, input: &dyn Fn(&str) -> PathBuf, out: &Path) -> Result<MenuBuild> {
+pub fn build(
+    settings: &SessionSettings,
+    input: &dyn Fn(&str) -> PathBuf,
+    out: &Path,
+    lang: bool,
+) -> Result<MenuBuild> {
     let flow_options = input(&ui_file("flow_options.erp"));
     let flow_frontend = input(&ui_file("flow_frontend.erp"));
     let src = Sources::parse(
@@ -190,8 +196,21 @@ pub fn build(settings: &SessionSettings, input: &dyn Fn(&str) -> PathBuf, out: &
         &src_f,
         &dst_f,
         vec![
-            (MESSAGES, Box::new(|d| patch::messages(d, &popup))),
-            (PERSISTENT_UI, Box::new(|d| patch::persistent_gate(d, &popup))),
+            (MESSAGES, Box::new(|d| patch::messages(d, lang))),
+            (
+                PERSISTENT_UI,
+                Box::new(|d| {
+                    let out = patch::persistent_gate(d)?;
+                    let changed = check::stock_kept(d, &out, "swofty_")?;
+                    if !changed.is_empty() {
+                        return Err(Error::Other(format!(
+                            "the popup gate changes the game's own popups:\n  {}",
+                            changed.join("\n  ")
+                        )));
+                    }
+                    Ok(out)
+                }),
+            ),
         ],
     )?;
     let (src_h, dst_h) = erp("flow_frontend.erp");
@@ -208,6 +227,9 @@ pub fn build(settings: &SessionSettings, input: &dyn Fn(&str) -> PathBuf, out: &
     )?;
 
     let mut build = MenuBuild::default();
+    if lang {
+        build.strings = popup.strings();
+    }
     for rel in ERPS {
         build.erps.insert(ui_file(rel), out.join(ui_file(rel)));
     }

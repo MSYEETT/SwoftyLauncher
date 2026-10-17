@@ -849,6 +849,25 @@ pub fn uidb_dict(name: &str, entries: Vec<(String, Node)>) -> Node {
     ])
 }
 
+pub fn canonical(n: &Node) -> String {
+    let list = |items: Vec<String>| items.join(",");
+    match n {
+        Node::Val(v) => format!("{:?}:{:?}", v.ty, v.value),
+        Node::Obj(o) => format!(
+            "{{{} {}}}",
+            o.version,
+            list(
+                o.items
+                    .iter()
+                    .map(|(k, v)| format!("{:?}={}", k.value, canonical(v)))
+                    .collect()
+            )
+        ),
+        Node::Arr(a) => format!("[{:?} {}]", a.tag, list(a.items.iter().map(canonical).collect())),
+        Node::Iar(r) => format!("{r:?}"),
+    }
+}
+
 pub fn edit(data: &[u8], f: impl FnOnce(&mut Pkg) -> Result<()>) -> Result<Vec<u8>> {
     let mut p = Pkg::parse(data)?;
     f(&mut p)?;

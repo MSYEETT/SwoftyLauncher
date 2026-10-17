@@ -11,7 +11,7 @@ use crate::activation::place::{
     PlaceInput, SLOTS, place, slot_asset_group, slot_asset_root, slot_file, track_group,
 };
 use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
-use crate::asset::{AssetOp, FileKind, FileOp, GroupOp, Op, OpFile, Origin, Root, Source, TrackOp};
+use crate::asset::{AssetOp, FileKind, FileOp, GroupOp, LangOp, Op, OpFile, Origin, Root, Source, TrackOp};
 use crate::baseline::{Baseline, Objects, hex, sha256_file};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
 use crate::erpbuild::{ErpBuild, unsupported};
@@ -574,7 +574,20 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             ));
             let order: Vec<&AddonManifest> = resolved.order.iter().map(|id| &addons[id]).collect();
             if menus {
-                build_menus(&mut built, &mut session, &resolve)?;
+                let lang = planner.route(Kind::Lang) == Route::Runtime;
+                for (key, value) in build_menus(&mut built, &mut session, &resolve, lang)? {
+                    planner.push(Op {
+                        op: AssetOp::Lang(LangOp::Set {
+                            language: "*".into(),
+                            key,
+                            value,
+                        }),
+                        origin: Origin {
+                            addon: CORE_ID.into(),
+                            item: None,
+                        },
+                    });
+                }
             }
             let files = screen_files(&order, &store.addons_dir())?;
             if !files.is_empty() {
@@ -716,14 +729,21 @@ pub fn build_menus(
     built: &mut Built,
     session: &mut SessionSettings,
     original: &dyn Fn(&str) -> PathBuf,
-) -> Result<()> {
+    lang: bool,
+) -> Result<Vec<(String, String)>> {
     let input = |rel: &str| built.plan.data.get(rel).cloned().unwrap_or_else(|| original(rel));
-    let menus = crate::ui::build(session, &input, &built.overlay)?;
+    let menus = crate::ui::build(session, &input, &built.overlay, lang)?;
     built.lines.push(format!(
         "ui: ADDON SETTINGS with {} screen(s) under {LOADER_DIR}/ui, {} game archive(s) patched",
         menus.session.len(),
         menus.erps.len()
     ));
+    if !menus.strings.is_empty() {
+        built.lines.push(format!(
+            "ui: the online services popup reads its text from {} language string(s)",
+            menus.strings.len()
+        ));
+    }
     built.plan.data.extend(menus.erps);
     for (rel, src) in menus.screens {
         if built.plan.loader.insert(rel.clone(), src).is_some() {
@@ -747,7 +767,7 @@ pub fn build_menus(
         )));
     }
     ui.screens.splice(0..0, menus.session);
-    Ok(())
+    Ok(menus.strings)
 }
 
 #[cfg(test)]
