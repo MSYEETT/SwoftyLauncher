@@ -43,7 +43,7 @@ Use labels where possible. Row numbers can change between game builds.
 
 ## The row-count rule
 
-Adding or removing rows also updates the table's `_instancecount_`. The game ignores rows beyond this count.
+Adding or removing rows also updates the table's `_instancecount_`. The game ignores rows beyond this count. A new row needs every key a stock row of the table has; see [Adding a row](/reference/gamedb/recipes#adding-a-row).
 
 Row additions and removals need the table's real path. A `{hash}` placeholder can be used for `set`, but not row changes.
 
@@ -51,7 +51,7 @@ Row additions and removals need the table's real path. A `{hash}` placeholder ca
 
 A `db` [option](/modding/manifest#options) changes operations at build time:
 
-- `{{id}}` in any string is replaced with the option's value: `true` or `false`, the number, or the choice value.
+- <span v-pre>`{{id}}`</span> in any string is replaced with the option's value: `true` or `false`, the number, or the choice value.
 - `"when": { "id": value }` keeps the operation only when every listed option has that value.
 
 ```json
@@ -66,4 +66,4 @@ Changing a `db` option marks the profile for a rebuild. The next launch, or `swo
 
 Operations run in mod load order. Later changes to a field replace earlier values.
 
-See [Game database (GVDB)](/reference/gvdb) for the file format.
+See [Game database (GVDB)](/reference/gamedb) for the file format, how the game reads it and the table catalogue. [Modding recipes](/reference/gamedb/recipes) covers adding rows, grid size and tracks.

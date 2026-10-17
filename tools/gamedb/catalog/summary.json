@@ -1,0 +1,72 @@
+{
+ "db": "gamedatabases.2025.bin",
+ "db_bytes": 19341077,
+ "records": 742857,
+ "named_records": 566078,
+ "unnamed_records": 176779,
+ "unnamed_by_type": {
+  "float": 43190,
+  "int": 41197,
+  "bool": 23667,
+  "id": 20321,
+  "string": 17390,
+  "t11": 11507,
+  "curve": 5011,
+  "time": 4337,
+  "enum": 3870,
+  "t7": 3469,
+  "t12": 1772,
+  "list": 756,
+  "t8": 145,
+  "t18": 113,
+  "vector": 22,
+  "t17": 12
+ },
+ "types": {
+  "float": 172067,
+  "string": 152616,
+  "int": 128932,
+  "id": 82309,
+  "bool": 65476,
+  "enum": 47290,
+  "curve": 24709,
+  "list": 24336,
+  "t11": 15508,
+  "vector": 8476,
+  "t8": 6868,
+  "t7": 4841,
+  "time": 4337,
+  "t12": 2622,
+  "t18": 2458,
+  "t17": 12
+ },
+ "tables": 2080,
+ "table_instances": 11209,
+ "rows": 60782,
+ "named_tables": 823,
+ "schema_keys": 16502,
+ "schema_keys_exe_path": 1888,
+ "schema_keys_exe_leaf": 12792,
+ "exe_names": 8286,
+ "exe_names_in_db": 4351,
+ "exe_names_not_in_db": 3935,
+ "exe_key_immediates": 1098,
+ "exe_key_immediates_named": 98,
+ "scopes": {
+  "other": 1981,
+  "track": 35,
+  "team": 28,
+  "driver": 23,
+  "season": 10,
+  "vehicle": 3
+ },
+ "table_evidence": {
+  "inferred": 1512,
+  "unknown": 529,
+  "proven": 39
+ },
+ "key_evidence": {
+  "inferred": 12364,
+  "proven": 4138
+ }
+}

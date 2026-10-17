@@ -1,0 +1,171 @@
+kind	pattern	meaning	unit	evidence	source
+key	*._metadata_	Row label: the name other rows and the game use to find this row, unique in its table		proven	Gdb_Find_RowByLabel 0x1445a2bd0
+key	*._*_instancecount_	Row count of a nested table: the game reads rows 0 to count-1 and ignores the rest	rows	proven	Gdb_Init_TableCursor 0x1445a25c0
+key	*.stat_id	Numeric id of the row, unique in its table; the game keys runtime maps on it		proven	Sess_Parse_Entrant 0x142452e60
+key	*.statId	Numeric id of the row, unique in its table		proven	track activation registry (unique field)
+key	*.available	Availability flag; every team and vehicle row ships False and the game sets it at startup		proven	Sess_Set_RowsAvailable 0x1413e44c0
+key	*.display_name	Localisation key of the name shown in menus		inferred	values are lng_* keys
+key	*.display_name_short	Localisation key of the short name		inferred	values are lng_* keys
+key	*.display_name_super_short	Localisation key of the shortest name		inferred	values are lng_* keys
+key	*.display_description	Localisation key of the description text		inferred	values are lng_* keys
+key	*colour	Colour as a signed 32-bit ARGB integer	ARGB	inferred	tag 11 values such as -13249833 (0xFF35CED7)
+table	tracks.Track_N	Track layouts: one row per track (43), read at startup by the track reader		proven	track reader 0x142e4c640, research/track-activation.md
+key	tracks.Track_N.instanceName	Track id used as the label in every per-track table (bahrain, monza)		proven	track activation registry labels
+key	tracks.Track_N.fileName	Track folder name under environment_package/tracks		inferred	values match track folders
+key	tracks.Track_N.baseTrack	Track this layout is based on (reverse and variant layouts)		inferred	values
+key	tracks.Track_N.track_resource	Label of the tracks.track_resource row whose asset groups the track loads		proven	FUN_142e58f20
+key	tracks.Track_N.numberOfCorners	Number of corners shown in track info	corners	inferred	name, Bahrain = 15
+key	tracks.Track_N.length_metres	Lap length	m	inferred	name, Bahrain = 5412
+key	tracks.Track_N.latitude	Latitude of the circuit	degrees	inferred	name, Bahrain = 26.03158
+key	tracks.Track_N.longitude	Longitude of the circuit	degrees	inferred	name
+key	tracks.Track_N.allow_night_start	Whether sessions can start at night		inferred	name
+key	tracks.Track_N.ai_track_difficulties.*	AI difficulty calibration per vehicle package for this track		proven	time and max_dificulty_no_balast_slider_position are read by the exe
+key	tracks.Track_N.ai_track_difficulties.*.time	Reference lap time the AI difficulty scale is calibrated to	s	inferred	name and values
+key	tracks.Track_N.ai_track_config.*	AI behaviour tuning for this track: formation lap, crowding, look-ahead, recovery, safety car, space lines, yielding		inferred	names
+key	tracks.Track_N.ERSSettings.*	Track multipliers for ERS deployment, harvesting and hotlap use	multiplier	inferred	names, values near 1
+key	tracks.Track_N.track_strategy.*	Default race strategy data for the track		inferred	names
+table	tracks.Track_N.Daylight_N	Daylight window of the track (start, end); read without a found check		proven	track reader 0x142e4c640, startup crash 2026-10-17
+key	tracks.Track_N.Daylight_N.start	Time daylight starts; a missing key crashes at startup	HH,MM	proven	track reader 0x142e4c640
+key	tracks.Track_N.Daylight_N.end	Time daylight ends; a missing key crashes at startup	HH,MM	proven	track reader 0x142e4c640
+table	tracks.Track_N.CareerHubFirstVisit_N	Time of day of the career hub scene on the first visit; read without a found check		proven	track reader 0x142e4c640, startup crash 2026-10-17
+table	tracks.Track_N.CareerHubLastVisit_N	Time of day of the career hub scene on later visits; read without a found check		proven	track reader 0x142e4c640, startup crash 2026-10-17
+key	tracks.Track_N.CareerHub*.timeofday	Time of day for the career hub scene; a missing key crashes at startup	HH,MM	proven	track reader 0x142e4c640
+table	tracks.Track_N.TrackTextures_N	UI textures of the track		proven	research/track-activation.md section 3
+table	tracks.Track_N.TrackTextures_N.TrackTexture_N	One UI texture (flag, broadcast card, background, spline map), naming an overrides.uidb texture-array slice		proven	research/track-activation.md section 3
+table	tracks.Track_N.TrackStats_N.SingleTrackStat_N	A stat shown in track info: difficulty, laps, corners, length		inferred	labels
+table	tracks.Track_N.TrackHighlights_N.TrackHighlight_N	Named track sections shown in broadcast graphics (ui_title, ui_broadcast_icon)		inferred	names; read by the track reader
+table	tracks.Track_N.TrackVideo_N	Broadcast video of the track		inferred	labels
+table	tracks.Track_N.TrackCrowds_N	Crowd settings of the track		inferred	labels
+table	tracks.Track_N.Weather_N	Weather settings of the track		inferred	labels
+table	tracks.Track_N.Tyres_N	Tyre settings of the track		inferred	labels
+table	tracks.Track_N.Tyres_N.track_grip_modifiers_N	Track grip modifiers		inferred	name
+table	tracks.track_resource.TrackResource_N	Asset-group templates a track loads (world, bakes, lights, IBL, track map, crowd, AI); a Track row names one in track_resource		proven	FUN_142e58f20
+key	tracks.track_resource.TrackResource_N.*AssetGroup*	Asset-group path template; [FILENAME] is replaced with the track's file name		proven	FUN_142e58f20, research/track-activation.md
+key	tracks.track_resource.TrackResource_N.*Eri	Resource id template of an archive entry		proven	FUN_142e58f20
+key	tracks.track_resource.TrackResource_N.has_radiance_bake	Whether a radiance bake archive exists for the track		proven	matches bake/*_radiance.bake.erp on disk
+table	tracks.attributes.*	Values a track attribute can take (continent, performance type, tyre wear)		inferred	labels
+table	track_data.game_setup.TrackDataSet_N	Datasets of per-season track settings, with fallback to parent_data_set when a dataset's TrackData table is empty		proven	dataset reader 0x142ed4870
+key	track_data.game_setup.TrackDataSet_N.parent_data_set	Dataset to read when this one has no TrackData rows		proven	dataset reader 0x142ed4870
+key	track_data.game_setup.TrackDataSet_N.seasons	Seasons the dataset applies to		inferred	values season_*
+key	track_data.game_setup.TrackDataSet_N.game_setup_modes	Game setup modes the dataset applies to		inferred	values
+table	track_data.game_setup.TrackDataSet_N.TrackData_N	Per-track settings in a dataset: session times, fuel, tyres, safety car, names, textures, stats, pit, audio		proven	readers 0x142e44b50 and 0x142e3ff00
+key	track_data.game_setup.TrackDataSet_N.TrackData_N.track	Track id of this row (a tracks.Track_N instanceName)		proven	readers 0x142e44b50
+table	track_data.game_setup.TrackDataSet_N.TrackData_N.TyreData_N	Tyre rules override (MandatoryPitstopsOverride)		proven	reader 0x142e44b50
+table	track_data.game_setup.TrackDataSet_N.TrackData_N.Session Start Times_N	Start times of each session at the track	HH,MM	proven	reader 0x142e44b50
+table	track_data.game_setup.TrackDataSet_N.TrackData_N.TrackFuelSettings_N	Fuel loads for qualifying (full, short, one-shot) and the race		proven	reader 0x142e44b50
+table	track_data.track_layers.TrackLayer_N	World variants: which world archive (worldAssetGroup, worldEri) a game setup mode and season load on every track		proven	FUN_142e58f20, Custom Grid Size world switch
+key	track_data.track_layers.TrackLayer_N.worldAssetGroup	World asset-group path template; [FILENAME] is the track's file name		proven	FUN_142e58f20
+key	track_data.track_layers.TrackLayer_N.worldEri	World resource id template		proven	FUN_142e58f20
+table	track_data.sorted_track_order.sorted_track_order_N	Track orders used by menus (default and DLC)		proven	0x1413d5a60
+table	track_data.sorted_track_order.sorted_track_order_N.TrackRef_N	One track in a menu order		proven	0x1413d5a60
+table	track_data.restricted_tracks.*	Tracks a mode may not use (madrid for F2)		inferred	values
+table	content_sets.content_set_N	Content sets: the tracks, grids, modes and features a game edition offers		proven	0x1413d5a60
+key	content_sets.content_set_N.available_tracks_N.tracks	Comma list of playable track ids in the content set		proven	0x1413d5a60
+key	content_sets.content_set_N.initial_tracks_N.tracks	Comma list of tracks unlocked at the start		inferred	name
+key	content_sets.current_content_set	Content set used when the config sets none (empty in the shipping file)		proven	0x1413d5a60
+table	entrants.teams.team_N	Teams: names, codes, colours, livery, kit, audio, boss, base and stat id		proven	Sess_Load_Teams 0x142469440, Sess_Parse_Entrant 0x142452e60
+table	entrants.teams.team_N.story_info_N	Team description and hashtag text		inferred	field names
+key	entrants.teams.team_N.display_name_code	Three-letter team code (timing tower, results)		inferred	values MER, FER, RBR
+key	entrants.teams.team_N.livery_name	Team livery and kit name		inferred	values
+key	entrants.teams.team_N.timing_tower_texture_path	Timing tower team texture name		inferred	name
+key	entrants.teams.team_N.team_boss	Team principal (a character label)		inferred	values
+key	entrants.teams.team_N.audio_id	Team id used by commentary and radio audio		inferred	name
+key	entrants.teams.team_N.prestige	Team prestige rating (-1 = none)		inferred	name and values
+table	entrants.drivers.driver_N	Drivers: names, numbers, nationality, ratings and appearance		proven	Sess_Parse_Entrant 0x142452e60 (driver label, checked)
+table	entrants.vehicles.vehicle_N	Cars: one row per car a driver can drive (F1, F2, classic, My Team, safety and medical cars), with AI handling config		proven	Sess_Startup_VehicleAiLoop 0x142505f30
+key	entrants.vehicles.vehicle_N.asset_filename	Car model and livery folder name		inferred	B26h: changing it swaps the car model
+key	entrants.vehicles.vehicle_N.vehicle_package	Vehicle package (car generation) of the car		inferred	values f1_2024, f1_classic
+key	entrants.vehicles.vehicle_N.performance_class	Car class used by the Grand Prix candidate filter (0 = current F1)		proven	FUN_14245fb70 reads it
+key	entrants.vehicles.vehicle_N.engine	Engine supplier		inferred	values Mercedes, Ferrari
+key	entrants.vehicles.vehicle_N.tyre_wear_scale	Tyre wear multiplier of the car	multiplier	inferred	name and values near 1
+key	entrants.vehicles.vehicle_N.garage_offset_*	Position offset of the car in the garage	m	inferred	name and values
+key	entrants.vehicles.vehicle_N.steering_animation_name	Driver steering animation set		inferred	name
+key	entrants.vehicles.vehicle_N.drs_capable	Whether the car has DRS		inferred	name
+key	entrants.vehicles.vehicle_N.equal_performance_vehicle	Car used instead in equal-performance mode		inferred	name and values
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.*	AI driving behaviour for this car; 202 of the 218 keys are read at startup and a missing one crashes		proven	Sess_Parse_AiHandlingConfig 0x1406828a0
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.allow_to_pass.*	How the AI lets faster cars by (gaps, slow-down distances)		inferred	names
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.blocking.*	How the AI defends its position		inferred	names
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.drafting.*	How the AI uses the slipstream		inferred	names
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.ers_use.*	How the AI deploys ERS		inferred	names
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.exit_fallibility.*	How often and how far the AI runs wide or slides on corner exit		inferred	names
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.race_start.*	AI launch behaviour at the race start		inferred	names
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.lost_control.*	How the AI loses and recovers control		inferred	names
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.spinning_out.*	AI spin behaviour		inferred	names
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.under_safety_car.*	AI behaviour under the safety car		inferred	names
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.*_pid_settings.*	AI steering and throttle PID controller gains		inferred	names
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.*_controller.*	AI steering, pedal and gearbox controller settings		inferred	names
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.merge_*	How the AI merges back onto the racing line		inferred	names
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.overtake.*	AI overtaking behaviour		inferred	names
+key	entrants.vehicles.vehicle_N.ai_vehicle_config.yielding.*	AI yielding to cars on a different strategy or lap		inferred	names
+table	entrants.vehicles.vehicle_packages.vehicle_package_N	Vehicle packages (car generations): AI package folder, resource path template, regulation flags		inferred	values ai_package_folder, resource_path, is_26_aero_regulations
+table	entrants.entrant_lists.entrant_list_N	Grids: named line-ups for a season or mode (f1_2026 is row 34)		proven	Sess_Parse_EntrantList 0x142453c40
+table	entrants.entrant_lists.entrant_list_N.entrant_N	One seat on a grid: driver, team, car, number and customisations		proven	Sess_Parse_Entrant 0x142452e60
+key	entrants.entrant_lists.entrant_list_N._entrant_instancecount_	Number of entrants on the grid; the parser reads only this many	entrants	proven	Sess_Parse_EntrantList 0x142453c40
+key	entrants.entrant_lists.entrant_list_N.entrant_list_references	Other lists whose entrants are read first and included		proven	Sess_Parse_EntrantList 0x142453c40
+key	entrants.entrant_lists.entrant_list_N.fixed_garage_assignments	Standings list that fixes the garage order		inferred	name; list 66 names f1_teams_2024
+key	entrants.entrant_lists.entrant_list_N.previous_season_team_standings	Team standings used for garage order (PreviousSeasonTeamStandings)		inferred	values f1_teams_*
+key	entrants.entrant_lists.entrant_list_N.previous_season_driver_standings	Previous season driver standings		inferred	values f1_drivers_*
+key	entrants.entrant_lists.entrant_list_N.season	Season the grid belongs to		inferred	values season_*
+key	entrants.entrant_lists.entrant_list_N.entrant_N.team	Label of the entrant's row in entrants.teams; resolved without a found check		proven	Sess_Parse_Entrant 0x142452e60
+key	entrants.entrant_lists.entrant_list_N.entrant_N.vehicle	Label of the entrant's row in entrants.vehicles		proven	Sess_Parse_Entrant 0x142452e60
+key	entrants.entrant_lists.entrant_list_N.entrant_N.driver	Label of the entrant's driver		proven	Sess_Parse_Entrant 0x142452e60
+key	entrants.entrant_lists.entrant_list_N.entrant_N.car_number	Race number		inferred	name
+key	entrants.entrant_lists.entrant_list_N.entrant_N.team_position	Seat in the team (1 or 2, 0 or 1 on some lists, -1 for custom-team seats)		inferred	values
+key	entrants.entrant_lists.entrant_list_N.entrant_N.vehicle_customisation	Livery preset of the car (empty on real-team entrants)		inferred	values
+key	entrants.entrant_lists.entrant_list_N.entrant_N.driver_customisation	Driver appearance preset		inferred	name
+key	entrants.entrant_lists.entrant_list_N.entrant_N.entrant_reference	Reference id of the entrant (list-driver)		inferred	values f1_2026-lando_norris
+table	entrants.entrant_setup_modes.entrant_setup_mode_N	How a mode builds its grid: entrant lists, max_entrants, max_teams, reuse_entrants, selection order		proven	parsed by FUN_14249f190, used by Sess_Select_Entrants 0x1424a2350
+key	entrants.entrant_setup_modes.entrant_setup_mode_N.max_entrants	Most cars the selector fields; values below 1 mean no limit	cars	proven	stored at 0x1424a0348, read at 0x1424a3075
+key	entrants.entrant_setup_modes.entrant_setup_mode_N.max_teams	Most teams kept after selection (-1 = no limit)	teams	proven	FUN_1424a2350 team prune loop
+key	entrants.entrant_setup_modes.entrant_setup_mode_N.reuse_entrants	When False the limit is also capped at the number of candidates		proven	FUN_1424a2350
+key	entrants.entrant_setup_modes.entrant_setup_mode_N.entrant_lists	Entrant lists the mode draws from		proven	FUN_14249f190
+key	entrants.entrant_setup_modes.entrant_setup_mode_N.selectable_entrant_lists	Lists the player can pick; the first one is the Grand Prix candidate pool		proven	FUN_140ba3ad0
+table	entrants.standings.standings_N	Standings lists (previous-season team and driver orders)		inferred	labels
+table	entrants.characters.character_N	Characters: team bosses, presenters and story characters		inferred	labels
+table	entrants.nationality.nationality_N	Nationalities with flags and names		inferred	labels
+table	canned_events.Per-race DNFs.Per-race DNF_N	Scripted AI retirements per track (failures, faults, accidents, lock-ups); read by track label without a found check		proven	0x1409c2b10
+table	pit_lane.spline_generation.track_spline_generation_N	Pit lane spline generation settings per track; read with a found check		proven	0x1434ca550
+table	pit_lane.track_slide_settings_N	Pit lane slide settings per track; read with a found check		proven	0x1434ca550
+table	practice_programmes_*.per_track_settings.*	Practice programme settings per track; readers check the found flag		proven	research/track-activation.md
+table	replay.highlights.HeroShots.TrackName_N	Hero camera shots for replays, per track		inferred	names
+table	replay.highlights.HeroShots.TrackName_N.CameraShot_N	One hero camera shot		inferred	names
+table	tyres.tyre_wear_scales.*	Tyre wear scales per track		inferred	row word track_tyre_wear_scale
+table	track_trivia.TrackTriviaTrack_N	Trivia text per track (TrackTriviaTrivia_N.trivia)		inferred	names
+key	rules.stop_go_penalty.penalty_duration	Length of a stop-go penalty	s	inferred	exe literal path; value 10
+key	ai.general_ai_settings.awareness_time	How far ahead in time the AI checks for other cars	s	inferred	exe literal path; value 4.0
+key	drs.failure_time_scalars.*	DRS failure time multipliers by failure level	multiplier	inferred	exe literal path
+table	game_value_conditions.*	Conditions and condition groups the game evaluates for unlocks, objectives and story events		inferred	names
+table	emails.*	In-game emails: contacts and triggers		inferred	names
+table	animation.*	Animation assets, scripts, cutscenes and per-team animation data		inferred	names
+table	career.*	Career mode data		inferred	container name
+table	f1_world.*	F1 World mode data		inferred	container name
+table	story_mode.*	Braking Point story mode data		inferred	container name
+table	customisation.*	Livery, helmet, suit and other customisation items		inferred	container name
+table	options_system.*	Settings menus: option folders, options and their tags		inferred	container name
+table	frontend_scene.*	Front-end (menu) scenes		inferred	container name
+table	game_modes.*	Game modes		inferred	container name
+table	game_setup.*	Game setup modes: grids, worlds and rules a mode uses		inferred	container name
+table	unlockable_content.*	Unlockable content		inferred	container name
+table	schedule.*	Career calendars		proven	read by the track loader (research/track-activation.md)
+table	rules.*	Race rules		inferred	container name
+table	facilities.*	My Team facilities		inferred	container name
+table	driver_statistics.*	Driver statistics and ratings		inferred	container name
+table	driver_market.*	Driver market (transfers)		inferred	container name
+table	rivals.*	Career rivals		inferred	container name
+table	showroom.*	Car showroom		inferred	container name
+table	accolades.*	Accolades and their goals per driver and team		inferred	container name
+table	bank.*	Career budgets and cash		inferred	container name
+table	press_interviews.*	Press interviews		inferred	container name
+table	recognition.*	Recognition (reputation) system		inferred	container name
+table	thumbnails.*	Thumbnail images		inferred	container name
+table	attributes.*	Attribute, attribute-set and effect definitions		inferred	container name
+table	tyres.*	Tyre compounds and wear		inferred	container name
+table	osd.*	On-screen display (HUD)		inferred	container name
+table	audio.*	Audio configuration		inferred	container name
+table	assists.*	Driving assists		inferred	container name
+table	ai.*	AI settings		inferred	container name
+table	championships.*	Championships		inferred	container name
+table	resource_points.*	My Team resource points		inferred	container name
+table	paddock_pass.*	Paddock pass categories		inferred	container name
+table	videos.*	Video resources		inferred	container name
+table	weather.*	Weather		inferred	container name

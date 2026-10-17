@@ -109,7 +109,19 @@ export default defineConfigWithTheme<DocsThemeConfig>({
             text: "Formats",
             items: [
               { text: "ERP archives", link: "/reference/erp", icon: "file" },
-              { text: "Game database (GVDB)", link: "/reference/gvdb", icon: "file" },
+              {
+                text: "Game database (GVDB)",
+                link: "/reference/gamedb",
+                icon: "file",
+                items: [
+                  { text: "File format", link: "/reference/gamedb/format", icon: "file" },
+                  { text: "How the game reads it", link: "/reference/gamedb/reading", icon: "file" },
+                  { text: "Modding recipes", link: "/reference/gamedb/recipes", icon: "file" },
+                  { text: "Tools", link: "/reference/gamedb/tools", icon: "file" },
+                  { text: "Table catalogue", link: "/reference/gamedb/catalogue", icon: "file" },
+                  { text: "Key schema", link: "/reference/gamedb/schema", icon: "file" },
+                ],
+              },
               { text: "!pkg resources", link: "/reference/pkg", icon: "file" },
             ],
           },
