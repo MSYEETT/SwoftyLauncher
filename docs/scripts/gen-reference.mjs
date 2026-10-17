@@ -7,7 +7,8 @@
 //   node docs/scripts/gen-reference.mjs --check                 exit 1 when the pages are out of date
 //   node docs/scripts/gen-reference.mjs --stub                  replace generated pages with the stub
 //
-// Inputs: <root>/native/dist/swofty/mods/core/bindings.json and <root>/native/include/swofty/game/*.hpp.
+// Inputs: <root>/native/dist/swofty/addons/core/bindings.json (or swofty/mods/core in older checkouts) and
+// <root>/native/include/swofty/game/*.hpp.
 // Outputs: docs/reference/game/*.md and docs/.vitepress/game-api.json (the Reference sidebar).
 // Without bindings.json it writes a stub overview page and an empty sidebar, unless pages were already generated.
 
@@ -56,7 +57,8 @@ function parseArgs(argv) {
     else if (a === "--") continue;
     else throw new Error(`unknown argument ${a}`);
   }
-  opts.bindings ??= path.join(opts.root, "native", "dist", "swofty", "mods", "core", "bindings.json");
+  const core = (dir) => path.join(opts.root, "native", "dist", "swofty", dir, "core", "bindings.json");
+  opts.bindings ??= fs.existsSync(core("mods")) && !fs.existsSync(core("addons")) ? core("mods") : core("addons");
   opts.include ??= path.join(opts.root, "native", "include", "swofty");
   return opts;
 }

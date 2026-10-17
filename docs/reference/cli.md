@@ -1,6 +1,6 @@
 # Command line
 
-Use `swofty` from a terminal to manage mods, check files and read logs.
+Use `swofty` from a terminal to manage addons, check files and read logs.
 
 ## `swofty run`
 
@@ -34,13 +34,13 @@ A direct launch writes the wrapper's output to `$DATA/state/wrapper-run.log`. If
 
 `swofty build [--profile <name>]` prepares the profile's database and map files without starting the game. Output goes to `$DATA/cache/overlay/<profile>/<buildhash>/`, with the session settings file in `swofty/settings.json` and `plan.json`, the list of game files to replace and add with their sources. Map archives, menu archives and car handling files are built in `$DATA/cache/maps`, `$DATA/cache/menus` and `$DATA/cache/ers`.
 
-It also builds mod ERP files that use only `patch-pkg`, `copy-resource` and `warn`, and prints their warnings. Mod ERP operations apply on top of the archives the map stages built. Other mod ERP, UI and loose-file operations are currently skipped.
+It also builds addon ERP files that use only `patch-pkg`, `copy-resource` and `warn`, and prints their warnings. Addon ERP operations apply on top of the archives the map stages built. Other addon ERP, UI and loose-file operations are currently skipped.
 
 When the game exits, `swofty run` merges the settings changed in game into the profile. After **APPLY & RESTART** it rebuilds the profile and starts the game again.
 
 ## `swofty apply`
 
-`swofty apply [--profile <name>] [--game <dir>]` builds the profile and installs it into the game folder: the database, the archives mods patch, the enabled maps, their menu entries, the cars' ERS settings, and the [in-game loader](/reference/launch#in-game-loader) with the session's `swofty/settings.json`. Every change goes through the journal. `swofty restore` or `swofty --profile vanilla apply` removes it. Close the game first.
+`swofty apply [--profile <name>] [--game <dir>]` builds the profile and installs it into the game folder: the database, the archives addons patch, the enabled maps, their menu entries, the cars' ERS settings, and the [in-game loader](/reference/launch#in-game-loader) with the session's `swofty/settings.json`. Every change goes through the journal. `swofty restore` or `swofty --profile vanilla apply` removes it. Close the game first.
 
 ## `swofty verify`
 
@@ -52,22 +52,26 @@ When the game exits, `swofty run` merges the settings changed in game into the p
 
 See [Restoring the game](/using/profiles-and-restoring).
 
-## `swofty mods`
+## `swofty addons`
 
 | Command | Purpose |
 |---|---|
-| `swofty mods list` | List installed mods and whether they are enabled |
-| `swofty mods install <path>` | Install a folder or `.swoftymod` file |
-| `swofty mods enable <id>` | Enable a mod |
-| `swofty mods disable <id>` | Disable a mod; SwoftyMod cannot be disabled |
+| `swofty addons list` | List installed addons and whether they are enabled |
+| `swofty addons install <path>` | Install a folder or `.swoftymod` file |
+| `swofty addons enable <id>` | Enable an addon |
+| `swofty addons disable <id>` | Disable an addon; SwoftyMod cannot be disabled |
+
+`swofty mods` is another name for `swofty addons`.
+
+Each command first moves addons that an earlier version stored in `$DATA/mods/` to `$DATA/addons/`.
 
 ## `swofty settings`
 
 | Command | Purpose |
 |---|---|
-| `swofty settings list [<id>]` | List mod settings with the profile's values and any pending rebuild |
+| `swofty settings list [<id>]` | List addon settings with the profile's values and any pending rebuild |
 | `swofty settings set <id> <option> <value>` | Set a value: `true`, `5`, `replica` |
-| `swofty settings reset <id>` | Put a mod's settings back to their defaults |
+| `swofty settings reset <id>` | Put an addon's settings back to their defaults |
 | `swofty settings export [--out <file>]` | Write the session settings file that the game reads |
 | `swofty settings merge` | Merge the changes made in game into the profile |
 

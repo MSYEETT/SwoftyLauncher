@@ -2,7 +2,7 @@
 
 ERP operations describe changes to artwork and other resources in `.erp` archives. List these files in `operations.erp` in your [manifest](/modding/manifest).
 
-`swofty build` applies `patch-pkg`, `copy-resource` and `warn`. A mod whose ERP files use any other operation has its ERP files skipped.
+`swofty build` applies `patch-pkg`, `copy-resource` and `warn`. An addon whose ERP files use any other operation has its ERP files skipped.
 
 ## Example
 
@@ -27,7 +27,7 @@ The resource name above is an example. List the real names with:
 python3 tools/erp.py <archive> '*'
 ```
 
-`erp` paths are relative to the game folder. `source` paths are relative to your mod folder.
+`erp` paths are relative to the game folder. `source` paths are relative to your addon folder.
 
 ## Operations
 
@@ -39,11 +39,11 @@ python3 tools/erp.py <archive> '*'
 | `remove-resource` | `erp`, `resource` | Remove a resource |
 | `add-mipmaps` | `source`, `target` | Copy texture files to a game-relative path |
 | `patch-pkg` | `erp`, `resource`, `fragment`, `edits` | Run `clone-entry` and `set-value` edits on a `!pkg` resource |
-| `warn` | `message` | Print a message when the mod is built |
+| `warn` | `message` | Print a message when the addon is built |
 
 ## Copying resources
 
-`copy-resource` appends a resource to the archive `erp`, copying its parts byte for byte. It reads the resource from the game archive `from_erp`, or from `source`, an archive in your mod folder. `as` gives the copy a new name. The copy fails when `erp` already has a resource with that name.
+`copy-resource` appends a resource to the archive `erp`, copying its parts byte for byte. It reads the resource from the game archive `from_erp`, or from `source`, an archive in your addon folder. `as` gives the copy a new name. The copy fails when `erp` already has a resource with that name.
 
 ```json
 {

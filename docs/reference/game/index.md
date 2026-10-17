@@ -53,4 +53,4 @@ These pages are generated. To refresh them after the bindings change:
 node docs/scripts/gen-reference.mjs --root /path/to/checkout
 ```
 
-Last generated from `native/dist/swofty/mods/core/bindings.json`.
+Last generated from `native/dist/swofty/addons/core/bindings.json`.

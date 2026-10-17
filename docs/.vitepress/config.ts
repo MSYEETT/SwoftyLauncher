@@ -91,9 +91,9 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "1. Installation", link: "/guide/installation" },
               { text: "1.1. Windows", link: "/guide/windows" },
               { text: "1.2. Linux and Steam Deck", link: "/guide/linux" },
-              { text: "2. Mods and maps", link: "/using/mods-and-maps" },
+              { text: "2. Addons and maps", link: "/using/mods-and-maps" },
               { text: "3. Profiles", link: "/using/profiles" },
-              { text: "4. In-game mod settings", link: "/using/swofty-mod" },
+              { text: "4. In-game addon settings", link: "/using/swofty-mod" },
               { text: "5. Restoring the game", link: "/using/profiles-and-restoring" },
               { text: "6. Uninstalling", link: "/guide/uninstall" },
             ],
@@ -101,8 +101,8 @@ export default defineConfigWithTheme<DocsThemeConfig>({
           {
             text: "Modding Tutorials",
             items: [
-              { text: "Making a mod", link: "/modding/template" },
-              { text: "Configuring mods (swofty.json)", link: "/modding/manifest" },
+              { text: "Making an addon", link: "/modding/template" },
+              { text: "Configuring addons (swofty.json)", link: "/modding/manifest" },
               { text: "Hooking game functions", link: "/modding/native-plugins" },
               { text: "Database edits", link: "/modding/database-ops" },
               { text: "Archive (ERP) edits", link: "/modding/erp-ops" },

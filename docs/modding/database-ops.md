@@ -81,6 +81,6 @@ Changing a `db` option marks the profile for a rebuild. The next launch, or `swo
 
 ## Applying changes
 
-Operations run in mod load order. Later changes to a field replace earlier values.
+Operations run in addon load order. Later changes to a field replace earlier values.
 
 See [Game database (GVDB)](/reference/gamedb) for the file format, how the game reads it and the table catalogue. [Modding recipes](/reference/gamedb/recipes) covers adding rows, grid size and tracks.

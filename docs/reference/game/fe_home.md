@@ -15,4 +15,4 @@ The front-end home screen: its tiles and the commands its buttons raise.
 
 <details class="section" open><summary><span><svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Patch sites<span class="badge">1</span></span></summary><div><div class="entity site" id="site_FeHome_AfterCareerCall"><div class="function-signature"><span class="keyword">site</span> <span class="name">site_FeHome_AfterCareerCall</span></div><div class="tags"><span class="tag status-stable">stable</span><span class="tag">L3</span><span class="tag">rva 0x1742fd6</span></div></div></div></details>
 
-Generated from `native/dist/swofty/mods/core/bindings.json` for build `d873a1c8d204`. See the [Game API overview](./) for status levels.
+Generated from `native/dist/swofty/addons/core/bindings.json` for build `d873a1c8d204`. See the [Game API overview](./) for status levels.

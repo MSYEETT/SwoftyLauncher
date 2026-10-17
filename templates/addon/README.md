@@ -1,6 +1,6 @@
-# Sample mod
+# Sample addon
 
-A starting point for a mod for Swofty Launcher for F1 25. Copy this directory, rename it, and change `id` in `swofty.json`.
+A starting point for an addon for Swofty Launcher for F1 25. Copy this directory, rename it, and change `id` in `swofty.json`.
 
 ## Contents
 
@@ -11,22 +11,22 @@ A starting point for a mod for Swofty Launcher for F1 25. Copy this directory, r
 | `ui/example.pkgpatch.json` | A `!pkg` patch that clones a tooltip entry in `tool_tips.uidb` |
 | `native/src/sample_plugin.cpp` | A native plugin that reads its settings, reacts when they change in game and runs one signature scan |
 | `native/include/swofty_api.h` | The plugin C ABI, version 3 |
-| `native/include/swofty/mixin.hpp` | The C++ layer: settings, mixins and `SWOFTY_MOD` |
+| `native/include/swofty/mixin.hpp` | The C++ layer: settings, mixins and `SWOFTY_ADDON` |
 | `native/build.sh` | Builds `native/sample_plugin.dll` with `zig c++` for `x86_64-windows-gnu` |
 
 ## Settings
 
-`options` in `swofty.json` declares four settings: a toggle, a choice and a slider read by the plugin (`binds: native`), and a slider written into the database (`binds: db`). The launcher shows them in the mod's row and the game shows them under **ADDON SETTINGS**. The plugin declares the same ids with `SWOFTY_SETTING` and reacts to in-game changes with `SWOFTY_ON_CHANGE`.
+`options` in `swofty.json` declares four settings: a toggle, a choice and a slider read by the plugin (`binds: native`), and a slider written into the database (`binds: db`). The launcher shows them in the addon's row and the game shows them under **ADDON SETTINGS**. The plugin declares the same ids with `SWOFTY_SETTING` and reacts to in-game changes with `SWOFTY_ON_CHANGE`.
 
 ## Build and install
 
 ```sh
 native/build.sh
-swofty mods install .
-swofty mods enable example.sample-mod
+swofty addons install .
+swofty addons enable example.sample-mod
 ```
 
-Remove the `native` entry from `swofty.json` and the `native/` directory for a data-only mod. A native plugin loads only after the player consents to its exact file hash.
+Remove the `native` entry from `swofty.json` and the `native/` directory for a data-only addon. A native plugin loads only after the player consents to its exact file hash.
 
 ## Rules
 
@@ -38,4 +38,4 @@ The manifest reference, the database and UI operations and the plugin API are do
 
 ## Licence
 
-This template is under the MIT licence, see [LICENSE](LICENSE), so mods built from it can use any licence.
+This template is under the MIT licence, see [LICENSE](LICENSE), so addons built from it can use any licence.

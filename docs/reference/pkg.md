@@ -2,7 +2,7 @@
 
 F1 25 uses `!pkg` files for menu screens, UI databases, routes and other resources. They are usually stored inside [ERP archives](/reference/erp).
 
-For mod changes, see [UI patches](/modding/ui-patches).
+For addon changes, see [UI patches](/modding/ui-patches).
 
 ## Common types
 

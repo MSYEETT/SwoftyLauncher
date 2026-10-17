@@ -11,4 +11,4 @@ description: Functions and structs in the session subsystem of the F1 25 game AP
 
 <details class="section" open><summary><span><svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Call sites<span class="badge">1</span></span></summary><div><div class="entity call" id="site_Sess_AiVehicleRegisterCall"><div class="function-signature"><span class="keyword">call</span> <span class="name">site_Sess_AiVehicleRegisterCall</span></div><div class="tags"><span class="tag status-experimental">experimental</span><span class="tag">L2</span><span class="tag">rva 0x60314d</span></div></div></div></details>
 
-Generated from `native/dist/swofty/mods/core/bindings.json` for build `d873a1c8d204`. See the [Game API overview](./) for status levels.
+Generated from `native/dist/swofty/addons/core/bindings.json` for build `d873a1c8d204`. See the [Game API overview](./) for status levels.
