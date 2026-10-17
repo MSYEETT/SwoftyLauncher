@@ -48,6 +48,12 @@ python3 tools/gamedb.py roundtrip "$F1_25_DIR/game_package/gamedatabases/gamedat
 python3 tools/erpw.py rebuild "$F1_25_DIR/2025_asset_groups/ui_package/databases.erp" /tmp/databases.erp
 ```
 
+The MOD SETTINGS build is compared byte for byte with a reference build of the same session (`packages/core/tests/fixtures/menu_session.json`). `F1_25_DIR` must hold unmodified UI archives.
+
+```sh
+F1_25_DIR="/path/to/F1 25" SWOFTY_MENU_ORACLE=/path/to/reference cargo test -p swofty-core --test real_menus
+```
+
 ## Native loader
 
 ```sh
