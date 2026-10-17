@@ -114,6 +114,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
             text: "Handbook",
             items: [
               { text: "Design notes", link: "/design/" },
+              { text: "Addons and mods", link: "/design/addons-and-mods" },
               { text: "Launching the game", link: "/reference/launch" },
               { text: "Offline play", link: "/reference/safety" },
               { text: "Backups and recovery", link: "/reference/restore" },

@@ -32,6 +32,8 @@ Maps use the existing community track-package format. Import the package unchang
 
 Apply changes in load order. Report missing requirements and conflicts before launch.
 
+[Addons and mods](/design/addons-and-mods) plans the split of mods into addons and content mods, the Launcher API, the Asset API and the built-in Team Simplified addon.
+
 ## Profiles and saves
 
 Each profile holds its mods, maps and options. The intended design gives each profile separate saves under `$DATA/saves/<profile>/`, away from vanilla saves and Steam Cloud.
