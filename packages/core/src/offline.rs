@@ -326,6 +326,10 @@ pub fn probe(game: &Path, a: &Artifacts) -> Result<Probe> {
 /// Stage the session: park the anti-cheat launcher, drop the stub, and place
 /// the hook where the loader picks it up. Everything goes in the journal.
 pub fn stage(game: &Path, a: &Artifacts, journal: &Path) -> Result<()> {
+    // The journal lives under state/offline/, which nothing else creates.
+    if let Some(parent) = journal.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| io_err(parent.to_path_buf())(e))?;
+    }
     let hook_dest = game.join("swofty/mods/core/f1op_hook.dll");
     let out = Command::new(&a.prelaunch)
         .arg("stage")
