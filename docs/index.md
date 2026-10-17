@@ -7,15 +7,15 @@ description: A launcher and mod loader for F1 25 on Windows and Linux. Addons ho
 screenshots:
   hero:
     src: /screenshots/hero-launcher.png
-    alt: The Swofty Launcher for F1 25 launcher
+    alt: The launcher's Addons page with SwoftyMod, Team Simplified, Custom Grid Size and an AlphaTauri livery addon, and the sidebar tiles for Profiles, Addons and Team Simplified's Mods
   gallery:
     - src: /screenshots/gallery-ingame.png
       alt: The F1 25 home menu with ADDON SETTINGS under Career, the "Launched with Swofty Launcher" panel and the F9 prompt
       caption: ADDON SETTINGS in the game's home menu
       shape: square
     - src: /screenshots/gallery-launcher.png
-      alt: The Swofty Launcher for F1 25 launcher
-      caption: Addons, mods, maps and profiles in the launcher
+      alt: The Mods page from Team Simplified with the Sepang and Okayama tracks turned on
+      caption: Mods and tracks on the Team Simplified page
       shape: wide
 
 hero:
