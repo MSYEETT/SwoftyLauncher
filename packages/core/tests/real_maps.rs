@@ -209,4 +209,42 @@ fn sepang_and_okayama_activate_completely() {
             );
         }
     }
+
+    let mut pristine = Gvdb::parse(&data).unwrap();
+    let old = Db::new(&mut pristine);
+    for spec in &reg.per_track {
+        let t = Table::of(spec).unwrap();
+        let label = spec.labels.first().map(String::as_str).unwrap_or("_metadata_");
+        let before = old.count(t.count.unwrap()).unwrap();
+        let after = db.count(t.count.unwrap()).unwrap();
+        let src = row_by(&db, t, label, "melbourne");
+        let dst = row_by(&db, t, label, "okayama");
+        assert_eq!(src.is_some(), dst.is_some(), "{}: okayama row", spec.id);
+        if let (Some(s), Some(d)) = (src, dst) {
+            assert_same_shape(&db, &spec.schema, s, d, &spec.id);
+        }
+        let b24 =
+            row_by(&old, t, label, "bahrain24").is_none() && row_by(&old, t, label, "bahrain").is_some();
+        assert_eq!(
+            after,
+            before + usize::from(dst.is_some()) + usize::from(b24),
+            "{}: row count",
+            spec.id
+        );
+        assert!(
+            db.has(field(row(t.base, after - 1), "_metadata_")),
+            "{}: last row",
+            spec.id
+        );
+        assert!(
+            !db.has(field(row(t.base, after), "_metadata_")),
+            "{}: no row past the count",
+            spec.id
+        );
+    }
+    let canned = reg.per_track.iter().find(|s| s.id == "canned_dnfs").unwrap();
+    assert!(
+        row_by(&db, Table::of(canned).unwrap(), "_metadata_", "okayama").is_some(),
+        "the per-race DNF lookup needs an okayama row"
+    );
 }

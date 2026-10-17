@@ -21,12 +21,14 @@ The archive also gets:
 |---|---|
 | `tracks.Track_<n>` | `copy_slot` clones the slot track's row for a new code, with a new `statId`. A code that already has a row (`bahrain24`) keeps it. `track_overrides` are set here. |
 | `tracks.track_resource.TrackResource_<n>` | A row `swofty_<code>` cloned from the track's resource row, with every asset group set to the map's slot. The track row's `track_resource` names it. |
-| Per-track tables (pit lane, canned events, practice programmes, ...) | A new code gets a row cloned from the slot track. |
+| Per-track tables: per-race DNFs, pit lane splines and slide settings, practice programmes (2025 and 2026), tyre wear, specialist objectives, replay hero shots | A code without a row gets one cloned from the slot track, or from the base track when the slot has none. The game reads the per-race DNF row without checking it exists, so a new code always needs it. |
 | `<datasets>.TrackDataSet_<i>.TrackData_<j>` | `copy_from_track` clones the base track's row, with its sub-tables, in every dataset that has it. `overrides` are set here, limited to their `datasets`. |
 | Content sets' `available_tracks` | The code is added wherever the base track is listed. This is the Grand Prix track list. |
 | `track_data.sorted_track_order` | A `TrackRef` row for the code. |
 
-Every cloned row copies all keys of the source row listed in `track_tables.json`, and the table's `_<row>_instancecount_` grows by one.
+Every cloned row copies all keys of the source row listed in `track_tables.json`, plus the keys the manifest's overrides name, and the table's `_<row>_instancecount_` grows by one.
+
+Four tables keyed by track (three of tyre compound shares, one of track names) have no row count in the database, so a new code gets no row in them.
 
 ## Menus
 
