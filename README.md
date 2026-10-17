@@ -6,10 +6,11 @@ A desktop app for modding F1 25 on Windows and Linux through Steam and Proton.
 
 ## Features
 
-- **Maps:** Import community track packages, such as Sepang and Okayama, and race on them as extra tracks.
+- **Mods:** Drop `.serps` packages, mod zips and folders on the launcher's Mods page, and order them per profile.
+- **Tracks:** Import community track packages, such as Sepang and Okayama, as mods and race on them as extra tracks.
 - **Addons:** Install, enable and disable addons. The app warns when two addons change the same thing.
 - **In-game addon settings:** Open **ADDON SETTINGS** in the game's home menu, under Career, to change addon options without leaving the game.
-- **Profiles:** Switch between separate sets of addons and maps, each with its own saves. The original game is always restorable in one click.
+- **Profiles:** Switch between separate sets of addons, mods and settings. The original game is always restorable in one click.
 - **Offline-only modded play:** Modded sessions always run offline with multiplayer off. Launching from Steam normally stays completely vanilla.
 - **The launcher app:** Manage everything and press Play in one window, with live logs to help if the game crashes. The in-game loader adds the game's own log and crash reports with named call stacks.
 

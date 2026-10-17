@@ -11,7 +11,7 @@ Swofty Launcher for F1 25 loads three kinds of content into F1 25.
 |---|---|---|---|
 | What it is | Code, settings and in-game UI | Content: ERPs and SERPs | Community tracks |
 | Contains code | Yes, native plugins | No | No |
-| Package | A folder with `swofty.json` | `.serps` packages, mod zips and folders | A track package zip |
+| Package | A folder with `swofty.json` | `.serps` packages, mod zips and folders | A track package zip or a track `.serps` |
 | Reaches the game through | The launcher's build and SwoftyMod | An addon | The Team Simplified addon, as a mod |
 | Turned on | Per profile, on the **Addons** page | Per profile, on the **Mods** page | Per profile, on the **Mods** page |
 | In game | A page in **ADDON SETTINGS** | Under its addon | A page in **ADDON SETTINGS** |
@@ -49,7 +49,7 @@ The launcher compares each mod with the clean game files and applies only what e
 
 ## Maps
 
-A map is a community track package, such as Sepang or Okayama. Tracks are mods: import the package on the **Mods** page and turn it on per profile. It then appears in Grand Prix track selection. See [Tracks](/using/mods#tracks).
+A map is a community track, such as Sepang or Okayama. Tracks are mods: drop a track package zip or a track `.serps` on the launcher window, or import it on the **Mods** page, and turn it on per profile. It then appears in Grand Prix track selection. There is no Maps page, and `swofty maps` is a hidden alias of `swofty mods`. Tracks that earlier versions kept in `$DATA/maps/` move into the library. See [Tracks](/using/mods#tracks).
 
 ## Profiles
 

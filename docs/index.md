@@ -55,7 +55,7 @@ features:
     link: /using/mods#tracks
   - icon: layers
     title: Profiles
-    details: Keep separate setups like <em>Vanilla</em>, <em>26 car grid</em> or <em>Classic tracks</em>, each with its own saves. The original game is <em>restorable in one click</em>.
+    details: Keep separate setups like <em>Vanilla</em>, <em>26 car grid</em> or <em>Classic tracks</em>, each with its own addons, mods and settings. The original game is <em>restorable in one click</em>.
     link: /using/profiles
   - icon: sliders
     title: In-game addon settings

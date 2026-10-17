@@ -164,14 +164,23 @@ def main():
     ap = argparse.ArgumentParser(description='Check a profile built with swofty build against the game it came from')
     ap.add_argument('overlay', help='the overlay folder swofty build printed (holds plan.json)')
     ap.add_argument('--game', required=True, help='game folder or pristine copy the build read')
-    ap.add_argument('--maps', default=os.path.expanduser('~/.local/share/swofty/maps'))
+    data = os.environ.get('SWOFTY_DATA_DIR') or os.path.expanduser('~/.local/share/swofty')
+    ap.add_argument('--maps', default=os.path.join(data, 'addon-data/teamsimplified.mods/library'),
+                    help='the Team Simplified library, or a folder of track packages')
     ap.add_argument('--exe', help='F1_25.exe for the reader-key check (default: the game folder\'s)')
     a = ap.parse_args()
     exe = a.exe or os.path.join(a.game, 'F1_25.exe')
     plan = json.load(open(os.path.join(a.overlay, 'plan.json')))
     rep = Report()
-    codes = [c for c in os.listdir(a.maps) if os.path.isfile(os.path.join(a.maps, c, 'manifest.json'))]
-    manifests = {c: json.load(open(os.path.join(a.maps, c, 'manifest.json'))) for c in codes}
+    dirs, manifests = {}, {}
+    for c in os.listdir(a.maps):
+        for d in (os.path.join(a.maps, c, 'track'), os.path.join(a.maps, c)):
+            if os.path.isfile(os.path.join(d, 'manifest.json')):
+                m = json.load(open(os.path.join(d, 'manifest.json')))
+                code = m.get('track_code') or c
+                dirs[code], manifests[code] = d, m
+                break
+    codes = list(dirs)
     slot_dir = 'ui_package/texture_arrays/invitational_events/event_images/'
     slots = {}
     for rel, src in plan['replace'].items():
@@ -193,7 +202,7 @@ def main():
         elif any(rel.endswith(f'/{s[0]}.erp') for s in slots.values()):
             code = next(c for c, s in slots.items() if rel.endswith(f'/{s[0]}.erp'))
             mine, stock = Archive(src), Archive(orig)
-            pkg = Archive(os.path.join(a.maps, code, manifests[code]['erp']))
+            pkg = Archive(os.path.join(dirs[code], manifests[code]['erp']))
             names = set(mine.names())
             rep.check(set(pkg.names()) <= names, f'{rel}: holds all {len(pkg.names())} {code} resources')
             rep.check(set(stock.names()) <= names, f'{rel}: keeps its {len(stock.names())} stock resource(s)')

@@ -39,4 +39,4 @@ The docs use `$DATA` to mean this folder:
 | Flatpak Steam | `~/.var/app/com.valvesoftware.Steam/data/swofty` |
 | Windows | `%LOCALAPPDATA%\Swofty` |
 
-It holds your addons, maps, profiles, backups and session logs. Keep it until you have [restored the game](/using/profiles-and-restoring).
+It holds your addons, mods, profiles, backups and session logs. Keep it until you have [restored the game](/using/profiles-and-restoring).

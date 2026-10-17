@@ -84,7 +84,7 @@ Known issues:
 - A track's menu card shows the language strings the package names, often its base track's name and stats.
 - Track-select pictures share one invitational event picture, `invitational_image_2`. With an in-game loader that cannot register asset groups, each track also takes one invitational event's picture (`invitational_image_4`, `_10`, `_13` and on).
 
-[How maps are installed](/reference/maps) describes what activation changes.
+[How tracks are installed](/reference/maps) describes what activation changes.
 
 ## From the command line
 
@@ -105,8 +105,8 @@ swofty mods enable okayama
 swofty apply
 ```
 
-`swofty maps` is another name for `swofty mods`.
+`swofty maps` is a hidden alias of `swofty mods`.
 
 ## Where mods are stored
 
-Mods are stored in `$DATA/addon-data/teamsimplified.mods/library/<id>/`, with the package's files under `files/` and a track package under `track/`. Earlier versions kept tracks in `$DATA/maps/` and listed them in each profile's `maps`. The launcher and `swofty` move them into the library, turned on in the same profiles, when they start. A track whose code is already the id of a mod in the library gets the id `<code>-track`.
+Mods are stored in `$DATA/addon-data/teamsimplified.mods/library/<id>/`, with the package's files under `files/` and a track package under `track/`. Earlier versions kept tracks in `$DATA/maps/` and listed them in each profile's `maps`. The launcher moves them into the library, turned on in the same profiles, when it starts, and `swofty` does when a command runs. A track whose code is already the id of a mod in the library gets the id `<code>-track`.

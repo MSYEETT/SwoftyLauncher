@@ -29,11 +29,11 @@ Profiles are stored in `$DATA/profiles/<name>.json`:
 ```
 
 - `addons` lists addons in load order. Set `enabled` to `false` to turn one off. Profiles from earlier versions name this list `mods`; it is read the same way and saved as `addons`.
-- `state` holds each addon's own data for the profile. Team Simplified keeps the profile's mods and tracks there, in load order. Profiles from earlier versions list tracks in `maps`; they move into `state` when the launcher starts.
+- `state` holds each addon's own data for the profile. Team Simplified keeps the profile's mods and tracks there, in load order. Profiles from earlier versions list tracks in `maps`; they move into `state` when the launcher starts or a `swofty` command runs.
 - `options` stores each addon's settings that differ from the default.
 - `applied` records the database settings the last build used. When they differ from `options`, the next launch rebuilds the profile.
 
-The command line uses `--profile <name>` to choose a profile. The default is `default`.
+The command line uses `--profile <name>` to choose a profile. The default is the active profile, the one selected in the launcher.
 
 ## Saves and restoring
 

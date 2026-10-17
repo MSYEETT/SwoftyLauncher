@@ -40,7 +40,7 @@ A modded launch places the loader in the game folder and removes it when the gam
 | `swofty/settings.json` | The profile's addon settings for the session under `addons`, the `ui` block listing the screens to register, and the `owned_items` block listing the ownership keys of unlock rows that addons add |
 | `swofty/ui/*.ui` | ADDON SETTINGS and addon screens, registered by `swofty_core.dll` |
 
-With the loader, the build also replaces four archives in `2025_asset_groups/ui_package/`: `flow_frontend.erp`, `persistent.erp`, `databases.erp` and `flow_persistent.erp`. They are built from the game's own copies for the profile's addons and maps. `swofty restore` puts the originals back.
+With the loader, the build also replaces four archives in `2025_asset_groups/ui_package/`: `flow_frontend.erp`, `persistent.erp`, `databases.erp` and `flow_persistent.erp`. They are built from the game's own copies for the profile's addons and tracks. `swofty restore` puts the originals back.
 
 Everything logs to `<game>/swofty/loader.log`. The loader moves the previous log to `loader.prev.log` when it attaches. A session shows and copies `loader.log` only when the loader wrote a new one during that session. `swofty run` shows its lines as `[loader]` and `[core]`, and the launcher console shows them on the Game tab.
 

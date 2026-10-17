@@ -235,7 +235,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Development", link: "/reference/development", icon: "file" },
               { text: "Design notes", link: "/design/", icon: "file" },
               { text: "Addons and mods design", link: "/design/addons-and-mods", icon: "file" },
-              { text: "How maps are installed", link: "/reference/maps", icon: "file" },
+              { text: "How tracks are installed", link: "/reference/maps", icon: "file" },
             ],
           },
         ],

@@ -4,12 +4,12 @@
 
 1. Follow [Installation](/guide/installation).
 2. Keep Steam running with F1 25 installed.
-3. Run `swofty doctor` to check that the game is found.
+3. Run `bin\swofty.exe doctor` from the extracted folder to check that the game is found.
 4. [Install your addons](/using/addons) and choose a [profile](/using/profiles).
 
 ## Play
 
-The app's **Play modded (offline)** control is still in development. Use `swofty run` from a terminal to launch and follow the logs.
+Open `bin\swofty-launcher.exe` and select **Play**. The first launch shows the [offline play terms](/reference/launch#offline-play-ea-anticheat-and-consent). Run `swofty run` from a terminal to launch and follow the logs instead.
 
 Modded play is offline only. Normal Steam launches stay vanilla.
 

@@ -14,13 +14,13 @@ When the game exits, it prints a summary with the exit code and any crash detail
 
 | Flag | Purpose |
 |---|---|
-| `--profile <name>` | Choose a profile; the default is `default` |
+| `--profile <name>` | Choose a profile; the default is the active profile |
 | `--game <dir>` | Set the game folder if it was not found |
 | `--restart` | Close a running F1 25 first |
 | `--direct` | Launch directly instead of asking Steam |
 | `--winedebug <channels>` | Choose Wine log channels |
 | `--exe <file>` | Use a copy of `F1_25.exe` to identify crash locations |
-| `--apply` | Install the profile (database, maps, in-game loader) before the game starts and roll it back when it exits. The launcher always passes it |
+| `--apply` | Install the profile (database, tracks, in-game loader) before the game starts and roll it back when it exits. The launcher always passes it |
 
 On Linux, the [Steam launch option](/guide/linux) uses `swofty run -- %command%`.
 
@@ -32,15 +32,15 @@ A direct launch writes the wrapper's output to `$DATA/state/wrapper-run.log`. If
 
 ## `swofty build`
 
-`swofty build [--profile <name>]` prepares the profile's database and map files without starting the game. Output goes to `$DATA/cache/overlay/<profile>/<buildhash>/`, with the session settings file in `swofty/settings.json` and `plan.json`, the list of game files to replace and add with their sources. Map archives, menu archives and car handling files are built in `$DATA/cache/maps`, `$DATA/cache/menus` and `$DATA/cache/ers`. After a successful build, older builds in those folders and in the profile's overlay folder are removed, except the ones the latest build of another profile uses.
+`swofty build [--profile <name>]` prepares the profile's database and track files without starting the game. Output goes to `$DATA/cache/overlay/<profile>/<buildhash>/`, with the session settings file in `swofty/settings.json` and `plan.json`, the list of game files to replace and add with their sources. Track archives, menu archives and car handling files are built in `$DATA/cache/maps`, `$DATA/cache/menus` and `$DATA/cache/ers`. After a successful build, older builds in those folders and in the profile's overlay folder are removed, except the ones the latest build of another profile uses.
 
-It also builds addon ERP files that use only `patch-pkg`, `copy-resource`, `put-resource` and `warn`, and prints their warnings. Addon ERP operations apply on top of the archives the map stages built. `file.put` operations and `operations.files` entries replace or add loose game files. Other addon ERP and UI operations are currently skipped. Each asset kind that `swofty_core` lists as `stable` in `swofty/addons/core/features.json`, or as `experimental` and named in `config.json` `"runtime_assets"`, goes into `swofty/assets.json` instead: asset groups, changed ERP resources, database records that differ from the game file, one language table per language and overlay files. `group` and `lang` operations have no other delivery; without the feature they wait, and the build lists them. `config.json` `"build_assets"` keeps the `erp`, `db` or `file` kinds it lists on the build route. The build also lists each conflict: a target that a later addon replaced after an earlier one wrote it.
+It also builds addon ERP files that use only `patch-pkg`, `copy-resource`, `put-resource` and `warn`, and prints their warnings. Addon ERP operations apply on top of the archives the track stages built. `file.put` operations and `operations.files` entries replace or add loose game files. Other addon ERP and UI operations are currently skipped. Each asset kind that `swofty_core` lists as `stable` in `swofty/addons/core/features.json`, or as `experimental` and named in `config.json` `"runtime_assets"`, goes into `swofty/assets.json` instead: asset groups, changed ERP resources, database records that differ from the game file, one language table per language and overlay files. `group` and `lang` operations have no other delivery; without the feature they wait, and the build lists them. `config.json` `"build_assets"` keeps the `erp`, `db` or `file` kinds it lists on the build route. The build also lists each conflict: a target that a later addon replaced after an earlier one wrote it.
 
 When the game exits, `swofty run` merges the settings changed in game into the profile. After **APPLY & RESTART** it rebuilds the profile and starts the game again.
 
 ## `swofty apply`
 
-`swofty apply [--profile <name>] [--game <dir>]` builds the profile and installs it into the game folder: the database, the archives addons patch, the enabled maps, their menu entries, the cars' ERS settings, and the [in-game loader](/reference/addons/#in-game-loader) with the session's `swofty/settings.json`. Every change goes through the journal. `swofty restore` or `swofty --profile vanilla apply` removes it. Close the game first.
+`swofty apply [--profile <name>] [--game <dir>]` builds the profile and installs it into the game folder: the database, the archives addons patch, the enabled tracks, their menu entries, the cars' ERS settings, and the [in-game loader](/reference/addons/#in-game-loader) with the session's `swofty/settings.json`. Every change goes through the journal. `swofty restore` or `swofty --profile vanilla apply` removes it. Close the game first.
 
 ## `swofty verify`
 
@@ -65,7 +65,7 @@ See [Restoring the game](/using/profiles-and-restoring).
 
 Built-in addons add their own top-level commands. `swofty --help` lists them.
 
-Each command first moves addons that an earlier version stored in `$DATA/mods/` to `$DATA/addons/`.
+Each command first moves what an earlier version stored in the data folder: addons in `$DATA/mods/` to `$DATA/addons/`, and tracks in `$DATA/maps/` into the Team Simplified library, turned on in the same profiles. `swofty --help`, `swofty --version` and mistyped commands leave the data folder alone.
 
 ## `swofty mods`
 
@@ -92,7 +92,7 @@ The built-in Team Simplified addon provides these commands. They work on its mod
 
 ## `swofty maps`
 
-`swofty maps` is a hidden alias of `swofty mods`. Tracks are mods: `swofty mods import <zip>` imports a community track package, and its mod id is the track code.
+`swofty maps` is a hidden alias of `swofty mods`. Tracks are mods: `swofty mods import <zip>` imports a community track package. Its mod id is the track code, or `<code>-track` when a mod in the library already has that id.
 
 ## `swofty doctor`
 

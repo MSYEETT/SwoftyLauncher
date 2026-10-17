@@ -272,7 +272,7 @@ pub struct ArgSpec {
 }
 ```
 
-Each `CommandSpec` becomes a top-level `swofty` subcommand. `command` receives the path of names, starting with the top-level one (for example `["mods", "import"]`), and the arguments, and its text is printed. A name that core or an earlier addon already uses is refused, with a message. Commands run against `--profile` (default `default`) and the Steam install of the game.
+Each `CommandSpec` becomes a top-level `swofty` subcommand. `command` receives the path of names, starting with the top-level one (for example `["mods", "import"]`), and the arguments, and its text is printed. A name that core or an earlier addon already uses is refused, with a message. Commands run against `--profile` (default: the active profile) and the Steam install of the game.
 
 ## Profile summaries
 

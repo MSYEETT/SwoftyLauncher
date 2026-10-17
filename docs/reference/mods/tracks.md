@@ -67,7 +67,7 @@ Menus read the track's name from `TrackDataSet_<n>.TrackData_<m>.TrackNameData_0
 swofty mods import testring.zip
 swofty mods enable testring
 swofty build
-python3 tools/map_check.py <overlay folder> --game <game folder> --maps <maps folder>
+python3 tools/map_check.py <overlay folder> --game <game folder>
 ```
 
-`map_check.py` checks that every key the game reads on a source row exists on the map's row. See [Checking a build](/reference/maps#checking-a-build).
+`map_check.py` checks that every key the game reads on a source row exists on the track's row. It reads the track packages from the Team Simplified library. See [Checking a build](/reference/maps#checking-a-build).

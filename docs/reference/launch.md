@@ -36,7 +36,7 @@ With this option set, Steam's Play button uses the launcher. Clear the option to
 
 ## Windows
 
-Keep Steam running, then use `swofty run`. The desktop Play control is still in development.
+Keep Steam running, then select **Play** in the launcher or run `swofty run`.
 
 ## Logs
 
@@ -44,4 +44,4 @@ Session logs are stored in `$DATA/sessions/<id>/`. Use `swofty logs` to read the
 
 When Proton cannot create the game process, `swofty run`, `swofty logs` and the launcher report `Proton could not start the game process (CreateProcess error N)` instead of an exit code.
 
-The full launch and restore flow is still being connected. See [Current status](/design/#current-status). Close the game and run `swofty restore` before returning to vanilla play.
+Close the game and run `swofty restore` before returning to vanilla play.

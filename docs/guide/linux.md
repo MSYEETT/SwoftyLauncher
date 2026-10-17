@@ -5,19 +5,19 @@ F1 25 runs through Steam and Proton. Modded play is offline only.
 ## Set up
 
 1. Follow [Installation](/guide/installation).
-2. Run `swofty doctor` to check Steam, F1 25 and Proton.
+2. Run `bin/swofty doctor` from the extracted folder to check Steam, F1 25 and Proton.
 3. In Steam, open F1 25 → **Properties** → **General** → **Launch options**.
-4. Add this option, using the path where you installed `swofty`:
+4. Add this option, with `<extracted folder>` replaced by the full path of the folder you extracted:
 
    ```text
-   ~/.local/share/swofty/bin/swofty run -- %command%
+   <extracted folder>/bin/swofty run -- %command%
    ```
 
-For Flatpak Steam, use `~/.var/app/com.valvesoftware.Steam/data/swofty/bin/swofty` as the executable path.
+For Flatpak Steam, extract the archive inside `~/.var/app/com.valvesoftware.Steam/` and use that folder's `bin/swofty`.
 
 ## Play
 
-With this launch option set, Steam's **Play** button uses Swofty Launcher for F1 25. Clear it to return to Steam's normal launch.
+Open `bin/swofty-launcher` and select **Play**. With the launch option set, the launcher starts the game through Steam, and Steam's **Play** button uses Swofty Launcher for F1 25 too. Clear the option to return to Steam's normal launch.
 
 Run `swofty run` from a terminal to see live logs and a crash summary. Steam must be running. See [Command line](/reference/cli#swofty-run).
 
