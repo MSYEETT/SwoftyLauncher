@@ -19,6 +19,7 @@ pub mod session;
 pub mod settings;
 pub mod steam;
 pub mod store;
+pub mod ui;
 pub mod vdf;
 
 pub const GAME_ID: &str = "f1_25";
