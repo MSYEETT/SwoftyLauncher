@@ -1,16 +1,16 @@
-# Making a mod
+# Making an addon
 
-Copy [`templates/addon`](https://github.com/Swofty-Developments/F1ModManager/tree/main/templates/addon) to start a mod. It uses the MIT licence.
+Copy [`templates/addon`](https://github.com/Swofty-Developments/F1ModManager/tree/main/templates/addon) to start an addon. It uses the MIT licence.
 
 ## Get started
 
 1. Copy the template to a new folder.
-2. Edit `swofty.json`: set your mod's `id`, `name`, `author` and `version`.
+2. Edit `swofty.json`: set your addon's `id`, `name`, `author` and `version`.
 3. Remove operation entries and files you do not need.
-4. Install with `swofty mods install <dir>`.
-5. Enable it with `swofty mods enable <id>`.
+4. Install with `swofty addons install <dir>`.
+5. Enable it with `swofty addons enable <id>`.
 
-Use a lowercase ID such as `author.my-mod`. Do not use the reserved `swofty.` prefix.
+Use a lowercase ID such as `author.my-addon`. Do not use the reserved `swofty.` prefix.
 
 ## Included examples
 
@@ -24,7 +24,7 @@ Use a lowercase ID such as `author.my-mod`. Do not use the reserved `swofty.` pr
 
 See [Current status](/design/#current-status) for unfinished operation types.
 
-## Share your mod
+## Share your addon
 
 Share the folder or zip it as a `.swoftymod` file, with `swofty.json` at the zip's root.
 

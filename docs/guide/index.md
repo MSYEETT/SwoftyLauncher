@@ -6,18 +6,18 @@ title: Introduction
 
 # Swofty Launcher for F1 25
 
-**Swofty Launcher for F1 25** is a desktop app for modding [F1 25](https://store.steampowered.com/app/3059520/) on Windows and Linux through Steam and Proton. It installs mods and community tracks, keeps them in profiles and launches the game with them. Modded play is offline only.
+**Swofty Launcher for F1 25** is a desktop app for modding [F1 25](https://store.steampowered.com/app/3059520/) on Windows and Linux through Steam and Proton. It installs addons and community tracks, keeps them in profiles and launches the game with them. Modded play is offline only.
 
 ::: warning
-These docs cover playing with mods and making them. To download the app, see the [homepage](/).
+These docs cover playing with addons and making them. To download the app, see the [homepage](/).
 :::
 
 ## What it does
 
 - **Maps:** Import community track packages, such as Sepang and Okayama, and race on them as extra tracks.
-- **Mods:** Install, enable and disable mods. The app warns when two mods change the same thing.
-- **In-game mod settings:** Open **ADDON SETTINGS** in the game's home menu, under Career, to change mod options without leaving the game.
-- **Profiles:** Switch between separate sets of mods and maps, each with its own saves. The original game is always restorable in one click.
+- **Addons:** Install, enable and disable addons. The app warns when two addons change the same thing.
+- **In-game addon settings:** Open **ADDON SETTINGS** in the game's home menu, under Career, to change addon options without leaving the game.
+- **Profiles:** Switch between separate sets of addons and maps, each with its own saves. The original game is always restorable in one click.
 - **Offline-only modded play:** Modded sessions always run offline with multiplayer off. Launching from Steam normally stays completely vanilla.
 - **The launcher app:** Manage everything and press Play in one window, with live logs to help if the game crashes.
 
@@ -25,7 +25,7 @@ These docs cover playing with mods and making them. To download the app, see the
 
 Read [Installation](/guide/installation), then choose [Windows](/guide/windows) or [Linux and Steam Deck](/guide/linux).
 
-To make a mod, start with [Making a mod](/modding/template). Native plugins can call the functions listed in the [Game API](/reference/game/).
+To make an addon, start with [Making an addon](/modding/template). Native plugins can call the functions listed in the [Game API](/reference/game/).
 
 Contributors can read the [development guide](/reference/development) and [design notes](/design/).
 

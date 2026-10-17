@@ -28,7 +28,7 @@
 
 1. Read the pristine database from the store.
 2. For each enabled map, `activation::db::activate` adds the track's rows (registry: `packages/core/src/activation/track_tables.json`).
-3. For each mod in load order, `ops::apply_db_ops` applies its [database operations](/modding/database-ops), after `settings::render_ops` fills <span v-pre>`{{option}}`</span> placeholders and `when` conditions.
+3. For each addon in load order, `ops::apply_db_ops` applies its [database operations](/modding/database-ops), after `settings::render_ops` fills <span v-pre>`{{option}}`</span> placeholders and `when` conditions.
 4. Write `game_package/gamedatabases/gamedatabases.2025.bin` into the build's overlay folder.
 
 The build hash covers the pristine database, the registry and every rendered operation file. The journal installs the overlay file and restores the original.

@@ -2,7 +2,7 @@
 layout: false
 title: Swofty Launcher for F1 25
 titleTemplate: Mods and tracks on Windows and Linux
-description: A launcher and mod loader for F1 25 on Windows and Linux. Add community tracks, install mods, change mod settings in game and keep separate profiles.
+description: A launcher and mod loader for F1 25 on Windows and Linux. Add community tracks, install addons, change addon settings in game and keep separate profiles.
 
 screenshots:
   hero:
@@ -15,7 +15,7 @@ screenshots:
       shape: square
     - src: /screenshots/gallery-launcher.png
       alt: The Swofty Launcher for F1 25 launcher
-      caption: Mods, maps and profiles in the launcher
+      caption: Addons, maps and profiles in the launcher
       shape: wide
 
 hero:
@@ -32,7 +32,7 @@ links:
   - { icon: github, text: Source Code, link: https://github.com/Swofty-Developments/F1ModManager }
   - { icon: tag, text: Releases, link: https://github.com/Swofty-Developments/F1ModManager/releases }
 
-intro: Swofty Launcher for F1 25 is a <em>launcher and mod loader</em> for F1 25 on <em>Windows and Linux</em>. Add <em>community tracks</em>, install <em>mods</em>, change <em>mod settings in game</em> and keep separate <em>profiles</em>. Modded play is <em>offline only</em>, and launching from Steam stays vanilla.
+intro: Swofty Launcher for F1 25 is a <em>launcher and mod loader</em> for F1 25 on <em>Windows and Linux</em>. Add <em>community tracks</em>, install <em>addons</em>, change <em>addon settings in game</em> and keep separate <em>profiles</em>. Modded play is <em>offline only</em>, and launching from Steam stays vanilla.
 
 platforms:
   - { icon: windows, text: Windows 10 and 11 }
@@ -46,16 +46,16 @@ features:
     details: Import community track packages, such as <em>Sepang</em> and <em>Okayama</em>, and race on them as extra tracks.
     link: /using/importing-maps
   - icon: box
-    title: Mods
-    details: Install, enable and disable mods. The app <em>warns you</em> when two mods change the same thing.
+    title: Addons
+    details: Install, enable and disable addons. The app <em>warns you</em> when two addons change the same thing.
     link: /using/mods-and-maps
   - icon: sliders
-    title: In-game mod settings
-    details: Open <em>ADDON SETTINGS</em> in the game's home menu, under Career, to change mod options without leaving the game.
+    title: In-game addon settings
+    details: Open <em>ADDON SETTINGS</em> in the game's home menu, under Career, to change addon options without leaving the game.
     link: /using/swofty-mod
   - icon: layers
     title: Profiles
-    details: Switch between separate sets of mods and maps, each with its own saves. The original game is always <em>restorable in one click</em>.
+    details: Switch between separate sets of addons and maps, each with its own saves. The original game is always <em>restorable in one click</em>.
     link: /using/profiles
   - icon: offline
     title: Offline-only modded play
@@ -67,14 +67,14 @@ features:
     link: /guide/installation
 
 developers:
-  text: Swofty Launcher for F1 25 is <em>open source</em>, with a hook system built for modders. Mods <em>hook game functions by name</em>, with <em>priorities</em> and <em>chaining</em> so several mods can change the same function.
+  text: Swofty Launcher for F1 25 is <em>open source</em>, with a hook system built for modders. Addons <em>hook game functions by name</em>, with <em>priorities</em> and <em>chaining</em> so several addons can change the same function.
   actions:
     - { icon: book, text: Modding docs, link: /modding/template, style: solid }
     - { icon: chip, text: Plugin SDK, link: /modding/native-plugins, style: outline }
     - { icon: code, text: Game API, link: /reference/game/, style: outline }
 
 cta:
-  text: Interested? Read the <em>installation guide</em> to set up Swofty Launcher for F1 25, or the <em>docs</em> to start making mods.
+  text: Interested? Read the <em>installation guide</em> to set up Swofty Launcher for F1 25, or the <em>docs</em> to start making addons.
   actions:
     - { icon: download, text: Installation guide, link: /guide/installation }
     - { icon: book, text: Docs, link: /guide/ }

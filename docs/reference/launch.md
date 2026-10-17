@@ -4,7 +4,7 @@ Modded play is offline only. For setup, see [Windows](/guide/windows) or [Linux 
 
 ## Offline play: EA AntiCheat and consent
 
-Mods run in-process code, which EA AntiCheat (Javelin) blocks, so a modded
+Addons run in-process code, which EA AntiCheat (Javelin) blocks, so a modded
 session runs without it. The first launch shows the offline play terms and
 asks for a typed `accept`; if you decline, the game is not launched and
 nothing is changed. The launcher's **Play** shows the same terms as a dialog
@@ -50,14 +50,14 @@ A modded launch places the loader in the game folder and removes it when the gam
 
 | File | Role |
 |---|---|
-| `version.dll` | Loads every DLL in `swofty/mods/core/`, then `swofty/mods/*.dll` |
-| `swofty/mods/core/swofty_core.dll` | SwoftyMod: the ADDON SETTINGS entry, the settings bridge, plugin mixins, mod-added special liveries reported as owned, and the crash log |
-| `swofty/mods/core/swofty_gamelog.dll` | Copies the game's own log into `loader.log` |
-| `swofty/mods/core/bindings.json`, `symbols.tsv`, `log_channels.tsv` | Game bindings for plugins, function names for crash reports, and the game's log channels |
-| `swofty/settings.json` | The profile's mod settings for the session, the `ui` block listing the screens to register, and the `owned_items` block listing the ownership keys of unlock rows that mods add |
-| `swofty/ui/*.ui` | ADDON SETTINGS and mod screens, registered by `swofty_core.dll` |
+| `version.dll` | Loads every DLL in `swofty/addons/core/`, then `swofty/addons/*.dll`. It also loads `swofty/mods/core/` and `swofty/mods/*.dll` with them, in name order |
+| `swofty/addons/core/swofty_core.dll` | SwoftyMod: the ADDON SETTINGS entry, the settings bridge, plugin mixins, addon-added special liveries reported as owned, and the crash log |
+| `swofty/addons/core/swofty_gamelog.dll` | Copies the game's own log into `loader.log` |
+| `swofty/addons/core/bindings.json`, `symbols.tsv`, `log_channels.tsv` | Game bindings for plugins, function names for crash reports, and the game's log channels |
+| `swofty/settings.json` | The profile's addon settings for the session under `addons`, the `ui` block listing the screens to register, and the `owned_items` block listing the ownership keys of unlock rows that addons add |
+| `swofty/ui/*.ui` | ADDON SETTINGS and addon screens, registered by `swofty_core.dll` |
 
-With the loader, the build also replaces four archives in `2025_asset_groups/ui_package/`: `flow_frontend.erp`, `persistent.erp`, `databases.erp` and `flow_persistent.erp`. They are built from the game's own copies for the profile's mods and maps. `swofty restore` puts the originals back.
+With the loader, the build also replaces four archives in `2025_asset_groups/ui_package/`: `flow_frontend.erp`, `persistent.erp`, `databases.erp` and `flow_persistent.erp`. They are built from the game's own copies for the profile's addons and maps. `swofty restore` puts the originals back.
 
 Everything logs to `<game>/swofty/loader.log`. The loader moves the previous log to `loader.prev.log` when it attaches. A session shows and copies `loader.log` only when the loader wrote a new one during that session. `swofty run` shows its lines as `[loader]` and `[core]`, and the launcher console shows them on the Game tab.
 

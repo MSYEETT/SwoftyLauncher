@@ -1,16 +1,16 @@
-# Mod manifest
+# Addon manifest
 
-Every mod needs a `swofty.json` file at its root. It describes the mod and lists the changes to apply.
+Every addon needs a `swofty.json` file at its root. It describes the addon and lists the changes to apply.
 
-Start with [the mod template](/modding/template).
+Start with [the addon template](/modding/template).
 
 ## Example
 
 ```json
 {
   "schema_version": 1,
-  "id": "author.my-mod",
-  "name": "My Mod",
+  "id": "author.my-addon",
+  "name": "My Addon",
   "version": "1.0.0",
   "author": "Your name",
   "compat": { "game": "f1_25" },
@@ -31,16 +31,16 @@ Start with [the mod template](/modding/template).
 | `description`, `license`, `homepage` | Optional description, licence identifier and link |
 | `kind` | Optional categories: `database`, `erp`, `ui`, `files`, `native` |
 | `compat` | Game and version requirements |
-| `requires` | Required mods, as `[{"id": "swofty.core", "version": ">=0.1.0"}]` |
-| `conflicts` | Conflicting mods, as `[{"id": "author.other-mod"}]` |
-| `load_after` | Mod IDs or patterns that should load first |
+| `requires` | Required addons, as `[{"id": "swofty.core", "version": ">=0.1.0"}]` |
+| `conflicts` | Conflicting addons, as `[{"id": "author.other-addon"}]` |
+| `load_after` | Addon IDs or patterns that should load first |
 | `options` | [Settings](#options) shown in the launcher and in game |
 
 `compat.game` is `f1_25`. Optional fields are `game_builds` (for example `[">=25251167"]`), `launcher` (a version range) and `seasons` (for example `["f1_2026"]`).
 
 ## Options
 
-`options` declares the mod's settings. The launcher shows them in the mod's row, and the game shows them on the mod's page in **ADDON SETTINGS**. Values are stored per profile.
+`options` declares the addon's settings. The launcher shows them in the addon's row, and the game shows them on the addon's page in **ADDON SETTINGS**. Values are stored per profile.
 
 ```json
 "options": [
@@ -75,8 +75,8 @@ Start with [the mod template](/modding/template).
 | `native` | [Plugin DLLs](/modding/native-plugins), with `dll` and `capabilities` |
 | `screens` | Game screens registered in game by swofty_core: `[{"name": "my_page", "file": "ui/my_page.ui", "flow": "flow_options", "anchor": "settings_container", "view_model": false}]` |
 
-Source paths are relative to the mod folder and use `/`. Target paths are relative to the game folder.
+Source paths are relative to the addon folder and use `/`. Target paths are relative to the game folder.
 
-A screen's `file` is the screen's raw `.ui` data. The launcher installs it as `swofty/ui/<name>.ui` and lists it in the `ui` block of `swofty/settings.json`. `flow` defaults to `flow_frontend`. `anchor` names a game screen in the same flow; the screen registers after that screen's resource loads. `view_model` asks swofty_core for a native view model. Names are `[a-z0-9_]` and unique across the profile's mods. `swofty_settings`, `swofty_mod_<n>` and `swofty_map_<n>` belong to ADDON SETTINGS.
+A screen's `file` is the screen's raw `.ui` data. The launcher installs it as `swofty/ui/<name>.ui` and lists it in the `ui` block of `swofty/settings.json`. `flow` defaults to `flow_frontend`. `anchor` names a game screen in the same flow; the screen registers after that screen's resource loads. `view_model` asks swofty_core for a native view model. Names are `[a-z0-9_]` and unique across the profile's addons. `swofty_settings`, `swofty_addon_<n>` and `swofty_map_<n>` belong to ADDON SETTINGS.
 
 The installer checks the manifest and the files it names. Some operation types are still in development; see [Current status](/design/#current-status).

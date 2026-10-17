@@ -5,7 +5,7 @@
 1. Follow [Installation](/guide/installation).
 2. Keep Steam running with F1 25 installed.
 3. Run `swofty doctor` to check that the game is found.
-4. [Install your mods](/using/mods-and-maps) and choose a [profile](/using/profiles).
+4. [Install your addons](/using/mods-and-maps) and choose a [profile](/using/profiles).
 
 ## Play
 

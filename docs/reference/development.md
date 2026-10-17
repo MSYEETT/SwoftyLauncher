@@ -8,13 +8,13 @@ Build from the repository root. See the [design notes](/design/) for current pro
 |---|---|
 | `apps/launcher` | Desktop app |
 | `apps/cli` | `swofty` command |
-| `packages/core` | Mod management, profiles, launch setup and restore |
+| `packages/core` | Addon management, profiles, launch setup and restore |
 | `packages/formats` | Game file readers and writers |
 | `packages/sdk` | Plugin SDK (MIT) |
 | `native/` | In-game loader |
-| `addons/swoftymod` | Built-in mod |
-| `addons/custom-grid-size` | Custom Grid Size mod |
-| `templates/addon` | Sample mod (MIT) |
+| `addons/swoftymod` | Built-in addon |
+| `addons/custom-grid-size` | Custom Grid Size addon |
+| `templates/addon` | Sample addon (MIT) |
 | `tools/` | Python tools for game files |
 | `re/` | Game research and signatures |
 | `docs/` | This site |

@@ -11,7 +11,7 @@
 | [Table catalogue](/reference/gamedb/catalogue) | Every table family with row counts and scope (generated) |
 | [Key schema](/reference/gamedb/schema) | Fields, types and examples for the main tables (generated) |
 
-For mod files that change the database, see [Database edits](/modding/database-ops).
+For addon files that change the database, see [Database edits](/modding/database-ops).
 
 ## In short
 

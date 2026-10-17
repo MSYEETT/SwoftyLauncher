@@ -4,10 +4,10 @@ This is a contributor overview of Swofty Launcher for F1 25. It covers the inten
 
 ## Goals
 
-- Manage mods and community maps in one desktop app.
+- Manage addons and community maps in one desktop app.
 - Keep modded play offline only, with multiplayer off.
 - Switch profiles and restore the original game in one click.
-- Change mod options through ADDON SETTINGS under Career.
+- Change addon options through ADDON SETTINGS under Career.
 - Support Windows and Linux through Steam and Proton.
 
 ## Main parts
@@ -16,7 +16,7 @@ This is a contributor overview of Swofty Launcher for F1 25. It covers the inten
 |---|---|
 | `apps/launcher` | Desktop interface, built with Rust and GPUI |
 | `apps/cli` | Terminal commands and Linux Steam launch wrapper |
-| `packages/core` | Mods, maps, profiles, backups and launch setup |
+| `packages/core` | Addons, maps, profiles, backups and launch setup |
 | `packages/formats` | Game file readers and writers |
 | `packages/sdk` | Plugin API |
 | `native/` | In-game loader and menu entry |
@@ -24,21 +24,21 @@ This is a contributor overview of Swofty Launcher for F1 25. It covers the inten
 
 Keep the interface separate from the shared core. Use the Python tools in `tools/` to check the Rust format code.
 
-## Mods and maps
+## Addons and maps
 
-Mods use a [`swofty.json` manifest](/modding/manifest). It lists database changes, assets, UI patches, loose files and plugins.
+Addons use a [`swofty.json` manifest](/modding/manifest). It lists database changes, assets, UI patches, loose files and plugins.
 
 Maps use the existing community track-package format. Import the package unchanged and use its track code in the profile.
 
 Apply changes in load order. Report missing requirements and conflicts before launch.
 
-[Addons and mods](/design/addons-and-mods) plans the split of mods into addons and content mods, the Launcher API, the Asset API and the built-in Team Simplified addon.
+[Addons and mods](/design/addons-and-mods) plans content mods, the Launcher API, the Asset API and the built-in Team Simplified addon.
 
 ## Profiles and saves
 
-Each profile holds its mods, maps and options. The intended design gives each profile separate saves under `$DATA/saves/<profile>/`, away from vanilla saves and Steam Cloud.
+Each profile holds its addons, maps and options. The intended design gives each profile separate saves under `$DATA/saves/<profile>/`, away from vanilla saves and Steam Cloud.
 
-Save isolation is not implemented yet. The built-in `vanilla` profile contains no mods and cannot be edited.
+Save isolation is not implemented yet. The built-in `vanilla` profile contains no addons and cannot be edited.
 
 ## Launch and restore
 
@@ -58,19 +58,19 @@ Linux uses a Steam launch option. Windows uses a separate modded launch. Normal 
 
 SwoftyMod adds ADDON SETTINGS below Career, an F9/R3 prompt and a launcher panel.
 
-ADDON SETTINGS has a tile per enabled mod and map and a page for each, built from the player's game files and the profile when the profile is built. Database settings need a restart; plugin settings apply immediately.
+ADDON SETTINGS has a tile per enabled addon and map and a page for each, built from the player's game files and the profile when the profile is built. Database settings need a restart; plugin settings apply immediately.
 
 ## Current status
 
 The repository is pre-release:
 
-- Mod installation, profiles, map import and command-line logs are implemented.
-- Database operations and `!pkg` edits in archives can be built. Other mod ERP, UI and loose-file build steps are skipped.
+- Addon installation, profiles, map import and command-line logs are implemented.
+- Database operations and `!pkg` edits in archives can be built. Other addon ERP, UI and loose-file build steps are skipped.
 - Enabled maps are activated: database rows, track archive, menu art, minimap and ERS. `swofty apply` installs them through the journal. Neither has been tested in game yet.
 - Backup and restore code has tests for interrupted changes and game updates.
 - The native menu entry is tested with a test executable under Wine. It currently opens the game's Settings page.
 - Play in the launcher builds the profile, installs it with the in-game loader, and rolls both back when the game exits. This flow has not been tested in game yet.
-- Mod settings work in the launcher and the command line. The in-game page is generated; saving in-game changes waits on the native bridge's in-game test.
+- Addon settings work in the launcher and the command line. The in-game page is generated; saving in-game changes waits on the native bridge's in-game test.
 - Save isolation, offline enforcement and plugin approval are unfinished.
 
 These remaining steps must be completed before the full player workflow is ready.
