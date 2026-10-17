@@ -54,6 +54,7 @@ pub enum PlayState {
     NotInstalled,
     Ready,
     Launching,
+    Restoring,
     Running(Option<u64>),
     Crashed(SessionRecord),
 }
@@ -356,8 +357,12 @@ impl Shell {
             let secs = p.started.and_then(|t| t.elapsed().ok()).map(|d| d.as_secs());
             return PlayState::Running(secs);
         }
-        if self.launch.is_some() {
-            return PlayState::Launching;
+        if let Some(launch) = &self.launch {
+            return if launch.saw_game {
+                PlayState::Restoring
+            } else {
+                PlayState::Launching
+            };
         }
         if !self.detected {
             return PlayState::Detecting;
