@@ -3,9 +3,10 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::builtin::CORE_ID;
-use crate::manifest::{Binds, ModManifest, ModOption};
+use crate::manifest::{AddonManifest, AddonOption, Binds};
 
 pub const VANILLA: &str = "vanilla";
+pub const SCHEMA_VERSION: u32 = 2;
 
 pub fn valid_name(name: &str) -> bool {
     !name.is_empty()
@@ -21,8 +22,8 @@ pub fn valid_name(name: &str) -> bool {
 pub struct Profile {
     pub schema_version: u32,
     pub name: String,
-    #[serde(default)]
-    pub mods: Vec<ProfileMod>,
+    #[serde(default, alias = "mods")]
+    pub addons: Vec<ProfileAddon>,
     #[serde(default)]
     pub maps: Vec<String>,
     #[serde(default)]
@@ -33,7 +34,7 @@ pub struct Profile {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct ProfileMod {
+pub struct ProfileAddon {
     pub id: String,
     #[serde(default = "enabled")]
     pub enabled: bool,
@@ -46,9 +47,9 @@ fn enabled() -> bool {
 impl Profile {
     pub fn new(name: &str) -> Self {
         let mut p = Self {
-            schema_version: 1,
+            schema_version: SCHEMA_VERSION,
             name: name.into(),
-            mods: Vec::new(),
+            addons: Vec::new(),
             maps: Vec::new(),
             options: BTreeMap::new(),
             applied: BTreeMap::new(),
@@ -59,9 +60,9 @@ impl Profile {
 
     pub fn vanilla() -> Self {
         Self {
-            schema_version: 1,
+            schema_version: SCHEMA_VERSION,
             name: VANILLA.into(),
-            mods: Vec::new(),
+            addons: Vec::new(),
             maps: Vec::new(),
             options: BTreeMap::new(),
             applied: BTreeMap::new(),
@@ -81,10 +82,11 @@ impl Profile {
             *self = Self::vanilla();
             return;
         }
-        self.mods.retain(|m| m.id != CORE_ID);
-        self.mods.insert(
+        self.schema_version = SCHEMA_VERSION;
+        self.addons.retain(|m| m.id != CORE_ID);
+        self.addons.insert(
             0,
-            ProfileMod {
+            ProfileAddon {
                 id: CORE_ID.into(),
                 enabled: true,
             },
@@ -92,7 +94,7 @@ impl Profile {
     }
 
     pub fn enabled(&self) -> impl Iterator<Item = &str> {
-        self.mods
+        self.addons
             .iter()
             .filter(|m| m.enabled || m.id == CORE_ID)
             .map(|m| m.id.as_str())
@@ -109,9 +111,9 @@ impl Profile {
                 "{CORE_ID} is built in and cannot be disabled"
             )));
         }
-        match self.mods.iter_mut().find(|m| m.id == id) {
+        match self.addons.iter_mut().find(|m| m.id == id) {
             Some(m) => m.enabled = on,
-            None => self.mods.push(ProfileMod {
+            None => self.addons.push(ProfileAddon {
                 id: id.into(),
                 enabled: on,
             }),
@@ -119,11 +121,16 @@ impl Profile {
         Ok(())
     }
 
-    pub fn option(&self, m: &ModManifest, o: &ModOption) -> serde_json::Value {
+    pub fn option(&self, m: &AddonManifest, o: &AddonOption) -> serde_json::Value {
         stored(&self.options, m, o).unwrap_or_else(|| o.default_value())
     }
 
-    pub fn set_option(&mut self, m: &ModManifest, id: &str, value: serde_json::Value) -> crate::Result<bool> {
+    pub fn set_option(
+        &mut self,
+        m: &AddonManifest,
+        id: &str,
+        value: serde_json::Value,
+    ) -> crate::Result<bool> {
         if self.is_vanilla() {
             return Err(crate::Error::Other(format!(
                 "{VANILLA} is built in and cannot be changed"
@@ -150,7 +157,7 @@ impl Profile {
         Ok(before != v)
     }
 
-    pub fn reset_options(&mut self, m: &ModManifest) -> crate::Result<bool> {
+    pub fn reset_options(&mut self, m: &AddonManifest) -> crate::Result<bool> {
         if self.is_vanilla() {
             return Err(crate::Error::Other(format!(
                 "{VANILLA} is built in and cannot be changed"
@@ -159,7 +166,7 @@ impl Profile {
         Ok(self.options.remove(&m.id).is_some())
     }
 
-    pub fn rebuild_pending(&self, installed: &BTreeMap<String, ModManifest>) -> Vec<String> {
+    pub fn rebuild_pending(&self, installed: &BTreeMap<String, AddonManifest>) -> Vec<String> {
         let mut out = Vec::new();
         for m in self.enabled().filter_map(|id| installed.get(id)) {
             for o in m.options.iter().filter(|o| o.binds == Binds::Db) {
@@ -172,7 +179,7 @@ impl Profile {
         out
     }
 
-    pub fn mark_built(&mut self, installed: &BTreeMap<String, ModManifest>) {
+    pub fn mark_built(&mut self, installed: &BTreeMap<String, AddonManifest>) {
         let mut applied = BTreeMap::new();
         for m in self.enabled().filter_map(|id| installed.get(id)) {
             let values: BTreeMap<String, serde_json::Value> = m
@@ -205,8 +212,8 @@ impl Profile {
 
 fn stored(
     map: &BTreeMap<String, BTreeMap<String, serde_json::Value>>,
-    m: &ModManifest,
-    o: &ModOption,
+    m: &AddonManifest,
+    o: &AddonOption,
 ) -> Option<serde_json::Value> {
     map.get(&m.id)?.get(&o.id).and_then(|v| o.normalise(v))
 }

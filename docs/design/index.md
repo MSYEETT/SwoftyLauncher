@@ -20,7 +20,7 @@ This is a contributor overview of Swofty Launcher for F1 25. It covers the inten
 | `packages/formats` | Game file readers and writers |
 | `packages/sdk` | Plugin API |
 | `native/` | In-game loader and menu entry |
-| `mods/swoftymod` | Built-in menu changes |
+| `addons/swoftymod` | Built-in menu changes |
 
 Keep the interface separate from the shared core. Use the Python tools in `tools/` to check the Rust format code.
 

@@ -12,9 +12,9 @@ Build from the repository root. See the [design notes](/design/) for current pro
 | `packages/formats` | Game file readers and writers |
 | `packages/sdk` | Plugin SDK (MIT) |
 | `native/` | In-game loader |
-| `mods/swoftymod` | Built-in mod |
-| `mods/custom-grid-size` | Custom Grid Size mod |
-| `templates/mod` | Sample mod (MIT) |
+| `addons/swoftymod` | Built-in mod |
+| `addons/custom-grid-size` | Custom Grid Size mod |
+| `templates/addon` | Sample mod (MIT) |
 | `tools/` | Python tools for game files |
 | `re/` | Game research and signatures |
 | `docs/` | This site |

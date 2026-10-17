@@ -11,7 +11,7 @@ pub fn doctor(store: &Store) -> Result<ExitCode> {
         "mods",
         format!(
             "{} installed (including swofty.core)",
-            store.mods().map(|m| m.len()).unwrap_or(0)
+            store.addons().map(|m| m.len()).unwrap_or(0)
         ),
     );
     row(

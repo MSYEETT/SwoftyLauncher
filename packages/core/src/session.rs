@@ -71,6 +71,8 @@ pub struct Config {
     pub game_dir: Option<PathBuf>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub console: bool,
+    #[serde(default)]
+    pub data_version: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

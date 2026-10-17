@@ -31,4 +31,4 @@ re/trace_plugin/build/
 *.o
 *.wep
 *.swoftymod
-templates/mod/native/build/
+templates/addon/native/build/

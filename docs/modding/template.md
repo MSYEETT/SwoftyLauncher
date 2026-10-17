@@ -1,6 +1,6 @@
 # Making a mod
 
-Copy [`templates/mod`](https://github.com/Swofty-Developments/F1ModManager/tree/main/templates/mod) to start a mod. It uses the MIT licence.
+Copy [`templates/addon`](https://github.com/Swofty-Developments/F1ModManager/tree/main/templates/addon) to start a mod. It uses the MIT licence.
 
 ## Get started
 

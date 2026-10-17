@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::builtin::CORE_ID;
-use crate::manifest::ModManifest;
+use crate::manifest::AddonManifest;
 use crate::profile::Profile;
 use crate::{Error, Result};
 
@@ -18,7 +18,7 @@ fn glob_match(pattern: &str, id: &str) -> bool {
     }
 }
 
-pub fn resolve(profile: &Profile, installed: &BTreeMap<String, ModManifest>) -> Result<Plan> {
+pub fn resolve(profile: &Profile, installed: &BTreeMap<String, AddonManifest>) -> Result<Plan> {
     let mut warnings = Vec::new();
     if profile.is_vanilla() {
         return Ok(Plan {
@@ -27,19 +27,19 @@ pub fn resolve(profile: &Profile, installed: &BTreeMap<String, ModManifest>) -> 
         });
     }
     let enabled: Vec<&str> = profile.enabled().collect();
-    let mut mods = BTreeMap::new();
+    let mut addons = BTreeMap::new();
     for id in &enabled {
         let m = installed
             .get(*id)
             .ok_or_else(|| Error::Resolve(format!("{id} is enabled but not installed")))?;
-        mods.insert(*id, m);
+        addons.insert(*id, m);
     }
-    if !mods.contains_key(CORE_ID) {
+    if !addons.contains_key(CORE_ID) {
         return Err(Error::Resolve(format!("{CORE_ID} is missing")));
     }
-    for m in mods.values() {
+    for m in addons.values() {
         for r in &m.requires {
-            match mods.get(r.id.as_str()) {
+            match addons.get(r.id.as_str()) {
                 None => {
                     return Err(Error::Resolve(format!(
                         "{} requires {}, which is not enabled",
@@ -56,7 +56,7 @@ pub fn resolve(profile: &Profile, installed: &BTreeMap<String, ModManifest>) -> 
             }
         }
         for c in m.conflicts.iter().filter(|c| c.touches.is_none()) {
-            if let Some(other) = mods.keys().find(|o| **o != m.id && glob_match(&c.id, o)) {
+            if let Some(other) = addons.keys().find(|o| **o != m.id && glob_match(&c.id, o)) {
                 return Err(Error::Resolve(format!("{} conflicts with {other}", m.id)));
             }
         }
@@ -66,13 +66,13 @@ pub fn resolve(profile: &Profile, installed: &BTreeMap<String, ModManifest>) -> 
     }
     let position: BTreeMap<&str, usize> = enabled.iter().enumerate().map(|(i, id)| (*id, i)).collect();
     let mut after: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
-    for m in mods.values() {
+    for m in addons.values() {
         let deps = after.entry(m.id.as_str()).or_default();
         for r in &m.requires {
             deps.insert(r.id.as_str());
         }
         for pat in &m.load_after {
-            deps.extend(mods.keys().filter(|o| **o != m.id && glob_match(pat, o)));
+            deps.extend(addons.keys().filter(|o| **o != m.id && glob_match(pat, o)));
         }
         if m.id != CORE_ID {
             deps.insert(CORE_ID);
@@ -80,13 +80,13 @@ pub fn resolve(profile: &Profile, installed: &BTreeMap<String, ModManifest>) -> 
     }
     let mut order = Vec::new();
     let mut done = BTreeSet::new();
-    while done.len() < mods.len() {
-        let next = mods
+    while done.len() < addons.len() {
+        let next = addons
             .keys()
             .filter(|id| !done.contains(*id) && after[*id].iter().all(|d| done.contains(d)))
             .min_by_key(|id| position[*id]);
         let Some(&id) = next else {
-            let stuck: Vec<&str> = mods.keys().filter(|id| !done.contains(*id)).copied().collect();
+            let stuck: Vec<&str> = addons.keys().filter(|id| !done.contains(*id)).copied().collect();
             return Err(Error::Resolve(format!(
                 "load order cycle among {}",
                 stuck.join(", ")
@@ -102,12 +102,12 @@ pub fn resolve(profile: &Profile, installed: &BTreeMap<String, ModManifest>) -> 
 mod tests {
     use super::*;
 
-    fn m(id: &str, extra: &str) -> (String, ModManifest) {
+    fn m(id: &str, extra: &str) -> (String, AddonManifest) {
         let json = format!(
             r#"{{"schema_version":1,"id":"{id}","name":"{id}","version":"1.0.0","author":"t",
             "compat":{{"game":"f1_25"}}{extra}}}"#
         );
-        (id.to_owned(), ModManifest::parse(&json).unwrap())
+        (id.to_owned(), AddonManifest::parse(&json).unwrap())
     }
 
     fn profile(ids: &[&str]) -> Profile {

@@ -14,7 +14,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>.
 
 Exceptions: packages/sdk and templates/ are under the MIT licence, in
-packages/sdk/LICENSE and templates/mod/LICENSE. native/third_party/safetyhook
+packages/sdk/LICENSE and templates/addon/LICENSE. native/third_party/safetyhook
 keeps its own licences (BSL-1.0 for safetyhook, MIT for Zydis).
 
 The full text of the licence follows.

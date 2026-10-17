@@ -5,7 +5,7 @@ use swofty_formats::pkg::{Node, Pkg, Val, Value};
 use super::node::*;
 use crate::Result;
 use crate::manifest::{Binds, OptionType};
-use crate::settings::{SessionMap, SessionMod, SessionOption};
+use crate::settings::{SessionAddon, SessionMap, SessionOption};
 
 pub const HOME: &str = "swofty_settings";
 pub const STATE: &str = "#ui_menu_data.swofty";
@@ -36,7 +36,7 @@ pub const TILES: TileStyle = TileStyle {
     rows: 3,
     slot: |_| "1a",
     icon: |k| match k {
-        Kind::Mod => Icon::Ref("#overrides.icons.session.settings"),
+        Kind::Addon => Icon::Ref("#overrides.icons.session.settings"),
         Kind::Map => Icon::Path("eaid://ui_package/art/textures/custom_track_select/race_completed_icon.tif"),
     },
     attach: &["title_1", "stacker_title"],
@@ -47,21 +47,21 @@ pub const TILES: TileStyle = TileStyle {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Kind {
-    Mod,
+    Addon,
     Map,
 }
 
 impl Kind {
     fn key(self) -> &'static str {
         match self {
-            Kind::Mod => "mod",
+            Kind::Addon => "mod",
             Kind::Map => "map",
         }
     }
 
     fn tag(self) -> &'static str {
         match self {
-            Kind::Mod => "ADDON",
+            Kind::Addon => "ADDON",
             Kind::Map => "MOD",
         }
     }
@@ -105,10 +105,10 @@ impl Entry<'_> {
     }
 }
 
-pub fn entries<'a>(mods: &'a [SessionMod], maps: &'a [SessionMap]) -> Vec<Entry<'a>> {
+pub fn entries<'a>(addons: &'a [SessionAddon], maps: &'a [SessionMap]) -> Vec<Entry<'a>> {
     let mut k = 0;
     let mut out = Vec::new();
-    for (i, (full, m)) in mods.iter().enumerate().filter(|(_, m)| m.enabled).enumerate() {
+    for (i, (full, m)) in addons.iter().enumerate().filter(|(_, m)| m.enabled).enumerate() {
         let options = m
             .options
             .iter()
@@ -119,7 +119,7 @@ pub fn entries<'a>(mods: &'a [SessionMod], maps: &'a [SessionMap]) -> Vec<Entry<
             })
             .collect();
         out.push(Entry {
-            kind: Kind::Mod,
+            kind: Kind::Addon,
             index: i,
             screen: format!("swofty_mod_{full}"),
             name: &m.name,
@@ -324,7 +324,7 @@ enum RowKind<'a> {
     Toggle(&'a Opt<'a>),
 }
 
-fn mod_rows<'a>(e: &'a Entry<'a>) -> Vec<Row<'a>> {
+fn addon_rows<'a>(e: &'a Entry<'a>) -> Vec<Row<'a>> {
     if e.options.is_empty() {
         return vec![
             Row {
@@ -834,8 +834,8 @@ pub struct Screens {
 pub fn build_all(src: &Sources, style: &TileStyle, flow: &[Entry]) -> Result<Screens> {
     let mut nodes = vec![(HOME.to_owned(), build_home(src, style, flow)?)];
     let mut view_models = Vec::new();
-    for e in flow.iter().filter(|e| e.kind == Kind::Mod) {
-        let rows = mod_rows(e);
+    for e in flow.iter().filter(|e| e.kind == Kind::Addon) {
+        let rows = addon_rows(e);
         let mut scr = build_page(src, e, &rows, !e.options.is_empty())?;
         retitle(&mut scr, e)?;
         if !e.options.is_empty() {
@@ -866,7 +866,7 @@ pub fn state_entries(flow: &[Entry]) -> Result<Vec<(String, Node)>> {
             uidb_var("online_popup_seen", "bool", boolv(false)),
         ),
     ];
-    for e in flow.iter().filter(|e| e.kind == Kind::Mod) {
+    for e in flow.iter().filter(|e| e.kind == Kind::Addon) {
         for opt in &e.options {
             let k = opt.k;
             let o = opt.o;

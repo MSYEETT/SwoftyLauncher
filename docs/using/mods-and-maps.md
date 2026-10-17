@@ -13,7 +13,7 @@ swofty mods enable <id>
 swofty mods disable <id>
 ```
 
-Use the mod's ID from `mods list`. Installed mods are stored in `$DATA/mods/<id>/`.
+Use the mod's ID from `mods list`. Installed mods are stored in `$DATA/addons/<id>/`.
 
 Mods can require other mods or conflict with them. Check any warnings before playing.
 

@@ -59,7 +59,7 @@ pub const OWNED_ROWS: &[OwnedRow] = &[OwnedRow {
 pub struct OwnedItem {
     pub key: String,
     #[serde(rename = "mod")]
-    pub mod_id: String,
+    pub addon: String,
     pub what: String,
 }
 
@@ -72,7 +72,7 @@ pub struct Watch {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Added {
-    pub mod_id: String,
+    pub addon: String,
     pub table: String,
     pub kind: &'static OwnedRow,
     pub rows: Range<usize>,
@@ -115,13 +115,13 @@ pub fn watch(db: &Gvdb, ops: &DbOps) -> Vec<Watch> {
     out.into_values().collect()
 }
 
-pub fn added(db: &Gvdb, mod_id: &str, watched: Vec<Watch>) -> Vec<Added> {
+pub fn added(db: &Gvdb, addon: &str, watched: Vec<Watch>) -> Vec<Added> {
     watched
         .into_iter()
         .filter_map(|w| {
             let after = db.instance_count(&w.table, w.kind.row)?;
             (after > w.before).then(|| Added {
-                mod_id: mod_id.to_owned(),
+                addon: addon.to_owned(),
                 table: w.table,
                 kind: w.kind,
                 rows: w.before..after,
@@ -189,21 +189,21 @@ pub fn owned_items(db: &Gvdb, pristine: &Gvdb, added: &[Added]) -> Owned {
         if stock.contains(&key) {
             out.warnings.push(format!(
                 "{}: unlock row {label} has key {k}, which a stock game row also gives; not reported as owned",
-                a.mod_id
+                a.addon
             ));
         } else if !seen.insert(key) {
             out.warnings.push(format!(
                 "{}: unlock row {label} repeats key {k}; reported once",
-                a.mod_id
+                a.addon
             ));
         } else {
             out.lines.push(format!(
                 "items: {} unlock row {label} ({what}) is reported as owned, key {k}",
-                a.mod_id
+                a.addon
             ));
             out.items.push(OwnedItem {
                 key: k,
-                mod_id: a.mod_id.clone(),
+                addon: a.addon.clone(),
                 what,
             });
         }
@@ -217,7 +217,7 @@ mod tests {
     use crate::ops::apply_db_ops;
     use swofty_formats::gvdb::Record;
 
-    const MOD: &str = "rmdesigns.alphatauri-orlen-livery";
+    const ADDON: &str = "rmdesigns.alphatauri-orlen-livery";
     const FOLDER: &str = "unlockable_content.unlockable_items.unlockable_item_list_2.folder_23";
     const SE: &str = "customisation.custom_se_liveries.se_liveries";
 
@@ -280,11 +280,11 @@ mod tests {
         .unwrap()
     }
 
-    fn build(mods: &[(&str, DbOps)]) -> (Gvdb, Owned) {
+    fn build(addons: &[(&str, DbOps)]) -> (Gvdb, Owned) {
         let base = pristine();
         let mut db = base.clone();
         let mut all = Vec::new();
-        for (id, o) in mods {
+        for (id, o) in addons {
             let w = watch(&db, o);
             apply_db_ops(&mut db, o, &BTreeMap::<String, Vec<String>>::new()).unwrap();
             all.extend(added(&db, id, w));
@@ -305,19 +305,19 @@ mod tests {
     #[test]
     fn alphatauri_livery_is_reported_as_owned() {
         let o = ops(r#""_metadata_":"toro_rosso_rm_alphatauri_2026","#);
-        let (_, owned) = build(&[(MOD, o)]);
+        let (_, owned) = build(&[(ADDON, o)]);
         assert_eq!(
             owned.items,
             vec![OwnedItem {
                 key: "0xf01d03c7".into(),
-                mod_id: MOD.into(),
+                addon: ADDON.into(),
                 what: "se_livery 22".into(),
             }]
         );
         assert!(owned.warnings.is_empty(), "{:?}", owned.warnings);
         assert_eq!(
             serde_json::to_value(&owned.items[0]).unwrap(),
-            serde_json::json!({"key": "0xf01d03c7", "mod": MOD, "what": "se_livery 22"})
+            serde_json::json!({"key": "0xf01d03c7", "mod": ADDON, "what": "se_livery 22"})
         );
     }
 
@@ -352,7 +352,7 @@ mod tests {
         let mut db = base.clone();
         let w = watch(&db, &o);
         apply_db_ops(&mut db, &o, &BTreeMap::<String, Vec<String>>::new()).unwrap();
-        let owned = owned_items(&db, &base, &added(&db, MOD, w));
+        let owned = owned_items(&db, &base, &added(&db, ADDON, w));
         assert!(owned.items.is_empty(), "{:?}", owned.items);
     }
 
@@ -367,7 +367,7 @@ mod tests {
     }
 
     #[test]
-    fn second_mod_rows_belong_to_that_mod() {
+    fn second_addon_rows_belong_to_that_addon() {
         let a = ops(r#""_metadata_":"toro_rosso_rm_alphatauri_2026","#);
         let b: DbOps = serde_json::from_str(&format!(
             r#"{{"schema_version":1,
@@ -376,18 +376,18 @@ mod tests {
                     "set":{{"_metadata_":"b_livery","customisation_item":"b_livery","statId":"5281"}}}}]}}"#
         ))
         .unwrap();
-        let (_, owned) = build(&[(MOD, a), ("b.mod", b)]);
+        let (_, owned) = build(&[(ADDON, a), ("b.addon", b)]);
         let got: Vec<(&str, &str, &str)> = owned
             .items
             .iter()
-            .map(|i| (i.key.as_str(), i.mod_id.as_str(), i.what.as_str()))
+            .map(|i| (i.key.as_str(), i.addon.as_str(), i.what.as_str()))
             .collect();
         let bkey = key_text(item_key("eSELivery", "b_livery"));
         assert_eq!(
             got,
             vec![
-                ("0xf01d03c7", MOD, "se_livery 22"),
-                (bkey.as_str(), "b.mod", "se_livery b_livery")
+                ("0xf01d03c7", ADDON, "se_livery 22"),
+                (bkey.as_str(), "b.addon", "se_livery b_livery")
             ]
         );
     }

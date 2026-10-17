@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::manifest::{Binds, ModManifest, ModOption, OptionType, ScreenOp};
+use crate::manifest::{AddonManifest, AddonOption, Binds, OptionType, ScreenOp};
 use crate::map::TrackPackage;
 use crate::owned::OwnedItem;
 use crate::profile::Profile;
@@ -75,7 +75,7 @@ impl Grid {
     }
 }
 
-impl ModOption {
+impl AddonOption {
     pub fn title(&self) -> &str {
         self.label.as_deref().unwrap_or(&self.id)
     }
@@ -248,7 +248,8 @@ pub struct SessionSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub requests: Option<String>,
     pub restart_command: String,
-    pub mods: Vec<SessionMod>,
+    #[serde(rename = "mods")]
+    pub addons: Vec<SessionAddon>,
     #[serde(default)]
     pub maps: Vec<SessionMap>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -281,9 +282,9 @@ pub fn screen_file(name: &str) -> String {
 }
 
 pub fn screens<'a>(
-    order: impl IntoIterator<Item = &'a ModManifest>,
-) -> Result<Vec<(&'a ModManifest, &'a ScreenOp)>> {
-    let mut out: Vec<(&ModManifest, &ScreenOp)> = Vec::new();
+    order: impl IntoIterator<Item = &'a AddonManifest>,
+) -> Result<Vec<(&'a AddonManifest, &'a ScreenOp)>> {
+    let mut out: Vec<(&AddonManifest, &ScreenOp)> = Vec::new();
     for m in order {
         for s in &m.operations.screens {
             if let Some((other, _)) = out.iter().find(|(_, o)| o.name == s.name) {
@@ -311,7 +312,7 @@ pub struct SessionMap {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SessionMod {
+pub struct SessionAddon {
     pub id: String,
     pub name: String,
     pub version: String,
@@ -351,7 +352,7 @@ pub struct SessionState {
 impl SessionSettings {
     pub fn build(
         profile: &Profile,
-        installed: &BTreeMap<String, ModManifest>,
+        installed: &BTreeMap<String, AddonManifest>,
         packages: &[TrackPackage],
         requests: Option<String>,
     ) -> Result<Self> {
@@ -361,8 +362,12 @@ impl SessionSettings {
                 profile.name
             )));
         }
-        let mut order: Vec<&ModManifest> = profile.mods.iter().filter_map(|m| installed.get(&m.id)).collect();
-        let mut rest: Vec<&ModManifest> = installed
+        let mut order: Vec<&AddonManifest> = profile
+            .addons
+            .iter()
+            .filter_map(|m| installed.get(&m.id))
+            .collect();
+        let mut rest: Vec<&AddonManifest> = installed
             .values()
             .filter(|m| !order.iter().any(|o| o.id == m.id))
             .collect();
@@ -386,9 +391,9 @@ impl SessionSettings {
             recover: true,
             screens,
         });
-        let mods = order
+        let addons = order
             .into_iter()
-            .map(|m| SessionMod {
+            .map(|m| SessionAddon {
                 id: m.id.clone(),
                 name: m.name.clone(),
                 version: m.version.to_string(),
@@ -449,7 +454,7 @@ impl SessionSettings {
             profile: profile.name.clone(),
             requests,
             restart_command: RESTART_COMMAND.into(),
-            mods,
+            addons,
             maps,
             ui,
             owned_items: Vec::new(),
@@ -459,14 +464,14 @@ impl SessionSettings {
     }
 
     pub fn commands(&self) -> impl Iterator<Item = &str> {
-        let mods = self.mods.iter().flat_map(|m| {
+        let addons = self.addons.iter().flat_map(|m| {
             let options = m
                 .options
                 .iter()
                 .flat_map(|o| o.states.iter().map(|s| s.command.as_str()));
             m.enable_commands.iter().map(String::as_str).chain(options)
         });
-        std::iter::once(self.restart_command.as_str()).chain(mods)
+        std::iter::once(self.restart_command.as_str()).chain(addons)
     }
 
     fn check_commands(&self) -> Result<()> {
@@ -506,14 +511,14 @@ pub struct Merge {
     pub relaunch: bool,
 }
 
-pub fn merge(profile: &mut Profile, installed: &BTreeMap<String, ModManifest>, req: &Requests) -> Merge {
+pub fn merge(profile: &mut Profile, installed: &BTreeMap<String, AddonManifest>, req: &Requests) -> Merge {
     let mut out = Merge {
         relaunch: req.relaunch,
         ..Merge::default()
     };
-    for (mod_id, values) in &req.options {
-        let Some(m) = installed.get(mod_id) else {
-            out.skipped.push(format!("{mod_id} is not installed"));
+    for (addon_id, values) in &req.options {
+        let Some(m) = installed.get(addon_id) else {
+            out.skipped.push(format!("{addon_id} is not installed"));
             continue;
         };
         for (id, v) in values {
@@ -521,32 +526,32 @@ pub fn merge(profile: &mut Profile, installed: &BTreeMap<String, ModManifest>, r
                 Ok(true) => {
                     let text = m.options.iter().find(|o| &o.id == id).map(|o| o.text(v));
                     out.changed
-                        .push(format!("{mod_id}.{id} = {}", text.unwrap_or_default()));
+                        .push(format!("{addon_id}.{id} = {}", text.unwrap_or_default()));
                 }
                 Ok(false) => {}
                 Err(e) => out.skipped.push(e.to_string()),
             }
         }
     }
-    for (mod_id, &on) in &req.enabled {
-        if !installed.contains_key(mod_id) {
-            out.skipped.push(format!("{mod_id} is not installed"));
+    for (addon_id, &on) in &req.enabled {
+        if !installed.contains_key(addon_id) {
+            out.skipped.push(format!("{addon_id} is not installed"));
             continue;
         }
-        if profile.enabled().any(|e| e == mod_id) == on {
+        if profile.enabled().any(|e| e == addon_id) == on {
             continue;
         }
-        match profile.set_enabled(mod_id, on) {
+        match profile.set_enabled(addon_id, on) {
             Ok(()) => out
                 .changed
-                .push(format!("{mod_id} {}", if on { "enabled" } else { "disabled" })),
+                .push(format!("{addon_id} {}", if on { "enabled" } else { "disabled" })),
             Err(e) => out.skipped.push(e.to_string()),
         }
     }
     out
 }
 
-pub fn render_ops(doc: &mut Value, m: &ModManifest, profile: &Profile) -> Result<()> {
+pub fn render_ops(doc: &mut Value, m: &AddonManifest, profile: &Profile) -> Result<()> {
     let fail = |msg: String| Error::Resolve(format!("{}: {msg}", m.id));
     let option = |id: &str| {
         m.options
@@ -611,10 +616,10 @@ fn substitute(v: &mut Value, lookup: &dyn Fn(&str) -> Result<String>) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::ModManifest;
+    use crate::manifest::AddonManifest;
 
-    fn manifest() -> ModManifest {
-        ModManifest::parse(
+    fn manifest() -> AddonManifest {
+        AddonManifest::parse(
             r#"{
               "schema_version": 1, "id": "a.grid", "name": "Grid", "version": "1.0.0", "author": "a",
               "compat": { "game": "f1_25" },
@@ -631,7 +636,7 @@ mod tests {
         .unwrap()
     }
 
-    fn installed() -> BTreeMap<String, ModManifest> {
+    fn installed() -> BTreeMap<String, AddonManifest> {
         let mut m = BTreeMap::from([(
             crate::builtin::CORE_ID.to_owned(),
             crate::builtin::core_manifest(),
@@ -694,7 +699,7 @@ mod tests {
             r#"{"id":"c","type":"string","default":"b","binds":"db"}"#,
         ] {
             assert!(
-                ModManifest::parse(&base(bad)).is_err(),
+                AddonManifest::parse(&base(bad)).is_err(),
                 "{bad} should be rejected"
             );
         }
@@ -734,9 +739,9 @@ mod tests {
         let m = manifest();
         p.set_option(&m, "livery", serde_json::json!("replica")).unwrap();
         let s = SessionSettings::build(&p, &installed(), &[], Some("Z:\\r.json".into())).unwrap();
-        assert_eq!(s.mods[0].id, crate::builtin::CORE_ID);
-        assert!(s.mods[0].locked && s.mods[0].enabled);
-        let grid = &s.mods[1];
+        assert_eq!(s.addons[0].id, crate::builtin::CORE_ID);
+        assert!(s.addons[0].locked && s.addons[0].enabled);
+        let grid = &s.addons[1];
         assert!(!grid.enabled && !grid.locked);
         assert_eq!(grid.author, "a");
         assert_eq!(grid.dlls, ["grid.dll"]);
@@ -750,8 +755,8 @@ mod tests {
         assert!(SessionSettings::build(&Profile::vanilla(), &installed(), &[], None).is_err());
     }
 
-    fn screens_manifest(id: &str, screens: &str) -> ModManifest {
-        ModManifest::parse(&format!(
+    fn screens_manifest(id: &str, screens: &str) -> AddonManifest {
+        AddonManifest::parse(&format!(
             r#"{{ "schema_version": 1, "id": "{id}", "name": "S", "version": "1.0.0", "author": "a",
                  "compat": {{ "game": "f1_25" }}, "operations": {{ "screens": [{screens}] }} }}"#
         ))
@@ -760,8 +765,8 @@ mod tests {
 
     #[test]
     fn session_file_lists_enabled_screens_and_omits_an_empty_ui_block() {
-        let mut mods = installed();
-        mods.insert(
+        let mut addons = installed();
+        addons.insert(
             "a.pages".into(),
             screens_manifest(
                 "a.pages",
@@ -769,16 +774,16 @@ mod tests {
                    { "name": "swofty_mod_1", "file": "ui/page1.ui", "flow": "flow_options" }"#,
             ),
         );
-        mods.insert(
+        addons.insert(
             "b.off".into(),
             screens_manifest("b.off", r#"{ "name": "off_page", "file": "ui/off.ui" }"#),
         );
         let mut p = Profile::new("x");
-        let none = SessionSettings::build(&p, &mods, &[], None).unwrap();
+        let none = SessionSettings::build(&p, &addons, &[], None).unwrap();
         assert_eq!(none.ui, None);
         assert!(serde_json::to_value(&none).unwrap().get("ui").is_none());
         p.set_enabled("a.pages", true).unwrap();
-        let s = SessionSettings::build(&p, &mods, &[], None).unwrap();
+        let s = SessionSettings::build(&p, &addons, &[], None).unwrap();
         let ui = s.ui.as_ref().unwrap();
         assert!(ui.register && !ui.strict && ui.recover);
         let names: Vec<&str> = ui.screens.iter().map(|s| s.name.as_str()).collect();
@@ -791,27 +796,27 @@ mod tests {
         assert!(json["ui"]["screens"][1].get("anchor").is_none());
         let back: SessionSettings = serde_json::from_value(json).unwrap();
         assert_eq!(back, s);
-        mods.insert(
+        addons.insert(
             "c.clash".into(),
             screens_manifest("c.clash", r#"{ "name": "swofty_mod_0", "file": "ui/x.ui" }"#),
         );
         p.set_enabled("c.clash", true).unwrap();
-        assert!(SessionSettings::build(&p, &mods, &[], None).is_err());
+        assert!(SessionSettings::build(&p, &addons, &[], None).is_err());
     }
 
     #[test]
     fn merges_requests_and_tracks_rebuilds() {
-        let mods = installed();
+        let addons = installed();
         let mut p = Profile::new("x");
         p.set_enabled("a.grid", true).unwrap();
-        assert!(p.rebuild_pending(&mods).is_empty());
+        assert!(p.rebuild_pending(&addons).is_empty());
         let req: Requests = serde_json::from_str(
             r#"{"schema":1,"profile":"x","seq":2,
                 "options":{"a.grid":{"livery":"tier01","offset":0.5,"nope":1},"z.missing":{"a":1}},
                 "enabled":{"a.grid":false,"swofty.core":false},"relaunch":true}"#,
         )
         .unwrap();
-        let out = merge(&mut p, &mods, &req);
+        let out = merge(&mut p, &addons, &req);
         assert_eq!(
             out.changed,
             [
@@ -822,15 +827,15 @@ mod tests {
         );
         assert_eq!(out.skipped.len(), 3);
         assert!(out.relaunch);
-        assert_eq!(merge(&mut p, &mods, &req).changed, Vec::<String>::new());
-        assert!(p.rebuild_pending(&mods).is_empty());
+        assert_eq!(merge(&mut p, &addons, &req).changed, Vec::<String>::new());
+        assert!(p.rebuild_pending(&addons).is_empty());
         p.set_enabled("a.grid", true).unwrap();
-        assert_eq!(p.rebuild_pending(&mods), ["a.grid.livery"]);
-        p.mark_built(&mods);
-        assert!(p.rebuild_pending(&mods).is_empty());
-        p.set_option(&mods["a.grid"], "livery", serde_json::json!("title"))
+        assert_eq!(p.rebuild_pending(&addons), ["a.grid.livery"]);
+        p.mark_built(&addons);
+        assert!(p.rebuild_pending(&addons).is_empty());
+        p.set_option(&addons["a.grid"], "livery", serde_json::json!("title"))
             .unwrap();
-        assert_eq!(p.rebuild_pending(&mods), ["a.grid.livery"]);
+        assert_eq!(p.rebuild_pending(&addons), ["a.grid.livery"]);
         assert!(!p.options.contains_key("a.grid") || !p.options["a.grid"].contains_key("livery"));
     }
 

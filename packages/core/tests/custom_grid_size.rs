@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 use swofty_core::erpbuild::{ErpBuild, unsupported};
-use swofty_core::manifest::{Binds, ModManifest, OptionType};
+use swofty_core::manifest::{AddonManifest, Binds, OptionType};
 use swofty_core::ops::{DbOp, DbOps, ErpOp, ErpOps, apply_db_ops};
 use swofty_core::pkgedit::value_text;
 use swofty_core::profile::Profile;
@@ -21,8 +21,8 @@ const SIZES: [u64; 5] = [22, 24, 26, 28, 30];
 const STOCK_TEAMS: usize = 358;
 const STOCK_VEHICLES: usize = 413;
 
-fn mod_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../mods/custom-grid-size")
+fn addon_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../addons/custom-grid-size")
 }
 
 fn read_json(path: &Path) -> Value {
@@ -30,8 +30,8 @@ fn read_json(path: &Path) -> Value {
         .unwrap_or_else(|e| panic!("{}: {e}", path.display()))
 }
 
-fn manifest() -> ModManifest {
-    ModManifest::load(&mod_dir()).unwrap()
+fn manifest() -> AddonManifest {
+    AddonManifest::load(&addon_dir()).unwrap()
 }
 
 fn files(kind: &str) -> Vec<String> {
@@ -46,7 +46,7 @@ fn render(rel: &str, cars: u64) -> Value {
     let m = manifest();
     let mut p = Profile::new("test");
     p.set_option(&m, "cars", cars.into()).unwrap();
-    let mut doc = read_json(&mod_dir().join(rel));
+    let mut doc = read_json(&addon_dir().join(rel));
     render_ops(&mut doc, &m, &p).unwrap();
     doc
 }
@@ -160,7 +160,7 @@ fn manifest_declares_the_cars_slider_and_its_files() {
     let tracks = files("erp");
     assert_eq!(tracks.len(), 28);
     for rel in std::iter::once("db/grid.json".to_owned()).chain(tracks.iter().cloned()) {
-        let doc = read_json(&mod_dir().join(&rel));
+        let doc = read_json(&addon_dir().join(&rel));
         for op in doc["ops"].as_array().unwrap() {
             let when = op["when"]
                 .as_object()
@@ -391,7 +391,7 @@ fn ids(layer: &Node, prefix: &str) -> BTreeSet<u32> {
 }
 
 fn capacity(rel: &str) -> u32 {
-    let doc = read_json(&mod_dir().join(rel));
+    let doc = read_json(&addon_dir().join(rel));
     doc["ops"]
         .as_array()
         .unwrap()

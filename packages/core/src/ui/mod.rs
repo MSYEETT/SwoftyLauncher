@@ -90,7 +90,7 @@ fn write_erp(src: &Path, dst: &Path, patches: Vec<(&str, Patch)>) -> Result<()> 
 
 fn panel_shown(settings: &SessionSettings) -> bool {
     settings
-        .mods
+        .addons
         .iter()
         .filter(|m| m.id == CORE_ID)
         .flat_map(|m| &m.options)
@@ -101,7 +101,7 @@ fn panel_shown(settings: &SessionSettings) -> bool {
 
 fn core_version(settings: &SessionSettings) -> String {
     settings
-        .mods
+        .addons
         .iter()
         .find(|m| m.id == CORE_ID)
         .map(|m| m.version.clone())
@@ -117,7 +117,7 @@ pub fn build(settings: &SessionSettings, input: &dyn Fn(&str) -> PathBuf, out: &
         &read_frag(&flow_frontend, FE_HOME, 0)?,
         &read_frag(&flow_options, CONTAINER, 0)?,
     )?;
-    let flow = pages::entries(&settings.mods, &settings.maps);
+    let flow = pages::entries(&settings.addons, &settings.maps);
     let built = pages::build_all(&src, &TILES, &flow)?;
     let names: Vec<String> = built.order.iter().map(|(n, _)| n.clone()).collect();
     let mut problems = check::screens(&built.order, &built.view_models)?;
@@ -125,7 +125,7 @@ pub fn build(settings: &SessionSettings, input: &dyn Fn(&str) -> PathBuf, out: &
     let pages: Vec<(String, String)> = flow
         .iter()
         .map(|e| {
-            let kind = if e.kind == Kind::Mod { "mod" } else { "map" };
+            let kind = if e.kind == Kind::Addon { "mod" } else { "map" };
             (format!("open_{kind}_{}", e.index), e.screen.clone())
         })
         .collect();

@@ -279,8 +279,8 @@ fn run_loop(
 }
 
 fn rebuild_if_needed(store: &Store, profile: &str, game: &Path) {
-    let pending = match (store.profile(profile), store.mods()) {
-        (Ok(p), Ok(mods)) => p.rebuild_pending(&mods),
+    let pending = match (store.profile(profile), store.addons()) {
+        (Ok(p), Ok(addons)) => p.rebuild_pending(&addons),
         _ => return,
     };
     if pending.is_empty() {

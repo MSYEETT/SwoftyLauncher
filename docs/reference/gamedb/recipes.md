@@ -51,7 +51,7 @@ New labels have no rows in side tables keyed by team or vehicle label (kits, sho
   "set": { "_metadata_": "team12_26", "stat_id": "500" } }
 ```
 
-It needs the table's real path (`entrants.teams`, not a `{hash}`) and the row's field list in the file's [`fields` map](/modding/database-ops#operations). Every listed field must exist on the source row. `mods/custom-grid-size/db/grid.json` lists every field of team, vehicle and entrant rows.
+It needs the table's real path (`entrants.teams`, not a `{hash}`) and the row's field list in the file's [`fields` map](/modding/database-ops#operations). Every listed field must exist on the source row. `addons/custom-grid-size/db/grid.json` lists every field of team, vehicle and entrant rows.
 
 ## Grid size
 

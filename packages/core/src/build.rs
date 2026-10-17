@@ -12,7 +12,7 @@ use crate::baseline::{Baseline, Objects, hex, sha256_file};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
 use crate::erpbuild::{ErpBuild, source_archives, unsupported};
 use crate::install::{Game, LOADER_DIR, Plan};
-use crate::manifest::ModManifest;
+use crate::manifest::AddonManifest;
 use crate::map::TrackPackage;
 use crate::ops::{DbOps, ErpOps, apply_db_ops};
 use crate::owned;
@@ -63,13 +63,13 @@ pub fn map_packages(store: &Store, codes: &[String]) -> Result<Vec<(PathBuf, Tra
         .collect()
 }
 
-pub fn screen_files(order: &[&ModManifest], mods_dir: &Path) -> Result<BTreeMap<String, PathBuf>> {
+pub fn screen_files(order: &[&AddonManifest], addons_dir: &Path) -> Result<BTreeMap<String, PathBuf>> {
     Ok(screens(order.iter().copied())?
         .into_iter()
         .map(|(m, s)| {
             (
                 format!("{LOADER_DIR}/{}", screen_file(&s.name)),
-                mods_dir.join(&m.id).join(&s.file),
+                addons_dir.join(&m.id).join(&s.file),
             )
         })
         .collect())
@@ -77,7 +77,7 @@ pub fn screen_files(order: &[&ModManifest], mods_dir: &Path) -> Result<BTreeMap<
 
 fn render_file<T: serde::de::DeserializeOwned>(
     path: &Path,
-    m: &ModManifest,
+    m: &AddonManifest,
     p: &Profile,
     hasher: &mut Sha256,
 ) -> Result<T> {
@@ -93,9 +93,9 @@ fn render_file<T: serde::de::DeserializeOwned>(
 }
 
 pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
-    let mods = store.mods()?;
+    let addons = store.addons()?;
     let p = store.profile(profile)?;
-    let resolved = resolve(&p, &mods)?;
+    let resolved = resolve(&p, &addons)?;
     let mut built = Built {
         order: resolved.order.clone(),
         warnings: resolved.warnings.clone(),
@@ -113,9 +113,9 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     let mut db_ops = Vec::new();
     let mut erp_ops = Vec::new();
     for id in &resolved.order {
-        let m = &mods[id];
+        let m = &addons[id];
         hasher.update(format!("{id}@{};", m.version));
-        let dir = store.mods_dir().join(id);
+        let dir = store.addons_dir().join(id);
         for rel in &m.operations.database {
             let ops: DbOps = render_file(&dir.join(rel), m, &p, &mut hasher)?;
             db_ops.push((id.clone(), ops));
@@ -352,11 +352,11 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                 built.plan.loader.len(),
                 dir.display()
             ));
-            let order: Vec<&ModManifest> = resolved.order.iter().map(|id| &mods[id]).collect();
+            let order: Vec<&AddonManifest> = resolved.order.iter().map(|id| &addons[id]).collect();
             if menus {
                 build_menus(&mut built, &mut session, &resolve)?;
             }
-            let files = screen_files(&order, &store.mods_dir())?;
+            let files = screen_files(&order, &store.addons_dir())?;
             if !files.is_empty() {
                 built.lines.push(format!("ui: {} screen(s) under {LOADER_DIR}/ui", files.len()));
             }
@@ -428,20 +428,20 @@ mod tests {
 
     #[test]
     fn places_screens_under_the_loader_ui_dir() {
-        let m = ModManifest::parse(
+        let m = AddonManifest::parse(
             r#"{ "schema_version": 1, "id": "a.pages", "name": "S", "version": "1.0.0", "author": "a",
                  "compat": { "game": "f1_25" },
                  "operations": { "screens": [{ "name": "swofty_mod_0", "file": "ui/page0.ui" }] } }"#,
         )
         .unwrap();
-        let files = screen_files(&[&m], Path::new("/mods")).unwrap();
+        let files = screen_files(&[&m], Path::new("/addons")).unwrap();
         assert_eq!(
             files,
             BTreeMap::from([(
                 "swofty/ui/swofty_mod_0.ui".to_owned(),
-                PathBuf::from("/mods/a.pages/ui/page0.ui")
+                PathBuf::from("/addons/a.pages/ui/page0.ui")
             )])
         );
-        assert!(screen_files(&[&m, &m], Path::new("/mods")).is_err());
+        assert!(screen_files(&[&m, &m], Path::new("/addons")).is_err());
     }
 }

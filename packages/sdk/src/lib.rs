@@ -145,11 +145,11 @@ mod tests {
     #[test]
     fn template_headers_match() {
         assert_eq!(
-            include_str!("../../../templates/mod/native/include/swofty_api.h"),
+            include_str!("../../../templates/addon/native/include/swofty_api.h"),
             HEADER
         );
         assert_eq!(
-            include_str!("../../../templates/mod/native/include/swofty/mixin.hpp"),
+            include_str!("../../../templates/addon/native/include/swofty/mixin.hpp"),
             MIXIN_HEADER
         );
     }

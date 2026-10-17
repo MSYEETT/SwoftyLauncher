@@ -10,10 +10,10 @@ use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
-use swofty_core::manifest::{Binds, ModManifest, ModOption, OptionType};
+use swofty_core::manifest::{AddonManifest, AddonOption, Binds, OptionType};
 use swofty_core::profile::{Profile, VANILLA};
 
-use crate::library::{MapItem, ModItem, ProfileItem, kind_label, plural};
+use crate::library::{AddonItem, MapItem, ProfileItem, kind_label, plural};
 use crate::shell::{Page, Prompt, Shell, SliderSlot};
 use crate::theme::Palette;
 
@@ -285,7 +285,7 @@ impl Shell {
         self.library.profile.is_vanilla()
     }
 
-    fn install_mod(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    fn install_addon(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.prompt(
             Prompt {
                 title: "Install mod",
@@ -301,7 +301,7 @@ impl Shell {
                 }),
                 action: Rc::new(|store, value| {
                     let m = store
-                        .install_mod(std::path::Path::new(value))
+                        .install_addon(std::path::Path::new(value))
                         .map_err(|e| e.to_string())?;
                     Ok(format!("Installed {} {}", m.name, m.version))
                 }),
@@ -348,30 +348,30 @@ impl Shell {
         }
     }
 
-    pub(crate) fn mods_page(&mut self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
-        let installed = plural(self.library.mods.len(), "mod installed", "mods installed");
+    pub(crate) fn addons_page(&mut self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+        let installed = plural(self.library.addons.len(), "mod installed", "mods installed");
         let subtitle = if self.vanilla() {
             format!("{installed} · {VANILLA} plays the game without them")
         } else {
             format!(
                 "{installed} · {} on in {}",
-                self.library.enabled_mods(),
+                self.library.enabled_addons(),
                 self.library.profile.name
             )
         };
-        let actions = Button::new("install-mod")
+        let actions = Button::new("install-addon")
             .outline()
             .icon(IconName::Plus)
             .label("Install mod…")
-            .on_click(cx.listener(|this, _, window, cx| this.install_mod(window, cx)));
+            .on_click(cx.listener(|this, _, window, cx| this.install_addon(window, cx)));
         let rows: Vec<AnyElement> = self
             .library
-            .mods
+            .addons
             .iter()
             .enumerate()
             .map(|(i, m)| {
-                let open = self.open_mod.as_ref() == Some(&m.manifest.id);
-                self.mod_row(m, i == 0, open, p, cx)
+                let open = self.open_addon.as_ref() == Some(&m.manifest.id);
+                self.addon_row(m, i == 0, open, p, cx)
             })
             .collect();
         let pending = (!self.vanilla() && !self.library.rebuild.is_empty()).then(|| {
@@ -399,15 +399,15 @@ impl Shell {
         });
         v_flex()
             .size_full()
-            .child(self.header(Page::Mods, subtitle, actions, p))
+            .child(self.header(Page::Addons, subtitle, actions, p))
             .children(pending)
-            .child(self.list("mods", rows, p))
+            .child(self.list("addons", rows, p))
             .into_any_element()
     }
 
-    fn mod_row(
+    fn addon_row(
         &self,
-        m: &ModItem,
+        m: &AddonItem,
         first: bool,
         open: bool,
         p: Palette,
@@ -437,7 +437,7 @@ impl Shell {
             })
         };
         let head = self
-            .row_head(format!("mod-{id}"), open, p)
+            .row_head(format!("addon-{id}"), open, p)
             .child(if builtin {
                 logo(32.)
             } else {
@@ -488,16 +488,16 @@ impl Shell {
             .child(div().w(px(96.)).flex().justify_end().child(trailing))
             .child(chevron(open, p))
             .on_click(cx.listener(move |this, _, _, cx| {
-                this.open_mod = (this.open_mod.as_ref() != Some(&id)).then(|| id.clone());
+                this.open_addon = (this.open_addon.as_ref() != Some(&id)).then(|| id.clone());
                 cx.notify();
             }));
         self.row(first, open, p)
             .child(head)
-            .when(open, |d| d.child(self.mod_body(m, p, cx)))
+            .when(open, |d| d.child(self.addon_body(m, p, cx)))
             .into_any_element()
     }
 
-    fn mod_body(&self, m: &ModItem, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+    fn addon_body(&self, m: &AddonItem, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let man = &m.manifest;
         let builds = if man.compat.game_builds.is_empty() {
             "any".to_owned()
@@ -588,7 +588,7 @@ impl Shell {
             .when(!man.options.is_empty(), |d| d.child(self.settings(man, p, cx)))
     }
 
-    fn settings(&self, man: &ModManifest, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+    fn settings(&self, man: &AddonManifest, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let customised = !self.vanilla() && self.library.profile.options.contains_key(&man.id);
         let reset = customised.then(|| {
             let man = man.clone();
@@ -630,8 +630,8 @@ impl Shell {
 
     fn setting_row(
         &self,
-        man: &ModManifest,
-        o: &ModOption,
+        man: &AddonManifest,
+        o: &AddonOption,
         first: bool,
         p: Palette,
         cx: &mut Context<Self>,
@@ -693,8 +693,8 @@ impl Shell {
     fn choice(
         &self,
         key: &str,
-        man: &ModManifest,
-        o: &ModOption,
+        man: &AddonManifest,
+        o: &AddonOption,
         value: &serde_json::Value,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -735,7 +735,7 @@ impl Shell {
     fn slider(
         &self,
         key: &str,
-        o: &ModOption,
+        o: &AddonOption,
         value: &serde_json::Value,
         p: Palette,
         cx: &mut Context<Self>,
@@ -766,9 +766,9 @@ impl Shell {
 
     pub(crate) fn sync_sliders(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(m) = self
-            .open_mod
+            .open_addon
             .as_ref()
-            .and_then(|id| self.library.mods.iter().find(|m| &m.manifest.id == id))
+            .and_then(|id| self.library.addons.iter().find(|m| &m.manifest.id == id))
         else {
             return;
         };
@@ -1153,7 +1153,7 @@ impl Shell {
         } else {
             v_flex()
                 .gap(px(12.))
-                .child(names("MODS", &item.mods, p))
+                .child(names("MODS", &item.addons, p))
                 .child(names("MAPS", &item.maps, p))
         };
         let button = |id: &str| Button::new(SharedString::from(format!("{id}-{name}")));

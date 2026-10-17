@@ -12,7 +12,7 @@ pub const SCHEMA_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct ModManifest {
+pub struct AddonManifest {
     pub schema_version: u32,
     pub id: String,
     pub name: String,
@@ -34,7 +34,7 @@ pub struct ModManifest {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub load_after: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub options: Vec<ModOption>,
+    pub options: Vec<AddonOption>,
     #[serde(default)]
     pub operations: Operations,
 }
@@ -143,7 +143,7 @@ impl From<Choice> for ChoiceRepr {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct ModOption {
+pub struct AddonOption {
     pub id: String,
     #[serde(rename = "type")]
     pub kind: OptionType,
@@ -220,7 +220,7 @@ pub fn valid_screen_name(name: &str) -> bool {
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
 }
 
-impl ModManifest {
+impl AddonManifest {
     pub fn load(dir: &Path) -> Result<Self> {
         let m: Self = crate::read_json(&dir.join(MANIFEST_FILE))?;
         m.validate()?;
@@ -335,7 +335,7 @@ mod tests {
 
     #[test]
     fn parses_design_example() {
-        let m = ModManifest::parse(GRID24).unwrap();
+        let m = AddonManifest::parse(GRID24).unwrap();
         assert_eq!(m.version, Version::new(1, 0, 0));
         assert!(m.compat.accepts_build(25_251_167));
         assert!(!m.compat.accepts_build(25_000_000));
@@ -351,7 +351,7 @@ mod tests {
         assert!(!relative_inside("/abs.json"));
         assert!(relative_inside("db/ops.json"));
         let bad = GRID24.replace("db/grid24.json", "../grid24.json");
-        assert!(ModManifest::parse(&bad).is_err());
+        assert!(AddonManifest::parse(&bad).is_err());
     }
 
     #[test]
@@ -362,7 +362,7 @@ mod tests {
                 &format!(r#""operations": {{ "screens": [{screens}] }}"#),
             )
         };
-        let m = ModManifest::parse(&with(
+        let m = AddonManifest::parse(&with(
             r#"{ "name": "grid_page", "file": "ui/grid_page.ui", "flow": "flow_options", "anchor": "settings_container", "view_model": true },
                { "name": "grid_info", "file": "ui/grid_info.ui" }"#,
         ))
@@ -383,13 +383,13 @@ mod tests {
             r#"{ "name": "a", "file": "ui/a.ui" }, { "name": "a", "file": "ui/b.ui" }"#,
             r#"{ "name": "a", "file": "ui/a.ui", "extra": 1 }"#,
         ] {
-            assert!(ModManifest::parse(&with(bad)).is_err(), "{bad}");
+            assert!(AddonManifest::parse(&with(bad)).is_err(), "{bad}");
         }
     }
 
     #[test]
     fn rejects_unknown_fields() {
         let bad = GRID24.replace("\"kind\"", "\"kinds\"");
-        assert!(ModManifest::parse(&bad).is_err());
+        assert!(AddonManifest::parse(&bad).is_err());
     }
 }

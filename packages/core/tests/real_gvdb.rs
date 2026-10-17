@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use swofty_core::manifest::ModManifest;
+use swofty_core::manifest::AddonManifest;
 use swofty_core::ops::{DbOps, apply_db_ops};
 use swofty_core::owned;
 use swofty_core::profile::Profile;
@@ -19,8 +19,8 @@ fn template_db_ops_resolve_against_the_real_database() {
         return;
     };
     let mut db = Gvdb::parse(&data).unwrap();
-    let template = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../templates/mod");
-    let m = ModManifest::load(&template).unwrap();
+    let template = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../templates/addon");
+    let m = AddonManifest::load(&template).unwrap();
     let mut doc: serde_json::Value =
         serde_json::from_slice(&std::fs::read(template.join("db/example.json")).unwrap()).unwrap();
     render_ops(&mut doc, &m, &Profile::new("test")).unwrap();
@@ -70,7 +70,7 @@ fn added_se_livery_unlock_is_owned_against_the_real_database() {
         found.items,
         vec![owned::OwnedItem {
             key: "0xf01d03c7".into(),
-            mod_id: "rmdesigns.alphatauri-orlen-livery".into(),
+            addon: "rmdesigns.alphatauri-orlen-livery".into(),
             what: "se_livery 22".into(),
         }]
     );

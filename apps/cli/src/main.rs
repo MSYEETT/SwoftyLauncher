@@ -56,8 +56,8 @@ enum Command {
         #[arg(long)]
         game: Option<PathBuf>,
     },
-    #[command(subcommand, about = "List, install, enable and disable mods")]
-    Mods(ModsCommand),
+    #[command(name = "mods", subcommand, about = "List, install, enable and disable mods")]
+    Addons(AddonsCommand),
     #[command(subcommand, about = "List, import and remove maps (EGO track packages)")]
     Maps(MapsCommand),
     #[command(
@@ -78,7 +78,7 @@ enum Command {
 }
 
 #[derive(Subcommand)]
-enum ModsCommand {
+enum AddonsCommand {
     List,
     Install { path: PathBuf },
     Enable { id: String },
@@ -138,6 +138,10 @@ fn main() -> ExitCode {
 
 fn dispatch(cli: Cli) -> Result<ExitCode> {
     let store = cli.data_dir.map(Store::new).unwrap_or_else(Store::open_default);
+    match store.migrate() {
+        Ok(notes) => notes.iter().for_each(|n| eprintln!("swofty: {n}")),
+        Err(e) => eprintln!("swofty: data migration failed: {e}"),
+    }
     let profile = cli.profile.unwrap_or_else(|| store.active_profile());
     match cli.command {
         Command::Run(args) => run::run(&store, &profile, args),
@@ -145,7 +149,7 @@ fn dispatch(cli: Cli) -> Result<ExitCode> {
         Command::Apply { game } => build::apply(&store, &profile, game),
         Command::Verify { game } => build::verify(&store, game),
         Command::Restore { game } => build::restore(&store, game),
-        Command::Mods(cmd) => mods(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
+        Command::Addons(cmd) => addons(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Maps(cmd) => maps(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Offline(cmd) => offline::command(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Settings(cmd) => settings(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
@@ -154,12 +158,12 @@ fn dispatch(cli: Cli) -> Result<ExitCode> {
     }
 }
 
-fn mods(store: &Store, profile: &str, cmd: ModsCommand) -> Result<()> {
+fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
     match cmd {
-        ModsCommand::List => {
+        AddonsCommand::List => {
             let p = store.profile(profile)?;
             let enabled: Vec<&str> = p.enabled().collect();
-            for (id, m) in store.mods()? {
+            for (id, m) in store.addons()? {
                 let state = if m.is_builtin() {
                     "built in"
                 } else if enabled.contains(&id.as_str()) {
@@ -170,17 +174,19 @@ fn mods(store: &Store, profile: &str, cmd: ModsCommand) -> Result<()> {
                 println!("{id:32} {:10} {state:9} {}", m.version.to_string(), m.name);
             }
         }
-        ModsCommand::Install { path } => {
+        AddonsCommand::Install { path } => {
             let m = store
-                .install_mod(&path)
+                .install_addon(&path)
                 .with_context(|| format!("installing {}", path.display()))?;
             println!("installed {} {}", m.id, m.version);
         }
-        ModsCommand::Enable { id } | ModsCommand::Disable { id } if !store.mods()?.contains_key(&id) => {
+        AddonsCommand::Enable { id } | AddonsCommand::Disable { id }
+            if !store.addons()?.contains_key(&id) =>
+        {
             bail!("{id} is not installed")
         }
-        ModsCommand::Enable { id } => toggle(store, profile, &id, true)?,
-        ModsCommand::Disable { id } => toggle(store, profile, &id, false)?,
+        AddonsCommand::Enable { id } => toggle(store, profile, &id, true)?,
+        AddonsCommand::Disable { id } => toggle(store, profile, &id, false)?,
     }
     Ok(())
 }
@@ -197,13 +203,16 @@ fn toggle(store: &Store, profile: &str, id: &str, on: bool) -> Result<()> {
 }
 
 fn settings(store: &Store, profile: &str, cmd: SettingsCommand) -> Result<()> {
-    let mods = store.mods()?;
-    let installed = |id: &str| mods.get(id).with_context(|| format!("{id} is not installed"));
+    let addons = store.addons()?;
+    let installed = |id: &str| addons.get(id).with_context(|| format!("{id} is not installed"));
     match cmd {
         SettingsCommand::List { id } => {
             let p = store.profile(profile)?;
-            let pending = p.rebuild_pending(&mods);
-            for m in mods.values().filter(|m| id.as_deref().is_none_or(|i| i == m.id)) {
+            let pending = p.rebuild_pending(&addons);
+            for m in addons
+                .values()
+                .filter(|m| id.as_deref().is_none_or(|i| i == m.id))
+            {
                 if m.options.is_empty() {
                     continue;
                 }

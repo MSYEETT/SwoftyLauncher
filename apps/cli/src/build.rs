@@ -47,7 +47,7 @@ pub fn build(store: &Store, profile: &str, game: Option<PathBuf>) -> Result<Exit
 }
 
 fn build_profile(store: &Store, profile: &str, g: &Game) -> Result<swofty_core::build::Built> {
-    let mods = store.mods()?;
+    let addons = store.addons()?;
     let mut p = store.profile(profile)?;
     let mut built = swofty_core::build::build(store, profile, g)?;
     if p.is_vanilla() {
@@ -63,7 +63,7 @@ fn build_profile(store: &Store, profile: &str, g: &Game) -> Result<swofty_core::
     if !built.plan.loader.is_empty() {
         built.plan.loader.insert(SETTINGS_FILE.into(), settings);
     }
-    p.mark_built(&mods);
+    p.mark_built(&addons);
     store.save_profile(&p)?;
     Ok(built)
 }

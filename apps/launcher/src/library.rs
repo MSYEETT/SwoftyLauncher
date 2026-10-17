@@ -1,10 +1,10 @@
-use swofty_core::manifest::{Kind, ModManifest};
+use swofty_core::manifest::{AddonManifest, Kind};
 use swofty_core::map::{MapArt, TrackPackage};
 use swofty_core::profile::{Profile, VANILLA};
 use swofty_core::store::Store;
 
-pub struct ModItem {
-    pub manifest: ModManifest,
+pub struct AddonItem {
+    pub manifest: AddonManifest,
     pub enabled: bool,
 }
 
@@ -16,7 +16,7 @@ pub struct MapItem {
 
 pub struct ProfileItem {
     pub name: String,
-    pub mods: Vec<String>,
+    pub addons: Vec<String>,
     pub maps: Vec<String>,
 }
 
@@ -31,7 +31,7 @@ impl ProfileItem {
         }
         format!(
             "{} · {}",
-            plural(self.mods.len(), "mod", "mods"),
+            plural(self.addons.len(), "mod", "mods"),
             plural(self.maps.len(), "map", "maps")
         )
     }
@@ -40,7 +40,7 @@ impl ProfileItem {
 pub struct Library {
     pub profile: Profile,
     pub rebuild: Vec<String>,
-    pub mods: Vec<ModItem>,
+    pub addons: Vec<AddonItem>,
     pub maps: Vec<MapItem>,
     pub profiles: Vec<ProfileItem>,
     pub error: Option<String>,
@@ -54,19 +54,19 @@ impl Library {
             note(e);
             Profile::vanilla()
         });
-        let manifests = store.mods().unwrap_or_else(|e| {
+        let manifests = store.addons().unwrap_or_else(|e| {
             note(e);
             Default::default()
         });
         let enabled: Vec<&str> = profile.enabled().collect();
-        let mut mods: Vec<ModItem> = manifests
+        let mut addons: Vec<AddonItem> = manifests
             .values()
-            .map(|m| ModItem {
+            .map(|m| AddonItem {
                 enabled: enabled.contains(&m.id.as_str()),
                 manifest: m.clone(),
             })
             .collect();
-        mods.sort_by_key(|m| (!m.manifest.is_builtin(), m.manifest.name.to_lowercase()));
+        addons.sort_by_key(|m| (!m.manifest.is_builtin(), m.manifest.name.to_lowercase()));
         let packages = store.maps().unwrap_or_else(|e| {
             note(e);
             Vec::new()
@@ -78,7 +78,7 @@ impl Library {
             .map(|name| {
                 let p = store.profile(&name).unwrap_or_else(|_| Profile::new(&name));
                 ProfileItem {
-                    mods: p
+                    addons: p
                         .enabled()
                         .filter_map(|id| manifests.get(id))
                         .map(|m| m.name.clone())
@@ -108,15 +108,15 @@ impl Library {
         Self {
             rebuild: profile.rebuild_pending(&manifests),
             profile,
-            mods,
+            addons,
             maps,
             profiles,
             error,
         }
     }
 
-    pub fn enabled_mods(&self) -> usize {
-        self.mods.iter().filter(|m| m.enabled).count()
+    pub fn enabled_addons(&self) -> usize {
+        self.addons.iter().filter(|m| m.enabled).count()
     }
 
     pub fn active(&self) -> Option<&ProfileItem> {
