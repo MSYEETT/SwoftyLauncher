@@ -1,20 +1,15 @@
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Context, Result};
-use sha2::{Digest, Sha256};
 use swofty_core::baseline::Identity;
+use swofty_core::build::GVDB;
 use swofty_core::install::{Game, Installer};
-use swofty_core::ops::{DbOps, apply_db_ops};
-use swofty_core::resolver::resolve;
-use swofty_core::settings::{SETTINGS_FILE, render_ops};
+use swofty_core::settings::SETTINGS_FILE;
 use swofty_core::store::Store;
 use swofty_core::{GAME_EXE, steam};
 use swofty_formats::erp::Erp;
 use swofty_formats::gvdb::Gvdb;
-
-pub const GVDB: &str = "game_package/gamedatabases/gamedatabases.2025.bin";
 pub const UI_ERPS: &[&str] = &[
     "2025_asset_groups/ui_package/flow_frontend.erp",
     "2025_asset_groups/ui_package/persistent.erp",
@@ -45,61 +40,77 @@ fn game_dir(explicit: Option<PathBuf>) -> Result<PathBuf> {
 }
 
 pub fn build(store: &Store, profile: &str, game: Option<PathBuf>) -> Result<ExitCode> {
+    let g = self::game(store, game)?;
+    let built = build_profile(store, profile, &g)?;
+    report(profile, &built);
+    Ok(ExitCode::SUCCESS)
+}
+
+fn build_profile(store: &Store, profile: &str, g: &Game) -> Result<swofty_core::build::Built> {
     let mods = store.mods()?;
     let mut p = store.profile(profile)?;
-    let plan = resolve(&p, &mods)?;
-    println!("profile {profile}: {}", plan.order.join(" -> "));
-    for w in &plan.warnings {
-        println!("warning: {w}");
-    }
-    let mut hasher = Sha256::new();
-    let mut db_ops = Vec::new();
-    for id in &plan.order {
-        let m = &mods[id];
-        hasher.update(format!("{id}@{};", m.version));
-        let dir = store.mods_dir().join(id);
-        for rel in &m.operations.database {
-            let path = dir.join(rel);
-            let mut doc: serde_json::Value =
-                serde_json::from_slice(&std::fs::read(&path).with_context(|| format!("{id}: {rel}"))?)
-                    .with_context(|| format!("{id}: {rel}"))?;
-            render_ops(&mut doc, m, &p).with_context(|| format!("{id}: {rel}"))?;
-            hasher.update(serde_json::to_vec(&doc)?);
-            let ops: DbOps = serde_json::from_value(doc).with_context(|| format!("{id}: {rel}"))?;
-            db_ops.push((id.clone(), ops));
-        }
-        let pending = m.operations.erp.len() + m.operations.ui.len() + m.operations.files.len();
-        if pending > 0 {
-            println!("{id}: {pending} ERP/UI/file operation file(s) skipped; that stage is not built yet");
-        }
-    }
-    let buildhash = format!("{:x}", hasher.finalize())[..16].to_owned();
-    let overlay = store.overlay_dir(profile, &buildhash);
+    let built = swofty_core::build::build(store, profile, g)?;
     if p.is_vanilla() {
-        println!("{profile} plays without mods; nothing to build");
-        return Ok(ExitCode::SUCCESS);
+        return Ok(built);
     }
-    let settings = overlay.join(SETTINGS_FILE);
+    let settings = built.overlay.join(SETTINGS_FILE);
     std::fs::create_dir_all(settings.parent().expect("has parent"))?;
     std::fs::write(
         &settings,
         serde_json::to_vec_pretty(&store.session_settings(profile)?)?,
     )?;
-    println!("overlay {buildhash}: wrote {}", settings.display());
-    if !db_ops.is_empty() {
-        let game = game_dir(game)?;
-        let mut db = Gvdb::parse(&std::fs::read(game.join(GVDB)).context("reading the game database")?)?;
-        let names: BTreeMap<String, Vec<String>> = BTreeMap::new();
-        for (id, ops) in &db_ops {
-            apply_db_ops(&mut db, ops, &names).with_context(|| format!("applying {id}"))?;
-        }
-        let out = overlay.join(GVDB);
-        std::fs::create_dir_all(out.parent().expect("has parent"))?;
-        std::fs::write(&out, db.to_bytes())?;
-        println!("overlay {buildhash}: wrote {}", out.display());
-    }
     p.mark_built(&mods);
     store.save_profile(&p)?;
+    Ok(built)
+}
+
+fn report(profile: &str, built: &swofty_core::build::Built) {
+    if built.plan.is_vanilla() {
+        println!("{profile} plays without mods; nothing to build");
+        return;
+    }
+    println!("profile {profile}: {}", built.order.join(" -> "));
+    for l in &built.lines {
+        println!("{l}");
+    }
+    for w in &built.warnings {
+        println!("warning: {w}");
+    }
+    println!("overlay {}: {}", built.buildhash, built.overlay.display());
+    for rel in built.plan.data.keys() {
+        println!("  replace {rel}");
+    }
+    let added = &built.plan.added;
+    if !added.is_empty() {
+        println!(
+            "  add {} file(s) under {}",
+            added.len(),
+            common_root(added.keys())
+        );
+    }
+}
+
+fn common_root<'a>(paths: impl Iterator<Item = &'a String>) -> String {
+    let mut roots: Vec<&str> = paths.filter_map(|p| p.split('/').next()).collect();
+    roots.sort();
+    roots.dedup();
+    roots.join(", ")
+}
+
+pub fn install(store: &Store, profile: &str, g: &Game) -> Result<()> {
+    let built = build_profile(store, profile, g)?;
+    report(profile, &built);
+    Installer::new(&store.root, g).apply(&built.plan)?;
+    Ok(())
+}
+
+pub fn apply(store: &Store, profile: &str, game: Option<PathBuf>) -> Result<ExitCode> {
+    let g = self::game(store, game)?;
+    install(store, profile, &g)?;
+    println!(
+        "applied {profile} to {}; swofty restore puts the game back",
+        g.dir.display()
+    );
     Ok(ExitCode::SUCCESS)
 }
 

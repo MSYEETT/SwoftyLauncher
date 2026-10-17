@@ -100,6 +100,8 @@ pub struct LaunchRequest {
     pub winedebug: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub apply: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

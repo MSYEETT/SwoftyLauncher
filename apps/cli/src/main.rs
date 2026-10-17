@@ -36,6 +36,13 @@ enum Command {
         #[arg(long, help = "Game folder (default: discovered from Steam)")]
         game: Option<PathBuf>,
     },
+    #[command(
+        about = "Build the profile and install it into the game folder (database, maps); swofty restore undoes it"
+    )]
+    Apply {
+        #[arg(long, help = "Game folder (default: discovered from Steam)")]
+        game: Option<PathBuf>,
+    },
     #[command(about = "Report drift from the baseline and check the game files parse and round-trip")]
     Verify {
         #[arg(long)]
@@ -96,8 +103,20 @@ enum SettingsCommand {
 #[derive(Subcommand)]
 enum MapsCommand {
     List,
-    Import { zip: PathBuf },
-    Remove { code: String },
+    Import {
+        zip: PathBuf,
+    },
+    Remove {
+        code: String,
+    },
+    #[command(about = "Enable an imported map in the profile; swofty apply installs it")]
+    Enable {
+        code: String,
+    },
+    #[command(about = "Disable a map in the profile")]
+    Disable {
+        code: String,
+    },
 }
 
 fn main() -> ExitCode {
@@ -117,10 +136,11 @@ fn dispatch(cli: Cli) -> Result<ExitCode> {
     match cli.command {
         Command::Run(args) => run::run(&store, &profile, args),
         Command::Build { game } => build::build(&store, &profile, game),
+        Command::Apply { game } => build::apply(&store, &profile, game),
         Command::Verify { game } => build::verify(&store, game),
         Command::Restore { game } => build::restore(&store, game),
         Command::Mods(cmd) => mods(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
-        Command::Maps(cmd) => maps(&store, cmd).map(|_| ExitCode::SUCCESS),
+        Command::Maps(cmd) => maps(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Settings(cmd) => settings(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Logs { dir, exe } => run::logs(&store, dir, exe),
         Command::Doctor => doctor::doctor(&store),
@@ -260,15 +280,44 @@ pub(crate) fn report_merge(m: &swofty_core::settings::Merge) {
     }
 }
 
-fn maps(store: &Store, cmd: MapsCommand) -> Result<()> {
+fn set_map(store: &Store, profile: &str, code: &str, on: bool) -> Result<()> {
+    let mut p = store.profile(profile)?;
+    p.set_map(code, on)?;
+    store.save_profile(&p)?;
+    println!(
+        "{} map {code} in profile {profile}",
+        if on { "enabled" } else { "disabled" }
+    );
+    Ok(())
+}
+
+fn maps(store: &Store, profile: &str, cmd: MapsCommand) -> Result<()> {
     match cmd {
         MapsCommand::List => {
+            let p = store.profile(profile)?;
             for m in store.maps()? {
                 let v = m.version.as_deref().unwrap_or("-");
                 let by = m.author_name.as_deref().unwrap_or("-");
-                println!("{:16} {:10} {:28} by {by}", m.track_code, v, m.display_name());
+                let state = if p.maps.contains(&m.track_code) {
+                    "enabled"
+                } else {
+                    "disabled"
+                };
+                println!(
+                    "{:16} {:10} {:28} {state:9} by {by}",
+                    m.track_code,
+                    v,
+                    m.display_name()
+                );
             }
         }
+        MapsCommand::Enable { code } | MapsCommand::Disable { code }
+            if !store.maps()?.iter().any(|m| m.track_code == code) =>
+        {
+            bail!("{code} is not imported; run swofty maps import first")
+        }
+        MapsCommand::Enable { code } => set_map(store, profile, &code, true)?,
+        MapsCommand::Disable { code } => set_map(store, profile, &code, false)?,
         MapsCommand::Import { zip } => {
             let m = store
                 .import_map(&zip)

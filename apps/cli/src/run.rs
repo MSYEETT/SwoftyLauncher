@@ -23,6 +23,11 @@ pub struct RunArgs {
     restart: bool,
     #[arg(long, help = "Launch through Proton directly instead of asking Steam")]
     direct: bool,
+    #[arg(
+        long,
+        help = "Build and install the profile (database, maps) before the game starts, and roll it back when it exits"
+    )]
+    apply: bool,
     #[arg(long, help = "Game folder (default: discovered from Steam)")]
     game: Option<PathBuf>,
     #[arg(
@@ -69,6 +74,7 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
         id: id.clone(),
         winedebug: Some(args.winedebug.clone()),
         profile: Some(profile.into()),
+        apply: args.apply,
     };
     write_json(&store.root.join("state/launch.json"), &request)?;
     launch(store, &game, args.direct)?;
@@ -139,10 +145,40 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs) -> Result<ExitCode> {
         set_affinity(&cpus);
     }
     let game = args.game.clone().unwrap_or(std::env::current_dir()?);
+    let installed = if request.apply || args.apply {
+        let g = crate::build::game(store, Some(game.clone()))?;
+        say("info", &format!("installing profile {profile}"));
+        crate::build::install(store, &profile, &g)?;
+        Some(g)
+    } else {
+        None
+    };
     become_subreaper();
+    let result = run_loop(store, args, &config, &request, &profile, &game);
+    if let Some(g) = installed {
+        match swofty_core::install::Installer::new(&store.root, &g)
+            .apply(&swofty_core::install::Plan::vanilla())
+        {
+            Ok(()) => say("info", "rolled the profile's game files back"),
+            Err(e) => say("info", &format!("rollback failed, run swofty restore: {e:#}")),
+        }
+    }
+    result
+}
+
+fn run_loop(
+    store: &Store,
+    args: &RunArgs,
+    config: &Config,
+    request: &LaunchRequest,
+    profile: &str,
+    game: &Path,
+) -> Result<ExitCode> {
+    let profile = profile.to_owned();
+    let game = game.to_path_buf();
     loop {
         rebuild_if_needed(store, &profile, &game);
-        let code = play(store, args, &config, &request, &game)?;
+        let code = play(store, args, config, request, &game)?;
         let relaunch = match store.merge_requests(&profile, true) {
             Ok(Some(m)) => {
                 for c in &m.changed {
