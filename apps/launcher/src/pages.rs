@@ -65,22 +65,14 @@ fn logo(size: f32) -> Div {
         .child(img(LOGO.clone()).size_full())
 }
 
-pub(crate) fn addon_icon(image: Arc<Image>, size: f32, p: Palette) -> Div {
+pub(crate) fn addon_icon(image: Arc<Image>, size: f32) -> Div {
     div()
         .w(px(size))
         .h(px(size))
         .flex_shrink_0()
         .rounded(px(size * 0.22))
-        .bg(p.accent)
-        .flex()
-        .items_center()
-        .justify_center()
-        .child(
-            div()
-                .w(px(size * 0.6))
-                .h(px(size * 0.6))
-                .child(img(image).size_full()),
-        )
+        .overflow_hidden()
+        .child(img(image).size_full())
 }
 
 pub(crate) fn monogram(text: &str, size: f32, p: Palette) -> Div {
@@ -440,7 +432,7 @@ impl Shell {
             .row_head(format!("addon-{id}"), open, p)
             .child(match &m.icon {
                 _ if builtin => logo(32.),
-                Some(icon) => addon_icon(icon.clone(), 32., p),
+                Some(icon) => addon_icon(icon.clone(), 32.),
                 None => badge(IconName::Package, 32., p),
             })
             .child(

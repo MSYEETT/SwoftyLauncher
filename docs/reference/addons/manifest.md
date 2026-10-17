@@ -29,7 +29,7 @@ Start with [the addon template](/reference/addons/template).
 | `name`, `author` | Display name and author |
 | `version` | Version such as `1.0.0` |
 | `description`, `license`, `homepage` | Optional description, licence identifier and link |
-| `icon` | Optional image in the addon folder (`.svg`, `.png`, `.jpg` or `.webp`), shown on the Addons page and above the addon's sections in the sidebar |
+| `icon` | Optional square image in the addon folder (`.png`, `.svg`, `.jpg` or `.webp`), shown on the Addons page and on the addon's pages in the sidebar |
 | `kind` | Optional categories: `database`, `erp`, `ui`, `files`, `native` |
 | `compat` | Game and version requirements |
 | `requires` | Required addons, as `[{"id": "swofty.core", "version": ">=0.1.0"}]` |

@@ -17,7 +17,12 @@ pub struct AddonItem {
 
 fn addon_icon(store: &Store, registry: &Registry, m: &AddonManifest) -> Option<Arc<Image>> {
     if let Some(bytes) = registry.get(&m.id).and_then(|e| e.addon.icon()) {
-        return Some(Arc::new(Image::from_bytes(ImageFormat::Svg, bytes.to_vec())));
+        let format = if bytes.starts_with(b"\x89PNG") {
+            ImageFormat::Png
+        } else {
+            ImageFormat::Svg
+        };
+        return Some(Arc::new(Image::from_bytes(format, bytes.to_vec())));
     }
     let path = store.addons_dir().join(&m.id).join(m.icon.as_ref()?);
     let format = match path.extension()?.to_str()?.to_ascii_lowercase().as_str() {
@@ -91,7 +96,13 @@ impl Library {
                 manifest: m.clone(),
             })
             .collect();
-        addons.sort_by_key(|m| (!m.manifest.is_builtin(), m.manifest.name.to_lowercase()));
+        addons.sort_by_key(|m| {
+            (
+                !m.manifest.is_builtin(),
+                !m.locked,
+                m.manifest.name.to_lowercase(),
+            )
+        });
         let profiles = store
             .profile_names()
             .unwrap_or_default()

@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use gpui_kit::assets::IconName;
@@ -575,25 +576,28 @@ impl Shell {
         &self,
         page: Page,
         title: SharedString,
-        icon: IconName,
+        art: TileArt,
         count: Option<usize>,
         p: Palette,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let active = self.page == page;
-        h_flex()
+        v_flex()
             .id(SharedString::from(format!("nav-{title}")))
-            .h(px(46.))
-            .px(px(8.))
-            .gap(px(10.))
-            .rounded(px(8.))
+            .relative()
+            .w(px(95.))
+            .h(px(92.))
+            .items_center()
+            .justify_center()
+            .gap(px(8.))
+            .rounded(px(10.))
             .border_1()
             .cursor_pointer()
             .text_size(px(13.))
             .font_weight(FontWeight::MEDIUM)
             .map(|d| {
                 if active {
-                    d.bg(p.selected).border_color(p.border).text_color(p.text)
+                    d.bg(p.selected).border_color(p.accent).text_color(p.text)
                 } else {
                     d.bg(p.surface)
                         .border_color(p.border_variant)
@@ -601,25 +605,28 @@ impl Shell {
                         .hover(move |s| s.bg(p.hover).border_color(p.border).text_color(p.text))
                 }
             })
-            .child(
-                div()
-                    .size(px(30.))
-                    .flex_shrink_0()
+            .child(match art {
+                TileArt::Image(image) => addon_icon(image, 40.),
+                TileArt::Icon(icon) => div()
+                    .size(px(40.))
                     .flex()
                     .items_center()
                     .justify_center()
-                    .rounded(px(7.))
+                    .rounded(px(10.))
                     .bg(if active { p.accent } else { p.hover })
-                    .child(Icon::new(icon).size(px(16.)).text_color(if active {
+                    .child(Icon::new(icon).size(px(20.)).text_color(if active {
                         p.on_accent
                     } else {
                         p.text_muted
                     })),
-            )
-            .child(div().flex_1().truncate().child(title))
+            })
+            .child(div().max_w_full().px(px(6.)).truncate().child(title))
             .children(count.map(|n| {
                 div()
-                    .text_size(px(12.))
+                    .absolute()
+                    .top(px(6.))
+                    .right(px(8.))
+                    .text_size(px(11.))
                     .text_color(p.text_placeholder)
                     .child(n.to_string())
             }))
@@ -661,38 +668,40 @@ impl Shell {
     }
 
     fn core_nav(&self, page: Page, count: usize, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        self.nav_item(page, page.label().into(), page.icon(), Some(count), p, cx)
+        self.nav_item(
+            page,
+            page.label().into(),
+            TileArt::Icon(page.icon()),
+            Some(count),
+            p,
+            cx,
+        )
     }
 
     fn sidebar(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let root = self.store.root.clone();
-        let mut sections: Vec<AnyElement> = Vec::new();
+        let tiles = || h_flex().flex_wrap().gap(px(8.));
+        let mut groups: Vec<(String, Vec<AnyElement>)> = Vec::new();
         for (i, s) in self.library.sections.iter().enumerate() {
+            let addon = self.library.addons.iter().find(|a| a.manifest.id == s.addon);
             if i == 0 || self.library.sections[i - 1].addon != s.addon {
-                let addon = self.library.addons.iter().find(|a| a.manifest.id == s.addon);
                 let name = addon.map_or_else(|| s.addon.clone(), |a| a.manifest.name.clone());
-                sections.push(
-                    h_flex()
-                        .gap(px(6.))
-                        .px(px(4.))
-                        .pt(px(10.))
-                        .pb(px(2.))
-                        .children(addon.and_then(|a| a.icon.clone()).map(|i| addon_icon(i, 16., p)))
-                        .child(label(name.to_uppercase(), p))
-                        .into_any_element(),
-                );
+                groups.push((name, Vec::new()));
             }
-            sections.push(
-                self.nav_item(
-                    Page::Section(i),
-                    s.spec.title.clone().into(),
-                    crate::sections::icon(s.spec.icon),
-                    self.section_count(i),
-                    p,
-                    cx,
-                )
-                .into_any_element(),
+            let tile = self.nav_item(
+                Page::Section(i),
+                s.spec.title.clone().into(),
+                addon.and_then(|a| a.icon.clone()).map_or_else(
+                    || TileArt::Icon(crate::sections::icon(s.spec.icon)),
+                    TileArt::Image,
+                ),
+                self.section_count(i),
+                p,
+                cx,
             );
+            if let Some((_, items)) = groups.last_mut() {
+                items.push(tile.into_any_element());
+            }
         }
         v_flex()
             .w(px(220.))
@@ -700,14 +709,23 @@ impl Shell {
             .flex_shrink_0()
             .px(px(10.))
             .pb(px(10.))
-            .gap(px(6.))
+            .gap(px(8.))
             .bg(p.chrome)
             .border_r_1()
             .border_color(p.border_variant)
             .pt(px(12.))
-            .child(self.core_nav(Page::Profiles, self.library.profiles.len(), p, cx))
-            .child(self.core_nav(Page::Addons, self.library.addons.len(), p, cx))
-            .children(sections)
+            .child(
+                tiles()
+                    .child(self.core_nav(Page::Profiles, self.library.profiles.len(), p, cx))
+                    .child(self.core_nav(Page::Addons, self.library.addons.len(), p, cx)),
+            )
+            .children(groups.into_iter().map(|(name, items)| {
+                v_flex()
+                    .gap(px(6.))
+                    .pt(px(6.))
+                    .child(label(name.to_uppercase(), p).px(px(4.)))
+                    .child(tiles().children(items))
+            }))
             .child(div().flex_1())
             .child(self.active_profile_card(p, cx))
             .child(
@@ -733,6 +751,11 @@ impl Shell {
                     .on_click(move |_, _, cx| cx.open_with_system(&root)),
             )
     }
+}
+
+enum TileArt {
+    Icon(IconName),
+    Image(Arc<Image>),
 }
 
 impl Render for Shell {

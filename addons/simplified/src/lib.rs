@@ -478,7 +478,7 @@ impl Addon for Simplified {
     }
 
     fn icon(&self) -> Option<&'static [u8]> {
-        Some(include_bytes!("../icon.svg"))
+        Some(include_bytes!("../icon.png"))
     }
 
     fn sections(&self) -> Vec<SectionSpec> {
