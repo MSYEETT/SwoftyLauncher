@@ -221,6 +221,10 @@ impl Shell {
         let Some(install) = self.install.clone() else {
             return;
         };
+        if !swofty_core::offline::is_accepted(&self.store.root) {
+            self.confirm_offline_play(window, cx);
+            return;
+        }
         self.notice = None;
         self.dismissed = self.session.as_ref().map(|s| s.dir.clone());
         match Launch::start(&self.store, &self.library.profile.name, &install) {
@@ -228,6 +232,35 @@ impl Shell {
             Err(e) => window.push_notification(Notification::error(e).title("Could not launch F1 25"), cx),
         }
         cx.notify();
+    }
+
+    /// First launch: the offline play terms, shown as a dialog on Play.
+    /// Accepting records consent and launches; declining changes nothing.
+    pub(crate) fn confirm_offline_play(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let shell = cx.entity().downgrade();
+        let store = self.store.clone();
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let (shell, store) = (shell.clone(), store.clone());
+            alert
+                .width(px(560.))
+                .title("Modded play runs offline")
+                .description(format!(
+                    "{}\n\nThe component is downloaded automatically from {} and verified \
+                     against pinned SHA-256 digests before it is used.",
+                    swofty_core::offline::DISCLOSURE,
+                    swofty_core::offline::base_url(),
+                ))
+                .ok_text("Accept and launch")
+                .show_cancel(true)
+                .on_ok(move |_, window, cx| {
+                    if let Err(e) = swofty_core::offline::record_accept(&store.root) {
+                        window.push_notification(Notification::error(e.to_string()), cx);
+                        return false;
+                    }
+                    shell.update(cx, |s, cx| s.play(window, cx)).ok();
+                    true
+                })
+        });
     }
 
     pub(crate) fn confirm_stop(&mut self, window: &mut Window, cx: &mut Context<Self>) {
