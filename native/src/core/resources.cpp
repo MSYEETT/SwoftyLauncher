@@ -19,6 +19,7 @@ const runtime::Sig S_SITE{"site_Asset_ResMap_AfterFindOrCreate", "4C 8B BC 24 80
 constexpr uint32_t ERPK = 0x4b505245;
 constexpr uint8_t STORED = 0x91, ZSTD = 0x11;
 constexpr int ZSTD_LEVEL = 3;
+constexpr DWORD OVERLAY_LOG_MS = 5000;
 constexpr size_t MAX_LOGS = 16, MAX_URI = 1023, MAX_TYPE = 15, MAX_FRAGS = 255, MIN_PACK = 64;
 
 struct Frag {
@@ -54,6 +55,11 @@ struct Res {
     uint8_t digest[16] = {};
 };
 
+struct Prebuilt {
+    std::string file;
+    std::vector<std::string> erps;
+};
+
 struct Watch {
     std::string uri;
     uint64_t id;
@@ -62,6 +68,7 @@ struct Watch {
 };
 
 std::vector<Res> declared;
+std::vector<Prebuilt> prebuilt;
 std::set<std::string> want_types;
 std::map<std::string, std::set<std::string>> layouts;
 runtime::Overlay overlay;
@@ -302,6 +309,14 @@ void read_config()
                     r.uri.c_str(), i, declared[it->second].entry);
         declared[it->second] = std::move(r);
     }
+    for (auto &j : runtime::config()["resource_erps"].a) {
+        Prebuilt p;
+        p.file = runtime::lower(j["file"].str());
+        for (auto &x : j["erps"].a)
+            if (x.type == json::Value::Str)
+                p.erps.push_back(runtime::lower(x.s));
+        prebuilt.push_back(std::move(p));
+    }
 }
 
 void lookup_stock()
@@ -330,23 +345,33 @@ void lookup_stock()
         } else if (r.conflict.empty() && !same_layout(r.stock, s))
             r.conflict = erp + " has " + describe(s) + ", " + r.stock.erp + " has " + describe(r.stock);
     };
+    struct Index {
+        bool readable = false;
+        std::unordered_map<std::string, StockRes> by_uri;
+    };
+    std::map<std::string, Index> indexes;
     for (auto &r : declared) {
         if (!r.ok || !r.explicit_erps)
             continue;
         for (auto &erp : r.erps) {
-            std::string idx;
-            uint16_t ver = 0;
-            bool listed = false;
-            if (read_index(game_path(erp), idx, ver))
-                each_entry(idx, ver, [&](std::string_view uri, const StockRes &s) {
-                    learn(s);
-                    if (uri != r.uri)
-                        return;
-                    listed = true;
-                    note(r, s, erp);
-                });
-            if (!listed)
-                r.unlisted.push_back(erp + (idx.empty() ? " (not a readable loose ERP)" : ""));
+            auto it = indexes.find(erp);
+            if (it == indexes.end()) {
+                it = indexes.emplace(erp, Index{}).first;
+                std::string idx;
+                uint16_t ver = 0;
+                if (read_index(game_path(erp), idx, ver)) {
+                    it->second.readable = true;
+                    each_entry(idx, ver, [&](std::string_view uri, const StockRes &s) {
+                        learn(s);
+                        it->second.by_uri.emplace(uri, s);
+                    });
+                }
+            }
+            auto hit = it->second.by_uri.find(r.uri);
+            if (hit != it->second.by_uri.end())
+                note(r, hit->second, erp);
+            else
+                r.unlisted.push_back(erp + (it->second.readable ? "" : " (not a readable loose ERP)"));
         }
     }
     for (auto &[pkg, list] : by_package) {
@@ -621,7 +646,103 @@ void clean_cache(const std::wstring &dir, const std::set<std::string> &keep)
                     removed, busy);
 }
 
+void watch(const std::string &uri, bool added)
+{
+    auto w = std::make_unique<Watch>();
+    w->uri = uri;
+    uint8_t d[16];
+    runtime::md5(uri.data(), uri.size(), d);
+    w->id = 0;
+    for (int i = 0; i < 8; i++)
+        w->id = w->id << 8 | d[i];
+    w->added = added;
+    watches[runtime::fnv64(uri)] = std::move(w);
+}
+
+void load_prebuilt()
+{
+    DWORD t0 = GetTickCount();
+    std::string root = runtime::lower(runtime::narrow(runtime::game_root())),
+                sw = runtime::lower(runtime::narrow(runtime::swofty_root()));
+    if (sw.rfind(root, 0) != 0) {
+        swofty::log("[assets] resources: the swofty folder %s is not under the game root %s; %zu prebuilt overlay ERP(s) "
+                    "NOT loaded, their target ERPs load stock data",
+                    sw.c_str(), root.c_str(), prebuilt.size());
+        return;
+    }
+    std::map<std::string, std::unordered_set<std::string>> stock;
+    size_t loaded = 0;
+    for (auto &p : prebuilt) {
+        std::wstring file = runtime::under_swofty(p.file);
+        std::string idx, why;
+        uint16_t ver = 0;
+        uint64_t size = 0;
+        std::vector<std::string> uris;
+        if (p.file.empty() || p.erps.empty())
+            why = "it needs \"file\" and \"erps\"";
+        else if (!runtime::file_size(file, &size) || !read_index(file, idx, ver))
+            why = "the file is missing or not an ERP";
+        else if (!each_entry(idx, ver, [&](std::string_view uri, const StockRes &) { uris.emplace_back(uri); }))
+            why = "its index (version " + std::to_string(ver) + ") does not parse";
+        else if (uris.empty())
+            why = "it holds no resource";
+        if (!why.empty()) {
+            swofty::log("[assets] resources: prebuilt overlay ERP %s NOT loaded: %s; its %zu target ERP(s) load stock data",
+                        p.file.c_str(), why.c_str(), p.erps.size());
+            continue;
+        }
+        size_t replaced = 0;
+        for (auto &t : p.erps)
+            if (!stock.count(t)) {
+                auto &set = stock[t];
+                std::string tidx;
+                uint16_t tver = 0;
+                if (read_index(game_path(t), tidx, tver))
+                    each_entry(tidx, tver, [&](std::string_view uri, const StockRes &) { set.emplace(uri); });
+            }
+        for (auto &u : uris) {
+            bool in_stock = false;
+            for (auto &t : p.erps)
+                in_stock = in_stock || stock[t].count(u);
+            if (in_stock)
+                replaced++;
+            watch(u, !in_stock);
+        }
+        overlay.replaced += replaced;
+        overlay.added += uris.size() - replaced;
+        runtime::OverlayErp e;
+        e.path = sw.substr(root.size()) + p.file;
+        e.size = size;
+        e.resources = uris.size();
+        e.targets = p.erps;
+        std::string tl;
+        for (auto &t : p.erps)
+            if (tl.size() < 400)
+                tl += (tl.empty() ? "" : ", ") + t;
+        swofty::log("[assets] resources: overlay ERP %s prebuilt by the launcher (%llu bytes, %zu resource(s): %zu replaced, "
+                    "%zu added) for %zu target ERP(s): %s",
+                    e.path.c_str(), (unsigned long long)size, uris.size(), replaced, uris.size() - replaced,
+                    p.erps.size(), tl.c_str());
+        overlay.erps.push_back(std::move(e));
+        loaded++;
+    }
+    if (loaded)
+        overlay_ok = true;
+    swofty::log("[assets] resources: %zu of %zu prebuilt overlay ERP(s) loaded in %lu ms", loaded, prebuilt.size(),
+                (unsigned long)(GetTickCount() - t0));
+}
+
+void build_declared();
+
 void build_overlays()
+{
+    if (!prebuilt.empty())
+        load_prebuilt();
+    if (!declared.empty())
+        build_declared();
+}
+
+void build_declared()
 {
     DWORD t0 = GetTickCount();
     lookup_stock();
@@ -702,17 +823,8 @@ void build_overlays()
     if (overlay.erps.empty())
         return;
     overlay_ok = true;
-    for (auto *r : good) {
-        auto w = std::make_unique<Watch>();
-        w->uri = r->uri;
-        uint8_t d[16];
-        runtime::md5(r->uri.data(), r->uri.size(), d);
-        w->id = 0;
-        for (int i = 0; i < 8; i++)
-            w->id = w->id << 8 | d[i];
-        w->added = r->added;
-        watches[runtime::fnv64(r->uri)] = std::move(w);
-    }
+    for (auto *r : good)
+        watch(r->uri, r->added);
     for (auto *r : good)
         for (auto &f : r->frags)
             std::string().swap(f.packed);
@@ -781,11 +893,16 @@ namespace runtime {
 
 const Overlay *resource_overlay(DWORD wait_ms)
 {
-    if (declared.empty())
+    if (declared.empty() && prebuilt.empty())
         return nullptr;
-    if (built_event) {
-        DWORD t0 = GetTickCount();
-        if (WaitForSingleObject(built_event, wait_ms) != WAIT_OBJECT_0) {
+    if (built_event && wait_ms) {
+        DWORD t0 = GetTickCount(), r;
+        while ((r = WaitForSingleObject(built_event, std::min<DWORD>(OVERLAY_LOG_MS, wait_ms))) == WAIT_TIMEOUT &&
+               GetTickCount() - t0 < wait_ms)
+            swofty::log("[assets] resources: the overlay build is still running after %lu ms; the manifest parse waits "
+                        "for it (no lock held while waiting)",
+                        (unsigned long)(GetTickCount() - t0));
+        if (r != WAIT_OBJECT_0) {
             overlay_dropped("the overlay build was still running after " + std::to_string(GetTickCount() - t0) +
                             " ms (the wait holds no lock)");
             return nullptr;
@@ -793,8 +910,12 @@ const Overlay *resource_overlay(DWORD wait_ms)
         if (GetTickCount() - t0 > 20)
             swofty::log("[assets] resources: waited %lu ms for the overlay build (no lock held while waiting)",
                         (unsigned long)(GetTickCount() - t0));
-    } else
+    } else {
+        DWORD t0 = GetTickCount();
         std::call_once(build_once, build);
+        if (GetTickCount() - t0 > 20)
+            swofty::log("[assets] resources: built the overlay on this thread in %lu ms", (unsigned long)(GetTickCount() - t0));
+    }
     if (!overlay_ok) {
         overlay_dropped("the overlay build produced no ERP");
         return nullptr;
@@ -825,9 +946,12 @@ void overlay_registered(const std::vector<uint64_t> &erp_hashes, size_t groups)
 SWOFTY_ON_LOAD
 {
     read_config();
-    if (declared.empty())
+    if (declared.empty() && prebuilt.empty())
         return;
-    swofty::log("[assets] resources: %zu declared in %s", declared.size(), runtime::config_source().c_str());
+    if (!declared.empty())
+        swofty::log("[assets] resources: %zu declared in %s", declared.size(), runtime::config_source().c_str());
+    if (!prebuilt.empty())
+        swofty::log("[assets] resources: %zu prebuilt overlay ERP(s) in %s", prebuilt.size(), runtime::config_source().c_str());
     const json::Value &tr = runtime::config()["resources_trace"];
     trace_on = tr.type == json::Value::Bool && tr.b;
     built_event = CreateEventW(nullptr, TRUE, FALSE, nullptr);

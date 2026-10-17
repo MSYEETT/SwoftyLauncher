@@ -481,7 +481,7 @@ Routing per kind:
 
 Both routes of a kind compute the same result:
 
-- `erp`: `ErpBuild` produces each changed resource. The build route writes the whole archive, keeping unchanged resources as byte copies (`ErpFile::write`). The runtime route writes the changed resources' fragments under `swofty/assets/resources/` and lists them in `resources`.
+- `erp`: `ErpBuild` produces each changed resource. The build route writes the whole archive, keeping unchanged resources as byte copies (`ErpFile::write`). The runtime route writes the changed resources as overlay archives under `swofty/assets/resources/`, one per set of target archives, and lists them in `resource_erps`. It leaves out a replacement whose type, argument or fragment layout differs from the stock resource. The core registers the overlay archives in the manifest without rebuilding them.
 - `db`: the planner builds the database. The build route writes the file. The runtime route writes the records that differ from the database after map activation as `db_edits` by hash, with their tag and text, and sets `early_stage`. Map activation stays in the file. On both routes, `owned.rs` finds the `unlockable_se_livery` rows the built database has and stock lacks, whichever op added them, and writes their keys to `owned_items` in `swofty/settings.json`.
 - `file`: the build route installs into the game folder through the journal. The runtime route copies under `swofty/overlay/` and sets `overlay`.
 - `lang`: the runtime route writes one partial table per language under `swofty/assets/lang/` and lists it as `lang.<code>.table`. `*` writes `all.lng`, which applies to every language.
@@ -495,7 +495,7 @@ Both routes of a kind compute the same result:
 
 A feature becomes `stable` in the native code once its runtime test passes and a verifier agrees, under `re/PROTOCOL.md`. The launcher needs no change for it. A loader without `features.json` has no runtime features.
 
-`swofty/assets.json` uses the prototype's schema (`early_stage`, `asset_groups`, `resources`, `db_edits`, `lang`, `overlay`), plus `features` for the experimental features the profile turned on and an `origin` on each asset group for the log.
+`swofty/assets.json` uses the prototype's schema (`early_stage`, `asset_groups`, `resources`, `db_edits`, `lang`, `overlay`), plus `resource_erps` for overlay archives the launcher built, `features` for the experimental features the profile turned on and an `origin` on each asset group for the log.
 
 ### 3.5 Order and conflicts
 

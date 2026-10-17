@@ -468,7 +468,8 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             }
         }
         if planner.route(Kind::Erp) == Route::Runtime {
-            runtime.resources(erps.resources(), &built.overlay)?;
+            let notes = runtime.resources(erps.resources(), &built.overlay)?;
+            built.warnings.extend(notes);
         } else {
             for rel in erps.write(&built.overlay)? {
                 let src = built.overlay.join(&rel);

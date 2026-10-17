@@ -51,7 +51,7 @@ const Target T_REHASH_DEPS{"Asset_Rehash_DepMap", "4C 89 C2 E8 ?? ?? ?? ?? 48 83
 constexpr size_t M_GROUPS = 0x10, M_ERPS = 0x58, M_DEPMAP = 0x78, M_DEPS = 0xc0, M_SEG_ALLOC = 0x1b8, M_SEGS = 0x1c0,
                  M_TOKENS = 0x1d0, M_NAMES = 0x1f8, M_SIZE = 0x240;
 constexpr uint32_t SEG_LIMIT = 0x4000, TOKEN_LIMIT = 0x1000000;
-constexpr DWORD OVERLAY_WAIT_MS = 15000;
+constexpr DWORD OVERLAY_WAIT_MS = 600000;
 constexpr const char *PROBE_GROUP = "asset_groups/ego_package/application.assetgroup";
 constexpr const char *STOCK_CODES[] = {"bahrain", "melbourne", "silverstone", "monaco"};
 
@@ -1224,7 +1224,8 @@ SWOFTY_ON_LOAD
     base = swofty::api->module_base();
     game_root = module_dir(nullptr);
     bool groups = load_config();
-    bool resources = !runtime::config()["resources"].a.empty() && runtime::enabled("erp", nullptr);
+    bool resources = (!runtime::config()["resources"].a.empty() || !runtime::config()["resource_erps"].a.empty()) &&
+                     runtime::enabled("erp", nullptr);
     if (!groups && !resources)
         return;
     swofty::log("[assets] %s: %zu declared group(s), %zu auto prefix(es); game root %s",

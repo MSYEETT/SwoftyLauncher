@@ -1,8 +1,8 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
-use swofty_formats::erp::Resource;
+use swofty_formats::erp::{Erp, Resource};
 use swofty_formats::gvdb::Gvdb;
 use swofty_formats::lng::Lng;
 
@@ -26,7 +26,7 @@ pub struct Assets {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub asset_groups: Vec<Group>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub resources: Vec<Res>,
+    pub resource_erps: Vec<ResErp>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub db_edits: Vec<DbEdit>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
@@ -48,21 +48,9 @@ pub struct Group {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct Res {
-    pub uri: String,
-    #[serde(rename = "type")]
-    pub kind: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub arg: Option<u32>,
-    pub fragments: Vec<Fragment>,
-    pub erps: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct Fragment {
+pub struct ResErp {
     pub file: String,
-    pub fourcc: String,
-    pub flags: u32,
+    pub erps: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -83,8 +71,56 @@ pub struct LangTable {
 #[derive(Debug, Default)]
 pub struct Runtime {
     pub assets: Assets,
+    resources: usize,
     pub files: BTreeMap<String, PathBuf>,
     tables: BTreeMap<String, Lng>,
+}
+
+fn layout_change(res: &Resource, erp: &Erp) -> Option<String> {
+    let arg = if erp.version >= 4 { 6 } else { 4 };
+    if res.unk.len() != arg {
+        return Some(format!(
+            "it has {} argument byte(s), a version {} archive uses {arg}",
+            res.unk.len(),
+            erp.version
+        ));
+    }
+    let stock = erp.resources.iter().find(|s| s.name == res.name)?;
+    if stock.kind != res.kind {
+        return Some(format!(
+            "type {} differs from the stock {}",
+            res.kind(),
+            stock.kind()
+        ));
+    }
+    if stock.unk != res.unk {
+        return Some("its create argument differs from the stock one".into());
+    }
+    if stock.fragments.len() != res.fragments.len() {
+        return Some(format!(
+            "it has {} fragment(s), the stock entry {}",
+            res.fragments.len(),
+            stock.fragments.len()
+        ));
+    }
+    for (i, (f, s)) in res.fragments.iter().zip(&stock.fragments).enumerate() {
+        if f.name != s.name || f.flags != s.flags {
+            return Some(format!(
+                "fragment {i} is '{}' flags {:#x}, the stock one '{}' flags {:#x}",
+                f.name(),
+                f.flags,
+                s.name(),
+                s.flags
+            ));
+        }
+        if f.size != s.size {
+            return Some(format!(
+                "fragment {i} is {} bytes, the stock one {}; stock archives that bind to the replacement read it with the stock layout",
+                f.size, s.size
+            ));
+        }
+    }
+    None
 }
 
 fn lang_file(language: &str) -> String {
@@ -196,37 +232,51 @@ impl Runtime {
 
     pub fn resources<'r>(
         &mut self,
-        resources: impl IntoIterator<Item = (&'r str, &'r Resource)>,
+        resources: impl IntoIterator<Item = (&'r str, &'r Resource, &'r Erp)>,
         out: &Path,
-    ) -> Result<()> {
-        for (erp, res) in resources {
-            let n = self.assets.resources.len();
-            let mut fragments = Vec::new();
-            for (i, f) in res.fragments.iter().enumerate() {
-                let rel = format!("{RESOURCES_DIR}/{n}.{i}.bin");
-                let path = out.join(SWOFTY).join(&rel);
-                let dir = path.parent().expect("has parent");
-                std::fs::create_dir_all(dir).map_err(io_err(dir))?;
-                std::fs::write(&path, f.data()?).map_err(io_err(&path))?;
-                self.place(rel.clone(), path)?;
-                fragments.push(Fragment {
-                    file: rel,
-                    fourcc: f.name(),
-                    flags: f.flags,
-                });
+    ) -> Result<Vec<String>> {
+        let stale = out.join(SWOFTY).join(RESOURCES_DIR);
+        if stale.is_dir() {
+            std::fs::remove_dir_all(&stale).map_err(io_err(&stale))?;
+        }
+        let mut warnings = Vec::new();
+        let mut by_uri: BTreeMap<&str, (&Resource, &Erp, BTreeSet<&str>)> = BTreeMap::new();
+        for (erp, res, stock) in resources {
+            if let Some(why) = layout_change(res, stock) {
+                warnings.push(format!("runtime: {} in {erp} is left out: {why}", res.name));
+                continue;
             }
-            self.assets.resources.push(Res {
-                uri: res.name.clone(),
-                kind: res.kind(),
-                arg: res
-                    .unk
-                    .get(..4)
-                    .map(|b| u32::from_le_bytes(b.try_into().expect("four bytes"))),
-                fragments,
-                erps: vec![erp.to_owned()],
+            let e = by_uri.entry(&res.name).or_insert((res, stock, BTreeSet::new()));
+            e.0 = res;
+            e.1 = stock;
+            e.2.insert(erp);
+        }
+        let mut sets: BTreeMap<Vec<&str>, (Vec<Resource>, &Erp)> = BTreeMap::new();
+        for (res, stock, erps) in by_uri.into_values() {
+            let set = sets
+                .entry(erps.into_iter().collect())
+                .or_insert((Vec::new(), stock));
+            set.0.push(res.clone());
+        }
+        for (n, (targets, (resources, stock))) in sets.into_iter().enumerate() {
+            let rel = format!("{RESOURCES_DIR}/{n}.erp");
+            let path = out.join(SWOFTY).join(&rel);
+            let dir = path.parent().expect("has parent");
+            std::fs::create_dir_all(dir).map_err(io_err(dir))?;
+            self.resources += resources.len();
+            let mut erp = Erp {
+                header: stock.header,
+                version: stock.version,
+                resources,
+            };
+            std::fs::write(&path, erp.to_bytes()).map_err(io_err(&path))?;
+            self.place(rel.clone(), path)?;
+            self.assets.resource_erps.push(ResErp {
+                file: rel,
+                erps: targets.into_iter().map(str::to_owned).collect(),
             });
         }
-        Ok(())
+        Ok(warnings)
     }
 
     pub fn db(&mut self, edits: Vec<DbEdit>) {
@@ -244,7 +294,7 @@ impl Runtime {
         format!(
             "runtime: {ASSETS_FILE} with {} asset group(s), {} resource(s), {} database edit(s), {} language table(s), {overlay} overlay file(s)",
             a.asset_groups.len(),
-            a.resources.len(),
+            self.resources,
             a.db_edits.len(),
             a.lang.len(),
         )
@@ -344,16 +394,59 @@ mod tests {
         }
         let mut kind = [0; 16];
         kind[..13].copy_from_slice(b"GfxSurfaceRes");
-        let res = Resource {
-            name: "eaid://ui_package/x.tif.image".into(),
+        let res = |name: &str, fragments: Vec<ErpFragment>| Resource {
+            name: name.into(),
             kind,
             unk: 1u32.to_le_bytes().to_vec(),
-            fragments: vec![fragment(b"temp", 16, b"HEAD"), fragment(b"pixl", 0, b"PIXELS")],
+            fragments,
             hash: [0; 16],
         };
+        let x = "eaid://ui_package/x.tif.image";
+        let y = "eaid://ui_package/y.tif.image";
+        let z = "eaid://ui_package/z.tif.image";
+        let mut header = [0; 0x30];
+        header[..4].copy_from_slice(b"ERPK");
+        header[4] = 3;
+        let stock = Erp {
+            header,
+            version: 3,
+            resources: vec![
+                res(
+                    x,
+                    vec![fragment(b"temp", 16, b"HEAD"), fragment(b"pixl", 0, b"STOCK!")],
+                ),
+                res(y, vec![fragment(b"temp", 16, b"ABCD")]),
+            ],
+        };
+        let replaced = res(
+            x,
+            vec![fragment(b"temp", 16, b"HEAD"), fragment(b"pixl", 0, b"PIXELS")],
+        );
+        let resized = res(y, vec![fragment(b"temp", 16, b"ABCDE")]);
+        let added = res(z, vec![fragment(b"temp", 16, b"NEW")]);
+        let boot = "2025_asset_groups/ui_package/boot.erp";
+        let other = "2025_asset_groups/ui_package/other.erp";
         let out = dir.join("overlay");
-        rt.resources([("2025_asset_groups/ui_package/boot.erp", &res)], &out)
+        let stale = out.join("swofty/assets/resources/0.0.bin");
+        std::fs::create_dir_all(stale.parent().unwrap()).unwrap();
+        std::fs::write(&stale, b"old").unwrap();
+        let warnings = rt
+            .resources(
+                [
+                    (boot, &replaced, &stock),
+                    (other, &replaced, &stock),
+                    (boot, &resized, &stock),
+                    (boot, &added, &stock),
+                ],
+                &out,
+            )
             .unwrap();
+        assert_eq!(
+            warnings,
+            [format!(
+                "runtime: {y} in {boot} is left out: fragment 0 is 5 bytes, the stock one 4; stock archives that bind to the replacement read it with the stock layout"
+            )]
+        );
         let mut base = Gvdb::default();
         base.records.push(Record::new("a.int", 0, "1"));
         let mut built = base.clone();
@@ -375,16 +468,10 @@ mod tests {
                     "deps": ["asset_groups/z.assetgroup"],
                     "origin": "a",
                 }],
-                "resources": [{
-                    "uri": "eaid://ui_package/x.tif.image",
-                    "type": "GfxSurfaceRes",
-                    "arg": 1,
-                    "fragments": [
-                        { "file": "assets/resources/0.0.bin", "fourcc": "temp", "flags": 16 },
-                        { "file": "assets/resources/0.1.bin", "fourcc": "pixl", "flags": 0 },
-                    ],
-                    "erps": ["2025_asset_groups/ui_package/boot.erp"],
-                }],
+                "resource_erps": [
+                    { "file": "assets/resources/0.erp", "erps": [boot] },
+                    { "file": "assets/resources/1.erp", "erps": [boot, other] },
+                ],
                 "db_edits": [
                     { "hash": hash("a.int"), "type": 0, "value": "2" },
                     { "hash": hash("a.new"), "type": 2, "value": "hello" },
@@ -399,10 +486,28 @@ mod tests {
         let eng = Lng::parse(&std::fs::read(out.join("swofty/assets/lang/eng.lng")).unwrap()).unwrap();
         assert_eq!(eng.get("lng_a"), Some("from set"));
         assert_eq!(eng.get("lng_b"), Some("kept"));
+        let names = |n: u32| {
+            let erp =
+                Erp::parse(&std::fs::read(out.join(format!("swofty/assets/resources/{n}.erp"))).unwrap())
+                    .unwrap();
+            assert_eq!((&erp.header[..8], erp.version), (&header[..8], 3));
+            erp.resources
+                .iter()
+                .map(|r| {
+                    (
+                        r.name.clone(),
+                        r.fragments.iter().map(|f| f.data().unwrap()).collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(names(0), [(z.to_owned(), vec![b"NEW".to_vec()])]);
         assert_eq!(
-            std::fs::read(out.join("swofty/assets/resources/0.1.bin")).unwrap(),
-            b"PIXELS"
+            names(1),
+            [(x.to_owned(), vec![b"HEAD".to_vec(), b"PIXELS".to_vec()])]
         );
+        assert!(rt.summary().contains("2 resource(s)"));
+        assert!(!stale.exists());
         let placed: Vec<&str> = rt.files.keys().map(String::as_str).collect();
         assert_eq!(
             placed,
@@ -410,8 +515,8 @@ mod tests {
                 "swofty/assets.json",
                 "swofty/assets/lang/all.lng",
                 "swofty/assets/lang/eng.lng",
-                "swofty/assets/resources/0.0.bin",
-                "swofty/assets/resources/0.1.bin",
+                "swofty/assets/resources/0.erp",
+                "swofty/assets/resources/1.erp",
                 "swofty/overlay/livery/s.dds",
             ]
         );

@@ -49,10 +49,11 @@ Put the new texture in an `.erp` archive in the addon, under the same resource n
 
 - `erp` is the game archive the resource lives in. `python3 tools/erp.py <archive> '*'` lists an archive's resources ([Textures and models](/reference/mods/erp-assets)).
 - `source` is the archive in the addon that holds the resource. `"as"` names it differently in the game archive. A resource name the game archive does not have is added.
-- The build writes the resource's fragments to `swofty/assets/resources/` and lists it in `resources`. The core builds an overlay archive in `swofty/cache/` at load, and every asset group that lists `flow_boot.erp` reads it first.
+- The build writes the changed resources into an overlay archive under `swofty/assets/resources/` and lists it in `resource_erps`. Every asset group that lists `flow_boot.erp` reads the overlay archive first.
+- A replacement keeps the stock resource's type, argument and fragment layout and sizes. The build leaves out a resource that changes them and reports a warning.
 
 ```text
-[assets] resources: replace eaid://ui_package/art/textures/press_start/ps_logo.tif.image (GfxSurfaceRes, arg 1, 2 fragment(s), ...), metadata from ...; stock ERP(s): 2025_asset_groups/ui_package/flow_boot.erp
+[assets] resources: overlay ERP swofty/assets/resources/0.erp prebuilt by the launcher (... bytes, 1 resource(s): 1 replaced, 0 added) for 1 target ERP(s): 2025_asset_groups/ui_package/flow_boot.erp
 ```
 
 ## Add or change strings

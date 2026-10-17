@@ -134,7 +134,7 @@ The build writes `swofty/assets.json` and its files into the loader folder `swof
 | Kind | `swofty/assets.json` | Files |
 |---|---|---|
 | `group` | `asset_groups`: `group`, `erps`, `deps`, `template`, `origin` | |
-| `erp` | `resources`: each changed resource's `uri`, `type`, `arg`, `fragments` and target `erps` | `assets/resources/<n>.<i>.bin` |
+| `erp` | `resource_erps`: one overlay archive per set of target archives, as `file` and target `erps` | `assets/resources/<n>.erp` |
 | `db` | `db_edits`: each record that differs from the database after track activation, as `hash`, `type` and `value`, and `"early_stage": true` | |
 | `lang` | `lang.<code>.table`, and `lang."*".table` for every language | `assets/lang/<code>.lng`, `assets/lang/all.lng` |
 | `file` | `"overlay": true`, and `"file"` in `features` | `overlay/<target>` |
@@ -144,7 +144,7 @@ swofty_core applies each kind at a fixed point of the boot:
 | Kind | Applied | Core part |
 |---|---|---|
 | `group` | when the engine parses its asset manifest. A group the stock manifest already has is skipped. | `assets.cpp` |
-| `erp` | at core load, as overlay archives in `swofty/cache/` that every group listing a target archive reads first | `resources.cpp` |
+| `erp` | when the engine parses its asset manifest: every group listing a target archive reads the overlay archive first | `resources.cpp` |
 | `db` | when the game database loads (`Gdb_Load_GameDatabase`) | `gamedb.cpp` |
 | `lang` | when the game loads a language file (`Loc_Load_LanguageFile`), as a table added after the stock table | `overlay.cpp` |
 | `file` | each time the game resolves a path under `swofty/overlay/` | `overlay.cpp` |

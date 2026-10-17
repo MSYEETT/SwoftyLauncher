@@ -580,10 +580,12 @@ uint64_t parse_manifest_impl(uint8_t *m, void *path, void *a3)
     static const char *const boot[] = {"2025_asset_groups/ui_package/flow_boot.erp"};
     static const char *const splash[] = {"2025_asset_groups/ui_package/screens/splash.erp"};
     static const char *const other[] = {"2025_asset_groups/ui_package/other.erp"};
+    static const char *const pre[] = {"2025_asset_groups/ui_package/prebuilt.erp"};
     add_group("asset_groups/ego_package/application.assetgroup", app, 1);
     add_group("asset_groups/ui_package/flow_boot.assetgroup", boot, 1);
     add_group("asset_groups/ui_package/screens/splash.assetgroup", splash, 1);
     add_group("asset_groups/ui_package/other.assetgroup", other, 1);
+    add_group("asset_groups/ui_package/prebuilt.assetgroup", pre, 1);
     *(char **)(m + 0x1c0) = words;
     *(uint16_t **)(m + 0x1d8) = tokens;
     *(uint64_t *)(m + 0x1e0) = ntokens * 2;
@@ -1065,6 +1067,12 @@ int main(int argc, char **argv)
         expect(g && (uint32_t)(g[1] >> 32) == 1, "resources: a group without target ERPs keeps its range");
         uint64_t *gs = rm_find((RMap *)(fake_manifest + 0x10), fnv64("asset_groups/ui_package/screens/splash.assetgroup"));
         expect(gs && (uint32_t)(gs[1] >> 32) == 2, "resources: splash group = its own overlay + splash.erp");
+        load_group("asset_groups/ui_package/prebuilt.assetgroup");
+        uint8_t *pb = res_of("eaid://ui_package/prebuilt/stock.bin"), *pa = res_of("eaid://ui_package/prebuilt/new.bin");
+        expect(pb && !strcmp(src_name(pb), "swofty/assets/resources/0.erp") && !memcmp(pb + 0x48, "PREBUILT", 8),
+               "resources: a launcher-built overlay ERP replaced a stock uri before its target ERP");
+        expect(pa && !strcmp(src_name(pa), "swofty/assets/resources/0.erp") && !memcmp(pa + 0x48, "PREADDED", 8),
+               "resources: a launcher-built overlay ERP added a uri with the target's group");
         uint64_t *rg = rm_find((RMap *)(fake_manifest + 0x10), fnv64("asset_groups/swofty/rt_test.assetgroup"));
         load_group("asset_groups/swofty/rt_test.assetgroup");
         uint8_t *rt = res_of("eaid://swofty/rt_test/thing.bin");

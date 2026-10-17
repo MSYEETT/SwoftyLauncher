@@ -52,6 +52,9 @@ rtassets.erp_write(mk(os.path.join(ui, 'flow_boot.erp')), [stock_logo, stock_whi
 rtassets.erp_write(mk(os.path.join(g, '2025_asset_groups', 'swofty', 'rt_test.erp')), [dict(uri='eaid://swofty/rt_test/thing.bin', type='ACStringTable', arg=1, frags=[dict(data=b'rt_test!')])])
 rtassets.erp_write(mk(os.path.join(g, '2025_asset_groups', 'swofty', 'aliased.erp')), [dict(uri='eaid://swofty/aliased/thing.bin', type='ACStringTable', arg=1, frags=[dict(data=b'aliased!')])])
 rtassets.erp_write(mk(os.path.join(ui, 'screens', 'splash.erp')), [stock_logo])
+pre = lambda n, d: dict(uri='eaid://ui_package/prebuilt/%s.bin' % n, type='ACStringTable', arg=1, frags=[dict(data=d)])
+rtassets.erp_write(mk(os.path.join(ui, 'prebuilt.erp')), [pre('stock', b'STOCKPRE'), pre('other', b'OTHERPRE')])
+rtassets.erp_write(mk(os.path.join(g, 'swofty', 'assets', 'resources', '0.erp')), [pre('stock', b'PREBUILT'), pre('new', b'PREADDED')])
 rtassets.erp_write(mk(os.path.join(ui, 'other.erp')), [dict(uri='eaid://ui_package/other.bin', type='ACStringTable', arg=1, frags=[dict(data=b'other')])])
 open(os.path.join(g, 'archive_language_eng.lng'), 'wb').write(rtassets.lngt_build([('lng_press_start', 'PRESS ANY BUTTON'), ('lng_mode_career', 'Career'), ('lng_other', 'Other')], 7))
 sw = os.path.join(g, 'swofty')
@@ -120,6 +123,8 @@ full = {
         'deu': {'table': 'lang/bad.lngt'},
     },
     'overlay': True,
+    'resource_erps': [{'file': 'assets/resources/0.erp', 'erps': ['2025_asset_groups/ui_package/prebuilt.erp']},
+                      {'file': 'assets/resources/missing.erp', 'erps': ['2025_asset_groups/ui_package/prebuilt.erp']}],
 }
 replace = {'lang': {'eng': {'replace': 'lang/language_eng.lng'}}}
 if mode in ('early', 'late'):
@@ -207,7 +212,7 @@ for mode in none replace gated late early earlywait; do
         check "gated: a whole language file needs the experimental file feature" '\[assets\] lang replace lang/language_eng\.lng skipped: the runtime file feature is experimental'
         check "gated: stable asset groups still apply" '\[assets\] registered asset_groups/swofty/rt_test\.assetgroup -> 2025_asset_groups/swofty/rt_test\.erp'
         absent "gated: no fs overlay redirect" '\[assets\] overlay: (system/config\.xml|localisation/)'
-        check "gated: stable resources still apply" '\[assets\] resources: 2 overlay ERP\(s\) \(2 written, 0 unchanged\)'
+        check "gated: stable resources still apply" '\[assets\] resources: 3 overlay ERP\(s\) \(2 written, 0 unchanged\)'
         check "gated: stable string tables still apply" "\[assets\] lang: table for 'eng': 2 string\(s\) from assets\.json strings"
         ;;
     esac
@@ -222,10 +227,14 @@ for mode in none replace gated late early earlywait; do
         check "resources: fourcc mismatch refused" "\[assets\] resources: skipped eaid://ui_package/t/fourcc\.tif\.image: fragment 1 fourcc 'pixl' differs from the stock 'temp'"
         check "resources: unknown type refused" '\[assets\] resources: skipped eaid://swofty/runtime_test/bad_type\.image: type NoSuchType is not used by any resource in the scanned stock ERPs'
         check "resources: over-long type refused" '\[assets\] resources: skipped eaid://swofty/runtime_test/long_type\.image: "type" must be 1 to 15 characters'
-        check "resources: per-target overlays" '\[assets\] resources: 2 overlay ERP\(s\) \(2 written, 0 unchanged\) for 2 target ERP\(s\); 1 replaced, 1 added'
+        check "resources: per-target overlays" '\[assets\] resources: 3 overlay ERP\(s\) \(2 written, 0 unchanged\) for 2 target ERP\(s\); 2 replaced, 2 added'
+        check "resources: prebuilt overlay ERP loaded" '\[assets\] resources: overlay ERP swofty/assets/resources/0\.erp prebuilt by the launcher \([0-9]+ bytes, 2 resource\(s\): 1 replaced, 1 added\) for 1 target ERP\(s\): 2025_asset_groups/ui_package/prebuilt\.erp'
+        check "resources: missing prebuilt overlay ERP refused loudly" '\[assets\] resources: prebuilt overlay ERP assets/resources/missing\.erp NOT loaded: the file is missing or not an ERP; its 1 target ERP\(s\) load stock data'
+        check "resources: prebuilt summary" '\[assets\] resources: 1 of 2 prebuilt overlay ERP\(s\) loaded in [0-9]+ ms'
+        check "resources: prebuilt group gets its overlay first" '\[assets\] resources: group 2025_asset_groups/ui_package/prebuilt\.assetgroup \(0x[0-9a-f]+\) now reads swofty/assets/resources/0\.erp first'
         check "resources: flow_boot overlay carries both uris" '\[assets\] resources: overlay ERP swofty/cache/rt_[0-9a-f]{16}\.erp written \([0-9]+ bytes, 2 resource\(s\): .*\) for 1 target ERP\(s\): 2025_asset_groups/ui_package/flow_boot\.erp'
         check "resources: splash overlay carries only ps_logo" '\[assets\] resources: overlay ERP swofty/cache/rt_[0-9a-f]{16}\.erp written \([0-9]+ bytes, 1 resource\(s\): eaid://ui_package/art/textures/press_start/ps_logo\.tif\.image\) for 1 target ERP\(s\): 2025_asset_groups/ui_package/screens/splash\.erp'
-        check "resources: no lock held while waiting for the build" '\[assets\] resources: (waited [0-9]+ ms for the overlay build \(no lock held while waiting\)|[0-9]+ of 2 overlay ERP)'
+        check "resources: no lock held while waiting for the build" '\[assets\] resources: (waited [0-9]+ ms for the overlay build \(no lock held while waiting\)|[0-9]+ of 3 overlay ERP)'
         check "resources: flow_boot group gets its overlay first" '\[assets\] resources: group 2025_asset_groups/ui_package/flow_boot\.assetgroup \(0x[0-9a-f]+\) now reads swofty/cache/rt_[0-9a-f]{16}\.erp first, then its 1 stock ERP\(s\)'
         check "resources: splash group gets its overlay first" '\[assets\] resources: group 2025_asset_groups/ui_package/screens/splash\.assetgroup \(0x[0-9a-f]+\) now reads swofty/cache/rt_[0-9a-f]{16}\.erp first'
         check "resources: both overlays registered" "\[assets\] resources: overlay swofty/cache/rt_[0-9a-f]{16}\.erp registered as erp 0x[0-9a-f]+ \(name read back 'swofty/cache/rt_"

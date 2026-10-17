@@ -260,10 +260,10 @@ impl<'a> ErpBuild<'a> {
         Ok(Some(Pkg::parse(&frag.data()?)?))
     }
 
-    pub fn resources(&self) -> impl Iterator<Item = (&str, &Resource)> {
+    pub fn resources(&self) -> impl Iterator<Item = (&str, &Resource, &Erp)> {
         self.erps.iter().flat_map(|(rel, a)| {
             a.slots.iter().filter_map(move |s| match s {
-                Slot::Owned(r) => Some((rel.as_str(), r)),
+                Slot::Owned(r) => Some((rel.as_str(), r, &a.file.erp)),
                 Slot::Stock(_) => None,
             })
         })
