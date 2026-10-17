@@ -11,11 +11,19 @@ and the same edit. They are not shipped.
 | `pkg.py`, `uinode.py`, `uitree.py` | `!pkg` node graphs: read, write, djb2 node ids, tree view |
 | `build_home_tile_mod.py`, `swofty_settings.py` | The reference implementation of SwoftyMod's UI edits and settings page |
 | `modswap.py` | The pristine-verify, install and restore pattern behind the journal |
+| `vtf.py` | Car handling files (`.vtf`, bxml plus TSMD): read, write, add a track's ERS settings |
+| `map_check.py` | Checks a profile built with maps against the game it was built from, using the build's `plan.json` |
 
 `packages/formats/tests/real_files.rs` runs the comparison:
 
 ```sh
 F1_25_DIR=<game folder or a pristine copy> cargo test --release -p swofty-formats --test real_files
+```
+
+Check a build with maps (needs `zstandard` or the `zstd` command):
+
+```sh
+python3 tools/map_check.py <overlay folder> --game <game folder or pristine copy> --maps <maps folder>
 ```
 
 Scripts that read or write game files take them from `work/`, which is ignored by git, or from `F1_25_DIR`. Never
