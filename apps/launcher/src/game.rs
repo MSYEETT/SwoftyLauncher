@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use swofty_core::crash::{LogScan, Symbols, fatal_name};
 use swofty_core::process::{GameProcess, game_processes};
@@ -25,14 +25,36 @@ pub struct Probe {
     pub install: Option<Option<Install>>,
     pub processes: Vec<GameProcess>,
     pub session: Option<SessionRecord>,
+    pub requests: Option<SystemTime>,
+    pub merged: bool,
 }
 
-pub fn probe(store: &Store, rediscover: bool) -> Probe {
+pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>) -> Probe {
+    let processes = game_processes();
+    let (requests, merged) = merge_requests(store, processes.is_empty(), seen);
     Probe {
         install: rediscover.then(|| discover(store)),
-        processes: game_processes(),
+        processes,
         session: store.latest_session().map(|d| SessionRecord::read(&d)),
+        requests,
+        merged,
     }
+}
+
+fn merge_requests(store: &Store, idle: bool, seen: Option<SystemTime>) -> (Option<SystemTime>, bool) {
+    let profile = store.active_profile();
+    let Some(written) = std::fs::metadata(store.requests_path(&profile))
+        .and_then(|m| m.modified())
+        .ok()
+    else {
+        return (None, false);
+    };
+    let settled = idle && written.elapsed().is_ok_and(|age| age > Duration::from_secs(10));
+    if seen == Some(written) && !settled {
+        return (seen, false);
+    }
+    let merged = store.merge_requests(&profile, settled).ok().flatten();
+    (Some(written), merged.is_some_and(|m| !m.changed.is_empty()))
 }
 
 pub fn discover(store: &Store) -> Option<Install> {

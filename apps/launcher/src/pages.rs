@@ -2,15 +2,18 @@ use std::rc::Rc;
 
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants};
+use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::notification::Notification;
+use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
+use swofty_core::manifest::{Binds, ModManifest, ModOption, OptionType};
 use swofty_core::profile::{Profile, VANILLA};
 
 use crate::library::{MapItem, ModItem, ProfileItem, kind_label, plural};
-use crate::shell::{Page, Prompt, Shell};
+use crate::shell::{Page, Prompt, Shell, SliderSlot};
 use crate::theme::Palette;
 
 pub(crate) const GUTTER: f32 = 28.;
@@ -356,9 +359,33 @@ impl Shell {
                 self.mod_row(m, i == 0, open, p, cx)
             })
             .collect();
+        let pending = (!self.vanilla() && !self.library.rebuild.is_empty()).then(|| {
+            h_flex()
+                .px(px(GUTTER))
+                .pb(px(12.))
+                .gap(px(8.))
+                .flex_shrink_0()
+                .text_size(px(13.))
+                .text_color(p.text_muted)
+                .child(
+                    Icon::new(IconName::CircleAlert)
+                        .size(px(14.))
+                        .text_color(p.warning),
+                )
+                .child(format!(
+                    "{} changed since the last build · the next launch rebuilds {}",
+                    plural(
+                        self.library.rebuild.len(),
+                        "database setting",
+                        "database settings"
+                    ),
+                    self.library.profile.name
+                ))
+        });
         v_flex()
             .size_full()
             .child(self.header(Page::Mods, subtitle, actions, p))
+            .children(pending)
             .child(self.list("mods", rows, p))
             .into_any_element()
     }
@@ -455,11 +482,11 @@ impl Shell {
             }));
         self.row(first, open, p)
             .child(head)
-            .when(open, |d| d.child(self.mod_body(m, p)))
+            .when(open, |d| d.child(self.mod_body(m, p, cx)))
             .into_any_element()
     }
 
-    fn mod_body(&self, m: &ModItem, p: Palette) -> impl IntoElement {
+    fn mod_body(&self, m: &ModItem, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let man = &m.manifest;
         let builds = if man.compat.game_builds.is_empty() {
             "any".to_owned()
@@ -547,43 +574,237 @@ impl Shell {
                         .child(div().text_size(px(13.)).child(changes.join(", "))),
                 )
             })
-            .when(!man.options.is_empty(), |d| {
-                d.child(
-                    v_flex()
-                        .gap(px(6.))
-                        .child(label("OPTIONS", p))
-                        .children(man.options.iter().map(|o| {
-                            v_flex()
-                                .max_w(px(720.))
-                                .px(px(12.))
-                                .py(px(8.))
-                                .gap(px(2.))
-                                .rounded(px(5.))
-                                .border_1()
-                                .border_color(p.border_variant)
-                                .child(
-                                    h_flex()
-                                        .gap(px(8.))
-                                        .items_baseline()
-                                        .child(
-                                            div()
-                                                .text_size(px(13.))
-                                                .font_weight(FontWeight::MEDIUM)
-                                                .child(o.label.clone().unwrap_or_else(|| o.id.clone())),
-                                        )
-                                        .child(
-                                            div()
-                                                .text_size(px(12.))
-                                                .text_color(p.text_placeholder)
-                                                .child(format!("default {}", o.default)),
-                                        ),
-                                )
-                                .when_some(o.description.clone(), |d, t| {
-                                    d.child(div().text_size(px(13.)).text_color(p.text_muted).child(t))
-                                })
-                        })),
-                )
+            .when(!man.options.is_empty(), |d| d.child(self.settings(man, p, cx)))
+    }
+
+    fn settings(&self, man: &ModManifest, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+        let customised = !self.vanilla() && self.library.profile.options.contains_key(&man.id);
+        let reset = customised.then(|| {
+            let man = man.clone();
+            div()
+                .id(SharedString::from(format!("reset-{}", man.id)))
+                .cursor_pointer()
+                .text_size(px(12.))
+                .text_color(p.text_muted)
+                .hover(move |s| s.text_color(p.text))
+                .child("Reset to defaults")
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    this.update_profile(window, cx, |p| p.reset_options(&man).map(drop))
+                }))
+        });
+        let rows: Vec<AnyElement> = man
+            .options
+            .iter()
+            .enumerate()
+            .map(|(i, o)| self.setting_row(man, o, i == 0, p, cx))
+            .collect();
+        v_flex()
+            .gap(px(6.))
+            .child(
+                h_flex()
+                    .max_w(px(760.))
+                    .justify_between()
+                    .child(label("SETTINGS", p))
+                    .children(reset),
+            )
+            .child(
+                v_flex()
+                    .max_w(px(760.))
+                    .rounded(px(5.))
+                    .border_1()
+                    .border_color(p.border_variant)
+                    .children(rows),
+            )
+    }
+
+    fn setting_row(
+        &self,
+        man: &ModManifest,
+        o: &ModOption,
+        first: bool,
+        p: Palette,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let key = format!("{}.{}", man.id, o.id);
+        let pending = !self.vanilla() && self.library.rebuild.contains(&key);
+        let (hint, hint_color) = match o.binds {
+            Binds::Native => ("Applies live", p.text_placeholder),
+            Binds::Db if pending => ("Rebuilds on next launch", p.warning),
+            Binds::Db => ("Applies after a rebuild", p.text_placeholder),
+        };
+        let value = self.library.profile.option(man, o);
+        let control = match o.kind {
+            OptionType::Toggle => {
+                let (man, id) = (man.clone(), o.id.clone());
+                self.toggle(format!("setting-{key}"), value == true, cx, move |p, on| {
+                    p.set_option(&man, &id, on.into()).map(drop)
+                })
+            }
+            OptionType::Choice => self.choice(&key, man, o, &value, cx),
+            OptionType::Slider => self.slider(&key, o, &value, p, cx),
+        };
+        h_flex()
+            .px(px(12.))
+            .py(px(10.))
+            .gap(px(24.))
+            .when(!first, |d| d.border_t_1().border_color(p.border_variant))
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(2.))
+                    .child(
+                        h_flex()
+                            .gap(px(10.))
+                            .items_baseline()
+                            .child(
+                                div()
+                                    .text_size(px(13.))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .child(o.title().to_owned()),
+                            )
+                            .child(div().text_size(px(12.)).text_color(hint_color).child(hint)),
+                    )
+                    .when_some(o.description.clone(), |d, t| {
+                        d.child(
+                            div()
+                                .text_size(px(12.))
+                                .line_height(px(18.))
+                                .text_color(p.text_muted)
+                                .child(t),
+                        )
+                    }),
+            )
+            .child(div().flex_shrink_0().child(control))
+            .into_any_element()
+    }
+
+    fn choice(
+        &self,
+        key: &str,
+        man: &ModManifest,
+        o: &ModOption,
+        value: &serde_json::Value,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let states = o.states();
+        let current = o.index(value);
+        let shell = cx.entity().downgrade();
+        let (man, id) = (man.clone(), o.id.clone());
+        Button::new(SharedString::from(format!("setting-{key}")))
+            .outline()
+            .small()
+            .min_w(px(168.))
+            .label(o.text(value))
+            .dropdown_caret(true)
+            .disabled(self.vanilla())
+            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
+                for (i, s) in states.iter().enumerate() {
+                    let (shell, man, id, v) = (shell.clone(), man.clone(), id.clone(), s.value.clone());
+                    menu = menu.item(
+                        PopupMenuItem::new(s.text.clone())
+                            .checked(current == Some(i))
+                            .on_click(move |_, window, cx| {
+                                let v = v.clone();
+                                shell
+                                    .update(cx, |this, cx| {
+                                        this.update_profile(window, cx, |p| {
+                                            p.set_option(&man, &id, v).map(drop)
+                                        })
+                                    })
+                                    .ok();
+                            }),
+                    );
+                }
+                menu
             })
+            .into_any_element()
+    }
+
+    fn slider(
+        &self,
+        key: &str,
+        o: &ModOption,
+        value: &serde_json::Value,
+        p: Palette,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let Some(slot) = self.sliders.get(key) else {
+            return div().into_any_element();
+        };
+        let at = slot.state.read(cx).value().start().round().max(0.) as usize;
+        let text = o
+            .states()
+            .get(at)
+            .map_or_else(|| o.text(value), |s| s.text.clone());
+        h_flex()
+            .w(px(260.))
+            .gap(px(12.))
+            .child(Slider::new(&slot.state).disabled(self.vanilla()).flex_1())
+            .child(
+                div()
+                    .w(px(48.))
+                    .flex()
+                    .justify_end()
+                    .text_size(px(13.))
+                    .text_color(p.text)
+                    .child(text),
+            )
+            .into_any_element()
+    }
+
+    pub(crate) fn sync_sliders(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(m) = self
+            .open_mod
+            .as_ref()
+            .and_then(|id| self.library.mods.iter().find(|m| &m.manifest.id == id))
+        else {
+            return;
+        };
+        let man = m.manifest.clone();
+        for o in man.options.iter().filter(|o| o.kind == OptionType::Slider) {
+            let key = format!("{}.{}", man.id, o.id);
+            let at = o.index(&self.library.profile.option(&man, o)).unwrap_or(0);
+            if let Some(slot) = self.sliders.get_mut(&key) {
+                if slot.synced != at {
+                    slot.synced = at;
+                    slot.state.update(cx, |s, cx| s.set_value(at as f32, window, cx));
+                }
+                continue;
+            }
+            let last = o.states().len().saturating_sub(1) as f32;
+            let state = cx.new(|_| {
+                SliderState::new()
+                    .min(0.)
+                    .max(last)
+                    .step(1.)
+                    .default_value(at as f32)
+            });
+            let (man, id) = (man.clone(), o.id.clone());
+            let changes = cx.subscribe_in(&state, window, move |this, _, ev: &SliderEvent, window, cx| {
+                let SliderEvent::Release(v) = ev else {
+                    return;
+                };
+                let at = v.start().round().max(0.) as usize;
+                let Some(state) = man
+                    .options
+                    .iter()
+                    .find(|o| o.id == id)
+                    .and_then(|o| o.states().into_iter().nth(at))
+                else {
+                    return;
+                };
+                this.update_profile(window, cx, |p| p.set_option(&man, &id, state.value).map(drop));
+            });
+            self.sliders.insert(
+                key,
+                SliderSlot {
+                    state,
+                    synced: at,
+                    _changes: changes,
+                },
+            );
+        }
     }
 
     pub(crate) fn maps_page(&mut self, p: Palette, cx: &mut Context<Self>) -> AnyElement {

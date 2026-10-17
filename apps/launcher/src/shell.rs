@@ -1,11 +1,13 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::Button;
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::notification::Notification;
+use gpui_kit::component::slider::SliderState;
 use gpui_kit::component::{Icon, TitleBar, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
@@ -67,7 +69,15 @@ pub struct Shell {
     pub(crate) dismissed: Option<PathBuf>,
     pub(crate) launch: Option<Launch>,
     pub(crate) notice: Option<String>,
+    pub(crate) sliders: HashMap<String, SliderSlot>,
+    pub(crate) requests: Option<SystemTime>,
     _poll: Task<()>,
+}
+
+pub struct SliderSlot {
+    pub state: Entity<SliderState>,
+    pub synced: usize,
+    pub _changes: Subscription,
 }
 
 pub type Action = Rc<dyn Fn(&Store, &str) -> Result<String, String>>;
@@ -87,15 +97,15 @@ impl Shell {
         let store = Store::open_default();
         let poll = cx.spawn(async move |this, cx| {
             loop {
-                let Ok((store, rediscover)) = this.update(cx, |s, _| {
+                let Ok((store, rediscover, seen)) = this.update(cx, |s, _| {
                     let r = std::mem::take(&mut s.rediscover);
-                    (s.store.clone(), r)
+                    (s.store.clone(), r, s.requests)
                 }) else {
                     break;
                 };
                 let probe = cx
                     .background_executor()
-                    .spawn(async move { game::probe(&store, rediscover) })
+                    .spawn(async move { game::probe(&store, rediscover, seen) })
                     .await;
                 if this.update(cx, |s, cx| s.apply(probe, cx)).is_err() {
                     break;
@@ -127,14 +137,19 @@ impl Shell {
             dismissed: None,
             launch: None,
             notice: None,
+            sliders: HashMap::new(),
+            requests: None,
             _poll: poll,
         }
     }
 
     fn apply(&mut self, probe: Probe, cx: &mut Context<Self>) {
+        self.requests = probe.requests;
         if let Some(install) = probe.install {
             self.install = install;
             self.detected = true;
+            self.library = Library::load(&self.store);
+        } else if probe.merged {
             self.library = Library::load(&self.store);
         }
         self.processes = probe.processes;
@@ -488,6 +503,7 @@ impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let p = palette(cx);
         let wide = window.viewport_size().width > px(1500.);
+        self.sync_sliders(window, cx);
         let content = match self.page {
             Page::Mods => self.mods_page(p, cx),
             Page::Maps => self.maps_page(p, cx),

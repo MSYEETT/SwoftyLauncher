@@ -7,6 +7,7 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
 use crate::game::{self, ago, duration};
+use crate::library::plural;
 use crate::pages::{avatar, badge};
 use crate::shell::{Page, PlayState, Shell};
 use crate::theme::Palette;
@@ -93,6 +94,7 @@ impl Shell {
                     )
                 });
         }
+        let rebuild = !self.library.profile.is_vanilla() && !self.library.rebuild.is_empty();
         match state {
             PlayState::Running(secs) => row
                 .child(dot(p.success))
@@ -104,7 +106,16 @@ impl Shell {
                     div()
                         .text_color(p.text_placeholder)
                         .child(format!("pid {}", self.processes[0].pid)),
-                ),
+                )
+                .when(rebuild, |d| {
+                    d.child(
+                        div()
+                            .min_w_0()
+                            .truncate()
+                            .text_color(p.warning)
+                            .child("Restart to apply database settings"),
+                    )
+                }),
             PlayState::Launching => row
                 .child(dot(p.warning))
                 .child(format!(
@@ -190,6 +201,15 @@ impl Shell {
                     Some(i) if i.via_steam => "launches via Steam",
                     _ => "launches via Proton",
                 };
+                if rebuild {
+                    return row.text_color(p.text_muted).child(dot(p.warning)).child(
+                        div().min_w_0().truncate().child(format!(
+                            "Ready · rebuilds {} for {} on launch",
+                            self.library.profile.name,
+                            plural(self.library.rebuild.len(), "changed setting", "changed settings")
+                        )),
+                    );
+                }
                 row.text_color(p.text_muted)
                     .child(dot(p.success))
                     .child(div().min_w_0().truncate().child(match last {

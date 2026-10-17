@@ -39,6 +39,7 @@ impl ProfileItem {
 
 pub struct Library {
     pub profile: Profile,
+    pub rebuild: Vec<String>,
     pub mods: Vec<ModItem>,
     pub maps: Vec<MapItem>,
     pub profiles: Vec<ProfileItem>,
@@ -105,6 +106,7 @@ impl Library {
             })
             .collect();
         Self {
+            rebuild: profile.rebuild_pending(&manifests),
             profile,
             mods,
             maps,
