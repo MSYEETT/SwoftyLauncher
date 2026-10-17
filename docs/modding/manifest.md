@@ -40,7 +40,7 @@ Start with [the mod template](/modding/template).
 
 ## Options
 
-`options` declares the mod's settings. The launcher shows them in the mod's row, and the game shows them in the mod's section of **MOD SETTINGS**. Values are stored per profile.
+`options` declares the mod's settings. The launcher shows them in the mod's row, and the game shows them on the mod's page in **MOD SETTINGS**. Values are stored per profile.
 
 ```json
 "options": [
@@ -77,6 +77,6 @@ Start with [the mod template](/modding/template).
 
 Source paths are relative to the mod folder and use `/`. Target paths are relative to the game folder.
 
-A screen's `file` is the screen's raw `.ui` data. The launcher installs it as `swofty/ui/<name>.ui` and lists it in the `ui` block of `swofty/settings.json`. `flow` defaults to `flow_frontend`. `anchor` names a game screen in the same flow; the screen registers after that screen's resource loads. `view_model` asks swofty_core for a native view model. Names are `[a-z0-9_]` and unique across the profile's mods.
+A screen's `file` is the screen's raw `.ui` data. The launcher installs it as `swofty/ui/<name>.ui` and lists it in the `ui` block of `swofty/settings.json`. `flow` defaults to `flow_frontend`. `anchor` names a game screen in the same flow; the screen registers after that screen's resource loads. `view_model` asks swofty_core for a native view model. Names are `[a-z0-9_]` and unique across the profile's mods. `swofty_settings`, `swofty_mod_<n>` and `swofty_map_<n>` belong to MOD SETTINGS.
 
 The installer checks the manifest and the files it names. Some operation types are still in development; see [Current status](/design/#current-status).

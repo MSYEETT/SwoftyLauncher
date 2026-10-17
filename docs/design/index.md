@@ -56,7 +56,7 @@ Linux uses a Steam launch option. Windows uses a separate modded launch. Normal 
 
 SwoftyMod adds MOD SETTINGS below Career, an F9/R3 prompt and a launcher panel.
 
-The settings page has a section per mod, built each session from the mods' options. Database settings need a restart; plugin settings apply immediately.
+MOD SETTINGS has a tile per enabled mod and map and a page for each, built from the player's game files and the profile when the profile is built. Database settings need a restart; plugin settings apply immediately.
 
 ## Current status
 

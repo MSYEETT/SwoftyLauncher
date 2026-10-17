@@ -6,19 +6,20 @@ The home screen also has an **F9** keyboard prompt (**R3** on a controller) and 
 
 ## The settings page
 
-MOD SETTINGS has one section per installed mod, built for each session from the mods' [options](/modding/manifest#options) and the profile's values.
+MOD SETTINGS lists every enabled mod and map as a tile with its name, author, version and description. Select a tile to open its page.
 
-- **ENABLED** turns the mod on or off from the next launch. SwoftyMod shows **ALWAYS ON**.
-- A toggle switches with **Select**, **Left** or **Right**.
-- A choice moves to the next value with **Select** or **Right**, and back with **Left**.
-- A slider steps with **Left** and **Right**. **Select** steps up and wraps to the lowest value.
+- A mod's page has a row per [option](/modding/manifest#options). **Left** and **Right** change the value.
+- A mod without options shows its id and version.
+- A map's page shows its track code, author and version.
 
-Changes save to the profile, and the launcher shows them. Settings marked as applying live reach the mod at once. Database settings and **ENABLED** need a restart: **APPLY & RESTART** appears at the top of the page, and the game restarts with the profile rebuilt.
+Changes save to the profile, and the launcher shows them. Settings that apply live reach the mod at once. Database settings apply after a restart.
 
 The same settings are in the launcher, in each mod's row on the **Mods** page.
 
+Online services errors show the SwoftyMod changelog instead, once per session. **Continue** closes it.
+
 ## Current status
 
-The settings page and the native bridge that saves in-game changes are tested offline. Whether the page's commands reach the bridge in the real game is still being tested.
+The launcher builds these screens from your own game files whenever it builds the profile.
 
 If the game build is not recognised, the menu entry may be unavailable.
