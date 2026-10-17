@@ -24,6 +24,8 @@ When the game exits, it prints a summary with the exit code and any crash detail
 
 On Linux, the [Steam launch option](/guide/linux) uses `swofty run -- %command%`.
 
+A direct launch writes the wrapper's output to `$DATA/state/wrapper-run.log`. If the wrapper exits before the game starts or while it runs, `swofty run` prints the wrapper's last lines and its error, then exits with an error. It stops waiting after 10 minutes, or after 2 minutes when Steam launches the game.
+
 ## `swofty logs`
 
 `swofty logs [<session dir>]` shows a finished session's summary. With no folder given, it uses the latest session.

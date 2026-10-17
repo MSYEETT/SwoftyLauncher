@@ -5,7 +5,7 @@ The in-game half of F1 Mod Manager. `native/build.sh` writes it to `native/dist/
 | File | Source | Role |
 |---|---|---|
 | `version.dll` | `src/loader/version.c` | Proxy for the system `version.dll`. It forwards every export, does nothing in any process other than `F1_25.exe`, and loads every DLL in `swofty/mods/core/`, then `swofty/mods/*.dll`, just before the game creates its window. |
-| `swofty/mods/core/swofty_core.dll` | `src/core/` | SwoftyMod. Adds MOD SETTINGS directly under CAREER on the home screen, runs the mixin API (version 3) for plugins, bridges MOD SETTINGS commands to `swofty/settings.json` and the requests file, and writes crash reports. |
+| `swofty/mods/core/swofty_core.dll` | `src/core/` | SwoftyMod. Adds MOD SETTINGS directly under CAREER on the home screen, runs the mixin API (version 3) for plugins, bridges MOD SETTINGS commands to `swofty/settings.json` and the requests file, registers mod screens and drives their view models, and writes crash reports. |
 | `swofty/mods/core/swofty_gamelog.dll` | `src/gamelog/` | Copies the engine's own log lines into `loader.log`. |
 | `swofty/mods/core/bindings.json` | `re/tools/bindgen.py` | Game functions, data and call sites that plugins can bind to, with their signatures. |
 | `swofty/mods/core/symbols.tsv` | `re/tools/bindgen.py` | Function names by address, for crash reports. |
@@ -17,6 +17,8 @@ Everything logs to `<game>/swofty/loader.log`. Plugins get the C ABI in `package
 
 - **Settings bridge.** Core wraps `FeHome_Handle_Command` and handles the commands that `swofty/settings.json` assigns to each option, each mod's ENABLED switch and APPLY & RESTART. It updates plugin settings live and writes each change to the requests file that the launcher merges into the profile. APPLY & RESTART closes the game window so the launcher can rebuild and relaunch.
 - **Crash log.** A vectored exception handler writes the exception, the registers and a stack named from `symbols.tsv` to `loader.log`. Calls to `ExitProcess` and `TerminateProcess` are logged with the caller's stack.
+- **Mod screens.** Core reads the `"ui"` block of `swofty/settings.json` (or `swofty/ui.json`) and registers each listed screen file from `swofty/ui/` through the engine's own screen loader when the screen's flow loads. A route to a mod screen that is not registered is cancelled and the last screen reopens, instead of rebooting the front end. Every node the engine rejects is logged with its reason.
+- **View models.** For each screen with `"view_model": true`, core registers a view model under `view_model_data.<screen>`. `swofty_mod_<N>` pages map to `mods[N]` of `swofty/settings.json`: they publish `title` and `o<k>.label`, `o<k>.text`, `o<k>.value`, `o<k>.min`, `o<k>.max` per option, and handle `swofty_next:<mod>:<option>`, `swofty_prev:<mod>:<option>` and `swofty_set:<mod>:<option>:<index>` through the settings bridge.
 - **Mixins.** Plugins wrap functions, call sites and virtual table slots by binding name. Core orders each chain by priority and load order. With a `swofty/session.json`, registrations not declared there are refused.
 
 ## Game log

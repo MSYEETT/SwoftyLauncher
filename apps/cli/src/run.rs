@@ -1,7 +1,7 @@
 use std::io::{IsTerminal, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitCode, Stdio};
-use std::time::Duration;
+use std::process::{Child, Command, ExitCode, ExitStatus, Stdio};
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 use clap::Args;
@@ -85,20 +85,32 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
         apply: args.apply,
     };
     write_json(&store.root.join("state/launch.json"), &request)?;
-    launch(store, &game, args.direct)?;
-    let mut dir = None;
-    for _ in 0..180 {
+    let mut wrapper = launch(store, &game, args.direct)?;
+    let started = Instant::now();
+    let dir = loop {
         if let Some(d) = store
             .latest_session()
             .filter(|d| std::fs::read_to_string(d.join("request_id")).is_ok_and(|s| s.trim() == id))
         {
-            dir = Some(d);
-            break;
+            break d;
+        }
+        if let Some(status) = wrapper.exited() {
+            return Err(wrapper.failure(status, "before the game started"));
+        }
+        if started.elapsed() > wrapper.timeout {
+            match &wrapper.child {
+                Some(_) => bail!(
+                    "the wrapper did not start the game within {} min and is still running; its output is in {}",
+                    wrapper.timeout.as_secs() / 60,
+                    wrapper.log.display()
+                ),
+                None => bail!(
+                    "the wrapper did not start within {} min; check the Steam launch option (swofty doctor)",
+                    wrapper.timeout.as_secs() / 60
+                ),
+            }
         }
         std::thread::sleep(Duration::from_millis(500));
-    }
-    let Some(dir) = dir else {
-        bail!("the wrapper never started; check the Steam launch option (swofty doctor)")
     };
     say("info", &format!("wrapper started, logging to {}", dir.display()));
     let mut follow = Follow::new(
@@ -113,6 +125,11 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
             break;
         }
         follow.poll();
+        if let Some(status) = wrapper.exited()
+            && !dir.join("exit_code").exists()
+        {
+            return Err(wrapper.failure(status, "while the game was running"));
+        }
         std::thread::sleep(Duration::from_millis(250));
     }
     std::thread::sleep(Duration::from_millis(1500));
@@ -321,7 +338,65 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
     Ok(code)
 }
 
-fn launch(store: &Store, game: &Path, direct: bool) -> Result<()> {
+const DIRECT_START_TIMEOUT: Duration = Duration::from_secs(600);
+const STEAM_START_TIMEOUT: Duration = Duration::from_secs(120);
+const WRAPPER_LOG: &str = "state/wrapper-run.log";
+const TAIL_LINES: usize = 12;
+
+struct Wrapper {
+    child: Option<Child>,
+    log: PathBuf,
+    timeout: Duration,
+}
+
+impl Wrapper {
+    fn exited(&mut self) -> Option<ExitStatus> {
+        self.child.as_mut()?.try_wait().ok().flatten()
+    }
+
+    fn failure(&self, status: ExitStatus, when: &str) -> anyhow::Error {
+        let mut lines = tail(&self.log, TAIL_LINES);
+        let reason = lines
+            .pop()
+            .map(|l| l.strip_prefix("swofty: ").map(str::to_owned).unwrap_or(l));
+        for l in &lines {
+            say("wrapper", l);
+        }
+        match reason {
+            Some(r) => anyhow::anyhow!("the wrapper exited ({status}) {when}: {r}"),
+            None => anyhow::anyhow!(
+                "the wrapper exited ({status}) {when} without output; see {}",
+                self.log.display()
+            ),
+        }
+    }
+}
+
+fn tail(path: &Path, n: usize) -> Vec<String> {
+    let text = std::fs::read(path)
+        .map(|b| String::from_utf8_lossy(&b).into_owned())
+        .unwrap_or_default();
+    let lines: Vec<String> = text
+        .lines()
+        .map(str::trim_end)
+        .filter(|l| !l.is_empty())
+        .map(str::to_owned)
+        .collect();
+    lines[lines.len().saturating_sub(n)..].to_vec()
+}
+
+fn spawn_logged(c: &mut Command, log: &Path) -> Result<Child> {
+    if let Some(dir) = log.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let out = std::fs::File::create(log).with_context(|| log.display().to_string())?;
+    Ok(c.stdin(Stdio::null())
+        .stdout(out.try_clone()?)
+        .stderr(out)
+        .spawn()?)
+}
+
+fn launch(store: &Store, game: &Path, direct: bool) -> Result<Wrapper> {
     let install = steam::find_game();
     let wrapped = install
         .as_ref()
@@ -376,15 +451,20 @@ fn launch(store: &Store, game: &Path, direct: bool) -> Result<()> {
                 .envs(c.get_envs().filter_map(|(k, v)| Some((k, v?))));
             c = fhs;
         }
-        c.current_dir(game)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?;
+        let log = store.root.join(WRAPPER_LOG);
+        let child = spawn_logged(c.current_dir(game), &log)?;
         say(
             "info",
-            "launching F1 25 directly (Steam must be running); waiting for the wrapper",
+            &format!(
+                "launching F1 25 directly (Steam must be running); waiting for the wrapper, output in {}",
+                log.display()
+            ),
         );
+        Ok(Wrapper {
+            child: Some(child),
+            log,
+            timeout: DIRECT_START_TIMEOUT,
+        })
     } else {
         Command::new("steam")
             .args(["-applaunch", &STEAM_APP_ID.to_string()])
@@ -392,8 +472,12 @@ fn launch(store: &Store, game: &Path, direct: bool) -> Result<()> {
             .stderr(Stdio::null())
             .spawn()?;
         say("info", "asked Steam to launch F1 25; waiting for the wrapper");
+        Ok(Wrapper {
+            child: None,
+            log: PathBuf::new(),
+            timeout: STEAM_START_TIMEOUT,
+        })
     }
-    Ok(())
 }
 
 struct Follower {
@@ -629,3 +713,80 @@ fn link(target: &Path, at: &Path) {
 
 #[cfg(not(unix))]
 fn link(_: &Path, _: &Path) {}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    fn temp_log(name: &str) -> PathBuf {
+        std::env::temp_dir()
+            .join(format!("swofty-run-{}-{name}", std::process::id()))
+            .join(WRAPPER_LOG)
+    }
+
+    #[test]
+    fn reports_a_wrapper_that_exits_before_the_game_starts() {
+        let log = temp_log("early");
+        let child = spawn_logged(
+            Command::new("sh").args([
+                "-c",
+                "echo '[info] installing profile Default'; \
+                 echo 'swofty: version.dll already exists in the game folder; run swofty restore' >&2; exit 3",
+            ]),
+            &log,
+        )
+        .unwrap();
+        let mut w = Wrapper {
+            child: Some(child),
+            log: log.clone(),
+            timeout: DIRECT_START_TIMEOUT,
+        };
+        let status = loop {
+            if let Some(s) = w.exited() {
+                break s;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        assert_eq!(status.code(), Some(3));
+        assert_eq!(
+            w.failure(status, "before the game started").to_string(),
+            "the wrapper exited (exit status: 3) before the game started: \
+             version.dll already exists in the game folder; run swofty restore"
+        );
+        std::fs::remove_dir_all(log.ancestors().nth(2).unwrap()).ok();
+    }
+
+    #[test]
+    fn names_the_log_when_the_wrapper_says_nothing() {
+        let log = temp_log("silent");
+        let child = spawn_logged(Command::new("sh").args(["-c", "exit 1"]), &log).unwrap();
+        let mut w = Wrapper {
+            child: Some(child),
+            log: log.clone(),
+            timeout: DIRECT_START_TIMEOUT,
+        };
+        let status = loop {
+            if let Some(s) = w.exited() {
+                break s;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        let msg = w.failure(status, "before the game started").to_string();
+        assert!(
+            msg.ends_with(&format!("without output; see {}", log.display())),
+            "{msg}"
+        );
+        std::fs::remove_dir_all(log.ancestors().nth(2).unwrap()).ok();
+    }
+
+    #[test]
+    fn keeps_the_last_lines() {
+        let log = temp_log("tail");
+        std::fs::create_dir_all(log.parent().unwrap()).unwrap();
+        std::fs::write(&log, "a\n\nb\r\nc\n").unwrap();
+        assert_eq!(tail(&log, 2), ["b", "c"]);
+        assert_eq!(tail(&log, 9), ["a", "b", "c"]);
+        assert!(tail(&log.with_extension("missing"), 3).is_empty());
+        std::fs::remove_dir_all(log.ancestors().nth(2).unwrap()).ok();
+    }
+}

@@ -15,3 +15,4 @@ Owner: see `subsystems.tsv`. Write-up: research/exe.md §1 (conventions), §3.4.
 
 ## Inbox
 - 2026-10-17 17:11 ui-native: 2026-10-17 ui-native: VM binding registry, Vm_Dispatch_BindingMessage (0x1442c00e0, commands 0x4c / events 0x4d), VM vtable slot map, and the missing-screen route failure are written up in research/ui-native.md sections 1, 2 and 9. All new rows are L2 at most and unverified. T006 traces the dispatcher.
+- 2026-10-17 17:46 ui-native: 2026-10-17 ui-native: screen fill path Vm_Load_UidfResource -> Vm_Load_UidfScreens (job on mgr+0xb900); prototype native/src/core/ui.cpp registers mod screens through it and guards missing route targets (research/ui-native.md section 10).
