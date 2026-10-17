@@ -7,16 +7,18 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
 use crate::game::{self, ago, duration};
-use crate::pages::avatar;
+use crate::pages::{avatar, badge};
 use crate::shell::{Page, PlayState, Shell};
-use crate::theme::{Palette, glow};
+use crate::theme::Palette;
 
 fn link(id: &'static str, label: &'static str, p: Palette) -> Stateful<Div> {
     div()
         .id(id)
         .cursor_pointer()
-        .text_color(p.accent)
-        .hover(move |s| s.text_color(p.accent_hover).underline())
+        .text_size(px(13.))
+        .text_color(p.text_muted)
+        .underline()
+        .hover(move |s| s.text_color(p.text))
         .child(label)
 }
 
@@ -42,63 +44,39 @@ impl Shell {
             .flex_shrink_1()
             .min_w(px(220.))
             .gap(px(12.))
-            .child(
-                div()
-                    .size(px(44.))
-                    .flex_shrink_0()
-                    .rounded(px(12.))
-                    .bg(p.brand_gradient())
-                    .shadow(glow(p.brand, 0.25))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .child(Icon::new(IconName::Gamepad2).size(px(22.)).text_color(p.on_color)),
-            )
+            .child(badge(IconName::Gamepad2, 36., p))
             .child(
                 v_flex()
                     .min_w_0()
-                    .gap(px(2.))
+                    .gap(px(1.))
                     .child(
                         div()
-                            .text_size(px(15.))
-                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_size(px(13.))
+                            .font_weight(FontWeight::MEDIUM)
                             .truncate()
                             .child(title),
                     )
-                    .when_some(mode, |d, m| {
-                        d.child(
-                            div()
-                                .text_size(px(13.))
-                                .text_color(p.text_muted)
-                                .truncate()
-                                .child(m),
-                        )
-                    })
                     .child(
                         div()
                             .text_size(px(12.))
                             .text_color(p.text_placeholder)
                             .truncate()
-                            .child(line),
+                            .child(match mode {
+                                Some(m) => format!("{m} · {line}"),
+                                None => line,
+                            }),
                     ),
             )
     }
 
     fn status(&self, state: &PlayState, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let dot = |c: Hsla| {
-            div()
-                .size(px(9.))
-                .rounded_full()
-                .bg(c)
-                .shadow(glow(c, 0.6))
-                .flex_shrink_0()
-        };
+        let dot = |c: Hsla| div().size(px(7.)).rounded_full().bg(c).flex_shrink_0();
         let row = h_flex()
             .flex_1()
             .min_w_0()
             .overflow_hidden()
-            .gap(px(10.))
-            .text_size(px(14.));
+            .gap(px(9.))
+            .text_size(px(13.));
         if let Some(notice) = &self.notice {
             return row
                 .text_color(p.error)
@@ -163,11 +141,11 @@ impl Shell {
                             .gap(px(2.))
                             .child(
                                 h_flex()
-                                    .gap(px(14.))
+                                    .gap(px(12.))
                                     .child(
                                         div()
                                             .text_color(p.error)
-                                            .font_weight(FontWeight::SEMIBOLD)
+                                            .font_weight(FontWeight::MEDIUM)
                                             .child(crashed),
                                     )
                                     .child(
@@ -183,7 +161,7 @@ impl Shell {
                             )
                             .child(
                                 div()
-                                    .text_size(px(13.))
+                                    .text_size(px(12.))
                                     .text_color(p.text_muted)
                                     .truncate()
                                     .child(summary),
@@ -240,19 +218,19 @@ impl Shell {
             .collect();
         Button::new("profile-picker")
             .outline()
-            .h(px(52.))
-            .min_w(px(196.))
+            .h(px(40.))
+            .min_w(px(180.))
             .child(
-                h_flex().gap(px(10.)).child(avatar(&active, 30., p)).child(
+                h_flex().gap(px(8.)).child(avatar(&active, 24., p)).child(
                     v_flex()
                         .items_start()
                         .child(
                             div()
-                                .text_size(px(14.))
-                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_size(px(13.))
+                                .font_weight(FontWeight::MEDIUM)
                                 .child(active.clone()),
                         )
-                        .child(div().text_size(px(12.)).text_color(p.text_muted).child(summary)),
+                        .child(div().text_size(px(11.)).text_color(p.text_muted).child(summary)),
                 ),
             )
             .dropdown_caret(true)
@@ -294,83 +272,39 @@ impl Shell {
     }
 
     fn big_button(&self, state: &PlayState, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let brand = |alpha: f32| {
-            linear_gradient(
-                100.,
-                linear_color_stop(p.brand.opacity(alpha), 0.),
-                linear_color_stop(p.brand_end.opacity(alpha), 1.),
-            )
-        };
         let (icon, label, bg, fg, enabled) = match state {
-            PlayState::Ready | PlayState::Crashed(_) => (IconName::Play, "Play", brand(1.), p.on_color, true),
-            PlayState::Launching => (
-                IconName::LoaderCircle,
-                "Launching…",
-                brand(0.55),
-                p.on_color,
-                false,
-            ),
-            PlayState::Running(_) => (
-                IconName::Activity,
-                "Running",
-                p.success.opacity(0.14).into(),
-                p.success,
-                false,
-            ),
-            PlayState::NotInstalled => (
-                IconName::FolderSearch,
-                "Locate game",
-                p.elevated.into(),
-                p.text,
-                true,
-            ),
-            PlayState::Detecting => (
-                IconName::LoaderCircle,
-                "Play",
-                p.elevated.into(),
-                p.text_muted,
-                false,
-            ),
+            PlayState::Ready | PlayState::Crashed(_) => (IconName::Play, "Play", p.accent, p.on_accent, true),
+            PlayState::Launching => (IconName::LoaderCircle, "Launching…", p.elevated, p.accent, false),
+            PlayState::Running(_) => (IconName::Activity, "Running", p.elevated, p.success, false),
+            PlayState::NotInstalled => (IconName::FolderSearch, "Locate game", p.elevated, p.text, true),
+            PlayState::Detecting => (IconName::LoaderCircle, "Play", p.elevated, p.text_muted, false),
         };
         let ready = matches!(state, PlayState::Ready | PlayState::Crashed(_));
-        let running = matches!(state, PlayState::Running(_));
         let missing = matches!(state, PlayState::NotInstalled);
         div()
             .id("play")
-            .h(px(52.))
-            .w(px(220.))
+            .h(px(40.))
+            .w(px(168.))
             .flex_shrink_0()
-            .rounded(px(12.))
+            .rounded(px(5.))
             .bg(bg)
             .text_color(fg)
             .flex()
             .items_center()
             .justify_center()
-            .gap(px(10.))
-            .when(ready, |d| {
-                d.shadow(glow(p.brand, 0.35)).hover(move |s| {
-                    s.bg(linear_gradient(
-                        100.,
-                        linear_color_stop(p.brand_end, 0.),
-                        linear_color_stop(p.brand, 1.),
-                    ))
-                })
-            })
-            .when(missing, |d| {
-                d.border_1()
-                    .border_color(p.border)
-                    .hover(move |s| s.bg(p.selected))
-            })
-            .when(running, |d| d.border_1().border_color(p.success.opacity(0.4)))
+            .gap(px(8.))
+            .when(!ready, |d| d.border_1().border_color(p.border))
+            .when(ready, |d| d.hover(move |s| s.bg(p.accent_hover)))
+            .when(missing, |d| d.hover(move |s| s.bg(p.selected)))
             .when(enabled, |d| d.cursor_pointer())
             .map(|d| match icon {
-                IconName::LoaderCircle => d.child(Spinner::new().icon(icon).with_size(px(22.))),
-                _ => d.child(Icon::new(icon).size(px(22.))),
+                IconName::LoaderCircle => d.child(Spinner::new().icon(icon).with_size(px(16.))),
+                _ => d.child(Icon::new(icon).size(px(16.))),
             })
             .child(
                 div()
-                    .text_size(px(19.))
-                    .font_weight(FontWeight::BOLD)
+                    .text_size(px(14.))
+                    .font_weight(FontWeight::SEMIBOLD)
                     .child(label),
             )
             .when(enabled, |d| {
@@ -387,9 +321,9 @@ impl Shell {
     pub(crate) fn play_bar(&self, p: Palette, wide: bool, cx: &mut Context<Self>) -> impl IntoElement {
         let state = self.play_state();
         h_flex()
-            .h(px(84.))
+            .h(px(64.))
             .flex_shrink_0()
-            .px(px(20.))
+            .px(px(16.))
             .gap(px(20.))
             .bg(p.chrome)
             .border_t_1()
@@ -398,14 +332,14 @@ impl Shell {
             .child(self.status(&state, p, cx))
             .child(
                 h_flex()
-                    .gap(px(10.))
+                    .gap(px(8.))
                     .flex_shrink_0()
                     .when(matches!(state, PlayState::Running(_)), |d| {
                         d.child(
                             Button::new("stop")
                                 .danger()
                                 .outline()
-                                .h(px(52.))
+                                .h(px(40.))
                                 .icon(IconName::Square)
                                 .label("Stop")
                                 .on_click(cx.listener(|this, _, window, cx| this.confirm_stop(window, cx))),

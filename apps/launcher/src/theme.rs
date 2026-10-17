@@ -1,28 +1,23 @@
 use gpui_kit::component::{Theme, ThemeMode};
-use gpui_kit::{App, Background, BoxShadow, Global, Hsla, linear_color_stop, linear_gradient, px, rgb};
+use gpui_kit::{App, Global, Hsla, px, rgb};
 
 #[derive(Clone, Copy)]
 pub struct Palette {
+    pub chrome: Hsla,
     pub background: Hsla,
     pub surface: Hsla,
-    pub elevated: Hsla,
-    pub chrome: Hsla,
-    pub border: Hsla,
-    pub border_variant: Hsla,
     pub hover: Hsla,
-    pub switch_off: Hsla,
+    pub elevated: Hsla,
     pub selected: Hsla,
+    pub border_variant: Hsla,
+    pub border: Hsla,
+    pub switch_off: Hsla,
     pub text: Hsla,
     pub text_muted: Hsla,
     pub text_placeholder: Hsla,
-    pub on_color: Hsla,
     pub accent: Hsla,
     pub accent_hover: Hsla,
-    pub brand: Hsla,
-    pub brand_end: Hsla,
-    pub mods: Hsla,
-    pub maps: Hsla,
-    pub profiles: Hsla,
+    pub on_accent: Hsla,
     pub success: Hsla,
     pub warning: Hsla,
     pub error: Hsla,
@@ -34,68 +29,28 @@ fn hex(value: u32) -> Hsla {
     rgb(value).into()
 }
 
-const HUES: [u32; 8] = [
-    0x8b7cff, 0x4cc9f0, 0x3ddc97, 0xffc857, 0xff6b9d, 0x5b8cff, 0xff9f43, 0x2ed3b7,
-];
-
-pub fn hue(key: &str) -> Hsla {
-    let h = key.bytes().fold(0x811c_9dc5_u32, |h, b| {
-        (h ^ u32::from(b)).wrapping_mul(0x0100_0193)
-    });
-    hex(HUES[h as usize % HUES.len()])
-}
-
-pub fn deepen(color: Hsla) -> Hsla {
-    Hsla {
-        h: (color.h + 0.06).fract(),
-        l: color.l * 0.78,
-        ..color
-    }
-}
-
-pub fn gradient(from: Hsla, to: Hsla) -> Background {
-    linear_gradient(135., linear_color_stop(from, 0.), linear_color_stop(to, 1.))
-}
-
-pub fn glow(color: Hsla, strength: f32) -> Vec<BoxShadow> {
-    vec![BoxShadow::new(px(0.), px(8.), color.opacity(strength)).blur_radius(px(24.))]
-}
-
 impl Palette {
     pub fn dark() -> Self {
         Self {
-            background: hex(0x0d0f15),
-            surface: hex(0x151822),
-            elevated: hex(0x1c2030),
-            chrome: hex(0x10121a),
-            border: hex(0x2c3247),
-            border_variant: hex(0x1f2434),
-            hover: hex(0x1b1f2d),
-            switch_off: hex(0x3a4158),
-            selected: hex(0x242a3c),
-            text: hex(0xeceef6),
-            text_muted: hex(0xa3a9c0),
-            text_placeholder: hex(0x6c7391),
-            on_color: hex(0xffffff),
-            accent: hex(0x8b7cff),
-            accent_hover: hex(0xa396ff),
-            brand: hex(0xff4757),
-            brand_end: hex(0xff9f43),
-            mods: hex(0x8b7cff),
-            maps: hex(0x2ed3b7),
-            profiles: hex(0xff6b9d),
-            success: hex(0x3ddc97),
-            warning: hex(0xffc857),
-            error: hex(0xff6b6b),
+            chrome: hex(0x181613),
+            background: hex(0x1e1b19),
+            surface: hex(0x24211e),
+            hover: hex(0x282521),
+            elevated: hex(0x2d2a26),
+            selected: hex(0x383530),
+            border_variant: hex(0x302d29),
+            border: hex(0x403c38),
+            switch_off: hex(0x4b4742),
+            text: hex(0xeae7e4),
+            text_muted: hex(0xa9a49d),
+            text_placeholder: hex(0x7c7670),
+            accent: hex(0xfaab35),
+            accent_hover: hex(0xffbe5c),
+            on_accent: hex(0x150e06),
+            success: hex(0x61cb7c),
+            warning: hex(0xeab532),
+            error: hex(0xf66d67),
         }
-    }
-
-    pub fn brand_gradient(&self) -> Background {
-        linear_gradient(
-            100.,
-            linear_color_stop(self.brand, 0.),
-            linear_color_stop(self.brand_end, 1.),
-        )
     }
 }
 
@@ -108,8 +63,8 @@ pub fn init(cx: &mut App) {
     Theme::change(ThemeMode::Dark, None, cx);
     Theme::update(cx, |t| {
         t.font_size = px(14.);
-        t.radius = px(8.);
-        t.radius_lg = px(12.);
+        t.radius = px(5.);
+        t.radius_lg = px(6.);
         t.shadow = false;
         t.background = p.background;
         t.foreground = p.text;
@@ -125,9 +80,9 @@ pub fn init(cx: &mut App) {
         t.primary = p.accent;
         t.primary_hover = p.accent_hover;
         t.primary_active = p.accent;
-        t.primary_foreground = p.on_color;
+        t.primary_foreground = p.on_accent;
         t.secondary = p.elevated;
-        t.secondary_hover = p.hover;
+        t.secondary_hover = p.selected;
         t.secondary_active = p.selected;
         t.secondary_foreground = p.text;
         t.button = p.elevated;
@@ -137,13 +92,16 @@ pub fn init(cx: &mut App) {
         t.button_primary = p.accent;
         t.button_primary_hover = p.accent_hover;
         t.button_primary_active = p.accent;
-        t.button_primary_foreground = p.on_color;
+        t.button_primary_foreground = p.on_accent;
+        t.link = p.text;
+        t.link_hover = p.accent;
+        t.link_active = p.accent;
         t.popover = p.elevated;
         t.popover_foreground = p.text;
         t.colors.list = p.background;
         t.list_hover = p.hover;
         t.list_active = p.selected;
-        t.list_active_border = p.accent;
+        t.list_active_border = p.border;
         t.sidebar = p.chrome;
         t.sidebar_border = p.border_variant;
         t.sidebar_foreground = p.text;
@@ -153,7 +111,7 @@ pub fn init(cx: &mut App) {
         t.status_bar_border = p.border_variant;
         t.window_border = p.border;
         t.switch = p.switch_off;
-        t.switch_thumb = p.on_color;
+        t.switch_thumb = p.text;
         t.success = p.success;
         t.warning = p.warning;
         t.danger = p.error;

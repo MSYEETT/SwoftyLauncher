@@ -15,8 +15,8 @@ use swofty_core::store::Store;
 
 use crate::game::{self, Install, Launch, Probe};
 use crate::library::Library;
-use crate::pages::avatar;
-use crate::theme::{Palette, deepen, gradient, palette};
+use crate::pages::{avatar, label};
+use crate::theme::{Palette, palette};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Page {
@@ -39,14 +39,6 @@ impl Page {
             Self::Mods => IconName::Puzzle,
             Self::Maps => IconName::Map,
             Self::Profiles => IconName::Layers,
-        }
-    }
-
-    pub fn color(self, p: Palette) -> Hsla {
-        match self {
-            Self::Mods => p.mods,
-            Self::Maps => p.maps,
-            Self::Profiles => p.profiles,
         }
     }
 }
@@ -364,24 +356,15 @@ impl Shell {
     }
 
     fn title_bar(&self, p: Palette) -> impl IntoElement {
-        TitleBar::new().child(
+        TitleBar::new().bg(p.chrome).child(
             h_flex()
-                .gap(px(10.))
-                .child(
-                    div()
-                        .size(px(20.))
-                        .rounded(px(6.))
-                        .bg(p.brand_gradient())
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(Icon::new(IconName::Gamepad2).size(px(13.)).text_color(p.on_color)),
-                )
+                .gap(px(8.))
+                .text_color(p.text_muted)
+                .child(Icon::new(IconName::Gamepad2).size(px(14.)))
                 .child(
                     div()
                         .text_size(px(13.))
                         .font_weight(FontWeight::MEDIUM)
-                        .text_color(p.text_muted)
                         .child("Swofty Mod Launcher"),
                 ),
         )
@@ -389,18 +372,17 @@ impl Shell {
 
     fn nav_item(&self, page: Page, count: usize, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let active = self.page == page;
-        let color = page.color(p);
         h_flex()
             .id(page.label())
-            .h(px(40.))
+            .h(px(30.))
             .px(px(8.))
-            .gap(px(12.))
-            .rounded(px(10.))
+            .gap(px(9.))
+            .rounded(px(5.))
             .cursor_pointer()
-            .text_size(px(14.))
+            .text_size(px(13.))
             .map(|d| {
                 if active {
-                    d.bg(color.opacity(0.13))
+                    d.bg(p.selected)
                         .text_color(p.text)
                         .font_weight(FontWeight::MEDIUM)
                 } else {
@@ -408,42 +390,16 @@ impl Shell {
                         .hover(move |s| s.bg(p.hover).text_color(p.text))
                 }
             })
-            .child(
-                div()
-                    .size(px(26.))
-                    .rounded(px(7.))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .map(|d| {
-                        if active {
-                            d.bg(gradient(color, deepen(color)))
-                        } else {
-                            d.bg(p.elevated)
-                        }
-                    })
-                    .child(Icon::new(page.icon()).size(px(15.)).text_color(if active {
-                        p.on_color
-                    } else {
-                        p.text_muted
-                    })),
-            )
+            .child(Icon::new(page.icon()).size(px(15.)).text_color(if active {
+                p.accent
+            } else {
+                p.text_placeholder
+            }))
             .child(div().flex_1().child(page.label()))
             .child(
                 div()
-                    .min_w(px(24.))
-                    .px(px(7.))
-                    .rounded(px(8.))
                     .text_size(px(12.))
-                    .flex()
-                    .justify_center()
-                    .map(|d| {
-                        if active {
-                            d.bg(color.opacity(0.22)).text_color(color)
-                        } else {
-                            d.bg(p.elevated).text_color(p.text_placeholder)
-                        }
-                    })
+                    .text_color(p.text_placeholder)
                     .child(count.to_string()),
             )
             .on_click(cx.listener(move |this, _, _, cx| {
@@ -455,59 +411,44 @@ impl Shell {
     fn active_profile_card(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let summary = self.library.active().map(|a| a.summary()).unwrap_or_default();
         let name = self.library.profile.name.clone();
-        h_flex()
+        v_flex()
             .id("active-profile")
-            .p(px(12.))
-            .gap(px(10.))
-            .rounded(px(12.))
+            .p(px(10.))
+            .gap(px(8.))
+            .rounded(px(6.))
             .cursor_pointer()
-            .bg(gradient(p.profiles.opacity(0.14), p.accent.opacity(0.08)))
             .border_1()
-            .border_color(p.profiles.opacity(0.25))
-            .hover(move |s| s.border_color(p.profiles.opacity(0.55)))
-            .child(avatar(&name, 34., p))
+            .border_color(p.border_variant)
+            .hover(move |s| s.bg(p.hover).border_color(p.border))
+            .child(label("ACTIVE PROFILE", p))
             .child(
-                v_flex()
-                    .flex_1()
-                    .min_w_0()
-                    .child(
-                        div()
-                            .text_size(px(10.))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(p.text_placeholder)
-                            .child("ACTIVE PROFILE"),
-                    )
-                    .child(
-                        div()
-                            .truncate()
-                            .text_size(px(14.))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(name),
-                    )
-                    .child(div().text_size(px(12.)).text_color(p.text_muted).child(summary)),
+                h_flex().gap(px(9.)).child(avatar(&name, 28., p)).child(
+                    v_flex()
+                        .flex_1()
+                        .min_w_0()
+                        .child(
+                            div()
+                                .truncate()
+                                .text_size(px(13.))
+                                .font_weight(FontWeight::MEDIUM)
+                                .child(name),
+                        )
+                        .child(div().text_size(px(12.)).text_color(p.text_muted).child(summary)),
+                ),
             )
             .on_click(cx.listener(|this, _, _, cx| this.go(Page::Profiles, cx)))
     }
 
     fn sidebar(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let heading = |label: &'static str| {
-            div()
-                .px(px(10.))
-                .pt(px(18.))
-                .pb(px(6.))
-                .text_size(px(11.))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(p.text_placeholder)
-                .child(label)
-        };
+        let heading = |text: &'static str| label(text, p).px(px(8.)).pt(px(16.)).pb(px(6.));
         let root = self.store.root.clone();
         v_flex()
-            .w(px(236.))
+            .w(px(220.))
             .h_full()
             .flex_shrink_0()
-            .px(px(12.))
-            .pb(px(12.))
-            .gap(px(3.))
+            .px(px(10.))
+            .pb(px(10.))
+            .gap(px(2.))
             .bg(p.chrome)
             .border_r_1()
             .border_color(p.border_variant)
@@ -521,16 +462,16 @@ impl Shell {
             .child(
                 h_flex()
                     .id("data-dir")
-                    .mt(px(6.))
-                    .px(px(10.))
-                    .py(px(7.))
-                    .gap(px(8.))
-                    .rounded(px(8.))
+                    .mt(px(4.))
+                    .px(px(8.))
+                    .py(px(6.))
+                    .gap(px(7.))
+                    .rounded(px(5.))
                     .cursor_pointer()
                     .text_size(px(12.))
                     .text_color(p.text_placeholder)
                     .hover(move |s| s.bg(p.hover).text_color(p.text_muted))
-                    .child(Icon::new(IconName::FolderOpen).size(px(14.)))
+                    .child(Icon::new(IconName::FolderOpen).size(px(13.)))
                     .child(
                         div()
                             .flex_1()
@@ -569,11 +510,7 @@ impl Render for Shell {
                             .flex_1()
                             .h_full()
                             .min_w_0()
-                            .bg(linear_gradient(
-                                165.,
-                                linear_color_stop(self.page.color(p).opacity(0.11), 0.),
-                                linear_color_stop(p.background, 0.45),
-                            ))
+                            .bg(p.background)
                             .child(content),
                     ),
             )
