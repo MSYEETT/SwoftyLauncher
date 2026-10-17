@@ -1,5 +1,6 @@
 mod build;
 mod doctor;
+mod offline;
 mod run;
 mod time;
 
@@ -59,6 +60,11 @@ enum Command {
     Mods(ModsCommand),
     #[command(subcommand, about = "List, import and remove maps (EGO track packages)")]
     Maps(MapsCommand),
+    #[command(
+        subcommand,
+        about = "Offline play: consent and the launch extension that runs sessions without EA AntiCheat"
+    )]
+    Offline(offline::OfflineCommand),
     #[command(subcommand, about = "Show and change mod settings in the profile")]
     Settings(SettingsCommand),
     #[command(about = "Summarise a previous session's logs and crashes")]
@@ -141,6 +147,7 @@ fn dispatch(cli: Cli) -> Result<ExitCode> {
         Command::Restore { game } => build::restore(&store, game),
         Command::Mods(cmd) => mods(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Maps(cmd) => maps(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
+        Command::Offline(cmd) => offline::command(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Settings(cmd) => settings(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Logs { dir, exe } => run::logs(&store, dir, exe),
         Command::Doctor => doctor::doctor(&store),

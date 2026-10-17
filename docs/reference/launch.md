@@ -2,6 +2,30 @@
 
 Modded play is offline only. For setup, see [Windows](/guide/windows) or [Linux and Steam Deck](/guide/linux).
 
+## Offline play: EA AntiCheat and consent
+
+Mods run in-process code, which EA AntiCheat (Javelin) blocks, so a modded
+session runs without it. The first launch shows the offline play terms and
+asks for a typed `accept`; if you decline, the game is not launched and
+nothing is changed. The terms record that this is outside EA's terms of
+service and that EA may take action against your account, including
+suspension or termination.
+
+| Command | Effect |
+|---|---|
+| `swofty offline accept` | Show the terms and accept them (also asked on first launch) |
+| `swofty offline status` | Consent state, extension files, digests and staging |
+| `swofty offline fetch` | Download the pinned extension release and verify its SHA-256 digests |
+| `swofty offline install <dir>` | Install from a folder you downloaded yourself |
+| `swofty offline withdraw` | Withdraw consent; modded launches are refused |
+
+The extension (a separate project, [Swofty-Developments/F1-OfflinePlay](https://github.com/Swofty-Developments/F1-OfflinePlay))
+is verified against digests pinned in the manager at install time and again
+before every use, so a tampered or lookalike download is refused however it
+arrived. Sessions stay offline: multiplayer is unavailable and cannot be
+enabled. Every staged change is journaled and the game folder returns to
+vanilla when the game exits, on `swofty restore`, and at the next start.
+
 ## Linux: the Steam wrapper
 
 The launch option `swofty run -- %command%` starts F1 Mod Manager through Steam. It uses the configured Proton version and records session logs.

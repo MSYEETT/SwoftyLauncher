@@ -17,6 +17,7 @@ sha2.workspace = true
 swofty-formats.workspace = true
 swofty-sdk.workspace = true
 thiserror.workspace = true
+ureq.workspace = true
 zip.workspace = true
 
 [dev-dependencies]

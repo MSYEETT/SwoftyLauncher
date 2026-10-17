@@ -53,6 +53,14 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     for d in swofty_core::install::Installer::new(&store.root, &g).recover()? {
         say("info", &format!("rollback: {d}"));
     }
+    match swofty_core::offline::restore_pending(&store.root) {
+        Ok(true) => say("info", "rollback: offline play staging"),
+        Ok(false) => {}
+        Err(e) => say("info", &format!("offline play rollback failed: {e:#}")),
+    }
+    // Modded sessions run without EA AntiCheat: the terms are accepted once,
+    // and declining means the game is not launched.
+    crate::offline::gate(store, !wrapped && std::io::stdin().is_terminal())?;
     if wrapped {
         return wrapper(store, profile, &args);
     }
@@ -154,6 +162,22 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs) -> Result<ExitCode> {
         None
     };
     become_subreaper();
+    let artifacts = crate::offline::ensure_extension(store)?;
+    let probe = swofty_core::offline::probe(&game, &artifacts)?;
+    if !probe.supported {
+        bail!(
+            "this F1 25 build is not supported by the offline play extension yet ({}); \
+             the modded session was refused",
+            probe.report
+        );
+    }
+    say("info", &format!("game build supported: {}", probe.report));
+    let journal = swofty_core::offline::journal_path(&store.root);
+    swofty_core::offline::stage(&game, &artifacts, &journal)?;
+    say(
+        "info",
+        "staged offline play: EA AntiCheat is not started this session; multiplayer is unavailable",
+    );
     let result = run_loop(
         store,
         args,
@@ -163,6 +187,14 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs) -> Result<ExitCode> {
         &game,
         installed.as_ref(),
     );
+    match swofty_core::offline::restore_pending(&store.root) {
+        Ok(true) => say("info", "offline play: the game folder is back to vanilla"),
+        Ok(false) => {}
+        Err(e) => say(
+            "info",
+            &format!("offline play restore failed, run swofty restore: {e:#}"),
+        ),
+    }
     if let Some(g) = installed {
         match swofty_core::install::Installer::new(&store.root, &g)
             .apply(&swofty_core::install::Plan::vanilla())

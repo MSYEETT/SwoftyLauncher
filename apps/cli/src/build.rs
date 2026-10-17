@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use swofty_core::baseline::Identity;
 use swofty_core::build::GVDB;
 use swofty_core::install::{Game, Installer};
@@ -161,6 +161,11 @@ fn read(game: &Path, rel: &str) -> Result<Vec<u8>> {
 }
 
 pub fn restore(store: &Store, game: Option<PathBuf>) -> Result<ExitCode> {
+    match swofty_core::offline::restore_pending(&store.root) {
+        Ok(true) => println!("restored: offline play staging"),
+        Ok(false) => {}
+        Err(e) => bail!("offline play staging is not restorable: {e:#}"),
+    }
     let g = self::game(store, game)?;
     let left = Installer::new(&store.root, &g).restore()?;
     if left.is_empty() {
