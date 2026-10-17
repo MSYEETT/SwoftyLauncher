@@ -121,16 +121,19 @@ fn main() -> ExitCode {
         .map(Store::new)
         .unwrap_or_else(Store::open_default)
         .with_builtins(swofty_builtins::all());
-    match store.migrate() {
-        Ok(notes) => notes.iter().for_each(|n| eprintln!("swofty: {n}")),
-        Err(e) => eprintln!("swofty: data migration failed: {e}"),
-    }
     match run_cli(&store, args) {
         Ok(code) => code,
         Err(e) => {
             eprintln!("swofty: {e:#}");
             ExitCode::FAILURE
         }
+    }
+}
+
+fn migrate(store: &Store) {
+    match store.migrate() {
+        Ok(notes) => notes.iter().for_each(|n| eprintln!("swofty: {n}")),
+        Err(e) => eprintln!("swofty: data migration failed: {e}"),
     }
 }
 
@@ -265,6 +268,7 @@ fn run_cli(store: &Store, mut args: Vec<OsString>) -> Result<ExitCode> {
         args = forwarded;
     }
     let matches = addons.command().get_matches_from(args);
+    migrate(store);
     if let Some((name, sub)) = matches.subcommand()
         && let Some((id, spec)) = addons.specs.iter().find(|(_, s)| s.name == name)
     {

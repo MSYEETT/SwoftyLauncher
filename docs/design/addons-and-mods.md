@@ -52,7 +52,7 @@ These stay as they are: `swofty.json` and every field in it, manifest `schema_ve
 ### Compatibility and migration
 
 - **Manifests.** Existing manifests load unchanged. `operations.assets` is a new optional field. `operations.database`, `operations.erp` and `operations.files` stay valid and load into the asset op model.
-- **Data dir.** `Store::migrate()` runs when the launcher or the CLI starts:
+- **Data dir.** `Store::migrate()` runs when the launcher starts and when a `swofty` command parses. `--help`, `--version` and parse errors exit before it:
   1. If `mods/` exists and `addons/` does not, `mods/` is renamed to `addons/`.
   2. If both exist, each `mods/<x>/` whose manifest id is not in `addons/` moves there. The rest stay and are logged. `mods/` is removed when empty.
   3. `config.json` gets `"data_version": 2`.
