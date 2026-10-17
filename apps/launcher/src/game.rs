@@ -113,7 +113,8 @@ impl Launch {
             .arg(&store.root)
             .arg("--profile")
             .arg(profile)
-            .arg("run");
+            .arg("run")
+            .arg("--apply");
         if install.manual {
             c.arg("--game").arg(&install.dir);
         }
