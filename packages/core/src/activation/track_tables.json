@@ -1028,6 +1028,91 @@
      }
     }
    }
+  },
+  {
+   "id": "tyre_wear_scale_e1ca72",
+   "base": "e1ca7240ea1ade8e",
+   "count": "350ad2720ce8d2e0",
+   "labels": [
+    "_metadata_"
+   ],
+   "unique": [],
+   "schema": {
+    "fields": [
+     "Harder",
+     "Intermediate",
+     "Medium",
+     "Softer",
+     "Wet",
+     "_metadata_"
+    ],
+    "tables": {}
+   }
+  },
+  {
+   "id": "tyre_wear_scale_070c09",
+   "base": "070c098aeb9a8c43",
+   "count": "b39d460eb521fd8b",
+   "labels": [
+    "_metadata_"
+   ],
+   "unique": [],
+   "schema": {
+    "fields": [
+     "Harder",
+     "Intermediate",
+     "Medium",
+     "Softer",
+     "Wet",
+     "_metadata_"
+    ],
+    "tables": {}
+   }
+  },
+  {
+   "id": "tyre_wear_scale_2d566a",
+   "base": "2d566ae4329c1cb5",
+   "count": "2c09cb6a888683bd",
+   "labels": [
+    "_metadata_"
+   ],
+   "unique": [],
+   "schema": {
+    "fields": [
+     "Harder",
+     "Intermediate",
+     "Medium",
+     "Softer",
+     "Wet",
+     "_metadata_"
+    ],
+    "tables": {}
+   }
+  },
+  {
+   "id": "track_trivia",
+   "base": "d421028a82a0154c",
+   "count": "f4dd3b7bada3b9b8",
+   "labels": [
+    "track",
+    "_metadata_"
+   ],
+   "unique": [],
+   "schema": {
+    "fields": [
+     "_metadata_",
+     "track"
+    ],
+    "tables": {
+     "TrackTriviaTrivia": {
+      "fields": [
+       "_metadata_",
+       "trivia"
+      ],
+      "tables": {}
+     }
+    }
+   }
   }
  ],
  "sorted_orders": [
@@ -1093,7 +1178,8 @@
     "trackMapAssetGroup",
     "worldAssetGroup",
     "worldEri"
-   ]
+   ],
+   "tables": {}
   }
  }
 }
