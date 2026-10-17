@@ -414,7 +414,7 @@ pub fn build_menus(
         .find(|s| menus.session.iter().any(|m| m.name == s.name))
     {
         return Err(Error::Other(format!(
-            "screen {} is reserved for ADDON SETTINGS; rename it in its mod",
+            "screen {} is reserved for ADDON SETTINGS; rename it in its addon",
             s.name
         )));
     }
@@ -431,14 +431,14 @@ mod tests {
         let m = AddonManifest::parse(
             r#"{ "schema_version": 1, "id": "a.pages", "name": "S", "version": "1.0.0", "author": "a",
                  "compat": { "game": "f1_25" },
-                 "operations": { "screens": [{ "name": "swofty_mod_0", "file": "ui/page0.ui" }] } }"#,
+                 "operations": { "screens": [{ "name": "swofty_addon_0", "file": "ui/page0.ui" }] } }"#,
         )
         .unwrap();
         let files = screen_files(&[&m], Path::new("/addons")).unwrap();
         assert_eq!(
             files,
             BTreeMap::from([(
-                "swofty/ui/swofty_mod_0.ui".to_owned(),
+                "swofty/ui/swofty_addon_0.ui".to_owned(),
                 PathBuf::from("/addons/a.pages/ui/page0.ui")
             )])
         );

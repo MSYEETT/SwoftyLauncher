@@ -60,7 +60,7 @@ static CRITICAL_SECTION log_lock;
 static wchar_t exe_path[MAX_PATH], game_dir[MAX_PATH];
 static uintptr_t image_base;
 static Section sections[96];
-static int section_count, mods_loaded, mods_ready;
+static int section_count, addons_loaded, addons_ready;
 static volatile LONG load_state;
 static DWORD attach_tick;
 
@@ -216,33 +216,43 @@ static SwoftyCoreInitFn core_init;
 static SwoftyCoreCommitFn core_commit;
 static struct {
     wchar_t name[MAX_PATH];
-    SwoftyModInitFn init;
+    const char *symbol;
+    SwoftyAddonInitFn init;
 } deferred[256];
 static int deferred_count;
 
-static int wcmp(const void *a, const void *b)
+static const wchar_t *const ROOTS[] = {L"addons", L"mods"};
+
+typedef struct {
+    int root;
+    wchar_t *name;
+} Dll;
+
+static int dll_cmp(const void *a, const void *b)
 {
-    return _wcsicmp(*(wchar_t *const *)a, *(wchar_t *const *)b);
+    const Dll *x = a, *y = b;
+    int c = _wcsicmp(x->name, y->name);
+    return c ? c : x->root - y->root;
 }
 
-static void finish_init(const wchar_t *name, int r)
+static void finish_init(const wchar_t *name, const char *symbol, int r)
 {
-    slog("mod %ls: SwoftyModInit returned %d (%s)", name, r, r ? "ok" : "FAILED");
+    slog("addon %ls: %s returned %d (%s)", name, symbol, r, r ? "ok" : "FAILED");
     if (r)
-        mods_ready++;
+        addons_ready++;
 }
 
-static void load_mod(const wchar_t *dir, const wchar_t *name, int core_dir)
+static void load_addon(const wchar_t *dir, const wchar_t *name, int core_dir)
 {
     wchar_t path[MAX_PATH * 2];
     swprintf(path, MAX_PATH * 2, L"%ls\\%ls", dir, name);
-    slog("mod %ls: loading %ls", name, path);
+    slog("addon %ls: loading %ls", name, path);
     HMODULE m = LoadLibraryW(path);
     if (!m) {
-        slog("mod %ls: LoadLibrary failed, error %lu", name, GetLastError());
+        slog("addon %ls: LoadLibrary failed, error %lu", name, GetLastError());
         return;
     }
-    mods_loaded++;
+    addons_loaded++;
     SwoftyCoreAttachFn attach = (SwoftyCoreAttachFn)(void *)GetProcAddress(m, "SwoftyCoreAttach");
     if (core_dir && attach && !core_init) {
         SwoftyCoreInitFn ci = (SwoftyCoreInitFn)(void *)GetProcAddress(m, "SwoftyCoreInit");
@@ -250,57 +260,81 @@ static void load_mod(const wchar_t *dir, const wchar_t *name, int core_dir)
         if (ci && cc && attach(&api)) {
             core_init = ci;
             core_commit = cc;
-            slog("mod %ls: provides the mixin API v%u", name, api.version);
+            slog("addon %ls: provides the mixin API v%u", name, api.version);
         } else {
-            slog("mod %ls: exports SwoftyCoreAttach but did not attach", name);
+            slog("addon %ls: exports SwoftyCoreAttach but did not attach", name);
         }
     }
-    SwoftyModInitFn init = (SwoftyModInitFn)(void *)GetProcAddress(m, "SwoftyModInit");
+    const char *symbol = "SwoftyAddonInit", *api_symbol = "SwoftyAddonApi";
+    SwoftyAddonInitFn init = (SwoftyAddonInitFn)(void *)GetProcAddress(m, symbol);
     if (!init) {
-        slog("mod %ls: loaded at %p but exports no SwoftyModInit, left idle", name, (void *)m);
+        symbol = "SwoftyModInit", api_symbol = "SwoftyModApi";
+        init = (SwoftyAddonInitFn)(void *)GetProcAddress(m, symbol);
+    }
+    if (!init) {
+        slog("addon %ls: loaded at %p but exports no SwoftyAddonInit or SwoftyModInit, left idle", name, (void *)m);
         return;
     }
-    const uint32_t *wants = (const uint32_t *)(void *)GetProcAddress(m, "SwoftyModApi");
+    const uint32_t *wants = (const uint32_t *)(void *)GetProcAddress(m, api_symbol);
     if (!wants || *wants < 2) {
         if (deferred_count == 256) {
-            slog("mod %ls: too many API v1 plugins, left idle", name);
+            slog("addon %ls: too many API v1 plugins, left idle", name);
             return;
         }
         wcsncpy(deferred[deferred_count].name, name, MAX_PATH - 1);
+        deferred[deferred_count].symbol = symbol;
         deferred[deferred_count++].init = init;
-        slog("mod %ls: loaded at %p, API v1 plugin, SwoftyModInit runs after the mixin commit", name, (void *)m);
+        slog("addon %ls: loaded at %p, API v1 plugin, %s runs after the mixin commit", name, (void *)m, symbol);
         return;
     }
-    slog("mod %ls: loaded at %p, calling SwoftyModInit (API v%u)", name, (void *)m, *wants);
-    finish_init(name, core_init ? core_init(name, init) : init(&api));
+    slog("addon %ls: loaded at %p, calling %s (API v%u)", name, (void *)m, symbol, *wants);
+    finish_init(name, symbol, core_init ? core_init(name, init) : init(&api));
 }
 
-static void load_dir(const wchar_t *sub, int core_dir)
+static int list_dlls(int root, const wchar_t *sub, Dll *out, int n)
 {
-    wchar_t dir[MAX_PATH * 2], query[MAX_PATH * 2], *names[256];
-    swprintf(dir, MAX_PATH * 2, L"%ls\\swofty\\%ls", game_dir, sub);
-    swprintf(query, MAX_PATH * 2, L"%ls\\*.dll", dir);
+    wchar_t query[MAX_PATH * 2];
+    swprintf(query, MAX_PATH * 2, L"%ls\\swofty\\%ls%ls%ls\\*.dll", game_dir, ROOTS[root], *sub ? L"\\" : L"", sub);
     WIN32_FIND_DATAW fd;
     HANDLE f = FindFirstFileW(query, &fd);
     if (f == INVALID_HANDLE_VALUE) {
         DWORD e = GetLastError();
-        slog(e == ERROR_FILE_NOT_FOUND ? "mods: %ls: no .dll files" : "mods: %ls: cannot list folder (error %lu)", dir, e);
-        return;
+        if (e != ERROR_FILE_NOT_FOUND && e != ERROR_PATH_NOT_FOUND)
+            slog("addons: %ls: cannot list folder (error %lu)", query, e);
+        return n;
     }
-    int n = 0;
+    int found = 0;
     do {
         size_t len = wcslen(fd.cFileName);
         if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && len > 4 && !_wcsicmp(fd.cFileName + len - 4, L".dll") &&
             n < 256)
-            names[n++] = _wcsdup(fd.cFileName);
+            out[n].root = root, out[n++].name = _wcsdup(fd.cFileName), found++;
     } while (FindNextFileW(f, &fd));
     FindClose(f);
-    qsort(names, n, sizeof *names, wcmp);
-    slog("mods: %ls: %d dll(s)", dir, n);
+    slog("addons: swofty\\%ls%ls%ls: %d dll(s)%s", ROOTS[root], *sub ? L"\\" : L"", sub, found,
+         root ? " (legacy folder)" : "");
+    return n;
+}
+
+static void load_dir(const wchar_t *sub, int core_dir)
+{
+    Dll dlls[256];
+    int n = 0;
+    for (int r = 0; r < (int)(sizeof ROOTS / sizeof *ROOTS); r++)
+        n = list_dlls(r, sub, dlls, n);
+    if (!n)
+        slog("addons: swofty\\addons%ls%ls: no .dll files", *sub ? L"\\" : L"", sub);
+    qsort(dlls, n, sizeof *dlls, dll_cmp);
     for (int i = 0; i < n; i++) {
-        load_mod(dir, names[i], core_dir);
-        free(names[i]);
+        wchar_t dir[MAX_PATH * 2];
+        swprintf(dir, MAX_PATH * 2, L"%ls\\swofty\\%ls%ls%ls", game_dir, ROOTS[dlls[i].root], *sub ? L"\\" : L"", sub);
+        if (i && !_wcsicmp(dlls[i].name, dlls[i - 1].name))
+            slog("addon %ls: also in %ls, skipped", dlls[i].name, dir);
+        else
+            load_addon(dir, dlls[i].name, core_dir);
     }
+    for (int i = 0; i < n; i++)
+        free(dlls[i].name);
 }
 
 static BOOL CALLBACK find_window(HWND h, LPARAM out)
@@ -383,24 +417,24 @@ static const Section *section_of(uintptr_t a)
     return NULL;
 }
 
-static void load_mods_once(const char *why, LPCWSTR detail)
+static void load_addons_once(const char *why, LPCWSTR detail)
 {
     if (InterlockedCompareExchange(&load_state, 1, 0) != 0)
         return;
     if (detail && !((uintptr_t)detail >> 16))
         detail = NULL;
-    slog("trigger: %s%s%ls%s on thread %lu, %lu ms after attach; loading mods now", why, detail ? " class '" : "",
+    slog("trigger: %s%s%ls%s on thread %lu, %lu ms after attach; loading addons now", why, detail ? " class '" : "",
          detail ? detail : L"", detail ? "'" : "", GetCurrentThreadId(), GetTickCount() - attach_tick);
     unhook_iat();
-    load_dir(L"mods\\core", 1);
-    load_dir(L"mods", 0);
+    load_dir(L"core", 1);
+    load_dir(L"", 0);
     if (core_commit)
-        slog("mods: mixin commit done, %d mixin mod(s) active", core_commit());
+        slog("addons: mixin commit done, %d mixin addon(s) active", core_commit());
     for (int i = 0; i < deferred_count; i++) {
-        slog("mod %ls: calling SwoftyModInit (API v1)", deferred[i].name);
-        finish_init(deferred[i].name, deferred[i].init(&api_v1));
+        slog("addon %ls: calling %s (API v1)", deferred[i].name, deferred[i].symbol);
+        finish_init(deferred[i].name, deferred[i].symbol, deferred[i].init(&api_v1));
     }
-    slog("mods: done, %d mod(s) loaded, %d initialised", mods_loaded, mods_ready);
+    slog("addons: done, %d addon(s) loaded, %d initialised", addons_loaded, addons_ready);
     InterlockedExchange(&load_state, 2);
 }
 
@@ -410,7 +444,7 @@ static void game_call(const char *fn, void *ret, LPCWSTR cls)
     char why[160];
     snprintf(why, sizeof why, "USER32!%s from %p (%s)", fn, ret, sec ? sec->name : "outside the exe");
     if (sec && (sec->flags & IMAGE_SCN_MEM_EXECUTE) && !(sec->flags & IMAGE_SCN_MEM_WRITE))
-        load_mods_once(why, cls);
+        load_addons_once(why, cls);
     else if (!load_state)
         slog("trigger skipped: %s is not plain game code, still waiting", why);
 }
@@ -439,13 +473,13 @@ static DWORD WINAPI worker(LPVOID unused)
         if (w) {
             wchar_t cls[128] = {0};
             GetClassNameW(w, cls, 128);
-            load_mods_once("main window visible (fallback, IAT trigger never fired)", cls);
+            load_addons_once("main window visible (fallback, IAT trigger never fired)", cls);
             return 0;
         }
         if (GetTickCount() - attach_tick > WINDOW_TIMEOUT_MS &&
             InterlockedCompareExchange(&load_state, 3, 0) == 0) {
             unhook_iat();
-            slog("fallback watcher: no trigger and no window after %d s, mods NOT loaded", WINDOW_TIMEOUT_MS / 1000);
+            slog("fallback watcher: no trigger and no window after %d s, addons NOT loaded", WINDOW_TIMEOUT_MS / 1000);
             return 0;
         }
         Sleep(POLL_MS);

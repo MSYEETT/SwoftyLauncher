@@ -32,7 +32,7 @@ struct Option {
     std::vector<Watcher> watchers;
 };
 
-struct ModSettings {
+struct AddonSettings {
     std::string id;
     std::vector<std::wstring> dlls;
     std::vector<std::string> enable_commands;
@@ -42,11 +42,11 @@ struct ModSettings {
 
 struct Command {
     int kind;
-    size_t mod, option, state;
+    size_t addon, option, state;
 };
 
 struct Owner {
-    int mod;
+    int addon;
     std::string dll;
 };
 
@@ -58,7 +58,7 @@ bool loaded, relaunch;
 unsigned long long seq;
 std::string profile;
 std::wstring requests;
-std::vector<ModSettings> mods;
+std::vector<AddonSettings> addons;
 std::unordered_map<uint32_t, Command> commands;
 std::unordered_map<HMODULE, Owner> owners;
 std::set<std::string> warned;
@@ -152,7 +152,7 @@ std::string object(const std::vector<std::string> &items)
 std::string requests_text()
 {
     std::vector<std::string> options, enabled;
-    for (auto &m : mods) {
+    for (auto &m : addons) {
         std::vector<std::string> mine;
         for (auto &o : m.options)
             if (o.requested)
@@ -242,10 +242,10 @@ const Owner *owner_of(const void *addr)
     GetModuleFileNameW(m, path, MAX_PATH);
     std::wstring dll = base_name(path);
     Owner o{-1, utf8(dll)};
-    for (size_t i = 0; i < mods.size() && o.mod < 0; i++)
-        for (auto &d : mods[i].dlls)
+    for (size_t i = 0; i < addons.size() && o.addon < 0; i++)
+        for (auto &d : addons[i].dlls)
             if (!_wcsicmp(d.c_str(), dll.c_str()))
-                o.mod = (int)i;
+                o.addon = (int)i;
     AcquireSRWLockExclusive(&lock);
     const Owner *out = &owners.try_emplace(m, o).first->second;
     ReleaseSRWLockExclusive(&lock);
@@ -254,9 +254,9 @@ const Owner *owner_of(const void *addr)
 
 Option *find_option(const Owner *w, const char *id)
 {
-    if (w->mod < 0)
+    if (w->addon < 0)
         return nullptr;
-    for (auto &o : mods[w->mod].options)
+    for (auto &o : addons[w->addon].options)
         if (o.id == id)
             return &o;
     return nullptr;
@@ -271,16 +271,16 @@ void settings_attach(SwoftyApi *a, const std::wstring &dir)
     std::string text = read_file(path);
     json::Value doc;
     if (text.empty())
-        return api->log("[settings] no settings.json; every mod setting keeps its code default");
+        return api->log("[settings] no settings.json; every addon setting keeps its code default");
     if (!json::parse(text, doc) || doc["schema"].num() != 1)
-        return api->log("[settings] %ls is unreadable or not schema 1; every mod setting keeps its code default",
+        return api->log("[settings] %ls is unreadable or not schema 1; every addon setting keeps its code default",
                         path.c_str());
     profile = doc["profile"].str();
     std::string req = doc["requests"].str();
     requests = full(req.empty() ? dir + L"..\\..\\requests.json" : wide(req));
     size_t count = 0;
-    for (auto &jm : doc["mods"].a) {
-        ModSettings m{jm["id"].str(), {}, {}, {}};
+    for (auto &jm : doc.field("addons", "mods").a) {
+        AddonSettings m{jm["id"].str(), {}, {}, {}};
         for (auto &d : jm["dlls"].a)
             m.dlls.push_back(base_name(wide(d.str())));
         for (auto &c : jm["enable_commands"].a)
@@ -297,19 +297,19 @@ void settings_attach(SwoftyApi *a, const std::wstring &dir)
             else
                 m.options.push_back(std::move(o)), count++;
         }
-        mods.push_back(std::move(m));
+        addons.push_back(std::move(m));
     }
-    for (size_t i = 0; i < mods.size(); i++) {
-        for (size_t k = 0; k < mods[i].enable_commands.size() && k < 2; k++)
-            add_command(mods[i].enable_commands[k], {ENABLE, i, 0, k});
-        for (size_t j = 0; j < mods[i].options.size(); j++)
-            for (size_t k = 0; k < mods[i].options[j].states.size(); k++)
-                add_command(mods[i].options[j].states[k].command, {SET, i, j, k});
+    for (size_t i = 0; i < addons.size(); i++) {
+        for (size_t k = 0; k < addons[i].enable_commands.size() && k < 2; k++)
+            add_command(addons[i].enable_commands[k], {ENABLE, i, 0, k});
+        for (size_t j = 0; j < addons[i].options.size(); j++)
+            for (size_t k = 0; k < addons[i].options[j].states.size(); k++)
+                add_command(addons[i].options[j].states[k].command, {SET, i, j, k});
     }
     add_command(doc["restart_command"].str(), {RESTART, 0, 0, 0});
     loaded = true;
-    api->log("[settings] %ls: profile '%s', %zu mod(s), %zu option(s), %zu command(s); requests file %ls", path.c_str(),
-             profile.c_str(), mods.size(), count, commands.size(), requests.c_str());
+    api->log("[settings] %ls: profile '%s', %zu addon(s), %zu option(s), %zu command(s); requests file %ls", path.c_str(),
+             profile.c_str(), addons.size(), count, commands.size(), requests.c_str());
 }
 
 int settings_get(const char *id, uint32_t type, SwoftySettingValue *out)
@@ -321,20 +321,20 @@ int settings_get(const char *id, uint32_t type, SwoftySettingValue *out)
     AcquireSRWLockExclusive(&lock);
     const Option *o = find_option(w, id);
     bool ok = o && o->type == type;
-    bool warn = !ok && warned.insert((w->mod < 0 ? w->dll : mods[w->mod].id) + '\n' + id).second;
+    bool warn = !ok && warned.insert((w->addon < 0 ? w->dll : addons[w->addon].id) + '\n' + id).second;
     if (ok && out)
         *out = value_of(*o);
     ReleaseSRWLockExclusive(&lock);
     const char *want = type < 4 ? type_names[type] : "?";
-    if (warn && w->mod < 0)
-        api->log("[settings] %s asked for %s, but no mod in settings.json lists that dll; the code default is used",
+    if (warn && w->addon < 0)
+        api->log("[settings] %s asked for %s, but no addon in settings.json lists that dll; the code default is used",
                  w->dll.c_str(), id);
     else if (warn && !o)
         api->log("[settings] %s (%s): no option %s in settings.json; the code default is used", w->dll.c_str(),
-                 mods[w->mod].id.c_str(), id);
+                 addons[w->addon].id.c_str(), id);
     else if (warn)
         api->log("[settings] %s (%s): %s is a %s option, the code reads a %s; the code default is used",
-                 w->dll.c_str(), mods[w->mod].id.c_str(), id, type_names[o->type], want);
+                 w->dll.c_str(), addons[w->addon].id.c_str(), id, type_names[o->type], want);
     return ok;
 }
 
@@ -358,7 +358,7 @@ bool settings_command(uint32_t hash)
     if (it == commands.end())
         return false;
     const Command c = it->second;
-    ModSettings *m = c.kind == RESTART ? nullptr : &mods[c.mod];
+    AddonSettings *m = c.kind == RESTART ? nullptr : &addons[c.addon];
     Option *o = c.kind == SET ? &m->options[c.option] : nullptr;
     std::vector<Watcher> call;
     SwoftySettingValue v{};

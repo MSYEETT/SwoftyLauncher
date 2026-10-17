@@ -12,4 +12,4 @@ SWOFTY_VTABLE_PRIORITY(10, vt_Fake_Other, 8, uintptr_t)
 
 SWOFTY_PATCH(site_Fake_Patch, 0xB8, 0x02, 0x00, 0x00, 0x00)
 
-SWOFTY_MOD()
+SWOFTY_ADDON()

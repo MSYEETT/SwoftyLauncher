@@ -70,10 +70,11 @@ typedef struct SwoftyApi {
     int (*watch_setting)(const char *id, SwoftySettingFn fn, void *user);
 } SwoftyApi;
 
-typedef int (*SwoftyModInitFn)(const SwoftyApi *api);
+typedef int (*SwoftyAddonInitFn)(const SwoftyApi *api);
+typedef SwoftyAddonInitFn SwoftyModInitFn;
 
 typedef int (*SwoftyCoreAttachFn)(SwoftyApi *api);
-typedef int (*SwoftyCoreInitFn)(const wchar_t *name, SwoftyModInitFn init);
+typedef int (*SwoftyCoreInitFn)(const wchar_t *name, SwoftyAddonInitFn init);
 typedef int (*SwoftyCoreCommitFn)(void);
 
 #if defined(_WIN32)

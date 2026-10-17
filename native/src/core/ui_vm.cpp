@@ -274,25 +274,25 @@ struct Option {
     int current = 0;
 };
 
-struct ModInfo {
+struct AddonInfo {
     std::string id, name;
     std::vector<Option> options;
 };
 
-std::vector<ModInfo> &mods()
+std::vector<AddonInfo> &addons()
 {
-    static std::vector<ModInfo> m;
+    static std::vector<AddonInfo> m;
     return m;
 }
 
-class ModPage : public ViewModel {
+class AddonPage : public ViewModel {
 public:
     void on_activated() override
     {
-        const ModInfo *m = find_mod();
+        const AddonInfo *m = find_addon();
         if (!m) {
             set_text("title", screen().c_str());
-            swofty::log("[ui] view model %s: no mod for this page in settings.json", screen().c_str());
+            swofty::log("[ui] view model %s: no addon for this page in settings.json", screen().c_str());
             return;
         }
         set_text("title", m->name.c_str());
@@ -304,7 +304,7 @@ public:
 
     bool on_command(const swofty::ui::Command &c) override
     {
-        ModInfo *m = find_mod();
+        AddonInfo *m = find_addon();
         if (!m)
             return false;
         std::string name = c.name ? c.name : "";
@@ -333,9 +333,9 @@ public:
     }
 
 private:
-    ModInfo *find_mod()
+    AddonInfo *find_addon()
     {
-        auto &list = mods();
+        auto &list = addons();
         size_t at = screen().find_last_of('_');
         if (at == std::string::npos)
             return nullptr;
@@ -343,9 +343,9 @@ private:
         return index >= 0 && size_t(index) < list.size() ? &list[size_t(index)] : nullptr;
     }
 
-    void publish(const ModInfo &, size_t i)
+    void publish(const AddonInfo &, size_t i)
     {
-        const Option &o = find_mod()->options[i];
+        const Option &o = find_addon()->options[i];
         char key[64];
         auto prop = [&](const char *leaf) {
             snprintf(key, sizeof key, "o%zu.%s", i, leaf);
@@ -363,9 +363,9 @@ private:
     }
 };
 
-SWOFTY_VIEW_MODEL("swofty_mod_", ModPage)
+SWOFTY_VIEW_MODEL("swofty_addon_", AddonPage)
 
-void load_mods(const std::wstring &settings_path)
+void load_addons(const std::wstring &settings_path)
 {
     HANDLE f = CreateFileW(settings_path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
     if (f == INVALID_HANDLE_VALUE)
@@ -382,8 +382,8 @@ void load_mods(const std::wstring &settings_path)
     json::Value doc;
     if (text.empty() || !json::parse(text, doc))
         return;
-    for (auto &jm : doc["mods"].a) {
-        ModInfo m;
+    for (auto &jm : doc.field("addons", "mods").a) {
+        AddonInfo m;
         m.id = jm["id"].str();
         m.name = jm["name"].str(m.id.c_str());
         for (auto &jo : jm["options"].a) {
@@ -398,7 +398,7 @@ void load_mods(const std::wstring &settings_path)
             }
             m.options.push_back(std::move(o));
         }
-        mods().push_back(std::move(m));
+        addons().push_back(std::move(m));
     }
 }
 
@@ -424,12 +424,12 @@ bool ui_vm_init(uintptr_t module_base, const std::wstring &swofty_dir)
     if (call && a_setint != base + 0xd38fd0)
         swofty::log("[ui] view models: Vm_Set_Int resolved to base+0x%llx (KB build has base+0xd38fd0)",
                     (unsigned long long)(a_setint - base));
-    load_mods(swofty_dir + L"settings.json");
+    load_addons(swofty_dir + L"settings.json");
     swofty::log("[ui] view models: %s (register base+0x%llx, path base+0x%llx, set_int base+0x%llx, ui system %p, "
-                "%zu factory(ies), %zu mod(s) from settings.json)",
+                "%zu factory(ies), %zu addon(s) from settings.json)",
                 ready ? "ready" : "off", (unsigned long long)(a_regvm ? a_regvm - base : 0),
                 (unsigned long long)(a_path ? a_path - base : 0), (unsigned long long)(a_setint ? a_setint - base : 0),
-                static_cast<void *>(ui_system), factories().size(), mods().size());
+                static_cast<void *>(ui_system), factories().size(), addons().size());
     return ready;
 }
 

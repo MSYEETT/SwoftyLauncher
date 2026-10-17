@@ -54,7 +54,7 @@ pub enum Kind {
 impl Kind {
     fn key(self) -> &'static str {
         match self {
-            Kind::Addon => "mod",
+            Kind::Addon => "addon",
             Kind::Map => "map",
         }
     }
@@ -121,7 +121,7 @@ pub fn entries<'a>(addons: &'a [SessionAddon], maps: &'a [SessionMap]) -> Vec<En
         out.push(Entry {
             kind: Kind::Addon,
             index: i,
-            screen: format!("swofty_mod_{full}"),
+            screen: format!("swofty_addon_{full}"),
             name: &m.name,
             author: &m.author,
             version: &m.version,
@@ -330,9 +330,9 @@ fn addon_rows<'a>(e: &'a Entry<'a>) -> Vec<Row<'a>> {
             Row {
                 key: "row_id".into(),
                 kind: RowKind::Info(e.id.into()),
-                label: "Mod ID".into(),
-                title: "MOD ID".into(),
-                body: "This mod has no options.".into(),
+                label: "Addon ID".into(),
+                title: "ADDON ID".into(),
+                body: "This addon has no options.".into(),
             },
             Row {
                 key: "row_version".into(),

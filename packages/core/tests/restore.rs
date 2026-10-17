@@ -7,8 +7,8 @@ use swofty_core::journal::{Journal, Op, State};
 
 const GVDB: &str = "game_package/gamedatabases/gamedatabases.2025.bin";
 const UI: &str = "2025_asset_groups/ui_package/flow_frontend.erp";
-const CORE: &str = "swofty/mods/core/swofty_core.dll";
-const SCREEN: &str = "swofty/ui/swofty_mod_0.ui";
+const CORE: &str = "swofty/addons/core/swofty_core.dll";
+const SCREEN: &str = "swofty/ui/swofty_addon_0.ui";
 const STOCK_TRACK: &str = "2025_asset_groups/environment_package/tracks/bahrain/wep/bahrain_common.erp";
 const MAP_FILES: &[&str] = &[
     "2025_asset_groups/environment_package/tracks/okayama/wep/okayama_common.erp",

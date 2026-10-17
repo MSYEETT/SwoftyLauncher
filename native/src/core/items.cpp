@@ -25,7 +25,7 @@ using KeyOf_t = uint8_t *(void *item);
 
 struct Item {
     uint32_t key;
-    std::string mod, what;
+    std::string addon, what;
     LONG logged = 0;
 };
 
@@ -80,21 +80,21 @@ bool load_config()
     if (text.empty() || !json::parse(text, doc) || doc["owned_items"].type != json::Value::Arr)
         return false;
     for (auto &j : doc["owned_items"].a) {
-        std::string k = j["key"].str(), mod = j["mod"].str(), what = j["what"].str();
+        std::string k = j["key"].str(), addon = j.field("addon", "mod").str(), what = j["what"].str();
         uint32_t key = 0;
-        if (!parse_key(k, &key) || mod.empty()) {
-            swofty::log("[items] skipping owned_items entry key '%s' mod '%s': needs a 0x hex key and a mod id", k.c_str(),
-                        mod.c_str());
+        if (!parse_key(k, &key) || addon.empty()) {
+            swofty::log("[items] skipping owned_items entry key '%s' addon '%s': needs a 0x hex key and an addon id",
+                        k.c_str(), addon.c_str());
             continue;
         }
         bool dup = false;
         for (auto &it : items)
             dup |= it.key == key;
         if (dup) {
-            swofty::log("[items] skipping duplicate owned_items key 0x%08x (%s)", key, mod.c_str());
+            swofty::log("[items] skipping duplicate owned_items key 0x%08x (%s)", key, addon.c_str());
             continue;
         }
-        items.push_back({key, mod, what.empty() ? k : what});
+        items.push_back({key, addon, what.empty() ? k : what});
     }
     return true;
 }
@@ -106,7 +106,7 @@ uint32_t owned_hook(void *item)
     for (auto &it : items)
         if (it.key == key) {
             if (!InterlockedExchange(&it.logged, 1))
-                swofty::log("[items] reporting mod item 0x%08x (%s, %s) as owned", key, it.what.c_str(), it.mod.c_str());
+                swofty::log("[items] reporting mod item 0x%08x (%s, %s) as owned", key, it.what.c_str(), it.addon.c_str());
             return OWNED;
         }
     return h_owned.call<uint32_t>(item);
@@ -137,7 +137,7 @@ SWOFTY_ON_LOAD
     }
     swofty::log("[items] settings.json: %zu mod item(s) to report as owned", items.size());
     for (auto &it : items)
-        swofty::log("[items]   0x%08x %s (%s)", it.key, it.what.c_str(), it.mod.c_str());
+        swofty::log("[items]   0x%08x %s (%s)", it.key, it.what.c_str(), it.addon.c_str());
     if (items.empty())
         return;
     uintptr_t at = find(T_OWNED);

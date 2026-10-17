@@ -40,14 +40,14 @@ struct Mixin {
     uintptr_t addr = 0;
 };
 
-struct Mod {
+struct Addon {
     std::string name;
     std::vector<Mixin> mixins;
     bool active = true;
 };
 
 struct Handler {
-    size_t mod;
+    size_t addon;
     Mixin *m;
 };
 
@@ -68,8 +68,8 @@ std::unordered_map<std::string, size_t> binding_index;
 std::unordered_map<std::string, uintptr_t> scans;
 json::Value session;
 bool have_session, committed;
-std::vector<Mod> mods;
-Mod *current;
+std::vector<Addon> addons;
+Addon *current;
 
 std::vector<safetyhook::InlineHook> inline_hooks;
 std::vector<std::string> inline_names;
@@ -224,27 +224,27 @@ uintptr_t api_resolve(const char *id)
 {
     Binding *b = find_binding(id ? id : "");
     if (!b)
-        api->log("[core] %s%sno binding %s in bindings.json", current ? "mod " : "", current ? (current->name + ": ").c_str() : "",
+        api->log("[core] %s%sno binding %s in bindings.json", current ? "addon " : "", current ? (current->name + ": ").c_str() : "",
                  id ? id : "(null)");
     else if (!b->resolved)
         b->addr = resolve_binding(*b), b->resolved = true;
     uintptr_t a = b ? b->addr : 0;
     if (!a && current)
-        api->log("[core] mod %s needs %s, which does not resolve on this build", current->name.c_str(), id ? id : "(null)");
+        api->log("[core] addon %s needs %s, which does not resolve on this build", current->name.c_str(), id ? id : "(null)");
     return a;
 }
 
-bool same_dll(const std::string &decl, const std::string &mod)
+bool same_dll(const std::string &decl, const std::string &dll)
 {
     auto slash = decl.find_last_of("/\\");
     std::string a = slash == std::string::npos ? decl : decl.substr(slash + 1);
-    return a.size() == mod.size() && !_stricmp(a.c_str(), mod.c_str());
+    return a.size() == dll.size() && !_stricmp(a.c_str(), dll.c_str());
 }
 
-bool declared(const Mod &mod, const SwoftyMixin &m)
+bool declared(const Addon &addon, const SwoftyMixin &m)
 {
     for (auto &e : session["native"].a) {
-        if (!same_dll(e["dll"].str(), mod.name))
+        if (!same_dll(e["dll"].str(), addon.name))
             continue;
         for (auto &d : e["mixins"].a) {
             bool vt = SWOFTY_MIXIN_KIND(m.kind) == SWOFTY_MIXIN_VTABLE;
@@ -261,7 +261,7 @@ bool declared(const Mod &mod, const SwoftyMixin &m)
 int api_register(const SwoftyMixin *m, size_t n)
 {
     if (!current || committed) {
-        api->log("[core] register_mixins outside SwoftyModInit; refused");
+        api->log("[core] register_mixins outside SwoftyAddonInit; refused");
         return 0;
     }
     std::vector<Mixin> add;
@@ -270,19 +270,19 @@ int api_register(const SwoftyMixin *m, size_t n)
         bool on_load = k == SWOFTY_MIXIN_ON_LOAD;
         if (k < SWOFTY_MIXIN_WRAP || k > SWOFTY_MIXIN_ON_LOAD || !m[i].handler || (!on_load && !m[i].target) ||
             (k == SWOFTY_MIXIN_PATCH && !SWOFTY_MIXIN_ARG(m[i].kind))) {
-            api->log("[core] mod %s: mixin %zu is malformed (kind 0x%x); registration refused", current->name.c_str(), i,
+            api->log("[core] addon %s: mixin %zu is malformed (kind 0x%x); registration refused", current->name.c_str(), i,
                      m[i].kind);
             return 0;
         }
         if (!on_load && have_session && !declared(*current, m[i])) {
-            api->log("[core] mod %s: %s on %s is not declared in session.json; registration refused",
+            api->log("[core] addon %s: %s on %s is not declared in session.json; registration refused",
                      current->name.c_str(), kind_name(k), m[i].target);
             return 0;
         }
         add.push_back({on_load ? "" : m[i].target, m[i].kind, m[i].priority, m[i].handler, m[i].orig});
     }
     current->mixins.insert(current->mixins.end(), add.begin(), add.end());
-    api->log("[core] mod %s: registered %zu mixin(s)", current->name.c_str(), n);
+    api->log("[core] addon %s: registered %zu mixin(s)", current->name.c_str(), n);
     return 1;
 }
 
@@ -318,23 +318,23 @@ void *api_fields(const void *obj, size_t size)
     }
     ReleaseSRWLockExclusive(&lock);
     if (held)
-        api->log("[core] fields(%p, %zu): this mod already keeps %zu bytes on that object", obj, size, held);
+        api->log("[core] fields(%p, %zu): this addon already keeps %zu bytes on that object", obj, size, held);
     return out;
 }
 
 void drop(size_t i, const char *fmt, const char *a = "", const char *b = "", const char *c = "")
 {
-    if (!mods[i].active)
+    if (!addons[i].active)
         return;
     char why[512];
     snprintf(why, sizeof why, fmt, a, b, c);
-    mods[i].active = false;
-    api->log("[core] mod %s dropped: %s; none of its mixins install", mods[i].name.c_str(), why);
+    addons[i].active = false;
+    api->log("[core] addon %s dropped: %s; none of its mixins install", addons[i].name.c_str(), why);
 }
 
 void check_targets(size_t i)
 {
-    for (auto &m : mods[i].mixins) {
+    for (auto &m : addons[i].mixins) {
         uint32_t k = SWOFTY_MIXIN_KIND(m.kind), arg = SWOFTY_MIXIN_ARG(m.kind);
         if (k == SWOFTY_MIXIN_ON_LOAD)
             continue;
@@ -363,10 +363,10 @@ void check_targets(size_t i)
 std::vector<Group> plan()
 {
     std::vector<Group> groups;
-    for (size_t i = 0; i < mods.size(); i++) {
-        if (!mods[i].active)
+    for (size_t i = 0; i < addons.size(); i++) {
+        if (!addons[i].active)
             continue;
-        for (auto &m : mods[i].mixins) {
+        for (auto &m : addons[i].mixins) {
             uint32_t k = SWOFTY_MIXIN_KIND(m.kind);
             if (k == SWOFTY_MIXIN_ON_LOAD)
                 continue;
@@ -395,7 +395,7 @@ std::string owners(const Group &g)
 {
     std::string s;
     for (auto &h : g.handlers)
-        s += (s.empty() ? "" : " > ") + mods[h.mod].name + "(" + std::to_string(h.m->priority) +
+        s += (s.empty() ? "" : " > ") + addons[h.addon].name + "(" + std::to_string(h.m->priority) +
              (h.m->kind & SWOFTY_MIXIN_OVERWRITE ? ", overwrite" : "") + ")";
     return s;
 }
@@ -409,7 +409,7 @@ bool drop_conflicts(const std::vector<Group> &groups, bool warn)
         std::string over;
         for (auto &h : g.handlers)
             if (h.m->kind & SWOFTY_MIXIN_OVERWRITE)
-                over += (over.empty() ? "" : ", ") + mods[h.mod].name, bad.push_back(h.mod);
+                over += (over.empty() ? "" : ", ") + addons[h.addon].name, bad.push_back(h.addon);
         if (std::count(over.begin(), over.end(), ',')) {
             api->log("[core] conflict: two overwrites on %s: %s", target.c_str(), over.c_str());
         } else if (!over.empty()) {
@@ -428,11 +428,11 @@ bool drop_conflicts(const std::vector<Group> &groups, bool warn)
                      (unsigned long long)o.addr, owners(g).c_str(), owners(o).c_str());
             for (auto *z : {&g, &o})
                 for (auto &h : z->handlers)
-                    bad.push_back(h.mod);
+                    bad.push_back(h.addon);
         }
     }
     for (size_t i : bad)
-        drop(i, "it conflicts with another mod (see the conflict line above)");
+        drop(i, "it conflicts with another addon (see the conflict line above)");
     return !bad.empty();
 }
 
@@ -538,7 +538,7 @@ bool install_all(const std::vector<Group> &groups)
             api->log("[core] %s on %s at 0x%llx: %s", kind_name(g.kind), target.c_str(), (unsigned long long)g.addr, err);
             uninstall_all();
             for (auto &h : g.handlers)
-                drop(h.mod, "installing its %s on %s failed", kind_name(g.kind), target.c_str());
+                drop(h.addon, "installing its %s on %s failed", kind_name(g.kind), target.c_str());
             return false;
         }
         api->log("[core] %s %s at 0x%llx (base+0x%llx) installed: %s", kind_name(g.kind), target.c_str(),
@@ -551,7 +551,7 @@ bool install_all(const std::vector<Group> &groups)
 
 std::string core_code_owner(uintptr_t addr)
 {
-    for (auto &m : mods)
+    for (auto &m : addons)
         for (auto &x : m.mixins)
             if (reinterpret_cast<uintptr_t>(x.handler) == addr && SWOFTY_MIXIN_KIND(x.kind) != SWOFTY_MIXIN_PATCH)
                 return m.name + " " + kind_name(x.kind) + (x.target.empty() ? "" : " " + x.target) + " handler";
@@ -607,14 +607,14 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     return 1;
 }
 
-extern "C" __declspec(dllexport) int SwoftyCoreInit(const wchar_t *name, SwoftyModInitFn init)
+extern "C" __declspec(dllexport) int SwoftyCoreInit(const wchar_t *name, SwoftyAddonInitFn init)
 {
     if (committed) {
-        api->log("[core] mod %ls: arrived after the commit; not initialised", name);
+        api->log("[core] addon %ls: arrived after the commit; not initialised", name);
         return 0;
     }
-    mods.push_back({utf8(name), {}, true});
-    current = &mods.back();
+    addons.push_back({utf8(name), {}, true});
+    current = &addons.back();
     int r = init(api);
     if (!r)
         current->active = false, current->mixins.clear();
@@ -625,8 +625,8 @@ extern "C" __declspec(dllexport) int SwoftyCoreInit(const wchar_t *name, SwoftyM
 extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
 {
     committed = true;
-    for (size_t i = 0; i < mods.size(); i++)
-        if (mods[i].active)
+    for (size_t i = 0; i < addons.size(); i++)
+        if (addons[i].active)
             check_targets(i);
     std::vector<Group> groups;
     do
@@ -636,7 +636,7 @@ extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
     size_t active = 0, count[7] = {};
     for (auto &g : groups)
         count[SWOFTY_MIXIN_KIND(g.kind)]++;
-    for (auto &m : mods) {
+    for (auto &m : addons) {
         if (!m.active)
             continue;
         active++;
@@ -644,9 +644,9 @@ extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
             if (SWOFTY_MIXIN_KIND(x.kind) == SWOFTY_MIXIN_ON_LOAD)
                 reinterpret_cast<void (*)()>(x.handler)();
     }
-    api->log("[core] commit: %zu of %zu mixin mod(s) active; %zu wrap(s), %zu site(s), %zu vtable slot(s), %zu "
+    api->log("[core] commit: %zu of %zu mixin addon(s) active; %zu wrap(s), %zu site(s), %zu vtable slot(s), %zu "
              "redirect(s), %zu patch(es)",
-             active, mods.size(), count[SWOFTY_MIXIN_WRAP], count[SWOFTY_MIXIN_SITE], count[SWOFTY_MIXIN_VTABLE],
+             active, addons.size(), count[SWOFTY_MIXIN_WRAP], count[SWOFTY_MIXIN_SITE], count[SWOFTY_MIXIN_VTABLE],
              count[SWOFTY_MIXIN_REDIRECT], count[SWOFTY_MIXIN_PATCH]);
     return (int)active;
 }

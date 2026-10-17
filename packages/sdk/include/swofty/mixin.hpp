@@ -130,13 +130,13 @@ inline void init_settings(const SwoftyApi *a)
     static const char *const kinds[] = {"?", "toggle", "slider", "choice"};
     if (!settings_api(a)) {
         if (settings)
-            a->log("mod settings: swofty_core offers no settings API (v3); every setting keeps its code default");
+            a->log("addon settings: swofty_core offers no settings API (v3); every setting keeps its code default");
         return;
     }
     for (declared_setting *s = settings; s; s = s->next) {
         SwoftySettingValue v{};
         if (!a->setting(s->id, s->type, &v))
-            a->log("mod settings: %s is not a %s option of this mod in swofty.json; the code default is used", s->id,
+            a->log("addon settings: %s is not a %s option of this addon in swofty.json; the code default is used", s->id,
                    kinds[s->type]);
     }
     for (watcher *w = watchers; w; w = w->next)
@@ -148,7 +148,7 @@ inline int init(const SwoftyApi *a, bool (*check)(), std::nullptr_t = nullptr)
 {
     if (!a || a->version < 2 || !a->resolve || !a->register_mixins) {
         if (a && a->log)
-            a->log("mixin mod: needs the swofty_core mixin API (v2), loader offers v%u", a->version);
+            a->log("mixin addon: needs the swofty_core mixin API (v2), loader offers v%u", a->version);
         return 0;
     }
     api = a;
@@ -348,9 +348,11 @@ template <class T> struct setting {
     }                                                                                                                 \
     void SWOFTY_NS::handler(param)
 
-#define SWOFTY_MOD(...)                                                                                               \
-    extern "C" __declspec(dllexport) const uint32_t SwoftyModApi = SWOFTY_API_VERSION;                                \
-    extern "C" __declspec(dllexport) int SwoftyModInit(const SwoftyApi *a)                                            \
+#define SWOFTY_ADDON(...)                                                                                             \
+    extern "C" __declspec(dllexport) const uint32_t SwoftyAddonApi = SWOFTY_API_VERSION;                              \
+    extern "C" __declspec(dllexport) int SwoftyAddonInit(const SwoftyApi *a)                                          \
     {                                                                                                                 \
         return ::swofty::detail::init(a, __VA_OPT__(&__VA_ARGS__, ) nullptr);                                         \
     }
+
+#define SWOFTY_MOD(...) SWOFTY_ADDON(__VA_ARGS__)

@@ -58,7 +58,7 @@ pub const OWNED_ROWS: &[OwnedRow] = &[OwnedRow {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OwnedItem {
     pub key: String,
-    #[serde(rename = "mod")]
+    #[serde(alias = "mod")]
     pub addon: String,
     pub what: String,
 }
@@ -317,8 +317,10 @@ mod tests {
         assert!(owned.warnings.is_empty(), "{:?}", owned.warnings);
         assert_eq!(
             serde_json::to_value(&owned.items[0]).unwrap(),
-            serde_json::json!({"key": "0xf01d03c7", "mod": ADDON, "what": "se_livery 22"})
+            serde_json::json!({"key": "0xf01d03c7", "addon": ADDON, "what": "se_livery 22"})
         );
+        let old = serde_json::json!({"key": "0xf01d03c7", "mod": ADDON, "what": "se_livery 22"});
+        assert_eq!(serde_json::from_value::<OwnedItem>(old).unwrap(), owned.items[0]);
     }
 
     #[test]

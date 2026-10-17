@@ -4,21 +4,22 @@ The in-game half of Swofty Launcher for F1 25. `native/build.sh` writes it to `n
 
 | File | Source | Role |
 |---|---|---|
-| `version.dll` | `src/loader/version.c` | Proxy for the system `version.dll`. It forwards every export, does nothing in any process other than `F1_25.exe`, and loads every DLL in `swofty/mods/core/`, then `swofty/mods/*.dll`, just before the game creates its window. |
-| `swofty/mods/core/swofty_core.dll` | `src/core/` | SwoftyMod. Adds ADDON SETTINGS directly under CAREER on the home screen, runs the mixin API (version 3) for plugins, bridges ADDON SETTINGS commands to `swofty/settings.json` and the requests file, registers mod screens and drives their view models, reports the special liveries that mods add as owned (`owned_items` in `swofty/settings.json`), and writes crash reports. |
-| `swofty/mods/core/swofty_gamelog.dll` | `src/gamelog/` | Copies the engine's own log lines into `loader.log`. |
-| `swofty/mods/core/bindings.json` | `re/tools/bindgen.py` | Game functions, data and call sites that plugins can bind to, with their signatures. |
-| `swofty/mods/core/symbols.tsv` | `re/tools/bindgen.py` | Function names by address, for crash reports. |
-| `swofty/mods/core/log_channels.tsv` | `src/gamelog/log_channels.tsv` | The engine's log channels, for the game log filter. |
+| `version.dll` | `src/loader/version.c` | Proxy for the system `version.dll`. It forwards every export, does nothing in any process other than `F1_25.exe`, and loads every DLL in `swofty/addons/core/`, then `swofty/addons/*.dll`, just before the game creates its window. It also loads `swofty/mods/core/` and `swofty/mods/*.dll` with them, in name order, until the next minor release. |
+| `swofty/addons/core/swofty_core.dll` | `src/core/` | SwoftyMod. Adds ADDON SETTINGS directly under CAREER on the home screen, runs the mixin API (version 3) for plugins, bridges ADDON SETTINGS commands to `swofty/settings.json` and the requests file, registers addon screens and drives their view models, reports the special liveries that addons add as owned (`owned_items` in `swofty/settings.json`), and writes crash reports. |
+| `swofty/addons/core/swofty_gamelog.dll` | `src/gamelog/` | Copies the engine's own log lines into `loader.log`. |
+| `swofty/addons/core/bindings.json` | `re/tools/bindgen.py` | Game functions, data and call sites that plugins can bind to, with their signatures. |
+| `swofty/addons/core/symbols.tsv` | `re/tools/bindgen.py` | Function names by address, for crash reports. |
+| `swofty/addons/core/log_channels.tsv` | `src/gamelog/log_channels.tsv` | The engine's log channels, for the game log filter. |
 
 Everything logs to `<game>/swofty/loader.log`. Plugins get the C ABI in `packages/sdk/include/swofty_api.h` and the C++ helpers in `packages/sdk/include/swofty/mixin.hpp`. The generated game headers are in `include/swofty/game/`.
 
 ## Core
 
-- **Settings bridge.** Core wraps `FeHome_Handle_Command` and handles the commands that `swofty/settings.json` assigns to each option, each mod's ENABLED switch and APPLY & RESTART. It updates plugin settings live and writes each change to the requests file that the launcher merges into the profile. APPLY & RESTART closes the game window so the launcher can rebuild and relaunch.
+- **Settings bridge.** Core wraps `FeHome_Handle_Command` and handles the commands that `swofty/settings.json` assigns to each option, each addon's ENABLED switch and APPLY & RESTART. It updates plugin settings live and writes each change to the requests file that the launcher merges into the profile. APPLY & RESTART closes the game window so the launcher can rebuild and relaunch.
 - **Crash log.** A vectored exception handler writes the exception, the registers and a stack named from `symbols.tsv` to `loader.log`. Calls to `ExitProcess` and `TerminateProcess` are logged with the caller's stack.
-- **Mod screens.** Core reads the `"ui"` block of `swofty/settings.json` (or `swofty/ui.json`) and registers each listed screen file from `swofty/ui/` through the engine's own screen loader when the screen's flow loads. A route to a mod screen that is not registered is cancelled and the last screen reopens, instead of rebooting the front end. Every node the engine rejects is logged with its reason.
-- **View models.** For each screen with `"view_model": true`, core registers a view model under `view_model_data.<screen>`. `swofty_mod_<N>` pages map to `mods[N]` of `swofty/settings.json`: they publish `title` and `o<k>.label`, `o<k>.text`, `o<k>.value`, `o<k>.min`, `o<k>.max` per option, and handle `swofty_next:<mod>:<option>`, `swofty_prev:<mod>:<option>` and `swofty_set:<mod>:<option>:<index>` through the settings bridge.
+- **Addon screens.** Core reads the `"ui"` block of `swofty/settings.json` (or `swofty/ui.json`) and registers each listed screen file from `swofty/ui/` through the engine's own screen loader when the screen's flow loads. A route to an addon screen that is not registered is cancelled and the last screen reopens, instead of rebooting the front end. Every node the engine rejects is logged with its reason.
+- **View models.** For each screen with `"view_model": true`, core registers a view model under `view_model_data.<screen>`. `swofty_addon_<N>` pages map to `addons[N]` of `swofty/settings.json`: they publish `title` and `o<k>.label`, `o<k>.text`, `o<k>.value`, `o<k>.min`, `o<k>.max` per option, and handle `swofty_next:<addon>:<option>`, `swofty_prev:<addon>:<option>` and `swofty_set:<addon>:<option>:<index>` through the settings bridge.
+- **Plugins.** A plugin exports `SwoftyAddonInit` (`SWOFTY_ADDON()` in `mixin.hpp`). The loader also calls `SwoftyModInit` when that is the only export, and `SWOFTY_MOD()` is an alias of `SWOFTY_ADDON()`. Core reads `addons` and `owned_items[].addon` from `swofty/settings.json`, or `mods` and `owned_items[].mod` when the new fields are absent.
 - **Mixins.** Plugins wrap functions, call sites and virtual table slots by binding name. Core orders each chain by priority and load order. With a `swofty/session.json`, registrations not declared there are refused.
 
 ## Game log
@@ -45,4 +46,4 @@ Wine uses its builtin `version.dll` unless the prefix overrides it for the game.
 native/test/run_wine_test.sh
 ```
 
-Builds a small stand-in `F1_25.exe` that carries the signatures and the real home-menu instructions, nine test plugins and test bindings, then runs it under Wine with `native/dist/` in nine modes. It checks the proxy, the load trigger, the ADDON SETTINGS tile, mixin chains, refused and conflicting registrations, the settings bridge with and without a requests path, the ownership check for `owned_items`, `session.json`, the game log, the crash report and the `ExitProcess` log. CI runs it on every push.
+Builds a small stand-in `F1_25.exe` that carries the signatures and the real home-menu instructions, nine test plugins and test bindings, then runs it under Wine with `native/dist/` in nine modes. It checks the proxy, the load trigger, loading from `swofty/addons/` and the legacy `swofty/mods/`, both init exports, the ADDON SETTINGS tile, mixin chains, refused and conflicting registrations, the settings bridge with and without a requests path and with the old settings fields, the ownership check for `owned_items`, `session.json`, the game log, the crash report and the `ExitProcess` log. CI runs it on every push.

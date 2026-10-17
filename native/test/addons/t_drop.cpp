@@ -15,4 +15,4 @@ SWOFTY_ON_LOAD
     probe()[4] = 1;
 }
 
-SWOFTY_MOD()
+SWOFTY_ADDON()

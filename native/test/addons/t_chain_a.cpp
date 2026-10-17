@@ -31,4 +31,4 @@ SWOFTY_ON_LOAD
     probe()[0] = ok && *swofty::fields<int>(&a) == 0;
 }
 
-SWOFTY_MOD()
+SWOFTY_ADDON()

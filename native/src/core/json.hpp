@@ -24,6 +24,11 @@ struct Value {
                 return v;
         return none;
     }
+    const Value &field(const char *key, const char *legacy) const
+    {
+        const Value &v = (*this)[key];
+        return v.type == Null ? (*this)[legacy] : v;
+    }
     std::string str(const char *def = "") const { return type == Str ? s : def; }
     long long num(long long def = 0) const
     {

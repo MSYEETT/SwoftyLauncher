@@ -29,8 +29,8 @@ SH=third_party/safetyhook
 STATIC=(-s)
 mkdir -p build "$OUT"
 rm -rf "$DIST"
-mkdir -p "$DIST/swofty/mods/core"
-python3 ../re/tools/bindgen.py --json "$DIST/swofty/mods/core/bindings.json" --symbols "$DIST/swofty/mods/core/symbols.tsv"
+mkdir -p "$DIST/swofty/addons/core"
+python3 ../re/tools/bindgen.py --json "$DIST/swofty/addons/core/bindings.json" --symbols "$DIST/swofty/addons/core/symbols.tsv"
 
 "${PIN[@]}" "${CC[@]}" -O2 -Wall -Wextra -I$SDK -Iinclude -D__USE_MINGW_ANSI_STDIO=1 -shared \
     -o "$OUT/version.dll" src/loader/version.c src/loader/version.def "${STATIC[@]}" &
@@ -46,14 +46,14 @@ wait
 "${PIN[@]}" "${CXX[@]}" -O2 -Wall -Wextra -I$SDK -Iinclude -shared -o "$OUT/swofty_gamelog.dll" src/gamelog/gamelog.cpp "${STATIC[@]}"
 
 cp "$OUT/version.dll" "$DIST/version.dll"
-cp "$OUT/swofty_core.dll" "$DIST/swofty/mods/core/swofty_core.dll"
-cp "$OUT/swofty_gamelog.dll" "$DIST/swofty/mods/core/swofty_gamelog.dll"
-cp src/gamelog/log_channels.tsv "$DIST/swofty/mods/core/log_channels.tsv"
+cp "$OUT/swofty_core.dll" "$DIST/swofty/addons/core/swofty_core.dll"
+cp "$OUT/swofty_gamelog.dll" "$DIST/swofty/addons/core/swofty_gamelog.dll"
+cp src/gamelog/log_channels.tsv "$DIST/swofty/addons/core/log_channels.tsv"
 
-for f in "$DIST/version.dll" "$DIST/swofty/mods/core/swofty_core.dll" "$DIST/swofty/mods/core/swofty_gamelog.dll"; do
+for f in "$DIST/version.dll" "$DIST/swofty/addons/core/swofty_core.dll" "$DIST/swofty/addons/core/swofty_gamelog.dll"; do
     echo "== $f"
     objdump -p "$f" | grep -E '^(Magic|Characteristics)|file format|DLL Name|^\s+\[ *[0-9]+\] \+base' || true
     objdump -f "$f" | grep -E 'architecture'
     md5sum "$f"
 done
-md5sum "$DIST/swofty/mods/core/bindings.json" "$DIST/swofty/mods/core/symbols.tsv" "$DIST/swofty/mods/core/log_channels.tsv"
+md5sum "$DIST/swofty/addons/core/bindings.json" "$DIST/swofty/addons/core/symbols.tsv" "$DIST/swofty/addons/core/log_channels.tsv"

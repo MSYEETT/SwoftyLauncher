@@ -2,12 +2,12 @@
  "schema": 1,
  "profile": "wine-test",
  "restart_command": "swofty_restart",
- "mods": [
+ "addons": [
   {
    "id": "swofty.core",
    "name": "SwoftyMod",
    "version": "0.1.0",
-   "description": "Adds core functionality for mod loading and customisation in Swofty Launcher",
+   "description": "Adds core functionality for addon loading and customisation in Swofty Launcher",
    "enabled": true,
    "locked": true,
    "dlls": [
@@ -334,7 +334,7 @@
   }
  ],
  "owned_items": [
-  {"key": "0xf01d03c7", "mod": "rmdesigns.alphatauri-orlen-livery", "what": "se_livery 22"},
-  {"key": "f01d03c7", "mod": "rmdesigns.alphatauri-orlen-livery", "what": "no 0x prefix"}
+  {"key": "0xf01d03c7", "addon": "rmdesigns.alphatauri-orlen-livery", "what": "se_livery 22"},
+  {"key": "f01d03c7", "addon": "rmdesigns.alphatauri-orlen-livery", "what": "no 0x prefix"}
  ]
 }

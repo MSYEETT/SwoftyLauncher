@@ -13,10 +13,10 @@ SLOTS = {1: ['1a'], 2: ['2a', '2b'], 3: ['3a', '3b', '3c'], 4: ['4a', '4b', '4c'
 
 def load(path):
     st = json.load(open(path))
-    mods = [m for m in st['mods'] if m.get('enabled') and m.get('options')]
+    mods = [m for m in st.get('addons', st.get('mods', [])) if m.get('enabled') and m.get('options')]
     k = 0
     for i, m in enumerate(mods):
-        m['_screen'] = f'swofty_mod_{i}'
+        m['_screen'] = f'swofty_addon_{i}'
         for o in m['options']:
             o['_k'] = k
             k += 1
@@ -24,7 +24,7 @@ def load(path):
 
 
 def page_name(i):
-    return f'swofty_mod_{i}'
+    return f'swofty_addon_{i}'
 
 
 class Sources:
@@ -67,7 +67,7 @@ def build_home(src, mods):
                 if name(c) == 'icon':
                     c.items[PROPS].set('visible', u.prop('bool', False))
             u.add_events(t, u.event('pressed', [u.sig(f'{HOME}.audio_theme_trigger', 'confirm', 'pressed'),
-                                                u.sig(f'{HOME}.Action', 'route', 'pressed', {'key': f'open_mod_{i}'})]))
+                                                u.sig(f'{HOME}.Action', 'route', 'pressed', {'key': f'open_addon_{i}'})]))
             block.items[CHILDREN].items.append(t)
             tiles.append((block, t))
         kids.append(block)
@@ -171,7 +171,7 @@ def build_all(syst, fe_career_ui, fe_home_ui, settings_path):
 
 def routes(mods):
     home_routes = u.screen_routes(HOME) + [u.migrate_route('back', HOME, 'frontend_flow', 'fe_home')]
-    home_routes += [u.subpage_route(f'open_mod_{i}', HOME, page_name(i)) for i in range(len(mods))]
+    home_routes += [u.subpage_route(f'open_addon_{i}', HOME, page_name(i)) for i in range(len(mods))]
     groups = [u.route_group(HOME, home_routes)]
     for i in range(len(mods)):
         groups.append(u.route_group(page_name(i), u.screen_routes(page_name(i)) +
@@ -207,7 +207,7 @@ def state_entries(mods):
 
 
 def panel_baked_off(st):
-    for m in st['mods']:
+    for m in st.get('addons', st.get('mods', [])):
         if m['id'] == 'swofty.core':
             for o in m.get('options', []):
                 if o['id'] == 'show_launcher_panel':

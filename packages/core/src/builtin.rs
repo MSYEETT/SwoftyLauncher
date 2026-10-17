@@ -7,7 +7,7 @@ use crate::{Result, io_err};
 
 pub const CORE_ID: &str = "swofty.core";
 pub const CORE_MANIFEST: &str = include_str!("../../../addons/swoftymod/swofty.json");
-pub const CORE_DLL: &str = "swofty/mods/core/swofty_core.dll";
+pub const CORE_DLL: &str = "swofty/addons/core/swofty_core.dll";
 pub const LOADER_ENV: &str = "SWOFTY_LOADER_DIR";
 
 pub fn core_manifest() -> AddonManifest {
@@ -67,7 +67,7 @@ mod tests {
     fn lists_every_file_of_the_loader() {
         let dir = std::env::temp_dir().join(format!("swofty-loader-{}", std::process::id()));
         std::fs::remove_dir_all(&dir).ok();
-        let core = dir.join("swofty/mods/core");
+        let core = dir.join("swofty/addons/core");
         std::fs::create_dir_all(&core).unwrap();
         for f in [
             "swofty_core.dll",
@@ -85,11 +85,11 @@ mod tests {
         assert_eq!(
             files.keys().collect::<Vec<_>>(),
             [
-                "swofty/mods/core/bindings.json",
-                "swofty/mods/core/log_channels.tsv",
-                "swofty/mods/core/swofty_core.dll",
-                "swofty/mods/core/swofty_gamelog.dll",
-                "swofty/mods/core/symbols.tsv",
+                "swofty/addons/core/bindings.json",
+                "swofty/addons/core/log_channels.tsv",
+                "swofty/addons/core/swofty_core.dll",
+                "swofty/addons/core/swofty_gamelog.dll",
+                "swofty/addons/core/symbols.tsv",
                 "version.dll",
             ]
         );

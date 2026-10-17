@@ -10,4 +10,4 @@ SWOFTY_ON_LOAD
     probe()[5] = Fake_Missing() + 1;
 }
 
-SWOFTY_MOD()
+SWOFTY_ADDON()

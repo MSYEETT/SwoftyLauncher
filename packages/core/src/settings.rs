@@ -248,7 +248,7 @@ pub struct SessionSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub requests: Option<String>,
     pub restart_command: String,
-    #[serde(rename = "mods")]
+    #[serde(alias = "mods")]
     pub addons: Vec<SessionAddon>,
     #[serde(default)]
     pub maps: Vec<SessionMap>,
@@ -734,7 +734,7 @@ mod tests {
     }
 
     #[test]
-    fn session_file_lists_every_mod_with_states_and_commands() {
+    fn session_file_lists_every_addon_with_states_and_commands() {
         let mut p = Profile::new("x");
         let m = manifest();
         p.set_option(&m, "livery", serde_json::json!("replica")).unwrap();
@@ -750,8 +750,12 @@ mod tests {
         assert_eq!(grid.options[0].states[2].command, "swofty_set:a.grid:livery:2");
         assert_eq!(grid.options[2].current, 4);
         assert!(s.commands().any(|c| c == RESTART_COMMAND));
-        let json = serde_json::to_value(&s).unwrap();
-        assert_eq!(json["mods"][1]["options"][0]["type"], "choice");
+        let mut json = serde_json::to_value(&s).unwrap();
+        assert_eq!(json["addons"][1]["options"][0]["type"], "choice");
+        assert!(json.get("mods").is_none());
+        let addons = json.as_object_mut().unwrap().remove("addons").unwrap();
+        json["mods"] = addons;
+        assert_eq!(serde_json::from_value::<SessionSettings>(json).unwrap(), s);
         assert!(SessionSettings::build(&Profile::vanilla(), &installed(), &[], None).is_err());
     }
 
@@ -770,8 +774,8 @@ mod tests {
             "a.pages".into(),
             screens_manifest(
                 "a.pages",
-                r#"{ "name": "swofty_mod_0", "file": "ui/page0.ui", "flow": "flow_options", "anchor": "settings_container", "view_model": true },
-                   { "name": "swofty_mod_1", "file": "ui/page1.ui", "flow": "flow_options" }"#,
+                r#"{ "name": "swofty_addon_0", "file": "ui/page0.ui", "flow": "flow_options", "anchor": "settings_container", "view_model": true },
+                   { "name": "swofty_addon_1", "file": "ui/page1.ui", "flow": "flow_options" }"#,
             ),
         );
         addons.insert(
@@ -787,8 +791,8 @@ mod tests {
         let ui = s.ui.as_ref().unwrap();
         assert!(ui.register && !ui.strict && ui.recover);
         let names: Vec<&str> = ui.screens.iter().map(|s| s.name.as_str()).collect();
-        assert_eq!(names, ["swofty_mod_0", "swofty_mod_1"]);
-        assert_eq!(ui.screens[0].file, "ui/swofty_mod_0.ui");
+        assert_eq!(names, ["swofty_addon_0", "swofty_addon_1"]);
+        assert_eq!(ui.screens[0].file, "ui/swofty_addon_0.ui");
         assert_eq!(ui.screens[0].anchor.as_deref(), Some("settings_container"));
         assert!(ui.screens[0].view_model && !ui.screens[1].view_model);
         let json = serde_json::to_value(&s).unwrap();
@@ -798,7 +802,7 @@ mod tests {
         assert_eq!(back, s);
         addons.insert(
             "c.clash".into(),
-            screens_manifest("c.clash", r#"{ "name": "swofty_mod_0", "file": "ui/x.ui" }"#),
+            screens_manifest("c.clash", r#"{ "name": "swofty_addon_0", "file": "ui/x.ui" }"#),
         );
         p.set_enabled("c.clash", true).unwrap();
         assert!(SessionSettings::build(&p, &addons, &[], None).is_err());

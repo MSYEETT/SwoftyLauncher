@@ -26,4 +26,4 @@ SWOFTY_ON_LOAD
         swofty::log("[sample] example signature: %d hit(s), first at %p", n, reinterpret_cast<void *>(hit));
 }
 
-SWOFTY_MOD()
+SWOFTY_ADDON()

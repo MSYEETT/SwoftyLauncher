@@ -2,12 +2,12 @@
  "schema": 1,
  "profile": "default",
  "restart_command": "swofty_restart",
- "mods": [
+ "addons": [
   {
    "id": "swofty.core",
    "name": "SwoftyMod",
    "version": "0.1.0",
-   "description": "Adds core functionality for mod loading and customisation in Swofty Launcher.",
+   "description": "Adds core functionality for addon loading and customisation in Swofty Launcher.",
    "enabled": true,
    "locked": true,
    "dlls": [

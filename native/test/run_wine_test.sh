@@ -7,19 +7,24 @@ if ! command -v wine >/dev/null || ! command -v xvfb-run >/dev/null || ! command
 fi
 OUT=${1:-$PWD/../build/wine-test}
 ITEMS=
-grep -qa '\[items\] ownership check hooked' ../dist/swofty/mods/core/swofty_core.dll && ITEMS=1
+grep -qa '\[items\] ownership check hooked' ../dist/swofty/addons/core/swofty_core.dll && ITEMS=1
 export ZIG_GLOBAL_CACHE_DIR=$PWD/../build/zig-cache ZIG_LOCAL_CACHE_DIR=$PWD/../build/zig-cache
 PIN=(taskset -c 2-7,10,11,14-31 nice -n 10)
 rm -rf "$OUT/game"
 mkdir -p "$OUT/game"
 "${PIN[@]}" zig cc -target x86_64-windows-gnu -O2 -o "$OUT/game/F1_25.exe" fake_game.c -lversion -luser32 &
 cp -r ../dist/. "$OUT/game/"
-for m in mods/t_*.cpp; do
+mkdir -p "$OUT/game/swofty/mods/core"
+mv "$OUT/game/swofty/addons/core/swofty_gamelog.dll" "$OUT/game/swofty/addons/core/log_channels.tsv" "$OUT/game/swofty/mods/core/"
+for m in addons/t_*.cpp; do
+    name=$(basename "${m%.cpp}")
+    [[ $name == t_chain_b ]] && dir=mods || dir=addons
     "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -I../../packages/sdk/include -I../include -shared -s \
-        -o "$OUT/game/swofty/mods/$(basename "${m%.cpp}").dll" "$m" &
+        -o "$OUT/game/swofty/$dir/$name.dll" "$m" &
 done
 wait
-python3 - "$OUT/game/swofty/mods/core/bindings.json" bindings.test.json <<'EOF'
+cp "$OUT/game/swofty/addons/t_drop.dll" "$OUT/game/swofty/mods/t_drop.dll"
+python3 - "$OUT/game/swofty/addons/core/bindings.json" bindings.test.json <<'EOF'
 import json, sys
 doc = json.load(open(sys.argv[1]))
 doc['bindings'] += json.load(open(sys.argv[2]))
@@ -60,6 +65,10 @@ import json, sys
 doc = json.load(open(sys.argv[1]))
 if sys.argv[3] == 'settings':
     doc['requests'] = sys.argv[4]
+else:
+    doc['mods'] = doc.pop('addons')
+    for item in doc['owned_items']:
+        item['mod'] = item.pop('addon')
 json.dump(doc, open(sys.argv[2], 'w'), indent=1)
 EOF
     gl_level=; gl_rate=
@@ -71,6 +80,14 @@ EOF
     echo "---- $LOG ($mode)"
     grep -v '  section ' "$LOG"
     if [[ $mode == trigger ]]; then
+        check "addons: core folder lists swofty_core" 'addons: swofty[\]addons[\]core: 1 dll\(s\)[[:space:]]*$'
+        check "addons: legacy core folder still loads" 'addons: swofty[\]mods[\]core: 1 dll\(s\) \(legacy folder\)'
+        check "addons: legacy plugin folder still loads" 'addons: swofty[\]mods: 2 dll\(s\) \(legacy folder\)'
+        once "addons: a dll in both folders loads from addons only" 'addon t_drop\.dll: also in .*[\]swofty[\]mods, skipped'
+        check "addons: SwoftyAddonInit is called" 'addon t_chain_a\.dll: loaded at .*, calling SwoftyAddonInit \(API v3\)'
+        check "addons: SWOFTY_MOD exports SwoftyAddonInit" 'addon t_conflict_y\.dll: loaded at .*, calling SwoftyAddonInit \(API v3\)'
+        check "addons: a plugin exporting only SwoftyModInit loads" 'addon t_v1\.dll: loaded at .*, API v1 plugin, SwoftyModInit runs after the mixin commit'
+        check "addons: every dll in both folders loads" 'addons: done, 11 addon\(s\) loaded'
         for re in 'scan \.xtls \[.*\] -> 1 hit at' 'registry global base\+0x[0-9a-f]+ \(= [0-9a-f]+ now\)' \
             'hook #1: list\(r14\)=0x[0-9a-f]+ r12=0x2 r15=0x1' 'built mod vtable .* from career vtable .* \(slot 4 populate .* slot 5 getAction' \
             'added button_3 \(items 1 -> 2\)' 'populate #1 .* vm=0*[1-9a-f]' "getAction #1 .* route 'mod_menu'"; do
@@ -120,7 +137,7 @@ EOF
         continue
     fi
     [[ $mode == settings ]] && where='Z:.*[\]state[\]requests[\]wine-test\.json' || where='Z:.*[\]game[\]swofty[\]requests\.json'
-    check "$mode: settings.json parsed" "\[settings\] Z:.*settings\.json: profile 'wine-test', 4 mod\(s\), 8 option\(s\), 46 command\(s\); requests file $where[[:space:]]*\$"
+    check "$mode: settings.json parsed" "\[settings\] Z:.*settings\.json: profile 'wine-test', 4 addon\(s\), 8 option\(s\), 46 command\(s\); requests file $where[[:space:]]*\$"
     check "$mode: core's wrap sits in the FeHome_Handle_Command chain" 'wrap FeHome_Handle_Command at .* installed: t_chain_c\.dll\(10\) > swofty_core\.dll\(0\) > t_chain_a\.dll\(0\) > t_chain_b\.dll\(0\)[[:space:]]*$'
     for re in 'example\.sample-mod\.verbose = ON' 'example\.sample-mod\.greeting_count = 9' 'example\.sample-mod\.offset = 0\.75' \
         'example\.sample-mod\.flavour = Replica' 'example\.sample-mod\.mismatched = 4' 'community\.grid-2026\.team_livery = Tier 1 sponsor' \
@@ -131,7 +148,7 @@ EOF
     once "$mode: type mismatch logged once by core" '\[settings\] t_settings\.dll \(example\.sample-mod\): mismatched is a slider option, the code reads a toggle; the code default is used'
     once "$mode: undeclared setting logged once by core" '\[settings\] t_settings\.dll \(example\.sample-mod\): no option undeclared in settings\.json; the code default is used'
     once "$mode: another mod's option is not visible to this mod" '\[settings\] t_settings\.dll \(example\.sample-mod\): no option audi_name in settings\.json'
-    check "$mode: SDK logs the mismatch at init" 'mod settings: mismatched is not a toggle option of this mod in swofty\.json; the code default is used'
+    check "$mode: SDK logs the mismatch at init" 'addon settings: mismatched is not a toggle option of this addon in swofty\.json; the code default is used'
     check "$mode: watcher calls logged by the mod" '\[t_settings\] on_change verbose -> false \(call 2\)'
     grep -q 'writing requests file' "$LOG" && { echo "FAIL: $mode: a requests write failed"; status=1; }
     python3 - "$req" "$mode" <<'EOF' || status=1
@@ -174,7 +191,7 @@ EOF
 done
 check "crash log armed at attach" '\[crash\] crash log armed'
 check "clean exit logged" '\[crash\] ExitProcess\(0\)'
-python3 fake_symbols.py "$OUT/game/F1_25.exe" "$OUT/game/swofty/mods/core/symbols.tsv"
+python3 fake_symbols.py "$OUT/game/F1_25.exe" "$OUT/game/swofty/addons/core/symbols.tsv"
 for mode in crash exit; do
     echo "==== $mode"
     code=0

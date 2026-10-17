@@ -1,14 +1,14 @@
 {
  "native": [
-  {"dll": "mods/core/swofty_core.dll", "mixins": [
+  {"dll": "addons/core/swofty_core.dll", "mixins": [
    {"target": "site_FeHome_AfterCareerCall", "kind": "site", "priority": 0},
    {"target": "FeHome_Handle_Command", "kind": "wrap", "priority": 0}]},
-  {"dll": "mods/t_chain_a.dll", "mixins": [
+  {"dll": "addons/t_chain_a.dll", "mixins": [
    {"target": "FeHome_Handle_Command", "kind": "wrap", "priority": 0},
    {"target": "site_FeHome_AfterCareerCall", "kind": "site", "priority": -10},
    {"target": "wine-test:vt_Fake_Other", "kind": "vtable", "slot": 8},
    {"target": "wine-test:call_Fake_Callee", "kind": "redirect"}]},
-  {"dll": "mods/t_chain_c.dll", "mixins": [
+  {"dll": "addons/t_chain_c.dll", "mixins": [
    {"target": "FeHome_Handle_Command", "kind": "wrap", "priority": 10},
    {"target": "wine-test:vt_Fake_Other", "kind": "vtable", "slot": 8, "priority": 10},
    {"target": "wine-test:site_Fake_Patch", "kind": "patch"}]},

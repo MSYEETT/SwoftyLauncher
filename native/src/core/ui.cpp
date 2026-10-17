@@ -293,7 +293,7 @@ void node_failure(uint8_t *job, uint8_t *rec, int code, const char *what)
     node_text(rec, name, sizeof name, &cls, &idx);
     if (s)
         s->result = code;
-    swofty::log("[ui] %s screen '%s'%s%s: node '%s' (index %u, class %s) %s, code %d (0x%x)", s ? "mod" : "engine",
+    swofty::log("[ui] %s screen '%s'%s%s: node '%s' (index %u, class %s) %s, code %d (0x%x)", s ? "addon" : "engine",
                 cur_screen, s ? " from " : "", s ? s->file.c_str() : "", name, idx, fourcc_text(cls).c_str(), what,
                 code, code);
 }
@@ -314,7 +314,7 @@ void read_site(safetyhook::Context &c)
         }
     }
     if (rc == 0x55 && s)
-        swofty::log("[ui] mod screen %s: a screen named '%s' is already registered with an equal or higher priority; "
+        swofty::log("[ui] addon screen %s: a screen named '%s' is already registered with an equal or higher priority; "
                     "the engine skips this one",
                     s->name.c_str(), cur_screen);
     else if (rc && rc != 0x55)
@@ -523,7 +523,7 @@ NeStrHdr **cancel_missing(NeStrHdr **err, const char *step)
     std::string name = text.substr(strlen(p));
     name = name.substr(0, name.find(' '));
     if (!guarded(name)) {
-        swofty::log("[ui] route step %s -> screen '%s' is not registered; not a mod screen, the engine handles it "
+        swofty::log("[ui] route step %s -> screen '%s' is not registered; not an addon screen, the engine handles it "
                     "(strict mode off)",
                     step, name.c_str());
         return err;
@@ -572,7 +572,7 @@ void load_config()
         src = L"ui.json";
         text = read_file(root + src);
         if (text.empty() || !json::parse(text, doc) || doc["ui"].type != json::Value::Obj) {
-            swofty::log("[ui] no \"ui\" block in settings.json or ui.json; no mod screens declared (route guard and "
+            swofty::log("[ui] no \"ui\" block in settings.json or ui.json; no addon screens declared (route guard and "
                         "build diagnostics stay on)");
             return;
         }
@@ -597,7 +597,7 @@ void load_config()
                         s.data.size());
         screens.push_back(std::move(s));
     }
-    swofty::log("[ui] %ls: %zu mod screen(s), register %s, strict %s, recover %s", src.c_str(), screens.size(),
+    swofty::log("[ui] %ls: %zu addon screen(s), register %s, strict %s, recover %s", src.c_str(), screens.size(),
                 do_register ? "on" : "off", strict ? "on" : "off", recover ? "on" : "off");
     for (auto &s : screens)
         swofty::log("[ui]   %s (%s, anchor %s, djb2 0x%08x, %zu bytes from %s%s)", s.name.c_str(), s.flow.c_str(),
@@ -668,5 +668,5 @@ SWOFTY_ON_LOAD
     if (a_handler && a_parser && a_pkgopen && screen_sys && h_open)
         install(h_handler, a_handler, handler_hook, "screen loader (UIDF handler)");
     else
-        swofty::log("[ui] mod screen registration off: a loader target did not resolve");
+        swofty::log("[ui] addon screen registration off: a loader target did not resolve");
 }

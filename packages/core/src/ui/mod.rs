@@ -125,7 +125,7 @@ pub fn build(settings: &SessionSettings, input: &dyn Fn(&str) -> PathBuf, out: &
     let pages: Vec<(String, String)> = flow
         .iter()
         .map(|e| {
-            let kind = if e.kind == Kind::Addon { "mod" } else { "map" };
+            let kind = if e.kind == Kind::Addon { "addon" } else { "map" };
             (format!("open_{kind}_{}", e.index), e.screen.clone())
         })
         .collect();

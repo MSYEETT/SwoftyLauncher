@@ -64,4 +64,4 @@ extern "C" __declspec(dllexport) void t_settings_read()
                 audi_name.get());
 }
 
-SWOFTY_MOD()
+SWOFTY_ADDON()

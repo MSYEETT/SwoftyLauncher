@@ -1,8 +1,8 @@
 use std::ffi::{c_char, c_int, c_void};
 
 pub const SWOFTY_API_VERSION: u32 = 3;
-pub const INIT_SYMBOL: &str = "SwoftyModInit";
-pub const API_SYMBOL: &str = "SwoftyModApi";
+pub const INIT_SYMBOLS: [&str; 2] = ["SwoftyAddonInit", "SwoftyModInit"];
+pub const API_SYMBOLS: [&str; 2] = ["SwoftyAddonApi", "SwoftyModApi"];
 pub const HEADER: &str = include_str!("../include/swofty_api.h");
 pub const MIXIN_HEADER: &str = include_str!("../include/swofty/mixin.hpp");
 
@@ -65,7 +65,8 @@ pub struct SwoftyApi {
     pub watch_setting: Option<WatchSettingFn>,
 }
 
-pub type SwoftyModInitFn = unsafe extern "C" fn(api: *const SwoftyApi) -> c_int;
+pub type SwoftyAddonInitFn = unsafe extern "C" fn(api: *const SwoftyApi) -> c_int;
+pub type SwoftyModInitFn = SwoftyAddonInitFn;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Capability {
@@ -130,6 +131,7 @@ mod tests {
         assert_eq!(std::mem::offset_of!(SwoftySettingValue, choice), 16);
         assert!(HEADER.contains(&format!("#define SWOFTY_API_VERSION {SWOFTY_API_VERSION}")));
         for name in [
+            "SwoftyAddonInitFn",
             "SwoftyModInitFn",
             "SWOFTY_MIXIN_ON_LOAD = 6",
             "SWOFTY_SETTING_CHOICE = 3",
@@ -137,7 +139,13 @@ mod tests {
         ] {
             assert!(HEADER.contains(name), "{name}");
         }
-        for name in ["SWOFTY_SETTING(", "SWOFTY_ON_CHANGE(", "struct setting"] {
+        for name in [
+            "SWOFTY_SETTING(",
+            "SWOFTY_ON_CHANGE(",
+            "struct setting",
+            "SWOFTY_ADDON(",
+            "SWOFTY_MOD(",
+        ] {
             assert!(MIXIN_HEADER.contains(name), "{name}");
         }
     }

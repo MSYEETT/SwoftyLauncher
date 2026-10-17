@@ -370,8 +370,8 @@ mod tests {
     #[test]
     fn dir_prefixes() {
         assert_eq!(
-            rel_parts("swofty/mods/core/x.dll"),
-            ["swofty", "swofty/mods", "swofty/mods/core"]
+            rel_parts("swofty/addons/core/x.dll"),
+            ["swofty", "swofty/addons", "swofty/addons/core"]
         );
         assert!(rel_parts("version.dll").is_empty());
     }
