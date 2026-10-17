@@ -20,7 +20,7 @@ swofty apply
 
 `swofty apply` installs every map enabled in the [profile](/using/profiles). The track then appears in Grand Prix track selection. `swofty maps disable okayama` followed by `swofty apply`, or `swofty restore`, removes it.
 
-Up to eight maps can be enabled in one profile.
+Any number of maps can be enabled in one profile. With an in-game core that cannot register asset groups, the limit is eight.
 
 To remove an imported map:
 

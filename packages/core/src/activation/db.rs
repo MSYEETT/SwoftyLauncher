@@ -284,18 +284,33 @@ pub const RESOURCE_GROUP_FIELDS: &[&str] = &[
     "trackMapAssetGroup",
 ];
 
-pub struct Slot<'a> {
-    pub asset_group: &'a str,
-    pub asset_root: &'a str,
-    pub key: &'a str,
+pub enum TrackHost<'a> {
+    Slot {
+        asset_group: &'a str,
+        asset_root: &'a str,
+        key: &'a str,
+    },
+    Natural,
 }
 
-fn route_to_slot(
+fn natural_group(code: &str, field: &str) -> String {
+    let rel = match field {
+        "worldAssetGroup" => format!("wep/{code}_common"),
+        "aoBakeAssetGroup" => format!("bake/{code}_ao.bake"),
+        "radianceBakeAssetGroup" => format!("bake/{code}_radiance.bake"),
+        "lightListAssetGroup" => format!("bake/{code}_light_list.bake"),
+        "ddgiAssetGroup" => "probes/config.ddgi".into(),
+        _ => code.into(),
+    };
+    format!("asset_groups/environment_package/tracks/{code}/{rel}.assetgroup")
+}
+
+fn route_resource(
     db: &mut Db,
     reg: &Registry,
     track_row: u64,
     code: &str,
-    slot: &Slot,
+    host: &TrackHost,
     report: &mut Report,
 ) -> Result<()> {
     let spec = reg
@@ -319,22 +334,36 @@ fn route_to_slot(
         clone_row(db, &spec.schema, src, dst);
     }
     db.set_text(field(dst, "_metadata_"), &label, "_metadata_")?;
-    for f in RESOURCE_GROUP_FIELDS {
-        let k = field(dst, f);
-        if db.text(k).is_some_and(|v| !v.is_empty()) {
-            db.set_text(k, slot.asset_group, f)?;
+    let (root, key, from) = match host {
+        TrackHost::Slot {
+            asset_group,
+            asset_root,
+            key,
+        } => {
+            for f in RESOURCE_GROUP_FIELDS {
+                let k = field(dst, f);
+                if db.text(k).is_some_and(|v| !v.is_empty()) {
+                    db.set_text(k, asset_group, f)?;
+                }
+            }
+            (asset_root.to_string(), key.to_string(), asset_group.to_string())
         }
-    }
-    db.set_text(
-        field(dst, "iblAssetGroupsRoot"),
-        slot.asset_root,
-        "iblAssetGroupsRoot",
-    )?;
-    db.set_text(field(dst, "iblKey"), slot.key, "iblKey")?;
+        TrackHost::Natural => {
+            for f in RESOURCE_GROUP_FIELDS {
+                db.set_text(field(dst, f), &natural_group(code, f), f)?;
+            }
+            (
+                format!("asset_groups/environment_package/tracks/{code}/probes/"),
+                "key_2019.assetgroup".to_string(),
+                natural_group(code, ""),
+            )
+        }
+    };
+    db.set_text(field(dst, "iblAssetGroupsRoot"), &root, "iblAssetGroupsRoot")?;
+    db.set_text(field(dst, "iblKey"), &key, "iblKey")?;
     db.set_text(field(track_row, "track_resource"), &label, "track_resource")?;
     report.note(format!(
-        "track resource {label} (from {current}) loads {code} from {}",
-        slot.asset_group
+        "track resource {label} (from {current}) loads {code} from {from}"
     ));
     Ok(())
 }
@@ -366,7 +395,7 @@ pub fn activate(
     gvdb: &mut Gvdb,
     pkg: &TrackPackage,
     reg: &Registry,
-    route: Option<&Slot>,
+    route: Option<&TrackHost>,
     ui_lists: &std::collections::BTreeSet<String>,
 ) -> Result<Report> {
     let mut db = Db::new(gvdb);
@@ -409,7 +438,7 @@ pub fn activate(
     };
     let _ = src_track;
     if let Some(route) = route {
-        route_to_slot(&mut db, reg, track_row, code, route, &mut report)?;
+        route_resource(&mut db, reg, track_row, code, route, &mut report)?;
     }
     for spec in &reg.per_track {
         let t = Table::of(spec)?;

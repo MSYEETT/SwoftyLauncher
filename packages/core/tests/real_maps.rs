@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use swofty_core::activation::db::{Registry, Schema, Slot, Table, activate, datasets};
+use swofty_core::activation::db::{Registry, Schema, Table, TrackHost, activate, datasets};
 use swofty_core::activation::dbx::{Db, field, row, sub_count, sub_table};
 use swofty_core::map::TrackPackage;
 use swofty_formats::gvdb::Gvdb;
@@ -83,18 +83,16 @@ fn sepang_and_okayama_activate_completely() {
     let lists: std::collections::BTreeSet<String> = ["tracks.flags_circle", "fe_world.tracks_26"]
         .map(String::from)
         .into();
-    for (pkg, slot) in [
-        (&sepang, "invitational_image_4"),
-        (&okayama, "invitational_image_10"),
-    ] {
-        let group = format!(
-            "asset_groups/ui_package/texture_arrays/invitational_events/event_images/{slot}.assetgroup"
-        );
-        let route = Slot {
-            asset_group: &group,
-            asset_root: "asset_groups/ui_package/texture_arrays/invitational_events/event_images/",
-            key: &format!("{slot}.assetgroup"),
-        };
+    let slot = "invitational_image_10";
+    let group =
+        format!("asset_groups/ui_package/texture_arrays/invitational_events/event_images/{slot}.assetgroup");
+    let key = format!("{slot}.assetgroup");
+    let hosted = TrackHost::Slot {
+        asset_group: &group,
+        asset_root: "asset_groups/ui_package/texture_arrays/invitational_events/event_images/",
+        key: &key,
+    };
+    for (pkg, route) in [(&sepang, TrackHost::Natural), (&okayama, hosted)] {
         let report = activate(&mut gvdb, pkg, &reg, Some(&route), &lists).unwrap();
         for l in &report.lines {
             eprintln!("{}: {l}", pkg.track_code);
@@ -170,6 +168,35 @@ fn sepang_and_okayama_activate_completely() {
         db.text(field(b24, "track_resource")).as_deref(),
         Some("swofty_bahrain24")
     );
+    let r = row_by(&db, res, "_metadata_", "swofty_bahrain24").unwrap();
+    let tracks_dir = "asset_groups/environment_package/tracks/bahrain24";
+    for (name, value) in [
+        (
+            "worldAssetGroup",
+            format!("{tracks_dir}/wep/bahrain24_common.assetgroup"),
+        ),
+        (
+            "aoBakeAssetGroup",
+            format!("{tracks_dir}/bake/bahrain24_ao.bake.assetgroup"),
+        ),
+        (
+            "radianceBakeAssetGroup",
+            format!("{tracks_dir}/bake/bahrain24_radiance.bake.assetgroup"),
+        ),
+        (
+            "lightListAssetGroup",
+            format!("{tracks_dir}/bake/bahrain24_light_list.bake.assetgroup"),
+        ),
+        (
+            "ddgiAssetGroup",
+            format!("{tracks_dir}/probes/config.ddgi.assetgroup"),
+        ),
+        ("trackMapAssetGroup", format!("{tracks_dir}/bahrain24.assetgroup")),
+        ("iblAssetGroupsRoot", format!("{tracks_dir}/probes/")),
+        ("iblKey", "key_2019.assetgroup".into()),
+    ] {
+        assert_eq!(db.text(field(r, name)).as_deref(), Some(value.as_str()), "{name}");
+    }
     assert_eq!(db.text(field(b24, "length_metres")).as_deref(), Some("5543"));
     assert_eq!(db.text(field(b24, "allow_night_start")).as_deref(), Some("False"));
 

@@ -4,12 +4,14 @@ use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
 use swofty_formats::gvdb::Gvdb;
 
-use crate::activation::db::{Registry, Slot, activate};
+use crate::activation::db::{Registry, TrackHost, activate};
 use crate::activation::ers::{ErsMap, build_ers};
 use crate::activation::grid::grid_size;
-use crate::activation::place::{PlaceInput, SLOTS, place, slot_asset_group, slot_asset_root, slot_file};
+use crate::activation::place::{
+    PlaceInput, SLOTS, place, slot_asset_group, slot_asset_root, slot_file, track_group,
+};
 use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
-use crate::asset::{AssetOp, FileKind, FileOp, Op, OpFile, Origin, Root, Source};
+use crate::asset::{AssetOp, FileKind, FileOp, GroupOp, Op, OpFile, Origin, Root, Source};
 use crate::baseline::{Baseline, Objects, hex, sha256_file};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
 use crate::erpbuild::{ErpBuild, unsupported};
@@ -220,6 +222,14 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         }
     }
     let maps = map_packages(store, &p.maps)?;
+    let natural = planner.route(Kind::Group) == Route::Runtime;
+    if !natural && maps.len() > SLOTS.len() {
+        return Err(Error::Map(format!(
+            "at most {} maps can be enabled at once",
+            SLOTS.len()
+        )));
+    }
+    let slots: Vec<Option<&str>> = (0..maps.len()).map(|i| (!natural).then(|| SLOTS[i])).collect();
     let reg = Registry::builtin();
     hasher.update(crate::activation::db::REGISTRY_JSON);
     for (dir, pkg) in &maps {
@@ -231,12 +241,15 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     let resolve = |rel: &str| original(&store.root, game, rel);
     let ui_maps: Vec<MapUi> = maps
         .iter()
-        .zip(SLOTS)
+        .zip(&slots)
         .filter(|((_, pkg), _)| pkg.ui.is_some())
         .map(|((dir, pkg), slot)| MapUi {
             pkg,
             dir,
-            track_slot: slot,
+            asset_group: match slot {
+                Some(slot) => slot_asset_group(slot),
+                None => track_group(&pkg.track_code, &pkg.track_code),
+            },
         })
         .collect();
     if !ui_maps.is_empty() {
@@ -256,12 +269,6 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     hasher.update(sha256_file(&db_src)?);
     built.buildhash = hex(&hasher.finalize())[..16].to_owned();
     built.overlay = store.overlay_dir(profile, &built.buildhash);
-    if maps.len() > SLOTS.len() {
-        return Err(Error::Map(format!(
-            "at most {} maps can be enabled at once",
-            SLOTS.len()
-        )));
-    }
     let (ui_lists, ui_notes) = if ui_maps.is_empty() {
         Default::default()
     } else {
@@ -273,14 +280,16 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     if !maps.is_empty() || planner.has_db() {
         let shipped = std::fs::read(&db_src).map_err(io_err(&db_src))?;
         let mut db = Gvdb::parse(&shipped)?;
-        for ((_, pkg), slot) in maps.iter().zip(SLOTS) {
-            let group = slot_asset_group(slot);
+        for ((_, pkg), slot) in maps.iter().zip(&slots) {
+            let names = slot.map(|s| (slot_asset_group(s), format!("{s}.assetgroup")));
             let root = slot_asset_root();
-            let key = format!("{slot}.assetgroup");
-            let route = Slot {
-                asset_group: &group,
-                asset_root: &root,
-                key: &key,
+            let route = match &names {
+                Some((asset_group, key)) => TrackHost::Slot {
+                    asset_group,
+                    asset_root: &root,
+                    key,
+                },
+                None => TrackHost::Natural,
             };
             let lists = ui_lists.get(&pkg.track_code).cloned().unwrap_or_default();
             let report = activate(&mut db, pkg, &reg, Some(&route), &lists)?;
@@ -321,23 +330,48 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             std::fs::write(&out, bytes).map_err(io_err(&out))?;
             built.plan.data.insert(GVDB.into(), out);
         }
-        for ((dir, pkg), slot) in maps.iter().zip(SLOTS) {
-            let slot_original = original(&store.root, game, &slot_file(slot));
+        for ((dir, pkg), slot) in maps.iter().zip(&slots) {
+            let slot_original = slot.map(|s| original(&store.root, game, &slot_file(s)));
             let placement = place(
                 &PlaceInput {
                     pkg,
                     dir,
                     game: &game.dir,
-                    slot,
-                    slot_original: &slot_original,
+                    slot: slot.zip(slot_original.as_deref()),
                     cars,
                 },
                 &store.root.join("cache/maps").join(&pkg.track_code),
             )?;
+            let at = match slot {
+                Some(slot) => format!("slot {slot}"),
+                None => placement.archive.clone(),
+            };
             built.lines.push(format!(
-                "{}: track archive goes in slot {slot}; {} texture(s) use its own mip files",
+                "{}: track archive goes in {at}; {} texture(s) use its own mip files",
                 pkg.track_code, placement.mips
             ));
+            if !placement.groups.is_empty() {
+                built.lines.push(format!(
+                    "{}: {} asset group(s) registered in game",
+                    pkg.track_code,
+                    placement.groups.len()
+                ));
+            }
+            for group in placement.groups {
+                planner.push(Op {
+                    op: AssetOp::Group(GroupOp::Register {
+                        group,
+                        erp: Some(placement.archive.clone()),
+                        erps: Vec::new(),
+                        deps: Vec::new(),
+                        template: None,
+                    }),
+                    origin: Origin {
+                        addon: "maps".into(),
+                        item: Some(pkg.track_code.clone()),
+                    },
+                });
+            }
             if let Some(g) = &placement.grid {
                 built.lines.push(format!(
                     "{}: world extended from {} to {} grid slots, {} to {} garages and {} to {} pit boxes for {cars} cars",

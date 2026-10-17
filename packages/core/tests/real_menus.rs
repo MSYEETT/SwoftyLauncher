@@ -113,7 +113,7 @@ fn menus_match_the_prototype_byte_for_byte() {
 
 #[test]
 fn menus_and_a_map_patch_one_databases_erp() {
-    use swofty_core::activation::place::SLOTS;
+    use swofty_core::activation::place::track_group;
     use swofty_core::activation::ui::{MapUi, build_ui};
     use swofty_core::build::{Built, build_menus};
     use swofty_core::map::TrackPackage;
@@ -138,7 +138,7 @@ fn menus_and_a_map_patch_one_databases_erp() {
     let maps = [MapUi {
         pkg: &pkg,
         dir: &dir,
-        track_slot: SLOTS[0],
+        asset_group: track_group("bahrain24", "bahrain24"),
     }];
     let map_ui = build_ui(&maps, &resolve, &out.join("cache")).unwrap();
     let rel = "2025_asset_groups/ui_package/databases.erp";

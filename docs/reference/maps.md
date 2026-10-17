@@ -8,7 +8,17 @@ This page is for contributors. Players should read [Importing maps](/using/impor
 
 The game loads an asset group only when its asset manifest (`fileList.manifest`) lists it. A listed group `asset_groups/<path>.assetgroup` is the file `2025_asset_groups/<path>.erp`. A new track's own paths, such as `environment_package/tracks/okayama/wep/okayama_common.assetgroup`, are not listed.
 
-So the package's `<code>.erp` goes whole into an existing invitational event slot, `2025_asset_groups/ui_package/texture_arrays/invitational_events/event_images/invitational_image_<n>.erp`, together with the slot's own pictures. The maps of a profile take `invitational_image_4`, `_10`, `_13` to `_18` in order.
+When the in-game core's `features.json` has `group`, the package's `<code>.erp` goes to its natural path, `2025_asset_groups/environment_package/tracks/<code>/<code>.erp`, as an added file. `swofty/assets.json` registers these groups for it at runtime:
+
+- the main group, `asset_groups/environment_package/tracks/<code>/<code>.assetgroup`;
+- `wep/<code>_<variant>` for every world in the archive, stand-ins included;
+- the 2019 template groups `bake/<code>_ao.bake`, `bake/<code>_light_list.bake`, `bake/<code>_radiance.bake`, `probes/config.ddgi` and `probes/key_2019`;
+- `probes/probes_garage_<nn>` for every garage probe set in the archive;
+- `ai/<vehicle_package>/<team>/<team>` for every AI team folder in the archive.
+
+Any number of maps can be enabled this way.
+
+Otherwise the package's `<code>.erp` goes whole into an existing invitational event slot, `2025_asset_groups/ui_package/texture_arrays/invitational_events/event_images/invitational_image_<n>.erp`, together with the slot's own pictures. The maps of a profile take `invitational_image_4`, `_10`, `_13` to `_18` in order. At most eight maps can be enabled this way.
 
 The archive also gets:
 
@@ -21,7 +31,7 @@ The archive also gets:
 | Table | Change |
 |---|---|
 | `tracks.Track_<n>` | `copy_slot` clones the slot track's row for a new code, with a new `statId`. A code that already has a row (`bahrain24`) keeps it. `track_overrides` are set here. |
-| `tracks.track_resource.TrackResource_<n>` | A row `swofty_<code>` cloned from the track's resource row, with every asset group set to the map's slot. The track row's `track_resource` names it. |
+| `tracks.track_resource.TrackResource_<n>` | A row `swofty_<code>` cloned from the track's resource row. On the natural route its group fields take the 2019 template values with `[FILENAME]` = `<code>`: `iblAssetGroupsRoot` is `asset_groups/environment_package/tracks/<code>/probes/` and `iblKey` is `key_2019.assetgroup`. `trackMapAssetGroup` names the main group. On the slot route every asset group is set to the map's slot. The track row's `track_resource` names it. |
 | Per-track tables: per-race DNFs, pit lane splines and slide settings, practice programmes (2025 and 2026), tyre wear and tyre wear scales, specialist objectives, track trivia, replay hero shots | A code without a row gets one cloned from the slot track, or from the base track when the slot has none. The game reads the per-race DNF row without checking it exists, so a new code always needs it. |
 | `<datasets>.TrackDataSet_<i>.TrackData_<j>` | `copy_from_track` clones the base track's row, with its sub-tables, in every dataset that has it. `overrides` are set here, limited to their `datasets`. |
 | Content sets' `available_tracks` | The code is added wherever the base track is listed. This is the Grand Prix track list. |
@@ -35,7 +45,7 @@ Some sub-table names exist in `F1_25.exe` only as strings built on the stack. `t
 
 - Flags, previews and splines from `ui/images.json` are appended as slices to the texture arrays named in `overrides.uidb`. Every UI archive that carries an array gets the same slices. The track's `TrackTextures` rows then name `overrides.<list>.<code>`.
 - The three track-select scenes and the session picture go into `invitational_image_2`, and `ui_dynamic_texture_loading.uidta` names them.
-- `ui/minimap.json` becomes an entry in `minimap.uidb` (in `databases.erp` and `flow_race.erp`) whose textures load from the map's slot.
+- `ui/minimap.json` becomes an entry in `minimap.uidb` (in `databases.erp` and `flow_race.erp`) whose textures load from the map's main group, or from its slot on the slot route.
 
 ## ERS
 

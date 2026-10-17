@@ -51,6 +51,60 @@ pub fn slot_asset_root() -> String {
     format!("asset_groups/{SLOT_DIR}/")
 }
 
+pub fn track_file(code: &str) -> String {
+    format!("{ASSET_ROOT}/environment_package/tracks/{code}/{code}.erp")
+}
+
+pub fn track_group(code: &str, rel: &str) -> String {
+    format!("asset_groups/environment_package/tracks/{code}/{rel}.assetgroup")
+}
+
+pub fn track_groups<'a>(code: &str, names: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+    let prefix = format!("{EAID}environment_package/tracks/{code}/");
+    let mut worlds = BTreeSet::new();
+    let mut garages = BTreeSet::new();
+    let mut ai = BTreeSet::new();
+    for name in names {
+        let Some(rest) = name.strip_prefix(&prefix) else {
+            continue;
+        };
+        let rest = rest.split('?').next().unwrap_or(rest);
+        if let Some(v) = rest
+            .strip_prefix("wep/")
+            .and_then(|w| w.strip_prefix(code))
+            .and_then(|w| w.strip_prefix('_'))
+            .and_then(|w| w.strip_suffix(".wep"))
+        {
+            worlds.insert(format!("wep/{code}_{v}"));
+        } else if let Some(n) = rest
+            .strip_prefix("probes/probes_garage_")
+            .and_then(|p| p.strip_suffix(".shprobes"))
+        {
+            garages.insert(format!("probes/probes_garage_{n}"));
+        } else if let Some([package, team, _]) = rest
+            .strip_prefix("ai/")
+            .map(|a| a.splitn(3, '/').collect::<Vec<_>>())
+            .as_deref()
+        {
+            ai.insert(format!("ai/{package}/{team}/{team}"));
+        }
+    }
+    let template = [
+        format!("bake/{code}_ao.bake"),
+        format!("bake/{code}_light_list.bake"),
+        format!("bake/{code}_radiance.bake"),
+        "probes/config.ddgi".into(),
+        "probes/key_2019".into(),
+    ];
+    std::iter::once(code.to_owned())
+        .chain(worlds)
+        .chain(template)
+        .chain(garages)
+        .chain(ai)
+        .map(|rel| track_group(code, &rel))
+        .collect()
+}
+
 pub fn mip_dir(code: &str) -> String {
     format!("environment_package/tracks/{code}/mipmaps")
 }
@@ -68,13 +122,14 @@ pub struct PlaceInput<'a> {
     pub pkg: &'a TrackPackage,
     pub dir: &'a Path,
     pub game: &'a Path,
-    pub slot: &'a str,
-    pub slot_original: &'a Path,
+    pub slot: Option<(&'a str, &'a Path)>,
     pub cars: u32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Placement {
+    pub archive: String,
+    pub groups: Vec<String>,
     pub replaced: BTreeMap<String, PathBuf>,
     pub added: BTreeMap<String, PathBuf>,
     pub aliases: BTreeMap<String, String>,
@@ -190,17 +245,19 @@ fn stamp(input: &PlaceInput) -> Result<String> {
         .ok()
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map_or(0, |d| d.as_nanos());
-    let slot = crate::baseline::sha256_file(input.slot_original)?;
+    let slot = match input.slot {
+        Some((name, original)) => format!("{name}|{}", crate::baseline::sha256_file(original)?),
+        None => "natural".into(),
+    };
     let manifest = serde_json::to_vec(input.pkg).expect("serialisable");
     let mut h = <sha2::Sha256 as sha2::Digest>::new();
     sha2::Digest::update(&mut h, &manifest);
     sha2::Digest::update(
         &mut h,
         format!(
-            "{}|{}|{mtime}|{}|{slot}|{PLACEMENT_VERSION}|{}",
+            "{}|{}|{mtime}|{slot}|{PLACEMENT_VERSION}|{}",
             erp.display(),
             meta.len(),
-            input.slot,
             input.cars
         ),
     );
@@ -228,9 +285,12 @@ pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {
         .collect();
     let names: BTreeSet<String> = shipped.keys().cloned().collect();
     let present = variants(&file, code);
-    let slot_path = out.join(slot_file(input.slot));
+    let archive = match input.slot {
+        Some((slot, _)) => slot_file(slot),
+        None => track_file(code),
+    };
+    let archive_path = out.join(&archive);
     let done = out.join(".done");
-    let slot_file_in = ErpFile::open(input.slot_original)?;
     let mut owned = Vec::new();
     for (v, fallbacks) in WORLD_FALLBACKS {
         if present.contains(v) {
@@ -274,16 +334,25 @@ pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {
             input.cars
         )),
     }
+    if input.slot.is_none() {
+        placement.groups = track_groups(
+            code,
+            file.erp.resources.iter().chain(&owned).map(|r| r.name.as_str()),
+        );
+    }
     if !done.is_file() {
         let own: BTreeSet<&str> = file.erp.resources.iter().map(|r| r.name.as_str()).collect();
         let mut entries = Vec::new();
-        for r in slot_file_in
-            .erp
-            .resources
-            .iter()
-            .filter(|r| !own.contains(r.name.as_str()))
-        {
-            entries.push(Entry::Owned(slot_file_in.load(r)?));
+        if let Some((_, original)) = input.slot {
+            let slot_file_in = ErpFile::open(original)?;
+            for r in slot_file_in
+                .erp
+                .resources
+                .iter()
+                .filter(|r| !own.contains(r.name.as_str()))
+            {
+                entries.push(Entry::Owned(slot_file_in.load(r)?));
+            }
         }
         let mut repointed = repointed;
         for (i, r) in file.erp.resources.iter().enumerate() {
@@ -293,12 +362,17 @@ pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {
             });
         }
         entries.extend(owned.into_iter().map(Entry::Owned));
-        let dir = slot_path.parent().expect("has parent");
+        let dir = archive_path.parent().expect("has parent");
         std::fs::create_dir_all(dir).map_err(io_err(dir))?;
-        file.write(entries, &slot_path)?;
+        file.write(entries, &archive_path)?;
         std::fs::write(&done, b"").map_err(io_err(&done))?;
     }
-    placement.replaced.insert(slot_file(input.slot), slot_path);
+    if input.slot.is_none() && !input.game.join(&archive).is_file() {
+        placement.added.insert(archive.clone(), archive_path);
+    } else {
+        placement.replaced.insert(archive.clone(), archive_path);
+    }
+    placement.archive = archive;
     for name in &used {
         placement
             .added
@@ -424,6 +498,42 @@ mod tests {
         assert_eq!(
             shipped_name("a/b/c.tif.mipmaps").len(),
             12 + 1 + "c.tif.mipmaps".len()
+        );
+    }
+
+    #[test]
+    fn natural_groups_come_from_the_archive() {
+        let t = "eaid://environment_package/tracks/okayama";
+        let names = [
+            format!("{t}/wep/okayama_f1.wep"),
+            format!("{t}/wep/okayama_common.wep?event_graph"),
+            format!("{t}/wep/okayama_common.wep"),
+            format!("{t}/probes/probes_garage_02.shprobes"),
+            format!("{t}/probes/key0_2019.diffuse.dds"),
+            format!("{t}/ai/f1_2025_vehicle_package/mclaren/mclaren.acpd"),
+            format!("{t}/ai/f1_2025_vehicle_package/mclaren/mclaren.brpd"),
+            format!("{t}/ai/okayama_ai_track.aispline"),
+            "eaid://environment_package/tracks/sepang/wep/sepang_f1.wep".into(),
+        ];
+        let g = "asset_groups/environment_package/tracks/okayama";
+        assert_eq!(
+            track_groups("okayama", names.iter().map(String::as_str)),
+            [
+                format!("{g}/okayama.assetgroup"),
+                format!("{g}/wep/okayama_common.assetgroup"),
+                format!("{g}/wep/okayama_f1.assetgroup"),
+                format!("{g}/bake/okayama_ao.bake.assetgroup"),
+                format!("{g}/bake/okayama_light_list.bake.assetgroup"),
+                format!("{g}/bake/okayama_radiance.bake.assetgroup"),
+                format!("{g}/probes/config.ddgi.assetgroup"),
+                format!("{g}/probes/key_2019.assetgroup"),
+                format!("{g}/probes/probes_garage_02.assetgroup"),
+                format!("{g}/ai/f1_2025_vehicle_package/mclaren/mclaren.assetgroup"),
+            ]
+        );
+        assert_eq!(
+            track_file("okayama"),
+            "2025_asset_groups/environment_package/tracks/okayama/okayama.erp"
         );
     }
 }

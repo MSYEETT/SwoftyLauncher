@@ -670,7 +670,7 @@ The sidebar entry `Mods` comes after `Addons`, with the library size as its coun
 ## 5. Tracks as mods later
 
 - A built-in tracks addon (`swofty.tracks`) takes over maps. `$DATA/maps/` becomes its library, `Profile.maps` its profile state, the Maps page its section and `Store::import_map` its importer. The migration moves both.
-- Its build hook emits asset ops instead of writing files: activation rows as `db.*` ops, the processed package archive at its natural path (`2025_asset_groups/environment_package/tracks/<code>/<code>.erp`) as `file.put`, its asset groups as `group.register` ops, and menu art and ERS as `erp.*` ops. This is the slotless route of the research notes (`research/track-activation.md`, sections 5.7 and 5.9). With runtime asset groups the invitational slots and the limit of 8 maps go.
+- Its build hook emits asset ops instead of writing files: activation rows as `db.*` ops, the processed package archive at its natural path (`2025_asset_groups/environment_package/tracks/<code>/<code>.erp`) as `file.put`, its asset groups as `group.register` ops, and menu art and ERS as `erp.*` ops. This is the slotless route of the research notes (`research/track-activation.md`, sections 5.7 to 5.9). Core's `activation/` already takes it when the in-game core has `group`, with no limit on maps; the slots stay as the fallback.
 - The `maps` list of `swofty/settings.json` becomes an addon-provided list of in-game pages.
 - Core's Maps page, `activation/` wiring in `build.rs` and `Profile.maps` are then removed.
 

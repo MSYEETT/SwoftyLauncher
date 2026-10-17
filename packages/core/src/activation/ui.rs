@@ -76,7 +76,7 @@ fn shared_picture(code: &str, key: &str) -> String {
 pub struct MapUi<'a> {
     pub pkg: &'a TrackPackage,
     pub dir: &'a Path,
-    pub track_slot: &'a str,
+    pub asset_group: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -263,7 +263,7 @@ fn minimap_entry(
     template: &Node,
     code: &str,
     index: usize,
-    slot: &str,
+    asset_group: &str,
     mm: &serde_json::Value,
 ) -> Result<Node> {
     let mut e = template.clone();
@@ -278,7 +278,7 @@ fn minimap_entry(
             set_f32(node, mm.get(key).map(f).transpose()?.unwrap_or(default))?;
         }
     }
-    set_value_str(&mut e, "asset_group", &slot_asset_group(slot))?;
+    set_value_str(&mut e, "asset_group", asset_group)?;
     set_value_str(
         &mut e,
         "current_texture_dict",
@@ -341,7 +341,7 @@ fn patch_minimap(res: &mut Resource, maps: &[Map]) -> Result<()> {
                 .iter()
                 .position(|n| name_of(n) == Some(m.code()))
                 .unwrap_or(list.items.len());
-            let entry = minimap_entry(&template, m.code(), index, m.ui.track_slot, mm)?;
+            let entry = minimap_entry(&template, m.code(), index, &m.ui.asset_group, mm)?;
             upsert(&mut list.items, m.code(), entry);
         }
         Ok(())
@@ -378,7 +378,7 @@ pub fn stamp(maps: &[MapUi], original: &dyn Fn(&str) -> PathBuf) -> Result<Strin
     let mut h = <sha2::Sha256 as sha2::Digest>::new();
     for m in maps {
         sha2::Digest::update(&mut h, serde_json::to_vec(m.pkg).expect("serialisable"));
-        sha2::Digest::update(&mut h, m.track_slot);
+        sha2::Digest::update(&mut h, &m.asset_group);
         for rel in [
             m.pkg.ui.as_ref().and_then(|u| u.images_file.clone()),
             m.pkg.ui.as_ref().and_then(|u| u.minimap_file.clone()),
