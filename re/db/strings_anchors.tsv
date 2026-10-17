@@ -1,0 +1,48 @@
+id	addr	enc	text	refs	funcs	level	notes
+s_FEHomeViewModel_onCommandRaised	0x145738cc8	ascii	virtual void game::FEHomeViewModel::onCommandRaised(const neon::NeUIString &, const neon::NeUIPrimitiveType &)	0x141bb401e	0x141bb3c20	L2	assert/log pretty-function; names FeHome_Handle_Command
+s_Weekend_start	0x14566b608	ascii	void game::championship::Weekend::start(const game::EntrantPointers &, const NEbool)	0x140af04f0	0x140af0460	L2	pretty-function fragment; names Sess_Weekend_Start
+s_Entrant_not_added	0x14566b69b	ascii	Entrant was not added to the session (%d > %d)	0x140af08c4	0x140af0460	L2	knockout-session filter in Sess_Weekend_Start
+s_assignGarageSlotsByCarPerformanceClass	0x14578c64a	ascii	assignGarageSlotsByCarPerformanceClass garage %d slot %d entrant %s	0x1424aab15	0x1424a8cf0	L2	-
+s_assignGarageSlotsByPreference	0x14578c60f	ascii	assignGarageSlotsByPreference garage %d slot %d entrant %s	0x1424a81c1	0x1424a8080	L2	-
+s_lng_mode_career	0x145703e78	ascii	lng_mode_career	-	-	L1	Career tile title loc tag
+s_lng_mode_career_description	0x145703e88	ascii	lng_mode_career_description	-	-	L1	-
+s_lng_mode_story	0x145704c88	ascii	lng_mode_story	0x14172ef76,0x141733890	0x14172e6e0,0x1417337e0	L2	Braking Point tile title
+s_career	0x1456d074b	ascii	career	0x14123e7e0,0x14124004e,0x1417468fa,0x14174b30a,0x141bb69e7,0x142245d50,0x14350983a,0x14350a1d8	0x14123d5a0,0x14123f930,0x141746710,0x14174b120,0x141bb6220,0x14223fa00,0x143509590,0x14350a0b0	L2	Career item id / route key
+s_zenith_button	0x145704cbf	ascii	zenith_button	0x141746dca,0x14174bd0a	0x141746be0,0x14174bb20	L2	F1 THE MOVIE tile id
+s_home_navigate_to_challenge_event	0x1457049d6	ascii	home_navigate_to_challenge_event	0x1417477aa	0x1417475c0	L2	-
+s_local_multiplayer	0x14570a01c	ascii	local_multiplayer	0x14174865a,0x141a785b7,0x141a796f5	0x141748470,0x141a77d60,0x141a796e0	L2	-
+s_pro_leagues	0x14565e412	ascii	pro_leagues	0x14077aae1,0x141748b2a,0x141bb8e5f,0x141bb900a,0x1421d341e,0x142d78724,0x142d7dbbe,0x1436d19e8+2	0x14077a3d0,0x141748940,0x141bb8a20,0x1421d1e00,0x142d78530,0x142d7d120,0x1436d1500,0x143864fc0	L2	-
+s_player_hub	0x145704b38	ascii	player_hub	0x14174902a	0x141748e40	L2	(2 copies, row = most referenced)
+s_theatre	0x14570baef	ascii	theatre	0x14174952a,0x14224deba,0x14224e01b,0x14224e58b,0x14224e680	0x141749340,0x14223fa00	L2	-
+s_fe_tile_button_default	0x14570a45c	ascii	fe_tile_button_default	0x14173e799,0x14173ef80,0x14173f470,0x14173f998,0x14173fd07,0x1417401fe,0x14174051b,0x1417408b2+41	0x14173df80,0x141745870,0x141745d40,0x141746220,0x141746710,0x141746be0,0x1417470d0,0x1417475c0+16	L2	tile template name -> VM type
+s_fe_tile_button_secondary	0x145706acf	ascii	fe_tile_button_secondary	0x1417485f9,0x141748ac9,0x141748fc9,0x1417494c9	0x141748470,0x141748940,0x141748e40,0x141749340	L2	-
+s_fe_tile_button_divider	0x145706ab8	ascii	fe_tile_button_divider	0x141747c49	0x141747ac0	L2	-
+s_button_fmt	0x14570be52	ascii	button_%d	0x14173e708,0x14173e7b3,0x14173e854,0x14173e8f5,0x14173e995,0x14173ea65,0x14173ee0f,0x14173f836+66	0x14173df80,0x141745870,0x141745d40,0x141746220,0x141746710,0x141746be0,0x1417470d0,0x1417475c0+21	L2	VM child node name format used by every adder
+s_title	0x145670a76	ascii	title	0x140a2b7b1,0x140ace979,0x140c330af,0x140c94a82,0x140ca3bd6,0x140ca5911,0x14117a091,0x141358c5c+160	0x140a2afb0,0x140ace930,0x140c32080,0x140c94a00,0x140ca0510,0x141179f30,0x141358a10,0x1414fa960+150	L2	item VM property (2 copies, row = most referenced)
+s_title_localised	0x14570aab2	ascii	title_localised	0x141697e15,0x141a224e9,0x141dcb574,0x141e5bd34	0x141697b90,0x141a22240,0x141dcb260,0x141e5ba20	L2	item VM property (bool)
+s_description_localised	0x14570a495	ascii	description_localised	0x14169804d,0x141b029bf	0x141697b90,0x141b012b0	L2	-
+s_notification_type	0x1456fdfba	ascii	notification_type	0x14169821a	0x141697b90	L2	-
+s_tutorial_ref	0x1456fdfcc	ascii	tutorial_ref	0x141698314	0x141697b90	L2	-
+s_context_path	0x1456f8dd3	ascii	context_path	0x1415a9393,0x1417ad949,0x1419f89d8,0x141bca870,0x1421e9bd0,0x1421ea176,0x1424133c8,0x1438309bf+3	0x1415a92d0,0x1417ad860,0x1419f8770,0x141bc9980,0x1421e9910,0x1421e9ee0,0x142412050,0x1438308c0+3	L2	Tile VM property
+s_spawnable	0x1456f8dc9	ascii	spawnable	0x1415a9557,0x141bcaa62,0x1421e9e0f,0x1421ea279,0x142413621,0x14383090c,0x143836c06	0x1415a92d0,0x141bc9980,0x1421e9910,0x1421e9ee0,0x142412050,0x1438308c0,0x143836bc0	L2	Tile VM property
+s_lng_showroom_f1_2026	0x145709f9e	ascii	lng_showroom_f1_2026	0x14173915a,0x141a6f162	0x141739090,0x141a6e980	L2	-
+s_max_entrants	0x14578c453	ascii	max_entrants	0x1424a0320	0x14249f190	L2	entrant setup mode field name
+s_max_teams	0x14578c460	ascii	max_teams	0x1424a0351	0x14249f190	L2	-
+s_reuse_entrants	0x14578c46a	ascii	reuse_entrants	0x1424a0382	0x14249f190	L2	-
+s_entrant_lists	0x1456e66fc	ascii	entrant_lists	0x1413d50e2,0x1413e7a6e,0x14249f468	0x1413d4e10,0x1413e4cf0,0x14249f190	L2	-
+s_Max_ai_participants	0x14567a678	ascii	Max ai participants	0x140bc719c	0x140bc6f70	L2	debug-menu slider label
+s_num_cars	0x145646a4a	ascii	num_cars	0x1407a2c39	0x1407a2780	L2	benchmark config key
+s_session_cars	0x1456f8d92	ascii	session.cars	0x141489479,0x141772559,0x141772744,0x14381e096	0x141489440,0x141772520,0x1417726c0,0x14381d430	L2	VM binding
+s_gamedatabases_bin	0x145bee5e0	ascii	gamedatabases.bin	0x1445a0556	0x1445a0350	L2	-
+s_wep_assetgroup_fmt	0x1456c5758	ascii	asset_groups/environment_package/tracks/%s/wep/%s_%s.assetgroup	0x141125145,0x1411251b5	0x141124b30	L2	-
+s_eaid_wep_fmt	0x1456c5798	ascii	eaid://environment_package/tracks/%s/wep/%s_%s.wep	0x14112516c,0x1411251dc	0x141124b30	L2	-
+h_select_pressed	-	djb2:0x02b0357a	select_pressed	0x1419f879a,0x1419fc3d8,0x141a4969d,0x141a4b0ca,0x141a640c5,0x141a6e43e,0x141a74918,0x141a7a72d+84	0x1419f8770,0x1419fc3c0,0x141a495f0,0x141a4b080,0x141a640a0,0x141a6e420+83	L2	-
+h_focus_changed	-	djb2:0x70d928ee	focus_changed	0x141a49692,0x141a7491f,0x141a7a7a0,0x141b23de9,0x141bb3d67,0x1420555b4,0x142061fd7,0x1420e69b1+5	0x141a495f0,0x141a74900,0x141a7a6c0,0x141b23c80,0x141bb3c20,0x142055570+7	L2	stores item id hash at vm+0x3f0
+h_settings_pressed	-	djb2:0x360beecb	settings_pressed	0x141bb3c77	0x141bb3c20	L2	route options
+h_accessibility_pressed	-	djb2:0xace350a2	accessibility_pressed	0x141bb3ca3,0x141bb3d19	0x141bb3c20	L2	route accessibility
+h_panel_pressed	-	djb2:0x28800c6a	panel_pressed	0x141b2d823,0x141baec8a,0x141bb3c6c,0x141bb3caa,0x141bb626d	0x141b2d7f0,0x141baec30,0x141bb3c20,0x141bb6220	L2	playgo/offline/to_news
+h_back_pressed	-	djb2:0x493fe92b	back_pressed	0x1419ee4bf,0x1419fc3e3,0x141a0b312,0x141a180e4,0x141a3f81d,0x141a40c0d,0x141a4b0bf,0x141a5509b+103	0x1419ee4a0,0x1419fc3c0,0x141a0b280,0x141a180a0,0x141a3f7f0,0x141a40a50+102	L2	trigger_quit_message
+h_transition_in_finished	-	djb2:0xc22b77ef	transition_in_finished	0x141a0b2fc,0x141a18205,0x141a5e040,0x141a6652e,0x141a69a92,0x141bb3d24,0x141e9a55e,0x141fb1fbe+8	0x141a0b280,0x141a180a0,0x141a5df70,0x141a664f0,0x141a69a50,0x141bb3c20+10	L2	-
+h_buttons	-	djb2:0x94eb0e14	buttons	0x14173e422,0x1419a47b2,0x1421d6b72	0x14173df80,0x1419a4600,0x1421d69b0	L2	VM node bound into TileList+0x38
+h_selected_button	-	djb2:0x431e9309	selected_button	-	-	L1	VM node bound into TileList+0x58
+h_mod_menu	-	djb2:0x6473bdd9	mod_menu	-	-	L0	our route/id; focus hash

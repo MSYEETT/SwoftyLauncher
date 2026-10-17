@@ -1,0 +1,39 @@
+{
+ "test": "T900",
+ "log": {"summary_every_s": 1, "flush_ms": 50, "max_mb": 4},
+ "limits": {"max_events_total": 1000, "max_read": 64},
+ "hooks": [
+  {"id": "t900.expect_wrong", "sig": "fake.tick_expect_wrong", "regs": ["rbx"]},
+  {"id": "t900.mid_insn", "sig": "fake.tick_mid_insn", "regs": ["rbx"]},
+  {"id": "t900.dup", "raw_sig": {"id": "fake.dup", "section": ".xtls", "pattern": "48 31 C0 48 83 C0 2A 48 83 E8 15 48 83 F0 07", "anchor": 0, "kind": "mid"}},
+  {"id": "t900.nomatch", "raw_sig": {"id": "fake.nomatch", "section": ".xtls", "pattern": "DE AD BE EF 13 37 C0 DE 99 88 77 66", "anchor": 0, "kind": "mid"}},
+  {"id": "t900.wrong_section", "raw_sig": {"id": "fake.text_sig", "section": ".text", "pattern": "48 31 C0 48 83 C0 2A 48 83 E8 15", "anchor": 0, "kind": "mid"}},
+  {
+   "id": "t900.tick",
+   "sig": "fake.tick_mid",
+   "regs": ["rbx", "rsi"],
+   "fields": [
+    "counter=u32:[rbx+0x10]",
+    "chain=u64:[[rbx+0x18]+8]",
+    "name=nestr:[rbx+0x20]",
+    "speed=f32:[rbx+0x28]",
+    "head=hex[8]:rbx",
+    "label=cstr[24]:r8",
+    "idx=i32:rsi"
+   ],
+   "max_per_sec": 20,
+   "max_events": 50
+  },
+  {"id": "t900.tick_head", "sig": "fake.tick_head", "regs": ["rbx"]},
+  {
+   "id": "t900.entry",
+   "sig": "fake.entry",
+   "args": 5,
+   "fields": ["sum_in=u64:a4"],
+   "when": ["rdx == 7"],
+   "ret": true,
+   "bt": 4,
+   "max_per_sec": 10
+  }
+ ]
+}

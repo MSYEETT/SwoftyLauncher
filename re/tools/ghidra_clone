@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# ghidra_clone <name>   private persistent project at re/ghidra/clones/<name>, KB applied.
+set -euo pipefail
+source "$(dirname "$(readlink -f "$0")")/ghidra_lib.sh"
+(($# == 1)) && [[ $1 =~ ^[A-Za-z0-9_-]+$ ]] || { echo "usage: ghidra_clone <name>" >&2; exit 2; }
+d=$RE/ghidra/clones/$1
+ensure_project "$d"
+"$RE/tools/ghidra_apply" "$d"
+echo "use: RE_GHIDRA_PROJECT=$d $RE/tools/decomp <addr>...   export: $RE/tools/ghidra_export $d out.tsv"

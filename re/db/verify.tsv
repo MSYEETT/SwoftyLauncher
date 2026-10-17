@@ -1,0 +1,2 @@
+date	verifier	kind	item	claimed	verdict	evidence	notes
+2026-10-17	re-infra	func	Sess_Select_Entrants	L2	partial	decomp:re/decomp/1424a2350.c;xref:0x14245fb70	V0001 not blind (verifier had read grid24-cap.md); re-read disassembly 0x1424a3070-0x1424a30b0 only: lea rax,[rcx+0x268]; cmp byte [rcx+0x280],0; candidate count (end-begin)>>3; cmovae; mov eax,[rax]. Consistent with the limit claim; rest of the selector not re-derived

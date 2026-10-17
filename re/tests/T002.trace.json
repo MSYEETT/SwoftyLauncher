@@ -1,0 +1,30 @@
+{
+ "hooks": [
+  {
+   "id": "t002.on_command",
+   "test": "T002",
+   "sig": "fe_home.on_command_raised",
+   "args": 2,
+   "fields": [
+    "cmd=nestr:[rdx]",
+    "tile_list=ptr:[rcx+0x358]",
+    "focused=u32:[rcx+0x3f0]"
+   ],
+   "max_per_sec": 5,
+   "max_events": 100
+  },
+  {
+   "id": "t002.item_populate",
+   "test": "T002",
+   "sig": "fe_tiles.item_base_populate",
+   "args": 3,
+   "fields": [
+    "item_id=nestr:[rcx+0x10]",
+    "item_vt=ptr:[rcx]"
+   ],
+   "bt": 2,
+   "max_per_sec": 20,
+   "max_events": 100
+  }
+ ]
+}

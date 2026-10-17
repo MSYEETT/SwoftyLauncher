@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# ghidra_export <project-dir> <out.tsv>   user-defined names not in the KB, as L0 rows for kb.py.
+set -euo pipefail
+source "$(dirname "$(readlink -f "$0")")/ghidra_lib.sh"
+(($# == 2)) || { echo "usage: ghidra_export <project-dir> <out.tsv>" >&2; exit 2; }
+d=$(readlink -f "$1"); out=$(readlink -f "$2")
+lock_project "$d" wait
+headless "$d" -readOnly -postScript KbExport.java "$KB" "$out" >"$d/last.log" 2>&1 || true
+grep -o 'KBEXPORT.*' "$d/last.log" | sed -E 's/ \(GhidraScript\) *$//' || { echo "FAILED, see $d/last.log"; exit 1; }

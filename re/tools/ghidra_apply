@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# ghidra_apply [project-dir]   applies re/db to one project, or to every pool slot and clone.
+set -euo pipefail
+source "$(dirname "$(readlink -f "$0")")/ghidra_lib.sh"
+if (($#)); then dirs=("$(readlink -f "$1")"); else
+    dirs=(); for ((k = 0; k < RE_GHIDRA_POOL; k++)); do dirs+=("$RE/ghidra/slots/s$k"); done
+    for d in "$RE"/ghidra/clones/*/; do [[ -f $d/f1.gpr ]] && dirs+=("${d%/}"); done
+fi
+stamp=$(kb_stamp)
+for d in "${dirs[@]}"; do
+    lock_project "$d" wait
+    headless "$d" -postScript KbApply.java "$KB" >"$d/last.log" 2>&1 || true
+    line=$(grep -o 'KBAPPLY.*' "$d/last.log" | sed -E 's/ \(GhidraScript\) *$//' || true)
+    if [[ -n $line ]]; then echo "$stamp" >"$d/kb.stamp"; echo "$d: $line"; else echo "$d: FAILED, see $d/last.log"; fi
+    grep 'KBWARN' "$d/last.log" | sed -E 's/^INFO +//; s/ \(GhidraScript\) *$//' | head -20 || true
+    exec {PROJ_FD}>&-
+done

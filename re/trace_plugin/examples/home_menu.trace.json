@@ -1,0 +1,39 @@
+{
+ "log": {"max_mb": 64, "on_full": "stop", "summary_every_s": 60},
+ "limits": {"max_events_total": 50000, "max_read": 64},
+ "hooks": [
+  {
+   "id": "ex.home_after_career",
+   "sig": "fe_home.after_career_site",
+   "regs": ["r12", "r14", "r15", "rsi"],
+   "fields": [
+    "items_begin=ptr:[r14+0x78]",
+    "items_end=ptr:[r14+0x80]",
+    "last_item=ptr:[[[r14+0x80]-8]+0xd0]",
+    "last_item_vt=ptr:[[[[r14+0x80]-8]+0xd0]]",
+    "last_id=nestr:[[[[r14+0x80]-8]+0xd0]+0x10]",
+    "movie_flag=u8:[rsi+5]"
+   ],
+   "max_per_sec": 5,
+   "max_events": 200
+  },
+  {
+   "id": "ex.on_command_raised",
+   "sig": "fe_home.on_command_raised",
+   "args": 2,
+   "fields": ["cmd=nestr:[rdx]", "tile_list=ptr:[rcx+0x358]"],
+   "ret": true,
+   "max_per_sec": 20,
+   "max_events": 500
+  },
+  {
+   "id": "ex.item_base_populate",
+   "sig": "fe_tiles.item_base_populate",
+   "args": 3,
+   "fields": ["item_id=nestr:[rcx+0x10]", "item_vt=ptr:[rcx]"],
+   "bt": 3,
+   "max_per_sec": 20,
+   "max_events": 300
+  }
+ ]
+}

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# decomp <addr[:label]>...   -> re/decomp/<addr9>.c, with KB names applied first.
+# Env: RE_GHIDRA_PROJECT=<dir> (use a private clone), RE_GHIDRA_POOL, RE_GHIDRA_XMX, OUT=<dir>.
+set -euo pipefail
+source "$(dirname "$(readlink -f "$0")")/ghidra_lib.sh"
+(($#)) || { echo "usage: decomp <addr>..." >&2; exit 2; }
+OUT=${OUT:-$RE/decomp}
+mkdir -p "$OUT"
+acquire_slot
+stamp=$(kb_stamp)
+pre=()
+[[ $(cat "$SLOT/kb.stamp" 2>/dev/null) == "$stamp" ]] || pre=(-postScript KbApply.java "$KB")
+echo "decomp: slot $(basename "$SLOT"), kb $stamp${pre:+ (applying KB)}" >&2
+status=0
+headless "$SLOT" "${pre[@]}" -postScript DecompKb.java "$OUT" "$stamp" "$@" >"$SLOT/last.log" 2>&1 || status=$?
+grep -E 'KBAPPLY|OK |ERR |NOFUNC|ERROR|Exception' "$SLOT/last.log" | sed -E 's/^INFO +//; s/ \((GhidraScript|HeadlessAnalyzer)\) *$//' || true
+if ((${#pre[@]})) && grep -q 'KBAPPLY' "$SLOT/last.log"; then echo "$stamp" >"$SLOT/kb.stamp"; fi
+grep -q 'KBWARN' "$SLOT/last.log" && echo "decomp: $(grep -c KBWARN "$SLOT/last.log") KB warnings, see $SLOT/last.log" >&2
+exit $status

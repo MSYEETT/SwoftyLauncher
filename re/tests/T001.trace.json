@@ -1,0 +1,30 @@
+{
+ "log": {"max_mb": 16, "on_full": "stop", "summary_every_s": 30},
+ "limits": {"max_events_total": 2000, "max_read": 64},
+ "hooks": [
+  {
+   "id": "t001.selector_limit",
+   "test": "T001",
+   "sig": "session.selector_limit_load",
+   "regs": ["rax", "rcx"],
+   "fields": [
+    "limit=u32:[rax]",
+    "max_entrants=i32:[[rsp+0x60]+0x268]",
+    "max_teams=i32:[[rsp+0x60]+0x264]",
+    "reuse_entrants=u8:[[rsp+0x60]+0x280]",
+    "candidates=u32:[rsp+0x78]"
+   ],
+   "max_per_sec": 5,
+   "max_events": 50
+  },
+  {
+   "id": "t001.weekend_start",
+   "test": "T001",
+   "sig": "session.weekend_start",
+   "args": 3,
+   "fields": ["ep_begin=ptr:[rdx]", "ep_end=ptr:[rdx+8]"],
+   "max_per_sec": 5,
+   "max_events": 50
+  }
+ ]
+}

@@ -1,0 +1,179 @@
+{
+ "schema": 1,
+ "generated_by": "re/tools/trace_build.py",
+ "generated": "2026-10-17T12:11:59",
+ "signatures_file": "re/db/signatures.json",
+ "tests": [],
+ "sources": [
+  "re/tests/T001.trace.json",
+  "re/tests/T002.trace.json"
+ ],
+ "build": {
+  "exe": "F1_25.exe",
+  "sha256": "d873a1c8d2044cef2fd76c99c9d5a97649c5b815d055540995105f46619865ae",
+  "size": 408063872,
+  "pe_timestamp": 1789118616
+ },
+ "check_sha256": true,
+ "allow_build_mismatch": false,
+ "allowed_sections": [
+  ".xtls"
+ ],
+ "log": {
+  "max_mb": 16,
+  "on_full": "stop",
+  "flush_ms": 100,
+  "summary_every_s": 30
+ },
+ "limits": {
+  "max_events_total": 2000,
+  "max_read": 64
+ },
+ "hooks": [
+  {
+   "id": "t001.selector_limit",
+   "test": "T001",
+   "kind": "mid",
+   "sig": {
+    "id": "session.selector_limit_load",
+    "section": ".xtls",
+    "pattern": "8B 00 48 89 44 24 40 4C 8D AC 24 30 01 00 00",
+    "anchor": 0,
+    "resolve": {
+     "kind": "addr"
+    },
+    "expect": "8B 00 48 89 44",
+    "rva": "0x24a30a8"
+   },
+   "regs": [
+    "rax",
+    "rcx"
+   ],
+   "fields": [
+    {
+     "name": "limit",
+     "type": "u32",
+     "expr": "[rax]"
+    },
+    {
+     "name": "max_entrants",
+     "type": "i32",
+     "expr": "[[rsp+0x60]+0x268]"
+    },
+    {
+     "name": "max_teams",
+     "type": "i32",
+     "expr": "[[rsp+0x60]+0x264]"
+    },
+    {
+     "name": "reuse_entrants",
+     "type": "u8",
+     "expr": "[[rsp+0x60]+0x280]"
+    },
+    {
+     "name": "candidates",
+     "type": "u32",
+     "expr": "[rsp+0x78]"
+    }
+   ],
+   "max_per_sec": 5,
+   "max_events": 50
+  },
+  {
+   "id": "t001.weekend_start",
+   "test": "T001",
+   "kind": "func_start",
+   "sig": {
+    "id": "session.weekend_start",
+    "section": ".xtls",
+    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC B8 00 00 00 44 89 C3 49 89 D4",
+    "anchor": 0,
+    "resolve": {
+     "kind": "addr"
+    },
+    "rva": "0xaf0460"
+   },
+   "args": 3,
+   "fields": [
+    {
+     "name": "ep_begin",
+     "type": "ptr",
+     "expr": "[rdx]"
+    },
+    {
+     "name": "ep_end",
+     "type": "ptr",
+     "expr": "[rdx+8]"
+    }
+   ],
+   "max_per_sec": 5,
+   "max_events": 50
+  },
+  {
+   "id": "t002.on_command",
+   "test": "T002",
+   "kind": "func_start",
+   "sig": {
+    "id": "fe_home.on_command_raised",
+    "section": ".xtls",
+    "pattern": "41 57 41 56 56 57 53 48 83 EC 40 48 89 D7 48 89 CE 48 8B 05 ?? ?? ?? ?? 48 8D 0D",
+    "anchor": 0,
+    "resolve": {
+     "kind": "addr"
+    },
+    "rva": "0x1bb3c20"
+   },
+   "args": 2,
+   "fields": [
+    {
+     "name": "cmd",
+     "type": "nestr",
+     "expr": "[rdx]"
+    },
+    {
+     "name": "tile_list",
+     "type": "ptr",
+     "expr": "[rcx+0x358]"
+    },
+    {
+     "name": "focused",
+     "type": "u32",
+     "expr": "[rcx+0x3f0]"
+    }
+   ],
+   "max_per_sec": 5,
+   "max_events": 100
+  },
+  {
+   "id": "t002.item_populate",
+   "test": "T002",
+   "kind": "func_start",
+   "sig": {
+    "id": "fe_tiles.item_base_populate",
+    "section": ".xtls",
+    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 00 00 00 C5 F8 29 74 24 70 44 89 44",
+    "anchor": 0,
+    "resolve": {
+     "kind": "addr"
+    },
+    "rva": "0x1697b90"
+   },
+   "args": 3,
+   "fields": [
+    {
+     "name": "item_id",
+     "type": "nestr",
+     "expr": "[rcx+0x10]"
+    },
+    {
+     "name": "item_vt",
+     "type": "ptr",
+     "expr": "[rcx]"
+    }
+   ],
+   "bt": 2,
+   "max_per_sec": 20,
+   "max_events": 100
+  }
+ ]
+}

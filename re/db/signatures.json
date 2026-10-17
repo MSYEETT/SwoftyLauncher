@@ -1,0 +1,467 @@
+{
+ "schema": 1,
+ "build": {
+  "exe": "F1_25.exe",
+  "sha256": "d873a1c8d2044cef2fd76c99c9d5a97649c5b815d055540995105f46619865ae",
+  "size": 408063872,
+  "pe_timestamp": 1789118616,
+  "image_base": "0x140000000"
+ },
+ "signatures": [
+  {
+   "id": "fe_home.after_career_site",
+   "section": ".xtls",
+   "pattern": "45 8D 67 01 4C 89 F1 44 89 E2 E8 ?? ?? ?? ?? F6",
+   "match": "0x141742fc7",
+   "anchor": "0xf",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141742fd6",
+   "kind": "mid",
+   "expect": "F6 46 05 04 74",
+   "names": [
+    "site_FeHome_AfterCareerCall"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "exe-agent",
+     "how": "static"
+    },
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "T000/run1",
+     "how": "runtime scan, 1 hit"
+    }
+   ],
+   "used_by": [
+    "native/src/core/swofty_core.cpp"
+   ]
+  },
+  {
+   "id": "fe_home.career_adder",
+   "section": ".xtls",
+   "pattern": "45 8D 67 01 4C 89 F1 44 89 E2 E8 ?? ?? ?? ?? F6",
+   "match": "0x141742fc7",
+   "anchor": "0xb",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0xa"
+   },
+   "target": "0x141746710",
+   "kind": "call",
+   "names": [
+    "FeHome_Add_CareerTile"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "exe-agent",
+     "how": "static"
+    },
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "T000/run1",
+     "how": "runtime scan, 1 hit"
+    }
+   ],
+   "used_by": [
+    "native/src/core/swofty_core.cpp"
+   ]
+  },
+  {
+   "id": "fe_tiles.tile_list_builder",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 02 00 00 C5 F8 29 B4 24 70 02 00 00 4C 89 8C 24",
+   "match": "0x14173df80",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14173df80",
+   "kind": "func_start",
+   "names": [
+    "FeTile_Build_List"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "exe-agent",
+     "how": "static"
+    },
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "T000/run1",
+     "how": "runtime scan, 1 hit"
+    }
+   ],
+   "used_by": [
+    "native/src/core/swofty_core.cpp"
+   ]
+  },
+  {
+   "id": "fe_tiles.item_base_populate",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 00 00 00 C5 F8 29 74 24 70 44 89 44",
+   "match": "0x141697b90",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141697b90",
+   "kind": "func_start",
+   "names": [
+    "FeTile_ItemBase_Populate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "exe-agent",
+     "how": "static"
+    },
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "T000/run1",
+     "how": "runtime scan, 1 hit"
+    }
+   ],
+   "used_by": [
+    "native/src/core/swofty_core.cpp"
+   ]
+  },
+  {
+   "id": "vm.registry_global",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 00 00 00 C5 F8 29 74 24 70 44 89 44",
+   "match": "0x141697b90",
+   "anchor": "0x56",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x53",
+    "len": 7
+   },
+   "target": "0x146ca54f8",
+   "kind": "data",
+   "names": [
+    "g_Vm_Registry"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "exe-agent",
+     "how": "static"
+    },
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "T000/run1",
+     "how": "runtime scan, 1 hit"
+    }
+   ],
+   "used_by": [
+    "native/src/core/swofty_core.cpp"
+   ]
+  },
+  {
+   "id": "vm.set_string",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 00 00 00 C5 F8 29 74 24 70 44 89 44",
+   "match": "0x141697b90",
+   "anchor": "0x6a",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x69"
+   },
+   "target": "0x140846270",
+   "kind": "call",
+   "names": [
+    "Vm_Set_String"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "exe-agent",
+     "how": "static"
+    },
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "T000/run1",
+     "how": "runtime scan, 1 hit"
+    }
+   ],
+   "used_by": [
+    "native/src/core/swofty_core.cpp"
+   ]
+  },
+  {
+   "id": "vm.set_bool",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 00 00 00 C5 F8 29 74 24 70 44 89 44",
+   "match": "0x141697b90",
+   "anchor": "0x28f",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x28e"
+   },
+   "target": "0x140975db0",
+   "kind": "call",
+   "names": [
+    "Vm_Set_Bool"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "exe-agent",
+     "how": "static"
+    },
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "T000/run1",
+     "how": "runtime scan, 1 hit"
+    }
+   ],
+   "used_by": [
+    "native/src/core/swofty_core.cpp"
+   ]
+  },
+  {
+   "id": "core.nestr_from_cstr",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 55 53 48 83 EC 50 44 89 C6 48 89 CF",
+   "match": "0x1441974e0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1441974e0",
+   "kind": "func_start",
+   "names": [
+    "Ne_Make_StrFromCStr"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "exe-agent",
+     "how": "static"
+    },
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "T000/run1",
+     "how": "runtime scan, 1 hit"
+    }
+   ],
+   "used_by": [
+    "native/src/core/swofty_core.cpp"
+   ]
+  },
+  {
+   "id": "fe_home.on_command_raised",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 53 48 83 EC 40 48 89 D7 48 89 CE 48 8B 05 ?? ?? ?? ?? 48 8D 0D",
+   "match": "0x141bb3c20",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141bb3c20",
+   "kind": "func_start",
+   "names": [
+    "FeHome_Handle_Command"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "exe-agent",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "fe_tiles.tile_base_ctor",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 48 C5 F8 29 74 24 30 4C 89 CF 4C 89 C3 48 89 CE 48 8D 05",
+   "match": "0x1415a92d0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1415a92d0",
+   "kind": "func_start",
+   "names": [
+    "FeTile_Construct_Tile"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "exe-agent",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.selector_limit_load",
+   "section": ".xtls",
+   "pattern": "8B 00 48 89 44 24 40 4C 8D AC 24 30 01 00 00",
+   "match": "0x1424a30a8",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1424a30a8",
+   "kind": "mid",
+   "names": [
+    "site_Sess_SelectorLimitLoad"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "re-infra",
+     "how": "static"
+    }
+   ],
+   "used_by": [],
+   "expect": "8B 00 48 89 44"
+  },
+  {
+   "id": "gamedb.table_cursor_init",
+   "section": ".xtls",
+   "pattern": "56 48 81 EC 20 01 00 00 83 B9 00 02 00 00 00",
+   "match": "0x1445a25c0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1445a25c0",
+   "kind": "func_start",
+   "names": [
+    "Gdb_Init_TableCursor"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "re-infra",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.parse_entrant_list",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC F8 06 00 00 4C 89 4C 24 38",
+   "match": "0x142453c40",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142453c40",
+   "kind": "func_start",
+   "names": [
+    "Sess_Parse_EntrantList"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "re-infra",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.weekend_start",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC B8 00 00 00 44 89 C3 49 89 D4",
+   "match": "0x140af0460",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140af0460",
+   "kind": "func_start",
+   "names": [
+    "Sess_Weekend_Start"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "re-infra",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.parse_entrant_setup_mode",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC C8 04 00 00 C5 F8 29 B4 24 B0 04 00 00 4C 89 4C 24 30",
+   "match": "0x14249f190",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14249f190",
+   "kind": "func_start",
+   "names": [
+    "Sess_Parse_EntrantSetupMode"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "re-infra",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.select_entrants",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 B8 B8 29 00 00",
+   "match": "0x1424a2350",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1424a2350",
+   "kind": "func_start",
+   "names": [
+    "Sess_Select_Entrants"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "re-infra",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  }
+ ]
+}
