@@ -254,6 +254,8 @@ pub struct SessionMod {
     pub name: String,
     pub version: String,
     #[serde(default)]
+    pub author: String,
+    #[serde(default)]
     pub description: String,
     pub enabled: bool,
     pub locked: bool,
@@ -310,6 +312,7 @@ impl SessionSettings {
                 id: m.id.clone(),
                 name: m.name.clone(),
                 version: m.version.to_string(),
+                author: m.author.clone(),
                 description: m.description.clone().unwrap_or_default(),
                 enabled: enabled.contains(&m.id.as_str()),
                 locked: m.is_builtin(),
@@ -607,6 +610,7 @@ mod tests {
         assert!(s.mods[0].locked && s.mods[0].enabled);
         let grid = &s.mods[1];
         assert!(!grid.enabled && !grid.locked);
+        assert_eq!(grid.author, "a");
         assert_eq!(grid.dlls, ["grid.dll"]);
         assert_eq!(grid.enable_commands[1], "swofty_enable:a.grid:1");
         assert_eq!(grid.options[0].current, 2);
