@@ -154,7 +154,15 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs) -> Result<ExitCode> {
         None
     };
     become_subreaper();
-    let result = run_loop(store, args, &config, &request, &profile, &game);
+    let result = run_loop(
+        store,
+        args,
+        &config,
+        &request,
+        &profile,
+        &game,
+        installed.as_ref(),
+    );
     if let Some(g) = installed {
         match swofty_core::install::Installer::new(&store.root, &g)
             .apply(&swofty_core::install::Plan::vanilla())
@@ -173,6 +181,7 @@ fn run_loop(
     request: &LaunchRequest,
     profile: &str,
     game: &Path,
+    installed: Option<&swofty_core::install::Game>,
 ) -> Result<ExitCode> {
     let profile = profile.to_owned();
     let game = game.to_path_buf();
@@ -199,6 +208,10 @@ fn run_loop(
             return Ok(ExitCode::from(code.clamp(0, 255) as u8));
         }
         say("info", "Apply & restart: starting F1 25 again");
+        if let Some(g) = installed {
+            say("info", &format!("reinstalling profile {profile}"));
+            crate::build::install(store, &profile, g)?;
+        }
     }
 }
 
