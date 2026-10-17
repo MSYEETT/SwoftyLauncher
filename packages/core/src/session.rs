@@ -1,10 +1,11 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use crate::STEAM_APP_ID;
+use crate::asset::Kind;
 
 pub const DEFAULT_WINEDEBUG: &str = "+timestamp,+pid,+tid,+loaddll,fixme-all";
 pub const LOADER_LOG: &str = "swofty/loader.log";
@@ -73,6 +74,8 @@ pub struct Config {
     pub console: bool,
     #[serde(default)]
     pub data_version: u32,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub runtime_assets: BTreeSet<Kind>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

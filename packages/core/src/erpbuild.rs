@@ -1,20 +1,62 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
-use swofty_formats::erp::{Erp, ErpFile};
+use swofty_formats::erp::{Entry, Erp, ErpFile, Resource};
 use swofty_formats::pkg::{Node, Pkg};
 
 use crate::asset::Source;
 use crate::manifest::relative_inside;
 use crate::ops::{ErpOp, PkgTarget};
 use crate::pkgedit::{apply_edits, edit_name, sources, supported};
-use crate::{Error, Result, io_err};
+use crate::{Error, Result};
 
 type SourceKey = (String, String, usize);
 
+enum Slot {
+    Stock(usize),
+    Owned(Resource),
+}
+
+struct Archive {
+    file: ErpFile,
+    slots: Vec<Slot>,
+}
+
+impl Archive {
+    fn name<'s>(&'s self, slot: &'s Slot) -> &'s str {
+        match slot {
+            Slot::Stock(i) => &self.file.erp.resources[*i].name,
+            Slot::Owned(r) => &r.name,
+        }
+    }
+
+    fn position(&self, name: &str) -> Result<Option<usize>> {
+        let mut hits = (0..self.slots.len()).filter(|&i| self.name(&self.slots[i]) == name);
+        match (hits.next(), hits.next()) {
+            (Some(_), Some(_)) => Err(fail(format!("{name}: more than one resource"))),
+            (hit, _) => Ok(hit),
+        }
+    }
+
+    fn find(&self, name: &str) -> Result<usize> {
+        self.position(name)?
+            .ok_or_else(|| fail(format!("{name}: not found")))
+    }
+
+    fn owned(&mut self, i: usize) -> Result<&mut Resource> {
+        if let Slot::Stock(j) = self.slots[i] {
+            self.slots[i] = Slot::Owned(self.file.load(&self.file.erp.resources[j])?);
+        }
+        match &mut self.slots[i] {
+            Slot::Owned(r) => Ok(r),
+            Slot::Stock(_) => unreachable!("loaded above"),
+        }
+    }
+}
+
 pub struct ErpBuild<'a> {
     original: &'a dyn Fn(&str) -> PathBuf,
-    erps: BTreeMap<String, Erp>,
+    erps: BTreeMap<String, Archive>,
     sources: HashMap<SourceKey, Node>,
     archives: HashMap<PathBuf, ErpFile>,
 }
@@ -52,15 +94,8 @@ fn op_name(op: &ErpOp) -> &'static str {
 pub fn unsupported(op: &ErpOp) -> Option<&'static str> {
     match op {
         ErpOp::PatchPkg { edits, .. } => edits.iter().find(|e| !supported(e)).map(edit_name),
-        ErpOp::CopyResource { .. } => None,
+        ErpOp::CopyResource { .. } | ErpOp::PutResource { .. } => None,
         other => Some(op_name(other)),
-    }
-}
-
-pub fn source_archive(op: &ErpOp) -> Option<&Source> {
-    match op {
-        ErpOp::CopyResource { source: Some(s), .. } => Some(s),
-        _ => None,
     }
 }
 
@@ -91,12 +126,12 @@ impl<'a> ErpBuild<'a> {
         }
     }
 
-    fn erp(&mut self, rel: &str) -> Result<&mut Erp> {
+    fn erp(&mut self, rel: &str) -> Result<&mut Archive> {
         if !self.erps.contains_key(rel) {
             let path = (self.original)(checked(rel)?);
-            let data = std::fs::read(&path).map_err(io_err(&path))?;
-            let erp = Erp::parse(&data).map_err(|e| fail(format!("{rel}: {e}")))?;
-            self.erps.insert(rel.to_owned(), erp);
+            let file = ErpFile::open(&path).map_err(|e| fail(format!("{rel}: {e}")))?;
+            let slots = (0..file.erp.resources.len()).map(Slot::Stock).collect();
+            self.erps.insert(rel.to_owned(), Archive { file, slots });
         }
         Ok(self.erps.get_mut(rel).expect("inserted above"))
     }
@@ -144,13 +179,22 @@ impl<'a> ErpBuild<'a> {
                         )));
                     }
                 };
-                self.copy(&path, resource, erp, rename.as_deref().unwrap_or(resource))
+                self.copy(&path, resource, erp, rename.as_deref().unwrap_or(resource), false)
+            }
+            ErpOp::PutResource {
+                erp,
+                resource,
+                source,
+                rename,
+            } => {
+                let path = resolve(source)?;
+                self.copy(&path, resource, erp, rename.as_deref().unwrap_or(resource), true)
             }
             _ => unreachable!("checked by unsupported"),
         }
     }
 
-    fn copy(&mut self, from: &Path, resource: &str, erp: &str, name: &str) -> Result<()> {
+    fn copy(&mut self, from: &Path, resource: &str, erp: &str, name: &str, replace: bool) -> Result<()> {
         if !self.archives.contains_key(from) {
             let file = ErpFile::open(from).map_err(|e| fail(format!("{}: {e}", from.display())))?;
             self.archives.insert(from.to_path_buf(), file);
@@ -163,10 +207,11 @@ impl<'a> ErpBuild<'a> {
         let mut res = file.load(found)?;
         res.name = name.to_owned();
         let target = self.erp(erp)?;
-        if target.resources.iter().any(|r| r.name == name) {
-            return Err(fail(format!("{erp}: {name} already exists")));
+        match target.position(name).map_err(|e| fail(format!("{erp}: {e}")))? {
+            Some(i) if replace => target.slots[i] = Slot::Owned(res),
+            Some(_) => return Err(fail(format!("{erp}: {name} already exists"))),
+            None => target.slots.push(Slot::Owned(res)),
         }
-        target.resources.push(res);
         Ok(())
     }
 
@@ -178,9 +223,8 @@ impl<'a> ErpBuild<'a> {
         edit: impl FnOnce(&mut Node) -> Result<usize>,
     ) -> Result<()> {
         let e = self.erp(erp)?;
-        let res = e
-            .find_mut(resource)
-            .map_err(|err| fail(format!("{erp}: {err}")))?;
+        let i = e.find(resource).map_err(|err| fail(format!("{erp}: {err}")))?;
+        let res = e.owned(i)?;
         let body = res
             .fragments
             .get(fragment)
@@ -200,7 +244,15 @@ impl<'a> ErpBuild<'a> {
         let Some(e) = self.erps.get(erp) else {
             return Ok(None);
         };
-        let res = e.find(resource).map_err(|err| fail(format!("{erp}: {err}")))?;
+        let i = e.find(resource).map_err(|err| fail(format!("{erp}: {err}")))?;
+        let loaded;
+        let res = match &e.slots[i] {
+            Slot::Owned(r) => r,
+            Slot::Stock(j) => {
+                loaded = e.file.load(&e.file.erp.resources[*j])?;
+                &loaded
+            }
+        };
         let frag = res
             .fragments
             .get(fragment)
@@ -210,12 +262,20 @@ impl<'a> ErpBuild<'a> {
 
     pub fn write(self, out: &Path) -> Result<Vec<String>> {
         let mut written = Vec::new();
-        for (rel, mut erp) in self.erps {
+        for (rel, Archive { file, slots }) in self.erps {
             let path = out.join(&rel);
             if let Some(dir) = path.parent() {
-                std::fs::create_dir_all(dir).map_err(io_err(dir))?;
+                std::fs::create_dir_all(dir).map_err(crate::io_err(dir))?;
             }
-            std::fs::write(&path, erp.to_bytes()).map_err(io_err(&path))?;
+            let entries = slots
+                .into_iter()
+                .map(|s| match s {
+                    Slot::Stock(i) => Entry::Copy(&file.erp.resources[i]),
+                    Slot::Owned(r) => Entry::Owned(r),
+                })
+                .collect();
+            file.write(entries, &path)
+                .map_err(|e| fail(format!("{rel}: {e}")))?;
             written.push(rel);
         }
         Ok(written)
@@ -359,6 +419,17 @@ mod tests {
             })
             .collect();
         assert_eq!(names, ["a$PitBox12", "a$PitBox13", "a$GridSlot25"]);
+        let mut whole = Erp::parse(&world).unwrap();
+        let patched = res.fragments[0].data().unwrap();
+        whole
+            .find_mut("eaid://t-a.layer")
+            .unwrap()
+            .set_fragment(0, &patched)
+            .unwrap();
+        assert_eq!(
+            whole.to_bytes(),
+            std::fs::read(out.join("tracks/t/wep/t_world.erp")).unwrap()
+        );
         let untouched = Erp::parse(&world).unwrap();
         assert_eq!(
             written.find("eaid://t-b.layer").unwrap().fragments[0].raw,
@@ -409,13 +480,17 @@ mod tests {
               {"op":"set-value","path":"instances[0].name","value":"w_alt"}]}]}"#,
         );
         assert!(ops.iter().all(|op| unsupported(op).is_none()));
-        assert_eq!(
-            ops.iter()
-                .filter_map(source_archive)
-                .map(|s| s.path.as_str())
-                .collect::<Vec<_>>(),
-            ["erp/src.erp", "erp/src.erp"]
-        );
+        let named: Vec<String> = ops
+            .iter()
+            .flat_map(|op| {
+                AssetOp::Erp(op.clone())
+                    .sources()
+                    .into_iter()
+                    .map(|s| s.path.clone())
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert_eq!(named, ["erp/src.erp", "erp/src.erp"]);
         let original = |rel: &str| game.join(rel);
         let mut b = ErpBuild::new(&original);
         apply(&mut b, &ops, &addon_dir).unwrap();
@@ -477,6 +552,22 @@ mod tests {
             {"op":"copy-resource","source":"../game/cars/stock.erp","erp":"cars/slot.erp","resource":"eaid://stock-b.layer"}]}"#,
         );
         assert!(apply(&mut ErpBuild::new(&original), &escape, &addon_dir).is_err());
+        let put = erp_ops(
+            r#"{"schema_version":1,"ops":[
+            {"op":"put-resource","source":"erp/src.erp","erp":"cars/slot.erp","resource":"eaid://car.wep","as":"eaid://slot-a.layer"},
+            {"op":"put-resource","source":"erp/src.erp","erp":"cars/slot.erp","resource":"eaid://car-model.layer"}]}"#,
+        );
+        let mut b = ErpBuild::new(&original);
+        apply(&mut b, &put, &addon_dir).unwrap();
+        let out = root.join("put");
+        b.write(&out).unwrap();
+        let written = Erp::parse(&std::fs::read(out.join("cars/slot.erp")).unwrap()).unwrap();
+        let names: Vec<&str> = written.resources.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(names, ["eaid://slot-a.layer", "eaid://car-model.layer"]);
+        assert_eq!(
+            written.resources[0].fragments[0].raw,
+            source.find("eaid://car.wep").unwrap().fragments[0].raw
+        );
         std::fs::remove_dir_all(&root).ok();
     }
 }

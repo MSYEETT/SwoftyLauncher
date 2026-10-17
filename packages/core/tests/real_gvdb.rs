@@ -62,9 +62,9 @@ fn added_se_livery_unlock_is_owned_against_the_real_database() {
     )
     .unwrap();
     let mut db = pristine.clone();
-    let watched = owned::watch(&db, &ops);
+    let before = owned::counts(&db);
     apply_db_ops(&mut db, &ops, &BTreeMap::<String, Vec<String>>::new()).unwrap();
-    let added = owned::added(&db, "rmdesigns.alphatauri-orlen-livery", watched);
+    let added = owned::added(&db, "rmdesigns.alphatauri-orlen-livery", &before);
     let found = owned::owned_items(&db, &pristine, &added);
     assert_eq!(
         found.items,

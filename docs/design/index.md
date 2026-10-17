@@ -65,7 +65,7 @@ ADDON SETTINGS has a tile per enabled addon and map and a page for each, built f
 The repository is pre-release:
 
 - Addon installation, profiles, map import and command-line logs are implemented.
-- Database operations and `!pkg` edits in archives can be built. Other addon ERP, UI and loose-file build steps are skipped.
+- Database operations, `!pkg` edits, resource copies and loose files can be built. Other addon ERP and UI build steps are skipped.
 - Enabled maps are activated: database rows, track archive, menu art, minimap and ERS. `swofty apply` installs them through the journal. Neither has been tested in game yet.
 - Backup and restore code has tests for interrupted changes and game updates.
 - The native menu entry is tested with a test executable under Wine. It currently opens the game's Settings page.

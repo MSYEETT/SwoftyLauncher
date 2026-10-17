@@ -1,10 +1,10 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ops::Range;
 
 use serde::{Deserialize, Serialize};
-use swofty_formats::gvdb::Gvdb;
+use swofty_formats::gvdb::{Gvdb, instance_count_path};
+use swofty_formats::hash::fnv1a64;
 
-use crate::ops::{DbOp, DbOps, add_row_name};
 use crate::settings::djb2;
 
 pub const TYPE_NAMES: [&str; 28] = [
@@ -38,6 +38,7 @@ pub const TYPE_NAMES: [&str; 28] = [
     "eDecalGroup",
 ];
 
+pub const UNLOCK_ITEMS: &str = "unlockable_content.unlockable_items";
 pub const UNLOCK_LISTS: &str = "unlockable_content.unlockable_items.unlockable_item_list_";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,12 +64,7 @@ pub struct OwnedItem {
     pub what: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Watch {
-    table: String,
-    kind: &'static OwnedRow,
-    before: usize,
-}
+pub type Counts = BTreeMap<(String, &'static str), usize>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Added {
@@ -93,38 +89,45 @@ pub fn key_text(key: u32) -> String {
     format!("{key:#010x}")
 }
 
-pub fn watch(db: &Gvdb, ops: &DbOps) -> Vec<Watch> {
-    let mut out: BTreeMap<(&str, &str), Watch> = BTreeMap::new();
-    for op in &ops.ops {
-        let DbOp::AddRow { table, from, .. } = op else {
-            continue;
-        };
-        if !table.starts_with(UNLOCK_LISTS) {
-            continue;
-        }
-        let Some(kind) = add_row_name(table, from).and_then(|r| OWNED_ROWS.iter().find(|k| k.row == r))
-        else {
-            continue;
-        };
-        out.entry((table, kind.row)).or_insert_with(|| Watch {
-            table: table.clone(),
-            kind,
-            before: db.instance_count(table, kind.row).unwrap_or(0),
-        });
+pub fn counts(db: &Gvdb) -> Counts {
+    let mut index = HashMap::with_capacity(db.records.len());
+    for r in &db.records {
+        index.entry(r.key).or_insert(r);
     }
-    out.into_values().collect()
+    let count = |path: String| -> Option<usize> { index.get(&fnv1a64(path))?.text().trim().parse().ok() };
+    let rows = |table: &str, row: &str| {
+        count(instance_count_path(table, row)).unwrap_or_else(|| {
+            (0..)
+                .take_while(|i| index.contains_key(&fnv1a64(format!("{table}.{row}_{i}._metadata_"))))
+                .count()
+        })
+    };
+    let mut out = Counts::new();
+    for l in 0..rows(UNLOCK_ITEMS, "unlockable_item_list") {
+        let list = format!("{UNLOCK_LISTS}{l}");
+        for f in 0..rows(&list, "folder") {
+            let table = format!("{list}.folder_{f}");
+            for kind in OWNED_ROWS {
+                if let Some(n) = count(instance_count_path(&table, kind.row)) {
+                    out.insert((table.clone(), kind.row), n);
+                }
+            }
+        }
+    }
+    out
 }
 
-pub fn added(db: &Gvdb, addon: &str, watched: Vec<Watch>) -> Vec<Added> {
-    watched
+pub fn added(db: &Gvdb, addon: &str, before: &Counts) -> Vec<Added> {
+    counts(db)
         .into_iter()
-        .filter_map(|w| {
-            let after = db.instance_count(&w.table, w.kind.row)?;
-            (after > w.before).then(|| Added {
+        .filter_map(|((table, row), after)| {
+            let from = before.get(&(table.clone(), row)).copied().unwrap_or(0);
+            let kind = OWNED_ROWS.iter().find(|k| k.row == row)?;
+            (after > from).then(|| Added {
                 addon: addon.to_owned(),
-                table: w.table,
-                kind: w.kind,
-                rows: w.before..after,
+                table,
+                kind,
+                rows: from..after,
             })
         })
         .collect()
@@ -214,7 +217,7 @@ pub fn owned_items(db: &Gvdb, pristine: &Gvdb, added: &[Added]) -> Owned {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ops::apply_db_ops;
+    use crate::ops::{DbOps, apply_db_ops};
     use swofty_formats::gvdb::Record;
 
     const ADDON: &str = "rmdesigns.alphatauri-orlen-livery";
@@ -223,6 +226,12 @@ mod tests {
 
     fn pristine() -> Gvdb {
         let mut records = vec![
+            Record::new(
+                &format!("{UNLOCK_ITEMS}._unlockable_item_list_instancecount_"),
+                0,
+                "3",
+            ),
+            Record::new(&format!("{UNLOCK_LISTS}2._folder_instancecount_"), 0, "24"),
             Record::new(&format!("{FOLDER}._unlockable_se_livery_instancecount_"), 0, "1"),
             Record::new(&format!("{SE}._se_livery_instancecount_"), 0, "2"),
         ];
@@ -285,9 +294,9 @@ mod tests {
         let mut db = base.clone();
         let mut all = Vec::new();
         for (id, o) in addons {
-            let w = watch(&db, o);
+            let before = counts(&db);
             apply_db_ops(&mut db, o, &BTreeMap::<String, Vec<String>>::new()).unwrap();
-            all.extend(added(&db, id, w));
+            all.extend(added(&db, id, &before));
         }
         let owned = owned_items(&db, &base, &all);
         (db, owned)
@@ -352,9 +361,9 @@ mod tests {
         ));
         let o = ops(r#""_metadata_":"toro_rosso_rm_alphatauri_2026","#);
         let mut db = base.clone();
-        let w = watch(&db, &o);
+        let before = counts(&db);
         apply_db_ops(&mut db, &o, &BTreeMap::<String, Vec<String>>::new()).unwrap();
-        let owned = owned_items(&db, &base, &added(&db, ADDON, w));
+        let owned = owned_items(&db, &base, &added(&db, ADDON, &before));
         assert!(owned.items.is_empty(), "{:?}", owned.items);
     }
 

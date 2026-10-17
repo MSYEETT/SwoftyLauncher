@@ -13,6 +13,7 @@ pub mod offline;
 pub mod owned;
 pub mod paths;
 pub mod pkgedit;
+pub mod planner;
 pub mod process;
 pub mod profile;
 pub mod resolver;

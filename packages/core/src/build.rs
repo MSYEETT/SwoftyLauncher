@@ -8,15 +8,15 @@ use crate::activation::db::{Registry, Slot, activate};
 use crate::activation::ers::{ErsMap, build_ers};
 use crate::activation::place::{PlaceInput, SLOTS, place, slot_asset_group, slot_asset_root, slot_file};
 use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
-use crate::asset::{AssetOp, FileKind, OpFile, Root, Source};
+use crate::asset::{AssetOp, FileKind, FileOp, Op, OpFile, Origin, Root, Source};
 use crate::baseline::{Baseline, Objects, hex, sha256_file};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
-use crate::erpbuild::{ErpBuild, source_archive, unsupported};
+use crate::erpbuild::{ErpBuild, unsupported};
 use crate::install::{Game, LOADER_DIR, Plan};
-use crate::manifest::AddonManifest;
+use crate::manifest::{AddonManifest, relative_inside};
 use crate::map::TrackPackage;
-use crate::ops::{DbOps, apply_db_ops};
 use crate::owned;
+use crate::planner::{Conflict, Features, Planner, waiting_lines};
 use crate::profile::Profile;
 use crate::resolver::resolve;
 use crate::settings::{SessionSettings, SessionUi, render_ops, screen_file, screens};
@@ -36,6 +36,8 @@ pub struct Built {
     pub lines: Vec<String>,
     pub warnings: Vec<String>,
     pub settings: Option<SessionSettings>,
+    pub conflicts: Vec<Conflict>,
+    pub waiting: Vec<Op>,
 }
 
 pub fn original(data: &Path, game: &Game, rel: &str) -> PathBuf {
@@ -102,6 +104,15 @@ fn render_file(
     OpFile::from_value(doc, kind).map_err(json)
 }
 
+fn hash_sources(hasher: &mut Sha256, store: &Store, addon: &str, ops: &[AssetOp]) -> Result<()> {
+    for src in ops.iter().flat_map(AssetOp::sources) {
+        let path = src.resolve(&source_dir(store, addon, src.root))?;
+        let meta = std::fs::metadata(&path).map_err(io_err(&path))?;
+        hasher.update(format!("{}|{}|{:?}", src.path, meta.len(), meta.modified().ok()));
+    }
+    Ok(())
+}
+
 pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     let addons = store.addons()?;
     let p = store.profile(profile)?;
@@ -120,66 +131,58 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         return Ok(built);
     }
     let mut hasher = Sha256::new();
-    let mut db_ops = Vec::new();
-    let mut erp_ops = Vec::new();
+    let features = loader_dir()
+        .map(|d| Features::load(&d))
+        .transpose()?
+        .unwrap_or_default();
+    let opt_in = store.config().runtime_assets;
+    let mut planner = Planner::new(&features, &opt_in);
     for id in &resolved.order {
         let m = &addons[id];
         hasher.update(format!("{id}@{};", m.version));
         let dir = store.addons_dir().join(id);
-        let mut erps = Vec::new();
-        let mut skipped = 0;
+        let origin = Origin {
+            addon: id.clone(),
+            item: None,
+        };
+        let mut files = Vec::new();
         for (kind, rel) in m.operations.op_files() {
             let file = render_file(&dir.join(rel), kind, m, &p, &mut hasher)?;
-            let seen = erps.len();
-            let mut db = Vec::new();
-            for op in file.ops {
-                match op {
-                    AssetOp::Db(op) => db.push(op),
-                    AssetOp::Erp(_) | AssetOp::Warn { .. } => erps.push(op),
-                    AssetOp::Group(_) | AssetOp::Lang(_) | AssetOp::File(_) => skipped += 1,
-                }
-            }
-            for src in erps[seen..].iter().filter_map(|op| match op {
-                AssetOp::Erp(op) => source_archive(op),
-                _ => None,
-            }) {
-                let path = src.resolve(&source_dir(store, id, src.root))?;
-                let meta = std::fs::metadata(&path).map_err(io_err(&path))?;
-                hasher.update(format!("{}|{}|{:?}", src.path, meta.len(), meta.modified().ok()));
-            }
-            if kind == FileKind::Database || !db.is_empty() {
-                let ops = DbOps {
-                    schema_version: file.schema_version,
-                    fields: file.fields,
-                    ops: db,
-                };
-                db_ops.push((id.clone(), ops));
-            }
+            hash_sources(&mut hasher, store, id, &file.ops)?;
+            files.push((kind, file));
         }
-        let skip = erps.iter().find_map(|op| match op {
+        let declared: Vec<AssetOp> = m.operations.file_ops().collect();
+        hash_sources(&mut hasher, store, id, &declared)?;
+        let skip = files.iter().flat_map(|(_, f)| &f.ops).find_map(|op| match op {
             AssetOp::Erp(op) => unsupported(op),
             _ => None,
         });
-        match skip {
-            Some(op) => built
+        if let Some(op) = skip {
+            built
                 .warnings
-                .push(format!("{id}: ERP operations skipped; {op} is not built yet")),
-            None if !erps.is_empty() => erp_ops.push((id.clone(), erps)),
-            None => {}
+                .push(format!("{id}: ERP operations skipped; {op} is not built yet"));
+            for (_, f) in &mut files {
+                f.ops
+                    .retain(|op| !matches!(op, AssetOp::Erp(_) | AssetOp::Warn { .. }));
+            }
+        }
+        for (kind, file) in files {
+            planner.push_file(&origin, kind, file);
+        }
+        for op in declared {
+            planner.push(Op {
+                op,
+                origin: origin.clone(),
+            });
         }
         for s in &m.operations.screens {
             let path = dir.join(&s.file);
             hasher.update(std::fs::read(&path).map_err(io_err(&path))?);
         }
-        let pending = m.operations.ui.len() + m.operations.files.len();
+        let pending = m.operations.ui.len();
         if pending > 0 {
             built.warnings.push(format!(
-                "{id}: {pending} UI/file operation file(s) skipped; that stage is not built yet"
-            ));
-        }
-        if skipped > 0 {
-            built.warnings.push(format!(
-                "{id}: {skipped} group, lang or file op(s) skipped; that stage is not built yet"
+                "{id}: {pending} UI operation file(s) skipped; that stage is not built yet"
             ));
         }
     }
@@ -234,7 +237,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     built
         .warnings
         .extend(ui_notes.into_iter().map(|n| format!("menus: {n}")));
-    if !maps.is_empty() || !db_ops.is_empty() {
+    if !maps.is_empty() || planner.has_db() {
         let shipped = std::fs::read(&db_src).map_err(io_err(&db_src))?;
         let mut db = Gvdb::parse(&shipped)?;
         for ((_, pkg), slot) in maps.iter().zip(SLOTS) {
@@ -255,13 +258,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                 built.warnings.push(format!("{}: {w}", pkg.track_code));
             }
         }
-        let names: BTreeMap<String, Vec<String>> = BTreeMap::new();
-        let mut added = Vec::new();
-        for (id, ops) in &db_ops {
-            let watched = owned::watch(&db, ops);
-            apply_db_ops(&mut db, ops, &names).map_err(|e| Error::Other(format!("applying {id}: {e}")))?;
-            added.extend(owned::added(&db, id, watched));
-        }
+        let added = planner.apply_db(&mut db)?;
         if !added.is_empty() {
             let found = owned::owned_items(&db, &Gvdb::parse(&shipped)?, &added);
             built.lines.extend(found.lines);
@@ -357,20 +354,20 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             }
         }
     }
+    let erp_ops = planner.take_erp();
     if !erp_ops.is_empty() {
         let staged = built.plan.data.clone();
         let base = |rel: &str| staged.get(rel).cloned().unwrap_or_else(|| resolve(rel));
         let mut erps = ErpBuild::new(&base);
-        for (id, ops) in &erp_ops {
+        for op in &erp_ops {
+            let id = &op.origin.addon;
             let resolve = |s: &Source| Ok(s.resolve(&source_dir(store, id, s.root))?);
-            for op in ops {
-                match op {
-                    AssetOp::Erp(op) => erps
-                        .apply(op, &resolve)
-                        .map_err(|e| Error::Other(format!("applying {id}: {e}")))?,
-                    AssetOp::Warn { message } => built.warnings.push(format!("{id}: {message}")),
-                    _ => {}
-                }
+            match &op.op {
+                AssetOp::Erp(erp) => erps
+                    .apply(erp, &resolve)
+                    .map_err(|e| Error::Other(format!("applying {}: {e}", op.origin)))?,
+                AssetOp::Warn { message } => built.warnings.push(format!("{}: {message}", op.origin)),
+                _ => {}
             }
         }
         for rel in erps.write(&built.overlay)? {
@@ -380,6 +377,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             }
         }
     }
+    put_files(&mut built, store, game, planner.take_files())?;
     match loader_dir() {
         Some(dir) => {
             built.plan.loader = loader_files(&dir)?;
@@ -408,6 +406,13 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         )),
     }
     built.settings = Some(session);
+    let planned = planner.finish();
+    built.warnings.extend(waiting_lines(&planned.waiting));
+    built
+        .warnings
+        .extend(planned.conflicts.iter().map(|c| format!("conflict: {c}")));
+    built.conflicts = planned.conflicts;
+    built.waiting = planned.waiting;
     if !built.plan.is_vanilla() {
         let listing = serde_json::json!({
             "profile": profile,
@@ -419,6 +424,48 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         crate::write_json(&built.overlay.join(PLAN_FILE), &listing)?;
     }
     Ok(built)
+}
+
+fn put_files(built: &mut Built, store: &Store, game: &Game, ops: Vec<Op>) -> Result<()> {
+    let mut put = BTreeMap::new();
+    for op in ops {
+        let AssetOp::File(FileOp::Put { source, target }) = op.op else {
+            continue;
+        };
+        if !relative_inside(&target) {
+            return Err(Error::Resolve(format!(
+                "{target} must be a relative path inside the game folder"
+            )));
+        }
+        put.insert(
+            target,
+            source.resolve(&source_dir(store, &op.origin.addon, source.root))?,
+        );
+    }
+    if put.is_empty() {
+        return Ok(());
+    }
+    let baseline = Baseline::load_or_new(&store.root, &game.identity).ok();
+    let stock = |rel: &str| {
+        baseline.as_ref().is_some_and(|b| b.files.contains_key(rel)) || game.dir.join(rel).is_file()
+    };
+    let (mut replaced, mut added) = (0, 0);
+    for (rel, src) in put {
+        let into = if stock(&rel) {
+            replaced += 1;
+            &mut built.plan.data
+        } else {
+            added += 1;
+            &mut built.plan.added
+        };
+        if into.insert(rel.clone(), src).is_some() {
+            return Err(Error::Other(format!("{rel} is replaced twice")));
+        }
+    }
+    built
+        .lines
+        .push(format!("files: {replaced} game file(s) replaced, {added} added"));
+    Ok(())
 }
 
 pub fn build_menus(

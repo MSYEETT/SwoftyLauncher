@@ -26,6 +26,8 @@ Values are strings. Write arrays as comma-separated values, such as `"0,-0.6,0"`
 | `remove-row` | `select` | Remove a row |
 | `list-append` | `select`, `field`, `value` | Add a value to a list if missing |
 | `list-remove` | `select`, `field`, `value` | Remove a value from a list |
+| `put-record` | `key`, `type`, `value` | Write one raw record. `key` is a path or `0x` and 16 hex digits, `type` the record tag and `value` hex bytes |
+| `remove-record` | `key` | Remove one record |
 
 For `set`, use `create: true` and a `type` tag to add a missing field. `value_from` copies a value from another database path.
 
@@ -44,7 +46,7 @@ For `set`, use `create: true` and a `type` tag to add a missing field. `value_fr
 
 List every field of the row, including nested ones such as `ai_vehicle_config.*` on vehicles. A row missing a field the game reads crashes the game.
 
-An `add-row` of an `unlockable_se_livery` row into an `unlockable_content.unlockable_items.unlockable_item_list_<n>.folder_<m>` table unlocks the new special livery. The build writes the row's ownership key, the djb2 hash of `eSELivery` and the row's `_metadata_`, to the `owned_items` block of `swofty/settings.json`, and `swofty_core.dll` reports that key as owned to the livery picker. A key that any stock database value also gives is left out with a warning.
+An `unlockable_se_livery` row added to an `unlockable_content.unlockable_items.unlockable_item_list_<n>.folder_<m>` table, by `add-row` or by `put-record`, unlocks the new special livery. The build writes the row's ownership key, the djb2 hash of `eSELivery` and the row's `_metadata_`, to the `owned_items` block of `swofty/settings.json`, and `swofty_core.dll` reports that key as owned to the livery picker. A key that any stock database value also gives is left out with a warning.
 
 ## Selecting rows
 
