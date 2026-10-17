@@ -119,7 +119,7 @@ pub fn logs(store: &Store, dir: Option<PathBuf>, exe: Option<PathBuf>) -> Result
     Ok(ExitCode::SUCCESS)
 }
 
-fn wrapper(store: &Store, _profile: &str, args: &RunArgs) -> Result<ExitCode> {
+fn wrapper(store: &Store, profile: &str, args: &RunArgs) -> Result<ExitCode> {
     if let Some(running) = game_processes().first() {
         bail!(
             "F1 25 is already running (pid {}); close it before launching it again",
@@ -130,31 +130,80 @@ fn wrapper(store: &Store, _profile: &str, args: &RunArgs) -> Result<ExitCode> {
         .ok()
         .and_then(|d| serde_json::from_slice(&d).ok())
         .unwrap_or_default();
+    let request: LaunchRequest = std::fs::read(store.root.join("state/launch.json"))
+        .ok()
+        .and_then(|d| serde_json::from_slice(&d).ok())
+        .unwrap_or_default();
+    let profile = request.profile.clone().unwrap_or_else(|| profile.to_owned());
+    if let Some(cpus) = config.launch.cpu_affinity.as_deref().and_then(parse_cpu_list) {
+        set_affinity(&cpus);
+    }
+    let game = args.game.clone().unwrap_or(std::env::current_dir()?);
+    become_subreaper();
+    loop {
+        rebuild_if_needed(store, &profile, &game);
+        let code = play(store, args, &config, &request, &game)?;
+        let relaunch = match store.merge_requests(&profile, true) {
+            Ok(Some(m)) => {
+                for c in &m.changed {
+                    say("info", &format!("in game: {c}"));
+                }
+                for c in &m.skipped {
+                    say("info", &format!("in game, skipped: {c}"));
+                }
+                m.relaunch
+            }
+            Ok(None) => false,
+            Err(e) => {
+                say("info", &format!("in-game changes not merged: {e}"));
+                false
+            }
+        };
+        if !relaunch {
+            return Ok(ExitCode::from(code.clamp(0, 255) as u8));
+        }
+        say("info", "Apply & restart: starting F1 25 again");
+    }
+}
+
+fn rebuild_if_needed(store: &Store, profile: &str, game: &Path) {
+    let pending = match (store.profile(profile), store.mods()) {
+        (Ok(p), Ok(mods)) => p.rebuild_pending(&mods),
+        _ => return,
+    };
+    if pending.is_empty() {
+        return;
+    }
+    say(
+        "info",
+        &format!("rebuilding {profile} for {}", pending.join(", ")),
+    );
+    if let Err(e) = crate::build::build(store, profile, Some(game.to_path_buf())) {
+        say("info", &format!("rebuild failed, launching anyway: {e:#}"));
+    }
+}
+
+fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest, game: &Path) -> Result<i32> {
     let dir = store.sessions_dir().join(stamp());
     std::fs::create_dir_all(&dir)?;
     let latest = store.sessions_dir().join("latest");
     std::fs::remove_file(&latest).ok();
     link(&dir, &latest);
     std::fs::write(store.sessions_dir().join("latest.txt"), dir.display().to_string())?;
-    let request: LaunchRequest = std::fs::read(store.root.join("state/launch.json"))
-        .ok()
-        .and_then(|d| serde_json::from_slice(&d).ok())
-        .unwrap_or_default();
     std::fs::write(dir.join("request_id"), format!("{}\n", request.id))?;
     std::fs::write(dir.join("steam_command.txt"), shell_join(&args.steam_command))?;
     let mut env: Vec<String> = std::env::vars().map(|(k, v)| format!("{k}={v}")).collect();
     env.sort();
     std::fs::write(dir.join("env.txt"), env.join("\n") + "\n")?;
-    if let Some(cpus) = config.launch.cpu_affinity.as_deref().and_then(parse_cpu_list) {
-        set_affinity(&cpus);
-    }
-    let game = args.game.clone().unwrap_or(std::env::current_dir()?);
     let cmd = parse_steam_command(&args.steam_command);
     let proton = cmd.proton.map(PathBuf::from).or_else(|| {
         let tools = std::env::var("STEAM_COMPAT_TOOL_PATHS").ok()?;
         Some(PathBuf::from(tools.split(':').next()?).join("proton"))
     });
-    let winedebug = request.winedebug.unwrap_or(config.launch.winedebug.clone());
+    let winedebug = request
+        .winedebug
+        .clone()
+        .unwrap_or(config.launch.winedebug.clone());
     let spawn = |exe: &str, log: &str| -> Result<std::process::Child> {
         let out = std::fs::File::create(dir.join(log))?;
         let mut c = match &proton {
@@ -165,7 +214,7 @@ fn wrapper(store: &Store, _profile: &str, args: &RunArgs) -> Result<ExitCode> {
             }
             None => Command::new(game.join(exe)),
         };
-        c.current_dir(&game)
+        c.current_dir(game)
             .envs(&config.launch.env)
             .env("PROTON_LOG", "1")
             .env("PROTON_LOG_DIR", &dir)
@@ -176,7 +225,6 @@ fn wrapper(store: &Store, _profile: &str, args: &RunArgs) -> Result<ExitCode> {
             .stderr(out);
         Ok(c.spawn()?)
     };
-    become_subreaper();
     std::fs::write(dir.join("game_start"), format!("{}\n", now_secs()))?;
     let status = spawn(GAME_EXE, "game_stdout.log")?.wait()?;
     let code = status.code().unwrap_or(-1);
@@ -189,7 +237,7 @@ fn wrapper(store: &Store, _profile: &str, args: &RunArgs) -> Result<ExitCode> {
     {
         stop_process(g.pid).ok();
     }
-    Ok(ExitCode::from(code.clamp(0, 255) as u8))
+    Ok(code)
 }
 
 fn launch(store: &Store, game: &Path, direct: bool) -> Result<()> {

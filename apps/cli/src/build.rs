@@ -8,6 +8,7 @@ use swofty_core::baseline::Identity;
 use swofty_core::install::{Game, Installer};
 use swofty_core::ops::{DbOps, apply_db_ops};
 use swofty_core::resolver::resolve;
+use swofty_core::settings::{SETTINGS_FILE, render_ops};
 use swofty_core::store::Store;
 use swofty_core::{GAME_EXE, steam};
 use swofty_formats::erp::Erp;
@@ -45,7 +46,8 @@ fn game_dir(explicit: Option<PathBuf>) -> Result<PathBuf> {
 
 pub fn build(store: &Store, profile: &str, game: Option<PathBuf>) -> Result<ExitCode> {
     let mods = store.mods()?;
-    let plan = resolve(&store.profile(profile)?, &mods)?;
+    let mut p = store.profile(profile)?;
+    let plan = resolve(&p, &mods)?;
     println!("profile {profile}: {}", plan.order.join(" -> "));
     for w in &plan.warnings {
         println!("warning: {w}");
@@ -58,9 +60,12 @@ pub fn build(store: &Store, profile: &str, game: Option<PathBuf>) -> Result<Exit
         let dir = store.mods_dir().join(id);
         for rel in &m.operations.database {
             let path = dir.join(rel);
-            let data = std::fs::read(&path).with_context(|| format!("{id}: {rel}"))?;
-            hasher.update(&data);
-            let ops: DbOps = serde_json::from_slice(&data).with_context(|| format!("{id}: {rel}"))?;
+            let mut doc: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(&path).with_context(|| format!("{id}: {rel}"))?)
+                    .with_context(|| format!("{id}: {rel}"))?;
+            render_ops(&mut doc, m, &p).with_context(|| format!("{id}: {rel}"))?;
+            hasher.update(serde_json::to_vec(&doc)?);
+            let ops: DbOps = serde_json::from_value(doc).with_context(|| format!("{id}: {rel}"))?;
             db_ops.push((id.clone(), ops));
         }
         let pending = m.operations.erp.len() + m.operations.ui.len() + m.operations.files.len();
@@ -69,20 +74,32 @@ pub fn build(store: &Store, profile: &str, game: Option<PathBuf>) -> Result<Exit
         }
     }
     let buildhash = format!("{:x}", hasher.finalize())[..16].to_owned();
-    if db_ops.is_empty() {
-        println!("no database operations; overlay {buildhash} is empty");
+    let overlay = store.overlay_dir(profile, &buildhash);
+    if p.is_vanilla() {
+        println!("{profile} plays without mods; nothing to build");
         return Ok(ExitCode::SUCCESS);
     }
-    let game = game_dir(game)?;
-    let mut db = Gvdb::parse(&std::fs::read(game.join(GVDB)).context("reading the game database")?)?;
-    let names: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for (id, ops) in &db_ops {
-        apply_db_ops(&mut db, ops, &names).with_context(|| format!("applying {id}"))?;
+    let settings = overlay.join(SETTINGS_FILE);
+    std::fs::create_dir_all(settings.parent().expect("has parent"))?;
+    std::fs::write(
+        &settings,
+        serde_json::to_vec_pretty(&store.session_settings(profile)?)?,
+    )?;
+    println!("overlay {buildhash}: wrote {}", settings.display());
+    if !db_ops.is_empty() {
+        let game = game_dir(game)?;
+        let mut db = Gvdb::parse(&std::fs::read(game.join(GVDB)).context("reading the game database")?)?;
+        let names: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for (id, ops) in &db_ops {
+            apply_db_ops(&mut db, ops, &names).with_context(|| format!("applying {id}"))?;
+        }
+        let out = overlay.join(GVDB);
+        std::fs::create_dir_all(out.parent().expect("has parent"))?;
+        std::fs::write(&out, db.to_bytes())?;
+        println!("overlay {buildhash}: wrote {}", out.display());
     }
-    let out = store.overlay_dir(profile, &buildhash).join(GVDB);
-    std::fs::create_dir_all(out.parent().expect("has parent"))?;
-    std::fs::write(&out, db.to_bytes())?;
-    println!("overlay {buildhash}: wrote {}", out.display());
+    p.mark_built(&mods);
+    store.save_profile(&p)?;
     Ok(ExitCode::SUCCESS)
 }
 
