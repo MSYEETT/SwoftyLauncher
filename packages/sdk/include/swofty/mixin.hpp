@@ -189,6 +189,11 @@ template <name N, class R, class... A> struct fn<N, R(A...)> : binding<N, kind::
     type *get() const { return reinterpret_cast<type *>(detail::bound<N>::addr); }
     R operator()(A... a) const { return get()(a...); }
 };
+template <name N, class R, class... A> struct fn<N, R(A..., ...)> : binding<N, kind::func> {
+    using type = R(A..., ...);
+    type *get() const { return reinterpret_cast<type *>(detail::bound<N>::addr); }
+    template <class... V> R operator()(A... a, V... v) const { return get()(a..., v...); }
+};
 
 template <name N> struct address : binding<N, kind::func> {};
 template <name N> struct site : binding<N, kind::site> {};
