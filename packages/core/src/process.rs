@@ -32,6 +32,24 @@ pub fn game_processes() -> Vec<GameProcess> {
 }
 
 #[cfg(target_os = "linux")]
+pub fn descends_from(pid: u32, ancestor: u32) -> bool {
+    std::iter::successors(parent(pid), |&p| parent(p))
+        .take_while(|&p| p > 1)
+        .any(|p| p == ancestor)
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn descends_from(_: u32, _: u32) -> bool {
+    false
+}
+
+#[cfg(target_os = "linux")]
+fn parent(pid: u32) -> Option<u32> {
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    stat.rsplit_once(')')?.1.split_whitespace().nth(1)?.parse().ok()
+}
+
+#[cfg(target_os = "linux")]
 fn started(pid: u32) -> Option<SystemTime> {
     const TICKS_PER_SEC: f64 = 100.0;
     let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
@@ -82,6 +100,16 @@ pub fn game_processes() -> Vec<GameProcess> {
     Vec::new()
 }
 
+pub fn stop_process(pid: u32) -> std::io::Result<()> {
+    let pid = pid.to_string();
+    if cfg!(windows) {
+        Command::new("taskkill").args(["/PID", &pid]).status()?;
+    } else {
+        Command::new("kill").args(["-TERM", &pid]).status()?;
+    }
+    Ok(())
+}
+
 pub fn stop_game() -> std::io::Result<()> {
     if cfg!(windows) {
         Command::new("taskkill").args(["/IM", GAME_EXE]).status()?;
@@ -93,6 +121,15 @@ pub fn stop_game() -> std::io::Result<()> {
 
 #[cfg(all(test, target_os = "linux"))]
 mod tests {
+    #[test]
+    fn traces_ancestry() {
+        let mut child = std::process::Command::new("sleep").arg("5").spawn().unwrap();
+        assert!(super::descends_from(child.id(), std::process::id()));
+        assert!(!super::descends_from(std::process::id(), child.id()));
+        child.kill().ok();
+        child.wait().ok();
+    }
+
     #[test]
     fn reads_own_start_time() {
         let age = super::started(std::process::id())

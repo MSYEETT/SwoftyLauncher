@@ -6,7 +6,7 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use clap::Args;
 use swofty_core::crash::{Event, LogScan, Symbols, fatal_name};
-use swofty_core::process::{game_running, stop_game};
+use swofty_core::process::{descends_from, game_processes, game_running, stop_game, stop_process};
 use swofty_core::session::{Config, DEFAULT_WINEDEBUG, LaunchRequest, parse_cpu_list, parse_steam_command};
 use swofty_core::store::Store;
 use swofty_core::{GAME_EXE, STEAM_APP_ID, steam};
@@ -52,9 +52,12 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
         return wrapper(store, profile, &args);
     }
     let game = g.dir.clone();
-    if game_running() {
+    if let Some(running) = game_processes().first() {
         if !args.restart {
-            bail!("F1 25 is already running (use --restart to close it first)");
+            bail!(
+                "F1 25 is already running (pid {}); close it first, or pass --restart to close it",
+                running.pid
+            );
         }
         stop_game().ok();
         while game_running() {
@@ -117,6 +120,12 @@ pub fn logs(store: &Store, dir: Option<PathBuf>, exe: Option<PathBuf>) -> Result
 }
 
 fn wrapper(store: &Store, _profile: &str, args: &RunArgs) -> Result<ExitCode> {
+    if let Some(running) = game_processes().first() {
+        bail!(
+            "F1 25 is already running (pid {}); close it before launching it again",
+            running.pid
+        );
+    }
     let config: Config = std::fs::read(store.config_path())
         .ok()
         .and_then(|d| serde_json::from_slice(&d).ok())
@@ -167,13 +176,19 @@ fn wrapper(store: &Store, _profile: &str, args: &RunArgs) -> Result<ExitCode> {
             .stderr(out);
         Ok(c.spawn()?)
     };
+    become_subreaper();
     std::fs::write(dir.join("game_start"), format!("{}\n", now_secs()))?;
     let status = spawn(GAME_EXE, "game_stdout.log")?.wait()?;
     let code = status.code().unwrap_or(-1);
     std::fs::write(dir.join("exit_code"), format!("{code}\n"))?;
     std::fs::write(dir.join("game_end"), format!("{}\n", now_secs()))?;
     std::fs::copy(game.join("swofty/loader.log"), dir.join("loader.log")).ok();
-    stop_game().ok();
+    for g in game_processes()
+        .into_iter()
+        .filter(|g| descends_from(g.pid, std::process::id()))
+    {
+        stop_process(g.pid).ok();
+    }
     Ok(ExitCode::from(code.clamp(0, 255) as u8))
 }
 
@@ -467,6 +482,16 @@ fn set_affinity(cpus: &[usize]) {
 
 #[cfg(not(target_os = "linux"))]
 fn set_affinity(_: &[usize]) {}
+
+#[cfg(target_os = "linux")]
+fn become_subreaper() {
+    unsafe {
+        libc::prctl(libc::PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0);
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn become_subreaper() {}
 
 #[cfg(unix)]
 fn link(target: &Path, at: &Path) {
