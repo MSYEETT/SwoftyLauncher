@@ -286,7 +286,7 @@ impl<'a> Installer<'a> {
             for e in std::fs::read_dir(&loader).map_err(io_err(&loader))?.flatten() {
                 if e.path().extension().is_some_and(|x| x == "log") {
                     std::fs::create_dir_all(&logs).map_err(io_err(&logs))?;
-                    std::fs::rename(e.path(), logs.join(e.file_name())).map_err(io_err(e.path()))?;
+                    crate::move_file(&e.path(), &logs.join(e.file_name()))?;
                 }
             }
             std::fs::remove_dir_all(&loader).map_err(io_err(&loader))?;

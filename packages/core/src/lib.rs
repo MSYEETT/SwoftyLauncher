@@ -64,6 +64,16 @@ pub(crate) fn read_json<T: serde::de::DeserializeOwned>(path: &std::path::Path) 
     })
 }
 
+pub(crate) fn move_file(from: &std::path::Path, to: &std::path::Path) -> Result<()> {
+    match std::fs::rename(from, to) {
+        Err(e) if e.kind() == std::io::ErrorKind::CrossesDevices => {
+            std::fs::copy(from, to).map_err(io_err(to))?;
+            std::fs::remove_file(from).map_err(io_err(from))
+        }
+        r => r.map_err(io_err(from)),
+    }
+}
+
 pub(crate) fn write_json<T: serde::Serialize>(path: &std::path::Path, value: &T) -> Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(io_err(dir))?;
