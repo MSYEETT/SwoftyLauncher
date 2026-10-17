@@ -478,19 +478,22 @@ mod tests {
         let stub_digest = sha256_file(&launcher).unwrap();
         let hook_digest = sha256_file(&hook).unwrap();
         let journal = d.join("staging.jsonl");
+        // Written through serde_json so paths are escaped the way the real
+        // writer escapes them (Windows paths contain backslashes).
+        let lines = [
+            serde_json::json!({"op": "meta", "game_dir": "x", "created_utc": "", "schema_version": "1"}),
+            serde_json::json!({"op": "rename", "from": launcher.display().to_string(), "to": parked.display().to_string(), "source": "", "sha256": ""}),
+            serde_json::json!({"op": "copy", "from": "", "to": launcher.display().to_string(), "source": "stub", "sha256": stub_digest}),
+            serde_json::json!({"op": "copy", "from": "", "to": hook.display().to_string(), "source": "hook", "sha256": hook_digest}),
+        ];
         std::fs::write(
             &journal,
-            format!(
-                "{{\"op\":\"meta\",\"game_dir\":\"x\",\"created_utc\":\"\",\"schema_version\":\"1\"}}\n\
-                 {{\"op\":\"rename\",\"from\":\"{from}\",\"to\":\"{to}\",\"source\":\"\",\"sha256\":\"\"}}\n\
-                 {{\"op\":\"copy\",\"from\":\"\",\"to\":\"{from}\",\"source\":\"stub\",\"sha256\":\"{stub}\"}}\n\
-                 {{\"op\":\"copy\",\"from\":\"\",\"to\":\"{hook}\",\"source\":\"hook\",\"sha256\":\"{hookd}\"}}\n",
-                from = launcher.display(),
-                to = parked.display(),
-                hook = hook.display(),
-                stub = stub_digest,
-                hookd = hook_digest,
-            ),
+            lines
+                .iter()
+                .map(serde_json::Value::to_string)
+                .collect::<Vec<_>>()
+                .join("\n")
+                + "\n",
         )
         .unwrap();
 
@@ -508,18 +511,38 @@ mod tests {
         let launcher = d.join("EAAntiCheat.GameServiceLauncher.exe");
         std::fs::write(&launcher, "tampered").unwrap();
         let journal = d.join("staging.jsonl");
-        std::fs::write(
-            &journal,
-            format!(
-                "{{\"op\":\"copy\",\"from\":\"\",\"to\":\"{}\",\"source\":\"stub\",\"sha256\":\"{}\"}}\n",
-                launcher.display(),
-                "0000000000000000000000000000000000000000000000000000000000000000"
-            ),
-        )
-        .unwrap();
+        let line = serde_json::json!({
+            "op": "copy",
+            "from": "",
+            "to": launcher.display().to_string(),
+            "source": "stub",
+            "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        });
+        std::fs::write(&journal, format!("{line}\n")).unwrap();
         assert!(restore(&journal, false).is_err());
         assert!(restore(&journal, true).is_ok());
         assert!(!launcher.exists());
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn restore_parses_escaped_paths() {
+        // Guard the JSON escaping of paths with backslashes on every platform,
+        // not just Windows where the paths actually look like this.
+        let d = temp("escape");
+        let journal = d.join("staging.jsonl");
+        let line = serde_json::json!({
+            "op": "copy",
+            "from": "",
+            "to": "C:\\Games\\Steam\\steamapps\\common\\F1 25\\staged.dll",
+            "source": "stub",
+            "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        });
+        std::fs::write(&journal, format!("{line}\n")).unwrap();
+        // The file does not exist, so restore reports nothing to undo — the
+        // point is that the line parses and the backslashes survive.
+        let done = restore(&journal, true).unwrap();
+        assert!(done.is_empty());
         std::fs::remove_dir_all(&d).ok();
     }
 }
