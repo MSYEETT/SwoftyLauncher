@@ -87,6 +87,7 @@ pub fn compress(data: &[u8]) -> Result<Vec<u8>> {
 pub fn compress_at(data: &[u8], level: i32) -> Result<Vec<u8>> {
     let mut enc = zstd::Encoder::new(Vec::new(), level)?;
     enc.include_checksum(true)?;
+    enc.multithread(1)?;
     std::io::Write::write_all(&mut enc, data)?;
     Ok(enc.finish()?)
 }

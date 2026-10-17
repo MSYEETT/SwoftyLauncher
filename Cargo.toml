@@ -26,7 +26,7 @@ sha2 = "0.11"
 thiserror = "2"
 ureq = "3"
 zip = { version = "9", default-features = false, features = ["deflate"] }
-zstd = "0.14"
+zstd = { version = "0.14", features = ["zstdmt"] }
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
