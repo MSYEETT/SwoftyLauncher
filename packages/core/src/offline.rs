@@ -45,29 +45,29 @@ anti-cheat check.
   pinned SHA-256 digests before it is used. Source: Swofty-Developments/F1-OfflinePlay.";
 
 /// The extension release this manager pins.
-pub const EXTENSION_VERSION: &str = "0.1.2";
+pub const EXTENSION_VERSION: &str = "0.1.3";
 /// Where the artifacts are hosted (binaries; source lives in the repository).
 pub const DEFAULT_BASE_URL: &str = "https://swofty-developments.github.io/F1-OfflinePlay";
 pub const SOURCE_URL: &str = "https://github.com/Swofty-Developments/F1-OfflinePlay";
 
-/// Pinned digests for release v0.1.2. Every artifact is checked against its
+/// Pinned digests for release v0.1.3. Every artifact is checked against its
 /// pin at install time and again at use time.
 pub const PINS: &[(&str, &str)] = &[
     (
         "f1op_hook.dll",
-        "a7696a7207f4683ad62bc30d06d1728bb127808dbdb23e7e88d01f477370d435",
+        "fd20b18ee6b7b2ac33f09680265fd4a55b21c3078501d9d1ab0ba353f41f10ec",
     ),
     (
         "f1op_stub.exe",
-        "c9719acbf170d9c18662f936227935337057facd3c65bef6241ceefdc16d9257",
+        "d69ba40eadacec443ef22755771edd8381530e4f63d00beff3380afe603fe67c",
     ),
     (
         "f1op-prelaunch.exe",
-        "a7ac7afe1613c7731ed8131a25d26bc814df7d05c666ce89c269292e0507c6d9",
+        "3f3c1e6573f0e6964f582b0be167dca82f041f8f6e1e0712e5b650815528f06e",
     ),
     (
         "f1op-probe.exe",
-        "594c6290ef73fe15965bdefaa32155b4d7f658d8db89f30d2dd3d528c36799a3",
+        "b028c7461693609047b67658fd2e438960e53abd73966ab789ec62c223b84f80",
     ),
     (
         "f1op-prelaunch-linux-x86_64",
@@ -75,7 +75,7 @@ pub const PINS: &[(&str, &str)] = &[
     ),
     (
         "f1op-probe-linux-x86_64",
-        "68b20ab40f109cef142f6bdce8b053e06fb6fe5a395873916599a6a689730a66",
+        "23bb0aab019a1514bb91ca1e600b1588ce735c69ae308c47e21bd05cfd54e284",
     ),
 ];
 
