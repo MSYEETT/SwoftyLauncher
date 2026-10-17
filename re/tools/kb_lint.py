@@ -60,13 +60,14 @@ def parse_struct(path):
             continue
         ev = rest.split()[0] if rest.split() and ':' in rest.split()[0] and rest.split()[0].split(':')[0] in kb.TOKEN_KINDS else ''
         cnt = d.group('cnt')
+        array = cnt is not None
         try:
             cnt = int(cnt, 0) if cnt else 1
         except ValueError:
             s['errors'].append(f'{n}: array count {cnt!r}')
             cnt = 1
         s['fields'].append({'line': n, 'off': int(off, 16), 'type': d.group('type'), 'ptr': len(d.group('ptr')), 'name': d.group('name'),
-                            'count': cnt, 'level': lvl, 'evidence': ev})
+                            'count': cnt, 'array': array, 'level': lvl, 'evidence': ev})
     return s
 
 

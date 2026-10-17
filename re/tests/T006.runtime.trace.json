@@ -1,0 +1,87 @@
+{
+ "schema": 1,
+ "generated_by": "re/tools/trace_build.py",
+ "generated": "2026-10-17T17:07:07",
+ "signatures_file": "re/db/signatures.json",
+ "tests": [],
+ "sources": [
+  "re/tests/T006.trace.json"
+ ],
+ "build": {
+  "exe": "F1_25.exe",
+  "sha256": "d873a1c8d2044cef2fd76c99c9d5a97649c5b815d055540995105f46619865ae",
+  "size": 408063872,
+  "pe_timestamp": 1789118616
+ },
+ "check_sha256": true,
+ "allow_build_mismatch": false,
+ "allowed_sections": [
+  ".xtls"
+ ],
+ "log": {
+  "max_mb": 64,
+  "on_full": "stop",
+  "flush_ms": 100,
+  "summary_every_s": 60
+ },
+ "limits": {
+  "max_events_total": 20000,
+  "max_read": 64
+ },
+ "hooks": [
+  {
+   "id": "t006.vm_dispatch",
+   "test": "T006",
+   "kind": "func_start",
+   "sig": {
+    "id": "t006.vm_dispatch",
+    "section": ".xtls",
+    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 28 8B 42 14 48 85 C0",
+    "anchor": 0,
+    "resolve": {
+     "kind": "addr"
+    },
+    "rva": "0x42c00e0"
+   },
+   "args": 2,
+   "fields": [
+    {
+     "name": "mgr",
+     "type": "ptr",
+     "expr": "rcx"
+    },
+    {
+     "name": "type",
+     "type": "u32",
+     "expr": "[rdx+0x10]"
+    },
+    {
+     "name": "node",
+     "type": "u32",
+     "expr": "[rdx+0x14]"
+    },
+    {
+     "name": "arg",
+     "type": "u32",
+     "expr": "[rdx+0x20]"
+    },
+    {
+     "name": "name",
+     "type": "nestr",
+     "expr": "[rdx+0x20]"
+    },
+    {
+     "name": "data",
+     "type": "hex[16]",
+     "expr": "rdx+0x28"
+    }
+   ],
+   "when": [
+    "u32:[rdx+0x10] >= 0x4c",
+    "u32:[rdx+0x10] <= 0x4d"
+   ],
+   "max_per_sec": 100,
+   "max_events": 4000
+  }
+ ]
+}

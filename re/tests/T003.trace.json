@@ -1,0 +1,94 @@
+{
+ "test": "T003",
+ "log": {"max_mb": 16, "on_full": "stop", "summary_every_s": 30},
+ "limits": {"max_events_total": 4000, "max_read": 64},
+ "hooks": [
+  {
+   "id": "t003.selector_limit",
+   "sig": "session.selector_limit_load",
+   "fields": [
+    "limit=u32:[rax]",
+    "mode_stat=u8:[[rsp+0x60]]",
+    "max_entrants=i32:[[rsp+0x60]+0x268]",
+    "max_teams=i32:[[rsp+0x60]+0x264]",
+    "reuse_entrants=u8:[[rsp+0x60]+0x280]",
+    "candidates=u32:[rsp+0x78]"
+   ],
+   "max_per_sec": 10,
+   "max_events": 50
+  },
+  {
+   "id": "t003.selector_ret",
+   "raw_sig": {"id": "t003.selector_ret", "section": ".xtls", "kind": "mid", "anchor": 0, "target": "0x14245ff4e",
+               "pattern": "48 8B 05 ?? ?? ?? ?? 48 C7 44 24 48 00 00 00 00 48 8D 0D ?? ?? ?? ?? 48 89 4C 24 40 4C 89 74 24 50 48 8B 48 08 48 8D 54 24 40 E8 ?? ?? ?? ?? 41"},
+   "fields": [
+    "mgr=ptr:r15",
+    "mode=ptr:[r15+0xe10]",
+    "list=ptr:[r15+0xe18]",
+    "sess_begin=ptr:[r15+0x2e0]",
+    "sess_end=ptr:[r15+0x2e8]",
+    "cand_begin=ptr:[rsp+0x70]",
+    "cand_end=ptr:[rsp+0x78]"
+   ],
+   "max_per_sec": 10,
+   "max_events": 50
+  },
+  {
+   "id": "t003.weekend_start",
+   "sig": "session.weekend_start",
+   "args": 3,
+   "fields": [
+    "ep_begin=ptr:[rdx+8]",
+    "ep_end=ptr:[rdx+0x10]",
+    "filter=ptr:[rcx+0x208]",
+    "filter_ctx=ptr:[rcx+0x210]",
+    "cur_session=u32:[rcx+0x238]"
+   ],
+   "ret": true,
+   "max_per_sec": 10,
+   "max_events": 50
+  },
+  {
+   "id": "t003.ws_a_seen",
+   "raw_sig": {"id": "t003.ws_a_seen", "section": ".xtls", "kind": "mid", "anchor": 0, "target": "0x140af0643",
+               "pattern": "48 8B 17 4C 8B 44 24 38 FF D0 85 C0 75 C9 49 89"},
+   "fields": [
+    "ent=ptr:[rdi]",
+    "drv=u32:[[rdi]+0x50]",
+    "team=u32:[[rdi]+0x58]",
+    "veh=u32:[[rdi]+0x5c]",
+    "pos=u16:[[rdi]+0x80]",
+    "car=u8:[[rdi]+0x83]"
+   ],
+   "max_per_sec": 200,
+   "max_events": 400
+  },
+  {
+   "id": "t003.ws_a_kept",
+   "raw_sig": {"id": "t003.ws_a_kept", "section": ".xtls", "kind": "mid", "anchor": 0, "target": "0x140af0651",
+               "pattern": "49 89 DD 4D 29 FD 4C 89 E8 48 C1 F8 03 4C 39 E0"},
+   "fields": [
+    "ent=ptr:[rdi]",
+    "team=u32:[[rdi]+0x58]",
+    "car=u8:[[rdi]+0x83]"
+   ],
+   "max_per_sec": 200,
+   "max_events": 400
+  },
+  {
+   "id": "t003.ws_b_verdict",
+   "raw_sig": {"id": "t003.ws_b_verdict", "section": ".xtls", "kind": "mid", "anchor": 0, "target": "0x140af0852",
+               "pattern": "4C 8B 54 24 30 85 C0 0F 85 ?? ?? ?? ?? 4C 89 6C"},
+   "fields": [
+    "drop=u32:rax",
+    "ent=ptr:r13",
+    "drv=u32:[r13+0x50]",
+    "team=u32:[r13+0x58]",
+    "veh=u32:[r13+0x5c]",
+    "car=u8:[r13+0x83]"
+   ],
+   "max_per_sec": 200,
+   "max_events": 400
+  }
+ ]
+}

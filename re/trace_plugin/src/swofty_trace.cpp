@@ -99,6 +99,10 @@ struct JParser {
         while (*p && *p != '"') {
             char c = *p++;
             if (c == '\\') {
+                if (!*p) {
+                    free(s);
+                    return fail("unterminated escape");
+                }
                 char e = *p++;
                 switch (e) {
                 case 'n': c = '\n'; break;
@@ -107,6 +111,10 @@ struct JParser {
                 case 'b': c = '\b'; break;
                 case 'f': c = '\f'; break;
                 case 'u': {
+                    if (strnlen(p, 4) < 4) {
+                        free(s);
+                        return fail("short \\u escape");
+                    }
                     unsigned v = 0;
                     for (int i = 0; i < 4; i++) {
                         char h = *p++;
@@ -1802,7 +1810,7 @@ int init()
 extern "C" __declspec(dllexport) int SwoftyModInit(const SwoftyApi *a)
 {
     api = a;
-    if (!a || a->version != SWOFTY_API_VERSION)
+    if (!a || a->version < 1)
         return 0;
     QueryPerformanceFrequency(&qpf);
     QueryPerformanceCounter(&qpc0);

@@ -1,0 +1,317 @@
+{
+ "schema": 1,
+ "generated_by": "re/tools/trace_build.py",
+ "generated": "2026-10-17T12:55:08",
+ "signatures_file": "re/db/signatures.json",
+ "tests": [
+  "T003"
+ ],
+ "sources": [
+  "re/tests/T003.trace.json"
+ ],
+ "build": {
+  "exe": "F1_25.exe",
+  "sha256": "d873a1c8d2044cef2fd76c99c9d5a97649c5b815d055540995105f46619865ae",
+  "size": 408063872,
+  "pe_timestamp": 1789118616
+ },
+ "check_sha256": true,
+ "allow_build_mismatch": false,
+ "allowed_sections": [
+  ".xtls"
+ ],
+ "log": {
+  "max_mb": 16,
+  "on_full": "stop",
+  "flush_ms": 100,
+  "summary_every_s": 30
+ },
+ "limits": {
+  "max_events_total": 4000,
+  "max_read": 64
+ },
+ "hooks": [
+  {
+   "id": "t003.selector_limit",
+   "test": "T003",
+   "kind": "mid",
+   "sig": {
+    "id": "session.selector_limit_load",
+    "section": ".xtls",
+    "pattern": "8B 00 48 89 44 24 40 4C 8D AC 24 30 01 00 00",
+    "anchor": 0,
+    "resolve": {
+     "kind": "addr"
+    },
+    "expect": "8B 00 48 89 44",
+    "rva": "0x24a30a8"
+   },
+   "fields": [
+    {
+     "name": "limit",
+     "type": "u32",
+     "expr": "[rax]"
+    },
+    {
+     "name": "mode_stat",
+     "type": "u8",
+     "expr": "[[rsp+0x60]]"
+    },
+    {
+     "name": "max_entrants",
+     "type": "i32",
+     "expr": "[[rsp+0x60]+0x268]"
+    },
+    {
+     "name": "max_teams",
+     "type": "i32",
+     "expr": "[[rsp+0x60]+0x264]"
+    },
+    {
+     "name": "reuse_entrants",
+     "type": "u8",
+     "expr": "[[rsp+0x60]+0x280]"
+    },
+    {
+     "name": "candidates",
+     "type": "u32",
+     "expr": "[rsp+0x78]"
+    }
+   ],
+   "max_per_sec": 10,
+   "max_events": 50
+  },
+  {
+   "id": "t003.selector_ret",
+   "test": "T003",
+   "kind": "mid",
+   "sig": {
+    "id": "t003.selector_ret",
+    "section": ".xtls",
+    "pattern": "48 8B 05 ?? ?? ?? ?? 48 C7 44 24 48 00 00 00 00 48 8D 0D ?? ?? ?? ?? 48 89 4C 24 40 4C 89 74 24 50 48 8B 48 08 48 8D 54 24 40 E8 ?? ?? ?? ?? 41",
+    "anchor": 0,
+    "resolve": {
+     "kind": "addr"
+    },
+    "rva": "0x245ff4e"
+   },
+   "fields": [
+    {
+     "name": "mgr",
+     "type": "ptr",
+     "expr": "r15"
+    },
+    {
+     "name": "mode",
+     "type": "ptr",
+     "expr": "[r15+0xe10]"
+    },
+    {
+     "name": "list",
+     "type": "ptr",
+     "expr": "[r15+0xe18]"
+    },
+    {
+     "name": "sess_begin",
+     "type": "ptr",
+     "expr": "[r15+0x2e0]"
+    },
+    {
+     "name": "sess_end",
+     "type": "ptr",
+     "expr": "[r15+0x2e8]"
+    },
+    {
+     "name": "cand_begin",
+     "type": "ptr",
+     "expr": "[rsp+0x70]"
+    },
+    {
+     "name": "cand_end",
+     "type": "ptr",
+     "expr": "[rsp+0x78]"
+    }
+   ],
+   "max_per_sec": 10,
+   "max_events": 50
+  },
+  {
+   "id": "t003.weekend_start",
+   "test": "T003",
+   "kind": "func_start",
+   "sig": {
+    "id": "session.weekend_start",
+    "section": ".xtls",
+    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC B8 00 00 00 44 89 C3 49 89 D4",
+    "anchor": 0,
+    "resolve": {
+     "kind": "addr"
+    },
+    "rva": "0xaf0460"
+   },
+   "args": 3,
+   "fields": [
+    {
+     "name": "ep_begin",
+     "type": "ptr",
+     "expr": "[rdx+8]"
+    },
+    {
+     "name": "ep_end",
+     "type": "ptr",
+     "expr": "[rdx+0x10]"
+    },
+    {
+     "name": "filter",
+     "type": "ptr",
+     "expr": "[rcx+0x208]"
+    },
+    {
+     "name": "filter_ctx",
+     "type": "ptr",
+     "expr": "[rcx+0x210]"
+    },
+    {
+     "name": "cur_session",
+     "type": "u32",
+     "expr": "[rcx+0x238]"
+    }
+   ],
+   "ret": true,
+   "max_per_sec": 10,
+   "max_events": 50
+  },
+  {
+   "id": "t003.ws_a_seen",
+   "test": "T003",
+   "kind": "mid",
+   "sig": {
+    "id": "t003.ws_a_seen",
+    "section": ".xtls",
+    "pattern": "48 8B 17 4C 8B 44 24 38 FF D0 85 C0 75 C9 49 89",
+    "anchor": 0,
+    "resolve": {
+     "kind": "addr"
+    },
+    "rva": "0xaf0643"
+   },
+   "fields": [
+    {
+     "name": "ent",
+     "type": "ptr",
+     "expr": "[rdi]"
+    },
+    {
+     "name": "drv",
+     "type": "u32",
+     "expr": "[[rdi]+0x50]"
+    },
+    {
+     "name": "team",
+     "type": "u32",
+     "expr": "[[rdi]+0x58]"
+    },
+    {
+     "name": "veh",
+     "type": "u32",
+     "expr": "[[rdi]+0x5c]"
+    },
+    {
+     "name": "pos",
+     "type": "u16",
+     "expr": "[[rdi]+0x80]"
+    },
+    {
+     "name": "car",
+     "type": "u8",
+     "expr": "[[rdi]+0x83]"
+    }
+   ],
+   "max_per_sec": 200,
+   "max_events": 400
+  },
+  {
+   "id": "t003.ws_a_kept",
+   "test": "T003",
+   "kind": "mid",
+   "sig": {
+    "id": "t003.ws_a_kept",
+    "section": ".xtls",
+    "pattern": "49 89 DD 4D 29 FD 4C 89 E8 48 C1 F8 03 4C 39 E0",
+    "anchor": 0,
+    "resolve": {
+     "kind": "addr"
+    },
+    "rva": "0xaf0651"
+   },
+   "fields": [
+    {
+     "name": "ent",
+     "type": "ptr",
+     "expr": "[rdi]"
+    },
+    {
+     "name": "team",
+     "type": "u32",
+     "expr": "[[rdi]+0x58]"
+    },
+    {
+     "name": "car",
+     "type": "u8",
+     "expr": "[[rdi]+0x83]"
+    }
+   ],
+   "max_per_sec": 200,
+   "max_events": 400
+  },
+  {
+   "id": "t003.ws_b_verdict",
+   "test": "T003",
+   "kind": "mid",
+   "sig": {
+    "id": "t003.ws_b_verdict",
+    "section": ".xtls",
+    "pattern": "4C 8B 54 24 30 85 C0 0F 85 ?? ?? ?? ?? 4C 89 6C",
+    "anchor": 0,
+    "resolve": {
+     "kind": "addr"
+    },
+    "rva": "0xaf0852"
+   },
+   "fields": [
+    {
+     "name": "drop",
+     "type": "u32",
+     "expr": "rax"
+    },
+    {
+     "name": "ent",
+     "type": "ptr",
+     "expr": "r13"
+    },
+    {
+     "name": "drv",
+     "type": "u32",
+     "expr": "[r13+0x50]"
+    },
+    {
+     "name": "team",
+     "type": "u32",
+     "expr": "[r13+0x58]"
+    },
+    {
+     "name": "veh",
+     "type": "u32",
+     "expr": "[r13+0x5c]"
+    },
+    {
+     "name": "car",
+     "type": "u8",
+     "expr": "[r13+0x83]"
+    }
+   ],
+   "max_per_sec": 200,
+   "max_events": 400
+  }
+ ]
+}

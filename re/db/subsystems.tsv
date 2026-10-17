@@ -6,5 +6,5 @@ fe_tiles	FeTile	-	open	generic tile-menu builder, Tile/Item base classes, item v
 game	Game	-	open	game:: functions named in bulk from pretty-function strings, not yet sorted into a feature lane
 gamedb	Gdb	-	open	GVDB game value database: load, key lookup, table cursors, row counts
 protection	Prot	-	open	Denuvo stubs and .data1 bodies, signature/cert checks, VirtualProtect callers
-session	Sess	-	open	entrants, setup modes, participant selection, weekend/session start, garages (grid size work)
+session	Sess	grid-cap	open	entrants, setup modes, participant selection, weekend/session start, garages (grid size work)
 vm	Vm	-	open	UI view-model registry: node properties, setters, routes

@@ -13,3 +13,4 @@ Owner: see `subsystems.tsv`. Write-up: research/exe.md §1.
 
 ## Inbox
 - 2026-10-17 13:04 bulk-names: Bulk naming pass 2026-10-17: 78 neon:: functions added at L1 as Ne_<Class>_<Method> (class Ne prefix dropped), named from pretty-function strings; cxx= in notes holds the full name. See subsystems/game.md for the rules used.
+- 2026-10-17 16:24 gamelog: Ne_Log_Thunk (0x1406d4c80) is the channel logger; every call site is gated by g_Ne_LogGate (enabled byte + 373-slot hash set, step 13 + H%13), empty in retail. Neon UI route actions don't log: they return errors through Ne_Format_String into an out NeStr. native/src/gamelog (swofty_gamelog.dll) overwrites the logger, opens chosen channel gates from log_channels.tsv (re/tools/logchan.py), and logs route errors from a read-only site at Ne_Format_String entry. Verified V0014-V0020.

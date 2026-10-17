@@ -245,7 +245,11 @@ def check(img, sig, kb_build, names, same_build):
         if kind in ('func_start', 'call') and tsec == '.xtls':
             f = img.func_of(target)
             if not f or f[0] != target:
-                errs.append(f'target 0x{target:x} is not a .pdata function start')
+                head = img.read(target, 5)
+                dest = target + 5 + int.from_bytes(head[1:5], 'little', signed=True) if head[0] == 0xE9 else None
+                body = img.func_of(dest) if dest and img.sec_of(dest) == '.data1' else None
+                if not body or body[0] != dest:
+                    errs.append(f'target 0x{target:x} is not a .pdata function start or a jmp thunk to a .data1 body')
     elif kind != 'data':
         errs.append(f'unknown kind {kind!r}')
     if not sig.get('verified'):

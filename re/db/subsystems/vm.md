@@ -14,3 +14,4 @@ Owner: see `subsystems.tsv`. Write-up: research/exe.md §1 (conventions), §3.4.
 - Hook point for brand-new data commands (`raise_command {name}`): find the generic dispatch before the per-VM `onCommandRaised`.
 
 ## Inbox
+- 2026-10-17 17:11 ui-native: 2026-10-17 ui-native: VM binding registry, Vm_Dispatch_BindingMessage (0x1442c00e0, commands 0x4c / events 0x4d), VM vtable slot map, and the missing-screen route failure are written up in research/ui-native.md sections 1, 2 and 9. All new rows are L2 at most and unverified. T006 traces the dispatcher.

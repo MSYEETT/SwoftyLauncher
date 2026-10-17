@@ -13,3 +13,4 @@ Owner: see `subsystems.tsv`. Data-side format: research/gamedb.md. Cap analysis:
 - `Gdb_Unk_14305c1f0` was labelled onGameValueDbLoaded but its strings are network logging.
 
 ## Inbox
+- 2026-10-17 12:47 b26crash: Gdb_Get_FieldInt proto should be GdbValue **(row, name, mode): it returns the value-slot pointer; mode 0 miss returns &info[8] (end sentinel), mode 1 goes through Gdb_Lookup_Key (null on miss). Sub-row names are often stack-built (16-byte rodata chunk + imm tail, e.g. 'ai_vehicle_confi'+'g', 'story_in'+'fo') so they never show in strings; work/exe/b26crash/sw/sweep2.c does prefix x mid x leaf sweeps against the key set. Bools parse as _stricmp(v,'true')==0 (Gdb_Unk_1445a12d0 case 5); available is forced True at runtime by Sess_Set_RowsAvailable / Sess_Apply_ContentAvailability.

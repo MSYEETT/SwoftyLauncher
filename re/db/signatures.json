@@ -462,6 +462,115 @@
     }
    ],
    "used_by": []
+  },
+  {
+   "id": "session.ai_vehicle_register_call",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 48 8B BC 24 58 08 00 00 48 85 FF",
+   "match": "0x14060314d",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14060314d",
+   "kind": "mid",
+   "expect": "E8",
+   "names": [
+    "site_Sess_AiVehicleRegisterCall"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "grid-cap",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/mods/grid_capacity/grid_capacity.cpp"
+   ]
+  },
+  {
+   "id": "core.log_gate",
+   "section": ".xtls",
+   "pattern": "80 3D ?? ?? ?? ?? 01 75 74 B8 5F 01 00 00 48 8D 0D ?? ?? ?? ?? 66 66 66 66 66 66 2E 0F 1F 84 00 00 00 00 00 8B 14 81 85 D2 74 52 81 FA CB 88 7C 7C",
+   "match": "0x140af047c",
+   "anchor": "0x11",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xe",
+    "len": 7
+   },
+   "target": "0x14604b4f0",
+   "kind": "data",
+   "names": [
+    "g_Ne_LogGate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "gamelog",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/gamelog/gamelog.cpp"
+   ]
+  },
+  {
+   "id": "core.log_call",
+   "section": ".xtls",
+   "pattern": "48 8D 0D ?? ?? ?? ?? 48 8D 15 ?? ?? ?? ?? 4C 8D 05 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 8B BE 98 04 00 00",
+   "match": "0x140af04df",
+   "anchor": "0x16",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x15"
+   },
+   "target": "0x1406d4c80",
+   "kind": "call",
+   "names": [
+    "Ne_Log_Thunk"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "gamelog",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/gamelog/gamelog.cpp"
+   ]
+  },
+  {
+   "id": "core.format_string_entry",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 55 53 48 81 EC 48 02 00 00 48 89 D7 48 89 CE 4C 89 84 24 90 02 00 00",
+   "match": "0x1441630f0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1441630f0",
+   "kind": "mid",
+   "expect": "41 57 41 56",
+   "names": [
+    "site_Ne_Format_String_Entry"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-17",
+     "by": "gamelog",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/gamelog/gamelog.cpp"
+   ]
   }
  ]
 }

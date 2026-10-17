@@ -26,4 +26,5 @@ Owner: see `subsystems.tsv`. Write-up: research/grid24-cap.md §2–3. Goal: 24-
 
 ## Inbox
 - 2026-10-17 12:09 re-infra: 0x141489440 binds session.cars; worth a look for the 26-car UI audit
+- 2026-10-17 12:47 b26crash: B26 crash = absent key entrants.vehicles.vehicle_413.ai_vehicle_config.exit_fallibility.max_yaw_angle_deg (probe replay matches r10=0x1e). Complete source-row inventory (work/experiments/grid24/build/row_schema_b26f.json): vehicle rows = 28 + 218 ai_vehicle_config.*, team rows = 26 + story_info table (count+3), entrant rows = 10; uniform across all stock rows; only sub-row ai_vehicle_config, only nested table story_info (sweeps in work/exe/b26crash/sw). Variant B26f (MD5 565e77cf...) = B26 + those subtrees, counts 26/360/415, verify 0 failures; new team/vehicle rows ARE viable when cloned whole. Sess_Parse_AiHandlingConfig notes ('corrupt DB') are stale, see V0004.
 - 2026-10-17 13:04 bulk-names: Sess_Unk_1427b8db0 is the only function referencing the pretty-function string of game::CustomDecalModelComponent::activate (anchor s_CustomDecalModelComponent_Activate); probably not a session function.

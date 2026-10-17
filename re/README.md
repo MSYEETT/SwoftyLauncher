@@ -54,6 +54,7 @@ re/
 A local Ghidra project cannot be opened twice: a second `analyzeHeadless` on the same project fails after about 2.5 s with `LockException: Unable to lock project!`, and `-readOnly` fails the same way. Instead, `re/ghidra/master` is a pristine copy of `work/exe/ghidra/f1`, and `re/tools/decomp` takes one of four writable clones (`slots/s0..s3`, flock per slot, extra runs wait). It applies the KB only when the KB's hash changed since that slot's last apply.
 - Three concurrent runs took about 13 s each, including first-time slot creation. Output was byte-identical across slots, and each JVM peaked at 1.4–1.6 GB.
 - A normal run takes 4–8 s at 0.5 GB. The heap cap is 8 GB per JVM, so 32 GB is the worst case.
+- `ghidra/demo/before_*.c` and `after_*.c` show the same functions without and with the KB applied, e.g. `FUN_140846270(_DAT_146ca54f8, …)` becomes `Vm_Set_String(g_Vm_Registry, …, "name", &item->id, 1)`.
 
 ## Current state of the KB (2026-10-17)
 
