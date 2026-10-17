@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::STEAM_APP_ID;
 
-pub const DEFAULT_WINEDEBUG: &str = "+timestamp,+pid,+tid,+seh,+loaddll,fixme-all";
+pub const DEFAULT_WINEDEBUG: &str = "+timestamp,+pid,+tid,+loaddll,fixme-all";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Session {
