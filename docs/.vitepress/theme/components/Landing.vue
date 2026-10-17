@@ -110,7 +110,7 @@ const footPaths = footBands.map((b) => ({ color: b.color, d: wave(b, 1440, 420) 
       <div class="lp-side lp-side--right" aria-hidden="true" />
 
       <figure class="lp-shot lp-shot--hero">
-        <img :src="asset(shots.ingame.src)" :alt="shots.ingame.alt" :width="shots.ingame.width" :height="shots.ingame.height" />
+        <img :src="asset(shots.hero.src)" :alt="shots.hero.alt" width="1920" height="1080" />
       </figure>
 
       <div class="lp-linkbox">
@@ -124,20 +124,20 @@ const footPaths = footBands.map((b) => ({ color: b.color, d: wave(b, 1440, 420) 
         </template>
       </div>
 
-      <section class="lp-section lp-split lp-split--shots">
-        <div class="lp-copy">
-          <p v-html="fm.intro" />
-          <ul class="lp-platforms">
-            <li v-for="p in fm.platforms" :key="p.text" :title="p.text">
-              <Icon :name="p.icon" /><span class="lp-sr">{{ p.text }}</span>
-            </li>
-          </ul>
-        </div>
-        <div class="lp-stack">
-          <figure v-for="(s, i) in shots.launcher" :key="s.src" class="lp-shot" :class="`lp-stack-${i}`">
-            <img :src="asset(s.src)" :alt="s.alt" :width="s.width" :height="s.height" loading="lazy" />
-          </figure>
-        </div>
+      <section class="lp-gallery" aria-label="Screenshots">
+        <figure v-for="g in shots.gallery" :key="g.src" class="lp-shot" :class="`lp-shot--${g.shape}`">
+          <img :src="asset(g.src)" :alt="g.alt" :width="g.shape === 'wide' ? 1920 : 1000" :height="g.shape === 'wide' ? 1080 : 888" loading="lazy" />
+          <figcaption>{{ g.caption }}</figcaption>
+        </figure>
+      </section>
+
+      <section class="lp-section lp-intro">
+        <p v-html="fm.intro" />
+        <ul class="lp-platforms">
+          <li v-for="p in fm.platforms" :key="p.text" :title="p.text">
+            <Icon :name="p.icon" /><span class="lp-sr">{{ p.text }}</span>
+          </li>
+        </ul>
       </section>
 
       <section class="lp-section" aria-labelledby="lp-features">

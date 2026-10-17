@@ -5,20 +5,18 @@ titleTemplate: Mods for F1 25
 description: A launcher and mod loader for F1 25 on Windows and Linux. Add community tracks, install mods, change mod settings in game and keep separate profiles.
 
 screenshots:
-  ingame:
-    src: /screenshots/ingame-mod-settings.webp
-    alt: The F1 25 home menu with MOD SETTINGS under Career, the "Launched with Swofty Mod Launcher" panel and the F9 prompt
-    width: 1161
-    height: 1031
-  launcher:
-    - src: /screenshots/launcher-mods.png
-      alt: The launcher's Mods page with the mod library, mod details and the Play button
-      width: 1920
-      height: 1080
-    - src: /screenshots/launcher-maps.png
-      alt: The launcher's Maps page with the Okayama track package selected
-      width: 1920
-      height: 1080
+  hero:
+    src: /screenshots/hero-launcher.png
+    alt: The F1 Mod Manager launcher
+  gallery:
+    - src: /screenshots/gallery-ingame.png
+      alt: The F1 25 home menu with MOD SETTINGS under Career, the "Launched with Swofty Mod Launcher" panel and the F9 prompt
+      caption: MOD SETTINGS in the game's home menu
+      shape: square
+    - src: /screenshots/gallery-launcher.png
+      alt: The F1 Mod Manager launcher
+      caption: Mods, maps and profiles in the launcher
+      shape: wide
 
 hero:
   name: F1 Mod Manager

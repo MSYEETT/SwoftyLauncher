@@ -32,7 +32,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
     ["link", { rel: "icon", href: `${base}logo.svg`, type: "image/svg+xml" }],
     ["meta", { name: "theme-color", content: "#2a1b39" }],
     ["meta", { property: "og:site_name", content: "F1 Mod Manager" }],
-    ["meta", { property: "og:image", content: `${site}/screenshots/launcher-mods.png` }],
+    ["meta", { property: "og:image", content: `${site}/screenshots/hero-launcher.png` }],
     ["link", { rel: "preconnect", href: "https://fonts.googleapis.com" }],
     ["link", { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" }],
     ["link", { rel: "stylesheet", href: fonts }],

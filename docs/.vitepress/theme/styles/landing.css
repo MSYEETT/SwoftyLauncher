@@ -319,8 +319,70 @@
 .lp-shot--hero {
   position: relative;
   z-index: 2;
-  width: min(38rem, 100%);
+  width: min(56rem, 100%);
   margin: -12rem auto 0;
+}
+
+.lp-shot--hero img,
+.lp-shot--wide img {
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  object-position: center;
+}
+
+.lp-shot--square img {
+  aspect-ratio: 9 / 8;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.lp-gallery {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.58fr);
+  gap: 2rem;
+  align-items: start;
+  max-width: 66rem;
+  margin: 6rem auto 0;
+}
+
+.lp-gallery .lp-shot {
+  transition: transform 0.2s;
+}
+
+.lp-gallery .lp-shot:first-child {
+  transform: rotate(-1.5deg);
+}
+
+.lp-gallery .lp-shot:last-child {
+  transform: rotate(1.5deg);
+}
+
+.lp-gallery .lp-shot:hover {
+  transform: none;
+}
+
+.lp-gallery figcaption {
+  margin-top: 0.9rem;
+  color: var(--lp-text-dim);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.lp-section.lp-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 44rem;
+  text-align: center;
+}
+
+.lp-intro p {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.55;
 }
 
 .lp-linkbox {
@@ -411,36 +473,6 @@
   width: 2.5rem;
   height: 2.5rem;
   stroke-width: 1.75;
-}
-
-.lp-split--shots {
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.35fr);
-  max-width: 72rem;
-}
-
-.lp-stack {
-  position: relative;
-  aspect-ratio: 16 / 12;
-}
-
-.lp-stack .lp-shot {
-  position: absolute;
-}
-
-.lp-stack-0 {
-  top: 2%;
-  left: 0;
-  z-index: 2;
-  width: 82%;
-  transform: rotate(-8deg);
-}
-
-.lp-stack-1 {
-  right: 0;
-  bottom: 4%;
-  z-index: 1;
-  width: 66%;
-  transform: rotate(-4deg);
 }
 
 .lp-heading {
@@ -646,7 +678,6 @@
 
 @media (max-width: 900px) {
   .lp-split,
-  .lp-split--shots,
   .lp-split--code {
     grid-template-columns: minmax(0, 1fr);
     gap: 3rem;
@@ -654,6 +685,13 @@
 
   .lp-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lp-gallery {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.5rem;
+    max-width: 40rem;
+    margin-top: 4rem;
   }
 
   .lp-section {
@@ -706,6 +744,7 @@
   }
 
   .lp-copy p,
+  .lp-intro p,
   .lp-cta p {
     font-size: 1.05rem;
   }
