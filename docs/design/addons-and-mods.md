@@ -559,7 +559,7 @@ Result overlay_file(std::string_view game_path, std::string_view file);
 ### 4.1 The addon
 
 - The crate `addons/simplified` (`swofty-addon-simplified`) is Rust and AGPL-3.0-or-later, like the rest of the repository. Its `mod.serps` reader, package root, content root and entry path checks are ported from the Simplified Launcher (GPL-3.0, used with Team Simplified's permission) and carry the Simplified Suite notice. `THIRD_PARTY.md` credits Team Simplified for the `.serps` format and the Simplified Suite, and the Mods section shows the credit.
-- Import, the library, profile state, the section and `swofty mods` are built (work item 13). Diffs, the merge and conflicts are not: until they are, the expanded row lists the package's files by class, and mods do not reach the game.
+- Import, the library, profile state, the section and `swofty mods` are built (work item 13), and so are the diffs (work item 14). The merge and conflicts are not: until they are, mods do not reach the game.
 - Manifest: id `teamsimplified.mods`, name `Team Simplified`, author `Team Simplified`. No options and no native plugin.
 - Built in and on by default in new profiles. It can be turned off per profile.
 - It uses `swofty-addon` and `swofty-formats` only. Core has no code for it.
@@ -629,7 +629,8 @@ Each mod is compared with clean files from `GameFiles`, never with the game fold
 - Removals count only when `game_version` equals the installed exe's version. Otherwise they are dropped, and the row says how many and for which version the package was made.
 - A language the package lacks takes the changes of the package's `language_eng.lng`, or of its first language file by name.
 - Archive diffs read the index only (`ErpFile::open`). The database diff parses both files once.
-- Diffs are cached per game build key. A new game build recomputes them at the next build, or when the section opens.
+- Diffs are cached per game build key in `diff/<build key>.json`, with the changed and added records in `diff/<build key>.db`. Import computes the diff when a game is found. A mod without a diff for the installed build gets one at the next build, or from `Compare` in the section.
+- Without a diff for the installed build, the expanded row lists the package's files by class.
 
 ### 4.6 Merge
 
@@ -656,7 +657,7 @@ The build hook emits ops for each enabled mod, in profile order, with origin `te
 The sidebar entry `Mods` comes after `Addons`, with the library size as its count.
 
 - **Header.** Title `Mods`. Subtitle `<n> in library · <k> on in <profile> · lower in the list wins`. Action `Import…`, a picker for `.serps` and `.zip` files and folders, several at once.
-- **Notices.** The addon is off in this profile (button `Turn on`). The vanilla profile is active. Diffs are being prepared for a new game build (with progress). Text entries are waiting for runtime support.
+- **Notices.** The addon is off in this profile (button `Turn on`). The vanilla profile is active. Mods are not compared with the installed game build yet (button `Compare`). Text entries are waiting for runtime support.
 - **Rows.** Reorderable, in load order. Title from `mod.serps`, subtitle `<author> · <version>`, tags `Database`, `Text`, `<n> archives`, `<n> files`, conflict tags and `Made for <game_version>` when it differs from the game. A switch turns the mod on in the profile.
 - **Expanded row.** Stats: status, version, author, made for, Studio version, size, imported. `WHAT IT CHANGES`: records changed, added and removed; text entries by language; resources by archive; files. `CONFLICTS`. Buttons: Move up, Move down, Show files, and Remove from library with a confirmation.
 - **Empty.** `No mods yet`, `Import a .serps package, a zip or a folder that holds an F1 25 folder.` and `Import…`.
