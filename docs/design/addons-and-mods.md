@@ -21,6 +21,8 @@ There is no core Assets page. Mods appear only in launcher sections that addons 
 
 ### Renames
 
+The renames and the compatibility rules below are built, except the `addon-data` and cache folders and the profile's `state` object, which come with the Launcher API, and `operations.assets`, which comes with the Asset API. `owned_items` entries in `swofty/settings.json` also name their addon under `addon` instead of `mod`.
+
 | Area | Now | After |
 |---|---|---|
 | Core types | `ModManifest`, `ModOption` | `AddonManifest`, `AddonOption` |
@@ -43,7 +45,7 @@ There is no core Assets page. Mods appear only in launcher sections that addons 
 | CLI text | `Swofty Launcher for F1 25: mods and maps`, `mod settings` | `Swofty Launcher for F1 25: addons, mods and maps`, `addon settings` |
 | Manifest errors | `must be a relative path inside the mod` | `must be a relative path inside the addon` |
 | SwoftyMod description | `mod loading` | `addon loading` |
-| Docs titles | `Mods and maps`, `Making a mod`, `Configuring mods (swofty.json)`, `In-game mod settings`, `Mod manifest` | `Addons, mods and maps`, `Making an addon`, `Configuring addons (swofty.json)`, `In-game addon settings`, `Addon manifest` |
+| Docs titles | `Mods and maps`, `Making a mod`, `Configuring mods (swofty.json)`, `In-game mod settings`, `Mod manifest` | `Addons and maps` (`Addons, mods and maps` with the Mods section), `Making an addon`, `Configuring addons (swofty.json)`, `In-game addon settings`, `Addon manifest` |
 
 These stay as they are: `swofty.json` and every field in it, manifest `schema_version` 1, the id `swofty.core`, the name SwoftyMod, the `swofty_set:` and `swofty_enable:` commands, the requests file, `$DATA/maps/`, the app id `net.swofty.ModLauncher`, and doc page paths.
 
