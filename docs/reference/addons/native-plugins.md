@@ -29,8 +29,9 @@ Return non-zero on success or 0 on failure. The DLL stays loaded either way, so 
 | `fields(obj, size)` | `swofty_core.dll` | Per-addon storage on a game object. See [fields](/reference/std/mixin#fields) |
 | `setting(id, type, &out)` | `swofty_core.dll` | Read a [setting](/reference/std/settings#c-abi) |
 | `watch_setting(id, fn, user)` | `swofty_core.dll` | Call `fn` when a setting changes |
+| `assets` | `swofty_core.dll` | Load mods at runtime. See [Asset API](/reference/addons/asset-api#native-plugins) |
 
-`version.dll` alone offers version 1. `swofty_core.dll` raises it to 3. `SWOFTY_ADDON()` in `swofty/mixin.hpp` also exports `SwoftyAddonApi`, the version the plugin was built against.
+`version.dll` alone offers version 1. `swofty_core.dll` raises it to 4. `SWOFTY_ADDON()` in `swofty/mixin.hpp` also exports `SwoftyAddonApi`, the version the plugin was built against.
 
 The [Game API](/reference/game/) lists the game functions and structs that plugins can use.
 
@@ -79,7 +80,7 @@ From C, call `api->setting(id, type, &value)` and `api->watch_setting(id, fn, us
 }
 ```
 
-`options` covers the settings members above. The manifest also accepts `read-db` and `on-frame`, which are planned capabilities, not members of the current API.
+`options` covers the settings members above, and `assets` covers `swofty/assets.hpp`. `"early": true` loads the plugin at the [early stage](/reference/addons/asset-api#the-early-stage). The manifest also accepts `read-db` and `on-frame`, which are planned capabilities, not members of the current API.
 
 ## Hook rules
 

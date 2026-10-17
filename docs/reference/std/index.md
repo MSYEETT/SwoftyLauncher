@@ -36,13 +36,13 @@ The [addon template](/reference/addons/template) ships `swofty_api.h` and `swoft
 
 ## API versions
 
-`SwoftyApi.version` is the version the running loader offers. `SWOFTY_API_VERSION` in `swofty_api.h` is 3.
+`SwoftyApi.version` is the version the running loader offers. `SWOFTY_API_VERSION` in `swofty_api.h` is 4.
 
 | Members | Offered by |
 |---|---|
 | `version`, `log`, `module_base`, `scan` | `version.dll`, as version 1 |
-| `resolve`, `register_mixins`, `fields`, `setting`, `watch_setting` | `swofty_core.dll`, as version 3 |
+| `resolve`, `register_mixins`, `fields`, `setting`, `watch_setting`, `assets` | `swofty_core.dll`, as version 4 |
 
-The mixin helpers in `mixin.hpp` need version 2 or later, and the settings helpers version 3.
+The mixin helpers in `mixin.hpp` need version 2 or later, the settings helpers version 3 and `assets.hpp` version 4.
 
-Each manifest capability needs a version: `log` and `scan` 1, `hook` 2, `options` 3. `read-db` and `on-frame` are accepted in manifests and not offered by any version.
+Each manifest capability needs a version: `log` and `scan` 1, `hook` 2, `options` 3, `assets` 4. `read-db` and `on-frame` are accepted in manifests and not offered by any version.

@@ -124,6 +124,38 @@ The engine loads content by asset group. `group.register` adds a group to the en
 - The core skips a group that the stock manifest already has. A database field that points at a stock group whose archive is missing hangs the session load.
 - Database fields such as a track's `worldAssetGroup` name the group. Tracks use this route: each track's archive goes to `2025_asset_groups/environment_package/tracks/<code>/<code>.erp` with one group per world, bake and probe set ([How maps are installed](/reference/maps)).
 
+## From a native plugin
+
+A [native plugin](./native-plugins) adds the same entries from its own code with `swofty/assets.hpp`, at plugin init. Files are paths in the addon's folder, `swofty/addons/<id>/`:
+
+```cpp [native/src/livery.cpp]
+#include <swofty/assets.hpp>
+#include <swofty/mixin.hpp>
+
+namespace assets = swofty::assets;
+
+SWOFTY_ON_LOAD
+{
+    std::string_view erps[] = {"2025_asset_groups/ui_package/flow_boot.erp"};
+    assets::Fragment logo[] = {{"files/ps_logo.bin"}};
+    assets::put_resource("eaid://ui_package/art/textures/press_start/ps_logo.tif.image", logo, erps);
+    assets::lang_set("*", "lng_team_tor_hashtag", "AlphaTauri");
+    if (assets::db_set("0xf01d03c7a1b2c3d4", "int", "1") == assets::Result::late)
+        swofty::log("[livery] the database was already built");
+}
+
+SWOFTY_ADDON()
+```
+
+```json [swofty.json]
+"operations": {
+  "native": [{ "dll": "native/livery.dll", "capabilities": ["log", "assets"], "early": true }]
+}
+```
+
+- `"early": true` loads the plugin before the game database, so `db_set` applies. Without it the plugin loads at the window trigger and `db_set` returns `late`.
+- Each call returns `ok`, `late`, `unavailable` or `invalid`, and `swofty/loader.log` has one `[assets] api:` line per call. [Native plugins](./asset-api#native-plugins) lists when each call is accepted.
+
 ## From a build hook
 
 A built-in addon returns the same ops from [`Addon::build`](./launcher-api#build-hooks), and a third-party addon from its helper's `build` method. They take the same routes, after the addon's declared ops. Team Simplified merges `.serps` mods this way: `db.put-record`, `erp.put-resource` and `lang.set` per enabled mod, with sources in its `data` root.

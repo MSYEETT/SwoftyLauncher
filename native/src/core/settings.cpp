@@ -312,6 +312,13 @@ void settings_attach(SwoftyApi *a, const std::wstring &dir)
              profile.c_str(), addons.size(), count, commands.size(), requests.c_str());
 }
 
+std::string settings_addon(const void *from, std::string &dll)
+{
+    const Owner *w = owner_of(from);
+    dll = w->dll;
+    return w->addon < 0 ? std::string() : addons[w->addon].id;
+}
+
 int settings_get(const char *id, uint32_t type, SwoftySettingValue *out)
 {
     const void *from = __builtin_return_address(0);

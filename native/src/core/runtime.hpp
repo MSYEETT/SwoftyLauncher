@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "json.hpp"
+#include "swofty_api.h"
 
 namespace runtime {
 
@@ -61,6 +62,18 @@ const Overlay *resource_overlay(DWORD wait_ms);
 void overlay_registered(const std::vector<uint64_t> &erp_hashes, size_t groups);
 void overlay_dropped(const std::string &why);
 std::string erp_name(uint64_t hash);
+
+const SwoftyAssets *assets_table();
+const json::Value &sdk();
+void ready();
+void assets_setup();
+void resources_setup();
+void gamedb_setup();
+void overlay_setup();
+int group_add(const json::Value &entry);
+int db_add(const json::Value &entry);
+int lang_add(const json::Value &entry);
+int file_add(const json::Value &entry);
 
 struct Robin {
     uint8_t *s;

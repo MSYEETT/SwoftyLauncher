@@ -8,6 +8,7 @@
 #include <climits>
 #include <cmath>
 #include <map>
+#include <mutex>
 
 namespace {
 
@@ -56,6 +57,7 @@ Lookup_t *lookup_fn;
 void **g_db;
 safetyhook::InlineHook h_load;
 std::atomic<bool> done{false};
+std::mutex edits_lock;
 std::map<int, void *> class_vt;
 uintptr_t base;
 
@@ -136,38 +138,45 @@ std::string check_text(const Edit &e, int tag)
     }
 }
 
+bool read_edit(const json::Value &j)
+{
+    Edit e;
+    e.path = j["key"].str();
+    std::string h = j["hash"].str();
+    e.key = !e.path.empty() ? runtime::fnv64(e.path) : h.empty() ? 0 : strtoull(h.c_str(), nullptr, 16);
+    const json::Value &v = j["value"];
+    e.kind = v.type;
+    if (v.type == json::Value::Str || v.type == json::Value::Num)
+        e.value = v.s;
+    else if (v.type == json::Value::Bool)
+        e.value = v.b ? "True" : "False";
+    e.retype = j["retype"].type == json::Value::Bool && j["retype"].b;
+    if (j["type"].type != json::Value::Null)
+        e.tag = tag_of(j["type"]);
+    if (!e.key || (v.type != json::Value::Str && v.type != json::Value::Num && v.type != json::Value::Bool) ||
+        e.tag == -2 || e.tag > 18 || e.tag == 10 || e.tag == 15 || e.tag == 16) {
+        swofty::log("[assets] gamedb: edit %s ignored: it needs \"key\" (or \"hash\"), a string, number or bool "
+                    "\"value\" and a known \"type\" (tags 10, 15 and 16 store nothing)",
+                    e.path.empty() ? h.c_str() : e.path.c_str());
+        return false;
+    }
+    if (e.tag >= 0) {
+        std::string bad = check_text(e, e.tag);
+        if (!bad.empty()) {
+            swofty::log("[assets] gamedb: edit %s ignored: %s", e.path.empty() ? h.c_str() : e.path.c_str(), bad.c_str());
+            return false;
+        }
+    }
+    edits.push_back(std::move(e));
+    return true;
+}
+
 void read_config()
 {
-    for (auto &j : runtime::config()["db_edits"].a) {
-        Edit e;
-        e.path = j["key"].str();
-        std::string h = j["hash"].str();
-        e.key = !e.path.empty() ? runtime::fnv64(e.path) : h.empty() ? 0 : strtoull(h.c_str(), nullptr, 16);
-        const json::Value &v = j["value"];
-        e.kind = v.type;
-        if (v.type == json::Value::Str || v.type == json::Value::Num)
-            e.value = v.s;
-        else if (v.type == json::Value::Bool)
-            e.value = v.b ? "True" : "False";
-        e.retype = j["retype"].type == json::Value::Bool && j["retype"].b;
-        if (j["type"].type != json::Value::Null)
-            e.tag = tag_of(j["type"]);
-        if (!e.key || (v.type != json::Value::Str && v.type != json::Value::Num && v.type != json::Value::Bool) ||
-            e.tag == -2 || e.tag > 18 || e.tag == 10 || e.tag == 15 || e.tag == 16) {
-            swofty::log("[assets] gamedb: edit %s ignored: it needs \"key\" (or \"hash\"), a string, number or bool "
-                        "\"value\" and a known \"type\" (tags 10, 15 and 16 store nothing)",
-                        e.path.empty() ? h.c_str() : e.path.c_str());
-            continue;
-        }
-        if (e.tag >= 0) {
-            std::string bad = check_text(e, e.tag);
-            if (!bad.empty()) {
-                swofty::log("[assets] gamedb: edit %s ignored: %s", e.path.empty() ? h.c_str() : e.path.c_str(), bad.c_str());
-                continue;
-            }
-        }
-        edits.push_back(std::move(e));
-    }
+    for (auto &j : runtime::config()["db_edits"].a)
+        read_edit(j);
+    for (auto &j : runtime::sdk()["db_edits"].a)
+        read_edit(j);
 }
 
 std::string label(const Edit &e)
@@ -415,6 +424,7 @@ void *load_hook(void *db, void *cfg)
 {
     swofty::log("[assets] gamedb: Gdb_Load_GameDatabase(%p) entered on thread %lu", db, GetCurrentThreadId());
     void *r = h_load.call<void *>(db, cfg);
+    std::lock_guard<std::mutex> g(edits_lock);
     apply(static_cast<uint8_t *>(db), "right after Gdb_Load_GameDatabase returned");
     return r;
 }
@@ -446,7 +456,17 @@ void window_stage(int stage)
 
 }
 
-SWOFTY_ON_LOAD
+int runtime::db_add(const json::Value &entry)
+{
+    std::lock_guard<std::mutex> g(edits_lock);
+    if (!h_load || done)
+        return SWOFTY_ASSET_LATE;
+    return read_edit(entry) ? SWOFTY_ASSET_OK : SWOFTY_ASSET_INVALID;
+}
+
+namespace {
+
+void setup()
 {
     read_config();
     if (edits.empty())
@@ -494,4 +514,11 @@ SWOFTY_ON_LOAD
     swofty::log("[assets] gamedb: Gdb_Load_GameDatabase hooked at base+0x%llx (g_Gdb_Database = %p, not built yet); edits "
                 "apply when it returns",
                 (unsigned long long)(load - base), db);
+}
+
+}
+
+void runtime::gamedb_setup()
+{
+    setup();
 }

@@ -32,6 +32,16 @@ __declspec(dllexport) int SwoftyAddonInit(const void *api)
 }
 EOC
 "${PIN[@]}" zig cc -target x86_64-windows-gnu -O2 -shared -o "$OUT/t_slow.dll" "$OUT/slow_mod.c"
+cat > "$OUT/plain_mod.c" <<'EOC'
+__declspec(dllexport) int SwoftyAddonInit(const void *api)
+{
+    (void)api;
+    return 1;
+}
+EOC
+for n in t_early t_window; do
+    "${PIN[@]}" zig cc -target x86_64-windows-gnu -O2 -shared -o "$OUT/$n.dll" "$OUT/plain_mod.c"
+done
 cp -r "../$DIST/." "$OUT/game/"
 python3 - "$OUT/game" <<'EOF'
 import os, struct, sys
@@ -149,9 +159,13 @@ absent() {
 }
 for mode in none replace gated late early earlywait; do
     echo "==== $mode"
-    rm -f "$OUT/game/swofty/assets.json" "$OUT/game/swofty/addons/t_slow.dll"
+    rm -f "$OUT/game/swofty/assets.json" "$OUT/game/swofty/settings.json" "$OUT/game/swofty/addons/"t_*.dll
     rm -rf "$OUT/game/swofty/cache"
     [[ $mode == earlywait ]] && cp "$OUT/t_slow.dll" "$OUT/game/swofty/addons/t_slow.dll"
+    if [[ $mode == early ]]; then
+        cp "$OUT/t_early.dll" "$OUT/t_window.dll" "$OUT/game/swofty/addons/"
+        echo '{ "schema": 1, "profile": "t", "addons": [], "early_plugins": ["t_early.dll"] }' >"$OUT/game/swofty/settings.json"
+    fi
     [[ $mode == none ]] || assets_json $mode
     timeout 120 "${PIN[@]}" xvfb-run -a wine "$OUT/game/F1_25.exe" $mode || status=1
     echo "---- $LOG ($mode)"
@@ -164,6 +178,12 @@ for mode in none replace gated late early earlywait; do
         check "loader: early trigger fired from plain code" "trigger: KERNEL32!CreateMutexW from .* \(\.xtls\) name 'Codemasters F1 25' on thread .*loading addons now \(early stage\)"
         check "loader: early slot disarmed" 'trigger disarmed: KERNEL32!CreateMutexW slot restored'
         check "loader: window stage after the early load" 'stage: window \(USER32!RegisterClassExW .*\), addons were loaded at the early stage'
+        check "loader: early plugin list read from settings.json" 'early stage: plugin t_early\.dll has "early": true'
+        check "loader: a plugin without \"early\" waits for the window" 'addon t_window\.dll: loads at the window stage'
+        check "loader: the early plugin loads at the early stage" 'addon t_early\.dll: loaded at .*, API v1 plugin'
+        check "loader: the rest load at the window stage" 'addons: loading the addons without "early": true at the window stage'
+        check "loader: the window plugin loads then" 'addon t_window\.dll: loaded at .*, API v1 plugin'
+        check "core: second mixin commit for the window plugins" '\[core\] commit: 0 of 0 mixin addon\(s\) active'
         check "core: stage handlers ran" '\[assets\] stage window: [1-9] handler\(s\); addons were loaded at the early stage'
         check "gamedb: load wrap installed early" '\[assets\] gamedb: Gdb_Load_GameDatabase hooked at base\+0x[0-9a-f]+ \(g_Gdb_Database = 0+, not built yet\)'
         check "gamedb: edits applied inside the load" '\[assets\] gamedb: database at .* \(right after Gdb_Load_GameDatabase returned\) on thread .*loaded=1'

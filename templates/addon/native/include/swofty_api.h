@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define SWOFTY_API_VERSION 3
+#define SWOFTY_API_VERSION 4
 
 enum {
     SWOFTY_MIXIN_WRAP = 1,
@@ -58,6 +58,32 @@ typedef struct SwoftySettingValue {
 
 typedef void (*SwoftySettingFn)(const char *id, const SwoftySettingValue *value, void *user);
 
+enum {
+    SWOFTY_ASSET_OK = 0,
+    SWOFTY_ASSET_LATE = 1,
+    SWOFTY_ASSET_UNAVAILABLE = 2,
+    SWOFTY_ASSET_INVALID = 3,
+};
+
+typedef struct SwoftyFragment {
+    const char *file;
+    const char *fourcc;
+    uint32_t flags;
+} SwoftyFragment;
+
+typedef struct SwoftyAssets {
+    int (*available)(const char *feature);
+    int (*register_group)(const char *group, const char *const *erps, size_t erp_count, const char *const *deps,
+                          size_t dep_count, const char *templ);
+    int (*put_resource)(const char *uri, const SwoftyFragment *fragments, size_t fragment_count, const char *const *erps,
+                        size_t erp_count);
+    int (*db_set)(const char *key, const char *type, const char *value);
+    int (*db_set_raw)(uint64_t hash, uint8_t tag, const void *value, size_t size);
+    int (*lang_set)(const char *language, const char *key, const char *text);
+    int (*lang_table)(const char *language, const char *file);
+    int (*overlay_file)(const char *game_path, const char *file);
+} SwoftyAssets;
+
 typedef struct SwoftyApi {
     uint32_t version;
     void (*log)(const char *fmt, ...);
@@ -68,6 +94,7 @@ typedef struct SwoftyApi {
     void *(*fields)(const void *obj, size_t size);
     int (*setting)(const char *id, uint32_t type, SwoftySettingValue *out);
     int (*watch_setting)(const char *id, SwoftySettingFn fn, void *user);
+    const SwoftyAssets *assets;
 } SwoftyApi;
 
 typedef int (*SwoftyAddonInitFn)(const SwoftyApi *api);

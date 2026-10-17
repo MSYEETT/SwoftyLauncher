@@ -10,8 +10,9 @@ A starting point for an addon for Swofty Launcher for F1 25. Copy this directory
 | `db/example.json` | Database operations on `gamedatabases.2025.bin`: a `set` whose value comes from the `penalty_seconds` setting, and a `set` through a row selector |
 | `ui/example.pkgpatch.json` | A `!pkg` patch that clones a tooltip entry in `tool_tips.uidb` |
 | `native/src/sample_plugin.cpp` | A native plugin that reads its settings, reacts when they change in game and runs one signature scan |
-| `native/include/swofty_api.h` | The plugin C ABI, version 3 |
+| `native/include/swofty_api.h` | The plugin C ABI, version 4 |
 | `native/include/swofty/mixin.hpp` | The C++ layer: settings, mixins and `SWOFTY_ADDON` |
+| `native/include/swofty/assets.hpp` | Runtime asset calls: asset groups, resources, database records, strings and files |
 | `native/build.sh` | Builds `native/sample_plugin.dll` with `zig c++` for `x86_64-windows-gnu` |
 
 ## Settings

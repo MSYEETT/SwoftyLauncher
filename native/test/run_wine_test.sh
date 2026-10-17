@@ -53,7 +53,7 @@ count() {
     n=$(grep -cE "$3" "$LOG" || true)
     if [[ $n == "$2" ]]; then echo "ok  : $1"; else echo "FAIL: $1 (logged $n times, want $2)"; status=1; fi
 }
-for mode in trigger fallback vm settings settings_local session gamelog_off; do
+for mode in trigger fallback vm settings settings_local session gamelog_off assets; do
     echo "==== $mode"
     [[ $mode == session ]] && cp session.test.json "$OUT/game/swofty/session.json"
     req=
@@ -71,12 +71,25 @@ else:
         item['mod'] = item.pop('addon')
 json.dump(doc, open(sys.argv[2], 'w'), indent=1)
 EOF
+    [[ $mode == assets ]] && python3 - "$OUT/game/swofty" <<'EOF'
+import json, os, sys
+root = sys.argv[1]
+addon = os.path.join(root, 'addons', 'example.sample-mod')
+for rel, data in (('erp/frag.bin', b'frag'), ('lang/extra.lng', b'LNGT'), ('files/sponsor.dds', b'DDS ')):
+    os.makedirs(os.path.dirname(os.path.join(addon, rel)), exist_ok=True)
+    open(os.path.join(addon, rel), 'wb').write(data)
+json.dump({'schema': 1, 'profile': 'wine-test',
+           'addons': [{'id': 'example.sample-mod', 'dlls': ['t_assets.dll'], 'options': []}]},
+          open(os.path.join(root, 'settings.json'), 'w'))
+json.dump({'features': ['file']}, open(os.path.join(root, 'assets.json'), 'w'))
+EOF
     gl_level=; gl_rate=
     [[ $mode == gamelog_off ]] && gl_level=off
     [[ $mode == trigger ]] && gl_rate=0
-    SWOFTY_GAME_LOG=$gl_level SWOFTY_GAME_LOG_RATE=$gl_rate SWOFTY_TEST_REQUESTS=${req:+Z:${req//\//\\}} SWOFTY_TEST_ITEMS=$ITEMS \
+    SWOFTY_TEST_ASSETS=$([[ $mode == assets ]] && echo 1) SWOFTY_GAME_LOG=$gl_level SWOFTY_GAME_LOG_RATE=$gl_rate SWOFTY_TEST_REQUESTS=${req:+Z:${req//\//\\}} SWOFTY_TEST_ITEMS=$ITEMS \
         "${PIN[@]}" xvfb-run -a wine "$OUT/game/F1_25.exe" $mode || status=1
-    rm -f "$OUT/game/swofty/session.json" "$OUT/game/swofty/settings.json"
+    rm -rf "$OUT/game/swofty/session.json" "$OUT/game/swofty/settings.json" "$OUT/game/swofty/assets.json" \
+        "$OUT/game/swofty/addons/example.sample-mod"
     echo "---- $LOG ($mode)"
     grep -v '  section ' "$LOG"
     if [[ $mode == trigger ]]; then
@@ -84,10 +97,10 @@ EOF
         check "addons: legacy core folder still loads" 'addons: swofty[\]mods[\]core: 1 dll\(s\) \(legacy folder\)'
         check "addons: legacy plugin folder still loads" 'addons: swofty[\]mods: 2 dll\(s\) \(legacy folder\)'
         once "addons: a dll in both folders loads from addons only" 'addon t_drop\.dll: also in .*[\]swofty[\]mods, skipped'
-        check "addons: SwoftyAddonInit is called" 'addon t_chain_a\.dll: loaded at .*, calling SwoftyAddonInit \(API v3\)'
-        check "addons: SWOFTY_MOD exports SwoftyAddonInit" 'addon t_conflict_y\.dll: loaded at .*, calling SwoftyAddonInit \(API v3\)'
+        check "addons: SwoftyAddonInit is called" 'addon t_chain_a\.dll: loaded at .*, calling SwoftyAddonInit \(API v4\)'
+        check "addons: SWOFTY_MOD exports SwoftyAddonInit" 'addon t_conflict_y\.dll: loaded at .*, calling SwoftyAddonInit \(API v4\)'
         check "addons: a plugin exporting only SwoftyModInit loads" 'addon t_v1\.dll: loaded at .*, API v1 plugin, SwoftyModInit runs after the mixin commit'
-        check "addons: every dll in both folders loads" 'addons: done, 11 addon\(s\) loaded'
+        check "addons: every dll in both folders loads" 'addons: done, 12 addon\(s\) loaded'
         for re in 'scan \.xtls \[.*\] -> 1 hit at' 'registry global base\+0x[0-9a-f]+ \(= [0-9a-f]+ now\)' \
             'hook #1: list\(r14\)=0x[0-9a-f]+ r12=0x2 r15=0x1' 'built mod vtable .* from career vtable .* \(slot 4 populate .* slot 5 getAction' \
             'added button_3 \(items 1 -> 2\)' 'populate #1 .* vm=0*[1-9a-f]' "getAction #1 .* route 'mod_menu'"; do
@@ -121,6 +134,25 @@ EOF
         count "gamelog: off writes no game lines" 0 '\[game\] '
         ;;
     esac
+    if [[ $mode == assets ]]; then
+        api='\[assets\] api: example\.sample-mod \(t_assets\.dll\)'
+        check "assets: available follows the features" '\[t_assets\] available: group 1, erp 1, db 1, lang 1, file 1, sound 0'
+        once "assets: register_group during plugin init" "$api register_group asset_groups/t_assets/t\.assetgroup -> ok[[:space:]]*\$"
+        once "assets: put_resource during plugin init" "$api put_resource eaid://t_assets/t\.tif\.image -> ok[[:space:]]*\$"
+        once "assets: db_set by key is late at the window stage" "$api db_set entrants\.teams\.team\.t_assets = 1 -> late: the core loaded at the window stage"
+        once "assets: db_set by hash is late at the window stage" "$api db_set 0xf01d03c7a1b2c3d4 tag 0 = 1 -> late"
+        once "assets: lang_set during plugin init" "$api lang_set eng lng_t_assets -> ok[[:space:]]*\$"
+        once "assets: lang_table during plugin init" "$api lang_table eng lang/extra\.lng -> ok[[:space:]]*\$"
+        once "assets: overlay_file with the file feature on" "$api overlay_file t_assets/sponsor\.dds files/sponsor\.dds -> ok[[:space:]]*\$"
+        once "assets: a path outside the addon folder is invalid" "$api lang_table eng \.\./escape\.lng -> invalid"
+        once "assets: put_resource after plugin init is late" "$api put_resource eaid://t_assets/late\.tif\.image -> late: its point has passed"
+        once "assets: the group joins the declared list" '\[assets\]   asset_groups/t_assets/t\.assetgroup -> 2025_asset_groups/t_assets/t\.erp'
+        once "assets: the resource joins the declared list" '\[assets\] resources: 1 declared in swofty/assets\.json'
+        once "assets: the string joins a table" "\[assets\] lang: table for 'eng': 1 string\(s\) from assets\.json strings"
+        once "assets: the file joins the overlay" '\[assets\] overlay:   t_assets/sponsor\.dds -> /game/swofty/addons/example\.sample-mod/files/sponsor\.dds \(addon example\.sample-mod\)'
+        continue
+    fi
+    count "$mode: no SDK calls, no api lines" 0 '\[assets\] api:'
     if [[ $ITEMS && $req ]]; then
         once "items: owned_items summary" '\[items\] settings\.json: 1 mod item\(s\) to report as owned'
         once "items: key without 0x skipped" "\\[items\\] skipping owned_items entry key 'f01d03c7'"

@@ -36,6 +36,8 @@ pub struct SessionSettings {
     pub ui: Option<SessionUi>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub owned_items: Vec<OwnedItem>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub early_plugins: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -187,6 +189,13 @@ impl SessionSettings {
             recover: true,
             screens,
         });
+        let early_plugins = order
+            .iter()
+            .filter(|m| enabled.contains(&m.id.as_str()))
+            .flat_map(|m| &m.operations.native)
+            .filter(|n| n.early)
+            .map(|n| n.dll.rsplit('/').next().unwrap_or(&n.dll).to_owned())
+            .collect();
         let addons = order
             .into_iter()
             .map(|m| SessionAddon {
@@ -237,6 +246,7 @@ impl SessionSettings {
             maps: Vec::new(),
             ui,
             owned_items: Vec::new(),
+            early_plugins,
         };
         out.check_commands()?;
         Ok(out)
@@ -422,6 +432,34 @@ mod tests {
         )]);
         m.insert("a.grid".into(), manifest());
         m
+    }
+
+    #[test]
+    fn lists_the_early_plugins_of_enabled_addons() {
+        let mut installed = installed();
+        let early = AddonManifest::parse(
+            r#"{
+              "schema_version": 1, "id": "a.early", "name": "Early", "version": "1.0.0", "author": "a",
+              "compat": { "game": "f1_25" },
+              "operations": { "native": [
+                { "dll": "native/early.dll", "capabilities": ["assets"], "early": true },
+                { "dll": "native/late.dll", "capabilities": ["log"] }
+              ] }
+            }"#,
+        )
+        .unwrap();
+        installed.insert("a.early".into(), early);
+        let mut p = Profile::new("x");
+        let s = SessionSettings::build(&p, &installed, None).unwrap();
+        assert!(s.early_plugins.is_empty());
+        assert!(serde_json::to_value(&s).unwrap().get("early_plugins").is_none());
+        p.set_enabled("a.early", true).unwrap();
+        let s = SessionSettings::build(&p, &installed, None).unwrap();
+        assert_eq!(s.early_plugins, ["early.dll"]);
+        assert_eq!(
+            serde_json::to_value(&s).unwrap()["early_plugins"],
+            serde_json::json!(["early.dll"])
+        );
     }
 
     #[test]

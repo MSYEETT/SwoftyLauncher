@@ -17,6 +17,11 @@ void settings_attach(SwoftyApi *a, const std::wstring &dir);
 int settings_get(const char *id, uint32_t type, SwoftySettingValue *out);
 int settings_watch(const char *id, SwoftySettingFn fn, void *user);
 
+namespace runtime {
+const SwoftyAssets *assets_table();
+void ready();
+}
+
 namespace {
 
 static_assert(sizeof(SwoftyContext) == sizeof(safetyhook::Context64));
@@ -58,6 +63,16 @@ struct Group {
     std::vector<Handler> handlers;
 };
 
+struct Held {
+    uint32_t kind;
+    uintptr_t addr;
+    size_t span;
+};
+
+struct Mark {
+    size_t written, stubs, mids, inlines, sites;
+};
+
 constexpr size_t MAX_SITES = 64;
 
 SwoftyApi *api;
@@ -67,9 +82,12 @@ std::vector<Binding> bindings;
 std::unordered_map<std::string, size_t> binding_index;
 std::unordered_map<std::string, uintptr_t> scans;
 json::Value session;
-bool have_session, committed;
+bool have_session;
 std::vector<Addon> addons;
 Addon *current;
+size_t settled;
+std::vector<Held> held;
+Mark mark;
 
 std::vector<safetyhook::InlineHook> inline_hooks;
 std::vector<std::string> inline_names;
@@ -260,7 +278,7 @@ bool declared(const Addon &addon, const SwoftyMixin &m)
 
 int api_register(const SwoftyMixin *m, size_t n)
 {
-    if (!current || committed) {
+    if (!current) {
         api->log("[core] register_mixins outside SwoftyAddonInit; refused");
         return 0;
     }
@@ -360,10 +378,10 @@ void check_targets(size_t i)
     }
 }
 
-std::vector<Group> plan()
+std::vector<Group> plan(size_t from)
 {
     std::vector<Group> groups;
-    for (size_t i = 0; i < addons.size(); i++) {
+    for (size_t i = from; i < addons.size(); i++) {
         if (!addons[i].active)
             continue;
         for (auto &m : addons[i].mixins) {
@@ -430,6 +448,15 @@ bool drop_conflicts(const std::vector<Group> &groups, bool warn)
                 for (auto &h : z->handlers)
                     bad.push_back(h.addon);
         }
+        for (auto &h : held) {
+            bool data = g.kind == SWOFTY_MIXIN_VTABLE, hdata = h.kind == SWOFTY_MIXIN_VTABLE;
+            if (data != hdata || g.addr >= h.addr + h.span || h.addr >= g.addr + g.span)
+                continue;
+            api->log("[core] conflict: %s %s at 0x%llx overlaps a %s installed at the early stage: %s", kind_name(g.kind),
+                     target.c_str(), (unsigned long long)g.addr, kind_name(h.kind), owners(g).c_str());
+            for (auto &x : g.handlers)
+                bad.push_back(x.addon);
+        }
     }
     for (size_t i : bad)
         drop(i, "it conflicts with another addon (see the conflict line above)");
@@ -452,22 +479,23 @@ bool write_bytes(uintptr_t at, const void *data, size_t n)
 
 void uninstall_all()
 {
-    for (auto it = written.rbegin(); it != written.rend(); ++it) {
+    for (size_t i = written.size(); i-- > mark.written;) {
+        auto &w = written[i];
         DWORD old;
-        auto p = reinterpret_cast<void *>(it->first);
-        VirtualProtect(p, it->second.size(), PAGE_EXECUTE_READWRITE, &old);
-        memcpy(p, it->second.data(), it->second.size());
-        VirtualProtect(p, it->second.size(), old, &old);
-        FlushInstructionCache(GetCurrentProcess(), p, it->second.size());
+        auto p = reinterpret_cast<void *>(w.first);
+        VirtualProtect(p, w.second.size(), PAGE_EXECUTE_READWRITE, &old);
+        memcpy(p, w.second.data(), w.second.size());
+        VirtualProtect(p, w.second.size(), old, &old);
+        FlushInstructionCache(GetCurrentProcess(), p, w.second.size());
     }
-    written.clear();
-    stubs.clear();
-    mid_hooks.clear();
-    inline_hooks.clear();
-    inline_names.clear();
-    for (auto &c : site_chains)
-        c.clear();
-    sites_used = 0;
+    written.resize(mark.written);
+    stubs.erase(stubs.begin() + mark.stubs, stubs.end());
+    mid_hooks.erase(mid_hooks.begin() + mark.mids, mid_hooks.end());
+    inline_hooks.erase(inline_hooks.begin() + mark.inlines, inline_hooks.end());
+    inline_names.erase(inline_names.begin() + mark.inlines, inline_names.end());
+    for (size_t i = mark.sites; i < MAX_SITES; i++)
+        site_chains[i].clear();
+    sites_used = mark.sites;
 }
 
 void chain(const Group &g, void *last)
@@ -603,16 +631,13 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     a->fields = api_fields;
     a->setting = settings_get;
     a->watch_setting = settings_watch;
+    a->assets = runtime::assets_table();
     a->version = SWOFTY_API_VERSION;
     return 1;
 }
 
 extern "C" __declspec(dllexport) int SwoftyCoreInit(const wchar_t *name, SwoftyAddonInitFn init)
 {
-    if (committed) {
-        api->log("[core] addon %ls: arrived after the commit; not initialised", name);
-        return 0;
-    }
     addons.push_back({utf8(name), {}, true});
     current = &addons.back();
     int r = init(api);
@@ -624,19 +649,24 @@ extern "C" __declspec(dllexport) int SwoftyCoreInit(const wchar_t *name, SwoftyA
 
 extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
 {
-    committed = true;
-    for (size_t i = 0; i < addons.size(); i++)
+    size_t from = settled;
+    settled = addons.size();
+    for (size_t i = from; i < addons.size(); i++)
         if (addons[i].active)
             check_targets(i);
     std::vector<Group> groups;
     do
-        groups = plan();
+        groups = plan(from);
     while (drop_conflicts(groups, false) || !install_all(groups));
     drop_conflicts(groups, true);
     size_t active = 0, count[7] = {};
-    for (auto &g : groups)
+    for (auto &g : groups) {
         count[SWOFTY_MIXIN_KIND(g.kind)]++;
-    for (auto &m : addons) {
+        held.push_back({g.kind, g.addr, g.span});
+    }
+    mark = {written.size(), stubs.size(), mid_hooks.size(), inline_hooks.size(), sites_used};
+    for (size_t i = from; i < addons.size(); i++) {
+        auto &m = addons[i];
         if (!m.active)
             continue;
         active++;
@@ -644,9 +674,11 @@ extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
             if (SWOFTY_MIXIN_KIND(x.kind) == SWOFTY_MIXIN_ON_LOAD)
                 reinterpret_cast<void (*)()>(x.handler)();
     }
+    if (!from)
+        runtime::ready();
     api->log("[core] commit: %zu of %zu mixin addon(s) active; %zu wrap(s), %zu site(s), %zu vtable slot(s), %zu "
              "redirect(s), %zu patch(es)",
-             active, addons.size(), count[SWOFTY_MIXIN_WRAP], count[SWOFTY_MIXIN_SITE], count[SWOFTY_MIXIN_VTABLE],
+             active, addons.size() - from, count[SWOFTY_MIXIN_WRAP], count[SWOFTY_MIXIN_SITE], count[SWOFTY_MIXIN_VTABLE],
              count[SWOFTY_MIXIN_REDIRECT], count[SWOFTY_MIXIN_PATCH]);
     return (int)active;
 }

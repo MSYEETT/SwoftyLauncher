@@ -64,8 +64,10 @@ static int section_count, addons_loaded, addons_ready;
 static volatile LONG load_state, window_done;
 static DWORD attach_tick, load_thread;
 static HANDLE loaded_event;
-static int early_enabled, loaded_early;
+static int early_enabled, early_env, loaded_early;
 static char early_source[160] = "off";
+static wchar_t early_plugins[64][MAX_PATH];
+static int early_count;
 
 static void vlog(const char *fmt, va_list ap)
 {
@@ -213,8 +215,8 @@ static int scan(const char *section, const char *pattern, uintptr_t *out)
     return hits;
 }
 
-static SwoftyApi api = {1, slog, module_base, scan, NULL, NULL, NULL, NULL, NULL};
-static const SwoftyApi api_v1 = {1, slog, module_base, scan, NULL, NULL, NULL, NULL, NULL};
+static SwoftyApi api = {1, slog, module_base, scan, NULL, NULL, NULL, NULL, NULL, NULL};
+static const SwoftyApi api_v1 = {1, slog, module_base, scan, NULL, NULL, NULL, NULL, NULL, NULL};
 static SwoftyCoreInitFn core_init;
 static SwoftyCoreCommitFn core_commit;
 static SwoftyCoreStageFn core_stage;
@@ -226,6 +228,10 @@ static struct {
 static int deferred_count;
 
 static const wchar_t *const ROOTS[] = {L"addons", L"mods"};
+
+#define PICK_ALL 0
+#define PICK_EARLY 1
+#define PICK_REST 2
 
 typedef struct {
     int root;
@@ -321,7 +327,15 @@ static int list_dlls(int root, const wchar_t *sub, Dll *out, int n)
     return n;
 }
 
-static void load_dir(const wchar_t *sub, int core_dir)
+static int is_early(const wchar_t *name)
+{
+    for (int i = 0; i < early_count; i++)
+        if (!_wcsicmp(early_plugins[i], name))
+            return 1;
+    return 0;
+}
+
+static void load_dir(const wchar_t *sub, int core_dir, int pick)
 {
     Dll dlls[256];
     int n = 0;
@@ -335,7 +349,9 @@ static void load_dir(const wchar_t *sub, int core_dir)
         swprintf(dir, MAX_PATH * 2, L"%ls\\swofty\\%ls%ls%ls", game_dir, ROOTS[dlls[i].root], *sub ? L"\\" : L"", sub);
         if (i && !_wcsicmp(dlls[i].name, dlls[i - 1].name))
             slog("addon %ls: also in %ls, skipped", dlls[i].name, dir);
-        else
+        else if (pick == PICK_EARLY && !is_early(dlls[i].name))
+            slog("addon %ls: loads at the window stage", dlls[i].name);
+        else if (pick != PICK_REST || !is_early(dlls[i].name))
             load_addon(dir, dlls[i].name, core_dir);
     }
     for (int i = 0; i < n; i++)
@@ -442,6 +458,17 @@ static const Section *section_of(uintptr_t a)
     return NULL;
 }
 
+static void finish_batch(int first)
+{
+    if (core_commit)
+        slog("addons: mixin commit done, %d mixin addon(s) active", core_commit());
+    for (int i = first; i < deferred_count; i++) {
+        slog("addon %ls: calling %s (API v1)", deferred[i].name, deferred[i].symbol);
+        finish_init(deferred[i].name, deferred[i].symbol, deferred[i].init(&api_v1));
+    }
+    slog("addons: done, %d addon(s) loaded, %d initialised", addons_loaded, addons_ready);
+}
+
 static void load_addons_once(const char *why, LPCWSTR detail, int stage)
 {
     if (InterlockedCompareExchange(&load_state, 1, 0) != 0)
@@ -458,20 +485,22 @@ static void load_addons_once(const char *why, LPCWSTR detail, int stage)
              "overlay of files read before the window) missed their first calls");
     SetEnvironmentVariableW(L"SWOFTY_LOAD_STAGE", loaded_early ? L"early" : L"window");
     unhook_iat(loaded_early ? STAGE_EARLY : STAGE_LATE);
-    load_dir(L"core", 1);
-    load_dir(L"", 0);
-    if (core_commit)
-        slog("addons: mixin commit done, %d mixin addon(s) active", core_commit());
-    for (int i = 0; i < deferred_count; i++) {
-        slog("addon %ls: calling %s (API v1)", deferred[i].name, deferred[i].symbol);
-        finish_init(deferred[i].name, deferred[i].symbol, deferred[i].init(&api_v1));
-    }
-    slog("addons: done, %d addon(s) loaded, %d initialised", addons_loaded, addons_ready);
+    load_dir(L"core", 1, PICK_ALL);
+    load_dir(L"", 0, loaded_early ? PICK_EARLY : PICK_ALL);
+    finish_batch(0);
     if (!loaded_early)
         unhook_iat(0);
     InterlockedExchange(&load_state, 2);
     if (loaded_event)
         SetEvent(loaded_event);
+}
+
+static void load_rest(void)
+{
+    int first = deferred_count;
+    slog("addons: loading the addons without \"early\": true at the window stage");
+    load_dir(L"", 0, PICK_REST);
+    finish_batch(first);
 }
 
 static void wait_loaded(const char *who)
@@ -490,6 +519,8 @@ static void stage_window(const char *why)
         return;
     unhook_iat(0);
     slog("stage: window (%s), addons were loaded at the %s stage", why, loaded_early ? "early" : "window");
+    if (loaded_early)
+        load_rest();
     if (core_stage)
         core_stage(SWOFTY_STAGE_WINDOW);
 }
@@ -572,11 +603,40 @@ static int early_flag(void)
     return !strncmp(p, "true", 4) ? 1 : !strncmp(p, "false", 5) ? 0 : -1;
 }
 
+static void read_early_plugins(void)
+{
+    wchar_t path[MAX_PATH * 2];
+    swprintf(path, MAX_PATH * 2, L"%ls\\swofty\\settings.json", game_dir);
+    HANDLE f = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    if (f == INVALID_HANDLE_VALUE)
+        return;
+    static char buf[4 << 20];
+    DWORD got = 0;
+    ReadFile(f, buf, sizeof buf - 1, &got, NULL);
+    CloseHandle(f);
+    buf[got] = 0;
+    const char *p = strstr(buf, "\"early_plugins\"");
+    if (!p || !(p = strchr(p, '[')))
+        return;
+    for (p++; *p && *p != ']' && early_count < 64;) {
+        const char *q = strchr(p, '"'), *e = q ? strchr(q + 1, '"') : NULL;
+        const char *close = strchr(p, ']');
+        if (!e || (close && q > close))
+            break;
+        int n = MultiByteToWideChar(CP_UTF8, 0, q + 1, (int)(e - q - 1), early_plugins[early_count], MAX_PATH - 1);
+        early_plugins[early_count][n] = 0;
+        if (n)
+            slog("early stage: plugin %ls has \"early\": true", early_plugins[early_count++]);
+        p = e + 1;
+    }
+}
+
 static void read_early_flag(void)
 {
     char env[8] = {0};
     if (GetEnvironmentVariableA("SWOFTY_EARLY_STAGE", env, sizeof env) && env[0]) {
         early_enabled = env[0] == '1' || env[0] == 't' || env[0] == 'T';
+        early_env = 1;
         snprintf(early_source, sizeof early_source, "%s (SWOFTY_EARLY_STAGE=%s)", early_enabled ? "on" : "off", env);
         return;
     }
@@ -711,6 +771,11 @@ BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID reserved)
     attach_tick = GetTickCount();
     read_early_flag();
     slog("early stage: %s", early_source);
+    read_early_plugins();
+    if (early_count && !early_enabled && !early_env) {
+        early_enabled = 1;
+        slog("early stage: on for %d early plugin(s); SwoftyMod loads with them", early_count);
+    }
     if (early_enabled)
         loaded_event = CreateEventW(NULL, TRUE, FALSE, NULL);
     hook_iat();

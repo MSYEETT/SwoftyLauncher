@@ -635,6 +635,10 @@ int main(int argc, char **argv)
 
     test_settings(settings, chain);
     test_items(settings);
+    HMODULE ta = GetModuleHandleW(L"t_assets.dll");
+    void (*assets_late)(void) = ta ? (void (*)(void))(void *)GetProcAddress(ta, "t_assets_late") : NULL;
+    if (assets_late)
+        assets_late();
 
     if (argc > 1 && (!strcmp(argv[1], "trigger") || !strcmp(argv[1], "vm") || !strcmp(argv[1], "gamelog_off")))
         test_gamelog(strcmp(argv[1], "gamelog_off") != 0);

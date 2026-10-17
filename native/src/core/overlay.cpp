@@ -6,6 +6,8 @@
 #include <atomic>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <unordered_set>
 
 namespace {
 
@@ -46,6 +48,10 @@ std::vector<std::pair<uint64_t, Redirect *>> by_hash;
 std::map<std::string, Redirect *> lang_replace;
 std::vector<Table> tables;
 safetyhook::InlineHook h_resolve, h_lang;
+SRWLOCK redirect_lock = SRWLOCK_INIT;
+std::unordered_set<uint64_t> seen;
+std::mutex lang_lock;
+bool lang_loaded;
 AddTable_t *add_fn;
 void *memstream_vt;
 std::string swofty_rel;
@@ -280,6 +286,7 @@ Redirect *match(const char *rel)
         return nullptr;
     low[n] = 0;
     uint64_t h = runtime::fnv64(low, n);
+    seen.insert(h);
     auto it = std::lower_bound(by_hash.begin(), by_hash.end(), std::make_pair(h, static_cast<Redirect *>(nullptr)));
     for (; it != by_hash.end() && it->first == h; ++it)
         if (it->second->rel.size() == n && !memcmp(it->second->rel.data(), low, n))
@@ -301,7 +308,10 @@ void *resolve_hook(void *fs, void *after, const char *path, void *out, uint8_t w
             rel = !strncmp(path, "/game/", 6) ? path + 6 : nullptr;
         else if (fs && !memcmp(static_cast<const char *>(fs) + FS_CWD, "/game/", 7))
             rel = path;
-        if (Redirect *r = rel ? match(rel) : nullptr) {
+        AcquireSRWLockExclusive(&redirect_lock);
+        Redirect *r = rel ? match(rel) : nullptr;
+        ReleaseSRWLockExclusive(&redirect_lock);
+        if (r) {
             char buf[PATH_MAX_FS];
             int len = snprintf(buf, sizeof buf, "/game/%s", r->target.c_str());
             if (len > 0 && len < int(PATH_MAX_FS)) {
@@ -333,6 +343,8 @@ int32_t load_lang_hook(void *module, uint32_t lang, void *path)
     std::string code = code_of(p);
     swofty::log("[assets] lang: Loc_Load_LanguageFile(lang %u, \"%s\") returned %d on thread %lu", lang, p ? p : "?", r,
                 GetCurrentThreadId());
+    std::lock_guard<std::mutex> g(lang_lock);
+    lang_loaded = true;
     if (r != 0 || lang >= LOC_LANGS || !add_fn || !memstream_vt)
         return r;
     void *set = *reinterpret_cast<void **>(static_cast<uint8_t *>(module) + LOC_SETS + size_t(lang) * 0x10);
@@ -354,91 +366,112 @@ int32_t load_lang_hook(void *module, uint32_t lang, void *path)
     return r;
 }
 
-void read_lang(const json::Value &lang)
+void read_lang_entry(const std::string &code_raw, const json::Value &v)
 {
-    for (auto &[code_raw, v] : lang.o) {
-        std::string code = runtime::lower(code_raw);
-        uint32_t priority = v["priority"].type == json::Value::Num ? uint32_t(v["priority"].num()) : 0;
-        const json::Value &strings = v["strings"];
-        if (strings.type == json::Value::Obj && !strings.o.empty()) {
-            std::vector<std::pair<std::string, std::string>> kv;
-            std::string first_bad;
-            size_t bad = 0;
-            for (auto &[k, s] : strings.o)
-                if (s.type == json::Value::Str && !k.empty())
-                    kv.push_back({k, s.s});
-                else if (!bad++)
-                    first_bad = k;
-            if (bad)
-                swofty::log("[assets] lang: '%s': %zu entr(ies) in \"strings\" skipped: values must be JSON strings and keys "
-                            "non-empty (first: \"%s\")",
-                            code.c_str(), bad, first_bad.c_str());
-            if (kv.empty())
-                swofty::log("[assets] lang: '%s': no usable string in \"strings\"; no table added", code.c_str());
-            else {
-                Table t;
-                t.code = code;
-                t.source = "assets.json strings";
-                t.data = build_lngt(kv);
-                t.strings = kv.size();
-                t.first_key = kv.front().first;
-                t.first_value = kv.front().second;
-                t.priority = priority;
-                tables.push_back(std::move(t));
-            }
-        }
-        std::string file = v["table"].str();
-        if (!file.empty()) {
+    std::string code = runtime::lower(code_raw);
+    uint32_t priority = v["priority"].type == json::Value::Num ? uint32_t(v["priority"].num()) : 0;
+    const json::Value &strings = v["strings"];
+    if (strings.type == json::Value::Obj && !strings.o.empty()) {
+        std::vector<std::pair<std::string, std::string>> kv;
+        std::string first_bad;
+        size_t bad = 0;
+        for (auto &[k, s] : strings.o)
+            if (s.type == json::Value::Str && !k.empty())
+                kv.push_back({k, s.s});
+            else if (!bad++)
+                first_bad = k;
+        if (bad)
+            swofty::log("[assets] lang: '%s': %zu entr(ies) in \"strings\" skipped: values must be JSON strings and keys "
+                        "non-empty (first: \"%s\")",
+                        code.c_str(), bad, first_bad.c_str());
+        if (kv.empty())
+            swofty::log("[assets] lang: '%s': no usable string in \"strings\"; no table added", code.c_str());
+        else {
             Table t;
             t.code = code;
-            t.source = file;
+            t.source = "assets.json strings";
+            t.data = build_lngt(kv);
+            t.strings = kv.size();
+            t.first_key = kv.front().first;
+            t.first_value = kv.front().second;
             t.priority = priority;
-            t.data = runtime::read_file(runtime::under_swofty(file), size_t(64) << 20);
-            std::string why;
-            size_t n = 0;
-            if (t.data.empty())
-                swofty::log("[assets] lang: table %s skipped: missing or empty", file.c_str());
-            else if (!lngt_ok(t.data, n, why))
-                swofty::log("[assets] lang: table %s skipped: not a valid LNGT table (%s); the engine's parser checks only "
-                            "chunk tags, so a bad table would make every lookup in that language read out of bounds",
-                            file.c_str(), why.c_str());
-            else if (!n)
-                swofty::log("[assets] lang: table %s skipped: it holds no string", file.c_str());
-            else {
-                t.strings = n;
-                size_t p = 8 + 20;
-                uint32_t nb = get_be(t.data, 8 + 8);
-                p += 8 + size_t(nb) * 8 + 8 + 4;
-                uint32_t k0 = get_be(t.data, p), v0 = get_be(t.data, p + 4);
-                size_t sidb = p + size_t(n) * 8 + 8;
-                uint32_t sidb_size = get_be(t.data, sidb - 4);
-                size_t lngb = sidb + sidb_size + 8;
-                t.first_key = t.data.c_str() + sidb + k0;
-                t.first_value = t.data.c_str() + lngb + v0;
-                tables.push_back(std::move(t));
-            }
-        }
-        std::string repl = v["replace"].str();
-        if (!repl.empty() && runtime::enabled("file", ("lang replace " + repl).c_str())) {
-            std::string target = swofty_rel + runtime::lower(repl);
-            std::replace(target.begin(), target.end(), '\\', '/');
-            uint64_t size = 0;
-            if (code == "*" || !fs_safe(target) || !runtime::file_size(runtime::under_swofty(repl), &size)) {
-                swofty::log("[assets] lang: replace %s for '%s' skipped: %s", repl.c_str(), code.c_str(),
-                            code == "*" ? "a whole-file replacement needs one language code"
-                                        : "the file is missing or its path has a character the game rejects");
-                continue;
-            }
-            lang_replace[code] = add_redirect("localisation/*/language_" + code + ".lng", target, "lang replace " + repl);
-            swofty::log("[assets] lang: '%s' language file -> /game/%s (%llu bytes, whole file through the fs overlay)",
-                        code.c_str(), target.c_str(), (unsigned long long)size);
+            tables.push_back(std::move(t));
         }
     }
-    for (auto &t : tables)
+    std::string file = v["table"].str();
+    if (!file.empty()) {
+        Table t;
+        t.code = code;
+        t.source = file;
+        t.priority = priority;
+        t.data = runtime::read_file(runtime::under_swofty(file), size_t(64) << 20);
+        std::string why;
+        size_t n = 0;
+        if (t.data.empty())
+            swofty::log("[assets] lang: table %s skipped: missing or empty", file.c_str());
+        else if (!lngt_ok(t.data, n, why))
+            swofty::log("[assets] lang: table %s skipped: not a valid LNGT table (%s); the engine's parser checks only "
+                        "chunk tags, so a bad table would make every lookup in that language read out of bounds",
+                        file.c_str(), why.c_str());
+        else if (!n)
+            swofty::log("[assets] lang: table %s skipped: it holds no string", file.c_str());
+        else {
+            t.strings = n;
+            size_t p = 8 + 20;
+            uint32_t nb = get_be(t.data, 8 + 8);
+            p += 8 + size_t(nb) * 8 + 8 + 4;
+            uint32_t k0 = get_be(t.data, p), v0 = get_be(t.data, p + 4);
+            size_t sidb = p + size_t(n) * 8 + 8;
+            uint32_t sidb_size = get_be(t.data, sidb - 4);
+            size_t lngb = sidb + sidb_size + 8;
+            t.first_key = t.data.c_str() + sidb + k0;
+            t.first_value = t.data.c_str() + lngb + v0;
+            tables.push_back(std::move(t));
+        }
+    }
+    std::string repl = v["replace"].str();
+    if (!repl.empty() && runtime::enabled("file", ("lang replace " + repl).c_str())) {
+        std::string target = swofty_rel + runtime::lower(repl);
+        std::replace(target.begin(), target.end(), '\\', '/');
+        uint64_t size = 0;
+        if (code == "*" || !fs_safe(target) || !runtime::file_size(runtime::under_swofty(repl), &size)) {
+            swofty::log("[assets] lang: replace %s for '%s' skipped: %s", repl.c_str(), code.c_str(),
+                        code == "*" ? "a whole-file replacement needs one language code"
+                                    : "the file is missing or its path has a character the game rejects");
+            return;
+        }
+        lang_replace[code] = add_redirect("localisation/*/language_" + code + ".lng", target, "lang replace " + repl);
+        swofty::log("[assets] lang: '%s' language file -> /game/%s (%llu bytes, whole file through the fs overlay)",
+                    code.c_str(), target.c_str(), (unsigned long long)size);
+    }
+}
+
+void log_tables(size_t from)
+{
+    for (size_t i = from; i < tables.size(); i++) {
+        auto &t = tables[i];
         swofty::log("[assets] lang: table for '%s': %zu string(s) from %s, %zu bytes LNGT, priority %u (first \"%s\" = "
                     "\"%s\"); tables are searched highest priority first, newest first at equal priority",
                     t.code.c_str(), t.strings, t.source.c_str(), t.data.size(), t.priority, t.first_key.c_str(),
                     t.first_value.c_str());
+    }
+}
+
+void read_lang(const json::Value &lang)
+{
+    for (auto &[code, v] : lang.o)
+        read_lang_entry(code, v);
+    for (auto &v : runtime::sdk()["lang"].a)
+        read_lang_entry(v["language"].str(), v);
+    log_tables(0);
+}
+
+void add_file(const json::Value &v)
+{
+    Redirect *r = add_redirect(v["path"].str(), swofty_rel + v["file"].str(), "addon " + v["origin"].str());
+    by_hash.insert(std::upper_bound(by_hash.begin(), by_hash.end(), std::make_pair(runtime::fnv64(r->rel), r)),
+                   {runtime::fnv64(r->rel), r});
+    swofty::log("[assets] overlay:   %s -> /game/%s (%s)", r->rel.c_str(), r->target.c_str(), r->source.c_str());
 }
 
 template <class F> bool hook(safetyhook::InlineHook &h, uintptr_t at, F *fn, const char *what)
@@ -455,13 +488,38 @@ template <class F> bool hook(safetyhook::InlineHook &h, uintptr_t at, F *fn, con
 
 }
 
-SWOFTY_ON_LOAD
+int runtime::lang_add(const json::Value &entry)
+{
+    std::lock_guard<std::mutex> g(lang_lock);
+    if (!h_lang || lang_loaded)
+        return SWOFTY_ASSET_LATE;
+    size_t from = tables.size();
+    read_lang_entry(entry["language"].str(), entry);
+    log_tables(from);
+    return tables.size() > from ? SWOFTY_ASSET_OK : SWOFTY_ASSET_INVALID;
+}
+
+int runtime::file_add(const json::Value &entry)
+{
+    AcquireSRWLockExclusive(&redirect_lock);
+    bool late = !h_resolve || seen.count(runtime::fnv64(runtime::lower(entry["path"].str())));
+    if (!late)
+        add_file(entry);
+    ReleaseSRWLockExclusive(&redirect_lock);
+    return late ? SWOFTY_ASSET_LATE : SWOFTY_ASSET_OK;
+}
+
+namespace {
+
+void setup()
 {
     const json::Value &cfg = runtime::config();
-    const json::Value &ov = cfg["overlay"], &lang = cfg["lang"];
+    const json::Value &ov = cfg["overlay"], &lang_cfg = cfg["lang"];
+    const json::Value &sdk_lang = runtime::sdk()["lang"], &sdk_files = runtime::sdk()["overlay_files"];
     bool want_overlay = ((ov.type == json::Value::Bool && ov.b) || (ov.type == json::Value::Str && !ov.s.empty())) &&
                         runtime::enabled("file", "overlay");
-    if (!want_overlay && lang.type != json::Value::Obj)
+    bool want_lang = lang_cfg.type == json::Value::Obj || !sdk_lang.a.empty();
+    if (!want_overlay && !want_lang && sdk_files.a.empty())
         return;
     base = swofty::api->module_base();
     std::string root = runtime::lower(runtime::narrow(runtime::game_root())), sw = runtime::lower(runtime::narrow(runtime::swofty_root()));
@@ -485,12 +543,14 @@ SWOFTY_ON_LOAD
         for (size_t i = 0; i < redirects.size() && i < 32; i++)
             swofty::log("[assets] overlay:   %s -> /game/%s", redirects[i]->rel.c_str(), redirects[i]->target.c_str());
     }
-    if (lang.type == json::Value::Obj)
-        read_lang(lang);
+    if (want_lang)
+        read_lang(lang_cfg);
     for (auto &r : redirects)
         if (r->rel.find('*') == std::string::npos)
             by_hash.push_back({runtime::fnv64(r->rel), r.get()});
     std::sort(by_hash.begin(), by_hash.end());
+    for (auto &v : sdk_files.a)
+        add_file(v);
     if (runtime::same_build()) {
         auto b = reinterpret_cast<const char *>(base + LNG_FOLDER_BYTE);
         if (*b == 'a')
@@ -501,7 +561,7 @@ SWOFTY_ON_LOAD
         if (uintptr_t at = runtime::find(S_RESOLVE, "overlay"))
             hook(h_resolve, at, &resolve_hook, "overlay: Fs_Resolve_Mount");
     }
-    if (lang.type == json::Value::Obj) {
+    if (want_lang) {
         add_fn = reinterpret_cast<AddTable_t *>(runtime::find(S_ADD_TABLE, "lang"));
         memstream_vt = reinterpret_cast<void *>(runtime::find(S_MEMSTREAM, "lang"));
         if (uintptr_t at = runtime::find(S_LOAD_LNG, "lang"))
@@ -509,4 +569,11 @@ SWOFTY_ON_LOAD
         if (!tables.empty() && (!add_fn || !memstream_vt))
             swofty::log("[assets] lang: Loc_Add_LangTable or the memory stream vtable did not resolve; string tables off");
     }
+}
+
+}
+
+void runtime::overlay_setup()
+{
+    setup();
 }

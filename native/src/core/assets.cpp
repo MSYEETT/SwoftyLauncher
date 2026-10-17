@@ -1157,7 +1157,7 @@ void read_entries(const json::Value &list, const std::string &source)
 {
     for (auto &j : list.a) {
         Entry e;
-        e.source = source;
+        e.source = source.empty() ? "addon " + j["origin"].str() : source;
         if (j.type == json::Value::Str)
             e.group = norm(j.s);
         else {
@@ -1197,12 +1197,14 @@ bool load_config()
     const json::Value &doc = runtime::config();
     const json::Value &list = doc["asset_groups"];
     const json::Value &autos = doc["asset_groups_auto"];
-    if (list.type != json::Value::Arr && autos.type == json::Value::Null)
+    const json::Value &sdk = runtime::sdk()["asset_groups"];
+    if (list.type != json::Value::Arr && autos.type == json::Value::Null && sdk.a.empty())
         return false;
     if (!runtime::enabled("group", "asset_groups"))
         return false;
     config_source = runtime::config_source();
     read_entries(list, config_source);
+    read_entries(sdk, {});
     read_auto(autos);
     return true;
 }
@@ -1219,12 +1221,26 @@ std::string runtime::erp_name(uint64_t hash)
     return n.empty() ? hex(hash) : n;
 }
 
-SWOFTY_ON_LOAD
+int runtime::group_add(const json::Value &entry)
+{
+    std::lock_guard<std::mutex> g(patch_lock);
+    if (!h_parse || patched)
+        return SWOFTY_ASSET_LATE;
+    json::Value list;
+    list.a.push_back(entry);
+    read_entries(list, {});
+    return SWOFTY_ASSET_OK;
+}
+
+namespace {
+
+void setup()
 {
     base = swofty::api->module_base();
     game_root = module_dir(nullptr);
     bool groups = load_config();
-    bool resources = (!runtime::config()["resources"].a.empty() || !runtime::config()["resource_erps"].a.empty()) &&
+    bool resources = (!runtime::config()["resources"].a.empty() || !runtime::config()["resource_erps"].a.empty() ||
+                      !runtime::sdk()["resources"].a.empty()) &&
                      runtime::enabled("erp", nullptr);
     if (!groups && !resources)
         return;
@@ -1276,4 +1292,11 @@ SWOFTY_ON_LOAD
         apply(static_cast<uint8_t *>(now), "already parsed when addons loaded", runtime::resource_overlay(0));
     else if (!h_parse)
         swofty::log("[assets] neither the manifest nor its parser is reachable; registering nothing");
+}
+
+}
+
+void runtime::assets_setup()
+{
+    setup();
 }

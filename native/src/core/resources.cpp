@@ -293,9 +293,13 @@ Res parse_entry(const json::Value &j, size_t entry)
 void read_config()
 {
     std::unordered_map<std::string, size_t> at;
-    const json::Value &list = runtime::config()["resources"];
-    for (size_t i = 0; i < list.a.size(); i++) {
-        Res r = parse_entry(list.a[i], i);
+    std::vector<const json::Value *> list;
+    for (auto &j : runtime::config()["resources"].a)
+        list.push_back(&j);
+    for (auto &j : runtime::sdk()["resources"].a)
+        list.push_back(&j);
+    for (size_t i = 0; i < list.size(); i++) {
+        Res r = parse_entry(*list[i], i);
         if (r.has_type)
             want_types.insert(r.type);
         auto it = r.uri.empty() ? at.end() : at.find(r.uri);
@@ -943,7 +947,9 @@ void overlay_registered(const std::vector<uint64_t> &erp_hashes, size_t groups)
 
 }
 
-SWOFTY_ON_LOAD
+namespace {
+
+void setup()
 {
     read_config();
     if (declared.empty() && prebuilt.empty())
@@ -980,4 +986,11 @@ SWOFTY_ON_LOAD
     swofty::log("[assets] resources: first-reader trace on at base+0x%llx (site_Asset_ResMap_AfterFindOrCreate); it "
                 "watches the declared uri(s) once the overlay ERPs are registered",
                 (unsigned long long)(at - swofty::api->module_base()));
+}
+
+}
+
+void runtime::resources_setup()
+{
+    setup();
 }

@@ -219,6 +219,8 @@ pub struct NativePlugin {
     pub dll: String,
     #[serde(default)]
     pub capabilities: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub early: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -383,6 +385,29 @@ mod tests {
         assert!(m.compat.accepts_build(25_251_167));
         assert!(!m.compat.accepts_build(25_000_000));
         assert_eq!(m.options[0].binds, Binds::Db);
+    }
+
+    #[test]
+    fn parses_early_native_plugins_with_the_assets_capability() {
+        let with = |native: &str| {
+            GRID24.replace(
+                r#""operations": { "database": ["db/grid24.json"] }"#,
+                &format!(r#""operations": {{ "native": [{native}] }}"#),
+            )
+        };
+        let m = AddonManifest::parse(&with(
+            r#"{ "dll": "native/a.dll", "capabilities": ["assets"], "early": true }, { "dll": "native/b.dll" }"#,
+        ))
+        .unwrap();
+        let n = &m.operations.native;
+        assert!(n[0].early && !n[1].early);
+        assert_eq!(n[0].capabilities, ["assets"]);
+        let json = serde_json::to_value(&m.operations).unwrap();
+        assert_eq!(json["native"][0]["early"], true);
+        assert!(json["native"][1].get("early").is_none());
+        assert!(
+            AddonManifest::parse(&with(r#"{ "dll": "native/a.dll", "capabilities": ["assetz"] }"#)).is_err()
+        );
     }
 
     #[test]

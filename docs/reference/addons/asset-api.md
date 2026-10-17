@@ -151,7 +151,10 @@ swofty_core applies each kind at a fixed point of the boot:
 
 ### The early stage
 
-The game builds its database before the window opens. With `"early_stage": true`, the loader loads addons inside the game's `CreateMutexW("Codemasters F1 25")` call, before the database loads, and swofty_core runs its window-stage handlers at the window trigger. The build sets `early_stage` whenever there are database edits. `SWOFTY_EARLY_STAGE=1` or `0` overrides it.
+The game builds its database before the window opens. With `"early_stage": true`, the loader loads swofty_core inside the game's `CreateMutexW("Codemasters F1 25")` call, before the database loads, and swofty_core runs its window-stage handlers at the window trigger. The build sets `early_stage` whenever there are database edits. `SWOFTY_EARLY_STAGE=1` or `0` overrides it.
+
+- Plugins with `"early": true` on their `operations.native` entry load with swofty_core at the early stage. The build lists them in `early_plugins` in `swofty/settings.json`, and a list that is not empty turns the early stage on.
+- Every other plugin loads at the window trigger, with a second mixin commit. A window-stage mixin that overlaps one installed at the early stage drops its addon.
 
 Without the early stage the database is already built when addons load. Only in-place int, float and bool overwrites of existing keys apply then. New keys, strings and type changes are skipped and logged.
 
@@ -169,4 +172,66 @@ swofty_core logs every runtime asset step to `swofty/loader.log` with the `[asse
 
 ## Native plugins
 
-`SwoftyApi` version 3 has no asset calls. A native plugin's addon declares its asset ops in `swofty.json`, and they reach the game as above.
+`SwoftyApi` version 4 adds the `assets` table, and `swofty/assets.hpp` in the SDK wraps it. A plugin's calls feed the same lists in swofty_core as `swofty/assets.json`: entries from `assets.json` apply first, then calls in plugin load order. [From a native plugin](./runtime-assets#from-a-native-plugin) has an example.
+
+```cpp
+namespace swofty::assets {
+
+enum class Result { ok, late, unavailable, invalid };
+struct Fragment {
+    std::string_view file;
+    std::string_view fourcc = {};
+    uint32_t flags = 0;
+};
+
+bool available(std::string_view feature);
+Result register_group(std::string_view group, std::span<const std::string_view> erps,
+                      std::span<const std::string_view> deps = {}, std::string_view templ = {});
+Result put_resource(std::string_view uri, std::span<const Fragment> fragments,
+                    std::span<const std::string_view> erps = {});
+Result db_set(std::string_view key, std::string_view type, std::string_view value);
+Result db_set(uint64_t hash, uint8_t tag, std::span<const std::byte> value);
+Result lang_set(std::string_view language, std::string_view key, std::string_view text);
+Result lang_table(std::string_view language, std::string_view file);
+Result overlay_file(std::string_view game_path, std::string_view file);
+
+}
+```
+
+| Call | Kind | Same as | Accepted until |
+|---|---|---|---|
+| `register_group` | `group` | `group.register` | the engine parses its asset manifest |
+| `put_resource` | `erp` | a `resources` entry: the core builds the overlay archive | swofty_core writes the resource overlay, at the end of plugin init |
+| `db_set` | `db` | a `db_edits` entry | the game database loads. Only plugins with `"early": true` load before it |
+| `lang_set`, `lang_table` | `lang` | `lang.set`, `lang.table` | the game loads its first language file |
+| `overlay_file` | `file` | `file.put` | the game first reads that path |
+
+| Result | Meaning |
+|---|---|
+| `ok` | The entry joined the list |
+| `late` | The call came after its point |
+| `unavailable` | swofty_core lacks the feature, or it is experimental and `features` in `swofty/assets.json` does not turn it on, or the core offers an API version below 4 |
+| `invalid` | An argument is empty or malformed, or a file is missing |
+
+- Plugin init is every plugin's `SwoftyAddonInit` and `SWOFTY_ON_LOAD`. The core reads the lists after the last of them.
+- After plugin init, `register_group`, `db_set`, `lang_set`, `lang_table` and `overlay_file` join the core's lists directly while their point has not passed and that kind already has something to apply. Otherwise they return `late`. `put_resource` returns `late`.
+- At the window stage the game database is already built, so `db_set` returns `late`.
+- `available(feature)` takes `group`, `erp`, `db`, `lang` or `file`.
+- `db_set` takes a key path, or `0x` and 16 hex digits. `type` is a `db_edits` type name (`int`, `float`, `string`, `enum`, `id`, `bool`, ...) or a tag number. The raw form takes the hash and the tag, and its value bytes are the record's text.
+- `put_resource` fragments are files with `fourcc` and `flags` as in a `resources` entry; empty and 0 take the stock resource's. `erps` names the target archives, and without it the core finds the archives that hold the uri.
+- File arguments are paths relative to the addon's folder, `swofty/addons/<id>/`. A path that leaves the folder, or a file that is missing, returns `invalid`.
+- The core finds the addon from the calling DLL through `dlls` in `swofty/settings.json`. A DLL that no addon lists gets `invalid` for every call that takes a file.
+- Every call is logged with the addon id and the DLL:
+
+```text
+[assets] api: example.livery (livery.dll) register_group asset_groups/example_package/showcar.assetgroup -> ok
+[assets] api: example.livery (livery.dll) db_set entrants.teams.team.x = 1 -> late: the core loaded at the window stage, after the game database loaded
+```
+
+A plugin that calls the API declares the `assets` capability, and `"early": true` loads it at the early stage:
+
+```json [swofty.json]
+"operations": {
+  "native": [{ "dll": "native/livery.dll", "capabilities": ["log", "assets"], "early": true }]
+}
+```
