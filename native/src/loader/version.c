@@ -210,7 +210,7 @@ static int scan(const char *section, const char *pattern, uintptr_t *out)
     return hits;
 }
 
-static const SwoftyApi api = {SWOFTY_API_VERSION, slog, module_base, scan};
+static const SwoftyApi api = {SWOFTY_API_VERSION, slog, module_base, scan, NULL, NULL, NULL, NULL, NULL};
 
 static int wcmp(const void *a, const void *b)
 {

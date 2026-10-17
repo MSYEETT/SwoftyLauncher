@@ -7,7 +7,7 @@ if ! command -v zig >/dev/null; then
 fi
 export ZIG_GLOBAL_CACHE_DIR=$PWD/build/zig-cache ZIG_LOCAL_CACHE_DIR=$PWD/build/zig-cache
 mkdir -p build
-zig cc -target x86_64-windows-gnu -O2 -Wall -Wextra -Iinclude -shared -s \
-    -o sample_plugin.dll src/sample_plugin.c
+zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -Iinclude -shared -s \
+    -o sample_plugin.dll src/sample_plugin.cpp
 rm -f sample_plugin.lib
 echo "built $(pwd)/sample_plugin.dll"

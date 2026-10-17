@@ -6,12 +6,17 @@ A starting point for an F1 Mod Manager mod. Copy this directory, rename it, and 
 
 | Path | What it is |
 |---|---|
-| `swofty.json` | The manifest: id, version, compatibility, options and the list of operations |
-| `db/example.json` | Database operations on `gamedatabases.2025.bin`: a plain `set` and a `set` through a row selector |
+| `swofty.json` | The manifest: id, version, compatibility, settings and the list of operations |
+| `db/example.json` | Database operations on `gamedatabases.2025.bin`: a `set` whose value comes from the `penalty_seconds` setting, and a `set` through a row selector |
 | `ui/example.pkgpatch.json` | A `!pkg` patch that clones a tooltip entry in `tool_tips.uidb` |
-| `native/src/sample_plugin.c` | A native plugin that logs and runs one signature scan |
-| `native/include/swofty_api.h` | The plugin C ABI, version 1 |
-| `native/build.sh` | Builds `native/sample_plugin.dll` with `zig cc` for `x86_64-windows-gnu` |
+| `native/src/sample_plugin.cpp` | A native plugin that reads its settings, reacts when they change in game and runs one signature scan |
+| `native/include/swofty_api.h` | The plugin C ABI, version 3 |
+| `native/include/swofty/mixin.hpp` | The C++ layer: settings, mixins and `SWOFTY_MOD` |
+| `native/build.sh` | Builds `native/sample_plugin.dll` with `zig c++` for `x86_64-windows-gnu` |
+
+## Settings
+
+`options` in `swofty.json` declares four settings: a toggle, a choice and a slider read by the plugin (`binds: native`), and a slider written into the database (`binds: db`). The launcher shows them in the mod's row and the game shows them under **MOD SETTINGS**. The plugin declares the same ids with `SWOFTY_SETTING` and reacts to in-game changes with `SWOFTY_ON_CHANGE`.
 
 ## Build and install
 
