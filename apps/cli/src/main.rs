@@ -343,7 +343,7 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
 
 fn toggle(store: &Store, profile: &str, id: &str, on: bool) -> Result<()> {
     let mut p = store.profile(profile)?;
-    p.set_enabled(id, on)?;
+    store.registry()?.set_enabled(&mut p, id, on)?;
     store.save_profile(&p)?;
     println!(
         "{} {id} in profile {profile}",

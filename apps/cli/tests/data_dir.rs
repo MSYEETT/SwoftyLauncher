@@ -101,3 +101,17 @@ fn only_commands_migrate_the_data_dir() {
     assert_eq!(config["data_version"], 3);
     std::fs::remove_dir_all(&root).ok();
 }
+
+#[test]
+fn swoftymod_cannot_be_disabled() {
+    let root = old_data_dir("locked");
+    let out = swofty(&root, &["addons", "disable", "swofty.core"]);
+    assert!(!out.status.success());
+    assert!(
+        String::from_utf8_lossy(&out.stderr)
+            .contains("SwoftyMod (swofty.core) is always on and cannot be disabled")
+    );
+    let profile = std::fs::read_to_string(root.join("profiles/default.json")).unwrap();
+    assert!(!profile.contains("\"enabled\": false"));
+    std::fs::remove_dir_all(&root).ok();
+}

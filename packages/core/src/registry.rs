@@ -88,6 +88,16 @@ impl Registry {
         self.entries.iter().find(|e| e.id() == id)
     }
 
+    pub fn set_enabled(&self, p: &mut Profile, id: &str, on: bool) -> Result<()> {
+        if let Some(e) = self.get(id).filter(|e| e.locked && !on && !p.is_vanilla()) {
+            return Err(Error::Other(format!(
+                "{} ({id}) is always on and cannot be disabled",
+                e.addon.manifest().name
+            )));
+        }
+        p.set_enabled(id, on)
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &Entry> {
         self.entries.iter()
     }
@@ -298,6 +308,25 @@ mod tests {
         assert_eq!(refused, ["t.b: the command mods is taken"]);
         let (_, refused) = reg.commands(&["mods"]);
         assert_eq!(refused.len(), 2);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn locked_entries_stay_on() {
+        let root = tmp("locked");
+        let locked = Builtin {
+            locked: true,
+            ..fake("t.a", "a", true)
+        };
+        let store = Store::new(&root).with_builtins(vec![locked, fake("t.b", "b", true)]);
+        let reg = Registry::load(&store).unwrap();
+        let mut p = store.profile("default").unwrap();
+        let e = reg.set_enabled(&mut p, "t.a", false).unwrap_err();
+        assert_eq!(e.to_string(), "t.a (t.a) is always on and cannot be disabled");
+        assert!(reg.set_enabled(&mut p, CORE_ID, false).is_err());
+        reg.set_enabled(&mut p, "t.a", true).unwrap();
+        reg.set_enabled(&mut p, "t.b", false).unwrap();
+        assert_eq!(p.enabled().collect::<Vec<_>>(), [CORE_ID, "t.a"]);
         std::fs::remove_dir_all(&root).ok();
     }
 
