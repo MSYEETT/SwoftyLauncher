@@ -7,6 +7,7 @@ pub mod install;
 pub mod journal;
 pub mod manifest;
 pub mod map;
+pub mod offline;
 pub mod ops;
 pub mod paths;
 pub mod process;
