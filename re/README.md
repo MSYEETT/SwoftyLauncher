@@ -71,6 +71,7 @@ A local Ghidra project cannot be opened twice: a second `analyzeHeadless` on the
   - `research/grid24-cap.md` (the participant pipeline and the `_instancecount_` cap);
   - `research/ui.md` §5 (the djb2 command dispatch);
   - the exe agent's decompiles and `db_key_immediates.txt`.
+- **Bulk names:** 321 functions at L1 named from pretty-function strings: 243 `game::` in the `game` lane and 78 `neon::` in `core`, with 461 string anchors. The exe has no `ego::` strings. The rules are in `db/subsystems/game.md`.
 - **L3 items** rest on `traces/T000/run1/loader.log`, the first real-game run of the loader and core mod. It covers the home-menu MidHook site, the Career adder and vtable, base populate, `TileList.items`, and `g_Vm_Registry`.
 - **Tests:**
   - T000: run, retroactive record.

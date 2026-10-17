@@ -3,6 +3,7 @@ assets	Asset	-	open	eaid:// resolution, asset groups, world/WEP paths, textures
 core	Ne	-	open	neon engine basics: NeStr, allocators, formatting, feature flags
 fe_home	FeHome	-	open	front-end home screen: FEHomeViewModel, home tile adders, item classes, command dispatch
 fe_tiles	FeTile	-	open	generic tile-menu builder, Tile/Item base classes, item vector
+game	Game	-	open	game:: functions named in bulk from pretty-function strings, not yet sorted into a feature lane
 gamedb	Gdb	-	open	GVDB game value database: load, key lookup, table cursors, row counts
 protection	Prot	-	open	Denuvo stubs and .data1 bodies, signature/cert checks, VirtualProtect callers
 session	Sess	-	open	entrants, setup modes, participant selection, weekend/session start, garages (grid size work)

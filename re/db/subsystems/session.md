@@ -26,3 +26,4 @@ Owner: see `subsystems.tsv`. Write-up: research/grid24-cap.md §2–3. Goal: 24-
 
 ## Inbox
 - 2026-10-17 12:09 re-infra: 0x141489440 binds session.cars; worth a look for the 26-car UI audit
+- 2026-10-17 13:04 bulk-names: Sess_Unk_1427b8db0 is the only function referencing the pretty-function string of game::CustomDecalModelComponent::activate (anchor s_CustomDecalModelComponent_Activate); probably not a session function.

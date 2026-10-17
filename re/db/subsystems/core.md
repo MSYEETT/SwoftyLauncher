@@ -12,3 +12,4 @@ Owner: see `subsystems.tsv`. Write-up: research/exe.md §1.
 - NeStr release path (for mods that should not leak refs).
 
 ## Inbox
+- 2026-10-17 13:04 bulk-names: Bulk naming pass 2026-10-17: 78 neon:: functions added at L1 as Ne_<Class>_<Method> (class Ne prefix dropped), named from pretty-function strings; cxx= in notes holds the full name. See subsystems/game.md for the rules used.
