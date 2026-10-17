@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::manifest::{Binds, ModManifest, ModOption, OptionType};
+use crate::manifest::{Binds, ModManifest, ModOption, OptionType, ScreenOp};
 use crate::map::TrackPackage;
 use crate::profile::Profile;
 use crate::{Error, Result};
@@ -11,6 +11,7 @@ use crate::{Error, Result};
 pub const SCHEMA: u32 = 1;
 pub const SETTINGS_FILE: &str = "swofty/settings.json";
 pub const RESTART_COMMAND: &str = "swofty_restart";
+pub const UI_DIR: &str = "swofty/ui";
 pub const MAX_ID_LEN: usize = 40;
 pub const MAX_SLIDER_STEPS: usize = 100;
 pub const MAX_CHOICES: usize = 16;
@@ -249,6 +250,49 @@ pub struct SessionSettings {
     pub mods: Vec<SessionMod>,
     #[serde(default)]
     pub maps: Vec<SessionMap>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ui: Option<SessionUi>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionUi {
+    pub register: bool,
+    pub strict: bool,
+    pub recover: bool,
+    pub screens: Vec<SessionScreen>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionScreen {
+    pub name: String,
+    pub file: String,
+    pub flow: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub anchor: Option<String>,
+    #[serde(default)]
+    pub view_model: bool,
+}
+
+pub fn screen_file(name: &str) -> String {
+    format!("ui/{name}.ui")
+}
+
+pub fn screens<'a>(
+    order: impl IntoIterator<Item = &'a ModManifest>,
+) -> Result<Vec<(&'a ModManifest, &'a ScreenOp)>> {
+    let mut out: Vec<(&ModManifest, &ScreenOp)> = Vec::new();
+    for m in order {
+        for s in &m.operations.screens {
+            if let Some((other, _)) = out.iter().find(|(_, o)| o.name == s.name) {
+                return Err(Error::Other(format!(
+                    "screen {} is declared by {} and {}",
+                    s.name, other.id, m.id
+                )));
+            }
+            out.push((m, s));
+        }
+    }
+    Ok(out)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -322,6 +366,23 @@ impl SessionSettings {
         rest.sort_by_key(|m| m.name.to_lowercase());
         order.extend(rest);
         let enabled: Vec<&str> = profile.enabled().collect();
+        let screens: Vec<SessionScreen> =
+            screens(order.iter().copied().filter(|m| enabled.contains(&m.id.as_str())))?
+                .into_iter()
+                .map(|(_, s)| SessionScreen {
+                    name: s.name.clone(),
+                    file: screen_file(&s.name),
+                    flow: s.flow.clone(),
+                    anchor: s.anchor.clone(),
+                    view_model: s.view_model,
+                })
+                .collect();
+        let ui = (!screens.is_empty()).then_some(SessionUi {
+            register: true,
+            strict: false,
+            recover: true,
+            screens,
+        });
         let mods = order
             .into_iter()
             .map(|m| SessionMod {
@@ -387,6 +448,7 @@ impl SessionSettings {
             restart_command: RESTART_COMMAND.into(),
             mods,
             maps,
+            ui,
         };
         out.check_commands()?;
         Ok(out)
@@ -682,6 +744,55 @@ mod tests {
         let json = serde_json::to_value(&s).unwrap();
         assert_eq!(json["mods"][1]["options"][0]["type"], "choice");
         assert!(SessionSettings::build(&Profile::vanilla(), &installed(), &[], None).is_err());
+    }
+
+    fn screens_manifest(id: &str, screens: &str) -> ModManifest {
+        ModManifest::parse(&format!(
+            r#"{{ "schema_version": 1, "id": "{id}", "name": "S", "version": "1.0.0", "author": "a",
+                 "compat": {{ "game": "f1_25" }}, "operations": {{ "screens": [{screens}] }} }}"#
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn session_file_lists_enabled_screens_and_omits_an_empty_ui_block() {
+        let mut mods = installed();
+        mods.insert(
+            "a.pages".into(),
+            screens_manifest(
+                "a.pages",
+                r#"{ "name": "swofty_mod_0", "file": "ui/page0.ui", "flow": "flow_options", "anchor": "settings_container", "view_model": true },
+                   { "name": "swofty_mod_1", "file": "ui/page1.ui", "flow": "flow_options" }"#,
+            ),
+        );
+        mods.insert(
+            "b.off".into(),
+            screens_manifest("b.off", r#"{ "name": "off_page", "file": "ui/off.ui" }"#),
+        );
+        let mut p = Profile::new("x");
+        let none = SessionSettings::build(&p, &mods, &[], None).unwrap();
+        assert_eq!(none.ui, None);
+        assert!(serde_json::to_value(&none).unwrap().get("ui").is_none());
+        p.set_enabled("a.pages", true).unwrap();
+        let s = SessionSettings::build(&p, &mods, &[], None).unwrap();
+        let ui = s.ui.as_ref().unwrap();
+        assert!(ui.register && !ui.strict && ui.recover);
+        let names: Vec<&str> = ui.screens.iter().map(|s| s.name.as_str()).collect();
+        assert_eq!(names, ["swofty_mod_0", "swofty_mod_1"]);
+        assert_eq!(ui.screens[0].file, "ui/swofty_mod_0.ui");
+        assert_eq!(ui.screens[0].anchor.as_deref(), Some("settings_container"));
+        assert!(ui.screens[0].view_model && !ui.screens[1].view_model);
+        let json = serde_json::to_value(&s).unwrap();
+        assert_eq!(json["ui"]["screens"][1]["flow"], "flow_options");
+        assert!(json["ui"]["screens"][1].get("anchor").is_none());
+        let back: SessionSettings = serde_json::from_value(json).unwrap();
+        assert_eq!(back, s);
+        mods.insert(
+            "c.clash".into(),
+            screens_manifest("c.clash", r#"{ "name": "swofty_mod_0", "file": "ui/x.ui" }"#),
+        );
+        p.set_enabled("c.clash", true).unwrap();
+        assert!(SessionSettings::build(&p, &mods, &[], None).is_err());
     }
 
     #[test]
