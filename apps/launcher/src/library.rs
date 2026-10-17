@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use gpui_kit::{Image, ImageFormat};
 use swofty_core::launcher::Summary;
 use swofty_core::manifest::{AddonManifest, Kind};
 use swofty_core::profile::{Profile, VANILLA};
@@ -9,6 +12,35 @@ pub struct AddonItem {
     pub manifest: AddonManifest,
     pub enabled: bool,
     pub locked: bool,
+    pub icon: Option<AddonIcon>,
+}
+
+#[derive(Clone)]
+pub enum AddonIcon {
+    Glyph(Arc<[u8]>),
+    Image(Arc<Image>),
+}
+
+fn addon_icon(store: &Store, registry: &Registry, m: &AddonManifest) -> Option<AddonIcon> {
+    let (bytes, format) = match registry.get(&m.id).and_then(|e| e.addon.icon()) {
+        Some(bytes) if bytes.starts_with(b"\x89PNG") => (bytes.to_vec(), ImageFormat::Png),
+        Some(bytes) => (bytes.to_vec(), ImageFormat::Svg),
+        None => {
+            let path = store.addons_dir().join(&m.id).join(m.icon.as_ref()?);
+            let format = match path.extension()?.to_str()?.to_ascii_lowercase().as_str() {
+                "svg" => ImageFormat::Svg,
+                "png" => ImageFormat::Png,
+                "jpg" | "jpeg" => ImageFormat::Jpeg,
+                "webp" => ImageFormat::Webp,
+                _ => return None,
+            };
+            (std::fs::read(path).ok()?, format)
+        }
+    };
+    Some(match format {
+        ImageFormat::Svg => AddonIcon::Glyph(bytes.into()),
+        _ => AddonIcon::Image(Arc::new(Image::from_bytes(format, bytes))),
+    })
 }
 
 pub struct SectionItem {
@@ -67,10 +99,14 @@ impl Library {
             .map(|m| AddonItem {
                 enabled: enabled.contains(&m.id.as_str()),
                 locked: registry.get(&m.id).is_some_and(|e| e.locked),
+                icon: addon_icon(store, &registry, m),
                 manifest: m.clone(),
             })
             .collect();
-        addons.sort_by_key(|m| (!m.manifest.is_builtin(), m.manifest.name.to_lowercase()));
+        addons.sort_by_key(|m| {
+            let declared = registry.get(&m.manifest.id).is_none_or(|e| e.declared);
+            (!m.manifest.is_builtin(), declared, m.manifest.name.to_lowercase())
+        });
         let profiles = store
             .profile_names()
             .unwrap_or_default()
@@ -90,7 +126,7 @@ impl Library {
             .collect();
         let sections = registry
             .iter()
-            .filter(|e| !e.declared)
+            .filter(|e| !e.declared && enabled.contains(&e.id()))
             .flat_map(|e| {
                 e.addon.sections().into_iter().map(|spec| SectionItem {
                     addon: e.id().to_owned(),

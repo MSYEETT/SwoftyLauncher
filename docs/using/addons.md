@@ -34,6 +34,6 @@ Some addons add their own page to the sidebar, under the divider after **Addons*
 | Addon | Id | What it does |
 |---|---|---|
 | [SwoftyMod](/using/swofty-mod) | `swofty.core` | Loads addons in game and adds **ADDON SETTINGS**. Always on in modded profiles. |
-| Team Simplified | `teamsimplified.mods` | The [Mods](/using/mods) page and `swofty mods`. On by default, and can be turned off per profile. |
+| Team Simplified | `teamsimplified.mods` | The [Mods](/using/mods) page and `swofty mods`. On by default. Turning it off in a profile hides the Mods page and leaves the mods out of that profile. |
 
 Earlier versions stored addons in `$DATA/mods/`. The launcher and `swofty` move them to `$DATA/addons/` when they start.

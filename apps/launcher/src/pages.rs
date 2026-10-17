@@ -12,7 +12,7 @@ use gpui_kit::*;
 use swofty_core::manifest::{AddonManifest, AddonOption, Binds, OptionType};
 use swofty_core::profile::{Profile, VANILLA};
 
-use crate::library::{AddonItem, ProfileItem, kind_label, plural};
+use crate::library::{AddonIcon, AddonItem, ProfileItem, kind_label, plural};
 use crate::shell::{Page, Prompt, Shell, SliderSlot};
 use crate::theme::Palette;
 
@@ -63,6 +63,21 @@ fn logo(size: f32) -> Div {
         .h(px(size))
         .flex_shrink_0()
         .child(img(LOGO.clone()).size_full())
+}
+
+pub(crate) fn addon_icon(icon: &AddonIcon, size: f32, p: Palette) -> Div {
+    match icon {
+        AddonIcon::Glyph(data) => {
+            tile(size, p).child(svg().data(data).size(px(size * 0.5)).text_color(p.text_muted))
+        }
+        AddonIcon::Image(image) => div()
+            .w(px(size))
+            .h(px(size))
+            .flex_shrink_0()
+            .rounded(px(size * 0.22))
+            .overflow_hidden()
+            .child(img(image.clone()).size_full()),
+    }
 }
 
 pub(crate) fn monogram(text: &str, size: f32, p: Palette) -> Div {
@@ -420,10 +435,10 @@ impl Shell {
         };
         let head = self
             .row_head(format!("addon-{id}"), open, p)
-            .child(if builtin {
-                logo(32.)
-            } else {
-                badge(IconName::Package, 32., p)
+            .child(match &m.icon {
+                _ if builtin => logo(32.),
+                Some(icon) => addon_icon(icon, 32., p),
+                None => badge(IconName::Package, 32., p),
             })
             .child(
                 v_flex()

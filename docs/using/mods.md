@@ -28,7 +28,6 @@ The list is the load order of the active profile. Where two mods change the same
 
 The page's subtitle shows the library size, how many mods are on in the profile, and the rule. A notice appears when:
 
-- Team Simplified is off in this profile. **Turn on** turns it on.
 - The vanilla profile is active. It plays without addons or mods.
 - Some mods are not compared with the installed game build yet, such as after a game update. **Compare** compares them.
 

@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use gpui_kit::assets::IconName;
@@ -8,6 +9,7 @@ use gpui_kit::component::button::Button;
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::slider::SliderState;
+use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{Icon, TitleBar, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
@@ -18,8 +20,8 @@ use swofty_core::store::Store;
 use swofty_core::view::View;
 
 use crate::game::{self, Install, Launch, Probe};
-use crate::library::Library;
-use crate::pages::{avatar, label};
+use crate::library::{AddonIcon, Library};
+use crate::pages::{addon_icon, avatar, label};
 use crate::theme::{Palette, palette};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -78,6 +80,7 @@ pub struct Shell {
     pub(crate) open_row: Option<String>,
     pub(crate) progress: Option<(f32, String)>,
     pub(crate) dropping: bool,
+    pub(crate) sidebar_list: bool,
     _console_closed: Subscription,
     _poll: Task<()>,
 }
@@ -226,6 +229,7 @@ impl Shell {
             Ok(notes) => notes.iter().for_each(|n| eprintln!("swofty-launcher: {n}")),
             Err(e) => library.error = Some(e.to_string()),
         }
+        let sidebar_list = store.config().sidebar_list;
         let mut shell = Self {
             library,
             store,
@@ -248,6 +252,7 @@ impl Shell {
             open_row: None,
             progress: None,
             dropping: false,
+            sidebar_list,
             _console_closed: console_closed,
             _poll: poll,
         };
@@ -575,39 +580,78 @@ impl Shell {
         &self,
         page: Page,
         title: SharedString,
-        icon: IconName,
+        art: TileArt,
         count: Option<usize>,
         p: Palette,
         cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    ) -> AnyElement {
         let active = self.page == page;
-        h_flex()
+        if self.sidebar_list {
+            return h_flex()
+                .id(SharedString::from(format!("nav-{title}")))
+                .h(px(46.))
+                .px(px(8.))
+                .gap(px(10.))
+                .rounded(px(8.))
+                .border_1()
+                .cursor_pointer()
+                .text_size(px(13.))
+                .font_weight(FontWeight::MEDIUM)
+                .map(|d| {
+                    if active {
+                        d.bg(p.selected).border_color(p.accent).text_color(p.text)
+                    } else {
+                        d.bg(p.surface)
+                            .border_color(p.border_variant)
+                            .text_color(p.text_muted)
+                            .hover(move |s| s.bg(p.hover).border_color(p.border).text_color(p.text))
+                    }
+                })
+                .child(tile_art(art, 30., active, p))
+                .child(div().flex_1().truncate().child(title))
+                .children(count.map(|n| {
+                    div()
+                        .text_size(px(12.))
+                        .text_color(p.text_placeholder)
+                        .child(n.to_string())
+                }))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.page = page;
+                    cx.notify();
+                }))
+                .into_any_element();
+        }
+        v_flex()
             .id(SharedString::from(format!("nav-{title}")))
-            .h(px(30.))
-            .px(px(8.))
-            .gap(px(9.))
-            .rounded(px(5.))
+            .relative()
+            .w(px(95.))
+            .h(px(92.))
+            .items_center()
+            .justify_center()
+            .gap(px(8.))
+            .rounded(px(10.))
+            .border_1()
             .cursor_pointer()
             .text_size(px(13.))
+            .font_weight(FontWeight::MEDIUM)
             .map(|d| {
                 if active {
-                    d.bg(p.selected)
-                        .text_color(p.text)
-                        .font_weight(FontWeight::MEDIUM)
+                    d.bg(p.selected).border_color(p.accent).text_color(p.text)
                 } else {
-                    d.text_color(p.text_muted)
-                        .hover(move |s| s.bg(p.hover).text_color(p.text))
+                    d.bg(p.surface)
+                        .border_color(p.border_variant)
+                        .text_color(p.text_muted)
+                        .hover(move |s| s.bg(p.hover).border_color(p.border).text_color(p.text))
                 }
             })
-            .child(Icon::new(icon).size(px(15.)).text_color(if active {
-                p.accent
-            } else {
-                p.text_placeholder
-            }))
-            .child(div().flex_1().truncate().child(title))
+            .child(tile_art(art, 40., active, p))
+            .child(div().max_w_full().px(px(6.)).truncate().child(title))
             .children(count.map(|n| {
                 div()
-                    .text_size(px(12.))
+                    .absolute()
+                    .top(px(6.))
+                    .right(px(8.))
+                    .text_size(px(11.))
                     .text_color(p.text_placeholder)
                     .child(n.to_string())
             }))
@@ -615,6 +659,7 @@ impl Shell {
                 this.page = page;
                 cx.notify();
             }))
+            .into_any_element()
     }
 
     fn active_profile_card(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
@@ -648,68 +693,166 @@ impl Shell {
             .on_click(cx.listener(|this, _, _, cx| this.go(Page::Profiles, cx)))
     }
 
-    fn core_nav(&self, page: Page, count: usize, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        self.nav_item(page, page.label().into(), page.icon(), Some(count), p, cx)
+    fn core_nav(&self, page: Page, count: usize, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+        self.nav_item(
+            page,
+            page.label().into(),
+            TileArt::Icon(page.icon()),
+            Some(count),
+            p,
+            cx,
+        )
     }
 
     fn sidebar(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let root = self.store.root.clone();
-        let sections: Vec<AnyElement> = self
-            .library
-            .sections
-            .iter()
-            .enumerate()
-            .map(|(i, s)| {
-                self.nav_item(
-                    Page::Section(i),
-                    s.spec.title.clone().into(),
-                    crate::sections::icon(s.spec.icon),
-                    self.section_count(i),
-                    p,
-                    cx,
-                )
-                .into_any_element()
-            })
-            .collect();
+        let list = self.sidebar_list;
+        let wrap = move |items: Vec<AnyElement>| -> AnyElement {
+            if list {
+                v_flex().gap(px(6.)).children(items).into_any_element()
+            } else {
+                h_flex()
+                    .flex_wrap()
+                    .gap(px(8.))
+                    .children(items)
+                    .into_any_element()
+            }
+        };
+        let mut groups: Vec<(String, Vec<AnyElement>)> = Vec::new();
+        for (i, s) in self.library.sections.iter().enumerate() {
+            let addon = self.library.addons.iter().find(|a| a.manifest.id == s.addon);
+            if i == 0 || self.library.sections[i - 1].addon != s.addon {
+                let name = addon.map_or_else(|| s.addon.clone(), |a| a.manifest.name.clone());
+                groups.push((name, Vec::new()));
+            }
+            let tile = self.nav_item(
+                Page::Section(i),
+                s.spec.title.clone().into(),
+                match addon.and_then(|a| a.icon.clone()) {
+                    Some(AddonIcon::Glyph(data)) => TileArt::Glyph(data),
+                    Some(AddonIcon::Image(image)) => TileArt::Image(image),
+                    None => TileArt::Icon(crate::sections::icon(s.spec.icon)),
+                },
+                self.section_count(i),
+                p,
+                cx,
+            );
+            if let Some((_, items)) = groups.last_mut() {
+                items.push(tile);
+            }
+        }
         v_flex()
             .w(px(220.))
             .h_full()
             .flex_shrink_0()
             .px(px(10.))
             .pb(px(10.))
-            .gap(px(2.))
+            .gap(px(8.))
             .bg(p.chrome)
             .border_r_1()
             .border_color(p.border_variant)
             .pt(px(12.))
-            .child(self.core_nav(Page::Profiles, self.library.profiles.len(), p, cx))
-            .child(self.core_nav(Page::Addons, self.library.addons.len(), p, cx))
-            .child(div().mx(px(8.)).my(px(6.)).h(px(1.)).bg(p.border_variant))
-            .children(sections)
+            .child(wrap(vec![
+                self.core_nav(Page::Profiles, self.library.profiles.len(), p, cx),
+                self.core_nav(Page::Addons, self.library.addons.len(), p, cx),
+            ]))
+            .children(groups.into_iter().map(|(name, items)| {
+                v_flex()
+                    .gap(px(6.))
+                    .pt(px(6.))
+                    .child(label(name.to_uppercase(), p).px(px(4.)))
+                    .child(wrap(items))
+            }))
             .child(div().flex_1())
             .child(self.active_profile_card(p, cx))
             .child(
                 h_flex()
-                    .id("data-dir")
                     .mt(px(4.))
-                    .px(px(8.))
-                    .py(px(6.))
-                    .gap(px(7.))
-                    .rounded(px(5.))
-                    .cursor_pointer()
-                    .text_size(px(12.))
-                    .text_color(p.text_placeholder)
-                    .hover(move |s| s.bg(p.hover).text_color(p.text_muted))
-                    .child(Icon::new(IconName::FolderOpen).size(px(13.)))
+                    .gap(px(4.))
                     .child(
-                        div()
+                        h_flex()
+                            .id("data-dir")
                             .flex_1()
                             .min_w_0()
-                            .truncate()
-                            .child(self.store.root.display().to_string()),
+                            .px(px(8.))
+                            .py(px(6.))
+                            .gap(px(7.))
+                            .rounded(px(5.))
+                            .cursor_pointer()
+                            .text_size(px(12.))
+                            .text_color(p.text_placeholder)
+                            .hover(move |s| s.bg(p.hover).text_color(p.text_muted))
+                            .child(Icon::new(IconName::FolderOpen).size(px(13.)))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .truncate()
+                                    .child(self.store.root.display().to_string()),
+                            )
+                            .on_click(move |_, _, cx| cx.open_with_system(&root)),
                     )
-                    .on_click(move |_, _, cx| cx.open_with_system(&root)),
+                    .child(self.layout_toggle(p, cx)),
             )
+    }
+
+    fn layout_toggle(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+        let list = self.sidebar_list;
+        h_flex()
+            .id("sidebar-layout")
+            .size(px(28.))
+            .flex_shrink_0()
+            .items_center()
+            .justify_center()
+            .rounded(px(5.))
+            .cursor_pointer()
+            .text_color(p.text_placeholder)
+            .hover(move |s| s.bg(p.hover).text_color(p.text_muted))
+            .tooltip(move |window, cx| {
+                Tooltip::new(if list { "Show as tiles" } else { "Show as a list" }).build(window, cx)
+            })
+            .child(
+                Icon::new(if list {
+                    IconName::LayoutGrid
+                } else {
+                    IconName::LayoutList
+                })
+                .size(px(14.)),
+            )
+            .on_click(cx.listener(move |this, _, window, cx| {
+                this.sidebar_list = !list;
+                let mut config = this.store.config();
+                config.sidebar_list = this.sidebar_list;
+                if let Err(e) = this.store.save_config(&config) {
+                    window.push_notification(Notification::error(e.to_string()), cx);
+                }
+                cx.notify();
+            }))
+    }
+}
+
+enum TileArt {
+    Icon(IconName),
+    Glyph(Arc<[u8]>),
+    Image(Arc<Image>),
+}
+
+fn tile_art(art: TileArt, size: f32, active: bool, p: Palette) -> Div {
+    let color = if active { p.on_accent } else { p.text_muted };
+    let frame = || {
+        div()
+            .size(px(size))
+            .flex_shrink_0()
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded(px(size * 0.25))
+            .bg(if active { p.accent } else { p.hover })
+    };
+    match art {
+        TileArt::Image(image) => addon_icon(&AddonIcon::Image(image), size, p),
+        TileArt::Glyph(data) => frame().child(svg().data(&data).size(px(size * 0.5)).text_color(color)),
+        TileArt::Icon(icon) => frame().child(Icon::new(icon).size(px(size * 0.5)).text_color(color)),
     }
 }
 

@@ -15,6 +15,7 @@ An addon can add pages to the launcher's sidebar, import files dropped on the wi
 ```rust
 pub trait Addon: Send + Sync {
     fn manifest(&self) -> &AddonManifest;
+    fn icon(&self) -> Option<&'static [u8]>;
     fn sections(&self) -> Vec<SectionSpec>;
     fn view(&self, cx: &Cx, section: &str) -> Result<View>;
     fn event(&self, cx: &Cx, section: &str, event: Event) -> Result<Effect>;
@@ -27,7 +28,7 @@ pub trait Addon: Send + Sync {
 }
 ```
 
-Every method except `manifest` has a default that does nothing.
+Every method except `manifest` has a default that does nothing. `icon` returns an SVG (drawn as a one-colour glyph) or a square PNG the launcher shows for the addon; a declared addon names an image with `icon` in `swofty.json` instead.
 
 | Method | Use |
 |---|---|
@@ -111,7 +112,7 @@ pub struct SectionSpec {
 }
 ```
 
-Each section is one page and one sidebar entry. The sidebar lists **Profiles**, **Addons**, a divider, then every addon section in registry order. A section whose body is a list shows its row count. An addon that is off in the active profile still shows its sections.
+Each section is one page and one sidebar tile. The sidebar shows **Profiles** and **Addons**, then, for each addon that is on in the active profile, a heading with the addon's name and a tile per section, in registry order. A tile shows the addon's icon when it has one. A section whose body is a list shows its row count. The sections of an addon that is off are hidden. The button at the bottom of the sidebar switches between tiles and a list, and `config.json` keeps the choice as `"sidebar_list"`.
 
 `view` returns the page:
 

@@ -29,6 +29,7 @@ Start with [the addon template](/reference/addons/template).
 | `name`, `author` | Display name and author |
 | `version` | Version such as `1.0.0` |
 | `description`, `license`, `homepage` | Optional description, licence identifier and link |
+| `icon` | Optional icon in the addon folder, shown on the Addons page and on the addon's pages in the sidebar. An `.svg` is drawn as a one-colour glyph in the launcher's icon style, centred in its viewBox; a square `.png`, `.jpg` or `.webp` is drawn as it is |
 | `kind` | Optional categories: `database`, `erp`, `ui`, `files`, `native` |
 | `compat` | Game and version requirements |
 | `requires` | Required addons, as `[{"id": "swofty.core", "version": ">=0.1.0"}]` |
