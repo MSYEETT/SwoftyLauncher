@@ -1,18 +1,18 @@
 # Swofty Launcher for F1 25
 
-A desktop app for modding F1 25 on Windows and Linux through Steam and Proton.
+A launcher and mod loader for F1 25 on Windows and Linux. Addons hook the game engine, mods add ERP and SERP content, and profiles keep separate setups.
 
-![The Swofty Launcher for F1 25 launcher](docs/public/screenshots/hero-launcher.png)
+![The launcher's Addons page with SwoftyMod, Team Simplified, Custom Grid Size and an AlphaTauri livery addon](docs/public/screenshots/hero-launcher.png)
 
 ## Features
 
-- **Mods:** Drop `.serps` packages, mod zips and folders on the launcher's Mods page, and order them per profile.
-- **Tracks:** Import community track packages, such as Sepang and Okayama, as mods and race on them as extra tracks.
-- **Addons:** Install, enable and disable addons. The app warns when two addons change the same thing.
-- **In-game addon settings:** Open **ADDON SETTINGS** in the game's home menu, under Career, to change addon options without leaving the game.
-- **Profiles:** Switch between separate sets of addons, mods and settings. The original game is always restorable in one click.
-- **Offline-only modded play:** Modded sessions always run offline with multiplayer off. Launching from Steam normally stays completely vanilla.
-- **The launcher app:** Manage everything and press Play in one window, with live logs to help if the game crashes. The in-game loader adds the game's own log and crash reports with named call stacks.
+- **Addons:** Addons use the Advanced Mod Mixin System to edit the F1 25 engine directly, from new menus and settings to bigger grids.
+- **Mods:** ERPs and SERPs with no code, including community tracks such as Sepang and Okayama. A mod reaches the game in one of three ways:
+  - an addon bundles it;
+  - an addon loads it at runtime through the Asset API, adding, replacing or removing resources and ERPs;
+  - you drop it on the launcher's Mods page, which comes from the built-in Team Simplified addon.
+- **Profiles:** Keep separate setups like *Vanilla*, *26 car grid* or *Classic tracks*. The original game is restorable in one click.
+- **In-game addon settings:** Change addon settings from the game's main menu, in **ADDON SETTINGS** under Career.
 
 ## Install
 
