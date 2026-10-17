@@ -29,7 +29,12 @@ fn first_difference(a: &[u8], b: &[u8]) -> String {
     format!("sizes {} and {}, first difference at {at:#x}", a.len(), b.len())
 }
 
-fn resource_report(ours: &Path, theirs: &Path) -> String {
+const POPUP: [&str; 2] = [
+    "eaid://ui_package/screens/persistent.ui",
+    "eaid://ui_package/message_data/onlineservices_messages.uimsg",
+];
+
+fn resource_report(ours: &Path, theirs: &Path, skip: &[&str]) -> String {
     let (a, b) = (
         Erp::parse(&std::fs::read(ours).unwrap()).unwrap(),
         Erp::parse(&std::fs::read(theirs).unwrap()).unwrap(),
@@ -38,6 +43,9 @@ fn resource_report(ours: &Path, theirs: &Path) -> String {
     for (x, y) in a.resources.iter().zip(&b.resources) {
         if x.name != y.name {
             out.push(format!("order: {} vs {}", x.name, y.name));
+            continue;
+        }
+        if skip.contains(&x.name.as_str()) {
             continue;
         }
         for (i, (fx, fy)) in x.fragments.iter().zip(&y.fragments).enumerate() {
@@ -67,12 +75,20 @@ fn menus_match_the_prototype_byte_for_byte() {
     let Some((game, oracle)) = dirs() else { return };
     let out = std::env::temp_dir().join(format!("swofty-menus-{}", std::process::id()));
     std::fs::remove_dir_all(&out).ok();
-    let built = swofty_core::ui::build(&session(), &|rel| game.join(rel), &out).unwrap();
+    let built = swofty_core::ui::build(&session(), &|rel| game.join(rel), &out, true).unwrap();
     let mut bad = Vec::new();
     for (rel, path) in &built.erps {
         let theirs = oracle.join(rel);
         if std::fs::read(path).unwrap() != std::fs::read(&theirs).unwrap() {
-            bad.push(format!("{rel}:\n{}", resource_report(path, &theirs)));
+            let skip: &[&str] = if rel.ends_with("/flow_persistent.erp") {
+                &POPUP
+            } else {
+                &[]
+            };
+            let report = resource_report(path, &theirs, skip);
+            if !report.is_empty() {
+                bad.push(format!("{rel}:\n{report}"));
+            }
         }
     }
     for (rel, path) in &built.screens {
@@ -149,7 +165,7 @@ fn menus_and_a_map_patch_one_databases_erp() {
     };
     built.plan.data.extend(map_ui.replaced.clone());
     let mut session = session();
-    build_menus(&mut built, &mut session, &resolve).unwrap();
+    build_menus(&mut built, &mut session, &resolve, true).unwrap();
     assert_eq!(built.plan.data[rel], out.join("overlay").join(rel));
     for (r, src) in &map_ui.replaced {
         if !swofty_core::ui::ERPS.iter().any(|e| r.ends_with(e)) {
@@ -213,5 +229,74 @@ fn menus_and_a_map_patch_one_databases_erp() {
         let path = ["tool_tips", "Contents", "tooltips_dictionary", "Contents", t];
         assert!(has(data(ours, tips), &path));
     }
+    std::fs::remove_dir_all(&out).ok();
+}
+
+#[test]
+fn stock_dialogs_keep_their_text() {
+    use swofty_core::ui::check::stock_kept;
+    use swofty_core::ui::patch::{POPUP_BODY, POPUP_TITLE};
+    use swofty_formats::pkg::Pkg;
+
+    let Some(game) = std::env::var_os("F1_25_DIR").map(PathBuf::from) else {
+        eprintln!("F1_25_DIR is not set; skipping");
+        return;
+    };
+    let out = std::env::temp_dir().join(format!("swofty-menus-dialogs-{}", std::process::id()));
+    std::fs::remove_dir_all(&out).ok();
+    let built = swofty_core::ui::build(&session(), &|rel| game.join(rel), &out, true).unwrap();
+    let rel = "2025_asset_groups/ui_package/flow_persistent.erp";
+    let report = resource_report(&built.erps[rel], &game.join(rel), &POPUP);
+    assert!(report.is_empty(), "{rel} changed outside the popup:\n{report}");
+
+    let data = |path: &Path, name: &str| {
+        let res = Erp::read_matching(path, |n| n == name).unwrap();
+        res[0].fragments[0].data().unwrap()
+    };
+    let (stock, ours) = (game.join(rel), &built.erps[rel]);
+    let changed = stock_kept(&data(&stock, POPUP[0]), &data(ours, POPUP[0]), "swofty_").unwrap();
+    assert!(
+        changed.is_empty(),
+        "the stock popup changed:\n{}",
+        changed.join("\n")
+    );
+
+    let messages = |path: &Path| -> Vec<(String, String, String)> {
+        let p = Pkg::parse(&data(path, POPUP[1])).unwrap();
+        let text = |m: &swofty_formats::pkg::Node, k: &str| {
+            m.as_obj()
+                .and_then(|o| o.get(k))
+                .and_then(|v| v.as_val())
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_owned()
+        };
+        p.root
+            .as_obj()
+            .unwrap()
+            .get("messages")
+            .unwrap()
+            .as_arr()
+            .unwrap()
+            .items
+            .iter()
+            .map(|m| (text(m, "id"), text(m, "title"), text(m, "messageBody")))
+            .collect()
+    };
+    let (before, after) = (messages(&stock), messages(ours));
+    assert_eq!(before.len(), after.len());
+    let mut ours_only = 0;
+    for (b, a) in before.iter().zip(&after) {
+        if a.0.starts_with("online_services_generic_exception_") {
+            assert_eq!((a.1.as_str(), a.2.as_str()), (POPUP_TITLE, POPUP_BODY), "{}", a.0);
+            ours_only += 1;
+        } else {
+            assert_eq!(a, b, "{} lost its stock text", a.0);
+        }
+    }
+    assert_eq!(ours_only, 4);
+    let keys: Vec<&str> = built.strings.iter().map(|(k, _)| k.as_str()).collect();
+    assert_eq!(keys, [POPUP_TITLE, POPUP_BODY]);
+    assert!(built.strings.iter().all(|(_, v)| !v.is_empty()));
     std::fs::remove_dir_all(&out).ok();
 }

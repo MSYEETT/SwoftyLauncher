@@ -15,6 +15,8 @@ const PANEL: &str = "fe_home.contextual_panels.offline_contextual_panel";
 const UIDM: &str = "persistent.consume_input_wrapper.persistent_multichoice_message";
 const ONCE_ATTR: &str = "swofty_once";
 const BUTTON: &str = "lng_continue";
+pub const POPUP_TITLE: &str = "lng_swofty_popup_title";
+pub const POPUP_BODY: &str = "lng_swofty_popup_body";
 const ONLINE_MESSAGES: &[&str] = &[
     "online_services_generic_exception_online",
     "online_services_generic_exception_online_with_code",
@@ -43,6 +45,13 @@ impl Popup {
                  - Launcher panel on the home screen"
             ),
         }
+    }
+
+    pub fn strings(&self) -> Vec<(String, String)> {
+        vec![
+            (POPUP_TITLE.into(), self.title.clone()),
+            (POPUP_BODY.into(), self.body.clone()),
+        ]
     }
 }
 
@@ -490,15 +499,7 @@ pub fn ui_data(data: &[u8], entries: Vec<(String, Node)>) -> Result<Vec<u8>> {
     })
 }
 
-fn token(name: &str, value: &str) -> Node {
-    obj(vec![
-        ("localise", boolv(false)),
-        ("value", s(value)),
-        ("name", s(name)),
-    ])
-}
-
-pub fn messages(data: &[u8], popup: &Popup) -> Result<Vec<u8>> {
+pub fn messages(data: &[u8], text: bool) -> Result<Vec<u8>> {
     edit(data, |p| {
         let mut done = Vec::new();
         for m in root_obj(p)?.at_mut("messages")?.a_mut()? {
@@ -507,16 +508,12 @@ pub fn messages(data: &[u8], popup: &Popup) -> Result<Vec<u8>> {
             if !ONLINE_MESSAGES.contains(&id.as_str()) {
                 continue;
             }
-            set_str(m, "title", "[swofty_title]")?;
-            set_str(m, "messageBody", "[swofty_body]")?;
-            m.set(
-                "titleTokens",
-                obj(vec![("swofty_title", token("swofty_title", &popup.title))]),
-            );
-            m.set(
-                "bodyTokens",
-                obj(vec![("swofty_body", token("swofty_body", &popup.body))]),
-            );
+            if text {
+                set_str(m, "title", POPUP_TITLE)?;
+                set_str(m, "messageBody", POPUP_BODY)?;
+                m.drop_key("titleTokens");
+                m.drop_key("bodyTokens");
+            }
             *m.at_mut("options")?.a_mut()? = vec![obj(vec![
                 ("value", s(BUTTON)),
                 ("response", s("cancel")),
@@ -559,7 +556,8 @@ fn relabel(sigs: &[Node], from: &str) -> Result<Vec<Node>> {
     Ok(out)
 }
 
-fn persistent_gate_once(data: &[u8], seen: &str) -> Result<Vec<u8>> {
+pub fn persistent_gate(data: &[u8]) -> Result<Vec<u8>> {
+    let seen = popup_seen();
     edit(data, |p| {
         let m = multichoice(p)?;
         let act = event_mut(m, "activate_message")?;
@@ -599,10 +597,10 @@ fn persistent_gate_once(data: &[u8], seen: &str) -> Result<Vec<u8>> {
         ));
         let mut check = hidden_props();
         check.push(("value", prop(boolv(true), None)));
-        check.push(("dbEntry", prop(s(seen), None)));
+        check.push(("dbEntry", prop(s(&seen), None)));
         let mut mark = hidden_props();
         mark.push(("source", prop(boolv(true), None)));
-        mark.push(("target", prop(boolv(false), Some(seen))));
+        mark.push(("target", prop(boolv(false), Some(&seen))));
         let mut no_seen = vec![sig(&format!("{UIDM}.swofty_mark_seen"), "trigger", "no")];
         no_seen.extend(relabel(&show, "no")?);
         let kids = vec![
@@ -645,60 +643,237 @@ fn persistent_gate_once(data: &[u8], seen: &str) -> Result<Vec<u8>> {
     })
 }
 
-pub fn persistent_gate(data: &[u8], popup: &Popup) -> Result<Vec<u8>> {
-    let seen = popup_seen();
-    let data = persistent_gate_once(data, &seen)?;
-    edit(&data, |p| {
-        let m = multichoice(p)?;
-        let local = |on: bool| {
+#[cfg(test)]
+mod tests {
+    use swofty_formats::pkg::Pkg;
+
+    use super::*;
+    use crate::ui::check::stock_kept;
+
+    fn label(name: &str) -> Node {
+        node(
+            name,
+            "UILB",
+            vec![(
+                "text",
+                obj(vec![
+                    ("value", s("")),
+                    ("dbentry", s(name)),
+                    ("isloctag", boolv(true)),
+                ]),
+            )],
+            vec![],
+            &[],
+            &[],
+        )
+    }
+
+    fn with_kids(mut n: Node, kids: Vec<Node>) -> Node {
+        n.slot_mut(CHILDREN).unwrap().extend(kids);
+        n
+    }
+
+    fn stock_popup() -> Vec<u8> {
+        let activate = vec![
+            sig(
+                "persistent.consume_input_wrapper",
+                "consumeStart",
+                "activate_message",
+            ),
+            sig(UIDM, "show", "activate_message"),
+        ];
+        let pressed = vec![
+            sig(UIDM, "deactivate_message", "pressed"),
+            sig(&format!("{UIDM}.disable_input"), "trigger", "pressed"),
+        ];
+        let button = with_kids(
+            node(
+                "button1",
+                "UIBT",
+                vec![],
+                vec![event("pressed", pressed)],
+                &[],
+                &[],
+            ),
+            vec![label("title")],
+        );
+        let message = with_kids(
+            node(
+                "persistent_multichoice_message",
+                "UIDM",
+                vec![],
+                vec![event("activate_message", activate)],
+                &[],
+                &[],
+            ),
             vec![
-                sig_with(
-                    &format!("{UIDM}.title"),
-                    "setLocalise",
-                    "no",
-                    &[("localise", Attr::Bool(on))],
-                ),
-                sig_with(
-                    &format!("{UIDM}.body"),
-                    "setLocalise",
-                    "no",
-                    &[("localise", Attr::Bool(on))],
-                ),
-            ]
-        };
-        let restore = local(true);
-        let literal = vec![
-            sig_with(
+                label("title"),
+                label("body"),
+                button,
+                node("disable_input", "UIGP", vec![], vec![], &[], &[]),
+            ],
+        );
+        let wrapper = with_kids(
+            node("consume_input_wrapper", "UIGP", vec![], vec![], &[], &[]),
+            vec![message],
+        );
+        let mut screen = with_kids(
+            node("persistent", "UISC", vec![], vec![], &[], &[]),
+            vec![wrapper],
+        );
+        fix_ids(&mut screen, None);
+        ui_bytes(vec![screen]).unwrap()
+    }
+
+    fn popup_node(data: &[u8]) -> Node {
+        first_screen_of(data)
+            .unwrap()
+            .find_mut("consume_input_wrapper.persistent_multichoice_message")
+            .unwrap()
+            .clone()
+    }
+
+    fn event_signals(n: &Node, name: &str) -> Vec<Node> {
+        n.slot(EVENTS)
+            .unwrap()
+            .iter()
+            .find(|e| e.o().unwrap().str_at("eventName").unwrap() == name)
+            .unwrap()
+            .o()
+            .unwrap()
+            .at("signals")
+            .unwrap()
+            .a()
+            .unwrap()
+            .clone()
+    }
+
+    #[test]
+    fn the_popup_gate_leaves_stock_popups_alone() {
+        let stock = stock_popup();
+        let gated = persistent_gate(&stock).unwrap();
+        let changed = stock_kept(&stock, &gated, "swofty_").unwrap();
+        assert!(changed.is_empty(), "{changed:?}");
+
+        let popup = popup_node(&gated);
+        let shown = relabel(&event_signals(&popup_node(&stock), "activate_message"), "no").unwrap();
+        assert_eq!(
+            canonical(&arr(event_signals(
+                popup.child("swofty_once_check").unwrap(),
+                "no"
+            ))),
+            canonical(&arr(shown))
+        );
+    }
+
+    #[test]
+    fn a_signal_to_the_popup_labels_fails_the_check() {
+        let stock = stock_popup();
+        let gated = edit(&persistent_gate(&stock).unwrap(), |p| {
+            let m = multichoice(p)?;
+            event_mut(m.child_mut("swofty_once_check")?, "no")?.push(sig_with(
                 &format!("{UIDM}.title"),
                 "setLocalise",
                 "no",
-                &[("localise", Attr::Bool(false))],
-            ),
-            sig_with(
-                &format!("{UIDM}.title"),
-                "setText",
-                "no",
-                &[("text", popup.title.as_str().into())],
-            ),
-            sig_with(
-                &format!("{UIDM}.body"),
-                "setLocalise",
-                "no",
-                &[("localise", Attr::Bool(false))],
-            ),
-            sig_with(
-                &format!("{UIDM}.body"),
-                "setText",
-                "no",
-                &[("text", popup.body.as_str().into())],
+                &[("localise", Attr::Bool(true))],
+            ));
+            Ok(())
+        })
+        .unwrap();
+        let changed = stock_kept(&stock, &gated, "swofty_").unwrap();
+        assert_eq!(changed.len(), 1, "{changed:?}");
+        assert!(changed[0].contains(".title.setLocalise"), "{changed:?}");
+    }
+
+    fn message(id: &str, tokens: bool) -> Node {
+        let mut items = vec![
+            ("id", s(id)),
+            ("title", s(&format!("lng_{id}_title"))),
+            ("messageBody", s(&format!("lng_{id}_body"))),
+            ("attributes", arr(vec![])),
+            (
+                "options",
+                arr(vec![obj(vec![
+                    ("value", s("lng_msg_cancel")),
+                    ("response", s("cancel")),
+                    ("defaultSelection", boolv(false)),
+                ])]),
             ),
         ];
-        let once = event_mut(m.child_mut("swofty_once_check")?, "no")?;
-        let mut sigs = restore;
-        sigs.append(once);
-        *once = sigs;
-        event_mut(m.child_mut("swofty_seen_check")?, "no")?.extend(literal);
-        fix_ids(first_screen(p)?, None);
-        Ok(())
-    })
+        if tokens {
+            items.push((
+                "bodyTokens",
+                obj(vec![(
+                    "ERRORCODE",
+                    obj(vec![("localise", boolv(false)), ("value", s(""))]),
+                )]),
+            ));
+        }
+        obj(items)
+    }
+
+    fn messages_file() -> Vec<u8> {
+        let mut all: Vec<Node> = ONLINE_MESSAGES
+            .iter()
+            .map(|id| message(id, id.ends_with("_with_code")))
+            .collect();
+        all.push(message("quit_session", false));
+        Pkg {
+            name: [0; 4],
+            root: obj(vec![("messages", arr(all))]),
+            vca: Vec::new(),
+        }
+        .to_bytes()
+        .unwrap()
+    }
+
+    fn by_id(data: &[u8]) -> Vec<(String, Node)> {
+        Pkg::parse(data)
+            .unwrap()
+            .root
+            .o()
+            .unwrap()
+            .at("messages")
+            .unwrap()
+            .a()
+            .unwrap()
+            .iter()
+            .map(|m| (m.o().unwrap().str_at("id").unwrap().to_owned(), m.clone()))
+            .collect()
+    }
+
+    #[test]
+    fn online_messages_show_language_strings_and_others_stay_stock() {
+        let stock = by_id(&messages_file());
+        let ours = by_id(&messages(&messages_file(), true).unwrap());
+        assert_eq!(ours.len(), stock.len());
+        for ((id, m), (_, before)) in ours.iter().zip(&stock) {
+            let o = m.o().unwrap();
+            if !ONLINE_MESSAGES.contains(&id.as_str()) {
+                assert_eq!(canonical(m), canonical(before), "{id} changed");
+                continue;
+            }
+            assert_eq!(o.str_at("title").unwrap(), POPUP_TITLE);
+            assert_eq!(o.str_at("messageBody").unwrap(), POPUP_BODY);
+            assert!(o.get("titleTokens").is_none() && o.get("bodyTokens").is_none());
+            assert_eq!(o.at("options").unwrap().a().unwrap().len(), 1);
+        }
+        let plain = by_id(&messages(&messages_file(), false).unwrap());
+        for ((id, m), (_, before)) in plain.iter().zip(&stock) {
+            let (o, b) = (m.o().unwrap(), before.o().unwrap());
+            assert_eq!(o.str_at("title").unwrap(), b.str_at("title").unwrap(), "{id}");
+            assert_eq!(
+                o.str_at("messageBody").unwrap(),
+                b.str_at("messageBody").unwrap(),
+                "{id}"
+            );
+        }
+        let strings = Popup::for_version("1.2.3").strings();
+        assert_eq!(
+            strings[0],
+            (POPUP_TITLE.to_owned(), "Swofty Mod v1.2.3".to_owned())
+        );
+        assert_eq!(strings[1].0, POPUP_BODY);
+        assert!(strings[1].1.contains("New in v1.2.3"));
+    }
 }
