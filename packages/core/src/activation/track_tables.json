@@ -1,0 +1,631 @@
+{
+ "track": {
+  "id": "tracks",
+  "path": "tracks.Track",
+  "labels": [
+   "_metadata_",
+   "instanceName",
+   "fileName"
+  ],
+  "unique": [
+   "statId"
+  ],
+  "schema": {
+   "fields": [
+    "ERSSettings.deployFactor",
+    "ERSSettings.harvestFactor",
+    "ERSSettings.hotlapFactor",
+    "MirrorSafetyCarOnGrid",
+    "PoleOnRight",
+    "_metadata_",
+    "acronym_name",
+    "aero_bias",
+    "ai_track_config.crowded_rules.num_of_cars_behind",
+    "ai_track_config.crowded_rules.num_of_cars_infront",
+    "ai_track_config.crowded_rules.num_of_cars_near",
+    "ai_track_config.crowded_rules.num_of_starting_laps",
+    "ai_track_config.crowded_rules.range_to_count_cars",
+    "ai_track_config.formation_lap.formation_rev_distance",
+    "ai_track_config.formation_lap.formation_rev_start_dist_max",
+    "ai_track_config.formation_lap.formation_rev_start_dist_min",
+    "ai_track_config.look_ahead.merge_rate_step_max",
+    "ai_track_config.look_ahead.merge_rate_step_proportion",
+    "ai_track_config.look_ahead.radius_to_distance_graph",
+    "ai_track_config.look_ahead.speed_to_distance_graph",
+    "ai_track_config.recovery.dist_from_racing_line_to_move_away",
+    "ai_track_config.recovery.dist_from_racing_line_to_move_towards",
+    "ai_track_config.recovery.recovered_speed",
+    "ai_track_config.recovery.recovery_target_distance",
+    "ai_track_config.safety_car.min_speed_for_build_gap_return_to_pits",
+    "ai_track_config.safety_car.speed_limit_multi_for_build_gap_return_to_pits",
+    "ai_track_config.space_lines.generation_absolute_space_requirement",
+    "ai_track_config.space_lines.generation_center_space_percentage",
+    "ai_track_config.space_lines.generation_side_space_percentage",
+    "ai_track_config.yield.no_need_to_slow_down_fraction",
+    "ai_track_config.yield.pit_yield_speed",
+    "ai_track_config.yield.too_far_ahead_to_slow_down_fraction",
+    "ai_track_difficulties.f1_2023_pro_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2023_pro_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2023_pro_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2023_pro_vehicle_package.time",
+    "ai_track_difficulties.f1_2023_story_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2023_story_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2023_story_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2023_story_vehicle_package.time",
+    "ai_track_difficulties.f1_2023_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2023_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2023_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2023_vehicle_package.time",
+    "ai_track_difficulties.f1_2024_beta_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2024_beta_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2024_beta_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2024_beta_vehicle_package.time",
+    "ai_track_difficulties.f1_2024_equal_performance_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2024_equal_performance_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2024_equal_performance_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2024_equal_performance_vehicle_package.time",
+    "ai_track_difficulties.f1_2024_story_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2024_story_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2024_story_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2024_story_vehicle_package.time",
+    "ai_track_difficulties.f1_2024_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2024_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2024_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2024_vehicle_package.time",
+    "ai_track_difficulties.f1_2024_world_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2024_world_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2024_world_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2024_world_vehicle_package.time",
+    "ai_track_difficulties.f1_2025_equal_performance_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2025_equal_performance_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2025_equal_performance_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2025_equal_performance_vehicle_package.time",
+    "ai_track_difficulties.f1_2025_story_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2025_story_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2025_story_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2025_story_vehicle_package.time",
+    "ai_track_difficulties.f1_2025_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2025_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2025_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2025_vehicle_package.time",
+    "ai_track_difficulties.f1_2025_world_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2025_world_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2025_world_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2025_world_vehicle_package.time",
+    "ai_track_difficulties.f1_2026_equal_performance_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2026_equal_performance_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2026_equal_performance_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2026_equal_performance_vehicle_package.time",
+    "ai_track_difficulties.f1_2026_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_2026_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_2026_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_2026_vehicle_package.time",
+    "ai_track_difficulties.f1_classic_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1_classic_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1_classic_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_classic_vehicle_package.time",
+    "ai_track_difficulties.f1_safetycar_package.difficulty_ratio",
+    "ai_track_difficulties.f1_safetycar_package.mass_ratio",
+    "ai_track_difficulties.f1_safetycar_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1_safetycar_package.time",
+    "ai_track_difficulties.f1cg_classics_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_classics_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_classics_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_classics_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2010_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2010_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2010_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2010_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2011_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2011_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2011_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2011_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2012_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2012_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2012_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2012_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2013_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2013_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2013_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2013_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2014_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2014_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2014_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2014_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2015_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2015_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2015_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2015_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2016_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2016_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2016_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2016_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2017_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2017_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2017_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2017_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2018_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2018_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2018_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2018_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2019_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2019_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2019_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2019_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2020_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2020_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2020_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2020_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2021_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2021_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2021_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2021_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2022_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2022_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2022_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2022_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2023_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2023_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2023_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2023_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f1_2024_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f1_2024_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f1_2024_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f1_2024_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f2_2017_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f2_2017_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f2_2017_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f2_2017_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f2_2018_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f2_2018_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f2_2018_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f2_2018_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f2_2019_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f2_2019_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f2_2019_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f2_2019_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f2_2020_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f2_2020_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f2_2020_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f2_2020_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f2_2021_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f2_2021_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f2_2021_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f2_2021_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f2_2022_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f2_2022_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f2_2022_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f2_2022_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f2_2023_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f2_2023_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f2_2023_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f2_2023_vehicle_package.time",
+    "ai_track_difficulties.f1cg_f2_2024_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f1cg_f2_2024_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f1cg_f2_2024_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f1cg_f2_2024_vehicle_package.time",
+    "ai_track_difficulties.f2_2023_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f2_2023_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f2_2023_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f2_2023_vehicle_package.time",
+    "ai_track_difficulties.f2_2024_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f2_2024_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f2_2024_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f2_2024_vehicle_package.time",
+    "ai_track_difficulties.f2_2025_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f2_2025_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f2_2025_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f2_2025_vehicle_package.time",
+    "ai_track_difficulties.f2_2026_vehicle_package.difficulty_ratio",
+    "ai_track_difficulties.f2_2026_vehicle_package.mass_ratio",
+    "ai_track_difficulties.f2_2026_vehicle_package.max_dificulty_no_balast_slider_position",
+    "ai_track_difficulties.f2_2026_vehicle_package.time",
+    "allow_day_start",
+    "allow_night_start",
+    "barometricReferencePressure",
+    "baseTrack",
+    "career_time.practice_2",
+    "circuit",
+    "city_name",
+    "city_name_short",
+    "continent",
+    "country_name",
+    "direction",
+    "downForceLevel",
+    "fileName",
+    "fuel_burn_per_lap",
+    "gp_long_name",
+    "gp_long_name_multiline",
+    "gp_long_name_multiline_previous",
+    "gp_short_name",
+    "has_radiance_bake",
+    "instanceName",
+    "is_short_version",
+    "latitude",
+    "lb_min_time",
+    "league_description",
+    "length_metres",
+    "longitude",
+    "nationality",
+    "numberOfCorners",
+    "performance_type",
+    "pitMirrored",
+    "proportion_around_track_considered_race_start",
+    "reverse_track_trophy_name",
+    "short_version_title",
+    "statId",
+    "title",
+    "trackMirrored",
+    "track_resource",
+    "track_strategy.prefer_less_stops",
+    "track_strategy.release_queue_end_of_session_max_seperation_time",
+    "track_strategy.release_queue_end_of_session_min_seperation_time",
+    "track_strategy.release_queue_max_seperation_time",
+    "track_strategy.release_queue_min_seperation_time",
+    "track_strategy.usable_free_runs",
+    "track_strategy.usable_track_capacity_graphs",
+    "trophyType",
+    "tyre_wear",
+    "weather_strategy.lap_time_scalar_max_clamp",
+    "weather_strategy.lap_time_scalar_min_clamp",
+    "weather_strategy.num_look_ahead_laps",
+    "weather_strategy.wetness_trend_threshold",
+    "weekend_year",
+    "will_not_be_added_post_launch"
+   ],
+   "tables": {
+    "Daylight": {
+     "fields": [
+      "_metadata_",
+      "end",
+      "start"
+     ],
+     "tables": {}
+    },
+    "TrackCrowds": {
+     "fields": [
+      "_metadata_",
+      "coloursToUse",
+      "crowdColour1",
+      "crowdColour2",
+      "crowdColour3",
+      "crowdColourBias",
+      "defaultAssetGroup"
+     ],
+     "tables": {}
+    },
+    "TrackStats": {
+     "fields": [
+      "_metadata_"
+     ],
+     "tables": {
+      "SingleTrackStat": {
+       "fields": [
+        "_metadata_",
+        "display_name",
+        "texture",
+        "value"
+       ],
+       "tables": {}
+      }
+     }
+    },
+    "TrackTextures": {
+     "fields": [
+      "_metadata_",
+      "fake"
+     ],
+     "tables": {
+      "TrackTexture": {
+       "fields": [
+        "_metadata_",
+        "value"
+       ],
+       "tables": {}
+      }
+     }
+    },
+    "Tyres": {
+     "fields": [
+      "_metadata_",
+      "tyre_grip_modifier",
+      "tyre_wear_ui_str"
+     ],
+     "tables": {
+      "track_grip_modifiers": {
+       "fields": [
+        "_metadata_"
+       ],
+       "tables": {}
+      }
+     }
+    },
+    "Weather": {
+     "fields": [
+      "_metadata_",
+      "clear",
+      "cloudy",
+      "heavy_rain",
+      "light_rain",
+      "overcast",
+      "states",
+      "temperature_max",
+      "temperature_min"
+     ],
+     "tables": {}
+    }
+   }
+  }
+ },
+ "datasets": {
+  "id": "track_data_sets",
+  "base": "2e47cdd25071dcdd",
+  "count": "974f99d1e1b1ee3f"
+ },
+ "track_data": {
+  "id": "track_data",
+  "path": "TrackData",
+  "labels": [
+   "_metadata_",
+   "track",
+   "TrackNameData_0.file_name"
+  ],
+  "schema": {
+   "fields": [
+    "_metadata_",
+    "track"
+   ],
+   "tables": {
+    "MandatoryPitstopsOverride": {
+     "fields": [
+      "_metadata_",
+      "required_pitstops",
+      "session"
+     ],
+     "tables": {}
+    },
+    "Session Start Times": {
+     "fields": [
+      "_metadata_",
+      "p1_start_time",
+      "p2_start_time",
+      "p3_start_time",
+      "q_start_time",
+      "race2_start_time",
+      "race3_start_time",
+      "race_start_time",
+      "ss_start_time"
+     ],
+     "tables": {}
+    },
+    "TrackAudioData": {
+     "fields": [
+      "_metadata_"
+     ],
+     "tables": {
+      "TrackAudioCommentatorOverride": {
+       "fields": [
+        "_metadata_",
+        "fallback_override_commentator_name",
+        "mapped_folder_name",
+        "override_commentator_name"
+       ],
+       "tables": {}
+      }
+     }
+    },
+    "TrackAuthenticWeekendData": {
+     "fields": [
+      "_metadata_",
+      "weekend_format"
+     ],
+     "tables": {}
+    },
+    "TrackFuelSettings": {
+     "fields": [
+      "Qualifying.full",
+      "Qualifying.one_shot",
+      "Qualifying.short",
+      "_metadata_"
+     ],
+     "tables": {
+      "RaceFuelSettings": {
+       "fields": [
+        "_metadata_",
+        "laps_1",
+        "laps_10",
+        "laps_15",
+        "laps_2",
+        "laps_20",
+        "laps_3",
+        "laps_5",
+        "laps_9",
+        "percent_100",
+        "percent_25",
+        "percent_35",
+        "percent_50"
+       ],
+       "tables": {}
+      }
+     }
+    },
+    "TrackGeneralData": {
+     "fields": [
+      "_metadata_",
+      "fuel_burn_per_lap",
+      "number_of_laps",
+      "practiceCrowdPercentage",
+      "qualifyingCrowdPercentage",
+      "raceCrowdPercentage",
+      "trophyType",
+      "use_split_qualifying",
+      "weekend_day",
+      "weekend_month",
+      "weekend_year"
+     ],
+     "tables": {}
+    },
+    "TrackNameData": {
+     "fields": [
+      "_metadata_",
+      "acronym_name",
+      "circuit",
+      "city_name",
+      "city_name_short",
+      "country_name",
+      "file_name",
+      "gp_long_name",
+      "gp_long_name_multiline",
+      "gp_long_name_multiline_previous",
+      "gp_short_name",
+      "reverse_track_trophy_name",
+      "title"
+     ],
+     "tables": {}
+    },
+    "TrackPitData": {
+     "fields": [
+      "_metadata_",
+      "pitSpeedLimit",
+      "pitStopTime_Dry",
+      "pitStopTime_Wet"
+     ],
+     "tables": {}
+    },
+    "TrackSafetyCarData": {
+     "fields": [
+      "_metadata_",
+      "safety_car_vehicle"
+     ],
+     "tables": {}
+    },
+    "TrackStats": {
+     "fields": [
+      "_metadata_"
+     ],
+     "tables": {
+      "SingleTrackStat": {
+       "fields": [
+        "_metadata_",
+        "display_name",
+        "texture",
+        "value"
+       ],
+       "tables": {}
+      }
+     }
+    },
+    "TrackTextures": {
+     "fields": [
+      "_metadata_",
+      "broadcast_ui_track",
+      "flag_circle",
+      "flag_rectangle",
+      "flag_rectangle_small",
+      "tracks_bg",
+      "tracks_bg_large",
+      "tracks_spline",
+      "tracks_spline_large"
+     ],
+     "tables": {}
+    },
+    "TyreData": {
+     "fields": [
+      "_metadata_",
+      "balanced_preset",
+      "chance_of_using_harder_preset",
+      "chance_of_using_softer_preset",
+      "compound_harder",
+      "compound_medium",
+      "compound_softer",
+      "enforce_pitstops_in_wet_weather",
+      "harder_preset",
+      "mandatory_tyres",
+      "number_of_intermediate_tyres",
+      "number_of_wet_tyres",
+      "softer_preset"
+     ],
+     "tables": {
+      "MandatoryPitstopsOverride": {
+       "fields": [
+        "_metadata_",
+        "required_pitstops",
+        "session"
+       ],
+       "tables": {}
+      }
+     }
+    }
+   }
+  }
+ },
+ "per_track": [],
+ "sorted_orders": [
+  {
+   "id": "default_sorted_track_order",
+   "base": "ec031b820cabf035",
+   "count": "262e6ca99e78d729",
+   "labels": [
+    "_metadata_",
+    "track"
+   ],
+   "schema": {
+    "fields": [
+     "_metadata_",
+     "track"
+    ]
+   }
+  },
+  {
+   "id": "default_sorted_track_order_dlc",
+   "base": "4419d7f76ce29602",
+   "count": "6d47260627058f4c",
+   "labels": [
+    "_metadata_",
+    "track"
+   ],
+   "schema": {
+    "fields": [
+     "_metadata_",
+     "track"
+    ]
+   }
+  }
+ ],
+ "track_lists": [
+  {
+   "table": {
+    "id": "content_sets",
+    "base": "b081ce10fc9de4c7"
+   },
+   "sub_table": "available_tracks",
+   "field": "tracks"
+  }
+ ],
+ "track_resources": {
+  "id": "track_resources",
+  "path": "tracks.track_resource.TrackResource",
+  "labels": [
+   "_metadata_"
+  ],
+  "schema": {
+   "fields": [
+    "_metadata_",
+    "aoBakeAssetGroup",
+    "crowdEri",
+    "ddgiAssetGroup",
+    "iblAssetGroupsRoot",
+    "iblKey",
+    "iblProbes",
+    "iblRoot",
+    "iblSuffix",
+    "lightListAssetGroup",
+    "loadAIData",
+    "radianceBakeAssetGroup",
+    "trackMapAssetGroup",
+    "worldAssetGroup",
+    "worldEri"
+   ]
+  }
+ }
+}
