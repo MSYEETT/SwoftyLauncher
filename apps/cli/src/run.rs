@@ -390,7 +390,20 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
         Ok(c.spawn()?)
     };
     std::fs::write(dir.join("game_start"), format!("{}\n", now_secs()))?;
-    let status = spawn(GAME_EXE, "game_stdout.log")?.wait()?;
+    // The offline-play session launcher (staged in place of the EA
+    // AntiCheat launcher) creates the game suspended and patches the launch
+    // guard before the game's first instruction: the check runs before any
+    // window exists, so the in-process hook is too late to act on it.
+    let target = if game.join("EAAntiCheat.GameServiceLauncher.exe.bak").is_file() {
+        say(
+            "info",
+            "offline play: launching via the session launcher (guard patched before entry)",
+        );
+        "EAAntiCheat.GameServiceLauncher.exe"
+    } else {
+        GAME_EXE
+    };
+    let status = spawn(target, "game_stdout.log")?.wait()?;
     let code = status.code().unwrap_or(-1);
     std::fs::write(dir.join("exit_code"), format!("{code}\n"))?;
     std::fs::write(dir.join("game_end"), format!("{}\n", now_secs()))?;
