@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The tag to build, for example v0.1.0
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  native:
+    name: Native loader
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Build
+        run: native/build.sh
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: native
+          path: native/dist/
+
+  linux:
+    name: Linux
+    needs: native
+    # The oldest supported runner gives the oldest glibc baseline, for SteamOS.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: GPUI system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libfontconfig-dev libfreetype-dev libwayland-dev \
+            libxkbcommon-dev libxkbcommon-x11-dev libx11-xcb-dev libxcb1-dev libvulkan-dev
+
+      - name: Build
+        run: cargo build --release --workspace
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: native
+          path: native/dist
+
+      - name: Package
+        run: |
+          out=f1-mod-manager-$TAG-linux-x86_64
+          mkdir -p $out/bin $out/loader
+          cp target/release/swofty target/release/swofty-launcher $out/bin/
+          cp -r native/dist/. $out/loader/
+          cp LICENSE README.md $out/
+          tar czf $out.tar.gz $out
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: linux
+          path: f1-mod-manager-*.tar.gz
+
+  windows:
+    name: Windows
+    needs: native
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Build
+        run: cargo build --release --workspace
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: native
+          path: native/dist
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $out = "f1-mod-manager-$env:TAG-windows-x86_64"
+          New-Item -ItemType Directory -Force "$out/bin", "$out/loader" | Out-Null
+          Copy-Item target/release/swofty.exe, target/release/swofty-launcher.exe "$out/bin/"
+          Copy-Item -Recurse native/dist/* "$out/loader/"
+          Copy-Item LICENSE, README.md "$out/"
+          Compress-Archive -Path $out -DestinationPath "$out.zip"
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: windows
+          path: f1-mod-manager-*.zip
+
+  publish:
+    name: Publish the release
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          path: artefacts
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: artefacts/*
