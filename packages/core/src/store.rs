@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use crate::builtin::{CORE_ID, core_manifest};
 use crate::manifest::{MANIFEST_FILE, ModManifest};
 use crate::map::{self, TrackPackage};
-use crate::profile::Profile;
+use crate::profile::{self, Profile};
+use crate::session::Config;
 use crate::{Error, Result, io_err};
 
 pub const DEFAULT_PROFILE: &str = "default";
@@ -145,6 +146,97 @@ impl Store {
         Ok(p)
     }
 
+    pub fn profile_names(&self) -> Result<Vec<String>> {
+        let mut names = vec![profile::VANILLA.to_owned()];
+        let rd = match std::fs::read_dir(self.profiles_dir()) {
+            Ok(rd) => rd,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                names.push(DEFAULT_PROFILE.into());
+                return Ok(names);
+            }
+            Err(e) => return Err(io_err(self.profiles_dir())(e)),
+        };
+        let mut found: Vec<String> = rd
+            .flatten()
+            .filter_map(|e| {
+                let name = e.file_name().to_str()?.strip_suffix(".json")?.to_owned();
+                profile::valid_name(&name).then_some(name)
+            })
+            .collect();
+        if found.is_empty() {
+            found.push(DEFAULT_PROFILE.into());
+        }
+        found.sort();
+        names.extend(found);
+        Ok(names)
+    }
+
+    pub fn create_profile(&self, name: &str, from: Option<&str>) -> Result<Profile> {
+        if !profile::valid_name(name) {
+            return Err(Error::Other(format!(
+                "{name:?} is not a valid profile name (letters, digits, - and _)"
+            )));
+        }
+        if self.profile_names()?.iter().any(|n| n == name) {
+            return Err(Error::Other(format!("a profile named {name} already exists")));
+        }
+        let mut p = match from {
+            Some(src) => self.profile(src)?,
+            None => Profile::new(name),
+        };
+        p.name = name.into();
+        p.normalise();
+        self.save_profile(&p)?;
+        Ok(p)
+    }
+
+    pub fn rename_profile(&self, from: &str, to: &str) -> Result<Profile> {
+        if from == profile::VANILLA {
+            return Err(Error::Other("the vanilla profile cannot be renamed".into()));
+        }
+        let p = self.create_profile(to, Some(from))?;
+        let old = self.profiles_dir().join(format!("{from}.json"));
+        if old.is_file() {
+            std::fs::remove_file(&old).map_err(io_err(&old))?;
+        }
+        let saves = self.saves_dir(from);
+        if saves.is_dir() {
+            std::fs::rename(&saves, self.saves_dir(to)).map_err(io_err(&saves))?;
+        }
+        if self.config().active_profile.as_deref().unwrap_or(DEFAULT_PROFILE) == from {
+            self.set_active_profile(to)?;
+        }
+        Ok(p)
+    }
+
+    pub fn config(&self) -> Config {
+        crate::read_json(&self.config_path()).unwrap_or_default()
+    }
+
+    pub fn save_config(&self, config: &Config) -> Result<()> {
+        crate::write_json(&self.config_path(), config)
+    }
+
+    pub fn active_profile(&self) -> String {
+        let names = self.profile_names().unwrap_or_default();
+        self.config()
+            .active_profile
+            .filter(|p| names.contains(p))
+            .or_else(|| names.get(1).cloned())
+            .unwrap_or_else(|| DEFAULT_PROFILE.into())
+    }
+
+    pub fn set_active_profile(&self, name: &str) -> Result<()> {
+        let mut config = self.config();
+        config.active_profile = Some(name.into());
+        self.save_config(&config)
+    }
+
+    pub fn latest_session(&self) -> Option<PathBuf> {
+        let dir = std::fs::read_to_string(self.sessions_dir().join("latest.txt")).ok()?;
+        Some(PathBuf::from(dir.trim()))
+    }
+
     pub fn save_profile(&self, p: &Profile) -> Result<()> {
         if p.is_vanilla() {
             return Err(Error::Other(
@@ -230,6 +322,27 @@ mod tests {
         store.save_profile(&p).unwrap();
         let plan = crate::resolver::resolve(&store.profile(DEFAULT_PROFILE).unwrap(), &mods).unwrap();
         assert_eq!(plan.order, [CORE_ID, m.id.as_str()]);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn manages_profiles() {
+        let root = tmp("profiles");
+        let store = Store::new(&root);
+        assert_eq!(store.profile_names().unwrap(), ["vanilla", "default"]);
+        assert_eq!(store.active_profile(), "default");
+        let mut p = store.profile(DEFAULT_PROFILE).unwrap();
+        p.set_enabled("a.b", true).unwrap();
+        store.save_profile(&p).unwrap();
+        store.set_active_profile(DEFAULT_PROFILE).unwrap();
+        store.create_profile("grid", Some(DEFAULT_PROFILE)).unwrap();
+        assert!(store.create_profile("grid", None).is_err());
+        assert!(store.create_profile("vanilla", None).is_err());
+        store.rename_profile(DEFAULT_PROFILE, "main").unwrap();
+        assert_eq!(store.profile_names().unwrap(), ["vanilla", "grid", "main"]);
+        assert_eq!(store.active_profile(), "main");
+        let grid = store.profile("grid").unwrap();
+        assert_eq!(grid.enabled().collect::<Vec<_>>(), [CORE_ID, "a.b"]);
         std::fs::remove_dir_all(&root).ok();
     }
 }

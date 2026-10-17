@@ -6,6 +6,15 @@ use crate::builtin::CORE_ID;
 
 pub const VANILLA: &str = "vanilla";
 
+pub fn valid_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 40
+        && name != VANILLA
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Profile {
@@ -104,6 +113,19 @@ impl Profile {
         }
         Ok(())
     }
+
+    pub fn set_map(&mut self, code: &str, on: bool) -> crate::Result<()> {
+        if self.is_vanilla() {
+            return Err(crate::Error::Other(format!(
+                "{VANILLA} is built in and cannot be changed"
+            )));
+        }
+        self.maps.retain(|m| m != code);
+        if on {
+            self.maps.push(code.into());
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -121,5 +143,18 @@ mod tests {
         assert!(p.set_enabled(CORE_ID, false).is_err());
         p.set_enabled("a.b", false).unwrap();
         assert_eq!(p.enabled().collect::<Vec<_>>(), ["swofty.core"]);
+        p.set_map("okayama", true).unwrap();
+        p.set_map("okayama", true).unwrap();
+        assert_eq!(p.maps, ["okayama"]);
+        p.set_map("okayama", false).unwrap();
+        assert!(p.maps.is_empty());
+    }
+
+    #[test]
+    fn profile_names() {
+        assert!(valid_name("grid-24_b"));
+        assert!(!valid_name(VANILLA));
+        assert!(!valid_name("a b"));
+        assert!(!valid_name("../x"));
     }
 }

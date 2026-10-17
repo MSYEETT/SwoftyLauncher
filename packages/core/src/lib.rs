@@ -7,6 +7,7 @@ pub mod manifest;
 pub mod map;
 pub mod ops;
 pub mod paths;
+pub mod process;
 pub mod profile;
 pub mod resolver;
 pub mod session;

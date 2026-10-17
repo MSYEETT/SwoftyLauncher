@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+
+use crate::STEAM_APP_ID;
 
 pub const DEFAULT_WINEDEBUG: &str = "+timestamp,+pid,+tid,+seh,+loaddll,fixme-all";
 
@@ -59,6 +62,10 @@ pub struct Policy {
 pub struct Config {
     #[serde(default)]
     pub launch: LaunchConfig,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_profile: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub game_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -93,6 +100,41 @@ pub struct LaunchRequest {
     pub winedebug: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SessionRecord {
+    pub dir: PathBuf,
+    pub request_id: Option<String>,
+    pub started: Option<f64>,
+    pub ended: Option<f64>,
+    pub exit_code: Option<i32>,
+}
+
+impl SessionRecord {
+    pub fn read(dir: &Path) -> Self {
+        let read = |f: &str| {
+            std::fs::read_to_string(dir.join(f))
+                .ok()
+                .map(|s| s.trim().to_owned())
+                .filter(|s| !s.is_empty())
+        };
+        Self {
+            dir: dir.into(),
+            request_id: read("request_id"),
+            started: read("game_start").and_then(|s| s.parse().ok()),
+            ended: read("game_end").and_then(|s| s.parse().ok()),
+            exit_code: read("exit_code").and_then(|s| s.parse().ok()),
+        }
+    }
+
+    pub fn crashed(&self) -> bool {
+        self.exit_code.is_some_and(|c| c != 0)
+    }
+
+    pub fn wine_log(&self) -> PathBuf {
+        self.dir.join(format!("steam-{STEAM_APP_ID}.log"))
+    }
 }
 
 pub fn parse_cpu_list(spec: &str) -> Option<Vec<usize>> {
@@ -137,6 +179,21 @@ mod tests {
     fn cpu_lists() {
         assert_eq!(parse_cpu_list("0-2,5"), Some(vec![0, 1, 2, 5]));
         assert_eq!(parse_cpu_list("x"), None);
+    }
+
+    #[test]
+    fn reads_session_records() {
+        let dir = std::env::temp_dir().join(format!("swofty-session-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("request_id"), "abc\n").unwrap();
+        std::fs::write(dir.join("game_start"), "100.5\n").unwrap();
+        let live = SessionRecord::read(&dir);
+        assert_eq!(live.request_id.as_deref(), Some("abc"));
+        assert_eq!((live.started, live.exit_code), (Some(100.5), None));
+        assert!(!live.crashed());
+        std::fs::write(dir.join("exit_code"), "3\n").unwrap();
+        assert!(SessionRecord::read(&dir).crashed());
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
