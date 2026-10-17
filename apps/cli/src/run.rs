@@ -315,16 +315,41 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
         .winedebug
         .clone()
         .unwrap_or(config.launch.winedebug.clone());
+    // Proton's steam helper quote-wraps targets whose path contains spaces
+    // and then fails to open the quoted name at all, so the game folder's
+    // "F1 25" cannot be passed directly. A space-free symlink to the folder
+    // gives an absolute target that survives untouched; the game and the
+    // loader see the same files through it.
+    let game_link = {
+        let link = store.root.join("state/game-link");
+        #[cfg(unix)]
+        {
+            match std::fs::symlink_metadata(&link) {
+                Ok(m) if m.file_type().is_symlink() => {
+                    if std::fs::read_link(&link).ok().as_deref() != Some(game) {
+                        std::fs::remove_file(&link).and_then(|_| std::os::unix::fs::symlink(game, &link))?;
+                    }
+                }
+                Ok(_) => bail!(
+                    "{} exists and is not the game link; remove it and try again",
+                    link.display()
+                ),
+                Err(_) => {
+                    std::fs::create_dir_all(store.root.join("state"))?;
+                    std::os::unix::fs::symlink(game, &link)?;
+                }
+            }
+        }
+        #[cfg(not(unix))]
+        let _ = &link;
+        link
+    };
     let spawn = |exe: &str, log: &str| -> Result<std::process::Child> {
         let out = std::fs::File::create(dir.join(log))?;
         let mut c = match &proton {
             Some(p) => {
                 let mut c = Command::new(p);
-                // The bare file name: the working directory is the game
-                // folder, and Proton's steam helper mangles absolute paths
-                // that contain spaces (it quote-wraps them and then fails to
-                // create the process at all).
-                c.arg("run").arg(exe);
+                c.arg("run").arg(game_link.join(exe));
                 c
             }
             None => Command::new(game.join(exe)),
