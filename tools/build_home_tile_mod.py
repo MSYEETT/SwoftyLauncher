@@ -188,7 +188,7 @@ def main():
     ap.add_argument('--label')
     ap.add_argument('--prompt-label')
     ap.add_argument('--action', default='Menu Right Stick Click')
-    ap.add_argument('--offline-text', default='Launched with Swofty Mod Launcher')
+    ap.add_argument('--offline-text', default='Launched with Swofty Launcher')
     ap.add_argument('--offline-prompt', default='to open settings')
     ap.add_argument('--settings')
     ap.add_argument('--command-target', choices=['screen', 'fe_home'], default='screen')
@@ -196,9 +196,9 @@ def main():
     if a.settings and a.variant not in ('v9', 'v12'):
         ap.error('--settings needs v9 or v12')
     if a.label is None:
-        a.label = 'MOD SETTINGS' if a.variant in ('v4', 'v6', 'v7', 'v8', 'v8once', 'v9', 'v10', 'v11a', 'v11b', 'v12') else 'MOD MENU'
+        a.label = 'ADDON SETTINGS' if a.variant in ('v4', 'v6', 'v7', 'v8', 'v8once', 'v9', 'v10', 'v11a', 'v11b', 'v12') else 'MOD MENU'
     if a.prompt_label is None:
-        a.prompt_label = 'Mod Settings' if a.variant in ('v4', 'v6', 'v7', 'v8', 'v8once', 'v9', 'v10', 'v11a', 'v11b', 'v12') else a.label
+        a.prompt_label = 'Addon Settings' if a.variant in ('v4', 'v6', 'v7', 'v8', 'v8once', 'v9', 'v10', 'v11a', 'v11b', 'v12') else a.label
     out = a.dest or os.path.join(a.out, a.variant)
     if a.variant == 'v1':
         fe = lambda d: patch_fe_home(d, a.label, a.action, 'options', 'toggle_difficulty', True)

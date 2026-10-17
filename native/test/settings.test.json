@@ -7,7 +7,7 @@
    "id": "swofty.core",
    "name": "SwoftyMod",
    "version": "0.1.0",
-   "description": "Adds core functionality for Swofty Mod loading and customisation",
+   "description": "Adds core functionality for mod loading and customisation in Swofty Launcher",
    "enabled": true,
    "locked": true,
    "dlls": [
@@ -23,7 +23,7 @@
      "type": "toggle",
      "binds": "native",
      "label": "Show launcher panel",
-     "description": "Show the \"Launched with Swofty Mod Launcher\" panel on the home screen.",
+     "description": "Show the \"Launched with Swofty Launcher\" panel on the home screen.",
      "current": 1,
      "states": [
       {

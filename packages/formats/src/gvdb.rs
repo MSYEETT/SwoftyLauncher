@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn mask_round_trip() {
-        let plain = b"Launched with Swofty Mod Launcher";
+        let plain = b"Launched with Swofty Launcher";
         for pos in [0, 1, 29, 30, 12345] {
             assert_eq!(unmask(&mask(plain, pos), pos), plain);
         }

@@ -52,7 +52,7 @@ class Sources:
 def build_home(src, mods):
     scr = u.screen(HOME, HOME_LAYOUT, props_from=src.career.items[PROPS])
     fr = src.frame(scr, 'back')
-    kids = [src.title(scr, 'settings_home_screen', 'MOD SETTINGS')]
+    kids = [src.title(scr, 'settings_home_screen', 'ADDON SETTINGS')]
     kids += [u.hidden(f'hide_{n}', n) for n in ('filter', 'side_panel', 'scroll_bar', 'scroll_bar_panel')]
     tiles = []
     for b in range(0, len(mods), 4):
@@ -252,7 +252,7 @@ def _back_listener(src, nm, enabled, signals):
 def build_single(src, mods):
     scr = u.screen(HOME, HOME_LAYOUT, props_from=src.career.items[PROPS])
     fr = src.frame(scr, 'back')
-    title = src.title(scr, 'settings_home_screen', 'MOD SETTINGS')
+    title = src.title(scr, 'settings_home_screen', 'ADDON SETTINGS')
     kids = [title]
     kids += [u.hidden(f'hide_{n}', n) for n in ('filter', 'side_panel', 'scroll_bar', 'scroll_bar_panel')]
     blocks, tiles = [], []

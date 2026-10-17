@@ -13,8 +13,8 @@ ONLINE_MESSAGES = (
 TITLE = 'Swofty Mod v0.1.0'
 BODY = ('Online services are off while mods are loaded, so multiplayer is unavailable.\n\n'
         'New in v0.1.0:\n'
-        '- MOD SETTINGS on the home screen (F9 / R3)\n'
-        '- Mod settings page listing installed mods\n'
+        '- ADDON SETTINGS on the home screen (F9 / R3)\n'
+        '- Addon settings page listing installed addons\n'
         '- Launcher panel on the home screen')
 BUTTON = 'lng_continue'
 ONCE_ATTR = 'swofty_once'

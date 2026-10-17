@@ -23,8 +23,8 @@ const gameApiItems = gameApi.subsystems.map((s) => ({
 }));
 
 export default defineConfigWithTheme<DocsThemeConfig>({
-  title: "F1 Mod Manager",
-  description: "A mod manager and launcher for F1 25 on Windows and Linux",
+  title: "Swofty Launcher for F1 25",
+  description: "A launcher and mod loader for F1 25 on Windows and Linux",
   base,
   lang: "en-AU",
   appearance: "force-dark",
@@ -33,7 +33,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
   head: [
     ["link", { rel: "icon", href: `${base}logo.svg`, type: "image/svg+xml" }],
     ["meta", { name: "theme-color", content: "#2a1b39" }],
-    ["meta", { property: "og:site_name", content: "F1 Mod Manager" }],
+    ["meta", { property: "og:site_name", content: "Swofty Launcher for F1 25" }],
     ["meta", { property: "og:image", content: `${site}/screenshots/hero-launcher.png` }],
     ["link", { rel: "preconnect", href: "https://fonts.googleapis.com" }],
     ["link", { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" }],
@@ -72,7 +72,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
   },
   themeConfig: {
     logo: "/logo.svg",
-    siteTitle: "F1 Mod Manager",
+    siteTitle: "Swofty Launcher for F1 25",
     repo,
     socialLinks: [{ icon: "github", link: repo }],
     search: {

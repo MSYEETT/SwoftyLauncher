@@ -84,4 +84,4 @@ Readers not in this table are unaudited. Treat them as unchecked.
 
 ## A null-on-miss hook (not shipped)
 
-A MidHook at `0x1445a2f9d` (signature `4D 85 DB 74 0C 49 29 C9 49 C1 F9 04 4C 89 CA EB 02 31 D2 48 C1 E2 04 48 8D 04 11 48 83 C0 08 48 81 C4 28`, match + `0x1F`) can point `rax` at a zero qword when it equals `*(*(0x146cc4278) + 0xc8) + 8`. Every `Gdb_Get_FieldInt` caller would then see a missing key as null. The same find code is inlined about 88 times elsewhere and those copies are not covered. F1 Mod Manager does not install this hook; database mods must keep every read key present.
+A MidHook at `0x1445a2f9d` (signature `4D 85 DB 74 0C 49 29 C9 49 C1 F9 04 4C 89 CA EB 02 31 D2 48 C1 E2 04 48 8D 04 11 48 83 C0 08 48 81 C4 28`, match + `0x1F`) can point `rax` at a zero qword when it equals `*(*(0x146cc4278) + 0xc8) + 8`. Every `Gdb_Get_FieldInt` caller would then see a missing key as null. The same find code is inlined about 88 times elsewhere and those copies are not covered. Swofty Launcher for F1 25 does not install this hook; database mods must keep every read key present.

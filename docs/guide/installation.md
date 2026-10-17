@@ -1,6 +1,6 @@
 # Installation
 
-F1 Mod Manager is a desktop app for F1 25. Modded play is offline only.
+Swofty Launcher for F1 25 is a desktop app for modding F1 25. Modded play is offline only.
 
 ## Requirements
 

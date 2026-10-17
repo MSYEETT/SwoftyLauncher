@@ -1,25 +1,25 @@
 ---
 layout: false
-title: F1 Mod Manager
-titleTemplate: Mods for F1 25
+title: Swofty Launcher for F1 25
+titleTemplate: Mods and tracks on Windows and Linux
 description: A launcher and mod loader for F1 25 on Windows and Linux. Add community tracks, install mods, change mod settings in game and keep separate profiles.
 
 screenshots:
   hero:
     src: /screenshots/hero-launcher.png
-    alt: The F1 Mod Manager launcher
+    alt: The Swofty Launcher for F1 25 launcher
   gallery:
     - src: /screenshots/gallery-ingame.png
-      alt: The F1 25 home menu with MOD SETTINGS under Career, the "Launched with Swofty Mod Launcher" panel and the F9 prompt
-      caption: MOD SETTINGS in the game's home menu
+      alt: The F1 25 home menu with ADDON SETTINGS under Career, the "Launched with Swofty Launcher" panel and the F9 prompt
+      caption: ADDON SETTINGS in the game's home menu
       shape: square
     - src: /screenshots/gallery-launcher.png
-      alt: The F1 Mod Manager launcher
+      alt: The Swofty Launcher for F1 25 launcher
       caption: Mods, maps and profiles in the launcher
       shape: wide
 
 hero:
-  name: F1 Mod Manager
+  name: Swofty Launcher for F1 25
   tagline: Bringing <em>mod support</em> to
   game:
     text: F1 25
@@ -32,7 +32,7 @@ links:
   - { icon: github, text: Source Code, link: https://github.com/Swofty-Developments/F1ModManager }
   - { icon: tag, text: Releases, link: https://github.com/Swofty-Developments/F1ModManager/releases }
 
-intro: F1 Mod Manager is a <em>launcher and mod loader</em> for F1 25 on <em>Windows and Linux</em>. Add <em>community tracks</em>, install <em>mods</em>, change <em>mod settings in game</em> and keep separate <em>profiles</em>. Modded play is <em>offline only</em>, and launching from Steam stays vanilla.
+intro: Swofty Launcher for F1 25 is a <em>launcher and mod loader</em> for F1 25 on <em>Windows and Linux</em>. Add <em>community tracks</em>, install <em>mods</em>, change <em>mod settings in game</em> and keep separate <em>profiles</em>. Modded play is <em>offline only</em>, and launching from Steam stays vanilla.
 
 platforms:
   - { icon: windows, text: Windows 10 and 11 }
@@ -51,7 +51,7 @@ features:
     link: /using/mods-and-maps
   - icon: sliders
     title: In-game mod settings
-    details: Open <em>MOD SETTINGS</em> in the game's home menu, under Career, to change mod options without leaving the game.
+    details: Open <em>ADDON SETTINGS</em> in the game's home menu, under Career, to change mod options without leaving the game.
     link: /using/swofty-mod
   - icon: layers
     title: Profiles
@@ -67,14 +67,14 @@ features:
     link: /guide/installation
 
 developers:
-  text: F1 Mod Manager is <em>open source</em>, with a hook system built for modders. Mods <em>hook game functions by name</em>, with <em>priorities</em> and <em>chaining</em> so several mods can change the same function.
+  text: Swofty Launcher for F1 25 is <em>open source</em>, with a hook system built for modders. Mods <em>hook game functions by name</em>, with <em>priorities</em> and <em>chaining</em> so several mods can change the same function.
   actions:
     - { icon: book, text: Modding docs, link: /modding/template, style: solid }
     - { icon: chip, text: Plugin SDK, link: /modding/native-plugins, style: outline }
     - { icon: code, text: Game API, link: /reference/game/, style: outline }
 
 cta:
-  text: Interested? Read the <em>installation guide</em> to set up F1 Mod Manager, or the <em>docs</em> to start making mods.
+  text: Interested? Read the <em>installation guide</em> to set up Swofty Launcher for F1 25, or the <em>docs</em> to start making mods.
   actions:
     - { icon: download, text: Installation guide, link: /guide/installation }
     - { icon: book, text: Docs, link: /guide/ }

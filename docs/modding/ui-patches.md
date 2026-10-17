@@ -18,7 +18,7 @@ The current builder skips UI patches. This is the format for the planned build s
   "root": "Screens[0]:fe_home",
   "edits": [
     { "op": "set-text", "node": "contextual_panels.offline_contextual_panel.subtitle",
-      "value": "Launched with Swofty Mod Launcher, press", "localise": false }
+      "value": "Launched with Swofty Launcher, press", "localise": false }
   ]
 }
 ```

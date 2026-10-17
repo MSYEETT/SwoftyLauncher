@@ -56,7 +56,7 @@ SWOFTY_MOD()
 | any number type | `slider` |
 | `std::string_view` | `choice` |
 
-Reading a setting returns the profile's value for the session, or the fallback when the option is not declared with that type in `swofty.json`. The plugin log names any mismatch. `SWOFTY_ON_CHANGE` runs when the player changes the value in **MOD SETTINGS**. Use `swofty::setting<T>{"id", fallback}` for a name that differs from the option id.
+Reading a setting returns the profile's value for the session, or the fallback when the option is not declared with that type in `swofty.json`. The plugin log names any mismatch. `SWOFTY_ON_CHANGE` runs when the player changes the value in **ADDON SETTINGS**. Use `swofty::setting<T>{"id", fallback}` for a name that differs from the option id.
 
 From C, call `api->setting(id, type, &value)` and `api->watch_setting(id, fn, user)` (API version 3). Both identify the calling mod by its DLL.
 

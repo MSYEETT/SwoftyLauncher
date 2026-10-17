@@ -48,13 +48,13 @@ python3 tools/gamedb.py roundtrip "$F1_25_DIR/game_package/gamedatabases/gamedat
 python3 tools/erpw.py rebuild "$F1_25_DIR/2025_asset_groups/ui_package/databases.erp" /tmp/databases.erp
 ```
 
-The MOD SETTINGS build is compared byte for byte with a reference build of the same session (`packages/core/tests/fixtures/menu_session.json`). `F1_25_DIR` must hold unmodified UI archives.
+The ADDON SETTINGS build is compared byte for byte with a reference build of the same session (`packages/core/tests/fixtures/menu_session.json`). `F1_25_DIR` must hold unmodified UI archives.
 
 ```sh
 F1_25_DIR="/path/to/F1 25" SWOFTY_MENU_ORACLE=/path/to/reference cargo test -p swofty-core --test real_menus
 ```
 
-With `SWOFTY_MAPS_DIR` set to a folder holding an imported `bahrain24` package, the same file checks that the map's edits and MOD SETTINGS are written into one `databases.erp` and `persistent.erp`.
+With `SWOFTY_MAPS_DIR` set to a folder holding an imported `bahrain24` package, the same file checks that the map's edits and ADDON SETTINGS are written into one `databases.erp` and `persistent.erp`.
 
 ## Native loader
 
@@ -63,7 +63,7 @@ native/build.sh
 native/test/run_wine_test.sh
 ```
 
-The build uses Zig to produce Windows DLLs in `native/dist/`. The Wine test uses a small test executable to check the loader and MOD SETTINGS menu entry.
+The build uses Zig to produce Windows DLLs in `native/dist/`. The Wine test uses a small test executable to check the loader and ADDON SETTINGS menu entry.
 
 ## Documentation
 

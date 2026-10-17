@@ -1,13 +1,13 @@
 # Design notes
 
-This is a contributor overview of F1 Mod Manager. It covers the intended app and the work still needed. For setup, start with [Installation](/guide/installation).
+This is a contributor overview of Swofty Launcher for F1 25. It covers the intended app and the work still needed. For setup, start with [Installation](/guide/installation).
 
 ## Goals
 
 - Manage mods and community maps in one desktop app.
 - Keep modded play offline only, with multiplayer off.
 - Switch profiles and restore the original game in one click.
-- Change mod options through MOD SETTINGS under Career.
+- Change mod options through ADDON SETTINGS under Career.
 - Support Windows and Linux through Steam and Proton.
 
 ## Main parts
@@ -52,13 +52,13 @@ The intended flow is:
 
 Record changes before applying them so interrupted sessions can be recovered. Never restore an old build's files over a new one. See [Backups and recovery](/reference/restore).
 
-Linux uses a Steam launch option. Windows uses a separate modded launch. Normal Steam launches remain vanilla when the manager's launch option is absent and the game has been restored.
+Linux uses a Steam launch option. Windows uses a separate modded launch. Normal Steam launches remain vanilla when the launcher's launch option is absent and the game has been restored.
 
 ## In-game settings
 
-SwoftyMod adds MOD SETTINGS below Career, an F9/R3 prompt and a launcher panel.
+SwoftyMod adds ADDON SETTINGS below Career, an F9/R3 prompt and a launcher panel.
 
-MOD SETTINGS has a tile per enabled mod and map and a page for each, built from the player's game files and the profile when the profile is built. Database settings need a restart; plugin settings apply immediately.
+ADDON SETTINGS has a tile per enabled mod and map and a page for each, built from the player's game files and the profile when the profile is built. Database settings need a restart; plugin settings apply immediately.
 
 ## Current status
 

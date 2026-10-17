@@ -1,6 +1,6 @@
 [package]
 name = "swofty-core"
-description = "Store, manifests, resolver and Steam discovery for Swofty Mod Launcher"
+description = "Store, manifests, resolver and Steam discovery for Swofty Launcher for F1 25"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

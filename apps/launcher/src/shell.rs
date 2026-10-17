@@ -540,7 +540,7 @@ impl Shell {
                     div()
                         .text_size(px(13.))
                         .font_weight(FontWeight::MEDIUM)
-                        .child("Swofty Mod Launcher"),
+                        .child("Swofty Launcher for F1 25"),
                 ),
         )
     }

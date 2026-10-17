@@ -112,7 +112,7 @@ onUnmounted(() => window.removeEventListener("hashchange", syncHash));
       <header>
         <a :href="to('/')">
           <img :src="withBase('/logo.svg')" alt="" width="36" height="36" />
-          <span>F1 Mod Manager Docs</span>
+          <span>Swofty Launcher for F1 25</span>
         </a>
         <VPSocialLink class="button" icon="github" :link="theme.repo" aria-label="Source code on GitHub" />
       </header>

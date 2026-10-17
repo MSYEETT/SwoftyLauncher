@@ -13,7 +13,7 @@ UIDM = sp.UIDM
 OPTIONS = [
     dict(key='show_launcher_panel', kind='toggle', value=True,
          on='SHOW LAUNCHER PANEL: ON', off='SHOW LAUNCHER PANEL: OFF',
-         desc='Show the "Launched with Swofty Mod Launcher" panel on the home screen.'),
+         desc='Show the "Launched with Swofty Launcher" panel on the home screen.'),
     dict(key='mod_menu_key', kind='info', value='F9', label='MOD MENU KEY: F9 / R3',
          desc='Key that opens these settings from the home screen. Keyboard F9, controller R3.'),
 ]

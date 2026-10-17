@@ -1,6 +1,6 @@
 [package]
 name = "swofty-sdk"
-description = "C ABI and Rust types for Swofty Mod Launcher native plugins"
+description = "C ABI and Rust types for Swofty Launcher for F1 25 native plugins"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

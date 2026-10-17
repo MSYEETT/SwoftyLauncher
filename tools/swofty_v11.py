@@ -61,7 +61,7 @@ def build_v11b(fe_home_ui, syst, fe_career_ui):
     kids = [c for c in scr.items[CHILDREN].items if name(c) not in drop]
 
     title = _clone(child(fe_career, 'screen_title'))
-    _literal(child(title, 'label_title'), 'MOD SETTINGS')
+    _literal(child(title, 'label_title'), 'ADDON SETTINGS')
     desc = _clone(child(fe_career, 'description'))
     _literal(desc, 'SwoftyMod settings and the mods loaded this session.')
     tips = _clone(child(fe_career, 'tooltips'))

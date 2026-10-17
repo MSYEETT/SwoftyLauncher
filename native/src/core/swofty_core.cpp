@@ -26,8 +26,8 @@ unsigned long long rva(uintptr_t a)
 #ifdef SWOFTY_MOD_SETTINGS_ACTIVE
 
 constexpr const char *ROUTE = "mod_menu";
-constexpr const char *TITLE = "MOD SETTINGS";
-constexpr const char *DESCRIPTION = "Configure the mods installed by Swofty Mod Launcher";
+constexpr const char *TITLE = "ADDON SETTINGS";
+constexpr const char *DESCRIPTION = "Configure the addons installed by Swofty Launcher";
 
 unsigned hook_calls, populate_calls, action_calls;
 void **mod_vt;
@@ -84,7 +84,7 @@ bool check()
 {
     uintptr_t site = site_FeHome_AfterCareerCall.address(), builder = FeTile_Build_List.address();
     swofty::log("[core] swofty_core init, game base 0x%llx", (unsigned long long)swofty::api->module_base());
-    swofty::log("[core] MOD SETTINGS mixin: %s", SWOFTY_MOD_SETTINGS_MODE);
+    swofty::log("[core] ADDON SETTINGS mixin: %s", SWOFTY_MOD_SETTINGS_MODE);
     if (site < builder || site - builder > 0x8000) {
         swofty::log("[core] hook site 0x%llx is not inside the builder at 0x%llx; installing nothing",
                     (unsigned long long)site, (unsigned long long)builder);

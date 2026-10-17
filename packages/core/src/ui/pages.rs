@@ -61,8 +61,8 @@ impl Kind {
 
     fn tag(self) -> &'static str {
         match self {
-            Kind::Mod => "MOD",
-            Kind::Map => "TRACK",
+            Kind::Mod => "ADDON",
+            Kind::Map => "MOD",
         }
     }
 }
@@ -669,7 +669,7 @@ fn tile(src: &Sources, style: &TileStyle, parent: &str, name: &str, row: usize, 
 fn build_home(src: &Sources, style: &TileStyle, flow: &[Entry]) -> Result<Node> {
     let scr = src.screen(HOME, HOME_LAYOUT)?;
     let fr = src.frame(HOME)?;
-    let mut kids = vec![src.title(HOME, "settings_home_screen", "MOD SETTINGS")?];
+    let mut kids = vec![src.title(HOME, "settings_home_screen", "ADDON SETTINGS")?];
     for n in ["filter", "side_panel", "scroll_bar", "scroll_bar_panel"] {
         kids.push(hidden(&format!("hide_{n}"), &[n]));
     }
@@ -744,7 +744,7 @@ fn build_home(src: &Sources, style: &TileStyle, flow: &[Entry]) -> Result<Node> 
     let first = keyed
         .first()
         .map(|(p, _)| p[HOME.len() + 1..].to_owned())
-        .ok_or_else(|| err("MOD SETTINGS has nothing to list"))?;
+        .ok_or_else(|| err("ADDON SETTINGS has nothing to list"))?;
     finish_home(scr, fr, kids, &keyed, &first)
 }
 

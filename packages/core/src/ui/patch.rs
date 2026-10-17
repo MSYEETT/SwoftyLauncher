@@ -8,9 +8,9 @@ pub const ACTION: &str = "Menu Right Stick Click";
 const ACTION_PREFIX: &str = "#input_data.action_sets.menu_actions.actions.";
 pub const MOD_MENU: &str = "mod_menu";
 pub const MOD_MENU_OFFLINE: &str = "mod_menu_offline";
-pub const OFFLINE_TEXT: &str = "Launched with Swofty Mod Launcher";
+pub const OFFLINE_TEXT: &str = "Launched with Swofty Launcher";
 pub const OFFLINE_PROMPT: &str = "to open settings";
-pub const PROMPT_LABEL: &str = "Mod Settings";
+pub const PROMPT_LABEL: &str = "Addon Settings";
 const PANEL: &str = "fe_home.contextual_panels.offline_contextual_panel";
 const UIDM: &str = "persistent.consume_input_wrapper.persistent_multichoice_message";
 const ONCE_ATTR: &str = "swofty_once";
@@ -38,8 +38,8 @@ impl Popup {
             body: format!(
                 "Online services are off while mods are loaded, so multiplayer is unavailable.\n\n\
                  New in v{version}:\n\
-                 - MOD SETTINGS on the home screen (F9 / R3)\n\
-                 - Mod settings page listing installed mods\n\
+                 - ADDON SETTINGS on the home screen (F9 / R3)\n\
+                 - Addon settings page listing installed addons\n\
                  - Launcher panel on the home screen"
             ),
         }

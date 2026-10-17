@@ -171,7 +171,7 @@ pub fn build(settings: &SessionSettings, input: &dyn Fn(&str) -> PathBuf, out: &
     )?);
     if !problems.is_empty() {
         return Err(Error::Other(format!(
-            "MOD SETTINGS failed its checks:\n  {}",
+            "ADDON SETTINGS failed its checks:\n  {}",
             problems.join("\n  ")
         )));
     }

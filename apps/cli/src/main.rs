@@ -13,7 +13,7 @@ use swofty_core::manifest::Binds;
 use swofty_core::store::Store;
 
 #[derive(Parser)]
-#[command(name = "swofty", version, about = "F1 Mod Manager: mods and maps for F1 25")]
+#[command(name = "swofty", version, about = "Swofty Launcher for F1 25: mods and maps")]
 struct Cli {
     #[arg(
         long,

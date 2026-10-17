@@ -620,7 +620,7 @@ int main(int argc, char **argv)
     Action a = {0};
     ((Action * (*)(uint8_t *, Action *))(*(void ***)mod)[5])(mod, &a);
     expect(!strcmp(chars(*(NeStr **)(mod + 0x10)), "mod_menu"), "mod item id = mod_menu");
-    expect(mn && !strcmp(mn->title, "MOD SETTINGS") && mn->title_localised == 0, "mod item title 'MOD SETTINGS', not localised");
+    expect(mn && !strcmp(mn->title, "ADDON SETTINGS") && mn->title_localised == 0, "mod item title 'ADDON SETTINGS', not localised");
     expect(a.type == 1 && !strcmp(chars(a.str), "mod_menu"), "mod item action {1, mod_menu}");
     expect(cn && !strcmp(cn->title, "lng_mode_career") && cn->title_localised == 1, "career item untouched");
     expect((*(void ***)mod)[0] == CAREER_VT[0] && (*(void ***)mod)[-1] == CAREER_VT[-1], "mod vtable keeps career slots 0 and -1");

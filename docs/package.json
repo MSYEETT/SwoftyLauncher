@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Documentation site for F1 Mod Manager",
+  "description": "Documentation site for Swofty Launcher for F1 25",
   "scripts": {
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build",

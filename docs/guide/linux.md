@@ -17,7 +17,7 @@ For Flatpak Steam, use `~/.var/app/com.valvesoftware.Steam/data/swofty/bin/swoft
 
 ## Play
 
-With this launch option set, Steam's **Play** button uses F1 Mod Manager. Clear it to return to Steam's normal launch.
+With this launch option set, Steam's **Play** button uses Swofty Launcher for F1 25. Clear it to return to Steam's normal launch.
 
 Run `swofty run` from a terminal to see live logs and a crash summary. Steam must be running. See [Command line](/reference/cli#swofty-run).
 

@@ -215,9 +215,10 @@
   margin: 0;
   font-family: "Quicksand", ui-sans-serif, sans-serif;
   font-weight: 600;
-  font-size: clamp(3rem, 7.5vw, 6rem);
+  font-size: clamp(2.5rem, 5.5vw, 6rem);
   line-height: 1.1;
   letter-spacing: -0.01em;
+  text-wrap: balance;
   text-shadow: 0 0 2rem var(--lp-glow);
 }
 
@@ -723,7 +724,7 @@
   }
 
   .lp-title {
-    font-size: clamp(2.6rem, 12.5vw, 3.6rem);
+    font-size: clamp(2.2rem, 10vw, 3.6rem);
   }
 
   .lp-tagline {

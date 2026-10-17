@@ -11,7 +11,7 @@ FE_HOME_GROUP = 'asset_groups/ui_package/screens/fe_home.assetgroup'
 OPTIONS = [
     dict(key='show_launcher_panel', kind='toggle', value=True,
          label_on='SHOW LAUNCHER PANEL: ON', label_off='SHOW LAUNCHER PANEL: OFF',
-         description='Show the "Launched with Swofty Mod Launcher" panel on the home screen.'),
+         description='Show the "Launched with Swofty Launcher" panel on the home screen.'),
     dict(key='mod_menu_key', kind='info', value='F9',
          label='MOD MENU KEY: F9 / R3',
          description='Key that opens these settings from the home screen. Keyboard F9, controller R3.'),
@@ -270,7 +270,7 @@ def screen_frame(fe_home):
     rename_refs(tips, 'fe_home.tooltips', f'{SCREEN}.tooltips')
     kids.append(tips)
 
-    title = node('title', 'UILB', [('localise', prop('bool', False)), ('text', prop('stri', 'MOD SETTINGS'))],
+    title = node('title', 'UILB', [('localise', prop('bool', False)), ('text', prop('stri', 'ADDON SETTINGS'))],
                  layout='season_edition_text', behav=('NBEL', 'NBMG', 'NBOS', 'NBXA', 'NBMO'))
     kids.append(title)
     desc = node('description', 'UILB', [('localise', prop('bool', False)),

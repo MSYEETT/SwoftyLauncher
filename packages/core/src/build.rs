@@ -392,7 +392,7 @@ pub fn build_menus(
     let input = |rel: &str| built.plan.data.get(rel).cloned().unwrap_or_else(|| original(rel));
     let menus = crate::ui::build(session, &input, &built.overlay)?;
     built.lines.push(format!(
-        "ui: MOD SETTINGS with {} screen(s) under {LOADER_DIR}/ui, {} game archive(s) patched",
+        "ui: ADDON SETTINGS with {} screen(s) under {LOADER_DIR}/ui, {} game archive(s) patched",
         menus.session.len(),
         menus.erps.len()
     ));
@@ -414,7 +414,7 @@ pub fn build_menus(
         .find(|s| menus.session.iter().any(|m| m.name == s.name))
     {
         return Err(Error::Other(format!(
-            "screen {} is reserved for MOD SETTINGS; rename it in its mod",
+            "screen {} is reserved for ADDON SETTINGS; rename it in its mod",
             s.name
         )));
     }

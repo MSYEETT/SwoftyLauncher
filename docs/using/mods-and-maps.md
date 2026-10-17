@@ -23,4 +23,4 @@ See [Importing maps](/using/importing-maps). Maps are stored separately from mod
 
 ## Built-in mod
 
-[SwoftyMod](/using/swofty-mod) adds the in-game MOD SETTINGS entry. It is always enabled in modded profiles.
+[SwoftyMod](/using/swofty-mod) adds the in-game ADDON SETTINGS entry. It is always enabled in modded profiles.

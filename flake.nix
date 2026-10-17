@@ -1,5 +1,5 @@
 {
-  description = "Swofty Mod Launcher development shell";
+  description = "Swofty Launcher for F1 25 development shell";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
