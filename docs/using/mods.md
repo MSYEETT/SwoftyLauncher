@@ -63,7 +63,7 @@ When you play, the launcher applies only what each enabled mod changes, in list 
 
 ## Tracks
 
-A track is a mod too. Import the track package zip as above, with no need to unpack it. The track's id is its track code, such as `okayama`, and its row has the **Track** tag. When it is on, it appears in Grand Prix track selection.
+A track is a mod too. Import the track package zip as above, with no need to unpack it. The track's id is its track code, such as `okayama`, or `<code>-track` when a mod in the library already has that id. Importing the same track again replaces it. Its row has the **Track** tag. When it is on, it appears in Grand Prix track selection.
 
 Any number of tracks can be on in one profile. With an in-game loader that cannot register asset groups, the limit is eight.
 
