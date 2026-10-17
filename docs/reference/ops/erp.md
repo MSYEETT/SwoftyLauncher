@@ -44,7 +44,7 @@ python3 tools/erp.py <archive> '*'
 
 ## Raw resources
 
-`replace-resource` and `add-resource` take raw fragment data: the bytes a fragment holds after decompression, as `python3 tools/erp.py` extracts them. The build compresses each fragment the way the archive stores it and updates its size and the resource hash.
+`replace-resource` and `add-resource` take raw fragment data: the bytes a fragment holds after decompression. The build compresses each fragment the way the archive stores it and updates its size and the resource hash.
 
 - `replace-resource` replaces fragment `fragment` of `resource` in `erp` with the file `source` and keeps the other fragments byte for byte. It fails when the archive has no such resource or the resource has no such fragment.
 - `add-resource` appends `resource` to `erp`. `type` is the resource type, such as `GfxSurfaceRes`, at most 15 characters. `sources` lists one file per fragment, in order. The new resource takes its type argument, fragment names, flags and compression from the first resource in `erp` of the same type with the same number of fragments, and the operation fails when `erp` has none. It also fails when `erp` already has a resource with that name; `put-resource` replaces or adds.
