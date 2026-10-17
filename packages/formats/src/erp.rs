@@ -81,7 +81,11 @@ impl Resource {
 }
 
 pub fn compress(data: &[u8]) -> Result<Vec<u8>> {
-    let mut enc = zstd::Encoder::new(Vec::new(), ZSTD_LEVEL)?;
+    compress_at(data, ZSTD_LEVEL)
+}
+
+pub fn compress_at(data: &[u8], level: i32) -> Result<Vec<u8>> {
+    let mut enc = zstd::Encoder::new(Vec::new(), level)?;
     enc.include_checksum(true)?;
     std::io::Write::write_all(&mut enc, data)?;
     Ok(enc.finish()?)
