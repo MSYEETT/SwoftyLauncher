@@ -107,6 +107,26 @@ The launcher does this when a map is enabled (`packages/core/src/activation/`). 
 
 Tables keyed by track that are calendars, challenge rounds, F1 World activities, map markers and trophies are not cloned.
 
+## Renaming a track
+
+The menus read a track's names from its `TrackNameData_0` row in each dataset, not from `tracks.Track_N`. An edit to `tracks.Track_N.title` alone leaves every menu unchanged. The row holds `title`, `country_name`, `circuit`, `city_name`, `city_name_short`, `gp_long_name`, `gp_long_name_multiline`, `gp_long_name_multiline_previous`, `gp_short_name` and `acronym_name`. The values are language keys (`lng_track_aus_title`).
+
+Melbourne's rows, under `track_data.game_setup`:
+
+| Dataset | Row | Fields set |
+|---|---|---|
+| `f1` | `TrackDataSet_0.TrackData_2.TrackNameData_0` | all ten |
+| `f2` | `TrackDataSet_1.TrackData_0.TrackNameData_0` | all ten |
+| `classic` | `TrackDataSet_2.TrackData_0.TrackNameData_0` | `gp_long_name`, `gp_short_name`; the rest are empty strings |
+| `f1_2026` | `TrackDataSet_16.TrackData_0.TrackNameData_0` | all ten |
+
+Select the `TrackData` row by its label and name the sub-row in `field`, once per dataset:
+
+```json
+{ "op": "set", "select": "track_data.game_setup.TrackDataSet_16.TrackData[_metadata_=melbourne]",
+  "field": "TrackNameData_0.title", "value": "lng_my_track_title" }
+```
+
 ## Checking a build
 
 Build without starting the game, then check the result against the pristine game:
