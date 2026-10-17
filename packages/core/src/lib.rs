@@ -11,6 +11,7 @@ pub mod process;
 pub mod profile;
 pub mod resolver;
 pub mod session;
+pub mod settings;
 pub mod steam;
 pub mod store;
 pub mod vdf;

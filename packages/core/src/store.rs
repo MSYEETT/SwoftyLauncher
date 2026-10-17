@@ -6,6 +6,7 @@ use crate::manifest::{MANIFEST_FILE, ModManifest};
 use crate::map::{self, TrackPackage};
 use crate::profile::{self, Profile};
 use crate::session::Config;
+use crate::settings::{self, Merge, Requests, SessionSettings};
 use crate::{Error, Result, io_err};
 
 pub const DEFAULT_PROFILE: &str = "default";
@@ -250,6 +251,37 @@ impl Store {
         Some(PathBuf::from(dir.trim()))
     }
 
+    pub fn requests_path(&self, profile: &str) -> PathBuf {
+        self.requests_dir().join(format!("{profile}.json"))
+    }
+
+    pub fn session_settings(&self, profile: &str) -> Result<SessionSettings> {
+        let requests = crate::paths::game_folder_view(&self.requests_path(profile));
+        SessionSettings::build(&self.profile(profile)?, &self.mods()?, Some(requests))
+    }
+
+    pub fn merge_requests(&self, profile: &str, consume: bool) -> Result<Option<Merge>> {
+        let path = self.requests_path(profile);
+        if !path.is_file() {
+            return Ok(None);
+        }
+        let req: Requests = crate::read_json(&path)?;
+        let merged = if req.profile.is_empty() || req.profile == profile {
+            let mut p = self.profile(profile)?;
+            let out = settings::merge(&mut p, &self.mods()?, &req);
+            if !out.changed.is_empty() {
+                self.save_profile(&p)?;
+            }
+            Some(out)
+        } else {
+            None
+        };
+        if consume {
+            std::fs::remove_file(&path).map_err(io_err(&path))?;
+        }
+        Ok(merged)
+    }
+
     pub fn save_profile(&self, p: &Profile) -> Result<()> {
         if p.is_vanilla() {
             return Err(Error::Other(
@@ -355,6 +387,33 @@ mod tests {
         store.save_profile(&p).unwrap();
         let plan = crate::resolver::resolve(&store.profile(DEFAULT_PROFILE).unwrap(), &mods).unwrap();
         assert_eq!(plan.order, [CORE_ID, m.id.as_str()]);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn merges_in_game_requests_into_the_profile() {
+        let root = tmp("requests");
+        let store = Store::new(&root);
+        let path = store.requests_path(DEFAULT_PROFILE);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &path,
+            r#"{"schema":1,"profile":"default","seq":1,"options":{"swofty.core":{"show_launcher_panel":false}}}"#,
+        )
+        .unwrap();
+        let out = store.merge_requests(DEFAULT_PROFILE, false).unwrap().unwrap();
+        assert_eq!(out.changed, ["swofty.core.show_launcher_panel = Off"]);
+        assert!(path.is_file());
+        let core = crate::builtin::core_manifest();
+        let p = store.profile(DEFAULT_PROFILE).unwrap();
+        assert_eq!(p.option(&core, &core.options[0]), false);
+        let again = store.merge_requests(DEFAULT_PROFILE, true).unwrap().unwrap();
+        assert!(again.changed.is_empty());
+        assert!(!path.exists());
+        assert_eq!(store.merge_requests(DEFAULT_PROFILE, true).unwrap(), None);
+        let s = store.session_settings(DEFAULT_PROFILE).unwrap();
+        assert_eq!(s.mods[0].options[0].current, 0);
+        assert!(s.requests.unwrap().ends_with("default.json"));
         std::fs::remove_dir_all(&root).ok();
     }
 

@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::builtin::CORE_ID;
+use crate::manifest::{Binds, ModManifest, ModOption};
 
 pub const VANILLA: &str = "vanilla";
 
@@ -26,6 +27,8 @@ pub struct Profile {
     pub maps: Vec<String>,
     #[serde(default)]
     pub options: BTreeMap<String, BTreeMap<String, serde_json::Value>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub applied: BTreeMap<String, BTreeMap<String, serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -48,6 +51,7 @@ impl Profile {
             mods: Vec::new(),
             maps: Vec::new(),
             options: BTreeMap::new(),
+            applied: BTreeMap::new(),
         };
         p.normalise();
         p
@@ -60,6 +64,7 @@ impl Profile {
             mods: Vec::new(),
             maps: Vec::new(),
             options: BTreeMap::new(),
+            applied: BTreeMap::new(),
         }
     }
 
@@ -114,6 +119,76 @@ impl Profile {
         Ok(())
     }
 
+    pub fn option(&self, m: &ModManifest, o: &ModOption) -> serde_json::Value {
+        stored(&self.options, m, o).unwrap_or_else(|| o.default_value())
+    }
+
+    pub fn set_option(&mut self, m: &ModManifest, id: &str, value: serde_json::Value) -> crate::Result<bool> {
+        if self.is_vanilla() {
+            return Err(crate::Error::Other(format!(
+                "{VANILLA} is built in and cannot be changed"
+            )));
+        }
+        let o = m
+            .options
+            .iter()
+            .find(|o| o.id == id)
+            .ok_or_else(|| crate::Error::Other(format!("{} has no option {id}", m.id)))?;
+        let v = o
+            .normalise(&value)
+            .ok_or_else(|| crate::Error::Other(format!("{value} is not a valid value for {}.{id}", m.id)))?;
+        let before = self.option(m, o);
+        let values = self.options.entry(m.id.clone()).or_default();
+        if v == o.default_value() {
+            values.remove(id);
+        } else {
+            values.insert(id.to_owned(), v.clone());
+        }
+        if values.is_empty() {
+            self.options.remove(&m.id);
+        }
+        Ok(before != v)
+    }
+
+    pub fn reset_options(&mut self, m: &ModManifest) -> crate::Result<bool> {
+        if self.is_vanilla() {
+            return Err(crate::Error::Other(format!(
+                "{VANILLA} is built in and cannot be changed"
+            )));
+        }
+        Ok(self.options.remove(&m.id).is_some())
+    }
+
+    pub fn rebuild_pending(&self, installed: &BTreeMap<String, ModManifest>) -> Vec<String> {
+        let mut out = Vec::new();
+        for m in self.enabled().filter_map(|id| installed.get(id)) {
+            for o in m.options.iter().filter(|o| o.binds == Binds::Db) {
+                let baked = stored(&self.applied, m, o).unwrap_or_else(|| o.default_value());
+                if self.option(m, o) != baked {
+                    out.push(format!("{}.{}", m.id, o.id));
+                }
+            }
+        }
+        out
+    }
+
+    pub fn mark_built(&mut self, installed: &BTreeMap<String, ModManifest>) {
+        let mut applied = BTreeMap::new();
+        for m in self.enabled().filter_map(|id| installed.get(id)) {
+            let values: BTreeMap<String, serde_json::Value> = m
+                .options
+                .iter()
+                .filter(|o| o.binds == Binds::Db)
+                .map(|o| (o.id.clone(), self.option(m, o)))
+                .filter(|(id, v)| m.options.iter().any(|o| &o.id == id && *v != o.default_value()))
+                .collect();
+            if !values.is_empty() {
+                applied.insert(m.id.clone(), values);
+            }
+        }
+        self.applied = applied;
+    }
+
     pub fn set_map(&mut self, code: &str, on: bool) -> crate::Result<()> {
         if self.is_vanilla() {
             return Err(crate::Error::Other(format!(
@@ -126,6 +201,14 @@ impl Profile {
         }
         Ok(())
     }
+}
+
+fn stored(
+    map: &BTreeMap<String, BTreeMap<String, serde_json::Value>>,
+    m: &ModManifest,
+    o: &ModOption,
+) -> Option<serde_json::Value> {
+    map.get(&m.id)?.get(&o.id).and_then(|v| o.normalise(v))
 }
 
 #[cfg(test)]

@@ -11,7 +11,7 @@
   "options": [
     {
       "id": "show_launcher_panel",
-      "type": "bool",
+      "type": "toggle",
       "label": "Show launcher panel",
       "description": "Show the \"Launched with Swofty Mod Launcher\" panel on the home screen.",
       "default": true,

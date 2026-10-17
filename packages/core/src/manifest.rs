@@ -91,11 +91,9 @@ pub struct Conflict {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum OptionType {
-    Bool,
-    Enum,
-    Int,
-    Float,
-    String,
+    Toggle,
+    Slider,
+    Choice,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -103,6 +101,44 @@ pub enum OptionType {
 pub enum Binds {
     Db,
     Native,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(from = "ChoiceRepr", into = "ChoiceRepr")]
+pub struct Choice {
+    pub value: String,
+    pub label: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(untagged, deny_unknown_fields)]
+enum ChoiceRepr {
+    Plain(String),
+    Labelled { value: String, label: String },
+}
+
+impl From<ChoiceRepr> for Choice {
+    fn from(r: ChoiceRepr) -> Self {
+        match r {
+            ChoiceRepr::Plain(value) => Self { value, label: None },
+            ChoiceRepr::Labelled { value, label } => Self {
+                value,
+                label: Some(label),
+            },
+        }
+    }
+}
+
+impl From<Choice> for ChoiceRepr {
+    fn from(c: Choice) -> Self {
+        match c.label {
+            None => Self::Plain(c.value),
+            Some(label) => Self::Labelled {
+                value: c.value,
+                label,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -117,11 +153,13 @@ pub struct ModOption {
     pub description: Option<String>,
     pub default: serde_json::Value,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub values: Vec<String>,
+    pub values: Vec<Choice>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub step: Option<f64>,
     pub binds: Binds,
 }
 
@@ -192,8 +230,8 @@ impl ModManifest {
             if seen.insert(o.id.as_str(), ()).is_some() {
                 return fail(format!("option {} is declared twice", o.id));
             }
-            if o.kind == OptionType::Enum && o.values.is_empty() {
-                return fail(format!("enum option {} has no values", o.id));
+            if let Err(e) = o.validate() {
+                return fail(format!("option {}: {e}", o.id));
             }
         }
         for p in &self.operations.native {
@@ -250,8 +288,8 @@ mod tests {
       "requires": [{ "id": "swofty.core", "version": ">=0.1.0" }],
       "conflicts": [{ "id": "*", "touches": "db:entrants.entrant_lists.entrant_list_34.*" }],
       "load_after": ["swofty.track.*"],
-      "options": [{ "id": "team_livery", "type": "enum", "default": "titlesponsor",
-                    "values": ["titlesponsor", "tier01", "replica"], "binds": "db" }],
+      "options": [{ "id": "team_livery", "type": "choice", "default": "titlesponsor",
+                    "values": ["titlesponsor", { "value": "tier01", "label": "Tier 1" }, "replica"], "binds": "db" }],
       "operations": { "database": ["db/grid24.json"] }
     }"#;
 
