@@ -65,6 +65,8 @@ A track holds a size when every new pit box sits on the pit lane, inside the spe
 
 A track with less room than the setting keeps its most cars' worth of slots, garages and boxes, and the build prints a warning naming it. A race there leaves the extra cars without a grid slot or garage.
 
+An enabled map gets grid slots, garages, in-garage spots and pit boxes up to `cars` in its world when it is installed, each one row or bay on from the two before it. Maps get no garage dressing, pit-wall crew or pit boards, and no room checks. See [How maps are installed](../../docs/reference/maps.md).
+
 Pit box 13 is 4.1 m from the safety car's spot at Zandvoort and 7.1 m at Catalunya. Grid slot 26 is at the end of the last corner zone at Imola and 8.5 m past it at Abu Dhabi.
 
 ## Playing

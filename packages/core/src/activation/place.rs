@@ -5,6 +5,7 @@ use md5::{Digest as _, Md5};
 use swofty_formats::erp::{Entry, ErpFile, Resource, STORED, ZSTD, compress};
 use swofty_formats::pkg::{Node, Pkg};
 
+use super::grid;
 use crate::map::TrackPackage;
 use crate::{Error, Result, io_err};
 
@@ -22,6 +23,7 @@ pub const SLOTS: &[&str] = &[
 ];
 const EAID: &str = "eaid://";
 const PLACEMENT_VERSION: u32 = 2;
+const GRID_WORLD: &str = "f1_26_myteam";
 
 pub const WORLD_FALLBACKS: &[(&str, &[&str])] = &[
     ("f1", &["f1_26", "f1_myteam"]),
@@ -68,6 +70,7 @@ pub struct PlaceInput<'a> {
     pub game: &'a Path,
     pub slot: &'a str,
     pub slot_original: &'a Path,
+    pub cars: u32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -76,6 +79,7 @@ pub struct Placement {
     pub added: BTreeMap<String, PathBuf>,
     pub aliases: BTreeMap<String, String>,
     pub mips: usize,
+    pub grid: Option<grid::Extension>,
     pub notes: Vec<String>,
 }
 
@@ -193,10 +197,11 @@ fn stamp(input: &PlaceInput) -> Result<String> {
     sha2::Digest::update(
         &mut h,
         format!(
-            "{}|{}|{mtime}|{}|{slot}|{PLACEMENT_VERSION}",
+            "{}|{}|{mtime}|{}|{slot}|{PLACEMENT_VERSION}|{}",
             erp.display(),
             meta.len(),
-            input.slot
+            input.slot,
+            input.cars
         ),
     );
     Ok(crate::baseline::hex(&sha2::Digest::finalize(h))[..16].to_owned())
@@ -222,12 +227,7 @@ pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {
         .filter_map(|p| Some((p.file_name()?.to_str()?.to_owned(), p)))
         .collect();
     let names: BTreeSet<String> = shipped.keys().cloned().collect();
-    let present: BTreeSet<&str> = file
-        .erp
-        .resources
-        .iter()
-        .filter_map(|r| world_variant(code, &r.name))
-        .collect();
+    let present = variants(&file, code);
     let slot_path = out.join(slot_file(input.slot));
     let done = out.join(".done");
     let slot_file_in = ErpFile::open(input.slot_original)?;
@@ -263,6 +263,17 @@ pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {
         }
     }
     placement.mips = repointed.len();
+    match extend_grid(&file, code, input.cars) {
+        Ok(Some((i, res, ext))) => {
+            repointed.insert(i, res);
+            placement.grid = Some(ext);
+        }
+        Ok(None) => {}
+        Err(e) => placement.notes.push(format!(
+            "its world could not be given room for {0} cars ({e}); a Grand Prix there with {0} cars crashes",
+            input.cars
+        )),
+    }
     if !done.is_file() {
         let own: BTreeSet<&str> = file.erp.resources.iter().map(|r| r.name.as_str()).collect();
         let mut entries = Vec::new();
@@ -300,6 +311,76 @@ pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {
         ));
     }
     Ok(placement)
+}
+
+fn world_layers(file: &ErpFile, eaid: &str) -> Result<Vec<String>> {
+    let Some(world) = file.erp.resources.iter().find(|r| r.name == eaid) else {
+        return Ok(Vec::new());
+    };
+    let pkg = Pkg::parse(&file.load(world)?.fragments[0].data()?)?;
+    let layers = pkg
+        .root
+        .as_obj()
+        .and_then(|o| o.get("layers"))
+        .and_then(Node::as_arr)
+        .map(|a| {
+            a.items
+                .iter()
+                .filter_map(|n| Some(n.as_val()?.as_str()?.to_owned()))
+                .collect()
+        })
+        .unwrap_or_default();
+    Ok(layers)
+}
+
+fn variants<'a>(file: &'a ErpFile, code: &str) -> BTreeSet<&'a str> {
+    file.erp
+        .resources
+        .iter()
+        .filter_map(|r| world_variant(code, &r.name))
+        .collect()
+}
+
+pub fn extend_grid(
+    file: &ErpFile,
+    code: &str,
+    cars: u32,
+) -> Result<Option<(usize, Resource, grid::Extension)>> {
+    let present = variants(file, code);
+    let fallbacks = WORLD_FALLBACKS
+        .iter()
+        .find(|(v, _)| *v == GRID_WORLD)
+        .map_or(&[][..], |(_, f)| *f);
+    let Some(variant) = std::iter::once(GRID_WORLD)
+        .chain(fallbacks.iter().copied())
+        .find(|v| present.contains(v))
+    else {
+        return Ok(None);
+    };
+    let mut names = world_layers(file, &world_eaid(code, "common"))?;
+    for name in world_layers(file, &world_eaid(code, variant))? {
+        if !names.contains(&name) {
+            names.push(name);
+        }
+    }
+    let mut found = Vec::new();
+    let mut roots = Vec::new();
+    for (i, r) in file.erp.resources.iter().enumerate() {
+        if names.contains(&r.name) {
+            let res = file.load(r)?;
+            roots.push(Pkg::parse(&res.fragments[0].data()?)?);
+            found.push((i, res));
+        }
+    }
+    let mut layers: Vec<Node> = roots.iter().map(|p| p.root.clone()).collect();
+    let Some(ext) = grid::extend(code, &mut layers, cars)? else {
+        return Ok(None);
+    };
+    let mut pkg = roots.swap_remove(ext.layer);
+    pkg.root = layers.swap_remove(ext.layer);
+    let (i, mut res) = found.swap_remove(ext.layer);
+    set_data(&mut res, 0, &pkg.to_bytes()?)?;
+    Ok(Some((i, res, ext)))
 }
 
 fn walk(dir: &Path) -> Result<Vec<PathBuf>> {

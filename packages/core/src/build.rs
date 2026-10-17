@@ -6,6 +6,7 @@ use swofty_formats::gvdb::Gvdb;
 
 use crate::activation::db::{Registry, Slot, activate};
 use crate::activation::ers::{ErsMap, build_ers};
+use crate::activation::grid::grid_size;
 use crate::activation::place::{PlaceInput, SLOTS, place, slot_asset_group, slot_asset_root, slot_file};
 use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
 use crate::asset::{AssetOp, FileKind, FileOp, Op, OpFile, Origin, Root, Source};
@@ -302,6 +303,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             std::fs::write(&out, bytes).map_err(io_err(&out))?;
             built.plan.data.insert(GVDB.into(), out);
         }
+        let cars = grid_size(&db);
         for ((dir, pkg), slot) in maps.iter().zip(SLOTS) {
             let slot_original = original(&store.root, game, &slot_file(slot));
             let placement = place(
@@ -311,6 +313,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                     game: &game.dir,
                     slot,
                     slot_original: &slot_original,
+                    cars,
                 },
                 &store.root.join("cache/maps").join(&pkg.track_code),
             )?;
@@ -318,6 +321,18 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                 "{}: track archive goes in slot {slot}; {} texture(s) use its own mip files",
                 pkg.track_code, placement.mips
             ));
+            if let Some(g) = &placement.grid {
+                built.lines.push(format!(
+                    "{}: world extended from {} to {} grid slots, {} to {} garages and {} to {} pit boxes for {cars} cars",
+                    pkg.track_code,
+                    g.before.grid_slots,
+                    g.after.grid_slots,
+                    g.before.garages,
+                    g.after.garages,
+                    g.before.pit_boxes,
+                    g.after.pit_boxes
+                ));
+            }
             for (alias, to) in &placement.aliases {
                 built
                     .lines

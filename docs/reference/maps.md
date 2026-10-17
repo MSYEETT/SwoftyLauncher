@@ -13,7 +13,8 @@ So the package's `<code>.erp` goes whole into an existing invitational event slo
 The archive also gets:
 
 - a stand-in for each variant world the package lacks (`classic`, `f2_previous`, ...), copied from the nearest world it has;
-- texture mip paths pointed at `environment_package/tracks/<code>/mipmaps/<file>` for the files in the package's `mipmaps/`. Those files are added there.
+- texture mip paths pointed at `environment_package/tracks/<code>/mipmaps/<file>` for the files in the package's `mipmaps/`. Those files are added there;
+- room for the F1 2026 grid when the built database's `f1_2026` grid list holds more cars than the `f1_26_myteam` world (with the common world) has grid slots, garages or pit boxes. The layer that holds the last grid slot gets copies of the last slot, garage, in-garage spot and pit box, each placed one row or bay on from the two before it. If the world has no two slots, garages or boxes to space from, the build warns that a Grand Prix there with that many cars crashes.
 
 ## The database
 

@@ -263,3 +263,58 @@ fn sepang_and_okayama_activate_completely() {
         "the per-race DNF lookup needs an okayama row"
     );
 }
+
+#[test]
+fn map_worlds_get_room_for_the_grid() {
+    use swofty_core::activation::grid::Room;
+    use swofty_core::activation::place::extend_grid;
+    use swofty_formats::erp::ErpFile;
+    use swofty_formats::pkg::Pkg;
+
+    let root = std::env::var_os("SWOFTY_MAPS_DIR")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share/swofty/maps")));
+    for code in ["bahrain24", "okayama"] {
+        let Some(pkg) = package(code) else {
+            eprintln!("{code} is not imported; skipping");
+            continue;
+        };
+        let file = ErpFile::open(&root.as_ref().unwrap().join(code).join(&pkg.erp)).unwrap();
+        assert_eq!(extend_grid(&file, code, 22).unwrap().map(|e| e.2), None, "{code}");
+        let (i, res, ext) = extend_grid(&file, code, 28).unwrap().unwrap();
+        eprintln!("{code}: {} {:?} -> {:?}", res.name, ext.before, ext.after);
+        assert_eq!(res.name, file.erp.resources[i].name);
+        assert_eq!(
+            ext.after,
+            Room {
+                grid_slots: 28,
+                garages: 14,
+                pit_boxes: 14
+            },
+            "{code}"
+        );
+        let before = Pkg::parse(
+            &file.load(&file.erp.resources[i]).unwrap().fragments[0]
+                .data()
+                .unwrap(),
+        )
+        .unwrap();
+        let after = Pkg::parse(&res.fragments[0].data().unwrap()).unwrap();
+        let count = |p: &Pkg| {
+            p.root
+                .as_obj()
+                .unwrap()
+                .get("instances")
+                .unwrap()
+                .as_arr()
+                .unwrap()
+                .items
+                .len()
+        };
+        let added = (ext.after.grid_slots - ext.before.grid_slots) * 2
+            + (ext.after.garages - ext.before.garages)
+            + (ext.after.pit_boxes - ext.before.pit_boxes);
+        assert_eq!(count(&after), count(&before) + added as usize, "{code}");
+        assert_eq!(res.hash, res.content_hash().unwrap());
+    }
+}
