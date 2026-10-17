@@ -159,12 +159,12 @@ pub fn ensure_extension(store: &Store) -> Result<Artifacts> {
         Err(e) => {
             let dir = offline::extension_dir(&store.root);
             if dir.exists() {
-                bail!(
-                    "{e}; delete {} and run `swofty offline fetch` to reinstall",
-                    dir.display()
-                );
+                // A copy that fails its pins is stale or tampered. The pins
+                // are the trust decision, so the pinned release replaces it.
+                println!("offline play extension does not match the pins ({e}); fetching the pinned release");
+            } else {
+                println!("offline play extension is not installed yet: {e}");
             }
-            println!("offline play extension is not installed yet: {e}");
             match fetch(store) {
                 Ok(a) => Ok(a),
                 Err(err) => bail!(
