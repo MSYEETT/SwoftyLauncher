@@ -25,9 +25,9 @@ use crate::pages::{GUTTER, badge, chevron, fact, label, monogram, names, stat, t
 use crate::shell::{Page, Shell};
 use crate::theme::Palette;
 
-type Shared = Arc<Mutex<Option<(f32, String)>>>;
+pub(crate) type Shared = Arc<Mutex<Option<(f32, String)>>>;
 
-struct Reporter(Shared);
+pub(crate) struct Reporter(pub(crate) Shared);
 
 impl Progress for Reporter {
     fn report(&self, done: f32, text: &str) {
@@ -246,26 +246,8 @@ impl Shell {
             0.,
             format!("Importing {}", plural(paths.len(), "item", "items")),
         ))));
-        self.progress = shared.lock().ok().and_then(|p| p.clone());
         let reporter = Reporter(shared.clone());
-        cx.spawn(async move |this, cx| {
-            loop {
-                cx.background_executor().timer(Duration::from_millis(100)).await;
-                let now = shared.lock().ok().and_then(|p| p.clone());
-                let done = now.is_none();
-                if this
-                    .update(cx, |s, cx| {
-                        s.progress = now;
-                        cx.notify();
-                    })
-                    .is_err()
-                    || done
-                {
-                    break;
-                }
-            }
-        })
-        .detach();
+        self.follow_progress(shared, cx);
         cx.spawn_in(window, async move |this, cx| {
             let (done, failed) = cx
                 .background_executor()
@@ -291,6 +273,28 @@ impl Shell {
         })
         .detach();
         cx.notify();
+    }
+
+    pub(crate) fn follow_progress(&mut self, shared: Shared, cx: &mut Context<Self>) {
+        self.progress = shared.lock().ok().and_then(|p| p.clone());
+        cx.spawn(async move |this, cx| {
+            loop {
+                cx.background_executor().timer(Duration::from_millis(100)).await;
+                let now = shared.lock().ok().and_then(|p| p.clone());
+                let done = now.is_none();
+                if this
+                    .update(cx, |s, cx| {
+                        s.progress = now;
+                        cx.notify();
+                    })
+                    .is_err()
+                    || done
+                {
+                    break;
+                }
+            }
+        })
+        .detach();
     }
 
     pub(crate) fn section_page(&mut self, index: usize, p: Palette, cx: &mut Context<Self>) -> AnyElement {

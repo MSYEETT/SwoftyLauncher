@@ -125,7 +125,13 @@ jobs:
           path: artefacts
           merge-multiple: true
 
+      - name: Checksums
+        working-directory: artefacts
+        run: sha256sum swofty-launcher-* > SHA256SUMS
+
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG }}
-          files: artefacts/*
+          files: |
+            artefacts/swofty-launcher-*
+            artefacts/SHA256SUMS

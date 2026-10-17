@@ -81,6 +81,7 @@ pub struct Shell {
     pub(crate) progress: Option<(f32, String)>,
     pub(crate) dropping: bool,
     pub(crate) sidebar_list: bool,
+    pub(crate) update: Option<crate::update::Update>,
     _console_closed: Subscription,
     _poll: Task<()>,
 }
@@ -253,10 +254,12 @@ impl Shell {
             progress: None,
             dropping: false,
             sidebar_list,
+            update: None,
             _console_closed: console_closed,
             _poll: poll,
         };
         shell.refresh_views(cx);
+        shell.check_for_update(cx);
         shell
     }
 
@@ -901,6 +904,7 @@ impl Render for Shell {
                             .child(content),
                     ),
             )
+            .children(self.update_bar(p, cx))
             .child(self.play_bar(p, wide, cx))
             .children(self.progress_card(p))
             .when(self.dropping, |d| d.child(self.drop_overlay(p)))

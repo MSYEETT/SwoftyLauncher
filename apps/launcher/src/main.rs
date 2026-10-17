@@ -8,6 +8,7 @@ mod play_bar;
 mod sections;
 mod shell;
 mod theme;
+mod update;
 
 use gpui_kit::component::TitleBar;
 use gpui_kit::*;

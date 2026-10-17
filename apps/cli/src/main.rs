@@ -3,6 +3,7 @@ mod doctor;
 mod offline;
 mod run;
 mod time;
+mod update;
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -84,6 +85,11 @@ enum Command {
     },
     #[command(about = "Report what was discovered: Steam, the game, Proton, the launch option and the store")]
     Doctor,
+    #[command(about = "Check for a new release and install it into this copy")]
+    Update {
+        #[arg(long, help = "Only report whether a new release is available")]
+        check: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -305,6 +311,7 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Settings(cmd) => settings(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Logs { dir, exe } => run::logs(&store, dir, exe),
         Command::Doctor => doctor::doctor(&store),
+        Command::Update { check } => update::update(&store, check),
     }
 }
 

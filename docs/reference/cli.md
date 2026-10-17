@@ -94,6 +94,25 @@ The built-in Team Simplified addon provides these commands. They work on its mod
 
 `swofty maps` is a hidden alias of `swofty mods`. Tracks are mods: `swofty mods import <zip>` imports a community track package. Its mod id is the track code, or `<code>-track` when a mod in the library already has that id.
 
+## `swofty update`
+
+`swofty update` checks GitHub for the latest release. When it is newer, it installs it into the folder the command runs from: it downloads the archive for the platform, verifies it against the release's `SHA256SUMS`, extracts it to `.update/` in that folder and replaces the files in `bin/`, `loader/` and, on Linux, `share/`. Files in `loader/` that the new release does not have are removed. If a step fails, the files replaced so far are put back and `.update/` is removed. It refuses while F1 25 runs. When the command does not run from an extracted release that it can write to, it prints the release page instead.
+
+`swofty update --check` only reports whether a newer release is available.
+
+On Linux each new file is renamed over the old one. On Windows the old file is moved into `.update/` first, and the launcher removes `.update/` at its next start. For a release without `SHA256SUMS`, the download is checked against the size and digest that GitHub lists for the asset.
+
+The launcher's check keeps its state under `"updates"` in `$DATA/config.json`:
+
+| Key | Purpose |
+|---|---|
+| `check` | `false` turns off the launcher's check; `swofty update` still works. The default is `true` |
+| `skip` | The version **Skip this version** chose; the launcher offers later versions again |
+| `checked_at` | Time of the last check, in Unix seconds; the launcher checks again 6 hours later |
+| `latest` | Tag of the newest release the last check found |
+
+`SWOFTY_UPDATE_PRETEND_VERSION=0.1.0` makes the launcher and `swofty update` treat the running version as `0.1.0`, for testing an update.
+
 ## `swofty doctor`
 
 `swofty doctor` checks Steam, the game install, Proton, launch options and the data folder. It also reports changes from the backed-up originals.

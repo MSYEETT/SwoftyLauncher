@@ -27,6 +27,7 @@ pub mod settings;
 pub mod steam;
 pub mod store;
 pub mod ui;
+pub mod update;
 pub mod vdf;
 
 pub const STEAM_APP_ID: u32 = 3_059_520;

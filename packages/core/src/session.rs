@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::STEAM_APP_ID;
 use crate::asset::Kind;
+use crate::update::UpdateConfig;
 
 pub const DEFAULT_WINEDEBUG: &str = "+timestamp,+pid,+tid,+loaddll,fixme-all";
 pub const LOADER_LOG: &str = "swofty/loader.log";
@@ -80,6 +81,8 @@ pub struct Config {
     pub runtime_assets: BTreeSet<Kind>,
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub build_assets: BTreeSet<Kind>,
+    #[serde(default, skip_serializing_if = "UpdateConfig::is_default")]
+    pub updates: UpdateConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

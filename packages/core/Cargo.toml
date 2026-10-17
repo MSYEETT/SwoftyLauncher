@@ -8,6 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+flate2.workspace = true
 md-5.workspace = true
 png.workspace = true
 semver.workspace = true
@@ -17,6 +18,7 @@ sha2.workspace = true
 swofty-addon.workspace = true
 swofty-formats.workspace = true
 swofty-sdk.workspace = true
+tar.workspace = true
 thiserror.workspace = true
 ureq.workspace = true
 zip.workspace = true
