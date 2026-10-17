@@ -257,7 +257,12 @@ impl Store {
 
     pub fn session_settings(&self, profile: &str) -> Result<SessionSettings> {
         let requests = crate::paths::game_folder_view(&self.requests_path(profile));
-        SessionSettings::build(&self.profile(profile)?, &self.mods()?, Some(requests))
+        SessionSettings::build(
+            &self.profile(profile)?,
+            &self.mods()?,
+            &self.maps()?,
+            Some(requests),
+        )
     }
 
     pub fn merge_requests(&self, profile: &str, consume: bool) -> Result<Option<Merge>> {

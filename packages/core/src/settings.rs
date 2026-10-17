@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::manifest::{Binds, ModManifest, ModOption, OptionType};
+use crate::map::TrackPackage;
 use crate::profile::Profile;
 use crate::{Error, Result};
 
@@ -246,6 +247,20 @@ pub struct SessionSettings {
     pub requests: Option<String>,
     pub restart_command: String,
     pub mods: Vec<SessionMod>,
+    #[serde(default)]
+    pub maps: Vec<SessionMap>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionMap {
+    pub code: String,
+    pub name: String,
+    #[serde(default)]
+    pub version: String,
+    #[serde(default)]
+    pub author: String,
+    #[serde(default)]
+    pub description: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -290,6 +305,7 @@ impl SessionSettings {
     pub fn build(
         profile: &Profile,
         installed: &BTreeMap<String, ModManifest>,
+        packages: &[TrackPackage],
         requests: Option<String>,
     ) -> Result<Self> {
         if profile.is_vanilla() {
@@ -347,12 +363,30 @@ impl SessionSettings {
                     .collect(),
             })
             .collect();
+        let maps = profile
+            .maps
+            .iter()
+            .filter_map(|code| packages.iter().find(|p| &p.track_code == code))
+            .map(|p| SessionMap {
+                code: p.track_code.clone(),
+                name: p.track_name.clone().unwrap_or_else(|| p.track_code.clone()),
+                version: p.version.clone().unwrap_or_default(),
+                author: p.author_name.clone().unwrap_or_default(),
+                description: p
+                    .extra
+                    .get("description")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned(),
+            })
+            .collect();
         let out = Self {
             schema: SCHEMA,
             profile: profile.name.clone(),
             requests,
             restart_command: RESTART_COMMAND.into(),
             mods,
+            maps,
         };
         out.check_commands()?;
         Ok(out)
@@ -601,11 +635,39 @@ mod tests {
     }
 
     #[test]
+    fn session_file_lists_enabled_maps_in_profile_order() {
+        let mut p = Profile::new("x");
+        p.maps = vec!["okayama".into(), "bahrain24".into()];
+        let pkg = |code: &str, name: &str| {
+            TrackPackage::parse(
+                format!(
+                    r#"{{"track_code":"{code}","track_name":"{name}","version":"1.0.0","author_name":"a","erp":"{code}.erp","description":"d"}}"#
+                )
+                .as_bytes(),
+            )
+            .unwrap()
+        };
+        let packages = [
+            pkg("bahrain24", "Sepang"),
+            pkg("okayama", "Okayama"),
+            pkg("spare", "Spare"),
+        ];
+        let s = SessionSettings::build(&p, &installed(), &packages, None).unwrap();
+        let codes: Vec<&str> = s.maps.iter().map(|m| m.code.as_str()).collect();
+        assert_eq!(codes, ["okayama", "bahrain24"]);
+        assert_eq!(s.maps[1].name, "Sepang");
+        assert_eq!(
+            (s.maps[0].author.as_str(), s.maps[0].description.as_str()),
+            ("a", "d")
+        );
+    }
+
+    #[test]
     fn session_file_lists_every_mod_with_states_and_commands() {
         let mut p = Profile::new("x");
         let m = manifest();
         p.set_option(&m, "livery", serde_json::json!("replica")).unwrap();
-        let s = SessionSettings::build(&p, &installed(), Some("Z:\\r.json".into())).unwrap();
+        let s = SessionSettings::build(&p, &installed(), &[], Some("Z:\\r.json".into())).unwrap();
         assert_eq!(s.mods[0].id, crate::builtin::CORE_ID);
         assert!(s.mods[0].locked && s.mods[0].enabled);
         let grid = &s.mods[1];
@@ -619,7 +681,7 @@ mod tests {
         assert!(s.commands().any(|c| c == RESTART_COMMAND));
         let json = serde_json::to_value(&s).unwrap();
         assert_eq!(json["mods"][1]["options"][0]["type"], "choice");
-        assert!(SessionSettings::build(&Profile::vanilla(), &installed(), None).is_err());
+        assert!(SessionSettings::build(&Profile::vanilla(), &installed(), &[], None).is_err());
     }
 
     #[test]
