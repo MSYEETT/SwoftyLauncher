@@ -199,6 +199,24 @@ fn fresh_unique(db: &mut Db, table: Table, dst: u64, unique: &[String]) -> Resul
     Ok(())
 }
 
+fn with_paths(schema: &Schema, paths: &[&str]) -> Schema {
+    let mut s = schema.clone();
+    for p in paths {
+        if !s.fields.iter().any(|f| f == p) && !p.contains('*') {
+            s.fields.push((*p).to_owned());
+        }
+    }
+    s
+}
+
+fn copy_paths(db: &mut Db, src: u64, dst: u64, paths: &[&str]) {
+    for p in paths {
+        if !p.contains('*') {
+            db.copy(field(src, p), field(dst, p));
+        }
+    }
+}
+
 fn add_row_from(db: &mut Db, spec: &TableSpec, table: Table, src: u64, code: &str) -> Result<u64> {
     let dst = table.push(db)?;
     clone_row(db, &spec.schema, src, dst);
@@ -374,7 +392,17 @@ pub fn activate(
             let slot_row = tracks
                 .row_of(&db, slot, &label(&reg.track))
                 .ok_or_else(|| Error::Map(format!("copy_slot {slot} is not a track in this game")))?;
-            let r = add_row_from(&mut db, &reg.track, tracks, slot_row, code)?;
+            let paths: Vec<&str> = pkg
+                .activation
+                .track_overrides
+                .iter()
+                .map(|o| o.path.as_str())
+                .collect();
+            let spec = TableSpec {
+                schema: with_paths(&reg.track.schema, &paths),
+                ..reg.track.clone()
+            };
+            let r = add_row_from(&mut db, &spec, tracks, slot_row, code)?;
             report.note(format!("{code}: new track row cloned from {slot}"));
             r
         }
@@ -412,6 +440,8 @@ pub fn activate(
             None => ds.table.push(&mut db)?,
         };
         clone_row(&mut db, &reg.track_data.schema, src, dst);
+        let paths: Vec<&str> = pkg.activation.overrides.iter().map(|o| o.path.as_str()).collect();
+        copy_paths(&mut db, src, dst, &paths);
         relabel(&mut db, dst, &reg.track_data.labels, code)?;
         in_sets.push(ds.label.clone());
     }
