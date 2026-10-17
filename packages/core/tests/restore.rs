@@ -8,6 +8,7 @@ use swofty_core::journal::{Journal, Op, State};
 const GVDB: &str = "game_package/gamedatabases/gamedatabases.2025.bin";
 const UI: &str = "2025_asset_groups/ui_package/flow_frontend.erp";
 const CORE: &str = "swofty/mods/core/swofty_core.dll";
+const SCREEN: &str = "swofty/ui/swofty_mod_0.ui";
 const STOCK_TRACK: &str = "2025_asset_groups/environment_package/tracks/bahrain/wep/bahrain_common.erp";
 const MAP_FILES: &[&str] = &[
     "2025_asset_groups/environment_package/tracks/okayama/wep/okayama_common.erp",
@@ -53,6 +54,7 @@ impl Fixture {
             ("uiB", "ui-B"),
             ("proxy", "proxy"),
             ("core", "core"),
+            ("screen", "screen"),
         ] {
             write(&f.src.join(name), body);
         }
@@ -87,17 +89,19 @@ impl Fixture {
             GVDB.to_owned(),
             self.src.join(if profile == "a" { "dbA" } else { "dbB" }),
         )]);
+        let mut loader = BTreeMap::from([
+            ("version.dll".to_owned(), self.src.join("proxy")),
+            (CORE.to_owned(), self.src.join("core")),
+        ]);
         if profile == "b" {
             data.insert(UI.into(), self.src.join("uiB"));
+            loader.insert(SCREEN.into(), self.src.join("screen"));
         }
         Plan {
             profile: profile.into(),
             data,
             added: BTreeMap::new(),
-            loader: BTreeMap::from([
-                ("version.dll".to_owned(), self.src.join("proxy")),
-                (CORE.to_owned(), self.src.join("core")),
-            ]),
+            loader,
             registry_override: true,
         }
     }
@@ -160,7 +164,12 @@ fn profile_switches_return_to_the_baseline() {
     inst.apply(&f.plan("b")).unwrap();
     assert_eq!(f.read(GVDB), "db-B");
     assert_eq!(f.read(UI), "ui-B");
+    assert_eq!(f.read(SCREEN), "screen");
     assert_eq!(Journal::open(&f.data).unwrap().len(), 1);
+
+    inst.apply(&f.plan("a")).unwrap();
+    assert!(!f.game.join(SCREEN).exists());
+    assert_eq!(f.read(CORE), "core");
 
     inst.apply(&Plan::vanilla()).unwrap();
     assert_eq!(f.snapshot(), original);
