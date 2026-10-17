@@ -1,4 +1,4 @@
-pub use swofty_addon::{GAME_ID, asset, manifest, ops};
+pub use swofty_addon::{GAME_ID, asset, launcher, manifest, ops, view};
 
 pub mod activation;
 pub mod baseline;
@@ -16,6 +16,7 @@ pub mod pkgedit;
 pub mod planner;
 pub mod process;
 pub mod profile;
+pub mod registry;
 pub mod resolver;
 pub mod session;
 pub mod settings;

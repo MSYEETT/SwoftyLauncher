@@ -183,7 +183,7 @@ fn offline_terms(p: Palette) -> impl IntoElement {
 
 impl Shell {
     pub fn new(cx: &mut Context<Self>) -> Self {
-        let store = Store::open_default();
+        let store = Store::open_default().with_builtins(swofty_builtins::all());
         let migrated = store.migrate();
         let poll = cx.spawn(async move |this, cx| {
             loop {

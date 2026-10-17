@@ -1,7 +1,9 @@
 pub mod asset;
+pub mod launcher;
 pub mod manifest;
 pub mod ops;
 pub mod option;
+pub mod view;
 
 pub const GAME_ID: &str = "f1_25";
 pub const CORE_ID: &str = "swofty.core";
@@ -22,6 +24,12 @@ pub enum Error {
     Manifest(String),
     #[error("{0}")]
     Resolve(String),
+    #[error("no section {0}")]
+    NoSection(String),
+    #[error("no command {0}")]
+    NoCommand(String),
+    #[error("{0}")]
+    Other(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

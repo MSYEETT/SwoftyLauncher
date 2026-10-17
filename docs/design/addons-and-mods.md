@@ -21,7 +21,7 @@ There is no core Assets page. Mods appear only in launcher sections that addons 
 
 ### Renames
 
-The renames and the compatibility rules below are built, except the `addon-data` and cache folders and the profile's `state` object, which come with the Launcher API. `owned_items` entries in `swofty/settings.json` also name their addon under `addon` instead of `mod`.
+The renames and the compatibility rules below are built. `owned_items` entries in `swofty/settings.json` also name their addon under `addon` instead of `mod`.
 
 | Area | Now | After |
 |---|---|---|
@@ -66,6 +66,8 @@ These stay as they are: `swofty.json` and every field in it, manifest `schema_ve
 ## 2. Launcher API
 
 A new crate, `packages/addon-api` (`swofty-addon`), holds the API. `manifest` and `ops` move there from core, and core re-exports them. Core depends on `swofty-addon` and runs addons. Built-in addons depend on `swofty-addon` and `swofty-formats`, never on `swofty-core`. The apps register them through `addons/builtins` (`swofty-builtins`). Core names no addon.
+
+The types below, the registry, `Profile.state`, the `addon-data` and cache folders and the build hooks are built: `swofty_addon::launcher` and `swofty_addon::view`, core's `registry` module, and `Store::with_builtins`. The launcher and the CLI do not show sections, run importers or commands, or show summaries yet.
 
 ```rust
 pub trait Addon: Send + Sync {
@@ -147,7 +149,7 @@ pub struct ArgSpec {
 
 `GameFiles` gives clean files only: baseline objects, game files the baseline has not recorded, and the stock language files ([section 3.6](#_3-6-language-baseline)). `is_stock` is true for a path the game ships.
 
-The core's addon registry holds every addon. Installed addons and SwoftyMod are `DeclaredAddon`s: a manifest and a folder, with the default methods. Built-in entries carry `locked` (SwoftyMod: always on) and `default_on` (Team Simplified: on in profiles that do not list it).
+The core's addon registry holds every addon. Installed addons and SwoftyMod are `DeclaredAddon`s: a manifest and a folder, with the default methods. Built-in entries carry `locked` (SwoftyMod: always on) and `default_on` (Team Simplified: on in profiles that do not list it). `Store::profile` turns on a `default_on` addon that the profile does not list, and a `locked` one always.
 
 ### Sections and pages
 
@@ -252,6 +254,7 @@ pub enum Effect {
 - The build visits enabled addons in resolver order. For each one it takes the manifest's declared ops, then the ops `build` returns, and hands both to the asset planner ([section 3](#_3-asset-api)).
 - The build hash covers every op and the size and modification time of every source file an op names.
 - `BuildCx.options` holds the profile's values of the addon's options.
+- `BuildCx.features` holds the features from the loader's `features.json`. Hook ops go through the planner after the addon's declared ops, with the origin the hook gives them.
 
 ### Commands and profile cards
 
@@ -394,7 +397,7 @@ pub enum Target {
 }
 ```
 
-`Planned.runtime` is written to `swofty/assets.json`, and `Built.conflicts` keeps the conflicts for the launcher.
+`Planned.runtime` is written to `swofty/assets.json`, and `Built.conflicts` keeps the conflicts for the launcher. `Kind` and `Features` are in `swofty_addon::asset`, and `planner::load_features` reads `features.json`.
 
 ### 3.4 Deliveries
 

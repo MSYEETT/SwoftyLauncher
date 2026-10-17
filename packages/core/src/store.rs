@@ -1,5 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use swofty_addon::launcher::Builtin;
 
 use crate::builtin::{CORE_ID, core_manifest};
 use crate::manifest::{AddonManifest, MANIFEST_FILE};
@@ -16,11 +19,28 @@ const LEGACY_ADDONS_DIR: &str = "mods";
 #[derive(Debug, Clone)]
 pub struct Store {
     pub root: PathBuf,
+    builtins: Arc<[Builtin]>,
 }
 
 impl Store {
     pub fn new(root: impl Into<PathBuf>) -> Self {
-        Self { root: root.into() }
+        Self {
+            root: root.into(),
+            builtins: Arc::new([]),
+        }
+    }
+
+    pub fn with_builtins(mut self, builtins: Vec<Builtin>) -> Self {
+        self.builtins = builtins.into();
+        self
+    }
+
+    pub fn builtins(&self) -> &[Builtin] {
+        &self.builtins
+    }
+
+    pub fn registry(&self) -> Result<crate::registry::Registry> {
+        crate::registry::Registry::load(self)
     }
 
     pub fn open_default() -> Self {
@@ -29,6 +49,14 @@ impl Store {
 
     pub fn addons_dir(&self) -> PathBuf {
         self.root.join("addons")
+    }
+
+    pub fn addon_data_dir(&self, id: &str) -> PathBuf {
+        self.root.join("addon-data").join(id)
+    }
+
+    pub fn addon_cache_dir(&self, id: &str) -> PathBuf {
+        self.root.join("cache/addons").join(id)
     }
 
     pub fn maps_dir(&self) -> PathBuf {
@@ -126,12 +154,16 @@ impl Store {
 
     pub fn addons(&self) -> Result<BTreeMap<String, AddonManifest>> {
         let mut out = BTreeMap::from([(CORE_ID.to_owned(), core_manifest())]);
+        for b in self.builtins.iter() {
+            let m = b.addon.manifest();
+            out.entry(m.id.clone()).or_insert_with(|| m.clone());
+        }
         for dir in subdirs(&self.addons_dir())? {
             if !dir.join(MANIFEST_FILE).is_file() {
                 continue;
             }
             let m = AddonManifest::load(&dir)?;
-            if m.is_builtin() {
+            if self.is_builtin(&m.id) {
                 continue;
             }
             out.insert(m.id.clone(), m);
@@ -139,10 +171,27 @@ impl Store {
         Ok(out)
     }
 
+    pub fn is_builtin(&self, id: &str) -> bool {
+        id == CORE_ID || self.builtins.iter().any(|b| b.addon.manifest().id == id)
+    }
+
+    fn adopt_builtins(&self, p: &mut Profile) {
+        if p.is_vanilla() {
+            return;
+        }
+        for b in self.builtins.iter() {
+            let id = &b.addon.manifest().id;
+            let listed = p.addons.iter().any(|a| &a.id == id);
+            if b.locked || (b.default_on && !listed) {
+                p.set_enabled(id, true).expect("not vanilla");
+            }
+        }
+    }
+
     pub fn install_addon(&self, src: &Path) -> Result<AddonManifest> {
         let m = AddonManifest::load(src)?;
-        if m.is_builtin() {
-            return Err(Error::Other(format!("{CORE_ID} is built in")));
+        if self.is_builtin(&m.id) {
+            return Err(Error::Other(format!("{} is built in", m.id)));
         }
         let dest = self.addons_dir().join(&m.id);
         if dest.exists() {
@@ -212,6 +261,7 @@ impl Store {
             Profile::new(name)
         };
         p.normalise();
+        self.adopt_builtins(&mut p);
         Ok(p)
     }
 
@@ -255,6 +305,7 @@ impl Store {
         };
         p.name = name.into();
         p.normalise();
+        self.adopt_builtins(&mut p);
         self.save_profile(&p)?;
         Ok(p)
     }

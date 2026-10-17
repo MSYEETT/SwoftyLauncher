@@ -4,8 +4,8 @@ use std::path::Path;
 use serde::Deserialize;
 use swofty_formats::gvdb::Gvdb;
 
-pub use crate::asset::Kind;
 use crate::asset::{AssetOp, FileKind, FileOp, GroupOp, LangOp, Op, OpFile, Origin};
+pub use crate::asset::{Features, Kind};
 use crate::ops::{DbOps, ErpOp, apply_db_ops};
 use crate::owned::{self, Added};
 use crate::{Error, Result};
@@ -20,12 +20,6 @@ pub enum Route {
     Build,
     Runtime,
     Waiting,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Features {
-    pub stable: BTreeSet<Kind>,
-    pub experimental: BTreeSet<Kind>,
 }
 
 #[derive(Deserialize)]
@@ -43,26 +37,24 @@ struct FeaturesFile {
     features: BTreeMap<String, Level>,
 }
 
-impl Features {
-    pub fn load(loader: &Path) -> Result<Self> {
-        let path = loader.join(FEATURES_FILE);
-        if !path.is_file() {
-            return Ok(Self::default());
-        }
-        let file: FeaturesFile = crate::read_json(&path)?;
-        let mut out = Self::default();
-        for (name, level) in file.features {
-            let Ok(kind) = serde_json::from_value::<Kind>(name.into()) else {
-                continue;
-            };
-            match level {
-                Level::Stable => out.stable.insert(kind),
-                Level::Experimental => out.experimental.insert(kind),
-                Level::Other => false,
-            };
-        }
-        Ok(out)
+pub fn load_features(loader: &Path) -> Result<Features> {
+    let path = loader.join(FEATURES_FILE);
+    if !path.is_file() {
+        return Ok(Features::default());
     }
+    let file: FeaturesFile = crate::read_json(&path)?;
+    let mut out = Features::default();
+    for (name, level) in file.features {
+        let Ok(kind) = serde_json::from_value::<Kind>(name.into()) else {
+            continue;
+        };
+        match level {
+            Level::Stable => out.stable.insert(kind),
+            Level::Experimental => out.experimental.insert(kind),
+            Level::Other => false,
+        };
+    }
+    Ok(out)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -342,7 +334,7 @@ mod tests {
     fn reads_features_and_routes_each_kind() {
         let dir = std::env::temp_dir().join(format!("swofty-features-{}", std::process::id()));
         std::fs::remove_dir_all(&dir).ok();
-        assert_eq!(Features::load(&dir).unwrap(), Features::default());
+        assert_eq!(load_features(&dir).unwrap(), Features::default());
         let path = dir.join(FEATURES_FILE);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(
@@ -351,7 +343,7 @@ mod tests {
                  "lang": "experimental", "file": "experimental", "audio": "stable", "tex": "soon" } }"#,
         )
         .unwrap();
-        let features = Features::load(&dir).unwrap();
+        let features = load_features(&dir).unwrap();
         assert_eq!(features.stable, BTreeSet::from([Kind::Group]));
         assert_eq!(features.experimental.len(), 4);
         let opt_in = BTreeSet::from([Kind::Erp]);

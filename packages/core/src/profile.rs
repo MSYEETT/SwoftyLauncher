@@ -30,6 +30,8 @@ pub struct Profile {
     pub options: BTreeMap<String, BTreeMap<String, serde_json::Value>>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub applied: BTreeMap<String, BTreeMap<String, serde_json::Value>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub state: BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -53,6 +55,7 @@ impl Profile {
             maps: Vec::new(),
             options: BTreeMap::new(),
             applied: BTreeMap::new(),
+            state: BTreeMap::new(),
         };
         p.normalise();
         p
@@ -66,6 +69,7 @@ impl Profile {
             maps: Vec::new(),
             options: BTreeMap::new(),
             applied: BTreeMap::new(),
+            state: BTreeMap::new(),
         }
     }
 
@@ -194,6 +198,16 @@ impl Profile {
             }
         }
         self.applied = applied;
+    }
+
+    pub fn set_state(&mut self, addon: &str, value: serde_json::Value) -> crate::Result<()> {
+        if self.is_vanilla() {
+            return Err(crate::Error::Other(format!(
+                "{VANILLA} is built in and cannot be changed"
+            )));
+        }
+        self.state.insert(addon.into(), value);
+        Ok(())
     }
 
     pub fn set_map(&mut self, code: &str, on: bool) -> crate::Result<()> {

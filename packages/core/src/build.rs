@@ -13,11 +13,13 @@ use crate::baseline::{Baseline, Objects, hex, sha256_file};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
 use crate::erpbuild::{ErpBuild, unsupported};
 use crate::install::{Game, LOADER_DIR, Plan};
+use crate::launcher::BuildCx;
 use crate::manifest::{AddonManifest, relative_inside};
 use crate::map::TrackPackage;
 use crate::owned;
-use crate::planner::{Conflict, Features, Planner, waiting_lines};
+use crate::planner::{Conflict, Planner, load_features, waiting_lines};
 use crate::profile::Profile;
+use crate::registry::Host;
 use crate::resolver::resolve;
 use crate::settings::{SessionSettings, SessionUi, render_ops, screen_file, screens};
 use crate::store::Store;
@@ -81,8 +83,8 @@ pub fn screen_files(order: &[&AddonManifest], addons_dir: &Path) -> Result<BTree
 pub fn source_dir(store: &Store, addon: &str, root: Root) -> PathBuf {
     match root {
         Root::Addon => store.addons_dir().join(addon),
-        Root::Data => store.root.join("addon-data").join(addon),
-        Root::Cache => store.root.join("cache/addons").join(addon),
+        Root::Data => store.addon_data_dir(addon),
+        Root::Cache => store.addon_cache_dir(addon),
     }
 }
 
@@ -114,7 +116,8 @@ fn hash_sources(hasher: &mut Sha256, store: &Store, addon: &str, ops: &[AssetOp]
 }
 
 pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
-    let addons = store.addons()?;
+    let registry = store.registry()?;
+    let addons = registry.manifests();
     let p = store.profile(profile)?;
     let resolved = resolve(&p, &addons)?;
     let mut built = Built {
@@ -132,7 +135,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     }
     let mut hasher = Sha256::new();
     let features = loader_dir()
-        .map(|d| Features::load(&d))
+        .map(|d| load_features(&d))
         .transpose()?
         .unwrap_or_default();
     let opt_in = store.config().runtime_assets;
@@ -174,6 +177,30 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                 op,
                 origin: origin.clone(),
             });
+        }
+        if let Some(entry) = registry.get(id).filter(|e| !e.declared) {
+            let host = Host::new(store, id, &p, Some(game))?;
+            let options = m.options.iter().map(|o| (o.id.clone(), p.option(m, o))).collect();
+            let batch = entry
+                .addon
+                .build(&BuildCx {
+                    cx: host.cx(),
+                    options: &options,
+                    features: &features,
+                })
+                .map_err(|e| Error::Other(format!("building {id}: {e}")))?;
+            hasher.update(serde_json::to_vec(&batch.ops).expect("serialisable"));
+            let ops: Vec<AssetOp> = batch.ops.iter().map(|op| op.op.clone()).collect();
+            hash_sources(&mut hasher, store, id, &ops)?;
+            built
+                .lines
+                .extend(batch.lines.iter().map(|l| format!("{id}: {l}")));
+            built
+                .warnings
+                .extend(batch.warnings.iter().map(|w| format!("{id}: {w}")));
+            for op in batch.ops {
+                planner.push(op);
+            }
         }
         for s in &m.operations.screens {
             let path = dir.join(&s.file);
@@ -508,7 +535,71 @@ pub fn build_menus(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
+    use crate::asset::{AssetBatch, Op, Origin};
+    use crate::baseline::Identity;
+    use crate::launcher::{Addon, Builtin};
+
+    struct Hook(AddonManifest);
+
+    impl Addon for Hook {
+        fn manifest(&self) -> &AddonManifest {
+            &self.0
+        }
+
+        fn build(&self, cx: &BuildCx) -> swofty_addon::Result<AssetBatch> {
+            Ok(AssetBatch {
+                ops: vec![Op {
+                    op: AssetOp::Warn {
+                        message: format!("{} cars", cx.options["cars"]),
+                    },
+                    origin: Origin {
+                        addon: cx.cx.addon.into(),
+                        item: None,
+                    },
+                }],
+                lines: vec![format!("profile {}", cx.cx.profile.name)],
+                warnings: Vec::new(),
+            })
+        }
+    }
+
+    #[test]
+    fn runs_the_build_hooks_of_builtin_addons() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-hook-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        std::fs::write(dir.join(GVDB), "db").unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let manifest = AddonManifest::parse(
+            r#"{ "schema_version": 1, "id": "t.hook", "name": "Hook", "version": "1.0.0", "author": "t",
+                 "compat": { "game": "f1_25" },
+                 "options": [{ "id": "cars", "type": "slider", "label": "Cars", "min": 22, "max": 30, "step": 2, "default": 22, "binds": "db" }] }"#,
+        )
+        .unwrap();
+        let store = Store::new(root.join("data")).with_builtins(vec![Builtin {
+            addon: Arc::new(Hook(manifest)),
+            locked: false,
+            default_on: true,
+        }]);
+        let built = build(&store, "default", &game).unwrap();
+        assert_eq!(built.order, [CORE_ID, "t.hook"]);
+        assert!(built.lines.contains(&"t.hook: profile default".to_owned()));
+        assert!(built.warnings.contains(&"t.hook: 22 cars".to_owned()));
+        assert!(store.addon_data_dir("t.hook").is_dir());
+        std::fs::remove_dir_all(&root).ok();
+    }
 
     #[test]
     fn places_screens_under_the_loader_ui_dir() {

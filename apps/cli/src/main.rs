@@ -145,7 +145,11 @@ fn main() -> ExitCode {
 }
 
 fn dispatch(cli: Cli) -> Result<ExitCode> {
-    let store = cli.data_dir.map(Store::new).unwrap_or_else(Store::open_default);
+    let store = cli
+        .data_dir
+        .map(Store::new)
+        .unwrap_or_else(Store::open_default)
+        .with_builtins(swofty_builtins::all());
     match store.migrate() {
         Ok(notes) => notes.iter().for_each(|n| eprintln!("swofty: {n}")),
         Err(e) => eprintln!("swofty: data migration failed: {e}"),

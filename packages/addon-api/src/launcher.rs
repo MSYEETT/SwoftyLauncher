@@ -1,0 +1,225 @@
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+
+use crate::asset::{AssetBatch, Features};
+use crate::manifest::AddonManifest;
+use crate::view::{Effect, Event, SectionSpec, View};
+use crate::{Error, Result};
+
+pub trait Addon: Send + Sync {
+    fn manifest(&self) -> &AddonManifest;
+
+    fn sections(&self) -> Vec<SectionSpec> {
+        Vec::new()
+    }
+
+    fn view(&self, cx: &Cx, section: &str) -> Result<View> {
+        let _ = cx;
+        Err(Error::NoSection(section.into()))
+    }
+
+    fn event(&self, cx: &Cx, section: &str, event: Event) -> Result<Effect> {
+        let _ = (cx, section, event);
+        Ok(Effect::None)
+    }
+
+    fn importer(&self) -> Option<&dyn Importer> {
+        None
+    }
+
+    fn build(&self, cx: &BuildCx) -> Result<AssetBatch> {
+        let _ = cx;
+        Ok(AssetBatch::default())
+    }
+
+    fn commands(&self) -> Vec<CommandSpec> {
+        Vec::new()
+    }
+
+    fn command(&self, cx: &Cx, path: &[String], args: &[String]) -> Result<String> {
+        let _ = (cx, args);
+        Err(Error::NoCommand(path.join(" ")))
+    }
+
+    fn summary(&self, cx: &Cx) -> Option<Summary> {
+        let _ = cx;
+        None
+    }
+}
+
+pub trait Importer: Send + Sync {
+    fn claims(&self, path: &Path) -> Claim;
+    fn import(&self, cx: &Cx, paths: &[PathBuf], progress: &dyn Progress) -> Result<Vec<String>>;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Claim {
+    No,
+    Maybe,
+    Yes,
+}
+
+pub trait Progress: Send + Sync {
+    fn report(&self, done: f32, text: &str);
+}
+
+pub trait StateStore: Send + Sync {
+    fn get(&self, addon: &str) -> Result<Option<serde_json::Value>>;
+    fn set(&self, addon: &str, value: serde_json::Value) -> Result<()>;
+}
+
+pub trait GameFiles: Send + Sync {
+    fn build_key(&self) -> String;
+    fn exe_version(&self) -> Option<String>;
+    fn is_stock(&self, rel: &str) -> bool;
+    fn original(&self, rel: &str) -> Result<PathBuf>;
+    fn original_lang(&self, code: &str) -> Result<PathBuf>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProfileInfo {
+    pub name: String,
+    pub vanilla: bool,
+    pub enabled: bool,
+}
+
+pub struct Cx<'a> {
+    pub addon: &'a str,
+    pub profile: &'a ProfileInfo,
+    pub data_dir: &'a Path,
+    pub cache_dir: &'a Path,
+    pub game: Option<&'a dyn GameFiles>,
+    state: &'a dyn StateStore,
+}
+
+impl<'a> Cx<'a> {
+    pub fn new(
+        addon: &'a str,
+        profile: &'a ProfileInfo,
+        data_dir: &'a Path,
+        cache_dir: &'a Path,
+        game: Option<&'a dyn GameFiles>,
+        state: &'a dyn StateStore,
+    ) -> Self {
+        Self {
+            addon,
+            profile,
+            data_dir,
+            cache_dir,
+            game,
+            state,
+        }
+    }
+
+    pub fn state<T: DeserializeOwned + Default>(&self) -> Result<T> {
+        match self.state.get(self.addon)? {
+            Some(value) => {
+                serde_json::from_value(value).map_err(|e| Error::Other(format!("{} state: {e}", self.addon)))
+            }
+            None => Ok(T::default()),
+        }
+    }
+
+    pub fn set_state<T: Serialize>(&self, value: &T) -> Result<()> {
+        let value =
+            serde_json::to_value(value).map_err(|e| Error::Other(format!("{} state: {e}", self.addon)))?;
+        self.state.set(self.addon, value)
+    }
+}
+
+pub struct BuildCx<'a> {
+    pub cx: Cx<'a>,
+    pub options: &'a BTreeMap<String, serde_json::Value>,
+    pub features: &'a Features,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Summary {
+    pub label: String,
+    pub items: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CommandSpec {
+    pub name: String,
+    pub about: String,
+    #[serde(default)]
+    pub args: Vec<ArgSpec>,
+    #[serde(default)]
+    pub subcommands: Vec<CommandSpec>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ArgSpec {
+    pub name: String,
+    pub help: String,
+    pub required: bool,
+    pub many: bool,
+}
+
+#[derive(Clone)]
+pub struct Builtin {
+    pub addon: Arc<dyn Addon>,
+    pub locked: bool,
+    pub default_on: bool,
+}
+
+impl std::fmt::Debug for Builtin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Builtin")
+            .field("id", &self.addon.manifest().id)
+            .field("locked", &self.locked)
+            .field("default_on", &self.default_on)
+            .finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+
+    use super::*;
+
+    #[derive(Default)]
+    struct Memory(Mutex<BTreeMap<String, serde_json::Value>>);
+
+    impl StateStore for Memory {
+        fn get(&self, addon: &str) -> Result<Option<serde_json::Value>> {
+            Ok(self.0.lock().unwrap().get(addon).cloned())
+        }
+
+        fn set(&self, addon: &str, value: serde_json::Value) -> Result<()> {
+            self.0.lock().unwrap().insert(addon.into(), value);
+            Ok(())
+        }
+    }
+
+    #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+    struct Order {
+        mods: Vec<String>,
+    }
+
+    #[test]
+    fn state_defaults_until_set() {
+        let store = Memory::default();
+        let profile = ProfileInfo {
+            name: "default".into(),
+            vanilla: false,
+            enabled: true,
+        };
+        let cx = Cx::new("a.b", &profile, Path::new("/d"), Path::new("/c"), None, &store);
+        assert_eq!(cx.state::<Order>().unwrap(), Order::default());
+        let order = Order {
+            mods: vec!["x".into()],
+        };
+        cx.set_state(&order).unwrap();
+        assert_eq!(cx.state::<Order>().unwrap(), order);
+        store.set("a.b", serde_json::json!({ "mods": 3 })).unwrap();
+        assert!(cx.state::<Order>().is_err());
+    }
+}

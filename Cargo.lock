@@ -6231,6 +6231,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "swofty-builtins"
+version = "0.1.0"
+dependencies = [
+ "swofty-addon",
+]
+
+[[package]]
 name = "swofty-cli"
 version = "0.1.0"
 dependencies = [
@@ -6240,6 +6247,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.1",
+ "swofty-builtins",
  "swofty-core",
  "swofty-formats",
 ]
@@ -6279,6 +6287,7 @@ version = "0.1.0"
 dependencies = [
  "gpui-kit",
  "serde_json",
+ "swofty-builtins",
  "swofty-core",
  "winresource",
 ]
