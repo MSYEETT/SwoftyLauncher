@@ -12,28 +12,35 @@ pub struct AddonItem {
     pub manifest: AddonManifest,
     pub enabled: bool,
     pub locked: bool,
-    pub icon: Option<Arc<Image>>,
+    pub icon: Option<AddonIcon>,
 }
 
-fn addon_icon(store: &Store, registry: &Registry, m: &AddonManifest) -> Option<Arc<Image>> {
-    if let Some(bytes) = registry.get(&m.id).and_then(|e| e.addon.icon()) {
-        let format = if bytes.starts_with(b"\x89PNG") {
-            ImageFormat::Png
-        } else {
-            ImageFormat::Svg
-        };
-        return Some(Arc::new(Image::from_bytes(format, bytes.to_vec())));
-    }
-    let path = store.addons_dir().join(&m.id).join(m.icon.as_ref()?);
-    let format = match path.extension()?.to_str()?.to_ascii_lowercase().as_str() {
-        "svg" => ImageFormat::Svg,
-        "png" => ImageFormat::Png,
-        "jpg" | "jpeg" => ImageFormat::Jpeg,
-        "webp" => ImageFormat::Webp,
-        _ => return None,
+#[derive(Clone)]
+pub enum AddonIcon {
+    Glyph(Arc<[u8]>),
+    Image(Arc<Image>),
+}
+
+fn addon_icon(store: &Store, registry: &Registry, m: &AddonManifest) -> Option<AddonIcon> {
+    let (bytes, format) = match registry.get(&m.id).and_then(|e| e.addon.icon()) {
+        Some(bytes) if bytes.starts_with(b"\x89PNG") => (bytes.to_vec(), ImageFormat::Png),
+        Some(bytes) => (bytes.to_vec(), ImageFormat::Svg),
+        None => {
+            let path = store.addons_dir().join(&m.id).join(m.icon.as_ref()?);
+            let format = match path.extension()?.to_str()?.to_ascii_lowercase().as_str() {
+                "svg" => ImageFormat::Svg,
+                "png" => ImageFormat::Png,
+                "jpg" | "jpeg" => ImageFormat::Jpeg,
+                "webp" => ImageFormat::Webp,
+                _ => return None,
+            };
+            (std::fs::read(path).ok()?, format)
+        }
     };
-    let bytes = std::fs::read(path).ok()?;
-    Some(Arc::new(Image::from_bytes(format, bytes)))
+    Some(match format {
+        ImageFormat::Svg => AddonIcon::Glyph(bytes.into()),
+        _ => AddonIcon::Image(Arc::new(Image::from_bytes(format, bytes))),
+    })
 }
 
 pub struct SectionItem {

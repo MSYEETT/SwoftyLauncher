@@ -28,7 +28,7 @@ pub trait Addon: Send + Sync {
 }
 ```
 
-Every method except `manifest` has a default that does nothing. `icon` returns a square PNG or SVG the launcher shows for the addon; a declared addon names an image with `icon` in `swofty.json` instead.
+Every method except `manifest` has a default that does nothing. `icon` returns an SVG (drawn as a one-colour glyph) or a square PNG the launcher shows for the addon; a declared addon names an image with `icon` in `swofty.json` instead.
 
 | Method | Use |
 |---|---|

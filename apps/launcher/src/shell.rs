@@ -20,7 +20,7 @@ use swofty_core::store::Store;
 use swofty_core::view::View;
 
 use crate::game::{self, Install, Launch, Probe};
-use crate::library::Library;
+use crate::library::{AddonIcon, Library};
 use crate::pages::{addon_icon, avatar, label};
 use crate::theme::{Palette, palette};
 
@@ -728,10 +728,11 @@ impl Shell {
             let tile = self.nav_item(
                 Page::Section(i),
                 s.spec.title.clone().into(),
-                addon.and_then(|a| a.icon.clone()).map_or_else(
-                    || TileArt::Icon(crate::sections::icon(s.spec.icon)),
-                    TileArt::Image,
-                ),
+                match addon.and_then(|a| a.icon.clone()) {
+                    Some(AddonIcon::Glyph(data)) => TileArt::Glyph(data),
+                    Some(AddonIcon::Image(image)) => TileArt::Image(image),
+                    None => TileArt::Icon(crate::sections::icon(s.spec.icon)),
+                },
                 self.section_count(i),
                 p,
                 cx,
@@ -832,13 +833,14 @@ impl Shell {
 
 enum TileArt {
     Icon(IconName),
+    Glyph(Arc<[u8]>),
     Image(Arc<Image>),
 }
 
 fn tile_art(art: TileArt, size: f32, active: bool, p: Palette) -> Div {
-    match art {
-        TileArt::Image(image) => addon_icon(image, size),
-        TileArt::Icon(icon) => div()
+    let color = if active { p.on_accent } else { p.text_muted };
+    let frame = || {
+        div()
             .size(px(size))
             .flex_shrink_0()
             .flex()
@@ -846,11 +848,11 @@ fn tile_art(art: TileArt, size: f32, active: bool, p: Palette) -> Div {
             .justify_center()
             .rounded(px(size * 0.25))
             .bg(if active { p.accent } else { p.hover })
-            .child(Icon::new(icon).size(px(size * 0.5)).text_color(if active {
-                p.on_accent
-            } else {
-                p.text_muted
-            })),
+    };
+    match art {
+        TileArt::Image(image) => addon_icon(&AddonIcon::Image(image), size, p),
+        TileArt::Glyph(data) => frame().child(svg().data(&data).size(px(size * 0.5)).text_color(color)),
+        TileArt::Icon(icon) => frame().child(Icon::new(icon).size(px(size * 0.5)).text_color(color)),
     }
 }
 
