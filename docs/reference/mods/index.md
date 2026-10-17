@@ -7,7 +7,7 @@ description: What a mod is made of, how it reaches the game, and where each kind
 
 A mod changes F1 25's content and carries no code: textures, models, liveries, database rows, text and tracks.
 
-A mod is packaged as a folder with a [`swofty.json`](/reference/addons/manifest) manifest that lists its operations and no plugins. The player installs it like an addon, and the launcher applies the operations to copies of the game's files when it builds the profile. The game folder keeps its original files.
+A mod is packaged as a folder with a [`swofty.json`](/reference/addons/manifest) manifest that lists its operations and no plugins. The player installs it like an addon ([Packaging a mod](./packaging)), and the launcher applies the operations to copies of the game's files when it builds the profile. The game folder keeps its original files.
 
 ```
 my-mod/
@@ -26,6 +26,9 @@ my-mod/
 | Textures, models, materials and worlds | `.erp` archives under `2025_asset_groups/` | [Textures and models](./erp-assets) |
 | Teams, cars, drivers, tracks, rules and unlocks | `game_package/gamedatabases/gamedatabases.2025.bin` | [Game database](./database) |
 | Track layers and menu scenes | `!pkg` resources inside `.erp` archives | [Textures and models](./erp-assets#edit-a-pkg-resource) |
+| A special livery for a car | A `wep` archive, the livery and unlock tables | [Adding a livery](./livery) |
+| Names and descriptions | Text tags and language files | [In-game text](./text) |
+| New tracks | A track package | [Tracks](./tracks) |
 
 ## Operations
 

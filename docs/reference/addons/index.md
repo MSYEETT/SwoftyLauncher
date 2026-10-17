@@ -13,7 +13,8 @@ An addon is a folder with a [`swofty.json`](./manifest) manifest at its root. It
 | Settings | `options` | [Settings](./settings) |
 | Native plugins | `operations.native` | [Native plugins](./native-plugins), [Mixin system](./hooking) |
 | In-game screens | `operations.screens` | [In-game UI](./in-game-ui) |
-| Content | `operations.database`, `operations.erp`, `operations.ui`, `operations.files`, `operations.assets` | [Creating mods](/reference/mods/) |
+| Content | `operations.database`, `operations.erp`, `operations.ui`, `operations.files`, `operations.assets` | [Creating mods](/reference/mods/), [Asset API](./asset-api) |
+| Launcher sections, importers, build hooks (built-in addons) | | [Launcher API](./launcher-api) |
 
 Start with [Your first addon](./first-addon), or copy [the addon template](./template).
 

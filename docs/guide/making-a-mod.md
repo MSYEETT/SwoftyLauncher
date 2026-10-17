@@ -5,4 +5,4 @@ description: Where the docs for making liveries, models, database edits, text an
 
 # Making a mod
 
-A mod is content with no code: textures, models, liveries, database rows, text and tracks. Making one is covered in the Reference, under [Creating mods](/reference/mods/).
+A mod is content with no code: textures, models, liveries, database rows, text and tracks. Making one is covered in the Reference, under [Creating mods](/reference/mods/), with a worked example in [Adding a livery](/reference/mods/livery).

@@ -4,7 +4,7 @@
 
 ## Install an addon
 
-An addon is a folder or a `.swoftymod` file. Use these commands while the desktop controls are in development:
+An addon is a folder with a `swofty.json` file. Use these commands while the desktop controls are in development:
 
 ```sh
 swofty addons install <path>
