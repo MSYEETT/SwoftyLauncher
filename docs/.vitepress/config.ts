@@ -88,6 +88,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
             text: "Getting Started",
             items: [
               { text: "Introduction", link: "/guide/" },
+              { text: "Addons, mods and maps", link: "/guide/addons-mods-maps" },
               { text: "1. Installation", link: "/guide/installation" },
               { text: "1.1. Windows", link: "/guide/windows" },
               { text: "1.2. Linux and Steam Deck", link: "/guide/linux" },
@@ -99,14 +100,9 @@ export default defineConfigWithTheme<DocsThemeConfig>({
             ],
           },
           {
-            text: "Modding Tutorials",
+            text: "Tutorials",
             items: [
               { text: "Making an addon", link: "/modding/template" },
-              { text: "Configuring addons (swofty.json)", link: "/modding/manifest" },
-              { text: "Hooking game functions", link: "/modding/native-plugins" },
-              { text: "Database edits", link: "/modding/database-ops" },
-              { text: "Archive (ERP) edits", link: "/modding/erp-ops" },
-              { text: "UI patches", link: "/modding/ui-patches" },
               { text: "Maps", link: "/using/importing-maps" },
             ],
           },
@@ -130,6 +126,16 @@ export default defineConfigWithTheme<DocsThemeConfig>({
         icon: "code",
         mono: true,
         groups: [
+          {
+            text: "Standard library",
+            items: [
+              { text: "Addon manifest", link: "/modding/manifest", icon: "file" },
+              { text: "Native plugins", link: "/modding/native-plugins", icon: "file" },
+              { text: "Database operations", link: "/modding/database-ops", icon: "file" },
+              { text: "ERP operations", link: "/modding/erp-ops", icon: "file" },
+              { text: "UI patches", link: "/modding/ui-patches", icon: "file" },
+            ],
+          },
           {
             text: "Game API",
             items: [{ text: "Overview", link: "/reference/game/", icon: "file" }, ...gameApiItems],
