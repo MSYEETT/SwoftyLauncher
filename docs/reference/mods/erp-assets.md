@@ -38,6 +38,30 @@ A resource has a name such as `eaid://environment_package/tracks/monaco/wep/mona
 
 `erp` paths are relative to the game folder. `source` paths are relative to the addon folder. The copy fails when `erp` already has a resource with the new name.
 
+## Replace part of a resource
+
+`replace-resource` swaps one fragment of a resource for a raw file from your addon and keeps the other fragments. A texture's fragment 1 holds its pixels:
+
+```json
+{
+  "op": "replace-resource",
+  "erp": "2025_asset_groups/f1_safetycar_package/safety_car_2/wep/safety_car_2.erp",
+  "resource": "eaid://f1_safetycar_package/safety_car_2/textures/safety_car_2_decal_da.tif.image",
+  "fragment": 1,
+  "source": "erp/decal_pixels.bin"
+}
+```
+
+`add-resource` adds a resource from one raw file per fragment, and `remove-resource` takes one out. A build that removes a resource rewrites the archives instead of loading overlays in game. [ERP operations](/reference/ops/erp#raw-resources) has the rules.
+
+## Add mip files
+
+A texture keeps the rest of its mip chain in a loose `.mipmaps` file whose path is in the texture's fragment 2. `add-mipmaps` copies a mip file, or a folder of them, to a path in the game folder:
+
+```json
+{ "op": "add-mipmaps", "source": "mipmaps/", "target": "f1_safetycar_package/safety_car_2/textures/" }
+```
+
 ## Edit a `!pkg` resource
 
 Worlds, layers and UI databases are `!pkg` resources: trees of named entries. `patch-pkg` edits entries inside one and keeps the rest of the archive unchanged. Custom Grid Size adds pit garages to each track this way. From `addons/custom-grid-size/tracks/monaco.json`:
@@ -87,7 +111,7 @@ Run `patch-pkg` after a `copy-resource` to change the copy, such as the layer na
 ERP files take `when` and <span v-pre>`{{id}}`</span> from `db` [settings](/reference/addons/settings#use-a-db-setting), like database operations.
 
 ::: warning Not built yet
-The build applies `copy-resource`, `put-resource`, `patch-pkg` with `clone-entry` and `set-value` edits, and `warn`. `replace-resource`, `add-resource`, `remove-resource` and `add-mipmaps` are defined, and an addon whose ERP files use any of them has all its ERP files skipped with a warning.
+`patch-pkg` edits other than `clone-entry` and `set-value` are defined but not built. An addon whose ERP files use one has all its ERP files skipped with a warning.
 :::
 
 Every operation is in the [ERP operations](/reference/ops/erp) reference.

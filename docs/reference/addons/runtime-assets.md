@@ -51,6 +51,7 @@ Put the new texture in an `.erp` archive in the addon, under the same resource n
 - `source` is the archive in the addon that holds the resource. `"as"` names it differently in the game archive. A resource name the game archive does not have is added.
 - The build writes the changed resources into an overlay archive under `swofty/assets/resources/` and lists it in `resource_erps`. Every asset group that lists `flow_boot.erp` reads the overlay archive first.
 - A replacement keeps the stock resource's type, argument and fragment layout and sizes. The build leaves out a resource that changes them and reports a warning.
+- `erp.replace-resource` and `erp.add-resource` reach the overlay archive the same way. A build with an `erp.remove-resource` rewrites the game archives instead.
 
 ```text
 [assets] resources: overlay ERP swofty/assets/resources/0.erp prebuilt by the launcher (... bytes, 1 resource(s): 1 replaced, 0 added) for 1 target ERP(s): 2025_asset_groups/ui_package/flow_boot.erp
@@ -158,4 +159,4 @@ SWOFTY_ADDON()
 
 ## From a build hook
 
-A built-in addon returns the same ops from [`Addon::build`](./launcher-api#build-hooks), and a third-party addon from its helper's `build` method. They take the same routes, after the addon's declared ops. Team Simplified merges `.serps` mods this way: `db.put-record`, `erp.put-resource` and `lang.set` per enabled mod, with sources in its `data` root.
+A built-in addon returns the same ops from [`Addon::build`](./launcher-api#build-hooks), and a third-party addon from its helper's `build` method. They take the same routes, after the addon's declared ops. Team Simplified merges `.serps` mods this way: `db.put-record`, `db.remove-record`, `erp.put-resource`, `erp.remove-resource` and `lang.set` per enabled mod, with sources in its `data` root.

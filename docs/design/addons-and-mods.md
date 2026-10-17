@@ -255,10 +255,10 @@ pub enum Effect {
 ### Build hooks
 
 - The build visits enabled addons in resolver order. For each one it takes the manifest's declared ops, then the ops `build` returns, and hands both to the asset planner ([section 3](#_3-asset-api)).
-- The build hash covers every op and the size and modification time of every source file an op names.
+- The build hash covers every op and the size and modification time of every source file an op names, and of every file in a folder source.
 - `BuildCx.options` holds the profile's values of the addon's options.
 - `BuildCx.features` holds the features from the loader's `features.json`. Hook ops go through the planner after the addon's declared ops, with the origin the hook gives them.
-- An op file or hook result that uses an ERP op the build does not support yet (`replace-resource`, `add-resource`, `remove-resource`, `add-mipmaps`) has all its ERP ops skipped, with a warning.
+- An op file or hook result that uses a `patch-pkg` edit the build does not support yet (anything but `clone-entry` and `set-value`) has all its ERP ops skipped, with a warning.
 
 ### Commands and profile cards
 
@@ -337,7 +337,7 @@ Helper to host, while a request is in flight:
 | Op | Fields | Change |
 |---|---|---|
 | `group.register` | `group`, `erp` or `erps`, optional `deps`, `template` | Add an asset group to the engine's manifest |
-| `erp.replace-resource`, `erp.add-resource`, `erp.copy-resource`, `erp.remove-resource`, `erp.add-mipmaps`, `erp.patch-pkg` | As in [archive edits](/reference/ops/erp) | Unchanged |
+| `erp.replace-resource`, `erp.add-resource`, `erp.copy-resource`, `erp.remove-resource`, `erp.add-mipmaps`, `erp.patch-pkg` | As in [archive edits](/reference/ops/erp) | Unchanged. All six are built (`packages/core/src/erpbuild.rs`) |
 | `erp.put-resource` | `erp`, `resource`, `source`, optional `as` | Copy a resource from an archive in the addon, replacing or adding it |
 | `db.set`, `db.add-row`, `db.remove-row`, `db.list-append`, `db.list-remove` | As in [database edits](/reference/ops/database) | Unchanged |
 | `db.put-record` | `key` (path or `0x` and 16 hex digits), `type`, `value` (hex) | Write one raw record |
@@ -479,10 +479,11 @@ Routing per kind:
 - A kind with no build delivery takes the runtime route when the feature is `stable`, or `experimental` and listed in `config.json` `"runtime_assets"`, and waits otherwise. The build lists waiting ops with their origins.
 - A kind with both takes the runtime route when the feature is `stable`, or `experimental` and listed in `config.json` `"runtime_assets"`. Otherwise it takes the build route. `config.json` `"build_assets"` forces the kinds it lists onto the build route.
 - Every op of one kind takes the same route in a build.
+- An `erp.remove-resource` puts every `erp` op on the build route, because the core cannot take a resource out of a stock archive. `Planner::route` returns `Build` for `erp` once one is pushed, and `Planner::route_note` gives the build line.
 
 Both routes of a kind compute the same result:
 
-- `erp`: `ErpBuild` produces each changed resource. The build route writes the whole archive, keeping unchanged resources as byte copies (`ErpFile::write`). The runtime route writes the changed resources as overlay archives under `swofty/assets/resources/`, one per set of target archives, and lists them in `resource_erps`. It leaves out a replacement whose type, argument or fragment layout differs from the stock resource. The core registers the overlay archives in the manifest without rebuilding them.
+- `erp`: `ErpBuild` produces each changed resource. `replace-resource` refills one fragment as `set_fragment` does for `patch-pkg`; `add-resource` builds the resource with `Resource::like`, which copies the type argument, fragment names, flags and compression of a resource of the same type and fragment count in the target archive. The build route writes the whole archive, keeping unchanged resources as byte copies (`ErpFile::write`). `add-mipmaps` files are installed as loose game files through the journal on both routes, as a track's mip files are. The runtime route writes the changed resources as overlay archives under `swofty/assets/resources/`, one per set of target archives, and lists them in `resource_erps`. It leaves out a replacement whose type, argument or fragment layout differs from the stock resource. The core registers the overlay archives in the manifest without rebuilding them.
 - `db`: the planner builds the database. The build route writes the file. The runtime route writes the records that differ from the database after map activation as `db_edits` by hash, with their tag and text, and sets `early_stage`. Map activation stays in the file. On both routes, `owned.rs` finds the `unlockable_se_livery` rows the built database has and stock lacks, whichever op added them, and writes their keys to `owned_items` in `swofty/settings.json`.
 - `file`: the build route installs into the game folder through the journal. The runtime route copies under `swofty/overlay/` and sets `overlay`.
 - `lang`: the runtime route writes one partial table per language under `swofty/assets/lang/` and lists it as `lang.<code>.table`. `*` writes `all.lng`, which applies to every language.
@@ -501,7 +502,7 @@ A feature becomes `stable` in the native code once its runtime test passes and a
 ### 3.5 Order and conflicts
 
 - Ops apply in this order: map activation, then addons in resolver order. Within an addon, declared ops come first, then build hook ops in the order returned. A later write wins.
-- The planner records the target of each write. A write that replaces a target (`put`, `replace` and `remove` ops, `db.set`, `db.put-record`, `lang.set`, `file.put`) after another origin wrote it is a conflict. Edits inside a resource (`patch-pkg`) and row additions compose and are not conflicts.
+- The planner records the target of each write. A write that replaces a target (`put`, `replace` and `remove` ops, `db.set`, `db.put-record`, `lang.set`, `file.put`, `erp.add-mipmaps`) after another origin wrote it is a conflict. Edits inside a resource (`patch-pkg`) and row additions compose and are not conflicts.
 - The build prints each conflict with the winner and the overridden origins. The launcher shows them under the play bar.
 
 ### 3.6 Language baseline
@@ -648,7 +649,7 @@ The build hook emits ops for each enabled mod, in profile order, with origin `te
 - The planner applies them after map activation and earlier addons. A package's database changes touch only the records it changed, and archives merge per resource.
 - A special livery row a package adds is reported as owned through `owned_items` ([section 3.4](#_3-4-deliveries)), and the livery appears in the picker.
 - The ops take the planner's routes ([section 3.4](#_3-4-deliveries)). Without the in-game loader, text ops wait and the build reports how many entries wait.
-- `erp.remove-resource` is not built yet. The hook leaves resource removals out and the build warns with their count.
+- Resource removals are `erp.remove-resource` ops on the archive the mod removed them from, and put every `erp` op on the build route. A removal of a record or resource an earlier mod already removed is left out.
 - Database records are written as raw `db.put-record` values from `diff/<build key>.db`. Archive and file sources are `{ "root": "data", "path": "library/<id>/files/<game path>" }`.
 - A write that repeats the value already in place, from an earlier mod, is left out.
 

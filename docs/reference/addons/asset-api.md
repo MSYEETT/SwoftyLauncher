@@ -39,7 +39,9 @@ Each op names its kind in a prefix:
 |---|---|---|
 | `group.register` | `group`, `erp` or `erps`, optional `deps`, `template` | Add an asset group to the engine's asset manifest |
 | `erp.put-resource` | `erp`, `resource`, `source`, optional `as` | Copy a resource from an archive in the addon into a game archive, replacing or adding it |
+| `erp.replace-resource`, `erp.add-resource`, `erp.remove-resource` | As in [ERP operations](/reference/ops/erp) | Replace one fragment of a resource with a raw file, add a resource from raw fragment files, or remove a resource |
 | `erp.copy-resource`, `erp.patch-pkg` | As in [ERP operations](/reference/ops/erp) | Copy a resource, or edit a `!pkg` resource in place |
+| `erp.add-mipmaps` | `source`, `target` | Copy a mip file, or a folder of them, into the game folder |
 | `db.set`, `db.add-row`, `db.remove-row`, `db.list-append`, `db.list-remove` | As in [database operations](/reference/ops/database) | Change rows and fields |
 | `db.put-record` | `key` (a path, or `0x` and 16 hex digits), `type` (the tag), `value` (hex bytes) | Write one raw record |
 | `db.remove-record` | `key` | Remove one record |
@@ -50,7 +52,7 @@ Each op names its kind in a prefix:
 
 - Files in `operations.database` and `operations.erp` load into the same model, with `db.` and `erp.` added to each op. Each `operations.files` entry is a `file.put`.
 - Every op takes `when` and <span v-pre>`{{id}}`</span> from the addon's [`db` settings](/reference/addons/settings#use-a-db-setting), as database operations do.
-- `erp.replace-resource`, `erp.add-resource`, `erp.remove-resource` and `erp.add-mipmaps` are defined but not built. An addon that uses one has all its `erp` ops skipped, with a warning.
+- A `patch-pkg` edit other than `clone-entry` and `set-value` is not built. An addon that uses one has all its `erp` ops skipped, with a warning.
 
 ### Sources
 
@@ -67,7 +69,7 @@ A `source` is a path in the addon's folder, or an object that names another root
 | `data` | `$DATA/addon-data/<id>/` |
 | `cache` | `$DATA/cache/addons/<id>/` |
 
-A path that leaves its folder fails the build. The build hash covers every op and the size and modification time of every source an op names.
+A path that leaves its folder fails the build. The build hash covers every op and the size and modification time of every source an op names, and of every file in a folder source.
 
 ## Deliveries
 
@@ -99,6 +101,8 @@ The installed loader lists its runtime features in `swofty/addons/core/features.
 - Otherwise a kind with a build delivery is built, and a kind without one waits. The build prints `<origin>: <n> lang op(s) wait for lang support in swofty_core`, or says the feature is experimental and not turned on.
 - A loader without `features.json` has no runtime features. `swofty build` without the loader builds `erp`, `db` and `file` and lists `group` and `lang` as waiting.
 - Every op of one kind takes the same route in a build.
+- An `erp` build with an `erp.remove-resource` is built into the game files, because swofty_core cannot take a resource out of a stock archive. The build prints `erp: built into the game files; <n> resource removal(s) cannot apply at runtime`.
+- `erp.add-mipmaps` files go into the game folder through the journal on both routes, as a track's mip files do.
 - A `db` build that removes records, or writes a record of tag 10, 15 or 16 or one whose value is not text, is built into the game file instead, with a warning.
 
 ## Order and conflicts
@@ -114,12 +118,12 @@ A later write wins. The planner records the target of each write:
 | Target | Written by |
 |---|---|
 | An asset group | `group.register` |
-| A resource in an archive | `erp.put-resource`, `erp.copy-resource`, `erp.patch-pkg` |
+| A resource in an archive | `erp.put-resource`, `erp.replace-resource`, `erp.remove-resource`, `erp.add-resource`, `erp.copy-resource`, `erp.patch-pkg` |
 | A database record | `db.set`, `db.put-record`, `db.remove-record` |
 | A string in a language | `lang.set` |
-| A game path | `file.put` |
+| A game path | `file.put`, `erp.add-mipmaps` (its `target`) |
 
-A write that replaces a target (`erp.put-resource`, `db.set`, `db.put-record`, `db.remove-record`, `lang.set`, `file.put`) after another origin wrote it is a conflict. `erp.copy-resource`, `erp.patch-pkg`, `group.register` and added rows compose. The build prints each conflict with the winner and the origins it overrides:
+A write that replaces a target (`erp.put-resource`, `erp.replace-resource`, `erp.remove-resource`, `erp.add-mipmaps`, `db.set`, `db.put-record`, `db.remove-record`, `lang.set`, `file.put`) after another origin wrote it is a conflict. `erp.add-resource`, `erp.copy-resource`, `erp.patch-pkg`, `group.register` and added rows compose. The build prints each conflict with the winner and the origins it overrides:
 
 ```text
 conflict: text lng_team_tor_hashtag (eng): teamsimplified.mods (rm-designs.scuderia-alphatauri-orlen) overrides example.livery
