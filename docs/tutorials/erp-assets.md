@@ -87,7 +87,7 @@ Run `patch-pkg` after a `copy-resource` to change the copy, such as the layer na
 ERP files take `when` and <span v-pre>`{{id}}`</span> from `db` [settings](/tutorials/addon-settings#use-a-db-setting), like database operations.
 
 ::: warning Not built yet
-The build applies `copy-resource`, `patch-pkg` with `clone-entry` and `set-value` edits, and `warn`. `replace-resource`, `add-resource`, `remove-resource` and `add-mipmaps` are defined, and an addon whose ERP files use any of them has all its ERP files skipped with a warning.
+The build applies `copy-resource`, `put-resource`, `patch-pkg` with `clone-entry` and `set-value` edits, and `warn`. `replace-resource`, `add-resource`, `remove-resource` and `add-mipmaps` are defined, and an addon whose ERP files use any of them has all its ERP files skipped with a warning.
 :::
 
 Every operation is in the [ERP operations](/modding/erp-ops) reference.
