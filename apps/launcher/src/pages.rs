@@ -288,10 +288,10 @@ impl Shell {
     fn install_addon(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.prompt(
             Prompt {
-                title: "Install mod",
-                description: "A mod folder that contains swofty.json.".into(),
+                title: "Install addon",
+                description: "An addon folder that contains swofty.json.".into(),
                 initial: String::new(),
-                placeholder: "/path/to/my-mod",
+                placeholder: "/path/to/my-addon",
                 ok: "Install",
                 browse: Some(PathPromptOptions {
                     files: false,
@@ -349,7 +349,7 @@ impl Shell {
     }
 
     pub(crate) fn addons_page(&mut self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
-        let installed = plural(self.library.addons.len(), "mod installed", "mods installed");
+        let installed = plural(self.library.addons.len(), "addon installed", "addons installed");
         let subtitle = if self.vanilla() {
             format!("{installed} · {VANILLA} plays the game without them")
         } else {
@@ -362,7 +362,7 @@ impl Shell {
         let actions = Button::new("install-addon")
             .outline()
             .icon(IconName::Plus)
-            .label("Install mod…")
+            .label("Install addon…")
             .on_click(cx.listener(|this, _, window, cx| this.install_addon(window, cx)));
         let rows: Vec<AnyElement> = self
             .library
@@ -529,7 +529,7 @@ impl Shell {
         let (status, status_color) = if man.is_builtin() && !self.vanilla() {
             ("On in every modded profile".to_owned(), p.success)
         } else {
-            self.state_line(m.enabled, "mods", p)
+            self.state_line(m.enabled, "addons", p)
         };
         let more = man.description.clone().filter(|d| summary(d).len() < d.len());
         v_flex()
@@ -1023,7 +1023,7 @@ impl Shell {
 
     pub(crate) fn profiles_page(&mut self, p: Palette, wide: bool, cx: &mut Context<Self>) -> AnyElement {
         let subtitle =
-            "Each profile is its own set of mods and maps. Play starts F1 25 with the active one.".into();
+            "Each profile is its own set of addons and maps. Play starts F1 25 with the active one.".into();
         let actions = Button::new("new-profile")
             .outline()
             .icon(IconName::Plus)
@@ -1105,7 +1105,7 @@ impl Shell {
         self.prompt(
             Prompt {
                 title,
-                description: "Letters, digits, - and _. Each profile keeps its own mods, maps and saves."
+                description: "Letters, digits, - and _. Each profile keeps its own addons, maps and saves."
                     .into(),
                 initial,
                 placeholder: "my-profile",
@@ -1142,7 +1142,7 @@ impl Shell {
                     div()
                         .text_size(px(13.))
                         .line_height(px(19.))
-                        .child("No mods, no maps"),
+                        .child("No addons, no maps"),
                 )
                 .child(
                     div()
@@ -1153,7 +1153,7 @@ impl Shell {
         } else {
             v_flex()
                 .gap(px(12.))
-                .child(names("MODS", &item.addons, p))
+                .child(names("ADDONS", &item.addons, p))
                 .child(names("MAPS", &item.maps, p))
         };
         let button = |id: &str| Button::new(SharedString::from(format!("{id}-{name}")));

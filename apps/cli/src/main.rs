@@ -13,7 +13,11 @@ use swofty_core::manifest::Binds;
 use swofty_core::store::Store;
 
 #[derive(Parser)]
-#[command(name = "swofty", version, about = "Swofty Launcher for F1 25: mods and maps")]
+#[command(
+    name = "swofty",
+    version,
+    about = "Swofty Launcher for F1 25: addons, mods and maps"
+)]
 struct Cli {
     #[arg(
         long,
@@ -56,7 +60,11 @@ enum Command {
         #[arg(long)]
         game: Option<PathBuf>,
     },
-    #[command(name = "mods", subcommand, about = "List, install, enable and disable mods")]
+    #[command(
+        subcommand,
+        alias = "mods",
+        about = "List, install, enable and disable addons"
+    )]
     Addons(AddonsCommand),
     #[command(subcommand, about = "List, import and remove maps (EGO track packages)")]
     Maps(MapsCommand),
@@ -65,7 +73,7 @@ enum Command {
         about = "Offline play: consent and the launch extension that runs sessions without EA AntiCheat"
     )]
     Offline(offline::OfflineCommand),
-    #[command(subcommand, about = "Show and change mod settings in the profile")]
+    #[command(subcommand, about = "Show and change addon settings in the profile")]
     Settings(SettingsCommand),
     #[command(about = "Summarise a previous session's logs and crashes")]
     Logs {
@@ -87,15 +95,15 @@ enum AddonsCommand {
 
 #[derive(Subcommand)]
 enum SettingsCommand {
-    #[command(about = "List every mod's settings with the profile's values")]
+    #[command(about = "List every addon's settings with the profile's values")]
     List { id: Option<String> },
-    #[command(about = "Set a mod setting; the value is JSON (true, 5, \"replica\") or plain text")]
+    #[command(about = "Set an addon setting; the value is JSON (true, 5, \"replica\") or plain text")]
     Set {
         id: String,
         option: String,
         value: String,
     },
-    #[command(about = "Put a mod's settings back to their defaults")]
+    #[command(about = "Put an addon's settings back to their defaults")]
     Reset { id: String },
     #[command(about = "Write the session settings file (swofty/settings.json) for the profile")]
     Export {
@@ -351,4 +359,23 @@ fn maps(store: &Store, profile: &str, cmd: MapsCommand) -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::CommandFactory;
+
+    use super::*;
+
+    #[test]
+    fn mods_is_a_hidden_alias_of_addons() {
+        for name in ["addons", "mods"] {
+            let cli = Cli::try_parse_from(["swofty", name, "enable", "a.b"]).unwrap();
+            assert!(matches!(cli.command, Command::Addons(AddonsCommand::Enable { id }) if id == "a.b"));
+        }
+        let cmd = Cli::command();
+        let addons = cmd.find_subcommand("addons").unwrap();
+        assert_eq!(addons.get_all_aliases().collect::<Vec<_>>(), ["mods"]);
+        assert_eq!(addons.get_visible_aliases().count(), 0);
+    }
 }

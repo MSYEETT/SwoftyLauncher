@@ -27,11 +27,11 @@ impl ProfileItem {
 
     pub fn summary(&self) -> String {
         if self.vanilla() {
-            return "No mods".into();
+            return "No addons".into();
         }
         format!(
             "{} · {}",
-            plural(self.addons.len(), "mod", "mods"),
+            plural(self.addons.len(), "addon", "addons"),
             plural(self.maps.len(), "map", "maps")
         )
     }

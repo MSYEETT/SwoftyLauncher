@@ -31,7 +31,7 @@ pub enum Page {
 impl Page {
     pub fn label(self) -> &'static str {
         match self {
-            Self::Addons => "Mods",
+            Self::Addons => "Addons",
             Self::Maps => "Maps",
             Self::Profiles => "Profiles",
         }
@@ -150,7 +150,7 @@ fn offline_terms(p: Palette) -> impl IntoElement {
         .gap(px(14.))
         .child(div().text_size(px(13.)).text_color(p.text_muted).child(
             "Modded sessions run F1 25 without EA AntiCheat so the loader \
-                 and mods can work. Everything is undone when the game exits.",
+                 and addons can work. Everything is undone when the game exits.",
         ))
         .child(
             v_flex()

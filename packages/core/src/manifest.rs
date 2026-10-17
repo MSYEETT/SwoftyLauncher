@@ -289,7 +289,7 @@ impl AddonManifest {
             .chain(self.operations.native.iter().map(|n| &n.dll))
             .chain(self.operations.screens.iter().map(|s| &s.file));
         if let Some(p) = paths.into_iter().find(|p| !relative_inside(p)) {
-            return fail(format!("{p} must be a relative path inside the mod"));
+            return fail(format!("{p} must be a relative path inside the addon"));
         }
         Ok(())
     }

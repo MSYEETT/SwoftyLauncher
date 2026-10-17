@@ -70,7 +70,7 @@ fn build_profile(store: &Store, profile: &str, g: &Game) -> Result<swofty_core::
 
 fn report(profile: &str, built: &swofty_core::build::Built) {
     if built.plan.is_vanilla() {
-        println!("{profile} plays without mods; nothing to build");
+        println!("{profile} plays without addons; nothing to build");
         return;
     }
     println!("profile {profile}: {}", built.order.join(" -> "));

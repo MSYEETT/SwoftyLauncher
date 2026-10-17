@@ -8,7 +8,7 @@ pub fn doctor(store: &Store) -> Result<ExitCode> {
     let row = |k: &str, v: String| println!("{k:18} {v}");
     row("data dir", store.root.display().to_string());
     row(
-        "mods",
+        "addons",
         format!(
             "{} installed (including swofty.core)",
             store.addons().map(|m| m.len()).unwrap_or(0)

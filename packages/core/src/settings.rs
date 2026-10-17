@@ -358,7 +358,7 @@ impl SessionSettings {
     ) -> Result<Self> {
         if profile.is_vanilla() {
             return Err(Error::Other(format!(
-                "{} plays without mods and has no mod settings",
+                "{} plays without addons and has no addon settings",
                 profile.name
             )));
         }
