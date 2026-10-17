@@ -1,6 +1,6 @@
 # How maps are installed
 
-This page is for contributors. Players should read [Importing maps](/using/importing-maps).
+This page is for contributors. Players should read [Mods and tracks](/using/mods#tracks).
 
 `swofty apply` turns every map enabled in the profile into a playable track. The code is in `packages/core/src/activation/`.
 

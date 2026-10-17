@@ -7,7 +7,7 @@ description: What a mod is made of, how it reaches the game, and where each kind
 
 A mod changes F1 25's content and carries no code: textures, models, liveries, database rows, text and tracks.
 
-A mod is packaged as a folder with a [`swofty.json`](/reference/addons/manifest) manifest that lists its operations and no plugins. The player installs it like an addon ([Packaging a mod](./packaging)), and the launcher applies the operations to copies of the game's files when it builds the profile. The game folder keeps its original files.
+A mod is packaged as a folder with a [`swofty.json`](/reference/addons/manifest) manifest that lists its operations and no plugins. The player installs it like an addon, and the launcher applies the operations when it builds the profile, to copies of the game's files or in memory while the game boots. The game folder keeps its original files. A mod can also ship as a `.serps` package that players import on the Mods page ([Packaging a mod](./packaging)).
 
 ```
 my-mod/
@@ -37,7 +37,7 @@ my-mod/
 | `operations.database` | `set`, `add-row`, `remove-row`, `list-append`, `list-remove`, `put-record`, `remove-record` | [Database operations](/reference/ops/database) |
 | `operations.erp` | `copy-resource`, `put-resource`, `patch-pkg`, `warn` and others | [ERP operations](/reference/ops/erp) |
 | `operations.files` | Loose files copied into the game folder | [File operations](/reference/ops/files) |
-| `operations.assets` | Prefixed ops such as `db.set` and `erp.put-resource`, in one file | [Addon manifest](/reference/addons/manifest#operations) |
+| `operations.assets` | Prefixed ops such as `db.set`, `erp.put-resource`, `lang.set` and `group.register`, in one file | [Asset API](/reference/addons/asset-api) |
 
 A mod can declare [settings](/reference/addons/settings) whose values feed its operations, such as a choice of livery name.
 

@@ -233,7 +233,7 @@ pub enum Effect {
 
 `Fact`, `Tag`, `Notice`, `Tone`, `Style`, `Art` and `Icon` are small value types: label and value, text and tone, a fixed icon set, a monogram or an image path. Every type is serde-serialisable.
 
-- Each section is one page and one sidebar entry. The sidebar lists Profiles, Addons, a divider, the addon sections in registry order, then Maps. A section whose body is a list shows its row count.
+- Each section is one page and one sidebar entry. The sidebar lists Profiles, Addons, a divider, then the addon sections in registry order. A section whose body is a list shows its row count.
 - `footer` is a muted line under the body. `Effect::Open` opens a file or folder with the system's handler.
 - The shell renders a `View` with the components the core pages use: page header, list, row, switch, choice button, stats, facts, notices and empty state. A row's `detail` is its expanded body. A `reorder` list gets a drag handle and Move up and Move down entries.
 - The shell keeps each section's `View` and asks again after `Effect::Reload`, a profile switch or a store reload.
@@ -262,7 +262,7 @@ pub enum Effect {
 ### Commands and profile cards
 
 - The CLI adds each `CommandSpec` as a top-level subcommand and passes the arguments to `command`. A name already taken by core or an earlier addon is refused when the addon registers.
-- `summary` adds a list to the profile cards, after `ADDONS` and `MAPS`.
+- `summary` adds a list to the profile cards, after `ADDONS`.
 
 ### Third-party addons {#third-party-addons}
 

@@ -44,15 +44,15 @@ features:
   - icon: chip
     title: Addons
     details: Addons use the <em>Advanced Mod Mixin System</em> to edit the F1 25 engine directly, from new menus and settings to bigger grids.
-    link: /reference/addons/
+    link: /using/addons
   - icon: box
     title: Mods
-    details: ERPs and SERPs with no code. An addon can <em>bundle</em> them, load them at runtime through the <em>Asset API</em> to add, replace or remove ERPs, or you can manage them in the launcher's <em>Team Simplified</em> panel.
-    link: /using/mods-and-maps
+    details: ERPs and SERPs with no code. Drop them on the launcher's <em>Mods</em> page from <em>Team Simplified</em>, or an addon can <em>bundle</em> them or load them at runtime through the <em>Asset API</em>.
+    link: /using/mods
   - icon: map
     title: Maps
-    details: Import community track packages, such as <em>Sepang</em> and <em>Okayama</em>, and race on them as extra tracks.
-    link: /using/importing-maps
+    details: Import community track packages, such as <em>Sepang</em> and <em>Okayama</em>, as mods and race on them as extra tracks.
+    link: /using/mods#tracks
   - icon: layers
     title: Profiles
     details: Keep separate setups like <em>Vanilla</em>, <em>26 car grid</em> or <em>Classic tracks</em>, each with its own saves. The original game is <em>restorable in one click</em>.

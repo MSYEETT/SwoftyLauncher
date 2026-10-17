@@ -14,10 +14,10 @@ These docs cover playing with addons and making them. To download the app, see t
 
 ## What it does
 
-- **Maps:** Import community track packages, such as Sepang and Okayama, and race on them as extra tracks.
 - **Addons:** Install, enable and disable addons. The app warns when two addons change the same thing.
+- **Mods and tracks:** Drop `.serps` mods and community track packages, such as Sepang and Okayama, on the launcher, order them and turn them on per profile. See [Mods and tracks](/using/mods).
 - **In-game addon settings:** Open **ADDON SETTINGS** in the game's home menu, under Career, to change addon options without leaving the game.
-- **Profiles:** Switch between separate sets of addons and maps, each with its own saves. The original game is always restorable in one click.
+- **Profiles:** Switch between separate sets of addons, mods and tracks, each with its own saves. The original game is always restorable in one click.
 - **Offline-only modded play:** Modded sessions always run offline with multiplayer off. Launching from Steam normally stays completely vanilla.
 - **The launcher app:** Manage everything and press Play in one window, with live logs to help if the game crashes.
 

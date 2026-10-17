@@ -5,7 +5,7 @@ description: The track package format the launcher imports, its manifest.json fi
 
 # Importing and packaging a track
 
-A track is a package zip in the format made for the EGO GameDatabases Editor. The launcher imports it unchanged, stores it in `$DATA/maps/<track_code>/`, and installs it into a track slot when a profile enables it. Players import packages as described in [Maps](/using/importing-maps).
+A track is a package zip in the format made for the EGO GameDatabases Editor. The Team Simplified addon imports it unchanged as a mod, stores it in `$DATA/addon-data/teamsimplified.mods/library/<track_code>/track/`, and the build installs it when a profile enables it. Players import packages as described in [Mods and tracks](/using/mods#tracks).
 
 ## Package layout
 

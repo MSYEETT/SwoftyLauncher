@@ -11,9 +11,9 @@ Swofty Launcher for F1 25 loads three kinds of content into F1 25.
 |---|---|---|---|
 | What it is | Code, settings and in-game UI | Content: ERPs and SERPs | Community tracks |
 | Contains code | Yes, native plugins | No | No |
-| Package | A folder with `swofty.json` | `.erp` archives, `.serps` packages | A track package zip |
-| Reaches the game through | The launcher's build and SwoftyMod | An addon | The launcher's map installer |
-| Turned on | Per profile, on the **Addons** page | With the addon that carries it | Per profile, on the **Maps** page |
+| Package | A folder with `swofty.json` | `.serps` packages, mod zips and folders | A track package zip |
+| Reaches the game through | The launcher's build and SwoftyMod | An addon | The Team Simplified addon, as a mod |
+| Turned on | Per profile, on the **Addons** page | Per profile, on the **Mods** page | Per profile, on the **Mods** page |
 | In game | A page in **ADDON SETTINGS** | Under its addon | A page in **ADDON SETTINGS** |
 
 ## Addons
@@ -23,7 +23,7 @@ An addon is a folder with a [`swofty.json`](/reference/addons/manifest) manifest
 - **Native plugins.** Windows DLLs that use the **Advanced Mod Mixin System** to edit the F1 25 engine directly: wrap a game function, run code at an instruction, replace a virtual method, redirect a call or patch bytes. Plugins bind to game functions by name from the [Game API](/reference/game/), and SwoftyMod finds each one by signature when the game starts. See [Hooking a game function](/reference/addons/hooking).
 - **Settings.** Toggles, sliders and choices, shown in the launcher and in game. See [the `options` field](/reference/addons/manifest#options).
 - **In-game screens.** Screen files that SwoftyMod registers with the game's own UI system.
-- **Content.** [Database edits](/reference/ops/database) and [ERP edits](/reference/ops/erp), applied when the launcher builds the profile.
+- **Content.** [Asset ops](/reference/addons/asset-api): database edits, archive resources, text, asset groups and loose files, applied when the launcher builds the profile or while the game boots.
 
 Two addons ship with the launcher's source: **SwoftyMod** (`swofty.core`), which is built in and always on in modded profiles, and **Custom Grid Size** (`swofty.custom-grid-size`), which changes how many cars race in F1 2026.
 
@@ -31,33 +31,33 @@ Two addons ship with the launcher's source: **SwoftyMod** (`swofty.core`), which
 
 A mod is content with no code: `.erp` archives and resources, or `.serps` packages made with Simplified Studio. Mods reach the game in three ways.
 
-| Delivery | How | Status |
-|---|---|---|
-| Bundled | An addon ships the mod and applies it with [ERP](/reference/ops/erp) and [database](/reference/ops/database) operations in its manifest | Available |
-| Asset API | An addon loads the mod while the game runs: it inserts, replaces or removes resources and ERPs | <Badge type="info" text="coming soon" /> [Asset API](#asset-api) |
-| Mods section | The player imports, orders and turns mods on and off in the launcher's **Mods** section, from the built-in Team Simplified addon | Available: [Team Simplified](#team-simplified) |
+| Delivery | How |
+|---|---|
+| Bundled | An addon ships the mod and applies it with [asset ops](/reference/addons/asset-api) in its manifest |
+| Asset API | An addon produces asset ops from its own code, such as a library of mods it imported ([Asset API](#asset-api)) |
+| Mods page | The player imports, orders and turns mods on and off in the launcher's **Mods** page, from the built-in Team Simplified addon ([Team Simplified](#team-simplified)) |
 
 ### Asset API {#asset-api}
 
-<Badge type="info" text="coming soon" /> An addon loads mods while the game runs.
+An addon declares asset ops in `swofty.json` or returns them from a build hook: replace or add resources in game archives, edit database records, set text, register asset groups and place loose files. swofty_core applies them in memory while the game boots, and the game folder keeps its stock files. See the [Asset API](/reference/addons/asset-api) and [Loading mods at runtime](/reference/addons/runtime-assets).
 
 ### Team Simplified {#team-simplified}
 
-The launcher's **Mods** section holds the mod library. Drop `.serps` packages, mod zips or mod folders anywhere on the launcher window, or use **Import…**. Each profile keeps its own order and switches, and a mod lower in the list wins. `swofty mods` does the same from the command line.
+The launcher's **Mods** page holds the mod library. Drop `.serps` packages, mod zips, mod folders or track zips anywhere on the launcher window, or use **Import…**. Each profile keeps its own order and switches, and a mod lower in the list wins. `swofty mods` does the same from the command line. See [Mods and tracks](/using/mods).
 
-The launcher compares each mod with the clean game files and the build applies only what each enabled mod changes: database records, resources inside archives, text entries and whole files. Text changes need the in-game loader. A mod's expanded row lists what it changes and which other mods it overrides or is overridden by.
+The launcher compares each mod with the clean game files and applies only what each enabled mod changes: database records, resources inside archives, text entries and whole files. A mod's expanded row lists what it changes and which other mods it overrides or is overridden by.
 
 ## Maps
 
-A map is a community track package, such as Sepang or Okayama. The launcher imports the package, stores it in `$DATA/maps/` and installs it into a track slot when a profile uses it. See [Importing maps](/using/importing-maps).
+A map is a community track package, such as Sepang or Okayama. Tracks are mods: import the package on the **Mods** page and turn it on per profile. It then appears in Grand Prix track selection. See [Tracks](/using/mods#tracks).
 
 ## Profiles
 
-A [profile](/using/profiles) keeps one setup: its addons in load order, its maps and every addon setting. Switch profiles to switch setups. `vanilla` is the built-in profile with nothing installed. [Restoring the game](/using/profiles-and-restoring) returns every game file to its original state.
+A [profile](/using/profiles) keeps one setup: its addons in load order, its mods and tracks in load order, and every addon setting. Switch profiles to switch setups. `vanilla` is the built-in profile with nothing installed. [Restoring the game](/using/profiles-and-restoring) returns every game file to its original state.
 
 ## ADDON SETTINGS
 
-SwoftyMod adds **ADDON SETTINGS** to the game's home menu, directly under **Career**. It lists every enabled addon and map as a tile, and each tile opens a page with that addon's settings. Changes save to the profile. See [In-game addon settings](/using/swofty-mod).
+SwoftyMod adds **ADDON SETTINGS** to the game's home menu, directly under **Career**. It lists every enabled addon and track as a tile, and each tile opens a page with that addon's settings. Changes save to the profile. See [In-game addon settings](/using/swofty-mod).
 
 ::: tip Making your own
 See [Creating mods](/reference/mods/) and [Creating addons](/reference/addons/). The [Standard library](/reference/std/) lists every API an addon can use.

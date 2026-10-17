@@ -1,15 +1,25 @@
 ---
 title: Asset API
-description: Asset ops, how the build routes them to build or runtime delivery, and the parts still being built.
+description: Asset ops in swofty.json and build hooks, how each kind reaches the game, the order they apply in, conflicts, and what swofty_core does with them while the game boots.
 ---
 
 # Asset API
 
-An asset op is one change to game content: an asset group, an archive resource, a database record, a language string or a loose file. Addons declare asset ops in their manifest, and built-in addons return them from a [build hook](./launcher-api#build-hooks). The types are in the `swofty-addon` crate (`packages/addon-api`), module `swofty_addon::asset`.
+An asset op is one change to game content: an asset group, an archive resource, a database record, a language string or a loose file. An addon declares asset ops in its manifest, or returns them from a [build hook](./launcher-api#build-hooks). The launcher plans every op of a profile in one place, the asset planner, and delivers each kind either by rewriting game files at build or through swofty_core while the game boots.
+
+The types are in the `swofty-addon` crate (`packages/addon-api`), module `swofty_addon::asset`. [Loading mods at runtime](./runtime-assets) walks through each kind.
 
 ## Op files
 
-`operations.assets` in `swofty.json` lists op files. Each op has a prefix that names its kind.
+`operations.assets` in `swofty.json` lists op files:
+
+```json [swofty.json]
+"operations": {
+  "assets": ["assets/livery.json"]
+}
+```
+
+Each op names its kind in a prefix:
 
 ```json [assets/livery.json]
 {
@@ -25,48 +35,137 @@ An asset op is one change to game content: an asset group, an archive resource, 
 }
 ```
 
-`operations.database` and `operations.erp` files load into the same model, with `db.` and `erp.` added to each op.
-
 | Op | Fields | Change |
 |---|---|---|
-| `group.register` | `group`, `erp` or `erps`, optional `deps`, `template` | Add an asset group to the engine's manifest |
-| `erp.*` | As in [ERP operations](/reference/ops/erp) | Change an archive |
-| `db.*` | As in [database operations](/reference/ops/database) | Change the game database |
-| `lang.set` | `language` (code or `*`), `key`, `value` | Set one string |
-| `lang.table` | `language`, `source` | Load a whole `.lng` file |
-| `file.put` | `source`, `target` | Replace or add a loose game file |
-| `warn` | `message` | Print a message at build time |
+| `group.register` | `group`, `erp` or `erps`, optional `deps`, `template` | Add an asset group to the engine's asset manifest |
+| `erp.put-resource` | `erp`, `resource`, `source`, optional `as` | Copy a resource from an archive in the addon into a game archive, replacing or adding it |
+| `erp.copy-resource`, `erp.patch-pkg` | As in [ERP operations](/reference/ops/erp) | Copy a resource, or edit a `!pkg` resource in place |
+| `db.set`, `db.add-row`, `db.remove-row`, `db.list-append`, `db.list-remove` | As in [database operations](/reference/ops/database) | Change rows and fields |
+| `db.put-record` | `key` (a path, or `0x` and 16 hex digits), `type` (the tag), `value` (hex bytes) | Write one raw record |
+| `db.remove-record` | `key` | Remove one record |
+| `lang.set` | `language` (a code, or `*` for every language), `key`, `value` | Set one string |
+| `lang.table` | `language`, `source` (an `.lng` file) | Set every string in a table |
+| `file.put` | `source`, `target` (a path in the game folder) | Replace or add a loose game file |
+| `warn` | `message` | Print a message at build |
 
-A `source` is a path inside the addon, or `{ "root": "addon" | "data" | "cache", "path": "..." }` for a file in the addon's folder, its `addon-data` folder or its cache folder.
+- Files in `operations.database` and `operations.erp` load into the same model, with `db.` and `erp.` added to each op. Each `operations.files` entry is a `file.put`.
+- Every op takes `when` and <span v-pre>`{{id}}`</span> from the addon's [`db` settings](/reference/addons/settings#use-a-db-setting), as database operations do.
+- `erp.replace-resource`, `erp.add-resource`, `erp.remove-resource` and `erp.add-mipmaps` are defined but not built. An addon that uses one has all its `erp` ops skipped, with a warning.
 
-## Routing
+### Sources
 
-Each op kind (`group`, `erp`, `db`, `lang`, `file`) is delivered one of three ways:
+A `source` is a path in the addon's folder, or an object that names another root:
+
+```json
+"source": "erp/car.erp"
+"source": { "root": "data", "path": "library/my-mod/files/car.erp" }
+```
+
+| `root` | Folder |
+|---|---|
+| `addon` (a plain string) | `$DATA/addons/<id>/` |
+| `data` | `$DATA/addon-data/<id>/` |
+| `cache` | `$DATA/cache/addons/<id>/` |
+
+A path that leaves its folder fails the build. The build hash covers every op and the size and modification time of every source an op names.
+
+## Deliveries
+
+Each kind is delivered one of three ways:
 
 | Route | Meaning |
 |---|---|
 | Build | The build rewrites the game file and installs it through the journal |
-| Runtime | swofty_core applies the op in memory while the game boots |
-| Waiting | No delivery exists yet. The build lists the op |
+| Runtime | The build writes `swofty/assets.json`, and swofty_core applies it in memory while the game boots. Game files stay stock. |
+| Waiting | No delivery exists for the kind. The build lists the op and its origin |
 
-The installed loader states the kinds it delivers at runtime in `swofty/addons/core/features.json`, as `stable` or `experimental`. A `stable` kind takes the runtime route. An `experimental` kind takes it only when `config.json` `"runtime_assets"` names it. Otherwise `erp`, `db` and `file` ops are built, and `group` and `lang` ops wait. The current loader lists `group`, `erp`, `db` and `lang` as `stable` and `file` as `experimental`.
+The installed loader lists its runtime features in `swofty/addons/core/features.json`:
 
-When two addons write the same target, the later addon in the profile's load order wins, and the build lists the conflict.
+```json
+{ "schema": 1, "features": { "group": "stable", "erp": "stable", "db": "stable", "lang": "stable", "file": "experimental" } }
+```
 
-## Runtime delivery
+| Kind | Build delivery | Runtime feature | Route |
+|---|---|---|---|
+| `group` | none | stable | Runtime |
+| `erp` | the archive is rewritten, unchanged resources copied byte for byte | stable | Runtime |
+| `db` | `gamedatabases.2025.bin` is rewritten | stable | Runtime |
+| `lang` | none | stable | Runtime |
+| `file` | the file is copied into the game folder | experimental | Build, or Runtime when turned on |
 
-The build writes `swofty/assets.json` and its files into the loader folder `swofty/`.
+- A `stable` kind takes the runtime route.
+- An `experimental` kind takes the runtime route only when `"runtime_assets"` in `$DATA/config.json` names it, for example `"runtime_assets": ["file"]`. The build then lists it in `features` in `swofty/assets.json`, which turns it on in swofty_core.
+- Otherwise a kind with a build delivery is built, and a kind without one waits. The build prints `<origin>: <n> lang op(s) wait for lang support in swofty_core`, or says the feature is experimental and not turned on.
+- A loader without `features.json` has no runtime features. `swofty build` without the loader builds `erp`, `db` and `file` and lists `group` and `lang` as waiting.
+- Every op of one kind takes the same route in a build.
+- A `db` build that removes records, or writes a record of tag 10, 15 or 16 or one whose value is not text, is built into the game file instead, with a warning.
+
+## Order and conflicts
+
+Ops apply in this order:
+
+1. Tracks the profile enables (`track.add`), whose database rows and archives come first.
+2. Addons in the profile's load order.
+3. Within an addon, its op files in `operations` order (`database`, then `erp`, then `assets`), then `operations.files`, then the ops its build hook returns.
+
+A later write wins. The planner records the target of each write:
+
+| Target | Written by |
+|---|---|
+| An asset group | `group.register` |
+| A resource in an archive | `erp.put-resource`, `erp.copy-resource`, `erp.patch-pkg` |
+| A database record | `db.set`, `db.put-record`, `db.remove-record` |
+| A string in a language | `lang.set` |
+| A game path | `file.put` |
+
+A write that replaces a target (`erp.put-resource`, `db.set`, `db.put-record`, `db.remove-record`, `lang.set`, `file.put`) after another origin wrote it is a conflict. `erp.copy-resource`, `erp.patch-pkg`, `group.register` and added rows compose. The build prints each conflict with the winner and the origins it overrides:
+
+```text
+conflict: text lng_team_tor_hashtag (eng): teamsimplified.mods (rm-designs.scuderia-alphatauri-orlen) overrides example.livery
+```
+
+An origin is the addon id, with the item inside the addon in brackets, such as a mod in the Team Simplified library.
+
+## In the game
+
+The build writes `swofty/assets.json` and its files into the loader folder `swofty/` in the game folder. File paths in it are relative to `swofty/`.
 
 | Kind | `swofty/assets.json` | Files |
 |---|---|---|
-| `group` | `asset_groups`: `group`, `erps`, `deps`, `template` and `origin` | |
+| `group` | `asset_groups`: `group`, `erps`, `deps`, `template`, `origin` | |
 | `erp` | `resources`: each changed resource's `uri`, `type`, `arg`, `fragments` and target `erps` | `assets/resources/<n>.<i>.bin` |
-| `db` | `db_edits`: each record that differs from the database after map activation, as `hash`, `type` (the tag) and `value` (the text), and `early_stage: true` | |
+| `db` | `db_edits`: each record that differs from the database after track activation, as `hash`, `type` and `value`, and `"early_stage": true` | |
 | `lang` | `lang.<code>.table`, and `lang."*".table` for every language | `assets/lang/<code>.lng`, `assets/lang/all.lng` |
-| `file` | `overlay: true`, and `file` in `features` | `overlay/<target>` |
+| `file` | `"overlay": true`, and `"file"` in `features` | `overlay/<target>` |
 
-- Map activation stays in the game database file.
-- A database build that removes records, or writes a record of tag 10, 15 or 16 or one whose value is not text, writes the game file instead, with a warning.
-- swofty_core skips a group that the stock manifest already has.
+swofty_core applies each kind at a fixed point of the boot:
 
-<Badge type="warning" text="in progress" /> The native `swofty::assets` calls for plugins (API version 4, `swofty/assets.hpp`, the `assets` capability) are being built. See the [design](/design/addons-and-mods).
+| Kind | Applied | Core part |
+|---|---|---|
+| `group` | when the engine parses its asset manifest. A group the stock manifest already has is skipped. | `assets.cpp` |
+| `erp` | at core load, as overlay archives in `swofty/cache/` that every group listing a target archive reads first | `resources.cpp` |
+| `db` | when the game database loads (`Gdb_Load_GameDatabase`) | `gamedb.cpp` |
+| `lang` | when the game loads a language file (`Loc_Load_LanguageFile`), as a table added after the stock table | `overlay.cpp` |
+| `file` | each time the game resolves a path under `swofty/overlay/` | `overlay.cpp` |
+
+### The early stage
+
+The game builds its database before the window opens. With `"early_stage": true`, the loader loads addons inside the game's `CreateMutexW("Codemasters F1 25")` call, before the database loads, and swofty_core runs its window-stage handlers at the window trigger. The build sets `early_stage` whenever there are database edits. `SWOFTY_EARLY_STAGE=1` or `0` overrides it.
+
+Without the early stage the database is already built when addons load. Only in-place int, float and bool overwrites of existing keys apply then. New keys, strings and type changes are skipped and logged.
+
+### Experimental features
+
+An experimental feature applies only when `features` in `swofty/assets.json` lists it. Otherwise swofty_core skips it and logs:
+
+```text
+[assets] overlay skipped: the runtime file feature is experimental and "features" in swofty/assets.json does not turn it on
+```
+
+### Logs
+
+swofty_core logs every runtime asset step to `swofty/loader.log` with the `[assets]` prefix: each group, each resource with its fragments and stock archives, each database edit (`overwrote`, `created`, `retyped` or `skipped` with the reason), each string table and each overlaid file. Without `swofty/assets.json` it logs nothing and installs no hooks.
+
+## Native plugins
+
+`SwoftyApi` version 3 has no asset calls. A native plugin's addon declares its asset ops in `swofty.json`, and they reach the game as above.

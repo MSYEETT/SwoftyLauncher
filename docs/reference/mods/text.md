@@ -24,9 +24,7 @@ Menus read a track's name from `TrackDataSet_<n>.TrackData_<m>.TrackNameData_0` 
 
 ## Add or change strings
 
-<Badge type="warning" text="not delivered yet" /> `lang` asset ops are read and checked, and `swofty build` lists them as waiting for runtime support in swofty_core.
-
-`operations.assets` files carry two text ops:
+`operations.assets` files carry two text ops. swofty_core adds the strings while the game boots, and the game's language files stay stock. Without the in-game loader, `swofty build` lists them as waiting.
 
 | Op | Fields | Change |
 |---|---|---|
@@ -41,6 +39,8 @@ Menus read a track's name from `TrackDataSet_<n>.TrackData_<m>.TrackNameData_0` 
   ]
 }
 ```
+
+A key the game does not have is added, and a `_loc_tag` field can name it. Where two addons set the same key, the later one in the load order wins. See [Loading mods at runtime](/reference/addons/runtime-assets#add-or-change-strings).
 
 ## Language files
 

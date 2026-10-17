@@ -1,6 +1,6 @@
 ---
 title: File operations
-description: Copy files from an addon into the game folder with operations.files.
+description: Replace or add loose game files from an addon with operations.files.
 ---
 
 # File operations
@@ -20,6 +20,8 @@ description: Copy files from an addon into the game folder with operations.files
 
 A `source` outside the addon folder fails the manifest check.
 
-::: warning Not built yet
-The build skips `operations.files` and prints a warning.
-:::
+Each entry is a [`file.put`](/reference/addons/asset-api#op-files) asset op. The build copies the file into the game folder through the journal, and `swofty restore` removes it or puts the stock file back. With the experimental runtime `file` feature turned on (`"runtime_assets": ["file"]` in `$DATA/config.json`), swofty_core serves the file from `swofty/overlay/` instead and the game folder keeps its stock files.
+
+- The last write to a target wins, and the build lists the conflict.
+- A target that a track, the database or an archive edit already replaces fails the build.
+- The build prints `files: <n> game file(s) replaced, <m> added`.

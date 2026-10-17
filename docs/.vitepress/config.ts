@@ -30,6 +30,8 @@ const moved: Record<string, string> = {
   "/modding/erp-ops": "/reference/ops/erp",
   "/modding/ui-patches": "/reference/ops/ui-patches",
   "/reference/std/files": "/reference/ops/files",
+  "/using/mods-and-maps": "/using/addons",
+  "/using/importing-maps": "/using/mods",
 };
 
 const gameApiItems = gameApi.subsystems.map((s) => ({
@@ -121,8 +123,8 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "1. Installation", link: "/guide/installation" },
               { text: "1.1. Windows", link: "/guide/windows" },
               { text: "1.2. Linux and Steam Deck", link: "/guide/linux" },
-              { text: "2. Addons and mods", link: "/using/mods-and-maps" },
-              { text: "3. Maps", link: "/using/importing-maps" },
+              { text: "2. Addons", link: "/using/addons" },
+              { text: "3. Mods and tracks", link: "/using/mods" },
               { text: "4. Profiles", link: "/using/profiles" },
               { text: "5. In-game addon settings", link: "/using/swofty-mod" },
               { text: "6. Restoring the game", link: "/using/profiles-and-restoring" },
@@ -177,6 +179,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "In-game UI", link: "/reference/addons/in-game-ui", icon: "file" },
               { text: "Native plugins", link: "/reference/addons/native-plugins", icon: "file" },
               { text: "Asset API", link: "/reference/addons/asset-api", icon: "file" },
+              { text: "Loading mods at runtime", link: "/reference/addons/runtime-assets", icon: "file" },
               { text: "Launcher API", link: "/reference/addons/launcher-api", icon: "file" },
             ],
           },
