@@ -19,7 +19,7 @@ swofty-sdk = { path = "packages/sdk" }
 aes = "0.9"
 anyhow = "1"
 bcdec_rs = "0.2"
-clap = { version = "4", features = ["derive", "env"] }
+clap = { version = "4", features = ["derive", "env", "string"] }
 md-5 = "0.11"
 png = "0.18"
 semver = { version = "1", features = ["serde"] }

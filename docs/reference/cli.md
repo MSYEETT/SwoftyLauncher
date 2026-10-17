@@ -57,11 +57,13 @@ See [Restoring the game](/using/profiles-and-restoring).
 | Command | Purpose |
 |---|---|
 | `swofty addons list` | List installed addons and whether they are enabled |
-| `swofty addons install <path>` | Install an addon folder |
+| `swofty addons install <path>` | Install an addon folder, a `.swoftymod` file or a zip that holds an addon |
 | `swofty addons enable <id>` | Enable an addon |
 | `swofty addons disable <id>` | Disable an addon; SwoftyMod cannot be disabled |
 
-`swofty mods` is another name for `swofty addons`.
+`swofty mods` is another name for `swofty addons` while no addon provides a `mods` command. Once one does, `swofty mods install <addon folder>` and `swofty mods enable|disable <addon id>` still run the `swofty addons` command and print a note.
+
+Built-in addons add their own top-level commands. `swofty --help` lists them.
 
 Each command first moves addons that an earlier version stored in `$DATA/mods/` to `$DATA/addons/`.
 
