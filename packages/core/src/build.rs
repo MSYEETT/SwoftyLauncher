@@ -144,10 +144,13 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         .map(|d| load_features(&d))
         .transpose()?
         .unwrap_or_default();
-    let opt_in = store.config().runtime_assets;
-    let mut planner = Planner::new(&features, &opt_in);
+    let config = store.config();
+    let mut planner = Planner::new(&features, &config.runtime_assets).build_only(&config.build_assets);
     if features != Features::default() {
-        hasher.update(format!("runtime {features:?} {opt_in:?};"));
+        hasher.update(format!("runtime {features:?} {:?};", config.runtime_assets));
+        if !config.build_assets.is_empty() {
+            hasher.update(format!("build {:?};", config.build_assets));
+        }
     }
     let mut runtime = Runtime::new(planner.features());
     for id in &resolved.order {

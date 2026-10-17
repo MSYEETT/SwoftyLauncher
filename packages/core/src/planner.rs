@@ -108,6 +108,7 @@ pub struct Planned {
 pub struct Planner<'a> {
     features: &'a Features,
     opt_in: &'a BTreeSet<Kind>,
+    build_only: &'a BTreeSet<Kind>,
     db: Vec<(Origin, DbOps)>,
     erp: Vec<Op>,
     files: Vec<Op>,
@@ -164,9 +165,11 @@ fn target(op: &AssetOp) -> Option<(Target, bool)> {
 
 impl<'a> Planner<'a> {
     pub fn new(features: &'a Features, opt_in: &'a BTreeSet<Kind>) -> Self {
+        static NONE: BTreeSet<Kind> = BTreeSet::new();
         Self {
             features,
             opt_in,
+            build_only: &NONE,
             db: Vec::new(),
             erp: Vec::new(),
             files: Vec::new(),
@@ -176,10 +179,18 @@ impl<'a> Planner<'a> {
         }
     }
 
+    pub fn build_only(mut self, kinds: &'a BTreeSet<Kind>) -> Self {
+        self.build_only = kinds;
+        self
+    }
+
     pub fn route(&self, kind: Kind) -> Route {
         let stable = self.features.stable.contains(&kind);
         let experimental = self.features.experimental.contains(&kind);
         let build = BUILD_DELIVERIES.contains(&kind);
+        if build && self.build_only.contains(&kind) {
+            return Route::Build;
+        }
         let runtime =
             RUNTIME_DELIVERIES.contains(&kind) && (stable || (experimental && self.opt_in.contains(&kind)));
         match (runtime, build) {
@@ -402,6 +413,12 @@ mod tests {
         let p = Planner::new(&shipped, &file);
         assert_eq!(p.route(Kind::File), Route::Runtime);
         assert_eq!(p.features(), [Kind::File]);
+        let forced = BTreeSet::from([Kind::Erp, Kind::Db, Kind::Lang]);
+        let p = Planner::new(&shipped, &none).build_only(&forced);
+        assert_eq!(p.route(Kind::Erp), Route::Build);
+        assert_eq!(p.route(Kind::Db), Route::Build);
+        assert_eq!(p.route(Kind::Lang), Route::Runtime);
+        assert_eq!(p.route(Kind::Group), Route::Runtime);
         std::fs::remove_dir_all(&dir).ok();
     }
 

@@ -476,7 +476,7 @@ pub enum Target {
 Routing per kind:
 
 - A kind with no build delivery takes the runtime route when the feature is `stable`, or `experimental` and listed in `config.json` `"runtime_assets"`, and waits otherwise. The build lists waiting ops with their origins.
-- A kind with both takes the runtime route when the feature is `stable`, or `experimental` and listed in `config.json` `"runtime_assets"`. Otherwise it takes the build route.
+- A kind with both takes the runtime route when the feature is `stable`, or `experimental` and listed in `config.json` `"runtime_assets"`. Otherwise it takes the build route. `config.json` `"build_assets"` forces the kinds it lists onto the build route.
 - Every op of one kind takes the same route in a build.
 
 Both routes of a kind compute the same result:
