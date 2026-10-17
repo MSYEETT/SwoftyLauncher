@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "targets": [
+    { "erp": "2025_asset_groups/ui_package/databases.erp", "resource": "eaid://ui_package/databases/tool_tips.uidb" }
+  ],
+  "edits": [
+    {
+      "op": "clone-entry",
+      "at": "tool_tips.Contents.tooltips_dictionary.Contents",
+      "src": "settings_fe_home",
+      "as": "mod_menu",
+      "set": {
+        "Name": "mod_menu",
+        "Contents.action_path.Value": "#input_data.action_sets.menu_actions.actions.Menu Right Stick Click",
+        "Contents.text.Value": "Mod Settings",
+        "Contents.priority.Value": "5"
+      }
+    },
+    {
+      "op": "clone-entry",
+      "at": "tool_tips.Contents.tooltips_dictionary.Contents",
+      "src": "delete",
+      "as": "mod_menu_offline",
+      "set": {
+        "Name": "mod_menu_offline",
+        "Contents.action_path.Value": "#input_data.action_sets.menu_actions.actions.Menu Right Stick Click",
+        "Contents.text.Value": "to open settings"
+      }
+    }
+  ]
+}

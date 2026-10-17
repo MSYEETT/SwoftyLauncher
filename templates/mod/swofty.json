@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "example.sample-mod",
+  "name": "Sample Mod",
+  "version": "0.1.0",
+  "author": "Your Name",
+  "description": "A starting point for a mod: one database edit, one UI patch and a native plugin.",
+  "license": "MIT",
+  "kind": ["database", "ui", "native"],
+  "compat": { "game": "f1_25", "game_builds": [">=25251167"] },
+  "requires": [{ "id": "swofty.core", "version": ">=0.1.0" }],
+  "options": [
+    {
+      "id": "greeting",
+      "type": "string",
+      "label": "Log greeting",
+      "description": "Written to swofty/loader.log when the plugin loads.",
+      "default": "hello from the sample mod",
+      "binds": "native"
+    }
+  ],
+  "operations": {
+    "database": ["db/example.json"],
+    "ui": ["ui/example.pkgpatch.json"],
+    "native": [{ "dll": "native/sample_plugin.dll", "capabilities": ["log", "scan"] }]
+  }
+}

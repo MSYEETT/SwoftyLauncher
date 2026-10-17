@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "swofty.core",
+  "name": "SwoftyMod",
+  "version": "0.1.0",
+  "author": "Swofty",
+  "description": "The built-in mod: MOD SETTINGS under Career, the F9 prompt, the launcher panel and the settings page. Always on.",
+  "license": "AGPL-3.0-or-later",
+  "kind": ["ui", "native"],
+  "compat": { "game": "f1_25", "game_builds": [">=25251167"], "seasons": [] },
+  "options": [
+    {
+      "id": "show_launcher_panel",
+      "type": "bool",
+      "label": "Show launcher panel",
+      "description": "Show the \"Launched with Swofty Mod Launcher\" panel on the home screen.",
+      "default": true,
+      "binds": "native"
+    }
+  ],
+  "operations": {
+    "ui": ["ui/fe_home.pkgpatch.json", "ui/routes.pkgpatch.json", "ui/tooltips.pkgpatch.json"],
+    "native": [{ "dll": "native/swofty_core.dll", "capabilities": ["log", "scan", "hook"] }]
+  }
+}
