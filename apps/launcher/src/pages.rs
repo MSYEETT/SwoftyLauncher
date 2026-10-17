@@ -338,13 +338,12 @@ impl Shell {
     }
 
     fn state_line(&self, on: bool, what: &str, p: Palette) -> (String, Hsla) {
-        let profile = &self.library.profile.name;
         if self.vanilla() {
             (format!("Switch away from {VANILLA} to use {what}"), p.warning)
         } else if on {
-            (format!("On in {profile}"), p.success)
+            ("On".to_owned(), p.success)
         } else {
-            (format!("Off in {profile}"), p.text_muted)
+            ("Off".to_owned(), p.text_muted)
         }
     }
 
@@ -514,20 +513,8 @@ impl Shell {
             Some(b) => (format!("{builds} · not tested on {b}"), p.warning),
             None => (builds, p.text),
         };
-        let ops = &man.operations;
-        let changes: Vec<String> = [
-            (ops.database.len(), "database edit", "database edits"),
-            (ops.erp.len(), "ERP asset", "ERP assets"),
-            (ops.ui.len(), "UI patch", "UI patches"),
-            (ops.files.len(), "file", "files"),
-            (ops.native.len(), "native plugin", "native plugins"),
-        ]
-        .into_iter()
-        .filter(|(n, ..)| *n > 0)
-        .map(|(n, one, many)| plural(n, one, many))
-        .collect();
         let (status, status_color) = if man.is_builtin() && !self.vanilla() {
-            ("On in every modded profile".to_owned(), p.success)
+            ("On".to_owned(), p.success)
         } else {
             self.state_line(m.enabled, "addons", p)
         };
@@ -575,14 +562,6 @@ impl Shell {
                         .line_height(px(20.))
                         .text_color(p.text_muted)
                         .child(text),
-                )
-            })
-            .when(!changes.is_empty(), |d| {
-                d.child(
-                    v_flex()
-                        .gap(px(3.))
-                        .child(label("WHAT IT CHANGES", p))
-                        .child(div().text_size(px(13.)).child(changes.join(", "))),
                 )
             })
             .when(!man.options.is_empty(), |d| d.child(self.settings(man, p, cx)))

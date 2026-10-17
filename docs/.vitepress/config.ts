@@ -24,7 +24,7 @@ const gameApiItems = gameApi.subsystems.map((s) => ({
 
 export default defineConfigWithTheme<DocsThemeConfig>({
   title: "Swofty Launcher for F1 25",
-  description: "A launcher and mod loader for F1 25 on Windows and Linux",
+  description: "Addons and mods for F1 25 on Windows and Linux",
   base,
   lang: "en-AU",
   appearance: "force-dark",
