@@ -122,7 +122,7 @@ impl Library {
             .collect();
         let sections = registry
             .iter()
-            .filter(|e| !e.declared)
+            .filter(|e| !e.declared && enabled.contains(&e.id()))
             .flat_map(|e| {
                 e.addon.sections().into_iter().map(|spec| SectionItem {
                     addon: e.id().to_owned(),

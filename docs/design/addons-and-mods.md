@@ -149,7 +149,7 @@ pub struct ArgSpec {
 
 `GameFiles` gives clean files only: baseline objects, game files the baseline has not recorded, and the stock language files ([section 3.6](#_3-6-language-baseline)). `is_stock` is true for a path the game ships.
 
-The core's addon registry holds every addon. Installed addons and SwoftyMod are `DeclaredAddon`s: a manifest and a folder, with the default methods. Built-in entries carry `locked` (SwoftyMod and Team Simplified: always on) and `default_on`. `Store::profile` turns on a `default_on` addon that the profile does not list, and a `locked` one always.
+The core's addon registry holds every addon. Installed addons and SwoftyMod are `DeclaredAddon`s: a manifest and a folder, with the default methods. Built-in entries carry `locked` (SwoftyMod: always on) and `default_on` (Team Simplified: on in profiles that do not list it). `Store::profile` turns on a `default_on` addon that the profile does not list, and a `locked` one always.
 
 ### Sections and pages
 
@@ -238,7 +238,7 @@ pub enum Effect {
 - The shell renders a `View` with the components the core pages use: page header, list, row, switch, choice button, stats, facts, notices and empty state. A row's `detail` is its expanded body. A `reorder` list gets a drag handle and Move up and Move down entries.
 - The shell keeps each section's `View` and asks again after `Effect::Reload`, a profile switch or a store reload.
 - `view` runs on the UI thread and reads in-memory state only. `event`, `import`, `command` and `build` run on the background executor. The control that sent an event shows as busy until its `Effect` returns.
-- An addon that is off in the active profile still shows its sections. They carry a notice with a button that returns `Effect::SetAddonEnabled(true)`.
+- The sections of an addon that is off in the active profile are hidden.
 
 ### Import handlers
 
@@ -563,7 +563,7 @@ Result overlay_file(std::string_view game_path, std::string_view file);
 - The crate `addons/simplified` (`swofty-addon-simplified`) is Rust and AGPL-3.0-or-later, like the rest of the repository. Its `mod.serps` reader, package root, content root and entry path checks are ported from the Simplified Launcher (GPL-3.0, used with Team Simplified's permission) and carry the Simplified Suite notice. `THIRD_PARTY.md` credits Team Simplified for the `.serps` format and the Simplified Suite, and the Mods section shows the credit.
 - Import, the library, profile state, the section and `swofty mods` are built (work item 13), and so are the diffs (work item 14), the merge and conflicts (work item 15).
 - Manifest: id `teamsimplified.mods`, name `Team Simplified`, author `Team Simplified`. No options and no native plugin.
-- Built in and always on, like SwoftyMod.
+- Built in and on by default in new profiles. It can be turned off per profile, which hides its section.
 - It uses `swofty-addon` and `swofty-formats` only. Core has no code for it.
 
 ### 4.2 The .serps format

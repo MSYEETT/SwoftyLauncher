@@ -38,7 +38,7 @@ const REMOVE: &str = "remove:";
 pub fn builtin() -> Builtin {
     Builtin {
         addon: Arc::new(Simplified::new()),
-        locked: true,
+        locked: false,
         default_on: true,
     }
 }

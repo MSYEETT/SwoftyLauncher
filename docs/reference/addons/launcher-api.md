@@ -112,7 +112,7 @@ pub struct SectionSpec {
 }
 ```
 
-Each section is one page and one sidebar entry. The sidebar lists **Profiles**, **Addons**, a divider, then every addon section in registry order. A section whose body is a list shows its row count. An addon that is off in the active profile still shows its sections.
+Each section is one page and one sidebar tile. The sidebar shows **Profiles** and **Addons**, then, for each addon that is on in the active profile, a heading with the addon's name and a tile per section, in registry order. A tile shows the addon's icon when it has one. A section whose body is a list shows its row count. The sections of an addon that is off are hidden.
 
 `view` returns the page:
 
