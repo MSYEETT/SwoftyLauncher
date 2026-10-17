@@ -1,0 +1,125 @@
+{
+  "build": "d873a1c8d2044cef2fd76c99c9d5a97649c5b815d055540995105f46619865ae",
+  "subsystems": [
+    {
+      "name": "core",
+      "link": "/reference/game/core",
+      "entries": [
+        {
+          "name": "Ne_Make_StrFromCStr",
+          "kind": "func",
+          "status": "stable",
+          "link": "/reference/game/core#Ne_Make_StrFromCStr"
+        }
+      ]
+    },
+    {
+      "name": "fe_home",
+      "link": "/reference/game/fe_home",
+      "entries": [
+        {
+          "name": "FeHome_Add_CareerTile",
+          "kind": "func",
+          "status": "stable",
+          "link": "/reference/game/fe_home#FeHome_Add_CareerTile"
+        },
+        {
+          "name": "FeHome_Handle_Command",
+          "kind": "func",
+          "status": "stable",
+          "link": "/reference/game/fe_home#FeHome_Handle_Command"
+        },
+        {
+          "name": "site_FeHome_AfterCareerCall",
+          "kind": "site",
+          "status": "stable",
+          "link": "/reference/game/fe_home#site_FeHome_AfterCareerCall"
+        }
+      ]
+    },
+    {
+      "name": "fe_tiles",
+      "link": "/reference/game/fe_tiles",
+      "entries": [
+        {
+          "name": "Action",
+          "kind": "struct",
+          "status": null,
+          "link": "/reference/game/fe_tiles#Action"
+        },
+        {
+          "name": "HomeItem",
+          "kind": "struct",
+          "status": null,
+          "link": "/reference/game/fe_tiles#HomeItem"
+        },
+        {
+          "name": "ItemVtbl",
+          "kind": "struct",
+          "status": null,
+          "link": "/reference/game/fe_tiles#ItemVtbl"
+        },
+        {
+          "name": "Tile",
+          "kind": "struct",
+          "status": null,
+          "link": "/reference/game/fe_tiles#Tile"
+        },
+        {
+          "name": "TileEntry",
+          "kind": "struct",
+          "status": null,
+          "link": "/reference/game/fe_tiles#TileEntry"
+        },
+        {
+          "name": "TileList",
+          "kind": "struct",
+          "status": null,
+          "link": "/reference/game/fe_tiles#TileList"
+        },
+        {
+          "name": "FeTile_Build_List",
+          "kind": "func",
+          "status": "stable",
+          "link": "/reference/game/fe_tiles#FeTile_Build_List"
+        },
+        {
+          "name": "FeTile_ItemBase_Populate",
+          "kind": "func",
+          "status": "stable",
+          "link": "/reference/game/fe_tiles#FeTile_ItemBase_Populate"
+        }
+      ]
+    },
+    {
+      "name": "vm",
+      "link": "/reference/game/vm",
+      "entries": [
+        {
+          "name": "VmPropHolder",
+          "kind": "struct",
+          "status": null,
+          "link": "/reference/game/vm#VmPropHolder"
+        },
+        {
+          "name": "Vm_Set_Bool",
+          "kind": "func",
+          "status": "experimental",
+          "link": "/reference/game/vm#Vm_Set_Bool"
+        },
+        {
+          "name": "Vm_Set_String",
+          "kind": "func",
+          "status": "experimental",
+          "link": "/reference/game/vm#Vm_Set_String"
+        },
+        {
+          "name": "g_Vm_Registry",
+          "kind": "data",
+          "status": "stable",
+          "link": "/reference/game/vm#g_Vm_Registry"
+        }
+      ]
+    }
+  ]
+}
