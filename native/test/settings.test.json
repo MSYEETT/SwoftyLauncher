@@ -1,0 +1,336 @@
+{
+ "schema": 1,
+ "profile": "wine-test",
+ "restart_command": "swofty_restart",
+ "mods": [
+  {
+   "id": "swofty.core",
+   "name": "SwoftyMod",
+   "version": "0.1.0",
+   "description": "Adds core functionality for Swofty Mod loading and customisation",
+   "enabled": true,
+   "locked": true,
+   "dlls": [
+    "swofty_core.dll"
+   ],
+   "enable_commands": [
+    "swofty_enable:swofty.core:0",
+    "swofty_enable:swofty.core:1"
+   ],
+   "options": [
+    {
+     "id": "show_launcher_panel",
+     "type": "toggle",
+     "binds": "native",
+     "label": "Show launcher panel",
+     "description": "Show the \"Launched with Swofty Mod Launcher\" panel on the home screen.",
+     "current": 1,
+     "states": [
+      {
+       "value": false,
+       "text": "OFF",
+       "command": "swofty_set:swofty.core:show_launcher_panel:0"
+      },
+      {
+       "value": true,
+       "text": "ON",
+       "command": "swofty_set:swofty.core:show_launcher_panel:1"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "community.grid-2026",
+   "name": "F1 2026 24-Car Grid",
+   "version": "1.2.0",
+   "description": "Adds the 2026 entry list with Cadillac and Audi for a 24-car grid.",
+   "enabled": true,
+   "locked": false,
+   "dlls": [],
+   "enable_commands": [
+    "swofty_enable:community.grid-2026:0",
+    "swofty_enable:community.grid-2026:1"
+   ],
+   "options": [
+    {
+     "id": "team_livery",
+     "type": "choice",
+     "binds": "db",
+     "label": "Team livery",
+     "description": "Livery set for the new teams.",
+     "current": 0,
+     "states": [
+      {
+       "value": "titlesponsor",
+       "text": "Title sponsor",
+       "command": "swofty_set:community.grid-2026:team_livery:0"
+      },
+      {
+       "value": "tier01",
+       "text": "Tier 1 sponsor",
+       "command": "swofty_set:community.grid-2026:team_livery:1"
+      },
+      {
+       "value": "replica",
+       "text": "Replica",
+       "command": "swofty_set:community.grid-2026:team_livery:2"
+      }
+     ]
+    },
+    {
+     "id": "audi_name",
+     "type": "toggle",
+     "binds": "db",
+     "label": "Use the Audi name",
+     "description": "Show Audi instead of Sauber in menus.",
+     "current": 1,
+     "states": [
+      {
+       "value": false,
+       "text": "OFF",
+       "command": "swofty_set:community.grid-2026:audi_name:0"
+      },
+      {
+       "value": true,
+       "text": "ON",
+       "command": "swofty_set:community.grid-2026:audi_name:1"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "example.sample-mod",
+   "name": "Sample Mod",
+   "version": "0.1.0",
+   "description": "A starting point for a mod.",
+   "enabled": true,
+   "locked": false,
+   "dlls": [
+    "sample_plugin.dll",
+    "T_Settings.DLL"
+   ],
+   "enable_commands": [
+    "swofty_enable:example.sample-mod:0",
+    "swofty_enable:example.sample-mod:1"
+   ],
+   "options": [
+    {
+     "id": "verbose",
+     "type": "toggle",
+     "binds": "native",
+     "label": "Verbose log",
+     "description": "Log every setting change to loader.log.",
+     "current": 0,
+     "states": [
+      {
+       "value": false,
+       "text": "OFF",
+       "command": "swofty_set:example.sample-mod:verbose:0"
+      },
+      {
+       "value": true,
+       "text": "ON",
+       "command": "swofty_set:example.sample-mod:verbose:1"
+      }
+     ]
+    },
+    {
+     "id": "greeting_count",
+     "type": "slider",
+     "binds": "native",
+     "label": "Greetings",
+     "description": "How many greetings the plugin logs at load.",
+     "current": 1,
+     "states": [
+      {
+       "value": 0,
+       "text": "0",
+       "command": "swofty_set:example.sample-mod:greeting_count:0"
+      },
+      {
+       "value": 1,
+       "text": "1",
+       "command": "swofty_set:example.sample-mod:greeting_count:1"
+      },
+      {
+       "value": 2,
+       "text": "2",
+       "command": "swofty_set:example.sample-mod:greeting_count:2"
+      },
+      {
+       "value": 3,
+       "text": "3",
+       "command": "swofty_set:example.sample-mod:greeting_count:3"
+      },
+      {
+       "value": 4,
+       "text": "4",
+       "command": "swofty_set:example.sample-mod:greeting_count:4"
+      },
+      {
+       "value": 5,
+       "text": "5",
+       "command": "swofty_set:example.sample-mod:greeting_count:5"
+      },
+      {
+       "value": 6,
+       "text": "6",
+       "command": "swofty_set:example.sample-mod:greeting_count:6"
+      },
+      {
+       "value": 7,
+       "text": "7",
+       "command": "swofty_set:example.sample-mod:greeting_count:7"
+      },
+      {
+       "value": 8,
+       "text": "8",
+       "command": "swofty_set:example.sample-mod:greeting_count:8"
+      },
+      {
+       "value": 9,
+       "text": "9",
+       "command": "swofty_set:example.sample-mod:greeting_count:9"
+      },
+      {
+       "value": 10,
+       "text": "10",
+       "command": "swofty_set:example.sample-mod:greeting_count:10"
+      }
+     ]
+    },
+    {
+     "id": "offset",
+     "type": "slider",
+     "binds": "native",
+     "label": "Offset",
+     "description": "A slider on a 0.25 grid.",
+     "current": 3,
+     "states": [
+      {
+       "value": -1.0,
+       "text": "-1.00",
+       "command": "swofty_set:example.sample-mod:offset:0"
+      },
+      {
+       "value": -0.75,
+       "text": "-0.75",
+       "command": "swofty_set:example.sample-mod:offset:1"
+      },
+      {
+       "value": -0.5,
+       "text": "-0.50",
+       "command": "swofty_set:example.sample-mod:offset:2"
+      },
+      {
+       "value": -0.25,
+       "text": "-0.25",
+       "command": "swofty_set:example.sample-mod:offset:3"
+      },
+      {
+       "value": 0.0,
+       "text": "0.00",
+       "command": "swofty_set:example.sample-mod:offset:4"
+      },
+      {
+       "value": 0.25,
+       "text": "0.25",
+       "command": "swofty_set:example.sample-mod:offset:5"
+      },
+      {
+       "value": 0.5,
+       "text": "0.50",
+       "command": "swofty_set:example.sample-mod:offset:6"
+      },
+      {
+       "value": 0.75,
+       "text": "0.75",
+       "command": "swofty_set:example.sample-mod:offset:7"
+      },
+      {
+       "value": 1.0,
+       "text": "1.00",
+       "command": "swofty_set:example.sample-mod:offset:8"
+      }
+     ]
+    },
+    {
+     "id": "flavour",
+     "type": "choice",
+     "binds": "native",
+     "label": "Flavour",
+     "description": "A choice.",
+     "current": 1,
+     "states": [
+      {
+       "value": "titlesponsor",
+       "text": "Title sponsor",
+       "command": "swofty_set:example.sample-mod:flavour:0"
+      },
+      {
+       "value": "tier01",
+       "text": "Tier 1 sponsor",
+       "command": "swofty_set:example.sample-mod:flavour:1"
+      },
+      {
+       "value": "replica",
+       "text": "Replica",
+       "command": "swofty_set:example.sample-mod:flavour:2"
+      }
+     ]
+    },
+    {
+     "id": "mismatched",
+     "type": "slider",
+     "binds": "native",
+     "label": "Mismatched",
+     "description": "Declared as a slider; the test mod reads it as a bool.",
+     "current": 0,
+     "states": [
+      {
+       "value": 0,
+       "text": "0",
+       "command": "swofty_set:example.sample-mod:mismatched:0"
+      },
+      {
+       "value": 1,
+       "text": "1",
+       "command": "swofty_set:example.sample-mod:mismatched:1"
+      },
+      {
+       "value": 2,
+       "text": "2",
+       "command": "swofty_set:example.sample-mod:mismatched:2"
+      },
+      {
+       "value": 3,
+       "text": "3",
+       "command": "swofty_set:example.sample-mod:mismatched:3"
+      },
+      {
+       "value": 4,
+       "text": "4",
+       "command": "swofty_set:example.sample-mod:mismatched:4"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "community.broadcast-hud",
+   "name": "Broadcast HUD",
+   "version": "0.4.1",
+   "description": "Restyles the in-race tower.",
+   "enabled": false,
+   "locked": false,
+   "dlls": [],
+   "enable_commands": [
+    "swofty_enable:community.broadcast-hud:0",
+    "swofty_enable:community.broadcast-hud:1"
+   ],
+   "options": []
+  }
+ ]
+}

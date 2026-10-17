@@ -210,14 +210,29 @@ static int scan(const char *section, const char *pattern, uintptr_t *out)
     return hits;
 }
 
-static const SwoftyApi api = {SWOFTY_API_VERSION, slog, module_base, scan, NULL, NULL, NULL, NULL, NULL};
+static SwoftyApi api = {1, slog, module_base, scan, NULL, NULL, NULL, NULL, NULL};
+static const SwoftyApi api_v1 = {1, slog, module_base, scan, NULL, NULL, NULL, NULL, NULL};
+static SwoftyCoreInitFn core_init;
+static SwoftyCoreCommitFn core_commit;
+static struct {
+    wchar_t name[MAX_PATH];
+    SwoftyModInitFn init;
+} deferred[256];
+static int deferred_count;
 
 static int wcmp(const void *a, const void *b)
 {
     return _wcsicmp(*(wchar_t *const *)a, *(wchar_t *const *)b);
 }
 
-static void load_mod(const wchar_t *dir, const wchar_t *name)
+static void finish_init(const wchar_t *name, int r)
+{
+    slog("mod %ls: SwoftyModInit returned %d (%s)", name, r, r ? "ok" : "FAILED");
+    if (r)
+        mods_ready++;
+}
+
+static void load_mod(const wchar_t *dir, const wchar_t *name, int core_dir)
 {
     wchar_t path[MAX_PATH * 2];
     swprintf(path, MAX_PATH * 2, L"%ls\\%ls", dir, name);
@@ -228,19 +243,39 @@ static void load_mod(const wchar_t *dir, const wchar_t *name)
         return;
     }
     mods_loaded++;
+    SwoftyCoreAttachFn attach = (SwoftyCoreAttachFn)(void *)GetProcAddress(m, "SwoftyCoreAttach");
+    if (core_dir && attach && !core_init) {
+        SwoftyCoreInitFn ci = (SwoftyCoreInitFn)(void *)GetProcAddress(m, "SwoftyCoreInit");
+        SwoftyCoreCommitFn cc = (SwoftyCoreCommitFn)(void *)GetProcAddress(m, "SwoftyCoreCommit");
+        if (ci && cc && attach(&api)) {
+            core_init = ci;
+            core_commit = cc;
+            slog("mod %ls: provides the mixin API v%u", name, api.version);
+        } else {
+            slog("mod %ls: exports SwoftyCoreAttach but did not attach", name);
+        }
+    }
     SwoftyModInitFn init = (SwoftyModInitFn)(void *)GetProcAddress(m, "SwoftyModInit");
     if (!init) {
         slog("mod %ls: loaded at %p but exports no SwoftyModInit, left idle", name, (void *)m);
         return;
     }
-    slog("mod %ls: loaded at %p, calling SwoftyModInit", name, (void *)m);
-    int r = init(&api);
-    slog("mod %ls: SwoftyModInit returned %d (%s)", name, r, r ? "ok" : "FAILED");
-    if (r)
-        mods_ready++;
+    const uint32_t *wants = (const uint32_t *)(void *)GetProcAddress(m, "SwoftyModApi");
+    if (!wants || *wants < 2) {
+        if (deferred_count == 256) {
+            slog("mod %ls: too many API v1 plugins, left idle", name);
+            return;
+        }
+        wcsncpy(deferred[deferred_count].name, name, MAX_PATH - 1);
+        deferred[deferred_count++].init = init;
+        slog("mod %ls: loaded at %p, API v1 plugin, SwoftyModInit runs after the mixin commit", name, (void *)m);
+        return;
+    }
+    slog("mod %ls: loaded at %p, calling SwoftyModInit (API v%u)", name, (void *)m, *wants);
+    finish_init(name, core_init ? core_init(name, init) : init(&api));
 }
 
-static void load_dir(const wchar_t *sub)
+static void load_dir(const wchar_t *sub, int core_dir)
 {
     wchar_t dir[MAX_PATH * 2], query[MAX_PATH * 2], *names[256];
     swprintf(dir, MAX_PATH * 2, L"%ls\\swofty\\%ls", game_dir, sub);
@@ -263,7 +298,7 @@ static void load_dir(const wchar_t *sub)
     qsort(names, n, sizeof *names, wcmp);
     slog("mods: %ls: %d dll(s)", dir, n);
     for (int i = 0; i < n; i++) {
-        load_mod(dir, names[i]);
+        load_mod(dir, names[i], core_dir);
         free(names[i]);
     }
 }
@@ -357,8 +392,14 @@ static void load_mods_once(const char *why, LPCWSTR detail)
     slog("trigger: %s%s%ls%s on thread %lu, %lu ms after attach; loading mods now", why, detail ? " class '" : "",
          detail ? detail : L"", detail ? "'" : "", GetCurrentThreadId(), GetTickCount() - attach_tick);
     unhook_iat();
-    load_dir(L"mods\\core");
-    load_dir(L"mods");
+    load_dir(L"mods\\core", 1);
+    load_dir(L"mods", 0);
+    if (core_commit)
+        slog("mods: mixin commit done, %d mixin mod(s) active", core_commit());
+    for (int i = 0; i < deferred_count; i++) {
+        slog("mod %ls: calling SwoftyModInit (API v1)", deferred[i].name);
+        finish_init(deferred[i].name, deferred[i].init(&api_v1));
+    }
     slog("mods: done, %d mod(s) loaded, %d initialised", mods_loaded, mods_ready);
     InterlockedExchange(&load_state, 2);
 }

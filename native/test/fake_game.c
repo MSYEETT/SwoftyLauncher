@@ -1,5 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,30 +14,57 @@ typedef struct { const char *name; uint32_t index; } AdderCall;
 
 void *g_registry = (void *)0x5157;
 uint64_t out_r12, out_r15;
+__declspec(dllexport) volatile int64_t probe[32];
+void *fake_cmd_global;
+const char fake_cmd_name[] = "select_pressed";
 static uint8_t list[0x100];
 static AdderCall calls[32];
-static int ncalls, fails;
-static void *career_vt_storage[40], *other_vt_storage[40];
+static int ncalls, fails, live_strings, build_leak;
+static void *career_vt_storage[40];
+void *other_vt_storage[40];
 #define CAREER_VT (career_vt_storage + 1)
 #define OTHER_VT (other_vt_storage + 1)
 
 void fake_builder(void *list, const uint8_t *flags, uint32_t start);
+uint64_t fake_handle_command(void *vm, void *cmd);
+int fake_caller(void);
+int fake_patchable(void);
+__declspec(dllexport) void *fake_exports[] = {(void *)fake_handle_command};
+uint64_t handle_command_impl(void *vm, void *cmd) { (void)vm, (void)cmd; return 1; }
+int fake_callee(void) { return 1; }
 void fake_base_populate(uint8_t *item, void *node, uint32_t a7);
 uint32_t fake_nestr_from(NeStr **out, const char *s, uint32_t flags, uintptr_t len);
 
 static const char *chars(const NeStr *s) { return s ? (const char *)s + 9 : ""; }
 
+static void nestr_release(NeStr **s)
+{
+    if (*s && --*(uint16_t *)((uint8_t *)*s + 4) == 0) {
+        free(*s);
+        live_strings--;
+    }
+    *s = NULL;
+}
+
 uint32_t nestr_impl(NeStr **out, const char *s)
 {
-    size_t n = strlen(s);
-    uint8_t *p = calloc(1, 16 + n);
-    uint32_t h = 5381;
-    for (size_t i = 0; i < n; i++)
-        h = h * 33 + (uint8_t)s[i];
-    memcpy(p, &h, 4);
-    *(uint16_t *)(p + 4) = 1;
-    memcpy(p + 9, s, n);
-    *out = (NeStr *)p;
+    if (s && *s && *out && !strcmp(chars(*out), s))
+        return 1;
+    NeStr *old = *out;
+    *out = NULL;
+    if (s && *s) {
+        size_t n = strlen(s);
+        uint8_t *p = calloc(1, 16 + n);
+        uint32_t h = 5381;
+        for (size_t i = 0; i < n; i++)
+            h = h * 33 + (uint8_t)s[i];
+        memcpy(p, &h, 4);
+        *(uint16_t *)(p + 4) = 1;
+        memcpy(p + 9, s, n);
+        *out = (NeStr *)p;
+        live_strings++;
+    }
+    nestr_release(&old);
     return 1;
 }
 
@@ -85,12 +113,15 @@ static void career_populate(uint8_t *item, void *node, uint32_t a7)
     NeStr *t = NULL;
     fake_nestr_from(&t, "lng_mode_career", 0, 0);
     fake_vm_set_string(g_registry, *(uint8_t **)(item + 0x20) + 8, "title", &t, 1);
+    nestr_release(&t);
 }
 
 static Action *id_action(uint8_t *item, Action *out)
 {
     out->type = 1;
     out->str = *(NeStr **)(item + 0x10);
+    if (out->str)
+        ++*(uint16_t *)((uint8_t *)out->str + 4);
     return out;
 }
 
@@ -145,11 +176,111 @@ __asm__(
     ".byte 0x41,0x57,0x41,0x56,0x41,0x54,0x56,0x57,0x55,0x53,0x48,0x83,0xEC,0x50,0x44,0x89,0xC6,0x48,0x89,0xCF\n"
     "call nestr_impl\nadd $0x50, %rsp\n"
     "pop %rbx\npop %rbp\npop %rdi\npop %rsi\npop %r12\npop %r14\npop %r15\nret\n"
+
+    ".globl fake_handle_command\nfake_handle_command:\n"
+    ".byte 0x41,0x57,0x41,0x56,0x56,0x57,0x53,0x48,0x83,0xEC,0x40,0x48,0x89,0xD7,0x48,0x89,0xCE\n"
+    "mov fake_cmd_global(%rip), %rax\nlea fake_cmd_name(%rip), %rcx\n"
+    "mov %rsi, %rcx\nmov %rdi, %rdx\ncall handle_command_impl\nadd $0x40, %rsp\n"
+    "pop %rbx\npop %rdi\npop %rsi\npop %r14\npop %r15\nret\n"
+
+    ".globl fake_vt_ref\nfake_vt_ref:\n"
+    ".byte 0x48,0xB8,0x53,0x57,0x46,0x54,0x56,0x54,0x41,0x42\nlea other_vt_storage+8(%rip), %rax\nret\n"
+
+    ".globl fake_caller\nfake_caller:\n"
+    ".byte 0x48,0xB8,0x53,0x57,0x46,0x54,0x43,0x41,0x4C,0x4C\nsub $0x28, %rsp\ncall fake_callee\nadd $0x28, %rsp\nret\n"
+
+    ".globl fake_patchable\nfake_patchable:\n"
+    ".byte 0x48,0xB8,0x53,0x57,0x46,0x54,0x50,0x41,0x54,0x43\nmov $1, %eax\nret\n"
     ".section .data1,\"dwx\"\n"
     ".globl vm_thunk_register\nvm_thunk_register:\n"
     "sub $0x28, %rsp\ncall *__imp_RegisterClassExW(%rip)\nadd $0x28, %rsp\nret\n"
     ".text\n");
 ATOM vm_thunk_register(const WNDCLASSEXW *wc);
+
+struct FakeLogGate {
+    uint32_t hashes[373];
+    uint8_t enabled, pad[3];
+};
+__declspec(dllexport) struct FakeLogGate fake_log_gate;
+__declspec(dllexport) volatile int64_t gamelog_body_calls;
+uint8_t fake_rsi_area[0x600];
+const char fake_chan_warn[] = "TEST_WARN", fake_chan_verbose[] = "TEST_VERBOSE", fake_chan_ui[] = "UI_FLOW";
+const char fake_fmt_warn[] = "fake gate message from %s", fake_fmt_verbose[] = "fake verbose message from %s";
+const char fake_fmt_ui[] = "fake ui info from %s";
+const char fake_arg_a[] = "site_a", fake_arg_b[] = "site_b", fake_arg_c[] = "site_c";
+void fake_log_site_a(void);
+void fake_log_site_b(void);
+void fake_log_site_c(void);
+int64_t fake_format_string(NeStr **out, const char *fmt, ...);
+
+void fake_log_body_impl(void) { gamelog_body_calls++; }
+
+int64_t format_impl(NeStr **out, const char *fmt, va_list ap)
+{
+    char buf[0x200];
+    int n = vsnprintf(buf, sizeof buf, fmt, ap);
+    nestr_impl(out, buf);
+    return n;
+}
+
+__asm__(
+    ".section .xtls,\"xr\"\n"
+    ".globl fake_log_site_a\nfake_log_site_a:\n"
+    "push %rsi\npush %rdi\nsub $0x28, %rsp\nlea fake_rsi_area(%rip), %rsi\n"
+    ".byte 0x80,0x3D\n.long fake_log_gate+0x5d4-(.+5)\n.byte 0x01\n"
+    ".byte 0x75,0x74,0xB8,0x5F,0x01,0x00,0x00\n"
+    ".byte 0x48,0x8D,0x0D\n.long fake_log_gate-(.+4)\n"
+    ".byte 0x66,0x66,0x66,0x66,0x66,0x66,0x2E,0x0F,0x1F,0x84,0x00,0x00,0x00,0x00,0x00\n"
+    ".byte 0x8B,0x14,0x81,0x85,0xD2,0x74,0x52,0x81,0xFA,0xCB,0x88,0x7C,0x7C,0x74,0x30\n"
+    ".byte 0x83,0xC0,0x19,0x48,0x69,0xD0,0x43,0x43,0x66,0x5F,0x48,0xC1,0xEA,0x20,0x41,0x89,0xC0,0x41,0x29,0xD0,0x41,0xD1,0xE8,0x41,0x01,0xD0,0x41,0xC1,0xE8,0x08,0x41,0x69,0xD0,0x75,0x01,0x00,0x00,0x29,0xD0,0x3D,0x5F,0x01,0x00,0x00,0x75,0xC3,0xEB,0x1A\n"
+    ".byte 0x48,0x8D,0x0D\n.long fake_chan_warn-(.+4)\n"
+    ".byte 0x48,0x8D,0x15\n.long fake_fmt_warn-(.+4)\n"
+    ".byte 0x4C,0x8D,0x05\n.long fake_arg_a-(.+4)\n"
+    ".byte 0xE8\n.long fake_log_thunk-(.+4)\n"
+    ".byte 0x48,0x8B,0xBE,0x98,0x04,0x00,0x00\n"
+    "add $0x28, %rsp\npop %rdi\npop %rsi\nret\n"
+    ".globl fake_log_site_b\nfake_log_site_b:\n"
+    "push %rsi\npush %rdi\nsub $0x28, %rsp\nlea fake_rsi_area(%rip), %rsi\n"
+    ".byte 0x80,0x3D\n.long fake_log_gate+0x5d4-(.+5)\n.byte 0x01\n"
+    ".byte 0x75,0x74,0xB8,0x3A,0x01,0x00,0x00\n"
+    ".byte 0x48,0x8D,0x0D\n.long fake_log_gate-(.+4)\n"
+    ".byte 0x66,0x66,0x66,0x66,0x66,0x66,0x2E,0x0F,0x1F,0x84,0x00,0x00,0x00,0x00,0x00\n"
+    ".byte 0x8B,0x14,0x81,0x85,0xD2,0x74,0x52,0x81,0xFA,0x11,0x11,0x11,0x11,0x74,0x30\n"
+    ".byte 0x83,0xC0,0x11,0x48,0x69,0xD0,0x43,0x43,0x66,0x5F,0x48,0xC1,0xEA,0x20,0x41,0x89,0xC0,0x41,0x29,0xD0,0x41,0xD1,0xE8,0x41,0x01,0xD0,0x41,0xC1,0xE8,0x08,0x41,0x69,0xD0,0x75,0x01,0x00,0x00,0x29,0xD0,0x3D,0x3A,0x01,0x00,0x00,0x75,0xC3,0xEB,0x1A\n"
+    ".byte 0x48,0x8D,0x0D\n.long fake_chan_verbose-(.+4)\n"
+    ".byte 0x48,0x8D,0x15\n.long fake_fmt_verbose-(.+4)\n"
+    ".byte 0x4C,0x8D,0x05\n.long fake_arg_b-(.+4)\n"
+    ".byte 0xE8\n.long fake_log_thunk-(.+4)\n"
+    ".byte 0x48,0x8B,0xBE,0x90,0x04,0x00,0x00\n"
+    "add $0x28, %rsp\npop %rdi\npop %rsi\nret\n"
+    ".globl fake_log_site_c\nfake_log_site_c:\n"
+    "push %rsi\npush %rdi\nsub $0x28, %rsp\nlea fake_rsi_area(%rip), %rsi\n"
+    ".byte 0x80,0x3D\n.long fake_log_gate+0x5d4-(.+5)\n.byte 0x01\n"
+    ".byte 0x75,0x74,0xB8,0xFF,0x00,0x00,0x00\n"
+    ".byte 0x48,0x8D,0x0D\n.long fake_log_gate-(.+4)\n"
+    ".byte 0x66,0x66,0x66,0x66,0x66,0x66,0x2E,0x0F,0x1F,0x84,0x00,0x00,0x00,0x00,0x00\n"
+    ".byte 0x8B,0x14,0x81,0x85,0xD2,0x74,0x52,0x81,0xFA,0x22,0x22,0x22,0x22,0x74,0x30\n"
+    ".byte 0x83,0xC0,0x15,0x48,0x69,0xD0,0x43,0x43,0x66,0x5F,0x48,0xC1,0xEA,0x20,0x41,0x89,0xC0,0x41,0x29,0xD0,0x41,0xD1,0xE8,0x41,0x01,0xD0,0x41,0xC1,0xE8,0x08,0x41,0x69,0xD0,0x75,0x01,0x00,0x00,0x29,0xD0,0x3D,0xFF,0x00,0x00,0x00,0x75,0xC3,0xEB,0x1A\n"
+    ".byte 0x48,0x8D,0x0D\n.long fake_chan_ui-(.+4)\n"
+    ".byte 0x48,0x8D,0x15\n.long fake_fmt_ui-(.+4)\n"
+    ".byte 0x4C,0x8D,0x05\n.long fake_arg_c-(.+4)\n"
+    ".byte 0xE8\n.long fake_log_thunk-(.+4)\n"
+    ".byte 0x48,0x8B,0xBE,0x88,0x04,0x00,0x00\n"
+    "add $0x28, %rsp\npop %rdi\npop %rsi\nret\n"
+    ".globl fake_log_thunk\nfake_log_thunk:\n"
+    ".byte 0xE9\n.long fake_log_body-(.+4)\n"
+    ".byte 0xCC,0xCC,0xCC,0xCC,0xCC,0xCC,0xCC,0xCC,0xCC,0xCC,0xCC\n"
+
+    ".globl fake_format_string\nfake_format_string:\n"
+    ".byte 0x41,0x57,0x41,0x56,0x56,0x57,0x55,0x53,0x48,0x81,0xEC,0x48,0x02,0x00,0x00\n"
+    ".byte 0x48,0x89,0xD7,0x48,0x89,0xCE,0x4C,0x89,0x84,0x24,0x90,0x02,0x00,0x00\n"
+    "mov %r9, 0x298(%rsp)\nmov %rsi, %rcx\nmov %rdi, %rdx\nlea 0x290(%rsp), %r8\ncall format_impl\n"
+    "add $0x248, %rsp\npop %rbx\npop %rbp\npop %rdi\npop %rsi\npop %r14\npop %r15\nret\n"
+
+    ".section .data1,\"dwx\"\n"
+    ".globl fake_log_body\nfake_log_body:\n"
+    "sub $0x28, %rsp\ncall fake_log_body_impl\nadd $0x28, %rsp\nret\n"
+    ".text\n");
 
 static void expect(int ok, const char *what)
 {
@@ -166,6 +297,7 @@ static void run_build(int movie, uint32_t start)
         v->begin = v->end = calloc(64, 16);
     v->end = v->begin;
     ncalls = 0;
+    int strings_before = live_strings;
     fake_builder(list, flags, start);
     printf("build movie=%d start=%u -> r12=%llu r15=%llu, %d adder calls:", movie, start,
            (unsigned long long)out_r12, (unsigned long long)out_r15, ncalls);
@@ -182,19 +314,181 @@ static void run_build(int movie, uint32_t start)
         printf("  item %-14s title='%s' loc=%d desc='%s' dloc=%d action={%d,'%s'}\n", chars(*(NeStr **)(item + 0x10)),
                n ? n->title : "", n ? n->title_localised : -1, n ? n->description : "", n ? n->description_localised : -1,
                a.type, chars(a.str));
+        nestr_release(&a.str);
     }
+    build_leak = live_strings - strings_before - ncalls;
+    printf("  live strings %d -> %d for %d new item id(s): %d leaked reference(s)\n", strings_before, live_strings,
+           ncalls, build_leak);
 }
 
-static LRESULT CALLBACK wndproc(HWND h, UINT m, WPARAM w, LPARAM l) { return DefWindowProcW(h, m, w, l); }
+static int closes;
+
+static LRESULT CALLBACK wndproc(HWND h, UINT m, WPARAM w, LPARAM l)
+{
+    closes += m == WM_CLOSE;
+    return DefWindowProcW(h, m, w, l);
+}
+
+static const char *const setting_commands[] = {
+    "swofty_set:example.sample-mod:verbose:1",
+    "swofty_set:example.sample-mod:greeting_count:9",
+    "swofty_set:example.sample-mod:offset:7",
+    "swofty_set:example.sample-mod:flavour:2",
+    "swofty_set:example.sample-mod:mismatched:4",
+    "swofty_set:community.grid-2026:team_livery:1",
+    "swofty_set:example.sample-mod:verbose:0",
+    "swofty_enable:community.grid-2026:0",
+    "select_pressed",
+    NULL,
+    "swofty_restart",
+};
+
+static uint64_t send_command(const char *name)
+{
+    NeStr *s = NULL;
+    if (name)
+        nestr_impl(&s, name);
+    uint64_t r = fake_handle_command(0, &s);
+    nestr_release(&s);
+    return r;
+}
+
+static const char *probe_str(int i) { return (const char *)(intptr_t)probe[i]; }
+
+static int reads_are(void (*read)(void), int64_t verbose, int64_t count, int64_t offset, const char *flavour)
+{
+    read();
+    printf("      read: verbose=%lld greeting_count=%lld offset=%lld/1000 flavour='%s' mismatched=%lld undeclared=%lld "
+           "audi_name=%lld\n",
+           (long long)probe[24], (long long)probe[25], (long long)probe[26], probe_str(27) ? probe_str(27) : "(null)",
+           (long long)probe[28], (long long)probe[29], (long long)probe[30]);
+    return probe[24] == verbose && probe[25] == count && probe[26] == offset && probe_str(27) &&
+           !strcmp(probe_str(27), flavour) && probe[28] == 1 && probe[29] == 42 && probe[30] == 0;
+}
+
+static void test_settings(int on, uint64_t chain)
+{
+    HMODULE t = GetModuleHandleW(L"t_settings.dll");
+    void (*read)(void) = t ? (void (*)(void))(void *)GetProcAddress(t, "t_settings_read") : NULL;
+    expect(read != NULL, "settings: t_settings.dll loaded and exports t_settings_read");
+    if (!read)
+        return;
+    expect(reads_are(read, !on, on ? 1 : 7, on ? -250 : 500, on ? "tier01" : "plain"),
+           on ? "settings: reads come from settings.json (bool, int, double, string_view); the type mismatch, the "
+                "undeclared setting and another mod's option read their code defaults"
+              : "settings: no settings.json, every setting reads its code default");
+    wchar_t req[MAX_PATH] = {0}, snap[MAX_PATH + 16];
+    GetEnvironmentVariableW(L"SWOFTY_TEST_REQUESTS", req, MAX_PATH);
+    int n = sizeof setting_commands / sizeof *setting_commands, same = 1;
+    for (int i = 0; i < n; i++) {
+        same &= send_command(setting_commands[i]) == chain;
+        if (*req) {
+            swprintf(snap, MAX_PATH + 16, L"%ls.%d", req, i + 1);
+            CopyFileW(req, snap, FALSE);
+        }
+        if (i == 3) {
+            expect(reads_are(read, 1, on ? 9 : 7, on ? 750 : 500, on ? "replica" : "plain"),
+                   on ? "settings: after four swofty_set commands the reads follow the new states"
+                      : "settings: commands change nothing without settings.json");
+            expect(on ? probe[8] == 1 && probe[9] == 9 && probe[10] == 750 && probe_str(11) &&
+                            !strcmp(probe_str(11), "replica") && probe[16] == 1 && probe[17] == 1 && probe[18] == 1 &&
+                            probe[19] == 1
+                      : probe[16] + probe[17] + probe[18] + probe[19] == 0,
+                   on ? "settings: SWOFTY_ON_CHANGE watchers got verbose=true, greeting_count=9, offset=0.75, "
+                        "flavour='replica', once each"
+                      : "settings: no watcher ran");
+            if (on)
+                expect(probe[11] == probe[27], "settings: the choice string is the same core-owned pointer in the watcher "
+                                               "and in later reads");
+        }
+        if (i == 4)
+            expect(probe[20] == 0 && reads_are(read, 1, on ? 9 : 7, on ? 750 : 500, on ? "replica" : "plain"),
+                   "settings: a command for the mistyped option runs no watcher and its read keeps the code default");
+        if (i == 6)
+            expect(on ? probe[8] == 0 && probe[16] == 2 && reads_are(read, 0, 9, 750, "replica") : probe[16] == 0,
+                   on ? "settings: verbose back to false, its watcher ran a second time" : "settings: still no watcher");
+    }
+    expect(same, "settings: FeHome_Handle_Command returns the chain's value for every command (core's wrap keeps rax)");
+    for (DWORD t0 = GetTickCount(); GetTickCount() - t0 < 1000 && !closes;) {
+        MSG m;
+        while (PeekMessageW(&m, NULL, 0, 0, PM_REMOVE))
+            DispatchMessageW(&m);
+        Sleep(10);
+    }
+    expect(closes == on, on ? "settings: swofty_restart posted WM_CLOSE to the main window"
+                            : "settings: swofty_restart without settings.json closes nothing");
+}
 
 extern ATOM(WINAPI *__imp_RegisterClassExW)(const WNDCLASSEXW *);
 extern HWND(WINAPI *__imp_CreateWindowExW)(DWORD, LPCWSTR, LPCWSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE,
                                            LPVOID);
 
+__declspec(dllexport) __attribute__((noinline)) void fake_crash(volatile int *p)
+{
+    *p = 1;
+    printf("not reached\n");
+}
+
+static uintptr_t slot8(void) { return ((uintptr_t (*)(void))OTHER_VT[8])(); }
+
+
+static int gate_has(uint32_t h)
+{
+    for (size_t i = 0, start = h % 373; i < 373; i++) {
+        uint32_t cur = fake_log_gate.hashes[(start + (13 + h % 13) * i) % 373];
+        if (cur == h)
+            return 1;
+        if (!cur)
+            return 0;
+    }
+    return 0;
+}
+
+static DWORD WINAPI gamelog_thread(LPVOID arg)
+{
+    for (int i = 0; i < 40; i++)
+        fake_log_site_c();
+    (void)arg;
+    return 0;
+}
+
+static void test_gamelog(int on)
+{
+    expect(on ? fake_log_gate.enabled == 1 && gate_has(0x7c7c88cb) && gate_has(0x22222222) && !gate_has(0x11111111)
+              : fake_log_gate.enabled == 0 && !gate_has(0x7c7c88cb),
+           on ? "gamelog: gate enabled, TEST_WARN and UI_FLOW opened by the default channels, TEST_VERBOSE closed"
+              : "gamelog: SWOFTY_GAME_LOG=off leaves the gate closed");
+    fake_log_site_b();
+    fake_log_site_c();
+    for (int i = 0; i < 150; i++)
+        fake_log_site_a();
+    HANDLE t[4];
+    for (int i = 0; i < 4; i++)
+        t[i] = CreateThread(NULL, 0, gamelog_thread, NULL, 0, NULL);
+    WaitForMultipleObjects(4, t, TRUE, 10000);
+    for (int i = 0; i < 4; i++)
+        CloseHandle(t[i]);
+    NeStr *s = NULL;
+    int64_t n = fake_format_string(&s, "Screen %hs failed to open because of %d", "swofty_settings", 3);
+    expect(n == (int64_t)strlen("Screen swofty_settings failed to open because of 3") &&
+               !strcmp(chars(s), "Screen swofty_settings failed to open because of 3"),
+           "gamelog: Ne_Format_String still builds its string with the entry hook installed");
+    fake_format_string(&s, "Failed to find screen %hs. Solution: Make sure the the screen is loaded into the runtime",
+                       "swofty_settings");
+    fake_format_string(&s, "button_%d", 7);
+    Sleep(1100);
+    fake_format_string(&s, "No screen called %hs exists", "late_screen");
+    expect(!strcmp(chars(s), "No screen called late_screen exists"), "gamelog: a later route error is formatted normally");
+    nestr_release(&s);
+    expect(gamelog_body_calls == 0, "gamelog: the overwritten logger never runs the game's own body");
+}
+
 int main(int argc, char **argv)
 {
     int fallback = argc > 1 && !strcmp(argv[1], "fallback"), vm = argc > 1 && !strcmp(argv[1], "vm");
+    int session = argc > 1 && !strcmp(argv[1], "session"), settings = argc > 1 && !strncmp(argv[1], "settings", 8);
     setvbuf(stdout, NULL, _IONBF, 0);
+    fake_log_gate.hashes[0x22222222 % 373] = 0xbeef;
     for (int i = 0; i < 40; i++)
         career_vt_storage[i] = other_vt_storage[i] = (void *)stub_zero;
     CAREER_VT[4] = (void *)career_populate;
@@ -215,6 +509,8 @@ int main(int argc, char **argv)
 
     run_build(1, 1);
     expect(ncalls == 3 && calls[1].index == 3, "before mods load: vanilla order career=2 movie=3 world=4");
+    expect(fake_handle_command(0, 0) == 1 && slot8() == 0 && fake_caller() == 1 && fake_patchable() == 1,
+           "before mods load: wrap, vtable, redirect and patch targets are vanilla");
 
     HMODULE u32 = GetModuleHandleW(L"user32.dll");
     void *real_rc = (void *)GetProcAddress(u32, "RegisterClassExW"), *real_cw = (void *)GetProcAddress(u32, "CreateWindowExW");
@@ -259,6 +555,22 @@ int main(int argc, char **argv)
                calls[2].index == 4 && calls[3].index == 5,
            "hooked: career=2, mod tile=3, movie=4, world=5");
     expect(out_r12 == 4 && out_r15 == 5, "hooked: r12/r15 renumbered (4/5)");
+    expect(build_leak == 0, "hooked build, populate and getAction leave no game string reference behind "
+                            "(replaced Career id released, title/description/action strings released)");
+    expect(probe[1] == 3 && probe[6] >= 1, "site chain: t_chain_a (priority -10) runs after core and sees the r12 it advanced");
+    uint64_t chain = fake_handle_command(0, 0);
+    printf("      FeHome_Handle_Command chain result %llu\n", (unsigned long long)chain);
+    expect(chain == (session ? 132 : 1432),
+           session ? "session: undeclared t_chain_b refused, chain t_chain_c(10) > swofty_core(0, passes through) > "
+                     "t_chain_a(0) > game"
+                   : "wrap chain on FeHome_Handle_Command: t_chain_c(10) > swofty_core(0, passes through) > t_chain_a(0) > "
+                     "t_chain_b(0, loaded later) > game");
+    expect(slot8() == 15, "vtable chain on one slot: t_chain_c(10) * 3 around t_chain_a(0) + 5");
+    expect(fake_caller() == 101, "redirect: the call reaches the mod, orig is the old callee");
+    expect(fake_patchable() == 2, "patch: expect bytes checked, new bytes written");
+    expect(probe[0] == 1, "SWOFTY_ON_LOAD ran after the commit; fields are per object and released");
+    expect(probe[2] == 1 && probe[3] == 1, "v1 plugin gets API v1 after the mixin commit (wrap already installed)");
+    expect(probe[4] == 0 && probe[5] == 0, "dropped mods (unresolved wrap target, unresolved call) run nothing");
     Vec *v = (Vec *)(list + 0x78);
     uint8_t *mod = *(uint8_t **)(((uint8_t **)v->begin)[3] + 0xd0);
     uint8_t *career = *(uint8_t **)(((uint8_t **)v->begin)[1] + 0xd0);
@@ -277,8 +589,19 @@ int main(int argc, char **argv)
     run_build(0, 0);
     expect(ncalls == 3 && calls[0].index == 1 && calls[1].index == 2 && calls[2].index == 3, "hooked without movie: career=1, mod=2, world=3");
     expect(out_r12 == 2 && out_r15 == 3, "hooked without movie: r12/r15 = 2/3");
+    expect(build_leak == 0, "second hooked build leaves no game string reference behind");
 
+    test_settings(settings, chain);
+
+    if (argc > 1 && (!strcmp(argv[1], "trigger") || !strcmp(argv[1], "vm") || !strcmp(argv[1], "gamelog_off")))
+        test_gamelog(strcmp(argv[1], "gamelog_off") != 0);
     printf("%s (%d failure(s))\n", fails ? "FAILED" : "ALL PASSED", fails);
+    if (argc > 1 && !strcmp(argv[1], "crash")) {
+        SetErrorMode(SEM_NOGPFAULTERRORBOX);
+        fake_crash((volatile int *)0x10);
+    }
+    if (argc > 1 && !strcmp(argv[1], "exit"))
+        ExitProcess(255);
     DestroyWindow(w);
     return fails != 0;
 }

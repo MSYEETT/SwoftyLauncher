@@ -1,0 +1,20 @@
+{
+ "native": [
+  {"dll": "mods/core/swofty_core.dll", "mixins": [
+   {"target": "site_FeHome_AfterCareerCall", "kind": "site", "priority": 0},
+   {"target": "FeHome_Handle_Command", "kind": "wrap", "priority": 0}]},
+  {"dll": "mods/t_chain_a.dll", "mixins": [
+   {"target": "FeHome_Handle_Command", "kind": "wrap", "priority": 0},
+   {"target": "site_FeHome_AfterCareerCall", "kind": "site", "priority": -10},
+   {"target": "wine-test:vt_Fake_Other", "kind": "vtable", "slot": 8},
+   {"target": "wine-test:call_Fake_Callee", "kind": "redirect"}]},
+  {"dll": "mods/t_chain_c.dll", "mixins": [
+   {"target": "FeHome_Handle_Command", "kind": "wrap", "priority": 10},
+   {"target": "wine-test:vt_Fake_Other", "kind": "vtable", "slot": 8, "priority": 10},
+   {"target": "wine-test:site_Fake_Patch", "kind": "patch"}]},
+  {"dll": "mods/t_chain_b.dll", "mixins": []},
+  {"dll": "mods/core/swofty_gamelog.dll", "mixins": [
+   {"target": "Ne_Log_Thunk", "kind": "wrap", "overwrite": true},
+   {"target": "site_Ne_Format_String_Entry", "kind": "site"}]}
+ ]
+}

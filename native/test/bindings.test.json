@@ -1,0 +1,10 @@
+[
+ {"id": "wine-test:vt_Fake_Other", "kind": "vtable", "status": "experimental", "slots": 40, "section": ".xtls",
+  "pattern": "48 B8 53 57 46 54 56 54 41 42 48 8D 05 ?? ?? ?? ?? C3", "anchor": 13, "resolve": {"kind": "riprel", "insn": 10, "len": 7}},
+ {"id": "wine-test:call_Fake_Callee", "kind": "call", "status": "experimental", "section": ".xtls",
+  "pattern": "48 B8 53 57 46 54 43 41 4C 4C 48 83 EC 28 E8 ?? ?? ?? ?? 48 83 C4 28 C3", "anchor": 14, "resolve": {"kind": "addr"}, "expect": "E8"},
+ {"id": "wine-test:site_Fake_Patch", "kind": "site", "status": "experimental", "section": ".xtls",
+  "pattern": "48 B8 53 57 46 54 50 41 54 43 B8 01 00 00 00 C3", "anchor": 10, "resolve": {"kind": "addr"}, "expect": "B8 01 00 00 00"},
+ {"id": "wine-test:Fake_Missing", "kind": "func", "status": "experimental", "section": ".xtls",
+  "pattern": "DE AD BE EF 0F 0B DE AD BE EF 0F 0B", "anchor": 0, "resolve": {"kind": "addr"}}
+]
