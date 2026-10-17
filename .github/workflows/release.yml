@@ -32,7 +32,7 @@ jobs:
       - name: Build
         run: native/build.sh
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: native
           path: native/dist/
@@ -47,7 +47,7 @@ jobs:
         with:
           ref: ${{ env.TAG }}
 
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
 
       - name: GPUI system libraries
         run: |
@@ -58,7 +58,7 @@ jobs:
       - name: Build
         run: cargo build --release --workspace
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: native
           path: native/dist
@@ -72,7 +72,7 @@ jobs:
           cp LICENSE README.md $out/
           tar czf $out.tar.gz $out
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: linux
           path: f1-mod-manager-*.tar.gz
@@ -86,12 +86,12 @@ jobs:
         with:
           ref: ${{ env.TAG }}
 
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
 
       - name: Build
         run: cargo build --release --workspace
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: native
           path: native/dist
@@ -106,7 +106,7 @@ jobs:
           Copy-Item LICENSE, README.md "$out/"
           Compress-Archive -Path $out -DestinationPath "$out.zip"
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: f1-mod-manager-*.zip
@@ -116,12 +116,12 @@ jobs:
     needs: [linux, windows]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           path: artefacts
           merge-multiple: true
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG }}
           files: artefacts/*
