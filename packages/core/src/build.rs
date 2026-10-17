@@ -17,8 +17,9 @@ use crate::map::TrackPackage;
 use crate::ops::{DbOps, ErpOps, apply_db_ops};
 use crate::profile::Profile;
 use crate::resolver::resolve;
-use crate::settings::{render_ops, screen_file, screens};
+use crate::settings::{SessionSettings, SessionUi, render_ops, screen_file, screens};
 use crate::store::Store;
+use crate::ui::{ERPS as MENU_ERPS, READS as MENU_READS, ui_file};
 use crate::{Error, Result, io_err};
 
 pub const GVDB: &str = "game_package/gamedatabases/gamedatabases.2025.bin";
@@ -32,6 +33,7 @@ pub struct Built {
     pub plan: Plan,
     pub lines: Vec<String>,
     pub warnings: Vec<String>,
+    pub settings: Option<SessionSettings>,
 }
 
 pub fn original(data: &Path, game: &Game, rel: &str) -> PathBuf {
@@ -162,6 +164,16 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         .collect();
     if !ui_maps.is_empty() {
         hasher.update(ui_stamp(&ui_maps, &resolve)?);
+    }
+    let mut session = store.session_settings(profile)?;
+    let menus = loader_dir().is_some();
+    if menus {
+        hasher.update(serde_json::to_vec(&session).expect("serialisable"));
+        for rel in MENU_ERPS.iter().chain(MENU_READS) {
+            let p = resolve(&ui_file(rel));
+            let meta = std::fs::metadata(&p).map_err(io_err(&p))?;
+            hasher.update(format!("{rel}|{}|{:?}", meta.len(), meta.modified().ok()));
+        }
     }
     let db_src = original(&store.root, game, GVDB);
     hasher.update(sha256_file(&db_src)?);
@@ -324,6 +336,9 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                 dir.display()
             ));
             let order: Vec<&ModManifest> = resolved.order.iter().map(|id| &mods[id]).collect();
+            if menus {
+                build_menus(&mut built, &mut session, &resolve)?;
+            }
             let files = screen_files(&order, &store.mods_dir())?;
             if !files.is_empty() {
                 built.lines.push(format!("ui: {} screen(s) under {LOADER_DIR}/ui", files.len()));
@@ -338,6 +353,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             "{CORE_ID}: the in-game loader was not found (native/dist, loader/ beside the swofty command, or {LOADER_ENV}); the game starts without it"
         )),
     }
+    built.settings = Some(session);
     if !built.plan.is_vanilla() {
         let listing = serde_json::json!({
             "profile": profile,
@@ -349,6 +365,44 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         crate::write_json(&built.overlay.join(PLAN_FILE), &listing)?;
     }
     Ok(built)
+}
+
+fn build_menus(
+    built: &mut Built,
+    session: &mut SessionSettings,
+    original: &dyn Fn(&str) -> PathBuf,
+) -> Result<()> {
+    let input = |rel: &str| built.plan.data.get(rel).cloned().unwrap_or_else(|| original(rel));
+    let menus = crate::ui::build(session, &input, &built.overlay)?;
+    built.lines.push(format!(
+        "ui: MOD SETTINGS with {} screen(s) under {LOADER_DIR}/ui, {} game archive(s) patched",
+        menus.session.len(),
+        menus.erps.len()
+    ));
+    built.plan.data.extend(menus.erps);
+    for (rel, src) in menus.screens {
+        if built.plan.loader.insert(rel.clone(), src).is_some() {
+            return Err(Error::Other(format!("{rel} is placed twice")));
+        }
+    }
+    let ui = session.ui.get_or_insert_with(|| SessionUi {
+        register: true,
+        strict: false,
+        recover: true,
+        screens: Vec::new(),
+    });
+    if let Some(s) = ui
+        .screens
+        .iter()
+        .find(|s| menus.session.iter().any(|m| m.name == s.name))
+    {
+        return Err(Error::Other(format!(
+            "screen {} is reserved for MOD SETTINGS; rename it in its mod",
+            s.name
+        )));
+    }
+    ui.screens.splice(0..0, menus.session);
+    Ok(())
 }
 
 #[cfg(test)]

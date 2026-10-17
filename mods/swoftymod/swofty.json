@@ -19,7 +19,6 @@
     }
   ],
   "operations": {
-    "ui": ["ui/fe_home.pkgpatch.json", "ui/routes.pkgpatch.json", "ui/tooltips.pkgpatch.json"],
     "native": [{ "dll": "native/swofty_core.dll", "capabilities": ["log", "scan", "hook"] }]
   }
 }
