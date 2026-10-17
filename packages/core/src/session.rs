@@ -66,6 +66,8 @@ pub struct Config {
     pub active_profile: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub game_dir: Option<PathBuf>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub console: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -176,6 +178,15 @@ pub fn parse_steam_command(argv: &[String]) -> SteamCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn config_keeps_console_flag() {
+        let mut config = Config::default();
+        assert!(!serde_json::to_string(&config).unwrap().contains("console"));
+        config.console = true;
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(serde_json::from_str::<Config>(&json).unwrap().console);
+    }
 
     #[test]
     fn cpu_lists() {

@@ -1,5 +1,6 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod console;
 mod game;
 mod library;
 mod pages;
@@ -26,8 +27,15 @@ fn main() {
                 app_id: Some("net.swofty.ModLauncher".into()),
                 ..TitleBar::window_options()
             };
-            gpui_kit::open_window(options, cx, |_, cx| cx.new(shell::Shell::new))
+            let (main, shell) = gpui_kit::open_window(options, cx, |_, cx| cx.new(shell::Shell::new))
                 .expect("failed to open window");
+            cx.on_window_closed(move |cx, id| {
+                if id == main.window_id() {
+                    cx.quit();
+                }
+            })
+            .detach();
+            shell.update(cx, |s, cx| s.restore_console(cx));
             cx.activate(true);
         });
 }

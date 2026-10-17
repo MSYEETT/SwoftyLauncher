@@ -1,7 +1,9 @@
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants};
+use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::spinner::Spinner;
+use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
@@ -12,7 +14,7 @@ use crate::pages::{avatar, badge};
 use crate::shell::{Page, PlayState, Shell};
 use crate::theme::Palette;
 
-fn link(id: &'static str, label: &'static str, p: Palette) -> Stateful<Div> {
+pub(crate) fn link(id: &'static str, label: &'static str, p: Palette) -> Stateful<Div> {
     div()
         .id(id)
         .cursor_pointer()
@@ -221,6 +223,23 @@ impl Shell {
         }
     }
 
+    fn console_toggle(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+        let on = self.console.is_some();
+        h_flex()
+            .id("console")
+            .h(px(32.))
+            .px(px(8.))
+            .gap(px(7.))
+            .rounded(px(5.))
+            .cursor_pointer()
+            .text_color(if on { p.text } else { p.text_muted })
+            .hover(move |s| s.bg(p.hover).text_color(p.text))
+            .tooltip(|window, cx| Tooltip::new("Show console").build(window, cx))
+            .child(Checkbox::new("console-check").checked(on).small())
+            .child(Icon::new(IconName::SquareTerminal).size(px(16.)))
+            .on_click(cx.listener(move |this, _, window, cx| this.set_console(!on, window, cx)))
+    }
+
     fn launch_log(&self) -> Option<std::path::PathBuf> {
         let log = self.store.root.join("state/launcher-run.log");
         log.is_file().then_some(log)
@@ -354,6 +373,7 @@ impl Shell {
                 h_flex()
                     .gap(px(8.))
                     .flex_shrink_0()
+                    .child(self.console_toggle(p, cx))
                     .when(matches!(state, PlayState::Running(_)), |d| {
                         d.child(
                             Button::new("stop")

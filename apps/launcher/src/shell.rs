@@ -71,6 +71,8 @@ pub struct Shell {
     pub(crate) notice: Option<String>,
     pub(crate) sliders: HashMap<String, SliderSlot>,
     pub(crate) requests: Option<SystemTime>,
+    pub(crate) console: Option<AnyWindowHandle>,
+    _console_closed: Subscription,
     _poll: Task<()>,
 }
 
@@ -208,6 +210,10 @@ impl Shell {
             }
         });
         rediscover.detach();
+        let shell = cx.weak_entity();
+        let console_closed = cx.on_window_closed(move |cx, id| {
+            shell.update(cx, |s, cx| s.console_closed(id, cx)).ok();
+        });
         Self {
             library: Library::load(&store),
             store,
@@ -225,7 +231,45 @@ impl Shell {
             notice: None,
             sliders: HashMap::new(),
             requests: None,
+            console: None,
+            _console_closed: console_closed,
             _poll: poll,
+        }
+    }
+
+    pub(crate) fn restore_console(&mut self, cx: &mut Context<Self>) {
+        if self.store.config().console {
+            self.console = crate::console::open(self.store.clone(), cx.weak_entity(), cx);
+            cx.notify();
+        }
+    }
+
+    pub(crate) fn set_console(&mut self, on: bool, window: &mut Window, cx: &mut Context<Self>) {
+        match self.console.take() {
+            Some(handle) if !on => cx.defer(move |cx| {
+                handle.update(cx, |_, window, _| window.remove_window()).ok();
+            }),
+            Some(handle) => self.console = Some(handle),
+            None if on => {
+                self.console = crate::console::open(self.store.clone(), cx.weak_entity(), cx);
+            }
+            None => {}
+        }
+        let mut config = self.store.config();
+        config.console = self.console.is_some();
+        if let Err(e) = self.store.save_config(&config) {
+            window.push_notification(Notification::error(e.to_string()), cx);
+        }
+        cx.notify();
+    }
+
+    fn console_closed(&mut self, id: WindowId, cx: &mut Context<Self>) {
+        if self.console.is_some_and(|h| h.window_id() == id) {
+            self.console = None;
+            let mut config = self.store.config();
+            config.console = false;
+            self.store.save_config(&config).ok();
+            cx.notify();
         }
     }
 
