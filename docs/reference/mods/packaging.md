@@ -101,13 +101,12 @@ The importer compares each file with the clean game files of the installed build
 | Class | Compared by | Applied as |
 |---|---|---|
 | Database | Record | The records the mod changes or adds (`db.put-record`), and the ones it removes (`db.remove-record`) |
-| Archive | Resource | The resources the mod changes or adds (`erp.put-resource`) |
+| Archive | Resource | The resources the mod changes or adds (`erp.put-resource`), and the ones it removes (`erp.remove-resource`) |
 | Text | Language and key | The strings the mod changes or adds (`lang.set`) |
 | Replacement, addition | Whole file | `file.put` |
 
 - Two mods that change different records of the database or different resources of an archive combine. Where they change the same one, the mod lower in the player's list wins.
-- Removals of database records apply only when `game_version` matches the installed game. Otherwise the player sees how many were left out.
-- Removals of resources from archives are not applied.
+- Removals of database records and of resources apply only when `game_version` matches the installed game. Otherwise the player sees how many were left out.
 - A whole language file changes every string that differs from the installed game's, including strings the game changed after the mod was made. A language the package lacks takes the changes of its `language_eng.lng`, or of its first language file by name.
 - Text changes need the in-game loader.
 

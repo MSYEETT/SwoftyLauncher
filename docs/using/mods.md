@@ -56,8 +56,8 @@ The expanded row shows the mod's status, version, author, the game version it wa
 When you play, the launcher applies only what each enabled mod changes, in list order: the database records it changed, the resources inside each archive, the text entries and whole loose files. Mods that change different rows of the database or different resources of an archive combine.
 
 - Text changes need the in-game loader. They apply in memory while the game boots, and the game's language files stay stock.
-- A mod's removals of database records apply only when it was made for the installed game version. Otherwise they are left out, and the row says how many.
-- Removals of resources from archives are not applied. The build warns with their count.
+- A mod's removals of database records and of resources from archives apply only when it was made for the installed game version. Otherwise they are left out, and the row says how many.
+- A removal of a resource rewrites the game's archives at build instead of loading them in memory.
 - Mods are checked against other addons as well. `swofty build` lists every conflict with the winner.
 
 ## Tracks

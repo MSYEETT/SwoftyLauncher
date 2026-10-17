@@ -182,6 +182,12 @@ fn hash_sources(hasher: &mut Sha256, store: &Store, addon: &str, ops: &[AssetOp]
         let path = src.resolve(&source_dir(store, addon, src.root))?;
         let meta = std::fs::metadata(&path).map_err(io_err(&path))?;
         hasher.update(format!("{}|{}|{:?}", src.path, meta.len(), meta.modified().ok()));
+        if meta.is_dir() {
+            for (rel, p) in loader_files(&path)? {
+                let meta = std::fs::metadata(&p).map_err(io_err(&p))?;
+                hasher.update(format!("{rel}|{}|{:?}", meta.len(), meta.modified().ok()));
+            }
+        }
     }
     Ok(())
 }
@@ -524,6 +530,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         }
     }
     let erp_ops = planner.take_erp();
+    let mut mipmaps = BTreeMap::new();
     if !erp_ops.is_empty() {
         let staged = built.plan.data.clone();
         let base = |rel: &str| staged.get(rel).cloned().unwrap_or_else(|| resolve(rel));
@@ -539,6 +546,10 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                 _ => {}
             }
         }
+        mipmaps = erps.take_mipmaps();
+        if let Some(note) = planner.route_note(Kind::Erp) {
+            built.lines.push(format!("erp: {note}"));
+        }
         if planner.route(Kind::Erp) == Route::Runtime {
             let notes = runtime.resources(erps.resources(), &built.overlay)?;
             built.warnings.extend(notes);
@@ -551,7 +562,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             }
         }
     }
-    put_files(&mut built, store, game, planner.take_files())?;
+    put_files(&mut built, store, game, mipmaps, planner.take_files())?;
     match loader_dir() {
         Some(dir) => {
             built.plan.loader = loader_files(&dir)?;
@@ -647,8 +658,15 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     Ok(built)
 }
 
-fn put_files(built: &mut Built, store: &Store, game: &Game, ops: Vec<Op>) -> Result<()> {
-    let mut put = BTreeMap::new();
+fn put_files(
+    built: &mut Built,
+    store: &Store,
+    game: &Game,
+    mipmaps: BTreeMap<String, PathBuf>,
+    ops: Vec<Op>,
+) -> Result<()> {
+    let mips = mipmaps.len();
+    let mut put = mipmaps;
     for op in ops {
         let AssetOp::File(FileOp::Put { source, target }) = op.op else {
             continue;
@@ -686,6 +704,11 @@ fn put_files(built: &mut Built, store: &Store, game: &Game, ops: Vec<Op>) -> Res
     built
         .lines
         .push(format!("files: {replaced} game file(s) replaced, {added} added"));
+    if mips > 0 {
+        built
+            .lines
+            .push(format!("mipmaps: {mips} mip file(s) go in the game folder"));
+    }
     Ok(())
 }
 
@@ -757,9 +780,15 @@ mod tests {
                         origin: origin.clone(),
                     },
                     Op {
-                        op: AssetOp::Erp(crate::ops::ErpOp::RemoveResource {
+                        op: AssetOp::Erp(crate::ops::ErpOp::PatchPkg {
                             erp: "2025_asset_groups/missing.erp".into(),
                             resource: "eaid://missing".into(),
+                            fragment: 0,
+                            edits: vec![crate::ops::PkgEdit::SetText {
+                                node: "n".into(),
+                                value: "v".into(),
+                                localise: false,
+                            }],
                         }),
                         origin,
                     },
@@ -804,7 +833,7 @@ mod tests {
         assert!(
             built
                 .warnings
-                .contains(&"t.hook: ERP operations skipped; remove-resource is not built yet".to_owned())
+                .contains(&"t.hook: ERP operations skipped; set-text is not built yet".to_owned())
         );
         assert!(store.addon_data_dir("t.hook").is_dir());
         std::fs::remove_dir_all(&root).ok();

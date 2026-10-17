@@ -63,21 +63,83 @@ impl Resource {
         Ok(h.finalize().into())
     }
 
+    pub fn like(name: &str, template: &Resource, data: &[Vec<u8>]) -> Result<Self> {
+        check_name(name)?;
+        if data.len() != template.fragments.len() {
+            return Err(Error::Format(format!(
+                "{name}: {} fragment(s) given, a {} like {} has {}",
+                data.len(),
+                template.kind(),
+                template.name,
+                template.fragments.len()
+            )));
+        }
+        let mut res = Resource {
+            name: name.to_owned(),
+            kind: template.kind,
+            unk: template.unk.clone(),
+            fragments: Vec::with_capacity(data.len()),
+            hash: [0; 16],
+        };
+        for (t, d) in template.fragments.iter().zip(data) {
+            let mut f = Fragment {
+                name: t.name,
+                offset: 0,
+                size: 0,
+                flags: t.flags,
+                compression: t.compression,
+                packed: 0,
+                raw: Vec::new(),
+            };
+            fill(&mut f, d)?;
+            res.fragments.push(f);
+        }
+        res.hash = res.content_hash()?;
+        Ok(res)
+    }
+
     pub fn set_fragment(&mut self, index: usize, data: &[u8]) -> Result<()> {
         let f = self
             .fragments
             .get_mut(index)
             .ok_or_else(|| Error::Format(format!("{}: no fragment {index}", self.name)))?;
-        f.raw = if f.compression == ZSTD {
-            compress(data)?
-        } else {
-            data.to_vec()
-        };
-        f.size = data.len() as u64;
-        f.packed = f.raw.len() as u64;
+        fill(f, data)?;
         self.hash = self.content_hash()?;
         Ok(())
     }
+}
+
+fn fill(f: &mut Fragment, data: &[u8]) -> Result<()> {
+    f.raw = if f.compression == ZSTD {
+        compress(data)?
+    } else {
+        data.to_vec()
+    };
+    f.size = data.len() as u64;
+    f.packed = f.raw.len() as u64;
+    Ok(())
+}
+
+pub fn check_name(name: &str) -> Result<()> {
+    if name.is_empty() || name.contains('\0') || name.len() >= u16::MAX as usize {
+        return Err(Error::Format(format!(
+            "{name:?} is not a resource name: it must be 1 to {} bytes without NUL",
+            u16::MAX - 1
+        )));
+    }
+    Ok(())
+}
+
+pub fn kind(name: &str) -> Result<[u8; 16]> {
+    let b = name.as_bytes();
+    if b.is_empty() || b.len() >= 16 || b.contains(&0) {
+        return Err(Error::Format(format!(
+            "{name:?} is not a resource type: it must be 1 to 15 bytes without NUL"
+        )));
+    }
+    let mut out = [0; 16];
+    out[..b.len()].copy_from_slice(b);
+    Ok(out)
 }
 
 pub fn compress(data: &[u8]) -> Result<Vec<u8>> {
@@ -414,6 +476,31 @@ mod tests {
         let res = &back.resources[0];
         assert_eq!(res.fragments[0].data().unwrap(), b"changed");
         assert_eq!(res.content_hash().unwrap(), hash);
+    }
+
+    #[test]
+    fn like_takes_the_type_argument_and_fragment_layout_of_a_template() {
+        let erp = sample();
+        let t = &erp.resources[0];
+        let res = Resource::like("eaid://ui_package/x.ui", t, &[b"one".to_vec(), b"two".to_vec()]).unwrap();
+        assert_eq!((res.kind, &res.unk), (t.kind, &t.unk));
+        for (f, s) in res.fragments.iter().zip(&t.fragments) {
+            assert_eq!((f.name, f.flags, f.compression), (s.name, s.flags, s.compression));
+        }
+        assert_eq!(res.fragments[0].data().unwrap(), b"one");
+        assert_ne!(res.fragments[0].raw, b"one");
+        assert_eq!(
+            (res.fragments[0].size, res.fragments[0].packed),
+            (3, res.fragments[0].raw.len() as u64)
+        );
+        assert_eq!(res.fragments[1].raw, b"two");
+        assert_eq!(res.hash, res.content_hash().unwrap());
+        assert!(Resource::like("eaid://ui_package/x.ui", t, &[b"one".to_vec()]).is_err());
+        assert!(Resource::like("", t, &[b"one".to_vec(), b"two".to_vec()]).is_err());
+        assert_eq!(&kind("GfxSurfaceRes").unwrap(), b"GfxSurfaceRes\0\0\0");
+        assert!(kind("AIBrakeSettings").is_ok());
+        assert!(kind("SixteenBytesLong").is_err());
+        assert!(kind("").is_err());
     }
 
     #[test]
