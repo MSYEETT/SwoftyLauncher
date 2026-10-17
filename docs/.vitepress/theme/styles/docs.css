@@ -1,0 +1,543 @@
+:root,
+:root.dark {
+  --vp-font-family-base: "Open Sans", ui-sans-serif, system-ui, sans-serif;
+  --vp-font-family-mono: "Source Code Pro", ui-monospace, monospace;
+
+  --vp-c-bg: var(--flash-gray);
+  --vp-c-bg-alt: var(--flash-gray-dark);
+  --vp-c-bg-soft: var(--flash-gray-darker);
+  --vp-c-bg-elv: var(--flash-gray-dark);
+  --vp-c-text-1: var(--flash-white);
+  --vp-c-text-2: var(--flash-light);
+  --vp-c-text-3: var(--flash-less-light);
+  --vp-c-divider: var(--flash-border);
+  --vp-c-border: var(--flash-dark);
+  --vp-c-gutter: var(--flash-gray-darkest);
+  --vp-c-default-soft: var(--flash-hover);
+
+  --vp-c-brand-1: var(--flash-skin);
+  --vp-c-brand-2: var(--flash-orange);
+  --vp-c-brand-3: var(--flash-skin);
+  --vp-c-brand-soft: var(--flash-dark-skin);
+
+  --vp-code-bg: var(--flash-gray-darkest);
+  --vp-code-color: var(--flash-light);
+  --vp-code-block-bg: var(--flash-gray-darkest);
+  --vp-code-block-color: var(--flash-white);
+  --vp-code-line-number-color: var(--flash-light);
+  --vp-code-copy-code-bg: var(--flash-gray-darkest);
+  --vp-code-copy-code-hover-bg: var(--flash-hover);
+  --vp-code-copy-code-border-color: transparent;
+  --vp-code-copy-code-hover-border-color: transparent;
+  --vp-local-search-bg: var(--flash-gray-dark);
+  --vp-local-search-result-bg: var(--flash-gray);
+  --vp-local-search-result-border: var(--flash-border);
+  --vp-local-search-result-selected-bg: var(--flash-gray-darker);
+  --vp-local-search-result-selected-border: var(--flash-skin);
+  --vp-local-search-highlight-bg: var(--flash-skin);
+  --vp-local-search-highlight-text: var(--flash-gray-darkest);
+  --vp-backdrop-bg-color: rgba(0, 0, 0, 0.6);
+}
+
+html,
+body {
+  background-color: var(--flash-body-bg);
+}
+
+.flash-docs .skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 10;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  background: var(--flash-gray-darkest);
+  color: var(--flash-white);
+  transform: translateY(-200%);
+}
+
+.flash-docs .skip-link:focus {
+  transform: none;
+}
+
+.flash-docs summary {
+  list-style: none;
+}
+
+.flash-docs summary::-webkit-details-marker {
+  display: none;
+}
+
+.flash-docs > nav {
+  overflow: hidden;
+}
+
+.flash-docs > nav > header > a {
+  min-width: 0;
+  gap: 0;
+}
+
+.flash-docs > nav > header > .button .vpi-social-github {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.flash-docs > nav > .content a > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flash-docs > nav > .content a .icon-bookmark {
+  stroke-width: 1.75;
+}
+
+.flash-docs .icon-struct {
+  color: var(--flash-red);
+}
+
+.flash-docs .icon-func {
+  color: var(--flash-purple);
+}
+
+.flash-docs .icon-data,
+.flash-docs .icon-site,
+.flash-docs .icon-call,
+.flash-docs .icon-vtable {
+  color: var(--flash-cyan);
+}
+
+.flash-docs .icon-file {
+  color: var(--flash-light);
+}
+
+.flash-docs > nav .input > input::placeholder {
+  color: var(--flash-less-light);
+  opacity: 0.8;
+}
+
+.flash-docs > nav .input > input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.flash-docs > .overlay > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flash-docs > .overlay.search-pill {
+  right: 11.25rem;
+}
+
+.flash-docs > .overlay.search-pill .VPNavBarSearch {
+  padding: 0;
+  flex-grow: 0;
+}
+
+.flash-docs > .overlay.search-pill .DocSearch-Button {
+  margin: 0;
+  border: none;
+  border-radius: 9999px;
+  height: auto;
+  padding: 0.35rem 1rem;
+  background-color: var(--flash-dark);
+  color: var(--flash-light);
+}
+
+.flash-docs > .overlay.search-pill .DocSearch-Button:hover {
+  background-color: var(--flash-less-dark);
+}
+
+.flash-docs > .overlay.search-pill .DocSearch-Button .DocSearch-Search-Icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--flash-light);
+}
+
+.flash-docs > .overlay.search-pill .DocSearch-Button .DocSearch-Button-Placeholder,
+.flash-docs > .overlay.search-pill .DocSearch-Button .DocSearch-Button-Keys {
+  color: var(--flash-light);
+}
+
+.flash-docs > .overlay.search-pill .DocSearch-Button .DocSearch-Button-Key,
+.flash-docs > .overlay.search-pill .DocSearch-Button .DocSearch-Button-Keys::before {
+  border-color: var(--flash-less-dark);
+  color: var(--flash-light);
+}
+
+@media (max-width: 1099px) {
+  .flash-docs main {
+    padding-top: 4rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .flash-docs > .overlay.theme > button {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .flash-docs > .overlay.search-pill {
+    right: 9.75rem;
+  }
+}
+
+.flash-docs main .vp-doc h1,
+.flash-docs main .vp-doc h2,
+.flash-docs main .vp-doc h3,
+.flash-docs main .vp-doc h4 {
+  border-top: 0;
+  padding-top: 0;
+  letter-spacing: normal;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.flash-docs main .vp-doc h1 {
+  margin-top: 0.5em;
+}
+
+.flash-docs main .vp-doc h2 {
+  margin-top: 2.5rem;
+}
+
+.flash-docs main .vp-doc h3 {
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.flash-docs main .vp-doc h1 > code,
+.flash-docs main .vp-doc h2 > code,
+.flash-docs main .vp-doc h3 > code {
+  font-size: 0.85em;
+}
+
+.flash-docs main .vp-doc .header-anchor {
+  position: static;
+  display: none;
+  margin-left: 0.5rem;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  vertical-align: middle;
+  opacity: 1;
+  font-size: 0;
+  color: var(--flash-white);
+  text-decoration: none;
+}
+
+.flash-docs main .vp-doc .header-anchor::before {
+  content: "";
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  background-color: currentColor;
+  -webkit-mask: var(--flash-link-icon) center / contain no-repeat;
+  mask: var(--flash-link-icon) center / contain no-repeat;
+}
+
+.flash-docs main .vp-doc .header-anchor:hover {
+  background-color: var(--flash-hover-light);
+}
+
+.flash-docs main .vp-doc h1:hover .header-anchor,
+.flash-docs main .vp-doc h2:hover .header-anchor,
+.flash-docs main .vp-doc h3:hover .header-anchor,
+.flash-docs main .vp-doc .header-anchor:focus-visible {
+  display: inline-block;
+}
+
+.flash-docs {
+  --flash-link-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 13.5a4.5 4.5 0 0 0 6.8.5l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.6 1.6'/%3E%3Cpath d='M14 10.5a4.5 4.5 0 0 0-6.8-.5l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.6-1.6'/%3E%3C/svg%3E");
+}
+
+.flash-docs main .vp-doc a {
+  font-weight: normal;
+  text-underline-offset: 2px;
+}
+
+.flash-docs main .vp-doc table {
+  display: table;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+}
+
+.flash-docs main .vp-doc th,
+.flash-docs main .vp-doc td {
+  border: 0.1rem solid var(--flash-border);
+  padding: 0.5rem 0.9rem;
+  line-height: 1.6;
+}
+
+.flash-docs main .vp-doc th {
+  background-color: var(--flash-gray-darker);
+  color: var(--flash-white);
+  font-family: "Varela Round", sans-serif;
+  font-weight: bold;
+}
+
+.flash-docs main .vp-doc tr {
+  background-color: transparent;
+}
+
+.flash-docs main .vp-doc tr:nth-child(2n) {
+  background-color: var(--flash-shade);
+}
+
+.flash-docs main .vp-doc div[class*="language-"] {
+  width: fit-content;
+  min-width: min(24rem, 100%);
+  max-width: 100%;
+  margin: 1rem 0;
+  border-radius: 0.5rem;
+  background-color: var(--flash-gray-darkest);
+}
+
+.flash-docs main .vp-doc div[class*="language-"] pre {
+  padding: 1rem 4rem 1rem 1rem;
+}
+
+.flash-docs main .vp-doc div[class*="language-"] code {
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--flash-white);
+}
+
+.flash-docs main .vp-doc div[class*="language-"].line-numbers-mode {
+  padding-left: 2.75rem;
+}
+
+.flash-docs main .vp-doc .line-numbers-wrapper {
+  top: 1rem;
+  bottom: 1rem;
+  padding-top: 0;
+  width: 2.75rem;
+  padding-right: 0.6rem;
+  text-align: right;
+  border-right: none;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--flash-light);
+}
+
+.flash-docs main .vp-doc .line-numbers-wrapper::after {
+  content: "";
+  position: absolute;
+  top: 0.15rem;
+  bottom: 0.15rem;
+  right: 0;
+  border-right: 0.15rem solid var(--flash-dark);
+}
+
+.flash-docs main .vp-doc [class*="language-"] > span.lang {
+  display: none;
+}
+
+.flash-docs main .vp-doc [class*="language-"] > button.copy {
+  top: 0.75rem;
+  right: 0.5rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.35rem;
+  opacity: 1;
+  background-size: 1.1rem;
+}
+
+.flash-docs main .vp-doc [class*="language-"] > button.copy:hover {
+  background-color: var(--flash-hover);
+}
+
+.flash-docs main .vp-doc li div[class*="language-"] {
+  border-radius: 0.5rem;
+}
+
+.flash-docs main .vp-doc .include {
+  display: inline-block;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.flash-docs main .vp-doc .include code {
+  padding: 0.5rem 0.75rem;
+  font-size: 1.15rem;
+  color: var(--flash-white);
+}
+
+.flash-docs main .vp-doc .include .keyword {
+  color: var(--flash-purple);
+}
+
+.flash-docs main .vp-doc .include .string {
+  color: var(--flash-green);
+}
+
+.flash-docs main .vp-doc summary {
+  margin: 0;
+}
+
+.flash-docs main .vp-doc .section {
+  margin-top: 1.5rem;
+}
+
+.flash-docs main .vp-doc .section > div {
+  padding-top: 0.75rem;
+}
+
+.flash-docs main .vp-doc .entity {
+  margin-bottom: 1.25rem;
+  line-height: 1.6;
+  scroll-margin-top: 4.5rem;
+}
+
+.flash-docs main .vp-doc .entity:target {
+  border-radius: 0.25rem;
+  box-shadow: 0 0 0 0.5rem var(--flash-hover);
+  background-color: var(--flash-hover);
+}
+
+.flash-docs main .vp-doc .entity .punct {
+  color: var(--flash-light);
+}
+
+.flash-docs main .vp-doc .entity {
+  flex-direction: column;
+}
+
+.flash-docs main code:not(pre > code) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.flash-docs main .vp-doc .entity > .class-decl,
+.flash-docs main .vp-doc .entity .function-signature {
+  display: block;
+}
+
+.flash-docs main .vp-doc .entity .param-name,
+.flash-docs main .vp-doc .entity .field {
+  color: var(--flash-white);
+}
+
+.flash-docs main .vp-doc .entity .param {
+  white-space: nowrap;
+}
+
+.flash-docs main .vp-doc .entity .members {
+  display: flex;
+  flex-direction: column;
+  padding-left: 1.5rem;
+}
+
+.flash-docs main .vp-doc .entity .member {
+  white-space: nowrap;
+}
+
+.flash-docs main .vp-doc .entity .offset {
+  display: inline-block;
+  min-width: 4.5ch;
+  margin-right: 1ch;
+  color: var(--flash-less-dark);
+}
+
+.flash-docs main .vp-doc .entity .tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.flash-docs main .vp-doc .entity .tag {
+  display: inline-block;
+  padding: 0 0.5rem;
+  border-radius: 0.25rem;
+  background-color: var(--flash-less-dark);
+  color: var(--flash-white);
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.flash-docs main .vp-doc .entity .member .tag {
+  margin-left: 0.75rem;
+  vertical-align: 0.1em;
+}
+
+.flash-docs main .vp-doc .entity .tag.status-stable {
+  background-color: var(--flash-cyan-darker);
+  color: var(--flash-green);
+}
+
+.flash-docs main .vp-doc .entity .tag.status-experimental {
+  background-color: var(--flash-dark-orange);
+  color: var(--flash-orange);
+}
+
+.flash-docs main .vp-doc .entity .tag.cxx {
+  font-family: "Source Code Pro", monospace;
+}
+
+@media (max-width: 799px) {
+  .flash-docs main .vp-doc .section > div {
+    padding-left: 0.5rem;
+    padding-right: 0;
+  }
+
+  .flash-docs main .vp-doc .entity .param {
+    white-space: normal;
+  }
+
+  .flash-docs main .vp-doc .entity .members {
+    overflow-x: auto;
+    padding-left: 0.75rem;
+  }
+
+  .flash-docs main h1 {
+    font-size: 2.4rem;
+  }
+}
+
+.flash-docs main .vp-doc .custom-block {
+  margin: 1rem 0.5rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-left: 0.5rem solid var(--flash-dark);
+  border-radius: 0rem 0.5rem 0.5rem 0rem;
+  background-color: var(--flash-darker);
+  color: var(--flash-white);
+  font-size: 1rem;
+}
+
+.flash-docs main .vp-doc .custom-block p {
+  margin: 0.25rem 0;
+  line-height: 1.75em;
+}
+
+.flash-docs main .vp-doc .custom-block .custom-block-title {
+  display: none;
+}
+
+.flash-docs main .vp-doc .custom-block.warning,
+.flash-docs main .vp-doc .custom-block.danger {
+  border-left-color: var(--flash-skin);
+  background-color: var(--flash-dark-skin);
+}
+
+.flash-docs main .vp-doc .custom-block.warning strong {
+  color: var(--flash-orange);
+}
+
+.flash-docs main .vp-doc .custom-block.info {
+  border-left-color: var(--flash-cyan);
+}
+
+.flash-docs main .vp-doc .custom-block.tip {
+  border-left-color: var(--flash-green);
+}
+
+.flash-docs main .vp-doc .docs-logo {
+  display: block;
+  width: 5rem;
+  height: 5rem;
+  margin-top: 1rem;
+  filter: drop-shadow(0 0.25rem 0.5rem var(--flash-shadow));
+}

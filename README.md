@@ -39,4 +39,4 @@ See the [development guide](https://f1.swofty.net/reference/development) for bui
 
 ## Licence
 
-[GNU Affero General Public License, version 3 or later](LICENSE). The plugin SDK in `packages/sdk` and the mod template in `templates/mod` use the MIT licence.
+[GNU Affero General Public License, version 3 or later](LICENSE). The plugin SDK in `packages/sdk` and the mod template in `templates/mod` use the MIT licence. The docs theme adapts MIT-licensed CSS from the Geode docs; see [THIRD_PARTY.md](THIRD_PARTY.md).

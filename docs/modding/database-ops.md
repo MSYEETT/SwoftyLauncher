@@ -1,4 +1,4 @@
-# Database operations
+# Database edits
 
 Database operations change game values in `game_package/gamedatabases/gamedatabases.2025.bin`.
 

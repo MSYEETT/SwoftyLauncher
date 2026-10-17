@@ -1,0 +1,791 @@
+/*
+ * Adapted from the Geode docs theme (flash-template/themes.css, default.css, nav.css and content.css)
+ * https://github.com/geode-sdk/docs
+ * Copyright (c) 2022 Geode SDK developers. MIT licence; see THIRD_PARTY.md.
+ * Selectors are scoped to .flash-docs and adjusted for VitePress. The peach theme is the default.
+ */
+
+:root,
+.flash-theme-peach {
+  --flash-gray: #372733;
+  --flash-gray-dark: #342030;
+  --flash-gray-darker: #2a1a28;
+  --flash-gray-darkest: #221020;
+  --flash-white: #eee;
+  --flash-light: #bab;
+  --flash-less-light: #a89;
+  --flash-less-dark: #9a6a8a;
+  --flash-dark: #6a4a5a;
+  --flash-darker: #5a3a4a;
+  --flash-blue: #6a80d8;
+  --flash-cyan-light: #7adff8;
+  --flash-cyan: #6ac2d8;
+  --flash-cyan-dark: #427b8a;
+  --flash-cyan-darker: #294e57;
+  --flash-green: #9ff4b7;
+  --flash-purple: #9e6ad4;
+  --flash-pink: #f49fe9;
+  --flash-skin: #ec897c;
+  --flash-dark-skin: #58342f;
+  --flash-red: #e23485;
+  --flash-yellow: #f5dd9f;
+  --flash-orange: #f5c99f;
+  --flash-dark-orange: #5c4c3e;
+  --flash-border: rgba(255, 225, 155, 0.2);
+  --flash-hover: rgba(255, 255, 255, 0.1);
+  --flash-hover-light: rgba(255, 255, 255, 0.3);
+  --flash-shade: rgba(0, 0, 0, 0.25);
+  --flash-shadow: rgba(0, 0, 0, 0.2);
+
+  --flash-body-bg: var(--flash-gray);
+  --flash-h1-color: var(--flash-yellow);
+  --flash-tab-selected-bg: var(--flash-yellow);
+  --flash-tab-selected-color: var(--flash-dark);
+  --flash-search-match: var(--flash-yellow);
+  --flash-nav-arrow: var(--flash-white);
+  --flash-highlight: var(--flash-yellow);
+}
+
+.flash-theme-dark {
+  --flash-gray: #272727;
+  --flash-gray-dark: #222;
+  --flash-gray-darker: #1a1a1a;
+  --flash-gray-darkest: #111;
+  --flash-white: #eee;
+  --flash-light: #aaa;
+  --flash-less-light: #888;
+  --flash-less-dark: #6a6a6a;
+  --flash-dark: #4a4a4a;
+  --flash-darker: #3a3a3a;
+  --flash-border: rgba(255, 255, 255, 0.2);
+
+  --flash-body-bg: var(--flash-gray);
+  --flash-h1-color: var(--flash-white);
+  --flash-tab-selected-bg: var(--flash-light);
+  --flash-tab-selected-color: var(--flash-dark);
+  --flash-search-match: var(--flash-blue);
+  --flash-nav-arrow: var(--flash-light);
+  --flash-highlight: var(--flash-cyan);
+}
+
+.flash-theme-ocean {
+  --flash-gray: #272737;
+  --flash-gray-dark: #223;
+  --flash-gray-darker: #1a1a2a;
+  --flash-gray-darkest: #112;
+  --flash-white: #eee;
+  --flash-light: #aac;
+  --flash-less-light: #88a;
+  --flash-less-dark: #6a6a8a;
+  --flash-dark: #4a4a6a;
+  --flash-darker: #3a3a5a;
+  --flash-border: rgba(155, 155, 255, 0.2);
+
+  --flash-body-bg: var(--flash-gray);
+  --flash-h1-color: var(--flash-white);
+  --flash-tab-selected-bg: var(--flash-blue);
+  --flash-tab-selected-color: var(--flash-white);
+  --flash-search-match: var(--flash-cyan);
+  --flash-nav-arrow: var(--flash-light);
+  --flash-highlight: var(--flash-cyan);
+}
+
+/* default.css */
+
+.flash-docs {
+  tab-size: 4;
+  min-height: 100vh;
+  background: var(--flash-body-bg);
+  color: var(--flash-white);
+  display: grid;
+  grid-template-columns: minmax(1rem, 26.5rem) 1fr;
+}
+
+@media only screen and (max-width: 250px) {
+  .flash-docs > .overlay.theme {
+    display: none;
+  }
+}
+
+@media only screen and (max-width: 799px) {
+  .flash-docs {
+    grid-template-columns: 1fr;
+  }
+
+  .flash-docs > nav {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    transition: opacity 0.25s;
+  }
+
+  .flash-docs > nav.collapsed {
+    opacity: 0%;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  .flash-docs > nav:not(.collapsed) {
+    opacity: 100%;
+  }
+
+  .flash-docs > nav:not(.collapsed) ~ .overlay.theme,
+  .flash-docs > nav:not(.collapsed) ~ .overlay.search-pill {
+    display: none;
+  }
+
+  .flash-docs > .overlay.menu {
+    display: flex;
+  }
+}
+
+@media only screen and (min-width: 800px) and (max-width: 1099px) {
+  .flash-docs {
+    grid-template-columns: 1fr;
+  }
+
+  .flash-docs > nav {
+    position: fixed;
+    top: 0;
+    width: 30rem;
+    transition: left 0.25s;
+  }
+
+  .flash-docs > nav:not(.collapsed) {
+    left: 0rem;
+    box-shadow: 0.25rem 0rem 0.5rem var(--flash-shadow);
+  }
+
+  .flash-docs > nav.collapsed {
+    left: -30rem;
+    visibility: hidden;
+    transition:
+      left 0.25s,
+      visibility 0s 0.25s;
+  }
+
+  .flash-docs > .overlay.menu {
+    display: flex;
+  }
+}
+
+@media only screen and (min-width: 1100px) {
+  .flash-docs > nav {
+    position: sticky;
+    top: 0;
+  }
+
+  .flash-docs > .overlay.menu {
+    display: none;
+  }
+}
+
+.flash-docs > .overlay.menu {
+  left: 1rem;
+}
+
+.flash-docs > .overlay.theme {
+  right: 1rem;
+}
+
+.flash-docs > .overlay {
+  top: 1rem;
+  position: fixed;
+  display: flex;
+  flex-direction: row;
+  border-radius: 9999px;
+  box-shadow: 0 0.25rem 0.5rem var(--flash-shadow);
+  z-index: 4;
+}
+
+.flash-docs > .overlay > button {
+  background-color: var(--flash-dark);
+  color: var(--flash-light);
+  border: none;
+  padding: 0.35rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.flash-docs > .overlay > button:first-child {
+  border-top-left-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+}
+
+.flash-docs > .overlay > button:last-child {
+  border-top-right-radius: 9999px;
+  border-bottom-right-radius: 9999px;
+}
+
+.flash-docs > .overlay > button:hover:not(.selected) {
+  background-color: var(--flash-less-dark);
+  cursor: pointer;
+}
+
+.flash-docs > .overlay > button.selected {
+  background-color: var(--flash-tab-selected-bg);
+  color: var(--flash-tab-selected-color);
+}
+
+.flash-docs > .overlay > button > .icon {
+  height: 1.25rem;
+  width: 1.25rem;
+}
+
+/* nav.css */
+
+.flash-docs > nav > header {
+  display: grid;
+  font-family: "Open Sans", sans-serif;
+  font-weight: bold;
+  color: var(--flash-white);
+  grid-template-columns: 1fr min-content;
+  align-items: center;
+}
+
+@media only screen and (max-width: 1099px) {
+  .flash-docs > nav > header {
+    padding-left: 3.5rem;
+  }
+
+  .flash-docs > nav > header > a {
+    justify-content: center;
+  }
+}
+
+.flash-docs > nav > header > a {
+  color: var(--flash-white);
+  text-decoration: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.flash-docs > nav > header > a:hover {
+  background: none;
+}
+
+.flash-docs > nav > header > a > img {
+  height: 2.25rem;
+  width: 2.25rem;
+  margin-right: 0.5rem;
+}
+
+.flash-docs > nav > header > .button {
+  color: var(--flash-light);
+  border: 0.15rem solid var(--flash-dark);
+  border-radius: 9999px;
+  height: 2.25rem;
+  width: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flash-docs > nav {
+  background-color: var(--flash-gray-dark);
+  height: 100vh;
+  display: grid;
+  grid-template-rows: min-content min-content 1fr min-content;
+  z-index: 3;
+}
+
+.flash-docs > nav > * {
+  padding: 1rem;
+}
+
+.flash-docs > nav > .mode {
+  display: flex;
+  flex-direction: row;
+  justify-content: stretch;
+  gap: 0.25rem;
+  padding-top: 0rem;
+  padding-bottom: 0rem;
+}
+
+.flash-docs > nav > .mode > button {
+  display: grid;
+  grid-template-columns: 1rem 1fr 1rem;
+  align-items: center;
+  font-family: "Open Sans", sans-serif;
+  color: var(--flash-white);
+  padding: 0.5rem;
+  background-color: rgba(0, 0, 0, 0);
+  border: none;
+  transition: background;
+  flex: 1;
+}
+
+.flash-docs > nav > .mode > button:hover {
+  cursor: pointer;
+}
+
+.flash-docs > nav > .mode > button .icon {
+  width: 1rem;
+  height: 1rem;
+  opacity: 50%;
+}
+
+.flash-docs > nav > .mode > button.selected {
+  border-bottom: 0.2rem solid var(--flash-tab-selected-bg);
+  border-top: 0.2rem solid rgba(0, 0, 0, 0);
+}
+
+.flash-docs > nav > .mode > button:not(.selected) {
+  border-bottom: 0.2rem solid var(--flash-border);
+  border-top: 0.2rem solid rgba(0, 0, 0, 0);
+}
+
+.flash-docs > nav > .mode > button:hover {
+  background-color: var(--flash-hover);
+}
+
+.flash-docs > nav > .content {
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+}
+
+.flash-docs > nav > .content details:not(.root) > div {
+  padding-left: 1.25rem;
+}
+
+.flash-docs > nav > .content.monospace {
+  font-family: "Source Code Pro", monospace;
+}
+
+.flash-docs > nav > .content:not(.monospace) {
+  font-family: "Open Sans", sans-serif;
+}
+
+.flash-docs > nav > .content:not(.monospace) summary {
+  color: var(--flash-white);
+}
+
+.flash-docs > nav > .content summary {
+  color: var(--flash-light);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 0.25rem;
+  user-select: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 5rem;
+}
+
+.flash-docs > nav > .content details.root > summary {
+  color: var(--flash-light);
+}
+
+.flash-docs > nav > .content details.root:not(:last-child) {
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 0.1rem solid var(--flash-hover);
+}
+
+.flash-docs > nav > .content:not(.monospace) > details:not(:first-child) {
+  margin-top: 1.25rem;
+}
+
+.flash-docs > nav > .content:not(.monospace) summary {
+  padding: 0.5rem;
+}
+
+.flash-docs > nav > .content summary:hover {
+  background-color: var(--flash-hover);
+  color: var(--flash-white);
+  cursor: pointer;
+}
+
+.flash-docs > nav .icon {
+  height: 1.2rem;
+  width: 1.2rem;
+  flex-shrink: 0;
+}
+
+.flash-docs > nav .feather-chevron-right {
+  opacity: 50%;
+  color: var(--flash-nav-arrow);
+}
+
+.flash-docs > nav .icon:not(.feather-chevron-right) {
+  margin-right: 0.25rem;
+}
+
+.flash-docs > nav > .content details[open] > summary > .feather-chevron-right {
+  transform: rotate(90deg);
+}
+
+.flash-docs > nav > .content a {
+  color: var(--flash-light);
+  text-decoration: none;
+  display: flex;
+  flex-direction: row;
+  padding: 0.25rem;
+  user-select: none;
+  white-space: nowrap;
+  text-overflow: clip;
+  max-width: 100%;
+}
+
+@media only screen and (max-width: 799px) {
+  .flash-docs > nav > .content summary {
+    padding: 0.75rem;
+  }
+
+  .flash-docs > nav > .content a {
+    padding: 0.75rem;
+  }
+}
+
+@media only screen and (min-width: 800px) and (max-width: 1099px) {
+  .flash-docs > nav > .content.monospace summary {
+    padding: 0.5rem;
+  }
+
+  .flash-docs > nav > .content.monospace a {
+    padding: 0.5rem;
+  }
+
+  .flash-docs > nav > .content:not(.monospace) a {
+    padding: 0.5rem;
+  }
+}
+
+@media only screen and (min-width: 1100px) {
+  .flash-docs > nav > .content:not(.monospace) a {
+    padding: 0.5rem;
+  }
+}
+
+.flash-docs > nav a.selected {
+  background-color: var(--flash-hover);
+  color: var(--flash-white);
+}
+
+.flash-docs > nav a .icon {
+  min-width: max-content;
+}
+
+.flash-docs > nav > .content a:hover {
+  background-color: var(--flash-hover);
+  color: var(--flash-white);
+  cursor: pointer;
+}
+
+.flash-docs > nav a .matched {
+  color: var(--flash-search-match);
+  font-weight: bold;
+}
+
+.flash-docs > nav a .scope {
+  opacity: 50%;
+  color: var(--flash-less-light);
+}
+
+.flash-docs > nav .nothing-found {
+  font-family: "Open Sans", sans-serif;
+  color: var(--flash-light);
+  margin-left: 1rem;
+}
+
+.flash-docs > nav > .search {
+  background-color: var(--flash-gray-darker);
+}
+
+.flash-docs .input {
+  background: var(--flash-gray-darkest);
+  border-radius: 0.25rem;
+  display: flex;
+  flex-direction: row;
+  padding-left: 0.5rem;
+  justify-content: stretch;
+  align-items: stretch;
+}
+
+.flash-docs .input > input {
+  padding: 0.5rem;
+  display: block;
+  background: none;
+  border: none;
+  width: 100%;
+  color: var(--flash-white);
+  outline: none;
+  flex-grow: 1;
+}
+
+.flash-docs .input > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  align-self: center;
+  background-color: rgba(0, 0, 0, 0);
+  border-radius: 0.25rem;
+  border: none;
+  color: var(--flash-light);
+}
+
+.flash-docs .input > button:hover {
+  background-color: var(--flash-hover);
+  cursor: pointer;
+}
+
+.flash-docs .input > button .icon {
+  margin: 0;
+}
+
+/* content.css */
+
+.flash-docs main {
+  display: flex;
+  flex-direction: column;
+  font-family: "Open Sans", sans-serif;
+  padding: 1.5rem;
+  min-width: 0;
+}
+
+@media only screen and (min-width: 1100px) {
+  .flash-docs main .text > div > * {
+    max-width: 56rem;
+  }
+}
+
+.flash-docs main p,
+.flash-docs main ol,
+.flash-docs main ul {
+  line-height: 1.75em;
+}
+
+.flash-docs main hr {
+  width: 100%;
+}
+
+.flash-docs main img {
+  max-width: 100%;
+}
+
+.flash-docs main strong {
+  color: var(--flash-skin);
+}
+
+.flash-docs main a strong {
+  color: inherit;
+}
+
+.flash-docs main blockquote {
+  margin: 0.5rem;
+  padding: 0.25rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  border-left: 0.5rem solid var(--flash-dark);
+  background-color: var(--flash-darker);
+  border-radius: 0rem 0.5rem 0.5rem 0rem;
+}
+
+.flash-docs main h1 {
+  font-family: "Varela Round", sans-serif;
+  font-weight: bold;
+  font-size: 3rem;
+  color: var(--flash-h1-color);
+  margin-bottom: 0.25rem;
+}
+
+.flash-docs main h1 .entity-kind {
+  font-size: 2.25rem;
+  color: var(--flash-light);
+}
+
+.flash-docs main h1::after {
+  content: " ";
+  display: block;
+  border: 0.1rem solid var(--flash-border);
+  margin-top: 0.5rem;
+}
+
+.flash-docs main h2 {
+  font-family: "Varela Round", sans-serif;
+  font-weight: bold;
+  font-size: 1.75rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.flash-docs main h3 {
+  font-family: "Varela Round", sans-serif;
+  font-weight: bold;
+  font-size: 1.6rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.flash-docs main h4 {
+  font-family: "Varela Round", sans-serif;
+  font-weight: bold;
+  font-size: 1.3rem;
+}
+
+.flash-docs main h2::after {
+  content: " ";
+  display: block;
+  margin-top: 0.5rem;
+  border: 0.1rem solid var(--flash-border);
+  opacity: 50%;
+}
+
+.flash-docs main a {
+  color: var(--flash-cyan-light);
+  text-decoration: underline;
+}
+
+.flash-docs main a:hover {
+  color: var(--flash-white);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.flash-docs main .section {
+  margin-top: 0.5rem;
+}
+
+.flash-docs main .section > summary {
+  font-family: "Varela Round", sans-serif;
+  font-weight: bold;
+  font-size: 1.75rem;
+  display: block;
+  margin-bottom: 0.5rem;
+  user-select: none;
+}
+
+.flash-docs main .section > summary span {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.flash-docs main .section > summary .chevron {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.5rem;
+  margin-left: 0.5rem;
+}
+
+.flash-docs main .section[open] > summary .chevron {
+  transform: rotate(90deg);
+}
+
+.flash-docs main .section > summary:hover {
+  cursor: pointer;
+}
+
+.flash-docs main .section > summary::after {
+  content: " ";
+  display: block;
+  margin-top: 0.5rem;
+  border: 0.1rem solid var(--flash-border);
+}
+
+.flash-docs main .section > div {
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+.flash-docs main .section > summary .badge {
+  margin-left: 0.5rem;
+}
+
+.flash-docs main .badge {
+  font-family: "Open Sans", sans-serif;
+  font-size: 1rem;
+  background-color: var(--flash-dark);
+  color: var(--flash-light);
+  padding: 0.15rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  border-radius: 9999px;
+}
+
+.flash-docs main .entity a {
+  text-decoration: none;
+}
+
+.flash-docs main .entity {
+  font-family: "Source Code Pro", monospace;
+  color: var(--flash-light);
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.flash-docs main .entity .keyword {
+  color: var(--flash-purple);
+}
+
+.flash-docs main .entity .scope {
+  color: var(--flash-light);
+  opacity: 50%;
+}
+
+.flash-docs main .entity .literal {
+  color: var(--flash-white);
+}
+
+.flash-docs main .entity .type.pod {
+  color: var(--flash-purple);
+}
+
+.flash-docs main .entity.struct,
+.flash-docs main .entity.fun {
+  flex-direction: column;
+}
+
+.flash-docs main .entity > .class-decl {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.flash-docs main .entity .class.name,
+.flash-docs main .entity .struct.name {
+  color: var(--flash-yellow);
+}
+
+.flash-docs main .entity.var .name {
+  color: var(--flash-white);
+}
+
+.flash-docs main .entity .function-signature {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.flash-docs main .entity .function-signature > .name {
+  color: var(--flash-blue);
+}
+
+.flash-docs main code:not(pre > code) {
+  display: inline-block;
+  background-color: var(--flash-gray-darkest);
+  color: var(--flash-light);
+  border-radius: 0.25rem;
+  padding: 0.25rem;
+  padding-top: 0rem;
+  padding-bottom: 0rem;
+  font-size: 1em;
+}
+
+.flash-docs main p code:not(pre > code),
+.flash-docs main a code:not(pre > code),
+.flash-docs main ul code:not(pre > code),
+.flash-docs main ol code:not(pre > code) {
+  font-size: 1rem;
+}
+
+.flash-docs main a code:not(pre > code) {
+  color: inherit;
+}

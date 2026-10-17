@@ -1,4 +1,4 @@
-# Native plugins
+# Hooking game functions
 
 Native plugins are Windows x86-64 DLLs that run inside F1 25. They are for mod authors who need code changes beyond data edits.
 
@@ -22,6 +22,8 @@ The current API provides:
 | `log` | Write to `swofty/loader.log` |
 | `module_base` | Get the base address of `F1_25.exe` |
 | `scan` | Find a code pattern; use the result only when exactly one match is found |
+
+The [Game API](/reference/game/) lists the game functions and structs that plugins can use.
 
 ## Manifest entry
 

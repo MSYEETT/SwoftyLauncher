@@ -1,4 +1,4 @@
-# ERP operations
+# Archive (ERP) edits
 
 ERP operations describe changes to artwork and other resources in `.erp` archives. List these files in `operations.erp` in your [manifest](/modding/manifest).
 
