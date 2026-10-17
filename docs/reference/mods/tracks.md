@@ -64,8 +64,8 @@ Menus read the track's name from `TrackDataSet_<n>.TrackData_<m>.TrackNameData_0
 ## Check a package
 
 ```sh
-swofty maps import testring.zip
-swofty maps enable testring
+swofty mods import testring.zip
+swofty mods enable testring
 swofty build
 python3 tools/map_check.py <overlay folder> --game <game folder> --maps <maps folder>
 ```

@@ -49,6 +49,11 @@ pub trait Addon: Send + Sync {
         let _ = cx;
         None
     }
+
+    fn migrate(&self, data: &Path, version: u32) -> Result<Vec<String>> {
+        let _ = (data, version);
+        Ok(Vec::new())
+    }
 }
 
 pub trait Importer: Send + Sync {

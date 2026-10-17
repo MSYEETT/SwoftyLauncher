@@ -4,16 +4,15 @@ use std::sync::{Arc, LazyLock};
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
-use gpui_kit::component::notification::Notification;
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::switch::Switch;
-use gpui_kit::component::{Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::manifest::{AddonManifest, AddonOption, Binds, OptionType};
 use swofty_core::profile::{Profile, VANILLA};
 
-use crate::library::{AddonItem, MapItem, ProfileItem, kind_label, plural};
+use crate::library::{AddonItem, ProfileItem, kind_label, plural};
 use crate::shell::{Page, Prompt, Shell, SliderSlot};
 use crate::theme::Palette;
 
@@ -314,32 +313,6 @@ impl Shell {
                         .install_addon(std::path::Path::new(value))
                         .map_err(|e| e.to_string())?;
                     Ok(format!("Installed {} {}", m.name, m.version))
-                }),
-            },
-            window,
-            cx,
-        );
-    }
-
-    fn import_map(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.prompt(
-            Prompt {
-                title: "Import map",
-                description: "A track package zip, or the download that contains one.".into(),
-                initial: String::new(),
-                placeholder: "/path/to/track.zip",
-                ok: "Import",
-                browse: Some(PathPromptOptions {
-                    files: true,
-                    directories: false,
-                    multiple: false,
-                    prompt: Some("Import".into()),
-                }),
-                action: Rc::new(|store, value| {
-                    let m = store
-                        .import_map(std::path::Path::new(value))
-                        .map_err(|e| e.to_string())?;
-                    Ok(format!("Imported {}", m.display_name()))
                 }),
             },
             window,
@@ -807,212 +780,9 @@ impl Shell {
         }
     }
 
-    pub(crate) fn maps_page(&mut self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
-        let imported = plural(self.library.maps.len(), "map imported", "maps imported");
-        let subtitle = if self.vanilla() {
-            format!("{imported} · {VANILLA} plays the game without them")
-        } else {
-            format!(
-                "{imported} · {} on in {}",
-                self.library.maps.iter().filter(|m| m.enabled).count(),
-                self.library.profile.name
-            )
-        };
-        let import = |id: &'static str, cx: &mut Context<Self>| {
-            Button::new(id)
-                .outline()
-                .icon(IconName::Upload)
-                .label("Import map…")
-                .on_click(cx.listener(|this, _, window, cx| this.import_map(window, cx)))
-        };
-        let header = self.header(Page::Maps.label(), subtitle, import("import-map", cx), p);
-        if self.library.maps.is_empty() {
-            let cta = import("import-map-empty", cx);
-            return v_flex()
-                .size_full()
-                .child(header)
-                .child(self.empty(
-                    Page::Maps.icon(),
-                    "No maps yet",
-                    "Import a track package to add a circuit. It stays in your library and can be switched on per profile.",
-                    cta,
-                    p,
-                ))
-                .into_any_element();
-        }
-        let rows: Vec<AnyElement> = self
-            .library
-            .maps
-            .iter()
-            .enumerate()
-            .map(|(i, m)| {
-                let open = self.open_map.as_ref() == Some(&m.package.track_code);
-                self.map_row(m, i == 0, open, p, cx)
-            })
-            .collect();
-        v_flex()
-            .size_full()
-            .child(header)
-            .child(self.list("maps", rows, p))
-            .into_any_element()
-    }
-
-    fn map_row(
-        &self,
-        m: &MapItem,
-        first: bool,
-        open: bool,
-        p: Palette,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let pkg = &m.package;
-        let code = pkg.track_code.clone();
-        let lead = match m.art.flag.clone() {
-            Some(flag) => div()
-                .w(px(32.))
-                .h(px(32.))
-                .flex_shrink_0()
-                .rounded(px(5.))
-                .overflow_hidden()
-                .border_1()
-                .border_color(p.border_variant)
-                .child(img(flag).size_full().object_fit(ObjectFit::Cover))
-                .into_any_element(),
-            None => monogram(pkg.display_name(), 32., p).into_any_element(),
-        };
-        let line = [
-            pkg.activation.copy_slot.as_ref().map(|s| format!("Replaces {s}")),
-            pkg.author_name.as_ref().map(|a| format!("by {a}")),
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .join(" · ");
-        let toggle = {
-            let code = code.clone();
-            self.toggle(format!("map-{code}"), m.enabled, cx, move |p, on| {
-                p.set_map(&code, on)
-            })
-        };
-        let head = self
-            .row_head(format!("map-row-{code}"), open, p)
-            .child(lead)
-            .child(
-                v_flex()
-                    .flex_1()
-                    .min_w_0()
-                    .gap(px(2.))
-                    .child(
-                        h_flex()
-                            .gap(px(8.))
-                            .items_baseline()
-                            .child(
-                                div()
-                                    .text_size(px(14.))
-                                    .font_weight(FontWeight::MEDIUM)
-                                    .truncate()
-                                    .child(pkg.display_name().to_owned()),
-                            )
-                            .when_some(pkg.version.clone(), |d, v| {
-                                d.child(div().text_size(px(12.)).text_color(p.text_placeholder).child(v))
-                            }),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(13.))
-                            .text_color(p.text_muted)
-                            .truncate()
-                            .child(if line.is_empty() { code.clone() } else { line }),
-                    ),
-            )
-            .child(div().w(px(96.)).flex().justify_end().child(toggle))
-            .child(chevron(open, p))
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.open_map = (this.open_map.as_ref() != Some(&code)).then(|| code.clone());
-                cx.notify();
-            }));
-        self.row(first, open, p)
-            .child(head)
-            .when(open, |d| d.child(self.map_body(m, p, cx)))
-            .into_any_element()
-    }
-
-    fn map_body(&self, m: &MapItem, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let pkg = &m.package;
-        let a = &pkg.activation;
-        let code = pkg.track_code.clone();
-        let preview = div()
-            .w(px(384.))
-            .h(px(216.))
-            .flex_shrink_0()
-            .rounded(px(5.))
-            .overflow_hidden()
-            .border_1()
-            .border_color(p.border)
-            .map(|d| match m.art.preview.clone() {
-                Some(path) => d.child(img(path).size_full().object_fit(ObjectFit::Cover)),
-                None => d
-                    .bg(p.elevated)
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .child(monogram(pkg.display_name(), 56., p)),
-            });
-        h_flex()
-            .items_start()
-            .gap(px(24.))
-            .pl(px(58.))
-            .pr(px(20.))
-            .pt(px(14.))
-            .pb(px(18.))
-            .border_t_1()
-            .border_color(p.border_variant)
-            .child(preview)
-            .child(
-                v_flex()
-                    .flex_1()
-                    .min_w_0()
-                    .max_w(px(560.))
-                    .child({
-                        let (status, color) = self.state_line(m.enabled, "maps", p);
-                        fact("Status", div().text_color(color).child(status), p)
-                    })
-                    .child(fact("Track code", pkg.track_code.clone(), p))
-                    .when_some(a.copy_from_track.clone(), |d, t| d.child(fact("Based on", t, p)))
-                    .when_some(a.copy_slot.clone(), |d, t| d.child(fact("Replaces slot", t, p)))
-                    .child(fact(
-                        "Database",
-                        plural(
-                            a.overrides.len() + a.track_overrides.len(),
-                            "value changed",
-                            "values changed",
-                        ),
-                        p,
-                    ))
-                    .child(fact("Archive", pkg.erp.clone(), p))
-                    .when_some(pkg.author_name.clone(), |d, a| d.child(fact("Author", a, p)))
-                    .child(
-                        h_flex().pt(px(14.)).child(
-                            Button::new("remove-map")
-                                .danger()
-                                .ghost()
-                                .small()
-                                .icon(IconName::Trash)
-                                .label("Remove from library")
-                                .on_click(cx.listener(move |this, _, window, cx| {
-                                    if let Err(e) = this.store.remove_map(&code) {
-                                        window.push_notification(Notification::error(e.to_string()), cx);
-                                    }
-                                    this.reload(cx);
-                                })),
-                        ),
-                    ),
-            )
-    }
-
     pub(crate) fn profiles_page(&mut self, p: Palette, wide: bool, cx: &mut Context<Self>) -> AnyElement {
         let subtitle =
-            "Each profile is its own set of addons and maps. Play starts F1 25 with the active one.".into();
+            "Each profile is its own set of addons and mods. Play starts F1 25 with the active one.".into();
         let actions = Button::new("new-profile")
             .outline()
             .icon(IconName::Plus)
@@ -1094,7 +864,7 @@ impl Shell {
         self.prompt(
             Prompt {
                 title,
-                description: "Letters, digits, - and _. Each profile keeps its own addons, maps and saves."
+                description: "Letters, digits, - and _. Each profile keeps its own addons, mods and saves."
                     .into(),
                 initial,
                 placeholder: "my-profile",
@@ -1131,7 +901,7 @@ impl Shell {
                     div()
                         .text_size(px(13.))
                         .line_height(px(19.))
-                        .child("No addons, no maps"),
+                        .child("No addons, no mods"),
                 )
                 .child(
                     div()
@@ -1143,7 +913,6 @@ impl Shell {
             v_flex()
                 .gap(px(12.))
                 .child(names("ADDONS", &item.addons, p))
-                .child(names("MAPS", &item.maps, p))
                 .children(
                     item.summaries
                         .iter()

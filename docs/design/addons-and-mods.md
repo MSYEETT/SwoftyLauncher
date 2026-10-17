@@ -8,7 +8,7 @@ This page is for contributors. It is the design for splitting today's mods into 
 |---|---|
 | Addon | A package with a `swofty.json` manifest: native plugins, declared content, settings and in-game screens. Everything the product calls a mod today is an addon. The built-in addons are SwoftyMod (`swofty.core`) and Team Simplified (`teamsimplified.mods`). |
 | Mod | A content package with no code: liveries, cars, text, shaders, database rows. An addon imports, stores and loads mods. Team Simplified handles `.serps` mods. |
-| Map | A community track package. Core handles maps as today. [Section 5](#_5-tracks-as-mods-later) turns them into mods. |
+| Map | A community track package. Tracks are mods in Team Simplified's library ([section 5](#_5-tracks-are-mods)). |
 | Asset op | One change to game content: an asset group, an archive resource, a database record, a language string or a loose file. |
 | Delivery | How an asset op reaches the game. A build delivery rewrites a game file and installs it through the journal. A runtime delivery has swofty_core apply the op in memory while the game boots. |
 
@@ -667,12 +667,15 @@ The sidebar entry `Mods` comes after `Addons`, with the library size as its coun
 - **Profile cards.** `summary` adds `MODS` with the enabled mods' names.
 - **CLI.** `swofty mods list`, `import <path>…`, `remove <id>`, `enable <id>`, `disable <id>`, `move <id> <position>`.
 
-## 5. Tracks as mods later
+## 5. Tracks are mods
 
-- A built-in tracks addon (`swofty.tracks`) takes over maps. `$DATA/maps/` becomes its library, `Profile.maps` its profile state, the Maps page its section and `Store::import_map` its importer. The migration moves both.
-- Its build hook emits asset ops instead of writing files: activation rows as `db.*` ops, the processed package archive at its natural path (`2025_asset_groups/environment_package/tracks/<code>/<code>.erp`) as `file.put`, its asset groups as `group.register` ops, and menu art and ERS as `erp.*` ops. This is the slotless route of the research notes (`research/track-activation.md`, sections 5.7 to 5.9). Core's `activation/` already takes it when the in-game core has `group`, with no limit on maps; the slots stay as the fallback.
-- The `maps` list of `swofty/settings.json` becomes an addon-provided list of in-game pages.
-- Core's Maps page, `activation/` wiring in `build.rs` and `Profile.maps` are then removed.
+Tracks are `.serps` mods in the Team Simplified library. There is no tracks addon and no Maps page. This is built.
+
+- **Raw track zips.** A zip that holds a track package (`manifest.json` with `track_code`), or a download that holds one such zip, is claimed by Team Simplified. Import stores it as `library/<code>/` with `package.json` (`track` set to the code), a `mod.serps` written from the manifest, and the package under `track/`. The mod id is the track code.
+- **Track SERPs.** A package built by the Simplified Track Installer (the track archive in an invitational slot, mipmaps under `environment_package/tracks/<code>/mipmaps/`, the `track_info` shader archives and optionally a whole game database) imports, diffs and merges like any other `.serps` mod ([sections 4.3 to 4.6](#_4-3-import)), with the slot as shipped.
+- **Build.** For each enabled raw track, in profile order, the build hook emits `track.add` with `source` `{ "root": "data", "path": "library/<code>/track" }`. Core processes `track.add` ops with `activation/` before other database ops: the database rows, the archive, the menus and ERS. With `group` in the loader's `features.json`, the archive goes to its natural path `2025_asset_groups/environment_package/tracks/<code>/<code>.erp` with `group.register` ops and the natural resource-row values, and there is no limit on tracks. Otherwise the tracks take the invitational slots, at most eight.
+- **Migration.** `Addon::migrate` runs from `Store::migrate` (`data_version` 3). Team Simplified moves each `$DATA/maps/<code>/` into the library and each profile's `maps` list into its state, enabled, after the mods already listed. `Profile` still reads `maps` and no longer writes it.
+- **Removed from core.** The Maps page and sidebar entry, `Profile.maps`, `Store::maps`, `import_map`, `remove_map`, the core track importer and the `swofty maps` commands. `swofty maps` is a hidden alias of `swofty mods`.
 
 ## 6. Work items
 
@@ -701,4 +704,4 @@ Each item is one PR, in this order.
 | 19 | Runtime file overlay | `overlay.cpp` file system overlay ported; `file` runtime delivery; experimental until it runs in game | 6, 7 |
 | 20 | Native assets API | API version 4 `assets` table, `swofty/assets.hpp`, the `assets` capability and `"early": true` | 7 (groups), 16 to 19 (other calls) |
 | 21 | Docs | Player docs for the Mods section; modding docs for asset ops, the native assets API and the Launcher API | 15, 20 |
-| 22 | Tracks addon (later) | [Section 5](#_5-tracks-as-mods-later) | 8, 7 |
+| 22 | Tracks as mods | [Section 5](#_5-tracks-are-mods) | 8, 7, 15 |

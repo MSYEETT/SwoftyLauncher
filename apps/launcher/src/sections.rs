@@ -847,14 +847,6 @@ fn import_all(
                     }
                 }
             }
-            Route::Map => {
-                for path in paths {
-                    match store.import_map(&path) {
-                        Ok(m) => done.push(format!("Imported {}", m.display_name())),
-                        Err(e) => failed.push(format!("{}: {e}", file_name(&path))),
-                    }
-                }
-            }
             Route::Importer(id) => {
                 let Some(importer) = registry.get(&id).and_then(|e| e.addon.importer()) else {
                     continue;

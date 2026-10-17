@@ -38,6 +38,7 @@ pub enum AssetOp {
     Db(DbOp),
     Lang(LangOp),
     File(FileOp),
+    Track(TrackOp),
     Warn { message: String },
 }
 
@@ -77,6 +78,12 @@ pub enum FileOp {
     Put { source: Source, target: String },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "op", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum TrackOp {
+    Add { source: Source },
+}
+
 impl AssetOp {
     pub fn kind(&self) -> Option<Kind> {
         match self {
@@ -85,7 +92,7 @@ impl AssetOp {
             AssetOp::Db(_) => Some(Kind::Db),
             AssetOp::Lang(_) => Some(Kind::Lang),
             AssetOp::File(_) => Some(Kind::File),
-            AssetOp::Warn { .. } => None,
+            AssetOp::Track(_) | AssetOp::Warn { .. } => None,
         }
     }
 
@@ -97,7 +104,8 @@ impl AssetOp {
                 | ErpOp::AddMipmaps { source, .. },
             )
             | AssetOp::Lang(LangOp::Table { source, .. })
-            | AssetOp::File(FileOp::Put { source, .. }) => vec![source],
+            | AssetOp::File(FileOp::Put { source, .. })
+            | AssetOp::Track(TrackOp::Add { source }) => vec![source],
             AssetOp::Erp(ErpOp::AddResource { sources, .. }) => sources.iter().collect(),
             AssetOp::Erp(ErpOp::CopyResource { source, .. }) => source.iter().collect(),
             _ => Vec::new(),
@@ -127,6 +135,7 @@ impl<'de> Deserialize<'de> for AssetOp {
             "db" => DbOp::deserialize(op).map(AssetOp::Db),
             "lang" => LangOp::deserialize(op).map(AssetOp::Lang),
             "file" => FileOp::deserialize(op).map(AssetOp::File),
+            "track" => TrackOp::deserialize(op).map(AssetOp::Track),
             "" => Plain::deserialize(op).map(|Plain::Warn { message }| AssetOp::Warn { message }),
             _ => return Err(D::Error::custom(format!("unknown op {name}"))),
         }
@@ -142,6 +151,7 @@ impl Serialize for AssetOp {
             AssetOp::Db(op) => ("db", serde_json::to_value(op)),
             AssetOp::Lang(op) => ("lang", serde_json::to_value(op)),
             AssetOp::File(op) => ("file", serde_json::to_value(op)),
+            AssetOp::Track(op) => ("track", serde_json::to_value(op)),
             AssetOp::Warn { message } => {
                 return Plain::Warn {
                     message: message.clone(),

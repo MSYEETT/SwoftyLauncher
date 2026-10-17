@@ -92,13 +92,7 @@ The built-in Team Simplified addon provides these commands. They work on its mod
 
 ## `swofty maps`
 
-| Command | Purpose |
-|---|---|
-| `swofty maps list` | List imported tracks |
-| `swofty maps import <zip>` | Import a community track package |
-| `swofty maps remove <code>` | Remove an imported track |
-| `swofty maps enable <code>` | Enable an imported track in the profile |
-| `swofty maps disable <code>` | Disable a track in the profile |
+`swofty maps` is a hidden alias of `swofty mods`. Tracks are mods: `swofty mods import <zip>` imports a community track package, and its mod id is the track code.
 
 ## `swofty doctor`
 

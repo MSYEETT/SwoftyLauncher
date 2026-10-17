@@ -130,10 +130,26 @@ pub struct SessionState {
 }
 
 impl SessionSettings {
+    pub fn set_maps<'a>(&mut self, packages: impl Iterator<Item = &'a TrackPackage>) {
+        self.maps = packages
+            .map(|p| SessionMap {
+                code: p.track_code.clone(),
+                name: p.track_name.clone().unwrap_or_else(|| p.track_code.clone()),
+                version: p.version.clone().unwrap_or_default(),
+                author: p.author_name.clone().unwrap_or_default(),
+                description: p
+                    .extra
+                    .get("description")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned(),
+            })
+            .collect();
+    }
+
     pub fn build(
         profile: &Profile,
         installed: &BTreeMap<String, AddonManifest>,
-        packages: &[TrackPackage],
         requests: Option<String>,
     ) -> Result<Self> {
         if profile.is_vanilla() {
@@ -212,30 +228,13 @@ impl SessionSettings {
                     .collect(),
             })
             .collect();
-        let maps = profile
-            .maps
-            .iter()
-            .filter_map(|code| packages.iter().find(|p| &p.track_code == code))
-            .map(|p| SessionMap {
-                code: p.track_code.clone(),
-                name: p.track_name.clone().unwrap_or_else(|| p.track_code.clone()),
-                version: p.version.clone().unwrap_or_default(),
-                author: p.author_name.clone().unwrap_or_default(),
-                description: p
-                    .extra
-                    .get("description")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_owned(),
-            })
-            .collect();
         let out = Self {
             schema: SCHEMA,
             profile: profile.name.clone(),
             requests,
             restart_command: RESTART_COMMAND.into(),
             addons,
-            maps,
+            maps: Vec::new(),
             ui,
             owned_items: Vec::new(),
         };
@@ -486,9 +485,8 @@ mod tests {
     }
 
     #[test]
-    fn session_file_lists_enabled_maps_in_profile_order() {
-        let mut p = Profile::new("x");
-        p.maps = vec!["okayama".into(), "bahrain24".into()];
+    fn session_file_lists_built_maps_in_order() {
+        let p = Profile::new("x");
         let pkg = |code: &str, name: &str| {
             TrackPackage::parse(
                 format!(
@@ -498,12 +496,9 @@ mod tests {
             )
             .unwrap()
         };
-        let packages = [
-            pkg("bahrain24", "Sepang"),
-            pkg("okayama", "Okayama"),
-            pkg("spare", "Spare"),
-        ];
-        let s = SessionSettings::build(&p, &installed(), &packages, None).unwrap();
+        let packages = [pkg("okayama", "Okayama"), pkg("bahrain24", "Sepang")];
+        let mut s = SessionSettings::build(&p, &installed(), None).unwrap();
+        s.set_maps(packages.iter());
         let codes: Vec<&str> = s.maps.iter().map(|m| m.code.as_str()).collect();
         assert_eq!(codes, ["okayama", "bahrain24"]);
         assert_eq!(s.maps[1].name, "Sepang");
@@ -518,7 +513,7 @@ mod tests {
         let mut p = Profile::new("x");
         let m = manifest();
         p.set_option(&m, "livery", serde_json::json!("replica")).unwrap();
-        let s = SessionSettings::build(&p, &installed(), &[], Some("Z:\\r.json".into())).unwrap();
+        let s = SessionSettings::build(&p, &installed(), Some("Z:\\r.json".into())).unwrap();
         assert_eq!(s.addons[0].id, crate::builtin::CORE_ID);
         assert!(s.addons[0].locked && s.addons[0].enabled);
         let grid = &s.addons[1];
@@ -536,7 +531,7 @@ mod tests {
         let addons = json.as_object_mut().unwrap().remove("addons").unwrap();
         json["mods"] = addons;
         assert_eq!(serde_json::from_value::<SessionSettings>(json).unwrap(), s);
-        assert!(SessionSettings::build(&Profile::vanilla(), &installed(), &[], None).is_err());
+        assert!(SessionSettings::build(&Profile::vanilla(), &installed(), None).is_err());
     }
 
     fn screens_manifest(id: &str, screens: &str) -> AddonManifest {
@@ -563,11 +558,11 @@ mod tests {
             screens_manifest("b.off", r#"{ "name": "off_page", "file": "ui/off.ui" }"#),
         );
         let mut p = Profile::new("x");
-        let none = SessionSettings::build(&p, &addons, &[], None).unwrap();
+        let none = SessionSettings::build(&p, &addons, None).unwrap();
         assert_eq!(none.ui, None);
         assert!(serde_json::to_value(&none).unwrap().get("ui").is_none());
         p.set_enabled("a.pages", true).unwrap();
-        let s = SessionSettings::build(&p, &addons, &[], None).unwrap();
+        let s = SessionSettings::build(&p, &addons, None).unwrap();
         let ui = s.ui.as_ref().unwrap();
         assert!(ui.register && !ui.strict && ui.recover);
         let names: Vec<&str> = ui.screens.iter().map(|s| s.name.as_str()).collect();
@@ -585,7 +580,7 @@ mod tests {
             screens_manifest("c.clash", r#"{ "name": "swofty_addon_0", "file": "ui/x.ui" }"#),
         );
         p.set_enabled("c.clash", true).unwrap();
-        assert!(SessionSettings::build(&p, &addons, &[], None).is_err());
+        assert!(SessionSettings::build(&p, &addons, None).is_err());
     }
 
     #[test]

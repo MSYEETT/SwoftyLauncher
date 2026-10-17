@@ -1,32 +1,34 @@
 # Importing maps
 
-Import a community track package as a zip. You do not need to unpack or rebuild it.
+Tracks are mods. Import a community track package as a zip on the Team Simplified `Mods` page, by dropping it on the launcher window, or with `swofty mods import`. You do not need to unpack or rebuild it.
 
 ## Import a track
 
 ```sh
-swofty maps import Okayama_v0.17.zip
-swofty maps list
+swofty mods import Okayama_v0.17.zip
+swofty mods list
 ```
 
-The package is stored in `$DATA/maps/<track_code>/`.
+The package is stored in `$DATA/addon-data/teamsimplified.mods/library/<track_code>/`, with the track package under `track/`. Its mod id is the track code. Import turns the track on in the active profile.
 
 ## Enable a track
 
 ```sh
-swofty maps enable okayama
+swofty mods enable okayama
 swofty apply
 ```
 
-`swofty apply` installs every map enabled in the [profile](/using/profiles). The track then appears in Grand Prix track selection. `swofty maps disable okayama` followed by `swofty apply`, or `swofty restore`, removes it.
+`swofty apply` installs every track enabled in the [profile](/using/profiles). The track then appears in Grand Prix track selection. `swofty mods disable okayama` followed by `swofty apply`, or `swofty restore`, removes it.
 
-Any number of maps can be enabled in one profile. With an in-game core that cannot register asset groups, the limit is eight.
+Any number of tracks can be enabled in one profile. With an in-game core that cannot register asset groups, the limit is eight.
 
-To remove an imported map:
+To remove an imported track:
 
 ```sh
-swofty maps remove okayama
+swofty mods remove okayama
 ```
+
+`swofty maps` is a hidden alias of `swofty mods`. Packages in `$DATA/maps/` and the `maps` list of each profile move into the library and the profile's mod list on first start.
 
 ## Supported packages
 

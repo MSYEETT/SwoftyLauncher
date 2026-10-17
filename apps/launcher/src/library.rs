@@ -1,6 +1,5 @@
 use swofty_core::launcher::Summary;
 use swofty_core::manifest::{AddonManifest, Kind};
-use swofty_core::map::{MapArt, TrackPackage};
 use swofty_core::profile::{Profile, VANILLA};
 use swofty_core::registry::{Host, Registry};
 use swofty_core::store::Store;
@@ -17,16 +16,9 @@ pub struct SectionItem {
     pub spec: SectionSpec,
 }
 
-pub struct MapItem {
-    pub package: TrackPackage,
-    pub art: MapArt,
-    pub enabled: bool,
-}
-
 pub struct ProfileItem {
     pub name: String,
     pub addons: Vec<String>,
-    pub maps: Vec<String>,
     pub summaries: Vec<Summary>,
 }
 
@@ -39,11 +31,7 @@ impl ProfileItem {
         if self.vanilla() {
             return "No addons".into();
         }
-        format!(
-            "{} · {}",
-            plural(self.addons.len(), "addon", "addons"),
-            plural(self.maps.len(), "map", "maps")
-        )
+        plural(self.addons.len(), "addon", "addons")
     }
 }
 
@@ -51,7 +39,6 @@ pub struct Library {
     pub profile: Profile,
     pub rebuild: Vec<String>,
     pub addons: Vec<AddonItem>,
-    pub maps: Vec<MapItem>,
     pub profiles: Vec<ProfileItem>,
     pub sections: Vec<SectionItem>,
     pub registry: Registry,
@@ -84,10 +71,6 @@ impl Library {
             })
             .collect();
         addons.sort_by_key(|m| (!m.manifest.is_builtin(), m.manifest.name.to_lowercase()));
-        let packages = store.maps().unwrap_or_else(|e| {
-            note(e);
-            Vec::new()
-        });
         let profiles = store
             .profile_names()
             .unwrap_or_default()
@@ -100,27 +83,9 @@ impl Library {
                         .filter_map(|id| manifests.get(id))
                         .map(|m| m.name.clone())
                         .collect(),
-                    maps: p
-                        .maps
-                        .iter()
-                        .map(|code| {
-                            packages
-                                .iter()
-                                .find(|m| &m.track_code == code)
-                                .map_or(code.clone(), |m| m.display_name().to_owned())
-                        })
-                        .collect(),
                     summaries: summaries(store, &registry, &p),
                     name,
                 }
-            })
-            .collect();
-        let maps = packages
-            .into_iter()
-            .map(|package| MapItem {
-                art: store.map_art(&package),
-                enabled: profile.maps.contains(&package.track_code),
-                package,
             })
             .collect();
         let sections = registry
@@ -137,7 +102,6 @@ impl Library {
             rebuild: profile.rebuild_pending(&manifests),
             profile,
             addons,
-            maps,
             profiles,
             sections,
             registry,

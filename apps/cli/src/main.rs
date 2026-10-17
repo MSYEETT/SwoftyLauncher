@@ -69,8 +69,6 @@ enum Command {
         about = "List, install, enable and disable addons"
     )]
     Addons(AddonsCommand),
-    #[command(subcommand, about = "List, import and remove maps (EGO track packages)")]
-    Maps(MapsCommand),
     #[command(
         subcommand,
         about = "Offline play: consent and the launch extension that runs sessions without EA AntiCheat"
@@ -115,25 +113,6 @@ enum SettingsCommand {
     },
     #[command(about = "Merge the changes made in game into the profile")]
     Merge,
-}
-
-#[derive(Subcommand)]
-enum MapsCommand {
-    List,
-    Import {
-        zip: PathBuf,
-    },
-    Remove {
-        code: String,
-    },
-    #[command(about = "Enable an imported map in the profile; swofty apply installs it")]
-    Enable {
-        code: String,
-    },
-    #[command(about = "Disable a map in the profile")]
-    Disable {
-        code: String,
-    },
 }
 
 fn main() -> ExitCode {
@@ -233,16 +212,26 @@ fn command_input(m: &ArgMatches, spec: &CommandSpec, path: &mut Vec<String>, arg
     }
 }
 
-fn forward_mods(store: &Store, args: &[OsString]) -> Option<(Vec<OsString>, String)> {
+fn command_at(args: &[OsString]) -> Option<usize> {
     let mut skip = false;
-    let at = args.iter().enumerate().skip(1).find_map(|(i, a)| {
+    args.iter().enumerate().skip(1).find_map(|(i, a)| {
         if std::mem::take(&mut skip) {
             return None;
         }
         let a = a.to_str()?;
         skip = a == "--data-dir" || a == "--profile";
         (!a.starts_with('-')).then_some(i)
-    })?;
+    })
+}
+
+fn forward_maps(args: &mut [OsString]) {
+    if let Some(at) = command_at(args).filter(|&at| args[at] == "maps") {
+        args[at] = "mods".into();
+    }
+}
+
+fn forward_mods(store: &Store, args: &[OsString]) -> Option<(Vec<OsString>, String)> {
+    let at = command_at(args)?;
     if args[at] != "mods" {
         return None;
     }
@@ -266,6 +255,9 @@ fn forward_mods(store: &Store, args: &[OsString]) -> Option<(Vec<OsString>, Stri
 
 fn run_cli(store: &Store, mut args: Vec<OsString>) -> Result<ExitCode> {
     let addons = AddonCommands::load(store);
+    if addons.provides("mods") {
+        forward_maps(&mut args);
+    }
     if addons.provides("mods")
         && let Some((forwarded, note)) = forward_mods(store, &args)
     {
@@ -305,7 +297,6 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Verify { game } => build::verify(&store, game),
         Command::Restore { game } => build::restore(&store, game),
         Command::Addons(cmd) => addons(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
-        Command::Maps(cmd) => maps(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Offline(cmd) => offline::command(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Settings(cmd) => settings(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Logs { dir, exe } => run::logs(&store, dir, exe),
@@ -449,63 +440,6 @@ pub(crate) fn report_merge(m: &swofty_core::settings::Merge) {
     if m.changed.is_empty() && m.skipped.is_empty() {
         println!("in game: no changes");
     }
-}
-
-fn set_map(store: &Store, profile: &str, code: &str, on: bool) -> Result<()> {
-    let mut p = store.profile(profile)?;
-    p.set_map(code, on)?;
-    store.save_profile(&p)?;
-    println!(
-        "{} map {code} in profile {profile}",
-        if on { "enabled" } else { "disabled" }
-    );
-    Ok(())
-}
-
-fn maps(store: &Store, profile: &str, cmd: MapsCommand) -> Result<()> {
-    match cmd {
-        MapsCommand::List => {
-            let p = store.profile(profile)?;
-            for m in store.maps()? {
-                let v = m.version.as_deref().unwrap_or("-");
-                let by = m.author_name.as_deref().unwrap_or("-");
-                let state = if p.maps.contains(&m.track_code) {
-                    "enabled"
-                } else {
-                    "disabled"
-                };
-                println!(
-                    "{:16} {:10} {:28} {state:9} by {by}",
-                    m.track_code,
-                    v,
-                    m.display_name()
-                );
-            }
-        }
-        MapsCommand::Enable { code } | MapsCommand::Disable { code }
-            if !store.maps()?.iter().any(|m| m.track_code == code) =>
-        {
-            bail!("{code} is not imported; run swofty maps import first")
-        }
-        MapsCommand::Enable { code } => set_map(store, profile, &code, true)?,
-        MapsCommand::Disable { code } => set_map(store, profile, &code, false)?,
-        MapsCommand::Import { zip } => {
-            let m = store
-                .import_map(&zip)
-                .with_context(|| format!("importing {}", zip.display()))?;
-            println!(
-                "imported {} ({}) into {}",
-                m.display_name(),
-                m.track_code,
-                store.maps_dir().display()
-            );
-        }
-        MapsCommand::Remove { code } => {
-            store.remove_map(&code)?;
-            println!("removed {code}");
-        }
-    }
-    Ok(())
 }
 
 #[cfg(test)]

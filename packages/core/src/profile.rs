@@ -24,8 +24,8 @@ pub struct Profile {
     pub name: String,
     #[serde(default, alias = "mods")]
     pub addons: Vec<ProfileAddon>,
-    #[serde(default)]
-    pub maps: Vec<String>,
+    #[serde(default, rename = "maps", skip_serializing)]
+    pub legacy_maps: Vec<String>,
     #[serde(default)]
     pub options: BTreeMap<String, BTreeMap<String, serde_json::Value>>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -52,7 +52,7 @@ impl Profile {
             schema_version: SCHEMA_VERSION,
             name: name.into(),
             addons: Vec::new(),
-            maps: Vec::new(),
+            legacy_maps: Vec::new(),
             options: BTreeMap::new(),
             applied: BTreeMap::new(),
             state: BTreeMap::new(),
@@ -66,7 +66,7 @@ impl Profile {
             schema_version: SCHEMA_VERSION,
             name: VANILLA.into(),
             addons: Vec::new(),
-            maps: Vec::new(),
+            legacy_maps: Vec::new(),
             options: BTreeMap::new(),
             applied: BTreeMap::new(),
             state: BTreeMap::new(),
@@ -209,19 +209,6 @@ impl Profile {
         self.state.insert(addon.into(), value);
         Ok(())
     }
-
-    pub fn set_map(&mut self, code: &str, on: bool) -> crate::Result<()> {
-        if self.is_vanilla() {
-            return Err(crate::Error::Other(format!(
-                "{VANILLA} is built in and cannot be changed"
-            )));
-        }
-        self.maps.retain(|m| m != code);
-        if on {
-            self.maps.push(code.into());
-        }
-        Ok(())
-    }
 }
 
 fn stored(
@@ -247,11 +234,6 @@ mod tests {
         assert!(p.set_enabled(CORE_ID, false).is_err());
         p.set_enabled("a.b", false).unwrap();
         assert_eq!(p.enabled().collect::<Vec<_>>(), ["swofty.core"]);
-        p.set_map("okayama", true).unwrap();
-        p.set_map("okayama", true).unwrap();
-        assert_eq!(p.maps, ["okayama"]);
-        p.set_map("okayama", false).unwrap();
-        assert!(p.maps.is_empty());
     }
 
     #[test]

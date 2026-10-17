@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use swofty_addon::launcher::Claim;
 
 use crate::manifest::MANIFEST_FILE;
-use crate::map;
 use crate::registry::Registry;
 
 pub const ADDON_EXTENSION: &str = "swoftymod";
@@ -12,12 +11,11 @@ pub const ADDON_EXTENSION: &str = "swoftymod";
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Route {
     Addon,
-    Map,
     Importer(String),
 }
 
 pub fn route(registry: &Registry, path: &Path) -> Option<Route> {
-    let mut claims = vec![(Route::Addon, addon_claim(path)), (Route::Map, map_claim(path))];
+    let mut claims = vec![(Route::Addon, addon_claim(path))];
     claims.extend(registry.iter().filter_map(|e| {
         let claim = e.addon.importer()?.claims(path);
         Some((Route::Importer(e.id().to_owned()), claim))
@@ -55,20 +53,6 @@ pub fn addon_claim(path: &Path) -> Claim {
         return Claim::Yes;
     }
     claim(has_extension(path, "zip") && zip_names(path).is_some_and(|n| holds_addon(&n)))
-}
-
-pub fn map_claim(path: &Path) -> Claim {
-    if !has_extension(path, "zip") {
-        return Claim::No;
-    }
-    let Some(names) = zip_names(path) else {
-        return Claim::No;
-    };
-    let nested = names
-        .iter()
-        .filter(|n| n.to_ascii_lowercase().ends_with(".zip"))
-        .count();
-    claim(names.iter().any(|n| n == map::MANIFEST_FILE) || (nested == 1 && !holds_addon(&names)))
 }
 
 pub fn addon_root(dir: &Path) -> Option<PathBuf> {
@@ -185,7 +169,6 @@ mod tests {
             &["my-addon/swofty.json", "my-addon/plugin.dll"],
         );
         write_zip(&root.join("track.zip"), OKAYAMA_LIKE, true);
-        zip_of(&root.join("download.zip"), &["readme.txt", "track.zip"]);
         zip_of(&root.join("other.zip"), &["readme.txt"]);
         std::fs::write(root.join("livery.serps"), "x").unwrap();
         std::fs::write(root.join("notes.txt"), "x").unwrap();
@@ -195,8 +178,7 @@ mod tests {
         assert_eq!(at("my-addon"), Some(Route::Addon));
         assert_eq!(at("pack.swoftymod"), Some(Route::Addon));
         assert_eq!(at("wrapped.zip"), Some(Route::Addon));
-        assert_eq!(at("track.zip"), Some(Route::Map));
-        assert_eq!(at("download.zip"), Some(Route::Map));
+        assert_eq!(at("track.zip"), Some(Route::Importer("t.mods".into())));
         assert_eq!(at("livery.serps"), Some(Route::Importer("t.mods".into())));
         assert_eq!(at("other.zip"), Some(Route::Importer("t.mods".into())));
         assert_eq!(at("loose"), None);

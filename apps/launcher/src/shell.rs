@@ -25,7 +25,6 @@ use crate::theme::{Palette, palette};
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Page {
     Addons,
-    Maps,
     Profiles,
     Section(usize),
 }
@@ -34,7 +33,6 @@ impl Page {
     pub fn label(self) -> &'static str {
         match self {
             Self::Addons => "Addons",
-            Self::Maps => "Maps",
             Self::Profiles => "Profiles",
             Self::Section(_) => "",
         }
@@ -43,7 +41,6 @@ impl Page {
     pub fn icon(self) -> IconName {
         match self {
             Self::Addons => IconName::Puzzle,
-            Self::Maps => IconName::Map,
             Self::Profiles => IconName::Layers,
             Self::Section(_) => IconName::Package,
         }
@@ -64,7 +61,6 @@ pub struct Shell {
     pub(crate) page: Page,
     pub(crate) library: Library,
     pub(crate) open_addon: Option<String>,
-    pub(crate) open_map: Option<String>,
     pub(crate) install: Option<Install>,
     pub(crate) detected: bool,
     pub(crate) rediscover: bool,
@@ -235,7 +231,6 @@ impl Shell {
             store,
             page: Page::Addons,
             open_addon: None,
-            open_map: None,
             install: None,
             detected: false,
             rediscover: true,
@@ -686,7 +681,6 @@ impl Shell {
             .child(self.core_nav(Page::Addons, self.library.addons.len(), p, cx))
             .child(div().mx(px(8.)).my(px(6.)).h(px(1.)).bg(p.border_variant))
             .children(sections)
-            .child(self.core_nav(Page::Maps, self.library.maps.len(), p, cx))
             .child(div().flex_1())
             .child(self.active_profile_card(p, cx))
             .child(
@@ -721,7 +715,6 @@ impl Render for Shell {
         self.sync_sliders(window, cx);
         let content = match self.page {
             Page::Addons => self.addons_page(p, cx),
-            Page::Maps => self.maps_page(p, cx),
             Page::Profiles => self.profiles_page(p, wide, cx),
             Page::Section(i) => self.section_page(i, p, cx),
         };

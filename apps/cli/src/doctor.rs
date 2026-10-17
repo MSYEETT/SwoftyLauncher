@@ -14,10 +14,6 @@ pub fn doctor(store: &Store) -> Result<ExitCode> {
             store.addons().map(|m| m.len()).unwrap_or(0)
         ),
     );
-    row(
-        "maps",
-        format!("{} imported", store.maps().map(|m| m.len()).unwrap_or(0)),
-    );
     let roots = steam::steam_roots();
     if roots.is_empty() {
         row("steam", "not found".into());

@@ -7,14 +7,14 @@ use swofty_addon::launcher::Builtin;
 use crate::builtin::{CORE_ID, core_manifest};
 use crate::helper::Helpers;
 use crate::manifest::{AddonManifest, MANIFEST_FILE};
-use crate::map::{self, TrackPackage};
+use crate::map;
 use crate::profile::{self, Profile};
 use crate::session::Config;
 use crate::settings::{self, Merge, Requests, SessionSettings};
 use crate::{Error, Result, io_err};
 
 pub const DEFAULT_PROFILE: &str = "default";
-pub const DATA_VERSION: u32 = 2;
+pub const DATA_VERSION: u32 = 3;
 const LEGACY_ADDONS_DIR: &str = "mods";
 
 #[derive(Debug, Clone)]
@@ -64,10 +64,6 @@ impl Store {
 
     pub fn addon_cache_dir(&self, id: &str) -> PathBuf {
         self.root.join("cache/addons").join(id)
-    }
-
-    pub fn maps_dir(&self) -> PathBuf {
-        self.root.join("maps")
     }
 
     pub fn profiles_dir(&self) -> PathBuf {
@@ -149,6 +145,14 @@ impl Store {
                 notes.push(format!("removed the empty {}", old.display()));
             }
         }
+        let from = config.as_ref().map_or(0, |c| c.data_version);
+        for b in self.builtins.iter() {
+            let id = &b.addon.manifest().id;
+            match b.addon.migrate(&self.root, from) {
+                Ok(n) => notes.extend(n.into_iter().map(|n| format!("{id}: {n}"))),
+                Err(e) => return Err(Error::Other(format!("migrating {id}: {e}"))),
+            }
+        }
         match config {
             Ok(mut config) => {
                 config.data_version = DATA_VERSION;
@@ -224,55 +228,6 @@ impl Store {
         let root = crate::import::addon_root(scratch)
             .ok_or_else(|| Error::Other(format!("{} has no {MANIFEST_FILE}", zip.display())))?;
         self.install_addon(&root)
-    }
-
-    pub fn maps(&self) -> Result<Vec<TrackPackage>> {
-        let mut out = Vec::new();
-        for dir in subdirs(&self.maps_dir())? {
-            let path = dir.join(map::MANIFEST_FILE);
-            if path.is_file() {
-                out.push(TrackPackage::parse(
-                    &std::fs::read(&path).map_err(io_err(&path))?,
-                )?);
-            }
-        }
-        Ok(out)
-    }
-
-    pub fn import_map(&self, zip: &Path) -> Result<TrackPackage> {
-        let scratch = self.maps_dir().join(".nested");
-        let result = map::unwrap_nested(zip, &scratch)
-            .and_then(|inner| self.import_package(inner.as_deref().unwrap_or(zip)));
-        std::fs::remove_dir_all(&scratch).ok();
-        result
-    }
-
-    fn import_package(&self, zip: &Path) -> Result<TrackPackage> {
-        let pkg = map::read_zip_manifest(zip)?;
-        let dest = self.maps_dir().join(&pkg.track_code);
-        let tmp = self.maps_dir().join(format!(".{}.importing", pkg.track_code));
-        if tmp.exists() {
-            std::fs::remove_dir_all(&tmp).map_err(io_err(&tmp))?;
-        }
-        map::extract_zip(zip, &tmp)?;
-        if dest.exists() {
-            std::fs::remove_dir_all(&dest).map_err(io_err(&dest))?;
-        }
-        std::fs::rename(&tmp, &dest).map_err(io_err(&dest))?;
-        map::art(&dest, &pkg);
-        Ok(pkg)
-    }
-
-    pub fn map_art(&self, pkg: &TrackPackage) -> map::MapArt {
-        map::art(&self.maps_dir().join(&pkg.track_code), pkg)
-    }
-
-    pub fn remove_map(&self, code: &str) -> Result<()> {
-        let dir = self.maps_dir().join(code);
-        if !dir.join(map::MANIFEST_FILE).is_file() {
-            return Err(Error::Other(format!("no map {code}")));
-        }
-        std::fs::remove_dir_all(&dir).map_err(io_err(&dir))
     }
 
     pub fn profile(&self, name: &str) -> Result<Profile> {
@@ -388,12 +343,7 @@ impl Store {
 
     pub fn session_settings(&self, profile: &str) -> Result<SessionSettings> {
         let requests = crate::paths::game_folder_view(&self.requests_path(profile));
-        SessionSettings::build(
-            &self.profile(profile)?,
-            &self.addons()?,
-            &self.maps()?,
-            Some(requests),
-        )
+        SessionSettings::build(&self.profile(profile)?, &self.addons()?, Some(requests))
     }
 
     pub fn merge_requests(&self, profile: &str, consume: bool) -> Result<Option<Merge>> {
@@ -470,48 +420,12 @@ fn copy_dir(src: &Path, dest: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::map::tests::{OKAYAMA_LIKE, write_zip};
 
     fn tmp(name: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("swofty-store-{name}-{}", std::process::id()));
         std::fs::remove_dir_all(&d).ok();
         std::fs::create_dir_all(&d).unwrap();
         d
-    }
-
-    #[test]
-    fn imports_and_lists_maps() {
-        let root = tmp("maps");
-        let store = Store::new(root.join("data"));
-        let zip = root.join("pkg.zip");
-        write_zip(&zip, OKAYAMA_LIKE, true);
-        let pkg = store.import_map(&zip).unwrap();
-        assert_eq!(pkg.track_code, "testring");
-        assert!(store.maps_dir().join("testring/testring.erp").is_file());
-        assert_eq!(store.maps().unwrap().len(), 1);
-        store.remove_map("testring").unwrap();
-        assert!(store.maps().unwrap().is_empty());
-        std::fs::remove_dir_all(&root).ok();
-    }
-
-    #[test]
-    fn imports_a_package_wrapped_in_another_zip() {
-        let root = tmp("nested");
-        let store = Store::new(root.join("data"));
-        let inner = root.join("testring_testring.zip");
-        write_zip(&inner, OKAYAMA_LIKE, true);
-        let outer = root.join("download.zip");
-        let mut z = zip::ZipWriter::new(std::fs::File::create(&outer).unwrap());
-        let opts = zip::write::SimpleFileOptions::default();
-        z.start_file("readme.txt", opts).unwrap();
-        std::io::Write::write_all(&mut z, b"install with the launcher").unwrap();
-        z.start_file("testring_testring.zip", opts).unwrap();
-        std::io::Write::write_all(&mut z, &std::fs::read(&inner).unwrap()).unwrap();
-        z.finish().unwrap();
-        assert_eq!(store.import_map(&outer).unwrap().track_code, "testring");
-        assert!(store.maps_dir().join("testring/testring.erp").is_file());
-        assert!(!store.maps_dir().join(".nested").exists());
-        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]

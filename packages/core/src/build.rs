@@ -11,7 +11,7 @@ use crate::activation::place::{
     PlaceInput, SLOTS, place, slot_asset_group, slot_asset_root, slot_file, track_group,
 };
 use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
-use crate::asset::{AssetOp, FileKind, FileOp, GroupOp, Op, OpFile, Origin, Root, Source};
+use crate::asset::{AssetOp, FileKind, FileOp, GroupOp, Op, OpFile, Origin, Root, Source, TrackOp};
 use crate::baseline::{Baseline, Objects, hex, sha256_file};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
 use crate::erpbuild::{ErpBuild, unsupported};
@@ -57,19 +57,21 @@ pub fn original(data: &Path, game: &Game, rel: &str) -> PathBuf {
     }
 }
 
-pub fn map_packages(store: &Store, codes: &[String]) -> Result<Vec<(PathBuf, TrackPackage)>> {
-    let all = store.maps()?;
-    codes
-        .iter()
-        .map(|code| {
-            let pkg = all
-                .iter()
-                .find(|p| &p.track_code == code)
-                .cloned()
-                .ok_or_else(|| Error::Resolve(format!("map {code} is enabled but not imported")))?;
-            Ok((store.maps_dir().join(code), pkg))
-        })
-        .collect()
+pub fn track_packages(store: &Store, ops: Vec<Op>) -> Result<Vec<(PathBuf, TrackPackage, Origin)>> {
+    let mut out: Vec<(PathBuf, TrackPackage, Origin)> = Vec::new();
+    for op in ops {
+        let AssetOp::Track(TrackOp::Add { source }) = op.op else {
+            continue;
+        };
+        let dir = source.resolve(&source_dir(store, &op.origin.addon, source.root))?;
+        let path = dir.join(crate::map::MANIFEST_FILE);
+        let pkg = TrackPackage::parse(&std::fs::read(&path).map_err(io_err(&path))?)?;
+        if out.iter().any(|(_, p, _)| p.track_code == pkg.track_code) {
+            return Err(Error::Map(format!("track {} is added twice", pkg.track_code)));
+        }
+        out.push((dir, pkg, op.origin));
+    }
+    Ok(out)
 }
 
 pub fn screen_files(order: &[&AddonManifest], addons_dir: &Path) -> Result<BTreeMap<String, PathBuf>> {
@@ -221,7 +223,8 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             ));
         }
     }
-    let maps = map_packages(store, &p.maps)?;
+    let tracks = track_packages(store, planner.take_tracks())?;
+    let maps: Vec<(PathBuf, TrackPackage)> = tracks.iter().map(|(d, p, _)| (d.clone(), p.clone())).collect();
     let natural = planner.route(Kind::Group) == Route::Runtime;
     if !natural && maps.len() > SLOTS.len() {
         return Err(Error::Map(format!(
@@ -256,6 +259,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         hasher.update(ui_stamp(&ui_maps, &resolve)?);
     }
     let mut session = store.session_settings(profile)?;
+    session.set_maps(maps.iter().map(|(_, pkg)| pkg));
     let menus = loader_dir().is_some();
     if menus {
         hasher.update(serde_json::to_vec(&session).expect("serialisable"));
@@ -330,7 +334,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             std::fs::write(&out, bytes).map_err(io_err(&out))?;
             built.plan.data.insert(GVDB.into(), out);
         }
-        for ((dir, pkg), slot) in maps.iter().zip(&slots) {
+        for ((dir, pkg, origin), slot) in tracks.iter().zip(&slots) {
             let slot_original = slot.map(|s| original(&store.root, game, &slot_file(s)));
             let placement = place(
                 &PlaceInput {
@@ -366,10 +370,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                         deps: Vec::new(),
                         template: None,
                     }),
-                    origin: Origin {
-                        addon: "maps".into(),
-                        item: Some(pkg.track_code.clone()),
-                    },
+                    origin: origin.clone(),
                 });
             }
             if let Some(g) = &placement.grid {
