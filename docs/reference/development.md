@@ -54,6 +54,8 @@ The MOD SETTINGS build is compared byte for byte with a reference build of the s
 F1_25_DIR="/path/to/F1 25" SWOFTY_MENU_ORACLE=/path/to/reference cargo test -p swofty-core --test real_menus
 ```
 
+With `SWOFTY_MAPS_DIR` set to a folder holding an imported `bahrain24` package, the same file checks that the map's edits and MOD SETTINGS are written into one `databases.erp` and `persistent.erp`.
+
 ## Native loader
 
 ```sh

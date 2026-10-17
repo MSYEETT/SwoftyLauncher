@@ -367,7 +367,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     Ok(built)
 }
 
-fn build_menus(
+pub fn build_menus(
     built: &mut Built,
     session: &mut SessionSettings,
     original: &dyn Fn(&str) -> PathBuf,
