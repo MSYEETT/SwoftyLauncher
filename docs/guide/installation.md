@@ -33,7 +33,7 @@ Continue with [Windows](/guide/windows) or [Linux and Steam Deck](/guide/linux).
 
 The launcher checks for a new release when it starts, at most once every 6 hours. When one is out, a bar above **Play** shows its version with **Update**, **Release notes** and **Skip this version**.
 
-**Update** downloads the archive for your platform, checks it against the release's `SHA256SUMS` and replaces `bin/`, `loader/` and, on Linux, `share/` in the extracted folder. Select **Restart** to start the new version. Close F1 25 first; the launcher does not update while the game runs. If a step fails, the old files stay in place and the launcher shows the error.
+**Update** downloads the archive for your platform, checks it against the release's `SHA256SUMS` and replaces `bin/`, `loader/` and, on Linux, `share/` in the extracted folder. Select **Restart** to start the new version. Close F1 25 first; the launcher does not update while the game runs. If a step fails, the old files stay in place and the launcher shows the error. If an update is cut off partway, for example by a power loss, the next start of the launcher or `swofty update` puts the previous version back.
 
 The launcher updates itself only when it runs from an extracted release and can write to that folder. A build from source or a Nix install shows **Download**, which opens the release page.
 

@@ -413,6 +413,13 @@ impl Install {
 
     pub fn cleanup(&self) -> bool {
         let dir = self.staging();
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for work in entries.flatten().map(|e| e.path()) {
+                if work.join(APPLYING).is_file() {
+                    recover(&work, &self.root);
+                }
+            }
+        }
         std::fs::remove_dir_all(&dir).ok();
         !dir.exists()
     }
@@ -503,6 +510,38 @@ fn swap(new: Option<&Path>, target: &Path, saved: &Path) -> std::io::Result<Swap
     Ok(swap)
 }
 
+const APPLYING: &str = "applying";
+
+fn recover(work: &Path, root: &Path) {
+    let backup = work.join("old");
+    if let Ok(files) = crate::builtin::loader_files(&backup) {
+        for (rel, saved) in files {
+            restore(&saved, &root.join(&rel), work);
+        }
+    }
+    let added = std::fs::read_to_string(work.join(APPLYING)).unwrap_or_default();
+    for rel in added.lines().filter(|l| !l.is_empty()) {
+        std::fs::remove_file(root.join(rel)).ok();
+    }
+}
+
+fn restore(saved: &Path, target: &Path, work: &Path) {
+    if let Some(dir) = target.parent() {
+        std::fs::create_dir_all(dir).ok();
+    }
+    if std::fs::rename(saved, target).is_ok() {
+        return;
+    }
+    let aside = work.with_file_name(format!("aside-{}-{}", std::process::id(), now_secs()));
+    let name = target.file_name().map(|n| aside.join(n));
+    if let Some(name) = name
+        && std::fs::create_dir_all(&aside).is_ok()
+        && std::fs::rename(target, &name).is_ok()
+    {
+        std::fs::rename(saved, target).ok();
+    }
+}
+
 fn roll_back(done: &[Swap]) {
     for s in done.iter().rev() {
         match &s.saved {
@@ -528,6 +567,16 @@ pub fn apply(new: &Path, root: &Path, backup: &Path) -> Result<()> {
         .iter()
         .map(|(rel, src)| (rel.as_str(), Some(src.as_path())))
         .chain(stale.iter().map(|rel| (rel.as_str(), None)));
+    let added: String = files
+        .keys()
+        .filter(|rel| root.join(rel).symlink_metadata().is_err())
+        .map(|rel| format!("{rel}\n"))
+        .collect();
+    let journal = backup
+        .parent()
+        .map_or_else(|| backup.join(APPLYING), |w| w.join(APPLYING));
+    std::fs::create_dir_all(backup).map_err(io_err(backup))?;
+    std::fs::write(&journal, added).map_err(io_err(&journal))?;
     let mut done = Vec::new();
     for (rel, src) in steps {
         let target = root.join(rel);
@@ -535,6 +584,7 @@ pub fn apply(new: &Path, root: &Path, backup: &Path) -> Result<()> {
             Ok(s) => done.push(s),
             Err(e) => {
                 roll_back(&done);
+                std::fs::remove_file(&journal).ok();
                 return Err(Error::Io {
                     path: target,
                     source: e,
@@ -542,6 +592,7 @@ pub fn apply(new: &Path, root: &Path, backup: &Path) -> Result<()> {
             }
         }
     }
+    std::fs::remove_file(&journal).map_err(io_err(&journal))?;
     Ok(())
 }
 
@@ -785,6 +836,34 @@ mod tests {
         assert!(!root.join("loader/stale.dll").exists());
         assert_eq!(read(&root.join("bin/user-note.txt")), "mine");
         assert!(Install::locate(&root.join("bin").join(exe("swofty"))).is_ok());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_interrupted_update_is_rolled_back_at_the_next_cleanup() {
+        let dir = temp("interrupted");
+        let (root, new) = (dir.join("install"), dir.join("new"));
+        release_tree(&root, "v1");
+        release_tree(&new, "v2");
+        write(&new.join("bin/added"), "v2");
+        let work = root.join(STAGING_DIR).join("w1");
+        apply(&new, &root, &work.join("old")).unwrap();
+        assert!(!work.join(APPLYING).exists());
+        assert_eq!(read(&root.join("bin").join(exe("swofty"))), "cli v2");
+        write(&work.join(APPLYING), "bin/added\n");
+        let install = Install { root: root.clone() };
+        assert!(install.cleanup());
+        assert_eq!(
+            read(&root.join("bin").join(exe("swofty-launcher"))),
+            "launcher v1"
+        );
+        assert_eq!(read(&root.join("bin").join(exe("swofty"))), "cli v1");
+        assert_eq!(
+            read(&root.join("loader").join(crate::builtin::CORE_DLL)),
+            "core v1"
+        );
+        assert!(!root.join("bin/added").exists());
+        assert!(!root.join(STAGING_DIR).exists());
         std::fs::remove_dir_all(&dir).ok();
     }
 
