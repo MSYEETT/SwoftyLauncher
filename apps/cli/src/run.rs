@@ -344,6 +344,25 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
         let _ = &link;
         link
     };
+    // The game gets a curated environment: Proton's steam helper packs it
+    // into a Windows environment block (32767 characters), and a build
+    // shell's variables blow past that, which kills the game at startup.
+    let (shell_vars, game_env) = {
+        let shell: Vec<(String, String)> = std::env::vars().collect();
+        let n = shell.len();
+        let env = swofty_core::session::game_env(shell, &config.launch.env);
+        (n, env)
+    };
+    if game_env.len() != shell_vars {
+        say(
+            "info",
+            &format!(
+                "environment: passing {} of {} variables to the game (the Windows limit is 32K characters)",
+                game_env.len(),
+                shell_vars
+            ),
+        );
+    }
     let spawn = |exe: &str, log: &str| -> Result<std::process::Child> {
         let out = std::fs::File::create(dir.join(log))?;
         let mut c = match &proton {
@@ -355,7 +374,8 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
             None => Command::new(game.join(exe)),
         };
         c.current_dir(game)
-            .envs(&config.launch.env)
+            .env_clear()
+            .envs(&game_env)
             .env("PROTON_LOG", "1")
             .env("PROTON_LOG_DIR", &dir)
             .env("WINEDEBUG", &winedebug)

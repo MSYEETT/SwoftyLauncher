@@ -90,6 +90,105 @@ impl Default for LaunchConfig {
     }
 }
 
+/// The Windows environment block cannot exceed 32767 characters, and
+/// Proton's steam helper packs the game's environment into one. A `nix
+/// develop` (or CI) shell more than doubles that with build variables, and
+/// the helper then creates a game process that dies during startup before
+/// loading a single DLL. Build-shell variables are not part of running a
+/// game, so they are dropped, and whatever remains is trimmed to fit.
+pub fn game_env(
+    parent: impl IntoIterator<Item = (String, String)>,
+    overrides: &BTreeMap<String, String>,
+) -> BTreeMap<String, String> {
+    const LIMIT: usize = 30_000; // under the 32767 block limit, names included
+
+    fn is_build_shell_var(name: &str) -> bool {
+        const EXACT: &[&str] = &[
+            "AR",
+            "AS",
+            "CC",
+            "CXX",
+            "LD",
+            "NM",
+            "OBJCOPY",
+            "OBJDUMP",
+            "RANLIB",
+            "READELF",
+            "SIZE",
+            "STRIP",
+            "STRINGS",
+            "PKG_CONFIG",
+            "LIBCLANG_PATH",
+            "CONFIG_SHELL",
+            "HOST_PATH",
+            "SOURCE_DATE_EPOCH",
+            "DETERMINISTIC_BUILD",
+            "IN_NIX_SHELL",
+            "NIXPKGS_CMAKE_PREFIX_PATH",
+            "CMAKE_INCLUDE_PATH",
+            "CMAKE_LIBRARY_PATH",
+            "PYTHONPATH",
+            "PYTHONHASHSEED",
+            "PYTHONNOUSERSITE",
+            "_PYTHON_HOST_PLATFORM",
+            "_PYTHON_SYSCONFIGDATA_NAME",
+            "buildInputs",
+            "nativeBuildInputs",
+            "buildPhase",
+            "builder",
+            "shell",
+            "shellHook",
+            "stdenv",
+            "out",
+            "outputs",
+            "name",
+            "system",
+            "phases",
+            "patches",
+            "strictDeps",
+            "doCheck",
+            "doInstallCheck",
+            "preferLocalBuild",
+            "allowSubstitutes",
+            "dontAddDisableDepTrack",
+            "__structuredAttrs",
+            "cmakeFlags",
+            "configureFlags",
+            "mesonFlags",
+        ];
+        const PREFIXES: &[&str] = &["NIX_", "NIXPKGS_", "CMAKE_", "deps", "propagated"];
+        const SUFFIX: &str = "FLAGS";
+        EXACT.contains(&name) || PREFIXES.iter().any(|p| name.starts_with(p)) || name.ends_with(SUFFIX)
+    }
+
+    fn block_size(env: &BTreeMap<String, String>) -> usize {
+        env.iter().map(|(k, v)| k.len() + v.len() + 2).sum()
+    }
+
+    let mut env: BTreeMap<String, String> = parent
+        .into_iter()
+        .filter(|(k, _)| !is_build_shell_var(k))
+        .collect();
+    for (k, v) in overrides {
+        env.insert(k.clone(), v.clone());
+    }
+    // Trim whatever is left to fit: the largest values go first, and the
+    // variables a game launch cannot do without are kept.
+    const KEEP: &[&str] = &["PATH", "HOME", "USER", "TEMP", "TMP", "TMPDIR", "LANG"];
+    while block_size(&env) > LIMIT {
+        let Some(largest) = env
+            .iter()
+            .filter(|(k, _)| !KEEP.contains(&k.as_str()) && !overrides.contains_key(*k))
+            .max_by_key(|(k, v)| k.len() + v.len())
+            .map(|(k, _)| k.clone())
+        else {
+            break;
+        };
+        env.remove(&largest);
+    }
+    env
+}
+
 fn default_winedebug() -> String {
     DEFAULT_WINEDEBUG.into()
 }
@@ -186,6 +285,35 @@ mod tests {
         config.console = true;
         let json = serde_json::to_string(&config).unwrap();
         assert!(serde_json::from_str::<Config>(&json).unwrap().console);
+    }
+
+    #[test]
+    fn game_env_drops_build_shell_junk() {
+        let parent = [
+            ("PATH".to_string(), "/usr/bin".to_string()),
+            ("HOME".to_string(), "/home/u".to_string()),
+            ("SteamAppId".to_string(), "3059520".to_string()),
+            ("NIX_LDFLAGS".to_string(), "-L/nix/store/aaaa ".repeat(200)),
+            ("CFLAGS".to_string(), "-O2".to_string()),
+            ("buildInputs".to_string(), "x".to_string()),
+            ("depsBuildBuild".to_string(), String::new()),
+        ];
+        let env = game_env(parent, &BTreeMap::new());
+        assert!(env.contains_key("PATH") && env.contains_key("SteamAppId"));
+        for dropped in ["NIX_LDFLAGS", "CFLAGS", "buildInputs", "depsBuildBuild"] {
+            assert!(!env.contains_key(dropped), "{dropped} kept");
+        }
+    }
+
+    #[test]
+    fn game_env_fits_the_windows_block() {
+        let parent = (0..400).map(|i| (format!("VAR{i:03}"), "x".repeat(200)));
+        let mut overrides = BTreeMap::new();
+        overrides.insert("WINEDEBUG".to_string(), "+all".to_string());
+        let env = game_env(parent, &overrides);
+        let size: usize = env.iter().map(|(k, v)| k.len() + v.len() + 2).sum();
+        assert!(size <= 30_000, "{size}");
+        assert_eq!(env.get("WINEDEBUG").map(String::as_str), Some("+all"));
     }
 
     #[test]
