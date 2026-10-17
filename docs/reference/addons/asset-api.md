@@ -95,6 +95,7 @@ The installed loader lists its runtime features in `swofty/addons/core/features.
 
 - A `stable` kind takes the runtime route.
 - An `experimental` kind takes the runtime route only when `"runtime_assets"` in `$DATA/config.json` names it, for example `"runtime_assets": ["file"]`. The build then lists it in `features` in `swofty/assets.json`, which turns it on in swofty_core.
+- `"build_assets"` in `$DATA/config.json` keeps the kinds it names that have a build delivery (`erp`, `db`, `file`) on the build route even when they are `stable`, for example `"build_assets": ["erp", "db"]`.
 - Otherwise a kind with a build delivery is built, and a kind without one waits. The build prints `<origin>: <n> lang op(s) wait for lang support in swofty_core`, or says the feature is experimental and not turned on.
 - A loader without `features.json` has no runtime features. `swofty build` without the loader builds `erp`, `db` and `file` and lists `group` and `lang` as waiting.
 - Every op of one kind takes the same route in a build.

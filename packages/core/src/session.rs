@@ -76,6 +76,8 @@ pub struct Config {
     pub data_version: u32,
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub runtime_assets: BTreeSet<Kind>,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub build_assets: BTreeSet<Kind>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
