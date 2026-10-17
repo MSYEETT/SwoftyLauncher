@@ -7,9 +7,12 @@ PRISTINE = ROOT / 'work/pristine'
 NATIVE_MANIFEST = GAME / 'swofty/.modswap-native.json'
 ORIGINAL_MD5 = {
     '2025_asset_groups/ui_package/flow_frontend.erp': '37b6945216aadae5e4cc431dba9567a0',
+    '2025_asset_groups/ui_package/flow_options.erp': 'c50bc12363d395250a99b0b01279f164',
     '2025_asset_groups/ui_package/persistent.erp': 'b421cc3c3aa37c50100f774e9d69c5b7',
     '2025_asset_groups/ui_package/databases.erp': 'bc91d17d3aa69264938a91bded446728',
     '2025_asset_groups/ui_package/screens/fe_home.erp': '463966f77392796953924adec85774da',
+    '2025_asset_groups/ui_package/flow_persistent.erp': '33beffcbacc15848e7cb54f743c875e9',
+    '2025_asset_groups/ui_package/screens/persistent.erp': 'bc2155641f3b501b21e33c8495689c87',
     'game_package/gamedatabases/gamedatabases.2025.bin': 'b0c8376256f69a79517db45d03a0e653',
     '2025_asset_groups/environment_package/tracks/bahrain/wep/bahrain_f1_26.erp': 'ceab3c172cff93dc0e61d5e6c03d0d63',
     '2025_asset_groups/environment_package/tracks/bahrain/wep/bahrain_f1_26_myteam.erp': '1c894db53dac0f6ce111b8398f1d3464',

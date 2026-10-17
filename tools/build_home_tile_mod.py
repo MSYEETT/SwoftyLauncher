@@ -153,18 +153,27 @@ def add_tooltip(data, tooltip_name, label, action, src):
     return p.to_bytes()
 
 
-def write_erp(rel, out_root, patches):
+def write_erp(rel, out_root, patches, add=None, drop_type=None, dst_rel=None):
     src = os.path.join(GAME, UI, rel)
     e = Erp(src)
     for res_name, frag, fn in patches:
         r = e.find(res_name)
         new = fn(e.frag_data(r, frag))
         e.set_frag(r, frag, new)
-    dst = os.path.join(out_root, UI, rel)
+    if drop_type:
+        e.res = [r for r in e.res if r.type.rstrip(bytes(1)) != drop_type]
+    for new_name, like, data in add or []:
+        assert not any(r.name == new_name for r in e.res)
+        r = copy.deepcopy(next(x for x in Erp(src).res if x.name == like))
+        r.name = new_name
+        r.frags = r.frags[:1]
+        e.res.append(r)
+        e.set_frag(r, 0, data)
+    dst = os.path.join(out_root, UI, dst_rel or rel)
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     e.to_file(dst)
     check = Erp(dst)
-    for res_name, frag, fn in patches:
+    for res_name in [x[0] for x in patches] + [x[0] for x in add or []]:
         r = check.find(res_name)
         assert hashlib.md5(b''.join(check.frag_data(r, i) for i in range(len(r.frags)))).digest() == r.hash
     print('wrote', dst, os.path.getsize(dst))
@@ -173,7 +182,7 @@ def write_erp(rel, out_root, patches):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('variant', choices=['v1', 'v2', 'v3', 'v4', 'v6', 'v7'])
+    ap.add_argument('variant', choices=['v1', 'v2', 'v3', 'v4', 'v6', 'v7', 'v8', 'v8once', 'v9', 'v10', 'v11a', 'v11b', 'v12'])
     ap.add_argument('--out', default=os.path.join(os.path.dirname(GAME), 'ui/mod'))
     ap.add_argument('--dest')
     ap.add_argument('--label')
@@ -181,11 +190,15 @@ def main():
     ap.add_argument('--action', default='Menu Right Stick Click')
     ap.add_argument('--offline-text', default='Launched with Swofty Mod Launcher')
     ap.add_argument('--offline-prompt', default='to open settings')
+    ap.add_argument('--settings')
+    ap.add_argument('--command-target', choices=['screen', 'fe_home'], default='screen')
     a = ap.parse_args()
+    if a.settings and a.variant not in ('v9', 'v12'):
+        ap.error('--settings needs v9 or v12')
     if a.label is None:
-        a.label = 'MOD SETTINGS' if a.variant in ('v4', 'v6', 'v7') else 'MOD MENU'
+        a.label = 'MOD SETTINGS' if a.variant in ('v4', 'v6', 'v7', 'v8', 'v8once', 'v9', 'v10', 'v11a', 'v11b', 'v12') else 'MOD MENU'
     if a.prompt_label is None:
-        a.prompt_label = 'Mod Settings' if a.variant in ('v4', 'v6', 'v7') else a.label
+        a.prompt_label = 'Mod Settings' if a.variant in ('v4', 'v6', 'v7', 'v8', 'v8once', 'v9', 'v10', 'v11a', 'v11b', 'v12') else a.label
     out = a.dest or os.path.join(a.out, a.variant)
     if a.variant == 'v1':
         fe = lambda d: patch_fe_home(d, a.label, a.action, 'options', 'toggle_difficulty', True)
@@ -197,13 +210,126 @@ def main():
             syst_data = syst.frag_data(syst.find(FE_HOME), 1)
             fe = lambda d: patch_fe_home_tile(fe2(d), syst_data, a.label, 'mod_menu')
         tips = lambda d: patch_tooltips(d, 'mod_menu', a.prompt_label, a.action)
-        if a.variant in ('v4', 'v6', 'v7'):
+        if a.variant in ('v4', 'v6', 'v7', 'v8', 'v8once', 'v9', 'v10', 'v11a', 'v11b', 'v12'):
             fe3 = fe
             fe = lambda d: patch_offline_panel(fe3(d), a.offline_text, a.offline_prompt, 'mod_menu_offline')
             tips2 = tips
             tips = lambda d: add_tooltip(tips2(d), 'mod_menu_offline', a.offline_prompt, a.action, 'delete')
-        if a.variant == 'v7':
+        if a.variant == 'v12':
             import swofty_settings as ss
+            import swofty_popup as sp
+            import swofty_v10 as s10
+            import swofty_v12 as s12
+            import uiops as uo
+            spath = a.settings or os.path.join(os.path.dirname(GAME), 'ui/v12_settings.json')
+            fopt = Erp(os.path.join(GAME, UI, 'flow_options.erp'))
+            sc = fopt.find('eaid://ui_package/screens/settings_container.ui')
+            ffe = Erp(os.path.join(GAME, UI, 'flow_frontend.erp'))
+            car = ffe.frag_data(ffe.find('eaid://ui_package/screens/fe_career.ui'), 0)
+            home_ui = ffe.frag_data(ffe.find(FE_HOME), 0)
+            st, mods, screens = s12.build_all(fopt.frag_data(sc, 1), car, home_ui, spath)
+            fe4 = fe
+            fe = lambda d: s12.bake_home_panel(fe4(d), st)
+            write_erp('persistent.erp', out, [
+                (ROUTES, 0, lambda d: uo.add_route_groups(d, s12.routes(mods), replace_routes=[('fe_home', s12.mod_menu_route(d))])),
+                ('eaid://ui_package/flows.ui', 0, lambda d: uo.add_flow_entries(d, 'options_flow', 0, [(f'enter_{n}', n) for n in screens])),
+                ('eaid://ui_package/region_loading.uiconfig', 0, lambda d: uo.add_regions(d, list(screens))),
+            ])
+            write_erp('databases.erp', out, [
+                (TOOLTIPS, 0, tips),
+                ('eaid://ui_package/databases/ui_data.uidb', 0,
+                 lambda d: uo.add_uidb_child(sp.patch_ui_data_popup(ss.patch_ui_data(d), literal=True), 'ui_menu_data', 'swofty', s12.state_entries(mods))),
+            ])
+            pui = 'eaid://ui_package/screens/persistent.ui'
+            write_erp('flow_persistent.erp', out, [
+                ('eaid://ui_package/message_data/onlineservices_messages.uimsg', 0, lambda d: sp.patch_messages(d, True, literal=True)),
+                (pui, 0, s10.patch_persistent_gate),
+            ])
+            write_erp('screens/persistent.erp', out, [(pui, 0, s10.patch_persistent_gate)])
+            write_erp('flow_frontend.erp', out, [(FE_HOME, 0, fe)])
+            write_erp('screens/fe_home.erp', out, [(FE_HOME, 0, fe)])
+            write_erp('flow_options.erp', out, [], add=[(f'eaid://ui_package/screens/{n}.ui', 'eaid://ui_package/screens/settings_container.ui', b)
+                                                        for n, b in screens.items()])
+            return
+        if a.variant in ('v10', 'v11a', 'v11b'):
+            import swofty_settings as ss
+            import swofty_popup as sp
+            import swofty_v10 as s10
+            syst = Erp(os.path.join(GAME, UI, 'screens/fe_home.erp'))
+            r0 = syst.find(FE_HOME)
+            if a.variant == 'v10':
+                screen_ui = s10.build_screen_ui(syst.frag_data(r0, 0), syst.frag_data(r0, 1))
+            else:
+                import swofty_v11 as s11
+                if a.variant == 'v11a':
+                    screen_ui = s11.build_v11a(syst.frag_data(r0, 0), syst.frag_data(r0, 1))
+                else:
+                    ffe = Erp(os.path.join(GAME, UI, 'flow_frontend.erp'))
+                    car = ffe.frag_data(ffe.find('eaid://ui_package/screens/fe_career.ui'), 0)
+                    screen_ui = s11.build_v11b(syst.frag_data(r0, 0), syst.frag_data(r0, 1), car)
+            fe4 = fe
+            fe = lambda d: s10.patch_fe_home_gate(fe4(d))
+            write_erp('persistent.erp', out, [
+                (ROUTES, 0, lambda d: s10.patch_routes(patch_routes(d, 'mod_menu'))),
+                ('eaid://ui_package/flows.ui', 0, ss.patch_flows),
+                ('eaid://ui_package/region_loading.uiconfig', 0, ss.patch_region_loading_own),
+            ])
+            write_erp('databases.erp', out, [
+                (TOOLTIPS, 0, tips),
+                ('eaid://ui_package/databases/ui_data.uidb', 0,
+                 lambda d: s10.patch_ui_data(sp.patch_ui_data_popup(ss.patch_ui_data(d), literal=True))),
+            ])
+            pui = 'eaid://ui_package/screens/persistent.ui'
+            write_erp('flow_persistent.erp', out, [
+                ('eaid://ui_package/message_data/onlineservices_messages.uimsg', 0, lambda d: sp.patch_messages(d, True, literal=True)),
+                (pui, 0, s10.patch_persistent_gate),
+            ])
+            write_erp('screens/persistent.erp', out, [(pui, 0, s10.patch_persistent_gate)])
+            write_erp('flow_frontend.erp', out, [(FE_HOME, 0, fe)], add=[(ss.SCREEN_UI, FE_HOME, screen_ui)])
+            write_erp('screens/fe_home.erp', out, [(FE_HOME, 0, fe)])
+            if a.variant == 'v10':
+                write_erp('screens/fe_home.erp', out, [], add=[(ss.SCREEN_UI, FE_HOME, screen_ui)],
+                          drop_type=b'UIDF', dst_rel=f'screens/{ss.SCREEN}.erp')
+            return
+        if a.variant == 'v9':
+            import swofty_settings as ss
+            import swofty_popup as sp
+            syst = Erp(os.path.join(GAME, UI, 'screens/fe_home.erp'))
+            r0 = syst.find(FE_HOME)
+            pristine_ui, syst_data = syst.frag_data(r0, 0), syst.frag_data(r0, 1)
+            st = ss.load_settings(a.settings) if a.settings else None
+            screen_ui = ss.build_screen_ui(pristine_ui, syst_data, st, 'fe_home' if a.command_target == 'fe_home' else ss.SCREEN)
+            fe4 = fe
+            if st:
+                fe = lambda d: ss.bake_panel_gate(fe4(d), ss.launcher_panel_on(st))
+            else:
+                fe = lambda d: ss.patch_fe_home_panel_gate(fe4(d))
+            write_erp('persistent.erp', out, [
+                (ROUTES, 0, lambda d: ss.patch_routes_own(patch_routes(d, 'mod_menu'))),
+                ('eaid://ui_package/flows.ui', 0, ss.patch_flows),
+                ('eaid://ui_package/region_loading.uiconfig', 0, ss.patch_region_loading_own),
+            ])
+            write_erp('databases.erp', out, [
+                (TOOLTIPS, 0, tips),
+                ('eaid://ui_package/databases/ui_data.uidb', 0, lambda d: sp.patch_ui_data_popup(ss.patch_ui_data(d), literal=True)),
+            ])
+            pui = 'eaid://ui_package/screens/persistent.ui'
+            write_erp('flow_persistent.erp', out, [
+                ('eaid://ui_package/message_data/onlineservices_messages.uimsg', 0, lambda d: sp.patch_messages(d, True, literal=True)),
+                (pui, 0, sp.patch_persistent_gate),
+            ])
+            write_erp('screens/persistent.erp', out, [(pui, 0, sp.patch_persistent_gate)])
+            write_erp('flow_frontend.erp', out, [(FE_HOME, 0, fe)], add=[(ss.SCREEN_UI, FE_HOME, screen_ui)])
+            write_erp('screens/fe_home.erp', out, [(FE_HOME, 0, fe)])
+            write_erp('screens/fe_home.erp', out, [], add=[(ss.SCREEN_UI, FE_HOME, screen_ui)],
+                      drop_type=b'UIDF', dst_rel=f'screens/{ss.SCREEN}.erp')
+            return
+        if a.variant in ('v7', 'v8', 'v8once'):
+            import swofty_settings as ss
+            import swofty_popup as sp
+            v8 = a.variant in ('v8', 'v8once')
+            once = a.variant == 'v8once'
+            ui_data = (lambda d: sp.patch_ui_data_popup(ss.patch_ui_data(d))) if v8 else ss.patch_ui_data
             syst = Erp(os.path.join(GAME, UI, 'screens/fe_home.erp'))
             syst_data = syst.frag_data(syst.find(FE_HOME), 1)
             fe4 = fe
@@ -215,8 +341,14 @@ def main():
             ])
             write_erp('databases.erp', out, [
                 (TOOLTIPS, 0, tips),
-                ('eaid://ui_package/databases/ui_data.uidb', 0, ss.patch_ui_data),
+                ('eaid://ui_package/databases/ui_data.uidb', 0, ui_data),
             ])
+            if v8:
+                fp = [('eaid://ui_package/message_data/onlineservices_messages.uimsg', 0, lambda d: sp.patch_messages(d, once))]
+                if once:
+                    fp.append(('eaid://ui_package/screens/persistent.ui', 0, sp.patch_persistent_gate))
+                    write_erp('screens/persistent.erp', out, [('eaid://ui_package/screens/persistent.ui', 0, sp.patch_persistent_gate)])
+                write_erp('flow_persistent.erp', out, fp)
         else:
             write_erp('persistent.erp', out, [(ROUTES, 0, lambda d: patch_routes(d, 'mod_menu'))])
             write_erp('databases.erp', out, [(TOOLTIPS, 0, tips)])

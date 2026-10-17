@@ -1,4 +1,4 @@
-import sys, os, copy, struct
+import sys, os, copy, struct, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pkg import Pkg, Obj, Arr, Val
 from uinode import (PROPS, CHILDREN, COMMANDS, EVENTS, LAYOUT, COMPONENTS, BEHAVIOURS, child, children, name,
@@ -230,9 +230,23 @@ def toggle_nodes(row, path, locked_path=None, cmd_data=None):
     return nodes, press, st
 
 
-def build_screen(fe_home, templates):
-    tile_t = next(t for t in templates if name(t) == 'fe_tile_button_default')
-    head_t = next(t for t in templates if name(t) == 'fe_tile_button_secondary')
+def tile_templates(templates):
+    return (next(t for t in templates if name(t) == 'fe_tile_button_default'),
+            next(t for t in templates if name(t) == 'fe_tile_button_secondary'))
+
+
+def header_tile(head_t, row, text):
+    t = make_tile(head_t, row, label=text)
+    t.items[PROPS].set('enabled', prop('bool', False))
+    t.items[PROPS].set('interactWhenDis', prop('bool', False))
+    return t
+
+
+def focus_desc(t, text):
+    t.items[EVENTS].items.append(event('focused', [sig(f'{SCREEN}.description', 'setText', 'focused', {'text': text})]))
+
+
+def screen_frame(fe_home):
     scr = Arr([copy.deepcopy(fe_home.items[0]), Arr([]), Arr([]), Arr([]), copy.deepcopy(fe_home.items[4]),
                Arr([]), Arr([b for b in copy.deepcopy(fe_home.items[6]).items if b['type'].value != fourcc('F1FS')]),
                Arr([])])
@@ -273,19 +287,28 @@ def build_screen(fe_home, templates):
     back_l.items[EVENTS].items = [event('pressed', [sig(f'{SCREEN}.audio_theme_trigger', 'back', 'pressed'),
                                                     sig(f'{SCREEN}.Action', 'route', 'pressed', {'key': 'back'})])]
     kids.append(back_l)
+    return scr, kids, action
 
+
+def finish_screen(scr, action, kids, rows, helpers, states, first):
+    action.items[EVENTS].items = [
+        event('finishedTranIn', [sig(f'{SCREEN}.tooltips', 'ttActivate', 'finishedTranIn'),
+                                 sig(f'{SCREEN}.{first}', 'focus', 'finishedTranIn')]),
+        event('finishedTranOut', [sig(f'{SCREEN}.tooltips', 'ttDeactive', 'finishedTranOut')]
+              + [sig(f'{SCREEN}.{s}', 'unregister', 'finishedTranOut') for s in states]),
+        event('opened_screen', [x for s in states for x in (sig(f'{SCREEN}.{s}', 'register', 'opened_screen'),
+                                                            sig(f'{SCREEN}.{s}', 'query', 'opened_screen'))]),
+    ]
+    scr.items[CHILDREN].items = kids + rows + helpers
+    fix_ids(scr)
+    return scr
+
+
+def build_screen(fe_home, templates):
+    tile_t, head_t = tile_templates(templates)
+    scr, kids, action = screen_frame(fe_home)
     rows, helpers, states = [], [], []
-
-    def header(row, text):
-        t = make_tile(head_t, row, label=text)
-        t.items[PROPS].set('enabled', prop('bool', False))
-        t.items[PROPS].set('interactWhenDis', prop('bool', False))
-        rows.append(t)
-
-    def focus_desc(t, db_path):
-        t.items[EVENTS].items.append(event('focused', [sig(f'{SCREEN}.description', 'setText', 'focused', {'text': ('db', db_path)})]))
-
-    header('header_swoftymod', 'SWOFTYMOD')
+    rows.append(header_tile(head_t, 'header_swoftymod', 'SWOFTYMOD'))
     for o in OPTIONS:
         row = f'option_{o["key"]}'
         path = f'{DB}.options.{o["key"]}'
@@ -299,9 +322,9 @@ def build_screen(fe_home, templates):
             press = [sig(f'{SCREEN}.audio_theme_trigger', 'confirm', 'pressed'),
                      raise_cmd(SCREEN, 'pressed', 'swofty_set', f'options.{o["key"]}')]
         t.items[EVENTS].items.append(event('pressed', press))
-        focus_desc(t, f'{path}.description')
+        focus_desc(t, ('db', f'{path}.description'))
         rows.append(t)
-    header('header_installed', 'INSTALLED MODS')
+    rows.append(header_tile(head_t, 'header_installed', 'INSTALLED MODS'))
     for i in range(MOD_SLOTS):
         row = f'mod_{i}'
         path = f'{DB}.mods[{i}]'
@@ -313,21 +336,9 @@ def build_screen(fe_home, templates):
         helpers += nodes
         states.append(st)
         t.items[EVENTS].items.append(event('pressed', press))
-        focus_desc(t, f'{path}.description')
+        focus_desc(t, ('db', f'{path}.description'))
         rows.append(t)
-
-    first = name(rows[1])
-    action.items[EVENTS].items = [
-        event('finishedTranIn', [sig(f'{SCREEN}.tooltips', 'ttActivate', 'finishedTranIn'),
-                                 sig(f'{SCREEN}.{first}', 'focus', 'finishedTranIn')]),
-        event('finishedTranOut', [sig(f'{SCREEN}.tooltips', 'ttDeactive', 'finishedTranOut')]
-              + [sig(f'{SCREEN}.{s}', 'unregister', 'finishedTranOut') for s in states]),
-        event('opened_screen', [x for s in states for x in (sig(f'{SCREEN}.{s}', 'register', 'opened_screen'),
-                                                            sig(f'{SCREEN}.{s}', 'query', 'opened_screen'))]),
-    ]
-    scr.items[CHILDREN].items = kids + rows + helpers
-    fix_ids(scr)
-    return scr
+    return finish_screen(scr, action, kids, rows, helpers, states, name(rows[1]))
 
 
 def patch_fe_home_screen(data, syst):
@@ -418,4 +429,177 @@ def patch_fe_home_panel_gate(data):
                                            ('dbEntry', prop('stri', f'{DB}.options.show_launcher_panel.value'))],
              events=[event('yes', [sig(panel, 'show', 'yes')])]))
     fix_ids(fe_home)
+    return p.to_bytes()
+
+
+RESTART_NOTE = 'Applies after a restart.'
+RESTART_DESC = 'Close the game and start it again with the changed settings.'
+
+
+def load_settings(path):
+    with open(path, encoding='utf-8') as f:
+        st = json.load(f)
+    assert st.get('schema') == 1, 'settings schema'
+    return st
+
+
+def clip(s, n=255):
+    return s.encode('utf-8')[:n].decode('utf-8', 'ignore')
+
+
+def all_options(st):
+    return [(i, m, o) for i, m in enumerate(st['mods']) for o in m.get('options', [])]
+
+
+def option_desc(o):
+    return clip(' '.join(x for x in (o.get('description', ''), RESTART_NOTE if o['binds'] == 'db' else '') if x))
+
+
+def option_texts(o):
+    return [clip(f"{o['label']}: {s['text']}".upper()) for s in o['states']]
+
+
+def launcher_panel_on(st):
+    return next((bool(o['states'][o.get('current', 0)]['value']) for i, m, o in all_options(st)
+                 if m['id'] == 'swofty.core' and o['id'] == 'show_launcher_panel' and o['type'] == 'toggle'), True)
+
+
+def bake_panel_gate(data, on):
+    if on:
+        return data
+    p = Pkg(data)
+    fe_home = p.root['Screens'].items[0]
+    decision = child(child(fe_home, 'contextual_panels'), 'contextual_decision')
+    panel = 'fe_home.contextual_panels.offline_contextual_panel'
+    for e in decision.items[EVENTS].items:
+        if e['eventName'].value in ('default', 'offline'):
+            e['signals'].items = [s for s in e['signals'].items
+                                  if (s['to_object_name'].value, s['to_pin_name'].value) != (panel, 'show')]
+    return p.to_bytes()
+
+
+def state_moves(kind, i, n):
+    if kind == 'slider':
+        return [('pressed', (i + 1) % n), ('navLeft', i - 1 if i > 0 else None), ('navRight', i + 1 if i < n - 1 else None)]
+    return [('pressed', (i + 1) % n), ('navLeft', (i - 1) % n), ('navRight', (i + 1) % n)]
+
+
+def build_screen_literal(fe_home, templates, st, target=SCREEN):
+    tile_t, head_t = tile_templates(templates)
+    scr, kids, action = screen_frame(fe_home)
+    rows, focusable = [], []
+    audio = lambda pin, f: sig(f'{SCREEN}.audio_theme_trigger', pin, f)
+    restart = st.get('restart_command', 'swofty_restart')
+    t = make_tile(tile_t, 'apply_restart', label='APPLY & RESTART')
+    t.items[PROPS].set('visible', prop('bool', False))
+    t.items[EVENTS].items.append(event('pressed', [audio('confirm', 'pressed'), raise_cmd(target, 'pressed', restart, restart)]))
+    focus_desc(t, RESTART_DESC)
+    rows.append(t)
+
+    def states(base, texts, cmds, cur, kind, desc, db):
+        names = [f'{base}_{i}' for i in range(len(texts))]
+        for i, text in enumerate(texts):
+            t = make_tile(tile_t, names[i], label=text)
+            t.items[PROPS].set('visible', prop('bool', i == cur))
+            for ev, j in state_moves(kind, i, len(texts)):
+                if j is None or j == i:
+                    continue
+                to = f'{SCREEN}.{names[j]}'
+                t.items[EVENTS].items.append(event(ev, [sig(to, 'show', ev), sig(to, 'focus', ev), raise_cmd(target, ev, cmds[j], cmds[j])]
+                                                   + ([sig(f'{SCREEN}.apply_restart', 'show', ev)] if db else [])
+                                                   + [audio('confirm' if ev == 'pressed' else 'navigate', ev),
+                                                      sig(f'{SCREEN}.{names[i]}', 'hide', ev)]))
+            focus_desc(t, desc)
+            rows.append(t)
+        focusable.append(names[cur])
+
+    k = 0
+    for i, m in enumerate(st['mods']):
+        rows.append(header_tile(head_t, f'm{i}_header', clip(f"{m['name']} {m['version']}".upper())))
+        desc = clip(m.get('description', ''))
+        if m['locked']:
+            t = make_tile(tile_t, f'm{i}_enabled', label='ENABLED: ALWAYS ON')
+            for ev in ('pressed', 'navLeft', 'navRight'):
+                t.items[EVENTS].items.append(event(ev, [audio('back', ev)]))
+            focus_desc(t, desc)
+            rows.append(t)
+            focusable.append(f'm{i}_enabled')
+        else:
+            states(f'm{i}_enabled', ['ENABLED: OFF', 'ENABLED: ON'], m['enable_commands'], int(bool(m['enabled'])),
+                   'toggle', desc, True)
+        for o in m.get('options', []):
+            if m['enabled']:
+                states(f's{k}', option_texts(o), [x['command'] for x in o['states']], o.get('current', 0), o['type'],
+                       option_desc(o), o['binds'] == 'db')
+            k += 1
+    scr = finish_screen(scr, action, kids, rows, [], [], focusable[0] if focusable else 'apply_restart')
+    action.items[EVENTS].items = [e for e in action.items[EVENTS].items if e['signals'].items]
+    return scr
+
+SCREEN_UI = f'eaid://ui_package/screens/{SCREEN}.ui'
+OWN_GROUP = f'asset_groups/ui_package/screens/{SCREEN}.assetgroup'
+
+
+def build_screen_ui(fe_home_ui, syst, st=None, target=SCREEN):
+    src = Pkg(fe_home_ui)
+    fe_home = src.root['Screens'].items[0]
+    assert name(fe_home) == 'fe_home'
+    templates = Pkg(syst).root['Templates'].items
+    p = Pkg()
+    screen = build_screen(fe_home, templates) if st is None else build_screen_literal(fe_home, templates, st, target)
+    p.root = Obj([(S('Screens'), Arr([screen]))])
+    return p.to_bytes()
+
+
+def patch_region_loading_own(data):
+    p = Pkg(data)
+    reg = next(r for r in p.root['regions']['Contents'].items if r['Name'].value == 'region_undefined')
+    c = reg['Contents']
+    assert c.get(SCREEN) is None
+    e = copy.deepcopy(c['fe_home'])
+    e['Name'].value = SCREEN
+    e['Value'].value = OWN_GROUP
+    c.set(SCREEN, e)
+    return p.to_bytes()
+
+
+def _strip_commands(route, drop_types):
+    cmds = route['Commands'].items
+    ids = {}
+    for c in cmds:
+        at = {a['Id'].value: a for a in c['Attributes'].items}
+        ids[at['Id']['Value'].value] = (c['Type'].value, c.get('Dependencies').value if c.get('Dependencies') is not None else '')
+    dropped = {i for i, (t, d) in ids.items() if t in drop_types}
+
+    def resolve(dep):
+        out = []
+        for d in [x for x in dep.split(',') if x]:
+            if d in dropped:
+                out += resolve(ids[d][1])
+            else:
+                out.append(d)
+        return out
+    keep = []
+    for c in cmds:
+        cid = next(a['Value'].value for a in c['Attributes'].items if a['Id'].value == 'Id')
+        if cid in dropped:
+            continue
+        if c.get('Dependencies') is not None:
+            deps = resolve(c['Dependencies'].value)
+            if deps:
+                c['Dependencies'].value = ','.join(dict.fromkeys(deps))
+            else:
+                c.items = [(k, v) for k, v in c.items if k.value != 'Dependencies']
+        keep.append(c)
+    route['Commands'].items = keep
+    if route.get('Dependencies') is not None:
+        route['Dependencies'].value = ','.join(dict.fromkeys(resolve(route['Dependencies'].value)))
+
+
+def patch_routes_own(data):
+    p = Pkg(patch_routes_v7(data))
+    g = next(x for x in p.root['RouteGroupings'].items if x['Id'].value == SCREEN)
+    for r in g['Routes'].items:
+        if r['Id'].value in ('open', 'open_no_input'):
+            _strip_commands(r, {'FrontendSceneSwitch', 'ViewModelCallback'})
     return p.to_bytes()
