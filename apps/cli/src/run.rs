@@ -320,7 +320,11 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
         let mut c = match &proton {
             Some(p) => {
                 let mut c = Command::new(p);
-                c.arg("run").arg(game.join(exe));
+                // The bare file name: the working directory is the game
+                // folder, and Proton's steam helper mangles absolute paths
+                // that contain spaces (it quote-wraps them and then fails to
+                // create the process at all).
+                c.arg("run").arg(exe);
                 c
             }
             None => Command::new(game.join(exe)),
