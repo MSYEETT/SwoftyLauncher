@@ -1,0 +1,40 @@
+/* An editor-style palette: neutral greys with a single blue accent. */
+
+:root {
+  --vp-c-brand-1: #2f6fd8;
+  --vp-c-brand-2: #3b7be6;
+  --vp-c-brand-3: #4a88f0;
+  --vp-c-brand-soft: rgba(59, 123, 230, 0.14);
+
+  --vp-home-hero-name-color: #2f6fd8;
+  --vp-font-family-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+}
+
+.dark {
+  --vp-c-bg: #1b1d23;
+  --vp-c-bg-alt: #16181d;
+  --vp-c-bg-soft: #22252c;
+  --vp-c-bg-elv: #20232a;
+  --vp-c-divider: #2c3039;
+  --vp-c-gutter: #111317;
+
+  --vp-c-brand-1: #74ade8;
+  --vp-c-brand-2: #5d9ce0;
+  --vp-c-brand-3: #4a88d4;
+  --vp-c-brand-soft: rgba(116, 173, 232, 0.16);
+
+  --vp-home-hero-name-color: #74ade8;
+}
+
+.VPNavBarTitle .logo {
+  height: 24px;
+}
+
+.todo {
+  border: 1px dashed var(--vp-c-divider);
+  border-radius: 6px;
+  color: var(--vp-c-text-2);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.85em;
+  padding: 8px 12px;
+}
