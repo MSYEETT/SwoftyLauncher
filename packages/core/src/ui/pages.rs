@@ -23,11 +23,13 @@ pub struct TileStyle {
     pub attach: &'static [&'static str],
     pub hide_divider: bool,
     pub by_gap: bool,
+    pub wrap: Option<(usize, usize)>,
 }
 
 pub enum Icon {
     Texture(&'static str),
     Ref(&'static str),
+    Path(&'static str),
 }
 
 pub const TILES: TileStyle = TileStyle {
@@ -35,11 +37,12 @@ pub const TILES: TileStyle = TileStyle {
     slot: |_| "1a",
     icon: |k| match k {
         Kind::Mod => Icon::Ref("#overrides.icons.session.settings"),
-        Kind::Map => Icon::Ref("#overrides.icons.session_lrg.race"),
+        Kind::Map => Icon::Path("eaid://ui_package/art/textures/custom_track_select/race_completed_icon.tif"),
     },
     attach: &["title_1", "stacker_title"],
     hide_divider: true,
     by_gap: true,
+    wrap: Some((24, 32)),
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -145,6 +148,24 @@ pub fn entries<'a>(mods: &'a [SessionMod], maps: &'a [SessionMap]) -> Vec<Entry<
 
 fn tagged(text: &str, tag: &str, style: &str) -> String {
     format!("{text}  {{s:{style}}}{tag}{{/s}}")
+}
+
+fn wrap_text(text: &str, width: usize) -> String {
+    let mut out = Vec::new();
+    for para in text.split('\n') {
+        let mut line = String::new();
+        for word in para.split(' ') {
+            if !line.is_empty() && line.chars().count() + 1 + word.chars().count() > width {
+                out.push(std::mem::replace(&mut line, word.to_owned()));
+            } else if line.is_empty() {
+                line = word.to_owned();
+            } else {
+                line = format!("{line} {word}");
+            }
+        }
+        out.push(line);
+    }
+    out.join("\n")
 }
 
 fn label_case(s: &str) -> String {
@@ -599,6 +620,7 @@ fn tile(src: &Sources, style: &TileStyle, parent: &str, name: &str, row: usize, 
             let p = c.props_mut()?;
             match (style.icon)(e.kind) {
                 Icon::Ref(r) => p.set("textureOverride", prop(s(""), Some(r))),
+                Icon::Path(path) => p.set("textureOverride", prop(s(path), None)),
                 Icon::Texture(name) => p.set(
                     "textureOverride",
                     prop(s(&format!("{SETTINGS_ICON}{name}.tif")), None),
@@ -607,8 +629,14 @@ fn tile(src: &Sources, style: &TileStyle, parent: &str, name: &str, row: usize, 
             p.set("visible", prop(boolv(true), None));
         }
     }
-    let by = e.details();
-    let gap = if style.by_gap && !e.description.is_empty() {
+    let (by, description) = match style.wrap {
+        Some((by_width, desc_width)) => (
+            wrap_text(&e.details(), by_width),
+            wrap_text(e.description, desc_width),
+        ),
+        None => (e.details(), e.description.to_owned()),
+    };
+    let gap = if style.by_gap && !description.is_empty() {
         "\n"
     } else {
         ""
@@ -617,7 +645,7 @@ fn tile(src: &Sources, style: &TileStyle, parent: &str, name: &str, row: usize, 
         src.t("settings_edit_description_set")?,
         &format!("{parent}.{name}"),
         "info",
-        &[("title", &format!("{by}{gap}")), ("body", e.description)],
+        &[("title", &format!("{by}{gap}")), ("body", &description)],
         true,
     )?;
     info.a_mut()?[LAYOUT] = layout_path(style.attach);
