@@ -112,6 +112,13 @@ fn render_file(
     OpFile::from_value(doc, kind).map_err(json)
 }
 
+fn unbuilt<'a>(ops: impl IntoIterator<Item = &'a AssetOp>) -> Option<&'static str> {
+    ops.into_iter().find_map(|op| match op {
+        AssetOp::Erp(op) => unsupported(op),
+        _ => None,
+    })
+}
+
 fn hash_sources(hasher: &mut Sha256, store: &Store, addon: &str, ops: &[AssetOp]) -> Result<()> {
     for src in ops.iter().flat_map(AssetOp::sources) {
         let path = src.resolve(&source_dir(store, addon, src.root))?;
@@ -169,11 +176,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         }
         let declared: Vec<AssetOp> = m.operations.file_ops().collect();
         hash_sources(&mut hasher, store, id, &declared)?;
-        let skip = files.iter().flat_map(|(_, f)| &f.ops).find_map(|op| match op {
-            AssetOp::Erp(op) => unsupported(op),
-            _ => None,
-        });
-        if let Some(op) = skip {
+        if let Some(op) = unbuilt(files.iter().flat_map(|(_, f)| &f.ops)) {
             built
                 .warnings
                 .push(format!("{id}: ERP operations skipped; {op} is not built yet"));
@@ -211,7 +214,14 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             built
                 .warnings
                 .extend(batch.warnings.iter().map(|w| format!("{id}: {w}")));
-            for op in batch.ops {
+            let mut ops = batch.ops;
+            if let Some(op) = unbuilt(ops.iter().map(|o| &o.op)) {
+                built
+                    .warnings
+                    .push(format!("{id}: ERP operations skipped; {op} is not built yet"));
+                ops.retain(|o| !matches!(o.op, AssetOp::Erp(_)));
+            }
+            for op in ops {
                 planner.push(op);
             }
         }
@@ -653,16 +663,26 @@ mod tests {
         }
 
         fn build(&self, cx: &BuildCx) -> swofty_addon::Result<AssetBatch> {
+            let origin = Origin {
+                addon: cx.cx.addon.into(),
+                item: None,
+            };
             Ok(AssetBatch {
-                ops: vec![Op {
-                    op: AssetOp::Warn {
-                        message: format!("{} cars", cx.options["cars"]),
+                ops: vec![
+                    Op {
+                        op: AssetOp::Warn {
+                            message: format!("{} cars", cx.options["cars"]),
+                        },
+                        origin: origin.clone(),
                     },
-                    origin: Origin {
-                        addon: cx.cx.addon.into(),
-                        item: None,
+                    Op {
+                        op: AssetOp::Erp(crate::ops::ErpOp::RemoveResource {
+                            erp: "2025_asset_groups/missing.erp".into(),
+                            resource: "eaid://missing".into(),
+                        }),
+                        origin,
                     },
-                }],
+                ],
                 lines: vec![format!("profile {}", cx.cx.profile.name)],
                 warnings: Vec::new(),
             })
@@ -700,6 +720,11 @@ mod tests {
         assert_eq!(built.order, [CORE_ID, "t.hook"]);
         assert!(built.lines.contains(&"t.hook: profile default".to_owned()));
         assert!(built.warnings.contains(&"t.hook: 22 cars".to_owned()));
+        assert!(
+            built
+                .warnings
+                .contains(&"t.hook: ERP operations skipped; remove-resource is not built yet".to_owned())
+        );
         assert!(store.addon_data_dir("t.hook").is_dir());
         std::fs::remove_dir_all(&root).ok();
     }

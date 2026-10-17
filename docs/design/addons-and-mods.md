@@ -243,7 +243,7 @@ pub enum Effect {
 ### Import handlers
 
 - A `ButtonKind::Pick` button opens the system file picker and sends `Event::Picked`.
-- Files dropped on the window go to the importer whose `claims` returns `Yes`, else to the only one that returns `Maybe`. Otherwise the shell names the file and says no addon imports it. Addon folders (`swofty.json`), `.swoftymod` files, zips that hold an addon and track packages are importers of core and are asked first.
+- Files dropped on the window go to the importer whose `claims` returns `Yes`, else to the only one that returns `Maybe`. Otherwise the shell names the file and says no addon imports it. Core imports addon folders (`swofty.json`), `.swoftymod` files and zips that hold an addon, and is asked first. Team Simplified's importer claims track zips ([section 5](#_5-tracks-are-mods)).
 - `Progress` reports appear as a notification with a progress bar.
 
 ### Per-profile state
@@ -258,6 +258,7 @@ pub enum Effect {
 - The build hash covers every op and the size and modification time of every source file an op names.
 - `BuildCx.options` holds the profile's values of the addon's options.
 - `BuildCx.features` holds the features from the loader's `features.json`. Hook ops go through the planner after the addon's declared ops, with the origin the hook gives them.
+- An op file or hook result that uses an ERP op the build does not support yet (`replace-resource`, `add-resource`, `remove-resource`, `add-mipmaps`) has all its ERP ops skipped, with a warning.
 
 ### Commands and profile cards
 
@@ -673,8 +674,8 @@ Tracks are `.serps` mods in the Team Simplified library. There is no tracks addo
 
 - **Raw track zips.** A zip that holds a track package (`manifest.json` with `track_code`), or a download that holds one such zip, is claimed by Team Simplified. Import stores it as `library/<code>/` with `package.json` (`track` set to the code), a `mod.serps` written from the manifest, and the package under `track/`. The mod id is the track code.
 - **Track SERPs.** A package built by the Simplified Track Installer (the track archive in an invitational slot, mipmaps under `environment_package/tracks/<code>/mipmaps/`, the `track_info` shader archives and optionally a whole game database) imports, diffs and merges like any other `.serps` mod ([sections 4.3 to 4.6](#_4-3-import)), with the slot as shipped.
-- **Build.** For each enabled raw track, in profile order, the build hook emits `track.add` with `source` `{ "root": "data", "path": "library/<code>/track" }`. Core processes `track.add` ops with `activation/` before other database ops: the database rows, the archive, the menus and ERS. With `group` in the loader's `features.json`, the archive goes to its natural path `2025_asset_groups/environment_package/tracks/<code>/<code>.erp` with `group.register` ops and the natural resource-row values, and there is no limit on tracks. Otherwise the tracks take the invitational slots, at most eight.
-- **Migration.** `Addon::migrate` runs from `Store::migrate` (`data_version` 3). Team Simplified moves each `$DATA/maps/<code>/` into the library and each profile's `maps` list into its state, enabled, after the mods already listed. `Profile` still reads `maps` and no longer writes it.
+- **Build.** For each enabled raw track, in profile order, the build hook emits `track.add` with `source` `{ "root": "data", "path": "library/<id>/track" }`. Core processes `track.add` ops with `activation/` before other database ops: the database rows, the archive, the menus and ERS. With `group` in the loader's `features.json`, the archive goes to its natural path `2025_asset_groups/environment_package/tracks/<code>/<code>.erp` with `group.register` ops and the natural resource-row values, and there is no limit on tracks. Otherwise the tracks take the invitational slots, at most eight.
+- **Migration.** `Addon::migrate` runs from `Store::migrate` (`data_version` 3). Team Simplified moves each `$DATA/maps/<code>/` into the library and each profile's `maps` list into its state, enabled, after the mods already listed. The track's id is its code, or `<code>-track` when a library mod already has that id. Each track is staged under `library/.migrate-<folder>/`, and the next run finishes a staged track. A code that matches no track in the library is dropped. `Profile` still reads `maps` and no longer writes it.
 - **Removed from core.** The Maps page and sidebar entry, `Profile.maps`, `Store::maps`, `import_map`, `remove_map`, the core track importer and the `swofty maps` commands. `swofty maps` is a hidden alias of `swofty mods`.
 
 ## 6. Work items

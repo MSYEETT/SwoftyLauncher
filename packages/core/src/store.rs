@@ -349,15 +349,10 @@ impl Store {
 
     pub fn session_settings(&self, profile: &str) -> Result<SessionSettings> {
         let requests = crate::paths::game_folder_view(&self.requests_path(profile));
-        let mut addons = self.addons()?;
-        addons.retain(|id, m| {
-            id == CORE_ID
-                || !self.builtins.iter().any(|b| b.addon.manifest().id == *id)
-                || !m.options.is_empty()
-                || !m.operations.native.is_empty()
-                || !m.operations.screens.is_empty()
-        });
-        SessionSettings::build(&self.profile(profile)?, &addons, Some(requests))
+        let mut s = SessionSettings::build(&self.profile(profile)?, &self.addons()?, Some(requests))?;
+        s.addons
+            .retain(|a| a.id == CORE_ID || !self.is_builtin(&a.id) || !a.options.is_empty());
+        Ok(s)
     }
 
     pub fn merge_requests(&self, profile: &str, consume: bool) -> Result<Option<Merge>> {
@@ -614,7 +609,7 @@ mod tests {
     }
 
     #[test]
-    fn leaves_launcher_only_builtins_out_of_addon_settings() {
+    fn leaves_builtins_without_options_out_of_addon_settings() {
         let root = tmp("builtin-settings");
         let parse = |json: &str| AddonManifest::parse(json).unwrap();
         let builtin = |m| Builtin {
@@ -622,20 +617,62 @@ mod tests {
             locked: false,
             default_on: true,
         };
-        let store = Store::new(&root).with_builtins(vec![
-            builtin(parse(
-                r#"{"schema_version":1,"id":"t.library","name":"Library","version":"1.0.0","author":"t","compat":{"game":"f1_25"}}"#,
-            )),
+        let tuned = || {
             builtin(parse(
                 r#"{"schema_version":1,"id":"t.tuned","name":"Tuned","version":"1.0.0","author":"t","compat":{"game":"f1_25"},
                     "options":[{"id":"on","type":"toggle","label":"On","default":true,"binds":"native"}]}"#,
+            ))
+        };
+        let quiet = || {
+            vec![
+                builtin(parse(
+                    r#"{"schema_version":1,"id":"t.library","name":"Library","version":"1.0.0","author":"t","compat":{"game":"f1_25"}}"#,
+                )),
+                builtin(parse(
+                    r#"{"schema_version":1,"id":"t.native","name":"Native","version":"1.0.0","author":"t","compat":{"game":"f1_25"},
+                        "operations":{"native":[{"dll":"native/n.dll"}]}}"#,
+                )),
+                builtin(parse(
+                    r#"{"schema_version":1,"id":"t.pages","name":"Pages","version":"1.0.0","author":"t","compat":{"game":"f1_25"},
+                        "operations":{"screens":[{"name":"pages_screen","file":"ui/p.ui"}]}}"#,
+                )),
+            ]
+        };
+        write_addon(&Store::new(&root).addons_dir().join("a.user"), "a.user");
+        let plain = Store::new(&root).with_builtins(vec![tuned()]);
+        let expected = SessionSettings::build(
+            &plain.profile(DEFAULT_PROFILE).unwrap(),
+            &plain.addons().unwrap(),
+            Some(crate::paths::game_folder_view(
+                &plain.requests_path(DEFAULT_PROFILE),
             )),
-        ]);
+        )
+        .unwrap();
+        let plain_json = serde_json::to_vec(&plain.session_settings(DEFAULT_PROFILE).unwrap()).unwrap();
+        assert_eq!(plain_json, serde_json::to_vec(&expected).unwrap());
+
+        let mut all = quiet();
+        all.push(tuned());
+        let store = Store::new(&root).with_builtins(all);
         let p = store.profile(DEFAULT_PROFILE).unwrap();
-        assert_eq!(p.enabled().collect::<Vec<_>>(), [CORE_ID, "t.library", "t.tuned"]);
+        assert_eq!(
+            p.enabled().collect::<Vec<_>>(),
+            [CORE_ID, "t.library", "t.native", "t.pages", "t.tuned"]
+        );
         let s = store.session_settings(DEFAULT_PROFILE).unwrap();
         let ids: Vec<&str> = s.addons.iter().map(|a| a.id.as_str()).collect();
-        assert_eq!(ids, [CORE_ID, "t.tuned"]);
+        assert_eq!(ids, [CORE_ID, "t.tuned", "a.user"]);
+        let screens: Vec<&str> =
+            s.ui.as_ref()
+                .unwrap()
+                .screens
+                .iter()
+                .map(|x| x.name.as_str())
+                .collect();
+        assert_eq!(screens, ["pages_screen"]);
+        let mut without_pages = s.clone();
+        without_pages.ui = None;
+        assert_eq!(serde_json::to_vec(&without_pages).unwrap(), plain_json);
         std::fs::remove_dir_all(&root).ok();
     }
 

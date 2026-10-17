@@ -109,4 +109,4 @@ swofty apply
 
 ## Where mods are stored
 
-Mods are stored in `$DATA/addon-data/teamsimplified.mods/library/<id>/`, with the package's files under `files/` and a track package under `track/`. Earlier versions kept tracks in `$DATA/maps/` and listed them in each profile's `maps`. The launcher and `swofty` move them into the library, turned on in the same profiles, when they start.
+Mods are stored in `$DATA/addon-data/teamsimplified.mods/library/<id>/`, with the package's files under `files/` and a track package under `track/`. Earlier versions kept tracks in `$DATA/maps/` and listed them in each profile's `maps`. The launcher and `swofty` move them into the library, turned on in the same profiles, when they start. A track whose code is already the id of a mod in the library gets the id `<code>-track`.
