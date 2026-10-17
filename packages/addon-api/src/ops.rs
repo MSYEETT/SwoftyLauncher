@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use swofty_formats::gvdb::{Gvdb, Record, instance_count_path};
@@ -251,6 +251,7 @@ impl Row {
 struct Db<'a> {
     gvdb: &'a mut Gvdb,
     index: HashMap<u64, usize>,
+    removed: Vec<usize>,
 }
 
 impl<'a> Db<'a> {
@@ -259,7 +260,33 @@ impl<'a> Db<'a> {
         for (i, r) in gvdb.records.iter().enumerate() {
             index.entry(r.key).or_insert(i);
         }
-        Self { gvdb, index }
+        Self {
+            gvdb,
+            index,
+            removed: Vec::new(),
+        }
+    }
+
+    fn remove(&mut self, key: u64) -> bool {
+        match self.index.remove(&key) {
+            Some(i) => {
+                self.removed.push(i);
+                true
+            }
+            None => false,
+        }
+    }
+
+    fn finish(self) {
+        if self.removed.is_empty() {
+            return;
+        }
+        let removed: HashSet<usize> = self.removed.into_iter().collect();
+        let mut i = 0;
+        self.gvdb.records.retain(|_| {
+            i += 1;
+            !removed.contains(&(i - 1))
+        });
     }
 
     fn get(&self, key: u64) -> Option<&Record> {
@@ -368,20 +395,46 @@ fn resolve_value(db: &Db, path: &str) -> Result<String> {
         .ok_or_else(|| Error::Resolve(format!("{path}: no value")))
 }
 
-pub fn apply_db_ops(db: &mut Gvdb, ops: &DbOps, names: &dyn FieldNames) -> Result<()> {
+pub fn apply_db_ops(db: &mut Gvdb, ops: &DbOps, names: &dyn FieldNames) -> Result<Vec<u64>> {
     let schema = Schema {
         file: &ops.fields,
         names,
     };
     let mut db = Db::new(db);
+    let mut replaced = Vec::new();
     for op in &ops.ops {
-        apply(&mut db, op, &schema)?;
+        replaced.extend(apply(&mut db, op, &schema)?);
     }
-    Ok(())
+    db.finish();
+    Ok(replaced)
 }
 
-pub fn apply_db_op(db: &mut Gvdb, op: &DbOp, names: &dyn FieldNames) -> Result<()> {
-    apply(&mut Db::new(db), op, names)
+pub fn apply_db_op(db: &mut Gvdb, op: &DbOp, names: &dyn FieldNames) -> Result<Option<u64>> {
+    let mut db = Db::new(db);
+    let replaced = apply(&mut db, op, names)?;
+    db.finish();
+    Ok(replaced)
+}
+
+pub fn record_key(key: &str) -> Result<u64> {
+    match key.strip_prefix("0x") {
+        Some(hex) if hex.len() == 16 => {
+            u64::from_str_radix(hex, 16).map_err(|_| Error::Resolve(format!("bad record key {key}")))
+        }
+        Some(_) => Err(Error::Resolve(format!("bad record key {key}"))),
+        None => Ok(fnv1a64(key)),
+    }
+}
+
+fn hex_bytes(key: &str, value: &str) -> Result<Vec<u8>> {
+    let bad = || Error::Resolve(format!("{key}: value must be hex bytes"));
+    if !value.is_ascii() || !value.len().is_multiple_of(2) {
+        return Err(bad());
+    }
+    (0..value.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&value[i..i + 2], 16).map_err(|_| bad()))
+        .collect()
 }
 
 pub fn add_row_name<'a>(table: &str, from: &'a str) -> Option<&'a str> {
@@ -395,7 +448,7 @@ pub fn add_row_name<'a>(table: &str, from: &'a str) -> Option<&'a str> {
         })
 }
 
-fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<()> {
+fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<Option<u64>> {
     match op {
         DbOp::Set {
             select,
@@ -432,7 +485,7 @@ fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<()> {
                 }
                 None => return Err(Error::Resolve(format!("{select}.{field}: no such key"))),
             }
-            Ok(())
+            Ok(Some(key))
         }
         DbOp::AddRow { table, from, set } => {
             let src = resolve_row(db, from)?;
@@ -480,14 +533,34 @@ fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<()> {
                 .get_mut(fnv1a64(&count_path))
                 .expect("instance_count read it above");
             count.value = (n + 1).to_string().into_bytes();
-            Ok(())
+            Ok(None)
         }
         DbOp::RemoveRow { .. } | DbOp::ListAppend { .. } | DbOp::ListRemove { .. } => Err(Error::Resolve(
             "remove-row and list ops are not implemented yet".into(),
         )),
-        DbOp::PutRecord { .. } | DbOp::RemoveRecord { .. } => Err(Error::Resolve(
-            "put-record and remove-record are not implemented yet".into(),
-        )),
+        DbOp::PutRecord { key, tag, value } => {
+            let value = hex_bytes(key, value)?;
+            let k = record_key(key)?;
+            match db.get_mut(k) {
+                Some(r) => {
+                    r.tag = *tag;
+                    r.value = value;
+                }
+                None => db.push(Record {
+                    key: k,
+                    tag: *tag,
+                    value,
+                }),
+            }
+            Ok(Some(k))
+        }
+        DbOp::RemoveRecord { key } => {
+            let k = record_key(key)?;
+            if !db.remove(k) {
+                return Err(Error::Resolve(format!("{key}: no such key")));
+            }
+            Ok(Some(k))
+        }
     }
 }
 
@@ -631,6 +704,38 @@ mod tests {
         apply_db_ops(&mut db, &ops(&json), &names()).unwrap();
         let key = fnv1a64_from(fnv1a64("hidden.world_table_"), "0.worldEri");
         assert_eq!(db.get_key(key).unwrap().text(), "_f1_26_myteam.wep");
+    }
+
+    #[test]
+    fn put_and_remove_records_by_path_and_hash() {
+        let mut db = db();
+        let count = db.records.len();
+        let code = fnv1a64("entrants.teams.team_0.display_name_code");
+        let ops = ops(&format!(
+            r#"{{"schema_version":1,"ops":[
+            {{"op":"put-record","key":"{code:#018x}","type":4,"value":"4d434c"}},
+            {{"op":"put-record","key":"entrants.teams.team_0.new_field","type":0,"value":"3132"}},
+            {{"op":"remove-record","key":"entrants.teams.team_1.stat_id"}}]}}"#
+        ));
+        let replaced = apply_db_ops(&mut db, &ops, &names()).unwrap();
+        assert_eq!(replaced[0], code);
+        assert_eq!(replaced.len(), 3);
+        let r = db.get("entrants.teams.team_0.display_name_code").unwrap();
+        assert_eq!((r.tag, r.text().as_ref()), (4, "MCL"));
+        assert_eq!(
+            db.get_text("entrants.teams.team_0.new_field").as_deref(),
+            Some("12")
+        );
+        assert!(db.get("entrants.teams.team_1.stat_id").is_none());
+        assert_eq!(db.records.len(), count);
+        for bad in [
+            r#"{"op":"remove-record","key":"entrants.teams.team_1.nope"}"#,
+            r#"{"op":"put-record","key":"0x12","type":0,"value":"00"}"#,
+            r#"{"op":"put-record","key":"a.b","type":0,"value":"0"}"#,
+        ] {
+            let op: DbOp = serde_json::from_str(bad).unwrap();
+            assert!(apply_db_op(&mut db, &op, &names()).is_err(), "{bad}");
+        }
     }
 
     #[test]
