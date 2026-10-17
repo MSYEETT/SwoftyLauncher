@@ -1,96 +1,420 @@
-use std::collections::HashSet;
+use std::path::PathBuf;
+use std::rc::Rc;
+use std::time::Duration;
 
 use gpui_kit::assets::IconName;
-use gpui_kit::component::button::{Button, ButtonVariants};
-use gpui_kit::component::switch::Switch;
-use gpui_kit::component::{Icon, Sizable, TitleBar, h_flex, v_flex};
+use gpui_kit::component::button::Button;
+use gpui_kit::component::input::{Input, InputState};
+use gpui_kit::component::notification::Notification;
+use gpui_kit::component::{Icon, TitleBar, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
+use swofty_core::process::{GameProcess, stop_game};
+use swofty_core::session::SessionRecord;
+use swofty_core::store::Store;
 
-use crate::data::{self, ModRow};
+use crate::game::{self, Install, Launch, Probe};
+use crate::library::Library;
 use crate::theme::{Palette, palette};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Section {
+pub enum Page {
     Mods,
     Maps,
     Profiles,
-    Play,
-    Settings,
 }
 
-impl Section {
-    fn label(self) -> &'static str {
+impl Page {
+    pub fn label(self) -> &'static str {
         match self {
             Self::Mods => "Mods",
             Self::Maps => "Maps",
             Self::Profiles => "Profiles",
-            Self::Play => "Play",
-            Self::Settings => "Settings",
         }
     }
 
-    fn icon(self) -> IconName {
+    pub fn icon(self) -> IconName {
         match self {
             Self::Mods => IconName::Puzzle,
             Self::Maps => IconName::Map,
             Self::Profiles => IconName::Layers,
-            Self::Play => IconName::Play,
-            Self::Settings => IconName::Settings,
         }
     }
 }
 
+pub enum PlayState {
+    Detecting,
+    NotInstalled,
+    Ready,
+    Launching,
+    Running(Option<u64>),
+    Crashed(SessionRecord),
+}
+
 pub struct Shell {
-    section: Section,
-    profile: SharedString,
-    disabled: HashSet<&'static str>,
+    pub(crate) store: Store,
+    pub(crate) page: Page,
+    pub(crate) library: Library,
+    pub(crate) selected_mod: Option<String>,
+    pub(crate) selected_map: Option<String>,
+    pub(crate) install: Option<Install>,
+    pub(crate) detected: bool,
+    pub(crate) rediscover: bool,
+    pub(crate) processes: Vec<GameProcess>,
+    pub(crate) session: Option<SessionRecord>,
+    pub(crate) crash: Option<(PathBuf, String)>,
+    pub(crate) dismissed: Option<PathBuf>,
+    pub(crate) launch: Option<Launch>,
+    pub(crate) notice: Option<String>,
+    _poll: Task<()>,
+}
+
+pub type Action = Rc<dyn Fn(&Store, &str) -> Result<String, String>>;
+
+pub struct Prompt {
+    pub title: &'static str,
+    pub description: String,
+    pub initial: String,
+    pub placeholder: &'static str,
+    pub ok: &'static str,
+    pub browse: Option<PathPromptOptions>,
+    pub action: Action,
 }
 
 impl Shell {
-    pub fn new() -> Self {
+    pub fn new(cx: &mut Context<Self>) -> Self {
+        let store = Store::open_default();
+        let poll = cx.spawn(async move |this, cx| {
+            loop {
+                let Ok((store, rediscover)) = this.update(cx, |s, _| {
+                    let r = std::mem::take(&mut s.rediscover);
+                    (s.store.clone(), r)
+                }) else {
+                    break;
+                };
+                let probe = cx
+                    .background_executor()
+                    .spawn(async move { game::probe(&store, rediscover) })
+                    .await;
+                if this.update(cx, |s, cx| s.apply(probe, cx)).is_err() {
+                    break;
+                }
+                cx.background_executor().timer(Duration::from_millis(1000)).await;
+            }
+        });
+        let rediscover = cx.spawn(async move |this, cx| {
+            loop {
+                cx.background_executor().timer(Duration::from_secs(10)).await;
+                if this.update(cx, |s, _| s.rediscover = true).is_err() {
+                    break;
+                }
+            }
+        });
+        rediscover.detach();
         Self {
-            section: Section::Mods,
-            profile: "default".into(),
-            disabled: HashSet::new(),
+            library: Library::load(&store),
+            store,
+            page: Page::Mods,
+            selected_mod: None,
+            selected_map: None,
+            install: None,
+            detected: false,
+            rediscover: true,
+            processes: Vec::new(),
+            session: None,
+            crash: None,
+            dismissed: None,
+            launch: None,
+            notice: None,
+            _poll: poll,
         }
+    }
+
+    fn apply(&mut self, probe: Probe, cx: &mut Context<Self>) {
+        if let Some(install) = probe.install {
+            self.install = install;
+            self.detected = true;
+            self.library = Library::load(&self.store);
+        }
+        self.processes = probe.processes;
+        if let Some(launch) = self.launch.as_mut() {
+            launch.saw_game |= !self.processes.is_empty();
+            if let Some(ok) = launch.finished() {
+                if !ok && !launch.saw_game {
+                    self.notice = Some(launch.failure());
+                }
+                self.launch = None;
+            }
+        }
+        if let Some(s) = probe.session.as_ref().filter(|s| s.crashed())
+            && self.crash.as_ref().is_none_or(|(d, _)| *d != s.dir)
+        {
+            let session = s.clone();
+            let game_dir = self.install.as_ref().map(|i| i.dir.clone());
+            self.crash = Some((s.dir.clone(), String::new()));
+            cx.spawn(async move |this, cx| {
+                let dir = session.dir.clone();
+                let summary = cx
+                    .background_executor()
+                    .spawn(async move { game::crash_summary(&session, game_dir.as_deref()) })
+                    .await;
+                this.update(cx, |s, cx| {
+                    s.crash = Some((dir, summary));
+                    cx.notify();
+                })
+                .ok();
+            })
+            .detach();
+        }
+        self.session = probe.session;
+        cx.notify();
+    }
+
+    pub(crate) fn reload(&mut self, cx: &mut Context<Self>) {
+        self.library = Library::load(&self.store);
+        cx.notify();
+    }
+
+    pub(crate) fn play_state(&self) -> PlayState {
+        if let Some(p) = self.processes.first() {
+            let secs = p.started.and_then(|t| t.elapsed().ok()).map(|d| d.as_secs());
+            return PlayState::Running(secs);
+        }
+        if self.launch.is_some() {
+            return PlayState::Launching;
+        }
+        if !self.detected {
+            return PlayState::Detecting;
+        }
+        if self.install.is_none() {
+            return PlayState::NotInstalled;
+        }
+        match &self.session {
+            Some(s)
+                if s.crashed()
+                    && self.dismissed.as_ref() != Some(&s.dir)
+                    && s.ended.is_some_and(|e| game::now_secs() - e < 1800.0) =>
+            {
+                PlayState::Crashed(s.clone())
+            }
+            _ => PlayState::Ready,
+        }
+    }
+
+    pub(crate) fn play(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(install) = self.install.clone() else {
+            return;
+        };
+        self.notice = None;
+        self.dismissed = self.session.as_ref().map(|s| s.dir.clone());
+        match Launch::start(&self.store, &self.library.profile.name, &install) {
+            Ok(l) => self.launch = Some(l),
+            Err(e) => window.push_notification(Notification::error(e).title("Could not launch F1 25"), cx),
+        }
+        cx.notify();
+    }
+
+    pub(crate) fn confirm_stop(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        window.open_alert_dialog(cx, |alert, _, _| {
+            alert
+                .title("Stop F1 25?")
+                .description("The game closes immediately. Unsaved progress is lost.")
+                .ok_text("Stop game")
+                .show_cancel(true)
+                .on_ok(|_, window, cx| {
+                    if let Err(e) = stop_game() {
+                        window.push_notification(Notification::error(e.to_string()), cx);
+                    }
+                    true
+                })
+        });
+    }
+
+    pub(crate) fn update_profile(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        f: impl FnOnce(&mut swofty_core::profile::Profile) -> swofty_core::Result<()>,
+    ) {
+        let mut p = self.library.profile.clone();
+        if let Err(e) = f(&mut p).and_then(|_| self.store.save_profile(&p)) {
+            window.push_notification(Notification::error(e.to_string()), cx);
+        }
+        self.reload(cx);
+    }
+
+    pub(crate) fn switch_profile(&mut self, name: &str, window: &mut Window, cx: &mut Context<Self>) {
+        if let Err(e) = self.store.set_active_profile(name) {
+            window.push_notification(Notification::error(e.to_string()), cx);
+        }
+        self.reload(cx);
+    }
+
+    pub(crate) fn locate_game(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let current = self.install.as_ref().map(|i| i.dir.display().to_string());
+        self.prompt(
+            Prompt {
+                title: "Locate F1 25",
+                description: format!("The folder that contains {}.", swofty_core::GAME_EXE),
+                initial: current.unwrap_or_default(),
+                placeholder: "/path/to/steamapps/common/F1 25",
+                ok: "Use this folder",
+                browse: Some(PathPromptOptions {
+                    files: false,
+                    directories: true,
+                    multiple: false,
+                    prompt: Some("Use folder".into()),
+                }),
+                action: Rc::new(|store, value| {
+                    let dir = PathBuf::from(value);
+                    if !dir.join(swofty_core::GAME_EXE).is_file() {
+                        return Err(format!("{} is not in {value}", swofty_core::GAME_EXE));
+                    }
+                    let mut config = store.config();
+                    config.game_dir = Some(dir);
+                    store.save_config(&config).map_err(|e| e.to_string())?;
+                    Ok("Game folder saved".into())
+                }),
+            },
+            window,
+            cx,
+        );
+    }
+
+    pub(crate) fn prompt(&mut self, prompt: Prompt, window: &mut Window, cx: &mut Context<Self>) {
+        let input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder(prompt.placeholder)
+                .default_value(prompt.initial.clone())
+        });
+        let shell = cx.entity().downgrade();
+        let store = self.store.clone();
+        let focus = std::cell::Cell::new(true);
+        window.open_alert_dialog(cx, move |alert, window, cx| {
+            if focus.replace(false) {
+                input.update(cx, |s, cx| s.focus(window, cx));
+            }
+            let field = input.clone();
+            let browse = prompt.browse.clone().map(|options| {
+                Button::new("browse")
+                    .icon(IconName::FolderOpen)
+                    .label("Browse…")
+                    .on_click(move |_, window, cx| {
+                        let rx = cx.prompt_for_paths(options.clone());
+                        let field = field.clone();
+                        window
+                            .spawn(cx, async move |cx| {
+                                if let Ok(Ok(Some(paths))) = rx.await
+                                    && let Some(path) = paths.first()
+                                {
+                                    let path = path.display().to_string();
+                                    cx.update(|window, cx| {
+                                        field.update(cx, |s, cx| s.set_value(path, window, cx))
+                                    })
+                                    .ok();
+                                }
+                            })
+                            .detach();
+                    })
+            });
+            let (input, shell, store, action) =
+                (input.clone(), shell.clone(), store.clone(), prompt.action.clone());
+            alert
+                .width(px(560.))
+                .title(prompt.title)
+                .description(prompt.description.clone())
+                .child(
+                    h_flex()
+                        .w_full()
+                        .gap_2()
+                        .child(div().flex_1().child(Input::new(&input)))
+                        .children(browse),
+                )
+                .ok_text(prompt.ok)
+                .show_cancel(true)
+                .on_ok(move |_, window, cx| {
+                    let value = input.read(cx).value().trim().to_owned();
+                    match action(&store, &value) {
+                        Ok(message) => {
+                            shell
+                                .update(cx, |s, cx| {
+                                    s.rediscover = true;
+                                    s.reload(cx)
+                                })
+                                .ok();
+                            window.push_notification(Notification::success(message), cx);
+                            true
+                        }
+                        Err(e) => {
+                            window.push_notification(Notification::error(e), cx);
+                            false
+                        }
+                    }
+                })
+        });
     }
 
     fn title_bar(&self, p: Palette) -> impl IntoElement {
         TitleBar::new().child(
             h_flex()
                 .gap_2()
-                .text_sm()
-                .child(Icon::new(IconName::Gamepad2).small().text_color(p.accent))
-                .child(div().text_color(p.text).child("Swofty Mod Launcher"))
-                .child(div().text_color(p.text_placeholder).child("/"))
+                .child(Icon::new(IconName::Gamepad2).text_color(p.accent))
                 .child(
-                    h_flex()
-                        .gap_1()
+                    div()
+                        .text_size(px(15.))
                         .text_color(p.text_muted)
-                        .child(Icon::new(IconName::Layers).xsmall())
-                        .child(self.profile.clone()),
+                        .child("Swofty Mod Launcher"),
                 ),
         )
     }
 
-    fn nav_item(&self, section: Section, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let selected = self.section == section;
+    fn nav_item(&self, page: Page, count: usize, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+        let active = self.page == page;
         h_flex()
-            .id(section.label())
-            .h(px(26.))
-            .px_2()
-            .gap_2()
-            .rounded(px(4.))
-            .text_sm()
+            .id(page.label())
+            .h(px(48.))
+            .pl(px(14.))
+            .pr(px(12.))
+            .gap(px(14.))
+            .rounded(px(8.))
             .cursor_pointer()
-            .text_color(if selected { p.text } else { p.text_muted })
-            .when(selected, |d| d.bg(p.selected))
-            .when(!selected, |d| d.hover(move |s| s.bg(p.hover)))
-            .child(Icon::new(section.icon()).small())
-            .child(section.label())
+            .text_size(px(16.))
+            .when(active, |d| {
+                d.bg(p.selected)
+                    .text_color(p.text)
+                    .font_weight(FontWeight::MEDIUM)
+            })
+            .when(!active, |d| {
+                d.text_color(p.text_muted).hover(move |s| s.bg(p.hover))
+            })
+            .child(
+                div()
+                    .w(px(3.))
+                    .h(px(22.))
+                    .rounded(px(2.))
+                    .when(active, |d| d.bg(p.accent)),
+            )
+            .child(Icon::new(page.icon()).size(px(20.)).text_color(if active {
+                p.accent
+            } else {
+                p.text_muted
+            }))
+            .child(div().flex_1().child(page.label()))
+            .child(
+                div()
+                    .min_w(px(28.))
+                    .px(px(8.))
+                    .py(px(2.))
+                    .rounded(px(10.))
+                    .bg(if active { p.background } else { p.elevated })
+                    .text_size(px(13.))
+                    .text_color(p.text_muted)
+                    .flex()
+                    .justify_center()
+                    .child(count.to_string()),
+            )
             .on_click(cx.listener(move |this, _, _, cx| {
-                this.section = section;
+                this.page = page;
                 cx.notify();
             }))
     }
@@ -98,279 +422,69 @@ impl Shell {
     fn sidebar(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let heading = |label: &'static str| {
             div()
-                .px_2()
-                .pt_3()
-                .pb_1()
-                .text_xs()
+                .px(px(14.))
+                .pt(px(20.))
+                .pb(px(8.))
+                .text_size(px(12.))
+                .font_weight(FontWeight::SEMIBOLD)
                 .text_color(p.text_placeholder)
                 .child(label)
         };
+        let root = self.store.root.clone();
         v_flex()
-            .w(px(224.))
+            .w(px(272.))
             .h_full()
             .flex_shrink_0()
-            .p_1()
-            .gap_px()
+            .px(px(12.))
+            .pb(px(16.))
+            .gap(px(4.))
             .bg(p.surface)
             .border_r_1()
             .border_color(p.border_variant)
             .child(heading("LIBRARY"))
-            .child(self.nav_item(Section::Mods, p, cx))
-            .child(self.nav_item(Section::Maps, p, cx))
+            .child(self.nav_item(Page::Mods, self.library.mods.len(), p, cx))
+            .child(self.nav_item(Page::Maps, self.library.maps.len(), p, cx))
             .child(heading("LAUNCHER"))
-            .child(self.nav_item(Section::Profiles, p, cx))
-            .child(self.nav_item(Section::Play, p, cx))
-            .child(self.nav_item(Section::Settings, p, cx))
-    }
-
-    fn pane_header(&self, p: Palette) -> impl IntoElement {
-        h_flex()
-            .h(px(34.))
-            .px_3()
-            .gap_2()
-            .flex_shrink_0()
-            .bg(p.surface)
-            .border_b_1()
-            .border_color(p.border_variant)
-            .text_sm()
-            .child(Icon::new(self.section.icon()).small().text_color(p.text_muted))
-            .child(div().text_color(p.text).child(self.section.label()))
-    }
-
-    fn mod_row(&self, row: &'static ModRow, p: Palette, cx: &mut Context<Self>) -> impl IntoElement + use<> {
-        let enabled = row.builtin || !self.disabled.contains(row.id);
-        h_flex()
-            .id(row.id)
-            .px_3()
-            .py_2()
-            .gap_3()
-            .border_b_1()
-            .border_color(p.border_variant)
-            .hover(move |s| s.bg(p.hover))
+            .child(self.nav_item(Page::Profiles, self.library.profiles.len(), p, cx))
+            .child(div().flex_1())
             .child(
-                Icon::new(if row.builtin {
-                    IconName::Pin
-                } else {
-                    IconName::Package
-                })
-                .small()
-                .text_color(if row.builtin { p.accent } else { p.text_muted }),
-            )
-            .child(
-                v_flex()
-                    .flex_1()
-                    .child(
-                        h_flex()
-                            .gap_2()
-                            .text_sm()
-                            .child(div().text_color(p.text).child(row.name))
-                            .child(div().text_color(p.text_placeholder).child(row.version)),
-                    )
+                h_flex()
+                    .id("data-dir")
+                    .px(px(14.))
+                    .py(px(10.))
+                    .gap(px(10.))
+                    .rounded(px(8.))
+                    .cursor_pointer()
+                    .text_size(px(13.))
+                    .text_color(p.text_placeholder)
+                    .hover(move |s| s.bg(p.hover).text_color(p.text_muted))
+                    .child(Icon::new(IconName::FolderOpen).size(px(16.)))
                     .child(
                         div()
-                            .text_xs()
-                            .text_color(p.text_muted)
-                            .child(format!("{} · {}", row.id, row.kinds)),
-                    ),
-            )
-            .map(|d| {
-                if row.builtin {
-                    d.child(
-                        h_flex()
-                            .gap_1()
-                            .text_xs()
-                            .text_color(p.text_muted)
-                            .child(Icon::new(IconName::Lock).xsmall())
-                            .child("Built in · always on"),
-                    )
-                } else {
-                    let id = row.id;
-                    d.child(
-                        Switch::new(SharedString::from(format!("toggle-{id}")))
-                            .checked(enabled)
-                            .on_change(cx.listener(move |this, on: &bool, _, cx| {
-                                if *on {
-                                    this.disabled.remove(id);
-                                } else {
-                                    this.disabled.insert(id);
-                                }
-                                cx.notify();
-                            })),
-                    )
-                }
-            })
-    }
-
-    fn mods_view(&self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
-        let rows: Vec<_> = data::MODS.iter().map(|row| self.mod_row(row, p, cx)).collect();
-        v_flex().children(rows).into_any_element()
-    }
-
-    fn maps_view(&self, p: Palette) -> AnyElement {
-        v_flex()
-            .size_full()
-            .items_center()
-            .justify_center()
-            .gap_2()
-            .child(Icon::new(IconName::Map).large().text_color(p.text_placeholder))
-            .child(div().text_color(p.text).child("No maps installed"))
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(p.text_muted)
-                    .child("Track packages: manifest.json, <code>.erp and ui/*.json in one zip"),
-            )
-            .child(
-                Button::new("import-map")
-                    .primary()
-                    .icon(IconName::Upload)
-                    .label("Import map (.zip)")
-                    .on_click(|_, _, _| {}),
-            )
-            .into_any_element()
-    }
-
-    fn profiles_view(&self, p: Palette) -> AnyElement {
-        v_flex()
-            .children(data::PROFILES.iter().map(|row| {
-                let active = self.profile.as_ref() == row.name;
-                h_flex()
-                    .px_3()
-                    .py_2()
-                    .gap_3()
-                    .border_b_1()
-                    .border_color(p.border_variant)
-                    .child(Icon::new(IconName::Layers).small().text_color(p.text_muted))
-                    .child(
-                        v_flex()
                             .flex_1()
-                            .child(div().text_sm().text_color(p.text).child(row.name))
-                            .child(
-                                div()
-                                    .text_xs()
-                                    .text_color(p.text_muted)
-                                    .child(format!("{} mods · {} maps", row.mods, row.maps)),
-                            ),
+                            .min_w_0()
+                            .truncate()
+                            .child(self.store.root.display().to_string()),
                     )
-                    .when(active, |d| {
-                        d.child(
-                            h_flex()
-                                .gap_1()
-                                .text_xs()
-                                .text_color(p.success)
-                                .child(Icon::new(IconName::CircleCheck).xsmall())
-                                .child("Active"),
-                        )
-                    })
-            }))
-            .into_any_element()
-    }
-
-    fn play_view(&self, p: Palette) -> AnyElement {
-        v_flex()
-            .size_full()
-            .child(
-                h_flex()
-                    .px_3()
-                    .py_1p5()
-                    .gap_2()
-                    .bg(p.warning.opacity(0.12))
-                    .border_b_1()
-                    .border_color(p.warning.opacity(0.4))
-                    .text_xs()
-                    .text_color(p.warning)
-                    .child(Icon::new(IconName::ShieldCheck).xsmall())
-                    .child(format!(
-                        "MODDED SESSION · OFFLINE · anticheat not loaded · profile {}",
-                        self.profile
-                    )),
-            )
-            .child(
-                v_flex()
-                    .flex_1()
-                    .items_center()
-                    .justify_center()
-                    .gap_3()
-                    .child(
-                        Button::new("play")
-                            .primary()
-                            .large()
-                            .icon(IconName::Play)
-                            .label("Play modded (offline)")
-                            .on_click(|_, _, _| {}),
-                    )
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(p.text_muted)
-                            .child(format!("F1 25 · profile {}", self.profile)),
-                    ),
-            )
-            .into_any_element()
-    }
-
-    fn settings_view(&self, p: Palette) -> AnyElement {
-        v_flex()
-            .children(data::SETTINGS.iter().enumerate().map(|(i, (label, value))| {
-                h_flex()
-                    .px_3()
-                    .py_2()
-                    .gap_3()
-                    .border_b_1()
-                    .border_color(p.border_variant)
-                    .child(div().w(px(160.)).text_sm().text_color(p.text_muted).child(*label))
-                    .child(div().flex_1().text_sm().text_color(p.text).child(*value))
-                    .child(
-                        Button::new(("browse", i))
-                            .small()
-                            .icon(IconName::FolderOpen)
-                            .label("Browse")
-                            .on_click(|_, _, _| {}),
-                    )
-            }))
-            .into_any_element()
-    }
-
-    fn status_bar(&self, p: Palette) -> impl IntoElement {
-        h_flex()
-            .h(px(26.))
-            .px_2()
-            .flex_shrink_0()
-            .justify_between()
-            .bg(p.chrome)
-            .border_t_1()
-            .border_color(p.border_variant)
-            .text_xs()
-            .text_color(p.text_muted)
-            .child(
-                h_flex()
-                    .gap_1()
-                    .child(Icon::new(IconName::HardDrive).xsmall())
-                    .child("F1 25 not detected"),
-            )
-            .child(
-                h_flex()
-                    .gap_1()
-                    .child(Icon::new(IconName::WifiOff).xsmall())
-                    .child(format!("swofty {}", env!("CARGO_PKG_VERSION"))),
+                    .on_click(move |_, _, cx| cx.open_with_system(&root)),
             )
     }
 }
 
 impl Render for Shell {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let p = palette(cx);
-        let content = match self.section {
-            Section::Mods => self.mods_view(p, cx),
-            Section::Maps => self.maps_view(p),
-            Section::Profiles => self.profiles_view(p),
-            Section::Play => self.play_view(p),
-            Section::Settings => self.settings_view(p),
+        let wide = window.viewport_size().width > px(1500.);
+        let content = match self.page {
+            Page::Mods => self.mods_page(p, wide, cx),
+            Page::Maps => self.maps_page(p, wide, cx),
+            Page::Profiles => self.profiles_page(p, wide, cx),
         };
         v_flex()
             .size_full()
             .bg(p.background)
             .text_color(p.text)
+            .text_size(px(16.))
             .child(self.title_bar(p))
             .child(
                 h_flex()
@@ -378,22 +492,8 @@ impl Render for Shell {
                     .min_h_0()
                     .items_start()
                     .child(self.sidebar(p, cx))
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .h_full()
-                            .min_w_0()
-                            .child(self.pane_header(p))
-                            .child(
-                                div()
-                                    .id("pane")
-                                    .flex_1()
-                                    .min_h_0()
-                                    .overflow_y_scroll()
-                                    .child(content),
-                            ),
-                    ),
+                    .child(v_flex().flex_1().h_full().min_w_0().child(content)),
             )
-            .child(self.status_bar(p))
+            .child(self.play_bar(p, wide, cx))
     }
 }

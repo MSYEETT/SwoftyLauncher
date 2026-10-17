@@ -10,6 +10,7 @@ pub struct Palette {
     pub border: Hsla,
     pub border_variant: Hsla,
     pub hover: Hsla,
+    pub switch_off: Hsla,
     pub selected: Hsla,
     pub text: Hsla,
     pub text_muted: Hsla,
@@ -37,6 +38,7 @@ impl Palette {
             border: hex(0x464b57),
             border_variant: hex(0x363c46),
             hover: hex(0x363c46),
+            switch_off: hex(0x5f6573),
             selected: hex(0x454a56),
             text: hex(0xdce0e5),
             text_muted: hex(0xa9afbc),
@@ -58,9 +60,9 @@ pub fn init(cx: &mut App) {
     let p = Palette::dark();
     Theme::change(ThemeMode::Dark, None, cx);
     Theme::update(cx, |t| {
-        t.font_size = px(14.);
-        t.radius = px(4.);
-        t.radius_lg = px(6.);
+        t.font_size = px(16.);
+        t.radius = px(6.);
+        t.radius_lg = px(10.);
         t.shadow = false;
         t.background = p.background;
         t.foreground = p.text;
@@ -103,7 +105,7 @@ pub fn init(cx: &mut App) {
         t.status_bar = p.chrome;
         t.status_bar_border = p.border_variant;
         t.window_border = p.border;
-        t.switch = p.selected;
+        t.switch = p.switch_off;
         t.switch_thumb = p.text;
         t.success = p.success;
         t.warning = p.warning;

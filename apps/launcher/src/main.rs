@@ -1,6 +1,9 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-mod data;
+mod game;
+mod library;
+mod pages;
+mod play_bar;
 mod shell;
 mod theme;
 
@@ -16,14 +19,14 @@ fn main() {
             let options = WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
                     None,
-                    size(px(1120.), px(720.)),
+                    size(px(1440.), px(900.)),
                     cx,
                 ))),
-                window_min_size: Some(size(px(760.), px(480.))),
+                window_min_size: Some(size(px(1024.), px(680.))),
                 app_id: Some("net.swofty.ModLauncher".into()),
                 ..TitleBar::window_options()
             };
-            gpui_kit::open_window(options, cx, |_, cx| cx.new(|_| shell::Shell::new()))
+            gpui_kit::open_window(options, cx, |_, cx| cx.new(shell::Shell::new))
                 .expect("failed to open window");
             cx.activate(true);
         });

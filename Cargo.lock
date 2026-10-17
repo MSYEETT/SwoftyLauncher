@@ -6209,6 +6209,7 @@ name = "swofty-launcher"
 version = "0.1.0"
 dependencies = [
  "gpui-kit",
+ "swofty-core",
 ]
 
 [[package]]
