@@ -22,6 +22,7 @@ pub struct Game {
 pub struct Plan {
     pub profile: String,
     pub data: BTreeMap<String, PathBuf>,
+    pub added: BTreeMap<String, PathBuf>,
     pub loader: BTreeMap<String, PathBuf>,
     pub registry_override: bool,
 }
@@ -35,7 +36,7 @@ impl Plan {
     }
 
     pub fn is_vanilla(&self) -> bool {
-        self.data.is_empty() && self.loader.is_empty() && !self.registry_override
+        self.data.is_empty() && self.added.is_empty() && self.loader.is_empty() && !self.registry_override
     }
 }
 
@@ -209,7 +210,7 @@ impl<'a> Installer<'a> {
             }
         }
         baseline.save(self.data)?;
-        for rel in plan.loader.keys() {
+        for rel in plan.added.keys().chain(plan.loader.keys()) {
             if self.path(rel).exists() {
                 return Err(Error::Other(format!(
                     "{rel} already exists in the game folder; run swofty restore"
@@ -231,7 +232,7 @@ impl<'a> Installer<'a> {
             std::fs::copy(src, &path).map_err(io_err(&path))?;
             j.done(i)?;
         }
-        for (rel, src) in &plan.loader {
+        for (rel, src) in plan.added.iter().chain(&plan.loader) {
             for dir in rel_parts(rel) {
                 let path = self.path(&dir);
                 if !path.is_dir() {

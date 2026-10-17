@@ -8,6 +8,14 @@ use swofty_core::journal::{Journal, Op, State};
 const GVDB: &str = "game_package/gamedatabases/gamedatabases.2025.bin";
 const UI: &str = "2025_asset_groups/ui_package/flow_frontend.erp";
 const CORE: &str = "swofty/mods/core/swofty_core.dll";
+const STOCK_TRACK: &str = "2025_asset_groups/environment_package/tracks/bahrain/wep/bahrain_common.erp";
+const MAP_FILES: &[&str] = &[
+    "2025_asset_groups/environment_package/tracks/okayama/wep/okayama_common.erp",
+    "2025_asset_groups/environment_package/tracks/okayama/wep/okayama_f1_26.erp",
+    "2025_asset_groups/environment_package/tracks/okayama/ai/f1_2026_vehicle_package/haas/haas.erp",
+    "2025_asset_groups/ui_package/textures/track_maps/okayama.erp",
+    "asset_groups/environment_package/tracks/okayama/mipmaps/3b5d3c7d207e_bisect_placeholder.tif.2025.mipmaps",
+];
 const REG: &str = "WINE REGISTRY Version 2\n;; All keys relative to \\\\User\n\n[Software\\\\Wine] 1700000000\n\"Version\"=\"win10\"\n";
 
 struct Fixture {
@@ -34,6 +42,7 @@ impl Fixture {
             (GVDB, "db-v1"),
             (UI, "ui-v1"),
             ("readme.txt", "r-v1"),
+            (STOCK_TRACK, "track-v1"),
         ] {
             write(&f.game.join(rel), body);
         }
@@ -47,7 +56,22 @@ impl Fixture {
         ] {
             write(&f.src.join(name), body);
         }
+        for (i, _) in MAP_FILES.iter().enumerate() {
+            write(&f.src.join(format!("map{i}")), &format!("map-{i}"));
+        }
         f
+    }
+
+    fn maps_plan(&self) -> Plan {
+        let mut p = self.plan("a");
+        p.profile = "maps".into();
+        p.data.insert(UI.into(), self.src.join("uiB"));
+        p.added = MAP_FILES
+            .iter()
+            .enumerate()
+            .map(|(i, rel)| ((*rel).to_owned(), self.src.join(format!("map{i}"))))
+            .collect();
+        p
     }
 
     fn game(&self, build: &str) -> Game {
@@ -69,6 +93,7 @@ impl Fixture {
         Plan {
             profile: profile.into(),
             data,
+            added: BTreeMap::new(),
             loader: BTreeMap::from([
                 ("version.dll".to_owned(), self.src.join("proxy")),
                 (CORE.to_owned(), self.src.join("core")),
@@ -231,4 +256,67 @@ fn drift_from_outside_is_reported_and_restored() {
 
     assert_eq!(inst.restore().unwrap(), []);
     assert_eq!(f.snapshot(), original);
+}
+
+#[test]
+fn map_files_in_new_folders_are_removed_by_switches_and_restore() {
+    let f = Fixture::new("maps");
+    let original = f.snapshot();
+    let game = f.game("1");
+    let inst = Installer::new(&f.data, &game);
+
+    inst.apply(&f.maps_plan()).unwrap();
+    for (i, rel) in MAP_FILES.iter().enumerate() {
+        assert_eq!(f.read(rel), format!("map-{i}"));
+    }
+    assert_eq!(f.read(STOCK_TRACK), "track-v1");
+
+    inst.apply(&f.plan("a")).unwrap();
+    assert!(!f.game.join("asset_groups").exists());
+    assert!(
+        !f.game
+            .join("2025_asset_groups/environment_package/tracks/okayama")
+            .exists()
+    );
+    assert!(!f.game.join("2025_asset_groups/ui_package/textures").exists());
+    assert!(f.game.join(STOCK_TRACK).is_file());
+
+    inst.apply(&f.maps_plan()).unwrap();
+    assert_eq!(inst.restore().unwrap(), []);
+    assert_eq!(f.snapshot(), original);
+
+    inst.apply(&f.maps_plan()).unwrap();
+    inst.apply(&Plan::vanilla()).unwrap();
+    assert_eq!(f.snapshot(), original);
+    assert_eq!(inst.verify().unwrap(), []);
+}
+
+#[test]
+fn a_kill_while_installing_maps_rolls_back_to_the_baseline() {
+    let total = {
+        let f = Fixture::new("mapcount");
+        let game = f.game("1");
+        Installer::new(&f.data, &game).apply(&f.maps_plan()).unwrap();
+        Journal::open(&f.data).unwrap()[0].entries.len()
+    };
+    for k in 0..=total {
+        let f = Fixture::new(&format!("mapkill{k}"));
+        let original = f.snapshot();
+        let game = f.game("1");
+        let mut inst = Installer::new(&f.data, &game);
+        inst.stop_after = Some(k);
+        assert_eq!(inst.apply(&f.maps_plan()).is_ok(), k == total, "k={k}");
+        let open = Journal::open(&f.data).unwrap();
+        if let Some(e) = open[0].entries.last().filter(|e| e.state == State::Pending) {
+            match e.op {
+                Op::ReplaceFile | Op::CreateFile => write(&f.game.join(&e.path), "partial"),
+                Op::CreateDir => std::fs::create_dir_all(f.game.join(&e.path)).unwrap(),
+                Op::RegistryOverride => {}
+            }
+        }
+        let restarted = Installer::new(&f.data, &game);
+        assert_eq!(restarted.recover().unwrap(), [], "k={k}");
+        assert_eq!(f.snapshot(), original, "k={k}");
+        assert_eq!(restarted.verify().unwrap(), [], "k={k}");
+    }
 }
