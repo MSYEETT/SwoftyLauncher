@@ -282,6 +282,20 @@
     "will_not_be_added_post_launch"
    ],
    "tables": {
+    "CareerHubFirstVisit": {
+     "fields": [
+      "_metadata_",
+      "timeofday"
+     ],
+     "tables": {}
+    },
+    "CareerHubLastVisit": {
+     "fields": [
+      "_metadata_",
+      "timeofday"
+     ],
+     "tables": {}
+    },
     "Daylight": {
      "fields": [
       "_metadata_",
@@ -301,6 +315,22 @@
       "defaultAssetGroup"
      ],
      "tables": {}
+    },
+    "TrackHighlights": {
+     "fields": [
+      "_metadata_",
+      "fake"
+     ],
+     "tables": {
+      "TrackHighlight": {
+       "fields": [
+        "_metadata_",
+        "ui_broadcast_icon",
+        "ui_title"
+       ],
+       "tables": {}
+      }
+     }
     },
     "TrackStats": {
      "fields": [
@@ -332,6 +362,13 @@
        "tables": {}
       }
      }
+    },
+    "TrackVideo": {
+     "fields": [
+      "_metadata_",
+      "value"
+     ],
+     "tables": {}
     },
     "Tyres": {
      "fields": [

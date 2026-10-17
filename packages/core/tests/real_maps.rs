@@ -120,6 +120,21 @@ fn sepang_and_okayama_activate_completely() {
     assert_eq!(db.text(field(ok, "numberOfCorners")).as_deref(), Some("13"));
     let mel = row_by(&db, tracks, "_metadata_", "melbourne").unwrap();
     assert_same_shape(&db, &reg.track.schema, mel, ok, "tracks.Track okayama");
+    for key in [
+        "Daylight_0.start",
+        "Daylight_0.end",
+        "CareerHubFirstVisit_0.timeofday",
+        "CareerHubLastVisit_0.timeofday",
+        "TrackHighlights_0.TrackHighlight_0.ui_title",
+        "TrackVideo_0.value",
+    ] {
+        assert_eq!(
+            db.has(field(ok, key)),
+            db.has(field(mel, key)),
+            "tracks.Track okayama.{key}: the startup track reader at 0x142e4c640 reads it"
+        );
+        assert!(db.has(field(ok, key)), "okayama.{key} is missing");
+    }
     let res = Table::of(reg.track_resources.as_ref().unwrap()).unwrap();
     assert_eq!(
         db.count(res.count.unwrap()),
