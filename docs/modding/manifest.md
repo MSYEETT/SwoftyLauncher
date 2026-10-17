@@ -73,7 +73,10 @@ Start with [the mod template](/modding/template).
 | `ui` | Paths to [UI patches](/modding/ui-patches) |
 | `files` | File copies: `[{"source": "files/example", "target": "game/path"}]` |
 | `native` | [Plugin DLLs](/modding/native-plugins), with `dll` and `capabilities` |
+| `screens` | Game screens registered in game by swofty_core: `[{"name": "my_page", "file": "ui/my_page.ui", "flow": "flow_options", "anchor": "settings_container", "view_model": false}]` |
 
 Source paths are relative to the mod folder and use `/`. Target paths are relative to the game folder.
+
+A screen's `file` is the screen's raw `.ui` data. The launcher installs it as `swofty/ui/<name>.ui` and lists it in the `ui` block of `swofty/settings.json`. `flow` defaults to `flow_frontend`. `anchor` names a game screen in the same flow; the screen registers after that screen's resource loads. `view_model` asks swofty_core for a native view model. Names are `[a-z0-9_]` and unique across the profile's mods.
 
 The installer checks the manifest and the files it names. Some operation types are still in development; see [Current status](/design/#current-status).

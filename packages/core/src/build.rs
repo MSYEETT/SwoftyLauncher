@@ -10,11 +10,12 @@ use crate::activation::place::{PlaceInput, SLOTS, place, slot_asset_group, slot_
 use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
 use crate::baseline::{Baseline, Objects, sha256_file};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
-use crate::install::{Game, Plan};
+use crate::install::{Game, LOADER_DIR, Plan};
+use crate::manifest::ModManifest;
 use crate::map::TrackPackage;
 use crate::ops::{DbOps, apply_db_ops};
 use crate::resolver::resolve;
-use crate::settings::render_ops;
+use crate::settings::{render_ops, screen_file, screens};
 use crate::store::Store;
 use crate::{Error, Result, io_err};
 
@@ -57,6 +58,18 @@ pub fn map_packages(store: &Store, codes: &[String]) -> Result<Vec<(PathBuf, Tra
         .collect()
 }
 
+pub fn screen_files(order: &[&ModManifest], mods_dir: &Path) -> Result<BTreeMap<String, PathBuf>> {
+    Ok(screens(order.iter().copied())?
+        .into_iter()
+        .map(|(m, s)| {
+            (
+                format!("{LOADER_DIR}/{}", screen_file(&s.name)),
+                mods_dir.join(&m.id).join(&s.file),
+            )
+        })
+        .collect())
+}
+
 pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     let mods = store.mods()?;
     let p = store.profile(profile)?;
@@ -94,6 +107,10 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                 source,
             })?;
             db_ops.push((id.clone(), ops));
+        }
+        for s in &m.operations.screens {
+            let path = dir.join(&s.file);
+            hasher.update(std::fs::read(&path).map_err(io_err(&path))?);
         }
         let pending = m.operations.erp.len() + m.operations.ui.len() + m.operations.files.len();
         if pending > 0 {
@@ -260,6 +277,16 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                 built.plan.loader.len(),
                 dir.display()
             ));
+            let order: Vec<&ModManifest> = resolved.order.iter().map(|id| &mods[id]).collect();
+            let files = screen_files(&order, &store.mods_dir())?;
+            if !files.is_empty() {
+                built.lines.push(format!("ui: {} screen(s) under {LOADER_DIR}/ui", files.len()));
+            }
+            for (rel, src) in files {
+                if built.plan.loader.insert(rel.clone(), src).is_some() {
+                    return Err(Error::Other(format!("{rel} is placed twice")));
+                }
+            }
         }
         None => built.warnings.push(format!(
             "{CORE_ID}: the in-game loader was not found (native/dist, loader/ beside the swofty command, or {LOADER_ENV}); the game starts without it"
@@ -276,4 +303,28 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         crate::write_json(&built.overlay.join(PLAN_FILE), &listing)?;
     }
     Ok(built)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn places_screens_under_the_loader_ui_dir() {
+        let m = ModManifest::parse(
+            r#"{ "schema_version": 1, "id": "a.pages", "name": "S", "version": "1.0.0", "author": "a",
+                 "compat": { "game": "f1_25" },
+                 "operations": { "screens": [{ "name": "swofty_mod_0", "file": "ui/page0.ui" }] } }"#,
+        )
+        .unwrap();
+        let files = screen_files(&[&m], Path::new("/mods")).unwrap();
+        assert_eq!(
+            files,
+            BTreeMap::from([(
+                "swofty/ui/swofty_mod_0.ui".to_owned(),
+                PathBuf::from("/mods/a.pages/ui/page0.ui")
+            )])
+        );
+        assert!(screen_files(&[&m, &m], Path::new("/mods")).is_err());
+    }
 }

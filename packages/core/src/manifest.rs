@@ -176,6 +176,8 @@ pub struct Operations {
     pub files: Vec<FileOp>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub native: Vec<NativePlugin>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub screens: Vec<ScreenOp>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -191,6 +193,31 @@ pub struct NativePlugin {
     pub dll: String,
     #[serde(default)]
     pub capabilities: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ScreenOp {
+    pub name: String,
+    pub file: String,
+    #[serde(default = "default_flow")]
+    pub flow: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub anchor: Option<String>,
+    #[serde(default)]
+    pub view_model: bool,
+}
+
+fn default_flow() -> String {
+    "flow_frontend".into()
+}
+
+pub fn valid_screen_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 64
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
 }
 
 impl ModManifest {
@@ -239,6 +266,18 @@ impl ModManifest {
                 return fail(format!("{}: unknown capability {c}", p.dll));
             }
         }
+        let mut screens = BTreeMap::new();
+        for s in &self.operations.screens {
+            if !valid_screen_name(&s.name) || !valid_screen_name(&s.flow) {
+                return fail(format!("screen {}: name and flow must be [a-z0-9_]", s.name));
+            }
+            if s.anchor.as_deref().is_some_and(|a| !valid_screen_name(a)) {
+                return fail(format!("screen {}: anchor must be [a-z0-9_]", s.name));
+            }
+            if screens.insert(s.name.as_str(), ()).is_some() {
+                return fail(format!("screen {} is declared twice", s.name));
+            }
+        }
         let paths = self
             .operations
             .database
@@ -247,7 +286,8 @@ impl ModManifest {
             .chain(&self.operations.ui);
         let paths = paths
             .chain(self.operations.files.iter().map(|f| &f.source))
-            .chain(self.operations.native.iter().map(|n| &n.dll));
+            .chain(self.operations.native.iter().map(|n| &n.dll))
+            .chain(self.operations.screens.iter().map(|s| &s.file));
         if let Some(p) = paths.into_iter().find(|p| !relative_inside(p)) {
             return fail(format!("{p} must be a relative path inside the mod"));
         }
@@ -312,6 +352,39 @@ mod tests {
         assert!(relative_inside("db/ops.json"));
         let bad = GRID24.replace("db/grid24.json", "../grid24.json");
         assert!(ModManifest::parse(&bad).is_err());
+    }
+
+    #[test]
+    fn parses_and_checks_screens() {
+        let with = |screens: &str| {
+            GRID24.replace(
+                r#""operations": { "database": ["db/grid24.json"] }"#,
+                &format!(r#""operations": {{ "screens": [{screens}] }}"#),
+            )
+        };
+        let m = ModManifest::parse(&with(
+            r#"{ "name": "grid_page", "file": "ui/grid_page.ui", "flow": "flow_options", "anchor": "settings_container", "view_model": true },
+               { "name": "grid_info", "file": "ui/grid_info.ui" }"#,
+        ))
+        .unwrap();
+        let s = &m.operations.screens;
+        assert_eq!(
+            (s[0].flow.as_str(), s[0].anchor.as_deref(), s[0].view_model),
+            ("flow_options", Some("settings_container"), true)
+        );
+        assert_eq!(
+            (s[1].flow.as_str(), s[1].anchor.as_deref(), s[1].view_model),
+            ("flow_frontend", None, false)
+        );
+        for bad in [
+            r#"{ "name": "a", "file": "../a.ui" }"#,
+            r#"{ "name": "Bad", "file": "ui/a.ui" }"#,
+            r#"{ "name": "a", "file": "ui/a.ui", "anchor": "x.y" }"#,
+            r#"{ "name": "a", "file": "ui/a.ui" }, { "name": "a", "file": "ui/b.ui" }"#,
+            r#"{ "name": "a", "file": "ui/a.ui", "extra": 1 }"#,
+        ] {
+            assert!(ModManifest::parse(&with(bad)).is_err(), "{bad}");
+        }
     }
 
     #[test]
