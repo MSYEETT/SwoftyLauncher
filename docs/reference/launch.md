@@ -7,9 +7,11 @@ Modded play is offline only. For setup, see [Windows](/guide/windows) or [Linux 
 Mods run in-process code, which EA AntiCheat (Javelin) blocks, so a modded
 session runs without it. The first launch shows the offline play terms and
 asks for a typed `accept`; if you decline, the game is not launched and
-nothing is changed. The terms record that this is outside EA's terms of
-service and that EA may take action against your account, including
-suspension or termination.
+nothing is changed. The launcher's **Play** shows the same terms as a dialog
+the first time: accepting records consent and launches, declining does
+nothing. The terms record that this is outside EA's terms of service and
+that EA may take action against your account, including suspension or
+termination.
 
 | Command | Effect |
 |---|---|
