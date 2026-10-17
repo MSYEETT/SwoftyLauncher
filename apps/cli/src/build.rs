@@ -55,10 +55,11 @@ fn build_profile(store: &Store, profile: &str, g: &Game) -> Result<swofty_core::
     }
     let settings = built.overlay.join(SETTINGS_FILE);
     std::fs::create_dir_all(settings.parent().expect("has parent"))?;
-    std::fs::write(
-        &settings,
-        serde_json::to_vec_pretty(&store.session_settings(profile)?)?,
-    )?;
+    let session = match built.settings.take() {
+        Some(s) => s,
+        None => store.session_settings(profile)?,
+    };
+    std::fs::write(&settings, serde_json::to_vec_pretty(&session)?)?;
     if !built.plan.loader.is_empty() {
         built.plan.loader.insert(SETTINGS_FILE.into(), settings);
     }

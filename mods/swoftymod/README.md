@@ -8,15 +8,20 @@ It provides:
 * the **F9 / R3 prompt** "Mod Settings", a listener and a tooltip entry
 * the bottom-left "Launched with Swofty Mod Launcher" panel, with the F9 or R3 glyph and "to open settings"
 * the `mod_menu` route
-* the MOD SETTINGS page, with a section per installed mod built from `swofty/settings.json` each session
+* the MOD SETTINGS screen, with a tile per enabled mod and map and a page for each
 * its own setting, `show_launcher_panel`
 
-This directory holds the recipe only, never game files. The patches in `ui/` are applied to the player's own copy of the game data at build time. The DLLs are produced by `native/build.sh` and are not committed; the launcher installs the whole `native/dist/` set (`version.dll`, `swofty_core.dll`, `swofty_gamelog.dll`, `bindings.json`, `symbols.tsv`, `log_channels.tsv`) for each modded session. See [`native/README.md`](../../native/README.md).
+This directory holds the manifest only, never game files. The launcher builds the UI at build time from the player's own copy of the game data (`packages/core/src/ui/`):
 
-| File | Target |
+| Archive in `2025_asset_groups/ui_package/` | Edits |
 |---|---|
-| `ui/fe_home.pkgpatch.json` | `fe_home.ui` in `flow_frontend.erp` and `screens/fe_home.erp`: F9 listener, tooltip, offline panel text and signals |
-| `ui/routes.pkgpatch.json` | `routes_frontend_general.uir` in `persistent.erp`: the `mod_menu` route, a clone of `options` |
-| `ui/tooltips.pkgpatch.json` | `tool_tips.uidb` in `databases.erp`: the `mod_menu` and `mod_menu_offline` entries |
+| `flow_frontend.erp` | `fe_home.ui`: the F9 / R3 listener, the `mod_menu` tooltip, the launcher panel text and signals |
+| `persistent.erp` | the `mod_menu` route, a route group per screen, `options_flow` entries and loading regions for the screens |
+| `databases.erp` | the `mod_menu`, `mod_menu_offline` and `swofty_adjust` tooltips, and the `ui_menu_data.swofty` state |
+| `flow_persistent.erp` | the online services popup, shown once as the SwoftyMod changelog |
 
-The reference implementation of these edits is `tools/build_home_tile_mod.py` (variant `v6`). The settings page is `v8 --settings swofty/settings.json`, built by `tools/swofty_settings.py` from the session settings file. The Rust `!pkg` patch engine replaces both.
+The screens go to `swofty/ui/` (`swofty_settings.ui`, one `swofty_mod_<n>.ui` per enabled mod, one `swofty_map_<n>.ui` per map) and are listed in the `ui` block of `swofty/settings.json`. `swofty_core.dll` registers them and drives the option rows of `swofty_mod_<n>` pages.
+
+The DLLs are produced by `native/build.sh` and are not committed; the launcher installs the whole `native/dist/` set (`version.dll`, `swofty_core.dll`, `swofty_gamelog.dll`, `bindings.json`, `symbols.tsv`, `log_channels.tsv`) for each modded session. See [`native/README.md`](../../native/README.md).
+
+`packages/core/tests/real_menus.rs` compares the output byte for byte with a reference build named by `SWOFTY_MENU_ORACLE`.
