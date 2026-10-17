@@ -179,22 +179,29 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs) -> Result<ExitCode> {
         None
     };
     become_subreaper();
-    let artifacts = crate::offline::ensure_extension(store)?;
-    let probe = swofty_core::offline::probe(&game, &artifacts)?;
-    if !probe.supported {
-        bail!(
-            "this F1 25 build is not supported by the offline play extension yet ({}); \
-             the modded session was refused",
-            probe.report
+    let offline = (|| -> Result<()> {
+        let artifacts = crate::offline::ensure_extension(store)?;
+        let probe = swofty_core::offline::probe(&game, &artifacts)?;
+        if !probe.supported {
+            bail!(
+                "this F1 25 build is not supported by the offline play extension yet ({}); \
+                 the modded session was refused",
+                probe.report
+            );
+        }
+        say("info", &format!("game build supported: {}", probe.report));
+        let journal = swofty_core::offline::journal_path(&store.root);
+        swofty_core::offline::stage(&game, &artifacts, &journal)?;
+        say(
+            "info",
+            "staged offline play: EA AntiCheat is not started this session; multiplayer is unavailable",
         );
+        Ok(())
+    })();
+    if let Err(e) = offline {
+        rollback_profile(store, installed.as_ref());
+        return Err(e);
     }
-    say("info", &format!("game build supported: {}", probe.report));
-    let journal = swofty_core::offline::journal_path(&store.root);
-    swofty_core::offline::stage(&game, &artifacts, &journal)?;
-    say(
-        "info",
-        "staged offline play: EA AntiCheat is not started this session; multiplayer is unavailable",
-    );
     let result = run_loop(
         store,
         args,
@@ -212,15 +219,19 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs) -> Result<ExitCode> {
             &format!("offline play restore failed, run swofty restore: {e:#}"),
         ),
     }
-    if let Some(g) = installed {
-        match swofty_core::install::Installer::new(&store.root, &g)
-            .apply(&swofty_core::install::Plan::vanilla())
-        {
-            Ok(()) => say("info", "rolled the profile's game files back"),
-            Err(e) => say("info", &format!("rollback failed, run swofty restore: {e:#}")),
-        }
-    }
+    rollback_profile(store, installed.as_ref());
     result
+}
+
+/// Put the profile's game files back; safe to call when nothing is staged.
+fn rollback_profile(store: &Store, installed: Option<&swofty_core::install::Game>) {
+    let Some(g) = installed else {
+        return;
+    };
+    match swofty_core::install::Installer::new(&store.root, g).apply(&swofty_core::install::Plan::vanilla()) {
+        Ok(()) => say("info", "rolled the profile's game files back"),
+        Err(e) => say("info", &format!("rollback failed, run swofty restore: {e:#}")),
+    }
 }
 
 fn run_loop(

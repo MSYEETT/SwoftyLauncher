@@ -213,13 +213,26 @@ pub fn artifacts(data: &Path) -> Result<Artifacts> {
     let (prelaunch, probe) = ("f1op-prelaunch.exe", "f1op-probe.exe");
     #[cfg(not(windows))]
     let (prelaunch, probe) = ("f1op-prelaunch-linux-x86_64", "f1op-probe-linux-x86_64");
-    Ok(Artifacts {
+    let out = Artifacts {
         hook: dir.join("f1op_hook.dll"),
         stub: dir.join("f1op_stub.exe"),
         prelaunch: dir.join(prelaunch),
         probe: dir.join(probe),
         dir,
-    })
+    };
+    // Downloads and copies do not carry the execute bit, and the runners need
+    // it on Unix. Re-applied on every use so an install made before this fix
+    // heals itself without being downloaded again.
+    #[cfg(unix)]
+    for path in [&out.prelaunch, &out.probe] {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(path)
+            .map_err(|e| io_err(path.to_path_buf())(e))?
+            .permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(path, perms).map_err(|e| io_err(path.to_path_buf())(e))?;
+    }
+    Ok(out)
 }
 
 /// Verify a downloaded release folder against the pins and install it.
