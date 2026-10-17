@@ -549,8 +549,12 @@
 }
 
 @media only screen and (min-width: 1100px) {
-  .flash-docs main .text > div > * {
+  .flash-docs main .text > div > div > :not(.table-wrap) {
     max-width: 56rem;
+  }
+
+  .flash-docs main .text > div > div > :is(blockquote, .custom-block) {
+    max-width: 55rem;
   }
 }
 

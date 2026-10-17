@@ -172,6 +172,42 @@ body {
   }
 }
 
+.flash-docs > .overlay.sidebar {
+  left: 1rem;
+  display: none;
+}
+
+:root.flash-sidebar-closed .flash-docs > .overlay.sidebar .when-open,
+:root:not(.flash-sidebar-closed) .flash-docs > .overlay.sidebar .when-closed {
+  display: none;
+}
+
+@media only screen and (min-width: 1100px) {
+  .flash-docs > .overlay.sidebar {
+    display: flex;
+  }
+
+  .flash-docs > nav > header {
+    padding-left: 5rem;
+  }
+
+  :root.flash-sidebar-closed .flash-docs {
+    grid-template-columns: 1fr;
+  }
+
+  :root.flash-sidebar-closed .flash-docs > nav {
+    display: none;
+  }
+
+  :root.flash-sidebar-closed .flash-docs main {
+    padding-top: 4rem;
+  }
+
+  .flash-docs.wide main .text > div > div > :not(p, ul, ol, blockquote, .custom-block) {
+    max-width: 100%;
+  }
+}
+
 @media (max-width: 420px) {
   .flash-docs > .overlay.theme > button {
     padding-left: 0.75rem;
@@ -256,10 +292,23 @@ body {
   text-underline-offset: 2px;
 }
 
+.flash-docs main .vp-doc .table-wrap {
+  margin: 1.25rem 0;
+  overflow-x: auto;
+}
+
 .flash-docs main .vp-doc table {
   display: table;
   border-collapse: collapse;
-  margin: 1.25rem 0;
+  margin: 0;
+}
+
+.flash-docs main .vp-doc table code:not(pre > code) {
+  display: inline;
+  max-width: none;
+  overflow-wrap: normal;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .flash-docs main .vp-doc th,
@@ -267,6 +316,10 @@ body {
   border: 0.1rem solid var(--flash-border);
   padding: 0.5rem 0.9rem;
   line-height: 1.6;
+}
+
+.flash-docs main .vp-doc :is(th, td).short {
+  white-space: nowrap;
 }
 
 .flash-docs main .vp-doc th {

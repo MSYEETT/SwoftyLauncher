@@ -702,6 +702,8 @@ def build(args):
     return summary, out_tables, out_keys, out_exe
 
 
+FRONTMATTER = ['---', 'wide: true', '---', '']
+
 SCHEMA_PAGES = [
     ('Tracks', r'^tracks\.'),
     ('Track data sets', r'^track_data\.'),
@@ -762,7 +764,7 @@ def write_docs(path, summary, tables, keys):
         out.append('| `%s` | %s | %d | %d | %s |' % (md(t['table']), meaning_cell(t), t['rows'], t['fields'],
                                                    mdt(', '.join(t['labels'][:3]))))
     with open(os.path.join(path, 'catalogue.md'), 'w', encoding='utf-8') as f:
-        f.write('\n'.join(out) + '\n')
+        f.write('\n'.join(FRONTMATTER + out) + '\n')
 
     by_table = collections.defaultdict(list)
     for k in keys:
@@ -792,7 +794,7 @@ def write_docs(path, summary, tables, keys):
                     k['exe'], mdt(k['example'])))
             out.append('')
     with open(os.path.join(path, 'schema.md'), 'w', encoding='utf-8') as f:
-        f.write('\n'.join(out) + '\n')
+        f.write('\n'.join(FRONTMATTER + out) + '\n')
 
 
 def write_tsv(path, rows, cols, gz=False):

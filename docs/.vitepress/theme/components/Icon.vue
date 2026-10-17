@@ -101,6 +101,16 @@ defineProps<{ name: string }>();
     <template v-else-if="name === 'menu'">
       <path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17" />
     </template>
+    <template v-else-if="name === 'panel-left-close'">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M9 3v18" />
+      <path d="m16 15-3-3 3-3" />
+    </template>
+    <template v-else-if="name === 'panel-left-open'">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M9 3v18" />
+      <path d="m14 9 3 3-3 3" />
+    </template>
     <template v-else-if="name === 'moon'">
       <path d="M20.5 13.5A8.5 8.5 0 1 1 10.5 3.5a6.5 6.5 0 0 0 10 10Z" />
     </template>

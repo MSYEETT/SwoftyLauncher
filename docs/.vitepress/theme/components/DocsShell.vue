@@ -7,7 +7,7 @@ import NavItem from "./NavItem.vue";
 import type { DocsThemeConfig, NavItem as Item } from "../types";
 import { useLinks } from "../links";
 
-const { theme, page } = useData<DocsThemeConfig>();
+const { theme, page, frontmatter } = useData<DocsThemeConfig>();
 const route = useRoute();
 const { to, samePage } = useLinks();
 
@@ -83,7 +83,18 @@ function pick(id: string) {
   } catch {}
 }
 
+const sidebarClosed = ref(false);
+
+function toggleSidebar() {
+  sidebarClosed.value = !sidebarClosed.value;
+  document.documentElement.classList.toggle("flash-sidebar-closed", sidebarClosed.value);
+  try {
+    localStorage.setItem("f1mm-docs-sidebar", sidebarClosed.value ? "closed" : "open");
+  } catch {}
+}
+
 onMounted(() => {
+  sidebarClosed.value = document.documentElement.classList.contains("flash-sidebar-closed");
   const found = themes.find((t) => document.documentElement.classList.contains(`flash-theme-${t.id}`));
   if (found) current.value = found.id;
   syncHash();
@@ -94,10 +105,10 @@ onUnmounted(() => window.removeEventListener("hashchange", syncHash));
 </script>
 
 <template>
-  <div class="flash-docs" :class="{ 'menu-open': menuOpen }">
+  <div class="flash-docs" :class="{ 'menu-open': menuOpen, wide: frontmatter.wide }">
     <a class="skip-link" href="#flash-main">Skip to content</a>
 
-    <nav :class="{ collapsed: !menuOpen }" aria-label="Documentation">
+    <nav id="flash-nav" :class="{ collapsed: !menuOpen }" aria-label="Documentation">
       <header>
         <a :href="to('/')">
           <img :src="withBase('/logo.svg')" alt="" width="36" height="36" />
@@ -164,6 +175,20 @@ onUnmounted(() => window.removeEventListener("hashchange", syncHash));
     <div class="overlay menu">
       <button type="button" :aria-expanded="menuOpen" aria-label="Toggle navigation" @click="menuOpen = !menuOpen">
         <Icon :name="menuOpen ? 'x' : 'menu'" />
+      </button>
+    </div>
+
+    <div class="overlay sidebar">
+      <button
+        type="button"
+        aria-controls="flash-nav"
+        :aria-expanded="!sidebarClosed"
+        :aria-label="sidebarClosed ? 'Show sidebar' : 'Hide sidebar'"
+        :title="sidebarClosed ? 'Show sidebar' : 'Hide sidebar'"
+        @click="toggleSidebar"
+      >
+        <Icon name="panel-left-close" class="when-open" />
+        <Icon name="panel-left-open" class="when-closed" />
       </button>
     </div>
 
