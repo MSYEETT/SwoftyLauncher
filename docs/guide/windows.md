@@ -2,31 +2,19 @@
 
 ## Set up
 
-1. Install the launcher. <span class="todo">TODO: installer or archive name</span>
-2. Start it. The setup step finds Steam, its libraries and the F1 25 install.
-3. Pick or create a [profile](/using/profiles), and enable the mods and maps you want.
-
-Steam's launch options are left alone on Windows.
+1. Follow [Installation](/guide/installation).
+2. Keep Steam running with F1 25 installed.
+3. Run `swofty doctor` to check that the game is found.
+4. [Install your mods](/using/mods-and-maps) and choose a [profile](/using/profiles).
 
 ## Play
 
-Press **Play modded (offline)** in the launcher. It:
+The app's **Play modded (offline)** control is still in development. Use `swofty run` from a terminal to launch and follow the logs.
 
-1. builds the overlay for the profile, or reuses the cached one;
-2. writes a session file with a fresh, short-lived ticket;
-3. places `version.dll` and the `swofty/` folder next to `F1_25.exe`, recorded in the restore journal;
-4. sets `SteamAppId` and `SteamGameId` and starts `F1_25.exe` directly, without the EA AntiCheat launcher.
+Modded play is offline only. Normal Steam launches stay vanilla.
 
-Steam must be running. The game window title ends in `[Swofty Mod · Offline]`.
+## If the game crashes
 
-When the game exits, the launcher rolls back the session's journal: it restores the data files it replaced and removes `version.dll` and `swofty/`. It copies the loader log into the session and merges any changes made in game into the profile.
+Close the game, then run `swofty restore` before playing vanilla. See [Restoring the game](/using/profiles-and-restoring).
 
-## Vanilla and online play
-
-Steam's Play button starts the game exactly as shipped: with the anticheat, online, and without mods. The loader files exist only during a modded session, so that path never sees them. A double-click on `F1_25.exe` also runs vanilla, because there is no session ticket.
-
-## If something goes wrong
-
-- Run `swofty restore` to roll back any open journal and remove loader files left by a crash. See [Profiles and restoring the game](/using/profiles-and-restoring).
-- Run `swofty doctor` to check the install, the game build and the data directory.
-- Session logs are in `$DATA\sessions\<id>\`.
+Run `swofty logs` to read the last session's summary. Logs are stored in `$DATAsessions<id>`.

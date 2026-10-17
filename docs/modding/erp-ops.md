@@ -1,10 +1,10 @@
 # ERP operations
 
-ERP operations change resources inside the game's `.erp` archives. The format is described in [ERP archives](/reference/erp). The patched archive is built into the profile's cache and reaches the game through the journal, never by editing the game's copy in place.
+ERP operations describe changes to artwork and other resources in `.erp` archives. List these files in `operations.erp` in your [manifest](/modding/manifest).
 
-## File format
+The current builder skips ERP operations. This is the format for the planned build step.
 
-An ERP operation file is listed in `operations.erp`:
+## Example
 
 ```json
 {
@@ -21,40 +21,22 @@ An ERP operation file is listed in `operations.erp`:
 }
 ```
 
-`erp` paths are relative to the game folder. `source` paths are relative to the mod root. `resource` is the resource name as the ERP index lists it. The resource names on this page are illustrative; `python3 tools/erp.py <archive> '*'` lists a real archive's names.
+The resource name above is an example. List the real names with:
+
+```sh
+python3 tools/erp.py <archive> '*'
+```
+
+`erp` paths are relative to the game folder. `source` paths are relative to your mod folder.
 
 ## Operations
 
-| Op | Fields | Effect |
+| Operation | Fields | Purpose |
 |---|---|---|
-| `replace-resource` | `erp`, `resource`, `fragment?`, `source` | Replaces one fragment of a resource (fragment 0 if absent) |
-| `add-resource` | `erp`, `resource`, `type`, `sources` | Adds a resource with the given type and one source file per fragment |
-| `copy-resource` | `from_erp`, `erp`, `resource` | Copies a resource and all its fragments from one game ERP into another |
-| `remove-resource` | `erp`, `resource` | Removes a resource |
-| `add-mipmaps` | `source`, `target` | Adds mipmap files from the mod at a game-relative `target` |
+| `replace-resource` | `erp`, `resource`, `fragment`, `source` | Replace one part of a resource; `fragment` defaults to 0 |
+| `add-resource` | `erp`, `resource`, `type`, `sources` | Add a resource, with one source file per part |
+| `copy-resource` | `from_erp`, `erp`, `resource` | Copy a resource between archives |
+| `remove-resource` | `erp`, `resource` | Remove a resource |
+| `add-mipmaps` | `source`, `target` | Copy texture files to a game-relative path |
 
-[UI patches](/modding/ui-patches) are a separate operation list, because they transform `!pkg` resources rather than replace them.
-
-## `foreach`
-
-`foreach` expands every operation in the file once per item of a game-profile enumerator, such as every 2026 track. `{track}` is replaced by each item. This example is the per-track route to a 24-slot 2026 world: it copies the My Team vehicle layer into each normal 2026 world archive.
-
-```json
-{
-  "schema_version": 1,
-  "foreach": "@game.tracks.f1_2026",
-  "ops": [
-    { "op": "copy-resource",
-      "from_erp": "2025_asset_groups/environment_package/tracks/{track}/wep/{track}_f1_26_myteam.erp",
-      "erp": "2025_asset_groups/environment_package/tracks/{track}/wep/{track}_f1_26.erp",
-      "resource": "eaid://environment_package/tracks/{track}/wep/{track}-vehicles_current_myteam.layer" }
-  ]
-}
-```
-
-## What the builder guarantees
-
-- A fragment that is not changed keeps its stored bytes, compressed or not.
-- A changed fragment is recompressed with zstd if the original was zstd, and stored otherwise.
-- Each resource's MD5, the hash of its concatenated decompressed fragments, is recomputed.
-- Rebuilding an archive with no operations reproduces it byte for byte.
+For menu changes, see [UI patches](/modding/ui-patches). For the archive format, see [ERP archives](/reference/erp).

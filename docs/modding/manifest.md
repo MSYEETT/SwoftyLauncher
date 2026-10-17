@@ -1,124 +1,62 @@
-# Manifest
+# Mod manifest
 
-Every mod has a `swofty.json` at its root. A mod is a directory, or a `.swoftymod` zip of that directory:
+Every mod needs a `swofty.json` file at its root. It describes the mod and lists the changes to apply.
 
-```
-<mod-id>/
-  swofty.json          manifest
-  db/*.json            database operation files
-  erp/...              ERP operation files and the payloads they reference
-  ui/*.pkgpatch.json   UI patches
-  files/...            loose files
-  native/*.dll         native plugins
-  icon.png, README.md
-```
+Start with [the mod template](/modding/template).
 
 ## Example
 
 ```json
 {
   "schema_version": 1,
-  "id": "swofty.f1-2026-grid24",
-  "name": "F1 2026: 24-Car Grid",
+  "id": "author.my-mod",
+  "name": "My Mod",
   "version": "1.0.0",
-  "author": "swofty",
-  "description": "A twelfth team on the 2026 grid.",
-  "license": "MIT",
-  "kind": ["database"],
-
-  "compat": {
-    "game": "f1_25",
-    "game_builds": [">=25251167"],
-    "launcher": ">=0.1.0",
-    "seasons": ["f1_2026"]
-  },
-
-  "requires": [{ "id": "swofty.core", "version": ">=0.1.0" }],
-  "conflicts": [{ "id": "*", "touches": "db:entrants.entrant_lists.entrant_list_34.*" }],
-  "load_after": ["swofty.track.*"],
-
-  "options": [
-    {
-      "id": "team_livery",
-      "type": "enum",
-      "label": "Team livery",
-      "default": "titlesponsor",
-      "values": ["titlesponsor", "tier01", "replica"],
-      "binds": "db"
-    }
-  ],
-
+  "author": "Your name",
+  "compat": { "game": "f1_25" },
   "operations": {
-    "database": ["db/grid24.json"],
-    "erp": [],
-    "ui": [],
-    "files": [],
-    "native": []
+    "database": ["db/example.json"]
   }
 }
 ```
 
-## Fields
+## Main fields
 
-### Identity
+| Field | Meaning |
+|---|---|
+| `schema_version` | Use `1` |
+| `id` | Unique ID using lowercase letters, digits, `.`, `_` or `-`. The `swofty.` prefix is reserved |
+| `name`, `author` | Display name and author |
+| `version` | Version such as `1.0.0` |
+| `description`, `license`, `homepage` | Optional description, licence identifier and link |
+| `kind` | Optional categories: `database`, `erp`, `ui`, `files`, `native` |
+| `compat` | Game and version requirements |
+| `requires` | Required mods, as `[{"id": "swofty.core", "version": ">=0.1.0"}]` |
+| `conflicts` | Conflicting mods, as `[{"id": "author.other-mod"}]` |
+| `load_after` | Mod IDs or patterns that should load first |
 
-| Field | Type | Required | Meaning |
-|---|---|---|---|
-| `schema_version` | integer | yes | `1` |
-| `id` | string | yes | Lowercase, dotted, characters `[a-z0-9._-]`, for example `author.mod-name`. The `swofty.` prefix is reserved for the launcher's own mods |
-| `name` | string | yes | Display name |
-| `version` | string | yes | Semantic version, `1.2.0` |
-| `author` | string | yes | |
-| `description` | string | no | One or two sentences for the library |
-| `license` | string | no | SPDX identifier |
-| `homepage` | string | no | URL |
-| `kind` | array | no | Any of `database`, `erp`, `ui`, `files`, `native`. A filter for the library; `operations` is authoritative |
+`compat.game` is `f1_25`. Optional fields are `game_builds` (for example `[">=25251167"]`), `launcher` (a version range) and `seasons` (for example `["f1_2026"]`).
 
-### `compat`
+## Options
 
-| Field | Type | Meaning |
-|---|---|---|
-| `game` | string | `f1_25` |
-| `game_builds` | array of ranges | Ranges over the Steam `buildid`, such as `">=25251167"`. Absent means any build |
-| `launcher` | semver range | The launcher versions the mod works with |
-| `seasons` | array | Season content the mod needs, such as `f1_2026` |
+Each entry in `options` has an `id`, `type`, `default` and `binds`:
 
-A mod whose `game_builds` excludes the installed build is flagged and left out of builds until the user overrides it.
+- `type`: `bool`, `enum`, `int`, `float` or `string`.
+- `label` and `description`: text shown to players.
+- `values`: choices for an `enum`.
+- `min` and `max`: limits for numbers.
+- `binds`: `db` for a setting that needs a rebuild, or `native` for a plugin setting.
 
-### Dependencies and order
+## Operations
 
-| Field | Shape | Meaning |
-|---|---|---|
-| `requires` | `[{id, version}]` | Mods that must be enabled, with a semver range |
-| `conflicts` | `[{id, touches?}]` | Declared conflicts. `id` may be `*`. `touches` narrows it to a target, such as `db:<path glob>` |
-| `load_after` | `[glob]` | Mod ids this mod loads after when both are enabled |
+| Field | Contents |
+|---|---|
+| `database` | Paths to [database operation files](/modding/database-ops) |
+| `erp` | Paths to [ERP operation files](/modding/erp-ops) |
+| `ui` | Paths to [UI patches](/modding/ui-patches) |
+| `files` | File copies: `[{"source": "files/example", "target": "game/path"}]` |
+| `native` | [Plugin DLLs](/modding/native-plugins), with `dll` and `capabilities` |
 
-The resolver orders mods by `requires` and `load_after`, then by the profile's order. A cycle fails the build.
+Source paths are relative to the mod folder and use `/`. Target paths are relative to the game folder.
 
-### `options`
-
-| Field | Type | Meaning |
-|---|---|---|
-| `id` | string | Unique within the mod |
-| `type` | string | `bool`, `enum`, `int`, `float` or `string` |
-| `label`, `description` | string | Shown in the launcher and in game |
-| `default` | value | The value when the profile sets none |
-| `values` | array | The choices, for `enum` |
-| `min`, `max` | number | Bounds, for `int` and `float` |
-| `binds` | string | `db`: the value feeds the build, and changing it needs a rebuild and restart. `native`: a plugin reads it live |
-
-### `operations`
-
-| Field | Shape | Meaning |
-|---|---|---|
-| `database` | `[path]` | [Database operation files](/modding/database-ops), applied in order |
-| `erp` | `[path]` | [ERP operation files](/modding/erp-ops) |
-| `ui` | `[path]` | [UI patches](/modding/ui-patches), `*.pkgpatch.json` |
-| `files` | `[{source, target}]` | Loose files. `source` is inside the mod, `target` is relative to the game folder |
-| `native` | `[{dll, capabilities}]` | [Native plugins](/modding/native-plugins). `capabilities` is any of `log`, `scan`, `hook`, `read-db`, `options`, `on-frame` |
-
-Paths are relative to the mod root and use `/`.
-
-## Validation
-
-`swofty mods install` and the launcher check the manifest when a mod is installed: the schema version, the id format, a parseable version and ranges, unique option ids, enum defaults that are among `values`, and that every file named in `operations` exists.
+The installer checks the manifest and the files it names. Some operation types are still in development; see [Current status](/design/#current-status).

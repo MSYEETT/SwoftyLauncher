@@ -1,10 +1,12 @@
 # Profiles
 
-A profile is a named set of enabled mods, enabled maps and option values. Each modded session runs one profile.
+A profile keeps a set of mods, maps and mod options together. Use different profiles for different setups.
 
-## File format
+`vanilla` is the built-in profile with no mods. It cannot be edited. Modded profiles always include SwoftyMod.
 
-Profiles live in `$DATA/profiles/<name>.json`:
+## Profile file
+
+Profiles are stored in `$DATA/profiles/<name>.json`:
 
 ```json
 {
@@ -21,19 +23,12 @@ Profiles live in `$DATA/profiles/<name>.json`:
 }
 ```
 
-- `mods` lists mods in load order. A disabled mod keeps its place and its options.
-- `maps` lists enabled track codes.
-- `options` holds per-mod option values; an option that is missing takes the mod's default.
-- `swofty.core` is always present and always enabled. The launcher adds it if it is missing and ignores `"enabled": false` for it.
+- `mods` lists mods in load order. Set `enabled` to `false` to turn one off.
+- `maps` lists track codes.
+- `options` stores each mod's settings.
 
-`vanilla` is a built-in profile that cannot be edited. It launches the game exactly as Steam's own Play does.
+The command line uses `--profile <name>` to choose a profile. The default is `default`.
 
-## Builds, saves and restoring
+## Saves and restoring
 
-Each profile has its own build cache, keyed by a hash of the game build, the ordered mods with their versions and content hashes, and the option values. Switching back to a profile reuses its build. Each profile also has its own saves, kept away from vanilla saves and Steam Cloud.
-
-How profiles, the baseline and the journal keep the game folder restorable is in [Profiles and restoring the game](/using/profiles-and-restoring).
-
-## Changes made in game
-
-Changing an option or toggling a mod in the in-game settings page writes a request to `state/requests/<profile>.json`. The launcher merges it into the profile when the game exits. Options bound to the database need **Apply and restart**, which rebuilds and relaunches without returning to Steam. Options bound to native code take effect immediately.
+Separate saves for each profile are part of the [design](/design/#profiles-and-saves) and are still in development. See [Restoring the game](/using/profiles-and-restoring) to return game files to their original state.
