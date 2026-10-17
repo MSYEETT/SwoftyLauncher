@@ -3,6 +3,8 @@ use std::process::Command;
 
 use swofty_formats::erp::Erp;
 use swofty_formats::gvdb::Gvdb;
+use swofty_formats::lng::Lng;
+use swofty_formats::nefs::Archive;
 use swofty_formats::pkg::{Pkg, is_pkg};
 
 const GVDB: &str = "game_package/gamedatabases/gamedatabases.2025.bin";
@@ -90,6 +92,31 @@ fn gvdb_edit_matches_python_oracle() {
         db.to_bytes() == expected,
         "Rust edit differs from tools/gamedb.py"
     );
+}
+
+#[test]
+fn language_files_come_out_of_the_exe() {
+    let Some(dir) = game_dir() else { return };
+    let Ok(mut exe) = std::fs::File::open(dir.join("F1_25.exe")) else {
+        eprintln!("no F1_25.exe under F1_25_DIR; skipping");
+        return;
+    };
+    let version = swofty_formats::pe::file_version(&mut exe).unwrap().unwrap();
+    assert_eq!(version.split('.').count(), 4, "{version}");
+    let archive = Archive::open_exe(&mut exe).unwrap();
+    let mut data = std::fs::File::open(dir.join(&archive.volume)).unwrap();
+    let langs: Vec<_> = archive
+        .entries
+        .iter()
+        .filter(|e| e.path.starts_with("localisation/2025_release/language_") && e.path.ends_with(".lng"))
+        .collect();
+    assert!(langs.len() >= 11, "{} language files", langs.len());
+    for entry in langs {
+        let bytes = archive.read(entry, &mut data).unwrap();
+        let lng = Lng::parse(&bytes).unwrap_or_else(|e| panic!("{}: {e}", entry.path));
+        assert!(lng.entries.len() > 50_000, "{}", entry.path);
+        assert_eq!(Lng::parse(&lng.to_bytes()).unwrap(), lng, "{}", entry.path);
+    }
 }
 
 #[test]

@@ -236,3 +236,79 @@ impl Baseline {
         Ok(&self.files[rel])
     }
 }
+
+pub const LANG_PREFIX: &str = "localisation/2025_release/language_";
+
+pub fn lang_dir(data: &Path, id: &Identity) -> PathBuf {
+    data.join("baseline").join(id.key()).join("lang")
+}
+
+pub fn original_lang(data: &Path, game: &Path, id: &Identity, code: &str) -> Result<PathBuf> {
+    let dir = lang_dir(data, id);
+    if !dir.is_dir() {
+        extract_lang(game, &dir)?;
+    }
+    let path = dir.join(format!("language_{code}.lng"));
+    if path.is_file() {
+        Ok(path)
+    } else {
+        Err(Error::Other(format!("the game has no {code} language file")))
+    }
+}
+
+pub fn extract_lang(game: &Path, dir: &Path) -> Result<Vec<String>> {
+    let exe_path = game.join(crate::GAME_EXE);
+    let mut exe = std::fs::File::open(&exe_path).map_err(io_err(&exe_path))?;
+    let archive = swofty_formats::nefs::Archive::open_exe(&mut exe)?;
+    let data_path = game.join(&archive.volume);
+    let mut data = std::fs::File::open(&data_path).map_err(io_err(&data_path))?;
+    let tmp = dir.with_extension(format!("tmp-{}", std::process::id()));
+    if tmp.exists() {
+        std::fs::remove_dir_all(&tmp).map_err(io_err(&tmp))?;
+    }
+    std::fs::create_dir_all(&tmp).map_err(io_err(&tmp))?;
+    let mut written = Vec::new();
+    for entry in &archive.entries {
+        let Some(name) = entry
+            .path
+            .strip_prefix(LANG_PREFIX)
+            .filter(|n| n.ends_with(".lng") && !n.contains('/'))
+        else {
+            continue;
+        };
+        let bytes = archive.read(entry, &mut data)?;
+        if !swofty_formats::lng::is_lng(&bytes) {
+            std::fs::remove_dir_all(&tmp).ok();
+            return Err(Error::Other(format!(
+                "{} in {} is not a language file",
+                entry.path,
+                crate::GAME_EXE
+            )));
+        }
+        let name = format!("language_{name}");
+        let path = tmp.join(&name);
+        std::fs::write(&path, bytes).map_err(io_err(&path))?;
+        written.push(name);
+    }
+    if written.is_empty() {
+        std::fs::remove_dir_all(&tmp).ok();
+        return Err(Error::Other(format!(
+            "{} holds no language files",
+            crate::GAME_EXE
+        )));
+    }
+    written.sort();
+    if let Err(e) = std::fs::rename(&tmp, dir) {
+        std::fs::remove_dir_all(&tmp).ok();
+        if !dir.is_dir() {
+            return Err(io_err(dir)(e));
+        }
+    }
+    Ok(written)
+}
+
+pub fn exe_version(game: &Path) -> Result<Option<String>> {
+    let path = game.join(crate::GAME_EXE);
+    let mut exe = std::fs::File::open(&path).map_err(io_err(&path))?;
+    Ok(swofty_formats::pe::file_version(&mut exe)?)
+}

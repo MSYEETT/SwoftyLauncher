@@ -3,6 +3,8 @@ pub mod erp;
 pub mod gvdb;
 pub mod hash;
 pub mod lng;
+pub mod nefs;
+pub mod pe;
 pub mod pkg;
 pub mod texture;
 

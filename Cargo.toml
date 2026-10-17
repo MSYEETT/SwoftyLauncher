@@ -15,6 +15,7 @@ swofty-addon = { path = "packages/addon-api" }
 swofty-core = { path = "packages/core" }
 swofty-formats = { path = "packages/formats" }
 swofty-sdk = { path = "packages/sdk" }
+aes = "0.9"
 anyhow = "1"
 bcdec_rs = "0.2"
 clap = { version = "4", features = ["derive", "env"] }
