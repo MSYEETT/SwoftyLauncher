@@ -1,5 +1,6 @@
 pub mod activation;
 pub mod baseline;
+pub mod build;
 pub mod builtin;
 pub mod crash;
 pub mod install;
