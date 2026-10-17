@@ -2,6 +2,8 @@
 
 A desktop app for modding F1 25 on Windows and Linux through Steam and Proton.
 
+![The F1 Mod Manager launcher](docs/public/screenshots/hero-launcher.png)
+
 ## Features
 
 - **Maps:** Import community track packages, such as Sepang and Okayama, and race on them as extra tracks.
