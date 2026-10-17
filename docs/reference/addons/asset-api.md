@@ -219,7 +219,7 @@ Result overlay_file(std::string_view game_path, std::string_view file);
 - `available(feature)` takes `group`, `erp`, `db`, `lang` or `file`.
 - `db_set` takes a key path, or `0x` and 16 hex digits. `type` is a `db_edits` type name (`int`, `float`, `string`, `enum`, `id`, `bool`, ...) or a tag number. The raw form takes the hash and the tag, and its value bytes are the record's text.
 - `put_resource` fragments are files with `fourcc` and `flags` as in a `resources` entry; empty and 0 take the stock resource's. `erps` names the target archives, and without it the core finds the archives that hold the uri.
-- File arguments are paths relative to the addon's folder, `swofty/addons/<id>/`. A path that leaves the folder, or a file that is missing, returns `invalid`.
+- File arguments are paths relative to the addon's folder, `swofty/addons/<id>/`. The build copies a file there when `files` on the plugin's `operations.native` entry lists it or its folder. See [Files in the game folder](/reference/addons/native-plugins#files-in-the-game-folder). A path that leaves the folder, or a file that is missing, returns `invalid`.
 - The core finds the addon from the calling DLL through `dlls` in `swofty/settings.json`. A DLL that no addon lists gets `invalid` for every call that takes a file.
 - Every call is logged with the addon id and the DLL:
 

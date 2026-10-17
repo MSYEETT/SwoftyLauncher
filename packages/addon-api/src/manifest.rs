@@ -221,6 +221,8 @@ pub struct NativePlugin {
     pub capabilities: Vec<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub early: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -320,7 +322,12 @@ impl AddonManifest {
             .chain(&self.operations.assets);
         let paths = paths
             .chain(self.operations.files.iter().map(|f| &f.source))
-            .chain(self.operations.native.iter().map(|n| &n.dll))
+            .chain(
+                self.operations
+                    .native
+                    .iter()
+                    .flat_map(|n| std::iter::once(&n.dll).chain(&n.files)),
+            )
             .chain(self.operations.screens.iter().map(|s| &s.file))
             .chain(self.launcher.iter().flat_map(|l| l.program.values()));
         if let Some(p) = paths.into_iter().find(|p| !relative_inside(p)) {
@@ -408,6 +415,13 @@ mod tests {
         assert!(
             AddonManifest::parse(&with(r#"{ "dll": "native/a.dll", "capabilities": ["assetz"] }"#)).is_err()
         );
+        let m = AddonManifest::parse(&with(
+            r#"{ "dll": "native/a.dll", "files": ["lang/", "erp/a.bin"] }"#,
+        ))
+        .unwrap();
+        assert_eq!(m.operations.native[0].files, ["lang/", "erp/a.bin"]);
+        assert!(json["native"][1].get("files").is_none());
+        assert!(AddonManifest::parse(&with(r#"{ "dll": "native/a.dll", "files": ["../x"] }"#)).is_err());
     }
 
     #[test]

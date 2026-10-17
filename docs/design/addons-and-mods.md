@@ -552,6 +552,7 @@ Result overlay_file(std::string_view game_path, std::string_view file);
 - A call after its point returns `late`. A call to a feature the core lacks, or an experimental feature the profile has not turned on, returns `unavailable`. Every call is logged with the addon id.
 - `type` takes the `db_edits` type names (`int`, `float`, `string`, `enum`, `id`, `bool`, ...) or a tag number. `tag` is the raw record's tag.
 - File arguments are relative to the addon's folder, `swofty/addons/<id>/`. The core identifies the addon by the calling DLL.
+- The build installs each plugin's `dll` and the files and folders in `files` on its `operations.native` entry to `swofty/addons/<id>/` at their paths in the addon, through the journal, and lists the DLLs in `plugins` in `swofty/settings.json` in load order. The loader loads them from there.
 - SDK calls feed the same lists as `swofty/assets.json`. Entries from `assets.json` apply first, then calls in plugin load order.
 - A native plugin that calls the API declares the `assets` capability. `"early": true` on its `operations.native` entry loads it at the early stage.
 

@@ -27,7 +27,9 @@ swofty addons install .
 swofty addons enable example.sample-mod
 ```
 
-Remove the `native` entry from `swofty.json` and the `native/` directory for a data-only addon. A native plugin loads only after the player consents to its exact file hash.
+The build copies `native/sample_plugin.dll` to `swofty/addons/example.sample-mod/native/` in the game folder. Files the plugin reads in game go under `files` on its `operations.native` entry.
+
+Remove the `native` entry from `swofty.json` and the `native/` directory for a data-only addon.
 
 ## Rules
 

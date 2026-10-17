@@ -73,7 +73,7 @@ Start with [the addon template](/reference/addons/template).
 | `erp` | Paths to [ERP operation files](/reference/ops/erp) |
 | `ui` | Paths to [UI patches](/reference/ops/ui-patches) |
 | `files` | File copies: `[{"source": "files/example", "target": "game/path"}]` |
-| `native` | [Plugin DLLs](/reference/addons/native-plugins), with `dll` and `capabilities` |
+| `native` | [Plugin DLLs](/reference/addons/native-plugins), with `dll`, `capabilities`, `early` and the `files` the plugin reads in game |
 | `screens` | Game screens registered in game by swofty_core: `[{"name": "my_page", "file": "ui/my_page.ui", "flow": "flow_options", "anchor": "settings_container", "view_model": false}]` |
 | `assets` | Paths to asset op files: `{"schema_version": 1, "ops": [...]}` with prefixed ops such as `db.set`, `erp.patch-pkg` and `warn` |
 

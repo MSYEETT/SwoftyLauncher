@@ -38,6 +38,8 @@ pub struct SessionSettings {
     pub owned_items: Vec<OwnedItem>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub early_plugins: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plugins: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -247,6 +249,7 @@ impl SessionSettings {
             ui,
             owned_items: Vec::new(),
             early_plugins,
+            plugins: Vec::new(),
         };
         out.check_commands()?;
         Ok(out)

@@ -159,12 +159,16 @@ absent() {
 }
 for mode in none replace gated late early earlywait; do
     echo "==== $mode"
-    rm -f "$OUT/game/swofty/assets.json" "$OUT/game/swofty/settings.json" "$OUT/game/swofty/addons/"t_*.dll
+    rm -rf "$OUT/game/swofty/assets.json" "$OUT/game/swofty/settings.json" "$OUT/game/swofty/addons/"t_*.dll "$OUT/game/swofty/addons/"t.*
     rm -rf "$OUT/game/swofty/cache"
     [[ $mode == earlywait ]] && cp "$OUT/t_slow.dll" "$OUT/game/swofty/addons/t_slow.dll"
     if [[ $mode == early ]]; then
-        cp "$OUT/t_early.dll" "$OUT/t_window.dll" "$OUT/game/swofty/addons/"
-        echo '{ "schema": 1, "profile": "t", "addons": [], "early_plugins": ["t_early.dll"] }' >"$OUT/game/swofty/settings.json"
+        for n in early window; do
+            mkdir -p "$OUT/game/swofty/addons/t.$n/native"
+            cp "$OUT/t_$n.dll" "$OUT/game/swofty/addons/t.$n/native/"
+        done
+        echo '{ "schema": 1, "profile": "t", "addons": [], "early_plugins": ["t_early.dll"],
+  "plugins": ["addons/t.window/native/t_window.dll", "addons/t.early/native/t_early.dll"] }' >"$OUT/game/swofty/settings.json"
     fi
     [[ $mode == none ]] || assets_json $mode
     timeout 120 "${PIN[@]}" xvfb-run -a wine "$OUT/game/F1_25.exe" $mode || status=1
@@ -180,9 +184,12 @@ for mode in none replace gated late early earlywait; do
         check "loader: window stage after the early load" 'stage: window \(USER32!RegisterClassExW .*\), addons were loaded at the early stage'
         check "loader: early plugin list read from settings.json" 'early stage: plugin t_early\.dll has "early": true'
         check "loader: a plugin without \"early\" waits for the window" 'addon t_window\.dll: loads at the window stage'
+        check "loader: plugin paths read from settings.json" 'addons: settings\.json lists 2 plugin\(s\) in addon folders'
+        check "loader: the early plugin loads from its addon folder" 'addon t_early\.dll: loading .*[\]swofty[\]addons[\]t\.early[\]native[\]t_early\.dll'
         check "loader: the early plugin loads at the early stage" 'addon t_early\.dll: loaded at .*, API v1 plugin'
         check "loader: the rest load at the window stage" 'addons: loading the addons without "early": true at the window stage'
         check "loader: the window plugin loads then" 'addon t_window\.dll: loaded at .*, API v1 plugin'
+        check "loader: the window plugin loads from its addon folder" 'addon t_window\.dll: loading .*[\]swofty[\]addons[\]t\.window[\]native[\]t_window\.dll'
         check "core: second mixin commit for the window plugins" '\[core\] commit: 0 of 0 mixin addon\(s\) active'
         check "core: stage handlers ran" '\[assets\] stage window: [1-9] handler\(s\); addons were loaded at the early stage'
         check "gamedb: load wrap installed early" '\[assets\] gamedb: Gdb_Load_GameDatabase hooked at base\+0x[0-9a-f]+ \(g_Gdb_Database = 0+, not built yet\)'

@@ -75,12 +75,28 @@ From C, call `api->setting(id, type, &value)` and `api->watch_setting(id, fn, us
 ```json
 "operations": {
   "native": [
-    { "dll": "native/my_plugin.dll", "capabilities": ["log", "scan", "hook"] }
+    { "dll": "native/my_plugin.dll", "capabilities": ["log", "scan", "hook"], "files": ["lang/", "erp/frag.bin"] }
   ]
 }
 ```
 
-`options` covers the settings members above, and `assets` covers `swofty/assets.hpp`. `"early": true` loads the plugin at the [early stage](/reference/addons/asset-api#the-early-stage). The manifest also accepts `read-db` and `on-frame`, which are planned capabilities, not members of the current API.
+`options` covers the settings members above, and `assets` covers `swofty/assets.hpp`. `"early": true` loads the plugin at the [early stage](/reference/addons/asset-api#the-early-stage). `files` lists the files and folders the plugin reads while the game runs, as paths in the addon's folder. The manifest also accepts `read-db` and `on-frame`, which are planned capabilities, not members of the current API.
+
+## Files in the game folder
+
+When the addon is on in the profile, the build copies each plugin's `dll` and everything its `files` lists to `swofty/addons/<id>/` in the game folder, at the same paths as in the addon's folder. A listed folder is copied with its subfolders, except entries whose names start with `.`. Nothing else from the addon's folder is copied. For the entry above:
+
+```text
+swofty/addons/example.my-addon/native/my_plugin.dll
+swofty/addons/example.my-addon/lang/...
+swofty/addons/example.my-addon/erp/frag.bin
+```
+
+`swofty/addons/<id>/` is the folder that [Asset API](/reference/addons/asset-api#native-plugins) file arguments are relative to, so `lang_table("eng", "lang/extra.lng")` reads the file that is `lang/extra.lng` in the addon's folder.
+
+The files are installed through the journal like the loader. Turning the addon off, uninstalling it or switching to a profile without it removes them at the next build, and `swofty restore` removes them. The build fails when a listed file is missing, or when two plugins in the profile have the same file name.
+
+The build lists the plugins in `plugins` in `swofty/settings.json`, in the profile's load order. The loader loads `swofty/addons/core/` first, then each listed plugin from its addon folder, then any other DLL directly in `swofty/addons/` in name order. A plugin with `"early": true` loads at the early stage and the rest wait for the window stage, in the same order. swofty_core finds a plugin's addon by its file name through `dlls` in `swofty/settings.json`.
 
 ## Hook rules
 
@@ -89,7 +105,7 @@ From C, call `api->setting(id, type, &value)` and `api->watch_setting(id, fn, us
 - Keep hook setup out of `DllMain`.
 - Keep modded play offline only.
 
-Plugin approval and file-hash checks are planned. The current loader loads DLLs from `swofty/addons/core/`, then `swofty/addons/`. Until the next minor release it also loads `swofty/mods/core/` and `swofty/mods/` with them, in name order.
+Plugin approval and file-hash checks are planned. Until the next minor release the loader also loads `swofty/mods/core/` and `swofty/mods/`, in name order with `swofty/addons/core/` and `swofty/addons/`.
 
 ## Build
 

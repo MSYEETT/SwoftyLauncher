@@ -32,6 +32,7 @@ use crate::{Error, Result, io_err};
 
 pub const GVDB: &str = "game_package/gamedatabases/gamedatabases.2025.bin";
 pub const PLAN_FILE: &str = "plan.json";
+pub const ADDONS_DIR: &str = "addons";
 
 #[derive(Debug, Clone, Default)]
 pub struct Built {
@@ -84,6 +85,63 @@ pub fn screen_files(order: &[&AddonManifest], addons_dir: &Path) -> Result<BTree
             )
         })
         .collect())
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Plugins {
+    pub files: BTreeMap<String, PathBuf>,
+    pub dlls: Vec<String>,
+}
+
+pub fn plugin_files<'a>(
+    store: &Store,
+    order: impl IntoIterator<Item = &'a AddonManifest>,
+    taken: impl IntoIterator<Item = String>,
+) -> Result<Plugins> {
+    let mut out = Plugins::default();
+    let mut names: BTreeMap<String, String> = taken
+        .into_iter()
+        .map(|n| (n.to_ascii_lowercase(), CORE_ID.to_owned()))
+        .collect();
+    for m in order
+        .into_iter()
+        .filter(|m| !m.operations.native.is_empty() && !store.is_builtin(&m.id))
+    {
+        let dir = store.addons_dir().join(&m.id);
+        for n in &m.operations.native {
+            let name = n.dll.rsplit('/').next().unwrap_or(&n.dll);
+            if let Some(other) = names.insert(name.to_ascii_lowercase(), m.id.clone()) {
+                return Err(Error::Other(format!(
+                    "{}: plugin {name} has the same file name as a plugin of {other}; rename one",
+                    m.id
+                )));
+            }
+            out.dlls.push(format!("{ADDONS_DIR}/{}/{}", m.id, n.dll));
+            for rel in std::iter::once(&n.dll).chain(&n.files) {
+                let rel = rel.trim_end_matches('/');
+                let src = dir.join(rel);
+                let found = if src.is_dir() {
+                    loader_files(&src)?
+                        .into_iter()
+                        .filter(|(r, _)| !r.split('/').any(|p| p.starts_with('.')))
+                        .map(|(r, p)| (format!("{rel}/{r}"), p))
+                        .collect()
+                } else if src.is_file() {
+                    BTreeMap::from([(rel.to_owned(), src)])
+                } else {
+                    return Err(Error::Other(format!(
+                        "{}: {rel} is missing; build the plugin and install the addon again",
+                        m.id
+                    )));
+                };
+                for (rel, src) in found {
+                    out.files
+                        .insert(format!("{LOADER_DIR}/{ADDONS_DIR}/{}/{rel}", m.id), src);
+                }
+            }
+        }
+    }
+    Ok(out)
 }
 
 pub fn source_dir(store: &Store, addon: &str, root: Root) -> PathBuf {
@@ -516,6 +574,29 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                     return Err(Error::Other(format!("{rel} is placed twice")));
                 }
             }
+            let core = format!("{LOADER_DIR}/{ADDONS_DIR}/core/");
+            let taken: Vec<String> = built
+                .plan
+                .loader
+                .keys()
+                .filter_map(|rel| rel.strip_prefix(&core))
+                .filter(|n| n.ends_with(".dll") && !n.contains('/'))
+                .map(str::to_owned)
+                .collect();
+            let plugins = plugin_files(store, order.iter().copied(), taken)?;
+            if !plugins.dlls.is_empty() {
+                built.lines.push(format!(
+                    "native: {} plugin(s), {} file(s) under {LOADER_DIR}/{ADDONS_DIR}",
+                    plugins.dlls.len(),
+                    plugins.files.len()
+                ));
+            }
+            for (rel, src) in plugins.files {
+                if built.plan.loader.insert(rel.clone(), src).is_some() {
+                    return Err(Error::Other(format!("{rel} is placed twice")));
+                }
+            }
+            session.plugins = plugins.dlls;
         }
         None => built.warnings.push(format!(
             "{CORE_ID}: the in-game loader was not found (native/dist, loader/ beside the swofty command, or {LOADER_ENV}); the game starts without it"

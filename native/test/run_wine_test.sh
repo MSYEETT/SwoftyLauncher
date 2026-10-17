@@ -72,14 +72,17 @@ else:
 json.dump(doc, open(sys.argv[2], 'w'), indent=1)
 EOF
     [[ $mode == assets ]] && python3 - "$OUT/game/swofty" <<'EOF'
-import json, os, sys
+import json, os, shutil, sys
 root = sys.argv[1]
 addon = os.path.join(root, 'addons', 'example.sample-mod')
 for rel, data in (('erp/frag.bin', b'frag'), ('lang/extra.lng', b'LNGT'), ('files/sponsor.dds', b'DDS ')):
     os.makedirs(os.path.dirname(os.path.join(addon, rel)), exist_ok=True)
     open(os.path.join(addon, rel), 'wb').write(data)
+os.makedirs(os.path.join(addon, 'native'))
+shutil.copy(os.path.join(root, 'addons', 't_assets.dll'), os.path.join(addon, 'native', 't_assets.dll'))
 json.dump({'schema': 1, 'profile': 'wine-test',
-           'addons': [{'id': 'example.sample-mod', 'dlls': ['t_assets.dll'], 'options': []}]},
+           'addons': [{'id': 'example.sample-mod', 'dlls': ['t_assets.dll'], 'options': []}],
+           'plugins': ['addons/example.sample-mod/native/t_assets.dll']},
           open(os.path.join(root, 'settings.json'), 'w'))
 json.dump({'features': ['file']}, open(os.path.join(root, 'assets.json'), 'w'))
 EOF
@@ -136,6 +139,10 @@ EOF
     esac
     if [[ $mode == assets ]]; then
         api='\[assets\] api: example\.sample-mod \(t_assets\.dll\)'
+        once "plugins: settings.json lists the addon's plugin" 'addons: settings\.json lists 1 plugin\(s\) in addon folders'
+        once "plugins: the plugin loads from its addon folder" 'addon t_assets\.dll: loading .*[\]swofty[\]addons[\]example\.sample-mod[\]native[\]t_assets\.dll[[:space:]]*$'
+        once "plugins: the loose copy of a listed plugin is skipped" 'addon t_assets\.dll: settings\.json lists it in an addon folder, the copy in .*[\]swofty[\]addons is skipped'
+        once "plugins: the plugin initialises" 'addon t_assets\.dll: SwoftyAddonInit returned 1 \(ok\)'
         check "assets: available follows the features" '\[t_assets\] available: group 1, erp 1, db 1, lang 1, file 1, sound 0'
         once "assets: register_group during plugin init" "$api register_group asset_groups/t_assets/t\.assetgroup -> ok[[:space:]]*\$"
         once "assets: put_resource during plugin init" "$api put_resource eaid://t_assets/t\.tif\.image -> ok[[:space:]]*\$"

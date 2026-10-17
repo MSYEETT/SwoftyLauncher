@@ -66,8 +66,8 @@ static DWORD attach_tick, load_thread;
 static HANDLE loaded_event;
 static int early_enabled, early_env, loaded_early;
 static char early_source[160] = "off";
-static wchar_t early_plugins[64][MAX_PATH];
-static int early_count;
+static wchar_t early_plugins[64][MAX_PATH], plugins[256][MAX_PATH];
+static int early_count, plugin_count;
 
 static void vlog(const char *fmt, va_list ap)
 {
@@ -335,6 +335,36 @@ static int is_early(const wchar_t *name)
     return 0;
 }
 
+static const wchar_t *base_of(const wchar_t *path)
+{
+    const wchar_t *s = wcsrchr(path, L'\\');
+    return s ? s + 1 : path;
+}
+
+static int listed(const wchar_t *name, int before)
+{
+    for (int i = 0; i < before; i++)
+        if (!_wcsicmp(base_of(plugins[i]), name))
+            return 1;
+    return 0;
+}
+
+static void load_plugins(int pick)
+{
+    for (int i = 0; i < plugin_count; i++) {
+        const wchar_t *name = base_of(plugins[i]);
+        wchar_t dir[MAX_PATH * 2];
+        swprintf(dir, MAX_PATH * 2, L"%ls\\swofty\\%ls", game_dir, plugins[i]);
+        dir[wcslen(dir) - wcslen(name) - 1] = 0;
+        if (listed(name, i))
+            slog("addon %ls: listed twice in settings.json, %ls skipped", name, plugins[i]);
+        else if (pick == PICK_EARLY && !is_early(name))
+            slog("addon %ls: loads at the window stage", name);
+        else if (pick != PICK_REST || !is_early(name))
+            load_addon(dir, name, 0);
+    }
+}
+
 static void load_dir(const wchar_t *sub, int core_dir, int pick)
 {
     Dll dlls[256];
@@ -349,6 +379,8 @@ static void load_dir(const wchar_t *sub, int core_dir, int pick)
         swprintf(dir, MAX_PATH * 2, L"%ls\\swofty\\%ls%ls%ls", game_dir, ROOTS[dlls[i].root], *sub ? L"\\" : L"", sub);
         if (i && !_wcsicmp(dlls[i].name, dlls[i - 1].name))
             slog("addon %ls: also in %ls, skipped", dlls[i].name, dir);
+        else if (!core_dir && listed(dlls[i].name, plugin_count))
+            slog("addon %ls: settings.json lists it in an addon folder, the copy in %ls is skipped", dlls[i].name, dir);
         else if (pick == PICK_EARLY && !is_early(dlls[i].name))
             slog("addon %ls: loads at the window stage", dlls[i].name);
         else if (pick != PICK_REST || !is_early(dlls[i].name))
@@ -486,6 +518,7 @@ static void load_addons_once(const char *why, LPCWSTR detail, int stage)
     SetEnvironmentVariableW(L"SWOFTY_LOAD_STAGE", loaded_early ? L"early" : L"window");
     unhook_iat(loaded_early ? STAGE_EARLY : STAGE_LATE);
     load_dir(L"core", 1, PICK_ALL);
+    load_plugins(loaded_early ? PICK_EARLY : PICK_ALL);
     load_dir(L"", 0, loaded_early ? PICK_EARLY : PICK_ALL);
     finish_batch(0);
     if (!loaded_early)
@@ -499,6 +532,7 @@ static void load_rest(void)
 {
     int first = deferred_count;
     slog("addons: loading the addons without \"early\": true at the window stage");
+    load_plugins(PICK_REST);
     load_dir(L"", 0, PICK_REST);
     finish_batch(first);
 }
@@ -603,7 +637,51 @@ static int early_flag(void)
     return !strncmp(p, "true", 4) ? 1 : !strncmp(p, "false", 5) ? 0 : -1;
 }
 
-static void read_early_plugins(void)
+static const char *json_list(const char *buf, const char *key)
+{
+    size_t k = strlen(key);
+    for (const char *p = buf; (p = strstr(p, key)); p += k) {
+        const char *q = p + k;
+        while (*q == ' ' || *q == '\t' || *q == '\r' || *q == '\n')
+            q++;
+        if (*q++ != ':')
+            continue;
+        while (*q == ' ' || *q == '\t' || *q == '\r' || *q == '\n')
+            q++;
+        if (*q == '[')
+            return q + 1;
+    }
+    return NULL;
+}
+
+static int read_list(const char *buf, const char *key, wchar_t (*out)[MAX_PATH], int max)
+{
+    int count = 0;
+    for (const char *p = json_list(buf, key); p && *p && *p != ']' && count < max;) {
+        const char *q = strchr(p, '"'), *e = q ? strchr(q + 1, '"') : NULL;
+        const char *close = strchr(p, ']');
+        if (!e || (close && q > close))
+            break;
+        int n = MultiByteToWideChar(CP_UTF8, 0, q + 1, (int)(e - q - 1), out[count], MAX_PATH - 1);
+        out[count][n] = 0;
+        if (n)
+            count++;
+        p = e + 1;
+    }
+    return count;
+}
+
+static int inside(wchar_t *path)
+{
+    wchar_t wrapped[MAX_PATH + 2];
+    for (wchar_t *c = path; *c; c++)
+        if (*c == L'/')
+            *c = L'\\';
+    swprintf(wrapped, MAX_PATH + 2, L"\\%ls\\", path);
+    return path[0] != L'\\' && !wcschr(path, L':') && !wcsstr(wrapped, L"\\..\\") && !wcsstr(wrapped, L"\\.\\");
+}
+
+static void read_settings(void)
 {
     wchar_t path[MAX_PATH * 2];
     swprintf(path, MAX_PATH * 2, L"%ls\\swofty\\settings.json", game_dir);
@@ -615,20 +693,18 @@ static void read_early_plugins(void)
     ReadFile(f, buf, sizeof buf - 1, &got, NULL);
     CloseHandle(f);
     buf[got] = 0;
-    const char *p = strstr(buf, "\"early_plugins\"");
-    if (!p || !(p = strchr(p, '[')))
-        return;
-    for (p++; *p && *p != ']' && early_count < 64;) {
-        const char *q = strchr(p, '"'), *e = q ? strchr(q + 1, '"') : NULL;
-        const char *close = strchr(p, ']');
-        if (!e || (close && q > close))
-            break;
-        int n = MultiByteToWideChar(CP_UTF8, 0, q + 1, (int)(e - q - 1), early_plugins[early_count], MAX_PATH - 1);
-        early_plugins[early_count][n] = 0;
-        if (n)
-            slog("early stage: plugin %ls has \"early\": true", early_plugins[early_count++]);
-        p = e + 1;
+    early_count = read_list(buf, "\"early_plugins\"", early_plugins, 64);
+    for (int i = 0; i < early_count; i++)
+        slog("early stage: plugin %ls has \"early\": true", early_plugins[i]);
+    int n = read_list(buf, "\"plugins\"", plugins, 256);
+    for (int i = 0; i < n; i++) {
+        if (!inside(plugins[i]))
+            slog("addons: plugin %ls in settings.json is not a path inside swofty\\, skipped", plugins[i]);
+        else if (plugin_count++ < i)
+            wcscpy(plugins[plugin_count - 1], plugins[i]);
     }
+    if (plugin_count)
+        slog("addons: settings.json lists %d plugin(s) in addon folders", plugin_count);
 }
 
 static void read_early_flag(void)
@@ -771,7 +847,7 @@ BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID reserved)
     attach_tick = GetTickCount();
     read_early_flag();
     slog("early stage: %s", early_source);
-    read_early_plugins();
+    read_settings();
     if (early_count && !early_enabled && !early_env) {
         early_enabled = 1;
         slog("early stage: on for %d early plugin(s); SwoftyMod loads with them", early_count);
