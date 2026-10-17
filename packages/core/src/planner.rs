@@ -115,6 +115,7 @@ pub struct Planner<'a> {
     tracks: Vec<Op>,
     planned: Planned,
     writers: BTreeMap<Target, Vec<Origin>>,
+    removals: usize,
 }
 
 fn erp_target(op: &ErpOp) -> Option<(Target, bool)> {
@@ -141,7 +142,9 @@ fn erp_target(op: &ErpOp) -> Option<(Target, bool)> {
         ErpOp::AddResource { erp, resource: r, .. } | ErpOp::PatchPkg { erp, resource: r, .. } => {
             Some((resource(erp, r), false))
         }
-        ErpOp::AddMipmaps { .. } => None,
+        ErpOp::AddMipmaps { target, .. } => {
+            Some((Target::File(target.trim_end_matches('/').to_owned()), true))
+        }
     }
 }
 
@@ -176,6 +179,7 @@ impl<'a> Planner<'a> {
             tracks: Vec::new(),
             planned: Planned::default(),
             writers: BTreeMap::new(),
+            removals: 0,
         }
     }
 
@@ -185,6 +189,22 @@ impl<'a> Planner<'a> {
     }
 
     pub fn route(&self, kind: Kind) -> Route {
+        match self.delivery(kind) {
+            Route::Runtime if kind == Kind::Erp && self.removals > 0 => Route::Build,
+            route => route,
+        }
+    }
+
+    pub fn route_note(&self, kind: Kind) -> Option<String> {
+        (self.route(kind) != self.delivery(kind)).then(|| {
+            format!(
+                "built into the game files; {} resource removal(s) cannot apply at runtime",
+                self.removals
+            )
+        })
+    }
+
+    fn delivery(&self, kind: Kind) -> Route {
         let stable = self.features.stable.contains(&kind);
         let experimental = self.features.experimental.contains(&kind);
         let build = BUILD_DELIVERIES.contains(&kind);
@@ -203,6 +223,9 @@ impl<'a> Planner<'a> {
     pub fn push(&mut self, op: Op) {
         if let Some((target, replaces)) = target(&op.op) {
             self.write(target, &op.origin, replaces);
+        }
+        if matches!(op.op, AssetOp::Erp(ErpOp::RemoveResource { .. })) {
+            self.removals += 1;
         }
         if matches!(op.op, AssetOp::Track(_)) {
             self.tracks.push(op);
@@ -453,6 +476,50 @@ mod tests {
         );
         let shown: Vec<String> = planned.conflicts.iter().map(Conflict::to_string).collect();
         assert_eq!(shown, ["r in a.erp: c overrides a, b", "x/y.dds: d overrides c"]);
+    }
+
+    #[test]
+    fn a_resource_removal_puts_every_erp_op_on_the_build_route() {
+        let features = Features {
+            stable: BTreeSet::from([Kind::Erp, Kind::Db]),
+            experimental: BTreeSet::new(),
+        };
+        let none = BTreeSet::new();
+        let mut p = Planner::new(&features, &none);
+        let remove = |r: &str| format!(r#"{{"op":"erp.remove-resource","erp":"a.erp","resource":"{r}"}}"#);
+        p.push(op(
+            "a",
+            r#"{"op":"erp.put-resource","erp":"a.erp","resource":"r","source":"x.erp"}"#,
+        ));
+        p.push(op(
+            "a",
+            r#"{"op":"erp.add-mipmaps","source":"m","target":"x/r.tif.mipmaps"}"#,
+        ));
+        assert_eq!(p.route(Kind::Erp), Route::Runtime);
+        assert_eq!(p.route_note(Kind::Erp), None);
+        p.push(op("b", &remove("r")));
+        p.push(op("b", &remove("s")));
+        p.push(op(
+            "b",
+            r#"{"op":"file.put","source":"f","target":"x/r.tif.mipmaps"}"#,
+        ));
+        assert_eq!(p.route(Kind::Erp), Route::Build);
+        assert_eq!(p.route(Kind::Db), Route::Runtime);
+        assert_eq!(
+            p.route_note(Kind::Erp).as_deref(),
+            Some("built into the game files; 2 resource removal(s) cannot apply at runtime")
+        );
+        assert_eq!(p.route_note(Kind::Db), None);
+        assert_eq!(p.take_erp().len(), 4);
+        let shown: Vec<String> = p.finish().conflicts.iter().map(Conflict::to_string).collect();
+        assert_eq!(
+            shown,
+            ["r in a.erp: b overrides a", "x/r.tif.mipmaps: b overrides a"]
+        );
+        let mut p = Planner::new(&features, &none).build_only(&features.stable);
+        p.push(op("b", &remove("r")));
+        assert_eq!(p.route(Kind::Erp), Route::Build);
+        assert_eq!(p.route_note(Kind::Erp), None);
     }
 
     #[test]

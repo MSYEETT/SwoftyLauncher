@@ -1,10 +1,11 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
-use swofty_formats::erp::{Entry, Erp, ErpFile, Resource};
+use swofty_formats::erp::{self, Entry, Erp, ErpFile, Resource};
 use swofty_formats::pkg::{Node, Pkg};
 
 use crate::asset::Source;
+use crate::builtin::loader_files;
 use crate::manifest::relative_inside;
 use crate::ops::{ErpOp, PkgTarget};
 use crate::pkgedit::{apply_edits, edit_name, sources, supported};
@@ -23,11 +24,15 @@ struct Archive {
 }
 
 impl Archive {
-    fn name<'s>(&'s self, slot: &'s Slot) -> &'s str {
+    fn entry<'s>(&'s self, slot: &'s Slot) -> &'s Resource {
         match slot {
-            Slot::Stock(i) => &self.file.erp.resources[*i].name,
-            Slot::Owned(r) => &r.name,
+            Slot::Stock(i) => &self.file.erp.resources[*i],
+            Slot::Owned(r) => r,
         }
+    }
+
+    fn name<'s>(&'s self, slot: &'s Slot) -> &'s str {
+        &self.entry(slot).name
     }
 
     fn position(&self, name: &str) -> Result<Option<usize>> {
@@ -59,6 +64,7 @@ pub struct ErpBuild<'a> {
     erps: BTreeMap<String, Archive>,
     sources: HashMap<SourceKey, Node>,
     archives: HashMap<PathBuf, ErpFile>,
+    mipmaps: BTreeMap<String, PathBuf>,
 }
 
 fn fail(msg: impl Into<String>) -> Error {
@@ -79,24 +85,15 @@ fn checked(rel: &str) -> Result<&str> {
     }
 }
 
-fn op_name(op: &ErpOp) -> &'static str {
-    match op {
-        ErpOp::ReplaceResource { .. } => "replace-resource",
-        ErpOp::AddResource { .. } => "add-resource",
-        ErpOp::CopyResource { .. } => "copy-resource",
-        ErpOp::PutResource { .. } => "put-resource",
-        ErpOp::RemoveResource { .. } => "remove-resource",
-        ErpOp::AddMipmaps { .. } => "add-mipmaps",
-        ErpOp::PatchPkg { .. } => "patch-pkg",
-    }
-}
-
 pub fn unsupported(op: &ErpOp) -> Option<&'static str> {
     match op {
         ErpOp::PatchPkg { edits, .. } => edits.iter().find(|e| !supported(e)).map(edit_name),
-        ErpOp::CopyResource { .. } | ErpOp::PutResource { .. } => None,
-        other => Some(op_name(other)),
+        _ => None,
     }
+}
+
+fn read(path: &Path) -> Result<Vec<u8>> {
+    std::fs::read(path).map_err(crate::io_err(path))
 }
 
 fn read_resource(path: &Path, t: &PkgTarget) -> Result<Node> {
@@ -123,6 +120,7 @@ impl<'a> ErpBuild<'a> {
             erps: BTreeMap::new(),
             sources: HashMap::new(),
             archives: HashMap::new(),
+            mipmaps: BTreeMap::new(),
         }
     }
 
@@ -190,8 +188,85 @@ impl<'a> ErpBuild<'a> {
                 let path = resolve(source)?;
                 self.copy(&path, resource, erp, rename.as_deref().unwrap_or(resource), true)
             }
-            _ => unreachable!("checked by unsupported"),
+            ErpOp::ReplaceResource {
+                erp,
+                resource,
+                fragment,
+                source,
+            } => {
+                let data = read(&resolve(source)?)?;
+                let e = self.erp(erp)?;
+                let i = e.find(resource).map_err(|err| fail(format!("{erp}: {err}")))?;
+                e.owned(i)?
+                    .set_fragment(*fragment, &data)
+                    .map_err(|err| fail(format!("{erp}: {err}")))
+            }
+            ErpOp::AddResource {
+                erp,
+                resource,
+                kind,
+                sources,
+            } => {
+                let data = sources
+                    .iter()
+                    .map(|s| read(&resolve(s)?))
+                    .collect::<Result<Vec<_>>>()?;
+                self.add(erp, resource, kind, &data)
+            }
+            ErpOp::RemoveResource { erp, resource } => {
+                let e = self.erp(erp)?;
+                let i = e.find(resource).map_err(|err| fail(format!("{erp}: {err}")))?;
+                e.slots.remove(i);
+                Ok(())
+            }
+            ErpOp::AddMipmaps { source, target } => {
+                let from = resolve(source)?;
+                let target = checked(target.trim_end_matches('/'))?;
+                if from.is_file() {
+                    self.mipmaps.insert(target.to_owned(), from);
+                    return Ok(());
+                }
+                if !from.is_dir() {
+                    return Err(fail(format!("add-mipmaps: {} is missing", source.path)));
+                }
+                let files = loader_files(&from)?;
+                if files.is_empty() {
+                    return Err(fail(format!("add-mipmaps: {} has no files", source.path)));
+                }
+                for (rel, path) in files {
+                    self.mipmaps.insert(format!("{target}/{rel}"), path);
+                }
+                Ok(())
+            }
         }
+    }
+
+    fn add(&mut self, erp: &str, name: &str, kind: &str, data: &[Vec<u8>]) -> Result<()> {
+        let wanted = erp::kind(kind).map_err(|e| fail(format!("add-resource {name}: {e}")))?;
+        let target = self.erp(erp)?;
+        if target
+            .position(name)
+            .map_err(|e| fail(format!("{erp}: {e}")))?
+            .is_some()
+        {
+            return Err(fail(format!(
+                "{erp}: {name} already exists; put-resource replaces a resource"
+            )));
+        }
+        let like = target
+            .slots
+            .iter()
+            .map(|s| target.entry(s))
+            .find(|r| r.kind == wanted && r.fragments.len() == data.len())
+            .ok_or_else(|| {
+                fail(format!(
+                    "{erp}: add-resource {name} takes its layout from a {kind} resource with {} fragment(s) in the archive, and it has none",
+                    data.len()
+                ))
+            })?;
+        let res = Resource::like(name, like, data).map_err(|e| fail(format!("{erp}: {e}")))?;
+        target.slots.push(Slot::Owned(res));
+        Ok(())
     }
 
     fn copy(&mut self, from: &Path, resource: &str, erp: &str, name: &str, replace: bool) -> Result<()> {
@@ -238,6 +313,10 @@ impl<'a> ErpBuild<'a> {
 
     pub fn changed(&self) -> impl Iterator<Item = &str> {
         self.erps.keys().map(String::as_str)
+    }
+
+    pub fn take_mipmaps(&mut self) -> BTreeMap<String, PathBuf> {
+        std::mem::take(&mut self.mipmaps)
     }
 
     pub fn resource(&self, erp: &str, resource: &str, fragment: usize) -> Result<Option<Pkg>> {
@@ -295,7 +374,8 @@ impl<'a> ErpBuild<'a> {
 mod tests {
     use super::*;
     use crate::asset::{AssetOp, FileKind, OpFile};
-    use swofty_formats::erp::{Fragment, HEADER_LEN, MAGIC, Resource, ZSTD, compress};
+    use crate::runtime::Runtime;
+    use swofty_formats::erp::{Fragment, HEADER_LEN, MAGIC, Resource, STORED, ZSTD, compress};
     use swofty_formats::pkg::{Arr, Obj, Val};
 
     fn erp_ops(json: &str) -> Vec<ErpOp> {
@@ -445,11 +525,12 @@ mod tests {
             untouched.find("eaid://t-b.layer").unwrap().fragments[0].raw
         );
         let mut bad = ErpBuild::new(&original);
-        let replace = erp_ops(
-            r#"{"schema_version":1,"ops":[{"op":"replace-resource","erp":"x.erp","resource":"r","source":"s"}]}"#,
+        let text = erp_ops(
+            r#"{"schema_version":1,"ops":[{"op":"patch-pkg","erp":"x.erp","resource":"r","edits":[
+            {"op":"set-text","node":"n","value":"v"}]}]}"#,
         );
-        assert_eq!(unsupported(&replace[0]), Some("replace-resource"));
-        assert!(apply(&mut bad, &replace, &game).is_err());
+        assert_eq!(unsupported(&text[0]), Some("set-text"));
+        assert!(apply(&mut bad, &text, &game).is_err());
         let escape = erp_ops(
             r#"{"schema_version":1,"ops":[{"op":"patch-pkg","erp":"../x.erp","resource":"r","edits":[
             {"op":"set-value","path":"a","value":1}]}]}"#,
@@ -577,6 +658,264 @@ mod tests {
             written.resources[0].fragments[0].raw,
             source.find("eaid://car.wep").unwrap().fragments[0].raw
         );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    fn surface(name: &str, head: &[u8], pixels: &[u8]) -> Resource {
+        let fragment = |compression: u8, data: &[u8]| Fragment {
+            name: *b"temp",
+            offset: 0,
+            size: data.len() as u64,
+            flags: 0x10,
+            compression,
+            packed: 0,
+            raw: match compression {
+                ZSTD => compress(data).unwrap(),
+                _ => data.to_vec(),
+            },
+        };
+        let mut res = Resource {
+            name: name.into(),
+            kind: erp::kind("GfxSurfaceRes").unwrap(),
+            unk: 9u32.to_le_bytes().to_vec(),
+            fragments: vec![fragment(ZSTD, head), fragment(STORED, pixels)],
+            hash: [0; 16],
+        };
+        for f in &mut res.fragments {
+            f.packed = f.raw.len() as u64;
+        }
+        res.hash = res.content_hash().unwrap();
+        res
+    }
+
+    fn archive(resources: Vec<Resource>) -> Vec<u8> {
+        let mut header = [0u8; HEADER_LEN];
+        header[..4].copy_from_slice(MAGIC);
+        header[4..8].copy_from_slice(&3u32.to_le_bytes());
+        Erp {
+            header,
+            version: 3,
+            resources,
+        }
+        .to_bytes()
+    }
+
+    fn data(res: &Resource) -> Vec<Vec<u8>> {
+        res.fragments.iter().map(|f| f.data().unwrap()).collect()
+    }
+
+    #[test]
+    fn replaces_adds_and_removes_resources_with_the_same_bytes_on_both_routes() {
+        let root = std::env::temp_dir().join(format!("swofty-erpraw-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let game = root.join("game");
+        let addon = root.join("addon");
+        std::fs::create_dir_all(game.join("ui")).unwrap();
+        std::fs::create_dir_all(addon.join("raw")).unwrap();
+        let (x, y, z) = (
+            "eaid://ui_package/x.tif.image",
+            "eaid://ui_package/y.tif.image",
+            "eaid://ui_package/z.tif.image",
+        );
+        let mut l = Erp::parse(&erp(&[("eaid://ui_package/l.layer", layer(&["a"]))]))
+            .unwrap()
+            .resources
+            .remove(0);
+        l.unk = 1u32.to_le_bytes().to_vec();
+        let stock = archive(vec![
+            surface(x, b"HEADER-X", b"PIXELS-X"),
+            surface(y, b"HEADER-Y", b"PIXELS-Y"),
+            l,
+        ]);
+        std::fs::write(game.join("ui/a.erp"), &stock).unwrap();
+        std::fs::write(addon.join("raw/pixels.bin"), b"PAINTED!").unwrap();
+        std::fs::write(addon.join("raw/head.bin"), b"HEADER-Z").unwrap();
+        std::fs::write(addon.join("raw/z.bin"), b"NEW PIXELS").unwrap();
+        let replace_add = r#"
+            {"op":"replace-resource","erp":"ui/a.erp","resource":"eaid://ui_package/x.tif.image","fragment":1,"source":"raw/pixels.bin"},
+            {"op":"add-resource","erp":"ui/a.erp","resource":"eaid://ui_package/z.tif.image","type":"GfxSurfaceRes",
+             "sources":["raw/head.bin","raw/z.bin"]}"#;
+        let ops = erp_ops(&format!(
+            r#"{{"schema_version":1,"ops":[{replace_add},
+            {{"op":"remove-resource","erp":"ui/a.erp","resource":"eaid://ui_package/y.tif.image"}}]}}"#
+        ));
+        assert!(ops.iter().all(|op| unsupported(op).is_none()));
+        let original = |rel: &str| game.join(rel);
+        let mut b = ErpBuild::new(&original);
+        apply(&mut b, &ops, &addon).unwrap();
+        let out = root.join("build");
+        assert_eq!(b.write(&out).unwrap(), ["ui/a.erp"]);
+        let built = std::fs::read(out.join("ui/a.erp")).unwrap();
+
+        let mut expected = Erp::parse(&stock).unwrap();
+        expected
+            .find_mut(x)
+            .unwrap()
+            .set_fragment(1, b"PAINTED!")
+            .unwrap();
+        let like = expected.find(x).unwrap().clone();
+        expected.resources.retain(|r| r.name != y);
+        expected
+            .resources
+            .push(Resource::like(z, &like, &[b"HEADER-Z".to_vec(), b"NEW PIXELS".to_vec()]).unwrap());
+        assert_eq!(built, expected.to_bytes());
+
+        let written = Erp::parse(&built).unwrap();
+        let names: Vec<&str> = written.resources.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(names, [x, "eaid://ui_package/l.layer", z]);
+        let before = Erp::parse(&stock).unwrap();
+        let (old, new) = (before.find(x).unwrap(), written.find(x).unwrap());
+        assert_eq!(new.fragments[0].raw, old.fragments[0].raw);
+        assert_eq!(new.fragments[1].raw, b"PAINTED!");
+        assert_eq!(new.fragments[1].compression, STORED);
+        assert_eq!(new.hash, new.content_hash().unwrap());
+        assert_ne!(new.hash, old.hash);
+        let added = written.find(z).unwrap();
+        assert_eq!((added.kind(), &added.unk), ("GfxSurfaceRes".into(), &old.unk));
+        assert_eq!(data(added), [b"HEADER-Z".to_vec(), b"NEW PIXELS".to_vec()]);
+        assert_eq!(
+            added
+                .fragments
+                .iter()
+                .map(|f| (f.name, f.flags, f.compression))
+                .collect::<Vec<_>>(),
+            old.fragments
+                .iter()
+                .map(|f| (f.name, f.flags, f.compression))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(added.hash, added.content_hash().unwrap());
+
+        let runtime_ops = erp_ops(&format!(r#"{{"schema_version":1,"ops":[{replace_add}]}}"#));
+        let mut b = ErpBuild::new(&original);
+        apply(&mut b, &runtime_ops, &addon).unwrap();
+        let overlay = root.join("overlay");
+        let mut rt = Runtime::new(Vec::new());
+        assert!(rt.resources(b.resources(), &overlay).unwrap().is_empty());
+        let rt = rt.finish(&overlay).unwrap().unwrap();
+        assert_eq!(rt.assets.resource_erps.len(), 1);
+        assert_eq!(rt.assets.resource_erps[0].erps, ["ui/a.erp"]);
+        let lay = Erp::parse(
+            &std::fs::read(overlay.join("swofty").join(&rt.assets.resource_erps[0].file)).unwrap(),
+        )
+        .unwrap();
+        let names: Vec<&str> = lay.resources.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(names, [x, z]);
+        for r in &lay.resources {
+            let b = written.find(&r.name).unwrap();
+            assert_eq!((r.kind, &r.unk, r.hash), (b.kind, &b.unk, b.hash));
+            for (f, g) in r.fragments.iter().zip(&b.fragments) {
+                assert_eq!(
+                    (f.name, f.size, f.flags, f.compression, f.packed, &f.raw),
+                    (g.name, g.size, g.flags, g.compression, g.packed, &g.raw)
+                );
+            }
+        }
+
+        let fails = |json: &str| {
+            let ops = erp_ops(&format!(r#"{{"schema_version":1,"ops":[{json}]}}"#));
+            apply(&mut ErpBuild::new(&original), &ops, &addon)
+                .unwrap_err()
+                .to_string()
+        };
+        assert_eq!(
+            fails(
+                r#"{"op":"replace-resource","erp":"ui/a.erp","resource":"eaid://ui_package/w","source":"raw/head.bin"}"#
+            ),
+            "ui/a.erp: eaid://ui_package/w: not found"
+        );
+        assert_eq!(
+            fails(&format!(
+                r#"{{"op":"replace-resource","erp":"ui/a.erp","resource":"{x}","fragment":2,"source":"raw/head.bin"}}"#
+            )),
+            format!("ui/a.erp: {x}: no fragment 2")
+        );
+        assert!(
+            fails(&format!(
+                r#"{{"op":"replace-resource","erp":"ui/a.erp","resource":"{x}","source":"raw/missing.bin"}}"#
+            ))
+            .contains("missing.bin")
+        );
+        assert_eq!(
+            fails(&format!(
+                r#"{{"op":"add-resource","erp":"ui/a.erp","resource":"{y}","type":"GfxSurfaceRes","sources":["raw/head.bin","raw/z.bin"]}}"#
+            )),
+            format!("ui/a.erp: {y} already exists; put-resource replaces a resource")
+        );
+        assert!(
+            fails(&format!(
+                r#"{{"op":"add-resource","erp":"ui/a.erp","resource":"{z}","type":"GfxSurfaceRes","sources":["raw/head.bin"]}}"#
+            ))
+            .contains("takes its layout from a GfxSurfaceRes resource with 1 fragment(s)")
+        );
+        assert!(
+            fails(&format!(
+                r#"{{"op":"add-resource","erp":"ui/a.erp","resource":"{z}","type":"GfxMeshRes","sources":["raw/head.bin"]}}"#
+            ))
+            .contains("GfxMeshRes")
+        );
+        assert!(
+            fails(&format!(
+                r#"{{"op":"add-resource","erp":"ui/a.erp","resource":"{z}","type":"SixteenBytesLong","sources":["raw/head.bin"]}}"#
+            ))
+            .contains("is not a resource type")
+        );
+        assert_eq!(
+            fails(r#"{"op":"remove-resource","erp":"ui/a.erp","resource":"eaid://ui_package/w"}"#),
+            "ui/a.erp: eaid://ui_package/w: not found"
+        );
+        assert!(
+            fails(&format!(
+                r#"{{"op":"remove-resource","erp":"ui/a.erp","resource":"{y}"}},{{"op":"remove-resource","erp":"ui/a.erp","resource":"{y}"}}"#
+            ))
+            .contains("not found")
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn add_mipmaps_places_files_and_folders_at_game_paths() {
+        let root = std::env::temp_dir().join(format!("swofty-erpmips-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let addon = root.join("addon");
+        std::fs::create_dir_all(addon.join("mips/sub")).unwrap();
+        std::fs::write(addon.join("mips/a.tif.mipmaps"), b"a").unwrap();
+        std::fs::write(addon.join("mips/sub/b.tif.mipmaps"), b"b").unwrap();
+        std::fs::write(addon.join("one.tif.mipmaps"), b"1").unwrap();
+        let ops = erp_ops(
+            r#"{"schema_version":1,"ops":[
+            {"op":"add-mipmaps","source":"mips/","target":"livery_package/textures/"},
+            {"op":"add-mipmaps","source":"one.tif.mipmaps","target":"livery_package/one.tif.mipmaps"}]}"#,
+        );
+        assert!(ops.iter().all(|op| unsupported(op).is_none()));
+        let original = |rel: &str| root.join("game").join(rel);
+        let mut b = ErpBuild::new(&original);
+        apply(&mut b, &ops, &addon).unwrap();
+        assert_eq!(b.changed().count(), 0);
+        assert_eq!(
+            b.take_mipmaps(),
+            BTreeMap::from([
+                (
+                    "livery_package/one.tif.mipmaps".to_owned(),
+                    addon.join("one.tif.mipmaps")
+                ),
+                (
+                    "livery_package/textures/a.tif.mipmaps".to_owned(),
+                    addon.join("mips/").join("a.tif.mipmaps")
+                ),
+                (
+                    "livery_package/textures/sub/b.tif.mipmaps".to_owned(),
+                    addon.join("mips/").join("sub/b.tif.mipmaps")
+                ),
+            ])
+        );
+        for bad in [
+            r#"{"op":"add-mipmaps","source":"mips","target":"../outside"}"#,
+            r#"{"op":"add-mipmaps","source":"missing","target":"x"}"#,
+        ] {
+            let ops = erp_ops(&format!(r#"{{"schema_version":1,"ops":[{bad}]}}"#));
+            assert!(apply(&mut ErpBuild::new(&original), &ops, &addon).is_err());
+        }
         std::fs::remove_dir_all(&root).ok();
     }
 }
