@@ -74,6 +74,7 @@ Start with [the addon template](/modding/template).
 | `files` | File copies: `[{"source": "files/example", "target": "game/path"}]` |
 | `native` | [Plugin DLLs](/modding/native-plugins), with `dll` and `capabilities` |
 | `screens` | Game screens registered in game by swofty_core: `[{"name": "my_page", "file": "ui/my_page.ui", "flow": "flow_options", "anchor": "settings_container", "view_model": false}]` |
+| `assets` | Paths to asset op files: `{"schema_version": 1, "ops": [...]}` with prefixed ops such as `db.set`, `erp.patch-pkg` and `warn` |
 
 Source paths are relative to the addon folder and use `/`. Target paths are relative to the game folder.
 

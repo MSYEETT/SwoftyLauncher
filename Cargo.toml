@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
-members = ["apps/cli", "apps/launcher", "packages/core", "packages/formats", "packages/sdk"]
-default-members = ["apps/cli", "packages/core", "packages/formats", "packages/sdk"]
+members = ["apps/cli", "apps/launcher", "packages/addon-api", "packages/core", "packages/formats", "packages/sdk"]
+default-members = ["apps/cli", "packages/addon-api", "packages/core", "packages/formats", "packages/sdk"]
 
 [workspace.package]
 version = "0.1.0"
@@ -11,6 +11,7 @@ license = "AGPL-3.0-or-later"
 repository = "https://github.com/Swofty-Developments/F1ModManager"
 
 [workspace.dependencies]
+swofty-addon = { path = "packages/addon-api" }
 swofty-core = { path = "packages/core" }
 swofty-formats = { path = "packages/formats" }
 swofty-sdk = { path = "packages/sdk" }

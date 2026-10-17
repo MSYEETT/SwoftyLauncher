@@ -2,9 +2,10 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
+use swofty_core::asset::{AssetOp, FileKind, OpFile, Source};
 use swofty_core::erpbuild::{ErpBuild, unsupported};
 use swofty_core::manifest::{AddonManifest, Binds, OptionType};
-use swofty_core::ops::{DbOp, DbOps, ErpOp, ErpOps, apply_db_ops};
+use swofty_core::ops::{DbOp, DbOps, ErpOp, apply_db_ops};
 use swofty_core::pkgedit::value_text;
 use swofty_core::profile::Profile;
 use swofty_core::settings::render_ops;
@@ -55,8 +56,15 @@ fn db_ops(cars: u64) -> DbOps {
     serde_json::from_value(render(&files("database")[0], cars)).unwrap()
 }
 
-fn erp_ops(rel: &str, cars: u64) -> ErpOps {
-    serde_json::from_value(render(rel, cars)).unwrap()
+fn erp_ops(rel: &str, cars: u64) -> Vec<AssetOp> {
+    OpFile::from_value(render(rel, cars), FileKind::Erp).unwrap().ops
+}
+
+fn skipped(ops: &[AssetOp]) -> Option<&'static str> {
+    ops.iter().find_map(|op| match op {
+        AssetOp::Erp(op) => unsupported(op),
+        _ => None,
+    })
 }
 
 fn game() -> Option<PathBuf> {
@@ -172,8 +180,8 @@ fn manifest_declares_the_cars_slider_and_its_files() {
     for rel in &tracks {
         for cars in SIZES {
             let ops = erp_ops(rel, cars);
-            assert_eq!(unsupported(&ops), None, "{rel}");
-            assert_eq!(ops.ops.is_empty(), cars <= 24, "{rel} at {cars}");
+            assert_eq!(skipped(&ops), None, "{rel}");
+            assert_eq!(ops.is_empty(), cars <= 24, "{rel} at {cars}");
         }
     }
 }
@@ -409,8 +417,8 @@ fn tracks_build_for_every_grid_size() {
         .into_iter()
         .filter(|rel| {
             let doc = erp_ops(rel, 30);
-            let present = doc.ops.iter().all(|op| match op {
-                ErpOp::PatchPkg { erp, .. } => game.join(erp).is_file(),
+            let present = doc.iter().all(|op| match op {
+                AssetOp::Erp(ErpOp::PatchPkg { erp, .. }) => game.join(erp).is_file(),
                 _ => true,
             });
             if !present {
@@ -426,8 +434,11 @@ fn tracks_build_for_every_grid_size() {
     for cars in SIZES {
         let mut b = ErpBuild::new(&original);
         for rel in &tracks {
-            b.apply(&erp_ops(rel, cars), &game)
-                .unwrap_or_else(|e| panic!("{rel} at {cars} cars: {e}"));
+            for op in erp_ops(rel, cars) {
+                let AssetOp::Erp(op) = op else { continue };
+                b.apply(&op, &|s: &Source| Ok(s.resolve(&game)?))
+                    .unwrap_or_else(|e| panic!("{rel} at {cars} cars: {e}"));
+            }
         }
         if cars <= 24 {
             assert_eq!(b.changed().count(), 0, "{cars} cars must not touch any track");
@@ -439,19 +450,19 @@ fn tracks_build_for_every_grid_size() {
             let fits = (cars as u32).min(cap);
             let track = rel.trim_start_matches("tracks/").trim_end_matches(".json");
             let ops = erp_ops(rel, cars);
-            for op in &ops.ops {
+            for op in &ops {
                 match op {
-                    ErpOp::Warn { message } => {
+                    AssetOp::Warn { message } => {
                         assert!(cap < cars as u32, "{track}: warns at {cars} cars but holds {cap}");
                         assert!(message.contains(&format!("room for {cap} cars")), "{message}");
                         warned.insert(track.to_owned());
                     }
-                    ErpOp::PatchPkg {
+                    AssetOp::Erp(ErpOp::PatchPkg {
                         erp,
                         resource,
                         fragment,
                         ..
-                    } => {
+                    }) => {
                         let pkg = b.resource(erp, resource, *fragment).unwrap().unwrap();
                         let again = pkg.to_bytes().unwrap();
                         assert!(

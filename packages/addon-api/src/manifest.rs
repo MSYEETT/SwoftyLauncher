@@ -173,16 +173,18 @@ pub struct Operations {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ui: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub files: Vec<FileOp>,
+    pub files: Vec<FileEntry>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub native: Vec<NativePlugin>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub screens: Vec<ScreenOp>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assets: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct FileOp {
+pub struct FileEntry {
     pub source: String,
     pub target: String,
 }
@@ -222,7 +224,12 @@ pub fn valid_screen_name(name: &str) -> bool {
 
 impl AddonManifest {
     pub fn load(dir: &Path) -> Result<Self> {
-        let m: Self = crate::read_json(&dir.join(MANIFEST_FILE))?;
+        let path = dir.join(MANIFEST_FILE);
+        let data = std::fs::read(&path).map_err(|source| Error::Io {
+            path: path.clone(),
+            source,
+        })?;
+        let m: Self = serde_json::from_slice(&data).map_err(|source| Error::Json { path, source })?;
         m.validate()?;
         Ok(m)
     }
@@ -234,7 +241,7 @@ impl AddonManifest {
     }
 
     pub fn is_builtin(&self) -> bool {
-        self.id == crate::builtin::CORE_ID
+        self.id == crate::CORE_ID
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -283,7 +290,8 @@ impl AddonManifest {
             .database
             .iter()
             .chain(&self.operations.erp)
-            .chain(&self.operations.ui);
+            .chain(&self.operations.ui)
+            .chain(&self.operations.assets);
         let paths = paths
             .chain(self.operations.files.iter().map(|f| &f.source))
             .chain(self.operations.native.iter().map(|n| &n.dll))

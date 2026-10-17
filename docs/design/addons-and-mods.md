@@ -21,7 +21,7 @@ There is no core Assets page. Mods appear only in launcher sections that addons 
 
 ### Renames
 
-The renames and the compatibility rules below are built, except the `addon-data` and cache folders and the profile's `state` object, which come with the Launcher API, and `operations.assets`, which comes with the Asset API. `owned_items` entries in `swofty/settings.json` also name their addon under `addon` instead of `mod`.
+The renames and the compatibility rules below are built, except the `addon-data` and cache folders and the profile's `state` object, which come with the Launcher API. `owned_items` entries in `swofty/settings.json` also name their addon under `addon` instead of `mod`.
 
 | Area | Now | After |
 |---|---|---|
@@ -281,7 +281,7 @@ Every API type serialises and every call is a request and a response. A later ho
 | `file.put` | `source`, `target` | Replace or add a loose game file |
 | `warn` | `message` | Print a message at build |
 
-Every op takes `when` and `{{id}}` placeholders, as database ops do. `source` paths are relative to the addon folder.
+Every op takes `when` and `{{id}}` placeholders, as database ops do. `source` paths are relative to the addon folder. The ops and `operations.assets` are built. Until the planner, the build applies `db`, `erp` and `warn` ops as before and skips `group`, `lang` and `file` ops with a warning.
 
 ### 3.2 Manifest
 
@@ -347,7 +347,7 @@ pub struct AssetBatch {
 }
 ```
 
-`Source` resolves inside the addon's folder, its `addon-data` folder or its cache folder. Any other path fails the build. `Origin.item` names the content inside an addon, such as a mod id.
+`Source` resolves inside the addon's folder, its `addon-data` folder or its cache folder. Any other path fails the build. `Origin.item` names the content inside an addon, such as a mod id. In JSON a `source` is a path in the addon's folder, or `{ "root": "data", "path": ... }` for the other roots.
 
 Core plans and applies ops:
 

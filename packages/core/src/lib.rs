@@ -1,3 +1,5 @@
+pub use swofty_addon::{GAME_ID, asset, manifest, ops};
+
 pub mod activation;
 pub mod baseline;
 pub mod build;
@@ -6,10 +8,8 @@ pub mod crash;
 pub mod erpbuild;
 pub mod install;
 pub mod journal;
-pub mod manifest;
 pub mod map;
 pub mod offline;
-pub mod ops;
 pub mod owned;
 pub mod paths;
 pub mod pkgedit;
@@ -23,7 +23,6 @@ pub mod store;
 pub mod ui;
 pub mod vdf;
 
-pub const GAME_ID: &str = "f1_25";
 pub const STEAM_APP_ID: u32 = 3_059_520;
 pub const GAME_EXE: &str = "F1_25.exe";
 pub const IMAGE_BASE: u64 = 0x1_4000_0000;
@@ -44,6 +43,8 @@ pub enum Error {
     Zip(#[from] zip::result::ZipError),
     #[error(transparent)]
     Formats(#[from] swofty_formats::Error),
+    #[error(transparent)]
+    Addon(#[from] swofty_addon::Error),
     #[error("invalid manifest: {0}")]
     Manifest(String),
     #[error("invalid map package: {0}")]

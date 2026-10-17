@@ -8,13 +8,14 @@ use crate::activation::db::{Registry, Slot, activate};
 use crate::activation::ers::{ErsMap, build_ers};
 use crate::activation::place::{PlaceInput, SLOTS, place, slot_asset_group, slot_asset_root, slot_file};
 use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
+use crate::asset::{AssetOp, FileKind, OpFile, Root, Source};
 use crate::baseline::{Baseline, Objects, hex, sha256_file};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
-use crate::erpbuild::{ErpBuild, source_archives, unsupported};
+use crate::erpbuild::{ErpBuild, source_archive, unsupported};
 use crate::install::{Game, LOADER_DIR, Plan};
 use crate::manifest::AddonManifest;
 use crate::map::TrackPackage;
-use crate::ops::{DbOps, ErpOps, apply_db_ops};
+use crate::ops::{DbOps, apply_db_ops};
 use crate::owned;
 use crate::profile::Profile;
 use crate::resolver::resolve;
@@ -75,12 +76,21 @@ pub fn screen_files(order: &[&AddonManifest], addons_dir: &Path) -> Result<BTree
         .collect())
 }
 
-fn render_file<T: serde::de::DeserializeOwned>(
+pub fn source_dir(store: &Store, addon: &str, root: Root) -> PathBuf {
+    match root {
+        Root::Addon => store.addons_dir().join(addon),
+        Root::Data => store.root.join("addon-data").join(addon),
+        Root::Cache => store.root.join("cache/addons").join(addon),
+    }
+}
+
+fn render_file(
     path: &Path,
+    kind: FileKind,
     m: &AddonManifest,
     p: &Profile,
     hasher: &mut Sha256,
-) -> Result<T> {
+) -> Result<OpFile> {
     let json = |source| Error::Json {
         path: path.to_owned(),
         source,
@@ -89,7 +99,7 @@ fn render_file<T: serde::de::DeserializeOwned>(
     let mut doc: serde_json::Value = serde_json::from_slice(&raw).map_err(json)?;
     render_ops(&mut doc, m, p)?;
     hasher.update(serde_json::to_vec(&doc).expect("serialisable"));
-    serde_json::from_value(doc).map_err(json)
+    OpFile::from_value(doc, kind).map_err(json)
 }
 
 pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
@@ -116,25 +126,45 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         let m = &addons[id];
         hasher.update(format!("{id}@{};", m.version));
         let dir = store.addons_dir().join(id);
-        for rel in &m.operations.database {
-            let ops: DbOps = render_file(&dir.join(rel), m, &p, &mut hasher)?;
-            db_ops.push((id.clone(), ops));
-        }
         let mut erps = Vec::new();
-        for rel in &m.operations.erp {
-            let ops: ErpOps = render_file(&dir.join(rel), m, &p, &mut hasher)?;
-            for src in source_archives(&ops) {
-                let path = dir.join(src);
-                let meta = std::fs::metadata(&path).map_err(io_err(&path))?;
-                hasher.update(format!("{src}|{}|{:?}", meta.len(), meta.modified().ok()));
+        let mut skipped = 0;
+        for (kind, rel) in m.operations.op_files() {
+            let file = render_file(&dir.join(rel), kind, m, &p, &mut hasher)?;
+            let seen = erps.len();
+            let mut db = Vec::new();
+            for op in file.ops {
+                match op {
+                    AssetOp::Db(op) => db.push(op),
+                    AssetOp::Erp(_) | AssetOp::Warn { .. } => erps.push(op),
+                    AssetOp::Group(_) | AssetOp::Lang(_) | AssetOp::File(_) => skipped += 1,
+                }
             }
-            erps.push(ops);
+            for src in erps[seen..].iter().filter_map(|op| match op {
+                AssetOp::Erp(op) => source_archive(op),
+                _ => None,
+            }) {
+                let path = src.resolve(&source_dir(store, id, src.root))?;
+                let meta = std::fs::metadata(&path).map_err(io_err(&path))?;
+                hasher.update(format!("{}|{}|{:?}", src.path, meta.len(), meta.modified().ok()));
+            }
+            if kind == FileKind::Database || !db.is_empty() {
+                let ops = DbOps {
+                    schema_version: file.schema_version,
+                    fields: file.fields,
+                    ops: db,
+                };
+                db_ops.push((id.clone(), ops));
+            }
         }
-        match erps.iter().find_map(unsupported) {
+        let skip = erps.iter().find_map(|op| match op {
+            AssetOp::Erp(op) => unsupported(op),
+            _ => None,
+        });
+        match skip {
             Some(op) => built
                 .warnings
                 .push(format!("{id}: ERP operations skipped; {op} is not built yet")),
-            None if !erps.is_empty() => erp_ops.push((id.clone(), dir.clone(), erps)),
+            None if !erps.is_empty() => erp_ops.push((id.clone(), erps)),
             None => {}
         }
         for s in &m.operations.screens {
@@ -145,6 +175,11 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         if pending > 0 {
             built.warnings.push(format!(
                 "{id}: {pending} UI/file operation file(s) skipped; that stage is not built yet"
+            ));
+        }
+        if skipped > 0 {
+            built.warnings.push(format!(
+                "{id}: {skipped} group, lang or file op(s) skipped; that stage is not built yet"
             ));
         }
     }
@@ -326,15 +361,17 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         let staged = built.plan.data.clone();
         let base = |rel: &str| staged.get(rel).cloned().unwrap_or_else(|| resolve(rel));
         let mut erps = ErpBuild::new(&base);
-        for (id, dir, files) in &erp_ops {
-            let seen = erps.warnings.len();
-            for ops in files {
-                erps.apply(ops, dir)
-                    .map_err(|e| Error::Other(format!("applying {id}: {e}")))?;
+        for (id, ops) in &erp_ops {
+            let resolve = |s: &Source| Ok(s.resolve(&source_dir(store, id, s.root))?);
+            for op in ops {
+                match op {
+                    AssetOp::Erp(op) => erps
+                        .apply(op, &resolve)
+                        .map_err(|e| Error::Other(format!("applying {id}: {e}")))?,
+                    AssetOp::Warn { message } => built.warnings.push(format!("{id}: {message}")),
+                    _ => {}
+                }
             }
-            built
-                .warnings
-                .extend(erps.warnings[seen..].iter().map(|w| format!("{id}: {w}")));
         }
         for rel in erps.write(&built.overlay)? {
             let src = built.overlay.join(&rel);

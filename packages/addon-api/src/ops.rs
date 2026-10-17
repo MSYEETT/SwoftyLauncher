@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use swofty_formats::gvdb::{Gvdb, Record, instance_count_path};
 use swofty_formats::hash::{fnv1a64, fnv1a64_from};
 
+use crate::asset::Source;
 use crate::{Error, Result};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -51,15 +52,15 @@ pub enum DbOp {
         field: String,
         value: String,
     },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct ErpOps {
-    pub schema_version: u32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub foreach: Option<String>,
-    pub ops: Vec<ErpOp>,
+    PutRecord {
+        key: String,
+        #[serde(rename = "type")]
+        tag: u8,
+        value: String,
+    },
+    RemoveRecord {
+        key: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -70,22 +71,29 @@ pub enum ErpOp {
         resource: String,
         #[serde(default)]
         fragment: usize,
-        source: String,
+        source: Source,
     },
     AddResource {
         erp: String,
         resource: String,
         #[serde(rename = "type")]
         kind: String,
-        sources: Vec<String>,
+        sources: Vec<Source>,
     },
     CopyResource {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         from_erp: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        source: Option<String>,
+        source: Option<Source>,
         erp: String,
         resource: String,
+        #[serde(default, rename = "as", skip_serializing_if = "Option::is_none")]
+        rename: Option<String>,
+    },
+    PutResource {
+        erp: String,
+        resource: String,
+        source: Source,
         #[serde(default, rename = "as", skip_serializing_if = "Option::is_none")]
         rename: Option<String>,
     },
@@ -94,7 +102,7 @@ pub enum ErpOp {
         resource: String,
     },
     AddMipmaps {
-        source: String,
+        source: Source,
         target: String,
     },
     PatchPkg {
@@ -103,9 +111,6 @@ pub enum ErpOp {
         #[serde(default)]
         fragment: usize,
         edits: Vec<PkgEdit>,
-    },
-    Warn {
-        message: String,
     },
 }
 
@@ -480,12 +485,16 @@ fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<()> {
         DbOp::RemoveRow { .. } | DbOp::ListAppend { .. } | DbOp::ListRemove { .. } => Err(Error::Resolve(
             "remove-row and list ops are not implemented yet".into(),
         )),
+        DbOp::PutRecord { .. } | DbOp::RemoveRecord { .. } => Err(Error::Resolve(
+            "put-record and remove-record are not implemented yet".into(),
+        )),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::asset::{FileKind, OpFile};
 
     fn db() -> Gvdb {
         let mut records = vec![Record::new("entrants.teams._team_instancecount_", 0, "2")];
@@ -598,7 +607,8 @@ mod tests {
 
     #[test]
     fn erp_ops_parse_patch_pkg_and_warn() {
-        let ops: ErpOps = serde_json::from_str(
+        let file = |json: &str| OpFile::from_value(serde_json::from_str(json).unwrap(), FileKind::Erp);
+        let ops = file(
             r#"{"schema_version":1,"ops":[
             {"op":"patch-pkg","erp":"a.erp","resource":"eaid://x.layer","edits":[
               {"op":"clone-entry","at":"instances","from":{"erp":"b.erp","resource":"eaid://y.layer"},
@@ -607,7 +617,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(ops.ops.len(), 2);
-        assert!(serde_json::from_str::<ErpOps>(r#"{"schema_version":1,"ops":[{"op":"warn"}]}"#).is_err());
+        assert!(file(r#"{"schema_version":1,"ops":[{"op":"warn"}]}"#).is_err());
     }
 
     #[test]

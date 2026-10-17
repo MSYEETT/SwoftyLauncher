@@ -5,7 +5,7 @@ use crate::install::PROXY;
 use crate::manifest::AddonManifest;
 use crate::{Result, io_err};
 
-pub const CORE_ID: &str = "swofty.core";
+pub use swofty_addon::CORE_ID;
 pub const CORE_MANIFEST: &str = include_str!("../../../addons/swoftymod/swofty.json");
 pub const CORE_DLL: &str = "swofty/addons/core/swofty_core.dll";
 pub const LOADER_ENV: &str = "SWOFTY_LOADER_DIR";
