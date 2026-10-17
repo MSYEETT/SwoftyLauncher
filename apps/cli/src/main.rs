@@ -8,7 +8,7 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
-use swofty_core::store::{DEFAULT_PROFILE, Store};
+use swofty_core::store::Store;
 
 #[derive(Parser)]
 #[command(name = "swofty", version, about = "F1 Mod Manager: mods and maps for F1 25")]
@@ -20,8 +20,8 @@ struct Cli {
         help = "Data directory (default: platform data dir)"
     )]
     data_dir: Option<PathBuf>,
-    #[arg(long, global = true, default_value = DEFAULT_PROFILE)]
-    profile: String,
+    #[arg(long, global = true, help = "Profile (default: the active profile)")]
+    profile: Option<String>,
     #[command(subcommand)]
     command: Command,
 }
@@ -89,12 +89,13 @@ fn main() -> ExitCode {
 
 fn dispatch(cli: Cli) -> Result<ExitCode> {
     let store = cli.data_dir.map(Store::new).unwrap_or_else(Store::open_default);
+    let profile = cli.profile.unwrap_or_else(|| store.active_profile());
     match cli.command {
-        Command::Run(args) => run::run(&store, &cli.profile, args),
-        Command::Build { game } => build::build(&store, &cli.profile, game),
+        Command::Run(args) => run::run(&store, &profile, args),
+        Command::Build { game } => build::build(&store, &profile, game),
         Command::Verify { game } => build::verify(&store, game),
         Command::Restore { game } => build::restore(&store, game),
-        Command::Mods(cmd) => mods(&store, &cli.profile, cmd).map(|_| ExitCode::SUCCESS),
+        Command::Mods(cmd) => mods(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Maps(cmd) => maps(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Logs { dir, exe } => run::logs(&store, dir, exe),
         Command::Doctor => doctor::doctor(&store),

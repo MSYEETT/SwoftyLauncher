@@ -6,6 +6,7 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use clap::Args;
 use swofty_core::crash::{Event, LogScan, Symbols, fatal_name};
+use swofty_core::process::{game_running, stop_game};
 use swofty_core::session::{Config, DEFAULT_WINEDEBUG, LaunchRequest, parse_cpu_list, parse_steam_command};
 use swofty_core::store::Store;
 use swofty_core::{GAME_EXE, STEAM_APP_ID, steam};
@@ -55,10 +56,7 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
         if !args.restart {
             bail!("F1 25 is already running (use --restart to close it first)");
         }
-        Command::new("pkill")
-            .args(["-TERM", "-x", GAME_EXE])
-            .status()
-            .ok();
+        stop_game().ok();
         while game_running() {
             std::thread::sleep(Duration::from_millis(500));
         }
@@ -73,7 +71,8 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     launch(store, &game, args.direct)?;
     let mut dir = None;
     for _ in 0..180 {
-        if let Some(d) = latest_session(store)
+        if let Some(d) = store
+            .latest_session()
             .filter(|d| std::fs::read_to_string(d.join("request_id")).is_ok_and(|s| s.trim() == id))
         {
             dir = Some(d);
@@ -108,7 +107,7 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
 pub fn logs(store: &Store, dir: Option<PathBuf>, exe: Option<PathBuf>) -> Result<ExitCode> {
     let dir = match dir {
         Some(d) => d,
-        None => latest_session(store).context("no previous session")?,
+        None => store.latest_session().context("no previous session")?,
     };
     let game = steam::find_game().map(|g| g.dir).unwrap_or_default();
     let mut follow = Follow::new(&dir, None, symbols(&game, exe.as_deref()));
@@ -174,7 +173,7 @@ fn wrapper(store: &Store, _profile: &str, args: &RunArgs) -> Result<ExitCode> {
     std::fs::write(dir.join("exit_code"), format!("{code}\n"))?;
     std::fs::write(dir.join("game_end"), format!("{}\n", now_secs()))?;
     std::fs::copy(game.join("swofty/loader.log"), dir.join("loader.log")).ok();
-    Command::new("pkill").args(["-x", GAME_EXE]).status().ok();
+    stop_game().ok();
     Ok(ExitCode::from(code.clamp(0, 255) as u8))
 }
 
@@ -410,13 +409,6 @@ fn say(kind: &str, text: &str) {
     }
 }
 
-fn game_running() -> bool {
-    Command::new("pgrep")
-        .args(["-x", GAME_EXE])
-        .output()
-        .is_ok_and(|o| o.status.success())
-}
-
 fn which(bin: &str) -> bool {
     std::env::var_os("PATH").is_some_and(|p| std::env::split_paths(&p).any(|d| d.join(bin).is_file()))
 }
@@ -440,11 +432,6 @@ fn write_json(path: &Path, value: &impl serde::Serialize) -> Result<()> {
     std::fs::create_dir_all(path.parent().expect("has parent"))?;
     std::fs::write(path, serde_json::to_vec_pretty(value)?)?;
     Ok(())
-}
-
-fn latest_session(store: &Store) -> Option<PathBuf> {
-    let dir = std::fs::read_to_string(store.sessions_dir().join("latest.txt")).ok()?;
-    Some(PathBuf::from(dir.trim()))
 }
 
 fn install_ctrl_c() {
