@@ -20,7 +20,7 @@ When the game exits, it prints a summary with the exit code and any crash detail
 | `--direct` | Launch directly instead of asking Steam |
 | `--winedebug <channels>` | Choose Wine log channels |
 | `--exe <file>` | Use a copy of `F1_25.exe` to identify crash locations |
-| `--apply` | Install the profile (database, maps) before the game starts and roll it back when it exits |
+| `--apply` | Install the profile (database, maps, in-game loader) before the game starts and roll it back when it exits. The launcher always passes it |
 
 On Linux, the [Steam launch option](/guide/linux) uses `swofty run -- %command%`.
 
@@ -38,7 +38,7 @@ When the game exits, `swofty run` merges the settings changed in game into the p
 
 ## `swofty apply`
 
-`swofty apply [--profile <name>] [--game <dir>]` builds the profile and installs it into the game folder: the database, the enabled maps, their menu entries and the cars' ERS settings. Every change goes through the journal. `swofty restore` or `swofty --profile vanilla apply` removes it. Close the game first.
+`swofty apply [--profile <name>] [--game <dir>]` builds the profile and installs it into the game folder: the database, the enabled maps, their menu entries, the cars' ERS settings, and the [in-game loader](/reference/launch#in-game-loader) with the session's `swofty/settings.json`. Every change goes through the journal. `swofty restore` or `swofty --profile vanilla apply` removes it. Close the game first.
 
 ## `swofty verify`
 

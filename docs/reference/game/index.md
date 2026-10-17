@@ -31,9 +31,10 @@ Bindings are found by signature at load time. The RVAs on each page are for this
 
 | Subsystem | Header | Functions | Structs | Data | Sites |
 |---|---|---|---|---|---|
-| [core](./core.md) | `<swofty/game/core.hpp>` | 1 | 0 | 0 | 0 |
+| [core](./core.md) | `<swofty/game/core.hpp>` | 2 | 1 | 1 | 1 |
 | [fe_home](./fe_home.md) | `<swofty/game/fe_home.hpp>` | 2 | 0 | 0 | 1 |
 | [fe_tiles](./fe_tiles.md) | `<swofty/game/fe_tiles.hpp>` | 2 | 6 | 0 | 0 |
+| [session](./session.md) | `<swofty/game/session.hpp>` | 0 | 0 | 0 | 1 |
 | [vm](./vm.md) | `<swofty/game/vm.hpp>` | 2 | 1 | 1 | 0 |
 
 Include `<swofty/game.hpp>` for every subsystem.

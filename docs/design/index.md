@@ -67,7 +67,7 @@ The repository is pre-release:
 - Enabled maps are activated: database rows, track archive, menu art, minimap and ERS. `swofty apply` installs them through the journal. Neither has been tested in game yet.
 - Backup and restore code has tests for interrupted changes and game updates.
 - The native menu entry is tested with a test executable under Wine. It currently opens the game's Settings page.
-- Desktop controls and the full launch, build and restore flow still need connecting.
+- Play in the launcher builds the profile, installs it with the in-game loader, and rolls both back when the game exits. This flow has not been tested in game yet.
 - Mod settings work in the launcher and the command line. The in-game page is generated; saving in-game changes waits on the native bridge's in-game test.
 - Save isolation, offline enforcement and plugin approval are unfinished.
 

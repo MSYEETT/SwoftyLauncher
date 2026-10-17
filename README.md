@@ -11,7 +11,7 @@ A desktop app for modding F1 25 on Windows and Linux through Steam and Proton.
 - **In-game mod settings:** Open **MOD SETTINGS** in the game's home menu, under Career, to change mod options without leaving the game.
 - **Profiles:** Switch between separate sets of mods and maps, each with its own saves. The original game is always restorable in one click.
 - **Offline-only modded play:** Modded sessions always run offline with multiplayer off. Launching from Steam normally stays completely vanilla.
-- **The launcher app:** Manage everything and press Play in one window, with live logs to help if the game crashes.
+- **The launcher app:** Manage everything and press Play in one window, with live logs to help if the game crashes. The in-game loader adds the game's own log and crash reports with named call stacks.
 
 ## Install
 

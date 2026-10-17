@@ -6,10 +6,34 @@
       "link": "/reference/game/core",
       "entries": [
         {
+          "name": "NeLogGate",
+          "kind": "struct",
+          "status": null,
+          "link": "/reference/game/core#NeLogGate"
+        },
+        {
+          "name": "Ne_Log_Thunk",
+          "kind": "func",
+          "status": "experimental",
+          "link": "/reference/game/core#Ne_Log_Thunk"
+        },
+        {
           "name": "Ne_Make_StrFromCStr",
           "kind": "func",
           "status": "stable",
           "link": "/reference/game/core#Ne_Make_StrFromCStr"
+        },
+        {
+          "name": "g_Ne_LogGate",
+          "kind": "data",
+          "status": "experimental",
+          "link": "/reference/game/core#g_Ne_LogGate"
+        },
+        {
+          "name": "site_Ne_Format_String_Entry",
+          "kind": "site",
+          "status": "experimental",
+          "link": "/reference/game/core#site_Ne_Format_String_Entry"
         }
       ]
     },
@@ -88,6 +112,18 @@
           "kind": "func",
           "status": "stable",
           "link": "/reference/game/fe_tiles#FeTile_ItemBase_Populate"
+        }
+      ]
+    },
+    {
+      "name": "session",
+      "link": "/reference/game/session",
+      "entries": [
+        {
+          "name": "site_Sess_AiVehicleRegisterCall",
+          "kind": "call",
+          "status": "experimental",
+          "link": "/reference/game/session#site_Sess_AiVehicleRegisterCall"
         }
       ]
     },

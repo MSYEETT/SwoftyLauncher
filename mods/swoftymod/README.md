@@ -11,7 +11,7 @@ It provides:
 * the MOD SETTINGS page, with a section per installed mod built from `swofty/settings.json` each session
 * its own setting, `show_launcher_panel`
 
-This directory holds the recipe only, never game files. The patches in `ui/` are applied to the player's own copy of the game data at build time. `native/swofty_core.dll` is produced by `native/build.sh` and is not committed.
+This directory holds the recipe only, never game files. The patches in `ui/` are applied to the player's own copy of the game data at build time. The DLLs are produced by `native/build.sh` and are not committed; the launcher installs the whole `native/dist/` set (`version.dll`, `swofty_core.dll`, `swofty_gamelog.dll`, `bindings.json`, `symbols.tsv`, `log_channels.tsv`) for each modded session. See [`native/README.md`](../../native/README.md).
 
 | File | Target |
 |---|---|
