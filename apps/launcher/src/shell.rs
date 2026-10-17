@@ -11,6 +11,7 @@ use gpui_kit::component::slider::SliderState;
 use gpui_kit::component::{Icon, TitleBar, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
+use swofty_core::crash::StartFailure;
 use swofty_core::process::{GameProcess, stop_game};
 use swofty_core::session::SessionRecord;
 use swofty_core::store::Store;
@@ -65,7 +66,7 @@ pub struct Shell {
     pub(crate) rediscover: bool,
     pub(crate) processes: Vec<GameProcess>,
     pub(crate) session: Option<SessionRecord>,
-    pub(crate) crash: Option<(PathBuf, String)>,
+    pub(crate) crash: Option<(PathBuf, Result<String, StartFailure>)>,
     pub(crate) dismissed: Option<PathBuf>,
     pub(crate) launch: Option<Launch>,
     pub(crate) notice: Option<String>,
@@ -297,7 +298,7 @@ impl Shell {
         {
             let session = s.clone();
             let game_dir = self.install.as_ref().map(|i| i.dir.clone());
-            self.crash = Some((s.dir.clone(), String::new()));
+            self.crash = Some((s.dir.clone(), Ok(String::new())));
             cx.spawn(async move |this, cx| {
                 let dir = session.dir.clone();
                 let summary = cx

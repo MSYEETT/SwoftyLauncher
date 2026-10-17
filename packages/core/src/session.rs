@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -6,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use crate::STEAM_APP_ID;
 
 pub const DEFAULT_WINEDEBUG: &str = "+timestamp,+pid,+tid,+loaddll,fixme-all";
+pub const LOADER_LOG: &str = "swofty/loader.log";
+pub const LOADER_MARK: &str = "loader_mark.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Session {
@@ -238,6 +241,44 @@ impl SessionRecord {
     pub fn wine_log(&self) -> PathBuf {
         self.dir.join(format!("steam-{STEAM_APP_ID}.log"))
     }
+
+    pub fn owns_loader_log(&self, log: &Path) -> bool {
+        let Some(before) = std::fs::read(self.dir.join(LOADER_MARK))
+            .ok()
+            .and_then(|d| serde_json::from_slice::<Option<LogMark>>(&d).ok())
+        else {
+            return false;
+        };
+        LogMark::replaced(log, before.as_ref())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LogMark {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inode: Option<u64>,
+    pub head: String,
+}
+
+impl LogMark {
+    pub fn read(path: &Path) -> Option<Self> {
+        let file = std::fs::File::open(path).ok()?;
+        #[cfg(unix)]
+        let inode = Some(std::os::unix::fs::MetadataExt::ino(&file.metadata().ok()?));
+        #[cfg(not(unix))]
+        let inode = None;
+        let mut head = Vec::new();
+        file.take(512).read_to_end(&mut head).ok()?;
+        let end = head.iter().position(|&b| b == b'\n').unwrap_or(head.len());
+        Some(Self {
+            inode,
+            head: String::from_utf8_lossy(&head[..end]).trim_end().to_owned(),
+        })
+    }
+
+    pub fn replaced(path: &Path, before: Option<&Self>) -> bool {
+        Self::read(path).is_some_and(|now| before != Some(&now))
+    }
 }
 
 pub fn parse_cpu_list(spec: &str) -> Option<Vec<usize>> {
@@ -334,6 +375,36 @@ mod tests {
         assert!(!live.crashed());
         std::fs::write(dir.join("exit_code"), "3\n").unwrap();
         assert!(SessionRecord::read(&dir).crashed());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn tells_a_rotated_loader_log_from_a_stale_one() {
+        let dir = std::env::temp_dir().join(format!("swofty-loader-mark-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let log = dir.join("loader.log");
+        assert!(!LogMark::replaced(&log, None));
+        std::fs::write(
+            &log,
+            "2026-10-17 21:44:08.228 [  416] swofty loader (version.dll proxy) attached, pid 412\nold\n",
+        )
+        .unwrap();
+        assert!(LogMark::replaced(&log, None));
+        let before = LogMark::read(&log);
+        let session = SessionRecord::read(&dir);
+        assert!(!session.owns_loader_log(&log));
+        std::fs::write(dir.join(LOADER_MARK), serde_json::to_vec(&before).unwrap()).unwrap();
+        assert!(!LogMark::replaced(&log, before.as_ref()));
+        assert!(!session.owns_loader_log(&log));
+        std::fs::rename(&log, dir.join("loader.prev.log")).unwrap();
+        std::fs::write(&log, "").unwrap();
+        assert!(session.owns_loader_log(&log));
+        std::fs::write(
+            &log,
+            "2026-10-17 22:12:08.004 [  420] swofty loader (version.dll proxy) attached, pid 416\n",
+        )
+        .unwrap();
+        assert!(session.owns_loader_log(&log));
         std::fs::remove_dir_all(&dir).ok();
     }
 

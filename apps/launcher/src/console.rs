@@ -11,7 +11,7 @@ use gpui_kit::component::scroll::Scrollbar;
 use gpui_kit::component::{ActiveTheme, Disableable, Icon, Sizable, TitleBar, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
-use swofty_core::session::SessionRecord;
+use swofty_core::session::{LOADER_LOG, SessionRecord};
 use swofty_core::store::Store;
 
 use crate::pages::badge;
@@ -57,14 +57,12 @@ impl Source {
 }
 
 fn game_log(store: &Store, game: Option<&Path>) -> Option<PathBuf> {
-    let session = store.latest_session().map(|d| SessionRecord::read(&d));
-    let copy = session
-        .as_ref()
-        .filter(|s| s.exit_code.is_some())
-        .map(|s| s.dir.join("loader.log"))
-        .filter(|p| p.is_file());
-    copy.or_else(|| game.map(|g| g.join("swofty/loader.log")))
-        .or_else(|| session.map(|s| s.dir.join("loader.log")))
+    let session = SessionRecord::read(&store.latest_session()?);
+    if session.exit_code.is_some() {
+        return Some(session.dir.join("loader.log")).filter(|p| p.is_file());
+    }
+    let live = game?.join(LOADER_LOG);
+    session.owns_loader_log(&live).then_some(live)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -438,8 +436,8 @@ impl Console {
                     "New lines appear here as they are written",
                 ),
                 _ if self.source == Source::Game => (
-                    "Nothing logged yet",
-                    "The loader writes this log when F1 25 starts",
+                    "No game log for this session yet",
+                    "The loader writes this log when F1 25 starts; a launch that fails earlier has none",
                 ),
                 _ => ("Nothing logged yet", "This log is written on the next launch"),
             };
@@ -576,7 +574,10 @@ mod tests {
     use std::io::Write;
     use std::path::{Path, PathBuf};
 
-    use super::{Feed, Level, MAX_LINES, Tail, level};
+    use swofty_core::session::{LOADER_LOG, LOADER_MARK, LogMark};
+    use swofty_core::store::Store;
+
+    use super::{Feed, Level, MAX_LINES, Tail, game_log, level};
 
     fn scratch(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("swofty-console-{}-{name}", std::process::id()));
@@ -642,6 +643,38 @@ mod tests {
         append(&path, "back\n");
         assert_eq!(tail.read().lines, ["back"]);
         std::fs::remove_dir_all(path.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn shows_only_the_latest_sessions_game_log() {
+        let root = scratch("game-log").parent().unwrap().to_path_buf();
+        let store = Store::new(&root);
+        let game = root.join("game");
+        let live = game.join(LOADER_LOG);
+        std::fs::create_dir_all(live.parent().unwrap()).unwrap();
+        std::fs::write(&live, "21:44:08.228 [  416] swofty loader attached, pid 412\n").unwrap();
+        assert_eq!(game_log(&store, Some(&game)), None);
+        let session = store.sessions_dir().join("20261017-111206");
+        std::fs::create_dir_all(&session).unwrap();
+        std::fs::write(
+            store.sessions_dir().join("latest.txt"),
+            session.display().to_string(),
+        )
+        .unwrap();
+        std::fs::write(
+            session.join(LOADER_MARK),
+            serde_json::to_vec(&LogMark::read(&live)).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(game_log(&store, Some(&game)), None);
+        std::fs::rename(&live, live.with_file_name("loader.prev.log")).unwrap();
+        std::fs::write(&live, "22:12:08.004 [  420] swofty loader attached, pid 416\n").unwrap();
+        assert_eq!(game_log(&store, Some(&game)), Some(live.clone()));
+        std::fs::write(session.join("exit_code"), "1\n").unwrap();
+        assert_eq!(game_log(&store, Some(&game)), None);
+        std::fs::copy(&live, session.join("loader.log")).unwrap();
+        assert_eq!(game_log(&store, Some(&game)), Some(session.join("loader.log")));
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]

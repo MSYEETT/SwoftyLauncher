@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use swofty_core::crash::{LogScan, Symbols, fatal_name};
+use swofty_core::crash::{LogScan, StartFailure, Symbols, fatal_name};
 use swofty_core::process::{GameProcess, game_processes};
 use swofty_core::session::SessionRecord;
 use swofty_core::store::Store;
@@ -160,7 +160,7 @@ fn cli_path(store: &Store) -> Option<PathBuf> {
         .find(|p| p.is_file())
 }
 
-pub fn crash_summary(session: &SessionRecord, game: Option<&Path>) -> String {
+pub fn crash_summary(session: &SessionRecord, game: Option<&Path>) -> Result<String, StartFailure> {
     let mut symbols = Symbols::parse_kb(KB);
     if let Some(dir) = game {
         symbols.load_pdata(&dir.join(GAME_EXE)).ok();
@@ -171,15 +171,18 @@ pub fn crash_summary(session: &SessionRecord, game: Option<&Path>) -> String {
             scan.feed(&String::from_utf8_lossy(&line));
         }
     }
+    if let Some(failure) = scan.start_failure {
+        return Err(failure);
+    }
     let code = session.exit_code.unwrap_or_default();
-    match scan.last_fatal {
+    Ok(match scan.last_fatal {
         Some((c, addr)) => format!(
             "exit code {code}, last {} at {}",
             fatal_name(c).unwrap_or("exception"),
             scan.describe(addr, &symbols)
         ),
         None => format!("exit code {code}"),
-    }
+    })
 }
 
 pub fn now_secs() -> f64 {

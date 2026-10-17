@@ -138,12 +138,45 @@ pub enum Event {
     Error(String),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StartFailure {
+    pub code: u32,
+}
+
+impl StartFailure {
+    pub fn parse(line: &str) -> Option<Self> {
+        let rest = &line[line.find("err:steam:run_process Failed to create process")?..];
+        let code = rest.trim_end().rsplit_once(": ")?.1.parse().ok()?;
+        Some(Self { code })
+    }
+}
+
+impl std::fmt::Display for StartFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let code = self.code;
+        write!(
+            f,
+            "Proton could not start the game process (CreateProcess error {code}). "
+        )?;
+        if (731..=733).contains(&code) {
+            let status = code - 730;
+            write!(
+                f,
+                "Wine reports the new process's own exit status ({status}) as ERROR_WAIT_{status}, \
+                 meaning {GAME_EXE} exited during startup, before any DLL loaded. "
+            )?;
+        }
+        write!(f, "Nothing from SwoftyMod ran.")
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct LogScan {
     pub modules: Vec<(u64, String)>,
     pub exceptions: BTreeMap<(u32, u64), usize>,
     pub last_fatal: Option<(u32, u64)>,
     pub errors: BTreeMap<String, usize>,
+    pub start_failure: Option<StartFailure>,
 }
 
 fn hex_after(line: &str, marker: &str) -> Option<u64> {
@@ -200,6 +233,9 @@ impl LogScan {
         }
         if line.contains("Unhandled") || line.contains("Backtrace") || line.contains("starting debugger") {
             return Some(Event::Crash(line.trim().to_owned()));
+        }
+        if self.start_failure.is_none() {
+            self.start_failure = StartFailure::parse(line);
         }
         if line.contains("err:") {
             let text = strip_prefix(line).to_owned();
@@ -318,6 +354,37 @@ mod tests {
         assert_eq!(
             scan.errors.keys().next().unwrap(),
             "err:module:import_dll Library foo.dll not found"
+        );
+        assert_eq!(scan.start_failure, None);
+    }
+
+    #[test]
+    fn finds_a_process_proton_could_not_start() {
+        let mut scan = LogScan::default();
+        for line in include_str!("../tests/fixtures/steam-run-process-731.txt").lines() {
+            scan.feed(line);
+        }
+        let failure = scan.start_failure.expect("run_process failure");
+        assert_eq!(failure, StartFailure { code: 731 });
+        assert_eq!(
+            failure.to_string(),
+            "Proton could not start the game process (CreateProcess error 731). \
+             Wine reports the new process's own exit status (1) as ERROR_WAIT_1, \
+             meaning F1_25.exe exited during startup, before any DLL loaded. Nothing from SwoftyMod ran."
+        );
+        assert_eq!(
+            StartFailure { code: 2 }.to_string(),
+            "Proton could not start the game process (CreateProcess error 2). Nothing from SwoftyMod ran."
+        );
+        assert_eq!(
+            StartFailure::parse(
+                "0.1:0020:0024:err:steam:run_process Failed to create process L\"x.exe\": 2\r"
+            ),
+            Some(StartFailure { code: 2 })
+        );
+        assert_eq!(
+            StartFailure::parse("err:steam:run_process Failed to create process"),
+            None
         );
     }
 }

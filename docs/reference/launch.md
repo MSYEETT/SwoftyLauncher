@@ -42,6 +42,8 @@ Keep Steam running, then use `swofty run`. The desktop Play control is still in 
 
 Session logs are stored in `$DATA/sessions/<id>/`. Use `swofty logs` to read the latest summary, or `swofty run` to follow logs during play.
 
+When Proton cannot create the game process, `swofty run`, `swofty logs` and the launcher report `Proton could not start the game process (CreateProcess error N)` instead of an exit code.
+
 ## In-game loader
 
 A modded launch places the loader in the game folder and removes it when the game exits:
@@ -57,7 +59,7 @@ A modded launch places the loader in the game folder and removes it when the gam
 
 With the loader, the build also replaces four archives in `2025_asset_groups/ui_package/`: `flow_frontend.erp`, `persistent.erp`, `databases.erp` and `flow_persistent.erp`. They are built from the game's own copies for the profile's mods and maps. `swofty restore` puts the originals back.
 
-Everything logs to `<game>/swofty/loader.log`, which is copied to the session folder when the game exits. `swofty run` shows its lines as `[loader]` and `[core]`.
+Everything logs to `<game>/swofty/loader.log`. The loader moves the previous log to `loader.prev.log` when it attaches. A session shows and copies `loader.log` only when the loader wrote a new one during that session. `swofty run` shows its lines as `[loader]` and `[core]`, and the launcher console shows them on the Game tab.
 
 - **Crash log:** an exception writes its code, address, registers and a named stack. `ExitProcess` and `TerminateProcess` calls are logged with the caller's stack.
 - **Game log:** warnings and errors from every engine channel, and info from the UI and flow channels. Set `SWOFTY_GAME_LOG` to `off`, `info`, `warn` or `error`, and `SWOFTY_GAME_LOG_CHANNELS` to a channel list, in the launch environment to change it.

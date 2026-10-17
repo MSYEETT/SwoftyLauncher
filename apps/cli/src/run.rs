@@ -7,7 +7,10 @@ use anyhow::{Context, Result, bail};
 use clap::Args;
 use swofty_core::crash::{Event, LogScan, Symbols, fatal_name};
 use swofty_core::process::{descends_from, game_processes, game_running, stop_game, stop_process};
-use swofty_core::session::{Config, DEFAULT_WINEDEBUG, LaunchRequest, parse_cpu_list, parse_steam_command};
+use swofty_core::session::{
+    Config, DEFAULT_WINEDEBUG, LOADER_LOG, LOADER_MARK, LaunchRequest, LogMark, parse_cpu_list,
+    parse_steam_command,
+};
 use swofty_core::store::Store;
 use swofty_core::{GAME_EXE, STEAM_APP_ID, steam};
 
@@ -85,6 +88,8 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
         apply: args.apply,
     };
     write_json(&store.root.join("state/launch.json"), &request)?;
+    let loader = game.join(LOADER_LOG);
+    let before = LogMark::read(&loader);
     let mut wrapper = launch(store, &game, args.direct)?;
     let started = Instant::now();
     let dir = loop {
@@ -113,11 +118,7 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
         std::thread::sleep(Duration::from_millis(500));
     };
     say("info", &format!("wrapper started, logging to {}", dir.display()));
-    let mut follow = Follow::new(
-        &dir,
-        Some(game.join("swofty/loader.log")),
-        symbols(&game, args.exe.as_deref()),
-    );
+    let mut follow = Follow::new(&dir, Some((loader, before)), symbols(&game, args.exe.as_deref()));
     install_ctrl_c();
     while !dir.join("exit_code").exists() {
         if STOP.load(std::sync::atomic::Ordering::Relaxed) {
@@ -134,7 +135,7 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     }
     std::thread::sleep(Duration::from_millis(1500));
     follow.poll();
-    follow.summary();
+    follow.summary()?;
     Ok(ExitCode::SUCCESS)
 }
 
@@ -146,7 +147,7 @@ pub fn logs(store: &Store, dir: Option<PathBuf>, exe: Option<PathBuf>) -> Result
     let game = steam::find_game().map(|g| g.dir).unwrap_or_default();
     let mut follow = Follow::new(&dir, None, symbols(&game, exe.as_deref()));
     follow.poll();
-    follow.summary();
+    follow.summary()?;
     Ok(ExitCode::SUCCESS)
 }
 
@@ -297,6 +298,9 @@ fn rebuild_if_needed(store: &Store, profile: &str, game: &Path) {
 fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest, game: &Path) -> Result<i32> {
     let dir = store.sessions_dir().join(stamp());
     std::fs::create_dir_all(&dir)?;
+    let loader = game.join(LOADER_LOG);
+    let before = LogMark::read(&loader);
+    std::fs::write(dir.join(LOADER_MARK), serde_json::to_vec(&before)?)?;
     let latest = store.sessions_dir().join("latest");
     std::fs::remove_file(&latest).ok();
     link(&dir, &latest);
@@ -390,7 +394,9 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
     let code = status.code().unwrap_or(-1);
     std::fs::write(dir.join("exit_code"), format!("{code}\n"))?;
     std::fs::write(dir.join("game_end"), format!("{}\n", now_secs()))?;
-    std::fs::copy(game.join("swofty/loader.log"), dir.join("loader.log")).ok();
+    if LogMark::replaced(&loader, before.as_ref()) {
+        std::fs::copy(&loader, dir.join("loader.log")).ok();
+    }
     for g in game_processes()
         .into_iter()
         .filter(|g| descends_from(g.pid, std::process::id()))
@@ -546,6 +552,7 @@ struct Follower {
     path: PathBuf,
     pos: u64,
     buf: String,
+    stale: Option<Option<LogMark>>,
 }
 
 impl Follower {
@@ -554,10 +561,24 @@ impl Follower {
             path,
             pos: 0,
             buf: String::new(),
+            stale: None,
+        }
+    }
+
+    fn replacing(path: PathBuf, before: Option<LogMark>) -> Self {
+        Self {
+            stale: Some(before),
+            ..Self::new(path)
         }
     }
 
     fn lines(&mut self) -> Vec<String> {
+        if let Some(before) = &self.stale {
+            if !LogMark::replaced(&self.path, before.as_ref()) {
+                return Vec::new();
+            }
+            self.stale = None;
+        }
         let Ok(mut f) = std::fs::File::open(&self.path) else {
             return Vec::new();
         };
@@ -587,8 +608,11 @@ struct Follow {
 }
 
 impl Follow {
-    fn new(dir: &Path, loader: Option<PathBuf>, symbols: Symbols) -> Self {
-        let loader = loader.or_else(|| Some(dir.join("loader.log"))).map(Follower::new);
+    fn new(dir: &Path, loader: Option<(PathBuf, Option<LogMark>)>, symbols: Symbols) -> Self {
+        let loader = Some(match loader {
+            Some((path, before)) => Follower::replacing(path, before),
+            None => Follower::new(dir.join("loader.log")),
+        });
         let wine = Follower::new(dir.join(format!("steam-{STEAM_APP_ID}.log")));
         Self {
             dir: dir.into(),
@@ -639,7 +663,12 @@ impl Follow {
         }
     }
 
-    fn summary(&self) {
+    fn summary(&self) -> Result<()> {
+        if let Some(failure) = self.scan.start_failure {
+            println!();
+            say("info", &format!("logs in {}", self.dir.display()));
+            bail!("{failure}");
+        }
         let read = |f: &str| {
             std::fs::read_to_string(self.dir.join(f))
                 .ok()
@@ -659,8 +688,12 @@ impl Follow {
                 self.dir.display()
             ),
         );
-        if let Some(l) = &self.last_loader {
-            say("info", &format!("last loader line: {l}"));
+        match &self.last_loader {
+            Some(l) => say("info", &format!("last loader line: {l}")),
+            None => say(
+                "info",
+                "no loader log for this session: the loader never attached",
+            ),
         }
         for (i, line) in self.scan.summary(&self.symbols).into_iter().enumerate() {
             say(
@@ -682,6 +715,7 @@ impl Follow {
                 ),
             );
         }
+        Ok(())
     }
 }
 
@@ -839,6 +873,60 @@ mod tests {
             "{msg}"
         );
         std::fs::remove_dir_all(log.ancestors().nth(2).unwrap()).ok();
+    }
+
+    const STALE: &str = "2026-10-17 21:44:08.228 [  416] swofty loader (version.dll proxy) attached, pid 412\n\
+                         2026-10-17 21:45:23.672 [  620] [game] (error) from the previous run\n";
+
+    fn session_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("swofty-run-{}-{name}", std::process::id()));
+        std::fs::create_dir_all(dir.join("game/swofty")).unwrap();
+        dir
+    }
+
+    #[test]
+    fn ignores_a_stale_loader_log_and_follows_its_replacement() {
+        let dir = session_dir("rotate");
+        let log = dir.join("game").join(LOADER_LOG);
+        std::fs::write(&log, STALE).unwrap();
+        let mut follower = Follower::replacing(log.clone(), LogMark::read(&log));
+        assert!(follower.lines().is_empty());
+        assert!(follower.lines().is_empty());
+        std::fs::rename(&log, log.with_file_name("loader.prev.log")).unwrap();
+        std::fs::write(
+            &log,
+            "2026-10-17 22:12:08.004 [  420] swofty loader (version.dll proxy) attached, pid 416\npar",
+        )
+        .unwrap();
+        assert_eq!(
+            follower.lines(),
+            ["2026-10-17 22:12:08.004 [  420] swofty loader (version.dll proxy) attached, pid 416"]
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reports_a_game_process_proton_could_not_start() {
+        let dir = session_dir("run-process");
+        let log = dir.join("game").join(LOADER_LOG);
+        std::fs::write(&log, STALE).unwrap();
+        let before = LogMark::read(&log);
+        std::fs::write(
+            dir.join(format!("steam-{STEAM_APP_ID}.log")),
+            include_str!("../../../packages/core/tests/fixtures/steam-run-process-731.txt"),
+        )
+        .unwrap();
+        std::fs::write(dir.join("exit_code"), "1\n").unwrap();
+        let mut follow = Follow::new(&dir, Some((log, before)), Symbols::default());
+        follow.poll();
+        assert_eq!(follow.last_loader, None);
+        let err = follow.summary().unwrap_err().to_string();
+        assert!(
+            err.starts_with("Proton could not start the game process (CreateProcess error 731). "),
+            "{err}"
+        );
+        assert!(err.ends_with("Nothing from SwoftyMod ran."), "{err}");
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

@@ -25,6 +25,24 @@ pub(crate) fn link(id: &'static str, label: &'static str, p: Palette) -> Statefu
         .child(label)
 }
 
+fn launch_failed(row: Div, text: impl std::fmt::Display, p: Palette) -> Div {
+    let text = SharedString::from(format!("Launch failed: {text}"));
+    let tip = text.clone();
+    row.text_color(p.error)
+        .child(Icon::new(IconName::CircleAlert).size(px(16.)))
+        .child(
+            div()
+                .id("launch-failed")
+                .min_w_0()
+                .truncate()
+                .child(text)
+                .tooltip(move |window, cx| {
+                    let tip = tip.clone();
+                    Tooltip::element(move |_, _| div().max_w(px(480.)).child(tip.clone())).build(window, cx)
+                }),
+        )
+}
+
 impl Shell {
     fn game_info(&self, p: Palette, wide: bool) -> impl IntoElement {
         let (title, line) = match &self.install {
@@ -81,20 +99,9 @@ impl Shell {
             .gap(px(9.))
             .text_size(px(13.));
         if let Some(notice) = &self.notice {
-            return row
-                .text_color(p.error)
-                .child(Icon::new(IconName::CircleAlert).size(px(16.)))
-                .child(
-                    div()
-                        .min_w_0()
-                        .truncate()
-                        .child(format!("Launch failed: {notice}")),
-                )
-                .when_some(self.launch_log(), |d, log| {
-                    d.child(
-                        link("launch-log", "View log", p).on_click(move |_, _, cx| cx.open_with_system(&log)),
-                    )
-                });
+            return launch_failed(row, notice, p).when_some(self.launch_log(), |d, log| {
+                d.child(link("launch-log", "View log", p).on_click(move |_, _, cx| cx.open_with_system(&log)))
+            });
         }
         let rebuild = !self.library.profile.is_vanilla() && !self.library.rebuild.is_empty();
         match state {
@@ -133,11 +140,24 @@ impl Shell {
                 }),
             PlayState::Crashed(session) => {
                 let dir = session.dir.clone();
-                let summary = self
+                let ending = self
                     .crash
                     .as_ref()
-                    .filter(|(d, s)| *d == session.dir && !s.is_empty())
-                    .map(|(_, s)| s.clone())
+                    .filter(|(d, _)| *d == session.dir)
+                    .map(|(_, e)| e);
+                let open =
+                    link("crash-log", "Open logs", p).on_click(move |_, _, cx| cx.open_with_system(&dir));
+                let dismiss = link("dismiss", "Dismiss", p).on_click(cx.listener(|this, _, _, cx| {
+                    this.dismissed = this.session.as_ref().map(|s| s.dir.clone());
+                    cx.notify();
+                }));
+                if let Some(Err(failure)) = ending {
+                    return launch_failed(row, failure, p).child(open).child(dismiss);
+                }
+                let summary = ending
+                    .and_then(|e| e.as_ref().ok())
+                    .filter(|s| !s.is_empty())
+                    .cloned()
                     .unwrap_or_else(|| "reading the log…".into());
                 let crashed = format!(
                     "Crashed {}",
@@ -161,16 +181,8 @@ impl Shell {
                                             .font_weight(FontWeight::MEDIUM)
                                             .child(crashed),
                                     )
-                                    .child(
-                                        link("crash-log", "Open logs", p)
-                                            .on_click(move |_, _, cx| cx.open_with_system(&dir)),
-                                    )
-                                    .child(link("dismiss", "Dismiss", p).on_click(cx.listener(
-                                        |this, _, _, cx| {
-                                            this.dismissed = this.session.as_ref().map(|s| s.dir.clone());
-                                            cx.notify();
-                                        },
-                                    ))),
+                                    .child(open)
+                                    .child(dismiss),
                             )
                             .child(
                                 div()
