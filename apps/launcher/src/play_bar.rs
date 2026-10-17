@@ -7,8 +7,9 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
 use crate::game::{self, ago, duration};
+use crate::pages::avatar;
 use crate::shell::{Page, PlayState, Shell};
-use crate::theme::Palette;
+use crate::theme::{Palette, glow};
 
 fn link(id: &'static str, label: &'static str, p: Palette) -> Stateful<Div> {
     div()
@@ -37,26 +38,21 @@ impl Shell {
         };
         let mode = self.install.as_ref().map(|i| i.mode.clone());
         h_flex()
-            .w(px(if wide { 420. } else { 330. }))
+            .w(px(if wide { 400. } else { 300. }))
             .flex_shrink_1()
-            .min_w(px(240.))
-            .gap(px(14.))
+            .min_w(px(220.))
+            .gap(px(12.))
             .child(
                 div()
-                    .size(px(52.))
+                    .size(px(44.))
                     .flex_shrink_0()
                     .rounded(px(12.))
-                    .bg(p.elevated)
-                    .border_1()
-                    .border_color(p.border_variant)
+                    .bg(p.brand_gradient())
+                    .shadow(glow(p.brand, 0.25))
                     .flex()
                     .items_center()
                     .justify_center()
-                    .child(
-                        Icon::new(IconName::Gamepad2)
-                            .size(px(26.))
-                            .text_color(p.text_muted),
-                    ),
+                    .child(Icon::new(IconName::Gamepad2).size(px(22.)).text_color(p.on_color)),
             )
             .child(
                 v_flex()
@@ -64,7 +60,7 @@ impl Shell {
                     .gap(px(2.))
                     .child(
                         div()
-                            .text_size(px(17.))
+                            .text_size(px(15.))
                             .font_weight(FontWeight::SEMIBOLD)
                             .truncate()
                             .child(title),
@@ -72,7 +68,7 @@ impl Shell {
                     .when_some(mode, |d, m| {
                         d.child(
                             div()
-                                .text_size(px(14.))
+                                .text_size(px(13.))
                                 .text_color(p.text_muted)
                                 .truncate()
                                 .child(m),
@@ -80,7 +76,7 @@ impl Shell {
                     })
                     .child(
                         div()
-                            .text_size(px(13.))
+                            .text_size(px(12.))
                             .text_color(p.text_placeholder)
                             .truncate()
                             .child(line),
@@ -89,17 +85,24 @@ impl Shell {
     }
 
     fn status(&self, state: &PlayState, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let dot = |c: Hsla| div().size(px(10.)).rounded_full().bg(c).flex_shrink_0();
+        let dot = |c: Hsla| {
+            div()
+                .size(px(9.))
+                .rounded_full()
+                .bg(c)
+                .shadow(glow(c, 0.6))
+                .flex_shrink_0()
+        };
         let row = h_flex()
             .flex_1()
             .min_w_0()
             .overflow_hidden()
             .gap(px(10.))
-            .text_size(px(15.));
+            .text_size(px(14.));
         if let Some(notice) = &self.notice {
             return row
                 .text_color(p.error)
-                .child(Icon::new(IconName::CircleAlert).size(px(18.)))
+                .child(Icon::new(IconName::CircleAlert).size(px(16.)))
                 .child(
                     div()
                         .min_w_0()
@@ -153,7 +156,7 @@ impl Shell {
                         .unwrap_or_default()
                 );
                 row.items_start()
-                    .child(div().mt(px(7.)).child(dot(p.error)))
+                    .child(div().mt(px(6.)).child(dot(p.error)))
                     .child(
                         v_flex()
                             .min_w_0()
@@ -180,7 +183,7 @@ impl Shell {
                             )
                             .child(
                                 div()
-                                    .text_size(px(14.))
+                                    .text_size(px(13.))
                                     .text_color(p.text_muted)
                                     .truncate()
                                     .child(summary),
@@ -210,7 +213,7 @@ impl Shell {
                     _ => "launches via Proton",
                 };
                 row.text_color(p.text_muted)
-                    .child(dot(p.accent))
+                    .child(dot(p.success))
                     .child(div().min_w_0().truncate().child(match last {
                         Some(l) => l,
                         None if cfg!(windows) => "Ready".into(),
@@ -225,34 +228,58 @@ impl Shell {
         log.is_file().then_some(log)
     }
 
-    fn profile_picker(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn profile_picker(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let shell = cx.entity().downgrade();
         let active = self.library.profile.name.clone();
-        let names: Vec<String> = self.library.profiles.iter().map(|p| p.name.clone()).collect();
+        let summary = self.library.active().map(|a| a.summary()).unwrap_or_default();
+        let profiles: Vec<(String, String)> = self
+            .library
+            .profiles
+            .iter()
+            .map(|p| (p.name.clone(), p.summary()))
+            .collect();
         Button::new("profile-picker")
-            .large()
             .outline()
-            .h(px(64.))
-            .min_w(px(180.))
-            .icon(IconName::Layers)
-            .label(active.clone())
+            .h(px(52.))
+            .min_w(px(196.))
+            .child(
+                h_flex().gap(px(10.)).child(avatar(&active, 30., p)).child(
+                    v_flex()
+                        .items_start()
+                        .child(
+                            div()
+                                .text_size(px(14.))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(active.clone()),
+                        )
+                        .child(div().text_size(px(12.)).text_color(p.text_muted).child(summary)),
+                ),
+            )
             .dropdown_caret(true)
             .disabled(matches!(
                 self.play_state(),
                 PlayState::Running(_) | PlayState::Launching
             ))
             .dropdown_menu_with_anchor(Anchor::BottomRight, move |mut menu, _, _| {
-                menu = menu.min_w(px(240.)).label("Profile");
-                for name in &names {
+                menu = menu.min_w(px(300.)).label("Profile");
+                for (name, summary) in &profiles {
                     let (shell, target) = (shell.clone(), name.clone());
+                    let (label, summary) = (name.clone(), summary.clone());
                     menu = menu.item(
-                        PopupMenuItem::new(name.clone())
-                            .checked(*name == active)
-                            .on_click(move |_, window, cx| {
-                                shell
-                                    .update(cx, |s, cx| s.switch_profile(&target, window, cx))
-                                    .ok();
-                            }),
+                        PopupMenuItem::element(move |_, _| {
+                            h_flex()
+                                .w_full()
+                                .gap(px(24.))
+                                .justify_between()
+                                .child(label.clone())
+                                .child(div().text_color(p.text_muted).child(summary.clone()))
+                        })
+                        .checked(*name == active)
+                        .on_click(move |_, window, cx| {
+                            shell
+                                .update(cx, |s, cx| s.switch_profile(&target, window, cx))
+                                .ok();
+                        }),
                     );
                 }
                 let shell = shell.clone();
@@ -267,36 +294,51 @@ impl Shell {
     }
 
     fn big_button(&self, state: &PlayState, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let dark = p.background;
+        let brand = |alpha: f32| {
+            linear_gradient(
+                100.,
+                linear_color_stop(p.brand.opacity(alpha), 0.),
+                linear_color_stop(p.brand_end.opacity(alpha), 1.),
+            )
+        };
         let (icon, label, bg, fg, enabled) = match state {
-            PlayState::Ready | PlayState::Crashed(_) => (IconName::Play, "Play", p.accent, dark, true),
+            PlayState::Ready | PlayState::Crashed(_) => (IconName::Play, "Play", brand(1.), p.on_color, true),
             PlayState::Launching => (
                 IconName::LoaderCircle,
                 "Launching…",
-                p.accent.opacity(0.45),
-                dark,
+                brand(0.55),
+                p.on_color,
                 false,
             ),
             PlayState::Running(_) => (
                 IconName::Activity,
                 "Running",
-                p.success.opacity(0.16),
+                p.success.opacity(0.14).into(),
                 p.success,
                 false,
             ),
-            PlayState::NotInstalled => (IconName::FolderSearch, "Locate game", p.elevated, p.text, true),
-            PlayState::Detecting => (IconName::LoaderCircle, "Play", p.elevated, p.text_muted, false),
+            PlayState::NotInstalled => (
+                IconName::FolderSearch,
+                "Locate game",
+                p.elevated.into(),
+                p.text,
+                true,
+            ),
+            PlayState::Detecting => (
+                IconName::LoaderCircle,
+                "Play",
+                p.elevated.into(),
+                p.text_muted,
+                false,
+            ),
         };
-        let hover = match state {
-            PlayState::NotInstalled => p.selected,
-            _ => p.accent_hover,
-        };
+        let ready = matches!(state, PlayState::Ready | PlayState::Crashed(_));
         let running = matches!(state, PlayState::Running(_));
         let missing = matches!(state, PlayState::NotInstalled);
         div()
             .id("play")
-            .h(px(64.))
-            .w(px(260.))
+            .h(px(52.))
+            .w(px(220.))
             .flex_shrink_0()
             .rounded(px(12.))
             .bg(bg)
@@ -304,17 +346,30 @@ impl Shell {
             .flex()
             .items_center()
             .justify_center()
-            .gap(px(12.))
-            .when(missing, |d| d.border_1().border_color(p.border))
+            .gap(px(10.))
+            .when(ready, |d| {
+                d.shadow(glow(p.brand, 0.35)).hover(move |s| {
+                    s.bg(linear_gradient(
+                        100.,
+                        linear_color_stop(p.brand_end, 0.),
+                        linear_color_stop(p.brand, 1.),
+                    ))
+                })
+            })
+            .when(missing, |d| {
+                d.border_1()
+                    .border_color(p.border)
+                    .hover(move |s| s.bg(p.selected))
+            })
             .when(running, |d| d.border_1().border_color(p.success.opacity(0.4)))
-            .when(enabled, |d| d.cursor_pointer().hover(move |s| s.bg(hover)))
+            .when(enabled, |d| d.cursor_pointer())
             .map(|d| match icon {
-                IconName::LoaderCircle => d.child(Spinner::new().icon(icon).with_size(px(26.))),
-                _ => d.child(Icon::new(icon).size(px(26.))),
+                IconName::LoaderCircle => d.child(Spinner::new().icon(icon).with_size(px(22.))),
+                _ => d.child(Icon::new(icon).size(px(22.))),
             })
             .child(
                 div()
-                    .text_size(px(22.))
+                    .text_size(px(19.))
                     .font_weight(FontWeight::BOLD)
                     .child(label),
             )
@@ -332,26 +387,25 @@ impl Shell {
     pub(crate) fn play_bar(&self, p: Palette, wide: bool, cx: &mut Context<Self>) -> impl IntoElement {
         let state = self.play_state();
         h_flex()
-            .h(px(104.))
+            .h(px(84.))
             .flex_shrink_0()
-            .px(px(24.))
-            .gap(px(24.))
-            .bg(p.surface)
+            .px(px(20.))
+            .gap(px(20.))
+            .bg(p.chrome)
             .border_t_1()
             .border_color(p.border_variant)
             .child(self.game_info(p, wide))
             .child(self.status(&state, p, cx))
             .child(
                 h_flex()
-                    .gap(px(14.))
+                    .gap(px(10.))
                     .flex_shrink_0()
                     .when(matches!(state, PlayState::Running(_)), |d| {
                         d.child(
                             Button::new("stop")
                                 .danger()
                                 .outline()
-                                .large()
-                                .h(px(64.))
+                                .h(px(52.))
                                 .icon(IconName::Square)
                                 .label("Stop")
                                 .on_click(cx.listener(|this, _, window, cx| this.confirm_stop(window, cx))),
@@ -363,7 +417,6 @@ impl Shell {
                             d.child(
                                 Button::new("locate")
                                     .ghost()
-                                    .large()
                                     .icon(IconName::FolderSearch)
                                     .tooltip("Change game folder")
                                     .on_click(
@@ -372,7 +425,7 @@ impl Shell {
                             )
                         },
                     )
-                    .child(self.profile_picker(cx))
+                    .child(self.profile_picker(p, cx))
                     .child(self.big_button(&state, p, cx)),
             )
     }
