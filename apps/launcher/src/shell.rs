@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::{Duration, SystemTime};
@@ -15,6 +15,7 @@ use swofty_core::crash::StartFailure;
 use swofty_core::process::{GameProcess, stop_game};
 use swofty_core::session::SessionRecord;
 use swofty_core::store::Store;
+use swofty_core::view::View;
 
 use crate::game::{self, Install, Launch, Probe};
 use crate::library::Library;
@@ -26,6 +27,7 @@ pub enum Page {
     Addons,
     Maps,
     Profiles,
+    Section(usize),
 }
 
 impl Page {
@@ -34,6 +36,7 @@ impl Page {
             Self::Addons => "Addons",
             Self::Maps => "Maps",
             Self::Profiles => "Profiles",
+            Self::Section(_) => "",
         }
     }
 
@@ -42,6 +45,7 @@ impl Page {
             Self::Addons => IconName::Puzzle,
             Self::Maps => IconName::Map,
             Self::Profiles => IconName::Layers,
+            Self::Section(_) => IconName::Package,
         }
     }
 }
@@ -73,6 +77,11 @@ pub struct Shell {
     pub(crate) sliders: HashMap<String, SliderSlot>,
     pub(crate) requests: Option<SystemTime>,
     pub(crate) console: Option<AnyWindowHandle>,
+    pub(crate) views: HashMap<String, Result<View, String>>,
+    pub(crate) busy: HashSet<String>,
+    pub(crate) open_row: Option<String>,
+    pub(crate) progress: Option<(f32, String)>,
+    pub(crate) dropping: bool,
     _console_closed: Subscription,
     _poll: Task<()>,
 }
@@ -221,7 +230,7 @@ impl Shell {
             Ok(notes) => notes.iter().for_each(|n| eprintln!("swofty-launcher: {n}")),
             Err(e) => library.error = Some(e.to_string()),
         }
-        Self {
+        let mut shell = Self {
             library,
             store,
             page: Page::Addons,
@@ -239,9 +248,16 @@ impl Shell {
             sliders: HashMap::new(),
             requests: None,
             console: None,
+            views: HashMap::new(),
+            busy: HashSet::new(),
+            open_row: None,
+            progress: None,
+            dropping: false,
             _console_closed: console_closed,
             _poll: poll,
-        }
+        };
+        shell.refresh_views(cx);
+        shell
     }
 
     pub(crate) fn restore_console(&mut self, cx: &mut Context<Self>) {
@@ -285,9 +301,9 @@ impl Shell {
         if let Some(install) = probe.install {
             self.install = install;
             self.detected = true;
-            self.library = Library::load(&self.store);
+            self.reload(cx);
         } else if probe.merged {
-            self.library = Library::load(&self.store);
+            self.reload(cx);
         }
         self.processes = probe.processes;
         if let Some(launch) = self.launch.as_mut() {
@@ -325,6 +341,10 @@ impl Shell {
 
     pub(crate) fn reload(&mut self, cx: &mut Context<Self>) {
         self.library = Library::load(&self.store);
+        if matches!(self.page, Page::Section(i) if i >= self.library.sections.len()) {
+            self.page = Page::Addons;
+        }
+        self.refresh_views(cx);
         cx.notify();
     }
 
@@ -551,10 +571,18 @@ impl Shell {
         )
     }
 
-    fn nav_item(&self, page: Page, count: usize, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+    fn nav_item(
+        &self,
+        page: Page,
+        title: SharedString,
+        icon: IconName,
+        count: Option<usize>,
+        p: Palette,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let active = self.page == page;
         h_flex()
-            .id(page.label())
+            .id(SharedString::from(format!("nav-{title}")))
             .h(px(30.))
             .px(px(8.))
             .gap(px(9.))
@@ -571,18 +599,18 @@ impl Shell {
                         .hover(move |s| s.bg(p.hover).text_color(p.text))
                 }
             })
-            .child(Icon::new(page.icon()).size(px(15.)).text_color(if active {
+            .child(Icon::new(icon).size(px(15.)).text_color(if active {
                 p.accent
             } else {
                 p.text_placeholder
             }))
-            .child(div().flex_1().child(page.label()))
-            .child(
+            .child(div().flex_1().truncate().child(title))
+            .children(count.map(|n| {
                 div()
                     .text_size(px(12.))
                     .text_color(p.text_placeholder)
-                    .child(count.to_string()),
-            )
+                    .child(n.to_string())
+            }))
             .on_click(cx.listener(move |this, _, _, cx| {
                 this.page = page;
                 cx.notify();
@@ -620,9 +648,29 @@ impl Shell {
             .on_click(cx.listener(|this, _, _, cx| this.go(Page::Profiles, cx)))
     }
 
+    fn core_nav(&self, page: Page, count: usize, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+        self.nav_item(page, page.label().into(), page.icon(), Some(count), p, cx)
+    }
+
     fn sidebar(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let heading = |text: &'static str| label(text, p).px(px(8.)).pt(px(16.)).pb(px(6.));
         let root = self.store.root.clone();
+        let sections: Vec<AnyElement> = self
+            .library
+            .sections
+            .iter()
+            .enumerate()
+            .map(|(i, s)| {
+                self.nav_item(
+                    Page::Section(i),
+                    s.spec.title.clone().into(),
+                    crate::sections::icon(s.spec.icon),
+                    None,
+                    p,
+                    cx,
+                )
+                .into_any_element()
+            })
+            .collect();
         v_flex()
             .w(px(220.))
             .h_full()
@@ -633,11 +681,12 @@ impl Shell {
             .bg(p.chrome)
             .border_r_1()
             .border_color(p.border_variant)
-            .child(heading("LIBRARY"))
-            .child(self.nav_item(Page::Addons, self.library.addons.len(), p, cx))
-            .child(self.nav_item(Page::Maps, self.library.maps.len(), p, cx))
-            .child(heading("LAUNCHER"))
-            .child(self.nav_item(Page::Profiles, self.library.profiles.len(), p, cx))
+            .pt(px(12.))
+            .child(self.core_nav(Page::Profiles, self.library.profiles.len(), p, cx))
+            .child(self.core_nav(Page::Addons, self.library.addons.len(), p, cx))
+            .child(div().mx(px(8.)).my(px(6.)).h(px(1.)).bg(p.border_variant))
+            .children(sections)
+            .child(self.core_nav(Page::Maps, self.library.maps.len(), p, cx))
             .child(div().flex_1())
             .child(self.active_profile_card(p, cx))
             .child(
@@ -674,9 +723,24 @@ impl Render for Shell {
             Page::Addons => self.addons_page(p, cx),
             Page::Maps => self.maps_page(p, cx),
             Page::Profiles => self.profiles_page(p, wide, cx),
+            Page::Section(i) => self.section_page(i, p, cx),
         };
+        if self.dropping && !cx.has_active_drag() {
+            self.dropping = false;
+        }
         v_flex()
+            .id("shell")
+            .relative()
             .size_full()
+            .on_drag_move::<ExternalPaths>(cx.listener(|this, _, _, cx| {
+                if !this.dropping {
+                    this.dropping = true;
+                    cx.notify();
+                }
+            }))
+            .on_drop(cx.listener(|this, paths: &ExternalPaths, window, cx| {
+                this.drop_paths(paths.paths().to_vec(), window, cx)
+            }))
             .bg(p.background)
             .text_color(p.text)
             .text_size(px(14.))
@@ -697,5 +761,7 @@ impl Render for Shell {
                     ),
             )
             .child(self.play_bar(p, wide, cx))
+            .children(self.progress_card(p))
+            .when(self.dropping, |d| d.child(self.drop_overlay(p)))
     }
 }

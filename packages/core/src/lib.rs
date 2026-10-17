@@ -6,6 +6,7 @@ pub mod build;
 pub mod builtin;
 pub mod crash;
 pub mod erpbuild;
+pub mod import;
 pub mod install;
 pub mod journal;
 pub mod map;

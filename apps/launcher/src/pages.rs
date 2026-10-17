@@ -19,7 +19,7 @@ use crate::theme::Palette;
 
 pub(crate) const GUTTER: f32 = 28.;
 
-fn tag(label: impl Into<SharedString>, p: Palette) -> Div {
+pub(crate) fn tag(label: impl Into<SharedString>, p: Palette) -> Div {
     div()
         .px(px(6.))
         .h(px(20.))
@@ -66,7 +66,7 @@ fn logo(size: f32) -> Div {
         .child(img(LOGO.clone()).size_full())
 }
 
-fn monogram(text: &str, size: f32, p: Palette) -> Div {
+pub(crate) fn monogram(text: &str, size: f32, p: Palette) -> Div {
     let letter: String = text.chars().take(1).flat_map(char::to_uppercase).collect();
     tile(size, p)
         .text_size(px(size * 0.42))
@@ -91,7 +91,7 @@ pub(crate) fn label(title: impl Into<SharedString>, p: Palette) -> Div {
         .child(title.into())
 }
 
-fn fact(label: &'static str, value: impl IntoElement, p: Palette) -> Div {
+pub(crate) fn fact(label: impl Into<SharedString>, value: impl IntoElement, p: Palette) -> Div {
     h_flex()
         .py(px(6.))
         .gap(px(12.))
@@ -103,12 +103,17 @@ fn fact(label: &'static str, value: impl IntoElement, p: Palette) -> Div {
                 .flex_shrink_0()
                 .text_size(px(13.))
                 .text_color(p.text_muted)
-                .child(label),
+                .child(label.into()),
         )
         .child(div().flex_1().min_w_0().text_size(px(13.)).child(value))
 }
 
-fn stat(title: &'static str, value: impl Into<SharedString>, color: Hsla, p: Palette) -> Div {
+pub(crate) fn stat(
+    title: impl Into<SharedString>,
+    value: impl Into<SharedString>,
+    color: Hsla,
+    p: Palette,
+) -> Div {
     v_flex()
         .gap(px(3.))
         .child(label(title, p))
@@ -119,7 +124,7 @@ fn summary(text: &str) -> &str {
     text.find(". ").map_or(text, |i| &text[..=i])
 }
 
-fn chevron(open: bool, p: Palette) -> Icon {
+pub(crate) fn chevron(open: bool, p: Palette) -> Icon {
     Icon::new(if open {
         IconName::ChevronUp
     } else {
@@ -129,7 +134,7 @@ fn chevron(open: bool, p: Palette) -> Icon {
     .text_color(p.text_placeholder)
 }
 
-fn names(title: &'static str, items: &[String], p: Palette) -> Div {
+pub(crate) fn names(title: impl Into<SharedString>, items: &[String], p: Palette) -> Div {
     const SHOWN: usize = 6;
     let text = if items.is_empty() {
         "None".to_owned()
@@ -154,9 +159,9 @@ fn names(title: &'static str, items: &[String], p: Palette) -> Div {
 }
 
 impl Shell {
-    fn header(
+    pub(crate) fn header(
         &self,
-        page: Page,
+        title: impl Into<SharedString>,
         subtitle: String,
         actions: impl IntoElement,
         p: Palette,
@@ -177,7 +182,7 @@ impl Shell {
                         div()
                             .text_size(px(18.))
                             .font_weight(FontWeight::SEMIBOLD)
-                            .child(page.label()),
+                            .child(title.into()),
                     )
                     .child(div().text_size(px(13.)).text_color(p.text_muted).child(subtitle))
                     .when_some(self.library.error.clone(), |d, e| {
@@ -187,7 +192,12 @@ impl Shell {
             .child(h_flex().gap(px(8.)).pb(px(2.)).child(actions))
     }
 
-    fn list(&self, id: &'static str, rows: Vec<AnyElement>, p: Palette) -> impl IntoElement {
+    pub(crate) fn list(
+        &self,
+        id: impl Into<ElementId>,
+        rows: Vec<AnyElement>,
+        p: Palette,
+    ) -> impl IntoElement {
         v_flex()
             .id(id)
             .flex_1()
@@ -207,11 +217,11 @@ impl Shell {
             )
     }
 
-    fn empty(
+    pub(crate) fn empty(
         &self,
-        page: Page,
-        title: &'static str,
-        body: &'static str,
+        icon: IconName,
+        title: impl Into<SharedString>,
+        body: impl Into<SharedString>,
         action: impl IntoElement,
         p: Palette,
     ) -> AnyElement {
@@ -221,13 +231,13 @@ impl Shell {
             .justify_center()
             .gap(px(8.))
             .pb(px(48.))
-            .child(badge(page.icon(), 44., p))
+            .child(badge(icon, 44., p))
             .child(
                 div()
                     .pt(px(8.))
                     .text_size(px(15.))
                     .font_weight(FontWeight::SEMIBOLD)
-                    .child(title),
+                    .child(title.into()),
             )
             .child(
                 div()
@@ -236,20 +246,20 @@ impl Shell {
                     .text_size(px(13.))
                     .line_height(px(19.))
                     .text_color(p.text_muted)
-                    .child(body),
+                    .child(body.into()),
             )
             .child(div().pt(px(8.)).child(action))
             .into_any_element()
     }
 
-    fn row(&self, first: bool, open: bool, p: Palette) -> Div {
+    pub(crate) fn row(&self, first: bool, open: bool, p: Palette) -> Div {
         v_flex()
             .flex_shrink_0()
             .when(!first, |d| d.border_t_1().border_color(p.border_variant))
             .when(open, |d| d.bg(p.surface))
     }
 
-    fn row_head(&self, id: String, open: bool, p: Palette) -> Stateful<Div> {
+    pub(crate) fn row_head(&self, id: String, open: bool, p: Palette) -> Stateful<Div> {
         h_flex()
             .id(SharedString::from(id))
             .h(px(54.))
@@ -281,7 +291,7 @@ impl Shell {
             .into_any_element()
     }
 
-    fn vanilla(&self) -> bool {
+    pub(crate) fn vanilla(&self) -> bool {
         self.library.profile.is_vanilla()
     }
 
@@ -398,7 +408,7 @@ impl Shell {
         });
         v_flex()
             .size_full()
-            .child(self.header(Page::Addons, subtitle, actions, p))
+            .child(self.header(Page::Addons.label(), subtitle, actions, p))
             .children(pending)
             .child(self.list("addons", rows, p))
             .into_any_element()
@@ -415,7 +425,7 @@ impl Shell {
         let man = &m.manifest;
         let id = man.id.clone();
         let builtin = man.is_builtin();
-        let trailing = if builtin {
+        let trailing = if m.locked {
             let label = if self.vanilla() {
                 format!("Off in {VANILLA}")
             } else {
@@ -513,7 +523,7 @@ impl Shell {
             Some(b) => (format!("{builds} · not tested on {b}"), p.warning),
             None => (builds, p.text),
         };
-        let (status, status_color) = if man.is_builtin() && !self.vanilla() {
+        let (status, status_color) = if m.locked && !self.vanilla() {
             ("On".to_owned(), p.success)
         } else {
             self.state_line(m.enabled, "addons", p)
@@ -815,14 +825,14 @@ impl Shell {
                 .label("Import map…")
                 .on_click(cx.listener(|this, _, window, cx| this.import_map(window, cx)))
         };
-        let header = self.header(Page::Maps, subtitle, import("import-map", cx), p);
+        let header = self.header(Page::Maps.label(), subtitle, import("import-map", cx), p);
         if self.library.maps.is_empty() {
             let cta = import("import-map-empty", cx);
             return v_flex()
                 .size_full()
                 .child(header)
                 .child(self.empty(
-                    Page::Maps,
+                    Page::Maps.icon(),
                     "No maps yet",
                     "Import a track package to add a circuit. It stays in your library and can be switched on per profile.",
                     cta,
@@ -1048,7 +1058,7 @@ impl Shell {
         );
         v_flex()
             .size_full()
-            .child(self.header(Page::Profiles, subtitle, actions, p))
+            .child(self.header(Page::Profiles.label(), subtitle, actions, p))
             .child(
                 div()
                     .id("profiles")
@@ -1134,6 +1144,11 @@ impl Shell {
                 .gap(px(12.))
                 .child(names("ADDONS", &item.addons, p))
                 .child(names("MAPS", &item.maps, p))
+                .children(
+                    item.summaries
+                        .iter()
+                        .map(|s| names(s.label.to_uppercase(), &s.items, p)),
+                )
         };
         let button = |id: &str| Button::new(SharedString::from(format!("{id}-{name}")));
         let (rename, duplicate, switch) = (name.clone(), name.clone(), name.clone());

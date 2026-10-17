@@ -67,7 +67,7 @@ These stay as they are: `swofty.json` and every field in it, manifest `schema_ve
 
 A new crate, `packages/addon-api` (`swofty-addon`), holds the API. `manifest` and `ops` move there from core, and core re-exports them. Core depends on `swofty-addon` and runs addons. Built-in addons depend on `swofty-addon` and `swofty-formats`, never on `swofty-core`. The apps register them through `addons/builtins` (`swofty-builtins`). Core names no addon.
 
-The types below, the registry, `Profile.state`, the `addon-data` and cache folders and the build hooks are built: `swofty_addon::launcher` and `swofty_addon::view`, core's `registry` module, and `Store::with_builtins`. The launcher and the CLI do not show sections, run importers or commands, or show summaries yet.
+The types below, the registry, `Profile.state`, the `addon-data` and cache folders and the build hooks are built: `swofty_addon::launcher` and `swofty_addon::view`, core's `registry` module, and `Store::with_builtins`. The launcher shows sections, runs events and importers on the background executor, routes dropped files through `swofty_core::import` and shows summaries on the profile cards. The CLI does not run addon commands yet.
 
 ```rust
 pub trait Addon: Send + Sync {
@@ -231,7 +231,7 @@ pub enum Effect {
 
 `Fact`, `Tag`, `Notice`, `Tone`, `Style`, `Art` and `Icon` are small value types: label and value, text and tone, a fixed icon set, a monogram or an image path. Every type is serde-serialisable.
 
-- Each section is one page and one sidebar entry. Addon sections follow Addons in the sidebar, in addon load order, then Maps and Profiles.
+- Each section is one page and one sidebar entry. The sidebar lists Profiles, Addons, a divider, the addon sections in registry order, then Maps.
 - The shell renders a `View` with the components the core pages use: page header, list, row, switch, choice button, stats, facts, notices and empty state. A row's `detail` is its expanded body. A `reorder` list gets a drag handle and Move up and Move down entries.
 - The shell keeps each section's `View` and asks again after `Effect::Reload`, a profile switch or a store reload.
 - `view` runs on the UI thread and reads in-memory state only. `event`, `import`, `command` and `build` run on the background executor. The control that sent an event shows as busy until its `Effect` returns.
@@ -240,7 +240,7 @@ pub enum Effect {
 ### Import handlers
 
 - A `ButtonKind::Pick` button opens the system file picker and sends `Event::Picked`.
-- Files dropped on the window go to the importer whose `claims` returns `Yes`, else to the only one that returns `Maybe`. Otherwise the shell names the file and says no addon imports it. Addon folders (`swofty.json`) and track packages are importers of core.
+- Files dropped on the window go to the importer whose `claims` returns `Yes`, else to the only one that returns `Maybe`. Otherwise the shell names the file and says no addon imports it. Addon folders (`swofty.json`), `.swoftymod` files, zips that hold an addon and track packages are importers of core and are asked first.
 - `Progress` reports appear as a notification with a progress bar.
 
 ### Per-profile state

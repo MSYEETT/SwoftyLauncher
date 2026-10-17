@@ -189,6 +189,13 @@ impl Store {
     }
 
     pub fn install_addon(&self, src: &Path) -> Result<AddonManifest> {
+        if src.is_file() {
+            let scratch = self.addons_dir().join(".importing");
+            let result = self.install_addon_zip(src, &scratch);
+            std::fs::remove_dir_all(&scratch).ok();
+            return result;
+        }
+        let src = &crate::import::addon_root(src).unwrap_or_else(|| src.to_path_buf());
         let m = AddonManifest::load(src)?;
         if self.is_builtin(&m.id) {
             return Err(Error::Other(format!("{} is built in", m.id)));
@@ -199,6 +206,16 @@ impl Store {
         }
         copy_dir(src, &dest)?;
         Ok(m)
+    }
+
+    fn install_addon_zip(&self, zip: &Path, scratch: &Path) -> Result<AddonManifest> {
+        if scratch.exists() {
+            std::fs::remove_dir_all(scratch).map_err(io_err(scratch))?;
+        }
+        map::unzip(zip, scratch, Error::Other)?;
+        let root = crate::import::addon_root(scratch)
+            .ok_or_else(|| Error::Other(format!("{} has no {MANIFEST_FILE}", zip.display())))?;
+        self.install_addon(&root)
     }
 
     pub fn maps(&self) -> Result<Vec<TrackPackage>> {
@@ -504,6 +521,31 @@ mod tests {
         store.save_profile(&p).unwrap();
         let plan = crate::resolver::resolve(&store.profile(DEFAULT_PROFILE).unwrap(), &addons).unwrap();
         assert_eq!(plan.order, [CORE_ID, m.id.as_str()]);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn installs_addon_zips() {
+        let root = tmp("addon-zips");
+        let store = Store::new(root.join("data"));
+        let manifest = r#"{"schema_version":1,"id":"t.zipped","name":"Zipped","version":"1.0.0","author":"t","compat":{"game":"f1_25"}}"#;
+        for (file, prefix) in [("flat.swoftymod", ""), ("wrapped.zip", "zipped/")] {
+            let path = root.join(file);
+            let mut z = zip::ZipWriter::new(std::fs::File::create(&path).unwrap());
+            let opts = zip::write::SimpleFileOptions::default();
+            z.start_file(format!("{prefix}{MANIFEST_FILE}"), opts).unwrap();
+            std::io::Write::write_all(&mut z, manifest.as_bytes()).unwrap();
+            z.start_file(format!("{prefix}plugins/a.dll"), opts).unwrap();
+            z.finish().unwrap();
+            assert_eq!(store.install_addon(&path).unwrap().id, "t.zipped");
+            assert!(store.addons_dir().join("t.zipped/plugins/a.dll").is_file());
+            assert!(!store.addons_dir().join(".importing").exists());
+        }
+        let bare = root.join("bare.zip");
+        zip::ZipWriter::new(std::fs::File::create(&bare).unwrap())
+            .finish()
+            .unwrap();
+        assert!(store.install_addon(&bare).is_err());
         std::fs::remove_dir_all(&root).ok();
     }
 

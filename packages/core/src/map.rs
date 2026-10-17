@@ -217,12 +217,17 @@ fn write_png(path: &Path, image: &swofty_formats::texture::Image) -> Result<()> 
 
 pub fn extract_zip(zip_path: &Path, dest: &Path) -> Result<TrackPackage> {
     let pkg = read_zip_manifest(zip_path)?;
+    unzip(zip_path, dest, Error::Map)?;
+    Ok(pkg)
+}
+
+pub(crate) fn unzip(zip_path: &Path, dest: &Path, err: fn(String) -> Error) -> Result<()> {
     let file = std::fs::File::open(zip_path).map_err(io_err(zip_path))?;
     let mut zip = zip::ZipArchive::new(file)?;
     for i in 0..zip.len() {
         let mut entry = zip.by_index(i)?;
         let Some(rel) = entry.enclosed_name() else {
-            return Err(Error::Map(format!(
+            return Err(err(format!(
                 "{}: unsafe entry {}",
                 zip_path.display(),
                 String::from_utf8_lossy(entry.name_raw())
@@ -239,7 +244,7 @@ pub fn extract_zip(zip_path: &Path, dest: &Path) -> Result<TrackPackage> {
         let mut f = std::fs::File::create(&out).map_err(io_err(&out))?;
         std::io::copy(&mut entry, &mut f).map_err(io_err(&out))?;
     }
-    Ok(pkg)
+    Ok(())
 }
 
 #[cfg(test)]

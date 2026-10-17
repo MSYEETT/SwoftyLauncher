@@ -5,6 +5,7 @@ mod game;
 mod library;
 mod pages;
 mod play_bar;
+mod sections;
 mod shell;
 mod theme;
 
