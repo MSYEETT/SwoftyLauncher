@@ -17,16 +17,16 @@ swofty-sdk = { path = "packages/sdk" }
 anyhow = "1"
 bcdec_rs = "0.2"
 clap = { version = "4", features = ["derive", "env"] }
-md-5 = "0.10"
+md-5 = "0.11"
 png = "0.18"
 semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sha2 = "0.10"
+sha2 = "0.11"
 thiserror = "2"
-ureq = "2"
-zip = { version = "2", default-features = false, features = ["deflate"] }
-zstd = "0.13"
+ureq = "3"
+zip = { version = "9", default-features = false, features = ["deflate"] }
+zstd = "0.14"
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "deny"

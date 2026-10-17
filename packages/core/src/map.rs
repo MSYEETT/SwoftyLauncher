@@ -151,18 +151,17 @@ pub fn unwrap_nested(zip_path: &Path, scratch: &Path) -> Result<Option<PathBuf>>
     if zip.index_for_name(MANIFEST_FILE).is_some() {
         return Ok(None);
     }
-    let inner: Vec<String> = zip
-        .file_names()
-        .filter(|n| n.to_ascii_lowercase().ends_with(".zip"))
-        .map(str::to_owned)
+    let inner: Vec<(usize, String)> = (0..zip.len())
+        .filter_map(|i| Some((i, zip.name_for_index(i)?.ok()?.into_owned())))
+        .filter(|(_, n)| n.to_ascii_lowercase().ends_with(".zip"))
         .collect();
-    let [name] = inner.as_slice() else {
+    let [(index, name)] = inner.as_slice() else {
         return Ok(None);
     };
     let dest = scratch.join(Path::new(name).file_name().unwrap_or("package.zip".as_ref()));
     std::fs::create_dir_all(scratch).map_err(io_err(scratch))?;
     let mut out = std::fs::File::create(&dest).map_err(io_err(&dest))?;
-    std::io::copy(&mut zip.by_name(name)?, &mut out).map_err(io_err(&dest))?;
+    std::io::copy(&mut zip.by_index(*index)?, &mut out).map_err(io_err(&dest))?;
     let nested = std::fs::File::open(&dest).map_err(io_err(&dest))?;
     let found = zip::ZipArchive::new(nested).is_ok_and(|z| z.index_for_name(MANIFEST_FILE).is_some());
     Ok(found.then_some(dest))
@@ -226,7 +225,7 @@ pub fn extract_zip(zip_path: &Path, dest: &Path) -> Result<TrackPackage> {
             return Err(Error::Map(format!(
                 "{}: unsafe entry {}",
                 zip_path.display(),
-                entry.name()
+                String::from_utf8_lossy(entry.name_raw())
             )));
         };
         let out: PathBuf = dest.join(rel);

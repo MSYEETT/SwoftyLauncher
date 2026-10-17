@@ -402,7 +402,7 @@ pub fn stamp(maps: &[MapUi], original: &dyn Fn(&str) -> PathBuf) -> Result<Strin
         let meta = std::fs::metadata(&p).map_err(io_err(&p))?;
         sha2::Digest::update(&mut h, format!("{rel}|{}|{:?}", meta.len(), meta.modified().ok()));
     }
-    Ok(format!("{:x}", sha2::Digest::finalize(h))[..16].to_owned())
+    Ok(crate::baseline::hex(&sha2::Digest::finalize(h))[..16].to_owned())
 }
 
 pub type Lists = BTreeMap<String, BTreeSet<String>>;

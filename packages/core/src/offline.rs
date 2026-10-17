@@ -261,9 +261,16 @@ pub fn fetch(data: &Path) -> Result<Artifacts> {
 
 fn download(url: &str, to: &Path) -> Result<()> {
     let resp = ureq::get(url)
+        .config()
+        .timeout_connect(Some(std::time::Duration::from_secs(30)))
+        .build()
         .call()
         .map_err(|e| Error::Other(format!("{url}: {e}")))?;
-    let mut reader = resp.into_reader();
+    let status = resp.status().as_u16();
+    if !(200..300).contains(&status) {
+        return Err(Error::Other(format!("{url}: HTTP {status}")));
+    }
+    let mut reader = resp.into_body().into_reader();
     let mut buf = Vec::new();
     std::io::Read::read_to_end(&mut reader, &mut buf).map_err(|e| Error::Other(format!("{url}: {e}")))?;
     std::fs::write(to, &buf).map_err(io_err(to))

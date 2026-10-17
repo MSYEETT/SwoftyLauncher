@@ -8,7 +8,7 @@ use crate::activation::db::{Registry, Slot, activate};
 use crate::activation::ers::{ErsMap, build_ers};
 use crate::activation::place::{PlaceInput, SLOTS, place, slot_asset_group, slot_asset_root, slot_file};
 use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
-use crate::baseline::{Baseline, Objects, sha256_file};
+use crate::baseline::{Baseline, Objects, hex, sha256_file};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
 use crate::erpbuild::{ErpBuild, unsupported};
 use crate::install::{Game, LOADER_DIR, Plan};
@@ -165,7 +165,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     }
     let db_src = original(&store.root, game, GVDB);
     hasher.update(sha256_file(&db_src)?);
-    built.buildhash = format!("{:x}", hasher.finalize())[..16].to_owned();
+    built.buildhash = hex(&hasher.finalize())[..16].to_owned();
     built.overlay = store.overlay_dir(profile, &built.buildhash);
     if maps.len() > SLOTS.len() {
         return Err(Error::Map(format!(

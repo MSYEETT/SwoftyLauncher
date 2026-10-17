@@ -125,8 +125,7 @@ fn set_data(res: &mut Resource, index: usize, data: &[u8]) -> Result<()> {
 }
 
 pub fn shipped_name(path: &str) -> String {
-    let hash = Md5::digest(path.as_bytes());
-    let hex: String = hash.iter().map(|b| format!("{b:02x}")).collect();
+    let hex = crate::baseline::hex(&Md5::digest(path.as_bytes()));
     let base = path.rsplit('/').next().unwrap_or(path);
     format!("{}_{base}", &hex[..12])
 }
@@ -200,7 +199,7 @@ fn stamp(input: &PlaceInput) -> Result<String> {
             input.slot
         ),
     );
-    Ok(format!("{:x}", sha2::Digest::finalize(h))[..16].to_owned())
+    Ok(crate::baseline::hex(&sha2::Digest::finalize(h))[..16].to_owned())
 }
 
 pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {

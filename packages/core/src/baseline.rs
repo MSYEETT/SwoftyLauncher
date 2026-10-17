@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -6,15 +7,27 @@ use sha2::{Digest, Sha256};
 
 use crate::{Error, Result, io_err};
 
+pub fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
 pub fn sha256_bytes(data: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(data))
+    hex(&Sha256::digest(data))
 }
 
 pub fn sha256_file(path: &Path) -> Result<String> {
     let mut f = std::fs::File::open(path).map_err(io_err(path))?;
     let mut h = Sha256::new();
-    std::io::copy(&mut f, &mut h).map_err(io_err(path))?;
-    Ok(format!("{:x}", h.finalize()))
+    let mut buf = [0; 1 << 16];
+    loop {
+        match f.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => h.update(&buf[..n]),
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(e) => return Err(io_err(path)(e)),
+        }
+    }
+    Ok(hex(&h.finalize()))
 }
 
 pub fn sha256_opt(path: &Path) -> Result<Option<String>> {
