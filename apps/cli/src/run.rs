@@ -204,12 +204,20 @@ fn launch(store: &Store, game: &Path, direct: bool) -> Result<()> {
             .into_iter()
             .find(|p| p.join("proton").is_file())
             .context("could not find the Proton build Steam uses for F1 25")?;
-            c.env("STEAM_COMPAT_TOOL_PATHS", &proton)
-                .env("STEAM_COMPAT_DATA_PATH", g.compatdata.clone().unwrap_or_default())
-                .env("STEAM_COMPAT_CLIENT_INSTALL_PATH", &g.steam_root)
-                .env("STEAM_COMPAT_INSTALL_PATH", game)
-                .env("STEAM_COMPAT_LIBRARY_PATHS", &g.library)
-                .env("STEAM_COMPAT_APP_ID", STEAM_APP_ID.to_string());
+            let runtime =
+                [&g.library, &g.steam_root].map(|l| l.join("steamapps/common/SteamLinuxRuntime_sniper"));
+            let runtime = runtime.iter().find(|p| p.is_dir()).unwrap_or(&runtime[0]);
+            c.env(
+                "STEAM_COMPAT_TOOL_PATHS",
+                std::env::join_paths([&proton, runtime])?,
+            )
+            .env("STEAM_COMPAT_DATA_PATH", g.compatdata.clone().unwrap_or_default())
+            .env("STEAM_COMPAT_CLIENT_INSTALL_PATH", &g.steam_root)
+            .env("STEAM_COMPAT_INSTALL_PATH", game)
+            .env("STEAM_COMPAT_LIBRARY_PATHS", g.library.join("steamapps"))
+            .env("STEAM_COMPAT_APP_ID", STEAM_APP_ID.to_string())
+            .env("SteamAppId", STEAM_APP_ID.to_string())
+            .env("SteamGameId", STEAM_APP_ID.to_string());
             c.arg("--")
                 .arg(proton.join("proton"))
                 .arg("waitforexitandrun")
