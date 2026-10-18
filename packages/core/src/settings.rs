@@ -28,10 +28,11 @@ pub struct SessionSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub requests: Option<String>,
     pub restart_command: String,
-    #[serde(alias = "mods")]
     pub addons: Vec<SessionAddon>,
     #[serde(default)]
     pub maps: Vec<SessionMap>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mods: Vec<SessionMod>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ui: Option<SessionUi>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -96,6 +97,18 @@ pub struct SessionMap {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionMod {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub version: String,
+    #[serde(default)]
+    pub author: String,
+    #[serde(default)]
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SessionAddon {
     pub id: String,
     pub name: String,
@@ -149,6 +162,10 @@ impl SessionSettings {
                     .to_owned(),
             })
             .collect();
+    }
+
+    pub fn set_mods(&mut self, items: impl Iterator<Item = SessionMod>) {
+        self.mods = items.collect();
     }
 
     pub fn build(
@@ -246,6 +263,7 @@ impl SessionSettings {
             restart_command: RESTART_COMMAND.into(),
             addons,
             maps: Vec::new(),
+            mods: Vec::new(),
             ui,
             owned_items: Vec::new(),
             early_plugins,
@@ -566,13 +584,31 @@ mod tests {
         assert_eq!(grid.options[0].states[2].command, "swofty_set:a.grid:livery:2");
         assert_eq!(grid.options[2].current, 4);
         assert!(s.commands().any(|c| c == RESTART_COMMAND));
-        let mut json = serde_json::to_value(&s).unwrap();
+        let json = serde_json::to_value(&s).unwrap();
         assert_eq!(json["addons"][1]["options"][0]["type"], "choice");
         assert!(json.get("mods").is_none());
-        let addons = json.as_object_mut().unwrap().remove("addons").unwrap();
-        json["mods"] = addons;
         assert_eq!(serde_json::from_value::<SessionSettings>(json).unwrap(), s);
         assert!(SessionSettings::build(&Profile::vanilla(), &installed(), None).is_err());
+    }
+
+    #[test]
+    fn mods_list_serialises_under_its_own_key_and_round_trips() {
+        let mut s = SessionSettings::build(&Profile::new("x"), &installed(), None).unwrap();
+        assert!(serde_json::to_value(&s).unwrap().get("mods").is_none());
+        s.set_mods(
+            [SessionMod {
+                id: "ts.sauber".into(),
+                name: "Sauber 2026".into(),
+                version: "1.2.0".into(),
+                author: "Team Simplified".into(),
+                description: String::new(),
+            }]
+            .into_iter(),
+        );
+        let json = serde_json::to_value(&s).unwrap();
+        assert_eq!(json["mods"][0]["id"], "ts.sauber");
+        assert_eq!(json["mods"][0]["name"], "Sauber 2026");
+        assert_eq!(serde_json::from_value::<SessionSettings>(json).unwrap(), s);
     }
 
     fn screens_manifest(id: &str, screens: &str) -> AddonManifest {

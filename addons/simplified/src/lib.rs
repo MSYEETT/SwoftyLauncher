@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use swofty_addon::asset::{AssetBatch, AssetOp, LangOp, Op, Origin};
+use swofty_addon::asset::{AssetBatch, AssetOp, ItemOp, LangOp, Op, Origin};
 use swofty_addon::launcher::{
     Addon, ArgSpec, BuildCx, Builtin, Claim, CommandSpec, Cx, Importer, Progress, Summary,
 };
@@ -710,6 +710,19 @@ impl Addon for Simplified {
                 });
                 continue;
             }
+            batch.ops.push(Op {
+                op: AssetOp::Item(ItemOp::Show {
+                    id: p.id.clone(),
+                    name: p.name.clone(),
+                    author: p.author.clone().unwrap_or_default(),
+                    version: p.version.clone().unwrap_or_default(),
+                    description: String::new(),
+                }),
+                origin: Origin {
+                    addon: ID.into(),
+                    item: Some(p.id.clone()),
+                },
+            });
             let diff = library.diff(p, game)?;
             for a in diff
                 .archives

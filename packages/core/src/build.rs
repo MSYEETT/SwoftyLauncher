@@ -11,7 +11,9 @@ use crate::activation::place::{
     PlaceInput, SLOTS, place, slot_asset_group, slot_asset_root, slot_file, track_group,
 };
 use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
-use crate::asset::{AssetOp, FileKind, FileOp, GroupOp, LangOp, Op, OpFile, Origin, Root, Source, TrackOp};
+use crate::asset::{
+    AssetOp, FileKind, FileOp, GroupOp, ItemOp, LangOp, Op, OpFile, Origin, Root, Source, TrackOp,
+};
 use crate::baseline::{Baseline, Objects, hex, sha256_file};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
 use crate::erpbuild::{ErpBuild, unsupported};
@@ -25,7 +27,7 @@ use crate::profile::Profile;
 use crate::registry::Host;
 use crate::resolver::resolve;
 use crate::runtime::{Runtime, db_edits};
-use crate::settings::{SessionSettings, SessionUi, render_ops, screen_file, screens};
+use crate::settings::{SessionMod, SessionSettings, SessionUi, render_ops, screen_file, screens};
 use crate::store::Store;
 use crate::ui::{ERPS as MENU_ERPS, READS as MENU_READS, ui_file};
 use crate::{Error, Result, io_err};
@@ -302,6 +304,26 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     }
     let tracks = track_packages(store, planner.take_tracks())?;
     let maps: Vec<(PathBuf, TrackPackage)> = tracks.iter().map(|(d, p, _)| (d.clone(), p.clone())).collect();
+    let mods: Vec<SessionMod> = planner
+        .take_items()
+        .into_iter()
+        .filter_map(|op| match op.op {
+            AssetOp::Item(ItemOp::Show {
+                id,
+                name,
+                author,
+                version,
+                description,
+            }) => Some(SessionMod {
+                id,
+                name,
+                version,
+                author,
+                description,
+            }),
+            _ => None,
+        })
+        .collect();
     let natural = planner.route(Kind::Group) == Route::Runtime;
     if !natural && maps.len() > SLOTS.len() {
         return Err(Error::Map(format!(
@@ -338,6 +360,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     let mut caches = Vec::new();
     let mut session = store.session_settings(profile)?;
     session.set_maps(maps.iter().map(|(_, pkg)| pkg));
+    session.set_mods(mods.into_iter());
     let menus = loader_dir().is_some();
     if menus {
         hasher.update(serde_json::to_vec(&session).expect("serialisable"));

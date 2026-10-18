@@ -45,7 +45,7 @@ Declare your screens in `swofty.json`. Two steps need that list before your plug
 Run `swofty build` to install the file as `swofty/ui/my_page.ui` and list it in the `ui` block of `swofty/settings.json`. When the flow loads, swofty_core registers your screen through the engine's own screen loader. Check `swofty/loader.log` if the engine rejects any nodes: it names each one and gives the reason. If you route to an addon screen that didn't register, the route is cancelled and the last screen reopens.
 
 ::: warning Reserved names
-`swofty_settings`, `swofty_addon_<n>` and `swofty_map_<n>` belong to ADDON SETTINGS.
+`swofty_settings`, `swofty_addon_<n>`, `swofty_map_<n>` and `swofty_mod_<n>` belong to ADDON SETTINGS.
 :::
 
 ### View models

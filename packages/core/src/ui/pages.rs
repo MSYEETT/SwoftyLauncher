@@ -5,7 +5,7 @@ use swofty_formats::pkg::{Node, Pkg, Val, Value};
 use super::node::*;
 use crate::Result;
 use crate::manifest::{Binds, OptionType};
-use crate::settings::{SessionAddon, SessionMap, SessionOption};
+use crate::settings::{SessionAddon, SessionMap, SessionMod, SessionOption};
 
 pub const HOME: &str = "swofty_settings";
 pub const STATE: &str = "#ui_menu_data.swofty";
@@ -37,7 +37,9 @@ pub const TILES: TileStyle = TileStyle {
     slot: |_| "1a",
     icon: |k| match k {
         Kind::Addon => Icon::Ref("#overrides.icons.session.settings"),
-        Kind::Map => Icon::Path("eaid://ui_package/art/textures/custom_track_select/race_completed_icon.tif"),
+        Kind::Map | Kind::Mod => {
+            Icon::Path("eaid://ui_package/art/textures/custom_track_select/race_completed_icon.tif")
+        }
     },
     attach: &["title_1", "stacker_title"],
     hide_divider: true,
@@ -49,20 +51,22 @@ pub const TILES: TileStyle = TileStyle {
 pub enum Kind {
     Addon,
     Map,
+    Mod,
 }
 
 impl Kind {
-    fn key(self) -> &'static str {
+    pub fn key(self) -> &'static str {
         match self {
             Kind::Addon => "addon",
             Kind::Map => "map",
+            Kind::Mod => "mod",
         }
     }
 
     fn tag(self) -> &'static str {
         match self {
             Kind::Addon => "ADDON",
-            Kind::Map => "MOD",
+            Kind::Map | Kind::Mod => "MOD",
         }
     }
 }
@@ -105,7 +109,11 @@ impl Entry<'_> {
     }
 }
 
-pub fn entries<'a>(addons: &'a [SessionAddon], maps: &'a [SessionMap]) -> Vec<Entry<'a>> {
+pub fn entries<'a>(
+    addons: &'a [SessionAddon],
+    maps: &'a [SessionMap],
+    mods: &'a [SessionMod],
+) -> Vec<Entry<'a>> {
     let mut k = 0;
     let mut out = Vec::new();
     for (i, (full, m)) in addons.iter().enumerate().filter(|(_, m)| m.enabled).enumerate() {
@@ -140,6 +148,19 @@ pub fn entries<'a>(addons: &'a [SessionAddon], maps: &'a [SessionMap]) -> Vec<En
             version: &mp.version,
             description: &mp.description,
             id: &mp.code,
+            options: Vec::new(),
+        });
+    }
+    for (j, md) in mods.iter().enumerate() {
+        out.push(Entry {
+            kind: Kind::Mod,
+            index: j,
+            screen: format!("swofty_mod_{j}"),
+            name: &md.name,
+            author: &md.author,
+            version: &md.version,
+            description: &md.description,
+            id: &md.id,
             options: Vec::new(),
         });
     }
@@ -382,6 +403,27 @@ fn map_rows<'a>(e: &Entry) -> Vec<Row<'a>> {
             e.id,
             "TRACK CODE",
             "Pick this track in any mode to race the map.",
+        ),
+        info("row_author", "Author", e.author, "AUTHOR", ""),
+        info("row_version", "Version", e.version, "VERSION", ""),
+    ]
+}
+
+fn mod_rows<'a>(e: &Entry) -> Vec<Row<'a>> {
+    let info = |key: &str, label: &str, value: &str, title: &str, body: &str| Row {
+        key: key.into(),
+        kind: RowKind::Info(value.into()),
+        label: label.into(),
+        title: title.into(),
+        body: body.into(),
+    };
+    vec![
+        info(
+            "row_id",
+            "Mod ID",
+            e.id,
+            "MOD ID",
+            "Enabled by its addon. Turn it on or off from the addon's page in the launcher.",
         ),
         info("row_author", "Author", e.author, "AUTHOR", ""),
         info("row_version", "Version", e.version, "VERSION", ""),
@@ -849,6 +891,11 @@ pub fn build_all(src: &Sources, style: &TileStyle, flow: &[Entry]) -> Result<Scr
         retitle(&mut scr, e)?;
         nodes.push((e.screen.clone(), scr));
     }
+    for e in flow.iter().filter(|e| e.kind == Kind::Mod) {
+        let mut scr = build_page(src, e, &mod_rows(e), false)?;
+        retitle(&mut scr, e)?;
+        nodes.push((e.screen.clone(), scr));
+    }
     let mut order = Vec::new();
     for (name, mut scr) in nodes {
         settings_state_matrix(src, &mut scr)?;
@@ -883,4 +930,52 @@ pub fn state_entries(flow: &[Entry]) -> Result<Vec<(String, Node)>> {
         }
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn map(code: &str, name: &str) -> SessionMap {
+        SessionMap {
+            code: code.into(),
+            name: name.into(),
+            version: "1.0".into(),
+            author: "a".into(),
+            description: String::new(),
+        }
+    }
+
+    fn a_mod(id: &str, name: &str) -> SessionMod {
+        SessionMod {
+            id: id.into(),
+            name: name.into(),
+            version: "2.0".into(),
+            author: "b".into(),
+            description: String::new(),
+        }
+    }
+
+    #[test]
+    fn entries_list_maps_then_mods_with_their_own_screens() {
+        let maps = [map("imola", "Imola")];
+        let mods = [a_mod("ts.sauber", "Sauber"), a_mod("ts.rb", "Red Bull")];
+        let flow = entries(&[], &maps, &mods);
+        let shape: Vec<(Kind, &str, usize)> = flow
+            .iter()
+            .map(|e| (e.kind, e.screen.as_str(), e.index))
+            .collect();
+        assert_eq!(
+            shape,
+            [
+                (Kind::Map, "swofty_map_0", 0),
+                (Kind::Mod, "swofty_mod_0", 0),
+                (Kind::Mod, "swofty_mod_1", 1),
+            ]
+        );
+        assert_eq!(Kind::Mod.key(), "mod");
+        assert_eq!(Kind::Mod.tag(), "MOD");
+        assert_eq!((flow[1].name, flow[1].id), ("Sauber", "ts.sauber"));
+        assert!(flow[1].options.is_empty());
+    }
 }

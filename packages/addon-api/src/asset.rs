@@ -39,6 +39,7 @@ pub enum AssetOp {
     Lang(LangOp),
     File(FileOp),
     Track(TrackOp),
+    Item(ItemOp),
     Warn { message: String },
 }
 
@@ -84,6 +85,21 @@ pub enum TrackOp {
     Add { source: Source },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "op", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum ItemOp {
+    Show {
+        id: String,
+        name: String,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        author: String,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        version: String,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        description: String,
+    },
+}
+
 impl AssetOp {
     pub fn kind(&self) -> Option<Kind> {
         match self {
@@ -92,7 +108,7 @@ impl AssetOp {
             AssetOp::Db(_) => Some(Kind::Db),
             AssetOp::Lang(_) => Some(Kind::Lang),
             AssetOp::File(_) => Some(Kind::File),
-            AssetOp::Track(_) | AssetOp::Warn { .. } => None,
+            AssetOp::Track(_) | AssetOp::Item(_) | AssetOp::Warn { .. } => None,
         }
     }
 
@@ -136,6 +152,7 @@ impl<'de> Deserialize<'de> for AssetOp {
             "lang" => LangOp::deserialize(op).map(AssetOp::Lang),
             "file" => FileOp::deserialize(op).map(AssetOp::File),
             "track" => TrackOp::deserialize(op).map(AssetOp::Track),
+            "item" => ItemOp::deserialize(op).map(AssetOp::Item),
             "" => Plain::deserialize(op).map(|Plain::Warn { message }| AssetOp::Warn { message }),
             _ => return Err(D::Error::custom(format!("unknown op {name}"))),
         }
@@ -152,6 +169,7 @@ impl Serialize for AssetOp {
             AssetOp::Lang(op) => ("lang", serde_json::to_value(op)),
             AssetOp::File(op) => ("file", serde_json::to_value(op)),
             AssetOp::Track(op) => ("track", serde_json::to_value(op)),
+            AssetOp::Item(op) => ("item", serde_json::to_value(op)),
             AssetOp::Warn { message } => {
                 return Plain::Warn {
                     message: message.clone(),
@@ -384,6 +402,24 @@ mod tests {
             .map(|s| s.path.as_str())
             .collect();
         assert_eq!(sources, ["erp/car.erp", "files/sponsor.dds", "lang/eng.lng"]);
+    }
+
+    #[test]
+    fn item_show_round_trips() {
+        let doc: Value = serde_json::from_str(
+            r#"{ "op": "item.show", "id": "ts.sauber", "name": "Sauber 2026", "author": "Team Simplified", "version": "1.2.0" }"#,
+        )
+        .unwrap();
+        let op = AssetOp::deserialize(doc.clone()).unwrap();
+        assert!(matches!(
+            &op,
+            AssetOp::Item(ItemOp::Show { id, name, author, version, description })
+                if id == "ts.sauber" && name == "Sauber 2026" && author == "Team Simplified"
+                    && version == "1.2.0" && description.is_empty()
+        ));
+        assert_eq!(op.kind(), None);
+        assert!(op.sources().is_empty());
+        assert_eq!(serde_json::to_value(&op).unwrap(), doc);
     }
 
     #[test]

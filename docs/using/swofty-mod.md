@@ -9,13 +9,17 @@ To change an addon's settings without leaving the game, open **ADDON SETTINGS**.
 
 You'll also see a panel on the home screen confirming you launched with Swofty Launcher for F1 25.
 
+## What's listed
+
+**ADDON SETTINGS** lists a tile for every enabled addon, every mod and every track in the active profile. Each tile shows its name, author and version. Addons come first, then mods, then tracks.
+
 ## Change a setting
 
-1. On **ADDON SETTINGS**, select the tile for the enabled addon or track you want to change. Each tile shows its name, author and version.
+1. On **ADDON SETTINGS**, select the tile for the enabled addon you want to change.
 2. Move to a setting row on the addon's page.
 3. Press **Left** or **Right** to change the value.
 
-You won't see a tile for a built-in addon with no settings, such as Team Simplified. For an addon with no settings, you'll see its id and version; on a track's page, you'll find its track code, author and version.
+Only addons have settings. A mod's page shows its id, author and version; a track's page shows its track code, author and version. For an addon with no settings, you'll see its id and version. That makes **ADDON SETTINGS** the one place in game to see everything a profile turns on.
 
 ## When changes take effect
 

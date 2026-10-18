@@ -227,7 +227,11 @@ impl Runtime {
                 self.place(rel, src)?;
                 self.assets.overlay = true;
             }
-            AssetOp::Erp(_) | AssetOp::Db(_) | AssetOp::Track(_) | AssetOp::Warn { .. } => {}
+            AssetOp::Erp(_)
+            | AssetOp::Db(_)
+            | AssetOp::Track(_)
+            | AssetOp::Item(_)
+            | AssetOp::Warn { .. } => {}
         }
         Ok(())
     }

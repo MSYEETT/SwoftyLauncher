@@ -113,6 +113,7 @@ pub struct Planner<'a> {
     erp: Vec<Op>,
     files: Vec<Op>,
     tracks: Vec<Op>,
+    items: Vec<Op>,
     planned: Planned,
     writers: BTreeMap<Target, Vec<Origin>>,
     removals: usize,
@@ -160,9 +161,11 @@ fn target(op: &AssetOp) -> Option<(Target, bool)> {
             true,
         )),
         AssetOp::File(FileOp::Put { target, .. }) => Some((Target::File(target.clone()), true)),
-        AssetOp::Db(_) | AssetOp::Lang(LangOp::Table { .. }) | AssetOp::Track(_) | AssetOp::Warn { .. } => {
-            None
-        }
+        AssetOp::Db(_)
+        | AssetOp::Lang(LangOp::Table { .. })
+        | AssetOp::Track(_)
+        | AssetOp::Item(_)
+        | AssetOp::Warn { .. } => None,
     }
 }
 
@@ -177,6 +180,7 @@ impl<'a> Planner<'a> {
             erp: Vec::new(),
             files: Vec::new(),
             tracks: Vec::new(),
+            items: Vec::new(),
             planned: Planned::default(),
             writers: BTreeMap::new(),
             removals: 0,
@@ -229,6 +233,10 @@ impl<'a> Planner<'a> {
         }
         if matches!(op.op, AssetOp::Track(_)) {
             self.tracks.push(op);
+            return;
+        }
+        if matches!(op.op, AssetOp::Item(_)) {
+            self.items.push(op);
             return;
         }
         let Some(kind) = op.op.kind() else {
@@ -339,6 +347,10 @@ impl<'a> Planner<'a> {
 
     pub fn take_tracks(&mut self) -> Vec<Op> {
         std::mem::take(&mut self.tracks)
+    }
+
+    pub fn take_items(&mut self) -> Vec<Op> {
+        std::mem::take(&mut self.items)
     }
 
     pub fn finish(self) -> Planned {

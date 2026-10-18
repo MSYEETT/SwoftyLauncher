@@ -12,7 +12,7 @@ use crate::builtin::CORE_ID;
 use crate::settings::{SessionScreen, SessionSettings, UI_DIR, screen_file};
 use crate::{Error, Result, io_err};
 use node::err;
-use pages::{ADJUST_TOOLTIP, HOME, Kind, Sources, TILES};
+use pages::{ADJUST_TOOLTIP, HOME, Sources, TILES};
 use patch::Popup;
 
 pub const UI: &str = "2025_asset_groups/ui_package";
@@ -123,17 +123,14 @@ pub fn build(
         &read_frag(&flow_frontend, FE_HOME, 0)?,
         &read_frag(&flow_options, CONTAINER, 0)?,
     )?;
-    let flow = pages::entries(&settings.addons, &settings.maps);
+    let flow = pages::entries(&settings.addons, &settings.maps, &settings.mods);
     let built = pages::build_all(&src, &TILES, &flow)?;
     let names: Vec<String> = built.order.iter().map(|(n, _)| n.clone()).collect();
     let mut problems = check::screens(&built.order, &built.view_models)?;
 
     let pages: Vec<(String, String)> = flow
         .iter()
-        .map(|e| {
-            let kind = if e.kind == Kind::Addon { "addon" } else { "map" };
-            (format!("open_{kind}_{}", e.index), e.screen.clone())
-        })
+        .map(|e| (format!("open_{}_{}", e.kind.key(), e.index), e.screen.clone()))
         .collect();
     let mut groups: Vec<&str> = vec![HOME, "fe_home.mod_menu"];
     groups.extend(pages.iter().map(|(_, s)| s.as_str()));
