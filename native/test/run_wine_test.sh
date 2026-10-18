@@ -182,6 +182,14 @@ EOF
         once "telemetry: reads are gated off outside a session" '\[t_assets\] telemetry: available 0, session unavailable, car0 unavailable, car99 invalid'
         once "telemetry: an addon opens the shared feed" '\[t_assets\] telemetry: shared_memory ok name=Local.SwoftyTelemetry'
         once "telemetry: the shared feed mapping is created" '\[telemetry\] shared_memory: Local.SwoftyTelemetry mapped, 6920 bytes'
+        eapi='\[events\]'
+        once "events: the plugin's session.start subscription is accepted" "$eapi subscribe session\.start by example\.sample-mod -> ok token [0-9]+[[:space:]]*\$"
+        once "events: the plugin's on_frame callback is accepted" "$eapi on_frame by example\.sample-mod -> ok token"
+        once "events: an unknown event name is rejected" "$eapi subscribe not\.an\.event by example\.sample-mod -> invalid[[:space:]]*\$"
+        once "events: unsubscribe of a live token succeeds" "$eapi unsubscribe token [0-9]+ -> ok[[:space:]]*\$"
+        once "events: unsubscribe of an already-dropped token is invalid" "$eapi unsubscribe token [0-9]+ -> invalid[[:space:]]*\$"
+        check "events: the plugin sees ok/ok/invalid/ok/invalid through the wrapper" '\[t_assets\] events subscribe ok on_frame ok unknown invalid unsubscribe ok unsubscribe-again invalid'
+        check "db: read reports unavailable until the database pointer resolves on this build" '\[t_assets\] db available 0 get unavailable'
         continue
     fi
     count "$mode: no SDK calls, no api lines" 0 '\[assets\] api:'
