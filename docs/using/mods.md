@@ -1,101 +1,73 @@
 ---
 title: Mods and tracks
-description: Import .serps mods, mod zips and community tracks into the Mods page, order them, turn them on per profile and read their conflicts.
+description: Import mods and community tracks on the Mods page, order them, turn them on per profile, and read what each one changes.
 ---
 
 # Mods and tracks
 
-The **Mods** page holds your mod library: liveries, cars, text and other content packages with no code, and community tracks such as Sepang and Okayama. It comes from the built-in Team Simplified addon, which reads `.serps` packages made with Simplified Studio. The library is shared by every profile, and each profile keeps its own order and switches.
+Mods give you liveries, cars, in-game text and other content, with no code. Tracks such as Sepang or Okayama are mods too. You manage both on the **Mods** page, added to the sidebar by the built-in Team Simplified addon. Every profile shares this library, but keeps its own order and switches, so you can choose which mods to use in each profile.
 
-## Import a mod
+## Import a mod or track
 
-Drop any of these anywhere on the launcher window, or select **Import…** on the Mods page:
+1. Open the **Mods** page.
+2. Drop the file anywhere on the launcher window, or select **Import…**. You can import:
+   - a `.serps` package;
+   - a zip or folder with `mod.serps` or an `F1 25` folder inside it;
+   - a track package zip, or a download zip that holds one.
+3. The launcher copies it into the library, compares it with the clean game files, and turns it on in the active profile.
 
-- a `.serps` package;
-- a zip with `mod.serps` or an `F1 25` folder inside it;
-- a folder with `mod.serps` or an `F1 25` folder inside it;
-- a track package zip, or a download zip that holds one.
+You can drop several files at once and follow their progress on a card. To replace a mod, import it again: it keeps its place and switch in every profile.
 
-The launcher copies the mod into the library, compares it with the clean game files and turns it on in the active profile. Several files can be dropped at once, and a card shows the progress of a drop.
+The launcher leaves out `.exe`, `.dll` and `.asi` files and names them in the result. It can't read 7z or RAR archives, so unpack those and import the folder.
 
-- `.exe`, `.dll` and `.asi` files are left out and named in the result. Files whose paths leave the package are left out and counted.
-- Importing a mod again replaces it and keeps its place and switch in every profile.
-- 7z and RAR archives are not read. Unpack them and import the folder.
+## Order and turn mods on or off
 
-## Order and switches
+The list shows your active profile's load order. Use it to choose which mod takes priority: **Where two mods change the same thing, the one lower in the list wins.**
 
-The list is the load order of the active profile. Where two mods change the same thing, **the mod lower in the list wins**. Expand a row and use **Move up** and **Move down** to change the order. The switch on each row turns the mod on or off in the active profile.
+- **Reorder:** expand a row and select **Move up** or **Move down**.
+- **Turn on or off:** use the switch on the row.
 
-The page's subtitle shows the library size, how many mods are on in the profile, and the rule. A notice appears when:
-
-- The vanilla profile is active. It plays without addons or mods.
-- Some mods are not compared with the installed game build yet, such as after a game update. **Compare** compares them.
+You'll find the library size, the number of mods turned on and the load order rule in the subtitle. If a mod hasn't been compared with your installed game build yet, you'll see a **Compare** notice. This can happen after a game update; select it to compare the mod with that build.
 
 ## Read a mod's row
 
+Look at a row's tags to see what the mod contains, which game version it was made for and where it overlaps with other mods:
+
 | Tag | Meaning |
 |---|---|
-| **Track** | A community track |
-| **Database** | It changes the game database |
-| **Text** | It changes in-game text |
-| **3 archives** | It changes resources inside game archives |
-| **2 files** | It replaces or adds loose game files |
-| **Made for 1.0.141.7865** | It was made for another game version than the one installed |
-| **Overrides 26 in &lt;mod&gt;** | It wins over a mod above it on 26 changes |
-| **26 overridden by &lt;mod&gt;** | A mod below it wins on 26 of its changes |
+| **Track** | A community circuit |
+| **Database** | Changes the game database |
+| **Text** | Changes in-game text |
+| **3 archives** | Changes resources inside game archives |
+| **2 files** | Replaces or adds loose game files |
+| **Made for 1.0.141.7865** | Built for a game version other than the one installed |
+| **Overrides 26 in _mod_** | Wins over a lower mod on 26 changes |
+| **26 overridden by _mod_** | A lower mod wins on 26 of its changes |
 
-The expanded row shows the mod's status, version, author, the game version it was made for, its Simplified Studio version, its size and when it was imported. Below that:
+Expand a row to see the mod's version, author, size and import date. For a closer look at its changes, or to manage its files, use:
 
-- **WHAT IT CHANGES** counts the database records it changes, adds and removes, the text entries it changes and adds per language, the resources it changes, adds and removes per archive, and the files it replaces and adds. A language the mod does not include takes its English changes, shown as `(from eng)`.
-- **CONFLICTS** lists the exact records, resources, text entries and files where it overrides another enabled mod or is overridden by one.
-- **Show files** opens the mod's files in the library.
-- **Remove from library** deletes the mod after a confirmation, and turns it off in every profile.
-
-## How mods reach the game
-
-When you play, the launcher applies only what each enabled mod changes, in list order: the database records it changed, the resources inside each archive, the text entries and whole loose files. Mods that change different rows of the database or different resources of an archive combine.
-
-- Text changes need the in-game loader. They apply in memory while the game boots, and the game's language files stay stock.
-- A mod's removals of database records and of resources from archives apply only when it was made for the installed game version. Otherwise they are left out, and the row says how many.
-- A removal of a resource rewrites the game's archives at build instead of loading them in memory.
-- Mods are checked against other addons as well. `swofty build` lists every conflict with the winner.
+- **WHAT IT CHANGES** — counts of the database records, text entries, archive resources and files it changes.
+- **CONFLICTS** — the exact records, resources, text and files where it overrides another enabled mod or is overridden by one.
+- **Show files** — opens the mod's files in the library.
+- **Remove from library** — deletes the mod after a confirmation and turns it off in every profile.
 
 ## Tracks
 
-A track is a mod too. Import the track package zip as above, with no need to unpack it. The track's id is its track code, such as `okayama`, or `<code>-track` when a mod in the library already has that id. Importing the same track again replaces it. Its row has the **Track** tag. When it is on, it appears in Grand Prix track selection.
+To import a track, drop the track package zip onto the launcher without unpacking it. You'll see the **Track** tag on its row. Turn it on to make it appear in Grand Prix track selection; you can turn on any number of tracks in one profile.
 
-Any number of tracks can be on in one profile. With an in-game loader that cannot register asset groups, the limit is eight.
+[How tracks are installed](/reference/maps) covers what activation changes.
 
-Track packages use the format made for the EGO GameDatabases Editor:
+## From a terminal
 
-| File | Purpose |
-|---|---|
-| `manifest.json` | Track name, code and setup information |
-| `<code>.erp` | Track data |
-| `mipmaps/` | Optional textures |
-| `ui/images.json` | Track artwork |
-| `ui/minimap.json` | Minimap placement |
-
-Track packages made with the Simplified Track Installer import as ordinary `.serps` mods.
-
-Known issues:
-
-- A track's menu card shows the language strings the package names, often its base track's name and stats.
-- Track-select pictures share one invitational event picture, `invitational_image_2`. With an in-game loader that cannot register asset groups, each track also takes one invitational event's picture (`invitational_image_4`, `_10`, `_13` and on).
-
-[How tracks are installed](/reference/maps) describes what activation changes.
-
-## From the command line
-
-`swofty mods` does the same as the Mods page, for the profile given by `--profile`:
+You can do the same work from a terminal with `swofty mods`. Use `--profile` to choose the profile:
 
 | Command | Does |
 |---|---|
-| `swofty mods list` | List the library in load order, with each mod's switch |
-| `swofty mods import <path>…` | Import `.serps` packages, zips, folders and track zips |
+| `swofty mods list` | List the library in load order |
+| `swofty mods import <path>…` | Import packages, zips, folders and track zips |
 | `swofty mods enable <id>` | Turn a mod on |
 | `swofty mods disable <id>` | Turn a mod off |
-| `swofty mods move <id> <position>` | Move a mod in the load order. Position 1 loads first. |
+| `swofty mods move <id> <position>` | Move a mod in the order (position 1 loads first) |
 | `swofty mods remove <id>` | Delete a mod from the library |
 
 ```sh
@@ -104,8 +76,4 @@ swofty mods enable okayama
 swofty apply
 ```
 
-`swofty maps` is a hidden alias of `swofty mods`.
-
-## Where mods are stored
-
-Mods are stored in `$DATA/addon-data/teamsimplified.mods/library/<id>/`, with the package's files under `files/` and a track package under `track/`. Earlier versions kept tracks in `$DATA/maps/` and listed them in each profile's `maps`. The launcher moves them into the library, turned on in the same profiles, when it starts, and `swofty` does when a command runs. A track whose code is already the id of a mod in the library gets the id `<code>-track`.
+You'll find each mod's files in `$DATA/addon-data/teamsimplified.mods/library/<id>/`.

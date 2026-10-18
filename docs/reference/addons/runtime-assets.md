@@ -5,7 +5,7 @@ description: Replace a texture, add strings, edit the game database and register
 
 # Loading mods at runtime
 
-An addon's [asset ops](./asset-api) of the kinds `group`, `erp`, `db` and `lang` reach the game through swofty_core: the build writes `swofty/assets.json`, and the core applies it in memory while the game boots. The game folder keeps its stock files. Each example below is one op file listed in `operations.assets`:
+To change assets in memory while the game boots, give your addon [asset ops](./asset-api) of the kinds `group`, `erp`, `db` and `lang`. The build writes them to `swofty/assets.json` for swofty_core to apply, so the game folder keeps its stock files. Each example below goes in its own op file, listed in `operations.assets`:
 
 ```json [swofty.json]
 {
@@ -21,7 +21,7 @@ An addon's [asset ops](./asset-api) of the kinds `group`, `erp`, `db` and `lang`
 }
 ```
 
-Build the profile and check what it planned:
+Install and enable the addon, then build the profile to check what it planned:
 
 ```sh
 swofty addons install example-runtime
@@ -29,11 +29,11 @@ swofty addons enable example.runtime
 swofty build
 ```
 
-Then start the game and read the `[assets]` lines in `swofty/loader.log`.
+Then start the game. You'll find the runtime log entries under `[assets]` in `swofty/loader.log`.
 
 ## Replace a texture
 
-Put the new texture in an `.erp` archive in the addon, under the same resource name as the stock one, and copy it over the stock resource with `erp.put-resource`:
+First, put your new texture in an `.erp` archive in the addon, using the stock texture's resource name. Then use `erp.put-resource` to copy it over the stock resource:
 
 ```json [assets/texture.json]
 {
@@ -47,11 +47,11 @@ Put the new texture in an `.erp` archive in the addon, under the same resource n
 }
 ```
 
-- `erp` is the game archive the resource lives in. `python3 tools/erp.py <archive> '*'` lists an archive's resources ([Textures and models](/reference/mods/erp-assets)).
-- `source` is the archive in the addon that holds the resource. `"as"` names it differently in the game archive. A resource name the game archive does not have is added.
-- The build writes the changed resources into an overlay archive under `swofty/assets/resources/` and lists it in `resource_erps`. Every asset group that lists `flow_boot.erp` reads the overlay archive first.
-- A replacement keeps the stock resource's type, argument and fragment layout and sizes. The build leaves out a resource that changes them and reports a warning.
-- `erp.replace-resource` and `erp.add-resource` reach the overlay archive the same way. A build with an `erp.remove-resource` rewrites the game archives instead.
+- Set `erp` to the game archive that holds the resource. To find its resource names, run `python3 tools/erp.py <archive> '*'` ([Textures and models](/reference/mods/erp-assets)).
+- Set `source` to the archive in your addon that holds the resource. Use `"as"` to give it a different name in the game archive. If that name doesn't exist there, the resource is added.
+- The build puts your changed resources in an overlay archive under `swofty/assets/resources/` and lists it in `resource_erps`. Every asset group that lists `flow_boot.erp` reads this overlay archive first.
+- Keep the stock resource's type, argument and fragment layout and sizes when replacing it. If your resource changes them, the build leaves it out and reports a warning.
+- `erp.replace-resource` and `erp.add-resource` use the overlay archive too. If your build includes an `erp.remove-resource`, it rewrites the game archives instead.
 
 ```text
 [assets] resources: overlay ERP swofty/assets/resources/0.erp prebuilt by the launcher (... bytes, 1 resource(s): 1 replaced, 0 added) for 1 target ERP(s): 2025_asset_groups/ui_package/flow_boot.erp
@@ -59,7 +59,7 @@ Put the new texture in an `.erp` archive in the addon, under the same resource n
 
 ## Add or change strings
 
-`lang.set` sets one string. `"*"` sets it in every language, and a code such as `eng` in one:
+Use `lang.set` to set one string. Choose `"*"` to set it in every language, or a code such as `eng` to set it in just that language:
 
 ```json [assets/text.json]
 {
@@ -72,9 +72,9 @@ Put the new texture in an `.erp` archive in the addon, under the same resource n
 }
 ```
 
-- `lang.table` loads every string of an `.lng` file in the addon. `swofty_formats::lng` writes one.
-- A key the game does not have is added, and a database field such as `name_loc_tag` can then name it ([In-game text](/reference/mods/text)).
-- The build merges the strings of every addon into one table per language under `swofty/assets/lang/`. The core adds each table after the stock table when the game loads that language, and its strings win over the stock ones.
+- To load a whole `.lng` file from your addon, use `lang.table`. You can write that file with `swofty_formats::lng`.
+- You can also supply a key the game doesn't have. It gets added, so a database field such as `name_loc_tag` can refer to it ([In-game text](/reference/mods/text)).
+- The build merges every addon's strings into one table per language under `swofty/assets/lang/`. When the game loads a language, the core adds that table after the stock table. That's why your strings win over the stock ones.
 
 ```text
 [assets] lang: added 2 string(s) from swofty/assets/lang/eng.lng for 'eng' at priority ...
@@ -82,7 +82,7 @@ Put the new texture in an `.erp` archive in the addon, under the same resource n
 
 ## Edit the database
 
-Database ops take the same form as in [database operations](/reference/ops/database), with the `db.` prefix:
+To edit the database, use the same form as in [database operations](/reference/ops/database), adding the `db.` prefix:
 
 ```json [assets/database.json]
 {
@@ -94,19 +94,19 @@ Database ops take the same form as in [database operations](/reference/ops/datab
 }
 ```
 
-- `db.put-record` writes one raw record by path or hash. `type` is its tag and `value` its bytes in hex.
-- The build applies every op to a copy of the database, then writes each record that differs from stock to `db_edits` and sets `early_stage`. The game's database file stays stock.
-- With the early stage the loader loads addons before the game builds its database, and the core applies every edit as it loads.
+- Use `db.put-record` to write one raw record by path or hash. Set `type` to its tag and `value` to its bytes in hex.
+- The build applies every op to a copy of the database, then writes each record that differs from stock to `db_edits` and sets `early_stage`. This leaves the game's database file stock.
+- The early stage gets your addons loaded before the game builds its database, so the core can apply every edit as the database loads.
 
 ```text
 [assets] gamedb: 2 overwritten, 0 created, 0 retyped, 0 skipped; ...
 ```
 
-A build that removes records, or writes a record of tag 10, 15 or 16 or one whose value is not text, writes the database file instead, with a warning.
+If your build removes records, writes a record of tag 10, 15 or 16, or writes one whose value is not text, it writes the database file instead and reports a warning.
 
 ## Register an asset group
 
-The engine loads content by asset group. `group.register` adds a group to the engine's asset manifest, pointing at archives in the game folder:
+The engine loads content by asset group, so you use `group.register` to add a group to its asset manifest. The group points at archives in the game folder:
 
 ```json [assets/group.json]
 {
@@ -120,14 +120,14 @@ The engine loads content by asset group. `group.register` adds a group to the en
 }
 ```
 
-- `file.put` ships the archive. Loose files are copied into the game folder at build, or served from `swofty/overlay/` when the profile turns on the experimental `file` feature.
-- `erps` lists several archives. `deps` names groups that load first, and `template` names a stock group to copy settings from.
-- The core skips a group that the stock manifest already has. A database field that points at a stock group whose archive is missing hangs the session load.
-- Database fields such as a track's `worldAssetGroup` name the group. Tracks use this route: each track's archive goes to `2025_asset_groups/environment_package/tracks/<code>/<code>.erp` with one group per world, bake and probe set ([How maps are installed](/reference/maps)).
+- Ship the archive with `file.put`. Loose files are copied into the game folder at build, or served from `swofty/overlay/` if your profile turns on the experimental `file` feature.
+- Use `erps` to list several archives, `deps` to name groups that must load first, and `template` to name a stock group to copy settings from.
+- The core skips groups already in the stock manifest. If a database field points at a stock group whose archive is missing, the session load hangs.
+- Refer to the group through database fields such as a track's `worldAssetGroup`. Tracks use this route: each track's archive goes to `2025_asset_groups/environment_package/tracks/<code>/<code>.erp`, with one group per world, bake and probe set ([How maps are installed](/reference/maps)).
 
 ## From a native plugin
 
-A [native plugin](./native-plugins) adds the same entries from its own code with `swofty/assets.hpp`, at plugin init. Files are paths in the addon's folder, `swofty/addons/<id>/`:
+You can add the same entries from a [native plugin](./native-plugins) at plugin init, using `swofty/assets.hpp`. File paths refer to files in your addon's folder, `swofty/addons/<id>/`:
 
 ```cpp [native/src/livery.cpp]
 #include <swofty/assets.hpp>
@@ -154,9 +154,11 @@ SWOFTY_ADDON()
 }
 ```
 
-- `"early": true` loads the plugin before the game database, so `db_set` applies. Without it the plugin loads at the window trigger and `db_set` returns `late`.
-- Each call returns `ok`, `late`, `unavailable` or `invalid`, and `swofty/loader.log` has one `[assets] api:` line per call. [Native plugins](./asset-api#native-plugins) lists when each call is accepted.
+- Set `"early": true` to load your plugin before the game database, so `db_set` applies. Without it, your plugin loads at the window trigger and `db_set` returns `late`.
+- Check each call's result: `ok`, `late`, `unavailable` or `invalid`. You'll also find one `[assets] api:` line per call in `swofty/loader.log`. See [Native plugins](./asset-api#native-plugins) for when each call is accepted.
 
 ## From a build hook
 
-A built-in addon returns the same ops from [`Addon::build`](./launcher-api#build-hooks), and a third-party addon from its helper's `build` method. They take the same routes, after the addon's declared ops. Team Simplified merges `.serps` mods this way: `db.put-record`, `db.remove-record`, `erp.put-resource`, `erp.remove-resource` and `lang.set` per enabled mod, with sources in its `data` root.
+You can return the same ops from [`Addon::build`](./launcher-api#build-hooks) in a built-in addon, or from your helper's `build` method in a third-party addon. They run after your addon's declared ops and take the same routes described above.
+
+Team Simplified uses this to merge `.serps` mods. For each enabled mod, it returns `db.put-record`, `db.remove-record`, `erp.put-resource`, `erp.remove-resource` and `lang.set`, with sources in its `data` root.

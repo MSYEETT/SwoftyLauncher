@@ -1,23 +1,37 @@
 ---
-title: Importing and packaging a track
-description: The track package format the launcher imports, its manifest.json fields, and how a package becomes a playable track.
+title: Tracks
+description: Import a community track package, enable it on a profile, build it, and check it with map_check.py.
 ---
 
-# Importing and packaging a track
+# Tracks
 
-A track is a package zip in the format made for the EGO GameDatabases Editor. The Team Simplified addon imports it unchanged as a mod, stores it in `$DATA/addon-data/teamsimplified.mods/library/<track_code>/track/`, and the build installs it when a profile enables it. Players import packages as described in [Mods and tracks](/using/mods#tracks).
+You ship a track as a package zip in the format made for the EGO GameDatabases Editor. The built-in Team Simplified addon imports that zip unchanged into its mod library. To use the track, enable it in a profile and build: activation clones a base track's database rows, installs your track's archive and adds its menu entries.
+
+## Import and activate
+
+```sh
+swofty mods import testring.zip
+swofty mods enable testring
+swofty build
+```
+
+1. `swofty mods import` stores your package under `$DATA/addon-data/teamsimplified.mods/library/<track_code>/track/`. The track code becomes its mod id.
+2. `swofty mods enable` turns it on in your profile.
+3. `swofty build` activates every enabled track before running the other operations.
+
+You can also do this from the [Mods page](/using/mods#tracks).
+
+The importer recognises a track package by the `manifest.json` at the root of its zip. If you give it a zip containing exactly one such zip, it unwraps it. It refuses 7z and RAR.
 
 ## Package layout
 
 | File | Purpose |
 |---|---|
-| `manifest.json` | Track code, name and setup |
-| `<code>.erp` | Track data |
+| `manifest.json` | Track code, name and activation, at the root of the zip |
+| `<code>.erp` | The track archive |
 | `mipmaps/` | Optional textures |
 | `ui/images.json` | Track artwork |
 | `ui/minimap.json` | Minimap placement |
-
-`manifest.json` must be at the root of the zip. A zip that holds exactly one inner zip with `manifest.json` at its root is unwrapped.
 
 ## manifest.json
 
@@ -44,30 +58,43 @@ A track is a package zip in the format made for the EGO GameDatabases Editor. Th
 
 | Field | Meaning |
 |---|---|
-| `track_code` | Letters, digits, `_` and `-`. Names the track everywhere |
+| `track_code` | Names your track everywhere; use letters, digits, `_` and `-` |
 | `track_name`, `version`, `author_name` | Optional display fields |
-| `erp` | The track archive, relative to the package |
-| `activation.copy_from_track` | The base track whose `TrackData` rows are cloned in every dataset |
-| `activation.copy_slot` | The track whose `Track` row and resource row are cloned |
-| `activation.overrides` | `path` and `value` set on the cloned `TrackData` rows, limited to `datasets` when given |
-| `activation.track_overrides` | `path` and `value` set on the cloned `Track` row |
+| `erp` | Path to your track archive, relative to the package |
+| `activation.copy_from_track` | Base track to clone `TrackData` rows from in every dataset |
+| `activation.copy_slot` | Track to clone the `Track` row and resource row from |
+| `activation.overrides` | Set `path` to `value` on the cloned `TrackData` rows; give `datasets` to limit which datasets you change |
+| `activation.track_overrides` | Set `path` to `value` on the cloned `Track` row |
 | `ers` | Per-track ERS values written into every 2026 car handling file |
 | `copy_directories` | `source` folders in the package and their `destination` in the game |
 | `ui.images_file`, `ui.minimap_file` | Menu artwork and minimap files |
 
-Every path in the package must stay inside it. [How maps are installed](/reference/maps) lists every table, archive and menu change activation makes.
+Keep every path in the package inside the package. For every table, archive and menu change made during activation, see [How tracks are installed](/reference/maps).
 
-## Track names
+## The track's name
 
-Menus read the track's name from `TrackDataSet_<n>.TrackData_<m>.TrackNameData_0`, cloned from the base track. An `activation.overrides` entry with the path `TrackNameData_0.title` and a language key as its value sets it. Without one, menus show the base track's name. See [Rename a track](./database#rename-a-track).
+Menus read `TrackNameData_0.title` on the cloned `TrackData` rows, so they'll show the base track's name until you override it:
 
-## Check a package
+1. Add an `activation.overrides` entry with a language key as its `value`:
+
+```json
+{ "path": "TrackNameData_0.title", "value": "lng_my_track_title" }
+```
+
+2. Give that key a string with a `lang` operation — see [In-game text](./text).
+
+You're setting the same field a database mod uses in [Rename a track](./database#_4-rename-a-track).
+
+## Check the build
 
 ```sh
-swofty mods import testring.zip
-swofty mods enable testring
-swofty build
 python3 tools/map_check.py <overlay folder> --game <game folder>
 ```
 
-`map_check.py` checks that every key the game reads on a source row exists on the track's row. It reads the track packages from the Team Simplified library. See [Checking a build](/reference/maps#checking-a-build).
+Use the folder `swofty build` printed under `$DATA/cache/overlay/<profile>/<buildhash>/` for `<overlay folder>`. `map_check.py` reads that folder's `plan.json` and the track packages in the Team Simplified library. It checks that:
+
+- Every key the game reads on a base row also exists on your track's new row.
+- Each rewritten archive and database re-serialises correctly.
+- Every ERS setting is present.
+
+See [Checking a build](/reference/maps#checking-a-build).

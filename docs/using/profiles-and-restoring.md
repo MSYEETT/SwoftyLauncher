@@ -1,25 +1,31 @@
 # Restoring the game
 
-Close F1 25, then run:
+To get every game file back to stock, use restore. It puts back the backed-up files and removes what the launcher added.
 
-```sh
-swofty restore
-```
+## Restore
 
-This restores backed-up game files and removes files added by the launcher. It reports anything it could not restore.
+1. Close F1 25.
+2. Run:
+
+   ```sh
+   swofty restore
+   ```
+
+If anything couldn't be restored, you'll see it in the report. Resolve those issues before you play vanilla.
 
 ## After a crash
 
-Run `swofty restore` before returning to vanilla play. Use `swofty verify` to check for remaining changes, or `swofty doctor` to check your setup too.
+Before you return to vanilla play after a crash, run `swofty restore`. Then use `swofty verify` to check for remaining changes, or `swofty doctor` if you want to check your whole setup.
 
 ## After a game update
 
-The launcher does not restore files from an old game build over a newer one. If files still need repair, use Steam's **Verify integrity of game files**.
+The launcher won't put files from an old game build back over a newer one. If your game files still need repair:
 
-Steam repairs game files but does not remove `version.dll` or `swofty/`. Use `swofty restore` to remove those additions.
+1. In Steam, open F1 25 → **Properties** → **Installed Files** → **Verify integrity of game files**.
+2. Run `swofty restore` again to remove the launcher's additions (`version.dll` and `swofty/`). Steam repairs game files but leaves those additions in place.
 
 ## Backups
 
-Keep the [data folder](/guide/installation#where-your-files-are-stored) until restoration is complete. It contains the original files needed to undo changes.
+Your [data folder](/guide/installation#where-your-files-are-stored) holds the original files needed to undo changes, so keep it until restoration is complete.
 
-Contributors can read [Backups and recovery](/reference/restore) for more detail.
+If you're contributing, see [Backups and recovery](/reference/restore) for how restoration works internally.

@@ -6,29 +6,45 @@ title: Introduction
 
 # Swofty Launcher for F1 25
 
-**Swofty Launcher for F1 25** is a desktop app for modding [F1 25](https://store.steampowered.com/app/3059520/) on Windows and Linux through Steam and Proton. It installs addons and community tracks, keeps them in profiles and launches the game with them. Modded play is offline only.
+With **Swofty Launcher for F1 25**, you can install addons, mods and community tracks for [F1 25](https://store.steampowered.com/app/3059520/), group them into profiles, and launch the game with them. You can use it on Windows or on Linux through Steam and Proton, including the Steam Deck. Modded play is single-player and offline.
 
 ::: warning
-These docs cover playing with addons and making them. To download the app, see the [homepage](/).
+These pages cover playing with the launcher. You can download it from the [homepage](/).
 :::
 
-## What it does
+## The launcher window
 
-- **Addons:** Install, enable and disable addons. The app warns when two addons change the same thing.
-- **Mods and tracks:** Drop `.serps` mods and community track packages, such as Sepang and Okayama, on the launcher, order them and turn them on per profile. See [Mods and tracks](/using/mods).
-- **In-game addon settings:** Open **ADDON SETTINGS** in the game's home menu, under Career, to change addon options without leaving the game.
-- **Profiles:** Switch between separate sets of addons, mods and tracks, each with its own saves. The original game is always restorable in one click.
-- **Offline-only modded play:** Modded sessions always run offline with multiplayer off. Launching from Steam normally stays completely vanilla.
-- **The launcher app:** Manage everything and press Play in one window, with live logs to help if the game crashes.
+You'll install content, choose a profile and start the game from the same window:
+
+- Use the **sidebar** on the left to open **Profiles**, **Addons**, and pages added by addons. The built-in Team Simplified addon, for example, adds **Mods**. You can see which profile is active at the bottom, under **ACTIVE PROFILE**.
+- Look for **Play** in the bottom-right. The status line reads **Ready** when the launcher has found the game.
+
+1. Install the content you want on the **Addons** and **Mods** pages.
+2. Pick a **profile** to choose what you'll play with.
+3. Press **Play**. The launcher builds F1 25 with your content and starts it offline.
+
+When you quit, the launcher restores every game file to stock.
+
+## What goes in
+
+The type of content determines where you install it:
+
+| | Installs on | Is |
+|---|---|---|
+| **Addons** | Addons page | Pages, settings and engine code, such as a bigger grid |
+| **Mods** | Mods page | Content with no code, such as liveries and new text |
+| **Tracks** | Mods page | Community circuits, such as Sepang and Okayama |
+
+See [Addons, mods and maps](/guide/addons-mods-maps) for more on the differences, or go straight to installing.
 
 ## Where to start
 
-Read [Installation](/guide/installation), then choose [Windows](/guide/windows) or [Linux and Steam Deck](/guide/linux).
+1. [Installation](/guide/installation) — download and extract the app.
+2. [Windows](/guide/windows) or [Linux and Steam Deck](/guide/linux) — point it at the game and press Play.
+3. [Addons](/using/addons), [Mods and tracks](/using/mods) and [Profiles](/using/profiles) — install content and set up your profiles.
 
-To make your own content, see [Creating mods](/reference/mods/) and [Creating addons](/reference/addons/) in the Reference. The [Standard library](/reference/std/) covers every API, and native plugins can call the functions listed in the [Game API](/reference/game/).
+To build your own content, see [Creating mods](/reference/mods/) and [Creating addons](/reference/addons/).
 
-Contributors can read the [development guide](/reference/development) and [design notes](/design/).
+## Help
 
-## Help and source code
-
-Report problems on [GitHub Issues](https://github.com/Swofty-Developments/SwoftyLauncher/issues). The source code is on [GitHub](https://github.com/Swofty-Developments/SwoftyLauncher).
+If something goes wrong, report it on [GitHub Issues](https://github.com/Swofty-Developments/SwoftyLauncher/issues). You can find the source code on [GitHub](https://github.com/Swofty-Developments/SwoftyLauncher).

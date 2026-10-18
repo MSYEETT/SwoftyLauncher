@@ -1,370 +1,431 @@
 ---
-title: Launcher API
-description: Launcher sections, views, importers and drag and drop, build hooks, commands, per-profile state and profile summaries, for built-in addons in Rust and third-party addons through a helper program.
+title: Launcher plugin
+description: A launcher plugin is a helper program named in launcher.program, run as a subprocess that speaks newline-delimited JSON. It adds sidebar pages, an importer, a build hook, swofty commands and a profile summary.
 ---
 
-# Launcher API
+# Launcher plugin
 
-An addon can add pages to the launcher's sidebar, import files dropped on the window, add asset ops when a profile builds, add `swofty` subcommands and add a line to the profile cards.
+You ship a **launcher plugin** as a prebuilt program inside your addon, then name it in the `launcher` block of `swofty.json`. The launcher runs your program as a subprocess, exchanging newline-delimited JSON over stdin and stdout. Use it to add any of:
 
-- **Built-in addons** are Rust crates that implement the `Addon` trait from `swofty_addon::launcher` (`packages/addon-api`). They depend on `swofty-addon` and `swofty-formats`, never on `swofty-core`. Team Simplified (`addons/simplified`) is one.
-- **Third-party addons** provide the same calls through a helper program named in `swofty.json` ([Third-party addons](#third-party-addons)).
+- pages in the launcher's sidebar;
+- an importer for files dropped on the window;
+- asset ops contributed when a profile builds;
+- `swofty` subcommands;
+- a line on the profile card.
 
-## The Addon trait
+You can write the plugin in any language: it needs to read a line of JSON from stdin and write a line of JSON to stdout. The examples here use [`templates/launcher-addon`](./template), a Rust helper that depends only on `serde_json`.
 
-```rust
-pub trait Addon: Send + Sync {
-    fn manifest(&self) -> &AddonManifest;
-    fn icon(&self) -> Option<&'static [u8]>;
-    fn sections(&self) -> Vec<SectionSpec>;
-    fn view(&self, cx: &Cx, section: &str) -> Result<View>;
-    fn event(&self, cx: &Cx, section: &str, event: Event) -> Result<Effect>;
-    fn importer(&self) -> Option<&dyn Importer>;
-    fn build(&self, cx: &BuildCx) -> Result<AssetBatch>;
-    fn commands(&self) -> Vec<CommandSpec>;
-    fn command(&self, cx: &Cx, path: &[String], args: &[String]) -> Result<String>;
-    fn summary(&self, cx: &Cx) -> Option<Summary>;
-    fn migrate(&self, data: &Path, version: u32) -> Result<Vec<String>>;
+## Build a plugin
+
+### 1. Copy the template
+
+```sh
+cp -r templates/launcher-addon my-addon
+cd my-addon
+```
+
+### 2. Name it in `swofty.json`
+
+Tell the launcher where to find your plugin with `launcher.program`. It maps each OS to a path inside the addon folder, so you'll need to ship one binary per OS you support:
+
+```json [swofty.json]
+{
+  "schema_version": 1,
+  "id": "example.launcher-addon",
+  "name": "Example Launcher Addon",
+  "version": "0.1.0",
+  "author": "Your Name",
+  "compat": { "game": "f1_25" },
+  "launcher": {
+    "program": { "windows": "bin/example-helper.exe", "linux": "bin/example-helper" },
+    "sections": [{ "id": "items", "title": "Example", "icon": "package" }],
+    "imports": ["exmod"],
+    "build": true,
+    "commands": [{ "name": "example", "about": "List the example items" }]
+  }
 }
 ```
 
-Every method except `manifest` has a default that does nothing. `icon` returns an SVG (drawn as a one-colour glyph) or a square PNG the launcher shows for the addon; a declared addon names an image with `icon` in `swofty.json` instead.
+| Field | Type | What it does |
+|---|---|---|
+| `program` | `{ os: path }` | Where to find your plugin inside the addon folder for each OS. Use at least one of `linux`, `windows`, `macos` as a key. |
+| `sections` | `[{ id, title, icon }]` | Each entry adds a sidebar page. The launcher lists these without starting your plugin. |
+| `imports` | `[string]` | Extensions your plugin claims when a file is dropped. Leave out the dot. |
+| `build` | `bool` | Set to `true` if your plugin answers `build`. |
+| `commands` | `[CommandSpec]` | `swofty` subcommands. |
 
-| Method | Use |
-|---|---|
-| `sections`, `view`, `event` | Pages in the launcher's sidebar |
-| `importer` | Files dropped on the launcher or picked in it |
-| `build` | Asset ops for the profile being built |
-| `commands`, `command` | `swofty` subcommands |
-| `summary` | A list on the profile card |
-| `migrate` | Moves the addon's data when `$DATA`'s `data_version` is older than the launcher's |
+### 3. Implement the methods
 
-## Registration
+Your plugin answers the launcher's calls — `hello`, `view`, `event`, `import`, `build`, `command`, `summary`. While handling one, it can make host calls back to the launcher. You'll find every message in [The protocol](#the-protocol); for a working implementation, read `templates/launcher-addon/src/main.rs`, which covers all of them in about 230 lines.
 
-`swofty_builtins::all()` (`addons/builtins`) returns every built-in addon, and the launcher and the CLI pass them to `Store::with_builtins`:
+### 4. Build the binary
 
-```rust
-pub struct Builtin {
-    pub addon: Arc<dyn Addon>,
-    pub locked: bool,
-    pub default_on: bool,
+```sh
+cargo build --release
+mkdir -p bin
+cp target/release/example-helper bin/
+```
+
+For Windows, build `example-helper.exe` and copy it to `bin/`. If you support players on both platforms, ship both binaries.
+
+### 5. Install and open it
+
+```sh
+swofty addons install .
+swofty addons enable example.launcher-addon
+```
+
+Enable the addon in a modded profile and you'll see its `Example` section in the sidebar, under the addon's name. Open that section to start the plugin and call `view`.
+
+## How the launcher runs the plugin
+
+Your plugin starts when the launcher first needs it: when someone opens one of its sections, drops a file routed to it, builds a profile that enables it, or runs one of its commands. The launcher picks `program[<os>]` for the host OS (`linux`, `windows`, `macos`). If you haven't supplied that entry, the plugin fails with `has no helper for <os>`.
+
+- The working directory is the addon folder, `$DATA/addons/<id>/`.
+- stderr is redirected to `$DATA/cache/addons/<id>/helper.log`.
+- On Windows the process gets no console window.
+- The launcher asks for a section's `view` only while that section is open. It asks for a `summary` only when the plugin is already running and idle; a summary never starts the plugin.
+- The plugin exits when stdin closes.
+
+## The protocol {#the-protocol}
+
+Send each message as one JSON object on one line, encoded as UTF-8. There are three message types:
+
+- A **request** has `id`, `method` and `params`.
+- A **reply** uses the request's `id` to match it with either a `result` or an `error` (a string).
+- A **notification** has `method` and `params`, but no `id`.
+
+The launcher sends one request at a time. You can make host calls back to it before replying, as the session below shows.
+
+Every session starts with `hello`:
+
+```text
+launcher  {"id":0,"method":"hello","params":{"api":1,"addon":"example.launcher-addon","data_dir":"/home/you/.local/share/swofty/addon-data/example.launcher-addon","cache_dir":"/home/you/.local/share/swofty/cache/addons/example.launcher-addon","profile":{"name":"default","vanilla":false,"enabled":true}}}
+plugin    {"id":0,"result":{"api":1}}
+launcher  {"id":1,"method":"view","params":{"section":"items"}}
+plugin    {"method":"progress","params":{"done":0.0,"text":"Loading"}}
+plugin    {"id":2,"method":"get_state"}
+launcher  {"id":2,"result":{"on":["okayama.exmod"]}}
+plugin    {"id":1,"result":{"subtitle":"1 item, 1 on","body":{"list":{"rows":[],"reorder":false}}}}
+```
+
+`hello.params.api` is `1`, and your plugin must reply `{"api":1}`. If you answer `hello` with another number, the launcher stops the plugin.
+
+### Calls the launcher sends
+
+| `method` | `params` | `result` |
+|---|---|---|
+| `hello` | `{ api, addon, data_dir, cache_dir, profile }` | `{ "api": 1 }` |
+| `profile` *(notification)* | `{ name, vanilla, enabled }` | — |
+| `view` | `{ section }` | a [View](#views) |
+| `event` | `{ section, event }` | an [Effect](#events-and-effects) |
+| `import` | `{ paths }` | `[string]` — lines to show |
+| `build` | `{ options, features }` | `{ ops, lines, warnings }` ([build reply](#the-build-reply)) |
+| `command` | `{ path, args }` | a string to print |
+| `summary` | — | `{ label, items }` or `null` |
+
+From `hello.params`, you get your addon's id, its two directories and the active profile:
+
+```json
+{ "api": 1, "addon": "example.launcher-addon",
+  "data_dir": "…/addon-data/example.launcher-addon",
+  "cache_dir": "…/cache/addons/example.launcher-addon",
+  "profile": { "name": "default", "vanilla": false, "enabled": true } }
+```
+
+- Every profile shares `data_dir`. Use `cache_dir` for anything your plugin caches; it also holds the plugin's `helper.log`.
+- Check `profile.enabled` to see whether your addon is on in the active profile. `profile.vanilla` identifies the untouched profile: it takes no addons and refuses state writes.
+- If the active profile has changed since the last call, you'll receive a `profile` notification before the next request:
+
+```json
+{ "method": "profile", "params": { "name": "wet-race", "vanilla": false, "enabled": true } }
+```
+
+When the launcher asks for a `view`, it names the open section:
+
+```json
+{ "method": "view", "params": { "section": "items" } }
+```
+
+For `event`, you get the section and the [event](#events-and-effects) its control fired:
+
+```json
+{ "method": "event", "params": { "section": "items", "event": { "toggle": { "id": "okayama.exmod", "on": true } } } }
+```
+
+Handle the absolute paths in `import` and return a line per result:
+
+```json
+{ "method": "import", "params": { "paths": ["/home/you/Downloads/okayama.exmod"] } }
+```
+
+To prepare your `build` reply, you get the profile's value for every option your addon declares, along with the installed loader's runtime [features](#the-build-reply):
+
+```json
+{ "method": "build", "params": { "options": { "size": 24 }, "features": { "stable": ["file"], "experimental": [] } } }
+```
+
+Use the path and arguments in `command` to identify what to run. The path starts with the top-level name:
+
+```json
+{ "method": "command", "params": { "path": ["example"], "args": [] } }
+```
+
+`summary` has no params.
+
+### Host calls the plugin sends back
+
+While handling a request, you can call back to the launcher. Include an `id` when you expect a reply; send `progress` without an `id`.
+
+| `method` | `params` | `result` |
+|---|---|---|
+| `progress` *(notification)* | `{ done, text }` | — |
+| `get_state` | — | the addon's per-profile state, or `null` |
+| `set_state` | the new state value | `null`, or an error on the vanilla profile |
+| `game_build_key` | — | the game build's key, or `null` |
+| `game_exe_version` | — | the `F1_25.exe` version, or `null` |
+| `game_is_stock` | `{ rel }` | `true` or `false` |
+| `game_original` | `{ rel }` | a path to a clean copy of the file |
+| `game_original_lang` | `{ code }` | a path to the stock `language_<code>.lng` |
+
+```json
+{ "method": "progress", "params": { "done": 0.5, "text": "Importing okayama.exmod" } }
+{ "id": 2, "method": "get_state" }
+{ "id": 3, "method": "set_state", "params": { "on": ["okayama.exmod"] } }
+{ "id": 4, "method": "game_build_key" }
+{ "id": 5, "method": "game_original", "params": { "rel": "ui/tool_tips.erp" } }
+```
+
+- Send `progress` to fill a progress card, with `done` from `0.0` to `1.0`. Including an `id` is an error.
+- Use `get_state` to read your addon's entry in the active profile's `state`; you'll get `null` if the profile has none. `set_state` replaces the whole value, whose contents the launcher never reads. Duplicating or renaming a profile copies its state.
+- Use the five `game_*` calls when you need the game's own clean files, rather than the modded folder. If no game is found, `game_build_key`, `game_exe_version` and `game_is_stock` return `null` or `false`. `game_original` and `game_original_lang` return `error: "the game is not available"` instead. A build key looks like `25251167-d873a1c8d204`; an exe version looks like `1.0.141.7865`.
+
+The template uses state to track which items are on, reading it here and writing it when the selection changes:
+
+```rust [src/main.rs]
+fn enabled(&self, host: &mut Host) -> Result<Vec<String>, String> {
+    let state = host.call("get_state", Value::Null)?;
+    Ok(serde_json::from_value(state["on"].clone()).unwrap_or_default())
 }
 ```
 
-- A `locked` addon is always on in modded profiles, and its row on the Addons page has no switch.
-- A `default_on` addon is on in profiles that do not list it. Team Simplified is `default_on`.
-- Installing an addon with a built-in id is refused.
+## Views {#views}
 
-The core's registry (`swofty_core::registry`) holds every addon in id order: installed addons and SwoftyMod as declared addons (a manifest and its operations), built-ins, and third-party helpers.
+Return one page from `view`, describing its header, content and footer:
 
-## Context
-
-```rust
-pub struct Cx<'a> {
-    pub addon: &'a str,
-    pub profile: &'a ProfileInfo,
-    pub data_dir: &'a Path,
-    pub cache_dir: &'a Path,
-    pub game: Option<&'a dyn GameFiles>,
-}
-
-impl Cx<'_> {
-    pub fn state<T: DeserializeOwned + Default>(&self) -> Result<T>;
-    pub fn set_state<T: Serialize>(&self, value: &T) -> Result<()>;
+```json
+{
+  "subtitle": "1 item, 1 on",
+  "actions": [ { "id": "pick", "label": "Import…", "icon": "upload",
+    "kind": { "pick": { "title": "Import example items", "extensions": ["exmod"], "folders": false, "multiple": true } } } ],
+  "notices": [ { "text": "Team Simplified is off in this profile.", "tone": "warn",
+    "action": { "id": "enable", "label": "Turn on" } } ],
+  "body": { "list": { "rows": [], "reorder": false } },
+  "footer": "By Team Simplified."
 }
 ```
 
-| Field | Meaning |
+| Field | Renders as |
 |---|---|
-| `addon` | The addon's id |
-| `profile` | The active profile: `name`, `vanilla`, and `enabled` (whether this addon is on in it) |
-| `data_dir` | `$DATA/addon-data/<id>/`, shared by every profile |
-| `cache_dir` | `$DATA/cache/addons/<id>/` |
-| `game` | Clean game files, when a game is found |
+| `subtitle` | The page header's line. A list body also shows its row count. |
+| `actions` | Buttons in the header. |
+| `notices` | Bars under the header, each with an optional button. `tone` colours the bar. |
+| `body` | One of the three bodies below. |
+| `footer` | A muted line under the body. |
 
-`GameFiles` gives stock files only, never the game folder as modded:
+Choose one of these shapes for `body`:
 
-| Method | Returns |
-|---|---|
-| `build_key` | The game build's key, such as `25251167-d873a1c8d204` |
-| `exe_version` | The version resource of `F1_25.exe`, such as `1.0.141.7865` |
-| `is_stock(rel)` | Whether the game ships that path |
-| `original(rel)` | A clean copy of a game file |
-| `original_lang(code)` | The stock `language_<code>.lng`, extracted from the archive indexed in `F1_25.exe` |
-
-### Per-profile state
-
-`state` reads the addon's entry in the active profile's `state` object, or `T::default()` when the profile has none. `set_state` writes it, and refuses on the vanilla profile. The core never reads inside it. Duplicating or renaming a profile copies its state.
-
-```json [$DATA/profiles/default.json]
-"state": {
-  "teamsimplified.mods": { "mods": [{ "id": "okayama", "enabled": true }] }
-}
+```json
+{ "list": { "rows": [ … ], "reorder": false } }
+{ "empty": { "title": "No example items", "text": "Drop a .exmod file on the launcher, or import one.", "action": { "id": "pick", "label": "Import…" } } }
+{ "blocks": [ … ] }
 ```
 
-## Sections and views
+| Body | Shows |
+|---|---|
+| `list` | Rows with art, tags, a trailing control and an expandable `detail`. A `reorder` list adds **Move up** / **Move down** to each expanded row, firing a `move` event. |
+| `empty` | A title, a line and one button. |
+| `blocks` | The blocks below, one after another. |
 
-```rust
-pub struct SectionSpec {
-    pub id: String,
-    pub title: String,
-    pub icon: Icon,
-}
+For each **row** in a list, supply its content and controls:
+
+```json
+{ "id": "okayama.exmod", "title": "Okayama", "subtitle": "41 kB",
+  "art": { "monogram": "O" },
+  "tags": [ { "text": "Track", "tone": "muted" } ],
+  "trailing": { "switch": { "id": "okayama.exmod", "on": true, "enabled": true } },
+  "detail": [ { "stats": [ { "label": "Size", "value": "41 kB" } ] } ] }
 ```
 
-Each section is one page and one sidebar tile. The sidebar shows **Profiles** and **Addons**, then, for each addon that is on in the active profile, a heading with the addon's name and a tile per section, in registry order. A tile shows the addon's icon when it has one. A section whose body is a list shows its row count. The sections of an addon that is off are hidden. The button at the bottom of the sidebar switches between tiles and a list, and `config.json` keeps the choice as `"sidebar_list"`.
+You must supply `id`, `title` and `subtitle`. Leave out `art`, `tags`, `trailing` or `detail` and they default to empty. For `art`, use `"none"`, `{ "monogram": "O" }` or `{ "image": "art/okayama.png" }`.
 
-`view` returns the page:
+To give a row a **trailing control**, choose one of these:
 
-```rust
-pub struct View {
-    pub subtitle: String,
-    pub actions: Vec<Button>,
-    pub notices: Vec<Notice>,
-    pub body: Body,
-    pub footer: Option<String>,
-}
-
-pub enum Body {
-    List { rows: Vec<Row>, reorder: bool },
-    Empty { title: String, text: String, action: Option<Button> },
-    Blocks(Vec<Block>),
-}
-
-pub struct Row {
-    pub id: String,
-    pub title: String,
-    pub subtitle: String,
-    pub art: Art,
-    pub tags: Vec<Tag>,
-    pub trailing: Option<Control>,
-    pub detail: Vec<Block>,
-    pub menu: Vec<Button>,
-}
+```json
+{ "switch": { "id": "okayama.exmod", "on": true, "enabled": true } }
+{ "choice": { "id": "livery", "options": ["Title sponsor", "Tier 1", "Replica"], "current": 0 } }
+{ "button": { "id": "remove", "label": "Remove", "style": "danger" } }
 ```
 
-| Part | Renders as |
+| Control | Fires |
 |---|---|
-| `subtitle`, `actions` | The page header and its buttons |
-| `notices` | Bars under the header, each with an optional button |
-| `Body::List` | Rows with art (a monogram or an image), tags, a trailing control and an expandable body (`detail`). A `reorder` list gets **Move up** and **Move down** in each expanded row. A row with a `menu` opens it on right-click: each button is a menu item, and a `Confirm` button asks in a dialog first. |
-| `Body::Empty` | An empty state with a title, a line and a button |
-| `Body::Blocks` | The blocks below, one after another |
-| `footer` | A muted line under the body |
+| `switch` | `{ "toggle": { "id", "on" } }` |
+| `choice` | `{ "choose": { "id", "index" } }` |
+| `button` | depends on the button's `kind` |
 
-| Block | Renders as |
+Use these **blocks** to fill a row's `detail` or a `blocks` body:
+
+| Block | JSON |
 |---|---|
-| `Stats(facts)` | Large label and value pairs |
-| `Facts(facts)` | Small label and value pairs |
-| `Label(text)` | A section heading, such as `WHAT IT CHANGES` |
-| `Text { text, tone }` | A line in a tone |
-| `Names { label, items }` | A heading and a list of names |
-| `Table { columns, rows }` | A table |
-| `Buttons(buttons)` | A row of buttons |
+| Large label/value pairs | `{ "stats": [ { "label", "value" } ] }` |
+| Small label/value pairs | `{ "facts": [ { "label", "value" } ] }` |
+| A section heading | `{ "label": "WHAT IT CHANGES" }` |
+| A line in a tone | `{ "text": { "text": "…", "tone": "warn" } }` |
+| A heading and a name list | `{ "names": { "label": "Mods", "items": ["A", "B"] } }` |
+| A table | `{ "table": { "columns": ["File", "Op"], "rows": [["a.erp", "patch"]] } }` |
+| A row of buttons | `{ "buttons": [ { "id", "label" } ] }` |
 
-| Control | Sends |
-|---|---|
-| `Switch { id, on, enabled }` | `Event::Toggle { id, on }` |
-| `Choice { id, options, current }` | `Event::Choose { id, index }` |
-| `Button(button)` | Depends on its `kind` |
+Give each **button** an `id` and `label`, with an optional `icon`. Its `style` is `primary`, `outline`, `ghost` or `danger` (default `outline`); its `kind` determines what happens when you click:
 
-A `Button` has `id`, `label`, an optional `icon`, a `style` (`primary`, `outline`, `ghost` or `danger`) and a `kind`:
-
-| `ButtonKind` | On click |
-|---|---|
-| `Event` | Sends `Event::Click { id }` |
-| `Confirm { title, text }` | Asks in a dialog, then sends `Event::Click { id }` |
-| `Pick { title, extensions, folders, multiple }` | Opens the system file picker, then sends `Event::Picked { id, paths }`. `folders` allows folders. |
-
-`Tone` (`neutral`, `muted`, `accent`, `good`, `warn`, `bad`) colours tags, notices and text from the launcher's palette. `Icon` is a fixed set: `activity`, `arrow-right-left`, `chevron-down`, `chevron-up`, `circle-alert`, `circle-check`, `copy`, `eraser`, `folder-open`, `gamepad`, `layers`, `lock`, `map`, `package`, `pencil`, `play`, `plus`, `puzzle`, `settings`, `shield-check`, `trash`, `upload`.
-
-### Events and effects
-
-`event` receives an `Event` and returns an `Effect`:
-
-```rust
-pub enum Event {
-    Click { id: String },
-    Toggle { id: String, on: bool },
-    Choose { id: String, index: usize },
-    Move { row: String, to: usize },
-    Picked { id: String, paths: Vec<PathBuf> },
-}
-
-pub enum Effect {
-    None,
-    Reload,
-    Notice(String),
-    SetAddonEnabled(bool),
-    Open(PathBuf),
-}
+```json
+{ "id": "import", "label": "Import…", "kind": { "pick": { "title": "Import items", "extensions": ["exmod"], "folders": false, "multiple": true } } }
 ```
+
+| `kind` | On click |
+|---|---|
+| omitted (default) | fires `{ "click": { "id" } }` |
+| `{ "confirm": { "title", "text" } }` | asks in a dialog, then fires `{ "click": { "id" } }` |
+| `{ "pick": { "title", "extensions", "folders", "multiple" } }` | opens the file picker, then fires `{ "picked": { "id", "paths" } }` |
+
+`tone` (`neutral`, `muted`, `accent`, `good`, `warn`, `bad`) colours tags, notices and text. `icon` is one of a fixed set: `activity`, `arrow-right-left`, `chevron-down`, `chevron-up`, `circle-alert`, `circle-check`, `copy`, `eraser`, `folder-open`, `gamepad`, `layers`, `lock`, `map`, `package`, `pencil`, `play`, `plus`, `puzzle`, `settings`, `shield-check`, `trash`, `upload`.
+
+### Events and effects {#events-and-effects}
+
+When you handle `event`, you receive one event and return one effect to tell the launcher what to do next.
+
+| Event | JSON |
+|---|---|
+| A button or ghost row click | `{ "click": { "id": "remove" } }` |
+| A switch flip | `{ "toggle": { "id": "okayama.exmod", "on": true } }` |
+| A choice pick | `{ "choose": { "id": "livery", "index": 2 } }` |
+| A row reorder | `{ "move": { "row": "okayama.exmod", "to": 0 } }` |
+| A file-picker result | `{ "picked": { "id": "pick", "paths": ["/home/you/okayama.exmod"] } }` |
 
 | Effect | The launcher |
 |---|---|
-| `None` | Does nothing |
-| `Reload` | Asks every section for its view again |
-| `Notice(text)` | Shows a notification and reloads |
-| `SetAddonEnabled(on)` | Turns the addon on or off in the active profile |
-| `Open(path)` | Opens the file or folder with the system's handler |
+| `"none"` | does nothing |
+| `"reload"` | asks every section for its view again |
+| `{ "notice": "Imported okayama.exmod" }` | shows a notification and reloads |
+| `{ "set_addon_enabled": true }` | turns the addon on or off in the active profile |
+| `{ "open": "/home/you/.local/share/swofty/addon-data/example.launcher-addon/items" }` | opens the file or folder with the system handler |
 
-- `event`, `import`, `command` and `build` run on a background thread. The control that sent an event shows as busy until its effect returns. An error shows as an error notification.
-- The launcher asks for every view again after an effect, a profile switch or a store reload.
+Answer `view` and `summary` within 5 seconds. For `event`, `import`, `build` and `command`, you have 300 seconds; each message your plugin sends resets the wait. Until you return an effect, the control that fired the event shows busy.
 
-## Importers and drag and drop
-
-```rust
-pub trait Importer: Send + Sync {
-    fn claims(&self, path: &Path) -> Claim;
-    fn import(&self, cx: &Cx, paths: &[PathBuf], progress: &dyn Progress) -> Result<Vec<String>>;
-}
-
-pub enum Claim { No, Maybe, Yes }
-
-pub trait Progress: Send + Sync {
-    fn report(&self, done: f32, text: &str);
+```rust [src/main.rs]
+if let Some(toggle) = event.get("toggle") {
+    let name = toggle["id"].as_str().unwrap_or_default().to_owned();
+    let mut on = self.enabled(host)?;
+    on.retain(|n| *n != name);
+    if toggle["on"].as_bool() == Some(true) { on.push(name); }
+    host.call("set_state", json!({ "on": on }))?;
+    return Ok(json!("reload"));
 }
 ```
 
-Files dropped anywhere on the launcher window are routed by `swofty_core::import`:
+## The build reply {#the-build-reply}
 
-1. The core claims addons first: a folder with `swofty.json` at its root or in its only child folder, a `.swoftyaddon` file (or a legacy `.swoftymod` file), or a zip that holds an addon. These install as addons.
-2. Every addon with an importer is asked `claims` for each file, in registry order.
-3. A file goes to the first `Yes`, else to the only `Maybe`. Otherwise the launcher names it: `No addon imports <file>`.
+Return your addon's asset ops from `build`, along with lines and warnings:
 
-Files with the same route go to one `import` call. `claims` should only look at the path and the archive's file list. `import` returns lines to show as notifications, and `Progress` reports fill a progress card while it runs.
-
-## Build hooks {#build-hooks}
-
-```rust
-pub struct BuildCx<'a> {
-    pub cx: Cx<'a>,
-    pub options: &'a BTreeMap<String, serde_json::Value>,
-    pub features: &'a Features,
-}
-
-pub struct AssetBatch {
-    pub ops: Vec<Op>,
-    pub lines: Vec<String>,
-    pub warnings: Vec<String>,
+```json
+{
+  "ops": [ { "op": "file.put", "source": { "root": "cache", "path": "enabled.txt" }, "target": "example-launcher-addon/enabled.txt" } ],
+  "lines": ["1 item on"],
+  "warnings": []
 }
 ```
 
-- The build calls `build` for each enabled addon in the profile's load order, after that addon's declared ops.
-- `options` holds the profile's value of every option the addon declares. `features` holds the runtime features of the installed loader (`stable` and `experimental` kinds).
-- Each `Op` carries its `Origin`: the addon and an optional item name, such as a mod id. The planner routes the ops like declared ones ([Asset API](./asset-api#deliveries)) and reports conflicts by origin.
-- The build hash covers every returned op and the size and modification time of every source it names.
-- The build prints `lines` and `warnings` prefixed with the addon id.
+- Write each op exactly as you would in an [op file](./asset-api#op-files): set the `op` field to `<kind>.<name>`, such as `file.put`, `db.set`, `erp.patch-pkg`, `lang.set` or `warn`.
+- For a `source` inside the addon folder, use a relative path (`"art/okayama.dds"`). Use `{ "root": "data" | "cache", "path": "…" }` to read from `data_dir` or `cache_dir`.
+- The launcher tags every op with this addon's id as its origin, routes them like declared ops, and reports conflicts by origin ([Asset API](./asset-api#deliveries)).
+- Check `features.stable` and `features.experimental` before returning ops. They list the op `kind`s the installed loader supports: `group`, `erp`, `db`, `lang`, `file`. Drop any ops it cannot apply.
+- The build calls `build` for each enabled addon in load order, after that addon's declared ops. It prints `lines` and `warnings` with the addon id as a prefix.
+
+```rust [src/main.rs]
+fn build(&self, host: &mut Host) -> Result<Value, String> {
+    let on = self.enabled(host)?;
+    let file = self.cache_dir.join("enabled.txt");
+    std::fs::write(&file, on.join("\n")).map_err(|e| e.to_string())?;
+    Ok(json!({
+        "ops": [{ "op": "file.put",
+            "source": { "root": "cache", "path": "enabled.txt" },
+            "target": "example-launcher-addon/enabled.txt" }],
+        "lines": [format!("{} items on", on.len())]
+    }))
+}
+```
+
+## Importers and drag-and-drop
+
+List your file extensions in `imports` to claim dropped files that match. The launcher routes each drop in this order:
+
+1. The launcher claims addons first: a folder with `swofty.json`, a `.swoftyaddon` file (or a legacy `.swoftymod`), or a zip that holds an addon. Those install as addons.
+2. It checks every plugin with `imports`, in registry order, and claims a file when its extension matches.
+3. A claimed file goes to that plugin's `import`. An unclaimed one is reported: `No addon imports <file>`.
+
+You'll receive files routed to your plugin together in one `import` call. Return one line per file and report `progress` as you work:
+
+```rust [src/main.rs]
+for (i, path) in paths.iter().enumerate() {
+    host.progress(i as f32 / paths.len() as f32, &format!("Importing {name}"));
+    std::fs::copy(path, self.items_dir().join(name)).map_err(|e| format!("{name}: {e}"))?;
+    lines.push(format!("Imported {name}"));
+}
+```
 
 ## Commands
 
-```rust
-pub struct CommandSpec {
-    pub name: String,
-    pub about: String,
-    pub args: Vec<ArgSpec>,
-    pub subcommands: Vec<CommandSpec>,
-}
-
-pub struct ArgSpec {
-    pub name: String,
-    pub help: String,
-    pub required: bool,
-    pub many: bool,
-}
-```
-
-Each `CommandSpec` becomes a top-level `swofty` subcommand. `command` receives the path of names, starting with the top-level one (for example `["mods", "import"]`), and the arguments, and its text is printed. A name that core or an earlier addon already uses is refused, with a message. Commands run against `--profile` (default: the active profile) and the Steam install of the game.
-
-## Profile summaries
-
-`summary` returns a `Summary { label, items }`. The profile cards show it after `ADDONS`, as Team Simplified shows `MODS` with the names of the enabled mods.
-
-## Third-party addons {#third-party-addons}
-
-An installed addon gets pages, an importer, a build hook, commands and a summary by shipping a helper program and naming it in the `launcher` block of `swofty.json`:
+To add a top-level `swofty` subcommand, put an entry in `launcher.commands`:
 
 ```json [swofty.json]
-"launcher": {
-  "program": { "windows": "bin/example-helper.exe", "linux": "bin/example-helper" },
-  "sections": [{ "id": "items", "title": "Example", "icon": "package" }],
-  "imports": ["exmod"],
-  "build": true,
-  "commands": [{ "name": "example", "about": "List the example items" }]
-}
+"commands": [ { "name": "example", "about": "List the example items",
+  "args": [], "subcommands": [] } ]
 ```
 
-| Field | Meaning |
+```
+CommandSpec { name, about, args: [ArgSpec { name, help, required, many }], subcommands: [CommandSpec] }
+```
+
+In `command`, you receive the path of names (`["example"]`, or `["mods", "import"]` for a subcommand) and the arguments. Return the text you want printed. Choose a name that core and earlier addons haven't used, or it will be refused. Commands run against `--profile` (default: the active profile) and the Steam install of the game.
+
+## Profile summary
+
+To add a line to the profile card, return `{ "label": "EXAMPLE", "items": ["Okayama", "Suzuka"] }` from `summary`, or return `null` for no summary. Your line appears after `ADDONS`. Team Simplified uses this to show `MODS` with its enabled mod names.
+
+## Isolation and failures
+
+Because your plugin runs in a subprocess, a crash, a hang or malformed output stops the plugin without taking the launcher down. The launcher marks it failed when it:
+
+- does not start, or has no `program` for this OS;
+- does not answer `hello`, `view` or `summary` within 5 seconds, or any other call within 300 seconds;
+- exits or closes stdout (`stopped (exit status: 3)`);
+- writes a line that is not a message, replies to an `id` it was not sent, or returns a result of the wrong shape.
+
+When your plugin fails, its sections show the error in a bad-tone notice with a **Restart** button (id `swofty.restart`). The body is empty and reads `<name> is not running`. Click Restart to clear the failure; the next call starts the plugin again. Reinstalling the addon also stops its plugin.
+
+To fail just one call, reply with `{ "id": …, "error": "…" }`. The launcher shows the error as a notification and keeps your plugin running.
+
+## The internal Addon trait
+
+Inside the launcher, every plugin is driven through the Rust trait `Addon` (`packages/addon-api/src/launcher.rs`). You don't implement this trait in your plugin. The launcher's `HelperAddon` implements `Addon` for you, turning each method into a JSON message using the protocol above. The methods map one to one onto the calls:
+
+| `Addon` method | Call |
 |---|---|
-| `program` | The helper's path inside the addon folder, per platform (`windows`, `linux`) |
-| `sections` | `SectionSpec`s. The sidebar lists them without starting the helper. |
-| `imports` | File extensions without the dot. A dropped file with one of them is claimed with `Yes`. |
-| `build` | `true` when the helper has a build hook |
-| `commands` | `CommandSpec`s added to `swofty` |
+| `sections`, `view`, `event` | sidebar pages |
+| `importer` → `claims`, `import` | drag-and-drop |
+| `build` | `build` |
+| `commands`, `command` | `swofty` subcommands |
+| `summary` | profile card |
 
-### Starting the helper
+Write a launcher plugin: compiled-in Rust addons that implement `Addon` directly are legacy. Team Simplified is moving to a launcher plugin, and `addons/simplified` is being removed.
 
-The launcher starts the helper on the first call that needs it: opening one of its sections, a drop routed to it, a build of a profile that enables it, or one of its commands. The working directory is the addon folder, and stderr goes to `$DATA/cache/addons/<id>/helper.log`. The launcher asks for a helper section's view only while that section is open, and for a summary only while the helper runs and is idle. The helper exits when stdin closes.
-
-### Messages
-
-Each message is one JSON object on one line, UTF-8, over the helper's stdin and stdout. A request has `id`, `method` and `params`. A reply has the request's `id` and either `result` or `error` (a string). A notification has no `id`. The host sends one request at a time.
-
-```text
-host   {"id":0,"method":"hello","params":{"api":1,"addon":"example.launcher-addon","data_dir":"…","cache_dir":"…","profile":{"name":"default","vanilla":false,"enabled":true}}}
-helper {"id":0,"result":{"api":1}}
-host   {"id":1,"method":"view","params":{"section":"items"}}
-helper {"id":0,"method":"get_state"}
-host   {"id":0,"result":{"on":["a.exmod"]}}
-helper {"id":1,"result":{"subtitle":"1 item","body":{"list":{"rows":[…],"reorder":false}}}}
-```
-
-Host to helper:
-
-| Method | `params` | `result` |
-|---|---|---|
-| `hello` | `api`, `addon`, `data_dir`, `cache_dir`, `profile` | `{"api": 1}` |
-| `profile` (notification) | `name`, `vanilla`, `enabled` | |
-| `view` | `section` | `View` |
-| `event` | `section`, `event` | `Effect` |
-| `import` | `paths` | Lines to show |
-| `build` | `options`, `features` | `{"ops": [...], "lines": [], "warnings": []}` |
-| `command` | `path`, `args` | Text to print |
-| `summary` | none | `Summary` or `null` |
-
-Helper to host, while a request is in flight:
-
-| Method | `params` | `result` |
-|---|---|---|
-| `progress` (notification) | `done` (0 to 1), `text` | |
-| `get_state` | none | The profile's state for the addon, or `null` |
-| `set_state` | The new state | `null`, or an error on the vanilla profile |
-
-- Values take the JSON forms of the Rust types above: enums are tagged in snake_case (`{"toggle":{"id":"a","on":true}}`, `"reload"`), `Icon` is kebab-case, and asset ops are written as in an [op file](./asset-api#op-files).
-- Build ops get the origin `<id>`, and their sources resolve against the addon's `addon`, `data` and `cache` roots.
-- The host sends `profile` before a request when the active profile changed since the last one.
-- `api` is `swofty_addon::helper::API_VERSION`, 1. The host stops a helper that answers `hello` with another version.
-- A helper answers a method it does not know with an `error`.
-
-### Failures
-
-A helper `error` fails that call only. The host stops the helper and marks it failed when it:
-
-- does not start, or has no `program` for this platform;
-- does not reply within 5 seconds to `hello`, `view` and `summary`, or within 300 seconds to the other calls (each message resets the wait);
-- exits or closes stdout;
-- writes a line that is not a message, replies to another `id` or sends a result of the wrong shape.
-
-A failed helper's sections show its error in a notice with a **Restart** button (`swofty.restart`). Restart clears the failure, and the next call starts the helper again. Installing the addon again stops its helper.
-
-### The example addon
-
-[`templates/launcher-addon`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/launcher-addon) is a helper in Rust that depends only on `serde_json`:
-
-- an **Example** page that lists imported `.exmod` files with a switch each, stored as per-profile state, and an **Import…** button;
-- an importer that copies `.exmod` files into its `addon-data` folder and reports progress;
-- a build hook that writes the names of the items that are on to `enabled.txt` in its cache folder and installs it with `file.put`;
-- `swofty example`, which prints each item and whether it is on;
-- the summary `EXAMPLE`.
-
-Its README has the build and install steps.
+Start from [`templates/launcher-addon`](./template).

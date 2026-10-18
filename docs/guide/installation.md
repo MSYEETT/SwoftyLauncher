@@ -1,47 +1,44 @@
 # Installation
 
-Swofty Launcher for F1 25 is a desktop app for modding F1 25. Modded play is offline only.
+To get started, you'll download the launcher, extract it, then follow the setup steps for your platform. You'll play modded games in single-player, offline.
 
 ## Requirements
 
-- F1 25 on Steam, including the F1 2026 season content.
-- Windows 10 or 11 (x86-64), or Linux with Steam and Proton.
-- Free disk space for copies of the files your mods change.
+- F1 25 on Steam, with the F1 2026 season content installed.
+- Windows 10 or 11 (x86-64), or Linux with Steam and Proton. Steam Deck, NixOS and Flatpak Steam work. macOS does not.
+- Free disk space: your content changes copies of the game files, so you'll need room for those copies.
 
-Steam Deck, NixOS and Flatpak Steam are supported. macOS is not supported.
+## Download and extract
 
-## Get the app
+1. Open [Releases](https://github.com/Swofty-Developments/SwoftyLauncher/releases).
+2. Download the archive for your platform:
 
-Download the archive for your platform from [Releases](https://github.com/Swofty-Developments/SwoftyLauncher/releases) and extract it:
+   | Platform | Archive |
+   |---|---|
+   | Windows | `swofty-launcher-<version>-windows-x86_64.zip` |
+   | Linux and Steam Deck | `swofty-launcher-<version>-linux-x86_64.tar.gz` |
 
-| Platform | Archive |
-|---|---|
-| Windows | `swofty-launcher-<version>-windows-x86_64.zip` |
-| Linux and Steam Deck | `swofty-launcher-<version>-linux-x86_64.tar.gz` |
+3. Extract it where you want to keep the launcher, such as `Documents\SwoftyLauncher` or `~/SwoftyLauncher`.
 
-`bin/` holds the launcher, `swofty-launcher`, and the command line, `swofty`. `loader/` holds the in-game loader and stays next to `bin/`. To run the latest code, [build from source](/reference/development).
+Inside, you'll find `bin/`, which holds the launcher `swofty-launcher` and the command line `swofty`. The in-game loader lives in `loader/`; keep that folder next to `bin/`.
 
-[0.2.10](/releases/0.2.10) lists what is new.
-
-The app is in development. Some controls and mod features are unfinished; see the [current status](/design/#current-status).
-
-## Set up
-
-Continue with [Windows](/guide/windows) or [Linux and Steam Deck](/guide/linux).
+Now follow the setup steps for [Windows](/guide/windows) or [Linux and Steam Deck](/guide/linux).
 
 ## Updating
 
-The launcher checks for a new release when it starts, at most once every 6 hours. When one is out, a bar above **Play** shows its version with **Update**, **Release notes** and **Skip this version**.
+When you open the launcher, it checks for a new release, at most once every 6 hours. If there's one available, you'll see its version in a bar above **Play**, with **Update**, **Release notes** and **Skip this version**.
 
-**Update** downloads the archive for your platform, checks it against the release's `SHA256SUMS` and replaces `bin/`, `loader/` and, on Linux, `share/` in the extracted folder. Select **Restart** to start the new version. Close F1 25 first; the launcher does not update while the game runs. If a step fails, the old files stay in place and the launcher shows the error. If an update is cut off partway, for example by a power loss, the next start of the launcher or `swofty update` puts the previous version back.
+1. Close F1 25 first: the launcher won't update while the game runs.
+2. Select **Update**. It downloads the archive, checks it against the release's `SHA256SUMS`, and replaces `bin/`, `loader/` and, on Linux, `share/`.
+3. Select **Restart**.
 
-The launcher updates itself only when it runs from an extracted release and can write to that folder. A build from source or a Nix install shows **Download**, which opens the release page.
+If a step fails, you'll see the error and the old files stay in place. An update interrupted partway is rolled back the next time you start the launcher.
 
-`swofty update` does the same from a terminal. To turn the check off, set `"updates": { "check": false }` in `$DATA/config.json`. See [Command line](/reference/cli#swofty-update).
+If you built from source or installed through Nix, you'll see **Download** instead; it opens the release page. From a terminal, `swofty update` does the same.
 
 ## Where your files are stored
 
-The docs use `$DATA` to mean this folder:
+When these docs refer to `$DATA`, they mean the folder below for your platform:
 
 | Platform | Folder |
 |---|---|
@@ -49,4 +46,4 @@ The docs use `$DATA` to mean this folder:
 | Flatpak Steam | `~/.var/app/com.valvesoftware.Steam/data/swofty` |
 | Windows | `%LOCALAPPDATA%\Swofty` |
 
-It holds your addons, mods, profiles, backups and session logs. Keep it until you have [restored the game](/using/profiles-and-restoring).
+Your addons, mods, profiles, backups and session logs live here. Because it holds your backups, keep this folder until you've [restored the game to stock](/using/profiles-and-restoring).

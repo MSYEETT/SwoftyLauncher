@@ -1,106 +1,114 @@
 ---
-title: Editing the game database
-description: Change values, copy rows and rename tracks in gamedatabases.2025.bin with database operations.
+title: Game database
+description: Find a key with gamedb, write a database operation, build it, and read the result — with add-row and track renames.
 ---
 
-# Editing the game database
+# Game database
 
-F1 25 keeps its teams, cars, drivers, tracks and rules in `game_package/gamedatabases/gamedatabases.2025.bin`. An addon changes it with [database operations](/reference/ops/database) listed in `operations.database`. The launcher applies them to a copy of the stock file when it builds the profile.
+To change F1 25's teams, cars, drivers, tracks, rules or unlocks, you'll work with `game_package/gamedatabases/gamedatabases.2025.bin`. It's one flat list of hashed keys, each with a type tag and a text value. You supply [database operations](/reference/ops/database) in `operations.database`; the build applies them to a copy, leaving the file in the game folder alone.
 
-## Find the key
+## 1. Find the key
 
-Every value has a path such as `rules.stop_go_penalty.penalty_duration`: the row, then the field. The [table catalogue](/reference/gamedb/catalogue) lists the tables, and the [key schema](/reference/gamedb/schema) lists each table's fields with their types.
+Every value has a dotted path: the row, then the field. Pass that path to `tools/gamedb.py get` to hash it and print the record it names. Point the tool at a copy of the game's database:
 
-## Change a value
+```sh
+python3 tools/gamedb.py get work/game/game_package/gamedatabases/gamedatabases.2025.bin rules.stop_go_penalty.penalty_duration
+```
 
-```json [db/example.json]
+You'll get the key hash, type name and current value, separated by tabs:
+
+```text
+43a617d8995bfd8d	int	5
+```
+
+To find a different value, start with the [table catalogue](/reference/gamedb/catalogue), which lists every table. Then look up the table's fields and their types in the [key schema](/reference/gamedb/schema). If you'd rather browse the whole database, run `tools/gamedb.py dump <db> --tree -o db.json` to write it as a tree.
+
+## 2. Change a value
+
+Use `set` to write one field of one row. Here, you're changing the penalty duration:
+
+```json [db/changes.json]
 {
   "schema_version": 1,
   "ops": [
-    {
-      "op": "set",
-      "select": "entrants.entrant_setup_modes.entrant_setup_mode[_metadata_=f1_26]",
-      "field": "max_entrants",
-      "value": "22"
-    }
+    { "op": "set", "select": "rules.stop_go_penalty", "field": "penalty_duration", "value": "10" }
   ]
 }
 ```
 
-`select` finds the row:
+Give `select` the row you want to change. Row numbers move between game builds, so choose a label over an index:
 
 | Selector | Row |
 |---|---|
-| `tracks.Track_3` | Row 3 of `tracks` |
-| `entrants.teams.team[_metadata_=williams_26]` | The team labelled `williams_26` |
-| `{446668bc25ba571c}[_metadata_=f1_26]` | A row in a table known only by its hash |
+| `tracks.Track_3` | row 3 of `tracks` |
+| `entrants.teams.team[_metadata_=williams_26]` | the team labelled `williams_26` |
+| `{446668bc25ba571c}[_metadata_=f1_26]` | a row in a table known only by its hash |
 
-Select by label: row numbers can change between game builds. Write values in the stock form: `True` or `False` for bools, comma-joined lists with no spaces.
-
-## Copy a value
-
-`value_from` copies another key's value. Custom Grid Size points the F1 2026 world at the My Team world:
+Write values as strings, whatever the field's type. For a bool, use `True` or `False`; for a list, join the entries with commas and no spaces (`0,-0.6,0`). To copy another key's value, use `value_from` instead of `value`:
 
 ```json
-{ "op": "set", "when": { "cars": 24 },
-  "select": "{446668bc25ba571c}[_metadata_=f1_26]", "field": "worldEri",
+{ "op": "set", "select": "{446668bc25ba571c}[_metadata_=f1_26]", "field": "worldEri",
   "value_from": "{446668bc25ba571c}[_metadata_=myteam_26].worldEri" }
 ```
 
-## Add a row
+## 3. Add a row
 
-`add-row` copies a stock row, changes some of its fields and raises the table's row count. The file's `fields` map lists every field to copy, by table:
+To add a row, use `add-row`: it copies a stock row, changes some fields and raises the table's row count. You tell it which fields to copy in the file's `fields` map, keyed by table:
 
 ```json [db/grid.json]
 {
   "schema_version": 1,
   "fields": {
-    "entrants.entrant_lists.entrant_list_34.entrant": [
-      "_metadata_", "badge_customisation", "car_number", "driver", "driver_customisation",
-      "entrant_reference", "team", "team_position", "vehicle", "vehicle_customisation"
-    ]
+    "entrants.teams.team": ["_metadata_", "stat_id", "display_name_code"]
   },
   "ops": [
     {
-      "op": "add-row", "when": { "cars": 24 },
-      "table": "entrants.entrant_lists.entrant_list_34",
-      "from": "entrants.entrant_lists.entrant_list_34.entrant[_metadata_=gm_cadillac_01]",
-      "set": {
-        "_metadata_": "team12_driver_01", "entrant_reference": "jack_tremblay", "car_number": "66",
-        "team": "team12_26", "vehicle": "team12_2026", "vehicle_customisation": "jack_tremblay_2026"
-      }
+      "op": "add-row",
+      "table": "entrants.teams",
+      "from": "entrants.teams.team[_metadata_=williams_26]",
+      "set": { "_metadata_": "team12_26", "stat_id": "500", "display_name_code": "T12" }
     }
   ]
 }
 ```
 
-::: danger Every field
-List every field of the row, including nested ones such as `ai_vehicle_config.*` on vehicles. The game reads them all and crashes on a missing one. `addons/custom-grid-size/db/grid.json` lists every field of team, vehicle and entrant rows.
+::: danger List every field
+Include every field the row has, even nested ones such as `ai_vehicle_config.*` on vehicles: the game reads them all and crashes if one is missing. Give your new row a new `_metadata_` label. For teams and vehicles, you'll also need a `stat_id` above the stock maximum (team 499, vehicle 508). Pass the table's real path to `add-row`, not a `{hash}`.
 :::
 
-A new row needs a new `_metadata_` label, and a new `stat_id` above the stock maximum for teams (499) and vehicles (508). `add-row` needs the table's real path, not a `{hash}`. See [Adding a row](/reference/gamedb/recipes#adding-a-row).
+You can find the full field sets in [Adding a row](/reference/gamedb/recipes#adding-a-row).
 
-## Rename a track
+## 4. Rename a track
 
-The menus read a track's names from the `TrackNameData_0` row of its `TrackData` row in each dataset under `track_data.game_setup`, not from `tracks.Track_N`. An edit to `tracks.Track_N.title` alone changes no menu. Set the name once per dataset:
+To rename a track in the menus, you need the name they actually read: the `TrackNameData_0` row of the track's `TrackData` row in each dataset under `track_data.game_setup`. They don't read it from `tracks.Track_N`, so setting `tracks.Track_N.title` alone won't change any menu. Set the name to a language key once per dataset:
 
 ```json
 { "op": "set", "select": "track_data.game_setup.TrackDataSet_16.TrackData[_metadata_=melbourne]",
   "field": "TrackNameData_0.title", "value": "lng_my_track_title" }
 ```
 
-The values are language keys. See [Renaming a track](/reference/gamedb/recipes#renaming-a-track) for each dataset's row and fields.
+Look up each dataset's row and fields in [Renaming a track](/reference/gamedb/recipes#renaming-a-track). You'll supply the string behind the key through a `lang` operation; see [In-game text](./text).
 
-## Drive values from settings
+## 5. Drive values from a setting
 
-A `db` [setting](/reference/addons/settings#use-a-db-setting) fills <span v-pre>`{{id}}`</span> placeholders, and `when` keeps an operation only for the listed values:
+To let a setting supply the value, use a `db` [setting](/reference/addons/settings#_3-read-a-db-setting). It fills <span v-pre>`{{id}}`</span> placeholders. You can also use `when` to keep an operation only for the values it lists:
 
 ```json
 { "op": "set", "select": "rules.stop_go_penalty", "field": "penalty_duration", "value": "{{penalty_seconds}}" }
 ```
 
-## Order
+When you change a `db` setting, the profile is marked for a rebuild. Your change takes effect on the next build or launch.
 
-The launcher applies map activations first, then each addon's operations in load order. A later write to the same key wins. Check a build with `swofty build` before starting the game.
+## 6. Build and check
 
-Every operation and field is in the [database operations](/reference/ops/database) reference. The [Game database](/reference/gamedb) section covers the file format and how the game reads it.
+Build your changes:
+
+```sh
+swofty build
+```
+
+Check the build output for conflicts. Map activations apply first, followed by each addon's operations in load order. If more than one writes to the same key, the later write wins; the build prints each conflict.
+
+The build rewrites the database in the overlay folder. With the in-game loader present, it also carries the changed records to the game through `swofty/assets.json` while the game boots. See [deliveries](/reference/addons/asset-api#deliveries).
+
+For every operation and field, see the [database operations](/reference/ops/database) reference. To understand the file format and how the game reads it, start with [Game database (GVDB)](/reference/gamedb).

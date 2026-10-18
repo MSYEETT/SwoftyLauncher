@@ -1,16 +1,16 @@
 # ERP archives
 
-F1 25 stores most artwork and track assets in `.erp` files under `2025_asset_groups/`. Each archive contains named resources, split into one or more parts called fragments.
+You'll find most of F1 25's artwork and track assets in `.erp` files under `2025_asset_groups/`. Inside each archive are named resources. Each resource has one or more parts, called fragments.
 
-To change an asset in an addon, see [ERP operations](/reference/ops/erp).
+To change one of those assets in your addon, follow [ERP operations](/reference/ops/erp).
 
 ## Tools
 
-- `packages/formats/src/erp.rs`: Rust reader and writer.
+- `packages/formats/src/erp.rs`: read and write archives in Rust.
 - `tools/erp.py`: inspect and extract resources.
 - `tools/erpw.py`: rebuild archives.
 
-List resource names:
+To see which resources an archive contains, list their names:
 
 ```sh
 python3 tools/erp.py <archive> '*'
@@ -18,7 +18,7 @@ python3 tools/erp.py <archive> '*'
 
 ## Writing rules
 
-Keep unchanged fragments as stored. For changed fragments, update their sizes, compression and resource hash. Rebuilding an unchanged archive should produce identical bytes.
+When you rebuild an archive, keep unchanged fragments as stored. If you change a fragment, update its size, compression and resource hash. With no changes, you should get identical bytes back.
 
 UI resources inside ERPs use the [`!pkg` format](/reference/pkg).
 
@@ -28,4 +28,4 @@ UI resources inside ERPs use the [`!pkg` format](/reference/pkg).
 F1_25_DIR="/path/to/F1 25" cargo test -p swofty-formats
 ```
 
-This checks real game files when `F1_25_DIR` is set.
+Set `F1_25_DIR` to have this check real game files.

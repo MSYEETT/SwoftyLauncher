@@ -5,15 +5,15 @@ description: What activating a community track changes in the archives, the game
 
 # How tracks are installed
 
-This page is for contributors. Players should read [Mods and tracks](/using/mods#tracks).
+If you're contributing track support, here's what happens when a track is activated. For playing with tracks, see [Mods and tracks](/using/mods#tracks).
 
-Tracks are mods in the Team Simplified library. For each enabled track package, in profile order, Team Simplified's build hook emits a `track.add` op whose source is `library/<id>/track` in its `addon-data` folder. `swofty build` and `swofty apply` activate every `track.add` before the other database ops. The code is in `packages/core/src/activation/`.
+Your tracks live as mods in the Team Simplified library. Its build hook works through enabled track packages in profile order, emitting a `track.add` op for each. The source is `library/<id>/track` in Team Simplified's `addon-data` folder. Both `swofty build` and `swofty apply` activate every `track.add` before the other database ops. You'll find the code in `packages/core/src/activation/`.
 
 ## The track archive
 
-The game loads an asset group only when its asset manifest (`fileList.manifest`) lists it. A listed group `asset_groups/<path>.assetgroup` is the file `2025_asset_groups/<path>.erp`. A new track's own paths, such as `environment_package/tracks/okayama/wep/okayama_common.assetgroup`, are not listed.
+Putting a track's archive in place isn't enough: the game only loads an asset group when its asset manifest (`fileList.manifest`) lists it. A listed group `asset_groups/<path>.assetgroup` points to the file `2025_asset_groups/<path>.erp`. Your new track's own paths, such as `environment_package/tracks/okayama/wep/okayama_common.assetgroup`, aren't on that list.
 
-When the in-game core's `features.json` has `group`, the package's `<code>.erp` goes to its natural path, `2025_asset_groups/environment_package/tracks/<code>/<code>.erp`, as an added file. `swofty/assets.json` registers these groups for it at runtime:
+How the build handles this depends on the in-game core. When its `features.json` has `group`, the package's `<code>.erp` is added at its natural path, `2025_asset_groups/environment_package/tracks/<code>/<code>.erp`. Then `swofty/assets.json` registers these groups for it at runtime:
 
 - the main group, `asset_groups/environment_package/tracks/<code>/<code>.assetgroup`;
 - `wep/<code>_<variant>` for every world in the archive, stand-ins included;
@@ -21,40 +21,40 @@ When the in-game core's `features.json` has `group`, the package's `<code>.erp` 
 - `probes/probes_garage_<nn>` for every garage probe set in the archive;
 - `ai/<vehicle_package>/<team>/<team>` for every AI team folder in the archive.
 
-Any number of tracks can be on this way.
+You can enable any number of tracks this way.
 
-Otherwise the package's `<code>.erp` goes whole into an existing invitational event slot, `2025_asset_groups/ui_package/texture_arrays/invitational_events/event_images/invitational_image_<n>.erp`, together with the slot's own pictures. The tracks of a profile take `invitational_image_4`, `_10`, `_13` to `_18` in order. At most eight tracks can be on this way.
+Otherwise, the build puts the package's whole `<code>.erp` into an existing invitational event slot, `2025_asset_groups/ui_package/texture_arrays/invitational_events/event_images/invitational_image_<n>.erp`, alongside the slot's own pictures. Your profile's tracks take `invitational_image_4`, `_10`, `_13` to `_18` in order. That leaves room for at most eight enabled tracks.
 
-The archive also gets:
+The build also fills gaps in the archive:
 
-- a stand-in for each variant world the package lacks (`classic`, `f2_previous`, ...), copied from the nearest world it has;
-- texture mip paths pointed at `environment_package/tracks/<code>/mipmaps/<file>` for the files in the package's `mipmaps/`. Those files are added there;
-- room for the F1 2026 grid when the built database's `f1_2026` grid list holds more cars than the `f1_26_myteam` world (with the common world) has grid slots, garages or pit boxes. The layer that holds the last grid slot gets copies of the last slot, garage, in-garage spot and pit box, each placed one row or bay on from the two before it. If the world has no two slots, garages or boxes to space from, the build warns that a Grand Prix there with that many cars crashes.
+- For each variant world the package lacks (`classic`, `f2_previous`, ...), it copies the nearest world the package has as a stand-in.
+- It points texture mip paths at `environment_package/tracks/<code>/mipmaps/<file>` and adds the files from the package's `mipmaps/` there.
+- It makes room for the F1 2026 grid if the built database's `f1_2026` grid list holds more cars than the `f1_26_myteam` world (with the common world) has grid slots, garages or pit boxes. The layer holding the last grid slot gets copies of the last slot, garage, in-garage spot and pit box. Each copy goes one row or bay beyond the two before it. Without two slots, garages or boxes to work out the spacing from, the build warns you that a Grand Prix there with that many cars crashes.
 
 ## The database
 
 | Table | Change |
 |---|---|
-| `tracks.Track_<n>` | `copy_slot` clones the slot track's row for a new code, with a new `statId`. A code that already has a row (`bahrain24`) keeps it. `track_overrides` are set here. |
-| `tracks.track_resource.TrackResource_<n>` | A row `swofty_<code>` cloned from the track's resource row. On the natural route its group fields take the 2019 template values with `[FILENAME]` = `<code>`: `iblAssetGroupsRoot` is `asset_groups/environment_package/tracks/<code>/probes/` and `iblKey` is `key_2019.assetgroup`. `trackMapAssetGroup` names the main group. On the slot route every asset group is set to the track's slot. The track row's `track_resource` names it. |
-| Per-track tables: per-race DNFs, pit lane splines and slide settings, practice programmes (2025 and 2026), tyre wear and tyre wear scales, specialist objectives, track trivia, replay hero shots | A code without a row gets one cloned from the slot track, or from the base track when the slot has none. The game reads the per-race DNF row without checking it exists, so a new code always needs it. |
-| `<datasets>.TrackDataSet_<i>.TrackData_<j>` | `copy_from_track` clones the base track's row, with its sub-tables, in every dataset that has it. `overrides` are set here, limited to their `datasets`. |
-| Content sets' `available_tracks` | The code is added wherever the base track is listed. This is the Grand Prix track list. |
-| `track_data.sorted_track_order` | A `TrackRef` row for the code. |
+| `tracks.Track_<n>` | For a new code, `copy_slot` clones the slot track's row with a new `statId`. If the code already has a row (`bahrain24`), it keeps it. Your `track_overrides` apply here. |
+| `tracks.track_resource.TrackResource_<n>` | The track's resource row is cloned as `swofty_<code>`. On the natural route, its group fields use the 2019 template values with `[FILENAME]` = `<code>`: `iblAssetGroupsRoot` is `asset_groups/environment_package/tracks/<code>/probes/` and `iblKey` is `key_2019.assetgroup`. `trackMapAssetGroup` names the main group. On the slot route, every asset group points to the track's slot. The track row's `track_resource` names the cloned row. |
+| Per-track tables: per-race DNFs, pit lane splines and slide settings, practice programmes (2025 and 2026), tyre wear and tyre wear scales, specialist objectives, track trivia, replay hero shots | If your code has no row, it gets a clone of the slot track's row, or the base track's when the slot has none. A new code always needs the per-race DNF row: the game reads it without checking that it exists. |
+| `<datasets>.TrackDataSet_<i>.TrackData_<j>` | `copy_from_track` clones the base track's row and its sub-tables in every dataset that has it. Your `overrides` apply here, limited to their `datasets`. |
+| Content sets' `available_tracks` | The code is added wherever the base track is listed, putting your track in the Grand Prix track list. |
+| `track_data.sorted_track_order` | Gets a `TrackRef` row for the code. |
 
-Every cloned row copies all keys of the source row listed in `track_tables.json`, plus the keys the manifest's overrides name, and the table's `_<row>_instancecount_` grows by one.
+Each clone copies all source-row keys listed in `track_tables.json`, plus any keys named by your manifest's overrides. The table's `_<row>_instancecount_` grows by one.
 
-Some sub-table names exist in `F1_25.exe` only as strings built on the stack. `tools/track_keys.py` collects every name the game-DB readers use, stack-built ones included.
+Some sub-table names in `F1_25.exe` exist only as strings built on the stack. To collect every name the game-DB readers use, including those stack-built names, use `tools/track_keys.py`.
 
 ## Menus
 
-- Flags, previews and splines from `ui/images.json` are appended as slices to the texture arrays named in `overrides.uidb`. Every UI archive that carries an array gets the same slices. The track's `TrackTextures` rows then name `overrides.<list>.<code>`.
-- The three track-select scenes and the session picture go into `invitational_image_2`, and `ui_dynamic_texture_loading.uidta` names them.
-- `ui/minimap.json` becomes an entry in `minimap.uidb` (in `databases.erp` and `flow_race.erp`) whose textures load from the track's main group, or from its slot on the slot route.
+- The build appends flags, previews and splines from `ui/images.json` as slices to the texture arrays named in `overrides.uidb`. Every UI archive carrying an array gets the same slices. Your track's `TrackTextures` rows then name `overrides.<list>.<code>`.
+- The three track-select scenes and the session picture go into `invitational_image_2`. They're named in `ui_dynamic_texture_loading.uidta`.
+- Your `ui/minimap.json` becomes an entry in `minimap.uidb`, in both `databases.erp` and `flow_race.erp`. Its textures load from the track's main group, or from its slot on the slot route.
 
 ## ERS
 
-The manifest's `ers` values are per-track `TrackSettings` entries in the car handling files, not in the database. Every 2026 handling file gets an entry for the code, cloned from the base track's, with the manifest's values. A track without an entry still loads; the cars use their default ERS settings.
+You won't find your manifest's `ers` values in the database. They go into per-track `TrackSettings` entries in the car handling files: every 2026 handling file gets an entry for your code, cloned from the base track's and given your manifest's values. Without an entry, the track still loads, but the cars use their default ERS settings.
 
 ## Checking a build
 
@@ -63,6 +63,6 @@ swofty build
 python3 tools/map_check.py <overlay folder> --game <game folder>
 ```
 
-With `F1_25.exe` in the game folder (or `--exe`) and `numpy`, `pefile` and `capstone` installed, `map_check.py` also checks that every key the game reads on a source row (the slot track's Track row, its track resource, per-track rows and TrackData rows) exists on the track's row.
+To check for missing keys too, put `F1_25.exe` in the game folder (or use `--exe`) and install `numpy`, `pefile` and `capstone`. Then `map_check.py` also checks that your track's row has every key the game reads on the source row: the slot track's Track row, its track resource, per-track rows and TrackData rows.
 
-`cargo test -p swofty-core --test real_maps` activates the Sepang and Okayama packages in the database from `F1_25_DIR` and checks the row counts and cloned rows.
+You can also run `cargo test -p swofty-core --test real_maps` to activate the Sepang and Okayama packages in the database from `F1_25_DIR` and check the row counts and cloned rows.

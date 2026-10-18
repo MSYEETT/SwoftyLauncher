@@ -1,15 +1,15 @@
 ---
 title: Addon settings
-description: Declare a slider, a toggle and a choice, show them in ADDON SETTINGS and read them from the database and from a plugin.
+description: Declare a toggle, choice and slider in options, pick db or native binding, and read the value from an op file, an engine plugin and a launcher plugin.
 ---
 
 # Addon settings
 
-Settings are declared once, in `options` in `swofty.json`. The launcher shows them in the addon's row on the **Addons** page, and the game shows them on the addon's page in **ADDON SETTINGS**. Values are stored per profile.
+Declare your settings once, in `options` in `swofty.json`, and they appear in both places: your addon's row on the launcher's **Addons** page and its page in the game's **ADDON SETTINGS**. Each profile stores its own values.
 
-## Declare the settings
+## 1. Declare the settings
 
-These are the [addon template](/reference/addons/template)'s settings: three read by a plugin and one built into the database.
+Start with the [addon template](./template)'s four settings. Its engine plugin reads three of them; the fourth changes a value in the game database.
 
 ```json [swofty.json]
 "options": [
@@ -45,7 +45,7 @@ These are the [addon template](/reference/addons/template)'s settings: three rea
     "id": "penalty_seconds",
     "type": "slider",
     "label": "Stop-go penalty",
-    "description": "Length of a stop-go penalty in seconds. It is written into the game database, so a change needs a rebuild.",
+    "description": "Length of a stop-go penalty in seconds. Written into the game database, so a change needs a rebuild.",
     "min": 5,
     "max": 20,
     "step": 5,
@@ -57,24 +57,26 @@ These are the [addon template](/reference/addons/template)'s settings: three rea
 
 | Type | Value | Rules |
 |---|---|---|
-| `toggle` | `true` or `false` | |
-| `slider` | A number on the slider's steps | `min`, `max` and `step` are required. `max - min` is a whole number of steps, at most 100 |
-| `choice` | One of `values` | 1 to 16 values. Each is a string, or `{ "value", "label" }` to show a different name |
+| `toggle` | `true` or `false` | No `values`, `min`, `max` or `step`. |
+| `slider` | A number on the grid | Supply `min`, `max`, `step`. `max - min` must be a whole number of steps, at most 100. Choose a `default` on the grid. |
+| `choice` | One of `values` | Supply 1 to 16 values, each a string or `{ "value", "label" }`. Pick one as the `default`. |
 
-The full field list is in [Options](/reference/addons/manifest#options).
+Give each option an `id` that matches `[a-z][a-z0-9_]*`, is at most 40 characters and is unique within your addon. You'll find the full field list in [the manifest reference](./manifest#options).
 
-## Choose where the value goes
+## 2. Choose where the value goes
 
-`binds` decides how a value reaches the addon.
+Choose `binds` based on where you need the value. This also determines when the player's changes take effect:
 
-| `binds` | Read by | When a change applies |
+| `binds` | Read by | A change applies |
 |---|---|---|
-| `native` | The addon's [native plugin](/reference/addons/native-plugins), while the game runs | At once |
-| `db` | The build, through `{{id}}` and `when` in operation files | After a rebuild and a restart |
+| `native` | the addon's [engine plugin](./native-plugins#settings), while the game runs | at once |
+| `db` | the build, through <span v-pre>`{{id}}`</span> and `when` in op files | after a rebuild and a restart |
 
-## Use a `db` setting
+If you have a [launcher plugin](./launcher-api), its build hook receives **every** declared option's value, whatever its `binds`, in its `build` call.
 
-<span v-pre>`{{penalty_seconds}}`</span> in an operation file is replaced with the setting's value when the profile is built:
+## 3. Read a `db` setting
+
+Put a <span v-pre>`{{id}}`</span> placeholder in your op file to use a setting's value. The build replaces it with that value:
 
 ```json [db/example.json]
 {
@@ -85,17 +87,17 @@ The full field list is in [Options](/reference/addons/manifest#options).
 }
 ```
 
-`when` keeps an operation only when every listed setting has that value. Custom Grid Size runs each track's edits only for the car count they were made for:
+To apply an op only when each listed setting matches its specified value, use `when`. Custom Grid Size uses this to run each track's edits for the car count they were made for:
 
 ```json
-{ "op": "patch-pkg", "when": { "cars": 26 }, "erp": "...", "resource": "...", "edits": [] }
+{ "op": "patch-pkg", "when": { "cars": 26 }, "erp": "…", "resource": "…", "edits": [] }
 ```
 
-Changing a `db` setting marks the profile for a rebuild, and the next launch applies it. In game, a `db` setting's description ends with *Applies after a restart.*
+Because a `db` setting goes into the build, changing it marks the profile for a rebuild. The next launch applies it. In game, a `db` setting's description ends with *Applies after a restart.*
 
-## Read a `native` setting
+## 4. Read a `native` setting
 
-The plugin declares each setting with the option's `id`, its C++ type and a fallback. This is `native/src/sample_plugin.cpp` from the template:
+In your engine plugin, declare each setting with the option's `id`, its C++ type and a fallback. Here's how the template does it in `native/src/sample_plugin.cpp`:
 
 ```cpp [native/src/sample_plugin.cpp]
 #include <swofty/mixin.hpp>
@@ -107,12 +109,6 @@ SWOFTY_SETTING(std::string_view, greeting, "hello");
 SWOFTY_ON_CHANGE(verbose, bool on)
 {
     swofty::log("[sample] verbose logging %s", on ? "on" : "off");
-}
-
-SWOFTY_ON_CHANGE(greeting, std::string_view text)
-{
-    if (verbose)
-        swofty::log("[sample] greeting is now \"%.*s\"", int(text.size()), text.data());
 }
 
 SWOFTY_ON_LOAD
@@ -131,29 +127,64 @@ SWOFTY_ADDON()
 | Any number type | `slider` |
 | `std::string_view` | `choice` |
 
-- Reading a setting returns the profile's current value.
-- `SWOFTY_ON_CHANGE` runs when the player changes the value in ADDON SETTINGS.
-- The fallback is used when `swofty.json` has no option with that `id` and type. `swofty/loader.log` names the mismatch.
+Read a setting to get the profile's current value. To react when the player changes it in ADDON SETTINGS, use `SWOFTY_ON_CHANGE`.
 
-The manifest entry for the plugin lists the `options` capability:
+If `swofty.json` has no option with that `id` and type, you get the fallback instead. Check `swofty/loader.log` for the mismatch.
 
-```json
+List the `options` capability in your plugin's `operations.native` entry:
+
+```json [swofty.json]
 "native": [{ "dll": "native/sample_plugin.dll", "capabilities": ["log", "scan", "options"] }]
 ```
 
-## How a value travels
+## 5. Read a setting in a launcher plugin
 
-1. The launcher writes the profile's values into `swofty/settings.json` in the game folder when it builds.
-2. SwoftyMod reads that file when the game starts. It builds each addon's page in ADDON SETTINGS and answers the plugin's `setting` calls.
-3. A change in game updates the plugin at once, calls its `SWOFTY_ON_CHANGE` handlers and is written to the requests file.
-4. The launcher merges the requests file into the profile, so its **Addons** page shows the new value.
+Your [launcher plugin](./launcher-api) receives every option's value in `params.options` when its `build` call arrives:
 
-From the command line:
-
-```sh
-swofty settings list yourname.my-first-addon
-swofty settings set yourname.my-first-addon penalty_seconds 10
-swofty settings reset yourname.my-first-addon
+```json
+{ "method": "build", "params": { "options": { "greeting_count": 1, "penalty_seconds": 10 }, "features": { "stable": ["file"], "experimental": [] } } }
 ```
 
-See [Settings](/reference/std/settings) for the C ABI and every helper.
+You can read the value straight from the map:
+
+```rust [src/main.rs]
+fn build(&self, options: &Value) -> Result<Value, String> {
+    let seconds = options["penalty_seconds"].as_u64().unwrap_or(5);
+    // … build ops from `seconds`
+}
+```
+
+## How a value persists and travels
+
+Look under `options` in a profile to find the saved values, keyed by addon id. You'll only see values the player changed from the default:
+
+```json [$DATA/profiles/default.json]
+"options": {
+  "example.sample-mod": { "penalty_seconds": 10 }
+}
+```
+
+1. When you build, the launcher writes the profile's values into `swofty/settings.json` in the game folder.
+2. At launch, SwoftyMod reads that file and builds each addon's page in ADDON SETTINGS. It also answers the plugin's `setting` calls.
+3. Change a value in game and the plugin updates at once: its `SWOFTY_ON_CHANGE` handlers run, and the change is written to the requests file.
+4. The launcher merges the requests file into the profile, so you'll see the new value on the **Addons** page.
+
+To list, change or reset settings from the command line:
+
+```sh
+swofty settings list example.sample-mod
+swofty settings set example.sample-mod penalty_seconds 10
+swofty settings reset example.sample-mod
+```
+
+## See it
+
+Build the profile and start the game:
+
+```sh
+swofty run --apply
+```
+
+Open **Career → ADDON SETTINGS**. Your addon's tile shows a **Stop-go penalty** slider at 10, a **Greetings** slider, a **Greeting** choice and a **Verbose log** toggle. Try changing a `native` setting: it takes effect the same lap. The `db` **Stop-go penalty** reads *Applies after a restart.*
+
+You'll find the C ABI and every helper in [Settings](/reference/std/settings).

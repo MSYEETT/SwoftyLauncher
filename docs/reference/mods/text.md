@@ -1,47 +1,59 @@
 ---
-title: Changing in-game text
-description: Show your own names and descriptions in menus with stock text tags, literal text and lang operations.
+title: In-game text
+description: Show your own names and descriptions with stock tags, literal text, and lang operations that add strings while the game boots.
 ---
 
-# Changing in-game text
+# In-game text
 
-The game shows text by tag, such as `lng_team_tor_hashtag`. Database fields such as `name_loc_tag` and `desc_loc_tag` name the tag to show. The strings for each tag are in the game's language files (`.lng`), one per language.
+To change in-game text, you work with tags such as `lng_team_tor_hashtag`. Database fields such as `name_loc_tag` and `desc_loc_tag` tell the game which tag to show. The text itself lives in the game's language files (`.lng`), one per language.
 
-## Use a stock tag
+You have two ways to change that text: point a field at a tag the game already has, or add your own string with a `lang` operation.
 
-Set a `_loc_tag` field to a tag the game already ships. It shows in every language.
+## Point a field at a stock tag
+
+If the wording you want is already in the game, set a `_loc_tag` field to its tag. You get that text in every language without adding a string:
 
 ```json
-{ "op": "set", "select": "customisation.custom_se_liveries.se_liveries.se_livery[_metadata_=toro_rosso_rm_alphatauri_2026]",
+{ "op": "set",
+  "select": "customisation.custom_se_liveries.se_liveries.se_livery[_metadata_=toro_rosso_rm_alphatauri_2026]",
   "field": "name_loc_tag", "value": "lng_team_tor_hashtag" }
 ```
 
-A choice setting can offer several tags, as the [livery example](./livery#_1-the-manifest) does with `picker_name`.
+To offer a choice of tags, use a `choice` setting. The [livery example](./livery#_1-the-manifest) does this with `picker_name`.
 
-## Track names
+## Add your own string
 
-Menus read a track's name from `TrackDataSet_<n>.TrackData_<m>.TrackNameData_0` in each dataset, not from the track row. See [Rename a track](./database#rename-a-track).
-
-## Add or change strings
-
-`operations.assets` files carry two text ops. swofty_core adds the strings while the game boots, and the game's language files stay stock. Without the in-game loader, `swofty build` lists them as waiting.
+Put your `lang` operations in an `operations.assets` file. swofty_core adds the strings while the game boots, leaving the game's language files stock.
 
 | Op | Fields | Change |
 |---|---|---|
-| `lang.set` | `language` (a language code, or `*` for all), `key`, `value` | Set one string |
-| `lang.table` | `language`, `source` | Load a whole `.lng` file from the addon |
+| `lang.set` | `language` (a code, or `*` for every language), `key`, `value` | Set one string |
+| `lang.table` | `language`, `source` (a `.lng` file in the mod) | Set every string in a table |
 
 ```json [assets/text.json]
 {
   "schema_version": 1,
   "ops": [
-    { "op": "lang.set", "language": "*", "key": "lng_team_tor_hashtag", "value": "AlphaTauri" }
+    { "op": "lang.set", "language": "*", "key": "lng_my_track_title", "value": "Test Ring" },
+    { "op": "lang.set", "language": "eng", "key": "lng_my_track_desc", "value": "A private test circuit." }
   ]
 }
 ```
 
-A key the game does not have is added, and a `_loc_tag` field can name it. Where two addons set the same key, the later one in the load order wins. See [Loading mods at runtime](/reference/addons/runtime-assets#add-or-change-strings).
+Then list the file in the manifest:
 
-## Language files
+```json [swofty.json]
+"operations": {
+  "assets": ["assets/text.json"]
+}
+```
 
-`swofty-formats` reads, writes and diffs `.lng` files (`swofty_formats::lng`), and extracts the stock language files from the archive indexed in `F1_25.exe` (`swofty_formats::nefs`). `Lng::get`, `Lng::set`, `Lng::remove` and `Lng::diff` work on one file.
+If your key doesn't exist yet, it gets added. Point a `_loc_tag` field at it to show your text. If two mods set the same key, the one lower in the load order wins.
+
+## Track names
+
+To rename a track in menus, you need `TrackDataSet_<n>.TrackData_<m>.TrackNameData_0`: that's where menus read the name, rather than the track row. Set that field to your key — see [Rename a track](./database#_4-rename-a-track) — then give the key a string with `lang.set`.
+
+## Delivery
+
+You'll need the in-game loader for these edits. `lang` is a runtime-only kind: swofty_core adds the strings when the game loads a language file. Without the loader, `swofty build` lists the operations as waiting and changes no text. See [Loading mods at runtime](/reference/addons/runtime-assets#add-or-change-strings) and [deliveries](/reference/addons/asset-api#deliveries).

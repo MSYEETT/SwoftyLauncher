@@ -1,92 +1,77 @@
 ---
 title: Database read
-description: Read the loaded game database from a native plugin with swofty/db.hpp or the C ABI.
+description: Read the loaded F1 25 game database from a plugin with swofty/db.hpp - scalar fields, whole values and table cursors.
 ---
 
 # Database read
 
-`swofty/db.hpp` reads the game's value database once it has loaded. Keys are the dotted path hashed
-with fnv1a64, the same keys the [database operations](/reference/ops/database) write. Get a whole
-typed value, one field of a known type, a row by its label, or iterate a table.
+Once the game database has loaded, you can read a whole typed value or pick out a field whose type you know. To work with rows, look one up by its label or use a cursor to walk a table. You use the same dotted paths as the [database operations](/reference/ops/database), hashed with fnv1a64, to identify what to read.
 
-The feature is `db` (stable), shared with the database write operations. It needs loader version 5.
-Each call returns a `swofty::db::Result`: `ok`, `late`, `unavailable` (older loader, feature off, or
-the database has not loaded) or `invalid` (bad argument or a key that is not in the database).
+| | |
+|---|---|
+| Header | `swofty/db.hpp` |
+| Namespace | `swofty::db` |
+| Table | `SwoftyApi::db` (`SwoftyDb`) |
+| Feature | `db` — stable (shared with the database write operations) |
+| API version | 5 |
+| Thread | Caller thread |
+
+Check the `swofty::db::Result` returned by every call: `ok`, `late`, `unavailable` or `invalid`. The [result codes](./#result-codes) explain each one. If you need to keep a returned string, copy it: its pointer stays valid only until the next `db` call on the same thread.
+
+## Calls
+
+| Call | Returns |
+|---|---|
+| `available()` | `true` once the database has loaded |
+| `get(key, out)` / `get(hash, out)` | whole `SwoftyDbValue` by dotted key or pre-hashed key |
+| `int_at(key, out)` | one `int64_t` field |
+| `float_at(key, out)` | one `double` field |
+| `string_at(key, out)` | one `const char *` field |
+| `bool_at(key, out)` | one `int32_t` field |
+| `open(table, cursor)` | positions a cursor at the first row |
+| `row(table, label, cursor)` | positions a cursor at a labelled row |
+| `step(cursor)` | advances; `late` when the table is exhausted |
+| `cell(cursor, field, out)` | one field of the cursor's current row |
+| `row_name(cursor)` | the current row's label, or `nullptr` |
+
+When you read a whole `SwoftyDbValue`, its `tag` tells you which of `i`, `f` or `s` holds the value. The tag is a `swofty::db::Tag`: `integer`, `real`, `string`, `enumeration`, `id` or `boolean`. You own the `SwoftyDbCursor`, so zero-initialise it before calling `open` or `row`.
+
+## Example
+
+Here's how you read one field, then walk a table to list every row:
+
+```cpp [native/src/my_plugin.cpp]
+#include <swofty/db.hpp>
+
+namespace db = swofty::db;
+
+SWOFTY_ON_LOAD
+{
+    if (!db::available())
+        return;
+
+    int64_t secs = 0;
+    if (db::int_at("rules.stop_go_penalty.penalty_duration", &secs) == db::Result::ok)
+        swofty::log("[my-addon] stop-go penalty is %lld s", (long long)secs);
+
+    db::Cursor cur{};
+    for (db::Result r = db::open("tracks", &cur); r == db::Result::ok; r = db::step(&cur))
+        swofty::log("[my-addon] track %s", db::row_name(&cur));
+}
+
+SWOFTY_ADDON()
+```
+
+The loop prints the 43 rows of `tracks`. Declare the capability in your plugin's manifest entry:
+
+```json [swofty.json]
+"operations": {
+  "native": [{ "dll": "native/my_plugin.dll", "capabilities": ["read-db"] }]
+}
+```
+
+Look up dotted keys in the [game database reference](/reference/gamedb). For a row count, use `<container>._<Row>_instancecount_`.
 
 ## Availability
 
-```cpp
-#include <swofty/db.hpp>
-namespace db = swofty::db;
-
-if (db::available()) { /* the database has loaded */ }
-```
-
-`available()` is non-zero once the database has loaded. Before that every call returns
-`unavailable`.
-
-## Typed fields
-
-```cpp
-int64_t laps = 0;
-if (db::int_at("entrants.entrant_lists.entrant_list_34._entrant_instancecount_", &laps) == db::Result::ok)
-    swofty::log("grid size %lld", (long long)laps);
-
-double x = 0;
-db::float_at("ai.general_ai_settings.max_test_time", &x);
-
-int32_t flag = 0;
-db::bool_at("some.bool.key", &flag);
-
-const char *name = nullptr;
-db::string_at("some.string.key", &name);
-```
-
-`int_at`, `float_at`, `bool_at` and `string_at` read the record as the requested type. The caller
-states the type; the record is read at its scalar offset without a class check, matching the game's
-own field readers. A missing key is `invalid`.
-
-## Whole value
-
-```cpp
-db::Value v;
-if (db::get("ai.general_ai_settings.max_test_time", &v) == db::Result::ok) {
-    // v.tag is SWOFTY_DB_INT, _FLOAT, _BOOL or _STRING
-    // v.i integer, v.f float, v.s string text (or null), fnv32 label in v.i for a string
-}
-db::get(0x2273a5bae867b23bull, &v); // a pre-hashed key
-```
-
-`get` fills a `SwoftyDbValue`. The record's class fixes the tag. Integer, float and bool records set
-`i` and `f`; a string-family record (`string`, `enum`, `id`) reports `SWOFTY_DB_STRING`, its fnv32
-label in `i` and its inline text in `s` when present. Typing records needs the analysed build or the
-database's record classes; on an unknown build without them `get` returns `unavailable` while the
-typed field readers still work.
-
-## Tables
-
-A table is a container path (`entrants.teams`); its rows are `<table>.<stem>_<n>` and its count is
-`<table>._<stem>_instancecount_`, where `<stem>` is the last path segment without a trailing `s`.
-
-```cpp
-db::Cursor c;
-for (auto r = db::open("entrants.teams", &c); r == db::Result::ok; r = db::step(&c)) {
-    const char *name = db::row_name(&c);
-    db::Value stat;
-    db::cell(&c, "stat_id", &stat);
-}
-
-db::Cursor row;
-if (db::row("entrants.teams", "mercedes", &row) == db::Result::ok)
-    db::cell(&row, "stat_id", &stat);
-```
-
-`open` positions a cursor at the first row and fills `count`; an empty table is `late`. `step`
-advances and returns `late` at the end. `row` finds a row whose fnv32 metadata label matches. `cell`
-reads one field of the current row. `row_name` returns the current row's label when the game exposes
-it inline, otherwise null. A `Cursor` is caller-owned; string pointers from these calls are valid
-until the next `db` call on the same thread.
-
-## Manifest
-
-Reading the database needs `read-db` in the manifest's `capabilities` (version 5).
+The db-read engine lane hasn't landed yet, so every call on current builds returns `unavailable`. Guard every call with `available()`. See [the native-libraries design](/design/native-libraries#_4-database-read).

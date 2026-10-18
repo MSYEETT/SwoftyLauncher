@@ -1,6 +1,6 @@
 # Command line
 
-Use `swofty` from a terminal to manage addons, check files and read logs.
+From your terminal, `swofty` lets you manage addons, check files and read logs.
 
 ## `swofty run`
 
@@ -8,47 +8,51 @@ Use `swofty` from a terminal to manage addons, check files and read logs.
 swofty run
 ```
 
-Launches F1 25 and follows the logs. Steam must be running. Modded play is offline only.
+Start Steam first, then run this to launch F1 25 and follow its logs. You can only play offline with mods.
 
-When the game exits, it prints a summary with the exit code and any crash details. **Ctrl-C** stops following the logs; the game keeps running.
+When you leave the game, you'll get a summary with the exit code and any crash details. To stop following the logs while keeping the game running, press **Ctrl-C**.
 
 | Flag | Purpose |
 |---|---|
-| `--profile <name>` | Choose a profile; the default is the active profile |
-| `--game <dir>` | Set the game folder if it was not found |
+| `--profile <name>` | Choose a profile; otherwise, use the active profile |
+| `--game <dir>` | Set the game folder if it wasn't found |
 | `--restart` | Close a running F1 25 first |
 | `--direct` | Launch directly instead of asking Steam |
 | `--winedebug <channels>` | Choose Wine log channels |
 | `--exe <file>` | Use a copy of `F1_25.exe` to identify crash locations |
-| `--apply` | Install the profile (database, tracks, in-game loader) before the game starts and roll it back when it exits. The launcher always passes it |
+| `--apply` | Install the profile (database, tracks, in-game loader) before the game starts and roll it back when it exits. The launcher always passes this flag |
 
 On Linux, the [Steam launch option](/guide/linux) uses `swofty run -- %command%`.
 
-A direct launch writes the wrapper's output to `$DATA/state/wrapper-run.log`. If the wrapper exits before the game starts or while it runs, `swofty run` prints the wrapper's last lines and its error, then exits with an error. It stops waiting after 10 minutes, or after 2 minutes when Steam launches the game.
+For a direct launch, you'll find the wrapper's output in `$DATA/state/wrapper-run.log`. If the wrapper exits before the game starts or while it runs, `swofty run` prints the wrapper's last lines and its error, then exits with an error itself. It stops waiting after 10 minutes, or after 2 minutes when Steam launches the game.
 
 ## `swofty logs`
 
-`swofty logs [<session dir>]` shows a finished session's summary. With no folder given, it uses the latest session.
+To read a finished session's summary, use `swofty logs [<session dir>]`. Leave out the folder to see the latest session.
 
 ## `swofty build`
 
-`swofty build [--profile <name>]` prepares the profile's database and track files without starting the game. Output goes to `$DATA/cache/overlay/<profile>/<buildhash>/`, with the session settings file in `swofty/settings.json` and `plan.json`, the list of game files to replace and add with their sources. Track archives, menu archives and car handling files are built in `$DATA/cache/maps`, `$DATA/cache/menus` and `$DATA/cache/ers`. After a successful build, older builds in those folders and in the profile's overlay folder are removed, except the ones the latest build of another profile uses.
+Use `swofty build [--profile <name>]` when you want to prepare your profile's database and track files without starting the game. You'll find the output in `$DATA/cache/overlay/<profile>/<buildhash>/`: `swofty/settings.json` holds the session settings, and `plan.json` lists the game files to replace and add, along with their sources. Track archives, menu archives and car handling files are built in `$DATA/cache/maps`, `$DATA/cache/menus` and `$DATA/cache/ers`. Once the build succeeds, it removes older builds from those folders and your profile's overlay folder, keeping any that another profile's latest build uses.
 
-It also builds addon ERP files and prints their warnings, except files with a `patch-pkg` edit other than `clone-entry` and `set-value`, which are skipped. Addon ERP operations apply on top of the archives the track stages built. `add-mipmaps` files replace or add loose game files. A build with a `remove-resource` rewrites the archives even when `swofty_core` lists `erp` as `stable`. `file.put` operations and `operations.files` entries replace or add loose game files. Other addon ERP and UI operations are currently skipped. Each asset kind that `swofty_core` lists as `stable` in `swofty/addons/core/features.json`, or as `experimental` and named in `config.json` `"runtime_assets"`, goes into `swofty/assets.json` instead: asset groups, changed ERP resources, database records that differ from the game file, one language table per language and overlay files. `group` and `lang` operations have no other delivery; without the feature they wait, and the build lists them. `config.json` `"build_assets"` keeps the `erp`, `db` or `file` kinds it lists on the build route. The build also lists each conflict: a target that a later addon replaced after an earlier one wrote it.
+The build also prepares addon ERP files and prints their warnings. Files with a `patch-pkg` edit other than `clone-entry` and `set-value` are skipped. Addon ERP operations work on the archives the track stages have already built; `add-mipmaps` files replace or add loose game files. If your build includes a `remove-resource`, it rewrites the archives even when `swofty_core` lists `erp` as `stable`. `file.put` operations and `operations.files` entries also replace or add loose game files. Other addon ERP and UI operations are currently skipped.
 
-When the game exits, `swofty run` merges the settings changed in game into the profile. After **APPLY & RESTART** it rebuilds the profile and starts the game again.
+Some assets go into `swofty/assets.json` instead. This applies to each asset kind that `swofty_core` lists as `stable` in `swofty/addons/core/features.json`, or as `experimental` and named in `config.json` `"runtime_assets"`. These assets are asset groups, changed ERP resources, database records that differ from the game file, one language table per language and overlay files. For `group` and `lang` operations, this is the only delivery route: without the feature, they wait, and the build lists them. To keep `erp`, `db` or `file` kinds on the build route, list them in `config.json` `"build_assets"`.
+
+You'll also see each conflict in the build output: a target that a later addon replaced after an earlier one wrote it.
+
+When the game exits, `swofty run` merges any settings you changed in game into your profile. Choose **APPLY & RESTART** and it rebuilds the profile, then starts the game again.
 
 ## `swofty apply`
 
-`swofty apply [--profile <name>] [--game <dir>]` builds the profile and installs it into the game folder: the database, the archives addons patch, the enabled tracks, their menu entries, the cars' ERS settings, and the [in-game loader](/reference/addons/#in-game-loader) with the session's `swofty/settings.json`. Every change goes through the journal. `swofty restore` or `swofty --profile vanilla apply` removes it. Close the game first.
+Close the game, then use `swofty apply [--profile <name>] [--game <dir>]` to build your profile and install it into the game folder. This includes the database, the archives addons patch, the enabled tracks, their menu entries, the cars' ERS settings, and the [in-game loader](/reference/addons/#in-game-loader) with the session's `swofty/settings.json`. Every change goes through the journal. To remove the installation, run `swofty restore` or `swofty --profile vanilla apply`.
 
 ## `swofty verify`
 
-`swofty verify [--game <dir>]` checks for changes from the backed-up originals and checks that game files can be read and written correctly.
+Use `swofty verify [--game <dir>]` to check whether your game files differ from the backed-up originals and whether they can be read and written correctly.
 
 ## `swofty restore`
 
-`swofty restore` restores backed-up files and removes launcher additions. It reports anything it cannot restore. Close the game first.
+Close the game, then run `swofty restore` to put back the backed-up files and remove launcher additions. If anything can't be restored, the command tells you.
 
 See [Restoring the game](/using/profiles-and-restoring).
 
@@ -61,15 +65,15 @@ See [Restoring the game](/using/profiles-and-restoring).
 | `swofty addons enable <id>` | Enable an addon |
 | `swofty addons disable <id>` | Disable an addon; SwoftyMod cannot be disabled |
 
-`swofty mods install <addon folder>` and `swofty mods enable|disable <addon id>` still run the `swofty addons` command and print a note.
+If you use `swofty mods install <addon folder>` or `swofty mods enable|disable <addon id>`, they still run the `swofty addons` command and print a note.
 
-Built-in addons add their own top-level commands. `swofty --help` lists them.
+Built-in addons add their own top-level commands; run `swofty --help` to see them.
 
-Each command first moves what an earlier version stored in the data folder: addons in `$DATA/mods/` to `$DATA/addons/`, and tracks in `$DATA/maps/` into the Team Simplified library, turned on in the same profiles. `swofty --help`, `swofty --version` and mistyped commands leave the data folder alone.
+If you've used an earlier version, each command first moves its stored data: addons from `$DATA/mods/` to `$DATA/addons/`, and tracks from `$DATA/maps/` into the Team Simplified library. Those tracks stay turned on in the same profiles. `swofty --help`, `swofty --version` and mistyped commands leave the data folder alone.
 
 ## `swofty mods`
 
-The built-in Team Simplified addon provides these commands. They work on its mod library and on the profile's load order.
+These commands come from the built-in Team Simplified addon. Use them to manage its mod library and your profile's load order.
 
 | Command | Purpose |
 |---|---|
@@ -92,17 +96,23 @@ The built-in Team Simplified addon provides these commands. They work on its mod
 
 ## `swofty maps`
 
-`swofty maps` is a hidden alias of `swofty mods`. Tracks are mods: `swofty mods import <zip>` imports a community track package. Its mod id is the track code, or `<code>-track` when a mod in the library already has that id.
+`swofty maps` is a hidden alias of `swofty mods`. Since tracks are mods, you can import a community track package with `swofty mods import <zip>`. Its mod id is the track code, or `<code>-track` if a mod in your library already has that id.
 
 ## `swofty update`
 
-`swofty update` checks GitHub for the latest release. When it is newer, it installs it into the folder the command runs from: it downloads the archive for the platform, verifies it against the release's `SHA256SUMS`, extracts it to `.update/` in that folder and replaces the files in `bin/`, `loader/` and, on Linux, `share/`. Files in `loader/` that the new release does not have are removed. If a step fails, the files replaced so far are put back and `.update/` is removed. It refuses while F1 25 runs. When the command does not run from an extracted release that it can write to, it prints the release page instead.
+Close F1 25 before running `swofty update`; it refuses to update while the game runs. The command checks GitHub for the latest release and, if it's newer, installs it into the folder you're running the command from:
 
-`swofty update --check` only reports whether a newer release is available.
+1. It downloads the archive for your platform and verifies it against the release's `SHA256SUMS`.
+2. It extracts the archive to `.update/` in that folder.
+3. It replaces the files in `bin/`, `loader/` and, on Linux, `share/`, and removes files from `loader/` that the new release no longer has.
 
-On Linux each new file is renamed over the old one. On Windows the old file is moved into `.update/` first, and the launcher removes `.update/` at its next start. For a release without `SHA256SUMS`, the download is checked against the size and digest that GitHub lists for the asset.
+If a step fails, it puts back the files replaced so far and removes `.update/`. You need to run the command from an extracted release it can write to; otherwise, it prints the release page instead.
 
-The launcher's check keeps its state under `"updates"` in `$DATA/config.json`:
+To check for a newer release without installing it, use `swofty update --check`.
+
+On Linux, each new file is renamed over the old one. On Windows, the old file moves into `.update/` first; the launcher removes `.update/` when you next start it. If a release has no `SHA256SUMS`, the command checks the download against the size and digest GitHub lists for the asset.
+
+You'll find the state of the launcher's update check under `"updates"` in `$DATA/config.json`:
 
 | Key | Purpose |
 |---|---|
@@ -111,8 +121,8 @@ The launcher's check keeps its state under `"updates"` in `$DATA/config.json`:
 | `checked_at` | Time of the last check, in Unix seconds; the launcher checks again 6 hours later |
 | `latest` | Tag of the newest release the last check found |
 
-`SWOFTY_UPDATE_PRETEND_VERSION=0.1.0` makes the launcher and `swofty update` treat the running version as `0.1.0`, for testing an update.
+To test an update, set `SWOFTY_UPDATE_PRETEND_VERSION=0.1.0`. The launcher and `swofty update` will treat the running version as `0.1.0`.
 
 ## `swofty doctor`
 
-`swofty doctor` checks Steam, the game install, Proton, launch options and the data folder. It also reports changes from the backed-up originals.
+Use `swofty doctor` to check Steam, your game install, Proton, launch options and the data folder. You'll also see any changes from the backed-up originals.

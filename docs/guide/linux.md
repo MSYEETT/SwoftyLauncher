@@ -1,37 +1,43 @@
 # Linux and Steam Deck
 
-F1 25 runs through Steam and Proton. Modded play is offline only.
+You run F1 25 through Steam and Proton. With mods, you'll be playing single-player and offline.
 
 ## Set up
 
-1. Follow [Installation](/guide/installation).
-2. Run `bin/swofty doctor` from the extracted folder to check Steam, F1 25 and Proton.
-3. In Steam, open F1 25 → **Properties** → **General** → **Launch options**.
-4. Add this option, with `<extracted folder>` replaced by the full path of the folder you extracted:
+1. Follow [Installation](/guide/installation) to download and extract the app.
+2. Start Steam. You need F1 25 installed and a Proton version selected for it.
+3. Open F1 25 in Steam → the gear icon → **Properties** → **General**.
+4. To have Steam launch the modded game, enter this line in **Launch options**. Replace `<extracted folder>` with the full path of the folder you extracted:
 
    ```text
    <extracted folder>/bin/swofty run -- %command%
    ```
 
-For Flatpak Steam, extract the archive inside `~/.var/app/com.valvesoftware.Steam/` and use that folder's `bin/swofty`.
+You can now start the modded game with either Steam's **Play** button or the launcher's **Play** button. To launch vanilla through Steam again, clear the launch option.
+
+If you use **Flatpak Steam**, extract the archive inside `~/.var/app/com.valvesoftware.Steam/`. Use that folder's `bin/swofty` in the launch option.
 
 ## Play
 
-Open `bin/swofty-launcher` and select **Play**. With the launch option set, the launcher starts the game through Steam, and Steam's **Play** button uses Swofty Launcher for F1 25 too. Clear the option to return to Steam's normal launch.
+1. Open `bin/swofty-launcher`.
+2. [Install your addons](/using/addons) and [mods](/using/mods), then pick a [profile](/using/profiles).
+3. Press **Play**.
+4. On your first launch, you'll see the **Modded play runs offline** dialog. Select **Accept and launch**. For details, see [Offline play](/reference/safety).
 
-Run `swofty run` from a terminal to see live logs and a crash summary. Steam must be running. See [Command line](/reference/cli#swofty-run).
+To see live logs as you play, keep Steam running and run `swofty run` from a terminal.
 
 ## Steam Deck
 
-Use Desktop Mode for setup. The Steam launch option also works in Game Mode.
+Extract the app and set the launch option in Desktop Mode. Once that's set, you can use **Play** in the Deck's library to start the modded game in Game Mode too.
 
-## NixOS
+## If the game crashes
 
-The repository includes a development shell. Run `nix develop` before [building from source](/reference/development).
+1. Close the game.
+2. Run `swofty restore` before playing vanilla. See [Restoring the game](/using/profiles-and-restoring).
 
 ## Advanced launch settings
 
-CPU affinity and environment variables go in `$DATA/config.json`:
+If your setup needs CPU affinity or environment variables, set them in `$DATA/config.json`:
 
 ```json
 {
@@ -42,4 +48,4 @@ CPU affinity and environment variables go in `$DATA/config.json`:
 }
 ```
 
-Only set these if your setup needs them.
+You can use NixOS too. To run the latest code instead of a release, [build from source](/reference/development).

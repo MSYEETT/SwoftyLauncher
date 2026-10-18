@@ -1,38 +1,47 @@
 ---
 title: Packaging a mod
-description: Ship a mod as an addon folder or as a Team Simplified .serps package, and what the launcher's importer reads from each.
+description: Package your mod as a .swoftyaddon file or a Team Simplified .serps package, and learn what the importer reads from each.
 ---
 
 # Packaging a mod
 
-A mod ships one of two ways:
+You can share your mod in either of these formats:
 
 | Package | Made with | Players install it |
 |---|---|---|
-| An addon folder with `swofty.json` | A text editor and the [operations](/reference/mods/#operations) | On the **Addons** page, by drop, or `swofty addons install` |
+| A `.swoftyaddon` file | `zip`, from the mod folder | On the **Addons** page, by drop, or `swofty addons install` |
 | A `.serps` package | Simplified Studio, or by hand | On the **Mods** page, by drop, or `swofty mods import` |
 
-An addon folder applies exactly the operations it lists and can carry settings. A `.serps` package carries whole game files, and the launcher works out what they change.
+The difference is how you describe your changes. With a `.swoftyaddon`, you ship the mod folder and the exact operations it lists. With a `.serps` package, you supply whole game files and let the importer work out what they change.
 
-## As an addon folder
+## As a `.swoftyaddon`
 
-A mod ships as a folder with `swofty.json` at its root and every file its operations name. Players drop the folder, a zip of it or a `.swoftyaddon` file (a zip under another name) on the launcher, or install it from the command line:
+A `.swoftyaddon` is a zip of your mod folder's contents. The manifest, `swofty.json`, has to sit at the zip root, not inside a subfolder, so change into the folder before zipping it:
 
 ```sh
-swofty addons install my-mod
-swofty addons enable author.my-mod
+cd my-mod
+zip -r ../yourname.my-mod.swoftyaddon .
 ```
 
-Before shipping:
+Then install and enable it:
+
+```sh
+swofty addons install yourname.my-mod.swoftyaddon
+swofty addons enable yourname.my-mod
+```
+
+You can pass `swofty addons install` the `.swoftyaddon` file, a plain `.zip` with the same layout, or the folder itself. If you have a `.swoftymod` file from an earlier version, that installs too.
+
+Before you zip:
 
 - Set `id`, `name`, `version`, `author` and `description` in [`swofty.json`](/reference/addons/manifest).
-- Set `compat.game_builds` and `compat.seasons` to the game builds and seasons the mod was made for.
-- Remove files no operation names.
-- Ship a README that credits every author whose files the mod carries, and get their permission to redistribute them.
+- Set `compat.game_builds` and `compat.seasons` to the builds and seasons your mod was made for.
+- Remove any file that none of your operations name.
+- Include a README crediting each author whose files you ship, and get their permission to redistribute those files. Never include the game's own archives, database or executable.
 
-## As a .serps package
+## As a `.serps` package
 
-The built-in Team Simplified addon imports `.serps` packages into the library on the [Mods page](/using/mods). The format is the Simplified Suite's.
+To share whole game files, use a `.serps` package. This is the Simplified Suite's format, which the built-in Team Simplified addon imports: a zip with your game files under a content root, as in this layout:
 
 ```
 Scuderia AlphaTauri ORLEN.serps
@@ -43,20 +52,24 @@ Scuderia AlphaTauri ORLEN.serps
     └── shader_package_2025/object_opaque.nefx2.sm51.erp
 ```
 
+Import it:
+
+```sh
+swofty mods import "Scuderia AlphaTauri ORLEN.serps"
+```
+
 ### mod.serps
 
-`mod.serps` at the package root is JSON. Every field is optional.
+Put your mod's details in `mod.serps` at the package root. It's JSON, and every field is optional. The reader also accepts a UTF-8 byte order mark, comments, trailing commas, and camel- or Pascal-case keys.
 
 | Field | Meaning |
 |---|---|
-| `mod_name` or `name` | The mod's name. `mod_name` wins. |
+| `mod_name` or `name` | The mod's name; `mod_name` wins |
 | `author` | The author |
 | `version` | The mod's version |
 | `game` | The game, such as `F1® 25` |
 | `game_version` | The game version the mod was made for, such as `1.0.141.7865` |
 | `studio_version` | The Simplified Studio version that made it |
-
-The reader accepts a UTF-8 byte order mark, comments, trailing commas, and keys in camel or Pascal case.
 
 ### What the importer accepts
 
@@ -66,54 +79,29 @@ The reader accepts a UTF-8 byte order mark, comments, trailing commas, and keys 
 | A zip | It holds `mod.serps` or an `F1 25/` folder at its root or under one top folder, or its top folders are game folders |
 | A folder | It holds `mod.serps` or an `F1 25` folder |
 
-A `.serps` file is a zip. 7z and RAR archives are refused.
+Inside the content root, arrange your files as they appear in the game folder. The importer uses an `F1 25` folder within three levels of the package root, or the first folder within three levels whose subfolders are game folders (`asset_groups`, `game_package`, `localisation`, a name ending in `_package`, and so on). It reads `localisatioa/` as `localisation/`.
 
-### The content root
+### What the importer applies
 
-The content root holds files in the game folder's layout:
+To work out what your mod changes, the importer compares each file with the clean files of the installed build. It keeps the differences:
 
-1. An `F1 25` folder within three levels of the package root.
-2. Otherwise, the first folder within three levels whose subfolders are game folders: `asset_groups`, `actionmaps`, `audio`, `videos`, `game_package`, `character_package`, `localisation`, `localisatioa`, or a name that ends in `_package`, `_package_shared` or `_asset_groups`, or starts with `shader_package_`.
-
-`localisatioa/` is the folder the Simplified launcher points a patched game at. The importer reads it as `localisation/`.
-
-### Files
-
-| Path under the content root | Imported as |
-|---|---|
-| `game_package/gamedatabases/gamedatabases.2025.bin` | Database changes. It must parse as F1 25's database, or the import fails. |
-| `localisation/*/language_<code>.lng`, `localisatioa/*/language_<code>.lng` | Text changes |
-| A `.erp` the game ships | Archive changes |
-| Any other file the game ships | A replacement |
-| A file the game does not ship | An addition |
-| `.exe`, `.dll`, `.asi` | Skipped and named in the result |
-
-Entries with absolute paths, `..`, drive letters or symbolic links are skipped and counted.
-
-### The mod's id
-
-The id is the author and the name, lowercased, with every run of other characters turned into `-`, joined by a dot: `RM Designs` and `Scuderia AlphaTauri ORLEN` give `rm-designs.scuderia-alphatauri-orlen`. Without both, the file name is used. Importing a package with an id already in the library replaces it.
-
-### What the launcher applies
-
-The importer compares each file with the clean game files of the installed build and keeps the differences:
-
-| Class | Compared by | Applied as |
+| Path under the content root | Compared by | Applied as |
 |---|---|---|
-| Database | Record | The records the mod changes or adds (`db.put-record`), and the ones it removes (`db.remove-record`) |
-| Archive | Resource | The resources the mod changes or adds (`erp.put-resource`), and the ones it removes (`erp.remove-resource`) |
-| Text | Language and key | The strings the mod changes or adds (`lang.set`) |
-| Replacement, addition | Whole file | `file.put` |
+| `game_package/gamedatabases/gamedatabases.2025.bin` | Record | `db.put-record` for changed and added records, `db.remove-record` for removed ones |
+| A `.erp` the game ships | Resource | `erp.put-resource` for changed and added resources, `erp.remove-resource` for removed ones |
+| `localisation/*/language_<code>.lng`, `localisatioa/*/…` | Language and key | `lang.set` for each changed or added string |
+| Any other game file | Whole file | `file.put` |
+| A file the game does not ship | Whole file | `file.put` (addition) |
+| `.exe`, `.dll`, `.asi` | — | Skipped and named in the result |
 
-- Two mods that change different records of the database or different resources of an archive combine. Where they change the same one, the mod lower in the player's list wins.
-- Removals of database records and of resources apply only when `game_version` matches the installed game. Otherwise the player sees how many were left out.
-- A whole language file changes every string that differs from the installed game's, including strings the game changed after the mod was made. A language the package lacks takes the changes of its `language_eng.lng`, or of its first language file by name.
-- Text changes need the in-game loader.
+Your database file must parse as F1 25's database, or the import fails. Record and resource removals apply only when `game_version` matches the installed game. Otherwise, the player sees how many removals were left out.
 
-Ship only the files the mod changes. A whole `gamedatabases.2025.bin` from an older game build changes every record the game has updated since.
+The importer builds your mod's id from its author and name: it lowercases both, turns each run of other characters into `-`, then joins them with a dot. For example, `RM Designs` and `Scuderia AlphaTauri ORLEN` give `rm-designs.scuderia-alphatauri-orlen`. If that id is already in the library, importing replaces the existing mod.
 
-### Tracks
+Ship only the files your mod changes. Because the importer keeps every difference, a whole `gamedatabases.2025.bin` from an older build changes every record the game has updated since.
 
-A community track ships as the zip made for the EGO GameDatabases Editor ([Tracks](./tracks)). The importer claims a zip with `manifest.json` at its root, or a zip that holds exactly one such zip, and stores it as a mod whose id is the track code.
+### Track packages
 
-The `.serps` reader, the content root rules and the entry checks are ported from the Simplified Launcher. Based on Simplified Suite by Team Simplified, [github.com/TeamSimplified/simplified-suite](https://github.com/TeamSimplified/simplified-suite).
+If you're sharing a community track, use the EGO GameDatabases Editor zip, not a `.serps` ([Tracks](./tracks)). The importer recognises a zip with `manifest.json` at its root and stores it as a mod with the track code as its id.
+
+The `.serps` reader is ported from the Simplified Launcher and is based on Simplified Suite by Team Simplified, [github.com/TeamSimplified/simplified-suite](https://github.com/TeamSimplified/simplified-suite).

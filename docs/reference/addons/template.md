@@ -1,31 +1,66 @@
-# The addon template
+---
+title: Templates
+description: Two starting points — templates/launcher-addon for a launcher plugin, templates/addon for data and an engine plugin. What each file is and how to build it.
+---
 
-Copy [`templates/addon`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/addon) to start an addon. It uses the MIT licence.
+# Templates
 
-## Get started
+Pick the repository template that fits what you want to build. Copy it, change `id` in `swofty.json`, then build it. Both templates are MIT-licensed; you can use any licence for your addon.
 
-1. Copy the template to a new folder.
-2. Edit `swofty.json`: set your addon's `id`, `name`, `author` and `version`.
-3. Remove operation entries and files you do not need.
-4. Install with `swofty addons install <dir>`.
-5. Enable it with `swofty addons enable <id>`.
-
-Use a lowercase ID such as `author.my-addon`. Do not use the reserved `swofty.` prefix.
-
-## Included examples
-
-| Path | Example |
+| Template | Start here for |
 |---|---|
-| `swofty.json` | Toggle, choice and slider settings, one of them bound to the database |
-| `db/example.json` | Change values, one of them from a setting |
-| `ui/example.pkgpatch.json` | Change a menu label |
-| `native/` | C++ plugin that reads its settings, and its build script |
-| `README.md` | Build and test instructions |
+| [`templates/launcher-addon`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/launcher-addon) | A [launcher plugin](./launcher-api): a sidebar page, an importer, a build hook and a command. |
+| [`templates/addon`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/addon) | [Data](/reference/mods/) and an [engine plugin](./native-plugins): database and UI edits driven by settings, plus a C++ plugin. |
 
-See [Current status](/design/#current-status) for unfinished operation types.
+## templates/launcher-addon
 
-## Share your addon
+This template gives you a Rust helper program with just one dependency, `serde_json`. It talks to the launcher over stdin and stdout, answering `hello`, `view`, `event`, `import`, `build`, `command` and `summary`.
 
-Share the folder or zip it as a `.swoftyaddon` file, with `swofty.json` at the zip's root. A `.swoftymod` file from an earlier version still installs.
+| Path | What it is |
+|---|---|
+| `swofty.json` | The manifest: `launcher` names the helper for each OS, the `Example` section, the `exmod` import extension, the build hook and the `example` command. |
+| `Cargo.toml` | One binary, `example-helper`, depending on `serde_json`. |
+| `src/main.rs` | The helper: an `Example` page listing imported `.exmod` files with a switch for each, an importer, a build hook and the `example` command. |
+| `README.md` | Build and install steps. |
 
-Include your changes, not copies of the game's archives, database or executable.
+When you drop `.exmod` files, the importer copies them into your addon's `addon-data` folder. The page lists imported `.exmod` files with a per-profile switch for each, so you can choose which items to turn on. When you build, the build hook writes those items' names to `enabled.txt` and installs it with `file.put`. Run `swofty example` to print each item and whether it's on.
+
+To build and install the helper, run:
+
+```sh
+cargo build --release
+mkdir -p bin
+cp target/release/example-helper bin/
+swofty addons install .
+swofty addons enable example.launcher-addon
+```
+
+On Windows, build `example-helper.exe` and copy it to `bin/`. Ship both binaries in `bin/`.
+
+## templates/addon
+
+Use this template to connect settings to both data edits and an engine plugin. Your settings drive `gamedatabases` and UI edits; the C++ engine plugin reads those settings too.
+
+| Path | What it is |
+|---|---|
+| `swofty.json` | The manifest: a toggle, a choice and two sliders (one `db`, the rest `native`), and `database`, `ui` and `native` operations. |
+| `db/example.json` | Database operations: a `set` whose value comes from the `penalty_seconds` setting, and a `set` through a row selector. |
+| `ui/example.pkgpatch.json` | A `!pkg` patch that clones a tooltip entry in `tool_tips.uidb`. |
+| `native/src/sample_plugin.cpp` | The engine plugin: reads its settings, reacts to in-game changes with `SWOFTY_ON_CHANGE` and runs one signature scan. |
+| `native/include/` | The plugin C ABI (`swofty_api.h`) and the C++ layer (`swofty/*.hpp`). |
+| `native/build.sh` | Builds `native/sample_plugin.dll` with `zig c++` for `x86_64-windows-gnu`. |
+| `README.md` | Build and install steps. |
+
+Build the plugin, then install and enable the addon:
+
+```sh
+native/build.sh
+swofty addons install .
+swofty addons enable example.sample-mod
+```
+
+If you only need data edits, remove the `native` entry from `swofty.json` and the `native/` directory. You can then install the folder as it is, without a compiler.
+
+## Share
+
+You can share the folder directly, or zip its contents with `swofty.json` at the root and give the archive the `.swoftyaddon` extension. Include your changes and compiled binaries, never copies of the game's archives, database or executable. If you have a `.swoftymod` file from an earlier version, it still installs.

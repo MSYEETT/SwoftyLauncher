@@ -1,25 +1,24 @@
 # In-game addon settings
 
-SwoftyMod is the built-in addon. It adds core functionality for addon loading and customisation in Swofty Launcher for F1 25, including **ADDON SETTINGS** in the home menu, directly under **Career**. It is always enabled in modded profiles.
+To change an addon's settings without leaving the game, open **ADDON SETTINGS**. SwoftyMod adds this screen to the home menu, directly under **Career**.
 
-The home screen also has an **F9** keyboard prompt (**R3** on a controller) and a panel showing that you launched with Swofty Launcher for F1 25.
+## Open it
 
-## The settings page
+1. Press **Play** in the launcher to launch the game.
+2. On the home menu, select **ADDON SETTINGS**, directly under **Career**. You can also press **F9** (**R3** on a controller).
 
-ADDON SETTINGS lists every enabled addon and track as a tile with its name, author, version and description. Built-in addons without options, such as Team Simplified, have no tile. Select a tile to open its page.
+You'll also see a panel on the home screen confirming you launched with Swofty Launcher for F1 25.
 
-- An addon's page has a row per [option](/reference/addons/manifest#options). **Left** and **Right** change the value.
-- An addon without options shows its id and version.
-- A track's page shows its track code, author and version.
+## Change a setting
 
-Changes save to the profile, and the launcher shows them. Settings that apply live reach the addon at once. Database settings apply after a restart.
+1. On **ADDON SETTINGS**, select the tile for the enabled addon or track you want to change. Each tile shows its name, author and version.
+2. Move to a setting row on the addon's page.
+3. Press **Left** or **Right** to change the value.
 
-The same settings are in the launcher, in each addon's row on the **Addons** page.
+You won't see a tile for a built-in addon with no settings, such as Team Simplified. For an addon with no settings, you'll see its id and version; on a track's page, you'll find its track code, author and version.
 
-Online services errors show the SwoftyMod changelog instead, once per session. **Continue** closes it.
+## When changes take effect
 
-## Current status
+Your changes save to the active profile, but when they take effect depends on the setting: a live setting reaches the addon at once, while a database setting applies after you restart the game. You can also find these settings in the launcher, in each addon's row on the **Addons** page.
 
-The launcher builds these screens from your own game files whenever it builds the profile.
-
-If the game build is not recognised, the menu entry may be unavailable.
+If the game build isn't recognised, the **ADDON SETTINGS** entry may be unavailable.

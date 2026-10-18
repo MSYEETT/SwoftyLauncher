@@ -1,28 +1,19 @@
 # Offline play
 
-Modded sessions are for single-player play only. Multiplayer is off.
+When you play a modded session, F1 25 runs in single-player, offline. Multiplayer is off, and you can't turn it on. Launch through Steam normally and you'll play vanilla.
+
+The loader and addons need the game to run without EA AntiCheat, so the launcher disables it for each modded session. It undoes that change every time the game exits.
+
+## The one-time step
+
+The first time you press **Play**, you'll see the **Modded play runs offline** dialog. It explains what you're accepting: modded sessions run offline, without EA AntiCheat, and EA's terms of service do not cover playing without EA AntiCheat even offline.
+
+Select **Accept and launch** to start the game. If you decline, nothing changes and the game won't launch. You only need to accept once; after that, **Play** launches directly.
 
 ## Return to vanilla
 
-Close the game and run `swofty restore` before a normal Steam launch. On Linux, also clear the launcher's Steam launch option.
+1. Close the game.
+2. Run `swofty restore`.
+3. On Linux, clear the launcher's Steam launch option.
 
-See [Restoring the game](/using/profiles-and-restoring) if any files need repair.
-
-## Saves
-
-Separate saves for each profile are planned. Save isolation is still in development; see [Design notes](/design/#profiles-and-saves).
-
-## Offline play staging
-
-A modded session parks `EAAntiCheat.GameServiceLauncher.exe` as `.bak`, drops
-a stub that starts the game, and places the loader hook. Every action is
-recorded in a staging journal with SHA-256 digests. Restore replays the
-journal backwards and refuses to touch a file that changed since staging.
-
-Restoration runs when the game exits, from `swofty restore`, and
-automatically at the next start (crash recovery), so a crash cannot leave the
-game folder modified. `swofty offline status` shows whether staging is clean.
-
-## Sharing mods
-
-Share mod changes, not copies of game files. This repository contains no game data. Tests that need it read your local copy through `F1_25_DIR`.
+If any files need repair, follow [Restoring the game](/using/profiles-and-restoring).

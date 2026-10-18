@@ -1,66 +1,68 @@
 ---
 title: Storage
-description: Read and write an addon's own files under swofty/addons/<id>/ from a native plugin with swofty/storage.hpp or the C ABI.
+description: Read and write an addon's own files under swofty/addons/<id>/ with swofty/storage.hpp.
 ---
 
 # Storage
 
-A native plugin reads and writes its own files under `swofty/addons/<id>/` in the game folder. The calling DLL is identified the way the [assets API](/reference/addons/asset-api) identifies it, from the `dlls` its addon lists in `swofty.json`, so an addon reaches only its own folder.
+Use storage to read and write your addon's own files under `swofty/addons/<id>/`. Give it paths relative to that folder: the core rejects absolute paths, drive letters and any path that climbs above it. Your addon can only reach its own folder because the core identifies the calling DLL the same way as the [asset API](/reference/addons/asset-api).
 
-Paths are relative to the addon folder. The core rejects an absolute path, a drive letter and any path that climbs above the folder with `..`. A `write` is atomic: it goes to a temp file and renames over the target, creating any missing parent folders first.
-
-The library needs API version 5 and the `storage` [capability](/reference/addons/native-plugins). It is always on.
-
-## C++
-
-```cpp
-#include <swofty/storage.hpp>
-namespace storage = swofty::storage;
-```
-
-| Call | Returns |
+| | |
 |---|---|
-| `available()` | `true` when the loader is version 5 or later and the core implements storage |
-| `read(path, buf, cap, len)` | Reads the whole file into `buf`. Sets `*len` to the file size |
-| `read(path, std::string &out)` | Reads the whole file into `out` |
-| `write(path, data)` | Replaces the file atomically. `data` is a `std::string_view` or `std::span<const std::byte>` |
-| `append(path, data)` | Appends to the file, creating it when absent |
-| `remove(path)` | Deletes the file |
-| `size(path, out)` | Sets `*out` to the file size in bytes |
-| `list(dir, buf, cap, len)` | Writes the folder's entries into `buf` as newline-separated names. A sub-folder's name ends with `/`. Sets `*len` to the bytes written |
+| Header | `swofty/storage.hpp` |
+| Namespace | `swofty::storage` |
+| Table | `SwoftyApi::storage` (`SwoftyStorage`) |
+| Feature | `storage` — stable |
+| API version | 5 |
+| Thread | Caller thread (any thread) |
 
-Each call returns a `storage::Result`: `ok`, `unavailable` (the loader is older than version 5, or the core does not implement storage) or `invalid`. `storage::name(result)` gives the name. A `list` with no `dir`, or `"."`, lists the addon folder itself.
+Check the `swofty::storage::Result` each call returns: `ok`, `late`, `unavailable` or `invalid`. The [result codes](./#result-codes) explain what each means. To keep writes atomic, the core writes a temp file, then renames it.
 
-```cpp
-storage::write("save/progress.json", text);
-std::string back;
-if (storage::read("save/progress.json", back) == storage::Result::ok)
-    swofty::log("[sample] %zu bytes", back.size());
+## Calls
+
+| Call | Does |
+|---|---|
+| `available()` | `true` when the feature is on and implemented |
+| `read(path, buf, cap, &len)` | reads the whole file into `buf` and sets `len` to the file size; returns `invalid` if the size exceeds `cap` |
+| `read(path, out)` | reads the whole file into a `std::string` |
+| `write(path, data)` | replaces the file atomically (`std::string_view` or `std::span<const std::byte>`) |
+| `append(path, data)` | appends to the file, creating it if it doesn't exist |
+| `remove(path)` | deletes the file |
+| `size(path, &out)` | writes the file size in bytes |
+| `list(dir, buf, cap, &len)` | writes the directory's names into `buf`, separated by newlines; returns `invalid` if the listing exceeds `cap` |
+
+## Example
+
+Here's how you append a line to a log file, then read it back:
+
+```cpp [native/src/my_plugin.cpp]
+#include <swofty/storage.hpp>
+
+namespace st = swofty::storage;
+
+SWOFTY_ON_LOAD
+{
+    if (!st::available())
+        return;
+
+    st::append("laps.csv", "lap,time\n");
+
+    std::string body;
+    if (st::read("laps.csv", body) == st::Result::ok)
+        swofty::log("[my-addon] laps.csv is %zu bytes", body.size());
+}
+
+SWOFTY_ADDON()
 ```
 
-`invalid` means a bad or escaping path, a missing file for `read`, `size` or `remove`, or a file or listing larger than `cap` for `read` and `list`. `read` and `list` set `*len` to the size they need, so a caller can grow the buffer and retry. The `std::string` `read` overload sizes its buffer from `size` and never hits that case.
+You'll find the file at `swofty/addons/<id>/laps.csv` in the game folder. To use storage, declare the capability on your plugin's manifest entry:
 
-## C ABI
-
-```c
-typedef struct SwoftyStorage {
-    int (*available)(void);
-    int (*read)(const char *path, void *buf, size_t cap, size_t *len);
-    int (*write)(const char *path, const void *data, size_t len);
-    int (*append)(const char *path, const void *data, size_t len);
-    int (*remove)(const char *path);
-    int (*size)(const char *path, uint64_t *out);
-    int (*list)(const char *dir, char *buf, size_t cap, size_t *len);
-} SwoftyStorage;
+```json [swofty.json]
+"operations": {
+  "native": [{ "dll": "native/my_plugin.dll", "capabilities": ["storage"] }]
+}
 ```
 
-Reach the table through `api->storage` when `api->version >= 5`. Each function returns a `SWOFTY_ASSET_*` code: `SWOFTY_ASSET_OK`, `SWOFTY_ASSET_UNAVAILABLE` or `SWOFTY_ASSET_INVALID`.
+## Availability
 
-## Logging
-
-The core logs every call to `loader.log`, with the addon, the DLL, the call and the result:
-
-```
-[storage] api: sample.my-addon (my_plugin.dll) write save/progress.json (128 byte(s)) -> ok
-[storage] api: sample.my-addon (my_plugin.dll) read save/progress.json (128 byte(s)) -> ok
-```
+The storage engine lane hasn't landed yet, so every call on current builds returns `unavailable`. Guard every call with `available()`. See [the native-libraries design](/design/native-libraries#_5-storage) for the design.

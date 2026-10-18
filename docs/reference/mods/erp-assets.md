@@ -1,72 +1,104 @@
 ---
-title: Replacing and adding ERP assets
-description: Copy resources between archives and edit !pkg resources such as track layers with ERP operations.
+title: Textures and models
+description: List an archive's resources, then replace a fragment, copy a resource between archives, add mip files, and patch a !pkg layer with ERP operations.
 ---
 
-# Replacing and adding ERP assets
+# Textures and models
 
-F1 25 stores its art, models, worlds and menus in `.erp` archives under `2025_asset_groups/`. An addon changes them with [ERP operations](/reference/ops/erp) listed in `operations.erp`. When the launcher builds the profile, it writes each archive the operations change to the profile's overlay.
+To change F1 25's art, models, worlds or menus, you'll work with `.erp` archives under `2025_asset_groups/`. Inside each archive are named resources, each with one or more fragments. You edit those with [ERP operations](/reference/ops/erp), listed in your mod's `operations.erp`.
+
+The build writes a new copy of each archive your operations touch. If you have the in-game loader, it delivers changed and added resources as overlay archives under `swofty/assets/resources/`. That leaves the stock archives in the game folder. See [deliveries](/reference/addons/asset-api#deliveries).
 
 ## Look inside an archive
 
-List an archive's resources with the repository's tool:
+Start by finding the resource you want to change. Use `tools/erp.py` to list what's in an archive:
 
 ```sh
-python3 tools/erp.py "2025_asset_groups/environment_package/tracks/monaco/wep/monaco_f1_26_myteam.erp" '*'
+python3 tools/erp.py "2025_asset_groups/f1_safetycar_package/safety_car_2/wep/safety_car_2.erp" '*'
 ```
 
-A resource has a name such as `eaid://environment_package/tracks/monaco/wep/monaco-vehicles_current_myteam.layer` and one or more fragments. See [ERP archives](/reference/erp) for the format.
+Each line gives you the resource type and name, followed by one tuple per fragment. Read each tuple as fourcc, decompressed size, packed size, flags, compression:
 
-## Add a resource
+```text
+GfxSurfaceRes eaid://f1_safetycar_package/safety_car_2/textures/safety_car_2_decal_da.tif.image [('temp', 349528, 174763, '0x10', 17), ('temp', 73, 73, '0x10', 145)]
+```
 
-`copy-resource` appends a resource to an archive, byte for byte. It reads the resource from `from_erp`, an archive the game ships, or from `source`, an archive in your addon folder. `as` gives the copy a new name:
+Here, compression `17` means zstd (`0x11`), and `145` means stored (`0x91`). For your operation's `resource` field, copy the whole resource name, including the `eaid://` prefix. To inspect the bytes, extract the resource's first fragment with `tools/erpx.py`; it decompresses the fragment for you:
 
-```json [erp/car.json]
+```sh
+python3 tools/erpx.py "2025_asset_groups/f1_safetycar_package/safety_car_2/wep/safety_car_2.erp" safety_car_2_decal_da out.bin
+```
+
+For the file format, see [ERP archives](/reference/erp).
+
+## Replace a fragment
+
+Use `replace-resource` when you want to swap one fragment for a raw file from your mod and keep the others. Choose the fragment to match what you're changing: a texture's fragment 0 is its header, while fragment 1 holds its top-mip pixels:
+
+```json [erp/texture.json]
 {
   "schema_version": 1,
   "ops": [
     {
-      "op": "copy-resource",
-      "source": "erp/car.erp",
-      "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
-      "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.wep",
-      "as": "eaid://f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.wep"
+      "op": "replace-resource",
+      "erp": "2025_asset_groups/ui_package/screens/fe_loading.erp",
+      "resource": "eaid://ui_package/art/textures/loading/background.tif",
+      "fragment": 0,
+      "source": "erp/background.tif"
     }
   ]
 }
 ```
 
-`erp` paths are relative to the game folder. `source` paths are relative to the addon folder. The copy fails when `erp` already has a resource with the new name.
+Your `source` file must contain raw fragment bytes: the data you'd get after decompression. The build compresses those bytes the way the archive stores that fragment, then updates the sizes and resource hash. If you leave out `fragment`, it defaults to `0`. Give `erp` paths relative to the game folder and `source` paths relative to your mod folder.
 
-## Replace part of a resource
+## Copy a resource between archives
 
-`replace-resource` swaps one fragment of a resource for a raw file from your addon and keeps the other fragments. A texture's fragment 1 holds its pixels:
+If you already have the resource in another archive, use `copy-resource` to append it to `erp`, byte for byte. Choose `source` for an archive in your mod, or `from_erp` for one the game ships. Use `as` to give the copy a new name:
 
 ```json
 {
-  "op": "replace-resource",
-  "erp": "2025_asset_groups/f1_safetycar_package/safety_car_2/wep/safety_car_2.erp",
-  "resource": "eaid://f1_safetycar_package/safety_car_2/textures/safety_car_2_decal_da.tif.image",
-  "fragment": 1,
-  "source": "erp/decal_pixels.bin"
+  "op": "copy-resource",
+  "source": "erp/car.erp",
+  "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
+  "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.wep",
+  "as": "eaid://f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.wep"
 }
 ```
 
-`add-resource` adds a resource from one raw file per fragment, and `remove-resource` takes one out. A build that removes a resource rewrites the archives instead of loading overlays in game. [ERP operations](/reference/ops/erp#raw-resources) has the rules.
+Choose a name that isn't already in `erp`, or the copy will fail. [Adding a livery](./livery) shows how to copy a whole car this way.
+
+## Add a resource
+
+To append a new resource built from raw files, use `add-resource` with one file per fragment. Set `type` to the resource type (at most 15 characters), then list the fragment files in order under `sources`. The new resource gets its fragment names, flags and compression from the first resource in `erp` that matches both its type and fragment count:
+
+```json
+{
+  "op": "add-resource",
+  "erp": "2025_asset_groups/ui_package/screens/fe_loading.erp",
+  "resource": "eaid://ui_package/art/textures/loading/sponsor.tif.image",
+  "type": "GfxSurfaceRes",
+  "sources": ["erp/sponsor.head.bin", "erp/sponsor.pixels.bin"]
+}
+```
+
+Use `put-resource` to replace a resource of the same name or add it if it's missing. To take one out, use `remove-resource`. The loader can't remove a resource from a stock archive, so a build with any `remove-resource` rewrites the archives into the game folder and prints `erp: built into the game files; <n> resource removal(s) cannot apply at runtime`.
 
 ## Add mip files
 
-A texture keeps the rest of its mip chain in a loose `.mipmaps` file whose path is in the texture's fragment 2. `add-mipmaps` copies a mip file, or a folder of them, to a path in the game folder:
+A texture's remaining mip chain lives outside the archive, in a loose `.mipmaps` file. Fragment 2 holds its path. To supply that file, use `add-mipmaps` to copy one file, or a folder of them, to a path in the game folder:
 
 ```json
 { "op": "add-mipmaps", "source": "mipmaps/", "target": "f1_safetycar_package/safety_car_2/textures/" }
 ```
 
-## Edit a `!pkg` resource
+If you supply a folder, every file under it is copied, keeping the paths below `target`. Then point your texture at the new mip file by replacing fragment 2 with `replace-resource`.
 
-Worlds, layers and UI databases are `!pkg` resources: trees of named entries. `patch-pkg` edits entries inside one and keeps the rest of the archive unchanged. Custom Grid Size adds pit garages to each track this way. From `addons/custom-grid-size/tracks/monaco.json`:
+## Patch a `!pkg` resource
 
-```json [tracks/monaco.json]
+Worlds, layers and UI databases are `!pkg` resources: trees of named entries. With `patch-pkg`, you can edit entries in that tree while keeping the rest of the archive unchanged. Here's how Custom Grid Size adds a pit garage to a track's grid layer:
+
+```json [erp/monaco.json]
 {
   "op": "patch-pkg",
   "when": { "cars": 26 },
@@ -80,8 +112,8 @@ Worlds, layers and UI databases are `!pkg` resources: trees of named entries. `p
       "as": "vehicles_current_myteam$PitGarage25",
       "set": {
         "uniqueid": "a5256e66c3b302404d61d63301e06514",
-        "overrides.WorldObject.transform": [-0.3303549885749817, 0.0, -0.9438560009002686, 0.0, 0.0, 1.0, 0.0, 0.0, 0.9438560009002686, 0.0, -0.3303549885749817, 0.0, -334.4569396972656, -14.192349433898926, 255.0829315185547, 1.0],
-        "overrides.VehPlacement.Id": 25
+        "overrides.VehPlacement.Id": 25,
+        "overrides.WorldObject.transform": [-0.33035, 0.0, -0.94385, 0.0, 0.0, 1.0, 0.0, 0.0, 0.94385, 0.0, -0.33035, 0.0, -334.457, -14.192, 255.083, 1.0]
       }
     }
   ]
@@ -90,28 +122,22 @@ Worlds, layers and UI databases are `!pkg` resources: trees of named entries. `p
 
 | Edit | Fields | Effect |
 |---|---|---|
-| `clone-entry` | `at`, `src`, `as`, optional `set` and `from` | Copies the entry `src` in the container `at` and names the copy `as`. In an array, `src` is a selector such as `[name=...]` and `as` replaces the selected field. `from` takes the entry from another resource, given as `erp`, `resource` and `fragment` |
-| `set-value` | `path`, `value` | Sets one value |
+| `clone-entry` | `at`, `src`, `as`, optional `set`, `from` | Copy `src` in the container `at`, name the copy `as`, and apply `set`. In an array, `src` is a `[field=value]` selector and `as` is the new selected field. `from` takes the entry from another resource (`erp`, `resource`, `fragment`) |
+| `set-value` | `path`, `value` | Set one value |
 
-Paths use dots and `[field=value]` selectors. A value is written in the type of the value it replaces: numbers for integers and floats, 16 numbers for a `mat4`, a hex string for a `woid`.
+To find the entry you need, extract the fragment, then read its tree with `python3 tools/pkg.py text <fragment.bin>`. Address entries with dots and `[field=value]` selectors. Your replacement value takes the existing value's type, so supply a number for an int or float, 16 numbers for a `mat4`, or a hex string for a `woid`.
 
-Run `patch-pkg` after a `copy-resource` to change the copy, such as the layer names a renamed world lists.
+::: warning Not built yet
+Only `clone-entry` and `set-value` are built; the other `patch-pkg` edits are defined but not built. If you use one of those other edits in an ERP file, the build skips all your mod's ERP files and warns you.
+:::
 
-## Warn the player
+## Settings and warnings
 
-`warn` prints a message when the addon is built. Custom Grid Size names the tracks that lack room for the chosen grid:
+You can use `when` and <span v-pre>`{{id}}`</span> with `db` [settings](/reference/addons/settings#_3-read-a-db-setting) in ERP files, just as you would in database operations. To print a message at build, use `warn`:
 
 ```json
 { "op": "warn", "when": { "cars": 30 },
-  "message": "Monaco has room for 28 cars because grid slot 29 would be only 6 m past the last corner. A 30-car race there leaves 2 cars without a grid slot or garage." }
+  "message": "Monaco has room for 28 cars; a 30-car race there leaves 2 cars without a grid slot." }
 ```
 
-## Settings
-
-ERP files take `when` and <span v-pre>`{{id}}`</span> from `db` [settings](/reference/addons/settings#use-a-db-setting), like database operations.
-
-::: warning Not built yet
-`patch-pkg` edits other than `clone-entry` and `set-value` are defined but not built. An addon whose ERP files use one has all its ERP files skipped with a warning.
-:::
-
-Every operation is in the [ERP operations](/reference/ops/erp) reference.
+You'll find every operation in the [ERP operations](/reference/ops/erp) reference. For menu screens, see [UI patches](/reference/ops/ui-patches).

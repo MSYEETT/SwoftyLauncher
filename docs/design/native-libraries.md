@@ -1,27 +1,27 @@
 # Native standard libraries
 
-This page is for contributors. It is the contract for five native standard-library additions that
-addon plugins reach through `SwoftyApi`. The SDK surface, feature gates and stubs ship now; the
-engine-side implementation is built per library in its own lane. A line says where a library is a
-stub.
+If you're contributing to the native standard library, this is the contract for the five additions
+that addon plugins reach through `SwoftyApi`. The SDK surface, feature gates and stubs ship now.
+Each library gets its own engine implementation; check its status line below to see where it's
+still a stub.
 
-The additions raise `SWOFTY_API_VERSION` to 5. Each library is a nested table on `SwoftyApi`
-(`events`, `overlay`, `telemetry`, `db`, `storage`), reached from a C++ wrapper header
+These additions raise `SWOFTY_API_VERSION` to 5. You reach each library's nested table on `SwoftyApi`
+(`events`, `overlay`, `telemetry`, `db`, `storage`) through a C++ wrapper header
 (`swofty/events.hpp`, `swofty/overlay.hpp`, `swofty/telemetry.hpp`, `swofty/db.hpp`,
 `swofty/storage.hpp`). Every call returns one of the shared result codes: `ok`, `late`,
-`unavailable` (older core, or the feature is off, or not yet implemented), `invalid` (bad
-argument). A wrapper returns `unavailable` when the loader offers a version below 5 or the table
-pointer is null. Each table's `available()` returns non-zero only when its feature is on and the
-core implements it.
+`unavailable` (older core, feature off, or not yet implemented), `invalid` (bad argument).
+If the loader offers a version below 5 or the table pointer is null, the wrapper returns
+`unavailable`. To check whether the core implements a table and has its feature on, use that
+table's `available()`: it returns non-zero only when both are true.
 
-Engine addresses below are VAs for the catalogued `F1_25.exe` build; they are in `re/db/functions.tsv`.
-Confirm a hook by decompiling before relying on it.
+You'll find the engine addresses below in `re/db/functions.tsv`. They're VAs for the catalogued
+`F1_25.exe` build, so confirm a hook by decompiling before you rely on it.
 
 ## Feature gates
 
-The feature table is in `native/src/core/stage.cpp` (`FEATURES`); `native/build.sh` writes it to
-`swofty/addons/core/features.json`. A stable feature is always on; an experimental feature is on only
-when `"features"` in `swofty/assets.json` lists it.
+The feature table lives in `native/src/core/stage.cpp` (`FEATURES`); `native/build.sh` writes it to
+`swofty/addons/core/features.json`. Stable features are always on. To turn on an experimental
+feature, you must list it under `"features"` in `swofty/assets.json`.
 
 | Feature | Default | Library |
 |---|---|---|
@@ -39,8 +39,8 @@ when `"features"` in `swofty/assets.json` lists it.
 | Render thread | The swapchain present path. `on_paint` callbacks fire here. |
 | Caller thread | `db` reads and `storage` calls run on the thread that calls them. Returned `db` string pointers are valid until the next `db` call on that thread. |
 
-Subscriptions, paint callbacks and `storage` and `db` calls are valid from any thread. A callback
-must return quickly and must not block the thread it runs on.
+You can use subscriptions, paint callbacks and `storage` and `db` calls from any thread.
+Your callbacks must return quickly: they must not block the thread they run on.
 
 ## 1. Events + frame scheduler
 
@@ -54,13 +54,13 @@ must return quickly and must not block the thread it runs on.
 | `unsubscribe(token)` | `ok`, or `invalid` for an unknown token |
 
 Event names are strings (`SWOFTY_EVENT_*`): `session.start`, `session.end`, `race.start`, `lap`,
-`flag`, `state`, `screen`, `pause`, `resume`, `results`. A subscriber receives a `SwoftyEvent`
+`flag`, `state`, `screen`, `pause`, `resume`, `results`. Your subscriber receives a `SwoftyEvent`
 (`name`, `frame`, `time` seconds since attach, `a`/`b` event integers, `data` pointer). `on_frame`
-receives the seconds since the previous frame. Callbacks run on the flow thread and last until
-`unsubscribe`; the core drops an addon's subscriptions if the addon's init returns failure.
+receives the seconds since the previous frame. Callbacks run on the flow thread until you call
+`unsubscribe`. If your addon's init returns failure, the core drops its subscriptions.
 
-Accept point: `subscribe`, `on_frame` and `unsubscribe` are accepted at any time. Callbacks fire
-once a session or the flow machine is running.
+You can call `subscribe`, `on_frame` and `unsubscribe` at any time. Callbacks start firing once
+a session or the flow machine is running.
 
 Hooks: the per-frame tick is `Vm_Update_FlowStateMachine` 0x144423ce0. Lifecycle events come from
 `Game_GameModule_OnSessionEnter` 0x14080c300 (`session.start`), `Sess_Weekend_Start` 0x140af0460,
@@ -87,25 +87,23 @@ Status: stub. `native/src/core/events.cpp` returns `unavailable` from every call
 | `load_image(id, file)` | `ok`, or `invalid` for a bad id or missing file |
 | `image(paint, id, ...)` | `ok`, or `invalid` for an unknown id |
 
-Immediate mode: register a paint callback with `on_paint`; the core invokes it once per presented
-frame with a `SwoftyPaint` handle and issues the draw calls made through that handle. Coordinates
-are framebuffer pixels, origin top-left; query `size` each frame. Colours are `0xRRGGBBAA`. Text
-uses the built-in font at a pixel size. Textures load once from the addon folder (`load_image`,
-outside paint) and draw by id, multiplied by a tint (`0xffffffff` for none).
+Drawing uses immediate mode:
 
-Accept point: `on_paint`, `remove` and `load_image` are accepted at any time. Draw calls are valid
-only inside a paint callback, with that callback's `paint` handle.
+1. Register a paint callback with `on_paint`. The core calls it once per presented frame with a
+   `SwoftyPaint` handle and issues the draw calls you make through that handle.
+2. Query `size` each frame. Coordinates are framebuffer pixels, with the origin at the top-left.
+3. Draw with colours in `0xRRGGBBAA` format. Text uses the built-in font at a pixel size.
 
-Hooks: the overlay reaches the Direct3D 12 present path through the stable COM vtable ABI, not
-through a game address. At arm time it reads `IDXGISwapChain::Present` (vtable slot 8),
-`IDXGISwapChain::ResizeBuffers` (slot 13) and `ID3D12CommandQueue::ExecuteCommandLists` (slot 10,
-to capture the game's direct queue) from a throwaway probe swapchain and installs safetyhook inline
-hooks on them. See the `render` subsystem in the knowledge base.
+For textures, call `load_image` outside paint to load once from the addon folder. Then draw by id;
+the texture is multiplied by a tint (`0xffffffff` for none).
 
-Status: implemented, experimental. `native/src/core/hud.cpp` arms the present hook when the
-`overlay` feature is on and paints the frame's filled rectangles, outlines and lines; text and
-image commands are recorded but not yet painted. The draw-list and registration logic is in
-`native/src/core/hud_drawlist.hpp` and covered by `native/test/hud_test.cpp`.
+You can call `on_paint`, `remove` and `load_image` at any time. Draw calls, though, are valid only
+inside a paint callback, using that callback's `paint` handle.
+
+To implement this library, find and hook the Direct3D 12 swapchain present path (`d3d12core.dll`).
+There's no present hook in the knowledge base yet.
+
+Status: stub. `native/src/core/hud.cpp` returns `unavailable` and the draw calls do nothing.
 
 ## 3. Telemetry
 
@@ -124,7 +122,7 @@ speed (m/s), rpm, gear, throttle/brake/clutch/steer, per-wheel tyre temp/wear an
 position, lap, sector, lap and sector times, lap distance, world position and velocity.
 `SwoftySessionState` holds session type, track, flag, weather, lap count, participant count, player
 index, session time and temperatures. `SwoftyParticipant` holds name, team, position, lap and best
-lap. Each struct ends in a `reserved` block so fields can be added without changing the size.
+lap. Each struct ends in a `reserved` block, leaving room to add fields without changing its size.
 
 Shared feed: `shared_memory` opens a named file mapping (`Local\SwoftyTelemetry`) laid out as
 `SwoftyTelemetryFeed`:
@@ -139,22 +137,22 @@ Shared feed: `shared_memory` opens a named file mapping (`Local\SwoftyTelemetry`
 | `cars` | `SwoftyCarState[24]` | per participant |
 | `participants` | `SwoftyParticipant[24]` | per participant |
 
-A reader checks that `seq` is even, copies, then checks that `seq` did not change; it retries
-otherwise.
+To read the feed:
 
-Accept point: reads return the most recent frame's values and run on the flow thread.
-`shared_memory` is accepted at any time and stays on for the lifetime of the process.
+1. Check that `seq` is even. Retry if it's odd.
+2. Copy the data.
+3. Check that `seq` did not change. Retry if it did.
+
+Reads run on the flow thread and give you the most recent frame's values. You can call
+`shared_memory` at any time; once enabled, the feed stays on for the lifetime of the process.
 
 Hooks: session and participant data come from the session witnesses `Sess_Veh_UpdateWheelMap`
 0x142e90560, `Sess_ParticipantVec_PushBack` 0x140af2ab0, `Sess_Select_Entrants` 0x1424a2350,
 `Sess_Startup_VehicleAiLoop` 0x142505f30 and `Game_GameModule_OnSessionEnter` 0x14080c300. The
-per-car physics/telemetry struct is not catalogued yet; the lane finds it.
+per-car physics/telemetry struct isn't catalogued yet, so you'll need to find it to implement this
+library.
 
-Status: experimental. `native/src/core/telemetry.cpp` implements the feed, the seqlock, the
-`shared_memory` mapping and the gated accessors, and mid-hooks `Vm_Update_FlowStateMachine`,
-`Game_GameModule_OnSessionEnter` and `Game_SessionStateFinaliseResultsSync_OnResultsFinalised`
-to drive the frame counter, session clock and the `available()` gate. The per-car physics struct
-is not catalogued, so the car and participant fields read back zero until it is reverse-engineered.
+Status: stub. `native/src/core/telemetry.cpp` returns `unavailable` from every call.
 
 ## 4. Database read
 
@@ -171,13 +169,12 @@ is not catalogued, so the car and participant fields read back zero until it is 
 | `cell(cursor, field, out)` | reads one field of the cursor's current row |
 | `row_name(cursor)` | the current row's label, or null |
 
-Keys are the dotted path hashed with fnv1a64, the same keys the write operations use; see the
+Reads use the same keys as writes: the dotted path hashed with fnv1a64. See the
 [game database reference](/reference/gamedb). A `SwoftyDbValue` carries a `tag` (`SWOFTY_DB_*`) and
-the integer, float or string. A `SwoftyDbCursor` is caller-owned. String pointers are valid until
-the next `db` call on the same thread.
+the integer, float or string. You own the `SwoftyDbCursor` you pass in. String pointers remain
+valid until the next `db` call on the same thread.
 
-Accept point: reads are available once the database has loaded; they return `unavailable` before
-then.
+You can read once the database has loaded. Before then, reads return `unavailable`.
 
 Hooks: `Gdb_Lookup_Key` 0x1445a22f0 (fnv1a64 key lookup), `Gdb_Init_TableCursor` 0x1445a25c0,
 `Gdb_Get_RowByIndex` 0x1445a28f0, `Gdb_Find_RowByLabel` 0x1445a2bd0, `Gdb_Get_FieldInt`
@@ -201,22 +198,14 @@ Status: stub. `native/src/core/dbread.cpp` returns `unavailable` from every call
 | `size(path, out)` | file size in bytes |
 | `list(dir, buf, cap, len)` | newline-separated names into `buf` |
 
-An addon reads and writes under `swofty/addons/<id>/`. Paths are relative to that folder; the core
-rejects an absolute path, a drive letter and any path that climbs above the folder. The calling DLL
-is identified the way the assets API identifies it (`settings_addon` in
-`native/src/core/settings.cpp`), so an addon reaches only its own folder. Writes go to a temp file
-and rename.
+Your addon reads and writes under `swofty/addons/<id>/`, using paths relative to that folder.
+The core rejects absolute paths, drive letters and any path that climbs above the folder.
+To keep each addon in its own folder, it identifies the calling DLL the same way the assets API
+does (`settings_addon` in `native/src/core/settings.cpp`). Writes go to a temp file, then rename it.
 
-Accept point: calls are accepted at any time.
+You can make storage calls at any time.
 
-`write` and `append` create any missing parent folders inside the addon folder. `list` names a
-sub-folder with a trailing `/`. The core rejects a bad or escaping path with `invalid`, a missing
-file for `read`, `size` or `remove` with `invalid`, and a file or listing larger than the buffer
-with `invalid` after setting `*len` to the size needed.
-
-Status: implemented. `native/src/core/storage.cpp` identifies the caller with `settings_addon` and
-reads and writes under `swofty/addons/<id>/`. The [storage reference](/reference/std/storage) is the
-addon-facing page.
+Status: stub. `native/src/core/storage.cpp` returns `unavailable` from every call.
 
 ## Files
 

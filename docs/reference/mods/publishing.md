@@ -1,17 +1,21 @@
 ---
 title: Testing and publishing
-description: Build a mod, test it in game, read the logs, and publish it.
+description: Build a mod without touching the game, test it in game, read the logs, and publish a release.
 ---
 
 # Testing and publishing
 
 ## Build
 
+Start by building your profile so you can check its operations without touching the game folder:
+
 ```sh
 swofty build
 ```
 
-`swofty build` applies the profile's operations without touching the game folder. It prints each `warn` message, every owned unlock row, the operations it skips and every conflict: a target that a later addon replaced after an earlier one wrote it. The output is in `$DATA/cache/overlay/<profile>/<buildhash>/`, with `plan.json` listing the game files the build replaces and adds. See [`swofty build`](/reference/cli#swofty-build).
+`swofty build` applies the profile's operations and writes the result to `$DATA/cache/overlay/<profile>/<buildhash>/`. You'll find `plan.json` there, listing the game files the build replaces and adds, along with their sources. The folder also holds the session's `swofty/settings.json`.
+
+Read every line of output before you launch: it prints every `warn` message, each owned unlock row, skipped operations and each conflict. A conflict means a later addon replaced a target that an earlier addon wrote. Fix the warnings, then build again. See [`swofty build`](/reference/cli#swofty-build).
 
 ## Test in game
 
@@ -19,18 +23,18 @@ swofty build
 swofty run --apply
 ```
 
-`swofty run --apply` installs the profile, starts the game and follows the logs. When the game exits, the game folder returns to its original files. After a crash, `swofty restore` puts the original files back.
+`swofty run --apply` installs your profile, starts the game and follows the logs. When the game exits, the game folder returns to its stock files. If the game crashes, use `swofty restore` to put them back.
 
 | Log | Contents |
 |---|---|
-| `<game>/swofty/loader.log` | SwoftyMod, plugins and the game's own warnings and errors |
-| `$DATA/sessions/<id>/` | One folder per session. `swofty logs` prints the latest summary |
+| `<game>/swofty/loader.log` | SwoftyMod, the runtime asset steps (`[assets]`), and the game's own warnings |
+| `$DATA/sessions/<id>/` | One folder per session; `swofty logs` prints the latest summary |
 
-Test with only your mod enabled, then with the addons players are likely to combine it with. Test every value of each setting.
+First, test with only your mod enabled. Then test with the addons players combine it with. Try every value of each setting. Changing a `db` setting rebuilds the profile, so you'll need to build and relaunch after changing one.
 
 ## Publish
 
-- Bump `version` in `swofty.json` for each release.
-- State the game build and season it was tested on, and match `compat.game_builds`.
-- Credit every author whose files the mod carries, and redistribute their files only with permission.
-- Ship the folder as described in [Packaging a mod](./packaging).
+- For each release, bump `version` in `swofty.json`.
+- Tell players which game build and season you tested on, and make sure `compat.game_builds` and `compat.seasons` match.
+- If your mod includes other authors' files, credit every author and get permission to redistribute their files.
+- To share your mod, package the folder as a `.swoftyaddon` — see [Packaging a mod](./packaging).
