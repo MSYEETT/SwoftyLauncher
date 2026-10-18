@@ -21,7 +21,7 @@ Download the archive for your platform from [Releases](https://github.com/Swofty
 
 `bin/` holds the launcher, `swofty-launcher`, and the command line, `swofty`. `loader/` holds the in-game loader and stays next to `bin/`. To run the latest code, [build from source](/reference/development).
 
-[0.2.7](/releases/0.2.7) lists what is new.
+[0.2.8](/releases/0.2.8) lists what is new.
 
 The app is in development. Some controls and mod features are unfinished; see the [current status](/design/#current-status).
 
