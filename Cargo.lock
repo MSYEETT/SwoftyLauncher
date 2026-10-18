@@ -6237,7 +6237,7 @@ dependencies = [
 
 [[package]]
 name = "swofty-addon"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "semver",
  "serde",
@@ -6249,7 +6249,7 @@ dependencies = [
 
 [[package]]
 name = "swofty-addon-simplified"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -6261,7 +6261,7 @@ dependencies = [
 
 [[package]]
 name = "swofty-builtins"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "swofty-addon",
  "swofty-addon-simplified",
@@ -6269,7 +6269,7 @@ dependencies = [
 
 [[package]]
 name = "swofty-cli"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -6285,7 +6285,7 @@ dependencies = [
 
 [[package]]
 name = "swofty-core"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "flate2",
  "md-5 0.11.0",
@@ -6305,7 +6305,7 @@ dependencies = [
 
 [[package]]
 name = "swofty-formats"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "aes 0.9.3",
  "bcdec_rs",
@@ -6316,7 +6316,7 @@ dependencies = [
 
 [[package]]
 name = "swofty-launcher"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "gpui-kit",
  "serde_json",
@@ -6327,11 +6327,11 @@ dependencies = [
 
 [[package]]
 name = "swofty-sdk"
-version = "1.0.1"
+version = "1.0.2"
 
 [[package]]
 name = "swofty-simplified-helper"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "swofty-addon",
  "swofty-addon-simplified",
