@@ -1,7 +1,7 @@
 {
   "name": "f1-mod-manager",
   "private": true,
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Swofty Launcher for F1 25, a launcher and mod loader for F1 25",
   "license": "AGPL-3.0-or-later",
   "type": "module",
