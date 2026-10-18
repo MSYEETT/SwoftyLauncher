@@ -43,29 +43,29 @@ can work. Everything is undone when the game exits.
   pinned SHA-256 digests before it is used. Source: Swofty-Developments/F1-OfflinePlay.";
 
 /// The extension release this manager pins.
-pub const EXTENSION_VERSION: &str = "0.3.1";
+pub const EXTENSION_VERSION: &str = "0.3.2";
 /// Where the artifacts are hosted (binaries; source lives in the repository).
 pub const DEFAULT_BASE_URL: &str = "https://swofty-developments.github.io/F1-OfflinePlay";
 pub const SOURCE_URL: &str = "https://github.com/Swofty-Developments/F1-OfflinePlay";
 
-/// Pinned digests for release v0.3.1. Every artifact is checked against its
+/// Pinned digests for release v0.3.2. Every artifact is checked against its
 /// pin at install time and again at use time.
 pub const PINS: &[(&str, &str)] = &[
     (
         "f1op_hook.dll",
-        "30d3aaeb018926f2c026b4b840e5514410dfe34833168260725212c610ab5455",
+        "ee2b9757cdbcc0787a28e2ac99d4c489a99c6a8b0f39f00cbd87a628b73f5334",
     ),
     (
         "f1op_stub.exe",
-        "4e0629a0d4e8a12ef19750a00c21b883f97833ea3a05295f6b0d70117695a639",
+        "5b05b86d6bf6d809fb9fba4ee07d6045fbd6eda2eb2f95349e2a312cb8f676f2",
     ),
     (
         "f1op-prelaunch.exe",
-        "2dc752796a0366310fef97e8bceee489868ddd0026599a912911bd11f704151d",
+        "56192a2fa9ce7d49fe18959cb933479a56c7c72dc813ad830512de119887a0f9",
     ),
     (
         "f1op-probe.exe",
-        "e86d6a298c8f6801f324cf4dccf5b2f50713d17964b694d83bfe49cfe7c30d95",
+        "1fa01caafd666a897be481cbd445e8d223c422b84b053d733b39ba2ad0b2f28e",
     ),
     (
         "f1op-prelaunch-linux-x86_64",
