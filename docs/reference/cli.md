@@ -57,7 +57,7 @@ See [Restoring the game](/using/profiles-and-restoring).
 | Command | Purpose |
 |---|---|
 | `swofty addons list` | List installed addons and whether they are enabled |
-| `swofty addons install <path>` | Install an addon folder, a `.swoftymod` file or a zip that holds an addon |
+| `swofty addons install <path>` | Install an addon folder, a `.swoftyaddon` file or a zip that holds an addon |
 | `swofty addons enable <id>` | Enable an addon |
 | `swofty addons disable <id>` | Disable an addon; SwoftyMod cannot be disabled |
 

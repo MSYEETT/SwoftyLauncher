@@ -16,7 +16,7 @@ An addon folder applies exactly the operations it lists and can carry settings. 
 
 ## As an addon folder
 
-A mod ships as a folder with `swofty.json` at its root and every file its operations name. Players drop the folder, a zip of it or a `.swoftymod` file (a zip under another name) on the launcher, or install it from the command line:
+A mod ships as a folder with `swofty.json` at its root and every file its operations name. Players drop the folder, a zip of it or a `.swoftyaddon` file (a zip under another name) on the launcher, or install it from the command line:
 
 ```sh
 swofty addons install my-mod

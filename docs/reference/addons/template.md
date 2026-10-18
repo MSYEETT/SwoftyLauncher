@@ -26,6 +26,6 @@ See [Current status](/design/#current-status) for unfinished operation types.
 
 ## Share your addon
 
-Share the folder or zip it as a `.swoftymod` file, with `swofty.json` at the zip's root.
+Share the folder or zip it as a `.swoftyaddon` file, with `swofty.json` at the zip's root. A `.swoftymod` file from an earlier version still installs.
 
 Include your changes, not copies of the game's archives, database or executable.

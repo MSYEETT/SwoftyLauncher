@@ -4,9 +4,9 @@
 
 ## Install an addon
 
-An addon is a folder with a `swofty.json` file, or a `.swoftymod` file or zip that holds one. Install it in any of these ways:
+An addon is a folder with a `swofty.json` file, or a `.swoftyaddon` file or zip that holds one. Install it in any of these ways:
 
-- Drop the folder, `.swoftymod` file or zip anywhere on the launcher window.
+- Drop the folder, `.swoftyaddon` file or zip anywhere on the launcher window.
 - On the **Addons** page, select **Install addon…** and choose the folder.
 - From the command line:
 

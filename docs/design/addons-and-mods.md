@@ -243,7 +243,7 @@ pub enum Effect {
 ### Import handlers
 
 - A `ButtonKind::Pick` button opens the system file picker and sends `Event::Picked`.
-- Files dropped on the window go to the importer whose `claims` returns `Yes`, else to the only one that returns `Maybe`. Otherwise the shell names the file and says no addon imports it. Core imports addon folders (`swofty.json`), `.swoftymod` files and zips that hold an addon, and is asked first. Team Simplified's importer claims track zips ([section 5](#_5-tracks-are-mods)).
+- Files dropped on the window go to the importer whose `claims` returns `Yes`, else to the only one that returns `Maybe`. Otherwise the shell names the file and says no addon imports it. Core imports addon folders (`swofty.json`), `.swoftyaddon` files (and legacy `.swoftymod` files) and zips that hold an addon, and is asked first. Team Simplified's importer claims track zips ([section 5](#_5-tracks-are-mods)).
 - `Progress` reports appear as a notification with a progress bar.
 
 ### Per-profile state

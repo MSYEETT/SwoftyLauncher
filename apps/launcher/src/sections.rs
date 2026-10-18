@@ -791,7 +791,7 @@ impl Shell {
                             .text_size(px(13.))
                             .line_height(px(19.))
                             .text_color(p.text_muted)
-                            .child("Addon folders, .swoftymod files, track packages and the files your addons import."),
+                            .child("Addon folders, .swoftyaddon files, track packages and the files your addons import."),
                     ),
             )
     }

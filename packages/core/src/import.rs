@@ -6,7 +6,9 @@ use swofty_addon::launcher::Claim;
 use crate::manifest::MANIFEST_FILE;
 use crate::registry::Registry;
 
-pub const ADDON_EXTENSION: &str = "swoftymod";
+pub const ADDON_EXTENSION: &str = "swoftyaddon";
+/// Accepted for packages made before the mods-to-addons rename.
+pub const ADDON_EXTENSION_LEGACY: &str = "swoftymod";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Route {
@@ -49,7 +51,7 @@ pub fn addon_claim(path: &Path) -> Claim {
     if path.is_dir() {
         return claim(addon_root(path).is_some());
     }
-    if has_extension(path, ADDON_EXTENSION) {
+    if has_extension(path, ADDON_EXTENSION) || has_extension(path, ADDON_EXTENSION_LEGACY) {
         return Claim::Yes;
     }
     claim(has_extension(path, "zip") && zip_names(path).is_some_and(|n| holds_addon(&n)))
@@ -163,7 +165,8 @@ mod tests {
         std::fs::create_dir_all(root.join("my-addon")).unwrap();
         std::fs::write(root.join("my-addon").join(MANIFEST_FILE), "{}").unwrap();
         std::fs::create_dir_all(root.join("loose")).unwrap();
-        zip_of(&root.join("pack.swoftymod"), &[MANIFEST_FILE]);
+        zip_of(&root.join("pack.swoftyaddon"), &[MANIFEST_FILE]);
+        zip_of(&root.join("legacy.swoftymod"), &[MANIFEST_FILE]);
         zip_of(
             &root.join("wrapped.zip"),
             &["my-addon/swofty.json", "my-addon/plugin.dll"],
@@ -176,14 +179,15 @@ mod tests {
         let reg = Registry::load(&store).unwrap();
         let at = |name: &str| route(&reg, &root.join(name));
         assert_eq!(at("my-addon"), Some(Route::Addon));
-        assert_eq!(at("pack.swoftymod"), Some(Route::Addon));
+        assert_eq!(at("pack.swoftyaddon"), Some(Route::Addon));
+        assert_eq!(at("legacy.swoftymod"), Some(Route::Addon));
         assert_eq!(at("wrapped.zip"), Some(Route::Addon));
         assert_eq!(at("track.zip"), Some(Route::Importer("t.mods".into())));
         assert_eq!(at("livery.serps"), Some(Route::Importer("t.mods".into())));
         assert_eq!(at("other.zip"), Some(Route::Importer("t.mods".into())));
         assert_eq!(at("loose"), None);
         assert_eq!(at("notes.txt"), None);
-        let paths: Vec<PathBuf> = ["livery.serps", "notes.txt", "pack.swoftymod", "other.zip"]
+        let paths: Vec<PathBuf> = ["livery.serps", "notes.txt", "legacy.swoftymod", "other.zip"]
             .iter()
             .map(|n| root.join(n))
             .collect();

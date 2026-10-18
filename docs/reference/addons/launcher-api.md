@@ -227,7 +227,7 @@ pub trait Progress: Send + Sync {
 
 Files dropped anywhere on the launcher window are routed by `swofty_core::import`:
 
-1. The core claims addons first: a folder with `swofty.json` at its root or in its only child folder, a `.swoftymod` file, or a zip that holds an addon. These install as addons.
+1. The core claims addons first: a folder with `swofty.json` at its root or in its only child folder, a `.swoftyaddon` file (or a legacy `.swoftymod` file), or a zip that holds an addon. These install as addons.
 2. Every addon with an importer is asked `claims` for each file, in registry order.
 3. A file goes to the first `Yes`, else to the only `Maybe`. Otherwise the launcher names it: `No addon imports <file>`.
 
