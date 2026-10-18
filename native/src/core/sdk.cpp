@@ -266,6 +266,7 @@ void ready()
     assets_setup();
     resources_setup();
     gamedb_setup();
+    dbread_setup();
     overlay_setup();
 }
 

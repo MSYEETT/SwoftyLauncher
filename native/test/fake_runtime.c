@@ -289,6 +289,14 @@ void *gdb_load_impl(uint8_t *db, void *cfg)
     gdb_put(db, "fake.retype_me", 0, "5");
     gdb_put(db, "fake.keep", 0, "7");
     gdb_put(db, "fake.flag", 5, "False");
+    gdb_put(db, "fake.name", 2, "Lewis");
+    gdb_put(db, "fake.items._item_instancecount_", 0, "3");
+    gdb_put(db, "fake.items.item_0", 2, "alpha");
+    gdb_put(db, "fake.items.item_1", 2, "bravo");
+    gdb_put(db, "fake.items.item_2", 2, "charlie");
+    gdb_put(db, "fake.items.item_0.rank", 0, "1");
+    gdb_put(db, "fake.items.item_1.rank", 0, "2");
+    gdb_put(db, "fake.items.item_2.rank", 0, "3");
     db[0xf0] = 1;
     return db;
 }
