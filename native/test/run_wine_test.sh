@@ -84,7 +84,7 @@ json.dump({'schema': 1, 'profile': 'wine-test',
            'addons': [{'id': 'example.sample-mod', 'dlls': ['t_assets.dll'], 'options': []}],
            'plugins': ['addons/example.sample-mod/native/t_assets.dll']},
           open(os.path.join(root, 'settings.json'), 'w'))
-json.dump({'features': ['file']}, open(os.path.join(root, 'assets.json'), 'w'))
+json.dump({'features': ['file', 'telemetry']}, open(os.path.join(root, 'assets.json'), 'w'))
 EOF
     gl_level=; gl_rate=
     [[ $mode == gamelog_off ]] && gl_level=off
@@ -178,6 +178,10 @@ EOF
         once "storage: remove deletes the file" "$sapi remove save/state\.txt -> ok[[:space:]]*\$"
         once "storage: remove of a gone file is invalid" "$sapi remove save/state\.txt -> invalid: swofty/addons/example\.sample-mod/save/state\.txt is missing"
         check "storage: the plugin sees remove then missing" '\[t_assets\] storage remove-again invalid'
+        once "telemetry: setup wired through ready() when the feature is on" '\[telemetry\] on; frame tick '
+        once "telemetry: reads are gated off outside a session" '\[t_assets\] telemetry: available 0, session unavailable, car0 unavailable, car99 invalid'
+        once "telemetry: an addon opens the shared feed" '\[t_assets\] telemetry: shared_memory ok name=Local.SwoftyTelemetry'
+        once "telemetry: the shared feed mapping is created" '\[telemetry\] shared_memory: Local.SwoftyTelemetry mapped, 6920 bytes'
         continue
     fi
     count "$mode: no SDK calls, no api lines" 0 '\[assets\] api:'

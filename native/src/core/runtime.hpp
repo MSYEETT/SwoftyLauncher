@@ -79,6 +79,7 @@ void overlay_setup();
 void events_setup();
 void events_drop_module(void *module);
 void hud_setup();
+void telemetry_setup();
 int group_add(const json::Value &entry);
 int db_add(const json::Value &entry);
 int lang_add(const json::Value &entry);

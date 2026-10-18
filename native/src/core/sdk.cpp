@@ -270,6 +270,7 @@ void ready()
     overlay_setup();
     events_setup();
     hud_setup();
+    telemetry_setup();
 }
 
 }

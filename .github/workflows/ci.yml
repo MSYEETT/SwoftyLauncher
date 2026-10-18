@@ -93,6 +93,10 @@ jobs:
         run: native/test/run_events_test.sh
       - name: Overlay draw-list unit test
         run: native/test/run_hud_test.sh
+      - name: Telemetry feed unit test
+        run: |
+          zig c++ -std=c++23 -O2 -I packages/sdk/include native/test/telemetry_feed_test.cpp -o telemetry_feed_test
+          ./telemetry_feed_test
 
       - name: Wine and Xvfb
         run: |
