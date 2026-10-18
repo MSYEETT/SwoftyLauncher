@@ -1,6 +1,8 @@
 # Database edits
 
-Database operations change game values in `game_package/gamedatabases/gamedatabases.2025.bin`.
+Database operations change game values in `game_package/gamedatabases/gamedatabases.2025.bin`. A
+native plugin reads the loaded database back with [`swofty/db.hpp`](/reference/std/db), using the
+same keys.
 
 ## File format
 

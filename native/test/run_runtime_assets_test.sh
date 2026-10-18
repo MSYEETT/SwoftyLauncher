@@ -11,6 +11,11 @@ export ZIG_GLOBAL_CACHE_DIR=$PWD/../build/zig-cache ZIG_LOCAL_CACHE_DIR=$PWD/../
 PIN=(taskset -c 2-7,10,11,14-31 nice -n 10)
 rm -rf "$OUT/game"
 mkdir -p "$OUT/game"
+
+echo "==== dbread logic unit test"
+"${PIN[@]}" zig c++ -std=c++23 -O2 -Wall -Wextra -I../../packages/sdk/include -o "$OUT/dbread_unit" dbread_unit.cpp
+"$OUT/dbread_unit"
+
 ZS=../third_party/zstd
 mkdir -p "$OUT/zstd"
 ZOBJ=()
@@ -132,6 +137,17 @@ full = {
         'fra': {'strings': {'lng_press_start': 5, 'lng_mode_career': None}},
         'deu': {'table': 'lang/bad.lngt'},
     },
+    'db_inspect': [
+        {'key': 'fake.keep', 'as': 'int'},
+        {'key': 'ai.general_ai_settings.max_test_time', 'as': 'float'},
+        {'key': 'fake.flag', 'as': 'bool'},
+        {'key': 'fake.name', 'as': 'string'},
+        {'key': 'does.not.exist', 'as': 'int'},
+    ],
+    'db_inspect_tables': [
+        {'table': 'fake.items', 'field': 'rank'},
+        {'table': 'fake.items', 'field': 'rank', 'label': 'bravo'},
+    ],
     'overlay': True,
     'resource_erps': [{'file': 'assets/resources/0.erp', 'erps': ['2025_asset_groups/ui_package/prebuilt.erp']},
                       {'file': 'assets/resources/missing.erp', 'erps': ['2025_asset_groups/ui_package/prebuilt.erp']}],
@@ -208,6 +224,20 @@ for mode in none replace gated late early earlywait; do
         check "gamedb: non-integer int refused" "\[assets\] gamedb: edit swofty\.runtime_test\.badint ignored: an int needs integer text"
         check "gamedb: summary" '\[assets\] gamedb: 2 overwritten, 5 created, 1 retyped, 2 skipped'
         check "gamedb: window-stage read-back through Gdb_Lookup_Key" '\[assets\] gamedb: window stage: Gdb_Lookup_Key\("ai\.general_ai_settings\.max_test_time"\) -> 301'
+        check "dbread: window stage sees the loaded database" '\[dbread\] window stage: database ready; 5 key\(s\), 2 table\(s\) to inspect'
+        check "dbread: int_at reads an int record" '\[dbread\] inspect fake\.keep: int_at ok 7'
+        check "dbread: get tags an int record" '\[dbread\] inspect fake\.keep as int: get ok tag int i=7 '
+        check "dbread: float_at reads a float record (post-edit)" '\[dbread\] inspect ai\.general_ai_settings\.max_test_time: float_at ok 301'
+        check "dbread: bool_at reads a bool record (post-edit)" '\[dbread\] inspect fake\.flag: bool_at ok true'
+        check "dbread: string_at reads a string record" '\[dbread\] inspect fake\.name: string_at ok "Lewis"'
+        check "dbread: get tags a string record with its fnv32 label" '\[dbread\] inspect fake\.name as string: get ok tag string s="Lewis" meta=0x[0-9a-f]+'
+        check "dbread: a missing key is invalid" '\[dbread\] inspect does\.not\.exist as int: get invalid'
+        check "dbread: missing key typed accessor is invalid" '\[dbread\] inspect does\.not\.exist: int_at invalid'
+        check "dbread: open finds the row count" '\[dbread\] table fake\.items field rank: open ok, 3 row\(s\)'
+        check "dbread: iterate row 0 name and field" '\[dbread\] table fake\.items\[0\] name="alpha" rank ok tag int i=1'
+        check "dbread: iterate row 1 name and field" '\[dbread\] table fake\.items\[1\] name="bravo" rank ok tag int i=2'
+        check "dbread: iterate row 2 name and field" '\[dbread\] table fake\.items\[2\] name="charlie" rank ok tag int i=3'
+        check "dbread: row-by-label resolves the index" '\[dbread\] table fake\.items row "bravo": ok index 1 name="bravo" rank i=2'
         ;;
     late)
         check "loader: early stage off" 'early stage: off \("early_stage": false in swofty.assets\.json\)'
