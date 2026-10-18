@@ -25,6 +25,7 @@ const SwoftyTelemetry *telemetry_table();
 const SwoftyDb *db_table();
 const SwoftyStorage *storage_table();
 void ready();
+void events_drop_module(void *module);
 }
 
 namespace {
@@ -651,8 +652,13 @@ extern "C" __declspec(dllexport) int SwoftyCoreInit(const wchar_t *name, SwoftyA
     addons.push_back({utf8(name), {}, true});
     current = &addons.back();
     int r = init(api);
-    if (!r)
+    if (!r) {
         current->active = false, current->mixins.clear();
+        HMODULE m = nullptr;
+        GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           reinterpret_cast<LPCWSTR>(init), &m);
+        runtime::events_drop_module(m);
+    }
     current = nullptr;
     return r;
 }

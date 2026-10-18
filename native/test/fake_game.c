@@ -197,11 +197,22 @@ __asm__(
     ".byte 0xFF,0x50,0x08,0x8B,0x90,0xA0,0x00,0x00,0x00\n"
     "mov %edx, %ecx\ncall owned_impl\nadd $0x20, %rsp\n"
     "pop %rbx\npop %rbp\npop %rdi\npop %rsi\npop %r14\nret\n"
+
+    // Reproduces the Vm_Update_FlowStateMachine prologue so the events module's flow-tick hook
+    // resolves and the test can drive the per-frame tick; the body just restores and returns.
+    ".globl fake_flow\nfake_flow:\n"
+    ".byte 0x41,0x57,0x41,0x56,0x41,0x55,0x41,0x54,0x56,0x57,0x55,0x53\n"
+    ".byte 0x48,0x81,0xEC,0x58,0x02,0x00,0x00\n"
+    ".byte 0xC5,0xF8,0x29,0xB4,0x24,0x40,0x02,0x00,0x00\n"
+    ".byte 0xC5,0xF9,0x28,0xF2\n"
+    "vmovaps 0x240(%rsp), %xmm6\nadd $0x258, %rsp\n"
+    "pop %rbx\npop %rbp\npop %rdi\npop %rsi\npop %r12\npop %r13\npop %r14\npop %r15\nret\n"
     ".section .data1,\"dwx\"\n"
     ".globl vm_thunk_register\nvm_thunk_register:\n"
     "sub $0x28, %rsp\ncall *__imp_RegisterClassExW(%rip)\nadd $0x28, %rsp\nret\n"
     ".text\n");
 ATOM vm_thunk_register(const WNDCLASSEXW *wc);
+void fake_flow(void);
 
 struct FakeLogGate {
     uint32_t hashes[373];
@@ -639,6 +650,12 @@ int main(int argc, char **argv)
     void (*assets_late)(void) = ta ? (void (*)(void))(void *)GetProcAddress(ta, "t_assets_late") : NULL;
     if (assets_late)
         assets_late();
+
+    if (argc > 1 && !strcmp(argv[1], "trigger")) {
+        fake_flow();
+        fake_flow();
+        printf("      drove the flow tick twice\n");
+    }
 
     if (argc > 1 && (!strcmp(argv[1], "trigger") || !strcmp(argv[1], "vm") || !strcmp(argv[1], "gamelog_off")))
         test_gamelog(strcmp(argv[1], "gamelog_off") != 0);

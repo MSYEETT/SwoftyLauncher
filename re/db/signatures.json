@@ -598,6 +598,84 @@
    "used_by": [
     "native/src/core/items.cpp"
    ]
+  },
+  {
+   "id": "vm.flow_update",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 58 02 00 00 C5 F8 29 B4 24 40 02 00 00 C5 F9 28 F2",
+   "match": "0x144423ce0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x144423ce0",
+   "kind": "func_start",
+   "names": [
+    "Vm_Update_FlowStateMachine"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-18",
+     "by": "events",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/events.cpp"
+   ]
+  },
+  {
+   "id": "game.session_enter",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 53 48 81 EC 38 02 00 00 48 89 CE 80 3D ?? ?? ?? ?? 01",
+   "match": "0x14080c300",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14080c300",
+   "kind": "func_start",
+   "names": [
+    "Game_GameModule_OnSessionEnter"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-18",
+     "by": "events",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/events.cpp"
+   ]
+  },
+  {
+   "id": "game.race_started",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 28 48 89 CE 80 3D ?? ?? ?? ?? 01 75 53",
+   "match": "0x140b808a0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140b808a0",
+   "kind": "func_start",
+   "names": [
+    "Game_ChampionshipFormationLapComponent_OnRaceStarted"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-18",
+     "by": "events",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/events.cpp"
+   ]
   }
  ]
 }

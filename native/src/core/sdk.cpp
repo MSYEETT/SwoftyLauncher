@@ -268,6 +268,7 @@ void ready()
     gamedb_setup();
     dbread_setup();
     overlay_setup();
+    events_setup();
 }
 
 }

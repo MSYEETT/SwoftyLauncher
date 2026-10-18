@@ -112,6 +112,10 @@ EOF
     fi
     case $mode in
     trigger)
+        check "events: flow-tick hook installed" '\[events\] Vm_Update_FlowStateMachine hooked at base\+0x4423ce0'
+        check "events: setup reports the onFrame tick live" '\[events\] setup: live; onFrame armed'
+        once "events: first flow tick fires with dt 0" '\[events\] flow tick 1 observed, dt 0\.0'
+        once "events: second flow tick fires" '\[events\] flow tick 2 observed'
         check "gamelog: on with the defaults" '\[gamelog\] game log to loader\.log: on \(level warn, from defaults\)'
         check "gamelog: overwrite on Ne_Log_Thunk installed" 'wrap Ne_Log_Thunk at .* installed: swofty_gamelog\.dll\(0, overwrite\)'
         check "gamelog: site on Ne_Format_String installed" 'site site_Ne_Format_String_Entry at .* installed: swofty_gamelog\.dll\(0\)'

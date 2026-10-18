@@ -89,6 +89,9 @@ jobs:
       - name: Build version.dll and swofty_core.dll
         run: native/build.sh
 
+      - name: Events dispatcher unit test
+        run: native/test/run_events_test.sh
+
       - name: Wine and Xvfb
         run: |
           sudo dpkg --add-architecture i386
