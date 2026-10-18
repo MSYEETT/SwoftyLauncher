@@ -29,6 +29,7 @@ The [addon template](/reference/addons/template) ships `swofty_api.h` and `swoft
 | UI | Add screens and home tiles, drive ADDON SETTINGS pages | [UI](./ui) |
 | Settings | Declare options and read them from a plugin | [Settings](./settings) |
 | Logging | Write to `swofty/loader.log`, configure the game log | [Logging](./logging) |
+| Events | Run code on lifecycle events and once per frame | [Events](./events) |
 | Database read | Read the loaded game database: values, fields, rows, tables | [Database read](./db) |
 | Storage | Read and write the addon's own files under `swofty/addons/<id>/` | [Storage](./storage) |
 | Native plugins | The plugin ABI: exports, `SwoftyApi`, loading | [Native plugins](/reference/addons/native-plugins) |

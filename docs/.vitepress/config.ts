@@ -205,6 +205,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Settings", link: "/reference/std/settings", icon: "file" },
               { text: "UI", link: "/reference/std/ui", icon: "file" },
               { text: "Logging", link: "/reference/std/logging", icon: "file" },
+              { text: "Events", link: "/reference/std/events", icon: "file" },
               { text: "Storage", link: "/reference/std/storage", icon: "file" },
             ],
           },
