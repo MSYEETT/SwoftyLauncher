@@ -64,6 +64,11 @@ void overlay_dropped(const std::string &why);
 std::string erp_name(uint64_t hash);
 
 const SwoftyAssets *assets_table();
+const SwoftyEvents *events_table();
+const SwoftyOverlay *overlay_table();
+const SwoftyTelemetry *telemetry_table();
+const SwoftyDb *db_table();
+const SwoftyStorage *storage_table();
 const json::Value &sdk();
 void ready();
 void assets_setup();

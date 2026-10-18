@@ -19,6 +19,11 @@ int settings_watch(const char *id, SwoftySettingFn fn, void *user);
 
 namespace runtime {
 const SwoftyAssets *assets_table();
+const SwoftyEvents *events_table();
+const SwoftyOverlay *overlay_table();
+const SwoftyTelemetry *telemetry_table();
+const SwoftyDb *db_table();
+const SwoftyStorage *storage_table();
 void ready();
 }
 
@@ -632,6 +637,11 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     a->setting = settings_get;
     a->watch_setting = settings_watch;
     a->assets = runtime::assets_table();
+    a->events = runtime::events_table();
+    a->overlay = runtime::overlay_table();
+    a->telemetry = runtime::telemetry_table();
+    a->db = runtime::db_table();
+    a->storage = runtime::storage_table();
     a->version = SWOFTY_API_VERSION;
     return 1;
 }

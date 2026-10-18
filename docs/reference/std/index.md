@@ -13,6 +13,7 @@ Everything an addon can use, by area. Data operations are JSON files listed in `
 |---|---|---|
 | `swofty_api.h` | `packages/sdk/include/` | The C ABI: `SwoftyApi`, mixin records, setting values. MIT |
 | `swofty/mixin.hpp` | `packages/sdk/include/swofty/` | The C++ layer: mixin macros, bindings, settings, `swofty::log`, `SWOFTY_ADDON`. MIT |
+| `swofty/{events,overlay,telemetry,db,storage}.hpp` | `packages/sdk/include/swofty/` | The standard libraries: lifecycle events and a frame tick, the HUD overlay, telemetry reads, game-database reads, addon storage. MIT |
 | `swofty/game.hpp` | `native/include/swofty/` | Every subsystem of the [Game API](/reference/game/) |
 | `swofty/game/<subsystem>.hpp` | `native/include/swofty/game/` | One subsystem's functions, structs, data and sites |
 
@@ -36,13 +37,14 @@ The [addon template](/reference/addons/template) ships `swofty_api.h` and `swoft
 
 ## API versions
 
-`SwoftyApi.version` is the version the running loader offers. `SWOFTY_API_VERSION` in `swofty_api.h` is 4.
+`SwoftyApi.version` is the version the running loader offers. `SWOFTY_API_VERSION` in `swofty_api.h` is 5.
 
 | Members | Offered by |
 |---|---|
 | `version`, `log`, `module_base`, `scan` | `version.dll`, as version 1 |
 | `resolve`, `register_mixins`, `fields`, `setting`, `watch_setting`, `assets` | `swofty_core.dll`, as version 4 |
+| `events`, `overlay`, `telemetry`, `db`, `storage` | `swofty_core.dll`, as version 5 |
 
-The mixin helpers in `mixin.hpp` need version 2 or later, the settings helpers version 3 and `assets.hpp` version 4.
+The mixin helpers in `mixin.hpp` need version 2 or later, the settings helpers version 3, `assets.hpp` version 4, and the standard-library headers (`events.hpp`, `overlay.hpp`, `telemetry.hpp`, `db.hpp`, `storage.hpp`) version 5. See the [native libraries design](/design/native-libraries).
 
-Each manifest capability needs a version: `log` and `scan` 1, `hook` 2, `options` 3, `assets` 4. `read-db` and `on-frame` are accepted in manifests and not offered by any version.
+Each manifest capability needs a version: `log` and `scan` 1, `hook` 2, `options` 3, `assets` 4, and `read-db`, `on-frame`, `events`, `overlay`, `telemetry` and `storage` 5.
