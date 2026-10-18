@@ -9,9 +9,9 @@ session runs without it. The first launch shows the offline play terms and
 asks for a typed `accept`; if you decline, the game is not launched and
 nothing is changed. The launcher's **Play** shows the same terms as a dialog
 the first time: accepting records consent and launches, declining does
-nothing. The terms record that this is outside EA's terms of service and
-that EA may take action against your account, including suspension or
-termination.
+nothing. The terms say that playing without EA AntiCheat is outside EA's
+terms of service, even offline, and that EA can act on accounts under its
+terms.
 
 | Command | Effect |
 |---|---|
@@ -22,7 +22,7 @@ termination.
 | `swofty offline withdraw` | Withdraw consent; modded launches are refused |
 
 The extension (a separate project, [Swofty-Developments/F1-OfflinePlay](https://github.com/Swofty-Developments/F1-OfflinePlay))
-is verified against digests pinned in the manager at install time and again
+is verified against digests pinned in the launcher at install time and again
 before every use, so a tampered or lookalike download is refused however it
 arrived. Sessions stay offline: multiplayer is unavailable and cannot be
 enabled. Every staged change is journaled and the game folder returns to

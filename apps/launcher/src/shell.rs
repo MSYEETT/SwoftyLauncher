@@ -128,30 +128,32 @@ fn bullet(text: &'static str, p: Palette) -> impl IntoElement {
         .child(div().flex_1().text_size(px(13.)).text_color(p.text).child(text))
 }
 
-fn risk_box(p: Palette) -> impl IntoElement {
+fn terms_box(p: Palette) -> impl IntoElement {
     v_flex()
         .gap(px(6.))
         .p(px(12.))
         .rounded(px(6.))
         .bg(p.elevated)
         .border_1()
-        .border_color(p.error)
+        .border_color(p.border)
         .child(
             h_flex()
                 .gap(px(8.))
                 .items_center()
-                .text_color(p.error)
+                .text_color(p.accent)
                 .child(Icon::new(IconName::CircleAlert).size(px(15.)))
                 .child(
                     div()
                         .text_size(px(13.))
                         .font_weight(FontWeight::SEMIBOLD)
-                        .child("This is outside EA's terms of service"),
+                        .text_color(p.text)
+                        .child("Outside EA's terms of service"),
                 ),
         )
         .child(div().text_size(px(13.)).text_color(p.text).child(
-            "EA can detect modified launch behaviour and may take action \
-                 against your account, including suspension or termination.",
+            "EA's terms don't cover playing without EA AntiCheat, even offline. We know of \
+                 no action taken against players for offline modding, but EA can still act on \
+                 accounts under its terms.",
         ))
 }
 
@@ -179,13 +181,14 @@ fn offline_terms(p: Palette) -> impl IntoElement {
                     p,
                 )),
         )
-        .child(risk_box(p))
+        .child(terms_box(p))
         .child(
             v_flex()
                 .gap(px(7.))
                 .child(section_label("OFFLINE ONLY", p))
                 .child(div().text_size(px(13.)).text_color(p.text).child(
-                    "Multiplayer is unavailable and cannot be enabled. The component is \
+                    "Multiplayer is unavailable and cannot be enabled, so modded sessions stay \
+                         away from the online play EA AntiCheat protects. The component is \
                          downloaded automatically and verified against pinned SHA-256 digests.",
                 )),
         )
