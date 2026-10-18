@@ -88,11 +88,11 @@ SWOFTY_ON_LOAD
 SWOFTY_ADDON()
 ```
 
-Declare the capability on your plugin's manifest entry:
+Name your plugin in `operations.native`:
 
 ```json [swofty.json]
 "operations": {
-  "native": [{ "dll": "native/my_plugin.dll", "capabilities": ["log", "events", "on-frame"] }]
+  "native": [{ "dll": "native/my_plugin.dll" }]
 }
 ```
 

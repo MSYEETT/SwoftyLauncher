@@ -55,11 +55,11 @@ SWOFTY_ON_LOAD
 SWOFTY_ADDON()
 ```
 
-You'll find the file at `swofty/addons/<id>/laps.csv` in the game folder. To use storage, declare the capability on your plugin's manifest entry:
+You'll find the file at `swofty/addons/<id>/laps.csv` in the game folder. Name your plugin in `operations.native`:
 
 ```json [swofty.json]
 "operations": {
-  "native": [{ "dll": "native/my_plugin.dll", "capabilities": ["storage"] }]
+  "native": [{ "dll": "native/my_plugin.dll" }]
 }
 ```
 

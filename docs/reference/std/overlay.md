@@ -65,11 +65,11 @@ SWOFTY_ON_LOAD
 SWOFTY_ADDON()
 ```
 
-Then declare the capability on your plugin's manifest entry:
+Then name your plugin in `operations.native`:
 
 ```json [swofty.json]
 "operations": {
-  "native": [{ "dll": "native/my_plugin.dll", "capabilities": ["overlay"] }]
+  "native": [{ "dll": "native/my_plugin.dll" }]
 }
 ```
 

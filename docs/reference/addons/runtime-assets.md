@@ -150,7 +150,7 @@ SWOFTY_ADDON()
 
 ```json [swofty.json]
 "operations": {
-  "native": [{ "dll": "native/livery.dll", "capabilities": ["log", "assets"], "early": true }]
+  "native": [{ "dll": "native/livery.dll", "early": true }]
 }
 ```
 

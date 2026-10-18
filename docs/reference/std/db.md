@@ -62,11 +62,11 @@ SWOFTY_ON_LOAD
 SWOFTY_ADDON()
 ```
 
-The loop prints the 43 rows of `tracks`. Declare the capability in your plugin's manifest entry:
+The loop prints the 43 rows of `tracks`. Name your plugin in `operations.native`:
 
 ```json [swofty.json]
 "operations": {
-  "native": [{ "dll": "native/my_plugin.dll", "capabilities": ["read-db"] }]
+  "native": [{ "dll": "native/my_plugin.dll" }]
 }
 ```
 

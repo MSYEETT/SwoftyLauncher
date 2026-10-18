@@ -50,11 +50,11 @@ SWOFTY_EXPORT int SwoftyAddonInit(const SwoftyApi *api)
 - Keep `orig_handle` as `static` so swofty_core's trampoline outlives `SwoftyAddonInit`. Call it when you want the rest of the chain to run. Skip it to replace the game's behaviour.
 - Call `register_mixins` only from `SwoftyAddonInit`. Elsewhere, swofty_core refuses the call and logs `register_mixins outside SwoftyAddonInit; refused`. Returning its result gives init a success flag: 1 when the mixins register, 0 when a malformed mixin is rejected.
 
-Next, build the DLL and name it in `operations.native` with the `hook` capability:
+Next, build the DLL and name it in `operations.native`:
 
 ```json [swofty.json]
 "operations": {
-  "native": [{ "dll": "native/my_plugin.dll", "capabilities": ["log", "hook"] }]
+  "native": [{ "dll": "native/my_plugin.dll" }]
 }
 ```
 

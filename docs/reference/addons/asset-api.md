@@ -232,10 +232,10 @@ Result overlay_file(std::string_view game_path, std::string_view file);
 [assets] api: example.livery (livery.dll) db_set entrants.teams.team.x = 1 -> late: the core loaded at the window stage, after the game database loaded
 ```
 
-Declare the `assets` capability for a plugin that calls the API. Add `"early": true` to load it at the early stage:
+A plugin that calls the API names itself in `operations.native`. Add `"early": true` to load it at the early stage:
 
 ```json [swofty.json]
 "operations": {
-  "native": [{ "dll": "native/livery.dll", "capabilities": ["log", "assets"], "early": true }]
+  "native": [{ "dll": "native/livery.dll", "early": true }]
 }
 ```

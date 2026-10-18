@@ -74,21 +74,3 @@ To see which version the running loader offers, read `SwoftyApi::version`. The h
 | `events`, `overlay`, `telemetry`, `db`, `storage` | `swofty_core.dll`, as version 5 |
 
 The helpers you use determine which version you need: the mixin helpers in `mixin.hpp` need version 2, the settings helpers version 3, `assets.hpp` version 4, and the five table headers version 5.
-
-## Capabilities
-
-Declare the features your [engine plugin](/reference/addons/native-plugins#capabilities) uses in `capabilities` on its `operations.native` entry. Each capability needs the API version shown below:
-
-| Capability | Library | API |
-|---|---|---|
-| `log` | [Logging](./logging) | 1 |
-| `scan` | signature scan (`scan`) | 1 |
-| `hook` | [Mixin system](./mixin) | 2 |
-| `options` | [Settings](./settings) | 3 |
-| `assets` | [Runtime asset loading](/reference/addons/asset-api) | 4 |
-| `read-db` | [Database read](./db) | 5 |
-| `on-frame` | [Events](./events) frame tick | 5 |
-| `events` | [Events](./events) | 5 |
-| `overlay` | [Overlay](./overlay) | 5 |
-| `telemetry` | [Telemetry](./telemetry) | 5 |
-| `storage` | [Storage](./storage) | 5 |

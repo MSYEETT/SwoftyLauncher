@@ -557,7 +557,7 @@ Result overlay_file(std::string_view game_path, std::string_view file);
 - Give file arguments relative to your addon's folder, `swofty/addons/<id>/`. Core identifies your addon from the calling DLL.
 - The build takes each plugin's `dll` and everything in `files` on its `operations.native` entry and installs them through the journal to `swofty/addons/<id>/`, preserving their paths within the addon. It lists the DLLs in `plugins` in `swofty/settings.json`, in load order. The loader loads them from there.
 - SDK calls feed the same lists as `swofty/assets.json`. Entries from `assets.json` apply first, then calls in plugin load order.
-- Declare the `assets` capability if your native plugin calls this API. Set `"early": true` on its `operations.native` entry to load it at the early stage.
+- Set `"early": true` on your native plugin's `operations.native` entry to load it at the early stage for the assets API.
 
 ## 4. Team Simplified addon
 

@@ -131,10 +131,10 @@ Read a setting to get the profile's current value. To react when the player chan
 
 If `swofty.json` has no option with that `id` and type, you get the fallback instead. Check `swofty/loader.log` for the mismatch.
 
-List the `options` capability in your plugin's `operations.native` entry:
+Name your plugin in `operations.native`:
 
 ```json [swofty.json]
-"native": [{ "dll": "native/sample_plugin.dll", "capabilities": ["log", "scan", "options"] }]
+"native": [{ "dll": "native/sample_plugin.dll" }]
 ```
 
 ## 5. Read a setting in a launcher plugin

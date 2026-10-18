@@ -101,7 +101,7 @@ Put your data edits in `operations`: the build applies them to the game's files,
   "erp": ["erp/livery.json"],
   "ui": ["ui/tooltip.pkgpatch.json"],
   "files": [{ "source": "files/sponsor.dds", "target": "livery_package_shared/sponsor.dds" }],
-  "native": [{ "dll": "native/plugin.dll", "capabilities": ["log", "scan", "options"], "early": false, "files": ["lang/"] }],
+  "native": [{ "dll": "native/plugin.dll", "early": false, "files": ["lang/"] }],
   "screens": [{ "name": "grid_page", "file": "ui/grid_page.ui", "flow": "flow_options", "anchor": "settings_container", "view_model": false }],
   "assets": ["assets/ops.json"]
 }
@@ -117,15 +117,11 @@ Put your data edits in `operations`: the build applies them to the game's files,
 | `screens` | `[ScreenOp]` | Screens to register in game. |
 | `assets` | string[] | [Asset op files](./asset-api#op-files) — `{ "schema_version": 1, "ops": [...] }` with prefixed ops such as `db.set`, `erp.patch-pkg` and `warn`. |
 
-A **NativePlugin** is `{ dll, capabilities, early, files }`. Give it the DLL path and the [capabilities](#native-capabilities) it declares. Use `early` to load it before the menu, and list the `files` it reads in game.
+A **NativePlugin** is `{ dll, early, files }`. Give it the DLL path, use `early` to load it before the menu, and list the `files` it reads in game.
 
 A **ScreenOp** is `{ name, file, flow, anchor?, view_model }`. Choose `name` and `flow` values that use `[a-z0-9_]` and are unique across the profile's addons. Supply raw `.ui` data in `file`; it gets installed as `swofty/ui/<name>.ui`.
 
 The `flow` defaults to `flow_frontend`. To register after another screen in the same flow, name that screen in `anchor`. Use `view_model` to ask core for a native view model. The names `swofty_settings`, `swofty_addon_<n>` and `swofty_map_<n>` belong to ADDON SETTINGS.
-
-### Native capabilities {#native-capabilities}
-
-Use your engine plugin's `capabilities` to declare which features it uses and opt into experimental ones. These declarations don't sandbox the plugin. The valid values are `log`, `scan`, `hook`, `read-db`, `options`, `on-frame`, `assets`, `events`, `overlay`, `telemetry`, `storage`.
 
 ## launcher
 
@@ -155,7 +151,6 @@ When you install the addon, the installer checks your manifest and the files it 
 
 - Keep every path relative and inside the addon — no leading `/`, no `\`, no `..`.
 - Use a lowercase dotted `id`; keep option ids `[a-z][a-z0-9_]*` and unique, and screen names `[a-z0-9_]` and unique.
-- Set `compat.game` to `f1_25` and choose each native `capability` from the set above.
 - Name at least one program in `launcher.program`; each `imports` entry must be non-empty and have no dot.
 
 Some operation types are still in development. Check [Current status](/design/#current-status) and use [the template](./template) as your starting point.

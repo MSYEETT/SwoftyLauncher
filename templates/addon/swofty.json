@@ -53,6 +53,6 @@
   "operations": {
     "database": ["db/example.json"],
     "ui": ["ui/example.pkgpatch.json"],
-    "native": [{ "dll": "native/sample_plugin.dll", "capabilities": ["log", "scan", "options"] }]
+    "native": [{ "dll": "native/sample_plugin.dll" }]
   }
 }

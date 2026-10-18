@@ -3,7 +3,6 @@ use std::path::Path;
 
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
-use swofty_sdk::Capability;
 
 use crate::launcher::CommandSpec;
 use crate::view::SectionSpec;
@@ -219,7 +218,8 @@ pub struct FileEntry {
 #[serde(deny_unknown_fields)]
 pub struct NativePlugin {
     pub dll: String,
-    #[serde(default)]
+    // Accepted for compatibility; declaring a capability has no effect.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub capabilities: Vec<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub early: bool,
@@ -296,11 +296,6 @@ impl AddonManifest {
             }
             if let Err(e) = o.validate() {
                 return fail(format!("option {}: {e}", o.id));
-            }
-        }
-        for p in &self.operations.native {
-            if let Some(c) = p.capabilities.iter().find(|c| Capability::parse(c).is_none()) {
-                return fail(format!("{}: unknown capability {c}", p.dll));
             }
         }
         let mut screens = BTreeMap::new();
@@ -398,7 +393,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_early_native_plugins_with_the_assets_capability() {
+    fn parses_early_native_plugins() {
         let with = |native: &str| {
             GRID24.replace(
                 r#""operations": { "database": ["db/grid24.json"] }"#,
@@ -406,18 +401,14 @@ mod tests {
             )
         };
         let m = AddonManifest::parse(&with(
-            r#"{ "dll": "native/a.dll", "capabilities": ["assets"], "early": true }, { "dll": "native/b.dll" }"#,
+            r#"{ "dll": "native/a.dll", "early": true }, { "dll": "native/b.dll" }"#,
         ))
         .unwrap();
         let n = &m.operations.native;
         assert!(n[0].early && !n[1].early);
-        assert_eq!(n[0].capabilities, ["assets"]);
         let json = serde_json::to_value(&m.operations).unwrap();
         assert_eq!(json["native"][0]["early"], true);
         assert!(json["native"][1].get("early").is_none());
-        assert!(
-            AddonManifest::parse(&with(r#"{ "dll": "native/a.dll", "capabilities": ["assetz"] }"#)).is_err()
-        );
         let m = AddonManifest::parse(&with(
             r#"{ "dll": "native/a.dll", "files": ["lang/", "erp/a.bin"] }"#,
         ))

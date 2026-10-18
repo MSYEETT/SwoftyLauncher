@@ -51,15 +51,12 @@ You can use MSVC or any other toolchain that produces a Windows x86-64 DLL.
 
 ### 3. Name it in the manifest
 
-Tell the launcher which DLL to load and which capabilities it uses:
+Tell the launcher which DLL to load:
 
 ```json [swofty.json]
 "operations": {
   "native": [
-    {
-      "dll": "native/my_plugin.dll",
-      "capabilities": ["log"]
-    }
+    { "dll": "native/my_plugin.dll" }
   ]
 }
 ```
@@ -111,7 +108,7 @@ The API version depends on what's loaded: `version.dll` alone offers version 1; 
 
 ## Settings
 
-To read your addon's [options](/reference/addons/manifest#options), look them up by option `id`. You can also react when the player changes them in-game. Declare the `options` capability, then use `swofty/mixin.hpp` to read each setting:
+To read your addon's [options](/reference/addons/manifest#options), look them up by option `id`. You can also react when the player changes them in-game. Use `swofty/mixin.hpp` to read each setting:
 
 ```cpp
 SWOFTY_SETTING(bool, show_panel, true);
@@ -131,7 +128,6 @@ If you write in C, call `api->setting(id, type, &out)` and `api->watch_setting(i
   "native": [
     {
       "dll": "native/my_plugin.dll",
-      "capabilities": ["log", "hook", "options"],
       "early": false,
       "files": ["lang/", "erp/frag.bin"]
     }
@@ -142,29 +138,8 @@ If you write in C, call `api->setting(id, type, &out)` and `api->watch_setting(i
 | Field | Meaning |
 |---|---|
 | `dll` | The plugin DLL, relative to the addon folder |
-| `capabilities` | The standard-library features the plugin uses (below). Default empty |
 | `early` | `true` loads the plugin at the [early stage](/reference/addons/asset-api#the-early-stage); default `false` waits for the window stage |
 | `files` | Files and folders the plugin reads while the game runs, relative to the addon folder. Default empty |
-
-### Capabilities
-
-Use `capabilities` to name the standard-library features your plugin uses. The launcher checks each name against the known set below, rejects unknown names at install, and shows the list to the player before loading. This declares what you use; it does not restrict what you can access. Your native plugin runs inside F1 25 and hooks the engine directly, with nothing withheld for safety.
-
-| Capability | Declares |
-|---|---|
-| `log` | Writes to `swofty/loader.log` |
-| `scan` | Scans for a byte pattern |
-| `hook` | Hooks the engine with the [mixin system](/reference/addons/hooking) |
-| `options` | Reads its [settings](/reference/std/settings) |
-| `assets` | Loads mods at runtime through [`assets`](/reference/addons/asset-api#native-plugins) |
-| `read-db` | Reads the [game database](/reference/std/db) |
-| `on-frame` | Runs the [per-frame tick](/reference/std/events) |
-| `events` | Subscribes to [lifecycle events](/reference/std/events) |
-| `overlay` | Draws the [overlay](/reference/std/overlay) |
-| `telemetry` | Reads [telemetry](/reference/std/telemetry) |
-| `storage` | Reads and writes its [storage](/reference/std/storage) |
-
-Check the [standard-library overview](/reference/std/#capabilities) for the API version each capability needs. The experimental features `overlay` and `telemetry` stay off until you turn them on through `"features"` in `swofty/assets.json`; see [feature gates](/design/native-libraries#feature-gates).
 
 ## Files in the game folder
 
