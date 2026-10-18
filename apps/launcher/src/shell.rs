@@ -113,21 +113,6 @@ fn section_label(title: &'static str, p: Palette) -> impl IntoElement {
         .child(title)
 }
 
-fn bullet(text: &'static str, p: Palette) -> impl IntoElement {
-    h_flex()
-        .gap(px(10.))
-        .items_start()
-        .child(
-            div()
-                .mt(px(7.))
-                .size(px(5.))
-                .rounded_full()
-                .bg(p.accent)
-                .flex_shrink_0(),
-        )
-        .child(div().flex_1().text_size(px(13.)).text_color(p.text).child(text))
-}
-
 fn terms_box(p: Palette) -> impl IntoElement {
     v_flex()
         .gap(px(6.))
@@ -164,31 +149,13 @@ fn offline_terms(p: Palette) -> impl IntoElement {
             "Modded sessions run F1 25 without EA AntiCheat so the loader \
                  and addons can work. Everything is undone when the game exits.",
         ))
-        .child(
-            v_flex()
-                .gap(px(7.))
-                .child(section_label("WHAT HAPPENS THIS SESSION", p))
-                .child(bullet(
-                    "EAAntiCheat.GameServiceLauncher.exe is parked as .bak and put back when the game exits",
-                    p,
-                ))
-                .child(bullet(
-                    "A stub starts the game instead of the anti-cheat service",
-                    p,
-                ))
-                .child(bullet(
-                    "The game's launch check is patched for the session; every step is logged",
-                    p,
-                )),
-        )
         .child(terms_box(p))
         .child(
             v_flex()
                 .gap(px(7.))
                 .child(section_label("OFFLINE ONLY", p))
                 .child(div().text_size(px(13.)).text_color(p.text).child(
-                    "Multiplayer is unavailable and cannot be enabled, so modded sessions stay \
-                         away from the online play EA AntiCheat protects. The component is \
+                    "Multiplayer is unavailable and cannot be enabled. The component is \
                          downloaded automatically and verified against pinned SHA-256 digests.",
                 )),
         )

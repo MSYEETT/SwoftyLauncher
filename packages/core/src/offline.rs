@@ -29,17 +29,14 @@ use crate::{Error, Result, io_err, read_json, write_json};
 pub const DISCLOSURE: &str = "\
 Offline play - read this before accepting
 
-Modded sessions run F1 25 without EA AntiCheat (Javelin) so the loader and
-addons can work. For the session, the launcher swaps
-EAAntiCheat.GameServiceLauncher.exe for a stub that starts the game, and
-lets the game continue past its anti-cheat check.
+Modded sessions run F1 25 without EA AntiCheat so the loader and addons
+can work. Everything is undone when the game exits.
 
 - Playing without EA AntiCheat is outside EA's terms of service, even
   offline. We know of no action taken against players for offline modding,
   but EA can still act on accounts under its terms.
 - Sessions run offline. Multiplayer is unavailable, and this component
-  cannot enable it, so modded sessions stay away from the online play
-  EA AntiCheat protects.
+  cannot enable it.
 - Everything is scoped to the session: the game folder is restored to
   vanilla when the game exits, by `swofty restore`, and at the next start.
 - The extension is downloaded from Swofty's site and verified against
