@@ -89,6 +89,11 @@ jobs:
       - name: Build version.dll and swofty_core.dll
         run: native/build.sh
 
+      - name: Telemetry feed unit test
+        run: |
+          zig c++ -std=c++23 -O2 -I packages/sdk/include native/test/telemetry_feed_test.cpp -o telemetry_feed_test
+          ./telemetry_feed_test
+
       - name: Wine and Xvfb
         run: |
           sudo dpkg --add-architecture i386

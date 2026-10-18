@@ -75,6 +75,7 @@ void assets_setup();
 void resources_setup();
 void gamedb_setup();
 void overlay_setup();
+void telemetry_setup();
 int group_add(const json::Value &entry);
 int db_add(const json::Value &entry);
 int lang_add(const json::Value &entry);

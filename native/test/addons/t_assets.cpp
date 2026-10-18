@@ -1,7 +1,9 @@
 #include "wine_test.hpp"
 #include <swofty/assets.hpp>
+#include <swofty/telemetry.hpp>
 
 namespace assets = swofty::assets;
+namespace tel = swofty::telemetry;
 
 namespace {
 
@@ -44,6 +46,14 @@ extern "C" __declspec(dllexport) void t_assets_late()
     assets::Fragment frags[] = {{"erp/frag.bin"}};
     swofty::log("[t_assets] late put_resource: %s",
                 assets::name(assets::put_resource("eaid://t_assets/late.tif.image", frags)));
+
+    tel::SessionState ss = {};
+    tel::CarState cs = {};
+    swofty::log("[t_assets] telemetry: available %d, session %s, car0 %s, car99 %s", tel::available(),
+                tel::name(tel::session(&ss)), tel::name(tel::car(0, &cs)), tel::name(tel::car(99, &cs)));
+    const char *feed = nullptr;
+    tel::Result sm = tel::shared_memory(&feed);
+    swofty::log("[t_assets] telemetry: shared_memory %s name=%s", tel::name(sm), feed ? feed : "(none)");
 }
 
 SWOFTY_ADDON()

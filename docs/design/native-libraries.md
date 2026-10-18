@@ -144,7 +144,11 @@ Hooks: session and participant data come from the session witnesses `Sess_Veh_Up
 `Sess_Startup_VehicleAiLoop` 0x142505f30 and `Game_GameModule_OnSessionEnter` 0x14080c300. The
 per-car physics/telemetry struct is not catalogued yet; the lane finds it.
 
-Status: stub. `native/src/core/telemetry.cpp` returns `unavailable` from every call.
+Status: experimental. `native/src/core/telemetry.cpp` implements the feed, the seqlock, the
+`shared_memory` mapping and the gated accessors, and mid-hooks `Vm_Update_FlowStateMachine`,
+`Game_GameModule_OnSessionEnter` and `Game_SessionStateFinaliseResultsSync_OnResultsFinalised`
+to drive the frame counter, session clock and the `available()` gate. The per-car physics struct
+is not catalogued, so the car and participant fields read back zero until it is reverse-engineered.
 
 ## 4. Database read
 

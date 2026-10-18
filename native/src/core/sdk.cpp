@@ -267,6 +267,7 @@ void ready()
     resources_setup();
     gamedb_setup();
     overlay_setup();
+    telemetry_setup();
 }
 
 }
