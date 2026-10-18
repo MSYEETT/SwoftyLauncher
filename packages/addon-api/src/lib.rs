@@ -4,6 +4,7 @@ pub mod launcher;
 pub mod manifest;
 pub mod ops;
 pub mod option;
+pub mod run_helper;
 pub mod view;
 
 pub const GAME_ID: &str = "f1_25";

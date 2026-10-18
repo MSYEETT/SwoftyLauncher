@@ -8,6 +8,8 @@ use crate::asset::{AssetOp, Features};
 use crate::launcher::ProfileInfo;
 use crate::view::Event;
 
+pub use crate::run_helper::run_helper;
+
 pub const API_VERSION: u32 = 1;
 pub const RESTART: &str = "swofty.restart";
 
@@ -60,6 +62,11 @@ pub enum HostCall {
     Progress { done: f32, text: String },
     GetState,
     SetState(Value),
+    GameBuildKey,
+    GameExeVersion,
+    GameIsStock { rel: String },
+    GameOriginal { rel: String },
+    GameOriginalLang { code: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -216,6 +223,22 @@ mod tests {
                 call: HostCall::SetState(json!({"on": ["a"]})),
             }),
             json!({"id": 8, "method": "set_state", "params": {"on": ["a"]}}),
+        );
+        round(
+            Incoming::Call(Request {
+                id: Some(9),
+                call: HostCall::GameBuildKey,
+            }),
+            json!({"id": 9, "method": "game_build_key"}),
+        );
+        round(
+            Incoming::Call(Request {
+                id: Some(10),
+                call: HostCall::GameOriginal {
+                    rel: "ui/a.erp".into(),
+                },
+            }),
+            json!({"id": 10, "method": "game_original", "params": {"rel": "ui/a.erp"}}),
         );
         let built: Built = serde_json::from_value(json!({"ops": [
             {"op": "file.put", "source": {"root": "data", "path": "a.dds"}, "target": "b.dds"}
