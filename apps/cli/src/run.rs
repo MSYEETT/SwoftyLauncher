@@ -395,10 +395,7 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
     // guard before the game's first instruction: the check runs before any
     // window exists, so the in-process hook is too late to act on it.
     let target = if game.join("EAAntiCheat.GameServiceLauncher.exe.bak").is_file() {
-        say(
-            "info",
-            "offline play: launching via the session launcher (guard patched before entry)",
-        );
+        say("info", "offline play: launching via the session launcher");
         "EAAntiCheat.GameServiceLauncher.exe"
     } else {
         GAME_EXE
@@ -703,10 +700,34 @@ impl Follow {
         );
         match &self.last_loader {
             Some(l) => say("info", &format!("last loader line: {l}")),
-            None => say(
-                "info",
-                "no loader log for this session: the loader never attached",
-            ),
+            None => {
+                // The follower waits for the loader's rotation at attach, so
+                // when the loader never attaches the session launcher's own
+                // lines sit unnoticed in the log. Report them directly.
+                let stub: Vec<String> = self
+                    .loader
+                    .as_ref()
+                    .map(|f| &f.path)
+                    .and_then(|p| std::fs::read_to_string(p).ok())
+                    .map(|t| {
+                        t.lines()
+                            .filter(|l| l.contains("[offline]"))
+                            .map(str::to_owned)
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                if stub.is_empty() {
+                    say(
+                        "info",
+                        "no loader log for this session: the loader never attached",
+                    );
+                } else {
+                    say("info", "the loader never attached; the session launcher reports:");
+                    for l in stub.iter().rev().take(8).rev() {
+                        say("loader", l);
+                    }
+                }
+            }
         }
         for (i, line) in self.scan.summary(&self.symbols).into_iter().enumerate() {
             say(
