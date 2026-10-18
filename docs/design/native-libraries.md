@@ -199,7 +199,14 @@ and rename.
 
 Accept point: calls are accepted at any time.
 
-Status: stub. `native/src/core/storage.cpp` returns `unavailable` from every call.
+`write` and `append` create any missing parent folders inside the addon folder. `list` names a
+sub-folder with a trailing `/`. The core rejects a bad or escaping path with `invalid`, a missing
+file for `read`, `size` or `remove` with `invalid`, and a file or listing larger than the buffer
+with `invalid` after setting `*len` to the size needed.
+
+Status: implemented. `native/src/core/storage.cpp` identifies the caller with `settings_addon` and
+reads and writes under `swofty/addons/<id>/`. The [storage reference](/reference/std/storage) is the
+addon-facing page.
 
 ## Files
 

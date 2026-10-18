@@ -1,7 +1,9 @@
 #include "wine_test.hpp"
 #include <swofty/assets.hpp>
+#include <swofty/storage.hpp>
 
 namespace assets = swofty::assets;
+namespace storage = swofty::storage;
 
 namespace {
 
@@ -35,6 +37,38 @@ SWOFTY_ON_LOAD
     };
     for (auto x : r)
         swofty::log("[t_assets] result %s", assets::name(x));
+
+    swofty::log("[t_assets] storage available %d", storage::available());
+    storage::Result sw = storage::write("save/state.txt", std::string_view("round-trip-ok"));
+    std::string back;
+    storage::Result sr = storage::read("save/state.txt", back);
+    uint64_t sz = 0;
+    storage::Result ss = storage::size("save/state.txt", &sz);
+    storage::Result sa = storage::append("save/log.txt", std::string_view("one;"));
+    storage::Result sa2 = storage::append("save/log.txt", std::string_view("two;"));
+    char names[256] = {};
+    size_t nl = 0;
+    storage::Result sl = storage::list("save", names, sizeof names, &nl);
+    for (char &ch : names)
+        if (ch == '\n')
+            ch = ',';
+    storage::Result se = storage::write("../escape.txt", std::string_view("nope"));
+    storage::Result sabs = storage::write("/abs.txt", std::string_view("nope"));
+    storage::Result sdrv = storage::write("Z:\\drive.txt", std::string_view("nope"));
+    storage::Result sbk = storage::write("..\\back.txt", std::string_view("nope"));
+    storage::Result sm = storage::size("missing.txt", &sz);
+    storage::Result srm = storage::remove("save/state.txt");
+    storage::Result srm2 = storage::remove("save/state.txt");
+    swofty::log("[t_assets] storage write %s", storage::name(sw));
+    swofty::log("[t_assets] storage read %s '%s'", storage::name(sr), back.c_str());
+    swofty::log("[t_assets] storage size %s %llu", storage::name(ss), (unsigned long long)sz);
+    swofty::log("[t_assets] storage list %s %zu %s", storage::name(sl), nl, names[0] ? names : "(empty)");
+    swofty::log("[t_assets] storage append %s %s", storage::name(sa), storage::name(sa2));
+    swofty::log("[t_assets] storage escapes %s %s %s %s", storage::name(se), storage::name(sabs), storage::name(sdrv),
+                storage::name(sbk));
+    swofty::log("[t_assets] storage missing %s", storage::name(sm));
+    swofty::log("[t_assets] storage remove %s", storage::name(srm));
+    swofty::log("[t_assets] storage remove-again %s", storage::name(srm2));
 }
 
 extern "C" __declspec(dllexport) void t_assets_late()

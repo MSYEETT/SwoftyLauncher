@@ -80,7 +80,7 @@ From C, call `api->setting(id, type, &value)` and `api->watch_setting(id, fn, us
 }
 ```
 
-`options` covers the settings members above, and `assets` covers `swofty/assets.hpp`. `"early": true` loads the plugin at the [early stage](/reference/addons/asset-api#the-early-stage). `files` lists the files and folders the plugin reads while the game runs, as paths in the addon's folder. The manifest also accepts `read-db` and `on-frame`, which are planned capabilities, not members of the current API.
+`options` covers the settings members above, `assets` covers `swofty/assets.hpp`, and `storage` covers `swofty/storage.hpp`. `"early": true` loads the plugin at the [early stage](/reference/addons/asset-api#the-early-stage). `files` lists the files and folders the plugin reads while the game runs, as paths in the addon's folder. The manifest also accepts `read-db` and `on-frame`, which are planned capabilities, not members of the current API.
 
 ## Files in the game folder
 

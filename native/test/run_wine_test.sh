@@ -157,6 +157,23 @@ EOF
         once "assets: the resource joins the declared list" '\[assets\] resources: 1 declared in swofty/assets\.json'
         once "assets: the string joins a table" "\[assets\] lang: table for 'eng': 1 string\(s\) from assets\.json strings"
         once "assets: the file joins the overlay" '\[assets\] overlay:   t_assets/sponsor\.dds -> /game/swofty/addons/example\.sample-mod/files/sponsor\.dds \(addon example\.sample-mod\)'
+        sapi='\[storage\] api: example\.sample-mod \(t_assets\.dll\)'
+        check "storage: available with the feature on" '\[t_assets\] storage available 1'
+        once "storage: write lands in the addon folder" "$sapi write save/state\.txt \(13 byte\(s\)\) -> ok[[:space:]]*\$"
+        once "storage: read returns the file" "$sapi read save/state\.txt \(13 byte\(s\)\) -> ok[[:space:]]*\$"
+        once "storage: the round trip returns the bytes written" "\[t_assets\] storage read ok 'round-trip-ok'"
+        count "storage: size reports the file length (read-back plus the explicit call)" 2 "$sapi size save/state\.txt -> ok[[:space:]]*\$"
+        check "storage: the plugin reads back the size" '\[t_assets\] storage size ok 13'
+        once "storage: list enumerates the folder" "$sapi list save -> ok[[:space:]]*\$"
+        check "storage: the listing has both files" '\[t_assets\] storage list ok 18 .*log\.txt.*state\.txt|\[t_assets\] storage list ok 18 .*state\.txt.*log\.txt'
+        count "storage: append creates then grows a file" 2 "$sapi append save/log\.txt \(4 byte\(s\)\) -> ok"
+        check "storage: both appends succeed" '\[t_assets\] storage append ok ok'
+        once "storage: a path climbing above the folder is invalid" "$sapi write \.\./escape\.txt \(4 byte\(s\)\) -> invalid: '\.\./escape\.txt' is not a relative path"
+        check "storage: climb, absolute, drive and back-climb paths are all rejected" '\[t_assets\] storage escapes invalid invalid invalid invalid'
+        once "storage: size of a missing file is invalid" "$sapi size missing\.txt -> invalid: swofty/addons/example\.sample-mod/missing\.txt is missing"
+        once "storage: remove deletes the file" "$sapi remove save/state\.txt -> ok[[:space:]]*\$"
+        once "storage: remove of a gone file is invalid" "$sapi remove save/state\.txt -> invalid: swofty/addons/example\.sample-mod/save/state\.txt is missing"
+        check "storage: the plugin sees remove then missing" '\[t_assets\] storage remove-again invalid'
         continue
     fi
     count "$mode: no SDK calls, no api lines" 0 '\[assets\] api:'
