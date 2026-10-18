@@ -65,6 +65,36 @@ fn logo(size: f32) -> Div {
         .child(img(LOGO.clone()).size_full())
 }
 
+pub(crate) fn wordmark(width: f32) -> Div {
+    static MARK: LazyLock<Arc<Image>> = LazyLock::new(|| {
+        Arc::new(Image::from_bytes(
+            ImageFormat::Png,
+            include_bytes!("../assets/wordmark.png").to_vec(),
+        ))
+    });
+    div()
+        .w(px(width))
+        .h(px(width * 238. / 440.))
+        .flex_shrink_0()
+        .child(img(MARK.clone()).size_full())
+}
+
+pub(crate) fn game_art(w: f32, h: f32) -> Div {
+    static ART: LazyLock<Arc<Image>> = LazyLock::new(|| {
+        Arc::new(Image::from_bytes(
+            ImageFormat::Png,
+            include_bytes!("../assets/f1-25.png").to_vec(),
+        ))
+    });
+    div()
+        .w(px(w))
+        .h(px(h))
+        .flex_shrink_0()
+        .overflow_hidden()
+        .rounded_bl(px(12.))
+        .child(img(ART.clone()).size_full())
+}
+
 pub(crate) fn addon_icon(icon: &AddonIcon, size: f32, p: Palette) -> Div {
     match icon {
         AddonIcon::Glyph(data) => {
@@ -496,6 +526,29 @@ impl Shell {
 
     fn addon_body(&self, m: &AddonItem, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let man = &m.manifest;
+        let remove = (!man.is_builtin()).then(|| {
+            let (id, name) = (man.id.clone(), man.name.clone());
+            h_flex().justify_end().pt(px(2.)).child(
+                h_flex()
+                    .id(SharedString::from(format!("remove-{}", man.id)))
+                    .gap(px(7.))
+                    .px(px(12.))
+                    .py(px(7.))
+                    .rounded(px(6.))
+                    .border_1()
+                    .border_color(p.error)
+                    .text_color(p.error)
+                    .text_size(px(13.))
+                    .font_weight(FontWeight::MEDIUM)
+                    .cursor_pointer()
+                    .hover(move |s| s.bg(p.hover))
+                    .child(Icon::new(IconName::Trash).size(px(14.)))
+                    .child("Remove addon")
+                    .on_click(
+                        cx.listener(move |this, _, window, cx| this.remove_addon(&id, &name, window, cx)),
+                    ),
+            )
+        });
         let builds = if man.compat.game_builds.is_empty() {
             "any".to_owned()
         } else {
@@ -563,6 +616,7 @@ impl Shell {
                 )
             })
             .when(!man.options.is_empty(), |d| d.child(self.settings(man, p, cx)))
+            .children(remove)
     }
 
     fn settings(&self, man: &AddonManifest, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {

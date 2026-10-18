@@ -236,6 +236,36 @@ impl Store {
         self.install_addon(&root)
     }
 
+    pub fn remove_addon(&self, id: &str) -> Result<()> {
+        if self.is_builtin(id) {
+            return Err(Error::Other(format!("{id} is built in and cannot be removed")));
+        }
+        let dir = self.addons_dir().join(id);
+        if !dir.exists() {
+            return Err(Error::Other(format!("no addon named {id} is installed")));
+        }
+        let _write = profile_write();
+        std::fs::remove_dir_all(&dir).map_err(io_err(&dir))?;
+        self.helpers.forget(id);
+        for name in self.profile_names()? {
+            let path = self.profiles_dir().join(format!("{name}.json"));
+            if name == profile::VANILLA || !path.is_file() {
+                continue;
+            }
+            let mut p: Profile = crate::read_json(&path)?;
+            let listed = p.addons.iter().any(|a| a.id == id);
+            let had_options = p.options.contains_key(id) || p.applied.contains_key(id);
+            if listed || had_options {
+                p.addons.retain(|a| a.id != id);
+                p.options.remove(id);
+                p.applied.remove(id);
+                p.normalise();
+                self.save_profile(&p)?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn profile(&self, name: &str) -> Result<Profile> {
         if name == crate::profile::VANILLA {
             return Ok(Profile::vanilla());

@@ -1,6 +1,5 @@
 use gpui_kit::assets::IconName;
-use gpui_kit::component::button::{Button, ButtonVariants};
-use gpui_kit::component::checkbox::Checkbox;
+use gpui_kit::component::button::Button;
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::spinner::Spinner;
 use gpui_kit::component::tooltip::Tooltip;
@@ -10,7 +9,7 @@ use gpui_kit::*;
 
 use crate::game::{self, ago, duration};
 use crate::library::plural;
-use crate::pages::{avatar, badge};
+use crate::pages::avatar;
 use crate::shell::{Page, PlayState, Shell};
 use crate::theme::Palette;
 
@@ -46,47 +45,43 @@ fn launch_failed(row: Div, text: impl std::fmt::Display, p: Palette) -> Div {
 impl Shell {
     fn game_info(&self, p: Palette, wide: bool) -> impl IntoElement {
         let (title, line) = match &self.install {
-            Some(i) => (
-                format!(
-                    "F1 25 · build {}",
-                    i.build_id.map_or("unknown".into(), |b| b.to_string())
-                ),
-                i.dir.display().to_string(),
-            ),
+            Some(i) => {
+                let version = i
+                    .exe_version
+                    .clone()
+                    .or_else(|| i.build_id.map(|b| b.to_string()));
+                (
+                    match version {
+                        Some(v) => format!("F1 25 · {v}"),
+                        None => "F1 25".into(),
+                    },
+                    i.mode.clone(),
+                )
+            }
             None if self.detected => (
                 "F1 25 not found".into(),
                 "No Steam library has app 3059520".into(),
             ),
             None => ("F1 25".into(), "Looking for the game…".into()),
         };
-        let mode = self.install.as_ref().map(|i| i.mode.clone());
-        h_flex()
-            .w(px(if wide { 400. } else { 300. }))
+        v_flex()
+            .w(px(if wide { 320. } else { 240. }))
             .flex_shrink_1()
-            .min_w(px(220.))
-            .gap(px(12.))
-            .child(badge(IconName::Gamepad2, 36., p))
+            .min_w(px(170.))
+            .gap(px(1.))
             .child(
-                v_flex()
-                    .min_w_0()
-                    .gap(px(1.))
-                    .child(
-                        div()
-                            .text_size(px(13.))
-                            .font_weight(FontWeight::MEDIUM)
-                            .truncate()
-                            .child(title),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(12.))
-                            .text_color(p.text_placeholder)
-                            .truncate()
-                            .child(match mode {
-                                Some(m) => format!("{m} · {line}"),
-                                None => line,
-                            }),
-                    ),
+                div()
+                    .text_size(px(14.))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .truncate()
+                    .child(title),
+            )
+            .child(
+                div()
+                    .text_size(px(12.))
+                    .text_color(p.text_placeholder)
+                    .truncate()
+                    .child(line),
             )
     }
 
@@ -105,26 +100,7 @@ impl Shell {
         }
         let rebuild = !self.library.profile.is_vanilla() && !self.library.rebuild.is_empty();
         match state {
-            PlayState::Running(secs) => row
-                .child(dot(p.success))
-                .child(div().min_w_0().truncate().child(match secs {
-                    Some(s) => format!("Running for {}", duration(*s)),
-                    None => "Running".into(),
-                }))
-                .child(
-                    div()
-                        .text_color(p.text_placeholder)
-                        .child(format!("pid {}", self.processes[0].pid)),
-                )
-                .when(rebuild, |d| {
-                    d.child(
-                        div()
-                            .min_w_0()
-                            .truncate()
-                            .text_color(p.warning)
-                            .child("Restart to apply database settings"),
-                    )
-                }),
+            PlayState::Running => row,
             PlayState::Restoring => row.child(dot(p.warning)).child("Restoring the game files…"),
             PlayState::Launching => row
                 .child(dot(p.warning))
@@ -216,29 +192,12 @@ impl Shell {
         }
     }
 
-    fn console_toggle(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let on = self.console.is_some();
-        h_flex()
-            .id("console")
-            .h(px(32.))
-            .px(px(8.))
-            .gap(px(7.))
-            .rounded(px(5.))
-            .cursor_pointer()
-            .text_color(if on { p.text } else { p.text_muted })
-            .hover(move |s| s.bg(p.hover).text_color(p.text))
-            .tooltip(|window, cx| Tooltip::new("Show console").build(window, cx))
-            .child(Checkbox::new("console-check").checked(on).small())
-            .child(Icon::new(IconName::SquareTerminal).size(px(16.)))
-            .on_click(cx.listener(move |this, _, window, cx| this.set_console(!on, window, cx)))
-    }
-
     fn launch_log(&self) -> Option<std::path::PathBuf> {
         let log = self.store.root.join("state/launcher-run.log");
         log.is_file().then_some(log)
     }
 
-    fn profile_picker(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(crate) fn profile_picker(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let shell = cx.entity().downgrade();
         let active = self.library.profile.name.clone();
         let summary = self.library.active().map(|a| a.summary()).unwrap_or_default();
@@ -268,7 +227,7 @@ impl Shell {
             .dropdown_caret(true)
             .disabled(matches!(
                 self.play_state(),
-                PlayState::Running(_) | PlayState::Launching | PlayState::Restoring
+                PlayState::Running | PlayState::Launching | PlayState::Restoring
             ))
             .dropdown_menu_with_anchor(Anchor::BottomRight, move |mut menu, _, _| {
                 menu = menu.min_w(px(300.)).label("Profile");
@@ -303,23 +262,53 @@ impl Shell {
             })
     }
 
+    fn play_caret(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+        let shell = cx.entity().downgrade();
+        Button::new("play-menu")
+            .h(px(52.))
+            .w(px(34.))
+            .rounded_l(px(0.))
+            .rounded_r(px(9.))
+            .bg(p.accent)
+            .text_color(p.on_accent)
+            .hover(move |s| s.bg(p.accent_hover))
+            .child(Icon::new(IconName::ChevronDown).size(px(16.)))
+            .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
+                let shell = shell.clone();
+                menu.min_w(px(220.)).item(
+                    PopupMenuItem::new("Play with console")
+                        .icon(IconName::SquareTerminal)
+                        .on_click(move |_, window, cx| {
+                            shell
+                                .update(cx, |s, cx| {
+                                    s.set_console(true, window, cx);
+                                    s.play(window, cx);
+                                })
+                                .ok();
+                        }),
+                )
+            })
+    }
+
     fn big_button(&self, state: &PlayState, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let (icon, label, bg, fg, enabled) = match state {
             PlayState::Ready | PlayState::Crashed(_) => (IconName::Play, "Play", p.accent, p.on_accent, true),
             PlayState::Launching => (IconName::LoaderCircle, "Launching…", p.elevated, p.accent, false),
             PlayState::Restoring => (IconName::LoaderCircle, "Restoring…", p.elevated, p.accent, false),
-            PlayState::Running(_) => (IconName::Activity, "Running", p.elevated, p.success, false),
+            PlayState::Running => (IconName::Square, "Stop", p.elevated, p.error, true),
             PlayState::NotInstalled => (IconName::FolderSearch, "Locate game", p.elevated, p.text, true),
             PlayState::Detecting => (IconName::LoaderCircle, "Play", p.elevated, p.text_muted, false),
         };
         let ready = matches!(state, PlayState::Ready | PlayState::Crashed(_));
         let missing = matches!(state, PlayState::NotInstalled);
-        div()
+        let running = matches!(state, PlayState::Running);
+        let button = div()
             .id("play")
-            .h(px(40.))
-            .w(px(168.))
+            .h(px(52.))
+            .w(px(170.))
             .flex_shrink_0()
-            .rounded(px(5.))
+            .when(ready, |d| d.rounded_l(px(9.)))
+            .when(!ready, |d| d.rounded(px(9.)))
             .bg(bg)
             .text_color(fg)
             .flex()
@@ -331,69 +320,52 @@ impl Shell {
             .when(missing, |d| d.hover(move |s| s.bg(p.selected)))
             .when(enabled, |d| d.cursor_pointer())
             .map(|d| match icon {
-                IconName::LoaderCircle => d.child(Spinner::new().icon(icon).with_size(px(16.))),
-                _ => d.child(Icon::new(icon).size(px(16.))),
+                IconName::LoaderCircle => d.child(Spinner::new().icon(icon).with_size(px(18.))),
+                _ => d.child(Icon::new(icon).size(px(18.))),
             })
             .child(
                 div()
-                    .text_size(px(14.))
+                    .text_size(px(15.))
                     .font_weight(FontWeight::SEMIBOLD)
                     .child(label),
             )
             .when(enabled, |d| {
                 d.on_click(cx.listener(move |this, _, window, cx| {
-                    if missing {
+                    if running {
+                        this.confirm_stop(window, cx);
+                    } else if missing {
                         this.locate_game(window, cx);
                     } else {
                         this.play(window, cx);
                     }
                 }))
-            })
+            });
+        h_flex()
+            .flex_shrink_0()
+            .child(button)
+            .when(ready, |d| d.child(self.play_caret(p, cx)))
     }
 
     pub(crate) fn play_bar(&self, p: Palette, wide: bool, cx: &mut Context<Self>) -> impl IntoElement {
         let state = self.play_state();
         h_flex()
-            .h(px(64.))
+            .h(px(72.))
             .flex_shrink_0()
-            .px(px(16.))
-            .gap(px(20.))
             .bg(p.chrome)
             .border_t_1()
             .border_color(p.border_variant)
-            .child(self.game_info(p, wide))
-            .child(self.status(&state, p, cx))
+            .child(crate::pages::game_art(72., 72.))
             .child(
                 h_flex()
-                    .gap(px(8.))
-                    .flex_shrink_0()
-                    .child(self.console_toggle(p, cx))
-                    .when(matches!(state, PlayState::Running(_)), |d| {
-                        d.child(
-                            Button::new("stop")
-                                .danger()
-                                .outline()
-                                .h(px(40.))
-                                .icon(IconName::Square)
-                                .label("Stop")
-                                .on_click(cx.listener(|this, _, window, cx| this.confirm_stop(window, cx))),
-                        )
-                    })
-                    .when(
-                        self.install.is_some() && !matches!(state, PlayState::Running(_)),
-                        |d| {
-                            d.child(
-                                Button::new("locate")
-                                    .ghost()
-                                    .icon(IconName::FolderSearch)
-                                    .tooltip("Change game folder")
-                                    .on_click(
-                                        cx.listener(|this, _, window, cx| this.locate_game(window, cx)),
-                                    ),
-                            )
-                        },
-                    )
-                    .child(self.profile_picker(p, cx))
+                    .flex_1()
+                    .min_w_0()
+                    .h_full()
+                    .items_center()
+                    .pl(px(16.))
+                    .pr(px(16.))
+                    .gap(px(20.))
+                    .child(self.game_info(p, wide))
+                    .child(self.status(&state, p, cx))
                     .child(self.big_button(&state, p, cx)),
             )
     }

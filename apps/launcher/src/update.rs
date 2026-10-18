@@ -80,7 +80,7 @@ impl Shell {
     }
 
     fn start_update(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if matches!(self.play_state(), PlayState::Running(_) | PlayState::Launching) {
+        if matches!(self.play_state(), PlayState::Running | PlayState::Launching) {
             window.push_notification(Notification::error("Close F1 25 before updating."), cx);
             return;
         }

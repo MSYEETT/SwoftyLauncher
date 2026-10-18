@@ -9,7 +9,6 @@ use gpui_kit::component::button::Button;
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::slider::SliderState;
-use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{Icon, TitleBar, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
@@ -21,7 +20,7 @@ use swofty_core::view::View;
 
 use crate::game::{self, Install, Launch, Probe};
 use crate::library::{AddonIcon, Library};
-use crate::pages::{addon_icon, avatar, label};
+use crate::pages::{addon_icon, label};
 use crate::theme::{Palette, palette};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -55,7 +54,7 @@ pub enum PlayState {
     Ready,
     Launching,
     Restoring,
-    Running(Option<u64>),
+    Running,
     Crashed(SessionRecord),
 }
 
@@ -323,9 +322,8 @@ impl Shell {
     }
 
     pub(crate) fn play_state(&self) -> PlayState {
-        if let Some(p) = self.processes.first() {
-            let secs = p.started.and_then(|t| t.elapsed().ok()).map(|d| d.as_secs());
-            return PlayState::Running(secs);
+        if !self.processes.is_empty() {
+            return PlayState::Running;
         }
         if let Some(launch) = &self.launch {
             return if launch.saw_game {
@@ -404,6 +402,41 @@ impl Shell {
                 .on_ok(|_, window, cx| {
                     if let Err(e) = stop_game() {
                         window.push_notification(Notification::error(e.to_string()), cx);
+                    }
+                    true
+                })
+        });
+    }
+
+    pub(crate) fn remove_addon(&mut self, id: &str, name: &str, window: &mut Window, cx: &mut Context<Self>) {
+        let shell = cx.entity().downgrade();
+        let store = self.store.clone();
+        let id = id.to_owned();
+        let name = name.to_owned();
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let (shell, store, id, name) = (shell.clone(), store.clone(), id.clone(), name.clone());
+            alert
+                .title(format!("Remove {name}?"))
+                .description(
+                    "Its files are deleted and it is taken out of every profile. \
+                     You can install it again later.",
+                )
+                .ok_text("Remove addon")
+                .show_cancel(true)
+                .on_ok(move |_, window, cx| {
+                    match store.remove_addon(&id) {
+                        Ok(()) => {
+                            window.push_notification(Notification::success(format!("Removed {name}")), cx);
+                            shell
+                                .update(cx, |s, cx| {
+                                    s.open_addon = None;
+                                    s.reload(cx);
+                                })
+                                .ok();
+                        }
+                        Err(e) => {
+                            window.push_notification(Notification::error(e.to_string()), cx);
+                        }
                     }
                     true
                 })
@@ -535,22 +568,12 @@ impl Shell {
 
     fn title_bar(&self, p: Palette) -> impl IntoElement {
         TitleBar::new().bg(p.chrome).child(
-            h_flex()
-                .gap(px(8.))
-                .text_color(p.text_muted)
-                .child(Icon::new(IconName::Gamepad2).size(px(14.)))
-                .child(
-                    div()
-                        .text_size(px(13.))
-                        .font_weight(FontWeight::MEDIUM)
-                        .child("Swofty Launcher for F1 25"),
-                )
-                .child(
-                    div()
-                        .text_size(px(12.))
-                        .text_color(p.text_placeholder)
-                        .child(concat!("v", env!("CARGO_PKG_VERSION"))),
-                ),
+            h_flex().flex_1().justify_end().pr(px(8.)).child(
+                div()
+                    .text_size(px(12.))
+                    .text_color(p.text_placeholder)
+                    .child(concat!("v", env!("CARGO_PKG_VERSION"))),
+            ),
         )
     }
 
@@ -640,37 +663,6 @@ impl Shell {
             .into_any_element()
     }
 
-    fn active_profile_card(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let summary = self.library.active().map(|a| a.summary()).unwrap_or_default();
-        let name = self.library.profile.name.clone();
-        v_flex()
-            .id("active-profile")
-            .p(px(10.))
-            .gap(px(8.))
-            .rounded(px(6.))
-            .cursor_pointer()
-            .border_1()
-            .border_color(p.border_variant)
-            .hover(move |s| s.bg(p.hover).border_color(p.border))
-            .child(label("ACTIVE PROFILE", p))
-            .child(
-                h_flex().gap(px(9.)).child(avatar(&name, 28., p)).child(
-                    v_flex()
-                        .flex_1()
-                        .min_w_0()
-                        .child(
-                            div()
-                                .truncate()
-                                .text_size(px(13.))
-                                .font_weight(FontWeight::MEDIUM)
-                                .child(name),
-                        )
-                        .child(div().text_size(px(12.)).text_color(p.text_muted).child(summary)),
-                ),
-            )
-            .on_click(cx.listener(|this, _, _, cx| this.go(Page::Profiles, cx)))
-    }
-
     fn core_nav(&self, page: Page, count: usize, p: Palette, cx: &mut Context<Self>) -> AnyElement {
         self.nav_item(
             page,
@@ -683,7 +675,6 @@ impl Shell {
     }
 
     fn sidebar(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let root = self.store.root.clone();
         let list = self.sidebar_list;
         let wrap = move |items: Vec<AnyElement>| -> AnyElement {
             if list {
@@ -727,9 +718,14 @@ impl Shell {
             .pb(px(10.))
             .gap(px(8.))
             .bg(p.chrome)
-            .border_r_1()
-            .border_color(p.border_variant)
-            .pt(px(12.))
+            .pt(px(4.))
+            .child(
+                h_flex()
+                    .justify_center()
+                    .pt(px(2.))
+                    .pb(px(16.))
+                    .child(crate::pages::wordmark(148.)),
+            )
             .child(wrap(vec![
                 self.core_nav(Page::Profiles, self.library.profiles.len(), p, cx),
                 self.core_nav(Page::Addons, self.library.addons.len(), p, cx),
@@ -742,70 +738,13 @@ impl Shell {
                     .child(wrap(items))
             }))
             .child(div().flex_1())
-            .child(self.active_profile_card(p, cx))
             .child(
-                h_flex()
-                    .mt(px(4.))
-                    .gap(px(4.))
-                    .child(
-                        h_flex()
-                            .id("data-dir")
-                            .flex_1()
-                            .min_w_0()
-                            .px(px(8.))
-                            .py(px(6.))
-                            .gap(px(7.))
-                            .rounded(px(5.))
-                            .cursor_pointer()
-                            .text_size(px(12.))
-                            .text_color(p.text_placeholder)
-                            .hover(move |s| s.bg(p.hover).text_color(p.text_muted))
-                            .child(Icon::new(IconName::FolderOpen).size(px(13.)))
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .min_w_0()
-                                    .truncate()
-                                    .child(self.store.root.display().to_string()),
-                            )
-                            .on_click(move |_, _, cx| cx.open_with_system(&root)),
-                    )
-                    .child(self.layout_toggle(p, cx)),
+                v_flex()
+                    .gap(px(6.))
+                    .pb(px(2.))
+                    .child(label("ACTIVE PROFILE", p).px(px(4.)))
+                    .child(self.profile_picker(p, cx)),
             )
-    }
-
-    fn layout_toggle(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let list = self.sidebar_list;
-        h_flex()
-            .id("sidebar-layout")
-            .size(px(28.))
-            .flex_shrink_0()
-            .items_center()
-            .justify_center()
-            .rounded(px(5.))
-            .cursor_pointer()
-            .text_color(p.text_placeholder)
-            .hover(move |s| s.bg(p.hover).text_color(p.text_muted))
-            .tooltip(move |window, cx| {
-                Tooltip::new(if list { "Show as tiles" } else { "Show as a list" }).build(window, cx)
-            })
-            .child(
-                Icon::new(if list {
-                    IconName::LayoutGrid
-                } else {
-                    IconName::LayoutList
-                })
-                .size(px(14.)),
-            )
-            .on_click(cx.listener(move |this, _, window, cx| {
-                this.sidebar_list = !list;
-                let mut config = this.store.config();
-                config.sidebar_list = this.sidebar_list;
-                if let Err(e) = this.store.save_config(&config) {
-                    window.push_notification(Notification::error(e.to_string()), cx);
-                }
-                cx.notify();
-            }))
     }
 }
 
@@ -869,12 +808,15 @@ impl Render for Shell {
                     .flex_1()
                     .min_h_0()
                     .items_start()
+                    .bg(p.chrome)
                     .child(self.sidebar(p, cx))
                     .child(
                         v_flex()
                             .flex_1()
                             .h_full()
                             .min_w_0()
+                            .overflow_hidden()
+                            .rounded_tl(px(16.))
                             .bg(p.background)
                             .child(content),
                     ),

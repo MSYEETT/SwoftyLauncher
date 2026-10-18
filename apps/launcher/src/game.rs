@@ -16,6 +16,7 @@ const KB: &str = include_str!("../../../re/db/functions.tsv");
 pub struct Install {
     pub dir: PathBuf,
     pub build_id: Option<u64>,
+    pub exe_version: Option<String>,
     pub mode: String,
     pub via_steam: bool,
     pub manual: bool,
@@ -77,12 +78,14 @@ pub fn discover(store: &Store) -> Option<Install> {
     match (manual, found) {
         (Some(dir), found) => Some(Install {
             build_id: found.filter(|g| g.dir == dir).and_then(|g| g.build_id),
+            exe_version: swofty_core::exe_version::read(&dir.join(GAME_EXE)),
             dir,
             mode,
             via_steam,
             manual: true,
         }),
         (None, Some(g)) => Some(Install {
+            exe_version: swofty_core::exe_version::read(&g.dir.join(GAME_EXE)),
             dir: g.dir,
             build_id: g.build_id,
             mode,

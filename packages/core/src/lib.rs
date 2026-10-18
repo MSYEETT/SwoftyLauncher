@@ -7,6 +7,7 @@ pub mod builtin;
 pub mod cache;
 pub mod crash;
 pub mod erpbuild;
+pub mod exe_version;
 pub mod helper;
 pub mod import;
 pub mod install;

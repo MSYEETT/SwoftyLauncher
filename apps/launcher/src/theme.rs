@@ -32,24 +32,24 @@ fn hex(value: u32) -> Hsla {
 impl Palette {
     pub fn dark() -> Self {
         Self {
-            chrome: hex(0x181613),
-            background: hex(0x1e1b19),
-            surface: hex(0x24211e),
-            hover: hex(0x282521),
-            elevated: hex(0x2d2a26),
-            selected: hex(0x383530),
-            border_variant: hex(0x302d29),
-            border: hex(0x403c38),
-            switch_off: hex(0x4b4742),
-            text: hex(0xeae7e4),
-            text_muted: hex(0xa9a49d),
-            text_placeholder: hex(0x7c7670),
-            accent: hex(0xfaab35),
-            accent_hover: hex(0xffbe5c),
-            on_accent: hex(0x150e06),
-            success: hex(0x61cb7c),
-            warning: hex(0xeab532),
-            error: hex(0xf66d67),
+            chrome: hex(0x121419),
+            background: hex(0x181b22),
+            surface: hex(0x1f232d),
+            hover: hex(0x272c38),
+            elevated: hex(0x2d323f),
+            selected: hex(0x2b2d47),
+            border_variant: hex(0x272b35),
+            border: hex(0x3a3f4d),
+            switch_off: hex(0x434956),
+            text: hex(0xe9ecf3),
+            text_muted: hex(0xa3a8b7),
+            text_placeholder: hex(0x737988),
+            accent: hex(0x8b7fd6),
+            accent_hover: hex(0xa196e6),
+            on_accent: hex(0xf8f6ff),
+            success: hex(0x6bcf86),
+            warning: hex(0xe3b43e),
+            error: hex(0xf06d78),
         }
     }
 }
@@ -106,7 +106,7 @@ pub fn init(cx: &mut App) {
         t.sidebar_border = p.border_variant;
         t.sidebar_foreground = p.text;
         t.title_bar = p.chrome;
-        t.title_bar_border = p.border_variant;
+        t.title_bar_border = p.chrome;
         t.status_bar = p.chrome;
         t.status_bar_border = p.border_variant;
         t.window_border = p.border;
