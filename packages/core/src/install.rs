@@ -1,8 +1,9 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use crate::baseline::{Baseline, DepotHashes, Identity, Objects, sha256_bytes, sha256_file, sha256_opt};
 use crate::journal::{Journal, Op, State};
+use crate::placed::{self, Placed};
 use crate::profile::VANILLA;
 use crate::{Error, Result, io_err, with_retry};
 
@@ -16,6 +17,25 @@ pub struct Game {
     pub dir: PathBuf,
     pub user_reg: Option<PathBuf>,
     pub identity: Identity,
+}
+
+impl Game {
+    /// The game in `dir`, with the Proton prefix's user.reg when Steam
+    /// installed it there.
+    pub fn locate(data: &Path, dir: PathBuf) -> Result<Self> {
+        let found = crate::steam::find_game().filter(|g| g.dir == dir);
+        let user_reg = found
+            .as_ref()
+            .and_then(|g| g.prefix())
+            .map(|p| p.join("user.reg"))
+            .filter(|p| p.is_file());
+        let identity = Identity::detect_cached(data, &dir, found.and_then(|g| g.build_id))?;
+        Ok(Self {
+            dir,
+            user_reg,
+            identity,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -70,11 +90,48 @@ impl std::fmt::Display for Drift {
     }
 }
 
+/// A file in the way of a plan: a file the plan adds that is already there,
+/// or a game file the plan replaces that is not the original. `owned` means
+/// it is provably the launcher's own (the bytes it recorded writing there, or
+/// the bytes it is about to write), so it can be cleared without asking.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Conflict {
+    pub path: String,
+    pub sha256: Option<String>,
+    pub owned: bool,
+    pub replaced: bool,
+}
+
+impl std::fmt::Display for Conflict {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let p = &self.path;
+        match (self.replaced, self.owned) {
+            (true, true) => write!(f, "{p} still holds what an unfinished session wrote"),
+            (false, true) => write!(f, "{p} was left behind by an unfinished session"),
+            (true, false) => write!(f, "{p} is not the original, and swofty did not write it"),
+            (false, false) => write!(
+                f,
+                "{p} is already in the game folder, and swofty did not put it there"
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RolledBack {
+    pub id: String,
+    pub profile: String,
+    pub session: bool,
+    pub changes: usize,
+    pub drift: Vec<Drift>,
+}
+
 pub struct Installer<'a> {
     pub data: &'a Path,
     pub game: &'a Game,
     pub depot: &'a dyn DepotHashes,
     pub stop_after: Option<usize>,
+    pub session: bool,
 }
 
 fn rel_parts(rel: &str) -> Vec<String> {
@@ -111,6 +168,7 @@ impl<'a> Installer<'a> {
             game,
             depot: &(),
             stop_after: None,
+            session: false,
         }
     }
 
@@ -129,11 +187,29 @@ impl<'a> Installer<'a> {
     }
 
     pub fn recover(&self) -> Result<Vec<Drift>> {
-        let mut report = Vec::new();
+        Ok(self.roll_back(false)?.into_iter().flat_map(|r| r.drift).collect())
+    }
+
+    /// Roll back every open journal, or only the ones a `swofty run` session
+    /// opened, oldest first.
+    pub fn roll_back(&self, sessions_only: bool) -> Result<Vec<RolledBack>> {
+        let mut out = Vec::new();
         for j in Journal::open(self.data)? {
-            report.extend(self.rollback(j)?);
+            if sessions_only && !j.session {
+                continue;
+            }
+            let (id, profile, session) = (j.id.clone(), j.profile.clone(), j.session);
+            let changes = j.entries.len();
+            let drift = self.rollback(j)?;
+            out.push(RolledBack {
+                id,
+                profile,
+                session,
+                changes,
+                drift,
+            });
         }
-        Ok(report)
+        Ok(out)
     }
 
     fn rollback(&self, j: Journal) -> Result<Vec<Drift>> {
@@ -150,7 +226,7 @@ impl<'a> Installer<'a> {
                     }
                     let ours = now == e.after || e.state == State::Pending;
                     if ours && same_build {
-                        self.objects().restore_to(before, &path)?;
+                        self.restore_original(before, &path)?;
                     } else {
                         report.push(Drift::LeftInPlace(e.path.clone()));
                     }
@@ -160,7 +236,7 @@ impl<'a> Installer<'a> {
                     match sha256_opt(&path)? {
                         None => {}
                         Some(now) if e.state == State::Pending || Some(&now) == e.after.as_ref() => {
-                            std::fs::remove_file(&path).map_err(io_err(&path))?;
+                            with_retry(&path, || std::fs::remove_file(&path))?;
                         }
                         Some(_) => report.push(Drift::LeftInPlace(e.path.clone())),
                     }
@@ -168,7 +244,7 @@ impl<'a> Installer<'a> {
                 Op::CreateDir => {
                     let path = self.path(&e.path);
                     if path.is_dir() && std::fs::read_dir(&path).map_err(io_err(&path))?.next().is_none() {
-                        std::fs::remove_dir(&path).map_err(io_err(&path))?;
+                        with_retry(&path, || std::fs::remove_dir(&path))?;
                     }
                 }
                 Op::RegistryOverride => {
@@ -180,8 +256,165 @@ impl<'a> Installer<'a> {
                 }
             }
         }
+        let mut placed = Placed::load(self.data)?;
+        for e in &j.entries {
+            match e.op {
+                Op::ReplaceFile | Op::CreateFile => placed.remove(&e.path),
+                Op::RegistryOverride => placed.registry = None,
+                Op::CreateDir => {}
+            }
+        }
+        placed.save(self.data)?;
         j.close()?;
         Ok(report)
+    }
+
+    fn restore_original(&self, sha: &str, path: &Path) -> Result<()> {
+        const DELAYS_MS: [u64; 5] = [50, 150, 300, 600, 1000];
+        let mut attempt = 0;
+        loop {
+            match self.objects().restore_to(sha, path) {
+                Err(Error::Io { source, .. })
+                    if crate::is_locked_file_error(&source) && attempt < DELAYS_MS.len() =>
+                {
+                    std::thread::sleep(std::time::Duration::from_millis(DELAYS_MS[attempt]));
+                    attempt += 1;
+                }
+                r => return r,
+            }
+        }
+    }
+
+    /// Clear the conflicts a failed [`apply`](Self::apply) reported that are
+    /// provably the launcher's own: originals go back over replaced files and
+    /// added files are removed, with any folders that held only them. Anything
+    /// not owned is left alone.
+    pub fn clear(&self, conflicts: &[Conflict]) -> Result<Vec<String>> {
+        let baseline = self.baseline()?;
+        let mut placed = Placed::load(self.data)?;
+        let mut notes = Vec::new();
+        for c in conflicts.iter().filter(|c| c.owned) {
+            let path = self.path(&c.path);
+            if c.replaced {
+                let rec = baseline
+                    .files
+                    .get(&c.path)
+                    .ok_or_else(|| Error::Other(format!("{} has no backed-up original", c.path)))?;
+                self.restore_original(&rec.sha256, &path)?;
+                notes.push(format!("put the original {} back", c.path));
+            } else {
+                if path.is_file() {
+                    with_retry(&path, || std::fs::remove_file(&path))?;
+                }
+                self.prune_dirs(&c.path)?;
+                notes.push(format!("removed {}", c.path));
+            }
+            placed.remove(&c.path);
+        }
+        placed.save(self.data)?;
+        Ok(notes)
+    }
+
+    /// Clean up files the placed-files record says the launcher wrote and no
+    /// open journal accounts for: a session that lost its journal left them.
+    /// Only files that still hold exactly the recorded bytes are touched.
+    pub fn sweep(&self) -> Result<Vec<String>> {
+        let mut placed = Placed::load(self.data)?;
+        if placed.files.is_empty() && placed.registry.is_none() {
+            return Ok(Vec::new());
+        }
+        let open = Journal::open(self.data)?;
+        let journaled: BTreeSet<String> = open
+            .iter()
+            .flat_map(|j| j.entries.iter().map(|e| placed::key(&e.path)))
+            .collect();
+        let baseline = self.baseline()?;
+        let mut notes = Vec::new();
+        let overrides = open
+            .iter()
+            .flat_map(|j| &j.entries)
+            .any(|e| e.op == Op::RegistryOverride);
+        if let Some(reg) = placed.registry.clone().filter(|_| !overrides) {
+            let path = PathBuf::from(&reg);
+            if let Some(out) = std::fs::read_to_string(&path)
+                .ok()
+                .and_then(|t| remove_section(&t, OVERRIDE_HEADER))
+            {
+                std::fs::write(&path, out).map_err(io_err(&path))?;
+                notes.push("removed the version.dll override from the Proton prefix".to_owned());
+            }
+            placed.registry = None;
+        }
+        for (key, f) in placed.files.clone() {
+            if journaled.contains(&key) {
+                continue;
+            }
+            let path = self.path(&f.path);
+            if sha256_opt(&path)?.as_deref() == Some(f.sha256.as_str()) {
+                if f.replaced {
+                    match baseline.files.get(&f.path) {
+                        Some(rec) if self.objects().has(&rec.sha256) => {
+                            self.restore_original(&rec.sha256, &path)?;
+                            notes.push(format!("put the original {} back", f.path));
+                        }
+                        _ => {
+                            notes.push(format!(
+                                "{} holds an unfinished session's file and has no backed-up original; left in place",
+                                f.path
+                            ));
+                            continue;
+                        }
+                    }
+                } else {
+                    with_retry(&path, || std::fs::remove_file(&path))?;
+                    self.prune_dirs(&f.path)?;
+                    notes.push(format!("removed {}", f.path));
+                }
+            }
+            placed.files.remove(&key);
+        }
+        placed.save(self.data)?;
+        Ok(notes)
+    }
+
+    fn prune_dirs(&self, rel: &str) -> Result<()> {
+        for dir in rel_parts(rel).iter().rev() {
+            let path = self.path(dir);
+            let empty = path.is_dir() && std::fs::read_dir(&path).map_err(io_err(&path))?.next().is_none();
+            if !empty {
+                break;
+            }
+            with_retry(&path, || std::fs::remove_dir(&path))?;
+        }
+        Ok(())
+    }
+
+    /// Move what the session left in the loader folder (its logs and
+    /// diagnostic dumps) to `logs`, and remove the folders it leaves empty,
+    /// once no journal is open. Returns how many files moved.
+    pub fn tidy(&self, logs: &Path) -> Result<usize> {
+        let loader = self.path(LOADER_DIR);
+        let prefix = format!("{LOADER_DIR}/");
+        if !loader.is_dir()
+            || !Journal::open(self.data)?.is_empty()
+            || self.baseline()?.files.keys().any(|k| k.starts_with(&prefix))
+        {
+            return Ok(0);
+        }
+        let mut moved = 0;
+        for e in std::fs::read_dir(&loader).map_err(io_err(&loader))?.flatten() {
+            let path = e.path();
+            let output = path
+                .extension()
+                .is_some_and(|x| x.eq_ignore_ascii_case("log") || x.eq_ignore_ascii_case("dump"));
+            if output && path.is_file() {
+                std::fs::create_dir_all(logs).map_err(io_err(logs))?;
+                crate::move_file(&path, &logs.join(e.file_name()))?;
+                moved += 1;
+            }
+        }
+        remove_empty(&loader)?;
+        Ok(moved)
     }
 
     fn step(&self, n: &mut usize) -> Result<()> {
@@ -199,34 +432,92 @@ impl<'a> Installer<'a> {
         }
         let objects = self.objects();
         let mut baseline = self.baseline()?;
+        let mut placed = Placed::load(self.data)?;
+        let mut after = BTreeMap::new();
+        for (rel, src) in plan.data.iter().chain(&plan.added).chain(&plan.loader) {
+            after.insert(rel.as_str(), sha256_file(src)?);
+        }
+        let mut conflicts = Vec::new();
         for rel in plan.data.keys() {
+            let path = self.path(rel);
+            if !baseline.files.contains_key(rel)
+                && let Some(left) = placed.get(rel).filter(|p| !p.replaced)
+                && sha256_opt(&path)?.as_deref() == Some(left.sha256.as_str())
+            {
+                conflicts.push(Conflict {
+                    path: rel.clone(),
+                    sha256: Some(left.sha256.clone()),
+                    owned: true,
+                    replaced: false,
+                });
+                continue;
+            }
             let rec = baseline
                 .record(&objects, &self.game.dir, rel, self.depot)?
                 .clone();
-            if sha256_file(&self.path(rel))? != rec.sha256 {
-                return Err(Error::Other(format!(
-                    "{rel} is not the original; run swofty restore or verify the game files"
-                )));
+            let now = sha256_file(&path)?;
+            if now != rec.sha256 {
+                conflicts.push(Conflict {
+                    owned: placed.wrote(rel, &now) || after[rel.as_str()] == now,
+                    path: rel.clone(),
+                    sha256: Some(now),
+                    replaced: true,
+                });
             }
         }
         baseline.save(self.data)?;
         for rel in plan.added.keys().chain(plan.loader.keys()) {
-            if self.path(rel).exists() {
-                return Err(Error::Other(format!(
-                    "{rel} already exists in the game folder; run swofty restore"
-                )));
+            let path = self.path(rel);
+            if std::fs::symlink_metadata(&path).is_err() {
+                continue;
             }
+            let now = sha256_opt(&path)?;
+            let stock = baseline.files.contains_key(rel);
+            conflicts.push(Conflict {
+                owned: now
+                    .as_deref()
+                    .is_some_and(|now| placed.wrote(rel, now) || (!stock && after[rel.as_str()] == now)),
+                path: rel.clone(),
+                sha256: now,
+                replaced: false,
+            });
         }
-        let mut j = Journal::create(self.data, &plan.profile, &self.game.identity.build_id)?;
+        if !conflicts.is_empty() {
+            return Err(Error::Leftovers(conflicts));
+        }
+        let mut j = Journal::create(
+            self.data,
+            &plan.profile,
+            &self.game.identity.build_id,
+            self.session,
+        )?;
+        for rel in plan.data.keys() {
+            placed.insert(rel, after[rel.as_str()].clone(), true);
+        }
+        for rel in plan.added.keys().chain(plan.loader.keys()) {
+            placed.insert(rel, after[rel.as_str()].clone(), false);
+        }
+        let registry = match &self.game.user_reg {
+            Some(reg) if plan.registry_override => {
+                let text = std::fs::read_to_string(reg).map_err(io_err(reg))?;
+                let name = reg.display().to_string();
+                let ours = placed.registry.as_deref() == Some(name.as_str());
+                (!text.contains(OVERRIDE_HEADER) || ours).then_some((reg, name, text))
+            }
+            _ => None,
+        };
+        if let Some((_, name, _)) = &registry {
+            placed.registry = Some(name.clone());
+        }
+        placed.save(self.data)?;
         let mut n = 0;
         for (rel, src) in &plan.data {
             let path = self.path(rel);
-            let after = sha256_file(src)?;
             let i = j.begin(
                 Op::ReplaceFile,
                 rel,
                 Some(baseline.files[rel].sha256.clone()),
-                Some(after),
+                Some(after[rel.as_str()].clone()),
             )?;
             self.step(&mut n)?;
             std::fs::copy(src, &path).map_err(io_err(&path))?;
@@ -243,38 +534,38 @@ impl<'a> Installer<'a> {
                 }
             }
             let path = self.path(rel);
-            let i = j.begin(Op::CreateFile, rel, None, Some(sha256_file(src)?))?;
+            let i = j.begin(Op::CreateFile, rel, None, Some(after[rel.as_str()].clone()))?;
             self.step(&mut n)?;
             std::fs::copy(src, &path).map_err(io_err(&path))?;
             j.done(i)?;
         }
-        if plan.registry_override
-            && let Some(reg) = &self.game.user_reg
-        {
-            let text = std::fs::read_to_string(reg).map_err(io_err(reg))?;
+        if let Some((reg, name, text)) = registry {
+            let before = objects.put_file(reg)?;
+            let mut out = text.clone();
             if !text.contains(OVERRIDE_HEADER) {
-                let before = objects.put_file(reg)?;
-                let mut out = text.clone();
                 if !out.ends_with('\n') && !out.is_empty() {
                     out.push('\n');
                 }
                 out.push_str(&format!("\n{OVERRIDE_HEADER}\n{OVERRIDE_VALUE}\n"));
-                let i = j.begin(
-                    Op::RegistryOverride,
-                    &reg.display().to_string(),
-                    Some(before),
-                    Some(sha256_bytes(out.as_bytes())),
-                )?;
-                self.step(&mut n)?;
-                std::fs::write(reg, out).map_err(io_err(reg))?;
-                j.done(i)?;
             }
+            let i = j.begin(
+                Op::RegistryOverride,
+                &name,
+                Some(before),
+                Some(sha256_bytes(out.as_bytes())),
+            )?;
+            self.step(&mut n)?;
+            if out != text {
+                std::fs::write(reg, out).map_err(io_err(reg))?;
+            }
+            j.done(i)?;
         }
         j.commit()
     }
 
     pub fn restore(&self) -> Result<Vec<Drift>> {
         let mut report = self.recover()?;
+        self.sweep()?;
         let proxy = self.path(PROXY);
         let baseline = self.baseline()?;
         if proxy.is_file() && !baseline.files.contains_key(PROXY) {
@@ -349,6 +640,21 @@ impl<'a> Installer<'a> {
         }
         Ok(out)
     }
+}
+
+fn remove_empty(dir: &Path) -> Result<bool> {
+    let mut empty = true;
+    for e in std::fs::read_dir(dir).map_err(io_err(dir))?.flatten() {
+        let path = e.path();
+        let is_dir = e.file_type().is_ok_and(|t| t.is_dir());
+        if !is_dir || !remove_empty(&path)? {
+            empty = false;
+        }
+    }
+    if empty {
+        with_retry(dir, || std::fs::remove_dir(dir))?;
+    }
+    Ok(empty)
 }
 
 #[cfg(test)]

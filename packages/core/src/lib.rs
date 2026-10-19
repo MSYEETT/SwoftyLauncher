@@ -18,9 +18,11 @@ pub mod offline;
 pub mod owned;
 pub mod paths;
 pub mod pkgedit;
+pub mod placed;
 pub mod planner;
 pub mod process;
 pub mod profile;
+pub mod recovery;
 pub mod registry;
 pub mod resolver;
 pub mod runtime;
@@ -60,8 +62,22 @@ pub enum Error {
     Map(String),
     #[error("{0}")]
     Resolve(String),
+    #[error("{}", leftovers(.0))]
+    Leftovers(Vec<install::Conflict>),
     #[error("{0}")]
     Other(String),
+}
+
+fn leftovers(found: &[install::Conflict]) -> String {
+    let unknown: Vec<_> = found.iter().filter(|c| !c.owned).collect();
+    let (first, rest) = match unknown.first() {
+        Some(c) => (c.to_string(), unknown.len() - 1),
+        None => (found[0].to_string(), found.len() - 1),
+    };
+    match rest {
+        0 => first,
+        n => format!("{first} (and {n} more)"),
+    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

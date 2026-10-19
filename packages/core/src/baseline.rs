@@ -79,6 +79,9 @@ impl Objects {
                 dst.display()
             )));
         }
+        if let Some(dir) = dst.parent() {
+            std::fs::create_dir_all(dir).map_err(io_err(dir))?;
+        }
         let tmp = dst.with_file_name(format!(
             ".{}.swofty-restore",
             dst.file_name().unwrap_or_default().to_string_lossy()

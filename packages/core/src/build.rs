@@ -14,7 +14,7 @@ use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
 use crate::asset::{
     AssetOp, FileKind, FileOp, GroupOp, ItemOp, LangOp, Op, OpFile, Origin, Root, Source, TrackOp,
 };
-use crate::baseline::{Baseline, Objects, hex, sha256_file};
+use crate::baseline::{Baseline, Objects, hex, sha256_file, sha256_opt};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
 use crate::erpbuild::{ErpBuild, Resized, unsupported};
 use crate::install::{Game, LOADER_DIR, Plan};
@@ -22,6 +22,7 @@ use crate::launcher::BuildCx;
 use crate::manifest::{AddonManifest, relative_inside};
 use crate::map::TrackPackage;
 use crate::owned;
+use crate::placed::Placed;
 use crate::planner::{Conflict, Features, Kind, Planner, Route, load_features, waiting_lines};
 use crate::profile::Profile;
 use crate::registry::Host;
@@ -495,12 +496,16 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             built
                 .warnings
                 .extend(placement.notes.iter().map(|n| format!("{}: {n}", pkg.track_code)));
-            for (rel, src) in placement.replaced {
+            let (left, replaced): (Vec<_>, Vec<_>) = placement
+                .replaced
+                .into_iter()
+                .partition(|(rel, _)| left_over(store, game, rel));
+            for (rel, src) in replaced {
                 if built.plan.data.insert(rel.clone(), src).is_some() {
                     return Err(Error::Map(format!("{rel} is replaced twice")));
                 }
             }
-            for (rel, src) in placement.added {
+            for (rel, src) in placement.added.into_iter().chain(left) {
                 if built.plan.added.insert(rel.clone(), src).is_some() {
                     return Err(Error::Map(format!("{rel} is placed by two maps")));
                 }
@@ -705,6 +710,19 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     Ok(built)
 }
 
+/// A file an earlier session created that still holds exactly what it wrote
+/// is a leftover to clear, not a game file to replace.
+fn left_over(store: &Store, game: &Game, rel: &str) -> bool {
+    let Ok(placed) = Placed::load(&store.root) else {
+        return false;
+    };
+    let Some(p) = placed.get(rel).filter(|p| !p.replaced) else {
+        return false;
+    };
+    let stock = Baseline::load_or_new(&store.root, &game.identity).is_ok_and(|b| b.files.contains_key(rel));
+    !stock && sha256_opt(&game.dir.join(rel)).ok().flatten().as_deref() == Some(p.sha256.as_str())
+}
+
 fn stage_erps(built: &mut Built, staged: &BTreeMap<String, PathBuf>, rels: Vec<String>) -> Result<()> {
     for rel in rels {
         let src = built.overlay.join(&rel);
@@ -826,7 +844,8 @@ fn put_files(
     }
     let baseline = Baseline::load_or_new(&store.root, &game.identity).ok();
     let stock = |rel: &str| {
-        baseline.as_ref().is_some_and(|b| b.files.contains_key(rel)) || game.dir.join(rel).is_file()
+        baseline.as_ref().is_some_and(|b| b.files.contains_key(rel))
+            || (game.dir.join(rel).is_file() && !left_over(store, game, rel))
     };
     let (mut replaced, mut added) = (0, 0);
     for (rel, src) in put {

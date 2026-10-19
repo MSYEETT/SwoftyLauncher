@@ -40,6 +40,8 @@ pub struct Journal {
     pub build_id: String,
     pub entries: Vec<Entry>,
     pub committed: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub session: bool,
     #[serde(skip)]
     pub file: PathBuf,
 }
@@ -49,7 +51,7 @@ impl Journal {
         data.join("state/journal")
     }
 
-    pub fn create(data: &Path, profile: &str, build_id: &str) -> Result<Self> {
+    pub fn create(data: &Path, profile: &str, build_id: &str, session: bool) -> Result<Self> {
         let n = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
@@ -63,6 +65,7 @@ impl Journal {
             build_id: build_id.into(),
             entries: Vec::new(),
             committed: false,
+            session,
             file,
         };
         j.save()?;
