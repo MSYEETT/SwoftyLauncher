@@ -2,10 +2,10 @@
 
 Every department frame is one slice of a BC7 texture array, and its name is the entry at
 the same index in an `overrides.uidb` list. This script appends one slice to each R&D
-array the Tyres surfaces read, writes the three grown fragments of each array into
-icons/frames/, and writes erp/rnd_tyres_icon.json: the fragment replacements plus a
-patch-pkg that appends the matching `overrides.uidb` entries. Every operation is gated on
-the `tyres_icon` setting.
+array the Tyres surfaces read, in every UI archive that carries it, writes the three grown
+fragments of each array into icons/frames/, and writes erp/rnd_tyres_icon.json: the
+fragment replacements plus a patch-pkg that appends the matching `overrides.uidb` entries.
+Every operation is gated on the `tyres_icon` setting.
 
 It compares the build with the shipped icons/frames/ and erp/rnd_tyres_icon.json and exits
 1 on any difference. --write replaces the shipped files instead.
@@ -44,7 +44,6 @@ ATLASES = [
      'ui_package/art/textures/career/laptop/rnd_colour_strip/rnd_tyres_strip.tif', 'solid', TYRES_ORANGE),
 ]
 PREFIXES = ['', 'rnd_om_xm.']
-ARCHIVES = [common.CAREER, common.TEAM_HQ]
 
 
 def resvg():
@@ -119,7 +118,6 @@ def overrides_lists(db):
 
 
 def build(game, out):
-    stock = {a: common.stock(game, a) for a in ARCHIVES}
     lists = overrides_lists(common.stock(game, DATABASES))
     ops, edits, report = [], [], []
     for name, frame, tif, kind, rgb in ATLASES:
@@ -129,10 +127,7 @@ def build(game, out):
             view_name = f'{ARRAYS}{lst}.texarray'
             image_name = view_name + '.image'
             frags = None
-            for erp in ARCHIVES:
-                arc = stock[erp]
-                if image_name not in arc.names():
-                    continue
+            for erp, arc in common.carriers(game, image_name):
                 got = (arc.read(image_name, 0), arc.read(image_name, 1), arc.read(view_name, 0))
                 if frags is None:
                     frags = got
