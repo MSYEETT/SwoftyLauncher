@@ -1,735 +1,244 @@
 {
- "schema": 1,
- "build": {
+ "note": "EA App build of F1_25.exe. STATIC verification only: the game's code sections (.rdata r-xp, .xcode rwxp) are encrypted in the on-disk file AND stay encrypted in the running process at every instant observed (Denuvo-style). The string-anchor xref step and all offset checks need decrypted code, which was NOT obtainable from a /proc memory snapshot locally (the EA account sign-in gate blocked reaching the engine/menu). What IS verified below is static: anchor strings present+unique, exception table intact, activation gate pattern.",
+ "ea_build": {
   "exe": "F1_25.exe",
   "sha256": "cc506879c1c834aa54d3478b2f2133d2ec243f2f2d313397631145ea618ff7f4",
-  "size": 342936448,
-  "pe_timestamp": 1789128892,
   "image_base": "0x140000000",
-  "distribution": "EA App",
-  "protection": "fully packed on disk (every executable section is entropy ~8.0); code is decrypted into memory at runtime"
+  "pe_timestamp": 1789128892,
+  "size": 342936448,
+  "primary_code_section": ".rdata (rva 0x1000, 0x5486000, EXECUTE|READ, entropy~8 encrypted on disk and in-memory)",
+  "packed_rwx_section": ".xcode (rva 0x70f7000, 0xe33c600, RWX, entropy~8)",
+  "entry_point": "0x155db000 (.ooa, plaintext unpacker stub)",
+  "exception_dir": "rva 0x1544d000 size 0x18d62c = 135641 RUNTIME_FUNCTION entries (PLAINTEXT, func_base_of works)",
+  "anchor_strings_section": ".sbss (rva 0x5487000, READ, PLAINTEXT)"
  },
- "note": "EA App build template. The on-disk EA exe is fully packed: no plaintext code exists in the file, so no byte pattern can be derived statically (sigcheck --exe on the file reports 0 matches). The launcher's loader scans LIVE decrypted process memory at runtime; EA patterns must be derived from a decrypted-memory dump of the running game and then filled into 'pattern' (and 'expect'/rva) below. Build-independent fact already applied: the EA plaintext engine code lands in section '.rdata' at runtime (positional equivalent of the Steam '.xtls'; EA '.xcode' is writable/black-box and excluded by is_code). Every entry here therefore carries section '.rdata' and status 'pending-dump' with an empty pattern.",
- "derived_from": "d873a1c8d2044cef2fd76c99c9d5a97649c5b815d055540995105f46619865ae",
- "signatures": [
-  {
-   "id": "fe_home.after_career_site",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0xf",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "mid",
-   "expect": "",
-   "names": [
-    "site_FeHome_AfterCareerCall"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "45 8D 67 01 4C 89 F1 44 89 E2 E8 ?? ?? ?? ?? F6",
-    "match": "0x141742fc7",
-    "target": "0x141742fd6"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/core/swofty_core.cpp"
-   ]
+ "static_checks": {
+  "anchor_strings_located_unique": "9/9",
+  "exception_table_entries": 135641,
+  "activation_gate": "Core/Activation64.dll RVA 0xe550 `test al,al; jne; mov [rsp],0x186aa` matches offline-play v0.3.6 verdict pattern EXACTLY ONCE (exit code 100010 = 0x186aa)"
+ },
+ "ea_anchor_strings": {
+  "DevSessionDataContract.ForceStaggeredStart": {
+   "ea_rva": "0x57464c5",
+   "section": ".sbss",
+   "unique": true
   },
-  {
-   "id": "fe_home.career_adder",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0xb",
-   "resolve": {
-    "kind": "rel32",
-    "insn": "0xa"
-   },
-   "kind": "call",
-   "names": [
-    "FeHome_Add_CareerTile"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "45 8D 67 01 4C 89 F1 44 89 E2 E8 ?? ?? ?? ?? F6",
-    "match": "0x141742fc7",
-    "target": "0x141746710"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/core/swofty_core.cpp"
-   ]
+  "neon::NeDispatchAction game::championship::ChampionshipFormationLapComponent::onRaceStarted(neon::NeMessage &)": {
+   "ea_rva": "0x5785980",
+   "section": ".sbss",
+   "unique": true
   },
-  {
-   "id": "fe_tiles.tile_list_builder",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "FeTile_Build_List"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 02 00 00 C5 F8 29 B4 24 70 02 00 00 4C 89 8C 24",
-    "match": "0x14173df80",
-    "target": "0x14173df80"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/core/swofty_core.cpp"
-   ]
+  "GameModule::onSessionEnter() sets SessionExit to SessionExit::eNONE as an initializer?": {
+   "ea_rva": "0x575aec9",
+   "section": ".sbss",
+   "unique": true
   },
-  {
-   "id": "fe_tiles.item_base_populate",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "FeTile_ItemBase_Populate"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 00 00 00 C5 F8 29 74 24 70 44 89 44",
-    "match": "0x141697b90",
-    "target": "0x141697b90"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/core/swofty_core.cpp"
-   ]
+  "networkReplicated": {
+   "ea_rva": "0x589e0da",
+   "section": ".sbss",
+   "unique": true
   },
-  {
-   "id": "vm.registry_global",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x56",
-   "resolve": {
-    "kind": "riprel",
-    "insn": "0x53",
-    "len": 7
-   },
-   "kind": "data",
-   "names": [
-    "g_Vm_Registry"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 00 00 00 C5 F8 29 74 24 70 44 89 44",
-    "match": "0x141697b90",
-    "target": "0x146ca54f8"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/core/swofty_core.cpp"
-   ]
+  "notification_type": {
+   "ea_rva": "0x580fe3a",
+   "section": ".sbss",
+   "unique": true
   },
-  {
-   "id": "vm.set_string",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x6a",
-   "resolve": {
-    "kind": "rel32",
-    "insn": "0x69"
-   },
-   "kind": "call",
-   "names": [
-    "Vm_Set_String"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 00 00 00 C5 F8 29 74 24 70 44 89 44",
-    "match": "0x141697b90",
-    "target": "0x140846270"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/core/swofty_core.cpp"
-   ]
+  "void game::championship::Weekend::start(const game::EntrantPointers &, const NEbool)": {
+   "ea_rva": "0x577d538",
+   "section": ".sbss",
+   "unique": true
   },
-  {
-   "id": "vm.set_bool",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x28f",
-   "resolve": {
-    "kind": "rel32",
-    "insn": "0x28e"
-   },
-   "kind": "call",
-   "names": [
-    "Vm_Set_Bool"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 00 00 00 C5 F8 29 74 24 70 44 89 44",
-    "match": "0x141697b90",
-    "target": "0x140975db0"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/core/swofty_core.cpp"
-   ]
+  "#customisation_flow.fe_screen_selected_button": {
+   "ea_rva": "0x5818987",
+   "section": ".sbss",
+   "unique": true
   },
-  {
-   "id": "core.nestr_from_cstr",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Ne_Make_StrFromCStr"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 54 56 57 55 53 48 83 EC 50 44 89 C6 48 89 CF",
-    "match": "0x1441974e0",
-    "target": "0x1441974e0"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/core/swofty_core.cpp"
-   ]
+  "[machine=\"%s\"] State \"%s\" - Deactivating sub task \"%s\"": {
+   "ea_rva": "0x5b9c99f",
+   "section": ".sbss",
+   "unique": true
   },
-  {
-   "id": "fe_home.on_command_raised",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "FeHome_Handle_Command"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 56 57 53 48 83 EC 40 48 89 D7 48 89 CE 48 8B 05 ?? ?? ?? ?? 48 8D 0D",
-    "match": "0x141bb3c20",
-    "target": "0x141bb3c20"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "fe_tiles.tile_base_ctor",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "FeTile_Construct_Tile"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 48 C5 F8 29 74 24 30 4C 89 CF 4C 89 C3 48 89 CE 48 8D 05",
-    "match": "0x1415a92d0",
-    "target": "0x1415a92d0"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "session.selector_limit_load",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "mid",
-   "expect": "",
-   "names": [
-    "site_Sess_SelectorLimitLoad"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "8B 00 48 89 44 24 40 4C 8D AC 24 30 01 00 00",
-    "match": "0x1424a30a8",
-    "target": "0x1424a30a8"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "gamedb.table_cursor_init",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Gdb_Init_TableCursor"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "56 48 81 EC 20 01 00 00 83 B9 00 02 00 00 00",
-    "match": "0x1445a25c0",
-    "target": "0x1445a25c0"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "session.parse_entrant_list",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Sess_Parse_EntrantList"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC F8 06 00 00 4C 89 4C 24 38",
-    "match": "0x142453c40",
-    "target": "0x142453c40"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "session.weekend_start",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Sess_Weekend_Start"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC B8 00 00 00 44 89 C3 49 89 D4",
-    "match": "0x140af0460",
-    "target": "0x140af0460"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "session.parse_entrant_setup_mode",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Sess_Parse_EntrantSetupMode"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC C8 04 00 00 C5 F8 29 B4 24 B0 04 00 00 4C 89 4C 24 30",
-    "match": "0x14249f190",
-    "target": "0x14249f190"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "session.select_entrants",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Sess_Select_Entrants"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 B8 B8 29 00 00",
-    "match": "0x1424a2350",
-    "target": "0x1424a2350"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "session.ai_vehicle_register_call",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "mid",
-   "expect": "",
-   "names": [
-    "site_Sess_AiVehicleRegisterCall"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "E8 ?? ?? ?? ?? 48 8B BC 24 58 08 00 00 48 85 FF",
-    "match": "0x14060314d",
-    "target": "0x14060314d"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/mods/grid_capacity/grid_capacity.cpp"
-   ]
-  },
-  {
-   "id": "core.log_gate",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x11",
-   "resolve": {
-    "kind": "riprel",
-    "insn": "0xe",
-    "len": 7
-   },
-   "kind": "data",
-   "names": [
-    "g_Ne_LogGate"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "80 3D ?? ?? ?? ?? 01 75 74 B8 5F 01 00 00 48 8D 0D ?? ?? ?? ?? 66 66 66 66 66 66 2E 0F 1F 84 00 00 00 00 00 8B 14 81 85 D2 74 52 81 FA CB 88 7C 7C",
-    "match": "0x140af047c",
-    "target": "0x14604b4f0"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/gamelog/gamelog.cpp"
-   ]
-  },
-  {
-   "id": "core.log_call",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x16",
-   "resolve": {
-    "kind": "rel32",
-    "insn": "0x15"
-   },
-   "kind": "call",
-   "names": [
-    "Ne_Log_Thunk"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "48 8D 0D ?? ?? ?? ?? 48 8D 15 ?? ?? ?? ?? 4C 8D 05 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 8B BE 98 04 00 00",
-    "match": "0x140af04df",
-    "target": "0x1406d4c80"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/gamelog/gamelog.cpp"
-   ]
-  },
-  {
-   "id": "core.format_string_entry",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "mid",
-   "expect": "",
-   "names": [
-    "site_Ne_Format_String_Entry"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 56 57 55 53 48 81 EC 48 02 00 00 48 89 D7 48 89 CE 4C 89 84 24 90 02 00 00",
-    "match": "0x1441630f0",
-    "target": "0x1441630f0"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/gamelog/gamelog.cpp"
-   ]
-  },
-  {
-   "id": "game.unlockable_owned_state",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "expect": "",
-   "names": [
-    "Game_Get_UnlockableOwnedState"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 56 56 57 55 53 48 83 EC 20 48 8B 01 48 8B 71 08 FF 50 08 8B 90 A0 00 00 00",
-    "match": "0x142ec37d0",
-    "target": "0x142ec37d0"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/core/items.cpp"
-   ]
-  },
-  {
-   "id": "vm.flow_update",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Vm_Update_FlowStateMachine"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 58 02 00 00 C5 F8 29 B4 24 40 02 00 00 C5 F9 28 F2",
-    "match": "0x144423ce0",
-    "target": "0x144423ce0"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/core/events.cpp"
-   ]
-  },
-  {
-   "id": "game.session_enter",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Game_GameModule_OnSessionEnter"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 54 56 57 53 48 81 EC 38 02 00 00 48 89 CE 80 3D ?? ?? ?? ?? 01",
-    "match": "0x14080c300",
-    "target": "0x14080c300"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/core/events.cpp"
-   ]
-  },
-  {
-   "id": "game.race_started",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Game_ChampionshipFormationLapComponent_OnRaceStarted"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 28 48 89 CE 80 3D ?? ?? ?? ?? 01 75 53",
-    "match": "0x140b808a0",
-    "target": "0x140b808a0"
-   },
-   "verified": [],
-   "used_by": [
-    "native/src/core/events.cpp"
-   ]
-  },
-  {
-   "id": "car.fit_upgrades_func",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Car_Fit_UpgradesToRating"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 B8 18 25 00 00",
-    "match": "0x143514670",
-    "target": "0x143514670"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "car.attr_array_iter_site",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "mid",
-   "expect": "",
-   "names": [
-    "site_Car_AttrArrayIter"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "49 8B 84 24 60 19 00 00 48 85 C0 74 E3",
-    "match": "0x143514c50",
-    "target": "0x143514c50"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "car.attr_array_base_site",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "mid",
-   "expect": "",
-   "names": [
-    "site_Car_AttrArrayBase"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "49 8D 9C 24 10 0D 00 00 0F 1F 40 00",
-    "match": "0x143514c64",
-    "target": "0x143514c64"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "session.handle_safety_car",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Sess_Handle_SafetyCarData"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 28 83 79 48 02 0F 8C ?? ?? ?? ?? 4C 8B 79 60 4C 8B 61 68 4D 39 E7 0F 84 ?? ?? ?? ?? 48 89 D6 0F B6 05",
-    "match": "0x14361f250",
-    "target": "0x14361f250"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "session.state_enter",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Sess_State_OnStateEnter"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 78 C5 F8 29 74 24 60 C5 F8 28 F1",
-    "match": "0x1436f6740",
-    "target": "0x1436f6740"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "session.session_unloaded",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Sess_Module_OnSessionUnloaded"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 54 56 57 53 48 81 EC 88 00 00 00 48 89 CE 83 79 1C 05",
-    "match": "0x142d4ae20",
-    "target": "0x142d4ae20"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "session.start_sequence_time",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Sess_StartLights_HandleSequenceStartTime"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 56 57 53 48 83 EC 30 83 79 08 02",
-    "match": "0x143237c40",
-    "target": "0x143237c40"
-   },
-   "verified": [],
-   "used_by": []
-  },
-  {
-   "id": "session.tyre_alloc_send",
-   "section": ".rdata",
-   "pattern": "",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "kind": "func_start",
-   "names": [
-    "Sess_TyreAllocation_SendNetMessage"
-   ],
-   "status": "pending-dump",
-   "steam": {
-    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 00 00 00 4C 8B 79 20",
-    "match": "0x140bd1ac0",
-    "target": "0x140bd1ac0"
-   },
-   "verified": [],
-   "used_by": []
+  "virtual void game::FEHomeViewModel::onCommandRaised(const neon::NeUIString &, const neon::NeUIPrimitiveType &)": {
+   "ea_rva": "0x584aaa8",
+   "section": ".sbss",
+   "unique": true
   }
- ]
+ },
+ "per_binding": {
+  "FeHome_Add_CareerTile": {
+   "class": "offset_based",
+   "anchor_string": "#customisation_flow.fe_screen_selected_button",
+   "steam_func_rva": "0x173df80",
+   "steam_func_offset": "0x5047",
+   "binding_anchor": 11,
+   "resolve": {
+    "kind": "rel32",
+    "insn": 10
+   },
+   "ea_string_located": true,
+   "verdict": "UNVERIFIED-HIGH-RISK (string unique on EA, but target = func_base + Steam offset; correct ONLY if EA function layout matches Steam byte-for-byte to that offset. Needs decrypted code to confirm; apply_match guards may catch a wrong offset but not all)."
+  },
+  "FeHome_Handle_Command": {
+   "class": "durable",
+   "anchor_string": "virtual void game::FEHomeViewModel::onCommandRaised(const neon::NeUIString &, const neon::NeUIPrimitiveType &)",
+   "steam_func_rva": "0x1bb3c20",
+   "steam_func_offset": "0x0",
+   "binding_anchor": 0,
+   "resolve": {
+    "kind": "addr"
+   },
+   "ea_string_located": true,
+   "verdict": "LIKELY-RESOLVES (string unique on EA; func base = string xref, build-agnostic). UNCONFIRMED: xref needs decrypted code."
+  },
+  "FeTile_Build_List": {
+   "class": "durable",
+   "anchor_string": "#customisation_flow.fe_screen_selected_button",
+   "steam_func_rva": "0x173df80",
+   "steam_func_offset": "0x0",
+   "binding_anchor": 0,
+   "resolve": {
+    "kind": "addr"
+   },
+   "ea_string_located": true,
+   "verdict": "LIKELY-RESOLVES (string unique on EA; func base = string xref, build-agnostic). UNCONFIRMED: xref needs decrypted code."
+  },
+  "FeTile_ItemBase_Populate": {
+   "class": "durable",
+   "anchor_string": "notification_type",
+   "steam_func_rva": "0x1697b90",
+   "steam_func_offset": "0x0",
+   "binding_anchor": 0,
+   "resolve": {
+    "kind": "addr"
+   },
+   "ea_string_located": true,
+   "verdict": "LIKELY-RESOLVES (string unique on EA; func base = string xref, build-agnostic). UNCONFIRMED: xref needs decrypted code."
+  },
+  "Ne_Log_Thunk": {
+   "class": "offset_based",
+   "anchor_string": "void game::championship::Weekend::start(const game::EntrantPointers &, const NEbool)",
+   "steam_func_rva": "0xaf0460",
+   "steam_func_offset": "0x7f",
+   "binding_anchor": 22,
+   "resolve": {
+    "kind": "rel32",
+    "insn": 21
+   },
+   "ea_string_located": true,
+   "verdict": "UNVERIFIED-HIGH-RISK (string unique on EA, but target = func_base + Steam offset; correct ONLY if EA function layout matches Steam byte-for-byte to that offset. Needs decrypted code to confirm; apply_match guards may catch a wrong offset but not all)."
+  },
+  "Ne_Make_StrFromCStr": {
+   "class": "pattern_only",
+   "anchor_string": null,
+   "steam_func_rva": null,
+   "steam_func_offset": null,
+   "binding_anchor": 0,
+   "resolve": {
+    "kind": "addr"
+   },
+   "ea_string_located": null,
+   "verdict": "WILL-NOT-RESOLVE on EA (no string anchor; pattern scans .xtls which holds no code on EA). Needs a decrypted dump to derive an EA string anchor."
+  },
+  "Vm_Set_Bool": {
+   "class": "offset_based",
+   "anchor_string": "notification_type",
+   "steam_func_rva": "0x1697b90",
+   "steam_func_offset": "0x0",
+   "binding_anchor": 655,
+   "resolve": {
+    "kind": "rel32",
+    "insn": 654
+   },
+   "ea_string_located": true,
+   "verdict": "UNVERIFIED-HIGH-RISK (string unique on EA, but target = func_base + Steam offset; correct ONLY if EA function layout matches Steam byte-for-byte to that offset. Needs decrypted code to confirm; apply_match guards may catch a wrong offset but not all)."
+  },
+  "Vm_Set_String": {
+   "class": "offset_based",
+   "anchor_string": "notification_type",
+   "steam_func_rva": "0x1697b90",
+   "steam_func_offset": "0x0",
+   "binding_anchor": 106,
+   "resolve": {
+    "kind": "rel32",
+    "insn": 105
+   },
+   "ea_string_located": true,
+   "verdict": "UNVERIFIED-HIGH-RISK (string unique on EA, but target = func_base + Steam offset; correct ONLY if EA function layout matches Steam byte-for-byte to that offset. Needs decrypted code to confirm; apply_match guards may catch a wrong offset but not all)."
+  },
+  "g_Ne_LogGate": {
+   "class": "offset_based",
+   "anchor_string": "void game::championship::Weekend::start(const game::EntrantPointers &, const NEbool)",
+   "steam_func_rva": "0xaf0460",
+   "steam_func_offset": "0x1c",
+   "binding_anchor": 17,
+   "resolve": {
+    "kind": "riprel",
+    "insn": 14,
+    "len": 7
+   },
+   "ea_string_located": true,
+   "verdict": "UNVERIFIED-HIGH-RISK (string unique on EA, but target = func_base + Steam offset; correct ONLY if EA function layout matches Steam byte-for-byte to that offset. Needs decrypted code to confirm; apply_match guards may catch a wrong offset but not all)."
+  },
+  "g_Vm_Registry": {
+   "class": "offset_based",
+   "anchor_string": "notification_type",
+   "steam_func_rva": "0x1697b90",
+   "steam_func_offset": "0x0",
+   "binding_anchor": 86,
+   "resolve": {
+    "kind": "riprel",
+    "insn": 83,
+    "len": 7
+   },
+   "ea_string_located": true,
+   "verdict": "UNVERIFIED-HIGH-RISK (string unique on EA, but target = func_base + Steam offset; correct ONLY if EA function layout matches Steam byte-for-byte to that offset. Needs decrypted code to confirm; apply_match guards may catch a wrong offset but not all)."
+  },
+  "site_FeHome_AfterCareerCall": {
+   "class": "offset_based",
+   "anchor_string": "#customisation_flow.fe_screen_selected_button",
+   "steam_func_rva": "0x173df80",
+   "steam_func_offset": "0x5047",
+   "binding_anchor": 15,
+   "resolve": {
+    "kind": "addr"
+   },
+   "ea_string_located": true,
+   "verdict": "UNVERIFIED-HIGH-RISK (string unique on EA, but target = func_base + Steam offset; correct ONLY if EA function layout matches Steam byte-for-byte to that offset. Needs decrypted code to confirm; apply_match guards may catch a wrong offset but not all)."
+  },
+  "site_Ne_Format_String_Entry": {
+   "class": "pattern_only",
+   "anchor_string": null,
+   "steam_func_rva": null,
+   "steam_func_offset": null,
+   "binding_anchor": 0,
+   "resolve": {
+    "kind": "addr"
+   },
+   "ea_string_located": null,
+   "verdict": "WILL-NOT-RESOLVE on EA (no string anchor; pattern scans .xtls which holds no code on EA). Needs a decrypted dump to derive an EA string anchor."
+  },
+  "site_Sess_AiVehicleRegisterCall": {
+   "class": "offset_based",
+   "anchor_string": "DevSessionDataContract.ForceStaggeredStart",
+   "steam_func_rva": "0x5ff750",
+   "steam_func_offset": "0x39fd",
+   "binding_anchor": 0,
+   "resolve": {
+    "kind": "addr"
+   },
+   "ea_string_located": true,
+   "verdict": "UNVERIFIED-HIGH-RISK (string unique on EA, but target = func_base + Steam offset; correct ONLY if EA function layout matches Steam byte-for-byte to that offset. Needs decrypted code to confirm; apply_match guards may catch a wrong offset but not all)."
+  }
+ },
+ "startup_exit_diagnosis": {
+  "summary": "The EA build has (at least) three independent startup gates. offline-play handles the first two; the third needs EA account sign-in which offline-play does not fake.",
+  "gate_1_javelin_launch_guard": "Parent anti-cheat signature check ('Game launch error 0x%08x'). offline-play passes it via runtime CryptQueryObject redirect to the real EA-signed .bak. CONFIRMED working on EA (loader.log: 'runtime signature method active').",
+  "gate_2_activation_EADRM": "Core/Activation64.dll verifier aborts with exit code 100010 (0x186aa) and shows 'EA App is not installed/required'. offline-play v0.3.6 patches Activation64.dll RVA 0xe550 0x75->0xEB (SWOFTY_OFFLINE_ACTIVATION=1 set by the stub). CONFIRMED working on EA (loader.log: 'activation verdict answered'); pattern matches this build's Activation64.dll exactly once (static).",
+  "gate_3_ea_account_signin": "After gates 1-2 pass, the EA SDK (eadp) prompts for EA account sign-in and the process stalls in early init without it (observed: window 'DisplayName field missing from registry', code never executes the engine, .rdata/.xcode stay 100% encrypted). offline-play by design does NOT fake EA auth.",
+  "local_repro": "With the STALE pre-v0.3.6 offline-play binaries that were in /mnt/work/f1-ea-test, gate 2 was unhandled -> exit 100010 ('EA App not installed' dialog). Re-staging to v0.3.6 passed gate 2, then stalled at gate 3.",
+  "launcher_fixable": "Gate 2 (the 100010 / 'EA App' exit) is ALREADY FIXED in shipped offline-play v0.3.6 (activation bypass); the user's installed extension is v0.3.6 (binaries match the pins). No launcher code change was required for the reproduced exit; the local repro failed only because the manual staging copy held pre-v0.3.6 binaries.",
+  "gf_minus1_note": "The GF's -1 at ~16s (before UI) is a DIFFERENT failure: -1 = no exit code = killed by signal (crash), not the activation gate (which is 100010). She is signed into EA (passes gate 3). Pinpointing it needs her session wine log + loader.log + the exit path; it is not the activation gate.",
+  "dump_blocker": "A decrypted-code dump could NOT be captured locally because the game never reached the engine/menu (blocked at gate 3, EA sign-in). In every frozen snapshot both code sections stayed encrypted (entropy ~8). Whether the runtime string-anchor resolver works on EA is therefore UNDETERMINED: it depends on whether decryption is bulk-on-unlock (resolver would work after the menu builds) or transient per-page execute-then-reencrypt (resolver's xref scan would see mostly encrypted code). A menu-level run (past EA sign-in) is required to settle this and to capture the dump.",
+  "dump_requirements": "To finish part B, capture /proc/<pid>/mem of F1_25.exe once it has REACHED THE HOME MENU (engine running): dump the .rdata VA range [0x140001000, 0x140001000+0x5486000) AND scan the whole address space for any large low-entropy (<6.5) RX/RWX region (the protector may execute decrypted code from freshly-allocated memory, not back into .rdata). The anchor functions only decrypt for code paths that have executed (menu bindings at the menu; race bindings only after a race starts)."
+ }
 }
