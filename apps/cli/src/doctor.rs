@@ -1,11 +1,23 @@
 use std::process::ExitCode;
 
 use anyhow::Result;
+use swofty_core::install::{Game, Installer};
 use swofty_core::store::Store;
 use swofty_core::{STEAM_APP_ID, steam};
 
 pub fn doctor(store: &Store) -> Result<ExitCode> {
-    let row = |k: &str, v: String| println!("{k:18} {v}");
+    let (lines, ok) = report(store, None);
+    for l in lines {
+        println!("{l}");
+    }
+    Ok(if ok { ExitCode::SUCCESS } else { ExitCode::FAILURE })
+}
+
+/// The doctor's rows. With `session`, the game folder checked is that
+/// session's, not the one Steam reports.
+pub fn report(store: &Store, session: Option<&Game>) -> (Vec<String>, bool) {
+    let mut lines = Vec::new();
+    let mut row = |k: &str, v: String| lines.push(format!("{k:18} {v}"));
     row("data dir", store.root.display().to_string());
     row(
         "addons",
@@ -14,10 +26,19 @@ pub fn doctor(store: &Store) -> Result<ExitCode> {
             store.addons().map(|m| m.len()).unwrap_or(0)
         ),
     );
+    if let Some(g) = session {
+        row("game dir", g.dir.display().to_string());
+        row("build id", g.identity.build_id.clone());
+        match Installer::new(&store.root, g).verify() {
+            Ok(d) if d.is_empty() => row("baseline", "no drift".into()),
+            Ok(d) => d.iter().for_each(|d| row("drift", d.to_string())),
+            Err(e) => row("baseline", format!("not checked: {e}")),
+        }
+    }
     let roots = steam::steam_roots();
     if roots.is_empty() {
         row("steam", "not found".into());
-        return Ok(ExitCode::FAILURE);
+        return (lines, session.is_some());
     }
     for r in &roots {
         row("steam root", r.display().to_string());
@@ -30,27 +51,29 @@ pub fn doctor(store: &Store) -> Result<ExitCode> {
             "F1 25",
             format!("app {STEAM_APP_ID} not installed in any library"),
         );
-        return Ok(ExitCode::FAILURE);
+        return (lines, session.is_some());
     };
-    row("game dir", game.dir.display().to_string());
-    row(
-        "build id",
-        game.build_id.map_or("unknown".into(), |b| b.to_string()),
-    );
-    row(
-        "exe",
-        if game.exe().is_file() {
-            "present".into()
-        } else {
-            "MISSING".into()
-        },
-    );
-    match crate::build::game(store, Some(game.dir.clone()))
-        .and_then(|g| Ok(swofty_core::install::Installer::new(&store.root, &g).verify()?))
-    {
-        Ok(d) if d.is_empty() => row("baseline", "no drift".into()),
-        Ok(d) => d.iter().for_each(|d| row("drift", d.to_string())),
-        Err(e) => row("baseline", format!("not checked: {e:#}")),
+    if session.is_none() {
+        row("game dir", game.dir.display().to_string());
+        row(
+            "build id",
+            game.build_id.map_or("unknown".into(), |b| b.to_string()),
+        );
+        row(
+            "exe",
+            if game.exe().is_file() {
+                "present".into()
+            } else {
+                "MISSING".into()
+            },
+        );
+        match crate::build::game(store, Some(game.dir.clone()))
+            .and_then(|g| Ok(Installer::new(&store.root, &g).verify()?))
+        {
+            Ok(d) if d.is_empty() => row("baseline", "no drift".into()),
+            Ok(d) => d.iter().for_each(|d| row("drift", d.to_string())),
+            Err(e) => row("baseline", format!("not checked: {e:#}")),
+        }
     }
     if !cfg!(windows) {
         row(
@@ -86,5 +109,5 @@ pub fn doctor(store: &Store) -> Result<ExitCode> {
             row("launch option", format!("user {user} ({state}): {o}"));
         }
     }
-    Ok(ExitCode::SUCCESS)
+    (lines, true)
 }

@@ -6,7 +6,9 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result, bail};
 use clap::Args;
 use swofty_core::crash::{Event, LogScan, Symbols, fatal_name};
+use swofty_core::install::{Game, Installer};
 use swofty_core::process::{descends_from, game_processes, game_running, stop_game, stop_process};
+use swofty_core::recovery::{Scope, SessionLock};
 use swofty_core::session::{
     Config, DEFAULT_WINEDEBUG, LOADER_LOG, LOADER_MARK, LaunchRequest, LogMark, parse_cpu_list,
     parse_steam_command,
@@ -53,19 +55,8 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
         .clone()
         .or_else(|| wrapped.then(|| std::env::current_dir().ok()).flatten());
     let g = crate::build::game(store, explicit)?;
-    for d in swofty_core::install::Installer::new(&store.root, &g).recover()? {
-        say("info", &format!("rollback: {d}"));
-    }
-    match swofty_core::offline::restore_pending(&store.root) {
-        Ok(true) => say("info", "rollback: offline play staging"),
-        Ok(false) => {}
-        Err(e) => say("info", &format!("offline play rollback failed: {e:#}")),
-    }
-    // Modded sessions run without EA AntiCheat: the terms are accepted once,
-    // and declining means the game is not launched.
-    crate::offline::gate(store, !wrapped && std::io::stdin().is_terminal())?;
     if wrapped {
-        return wrapper(store, profile, &args);
+        return wrapper(store, profile, &args, &g);
     }
     let game = g.dir.clone();
     if let Some(running) = game_processes().first() {
@@ -80,6 +71,13 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
             std::thread::sleep(Duration::from_millis(500));
         }
     }
+    {
+        let lock = crate::recover::lock(store, &info)?;
+        crate::recover::stale(store, &lock, &g, Scope::All, &info)?;
+    }
+    // Modded sessions run without EA AntiCheat: the terms are accepted once,
+    // and declining means the game is not launched.
+    crate::offline::gate(store, std::io::stdin().is_terminal())?;
     let id = format!("{:x}{:x}", std::process::id(), (now_secs() * 1e6) as u64);
     let request = LaunchRequest {
         id: id.clone(),
@@ -100,7 +98,9 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
             break d;
         }
         if let Some(status) = wrapper.exited() {
-            return Err(wrapper.failure(status, "before the game started"));
+            let err = wrapper.failure(status, "before the game started");
+            settle(store, &g, &mut wrapper, None, false);
+            return Err(err);
         }
         if started.elapsed() > wrapper.timeout {
             match &wrapper.child {
@@ -118,25 +118,135 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
         std::thread::sleep(Duration::from_millis(500));
     };
     say("info", &format!("wrapper started, logging to {}", dir.display()));
+    let mut relay = wrapper
+        .child
+        .as_ref()
+        .map(|_| Follower::from_end(wrapper.log.clone()));
     let mut follow = Follow::new(&dir, Some((loader, before)), symbols(&game, args.exe.as_deref()));
     install_ctrl_c();
+    let mut quiet = false;
     while !dir.join("exit_code").exists() {
-        if STOP.load(std::sync::atomic::Ordering::Relaxed) {
-            say("info", "stopped following (the game keeps running)");
-            break;
+        if stop_requested() {
+            if wrapper.child.is_none() {
+                say("info", "stopped following (the game keeps running)");
+                return Ok(ExitCode::SUCCESS);
+            }
+            if quiet {
+                say("info", LEFT);
+                return Ok(ExitCode::FAILURE);
+            }
+            quiet = true;
+            say(
+                "info",
+                "stopped following; F1 25 keeps running, and its game files are rolled back when it exits (Ctrl-C again to leave now)",
+            );
         }
-        follow.poll();
+        if !quiet {
+            follow.poll();
+            if let Some(r) = relay.as_mut() {
+                relay_lines(r);
+            }
+        }
         if let Some(status) = wrapper.exited()
             && !dir.join("exit_code").exists()
         {
-            return Err(wrapper.failure(status, "while the game was running"));
+            let err = wrapper.failure(status, "while the game was running");
+            settle(store, &g, &mut wrapper, relay.as_mut(), false);
+            return Err(err);
         }
         std::thread::sleep(Duration::from_millis(250));
     }
-    std::thread::sleep(Duration::from_millis(1500));
-    follow.poll();
-    follow.summary()?;
+    if !quiet {
+        std::thread::sleep(Duration::from_millis(1500));
+        follow.poll();
+    }
+    let summary = follow.summary();
+    settle(store, &g, &mut wrapper, relay.as_mut(), true);
+    summary?;
     Ok(ExitCode::SUCCESS)
+}
+
+const LEFT: &str = "left without waiting; the next swofty run or launcher start rolls the game files back";
+const SETTLE_TIMEOUT: Duration = Duration::from_secs(600);
+
+fn info(line: &str) {
+    say("info", line);
+}
+
+/// After the game: wait for the wrapper to finish rolling the session back,
+/// relaying what it reports, then put back anything it did not (a wrapper
+/// killed mid-rollback leaves its journal open).
+fn settle(store: &Store, g: &Game, wrapper: &mut Wrapper, mut relay: Option<&mut Follower>, ended: bool) {
+    if let Some(child) = wrapper.child.as_mut() {
+        loop {
+            if let Some(r) = relay.as_deref_mut() {
+                relay_lines(r);
+            }
+            if !matches!(child.try_wait(), Ok(None)) {
+                break;
+            }
+            if stop_requested() {
+                say("info", LEFT);
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(250));
+        }
+        if let Some(r) = relay {
+            relay_lines(r);
+        }
+    }
+    let started = Instant::now();
+    let lock = loop {
+        match SessionLock::try_acquire(&store.root) {
+            Ok(Some(lock)) => break lock,
+            Ok(None) => {}
+            Err(e) => {
+                say("info", &format!("cannot check the session lock: {e}"));
+                return;
+            }
+        }
+        if wrapper.child.is_none() && game_running() {
+            say(
+                "info",
+                "F1 25 is running again; its game files are rolled back when it exits",
+            );
+            return;
+        }
+        if started.elapsed() > SETTLE_TIMEOUT || stop_requested() {
+            say(
+                "info",
+                "the session is still rolling back; the next swofty run or launcher start finishes it",
+            );
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(250));
+    };
+    match swofty_core::recovery::recover(&lock, &store.root, g, Scope::All) {
+        Ok(r) if r.recovered() => {
+            say("info", "the wrapper ended without rolling the session back");
+            crate::recover::announce(store, g, &r.lines(), &info);
+        }
+        Ok(r) => {
+            r.lines().iter().for_each(|l| info(l));
+            if ended {
+                info("session over: its game files are rolled back");
+            }
+        }
+        Err(e) => info(&format!("rollback failed, run swofty restore: {e:#}")),
+    }
+}
+
+fn relay_lines(r: &mut Follower) {
+    for line in r.lines() {
+        let line = line.trim_end();
+        if line.is_empty() {
+            continue;
+        }
+        match line.strip_prefix('[').and_then(|l| l.split_once("] ")) {
+            Some((kind, text)) if !kind.contains(' ') => say(kind, text),
+            _ => say("wrapper", line.strip_prefix("swofty: ").unwrap_or(line)),
+        }
+    }
 }
 
 pub fn logs(store: &Store, dir: Option<PathBuf>, exe: Option<PathBuf>) -> Result<ExitCode> {
@@ -151,13 +261,17 @@ pub fn logs(store: &Store, dir: Option<PathBuf>, exe: Option<PathBuf>) -> Result
     Ok(ExitCode::SUCCESS)
 }
 
-fn wrapper(store: &Store, profile: &str, args: &RunArgs) -> Result<ExitCode> {
+fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<ExitCode> {
     if let Some(running) = game_processes().first() {
         bail!(
             "F1 25 is already running (pid {}); close it before launching it again",
             running.pid
         );
     }
+    let lock = crate::recover::lock(store, &info)?;
+    crate::recover::stale(store, &lock, g, Scope::All, &info)?;
+    crate::offline::gate(store, false)?;
+    end_on_signals();
     let config: Config = std::fs::read(store.config_path())
         .ok()
         .and_then(|d| serde_json::from_slice(&d).ok())
@@ -170,70 +284,89 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs) -> Result<ExitCode> {
     if let Some(cpus) = config.launch.cpu_affinity.as_deref().and_then(parse_cpu_list) {
         set_affinity(&cpus);
     }
-    let game = args.game.clone().unwrap_or(std::env::current_dir()?);
-    let installed = if request.apply || args.apply {
-        let g = crate::build::game(store, Some(game.clone()))?;
-        say("info", &format!("installing profile {profile}"));
-        crate::build::install(store, &profile, &g)?;
-        Some(g)
-    } else {
-        None
-    };
-    become_subreaper();
-    let offline = (|| -> Result<()> {
-        let artifacts = crate::offline::ensure_extension(store)?;
-        let probe = swofty_core::offline::probe(&game, &artifacts)?;
-        if !probe.supported {
-            bail!(
-                "this F1 25 build is not supported by the offline play extension yet ({}); \
-                 the modded session was refused",
-                probe.report
-            );
-        }
-        say("info", &format!("game build supported: {}", probe.report));
-        let journal = swofty_core::offline::journal_path(&store.root);
-        for note in swofty_core::offline::stage(&game, &artifacts, &journal)? {
-            say("info", &format!("offline play: {note}"));
-        }
-        say(
-            "info",
-            "staged offline play: EA AntiCheat is not started this session; multiplayer is unavailable",
-        );
-        Ok(())
-    })();
-    if let Err(e) = offline {
-        rollback_profile(store, installed.as_ref());
-        return Err(e);
-    }
-    let result = run_loop(
+    let game = g.dir.clone();
+    let apply = request.apply || args.apply;
+    let session = Session {
         store,
-        args,
-        &config,
-        &request,
-        &profile,
-        &game,
-        installed.as_ref(),
-    );
-    match swofty_core::offline::restore_pending(&store.root) {
-        Ok(true) => say("info", "offline play: the game folder is back to vanilla"),
-        Ok(false) => {}
-        Err(e) => say(
-            "info",
-            &format!("offline play restore failed, run swofty restore: {e:#}"),
-        ),
+        game: g,
+        request_id: request.id.clone(),
+        _lock: lock,
+    };
+    if apply {
+        say("info", &format!("installing profile {profile}"));
+        crate::build::install(store, &profile, g, true, &info)?;
     }
-    rollback_profile(store, installed.as_ref());
+    become_subreaper();
+    let artifacts = crate::offline::ensure_extension(store)?;
+    let probe = swofty_core::offline::probe(&game, &artifacts)?;
+    if !probe.supported {
+        bail!(
+            "this F1 25 build is not supported by the offline play extension yet ({}); \
+             the modded session was refused",
+            probe.report
+        );
+    }
+    say("info", &format!("game build supported: {}", probe.report));
+    let journal = swofty_core::offline::journal_path(&store.root);
+    for note in swofty_core::offline::stage(&game, &artifacts, &journal)? {
+        say("info", &format!("offline play: {note}"));
+    }
+    say(
+        "info",
+        "staged offline play: EA AntiCheat is not started this session; multiplayer is unavailable",
+    );
+    let result = run_loop(store, args, &config, &request, &profile, g, apply);
+    drop(session);
     result
 }
 
-/// Put the profile's game files back; safe to call when nothing is staged.
-fn rollback_profile(store: &Store, installed: Option<&swofty_core::install::Game>) {
-    let Some(g) = installed else {
-        return;
-    };
-    match swofty_core::install::Installer::new(&store.root, g).apply(&swofty_core::install::Plan::vanilla()) {
-        Ok(()) => say("info", "rolled the profile's game files back"),
-        Err(e) => say("info", &format!("rollback failed, run swofty restore: {e:#}")),
+/// A wrapper session: it holds the session lock, and however it ends (the
+/// game exits or crashes, an error, a panic, a stop signal) dropping it puts
+/// the offline play staging and the profile's game files back.
+struct Session<'a> {
+    store: &'a Store,
+    game: &'a Game,
+    request_id: String,
+    _lock: SessionLock,
+}
+
+impl Drop for Session<'_> {
+    fn drop(&mut self) {
+        match swofty_core::offline::restore_pending(&self.store.root) {
+            Ok(true) => info("offline play: the game folder is back to vanilla"),
+            Ok(false) => {}
+            Err(e) => info(&format!("offline play restore failed, run swofty restore: {e:#}")),
+        }
+        let inst = Installer::new(&self.store.root, self.game);
+        match inst.roll_back(false) {
+            Ok(done) => {
+                if !done.is_empty() {
+                    info("rolled the profile's game files back");
+                }
+                for d in done.iter().flat_map(|r| &r.drift) {
+                    info(&format!("rollback: {d}"));
+                }
+            }
+            Err(e) => info(&format!(
+                "rollback failed; the next swofty run or launcher start retries it, or run swofty restore: {e:#}"
+            )),
+        }
+        let logs = self
+            .store
+            .latest_session()
+            .filter(|d| {
+                std::fs::read_to_string(d.join("request_id")).is_ok_and(|s| s.trim() == self.request_id)
+            })
+            .map(|d| d.join("game-logs"))
+            .unwrap_or_else(|| self.store.sessions_dir().join("orphaned-logs"));
+        match inst.tidy(&logs) {
+            Ok(0) => {}
+            Ok(n) => info(&format!(
+                "moved {n} log file(s) out of the game folder to {}",
+                logs.display()
+            )),
+            Err(e) => info(&format!("the loader folder was left in the game folder: {e:#}")),
+        }
     }
 }
 
@@ -243,12 +376,15 @@ fn run_loop(
     config: &Config,
     request: &LaunchRequest,
     profile: &str,
-    game: &Path,
-    installed: Option<&swofty_core::install::Game>,
+    g: &Game,
+    apply: bool,
 ) -> Result<ExitCode> {
     let profile = profile.to_owned();
-    let game = game.to_path_buf();
+    let game = g.dir.clone();
     loop {
+        if ending() {
+            return Ok(ExitCode::FAILURE);
+        }
         rebuild_if_needed(store, &profile, &game);
         let code = play(store, args, config, request, &game)?;
         let relaunch = match store.merge_requests(&profile, true) {
@@ -267,13 +403,13 @@ fn run_loop(
                 false
             }
         };
-        if !relaunch {
+        if !relaunch || ending() {
             return Ok(ExitCode::from(code.clamp(0, 255) as u8));
         }
         say("info", "Apply & restart: starting F1 25 again");
-        if let Some(g) = installed {
+        if apply {
             say("info", &format!("reinstalling profile {profile}"));
-            crate::build::install(store, &profile, g)?;
+            crate::build::install(store, &profile, g, true, &info)?;
         }
     }
 }
@@ -400,7 +536,7 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
     } else {
         GAME_EXE
     };
-    let status = spawn(target, "game_stdout.log")?.wait()?;
+    let status = wait_game(&mut spawn(target, "game_stdout.log")?)?;
     let code = status.code().unwrap_or(-1);
     std::fs::write(dir.join("exit_code"), format!("{code}\n"))?;
     std::fs::write(dir.join("game_end"), format!("{}\n", now_secs()))?;
@@ -414,6 +550,34 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
         stop_process(g.pid).ok();
     }
     Ok(code)
+}
+
+/// Wait for the game; a stop signal to the wrapper (Steam's Stop button, a
+/// kill, a closed terminal) closes the game it started instead of leaving
+/// the session's files in the game folder.
+fn wait_game(child: &mut Child) -> Result<ExitStatus> {
+    let mut asked = false;
+    loop {
+        if let Some(status) = child.try_wait()? {
+            return Ok(status);
+        }
+        if !asked && ending() {
+            asked = true;
+            info("asked to stop: closing F1 25, then rolling its game files back");
+            let ours: Vec<u32> = game_processes()
+                .into_iter()
+                .filter(|g| descends_from(g.pid, std::process::id()))
+                .map(|g| g.pid)
+                .collect();
+            if ours.is_empty() {
+                child.kill().ok();
+            }
+            for pid in ours {
+                stop_process(pid).ok();
+            }
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
 }
 
 const DIRECT_START_TIMEOUT: Duration = Duration::from_secs(600);
@@ -529,6 +693,11 @@ fn launch(store: &Store, game: &Path, direct: bool) -> Result<Wrapper> {
                 .envs(c.get_envs().filter_map(|(k, v)| Some((k, v?))));
             c = fhs;
         }
+        // The wrapper gets its own process group: a Ctrl-C in this terminal
+        // is for this command, and must not kill the wrapper (and with it the
+        // session's rollback) along with it.
+        #[cfg(unix)]
+        std::os::unix::process::CommandExt::process_group(&mut c, 0);
         let log = store.root.join(WRAPPER_LOG);
         let child = spawn_logged(c.current_dir(game), &log)?;
         say(
@@ -560,6 +729,7 @@ fn launch(store: &Store, game: &Path, direct: bool) -> Result<Wrapper> {
 
 struct Follower {
     path: PathBuf,
+    fallback: Option<PathBuf>,
     pos: u64,
     buf: String,
     stale: Option<Option<LogMark>>,
@@ -569,10 +739,25 @@ impl Follower {
     fn new(path: PathBuf) -> Self {
         Self {
             path,
+            fallback: None,
             pos: 0,
             buf: String::new(),
             stale: None,
         }
+    }
+
+    fn from_end(path: PathBuf) -> Self {
+        let pos = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        Self {
+            pos,
+            ..Self::new(path)
+        }
+    }
+
+    fn open(&self) -> Option<std::fs::File> {
+        std::fs::File::open(&self.path)
+            .ok()
+            .or_else(|| std::fs::File::open(self.fallback.as_ref()?).ok())
     }
 
     fn replacing(path: PathBuf, before: Option<LogMark>) -> Self {
@@ -589,7 +774,7 @@ impl Follower {
             }
             self.stale = None;
         }
-        let Ok(mut f) = std::fs::File::open(&self.path) else {
+        let Some(mut f) = self.open() else {
             return Vec::new();
         };
         let size = f.metadata().map(|m| m.len()).unwrap_or(0);
@@ -620,7 +805,10 @@ struct Follow {
 impl Follow {
     fn new(dir: &Path, loader: Option<(PathBuf, Option<LogMark>)>, symbols: Symbols) -> Self {
         let loader = Some(match loader {
-            Some((path, before)) => Follower::replacing(path, before),
+            Some((path, before)) => Follower {
+                fallback: Some(dir.join("loader.log")),
+                ..Follower::replacing(path, before)
+            },
             None => Follower::new(dir.join("loader.log")),
         });
         let wine = Follower::new(dir.join(format!("steam-{STEAM_APP_ID}.log")));
@@ -707,8 +895,11 @@ impl Follow {
                 let stub: Vec<String> = self
                     .loader
                     .as_ref()
-                    .map(|f| &f.path)
-                    .and_then(|p| std::fs::read_to_string(p).ok())
+                    .and_then(|f| {
+                        let mut text = String::new();
+                        f.open()?.read_to_string(&mut text).ok()?;
+                        Some(text)
+                    })
                     .map(|t| {
                         t.lines()
                             .filter(|l| l.contains("[offline]"))
@@ -811,6 +1002,28 @@ fn install_ctrl_c() {
 }
 
 static STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn stop_requested() -> bool {
+    STOP.swap(false, std::sync::atomic::Ordering::Relaxed)
+}
+
+fn end_on_signals() {
+    #[cfg(target_os = "linux")]
+    unsafe {
+        extern "C" fn on_end(_: libc::c_int) {
+            ENDING.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        for sig in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
+            libc::signal(sig, on_end as *const () as libc::sighandler_t);
+        }
+    }
+}
+
+static ENDING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn ending() -> bool {
+    ENDING.load(std::sync::atomic::Ordering::Relaxed)
+}
 
 #[cfg(target_os = "linux")]
 fn set_affinity(cpus: &[usize]) {
@@ -971,6 +1184,143 @@ mod tests {
         assert_eq!(tail(&log, 2), ["b", "c"]);
         assert_eq!(tail(&log, 9), ["a", "b", "c"]);
         assert!(tail(&log.with_extension("missing"), 3).is_empty());
+        std::fs::remove_dir_all(log.ancestors().nth(2).unwrap()).ok();
+    }
+
+    struct Modded {
+        root: PathBuf,
+        store: Store,
+        game: Game,
+    }
+
+    impl Modded {
+        fn new(name: &str) -> Self {
+            let root = std::env::temp_dir().join(format!("swofty-run-{}-{name}", std::process::id()));
+            std::fs::remove_dir_all(&root).ok();
+            let dir = root.join("game");
+            std::fs::create_dir_all(dir.join("game_package")).unwrap();
+            std::fs::write(dir.join(GAME_EXE), "exe").unwrap();
+            std::fs::write(dir.join("game_package/db.bin"), "db").unwrap();
+            std::fs::create_dir_all(root.join("src")).unwrap();
+            std::fs::write(root.join("src/db"), "modded").unwrap();
+            std::fs::write(root.join("src/core"), "core").unwrap();
+            let game = Game {
+                identity: swofty_core::baseline::Identity::detect(&dir, Some(1)).unwrap(),
+                dir,
+                user_reg: None,
+            };
+            let store = Store::new(root.join("data"));
+            let plan = swofty_core::install::Plan {
+                profile: "MODDED".into(),
+                data: [("game_package/db.bin".to_owned(), root.join("src/db"))].into(),
+                loader: [(
+                    "swofty/addons/core/swofty_core.dll".to_owned(),
+                    root.join("src/core"),
+                )]
+                .into(),
+                ..Default::default()
+            };
+            Installer {
+                session: true,
+                ..Installer::new(&store.root, &game)
+            }
+            .apply(&plan)
+            .unwrap();
+            std::fs::write(game.dir.join("swofty/loader.log"), "attached\n").unwrap();
+            Self { root, store, game }
+        }
+
+        fn vanilla(&self) -> bool {
+            std::fs::read_to_string(self.game.dir.join("game_package/db.bin")).unwrap() == "db"
+                && !self.game.dir.join("swofty").exists()
+                && swofty_core::journal::Journal::open(&self.store.root)
+                    .unwrap()
+                    .is_empty()
+                && Installer::new(&self.store.root, &self.game)
+                    .verify()
+                    .unwrap()
+                    .is_empty()
+        }
+    }
+
+    impl Drop for Modded {
+        fn drop(&mut self) {
+            std::fs::remove_dir_all(&self.root).ok();
+        }
+    }
+
+    #[test]
+    fn rolls_back_a_session_whose_wrapper_was_killed_after_the_game_exited() {
+        let m = Modded::new("killed");
+        assert!(!m.vanilla());
+        let log = m.store.root.join(WRAPPER_LOG);
+        let child = spawn_logged(
+            Command::new("sh").args(["-c", "echo '[info] in game: nothing changed'; kill -9 $$"]),
+            &log,
+        )
+        .unwrap();
+        let mut w = Wrapper {
+            child: Some(child),
+            log: log.clone(),
+            timeout: DIRECT_START_TIMEOUT,
+        };
+        let mut relay = Follower::new(log);
+        settle(&m.store, &m.game, &mut w, Some(&mut relay), true);
+        assert!(m.vanilla());
+        assert_eq!(
+            std::fs::read_to_string(m.store.root.join("sessions/orphaned-logs/loader.log")).unwrap(),
+            "attached\n"
+        );
+        let notice = swofty_core::recovery::Notice::read(&m.store.root).unwrap();
+        assert!(notice.lines[0].ends_with("(5 change(s) for profile MODDED) that a session left open"));
+    }
+
+    #[test]
+    fn waits_for_a_steam_wrapper_to_finish_rolling_back_before_recovering() {
+        if !which("flock") || game_running() {
+            return;
+        }
+        let m = Modded::new("steam");
+        let lock = swofty_core::recovery::lock_path(&m.store.root);
+        let mut holder = Command::new("flock")
+            .arg(&lock)
+            .args(["sleep", "1"])
+            .spawn()
+            .unwrap();
+        let started = Instant::now();
+        while !SessionLock::held_elsewhere(&m.store.root) {
+            assert!(started.elapsed() < Duration::from_secs(5));
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let mut w = Wrapper {
+            child: None,
+            log: PathBuf::new(),
+            timeout: STEAM_START_TIMEOUT,
+        };
+        settle(&m.store, &m.game, &mut w, None, true);
+        assert!(
+            holder.try_wait().unwrap().is_some(),
+            "settle ran under a live session"
+        );
+        holder.wait().unwrap();
+        assert!(m.vanilla());
+    }
+
+    #[test]
+    fn relays_the_wrappers_lines_under_their_own_tags() {
+        let log = temp_log("relay");
+        std::fs::create_dir_all(log.parent().unwrap()).unwrap();
+        std::fs::write(&log, "old\n").unwrap();
+        let mut relay = Follower::from_end(log.clone());
+        std::fs::write(
+            &log,
+            "old\n[info] rolled the profile's game files back\nswofty: oops\n",
+        )
+        .unwrap();
+        assert_eq!(
+            relay.lines(),
+            ["[info] rolled the profile's game files back", "swofty: oops"]
+        );
         std::fs::remove_dir_all(log.ancestors().nth(2).unwrap()).ok();
     }
 }

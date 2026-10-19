@@ -2,9 +2,9 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Context, Result, bail};
-use swofty_core::baseline::Identity;
 use swofty_core::build::GVDB;
 use swofty_core::install::{Game, Installer};
+use swofty_core::recovery::{Blocked, Scope, SessionLock};
 use swofty_core::settings::SETTINGS_FILE;
 use swofty_core::store::Store;
 use swofty_core::{GAME_EXE, steam};
@@ -17,20 +17,7 @@ pub const UI_ERPS: &[&str] = &[
     "2025_asset_groups/ui_package/screens/fe_home.erp",
 ];
 pub fn game(store: &Store, explicit: Option<PathBuf>) -> Result<Game> {
-    let install = steam::find_game();
-    let dir = game_dir(explicit)?;
-    let found = install.filter(|g| g.dir == dir);
-    let user_reg = found
-        .as_ref()
-        .and_then(|g| g.prefix())
-        .map(|p| p.join("user.reg"))
-        .filter(|p| p.is_file());
-    let identity = Identity::detect_cached(&store.root, &dir, found.and_then(|g| g.build_id))?;
-    Ok(Game {
-        dir,
-        user_reg,
-        identity,
-    })
+    Ok(Game::locate(&store.root, game_dir(explicit)?)?)
 }
 
 fn game_dir(explicit: Option<PathBuf>) -> Result<PathBuf> {
@@ -107,16 +94,43 @@ fn common_root<'a>(paths: impl Iterator<Item = &'a String>) -> String {
     roots.join(", ")
 }
 
-pub fn install(store: &Store, profile: &str, g: &Game) -> Result<()> {
+/// Build the profile and install it. Files an unfinished session left in the
+/// way that are provably ours are cleared and the install is tried once
+/// more; anything else stops it untouched, with what a restore would do.
+pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn Fn(&str)) -> Result<()> {
+    Blocked::clear(&store.root).ok();
+    let inst = Installer {
+        session,
+        ..Installer::new(&store.root, g)
+    };
     let built = build_profile(store, profile, g)?;
     report(profile, &built);
-    Installer::new(&store.root, g).apply(&built.plan)?;
-    Ok(())
+    let found = match inst.apply(&built.plan) {
+        Err(swofty_core::Error::Leftovers(found)) => found,
+        r => return Ok(r?),
+    };
+    if found.iter().any(|c| !c.owned) {
+        return Err(crate::recover::blocked(store, g, &found));
+    }
+    let cleared = inst.clear(&found)?;
+    crate::recover::announce(store, g, &cleared, out);
+    crate::recover::record_cleared(store, &cleared);
+    let built = build_profile(store, profile, g)?;
+    report(profile, &built);
+    match inst.apply(&built.plan) {
+        Err(swofty_core::Error::Leftovers(found)) => Err(crate::recover::blocked(store, g, &found)),
+        r => Ok(r?),
+    }
 }
 
 pub fn apply(store: &Store, profile: &str, game: Option<PathBuf>) -> Result<ExitCode> {
     let g = self::game(store, game)?;
-    install(store, profile, &g)?;
+    let out = |l: &str| println!("{l}");
+    let Some(lock) = SessionLock::try_acquire(&store.root)? else {
+        bail!("a modded session is running or rolling back; close F1 25 and try again");
+    };
+    crate::recover::stale(store, &lock, &g, Scope::All, &out)?;
+    install(store, profile, &g, false, &out)?;
     println!(
         "applied {profile} to {}; swofty restore puts the game back",
         g.dir.display()
@@ -165,13 +179,15 @@ fn read(game: &Path, rel: &str) -> Result<Vec<u8>> {
 }
 
 pub fn restore(store: &Store, game: Option<PathBuf>) -> Result<ExitCode> {
-    match swofty_core::offline::restore_pending(&store.root) {
-        Ok(true) => println!("restored: offline play staging"),
-        Ok(false) => {}
-        Err(e) => bail!("offline play staging is not restorable: {e:#}"),
-    }
     let g = self::game(store, game)?;
-    let left = Installer::new(&store.root, &g).restore()?;
+    let done = swofty_core::recovery::restore(&store.root, &g)?;
+    for n in &done.notes {
+        println!("restored: {n}");
+    }
+    for p in &done.set_aside {
+        println!("set aside: {}", p.display());
+    }
+    let left = done.left;
     if left.is_empty() {
         println!(
             "restored: the game folder matches the baseline for build {}",
@@ -187,9 +203,11 @@ pub fn restore(store: &Store, game: Option<PathBuf>) -> Result<ExitCode> {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
     use std::sync::Arc;
 
-    use swofty_core::asset::AssetBatch;
+    use swofty_core::asset::{AssetBatch, AssetOp, FileOp, Op, Origin, Root, Source};
+    use swofty_core::baseline::Identity;
     use swofty_core::builtin::loader_dir;
     use swofty_core::launcher::{Addon, BuildCx, Builtin};
     use swofty_core::manifest::AddonManifest;
@@ -238,5 +256,187 @@ mod tests {
         let p = store.profile("default").unwrap();
         assert_eq!(p.state["t.writer"], serde_json::json!({"built": true}));
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    const MIP: &str =
+        "environment_package/tracks/suzuka24/mipmaps/f55b20d9a14b_pit_perch_ferrari_b_n.tif.2025.mipmaps";
+
+    struct Putter(AddonManifest);
+
+    impl Addon for Putter {
+        fn manifest(&self) -> &AddonManifest {
+            &self.0
+        }
+
+        fn build(&self, _: &BuildCx) -> swofty_addon::Result<AssetBatch> {
+            Ok(AssetBatch {
+                ops: vec![Op {
+                    op: AssetOp::File(FileOp::Put {
+                        source: Source {
+                            root: Root::Data,
+                            path: "mip".into(),
+                        },
+                        target: MIP.into(),
+                    }),
+                    origin: Origin {
+                        addon: "t.putter".into(),
+                        item: None,
+                    },
+                }],
+                ..AssetBatch::default()
+            })
+        }
+    }
+
+    struct Harness {
+        root: PathBuf,
+        store: Store,
+        game: Game,
+    }
+
+    impl Harness {
+        fn new(name: &str) -> Self {
+            let root = std::env::temp_dir().join(format!("swofty-cli-{name}-{}", std::process::id()));
+            std::fs::remove_dir_all(&root).ok();
+            let dir = root.join("game");
+            std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+            std::fs::write(dir.join(GAME_EXE), "exe").unwrap();
+            std::fs::write(dir.join(GVDB), "db").unwrap();
+            let manifest = AddonManifest::parse(
+                r#"{"schema_version":1,"id":"t.putter","name":"Putter","version":"1.0.0","author":"t","compat":{"game":"f1_25"}}"#,
+            )
+            .unwrap();
+            let store = Store::new(root.join("data")).with_builtins(vec![Builtin {
+                addon: Arc::new(Putter(manifest)),
+                locked: false,
+                default_on: true,
+            }]);
+            let data = store.addon_data_dir("t.putter");
+            std::fs::create_dir_all(&data).unwrap();
+            std::fs::write(data.join("mip"), "mip-ferrari").unwrap();
+            Self {
+                game: Game {
+                    identity: Identity::detect(&dir, Some(1)).unwrap(),
+                    dir,
+                    user_reg: None,
+                },
+                store,
+                root,
+            }
+        }
+
+        fn install(&self, log: &RefCell<Vec<String>>) -> Result<()> {
+            install(&self.store, "default", &self.game, true, &|l| {
+                log.borrow_mut().push(l.to_owned())
+            })
+        }
+
+        fn mip(&self) -> String {
+            std::fs::read_to_string(self.game.dir.join(MIP)).unwrap()
+        }
+    }
+
+    impl Drop for Harness {
+        fn drop(&mut self) {
+            std::fs::remove_dir_all(&self.root).ok();
+        }
+    }
+
+    #[test]
+    fn a_leftover_from_an_interrupted_session_is_recovered_and_the_launch_proceeds() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let h = Harness::new("leftover");
+        let log = RefCell::new(Vec::new());
+        h.install(&log).unwrap();
+        assert_eq!(h.mip(), "mip-ferrari");
+        assert!(log.borrow().is_empty());
+        // The session was interrupted and its journal is gone; the mip file
+        // it placed is still in the game folder.
+        std::fs::remove_dir_all(h.store.root.join("state/journal")).unwrap();
+
+        h.install(&log).unwrap();
+        let log = log.into_inner();
+        assert_eq!(log[0], swofty_core::recovery::HEADLINE);
+        assert_eq!(log[1], format!("  removed {MIP}"));
+        assert!(log.iter().any(|l| l.starts_with("doctor: data dir")), "{log:?}");
+        assert!(log.iter().any(|l| l.starts_with("doctor: baseline")), "{log:?}");
+        assert_eq!(h.mip(), "mip-ferrari");
+        let open = swofty_core::journal::Journal::open(&h.store.root).unwrap();
+        assert_eq!(open.len(), 1);
+        assert!(open[0].session);
+        assert_eq!(open[0].entries.last().unwrap().path, MIP);
+        let notice = swofty_core::recovery::Notice::read(&h.store.root).unwrap();
+        assert_eq!(notice.lines, [format!("removed {MIP}")]);
+
+        let inst = Installer::new(&h.store.root, &h.game);
+        inst.roll_back(true).unwrap();
+        assert!(!h.game.dir.join("environment_package").exists());
+        assert_eq!(inst.verify().unwrap(), []);
+    }
+
+    #[test]
+    fn a_hand_copied_file_is_backed_up_and_put_back_never_deleted() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let h = Harness::new("by-hand");
+        std::fs::create_dir_all(h.game.dir.join(MIP).parent().unwrap()).unwrap();
+        std::fs::write(h.game.dir.join(MIP), "copied in by hand").unwrap();
+        let log = RefCell::new(Vec::new());
+        h.install(&log).unwrap();
+        assert_eq!(h.mip(), "mip-ferrari");
+        Installer::new(&h.store.root, &h.game).roll_back(true).unwrap();
+        assert_eq!(h.mip(), "copied in by hand");
+    }
+
+    #[test]
+    fn a_file_of_unknown_provenance_stops_the_launch_untouched_with_what_restore_does() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let h = Harness::new("unknown");
+        let built = build_profile(&h.store, "default", &h.game).unwrap();
+        assert!(built.plan.added.contains_key(MIP));
+        // A copy that turns up after the build is only found when the files
+        // are placed, as with track mip files, which always go in as
+        // additions.
+        std::fs::create_dir_all(h.game.dir.join(MIP).parent().unwrap()).unwrap();
+        std::fs::write(h.game.dir.join(MIP), "copied in by hand").unwrap();
+        let err = Installer::new(&h.store.root, &h.game)
+            .apply(&built.plan)
+            .map_err(|e| match e {
+                swofty_core::Error::Leftovers(found) => crate::recover::blocked(&h.store, &h.game, &found),
+                e => e.into(),
+            })
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.starts_with(&format!(
+                "{MIP} is already in the game folder, and swofty did not put it there; it was left untouched in case it is a mod copied in by hand. Restore game folder (swofty restore) rolls back swofty's own changes and moves this file to "
+            )),
+            "{err}"
+        );
+        assert!(err.ends_with(", where you can get it back"), "{err}");
+        assert!(!err.contains('\n'));
+        assert_eq!(h.mip(), "copied in by hand");
+        assert!(
+            swofty_core::journal::Journal::open(&h.store.root)
+                .unwrap()
+                .is_empty()
+        );
+        let blocked = swofty_core::recovery::Blocked::read(&h.store.root).unwrap();
+        assert_eq!(blocked.files[0].path, MIP);
+
+        let done = swofty_core::recovery::restore(&h.store.root, &h.game).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&done.set_aside[0]).unwrap(),
+            "copied in by hand"
+        );
+        assert!(!h.game.dir.join("environment_package").exists());
+        let log = RefCell::new(Vec::new());
+        h.install(&log).unwrap();
+        assert_eq!(h.mip(), "mip-ferrari");
     }
 }

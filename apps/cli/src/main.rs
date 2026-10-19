@@ -1,6 +1,7 @@
 mod build;
 mod doctor;
 mod offline;
+mod recover;
 mod run;
 mod time;
 mod update;
