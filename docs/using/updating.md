@@ -12,7 +12,7 @@ The launcher offers each new release itself. Simplified for Swofty, the addon be
 When you open the launcher, it checks for a new release, at most once every 6 hours. If there's one available, you'll see its version in a bar above **Play**, with **Update**, **Release notes** and **Skip this version**.
 
 1. Close F1 25. The launcher won't update while the game runs.
-2. Select **Update**. It downloads the archive, checks it against the release's `SHA256SUMS`, and replaces `bin/`, `loader/` and, on Linux, `share/`.
+2. Select **Update**. It downloads the archive, checks it against the release's `SHA256SUMS`, and replaces `bin/`, `loader/`, `addons/` and, on Linux, `share/`. A newer version of an [addon that ships with the launcher](/using/bundled-addons) replaces the installed one the next time the launcher starts.
 3. Select **Restart**.
 
 If a step fails, you'll see the error and the old files stay in place. An update interrupted partway is rolled back the next time you start the launcher.

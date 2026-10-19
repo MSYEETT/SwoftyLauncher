@@ -28,6 +28,7 @@ Once the launcher has found F1 25, you do everything from one window. This secti
 | Page | Covers |
 |---|---|
 | [Addons](/using/addons) | Installing, turning on, checking and removing addons; the built-in addons |
+| [Addons that ship with the launcher](/using/bundled-addons) | The addons every release installs switched off, such as F1 25 RE-Optimization |
 | [Mods and tracks](/using/mods) | Importing mods and tracks, load order, conflicts and `swofty mods` |
 | [Profiles](/using/profiles) | Creating, switching, renaming, duplicating and deleting profiles |
 | [In-game addon settings](/using/swofty-mod) | The **ADDON SETTINGS** screen in the game's home menu |

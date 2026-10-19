@@ -62,6 +62,7 @@ Either way, the install folder holds:
 | `bin/swofty` | The command line |
 | `bin/swofty-ui` | [Swofty UI](/reference/ui/swofty-ui) |
 | `loader/` | The in-game loader; keep it next to `bin/` |
+| `addons/` | The [addons that ship with the launcher](/using/bundled-addons), installed switched off |
 
 On Windows, the files in `bin/` end in `.exe`. The setup guides call this folder the install folder.
 

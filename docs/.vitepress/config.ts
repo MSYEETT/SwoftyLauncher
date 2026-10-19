@@ -140,6 +140,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
             items: [
               { text: "Overview", link: "/using/" },
               { text: "Addons", link: "/using/addons" },
+              { text: "Addons that ship with the launcher", link: "/using/bundled-addons" },
               { text: "Mods and tracks", link: "/using/mods" },
               { text: "Profiles", link: "/using/profiles" },
               { text: "In-game addon settings", link: "/using/swofty-mod" },

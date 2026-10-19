@@ -131,7 +131,7 @@ Close F1 25 before running `swofty update`; it refuses to update while the game 
 
 1. It downloads the archive for your platform and verifies it against the release's `SHA256SUMS`.
 2. It extracts the archive to `.update/` in that folder.
-3. It replaces the files in `bin/`, `loader/` and, on Linux, `share/`, and removes files from `loader/` that the new release no longer has.
+3. It replaces the files in `bin/`, `loader/`, `addons/` and, on Linux, `share/`, and removes files from `loader/` and `addons/` that the new release no longer has.
 
 If a step fails, it puts back the files replaced so far and removes `.update/`. You need to run the command from an extracted release it can write to; otherwise, it prints the release page instead.
 

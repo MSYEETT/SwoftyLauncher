@@ -10,6 +10,7 @@ A launcher and mod loader for F1 25 on Windows and Linux. Addons change the game
 - **Mods:** Content with no code, as the Simplified Suite loads it: `.serps` packages, `.erp` archives and other game files in a zip, 7z, RAR or folder, and community tracks such as Sepang and Okayama. Drop them on the launcher's Mods page, which comes from Team Simplified's Simplified for Swofty addon.
 - **Profiles:** Keep separate setups like *Vanilla*, *26 car grid* or *Classic tracks*. The game folder goes back to vanilla when a session ends.
 - **In-game addon settings:** Change addon settings from the game's main menu, in **ADDON SETTINGS** under Career.
+- **Bundled addons:** Every release carries [F1 25 RE-Optimization](https://f1.swofty.net/using/bundled-addons) by [xanpavle](https://github.com/xanpavle/F1-25-RE-Optimization), a renderer optimisation that lowers a set of costly graphics settings and picks the upscaler your GPU supports. It is installed off; turn it on per profile on the Addons page.
 - **Swofty UI:** View and edit the game's menu layouts (`.idf` scenes) with real textures, then ship the edits in an addon. It comes with every release as `bin/swofty-ui`. See [Swofty UI](https://f1.swofty.net/reference/ui/swofty-ui).
 
 ## Install
@@ -40,4 +41,8 @@ See the [development guide](https://f1.swofty.net/reference/development) for bui
 
 ## Licence
 
-[GNU Affero General Public License, version 3 or later](LICENSE). The plugin SDK in `packages/sdk` and the addon template in `templates/addon` use the MIT licence. The docs theme adapts MIT-licensed CSS from the Geode docs, and Swofty UI's texture decoder is ported from MIT-licensed bcdec_rs and bcdec; see [THIRD_PARTY.md](THIRD_PARTY.md).
+[GNU Affero General Public License, version 3 or later](LICENSE). The plugin SDK in `packages/sdk` and the addon template in `templates/addon` use the MIT licence. The docs theme adapts MIT-licensed CSS from the Geode docs, Swofty UI's texture decoder is ported from MIT-licensed bcdec_rs and bcdec, and the F1 25 RE-Optimization addon in `addons/re-optimization` is ported from xanpavle's MIT-licensed [F1 25 RE-Optimization](https://github.com/xanpavle/F1-25-RE-Optimization); see [THIRD_PARTY.md](THIRD_PARTY.md).
+
+## Credits
+
+- [xanpavle](https://github.com/xanpavle) for [F1 25 RE-Optimization](https://github.com/xanpavle/F1-25-RE-Optimization), the renderer tuning, engine overrides and GPU-aware upscaler choice behind the bundled `xanpavle.re-optimization` addon.

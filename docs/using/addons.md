@@ -55,6 +55,8 @@ Removing an addon deletes its files and takes it out of every profile. You can't
 | **SwoftyMod** | Loads addons in game and adds **ADDON SETTINGS**. It's always on in modded profiles. |
 | **Simplified for Swofty** | Team Simplified's addon. Adds the [Mods](/using/mods) page. The launcher installs it, [keeps it up to date](/using/updating#simplified-for-swofty) and keeps it on. |
 
+Each release also installs a few addons switched off, such as xanpavle's F1 25 RE-Optimization. You can turn them on per profile or remove them; see [Addons that ship with the launcher](/using/bundled-addons).
+
 If an addon adds its own page, you'll find it in the sidebar under a heading with the addon's name.
 
 ## From a terminal
