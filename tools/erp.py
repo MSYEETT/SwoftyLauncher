@@ -1,6 +1,10 @@
 import struct, sys, collections
 def parse(path):
-    f = open(path, 'rb')
+    with open(path, 'rb') as f:
+        return _parse(f)
+
+
+def _parse(f):
     hdr = f.read(0x38)
     magic, ver = hdr[:4], struct.unpack_from('<I', hdr, 4)[0]
     info_off, info_size, data_off = struct.unpack_from('<QQQ', hdr, 0x10)
