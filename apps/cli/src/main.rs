@@ -6,6 +6,7 @@ mod time;
 mod update;
 
 use std::ffi::OsString;
+use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -77,6 +78,8 @@ enum Command {
     Offline(offline::OfflineCommand),
     #[command(subcommand, about = "Show and change addon settings in the profile")]
     Settings(SettingsCommand),
+    #[command(subcommand, about = "List and delete profiles")]
+    Profile(ProfileCommand),
     #[command(about = "Summarise a previous session's logs and crashes")]
     Logs {
         dir: Option<PathBuf>,
@@ -98,6 +101,21 @@ enum AddonsCommand {
     Install { path: PathBuf },
     Enable { id: String },
     Disable { id: String },
+}
+
+#[derive(Subcommand)]
+enum ProfileCommand {
+    #[command(about = "List the profiles and mark the active one")]
+    List,
+    #[command(
+        about = "Delete a profile with its settings, build cache and saves; the active profile switches first"
+    )]
+    Delete {
+        #[arg(help = "The profile to delete")]
+        name: String,
+        #[arg(long, short, help = "Delete without asking")]
+        yes: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -309,6 +327,7 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Addons(cmd) => addons(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Offline(cmd) => offline::command(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Settings(cmd) => settings(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
+        Command::Profile(cmd) => profiles(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Logs { dir, exe } => run::logs(&store, dir, exe),
         Command::Doctor => doctor::doctor(&store),
         Command::Update { check } => update::update(&store, check),
@@ -344,6 +363,67 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
         }
         AddonsCommand::Enable { id } => toggle(store, profile, &id, true)?,
         AddonsCommand::Disable { id } => toggle(store, profile, &id, false)?,
+    }
+    Ok(())
+}
+
+fn profiles(store: &Store, cmd: ProfileCommand) -> Result<()> {
+    match cmd {
+        ProfileCommand::List => {
+            let active = store.active_profile();
+            for name in store.profile_names()? {
+                let note = if name == active {
+                    "active"
+                } else if name == swofty_core::profile::VANILLA {
+                    "built in"
+                } else {
+                    ""
+                };
+                let line = format!("{name:40} {note}");
+                println!("{}", line.trim_end());
+            }
+        }
+        ProfileCommand::Delete { name, yes } => {
+            let plan = store.plan_profile_deletion(&name)?;
+            if swofty_core::process::game_running() {
+                bail!("close F1 25 before deleting a profile");
+            }
+            if !yes {
+                confirm_delete(&plan)?;
+            }
+            let done = store.delete_profile(&name)?;
+            if let Some(to) = &done.switch_to {
+                println!("{to} is now the active profile");
+            }
+            println!("deleted profile {name}");
+        }
+    }
+    Ok(())
+}
+
+fn confirm_delete(plan: &swofty_core::store::ProfileDeletion) -> Result<()> {
+    let name = &plan.name;
+    if !std::io::stdin().is_terminal() {
+        bail!("stdin is not a terminal: pass --yes to delete {name} without asking");
+    }
+    println!(
+        "Deleting {name} removes its choice of addons and mods, their settings{}.",
+        if plan.saves {
+            ", its build cache and its saves"
+        } else {
+            " and its build cache"
+        }
+    );
+    println!("Installed addons and mods stay in the library, and other profiles don't change.");
+    if let Some(to) = &plan.switch_to {
+        println!("{name} is the active profile, so {to} becomes active first.");
+    }
+    print!("Delete profile {name}? [y/N] ");
+    std::io::stdout().flush().ok();
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line)?;
+    if !matches!(line.trim(), "y" | "Y" | "yes") {
+        bail!("not deleted: {name} is unchanged");
     }
     Ok(())
 }
