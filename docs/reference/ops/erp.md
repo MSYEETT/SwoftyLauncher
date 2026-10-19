@@ -46,7 +46,7 @@ python3 tools/erp.py <archive> '*'
 
 `replace-resource` and `add-resource` take raw fragment data: the bytes a fragment holds after decompression. The build compresses each fragment the way the archive stores it and updates its size and the resource hash.
 
-- `replace-resource` replaces fragment `fragment` of `resource` in `erp` with the file `source` and keeps the other fragments byte for byte. It fails when the archive has no such resource or the resource has no such fragment.
+- `replace-resource` replaces fragment `fragment` of `resource` in `erp` with the file `source` and keeps the other fragments byte for byte. The source may be larger or smaller than the stock fragment. It fails when the archive has no such resource or the resource has no such fragment.
 - `add-resource` appends `resource` to `erp`. `type` is the resource type, such as `GfxSurfaceRes`, at most 15 characters. `sources` lists one file per fragment, in order. The new resource takes its type argument, fragment names, flags and compression from the first resource in `erp` of the same type with the same number of fragments, and the operation fails when `erp` has none. It also fails when `erp` already has a resource with that name; `put-resource` replaces or adds.
 
 ```json
@@ -65,6 +65,33 @@ python3 tools/erp.py <archive> '*'
 
 ```text
 erp: built into the game files; 1 resource removal(s) cannot apply at runtime
+```
+
+## Scenes
+
+A UI scene, the `.idf` layout a screen attaches to, is the `UILayout` resource named exactly `<path>.idf`, with no `?context=`. Its single fragment is a `!pkg` scene. To ship an edited scene, replace that fragment with the edited file:
+
+```json
+{
+  "op": "replace-resource",
+  "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
+  "resource": "eaid://ui_package/art/screens/career/rnd_overview.idf",
+  "source": "ui/rnd_overview.idf"
+}
+```
+
+When the resource is a `UILayout`, the build checks that `source` is a scene saved from that same `.idf`, and fails otherwise.
+
+Several archives often carry the same scene. List one `replace-resource` per archive that holds it:
+
+```sh
+python3 tools/erp.py <archive> 'rnd_overview.idf' | grep UILayout
+```
+
+The game reads a scene from whichever archive loads it first. When the build resizes a resource that another stock archive in the same package folder also carries, it warns:
+
+```text
+warning: erp: eaid://ui_package/art/screens/career/rnd_overview.idf is resized, but 2025_asset_groups/ui_package/flow_team_hq.erp also carries it and keeps the stock copy; replace it there too, or the game may show either one
 ```
 
 ## Mip files
@@ -123,6 +150,12 @@ Run `patch-pkg` after the copy to change the copy's contents, such as the layer 
 
 ERP files take `when` and `{{id}}` settings like [database operations](/reference/ops/database). Only the archives a build changes are written to the overlay.
 
-With the in-game loader, changed and added resources reach the game as overlay archives instead of rewritten archives ([deliveries](/reference/addons/asset-api#deliveries)). Both routes produce the same resource bytes. The overlay leaves out a replaced resource whose type, argument or fragment layout, fragment sizes included, differs from the stock one, and the build warns.
+With the in-game loader, changed and added resources reach the game as overlay archives instead of rewritten archives ([deliveries](/reference/addons/asset-api#deliveries)). Both routes produce the same resource bytes. The overlay can only carry a replaced resource whose type, argument and fragment layout, fragment sizes included, match the stock entry. An archive with any other replacement, such as an edited scene that grew, is rewritten into the game files instead, and the build prints:
+
+```text
+erp: 2025_asset_groups/ui_package/flow_career_hub.erp built into the game files; 1 resource(s) change their stock layout, which the in-game loader cannot load, such as eaid://ui_package/art/screens/career/rnd_overview.idf: fragment 0 is 30684 bytes, the stock one 29596; stock archives that bind to the replacement read it with the stock layout
+```
+
+The rest of the build's archives stay on the overlay. `swofty restore` puts a rewritten archive back like any other replaced game file. A resource copied from an archive with a different argument size is still left out, and the build warns.
 
 For menu changes, see [UI patches](/reference/ops/ui-patches). For the archive format, see [ERP archives](/reference/erp).

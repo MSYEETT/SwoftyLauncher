@@ -100,7 +100,7 @@ To see which runtime features your installed loader offers, look in `swofty/addo
 - To keep kinds with a build delivery (`erp`, `db`, `file`) on the build route even when they are `stable`, name them in `"build_assets"` in `$DATA/config.json`, for example `"build_assets": ["erp", "db"]`.
 - Otherwise a kind with a build delivery is built, and a kind without one waits. The build prints `<origin>: <n> lang op(s) wait for lang support in swofty_core`, or says the feature is experimental and not turned on.
 - A loader without `features.json` has no runtime features. If you run `swofty build` without the loader, it builds `erp`, `db` and `file` and lists `group` and `lang` as waiting.
-- Every op of one kind takes the same route in a build.
+- Every op of one kind takes the same route in a build, with one exception: an archive whose `erp` changes alter a stock resource's type, argument or fragment sizes, such as a resized scene, is rewritten into the game files while the rest stay on the runtime route. The build prints `erp: <archive> built into the game files; <n> resource(s) change their stock layout, ...`.
 - If your `erp` build includes an `erp.remove-resource`, it goes into the game files: swofty_core cannot take a resource out of a stock archive. The build prints `erp: built into the game files; <n> resource removal(s) cannot apply at runtime`.
 - `erp.add-mipmaps` files go into the game folder through the journal on both routes, as a track's mip files do.
 - If your `db` build removes records, writes a record of tag 10, 15 or 16, or writes one whose value is not text, it goes into the game file instead, with a warning.
