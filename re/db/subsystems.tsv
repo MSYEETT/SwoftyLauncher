@@ -16,4 +16,5 @@ hud	Hud	ui-re	open	in-race HUD: HUD screen VM, dynamic HUD component view-models
 protection	Prot	-	open	Denuvo stubs and .data1 bodies, signature/cert checks, VirtualProtect callers
 render	Render	overlay	open	D3D12/DXGI present path, swapchain overlay hooks, in-game immediate-mode HUD rendering
 session	Sess	-	open	entrants, setup modes, participant selection, weekend/session start, garages (grid size work)
+ui	Ui	ui-idf	open	authored UI formats (!pkg .ui/UIDF node grammar, .uidb/.uir/scene .idf) + ERP UI packaging + the view-model binding runtime + how to edit/add menus and widgets
 vm	Vm	ui-re	open	UI view-model registry: node properties, setters, routes
