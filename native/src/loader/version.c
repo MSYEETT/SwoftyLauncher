@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+#include <math.h>
 #include "swofty_api.h"
 
 #define HOST_EXE L"F1_25.exe"
@@ -69,23 +70,38 @@ static char early_source[160] = "off";
 static wchar_t early_plugins[64][MAX_PATH], plugins[256][MAX_PATH];
 static int early_count, plugin_count;
 
-static void vlog(const char *fmt, va_list ap)
+static HANDLE diag_file = INVALID_HANDLE_VALUE;
+static int ea_diag;
+static LPTOP_LEVEL_EXCEPTION_FILTER prev_filter;
+static volatile LONG diag_crash_reports, activation_logged;
+
+static void emit(HANDLE h, const char *body)
 {
-    if (log_file == INVALID_HANDLE_VALUE)
+    if (h == INVALID_HANDLE_VALUE)
         return;
     char buf[2048];
     SYSTEMTIME t;
     GetLocalTime(&t);
     int n = snprintf(buf, sizeof buf, "%04u-%02u-%02u %02u:%02u:%02u.%03u [%5lu] ", t.wYear, t.wMonth, t.wDay,
                      t.wHour, t.wMinute, t.wSecond, t.wMilliseconds, GetCurrentThreadId());
-    int m = vsnprintf(buf + n, sizeof buf - n - 2, fmt, ap);
-    n += m < 0 ? 0 : m > (int)sizeof buf - n - 3 ? (int)sizeof buf - n - 3 : m;
+    int m = (int)strlen(body);
+    if (m > (int)sizeof buf - n - 3)
+        m = (int)sizeof buf - n - 3;
+    memcpy(buf + n, body, m);
+    n += m;
     buf[n++] = '\r';
     buf[n++] = '\n';
     DWORD w;
     EnterCriticalSection(&log_lock);
-    WriteFile(log_file, buf, n, &w, NULL);
+    WriteFile(h, buf, n, &w, NULL);
     LeaveCriticalSection(&log_lock);
+}
+
+static void vlog(const char *fmt, va_list ap)
+{
+    char body[2048];
+    vsnprintf(body, sizeof body, fmt, ap);
+    emit(log_file, body);
 }
 
 static void slog(const char *fmt, ...)
@@ -94,6 +110,19 @@ static void slog(const char *fmt, ...)
     va_start(ap, fmt);
     vlog(fmt, ap);
     va_end(ap);
+}
+
+/* EA/non-matching-build diagnostics: everything written with ediag goes to both loader.log and the
+   dedicated swofty\ea-diagnostics.log so the friend sends one focused file. */
+static void ediag(const char *fmt, ...)
+{
+    char body[2048];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(body, sizeof body, fmt, ap);
+    va_end(ap);
+    emit(log_file, body);
+    emit(diag_file, body);
 }
 
 static uintptr_t module_base(void)
@@ -490,6 +519,297 @@ static const Section *section_of(uintptr_t a)
     return NULL;
 }
 
+static void open_diag_log(void)
+{
+    wchar_t dir[MAX_PATH * 2], path[MAX_PATH * 2], prev[MAX_PATH * 2];
+    swprintf(dir, MAX_PATH * 2, L"%ls\\swofty", game_dir);
+    CreateDirectoryW(dir, NULL);
+    swprintf(path, MAX_PATH * 2, L"%ls\\ea-diagnostics.log", dir);
+    swprintf(prev, MAX_PATH * 2, L"%ls\\ea-diagnostics.prev.log", dir);
+    MoveFileExW(path, prev, MOVEFILE_REPLACE_EXISTING);
+    diag_file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS,
+                            FILE_ATTRIBUTE_NORMAL, NULL);
+}
+
+/* The engine's runtime code section: the first EXECUTE|READ, non-writable section (EA .rdata, Steam
+   .xtls), falling back to the first executable section. The packed RWX blobs are not it. */
+static const Section *code_section(void)
+{
+    const Section *exec = NULL;
+    for (int i = 0; i < section_count; i++) {
+        DWORD f = sections[i].flags;
+        if ((f & IMAGE_SCN_MEM_EXECUTE) && (f & IMAGE_SCN_MEM_READ) && !(f & IMAGE_SCN_MEM_WRITE))
+            return &sections[i];
+        if ((f & IMAGE_SCN_MEM_EXECUTE) && !exec)
+            exec = &sections[i];
+    }
+    return exec;
+}
+
+static int page_live(uintptr_t a, MEMORY_BASIC_INFORMATION *m)
+{
+    return VirtualQuery((void *)a, m, sizeof *m) && m->State == MEM_COMMIT && (m->Protect & 0xEE) &&
+           !(m->Protect & (PAGE_GUARD | PAGE_NOACCESS));
+}
+
+static double page_entropy(const uint8_t *p, size_t n)
+{
+    unsigned long cnt[256] = {0};
+    for (size_t i = 0; i < n; i++)
+        cnt[p[i]]++;
+    double h = 0;
+    for (int i = 0; i < 256; i++)
+        if (cnt[i]) {
+            double pr = (double)cnt[i] / (double)n;
+            h -= pr * log2(pr);
+        }
+    return h;
+}
+
+static const char *entropy_verdict(double e)
+{
+    return e < 6.5 ? "decrypted/plaintext" : e > 7.5 ? "packed/encrypted" : "mixed";
+}
+
+static void sample_code_entropy(const char *when)
+{
+    const Section *s = code_section();
+    if (!s) {
+        ediag("entropy (%s): no code section found", when);
+        return;
+    }
+    const int PAGES = 8;
+    ediag("entropy (%s): section %s base 0x%llx size 0x%llx, %d pages (entropy <6.5 decrypted, ~8.0 still packed)", when,
+          s->name, (unsigned long long)s->start, (unsigned long long)s->size, PAGES);
+    double sum = 0, mn = 9, mx = 0;
+    int ok = 0;
+    for (int k = 0; k < PAGES; k++) {
+        size_t off = s->size > (size_t)PAGES * 0x1000 ? (size_t)((double)k / PAGES * (double)(s->size - 0x1000)) & ~(size_t)0xfff
+                                                      : (size_t)k * 0x1000;
+        uintptr_t a = s->start + off;
+        MEMORY_BASIC_INFORMATION m;
+        if (!page_live(a, &m)) {
+            ediag("  page +0x%08llx: not readable (protect 0x%lx state 0x%lx)", (unsigned long long)off,
+                  (unsigned long)m.Protect, (unsigned long)m.State);
+            continue;
+        }
+        double e = page_entropy((const uint8_t *)a, 0x1000);
+        ok++;
+        sum += e;
+        if (e < mn)
+            mn = e;
+        if (e > mx)
+            mx = e;
+        ediag("  page +0x%08llx @0x%llx: entropy %.2f -> %s", (unsigned long long)off, (unsigned long long)a, e,
+              entropy_verdict(e));
+    }
+    if (ok)
+        ediag("entropy (%s): %d page(s), avg %.2f min %.2f max %.2f -> %s", when, ok, sum / ok, mn, mx,
+              (sum / ok) < 6.5 ? "DECRYPTED in bulk" : (sum / ok) > 7.5 ? "STILL PACKED (encrypted)" : "PARTIAL/mixed");
+}
+
+static void check_activation_gate(void)
+{
+    char env[8] = {0};
+    DWORD n = GetEnvironmentVariableA("SWOFTY_OFFLINE_ACTIVATION", env, sizeof env);
+    HMODULE m = GetModuleHandleW(L"Activation64.dll");
+    if (!m) {
+        ediag("gate 2 (activation/EADRM, Core\\Activation64.dll): module not loaded yet; "
+              "SWOFTY_OFFLINE_ACTIVATION=%s",
+              n ? env : "(unset)");
+        return;
+    }
+    if (InterlockedCompareExchange(&activation_logged, 1, 0) != 0)
+        return;
+    uintptr_t rva = 0xe550;
+    uint8_t *at = (uint8_t *)m + rva;
+    MEMORY_BASIC_INFORMATION mi;
+    if (!page_live((uintptr_t)at, &mi)) {
+        ediag("gate 2 (activation): Activation64.dll at %p but RVA 0x%llx not readable", (void *)m,
+              (unsigned long long)rva);
+        return;
+    }
+    uint8_t b = *at;
+    const char *verdict = b == 0xEB
+                              ? "PASS (0xEB = patched by offline-play; EADRM activation bypassed)"
+                          : b == 0x75
+                              ? "FAIL (0x75 = NOT patched; verifier aborts with exit 100010/0x186aa 'EA App not installed')"
+                              : "UNKNOWN (unexpected byte for this gate)";
+    ediag("gate 2 (activation/EADRM, Core\\Activation64.dll base %p, RVA 0x%llx): byte 0x%02X -> %s; "
+          "SWOFTY_OFFLINE_ACTIVATION=%s",
+          (void *)m, (unsigned long long)rva, b, verdict, n ? env : "(unset)");
+}
+
+static void gate3_verdict(const char *when, int reached_window)
+{
+    ediag("gate 3 (EA account sign-in): %s (%s); %s", reached_window ? "PASS" : "not yet observed", when,
+          reached_window ? "the engine reached the window stage, so EA sign-in completed"
+                         : "if the game is stalled on an EA sign-in prompt this gate is pending; if it exited or "
+                           "crashed first, the crash line above is the cause, not this gate");
+}
+
+static const char *exc_name(DWORD c)
+{
+    switch (c) {
+    case EXCEPTION_ACCESS_VIOLATION: return "ACCESS_VIOLATION";
+    case EXCEPTION_IN_PAGE_ERROR: return "IN_PAGE_ERROR";
+    case EXCEPTION_ILLEGAL_INSTRUCTION: return "ILLEGAL_INSTRUCTION";
+    case EXCEPTION_PRIV_INSTRUCTION: return "PRIV_INSTRUCTION";
+    case EXCEPTION_INT_DIVIDE_BY_ZERO: return "INT_DIVIDE_BY_ZERO";
+    case EXCEPTION_STACK_OVERFLOW: return "STACK_OVERFLOW";
+    case EXCEPTION_NONCONTINUABLE_EXCEPTION: return "NONCONTINUABLE_EXCEPTION";
+    case 0xC0000374: return "HEAP_CORRUPTION";
+    case 0xC0000409: return "STACK_BUFFER_OVERRUN / fail-fast";
+    case 0xE06D7363: return "C++ exception";
+    }
+    return "exception";
+}
+
+static int exc_fatal(DWORD c)
+{
+    return c == EXCEPTION_ACCESS_VIOLATION || c == EXCEPTION_IN_PAGE_ERROR || c == EXCEPTION_ILLEGAL_INSTRUCTION ||
+           c == EXCEPTION_PRIV_INSTRUCTION || c == EXCEPTION_INT_DIVIDE_BY_ZERO || c == EXCEPTION_STACK_OVERFLOW ||
+           c == EXCEPTION_NONCONTINUABLE_EXCEPTION || c == 0xC0000374 || c == 0xC0000409;
+}
+
+static void crash_where(uintptr_t a, char *out, size_t cap)
+{
+    HMODULE m = NULL;
+    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           (LPCWSTR)a, &m) &&
+        m) {
+        wchar_t wp[MAX_PATH] = L"?";
+        GetModuleFileNameW(m, wp, MAX_PATH);
+        const wchar_t *bn = wcsrchr(wp, L'\\');
+        bn = bn ? bn + 1 : wp;
+        uintptr_t mb = (uintptr_t)m;
+        if ((uintptr_t)m == image_base) {
+            const Section *s = section_of(a);
+            snprintf(out, cap, "%ls+0x%llx [%s] (base+0x%llx)", bn, (unsigned long long)(a - mb),
+                     s ? s->name : "?", (unsigned long long)(a - mb));
+        } else {
+            snprintf(out, cap, "%ls+0x%llx", bn, (unsigned long long)(a - mb));
+        }
+    } else {
+        snprintf(out, cap, "0x%llx (no owning module)", (unsigned long long)a);
+    }
+}
+
+static void crash_backtrace(CONTEXT ctx)
+{
+    NT_TIB *tib = (NT_TIB *)NtCurrentTeb();
+    uintptr_t lo = (uintptr_t)tib->StackLimit, hi = (uintptr_t)tib->StackBase;
+    char w[320];
+    for (int i = 0, shown = 0; i < 16 && ctx.Rip; i++) {
+        crash_where(ctx.Rip, w, sizeof w);
+        ediag("  #%-2d %s", shown++, w);
+        if (ctx.Rsp < lo || ctx.Rsp >= hi)
+            break;
+        DWORD64 ib = 0;
+        PRUNTIME_FUNCTION f = RtlLookupFunctionEntry(ctx.Rip, &ib, NULL);
+        if (f) {
+            PVOID hd;
+            DWORD64 ef;
+            RtlVirtualUnwind(UNW_FLAG_NHANDLER, ib, ctx.Rip, f, &ctx, &hd, &ef, NULL);
+        } else {
+            MEMORY_BASIC_INFORMATION m;
+            if (!page_live(ctx.Rsp, &m))
+                break;
+            ctx.Rip = *(DWORD64 *)ctx.Rsp;
+            ctx.Rsp += 8;
+        }
+    }
+}
+
+static void crash_report(const char *when, EXCEPTION_POINTERS *e)
+{
+    EXCEPTION_RECORD *r = e->ExceptionRecord;
+    char w[320];
+    crash_where((uintptr_t)r->ExceptionAddress, w, sizeof w);
+    ediag("CRASH (%s): %s (0x%08lx) on thread %lu, %lu ms after attach, at %s", when, exc_name(r->ExceptionCode),
+          (unsigned long)r->ExceptionCode, GetCurrentThreadId(), GetTickCount() - attach_tick, w);
+    if ((r->ExceptionCode == EXCEPTION_ACCESS_VIOLATION || r->ExceptionCode == EXCEPTION_IN_PAGE_ERROR) &&
+        r->NumberParameters >= 2) {
+        ULONG_PTR op = r->ExceptionInformation[0];
+        ediag("  %s 0x%llx", op == 0 ? "reading" : op == 1 ? "writing" : op == 8 ? "executing (DEP)" : "accessing",
+              (unsigned long long)r->ExceptionInformation[1]);
+    }
+    ediag("  stack (loader unwind, module+RVA):");
+    crash_backtrace(*e->ContextRecord);
+}
+
+static LONG CALLBACK loader_veh(EXCEPTION_POINTERS *e)
+{
+    DWORD code = e->ExceptionRecord->ExceptionCode;
+    if (ea_diag && exc_fatal(code) && InterlockedIncrement(&diag_crash_reports) <= 8)
+        crash_report("first-chance (the game may still handle it)", e);
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+static LONG WINAPI loader_unhandled(EXCEPTION_POINTERS *e)
+{
+    if (ea_diag) {
+        ediag("CRASH: unhandled exception reached the loader top-level filter; %s",
+              prev_filter ? "passing it to the game's filter" : "the process ends here");
+        crash_report("unhandled", e);
+    }
+    return prev_filter ? prev_filter(e) : EXCEPTION_CONTINUE_SEARCH;
+}
+
+/* On a non-matching build whose code reads as still-encrypted, write the code section to
+   swofty\ea-rdata.dump (page-guarded, size-capped) so the bytes can be analysed offline. */
+static void dump_code_section(void)
+{
+    static volatile LONG done;
+    if (InterlockedExchange(&done, 1))
+        return;
+    const Section *s = code_section();
+    if (!s)
+        return;
+    MEMORY_BASIC_INFORMATION probe;
+    if (!page_live(s->start, &probe) || page_entropy((const uint8_t *)s->start, 0x1000) < 7.0) {
+        ediag("rdata dump: skipped (section %s first page reads as plaintext or is unreadable; no dump needed)",
+              s->name);
+        return;
+    }
+    const size_t CAP = (size_t)64 << 20;
+    size_t total = s->size < CAP ? s->size : CAP;
+    wchar_t path[MAX_PATH * 2];
+    swprintf(path, MAX_PATH * 2, L"%ls\\swofty\\ea-rdata.dump", game_dir);
+    HANDLE f = CreateFileW(path, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (f == INVALID_HANDLE_VALUE) {
+        ediag("rdata dump: cannot create swofty\\ea-rdata.dump (error %lu)", GetLastError());
+        return;
+    }
+    static uint8_t zero[0x1000];
+    size_t written = 0, gaps = 0;
+    for (size_t off = 0; off < total; off += 0x1000) {
+        MEMORY_BASIC_INFORMATION m;
+        const void *src = page_live(s->start + off, &m) ? (const void *)(s->start + off) : (gaps++, (const void *)zero);
+        DWORD wr;
+        if (!WriteFile(f, src, 0x1000, &wr, NULL))
+            break;
+        written += wr;
+    }
+    CloseHandle(f);
+    ediag("rdata dump: wrote %llu bytes of section %s (cap %llu, section size 0x%llx, %llu unreadable page(s) zero-"
+          "filled) to swofty\\ea-rdata.dump for offline pattern derivation",
+          (unsigned long long)written, s->name, (unsigned long long)CAP, (unsigned long long)s->size,
+          (unsigned long long)gaps);
+}
+
+static void ea_stage_probe(const char *when, int window)
+{
+    if (!ea_diag)
+        return;
+    sample_code_entropy(when);
+    check_activation_gate();
+    if (window) {
+        gate3_verdict(when, 1);
+        dump_code_section();
+    }
+}
+
 static void finish_batch(int first)
 {
     if (core_commit)
@@ -516,6 +836,8 @@ static void load_addons_once(const char *why, LPCWSTR detail, int stage)
         slog("early stage: the early anchor never fired; early-stage mixins (game database, config and file-system "
              "overlay of files read before the window) missed their first calls");
     SetEnvironmentVariableW(L"SWOFTY_LOAD_STAGE", loaded_early ? L"early" : L"window");
+    ea_stage_probe(loaded_early ? "early-stage trigger (core loading)" : "window-stage trigger (core loading)",
+                   !loaded_early);
     unhook_iat(loaded_early ? STAGE_EARLY : STAGE_LATE);
     load_dir(L"core", 1, PICK_ALL);
     load_plugins(loaded_early ? PICK_EARLY : PICK_ALL);
@@ -557,6 +879,7 @@ static void stage_window(const char *why)
         load_rest();
     if (core_stage)
         core_stage(SWOFTY_STAGE_WINDOW);
+    ea_stage_probe("window stage", 1);
 }
 
 static int plain_code(const Section *sec)
@@ -745,6 +1068,13 @@ static DWORD WINAPI worker(LPVOID unused)
             InterlockedCompareExchange(&load_state, 3, 0) == 0) {
             unhook_iat(0);
             slog("fallback watcher: no trigger and no window after %d s, addons NOT loaded", WINDOW_TIMEOUT_MS / 1000);
+            if (ea_diag) {
+                ediag("fallback: no IAT trigger and no window after %d s; the game never reached the engine/menu",
+                      WINDOW_TIMEOUT_MS / 1000);
+                check_activation_gate();
+                gate3_verdict("timeout", 0);
+                sample_code_entropy("timeout (no window)");
+            }
             return 0;
         }
         Sleep(POLL_MS);
@@ -789,6 +1119,9 @@ static void log_build(void)
         size = ((unsigned long long)fa.nFileSizeHigh << 32) | fa.nFileSizeLow;
     unsigned long stamp = nt->FileHeader.TimeDateStamp;
     int ok = size == EXPECTED_SIZE && stamp == EXPECTED_STAMP;
+    /* Engage the build-mismatch diagnostics only for a real, large game build that is not the analysed
+       one (the EA App exe is ~327 MiB); never for a small host such as the test harness's fake exe. */
+    ea_diag = !ok && size >= ((unsigned long long)64 << 20);
     slog("exe: size %llu (analysed %llu), PE timestamp %lu (analysed %lu) -> %s", size, EXPECTED_SIZE, stamp,
          EXPECTED_STAMP, ok ? "MATCHES the analysed build" : "DIFFERS from the analysed build, signatures may fail");
     slog("exe: image base %p, %d sections", (void *)image_base, section_count);
@@ -845,12 +1178,52 @@ BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID reserved)
             slog("  forward %s missing in the real dll (calls return 0)", fwd_names[i]);
     log_build();
     attach_tick = GetTickCount();
+    if (ea_diag) {
+        SetEnvironmentVariableW(L"SWOFTY_EA_DIAG", L"1");
+        open_diag_log();
+        ediag("== Swofty Launcher EA-build self-diagnostics ==");
+        ediag("host %ls, pid %lu; this exe does NOT match the analysed (Steam) build, so build-mismatch diagnostics "
+              "engage automatically (the friend enables nothing); lines go here and to loader.log",
+              exe_path, GetCurrentProcessId());
+        {
+            const IMAGE_NT_HEADERS *nt =
+                (const IMAGE_NT_HEADERS *)(image_base + ((const IMAGE_DOS_HEADER *)image_base)->e_lfanew);
+            WIN32_FILE_ATTRIBUTE_DATA fa;
+            unsigned long long size = 0;
+            if (GetFileAttributesExW(exe_path, GetFileExInfoStandard, &fa))
+                size = ((unsigned long long)fa.nFileSizeHigh << 32) | fa.nFileSizeLow;
+            const Section *cs = code_section();
+            ediag("build: size %llu (analysed Steam %llu), PE timestamp %lu (analysed %lu), image base %p, %d sections",
+                  size, (unsigned long long)EXPECTED_SIZE, (unsigned long)nt->FileHeader.TimeDateStamp,
+                  (unsigned long)EXPECTED_STAMP, (void *)image_base, section_count);
+            for (int i = 0; i < section_count; i++)
+                ediag("  section %-8s %p size 0x%llx flags 0x%08lx%s", sections[i].name, (void *)sections[i].start,
+                      (unsigned long long)sections[i].size, (unsigned long)sections[i].flags,
+                      cs == &sections[i] ? "  <- engine code section" : "");
+        }
+        ediag("gate 1 (Javelin launch guard, parent 'Game launch error 0x%%08x'): PASS (executing inside %ls, pid "
+              "%lu; the parent allowed the child to start; offline-play handles this gate upstream)",
+              HOST_EXE, GetCurrentProcessId());
+        check_activation_gate();
+        gate3_verdict("attach", 0);
+        sample_code_entropy("attach / core-init");
+        AddVectoredExceptionHandler(1, loader_veh);
+        prev_filter = SetUnhandledExceptionFilter(loader_unhandled);
+        ediag("crash handler armed at loader attach: a fatal fault or the ~16s pre-window exit is logged as "
+              "'CRASH ... module+RVA, exception' before the core even loads");
+    }
     read_early_flag();
     slog("early stage: %s", early_source);
     read_settings();
     if (early_count && !early_enabled && !early_env) {
         early_enabled = 1;
         slog("early stage: on for %d early plugin(s); SwoftyMod loads with them", early_count);
+    }
+    if (ea_diag && !early_enabled) {
+        early_enabled = 1;
+        ediag("forcing early-stage core load on this non-matching build so the core's crash handler and per-binding "
+              "resolver engage before any pre-window crash (report-only: nothing resolves on encrypted code, so no "
+              "mixin is installed)");
     }
     if (early_enabled)
         loaded_event = CreateEventW(NULL, TRUE, FALSE, NULL);
