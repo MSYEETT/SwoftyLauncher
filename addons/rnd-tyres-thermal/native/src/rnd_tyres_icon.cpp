@@ -13,6 +13,11 @@
 // flow_career_hub.erp and needs every one of the six arrays at its grown size. Anything
 // else (setting off, a launcher that delivered no ERP ops, a stock archive) keeps the
 // v0.7.2 borrowed frames.
+//
+// probe_art() does the same for the card art (v0.9.0, setting tyres_card_art): the
+// rnd_part_image arrays in flow_team_hq.erp must hold exactly the 45 Tyres slices more than
+// stock, the rnd_part_mask arrays 15 and the rnd_category_icons arrays in flow_career_hub.erp
+// 4 (tools/build_card_art.py). Each of the three switches on its own.
 
 #include <windows.h>
 
@@ -38,7 +43,6 @@ struct Want {
     const char *name;
     uint64_t size;
     bool seen;
-    bool grown = false;
 };
 
 constexpr const char kArrays[] = "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.career.";
@@ -118,7 +122,7 @@ int check(std::vector<Want> &want, char *why, size_t why_len, const wchar_t *fil
         for (auto &w : want)
             if (!w.seen && name == w.name) {
                 w.seen = true;
-                if (nfrag >= 2 && (w.grown ? sizes[1] > w.size : sizes[1] == w.size))
+                if (nfrag >= 2 && sizes[1] == w.size)
                     ++found;
             }
     }
@@ -167,6 +171,8 @@ void probe()
 
 void probe_art()
 {
+    constexpr uint64_t kPart = 240 * 240, kIcon = 32 * 32;
+    constexpr uint64_t kUpgrades = 15, kStates = 3, kTypes = 4;
     std::string img = std::string(kArrays) + "rnd_part_image.texarray.image";
     std::string img_om = std::string(kArrays) + "rnd_om_xm.rnd_part_image.texarray.image";
     std::string msk = std::string(kArrays) + "rnd_part_mask.texarray.image";
@@ -174,17 +180,21 @@ void probe_art()
     std::string cat = std::string(kArrays) + "rnd_category_icons.texarray.image";
     std::string cat_om = std::string(kArrays) + "rnd_om_xm.rnd_category_icons.texarray.image";
     char why[96] = "";
-    std::vector<Want> art = {{img.c_str(), 20851200, false, true}, {img_om.c_str(), 19411200, false, true}};
-    std::vector<Want> mask = {{msk.c_str(), 6912000, false, true}, {msk_om.c_str(), 6336000, false, true}};
-    std::vector<Want> cats = {{cat.c_str(), 21504, false, true}, {cat_om.c_str(), 20480, false, true}};
+    std::vector<Want> art = {{img.c_str(), (362 + kUpgrades * kStates) * kPart, false},
+                             {img_om.c_str(), (337 + kUpgrades * kStates) * kPart, false}};
+    std::vector<Want> mask = {{msk.c_str(), (120 + kUpgrades) * kPart, false},
+                              {msk_om.c_str(), (110 + kUpgrades) * kPart, false}};
+    std::vector<Want> cats = {{cat.c_str(), (21 + kTypes) * kIcon, false},
+                              {cat_om.c_str(), (20 + kTypes) * kIcon, false}};
     int a = check(art, why, sizeof why, L"flow_team_hq.erp");
     int m = check(mask, why, sizeof why, L"flow_team_hq.erp");
     int k = check(cats, why, sizeof why);
     g_part_art = a == 2;
     g_part_mask = m == 2;
     g_category = k == 2;
-    swofty::log("[rnd-tyres] tyres art: part images %s (%d/2 grown in flow_team_hq.erp), part masks %s (%d/2), "
-                "category icons %s (%d/2 grown in flow_career_hub.erp); otherwise the borrowed stock frames (SAFE)",
+    swofty::log("[rnd-tyres] tyres art: part images %s (%d/2 arrays with the 45 Tyres slices in flow_team_hq.erp), "
+                "part masks %s (%d/2 with 15), category icons %s (%d/2 with 4 in flow_career_hub.erp); a borrowed "
+                "piece uses stock frames (SAFE)",
                 g_part_art ? "OWN" : "borrowed", a, g_part_mask ? "OWN" : "borrowed", m,
                 g_category ? "OWN" : "borrowed", k);
 }

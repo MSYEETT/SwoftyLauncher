@@ -19,7 +19,9 @@
 //   rnd_category_icons.error_department_<type>     -> <stock department>_<type>, the
 //                                                     category icon the stock game shows
 //                                                     for that upgrade type
-//                                                     (tyre_wear -> chassis_tyre_wear)
+//                                                     (tyre_wear -> chassis_tyre_wear); the
+//                                                     Tyres types -> tyres_<type> once the
+//                                                     card art is installed
 //   rnd_department_strips.rnd_error_department_strip -> rnd_maintenance_strip
 // Stock departments never produce these frames, so the hooks act on department 4 only.
 //
@@ -143,16 +145,18 @@ const CategoryFrame kCategoryFrames[] = {
 
 struct OwnCategory {
     const char *type;
+    const char *own;
     const char *borrowed;
 };
 
-// The Tyres types minted by rnd_upgrade_types.cpp: their own rnd_category_icons frame (named by the
-// type key) once the art grows the category arrays, else a borrowed stock frame.
+// The Tyres types minted by rnd_upgrade_types.cpp. Stock category frames are <department>_<type>
+// (chassis_brakes); tools/build_card_art.py appends ours as tyres_<type>, and they are used once
+// rnd_category_icons grew (rnd_tyres_icon::category_live), else a borrowed stock frame.
 const OwnCategory kOwnCategories[] = {
-    {"tyre_thermal", "chassis_tyre_wear"},
-    {"brake_cooling", "chassis_brakes"},
-    {"tyre_life", "chassis_tyre_wear"},
-    {"pu_cooling", "maintenance_internal_combustion"},
+    {"tyre_thermal", "tyres_tyre_thermal", "chassis_tyre_wear"},
+    {"brake_cooling", "tyres_brake_cooling", "chassis_brakes"},
+    {"tyre_life", "tyres_tyre_life", "chassis_tyre_wear"},
+    {"pu_cooling", "tyres_pu_cooling", "maintenance_internal_combustion"},
 };
 
 enum class TagKind { DeptIcon, Category, Strip };
@@ -206,7 +210,7 @@ const char *category_frame(const char *type)
 {
     for (const auto &m : kOwnCategories)
         if (cstr_is(type, m.type))
-            return rnd_tyres_icon::category_live() ? m.type : m.borrowed;
+            return rnd_tyres_icon::category_live() ? m.own : m.borrowed;
     for (const auto &m : kCategoryFrames)
         if (cstr_is(type, m.type))
             return m.frame;
