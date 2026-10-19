@@ -375,6 +375,35 @@ instances by `djb2("tyres_thermal_<n>_255")`, and a save stores each instance's 
 hash, so dropping branch D never renumbers the core twelve. Saves made with v0.8.0 or earlier
 carry states for `tyres_thermal_1..3`; they land on A1-A3.
 
+### The card art and category icons
+
+Every upgrade has its own card art, modelled and rendered in Blender by `art/src/` to the stock
+2026 card look (`art/STYLE.md`, `art/preview.html`): a grey wireframe while available, the same
+wireframe in white while in progress, a full-colour render once fitted, and a mask. The four
+upgrade types have their own 32×32 category icons.
+
+![Stock and Tyres card art](art/preview.png)
+
+`tools/build_card_art.py` encodes the 64 frames as BC7 (mode 6, `tools/bc7enc.py`) and appends
+them to the stock texture arrays in every UI archive that carries them, with the matching
+`overrides.uidb` entries (`erp/rnd_tyres_card_art.json`, `art/arrays/`, setting
+`tyres_card_art`, db, default on). Stock slices and stock list entries stay byte-identical.
+
+| list (`overrides.career.`) | archives | our frames | indices |
+|---|---|---|---|
+| `rnd_om_xm.rnd_part_image` | `common_flow_misc`, `flow_team_hq` | `om_xm_<name>`, `om_xm_<name>_progress`, `om_xm_<name>_complete` | 337-381 |
+| `rnd_om_xm.rnd_part_mask` | `flow_r_and_d`, `flow_team_hq` | `om_xm_<name>_m` | 110-124 |
+| `rnd_part_image` (pre-2026) | `common_flow_misc`, `flow_team_hq` | `<name>`, `<name>_in_progress`, `<name>_complete` | 362-406 |
+| `rnd_part_mask` (pre-2026) | `flow_r_and_d`, `flow_team_hq` | `<name>` | 120-134 |
+| `rnd_om_xm.rnd_category_icons` | `flow_career_hub`, `flow_team_hq` | `tyres_tyre_thermal`, `tyres_brake_cooling`, `tyres_tyre_life`, `tyres_pu_cooling` | 20-23 |
+| `rnd_category_icons` (pre-2026) | `flow_career_hub`, `flow_r_and_d`, `flow_team_hq` | the same four | 21-24 |
+
+Upgrades go in tree order (A1-A4, B1-B4, C1-C4, D1-D3), three states each in the image lists.
+The card binders ask for `<upgrade_name>`, `<upgrade_name>_in_progress` or
+`<upgrade_name>_complete` and the mask `<upgrade_name>`; the native card-art hook turns that
+into the list's own name for the state (`native/HOOKS.md`, "v0.9.0 — the card art"). Category
+frames follow the stock `<department>_<type>` names with the Tyres department frame `tyres`.
+
 ## Residual unknowns (the in-game test resolves these)
 
 - **Does the game read the 5th department row?** Resolved by RE + the live
