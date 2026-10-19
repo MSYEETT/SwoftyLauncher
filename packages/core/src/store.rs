@@ -1004,7 +1004,7 @@ mod tests {
         store.create_profile("grid", None).unwrap();
         store.create_profile("main", None).unwrap();
         touch(&store.overlay_dir("grid", "h1").join(crate::build::PLAN_FILE));
-        let j = crate::journal::Journal::create(&root, "grid", "build-1").unwrap();
+        let j = crate::journal::Journal::create(&root, "grid", "build-1", false).unwrap();
 
         let err = store.delete_profile("grid").unwrap_err();
         assert!(err.to_string().contains("installed in the game folder"), "{err}");
