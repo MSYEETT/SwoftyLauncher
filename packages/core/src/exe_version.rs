@@ -1,107 +1,90 @@
-use std::path::Path;
+use std::collections::HashMap;
+use std::io::BufReader;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use std::time::SystemTime;
 
-fn u16le(d: &[u8], o: usize) -> Option<u16> {
-    Some(u16::from_le_bytes(d.get(o..o + 2)?.try_into().ok()?))
-}
+type Stamp = (u64, Option<SystemTime>);
+type Seen = HashMap<PathBuf, (Stamp, Option<String>)>;
 
-fn u32le(d: &[u8], o: usize) -> Option<u32> {
-    Some(u32::from_le_bytes(d.get(o..o + 4)?.try_into().ok()?))
-}
-
-fn rva_to_offset(d: &[u8], sections: usize, count: u16, rva: u32) -> Option<usize> {
-    for i in 0..count as usize {
-        let s = sections + i * 40;
-        let va = u32le(d, s + 12)?;
-        let size = u32le(d, s + 16)?;
-        let raw = u32le(d, s + 20)?;
-        if rva >= va && rva < va + size {
-            return Some((raw + (rva - va)) as usize);
-        }
-    }
-    None
-}
+static SEEN: Mutex<Option<Seen>> = Mutex::new(None);
 
 /// The game's FileVersion from its PE VERSIONINFO resource, as `major.minor.build.revision`.
+/// Reads the headers and the resource section only, and remembers the answer until the
+/// file's size or modification time changes.
 pub fn read(exe: &Path) -> Option<String> {
-    let d = std::fs::read(exe).ok()?;
-    if d.get(0..2)? != b"MZ" {
-        return None;
+    let meta = std::fs::metadata(exe).ok()?;
+    let stamp = (meta.len(), meta.modified().ok());
+    let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((s, version)) = seen.as_ref().and_then(|m| m.get(exe))
+        && *s == stamp
+    {
+        return version.clone();
     }
-    let pe = u32le(&d, 0x3c)? as usize;
-    if d.get(pe..pe + 4)? != b"PE\0\0" {
-        return None;
-    }
-    let count = u16le(&d, pe + 6)?;
-    let opt_size = u16le(&d, pe + 20)? as usize;
-    let opt = pe + 24;
-    let magic = u16le(&d, opt)?;
-    // The resource directory is data-directory entry 2; its RVA sits after the
-    // directories that precede it, which start further into the 32- vs 64-bit header.
-    let dirs = match magic {
-        0x20b => opt + 112, // PE32+
-        0x10b => opt + 96,  // PE32
-        _ => return None,
-    };
-    let res_rva = u32le(&d, dirs + 2 * 8)?;
-    let sections = opt + opt_size;
-    let res = rva_to_offset(&d, sections, count, res_rva)?;
-
-    // Walk the resource tree: root -> type RT_VERSION (16) -> name -> language.
-    let name_dir = find_entry(&d, res, res, 16)?;
-    let lang_dir = res + (find_dir_first(&d, name_dir)? & 0x7fff_ffff) as usize;
-    let data_entry = res + (find_dir_first(&d, lang_dir)? & 0x7fff_ffff) as usize;
-    let data_rva = u32le(&d, data_entry)?;
-    let data = rva_to_offset(&d, sections, count, data_rva)?;
-    let len = u32le(&d, data_entry + 4)? as usize;
-    let info = d.get(data..data + len)?;
-
-    // VS_FIXEDFILEINFO begins at the signature 0xFEEF04BD.
-    let sig = 0xFEEF_04BDu32.to_le_bytes();
-    let fixed = info.windows(4).position(|w| w == sig)?;
-    let ms = u32le(info, fixed + 8)?;
-    let ls = u32le(info, fixed + 12)?;
-    Some(format!(
-        "{}.{}.{}.{}",
-        ms >> 16,
-        ms & 0xffff,
-        ls >> 16,
-        ls & 0xffff
-    ))
-}
-
-// A resource directory: 16-byte header then entries of 8 bytes each.
-fn find_entry(d: &[u8], res: usize, dir: usize, id: u32) -> Option<usize> {
-    let named = u16le(d, dir + 12)? as usize;
-    let ids = u16le(d, dir + 14)? as usize;
-    let first = dir + 16 + named * 8;
-    for i in 0..ids {
-        let e = first + i * 8;
-        if u32le(d, e)? == id {
-            let off = u32le(d, e + 4)?;
-            if off & 0x8000_0000 != 0 {
-                return Some(res + (off & 0x7fff_ffff) as usize);
-            }
-        }
-    }
-    None
-}
-
-fn find_dir_first(d: &[u8], dir: usize) -> Option<u32> {
-    let named = u16le(d, dir + 12)? as usize;
-    u32le(d, dir + 16 + named * 8 + 4)
+    let version = std::fs::File::open(exe).ok().and_then(|f| {
+        swofty_formats::pe::file_version(&mut BufReader::new(f))
+            .ok()
+            .flatten()
+    });
+    seen.get_or_insert_with(HashMap::new)
+        .insert(exe.to_path_buf(), (stamp, version.clone()));
+    version
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn exe(version: (u32, u32), pad: usize) -> Vec<u8> {
+        let mut out = vec![0; 0x200];
+        out[..2].copy_from_slice(b"MZ");
+        out[0x3c..0x40].copy_from_slice(&0x80u32.to_le_bytes());
+        out[0x80..0x84].copy_from_slice(b"PE\0\0");
+        out[0x86..0x88].copy_from_slice(&1u16.to_le_bytes());
+        out[0x94..0x96].copy_from_slice(&0xf0u16.to_le_bytes());
+        out[0x98..0x9a].copy_from_slice(&0x20bu16.to_le_bytes());
+        let dir = 0x98 + 112 + 2 * 8;
+        out[dir..dir + 4].copy_from_slice(&0x1000u32.to_le_bytes());
+        out[dir + 4..dir + 8].copy_from_slice(&0x100u32.to_le_bytes());
+        let section = 0x98 + 0xf0;
+        out[section + 8..section + 12].copy_from_slice(&0x100u32.to_le_bytes());
+        out[section + 12..section + 16].copy_from_slice(&0x1000u32.to_le_bytes());
+        out[section + 16..section + 20].copy_from_slice(&0x100u32.to_le_bytes());
+        out[section + 20..section + 24].copy_from_slice(&0x200u32.to_le_bytes());
+        let mut res = vec![0; 0x100];
+        res[0x20..0x24].copy_from_slice(&0xFEEF_04BDu32.to_le_bytes());
+        res[0x28..0x2c].copy_from_slice(&version.0.to_le_bytes());
+        res[0x2c..0x30].copy_from_slice(&version.1.to_le_bytes());
+        out.extend(res);
+        out.extend(std::iter::repeat_n(0, pad));
+        out
+    }
+
+    fn dir(name: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("swofty-exever-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&d).ok();
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
     #[test]
     fn a_non_pe_file_has_no_version() {
-        let dir = std::env::temp_dir().join(format!("swofty-exever-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = dir("none");
         let f = dir.join("not.exe");
         std::fs::write(&f, b"hello").unwrap();
         assert_eq!(read(&f), None);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reads_the_version_again_when_the_exe_changes() {
+        let dir = dir("change");
+        let f = dir.join("F1_25.exe");
+        std::fs::write(&f, exe((1 << 16, (141 << 16) | 7865), 0)).unwrap();
+        assert_eq!(read(&f).as_deref(), Some("1.0.141.7865"));
+        assert_eq!(read(&f).as_deref(), Some("1.0.141.7865"));
+        std::fs::write(&f, exe((1 << 16, (142 << 16) | 1), 16)).unwrap();
+        assert_eq!(read(&f).as_deref(), Some("1.0.142.1"));
         std::fs::remove_dir_all(&dir).ok();
     }
 }

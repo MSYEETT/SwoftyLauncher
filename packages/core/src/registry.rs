@@ -178,7 +178,7 @@ impl GameFiles for GameDir {
     }
 
     fn exe_version(&self) -> Option<String> {
-        crate::baseline::exe_version(&self.game.dir).ok().flatten()
+        crate::exe_version::read(&self.game.dir.join(crate::GAME_EXE))
     }
 
     fn is_stock(&self, rel: &str) -> bool {
