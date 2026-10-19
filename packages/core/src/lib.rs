@@ -4,6 +4,7 @@ pub mod activation;
 pub mod baseline;
 pub mod build;
 pub mod builtin;
+pub mod bundled;
 pub mod cache;
 pub mod crash;
 pub mod erpbuild;

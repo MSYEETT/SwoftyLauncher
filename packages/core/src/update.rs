@@ -553,16 +553,18 @@ fn roll_back(done: &[Swap]) {
 
 pub fn apply(new: &Path, root: &Path, backup: &Path) -> Result<()> {
     let files = crate::builtin::loader_files(new)?;
-    let loader = root.join("loader");
-    let stale: Vec<String> = if loader.is_dir() {
-        crate::builtin::loader_files(&loader)?
-            .into_keys()
-            .map(|rel| format!("loader/{rel}"))
-            .filter(|rel| !files.contains_key(rel))
-            .collect()
-    } else {
-        Vec::new()
-    };
+    let mut stale: Vec<String> = Vec::new();
+    for sub in ["loader", crate::bundled::RELEASE_DIR] {
+        let dir = root.join(sub);
+        if dir.is_dir() {
+            stale.extend(
+                crate::builtin::loader_files(&dir)?
+                    .into_keys()
+                    .map(|rel| format!("{sub}/{rel}"))
+                    .filter(|rel| !files.contains_key(rel)),
+            );
+        }
+    }
     let steps = files
         .iter()
         .map(|(rel, src)| (rel.as_str(), Some(src.as_path())))
@@ -819,9 +821,12 @@ mod tests {
         let (root, new) = (dir.join("install"), dir.join("new"));
         release_tree(&root, "v1");
         write(&root.join("loader/stale.dll"), "stale");
+        write(&root.join("addons/gone.swoftyaddon"), "gone");
+        write(&root.join("addons/kept.swoftyaddon"), "kept v1");
         write(&root.join("bin/user-note.txt"), "mine");
         release_tree(&new, "v2");
         write(&new.join("share/applications/a.desktop"), "desktop v2");
+        write(&new.join("addons/kept.swoftyaddon"), "kept v2");
         apply(&new, &root, &dir.join("old")).unwrap();
         assert_eq!(
             read(&root.join("bin").join(exe("swofty-launcher"))),
@@ -834,6 +839,8 @@ mod tests {
         );
         assert_eq!(read(&root.join("share/applications/a.desktop")), "desktop v2");
         assert!(!root.join("loader/stale.dll").exists());
+        assert!(!root.join("addons/gone.swoftyaddon").exists());
+        assert_eq!(read(&root.join("addons/kept.swoftyaddon")), "kept v2");
         assert_eq!(read(&root.join("bin/user-note.txt")), "mine");
         assert!(Install::locate(&root.join("bin").join(exe("swofty"))).is_ok());
         std::fs::remove_dir_all(&dir).ok();

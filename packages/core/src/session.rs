@@ -86,6 +86,8 @@ pub struct Config {
     pub updates: UpdateConfig,
     #[serde(default, skip_serializing_if = "ManagedConfig::is_default")]
     pub managed: ManagedConfig,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub bundled: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

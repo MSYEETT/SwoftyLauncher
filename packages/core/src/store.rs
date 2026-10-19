@@ -185,6 +185,13 @@ impl Store {
         Ok(notes)
     }
 
+    pub fn seed_bundled(&self) -> Result<Vec<String>> {
+        match crate::bundled::bundled_dir() {
+            Some(dir) => crate::bundled::seed(self, &dir),
+            None => Ok(Vec::new()),
+        }
+    }
+
     pub fn addons(&self) -> Result<BTreeMap<String, AddonManifest>> {
         let mut out = BTreeMap::from([(CORE_ID.to_owned(), core_manifest())]);
         for b in self.builtins.iter() {
