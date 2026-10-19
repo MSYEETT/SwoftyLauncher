@@ -125,6 +125,8 @@ def load():
     sigdoc = json.load(open(os.path.join(kb.DB, 'signatures.json')))
     build = sigdoc['build']
     sigs = {s['id']: s for s in sigdoc['signatures']}
+    apath = os.path.join(kb.DB, 'anchors.json')
+    anchors = json.load(open(apath))['anchors'] if os.path.exists(apath) else {}
     funcs, _ = kb.read_table('functions')
     globs, _ = kb.read_table('globals')
     skipped = {}
@@ -177,6 +179,10 @@ def load():
             cxx = notes_cxx(r['notes'])
             if cxx:
                 b['cxx'] = cxx
+            if s['id'] in anchors:
+                an = anchors[s['id']]
+                b['string_anchor'] = {'string': an['string'], 'func_rva': an['func_rva'],
+                                      'func_offset': an['func_offset'], 'durable': an['durable']}
             bindings.append(b)
 
     structs = {}
