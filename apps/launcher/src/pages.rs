@@ -2,19 +2,21 @@ use std::rc::Rc;
 use std::sync::{Arc, LazyLock};
 
 use gpui_kit::assets::IconName;
-use gpui_kit::component::button::{Button, ButtonVariants};
+use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
+use gpui_kit::component::notification::Notification;
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::switch::Switch;
-use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
+use gpui_kit::component::{Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::manifest::{AddonManifest, AddonOption, Binds, OptionType};
 use swofty_core::profile::{Profile, VANILLA};
+use swofty_core::store::ProfileDeletion;
 
 use crate::library::{AddonIcon, AddonItem, ProfileItem, kind_label, plural};
 use crate::shell::{Page, Prompt, Shell, SliderSlot};
-use crate::theme::Palette;
+use crate::theme::{Palette, palette};
 
 pub(crate) const GUTTER: f32 = 28.;
 
@@ -176,6 +178,57 @@ pub(crate) fn chevron(open: bool, p: Palette) -> Icon {
     })
     .size(px(15.))
     .text_color(p.text_placeholder)
+}
+
+fn deletion_summary(plan: &ProfileDeletion, p: Palette) -> impl IntoElement {
+    let name = &plan.name;
+    let removed = if plan.saves {
+        "Its choice of addons and mods, their settings, its build cache and its saves are deleted."
+    } else {
+        "Its choice of addons and mods, their settings and its build cache are deleted."
+    };
+    v_flex()
+        .gap(px(12.))
+        .child(div().text_size(px(13.)).text_color(p.text).child(format!(
+            "{removed} Installed addons and mods stay in the library, and other profiles don't change."
+        )))
+        .when_some(plan.switch_to.clone(), |d, to| {
+            d.child(
+                h_flex()
+                    .gap(px(10.))
+                    .items_start()
+                    .p(px(12.))
+                    .rounded(px(6.))
+                    .bg(p.elevated)
+                    .border_1()
+                    .border_color(p.border)
+                    .child(
+                        Icon::new(IconName::ArrowRightLeft)
+                            .size(px(15.))
+                            .text_color(p.accent),
+                    )
+                    .child(
+                        v_flex()
+                            .gap(px(2.))
+                            .child(
+                                div()
+                                    .text_size(px(13.))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(p.text)
+                                    .child(format!("{name} is the active profile")),
+                            )
+                            .child(div().text_size(px(13.)).text_color(p.text_muted).child(format!(
+                                "{to} becomes active first, and Play uses it from now on."
+                            ))),
+                    ),
+            )
+        })
+        .child(
+            div()
+                .text_size(px(13.))
+                .text_color(p.text_muted)
+                .child("This can't be undone."),
+        )
 }
 
 pub(crate) fn names(title: impl Into<SharedString>, items: &[String], p: Palette) -> Div {
@@ -858,11 +911,12 @@ impl Shell {
             .label("New profile")
             .on_click(cx.listener(|this, _, window, cx| this.profile_prompt(None, false, window, cx)));
         let active = self.library.profile.name.clone();
+        let deletable = self.library.profiles.iter().filter(|i| !i.vanilla()).count() > 1;
         let mut cards: Vec<AnyElement> = self
             .library
             .profiles
             .iter()
-            .map(|item| self.profile_card(item, item.name == active, p, cx))
+            .map(|item| self.profile_card(item, item.name == active, deletable, p, cx))
             .collect();
         cards.push(
             v_flex()
@@ -953,10 +1007,68 @@ impl Shell {
         );
     }
 
+    fn game_busy(&self) -> bool {
+        !self.processes.is_empty() || self.launch.is_some()
+    }
+
+    fn confirm_delete_profile(&mut self, name: &str, window: &mut Window, cx: &mut Context<Self>) {
+        let name = name.to_owned();
+        let plan = if self.game_busy() {
+            Err("Close F1 25 before deleting a profile.".to_owned())
+        } else {
+            self.store.plan_profile_deletion(&name).map_err(|e| e.to_string())
+        };
+        let plan = match plan {
+            Ok(plan) => plan,
+            Err(reason) => {
+                window.open_alert_dialog(cx, move |alert, _, _| {
+                    alert
+                        .title(format!("Can't delete {name}"))
+                        .description(reason.clone())
+                });
+                return;
+            }
+        };
+        let p = palette(cx);
+        let shell = cx.entity().downgrade();
+        let store = self.store.clone();
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let (shell, store, name) = (shell.clone(), store.clone(), name.clone());
+            alert
+                .width(px(480.))
+                .title(format!("Delete profile {name}?"))
+                .child(deletion_summary(&plan, p))
+                .ok_text("Delete profile")
+                .ok_variant(ButtonVariant::Danger)
+                .show_cancel(true)
+                .on_ok(move |_, window, cx| {
+                    let busy = shell.upgrade().is_some_and(|s| s.read(cx).game_busy());
+                    let result = if busy {
+                        Err("Close F1 25 before deleting a profile.".to_owned())
+                    } else {
+                        store.delete_profile(&name).map_err(|e| e.to_string())
+                    };
+                    match result {
+                        Ok(done) => {
+                            let text = match &done.switch_to {
+                                Some(to) => format!("Deleted profile {name}. {to} is now active."),
+                                None => format!("Deleted profile {name}"),
+                            };
+                            window.push_notification(Notification::success(text), cx);
+                        }
+                        Err(e) => window.push_notification(Notification::error(e), cx),
+                    }
+                    shell.update(cx, |s, cx| s.reload(cx)).ok();
+                    true
+                })
+        });
+    }
+
     fn profile_card(
         &self,
         item: &ProfileItem,
         active: bool,
+        deletable: bool,
         p: Palette,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -989,7 +1101,7 @@ impl Shell {
                 )
         };
         let button = |id: &str| Button::new(SharedString::from(format!("{id}-{name}")));
-        let (rename, duplicate, switch) = (name.clone(), name.clone(), name.clone());
+        let (rename, duplicate, switch, delete) = (name.clone(), name.clone(), name.clone(), name.clone());
         let footer = h_flex()
             .gap(px(2.))
             .pt(px(12.))
@@ -1038,6 +1150,21 @@ impl Shell {
                         .tooltip("Duplicate")
                         .on_click(cx.listener(move |this, _, window, cx| {
                             this.profile_prompt(Some(duplicate.clone()), false, window, cx)
+                        })),
+                )
+                .child(
+                    button("delete")
+                        .ghost()
+                        .small()
+                        .icon(IconName::Trash)
+                        .tooltip(if deletable {
+                            "Delete"
+                        } else {
+                            "Your only profile can't be deleted"
+                        })
+                        .disabled(!deletable)
+                        .on_click(cx.listener(move |this, _, window, cx| {
+                            this.confirm_delete_profile(&delete, window, cx)
                         })),
                 )
             });
