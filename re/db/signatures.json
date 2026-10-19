@@ -1352,6 +1352,33 @@
    "used_by": [
     "native/src/rnd_departments.cpp (swofty.rnd-tyres-thermal)"
    ]
+  },
+  {
+   "id": "career.rnd_tree_rowcount_probe",
+   "section": ".xtls",
+   "pattern": "83 BC 24 78 03 00 00 00 0F 84 F3 FE FF FF 45 31 C0 EB 2A 66",
+   "match": "0x14353b1af",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14353b1af",
+   "kind": "mid",
+   "expect": "83 BC 24 78 03 00 00 00",
+   "names": [
+    "site_Career_RnDTreeRowCountProbe"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-19",
+     "by": "rnd-ui",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/rnd_departments.cpp (swofty.rnd-tyres-thermal)"
+   ]
   }
  ]
 }
