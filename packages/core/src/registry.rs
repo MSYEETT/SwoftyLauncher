@@ -6,6 +6,7 @@ use swofty_addon::launcher::{Addon, CommandSpec, Cx, GameFiles, ProfileInfo, Sta
 
 use crate::baseline::{Baseline, FileRecord, Objects};
 use crate::builtin::CORE_ID;
+use crate::helper::HelperAddon;
 use crate::install::Game;
 use crate::manifest::AddonManifest;
 use crate::profile::Profile;
@@ -33,6 +34,7 @@ pub struct Entry {
     pub addon: Arc<dyn Addon>,
     pub declared: bool,
     pub helper: bool,
+    pub plugin: Option<Arc<HelperAddon>>,
     pub locked: bool,
     pub default_on: bool,
 }
@@ -60,14 +62,16 @@ impl Registry {
                         addon: b.addon.clone(),
                         declared: false,
                         helper: false,
+                        plugin: None,
                         locked: b.locked,
                         default_on: b.default_on,
                     },
                     None => match store.helpers().get(&m, &store.addons_dir().join(&m.id)) {
                         Some(h) => Entry {
-                            addon: h,
+                            addon: h.clone(),
                             declared: false,
                             helper: true,
+                            plugin: Some(h),
                             locked: managed,
                             default_on: managed,
                         },
@@ -76,6 +80,7 @@ impl Registry {
                             default_on: m.id == CORE_ID || managed,
                             declared: true,
                             helper: false,
+                            plugin: None,
                             addon: Arc::new(DeclaredAddon::new(m)),
                         },
                     },

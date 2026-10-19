@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
@@ -43,6 +44,7 @@ pub struct HelperAddon {
     dir: PathBuf,
     timeouts: Timeouts,
     run: Mutex<Run>,
+    summaries: Mutex<HashMap<String, Option<Summary>>>,
 }
 
 enum Run {
@@ -75,6 +77,7 @@ impl HelperAddon {
             dir: dir.into(),
             timeouts: Timeouts::default(),
             run: Mutex::new(Run::Idle),
+            summaries: Mutex::new(HashMap::new()),
         })
     }
 
@@ -100,6 +103,26 @@ impl HelperAddon {
 
     pub fn stop(&self) {
         *self.lock() = Run::Idle;
+    }
+
+    /// The section's view, or None while another call holds the plugin, such as an
+    /// import or a build, instead of waiting for it to finish.
+    pub fn try_view(&self, cx: &Cx, section: &str) -> Option<Result<View>> {
+        let run = match self.run.try_lock() {
+            Ok(run) => run,
+            Err(TryLockError::Poisoned(e)) => e.into_inner(),
+            Err(TryLockError::WouldBlock) => return None,
+        };
+        if let Run::Dead(e) = &*run {
+            return Some(Ok(self.dead_view(e.clone())));
+        }
+        let call = Call::View {
+            section: section.into(),
+        };
+        Some(
+            self.call_with(run, cx, call, self.timeouts.quick, None)
+                .or_else(|e| self.failure().map(|e| self.dead_view(e)).ok_or(e)),
+        )
     }
 
     fn lock(&self) -> MutexGuard<'_, Run> {
@@ -468,17 +491,22 @@ impl Addon for HelperAddon {
     }
 
     fn summary(&self, cx: &Cx) -> Option<Summary> {
+        let mut last = self.summaries.lock().unwrap_or_else(|e| e.into_inner());
         let run = match self.run.try_lock() {
             Ok(run) => run,
             Err(TryLockError::Poisoned(e)) => e.into_inner(),
-            Err(TryLockError::WouldBlock) => return None,
+            Err(TryLockError::WouldBlock) => return last.get(&cx.profile.name).cloned().flatten(),
         };
         if !matches!(*run, Run::Live(_)) {
+            last.clear();
             return None;
         }
-        self.call_with(run, cx, Call::Summary, self.timeouts.quick, None)
+        let summary = self
+            .call_with(run, cx, Call::Summary, self.timeouts.quick, None)
             .ok()
-            .flatten()
+            .flatten();
+        last.insert(cx.profile.name.clone(), summary.clone());
+        summary
     }
 }
 
@@ -681,6 +709,54 @@ read -r l
         assert_eq!(received[5]["params"]["name"], "other");
         h.stop();
         assert!(!h.running());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_busy_helper_keeps_its_page_and_summary_without_waiting() {
+        let root = tmp("busy");
+        let dir = root.join("addon");
+        addon(
+            &dir,
+            r#"
+read -r l; echo '{"id":0,"result":{"api":1}}'
+read -r l; echo '{"id":1,"result":{"subtitle":"s","body":{"blocks":[]}}}'
+read -r l; echo '{"id":2,"result":{"label":"MODS","items":["A"]}}'
+read -r l; sleep 1; echo '{"id":3,"result":"none"}'
+read -r l; echo '{"id":4,"result":{"subtitle":"t","body":{"blocks":[]}}}'
+read -r l
+"#,
+        );
+        let manifest = AddonManifest::load(&dir).unwrap();
+        let h = Arc::new(HelperAddon::new(manifest, &dir).unwrap().with_timeouts(Timeouts {
+            quick: Duration::from_secs(2),
+            long: Duration::from_secs(5),
+        }));
+        let (data, cache) = (root.join("data"), root.join("cache"));
+        std::fs::create_dir_all(&cache).unwrap();
+        let state = Memory::default();
+        let p = profile("default");
+        let cx = Cx::new("t.helper", &p, &data, &cache, None, &state);
+        assert_eq!(h.try_view(&cx, "items").unwrap().unwrap().subtitle, "s");
+        let summary = h.summary(&cx).unwrap();
+        assert_eq!(summary.items, ["A"]);
+        let busy = {
+            let (h, data, cache) = (h.clone(), data.clone(), cache.clone());
+            std::thread::spawn(move || {
+                let state = Memory::default();
+                let p = profile("default");
+                let cx = Cx::new("t.helper", &p, &data, &cache, None, &state);
+                h.event(&cx, "items", Event::Click { id: "x".into() }).unwrap()
+            })
+        };
+        std::thread::sleep(Duration::from_millis(300));
+        let asked = std::time::Instant::now();
+        assert!(h.try_view(&cx, "items").is_none());
+        assert_eq!(h.summary(&cx), Some(summary));
+        assert!(asked.elapsed() < Duration::from_millis(200));
+        assert_eq!(busy.join().unwrap(), Effect::None);
+        assert_eq!(h.try_view(&cx, "items").unwrap().unwrap().subtitle, "t");
+        h.stop();
         std::fs::remove_dir_all(&root).ok();
     }
 
