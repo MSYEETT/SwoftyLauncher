@@ -1160,3 +1160,150 @@ the 0.7.2 frames, so no hook ever names a frame the game lacks. No new hook site
 ```
 Fallback: `tyres icon off: 0/6 grown R&D icon arrays … (SAFE)` and the 0.7.2 lines with `maintenance` /
 `aero` / `rnd_maintenance_strip`.
+
+## v0.9.0 — the Tyres upgrade types (setting `tyres_upgrade_types`, default on, install-time)
+
+`src/rnd_upgrade_types.cpp`. The Tyres department gets its own upgrade types instead of borrowing
+stock ones, so its upgrades never dilute Chassis' Tyre Wear or Brakes:
+
+| id | `upgrade_type` | camel-case (telemetry) | UI key suffix | VTF block | full-progress effect |
+|---|---|---|---|---|---|
+| 19 | `Tyre Thermal` | `TyreThermal` | `tyre_thermal` | `radUpgradeTyreThermal` | Tyre Front/Rear `UpgradeTempFactor` ×0.85 |
+| 20 | `Brake Cooling` | `BrakeCooling` | `brake_cooling` | `radUpgradeBrakeCooling` | Brake Front/Rear `CoefHeatTransferConstant`, `CoefHeatTransferLinear` ×1.25 |
+| 21 | `Tyre Life` | `TyreLife` | `tyre_life` | `radUpgradeTyreLife` | Tyre Front/Rear `UpgradeWearFactor` ×0.90 |
+| 22 | `Power Unit Cooling` | `PowerUnitCooling` | `pu_cooling` | `radUpgradePUCooling` | Engine `RadiatorSurfaceArea` ×1.15 |
+
+How a type reaches the car (from the R&D effect report): `upgrade_type` string → id (name table
+0x14584f6b8, 19 entries, unknown → 0 = Engine Power) → per-type progress 0x143526260 → the vehicle
+fill 0x141238cb0 puts `map[type][0] = {progress, mass, bhp}` into the vehicle upgrade component
+(`comp+0x28`) → 0x14fa4deb0 calls 0x142f64860 → 0x14fa63050(comp, type) for keys < 11 and 11..17 →
+0x14fa63050 names the block (`type < 0x12`, relative table 0x145803ce4) and replays its ops with
+`perc` = clamp(Σ progress) as the lerp. Department is never read on this path.
+
+### Every place sized for 19 types (sweep)
+
+Found by RIP-xref of the order table 0x14566fd16 / its end 0x14566fd29 (9 functions), the name table
+0x14584f6b8 (2), the block-name table 0x145803ce4 (1, raw rel32 scan: it is in `.data1`), the
+type→department table 0x14584f848 (2), the camel-case table 0x14564a0d0 (3), the string "INVALID
+UPGRADE" 0x14587df9f (16 inlined switches), and a byte sweep for `movzx r,byte [x+0x70]` followed by a
+rip-relative table `lea` (26 tables, the two camel-case reads are the only type-indexed one).
+
+| site | what it does with the type | v0.9.0 |
+|---|---|---|
+| 0x143539bc0 `Career_Load_UpgradeRows` loop 0x14353a3d0..0x14353a405, join **0x14353a408** `mov [rsp+0xc8],r15b` | 19-name compare, miss → 0 | MidHook at the join: when `r14 == 0x13` (stock loop exhausted) and the decoded string `r13` is one of ours (case-insensitive), `r15` = 19..22 |
+| 0x14353c4f0 `upgrade_type_metadata` loader loop 0x14353c890..0x14353c8be, join **0x14353c8c1** `lea rsi,[rsp+0x248]` | same compare for the metadata rows | MidHook at the join: when `rsi == 0x13` and `r12` is ours, `r14` = 19..22 (stored to `rec[0]` at 0x14353c6f0; no write of r14 between) |
+| 0x14352cac0 copy into `U+0x1a38` | dynamic vector, grows | none needed |
+| 0x143526260 progress | generic (`inst.type == T`, metadata `rec[0] == T`; UAD bonus only for 11..17) | none needed |
+| 0x141238cb0 vehicle fill, **0x141238f0a** `lea r15,[order]`, **0x141238f84** `lea rax,[order end]` | iterates the 19 order bytes | both rel32s re-pointed at an extended order table (0..18, 19..22) allocated within ±2 GB of the image (safetyhook `allocate_near`); the stock table is never written |
+| 0x14fa4deb0 apply, second filter **0x14fa4e01c** `lea eax,[rdx-0xb] ; cmp al,6` | keys 11..17 only | MidHook (5-byte window): key 19..22 → `rip = 0x14fa4e023` (`mov rcx,rsi ; call 0x142f64860`) |
+| 0x14fa57080 apply (flag-0 variant) | applies only keys 6 and 2, then erases them; mass/power only | nothing to extend: no type other than 2/6 is applied in this variant, stock or ours |
+| 0x14fa63050 block name, `cmp dl,0x11 ; ja` → **0x14fa6315f** `lea rdx,["?"]`, join 0x14fa63166 | names 0..17, else "?" | MidHook on the `"?"` lea: type 19..22 → `rdx` = our block name, `rip` = join. A car VTF without the block matches nothing in the replay loop (no op applied) |
+| 0x141c7b880 `Career_Build_RnDDeptPage` category loop, **0x141c7e4c8** `lea r14`, **0x141c7e4df** `lea r15` | one category row per type (0x141c82470, returns on an empty list) | rel32s re-pointed at the extended table; the list is already filtered by the page department (0x141c7d921), so the new rows appear only on the Tyres page |
+| 0x141c73b80 research category loop, **0x141c75733** `lea r12`, **0x141c7574a** `lea r13` | one research row per type (0x141c76b60, empty list → return) | same; list filtered by department at 0x141c74cc1 |
+| 16 inlined switches `cmp <type>,0x12 ; ja` → `lea r8\|r9,["INVALID UPGRADE"] ; jmp <join>` | `lng_rnd_%s` label (r8) and `<dept>_<type>` category frame (r9) | MidHook on each default `lea`: type 19..22 → dest register = suffix, `rip` = join. Sites (default / type reg / join): 0x1417f831d r14b 0x1417f83d2 (upgrade card), 0x14181465a rax 0x14181470f, 0x141816e11 rax 0x141816ec6, 0x1418b0b11 rax 0x1418b0bc0, 0x1418b0d32 rcx 0x1418b0de0 (icon), 0x1419bf4ae rcx 0x1419bf563 (Team HQ popup icon), 0x141c514c6 rax 0x141c5157b, 0x141c7007c rax 0x141c70131, 0x141c76daf r9d 0x141c76e64 (research row), 0x141c77df8 sil 0x141c77ea1 (research row icon), 0x141c80c06 rax 0x141c80cbb, 0x141c826b6 esi 0x141c8276b (category row), 0x141c836f1 sil 0x141c8379a (category row icon), 0x141c8e93b rax 0x141c8e9f0 (develop panel), 0x141f3d185 rax 0x141f3d1d0 (In Progress), 0x141f3d960 rcx 0x141f3d9b0 (In Progress icon) |
+| 0x14071e470 telemetry "research purchased", **0x14071e6fa** `lea rcx,[0x14564a0d0] ; mov rdx,[rcx+rax*8]` | camel-case name, **no bound** | MidHook on the lea: type ≥ 19 → `rdx` = camel name (or `"unknown"`), `rcx = rbx`, `rip = 0x14071e708` |
+| 0x14071e810 telemetry "upgrade failed", **0x14071e98d** `mov rdx,[rbp+rax*8]` | same, no bound | type ≥ 19 → `rdx` = camel name, `rip = 0x14071e992` |
+| 0x140777d50 telemetry upgrade record, **0x140777eff** `lea rdx,[0x14564a0d0] ; mov rdx,[rdx+rax*8]` | same, no bound | type ≥ 19 → `rdx` = camel name, `rip = 0x140777f0a` |
+| 0x14353d4f0 regulation-change loader (type→department 0x14584f848, `< 0x13` else 5) | picks stock types of an affected department | none: regulation changes never pick a Tyres type (department 4 is never "affected") |
+| 0x143527a70 regulation-change save reader (default `types_affected` = all 19) | same | none |
+| 0x14275f620 entrants lane, 0x1409b9aa0 (attribute-set / car lane) | uniform values per stock type | none: not on the career path |
+| 0x1409ea830 camel-case resolver (attribute sets) | `EnginePower` default | none: not on the career path |
+
+Without the three telemetry guards a Tyres purchase, failure or fit would read the string bytes after
+0x14564a0d0 ("EnginePo…") as a pointer. They are part of the all-or-nothing core.
+
+### Gate and order
+
+1. `tyres_upgrade_types` on, else nothing (a Tyres row naming a new type then resolves to Engine Power).
+2. One exactly-one `.xtls` scan of the rows resolver loop (hit must be 0x14353a3d7).
+3. Byte windows verified at fixed RVAs: both resolver loops, the fill end compare, the page and research
+   loop bodies, the apply filter, the block-name bound and default, the three telemetry windows, all 16
+   switch heads and defaults, and each of the six `lea`s must address 0x14566fd16 / 0x14566fd29.
+4. The 64-byte extended order table is allocated near the image and filled.
+5. The 21 consumer MidHooks are created all-or-nothing (any failure: nothing is kept, no id is minted).
+6. The six rel32s are patched (rollback on any failure).
+7. The two resolver hooks are created last; on failure the six rel32s are restored.
+
+Every hook window was checked against every direct branch target in `.xtls` and `.data1` (rel32
+`E8/E9/0F 8x`, rel8 `EB/7x`): none lands inside a window. The one raw hit (0x141c826bb, inside the
+0x141c826b6 `lea`) has no branch in its function. The safetyhook stub resumes at `Context64::rip`.
+
+### Upgrade apply log (setting `log_upgrade_apply`, default on, read-only)
+
+MidHook at **0x14fa63050** entry (`mov r8,[rcx+0x28] ; mov r9,[r8+8]`, 8-byte window): `rcx` = vehicle
+upgrade component, `dl` = type. It walks the component's map exactly as the function does (outer node
+key +0x20, inner header +0x28, inner value +0x20, is-nil +0x19), computes `perc = clamp(Σ, 0, 1)` and logs
+once per (component, type, perc). Types the map lacks are not logged (the game returns without applying).
+Installed independently of `tyres_upgrade_types`.
+
+### Other native changes
+
+- `rnd_departments.cpp`: our rows are `tyres_thermal_1..15` (hash `djb2("tyres_thermal_<n>_255")`, built in a
+  loop; rows 1-3 keep their v0.6 hashes), names `tt_*`/`bc_*`/`tl_*`/`pc_*` from the spec, plus the three
+  legacy names as a fallback. The vehicle performance comparison department comes from the instance type
+  (19-21 Chassis, 22 Powertrain), else from the row (13-15 Powertrain, others Chassis).
+- Card art: `om_xm_<upgrade_name>[_in_progress]` (or `<upgrade_name>…` outside `rnd_om_xm`) when the
+  `rnd_part_image` arrays in `flow_team_hq.erp` are larger than stock (20851200 / 19411200 bytes); masks
+  only when `rnd_part_mask` grew (6912000 / 6336000). Otherwise the borrowed stock frames
+  (`tyre_blankets`, `calipers`, `turbo_charger_wear_1`).
+- Category icons (`rnd_dept_tags.cpp`): `error_department_<tyre_thermal|brake_cooling|tyre_life|pu_cooling>`
+  → the frame named by the type key when `rnd_category_icons` grew in `flow_career_hub.erp` (21504 / 20480
+  bytes stock), else `chassis_tyre_wear`, `chassis_brakes`, `chassis_tyre_wear`,
+  `maintenance_internal_combustion`.
+- `tyres_test_price` defaults off in the DLL (the tree carries real prices).
+
+### Data (`tools/build_vtf.py`)
+
+- `erp/rnd_upgrade_vtf.json` + `vtf/`: the four blocks, inserted after the stock `radUpgrade*` blocks in 44
+  handling VTFs (94 copies, 65 archives): 2026 team cars, `fom_car`, `fom_car_<team>`, `myteam_*`; 2025 team
+  cars, `fom_car`, `myteam_*`. Each op is emitted only where the car's base section has that parameter.
+  Every stock byte of each VTF is unchanged around the inserted run; the TSMD stats are rebuilt and checked.
+- `db/upgrade_types.json`: rows `upgrade_type_metadata_19..22` in the 46 `upgrades.2026.trees.<team>`
+  tables (count 19 → 23), cloned from Tyre Wear (19, 21), Brakes (20) and ICE Durability (22), department
+  `Fake`, mass/bhp 0, `percentage_worth` 1, `affect_on_vehicle` −15 / 25 / −10 / 15 percentage.
+- `--no-pu` builds ids 19-21 only; set `kShipPuCooling = false` in `rnd_upgrade_types.cpp` to match.
+
+### Power Unit Cooling (why id 22 ships)
+
+The Engine reader 0x144685680 stores `RadiatorSurfaceArea` at params +0x1128 (runtime +0x1140, params at
+engine+0x18). The engine temperature update 0x144689710 (runtime temperature +0x253c) cools by
+`h(v) × RadiatorSurfaceArea × (T − ambient) × dirty-air factor` (area read at 0x14468999b, 0x1446899db);
+temperature feeds the power factor 0x1446db280 through `TempEfficiencySpline` (1.0 at 388-398 K, 0.94 at 418 K,
+0.85 at 448 K). The upgrade replay reaches the Engine through its component vt+8 (0x14475ab50 → reader with
+the lerp global 0x145faa650), like the stock `radUpgradeWear*` blocks that already target `<Engine>`.
+Open: whether the per-vehicle temperature flag `[veh+0x131] & 2` is set in career races, and how hot the
+engine runs (the effect is zero on the 388-398 K plateau).
+
+Brake `CoefHeatTransferConstant/Linear` (brake params +0x20/+0x24, reader 0x1446aa090) has no static
+consumer found: brake temperature (wheel+0xe8) is read every tick (efficiency spline, overheat damage, the
+tyre heat update at 0x1446b7f86) but its only static writer is the reset at 0x1446b2221. The stock
+`very_high` setup block scales the same two values. Brake Cooling needs the in-game check.
+
+### Expected log (v0.9.0)
+
+Install:
+```
+[rnd-tyres] tyres art: part images borrowed (0/2 grown in flow_team_hq.erp), part masks borrowed (0/2), category icons borrowed (0/2 grown in flow_career_hub.erp); otherwise the borrowed stock frames (SAFE)
+[rnd-tyres] upgrade apply log INSTALLED: read-only hook @0x14fa63050 logs each type's perc once per vehicle component and value
+[rnd-tyres] upgrade types: tyres_upgrade_types=on, 4 new types (Power Unit Cooling shipped)
+[rnd-tyres] upgrade types: hooked <site> @0x… (base+0x…)                                   (x21)
+[rnd-tyres] upgrade types: <loop lea> @0x… -> extended order table 0x…                     (x6)
+[rnd-tyres] upgrade types: hooked rows resolver join (Career_Load_UpgradeRows) @0x14353a408 (base+0x353a408)
+[rnd-tyres] upgrade types: hooked upgrade_type_metadata resolver join (0x14353c4f0) @0x14353c8c1 (base+0x353c8c1)
+[rnd-tyres] upgrade types INSTALLED: 19 radUpgradeTyreThermal, 20 radUpgradeBrakeCooling, 21 radUpgradeTyreLife, 22 radUpgradePUCooling; 21 consumer hooks, 6 order-table leas -> 0x… (23 types), resolvers last
+```
+Career load:
+```
+[rnd-tyres] upgrade types: upgrade_type_metadata row "Tyre Thermal" -> type 19 (radUpgradeTyreThermal)
+[rnd-tyres] upgrade types: upgrade row "Brake Cooling" -> type 20 (radUpgradeBrakeCooling)
+```
+Tyres page / In Progress / cards: `[rnd-tyres] upgrade types: department category row 0x141c82470 label type 19 -> "tyre_thermal"`
+and `dept tag: department category row 0x141c82470 icon "error_department_tyre_thermal" -> "chassis_tyre_wear"`.
+Session load (vehicle build), one line per type per component and value:
+```
+[rnd-tyres] upgrade apply: type 6 radUpgradeTyreWear perc 0.0000 (vehicle component 0x…)
+[rnd-tyres] upgrade apply: type 19 radUpgradeTyreThermal perc 0.1429 (vehicle component 0x…)
+[rnd-tyres] upgrade types: apply 0x14fa63050 type 19 names block radUpgradeTyreThermal
+```
+With the game's `VEHICLE_UPGRADES` channel on: `Applying radUpgradeTyreThermal upgrade to vehicle N. (perc0to1: x)`.
+Refusals end in `(SAFE)`; nothing is minted unless every consumer is live.
