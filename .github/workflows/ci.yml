@@ -28,11 +28,6 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
 
-      # drives_the_simplified_helper_binary execs the built helper; cargo test
-      # only compiles it as a test harness, so emit the artifact first.
-      - name: Build the helper binary
-        run: cargo build -p swofty-simplified-helper
-
       # The real-file round trips skip without F1_25_DIR; CI has no game files.
       - name: Test
         run: cargo test
