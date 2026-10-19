@@ -58,6 +58,16 @@ jobs:
       - name: Build
         run: cargo build --release --workspace
 
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      - name: Build Swofty UI
+        run: |
+          python -m pip install pyinstaller==6.22.3
+          python tools/swofty-ui/build.py
+          dist/swofty-ui/swofty-ui --self-test
+
       - uses: actions/download-artifact@v8
         with:
           name: native
@@ -67,13 +77,15 @@ jobs:
         run: |
           out=swofty-launcher-$TAG-linux-x86_64
           mkdir -p $out/bin $out/loader $out/share/applications $out/share/icons/hicolor/256x256/apps $out/share/icons/hicolor/512x512/apps $out/share/icons/hicolor/scalable/apps
-          cp target/release/swofty target/release/swofty-launcher $out/bin/
+          cp target/release/swofty target/release/swofty-launcher dist/swofty-ui/swofty-ui $out/bin/
           cp -r native/dist/. $out/loader/
-          cp apps/launcher/assets/net.swofty.ModLauncher.desktop $out/share/applications/
+          cp apps/launcher/assets/net.swofty.ModLauncher.desktop tools/swofty-ui/res/net.swofty.SwoftyUI.desktop $out/share/applications/
           cp apps/launcher/assets/icon-256.png $out/share/icons/hicolor/256x256/apps/net.swofty.ModLauncher.png
           cp apps/launcher/assets/icon-512.png $out/share/icons/hicolor/512x512/apps/net.swofty.ModLauncher.png
           cp apps/launcher/assets/icon.svg $out/share/icons/hicolor/scalable/apps/net.swofty.ModLauncher.svg
-          cp LICENSE README.md $out/
+          cp tools/swofty-ui/res/icon-256.png $out/share/icons/hicolor/256x256/apps/net.swofty.SwoftyUI.png
+          cp tools/swofty-ui/res/icon-512.png $out/share/icons/hicolor/512x512/apps/net.swofty.SwoftyUI.png
+          cp LICENSE README.md THIRD_PARTY.md $out/
           tar czf $out.tar.gz $out
 
       - uses: actions/upload-artifact@v7
@@ -95,6 +107,19 @@ jobs:
       - name: Build
         run: cargo build --release --workspace
 
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      - name: Install PyInstaller
+        run: python -m pip install pyinstaller==6.22.3
+
+      - name: Build Swofty UI
+        run: python tools/swofty-ui/build.py
+
+      - name: Self-test Swofty UI
+        run: dist/swofty-ui/swofty-ui.exe --self-test
+
       - uses: actions/download-artifact@v8
         with:
           name: native
@@ -105,9 +130,9 @@ jobs:
         run: |
           $out = "swofty-launcher-$env:TAG-windows-x86_64"
           New-Item -ItemType Directory -Force "$out/bin", "$out/loader" | Out-Null
-          Copy-Item target/release/swofty.exe, target/release/swofty-launcher.exe "$out/bin/"
+          Copy-Item target/release/swofty.exe, target/release/swofty-launcher.exe, dist/swofty-ui/swofty-ui.exe "$out/bin/"
           Copy-Item -Recurse native/dist/* "$out/loader/"
-          Copy-Item LICENSE, README.md "$out/"
+          Copy-Item LICENSE, README.md, THIRD_PARTY.md "$out/"
           Compress-Archive -Path $out -DestinationPath "$out.zip"
 
       - uses: actions/upload-artifact@v7
