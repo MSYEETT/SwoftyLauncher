@@ -62,6 +62,72 @@ attribution requirement applies to this work and to every work based on it:
 > **Based on Simplified Suite by Team Simplified - https://github.com/TeamSimplified/simplified-suite**
 ```
 
+## bcdec and bcdec_rs
+
+Swofty UI's BC7 texture decoder, `tools/swofty-ui/static/bc7.js`, is a JavaScript port of bcdec_rs 0.2.0 from <https://github.com/ScanMountGoat/image_dds>, which is itself a port of bcdec by Sergii Kudlai, <https://github.com/iOrange/bcdec>. bcdec_rs is MIT-licensed. bcdec is available under the MIT licence or the Unlicense; Swofty UI uses it under the MIT licence.
+
+```
+MIT License
+
+Copyright (c) 2023 SMG
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+```
+MIT License
+
+Copyright (c) 2022 Sergii Kudlai
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## Swofty UI executable
+
+`bin/swofty-ui` and `bin/swofty-ui.exe` in the release archives are built with PyInstaller, <https://pyinstaller.org/>, and bundle:
+
+| Component | Licence |
+|---|---|
+| The CPython 3.14 runtime and standard library, <https://www.python.org/> | Python Software Foundation License Version 2, <https://docs.python.org/3/license.html> |
+| The PyInstaller bootloader | GNU General Public License version 2 or later with the PyInstaller bootloader exception, <https://github.com/pyinstaller/pyinstaller/blob/develop/COPYING.txt> |
+| The libraries CPython links, such as zstd, zlib, libffi and OpenSSL | Their own licences, listed in the CPython licence document above |
+
+Python is Copyright (c) 2001 Python Software Foundation; All Rights Reserved.
+
 ## Fonts
+
+Swofty UI uses the system's fonts and ships none. Its icon is a raster image and contains no font data.
 
 The site loads Open Sans, Poppins, Quicksand, Source Code Pro and Varela Round from Google Fonts. They use the SIL Open Font License 1.1.

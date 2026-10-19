@@ -13,6 +13,7 @@ A launcher and mod loader for F1 25 on Windows and Linux. Addons hook the game e
   - you drop it on the launcher's Mods page, which comes from the built-in Team Simplified addon.
 - **Profiles:** Keep separate setups like *Vanilla*, *26 car grid* or *Classic tracks*. The original game is restorable in one click.
 - **In-game addon settings:** Change addon settings from the game's main menu, in **ADDON SETTINGS** under Career.
+- **Swofty UI:** View and edit the game's menu layouts (`.idf` scenes) with real textures, then ship the edits in an addon. It comes with every release as `bin/swofty-ui`. See [Swofty UI](https://f1.swofty.net/reference/ui/swofty-ui).
 
 ## Install
 
@@ -42,4 +43,4 @@ See the [development guide](https://f1.swofty.net/reference/development) for bui
 
 ## Licence
 
-[GNU Affero General Public License, version 3 or later](LICENSE). The plugin SDK in `packages/sdk` and the addon template in `templates/addon` use the MIT licence. The docs theme adapts MIT-licensed CSS from the Geode docs; see [THIRD_PARTY.md](THIRD_PARTY.md).
+[GNU Affero General Public License, version 3 or later](LICENSE). The plugin SDK in `packages/sdk` and the addon template in `templates/addon` use the MIT licence. The docs theme adapts MIT-licensed CSS from the Geode docs, and Swofty UI's texture decoder is ported from MIT-licensed bcdec_rs and bcdec; see [THIRD_PARTY.md](THIRD_PARTY.md).

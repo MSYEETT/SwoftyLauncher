@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swofty UI</title>
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="icon-64.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#2b1c38">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <img class="logo" src="icon-64.png" width="22" height="22" alt="">
+    <span class="brand-name">Swofty UI</span>
+  </div>
+  <button id="btn-open" class="btn" title="Open a scene (Ctrl+K)">Open scene <kbd>Ctrl K</kbd></button>
+  <div class="scene-title" id="scene-title">
+    <span class="muted">No scene open</span>
+  </div>
+  <div class="spacer"></div>
+  <div class="btn-group">
+    <button id="btn-undo" class="btn icon" title="Undo (Ctrl+Z)" disabled>Undo</button>
+    <button id="btn-redo" class="btn icon" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
+  </div>
+  <div class="btn-group">
+    <button id="btn-clone" class="btn" title="Clone selected element (Ctrl+D)" disabled>Clone</button>
+    <button id="btn-delete" class="btn" title="Delete selected element (Del)" disabled>Delete</button>
+  </div>
+  <div class="btn-group">
+    <button id="btn-fit" class="btn" title="Fit scene (F); Shift+F fits the selection">Fit</button>
+  </div>
+  <button id="btn-export" class="btn primary" title="Write the edited scene to an .idf (Ctrl+S)" disabled>Export .idf</button>
+</header>
+
+<main class="layout">
+  <aside class="pane left">
+    <div class="pane-head">
+      <span class="pane-title">Hierarchy</span>
+      <input id="tree-filter" class="input small" placeholder="Filter by name" spellcheck="false">
+    </div>
+    <div id="tree" class="tree" role="tree"></div>
+    <div class="pane-head sub">
+      <span class="pane-title">Edits</span>
+      <span id="edit-count" class="muted small"></span>
+    </div>
+    <ol id="history" class="history"></ol>
+  </aside>
+
+  <section class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="hud top-left" id="legend"></div>
+    <div class="hud top-right">
+      <label class="toggle"><input type="checkbox" id="opt-textures" checked> Textures + colours <kbd>T</kbd></label>
+      <label class="toggle"><input type="checkbox" id="opt-outlines"> Outlines <kbd>O</kbd></label>
+      <label class="toggle"><input type="checkbox" id="opt-text" checked> Text placeholders</label>
+      <label class="toggle" title="Elements scaled to ~0 at rest are animated in by the game (bars, wedges, highlights). Show them at full size."><input type="checkbox" id="opt-reveal"> Reveal anim-collapsed</label>
+      <label class="toggle"><input type="checkbox" id="opt-xrefs" checked> XRef contents <kbd>X</kbd></label>
+      <label class="toggle"><input type="checkbox" id="opt-frame" checked> 1920x1080 frame</label>
+      <label class="toggle"><input type="checkbox" id="opt-grid" checked> Grid</label>
+      <label class="toggle"><input type="checkbox" id="opt-pivots" checked> Pivots</label>
+      <label class="toggle">Labels
+        <select id="opt-labels" class="input tiny">
+          <option value="auto">auto</option>
+          <option value="all">all</option>
+          <option value="sel">selected</option>
+          <option value="none">none</option>
+        </select>
+      </label>
+    </div>
+    <div class="hud bottom-left" id="hud-status"></div>
+    <div class="hud bottom-right notice" id="notice">
+      Preview: quads, BC7 textures and material colours are decoded from the game's ERPs. Text shows element names as placeholders; blur, rounded corners, animation and live data are approximated or absent.
+    </div>
+    <div class="empty" id="empty">
+      <div class="empty-card">
+        <h1>Open a UI scene</h1>
+        <p>Browse every <code>.idf</code> layout in the game's UI ERPs, or load an extracted file.</p>
+        <button class="btn primary" id="btn-open-2">Browse scenes</button>
+        <div class="quick" id="quick-picks"></div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="pane right">
+    <div class="pane-head"><span class="pane-title">Inspector</span></div>
+    <div id="inspector" class="inspector">
+      <p class="muted pad">Select an element on the canvas or in the hierarchy.</p>
+    </div>
+  </aside>
+</main>
+
+<footer class="statusbar" id="statusbar"></footer>
+
+<div class="modal" id="palette" hidden>
+  <div class="modal-card palette-card" role="dialog" aria-label="Open scene">
+    <input id="palette-input" class="input big" placeholder="Search scenes, such as rnd_overview or career laptop, or paste a path to an .idf" spellcheck="false" autocomplete="off">
+    <div class="palette-meta">
+      <span id="palette-count" class="muted small"></span>
+      <label class="btn small file-btn">Open .idf from disk<input type="file" id="file-input" accept=".idf,.bin,application/octet-stream"></label>
+    </div>
+    <ul id="palette-list" class="palette-list" role="listbox"></ul>
+  </div>
+</div>
+
+<div class="modal" id="export-modal" hidden>
+  <div class="modal-card export-card" role="dialog" aria-label="Export result">
+    <h2 id="export-title">Export</h2>
+    <div id="export-body"></div>
+    <div class="modal-actions">
+      <button class="btn" id="export-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+<script src="bc7.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Swofty UI
+Comment=View and edit F1 25 menu scenes
+Exec=swofty-ui
+Icon=net.swofty.SwoftyUI
+Terminal=true
+Categories=Development;Graphics;
