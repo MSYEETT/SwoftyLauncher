@@ -223,6 +223,7 @@ the chain `[chart_1, sector_N]`; `chart_1` is an eXRef to `rnd_dev_potential.idf
 `sector_1..4` eXRefs → `rnd_dev_potential_sector.idf` (a baked 90° wedge mesh), rotated
 0/90/180/270°. The Team HQ research overview (`tab_content_research_overview` →
 `team_hq/research/overview` → `dev_potential_full.idf`) is a separate chain driven by class A.
+**The engine follows each eXRef by its `xref` id, not its `fileRef`** (§exref).
 
 Two view-model classes:
 - Class A (research overview, vtable `vt_Career_RnDResearchViewModel` 0x14575e000): pie builder
@@ -312,3 +313,16 @@ same four, but `[4]` is the next string `open_driver_ratings_rtt_panel` (valid, 
 `g_Career_RnDOverviewSelectedDept` 0x145f93c08 has exactly two writers (0x141f4aa49 class B focus,
 0x141f460a9 class A focus); every reader clamps it `< 4` (`cmp al,4 ; cmovae eax,0`, e.g.
 `site_Career_RnDBoxGridNameClamp` 0x141c86c87, `site_Career_TeamHqDeptNameClamp` 0x1423380f2).
+
+## Scene references resolve by `xref` id, not `fileRef` {#exref}
+
+An `eXRef` element carries two references to the scene it instances: the `fileRef` string param and
+the `xref` field, a u64 that is the md5-64 (big-endian, path without `.idf`) of the referenced
+scene's eaid — that scene's `componentId`. Every stock eXRef has `xref == md5-64(fileRef)`. **The
+engine resolves by `xref`.** Re-pointing only `fileRef` leaves the game drawing the old scene while
+a viewer that follows `fileRef` shows the new one. Observed: archives whose `chart_1.fileRef` named a
+five-sector pie but whose `chart_1.xref` was still md5-64(`…/rnd_dev_potential`) rendered the stock
+four 90° wedges in game; a viewer resolving by `xref` reproduced the screenshot exactly, and setting
+`xref` = md5-64 of the new path fixed it. Rule for scene edits: set `xref` together with `fileRef`,
+and fail any eXRef whose `xref` is not md5-64 of its `fileRef`. Format detail:
+[`ui_system.md`](ui_system.md#idf).

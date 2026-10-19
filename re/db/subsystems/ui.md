@@ -19,3 +19,4 @@ format crates (`packages/formats/src/{pkg,erp}.rs`), and the native runtime load
 (`native/src/core/{ui,ui_vm}.cpp`).
 
 ## Inbox
+- 2026-10-19 23:41 rnd-kb: rnd-kb: eXRef rule (format reference 5.4/5.5 should say it): an eXRef carries fileRef AND an xref u64 = md5-64 (big-endian, path without .idf) of the referenced scene's eaid, i.e. that scene's componentId. The ENGINE RESOLVES BY xref, NOT fileRef. Every stock eXRef has xref == md5-64(fileRef). Changing only fileRef keeps the old scene in game while a fileRef-following viewer shows the new one (seen on the R&D pie: chart_1.fileRef -> rnd_dev_potential5 but xref still md5-64(rnd_dev_potential) drew the stock 4 wedges). Scene edits must set xref with fileRef; validators should fail xref != md5-64(fileRef). Evidence and the pie chain: rnd_ui.md#exref, #pie.
