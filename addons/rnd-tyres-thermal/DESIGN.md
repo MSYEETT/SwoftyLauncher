@@ -10,13 +10,16 @@ reverse-engineering verdict and the exact hook site.
 ## The department
 
 Tyres & Thermal Management is a real engineering discipline currently split
-between Chassis and Durability. Its upgrade nodes reuse existing
-`upgrade_type` effects, so each node gets a real car-stat effect with no new
-effect code:
+between Chassis and Durability. Since v0.9.0 its upgrades use their own upgrade
+types, minted natively, so they never dilute Chassis' stock Tyre Wear upgrades:
 
-- Tyre-wear reduction - `Tyre Wear`
-- Brake cooling / performance - `Brakes`
-- Cooling-driven reliability - `Upgrade All Durability` (general maintenance)
+- `Tyre Thermal` - tyre heat build-up
+- `Brake Cooling` - brake heat transfer
+- `Tyre Life` - tyre wear, stacking with Chassis' Tyre Wear
+- `Power Unit Cooling` - engine heat rejection (conditional branch)
+
+The tree is in "v0.9.0 — the full upgrade tree" below. Up to v0.8.0 three test
+nodes reused the stock `Tyre Wear`, `Brakes` and `Upgrade All Durability` types.
 
 ## Enum value: 4 (the "Tyres" spare)
 
@@ -52,8 +55,9 @@ department. No new enum value is minted.
    read-only pass used - rows at `_4..7`, no `_instancecount_` key - are a
    different, unread copy; the live `rnd-probe` loop proved the loader reads
    indices `0..3` from `{5e21…}`/`{1f30…}`.)
-2. `db/tyres_tree.json` - a small three-node upgrade tree (Tyre Wear, Brakes,
-   Upgrade All Durability), each node a field-for-field clone of the stock
+2. `db/tyres_tree.json` - (v0.4–v0.8; v0.9.0 replaced it with the generated
+   full tree, see "v0.9.0 — the full upgrade tree") a small three-node upgrade
+   tree (Tyre Wear, Brakes, Upgrade All Durability), each node a field-for-field clone of the stock
    `fake.upgrade_0` hub schema. **Lookup RESOLVED (v0.4.0):** `Career_Load_UpgradeRows`
    (0x143539bc0) opens the tree container by dept NAME, `<team_link>.<deptname>`,
    with `k_Career_UpgradeDeptNameTable[4] = "fake"` - so the 5th department's tree
@@ -234,18 +238,6 @@ the in-game test (see `native/HOOKS.md`).
 | department tag over the title | lang | `lng_rnd_dept_tyres` = "Tyres" (the Tyres tab shows the same key) |
 | upgrade names | lang | `lng_rnd_<upgrade_name>` (+ `_description`) |
 
-### TEMPORARY test values (restore before a release)
-
-- **Price:** flag `tyres_test_price` (default on) makes the three Tyres upgrades cost **5** research
-  points for research and development, standard and rush. The database still carries the real
-  `cost` / `cost_to_develop` = **1000**; turning the flag off restores them (displayed price then
-  follows the game's formula, see `native/HOOKS.md`).
-- **Durations:** `db/tyres_tree.json` sets `fitting_times.num_days_to_research` and
-  `num_days_to_develop` to **5**; the real values are **20** and **25**.
-- **Names:** `assets/text.json` gives the upgrades the joke names "Pirelli Whisperer"
-  (`tyres_wear_reduction`), "Brake Disc Chill Pill" (`tyres_brake_cooling`) and "Thermal Blanket
-  of Destiny" (`tyres_thermal_reliability`) under `lng_rnd_<upgrade_name>`.
-
 ## v0.7.0 — the five-sector pie
 
 R&D > Performance gets five overview tiles (3+2) and a five-sector development-potential pie with
@@ -278,6 +270,111 @@ The icon is authored as `icons/tyres.svg` (a slick F1 tyre with a sidewall strip
 
 ![Stock department icons and the Tyres icon](preview/tyres_icon_compare.png)
 
+## v0.9.0 — the full upgrade tree
+
+`tools/build_tree.py` generates `db/tyres_tree.json` and the upgrade names and descriptions in
+`assets/text.json`. It compares its build with the shipped files and exits 1 on a difference;
+`--write` replaces them.
+
+```sh
+python3 addons/rnd-tyres-thermal/tools/build_tree.py --write
+python3 addons/rnd-tyres-thermal/tools/build_tree.py --write --no-pu-cooling
+python3 addons/rnd-tyres-thermal/tools/build_tree.py --game "<F1 25>"
+```
+
+`--no-pu-cooling` leaves out branch D (rows 13-15), so the tree has 12 upgrades and
+`_upgrade_instancecount_` 13. `--game` takes the F1 25 folder or a stock
+`gamedatabases.2025.bin`, and checks the hub table, that no row key exists in stock and that no
+grid cell is taken in the sibling stock trees of each hub.
+
+### Stock calibration
+
+Read from the stock `gamedatabases.2025.bin` (Steam build 25251167, `swofty verify` clean), over
+the 46 trees the addon attaches to: the 12 named `upgrades.2026.trees.<team_link>` trees and 34
+more reached by hash (24 with the named trees' row counts, 22 with Aero 24, Chassis 23,
+Durability 21, Powertrain 16 or 17 rows). No `upgrades.2025.trees.*` path exists. The economy does
+not vary by team, tree family or department, only by size:
+
+| department | size | rows (Mercedes 2026) | `cost` | `cost_to_develop` | research days | develop days | `weighting` | `unlock_at_facility_level` (all 46 trees) | `supplier_delivery_date_index` |
+|---|---|---|---|---|---|---|---|---|---|
+| Aerodynamics | Minor | 13 | 500 | 1000 | 20 | 25 | 1.0 | 0 68%, 1 17%, 2 15% | -1 |
+| Aerodynamics | Major | 9 | 1000 | 1000 | 30 | 25 | 2 | 0 64%, 3 20%, 2 14%, 1 2% | -1 |
+| Aerodynamics | Ultimate | 3 | 1500 | 1000 | 40 | 25 | 3 | 3 70%, 4 30% | -1 |
+| Chassis | Minor | 12 | 500 | 1000 | 20 | 25 | 1.0 | 0 84%, 1 16% | -1 |
+| Chassis | Major | 7 | 1000 | 1000 | 30 | 25 | 2 | 0 43%, 2 42%, 1 16% | -1 |
+| Chassis | Ultimate | 4 | 1500 | 1000 | 40 | 25 | 3 | 0 46%, 3 32%, 4 23% | -1 |
+| Durability | Minor | 6 | 500 | 1000 | 20 | 25 | 1 | 0 100% | -1 |
+| Durability | Major | 6 | 1000 | 1000 | 30 | 25 | 2 | 0 91%, 1 6%, 2 3% | -1 |
+| Durability | Ultimate | 6 | 1500 | 1000 | 40 | 25 | 3 (1 on `turbo_charger_durability_3`) | 3 81%, 4 14%, 2 5% | -1 |
+| Powertrain | Minor | 8 | 500 | 1000 | 20 | 25 | 1.0 | 0 85%, 1 12%, 2 3% | -1 |
+| Powertrain | Major | 6 | 1000 | 1000 | 30 | 25 | 2 | 0 35%, 1 33%, 2 32% | -1 |
+| Powertrain | Ultimate | 3 | 1500 | 1000 | 40 | 25 | 3 (4 on 2% of rows) | 3 72%, 4 28% | -1 |
+| hub (`fake`) | none | 1 | 0 | 1000 | 20 | 25 | 1.0 | 0 | -1 |
+
+Every upgrade row, the hub included, carries the same 15 keys and no others: `_metadata_` (2),
+`upgrade_name` (2), `upgrade_type` (3), `upgrade_size` (3), `upgrade_department` (3), `cost` (0),
+`cost_to_develop` (0), `weighting` (1), `unlock_at_facility_level` (0),
+`supplier_delivery_date_index` (0), `links` (13), `fitting_times.num_days_to_research` (0),
+`fitting_times.num_days_to_develop` (0), `grid_coordinates.x` (1), `grid_coordinates.y` (1).
+`upgrade_name` is the card-art frame (`om_xm_*`) and is the only field that varies between the
+named teams' trees.
+
+Layout: the trees of one team share one grid around the hub `default` at (0,0). Aerodynamics
+grows up (x −3…3, y −3…−10), Chassis right (x 3…10, y −3…3), Durability down (x −3…4, y 4…8)
+and Powertrain left (x −11…−4, y −2…2). A chain steps one unit per node (Durability's gearbox
+column is (0,4) → (0,5) → (0,6)); category lines sit one unit apart. `links` is the outward list
+of child labels, the node's own chain first and cross-branch children after it; a leaf has an
+empty list. The hub's `links` names each department's branch roots.
+
+### Our values
+
+Tyres uses Durability's economy (v0.6.1), so the tree takes the stock curve per size and
+Durability's facility levels: Minor and Major 0, Ultimate 3. An Ultimate starts facility-locked
+(`SetFacilityLocked(unlock_at_facility_level != 0)` at init) and unlocks through
+`Upgrade_EvalFacilityLock`, which reads department 4's modifiers, i.e. Durability's attributes on
+the `Fake` department row. That path is untested in game; if the Ultimates stay locked, set
+`SIZES['Ultimate']['facility']` to 0.
+
+| row | `_metadata_` | `upgrade_name` | `upgrade_type` | size | `cost` / `cost_to_develop` | days (research / develop) | `weighting` | facility | grid (x, y) | `links` |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | `tyres_thermal_1` | `tt_thermal_model` | Tyre Thermal | Minor | 500 / 1000 | 20 / 25 | 1.0 | 0 | 6, 5 | 2 |
+| 2 | `tyres_thermal_2` | `tt_rim_heat_shield` | Tyre Thermal | Minor | 500 / 1000 | 20 / 25 | 1.0 | 0 | 6, 6 | 3 |
+| 3 | `tyres_thermal_3` | `tt_rim_cooling` | Tyre Thermal | Major | 1000 / 1000 | 30 / 25 | 2 | 0 | 6, 7 | 4 |
+| 4 | `tyres_thermal_4` | `tt_carcass_heat` | Tyre Thermal | Ultimate | 1500 / 1000 | 40 / 25 | 3 | 3 | 6, 8 | |
+| 5 | `tyres_thermal_5` | `bc_duct_inlet` | Brake Cooling | Minor | 500 / 1000 | 20 / 25 | 1.0 | 0 | 7, 5 | 6 |
+| 6 | `tyres_thermal_6` | `bc_disc_ventilation` | Brake Cooling | Minor | 500 / 1000 | 20 / 25 | 1.0 | 0 | 7, 6 | 7, 13 |
+| 7 | `tyres_thermal_7` | `bc_caliper_fins` | Brake Cooling | Major | 1000 / 1000 | 30 / 25 | 2 | 0 | 7, 7 | 8 |
+| 8 | `tyres_thermal_8` | `bc_drum_package` | Brake Cooling | Ultimate | 1500 / 1000 | 40 / 25 | 3 | 3 | 7, 8 | |
+| 9 | `tyres_thermal_9` | `tl_sidewall_load` | Tyre Life | Minor | 500 / 1000 | 20 / 25 | 1.0 | 0 | 9, 5 | 10 |
+| 10 | `tyres_thermal_10` | `tl_pressure_telemetry` | Tyre Life | Minor | 500 / 1000 | 20 / 25 | 1.0 | 0 | 9, 6 | 11 |
+| 11 | `tyres_thermal_11` | `tl_camber_wear` | Tyre Life | Major | 1000 / 1000 | 30 / 25 | 2 | 0 | 9, 7 | 12 |
+| 12 | `tyres_thermal_12` | `tl_low_deg_package` | Tyre Life | Ultimate | 1500 / 1000 | 40 / 25 | 3 | 3 | 9, 8 | |
+| 13 | `tyres_thermal_13` | `pc_radiator_core` | Power Unit Cooling | Minor | 500 / 1000 | 20 / 25 | 1.0 | 0 | 8, 6 | 14 |
+| 14 | `tyres_thermal_14` | `pc_cooling_louvres` | Power Unit Cooling | Major | 1000 / 1000 | 30 / 25 | 2 | 0 | 8, 7 | 15 |
+| 15 | `tyres_thermal_15` | `pc_integrated_thermal` | Power Unit Cooling | Ultimate | 1500 / 1000 | 40 / 25 | 3 | 3 | 8, 8 | |
+
+`links` lists child rows (`tyres_thermal_<n>`). Every row has `upgrade_department` `Fake` and
+`supplier_delivery_date_index` -1. The hub's `links` keeps its stock targets and gains
+`tyres_thermal_1,tyres_thermal_5,tyres_thermal_9`; `_upgrade_instancecount_` is 16 (13 without
+branch D).
+
+The block sits in the free quadrant between Chassis and Durability, two units clear of both, in
+four columns one unit apart. Branch D hangs off B2 in the column next to B, so no link crosses a
+column; without it, Tyre Life moves to x = 8.
+
+```
+        x=6   x=7   x=8   x=9
+  y=5   A1    B1    .     C1        A  Tyre Thermal
+  y=6   A2    B2 -> D1    C2        B  Brake Cooling
+  y=7   A3    B3    D2    C3        C  Tyre Life
+  y=8   A4    B4    D3    C4        D  Power Unit Cooling
+```
+
+Row numbers are fixed per upgrade (A 1-4, B 5-8, C 9-12, D 13-15): the native hooks recognise our
+instances by `djb2("tyres_thermal_<n>_255")`, and a save stores each instance's state under that
+hash, so dropping branch D never renumbers the core twelve. Saves made with v0.8.0 or earlier
+carry states for `tyres_thermal_1..3`; they land on A1-A3.
+
 ## Residual unknowns (the in-game test resolves these)
 
 - **Does the game read the 5th department row?** Resolved by RE + the live
@@ -301,11 +398,13 @@ The icon is authored as `icons/tyres.svg` (a slick F1 tyre with a sidewall strip
 - **Upgrade-tree attachment (v0.4.1 RESOLVED).** `Career_Load_UpgradeRows` opens
   the tree by dept NAME, `upgrades.2026.trees.<team_link>.fake` for code 4, where
   `team_link` is the team's engine-supplier constructor token (McLaren save ->
-  `mercedes` -> `{deae0310dc31dce2}`, matching the live diagnostic). The 3 nodes
-  ship in all 46 real `trees.<team_link>.fake` hub containers as `upgrade_1/2/3`
-  (`upgrade_department=Fake`, ENUM A=4), attached to the hub `default` via its
-  `links` list and chained outward. Open: confirm the branch renders and is
-  buyable, and the rating integration (in-game test).
+  `mercedes` -> `{deae0310dc31dce2}`, matching the live diagnostic). The Tyres
+  rows ship in all 46 real `trees.<team_link>.fake` hub containers as
+  `upgrade_1..15` (`upgrade_1/2/3` up to v0.8.0; `upgrade_department=Fake`,
+  ENUM A=4), attached to the hub `default` via its `links` list and chained
+  outward. v0.7.2 confirmed three rows render and can be bought. Open for v0.9.0:
+  all 15 rows on the page, the facility lock on the Ultimates, and the rating
+  integration of the new types (in-game test).
 - **Save tolerance** - whether a career save accepts the new row/enum value.
 - **Enum overflow** - no fixed array keyed by the department byte was found
   (the loader's embedded sub-arrays have ~18 slots), but value 4 in a consumer
