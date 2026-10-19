@@ -8,6 +8,10 @@
 namespace rnd_tyres_icon {
 
 void probe();
+void probe_art();
+bool part_art_live();
+bool part_mask_live();
+bool category_live();
 bool live();
 const char *dept(const char *borrowed);
 const char *wheel(const char *borrowed);
