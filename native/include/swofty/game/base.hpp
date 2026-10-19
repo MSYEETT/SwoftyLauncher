@@ -8,6 +8,7 @@ namespace swofty::game {
 inline constexpr const char build_sha256[] = "d873a1c8d2044cef2fd76c99c9d5a97649c5b815d055540995105f46619865ae";
 
 struct Action;
+struct AiHandlingConfig;
 struct CarPerfVehicle;
 struct CarPhysicsRecord;
 struct CarWheelState;
@@ -29,6 +30,7 @@ struct TileEntry;
 struct TileList;
 struct UpgradeEffectDef;
 struct UpgradeRecord;
+struct VehicleIdentity;
 struct VehiclePackageRow;
 struct VmPropHolder;
 

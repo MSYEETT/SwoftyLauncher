@@ -23,6 +23,11 @@ pub struct Binding {
 }
 
 #[repr(C)]
+pub struct AiHandlingConfig {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct CarPerfVehicle {
     _opaque: [u8; 0],
 }
@@ -94,6 +99,11 @@ pub struct UpgradeEffectDef {
 
 #[repr(C)]
 pub struct UpgradeRecord {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct VehicleIdentity {
     _opaque: [u8; 0],
 }
 
@@ -182,6 +192,10 @@ pub type FeTile_Build_List_t = unsafe extern "C" fn(
     a7: u32,
 );
 pub type FeTile_ItemBase_Populate_t = unsafe extern "C" fn(item: *mut HomeItem, node: *mut c_void, a7: u32);
+pub type Ne_Get_SettingBool_t =
+    unsafe extern "C" fn(node: *mut c_void, name: *const c_char, out: *mut u8, def: u8) -> u64;
+pub type Ne_Get_SettingU32_t =
+    unsafe extern "C" fn(node: *mut c_void, name: *const c_char, out: *mut u32, def: u32) -> u64;
 pub type Ne_Log_Thunk_t = unsafe extern "C" fn(channel: *const c_char, fmt: *const c_char, ...);
 pub type Ne_Make_StrFromCStr_t =
     unsafe extern "C" fn(out: *mut *mut NeStr, s: *const c_char, flags: u32, len: usize) -> u32;
@@ -222,6 +236,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Stable,
     };
+    pub const Ne_Get_SettingBool: Binding = Binding {
+        id: "Ne_Get_SettingBool",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Get_SettingU32: Binding = Binding {
+        id: "Ne_Get_SettingU32",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_Log_Thunk: Binding = Binding {
         id: "Ne_Log_Thunk",
         kind: "func",
@@ -260,6 +284,21 @@ pub mod bindings {
     pub const site_Ne_Format_String_Entry: Binding = Binding {
         id: "site_Ne_Format_String_Entry",
         kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Ne_HwConfigParseCall: Binding = Binding {
+        id: "site_Ne_HwConfigParseCall",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Ne_HwXmlParseCall: Binding = Binding {
+        id: "site_Ne_HwXmlParseCall",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Ne_HwXmlWriteCall: Binding = Binding {
+        id: "site_Ne_HwXmlWriteCall",
+        kind: "call",
         status: Status::Experimental,
     };
     pub const site_Sess_AiVehicleRegisterCall: Binding = Binding {
