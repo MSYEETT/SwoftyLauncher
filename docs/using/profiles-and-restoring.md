@@ -15,7 +15,11 @@ If anything couldn't be restored, you'll see it in the report. Resolve those iss
 
 ## After a crash
 
-Before you return to vanilla play after a crash, run `swofty restore`. Then use `swofty verify` to check for remaining changes, or `swofty doctor` if you want to check your whole setup.
+A session puts the game folder back when the game exits, whether it quits, crashes or is stopped. If the launcher itself was stopped before it finished, the next launch, `swofty run`, `swofty apply` or launcher start puts the folder back first and says **Recovered the game folder from an unfinished session**. Use `swofty verify` to check for remaining changes, or `swofty doctor` if you want to check your whole setup.
+
+## Files in the way
+
+When a file the profile needs to place is already in the game folder and the launcher can't prove it put it there (for example, a mod you copied in by hand), it leaves the file alone and doesn't start the game. In the launcher, select **Restore game folder**. From the command line, run `swofty restore`. Either one rolls back the launcher's changes and moves those files to `$DATA/set-aside/<time>/`, where you can get them back.
 
 ## After a game update
 

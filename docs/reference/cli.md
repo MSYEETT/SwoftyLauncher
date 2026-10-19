@@ -10,7 +10,9 @@ swofty run
 
 Start Steam first, then run this to launch F1 25 and follow its logs. You can only play offline with mods.
 
-When you leave the game, you'll get a summary with the exit code and any crash details. To stop following the logs while keeping the game running, press **Ctrl-C**.
+When you leave the game, you'll get a summary with the exit code and any crash details. `swofty run` exits once the session's game files are rolled back.
+
+To stop following the logs while keeping the game running, press **Ctrl-C**. When Steam launched the game, `swofty run` exits right away. For a direct launch, it keeps waiting to roll the game files back when the game exits; press **Ctrl-C** again to leave now, and the next start rolls them back.
 
 | Flag | Purpose |
 |---|---|
@@ -24,7 +26,11 @@ When you leave the game, you'll get a summary with the exit code and any crash d
 
 On Linux, the [Steam launch option](/guide/linux) uses `swofty run -- %command%`.
 
-For a direct launch, you'll find the wrapper's output in `$DATA/state/wrapper-run.log`. If the wrapper exits before the game starts or while it runs, `swofty run` prints the wrapper's last lines and its error, then exits with an error itself. It stops waiting after 10 minutes, or after 2 minutes when Steam launches the game.
+For a direct launch, you'll find the wrapper's output in `$DATA/state/wrapper-run.log`, and `swofty run` prints what the wrapper reports after the game exits. If the wrapper exits before the game starts or while it runs, `swofty run` prints the wrapper's last lines and its error, rolls back anything the wrapper left, then exits with an error itself. It stops waiting after 10 minutes, or after 2 minutes when Steam launches the game.
+
+Before anything else, `swofty run` and `swofty apply` roll back what an unfinished session left in the game folder and print `Recovered the game folder from an unfinished session` with what they put back and the `swofty doctor` report. If a session is still running or rolling back, they wait up to 2 minutes for it.
+
+If the wrapper receives a stop signal (Steam's **Stop**, `kill`, a closed terminal), it closes the game it started and rolls the session back before exiting.
 
 ## `swofty logs`
 
@@ -52,7 +58,7 @@ Use `swofty verify [--game <dir>]` to check whether your game files differ from 
 
 ## `swofty restore`
 
-Close the game, then run `swofty restore` to put back the backed-up files and remove launcher additions. If anything can't be restored, the command tells you.
+Close the game, then run `swofty restore` to put back the backed-up files and remove launcher additions. Files of unknown origin that stopped the last launch are moved to `$DATA/set-aside/<time>/` rather than deleted. If anything can't be restored, the command tells you.
 
 See [Restoring the game](/using/profiles-and-restoring).
 

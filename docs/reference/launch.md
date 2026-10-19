@@ -18,4 +18,4 @@ You'll find session logs in `$DATA/sessions/<id>/`. Run `swofty logs` for the la
 
 If Proton can't create the game process, you'll see `Proton could not start the game process (CreateProcess error N)` instead of an exit code in `swofty run`, `swofty logs` and the launcher.
 
-Before you return to vanilla play, close the game, then run `swofty restore`.
+When the game exits, the session puts the game folder back to vanilla. To check, run `swofty verify`.
