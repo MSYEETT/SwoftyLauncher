@@ -102,12 +102,13 @@ Enable the addon in a modded profile and you'll see its `Example` section in the
 
 ## How the launcher runs the plugin
 
-Your plugin starts when the launcher first needs it: when someone opens one of its sections, drops a file routed to it, builds a profile that enables it, or runs one of its commands. The launcher picks `program[<os>]` for the host OS (`linux`, `windows`, `macos`). If you haven't supplied that entry, the plugin fails with `has no helper for <os>`.
+Your plugin starts when the launcher first needs it: when the launcher starts with one of its sections in the sidebar, or when someone drops a file routed to it, builds a profile that enables it, or runs one of its commands. It keeps running until the launcher exits or the addon is reinstalled. The launcher picks `program[<os>]` for the host OS (`linux`, `windows`, `macos`). If you haven't supplied that entry, the plugin fails with `has no helper for <os>`.
 
 - The working directory is the addon folder, `$DATA/addons/<id>/`.
 - stderr is redirected to `$DATA/cache/addons/<id>/helper.log`.
 - On Windows the process gets no console window.
-- The launcher asks for a section's `view` only while that section is open. It asks for a `summary` only when the plugin is already running and idle; a summary never starts the plugin.
+- The launcher asks for a section's `view` at start, when the section opens, and after a change. It keeps the last view and shows it at once while it asks for a new one. While another call is running, such as an `import` or a `build`, it shows the last view and asks again afterwards.
+- It asks for a `summary` only when the plugin is already running and idle; a summary never starts the plugin. While the plugin is busy, the profile card keeps its last summary.
 - The plugin exits when stdin closes.
 
 ## The protocol {#the-protocol}
