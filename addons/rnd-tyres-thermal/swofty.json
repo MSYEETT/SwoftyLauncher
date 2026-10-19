@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "swofty.rnd-tyres-thermal",
   "name": "R&D: Tyres & Thermal Management",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "author": "Swofty",
   "description": "Adds a new career R&D department, Tyres & Thermal Management, alongside the stock four.",
   "license": "AGPL-3.0-or-later",
@@ -110,7 +110,7 @@
       "id": "instantiate_tyres_upgrades",
       "type": "toggle",
       "label": "Instantiate the Tyres upgrades",
-      "description": "Give the three Tyres & Thermal upgrades real R&D states so the Tyres department page lists them and they can be researched. The stock tree hub stays hidden. Install-time; relaunch after changing.",
+      "description": "Give the Tyres & Thermal upgrades real R&D states so the Tyres department page lists them and they can be researched. The stock tree hub stays hidden. Install-time; relaunch after changing.",
       "default": true,
       "binds": "native"
     },
@@ -150,14 +150,22 @@
       "id": "tyres_test_price",
       "type": "toggle",
       "label": "Tyres upgrades cost 5 points (test)",
-      "description": "Temporary test price: the three Tyres & Thermal upgrades cost 5 research points for research and development, standard or rush. Turn off to use the database cost.",
+      "description": "Test price: every Tyres & Thermal upgrade costs 5 research points for research and development, standard or rush. Off uses the real costs.",
+      "default": false,
+      "binds": "native"
+    },
+    {
+      "id": "log_upgrade_apply",
+      "type": "toggle",
+      "label": "Log upgrade effects",
+      "description": "Write each Tyres upgrade type's progress to swofty/loader.log when a car is built for a session, as 'upgrade apply: type <id> <block> perc <x>'.",
       "default": true,
       "binds": "native"
     }
   ],
   "operations": {
-    "database": ["db/departments.json", "db/tyres_tree.json"],
-    "erp": ["erp/rnd_fifth_pie.json", "erp/rnd_tyres_icon.json"],
+    "database": ["db/departments.json", "db/upgrade_types.json", "db/tyres_tree.json"],
+    "erp": ["erp/rnd_fifth_pie.json", "erp/rnd_tyres_icon.json", "erp/rnd_upgrade_vtf.json"],
     "assets": ["assets/text.json"],
     "native": [{ "dll": "native/rnd_departments.dll" }]
   }
