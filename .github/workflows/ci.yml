@@ -88,6 +88,14 @@ jobs:
       - name: Self-test the executable
         run: dist/swofty-ui/swofty-ui --self-test
 
+      - name: Upload the executable
+        uses: actions/upload-artifact@v7
+        with:
+          name: swofty-ui-${{ runner.os }}
+          path: dist/swofty-ui/swofty-ui*
+          if-no-files-found: error
+          retention-days: 14
+
   docs:
     name: Documentation build
     runs-on: ubuntu-latest
