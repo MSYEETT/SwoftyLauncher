@@ -95,3 +95,14 @@ class Archive:
 
 def stock(game=None, erp=CAREER):
     return Archive(os.path.join(ui_package(game), erp))
+
+
+def carriers(game, resource):
+    import glob
+    ui = ui_package(game)
+    out = []
+    for path in sorted(glob.glob(os.path.join(ui, '*.erp'))):
+        arc = Archive(path)
+        if resource in arc.names():
+            out.append((os.path.basename(path), arc))
+    return out

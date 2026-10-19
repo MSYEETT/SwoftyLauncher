@@ -36,6 +36,36 @@
       "when": {
         "tyres_icon": true
       },
+      "erp": "2025_asset_groups/ui_package/flow_r_and_d.erp",
+      "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.career.rnd_dept_icons_small.texarray.image",
+      "fragment": 0,
+      "source": "icons/frames/rnd_dept_icons_small.image.f0"
+    },
+    {
+      "op": "replace-resource",
+      "when": {
+        "tyres_icon": true
+      },
+      "erp": "2025_asset_groups/ui_package/flow_r_and_d.erp",
+      "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.career.rnd_dept_icons_small.texarray.image",
+      "fragment": 1,
+      "source": "icons/frames/rnd_dept_icons_small.image.f1"
+    },
+    {
+      "op": "replace-resource",
+      "when": {
+        "tyres_icon": true
+      },
+      "erp": "2025_asset_groups/ui_package/flow_r_and_d.erp",
+      "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.career.rnd_dept_icons_small.texarray",
+      "fragment": 0,
+      "source": "icons/frames/rnd_dept_icons_small.texarray.f0"
+    },
+    {
+      "op": "replace-resource",
+      "when": {
+        "tyres_icon": true
+      },
       "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
       "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.career.rnd_om_xm.rnd_dept_icons_small.texarray.image",
       "fragment": 0,
@@ -57,6 +87,36 @@
         "tyres_icon": true
       },
       "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
+      "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.career.rnd_om_xm.rnd_dept_icons_small.texarray",
+      "fragment": 0,
+      "source": "icons/frames/rnd_om_xm.rnd_dept_icons_small.texarray.f0"
+    },
+    {
+      "op": "replace-resource",
+      "when": {
+        "tyres_icon": true
+      },
+      "erp": "2025_asset_groups/ui_package/flow_r_and_d.erp",
+      "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.career.rnd_om_xm.rnd_dept_icons_small.texarray.image",
+      "fragment": 0,
+      "source": "icons/frames/rnd_om_xm.rnd_dept_icons_small.image.f0"
+    },
+    {
+      "op": "replace-resource",
+      "when": {
+        "tyres_icon": true
+      },
+      "erp": "2025_asset_groups/ui_package/flow_r_and_d.erp",
+      "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.career.rnd_om_xm.rnd_dept_icons_small.texarray.image",
+      "fragment": 1,
+      "source": "icons/frames/rnd_om_xm.rnd_dept_icons_small.image.f1"
+    },
+    {
+      "op": "replace-resource",
+      "when": {
+        "tyres_icon": true
+      },
+      "erp": "2025_asset_groups/ui_package/flow_r_and_d.erp",
       "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.career.rnd_om_xm.rnd_dept_icons_small.texarray",
       "fragment": 0,
       "source": "icons/frames/rnd_om_xm.rnd_dept_icons_small.texarray.f0"
