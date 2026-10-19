@@ -203,6 +203,14 @@ impl Store {
                 p.set_enabled(id, true).expect("not vanilla");
             }
         }
+        if self
+            .addons_dir()
+            .join(crate::managed::ID)
+            .join(MANIFEST_FILE)
+            .is_file()
+        {
+            p.set_enabled(crate::managed::ID, true).expect("not vanilla");
+        }
     }
 
     pub fn install_addon(&self, src: &Path) -> Result<AddonManifest> {
@@ -239,6 +247,11 @@ impl Store {
     pub fn remove_addon(&self, id: &str) -> Result<()> {
         if self.is_builtin(id) {
             return Err(Error::Other(format!("{id} is built in and cannot be removed")));
+        }
+        if crate::managed::is_managed(id) {
+            return Err(Error::Other(format!(
+                "{id} is managed by the launcher and cannot be removed"
+            )));
         }
         let dir = self.addons_dir().join(id);
         if !dir.exists() {
@@ -516,6 +529,41 @@ mod tests {
             .finish()
             .unwrap();
         assert!(store.install_addon(&bare).is_err());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn manages_the_team_simplified_addon() {
+        let root = tmp("managed-addon");
+        let store = Store::new(root.join("data"));
+        let manifest = r#"{"schema_version":1,"id":"teamsimplified.mods","name":"Simplified for Swofty","version":"0.5.0","author":"Team Simplified","compat":{"game":"f1_25"},"launcher":{"program":{"linux":"bin/helper","windows":"bin/helper.exe"}}}"#;
+        let pkg = root.join("teamsimplified.mods.swoftyaddon");
+        let mut z = zip::ZipWriter::new(std::fs::File::create(&pkg).unwrap());
+        let opts = zip::write::SimpleFileOptions::default();
+        z.start_file(MANIFEST_FILE, opts).unwrap();
+        std::io::Write::write_all(&mut z, manifest.as_bytes()).unwrap();
+        z.start_file("bin/helper", opts).unwrap();
+        z.finish().unwrap();
+
+        let m = store.install_addon(&pkg).unwrap();
+        assert_eq!(m.id, crate::managed::ID);
+        assert!(store.addons().unwrap().contains_key(crate::managed::ID));
+
+        let err = store.remove_addon(crate::managed::ID).unwrap_err();
+        assert!(err.to_string().contains("managed"), "{err}");
+        assert!(
+            store
+                .addons_dir()
+                .join(crate::managed::ID)
+                .join(MANIFEST_FILE)
+                .is_file()
+        );
+
+        let reg = store.registry().unwrap();
+        assert!(reg.get(crate::managed::ID).unwrap().locked);
+
+        let p = store.profile(DEFAULT_PROFILE).unwrap();
+        assert!(p.enabled().any(|id| id == crate::managed::ID));
         std::fs::remove_dir_all(&root).ok();
     }
 

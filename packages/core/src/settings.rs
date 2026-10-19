@@ -224,7 +224,7 @@ impl SessionSettings {
                 author: m.author.clone(),
                 description: m.description.clone().unwrap_or_default(),
                 enabled: enabled.contains(&m.id.as_str()),
-                locked: m.is_builtin(),
+                locked: m.is_builtin() || crate::managed::is_managed(&m.id),
                 dlls: m
                     .operations
                     .native
@@ -609,6 +609,24 @@ mod tests {
         assert_eq!(json["mods"][0]["id"], "ts.sauber");
         assert_eq!(json["mods"][0]["name"], "Sauber 2026");
         assert_eq!(serde_json::from_value::<SessionSettings>(json).unwrap(), s);
+    }
+
+    #[test]
+    fn managed_addon_is_locked_in_game() {
+        let mut installed = installed();
+        let managed = AddonManifest::parse(
+            r#"{"schema_version":1,"id":"teamsimplified.mods","name":"Simplified for Swofty",
+                "version":"0.5.0","author":"Team Simplified","compat":{"game":"f1_25"}}"#,
+        )
+        .unwrap();
+        installed.insert("teamsimplified.mods".into(), managed);
+        let mut p = Profile::new("x");
+        p.set_enabled("teamsimplified.mods", true).unwrap();
+        let s = SessionSettings::build(&p, &installed, None).unwrap();
+        let a = s.addons.iter().find(|a| a.id == "teamsimplified.mods").unwrap();
+        assert!(a.locked && a.enabled);
+        let grid = s.addons.iter().find(|a| a.id == "a.grid").unwrap();
+        assert!(!grid.locked);
     }
 
     fn screens_manifest(id: &str, screens: &str) -> AddonManifest {

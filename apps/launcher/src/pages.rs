@@ -526,7 +526,7 @@ impl Shell {
 
     fn addon_body(&self, m: &AddonItem, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let man = &m.manifest;
-        let remove = (!man.is_builtin()).then(|| {
+        let remove = (!man.is_builtin() && !m.locked).then(|| {
             let (id, name) = (man.id.clone(), man.name.clone());
             h_flex().justify_end().pt(px(2.)).child(
                 h_flex()

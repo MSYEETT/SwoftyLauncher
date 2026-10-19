@@ -53,8 +53,9 @@ impl Registry {
         let entries = store
             .addons()?
             .into_values()
-            .map(
-                |m| match store.builtins().iter().find(|b| b.addon.manifest().id == m.id) {
+            .map(|m| {
+                let managed = crate::managed::is_managed(&m.id);
+                match store.builtins().iter().find(|b| b.addon.manifest().id == m.id) {
                     Some(b) => Entry {
                         addon: b.addon.clone(),
                         declared: false,
@@ -67,19 +68,19 @@ impl Registry {
                             addon: h,
                             declared: false,
                             helper: true,
-                            locked: false,
-                            default_on: false,
+                            locked: managed,
+                            default_on: managed,
                         },
                         None => Entry {
-                            locked: m.id == CORE_ID,
-                            default_on: m.id == CORE_ID,
+                            locked: m.id == CORE_ID || managed,
+                            default_on: m.id == CORE_ID || managed,
                             declared: true,
                             helper: false,
                             addon: Arc::new(DeclaredAddon::new(m)),
                         },
                     },
-                },
-            )
+                }
+            })
             .collect();
         Ok(Self { entries })
     }
