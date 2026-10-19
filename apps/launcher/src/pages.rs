@@ -1215,12 +1215,12 @@ impl Shell {
     }
 
     pub(crate) fn go(&mut self, page: Page, cx: &mut Context<Self>) {
+        let moved = self.page != page;
         self.page = page;
-        if let Page::Section(i) = page
-            && let Some(s) = self.library.sections.get(i)
-            && !self.views.contains_key(&format!("{}/{}", s.addon, s.spec.id))
-        {
-            self.refresh_views(cx);
+        if let Page::Section(i) = page {
+            self.fetch_views(Some(i), cx);
+        } else if moved {
+            self.reload(cx);
         }
         cx.notify();
     }

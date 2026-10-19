@@ -80,6 +80,9 @@ pub struct Shell {
     pub(crate) requests: Option<SystemTime>,
     pub(crate) console: Option<AnyWindowHandle>,
     pub(crate) views: HashMap<String, Result<View, String>>,
+    pub(crate) views_profile: String,
+    pub(crate) view_gen: u64,
+    pub(crate) view_gens: HashMap<String, u64>,
     pub(crate) busy: HashSet<String>,
     pub(crate) open_row: Option<String>,
     pub(crate) progress: Option<(f32, String)>,
@@ -250,6 +253,9 @@ impl Shell {
             requests: None,
             console: None,
             views: HashMap::new(),
+            views_profile: String::new(),
+            view_gen: 0,
+            view_gens: HashMap::new(),
             busy: HashSet::new(),
             open_row: None,
             progress: None,
@@ -315,9 +321,12 @@ impl Shell {
             window.push_notification(Notification::info(text.join("\n")).title(recovery::HEADLINE), cx);
         }
         if let Some(install) = probe.install {
+            let changed = !self.detected || self.install != install;
             self.install = install;
             self.detected = true;
-            self.reload(cx);
+            if changed || probe.merged {
+                self.reload(cx);
+            }
         } else if probe.merged {
             self.reload(cx);
         }

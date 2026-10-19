@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -17,10 +18,10 @@ use swofty_core::launcher::Progress;
 use swofty_core::profile::Profile;
 use swofty_core::registry::{Host, Registry};
 use swofty_core::store::Store;
-use swofty_core::view::{self, Art, Block, Body, ButtonKind, Control, Effect, Event, Row, Style, Tone};
+use swofty_core::view::{self, Art, Block, Body, ButtonKind, Control, Effect, Event, Row, Style, Tone, View};
 
 use crate::game::Install;
-use crate::library::plural;
+use crate::library::{SectionItem, plural};
 use crate::pages::{GUTTER, badge, chevron, fact, label, monogram, names, stat, tag};
 use crate::shell::{Page, Shell};
 use crate::theme::Palette;
@@ -106,6 +107,10 @@ fn art(a: &Art, p: Palette) -> AnyElement {
     }
 }
 
+pub(crate) fn section_key(s: &SectionItem) -> String {
+    format!("{}/{}", s.addon, s.spec.id)
+}
+
 fn file_name(path: &Path) -> String {
     path.file_name().map_or_else(
         || path.display().to_string(),
@@ -115,6 +120,10 @@ fn file_name(path: &Path) -> String {
 
 impl Shell {
     pub(crate) fn refresh_views(&mut self, cx: &mut Context<Self>) {
+        self.fetch_views(None, cx);
+    }
+
+    pub(crate) fn fetch_views(&mut self, only: Option<usize>, cx: &mut Context<Self>) {
         let store = self.store.clone();
         let library = &self.library;
         let registry = library.registry.clone();
@@ -124,39 +133,68 @@ impl Shell {
             Page::Section(i) => Some(i),
             _ => None,
         };
-        let sections: Vec<(String, String)> = library
+        let keys: HashSet<String> = library.sections.iter().map(section_key).collect();
+        if self.views_profile != profile.name {
+            self.views_profile = profile.name.clone();
+            self.views.clear();
+        }
+        self.views.retain(|k, _| keys.contains(k));
+        let prefetch = self.detected;
+        let sections: Vec<(String, String, bool)> = library
             .sections
             .iter()
             .enumerate()
-            .filter(|(i, s)| open == Some(*i) || !registry.get(&s.addon).is_some_and(|e| e.helper))
-            .map(|(_, s)| (s.addon.clone(), s.spec.id.clone()))
+            .filter(|(i, _)| only.is_none_or(|o| o == *i))
+            .filter(|(i, s)| {
+                open == Some(*i) || prefetch || !registry.get(&s.addon).is_some_and(|e| e.helper)
+            })
+            .map(|(_, s)| {
+                let key = section_key(s);
+                let cached = self.views.contains_key(&key);
+                (s.addon.clone(), s.spec.id.clone(), cached)
+            })
             .collect();
         if sections.is_empty() {
-            self.views.clear();
             return;
         }
+        self.view_gen += 1;
+        let generation = self.view_gen;
         cx.spawn(async move |this, cx| {
-            let views = cx
+            let views: Vec<(String, Result<View, String>)> = cx
                 .background_executor()
                 .spawn(async move {
                     let game = game(&store, install.as_ref());
                     sections
                         .into_iter()
-                        .map(|(addon, section)| {
+                        .filter_map(|(addon, section, cached)| {
                             let view = registry
                                 .get(&addon)
                                 .ok_or_else(|| format!("{addon} is gone"))
                                 .and_then(|e| {
                                     let host = host(&store, &addon, &profile, game.as_ref())?;
-                                    e.addon.view(&host.cx(), &section).map_err(|e| e.to_string())
+                                    let view = match (&e.plugin, cached) {
+                                        (Some(plugin), true) => plugin.try_view(&host.cx(), &section),
+                                        _ => Some(e.addon.view(&host.cx(), &section)),
+                                    };
+                                    Ok(view.map(|v| v.map_err(|e| e.to_string())))
                                 });
-                            (format!("{addon}/{section}"), view)
+                            match view {
+                                Ok(None) => None,
+                                Ok(Some(view)) => Some((format!("{addon}/{section}"), view)),
+                                Err(e) => Some((format!("{addon}/{section}"), Err(e))),
+                            }
                         })
                         .collect()
                 })
                 .await;
             this.update(cx, |s, cx| {
-                s.views = views;
+                for (key, view) in views {
+                    if s.view_gens.get(&key).is_some_and(|g| *g > generation) {
+                        continue;
+                    }
+                    s.view_gens.insert(key.clone(), generation);
+                    s.views.insert(key, view);
+                }
                 cx.notify();
             })
             .ok();
