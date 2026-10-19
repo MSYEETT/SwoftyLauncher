@@ -13,6 +13,7 @@ re/
     globals.tsv          data, vtables (vtable[N]) and hook/trace code sites (site_*)
     structs/*.h          one struct per file, explicit offsets, per-field level + evidence
     signatures.json      byte signatures: unique match, anchor, resolve, target, builds verified on
+    anchors.json         per-signature string anchor (string, func_rva, func_offset, durable) for build-agnostic resolution
     db_keys.tsv          game-DB keys the code reads (fnv1a64 key, path, reader, sites)
     strings_anchors.tsv  strings and djb2 hashes that locate functions (with refs)
     subsystems.tsv       subsystem id, name prefix, current owner
@@ -48,6 +49,7 @@ re/
 | `ghidra_clone <name>` | a private persistent project for one agent |
 | `trace_build.py` | authoring trace configs (hooks by signature id) → runtime `swofty/trace.json` |
 | `pe_index.py`, `xref.py`, `disx.py`, `sigmk.py`, `annot.py` | section map, `.pdata` bounds, rel32/RIP-relative xref scan, disassembly, signature maker, string annotation (copied from `work/exe/tools`, which stays in place for the agents already using it) |
+| `anchormk.py`, `anchorcheck.py`, `anchorlib.py` | write `db/anchors.json` (string anchor per signature), prove each anchor resolves to the signature target on the Steam image, and the shared mirror of the core's runtime string-anchor resolver |
 
 ## Ghidra concurrency (tested)
 
