@@ -150,8 +150,28 @@ jobs:
         with:
           version: 0.16.0
 
-      - name: Build version.dll and swofty_core.dll
+      - name: Build version.dll, swofty_core.dll and the bundled addons
         run: native/build.sh
+
+      - name: Bundled addon packages
+        run: |
+          python3 - <<'EOF'
+          import glob, json, zipfile
+          pkgs = sorted(glob.glob('native/bundled/*.swoftyaddon'))
+          assert pkgs, 'native/build.sh packaged no bundled addons'
+          for p in pkgs:
+              z = zipfile.ZipFile(p)
+              names = z.namelist()
+              assert 'swofty.json' in names, f'{p}: no swofty.json at the root'
+              m = json.loads(z.read('swofty.json'))
+              for n in m.get('operations', {}).get('native', []):
+                  assert n['dll'] in names, f"{p}: {n['dll']} is missing"
+              assert not any(n.startswith('native/build/') for n in names), f'{p}: build files packaged'
+              print(p, names)
+          EOF
+
+      - name: RE-Optimization settings delta unit test
+        run: addons/re-optimization/native/test/run.sh
 
       - name: Events dispatcher unit test
         run: native/test/run_events_test.sh
