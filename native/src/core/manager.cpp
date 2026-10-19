@@ -40,6 +40,9 @@ struct Binding {
     long long anchor = 0, insn = 0, len = 0, rva = -1, slots = 0;
     bool resolved = false;
     uintptr_t addr = 0;
+    std::string sa_string;
+    long long sa_func_rva = -1, sa_func_off = 0;
+    bool sa_durable = false;
 };
 
 struct Mixin {
@@ -87,6 +90,7 @@ bool same_build;
 std::vector<Binding> bindings;
 std::unordered_map<std::string, size_t> binding_index;
 std::unordered_map<std::string, uintptr_t> scans;
+std::unordered_map<std::string, uintptr_t> anchor_funcs;
 json::Value session;
 bool have_session;
 std::vector<Addon> addons;
@@ -244,7 +248,178 @@ uintptr_t unresolved(const Binding &b, const char *why)
     return 0;
 }
 
-uintptr_t resolve_binding(const Binding &b)
+const IMAGE_NT_HEADERS *nt_headers()
+{
+    return reinterpret_cast<const IMAGE_NT_HEADERS *>(base + reinterpret_cast<const IMAGE_DOS_HEADER *>(base)->e_lfanew);
+}
+
+bool page_readable(uintptr_t p, size_t n)
+{
+    MEMORY_BASIC_INFORMATION m{};
+    if (!VirtualQuery(reinterpret_cast<void *>(p), &m, sizeof m) || m.State != MEM_COMMIT ||
+        !(m.Protect & 0xEE) || (m.Protect & (PAGE_GUARD | PAGE_NOACCESS)))
+        return false;
+    return p + n <= reinterpret_cast<uintptr_t>(m.BaseAddress) + m.RegionSize;
+}
+
+template <class F> void each_committed(uintptr_t lo, uintptr_t hi, F fn)
+{
+    for (uintptr_t a = lo; a < hi;) {
+        MEMORY_BASIC_INFORMATION m{};
+        if (!VirtualQuery(reinterpret_cast<void *>(a), &m, sizeof m))
+            break;
+        uintptr_t next = reinterpret_cast<uintptr_t>(m.BaseAddress) + m.RegionSize;
+        if (next > hi)
+            next = hi;
+        if (next <= a)
+            break;
+        if (m.State == MEM_COMMIT && (m.Protect & 0xEE) && !(m.Protect & (PAGE_GUARD | PAGE_NOACCESS)))
+            fn(a, next - a);
+        a = next;
+    }
+}
+
+uintptr_t section_end(const IMAGE_SECTION_HEADER *s)
+{
+    return base + s->VirtualAddress + (s->Misc.VirtualSize ? s->Misc.VirtualSize : s->SizeOfRawData);
+}
+
+uintptr_t locate_string(const std::string &str)
+{
+    std::string want = str;
+    want.push_back('\0');
+    auto nt = nt_headers();
+    auto s = IMAGE_FIRST_SECTION(nt);
+    uintptr_t hit = 0;
+    int hits = 0;
+    for (int i = 0; i < nt->FileHeader.NumberOfSections && hits < 2; i++, s++) {
+        DWORD ch = s->Characteristics;
+        if (!(ch & IMAGE_SCN_MEM_READ) || (ch & IMAGE_SCN_MEM_EXECUTE))
+            continue;
+        each_committed(base + s->VirtualAddress, section_end(s), [&](uintptr_t p, size_t n) {
+            if (n < want.size())
+                return;
+            const uint8_t *lo = reinterpret_cast<const uint8_t *>(p), *last = lo + n - want.size();
+            for (const uint8_t *q = lo; q <= last;) {
+                const uint8_t *f = reinterpret_cast<const uint8_t *>(memchr(q, want[0], last - q + 1));
+                if (!f)
+                    break;
+                if (!memcmp(f, want.data(), want.size()) && hits++ == 0)
+                    hit = reinterpret_cast<uintptr_t>(f);
+                q = f + 1;
+            }
+        });
+    }
+    return hits == 1 ? hit : 0;
+}
+
+uintptr_t func_base_of(uintptr_t site)
+{
+    struct RtFunc {
+        uint32_t begin, end, unwind;
+    };
+    auto nt = nt_headers();
+    auto &dir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION];
+    if (!dir.VirtualAddress || dir.Size < sizeof(RtFunc))
+        return 0;
+    auto *fn = reinterpret_cast<const RtFunc *>(base + dir.VirtualAddress);
+    size_t n = dir.Size / sizeof(RtFunc), lo = 0, hi = n;
+    uint32_t r = static_cast<uint32_t>(site - base);
+    while (lo < hi) {
+        size_t mid = (lo + hi) / 2;
+        if (fn[mid].begin <= r)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    if (lo && fn[lo - 1].begin <= r && r < fn[lo - 1].end)
+        return base + fn[lo - 1].begin;
+    return 0;
+}
+
+uintptr_t anchor_func(const std::string &str)
+{
+    auto cached = anchor_funcs.find(str);
+    if (cached != anchor_funcs.end())
+        return cached->second;
+    uintptr_t sVA = locate_string(str), fbase = 0;
+    bool conflict = false;
+    long long sites = 0;
+    if (sVA) {
+        auto nt = nt_headers();
+        auto s = IMAGE_FIRST_SECTION(nt);
+        for (int i = 0; i < nt->FileHeader.NumberOfSections && !conflict; i++, s++) {
+            DWORD ch = s->Characteristics;
+            if (!(ch & IMAGE_SCN_MEM_EXECUTE) || !(ch & IMAGE_SCN_MEM_READ) || (ch & IMAGE_SCN_MEM_WRITE))
+                continue;
+            each_committed(base + s->VirtualAddress, section_end(s), [&](uintptr_t p, size_t n) {
+                if (n < 4)
+                    return;
+                for (uintptr_t q = p, last = p + n - 4; q <= last; q++) {
+                    if (q + 4 + *reinterpret_cast<const int32_t *>(q) != sVA)
+                        continue;
+                    uintptr_t f = func_base_of(q);
+                    if (!f)
+                        continue;
+                    sites++;
+                    if (!fbase)
+                        fbase = f;
+                    else if (fbase != f)
+                        conflict = true;
+                }
+            });
+        }
+    }
+    uintptr_t out = (conflict || !sites) ? 0 : fbase;
+    anchor_funcs[str] = out;
+    return out;
+}
+
+uintptr_t apply_match(const Binding &b, uintptr_t match, const char **why)
+{
+    uintptr_t at = match + b.anchor, target = at, i = match + b.insn;
+    if (b.rkind == "rel32" || b.rkind == "riprel") {
+        if (!page_readable(std::min(at, i), (at > i ? at - i : i - at) + 16)) {
+            *why = "anchor offset is not mapped on this build";
+            return 0;
+        }
+    }
+    if (b.rkind == "rel32") {
+        bool branch = (byte_at(i) == 0xE8 || byte_at(i) == 0xE9) && at == i + 1;
+        bool jcc = byte_at(i) == 0x0F && (byte_at(i + 1) & 0xF0) == 0x80 && at == i + 2;
+        if (!branch && !jcc) {
+            *why = "anchor is not the rel32 of a call or jump";
+            return 0;
+        }
+        target = at + 4 + *reinterpret_cast<const int32_t *>(at);
+    } else if (b.rkind == "riprel") {
+        if (b.anchor <= b.insn || b.anchor + 4 > b.insn + b.len) {
+            *why = "anchor is not inside the RIP-relative instruction";
+            return 0;
+        }
+        target = i + b.len + *reinterpret_cast<const int32_t *>(at);
+    } else if (b.rkind != "addr") {
+        *why = "unknown resolve kind";
+        return 0;
+    }
+    if (!b.expect.empty() &&
+        (!page_readable(at, b.expect.size()) || memcmp(reinterpret_cast<const void *>(at), b.expect.data(), b.expect.size()))) {
+        *why = "expect bytes differ";
+        return 0;
+    }
+    bool code = b.kind == "func" || b.kind == "site" || b.kind == "call";
+    if (code ? !is_code(target) : !section_of(target)) {
+        *why = code ? "target is not in read-only code" : "target is outside the exe";
+        return 0;
+    }
+    if (same_build && b.rva >= 0 && rva(target) != (unsigned long long)b.rva) {
+        *why = "target differs from the KB build";
+        return 0;
+    }
+    return target;
+}
+
+uintptr_t resolve_by_pattern(const Binding &b, const char **why)
 {
     auto key = b.section + '|' + b.pattern;
     auto hit = scans.find(key);
@@ -253,31 +428,56 @@ uintptr_t resolve_binding(const Binding &b)
         api->scan(b.section.c_str(), b.pattern.c_str(), &match), scans[key] = match;
     else
         match = hit->second;
-    if (!match)
-        return unresolved(b, "signature did not match exactly once");
-    uintptr_t at = match + b.anchor, target = at, i = match + b.insn;
-    if (b.rkind == "rel32") {
-        bool branch = (byte_at(i) == 0xE8 || byte_at(i) == 0xE9) && at == i + 1;
-        bool jcc = byte_at(i) == 0x0F && (byte_at(i + 1) & 0xF0) == 0x80 && at == i + 2;
-        if (!branch && !jcc)
-            return unresolved(b, "anchor is not the rel32 of a call or jump");
-        target = at + 4 + *reinterpret_cast<const int32_t *>(at);
-    } else if (b.rkind == "riprel") {
-        if (b.anchor <= b.insn || b.anchor + 4 > b.insn + b.len)
-            return unresolved(b, "anchor is not inside the RIP-relative instruction");
-        target = i + b.len + *reinterpret_cast<const int32_t *>(at);
-    } else if (b.rkind != "addr") {
-        return unresolved(b, "unknown resolve kind");
+    if (!match) {
+        *why = "signature did not match exactly once";
+        return 0;
     }
-    if (!b.expect.empty() && memcmp(reinterpret_cast<const void *>(at), b.expect.data(), b.expect.size()))
-        return unresolved(b, "expect bytes differ");
-    bool code = b.kind == "func" || b.kind == "site" || b.kind == "call";
-    if (code ? !is_code(target) : !section_of(target))
-        return unresolved(b, code ? "target is not in read-only code" : "target is outside the exe");
-    if (same_build && b.rva >= 0 && rva(target) != (unsigned long long)b.rva)
-        return unresolved(b, "target differs from the KB build");
-    api->log("[core] bind %s -> 0x%llx (base+0x%llx), %s %s", b.id.c_str(), (unsigned long long)target, rva(target),
-             b.kind.c_str(), b.status.c_str());
+    return apply_match(b, match, why);
+}
+
+uintptr_t resolve_by_anchor(const Binding &b, const char **why)
+{
+    if (b.sa_string.empty()) {
+        *why = "no string anchor";
+        return 0;
+    }
+    uintptr_t f = anchor_func(b.sa_string);
+    if (!f) {
+        *why = "string anchor did not locate a unique function";
+        return 0;
+    }
+    if (same_build && b.sa_func_rva >= 0 && rva(f) != (unsigned long long)b.sa_func_rva) {
+        *why = "string anchor function differs from the KB build";
+        return 0;
+    }
+    return apply_match(b, f + b.sa_func_off, why);
+}
+
+uintptr_t resolve_binding(const Binding &b)
+{
+    const char *pw = "signature did not match exactly once", *aw = "no string anchor";
+    uintptr_t target = 0;
+    const char *method = "";
+    bool anchor_first = !same_build && !b.sa_string.empty();
+    if (anchor_first) {
+        if ((target = resolve_by_anchor(b, &aw)))
+            method = "string anchor";
+        else if ((target = resolve_by_pattern(b, &pw)))
+            method = "pattern";
+    } else {
+        if ((target = resolve_by_pattern(b, &pw)))
+            method = "pattern";
+        else if (!b.sa_string.empty() && (target = resolve_by_anchor(b, &aw)))
+            method = "string anchor (pattern fell back)";
+    }
+    if (!target) {
+        if (b.sa_string.empty())
+            return unresolved(b, pw);
+        api->log("[core] binding %s: unresolved (pattern: %s; string anchor: %s)", b.id.c_str(), pw, aw);
+        return 0;
+    }
+    api->log("[core] bind %s -> 0x%llx (base+0x%llx), %s %s via %s", b.id.c_str(), (unsigned long long)target,
+             rva(target), b.kind.c_str(), b.status.c_str(), method);
     return target;
 }
 
@@ -661,13 +861,25 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
         Binding b{j["id"].str(), j["kind"].str(), j["status"].str(), j["section"].str(), j["pattern"].str(),
                   j["resolve"]["kind"].str("addr"), hex_bytes(j["expect"].str()), j["anchor"].num(),
                   j["resolve"]["insn"].num(), j["resolve"]["len"].num(), j["rva"].num(-1), j["slots"].num()};
+        const auto &sa = j["string_anchor"];
+        if (sa.type == json::Value::Obj) {
+            b.sa_string = sa["string"].str();
+            b.sa_func_rva = sa["func_rva"].num(-1);
+            b.sa_func_off = sa["func_offset"].num();
+            b.sa_durable = sa["durable"].b;
+        }
         binding_index[b.id] = bindings.size();
         bindings.push_back(std::move(b));
     }
     same_build = doc["build"]["pe_timestamp"].num() == running_stamp;
-    api->log("[core] %s: %zu binding(s) for build %.16s, %s", chosen.c_str(), bindings.size(),
-             doc["build"]["sha256"].str("?").c_str(),
-             same_build ? "this exe (rva checked)" : "a different exe (signatures decide)");
+    size_t anchored = 0, durable = 0;
+    for (auto &b : bindings)
+        if (!b.sa_string.empty())
+            anchored++, durable += b.sa_durable;
+    api->log("[core] %s: %zu binding(s) for build %.16s, %s; %zu string-anchored (%zu build-agnostic), %s first",
+             chosen.c_str(), bindings.size(), doc["build"]["sha256"].str("?").c_str(),
+             same_build ? "this exe (rva checked)" : "a different exe (string anchors decide)", anchored, durable,
+             same_build ? "pattern" : "string anchor");
     std::wstring session_path = dir + L"..\\..\\session.json";
     std::string text = read_file(session_path);
     have_session = !text.empty();
