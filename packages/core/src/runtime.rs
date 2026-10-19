@@ -78,8 +78,16 @@ pub struct Runtime {
     tables: BTreeMap<String, Lng>,
 }
 
-fn layout_change(res: &Resource, erp: &Erp) -> Option<String> {
-    let arg = if erp.version >= 4 { 6 } else { 4 };
+fn argument_len(erp: &Erp) -> usize {
+    if erp.version >= 4 { 6 } else { 4 }
+}
+
+pub(crate) fn foreign_argument(res: &Resource, erp: &Erp) -> bool {
+    res.unk.len() != argument_len(erp)
+}
+
+pub(crate) fn layout_change(res: &Resource, erp: &Erp) -> Option<String> {
+    let arg = argument_len(erp);
     if res.unk.len() != arg {
         return Some(format!(
             "it has {} argument byte(s), a version {} archive uses {arg}",

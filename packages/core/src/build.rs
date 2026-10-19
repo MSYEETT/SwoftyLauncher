@@ -16,7 +16,7 @@ use crate::asset::{
 };
 use crate::baseline::{Baseline, Objects, hex, sha256_file};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
-use crate::erpbuild::{ErpBuild, unsupported};
+use crate::erpbuild::{ErpBuild, Resized, unsupported};
 use crate::install::{Game, LOADER_DIR, Plan};
 use crate::launcher::BuildCx;
 use crate::manifest::{AddonManifest, relative_inside};
@@ -573,17 +573,28 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
         if let Some(note) = planner.route_note(Kind::Erp) {
             built.lines.push(format!("erp: {note}"));
         }
-        if planner.route(Kind::Erp) == Route::Runtime {
+        let resized = if planner.route(Kind::Erp) == Route::Runtime {
+            let resized = erps.take_resized(&built.overlay)?;
+            for r in &resized {
+                let (uri, why) = &r.resources[0];
+                built.lines.push(format!(
+                    "erp: {} built into the game files; {} resource(s) change their stock layout, which the in-game loader cannot load, such as {uri}: {why}",
+                    r.erp,
+                    r.resources.len()
+                ));
+            }
+            let built_in: Vec<String> = resized.iter().map(|r| r.erp.clone()).collect();
             let notes = runtime.resources(erps.resources(), erps.origins(), &built.overlay)?;
             built.warnings.extend(notes);
+            stage_erps(&mut built, &staged, built_in)?;
+            resized
         } else {
-            for rel in erps.write(&built.overlay)? {
-                let src = built.overlay.join(&rel);
-                if built.plan.data.insert(rel.clone(), src).is_some() && !staged.contains_key(&rel) {
-                    return Err(Error::Other(format!("{rel} is replaced twice")));
-                }
-            }
-        }
+            let resized = erps.resized();
+            let written = erps.write(&built.overlay)?;
+            stage_erps(&mut built, &staged, written)?;
+            resized
+        };
+        built.warnings.extend(stock_holders(&game.dir, &resized));
     }
     put_files(&mut built, store, game, mipmaps, planner.take_files())?;
     match loader_dir() {
@@ -692,6 +703,99 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             .push(format!("cache: {removed} stale build folder(s) removed"));
     }
     Ok(built)
+}
+
+fn stage_erps(built: &mut Built, staged: &BTreeMap<String, PathBuf>, rels: Vec<String>) -> Result<()> {
+    for rel in rels {
+        let src = built.overlay.join(&rel);
+        if built.plan.data.insert(rel.clone(), src).is_some() && !staged.contains_key(&rel) {
+            return Err(Error::Other(format!("{rel} is replaced twice")));
+        }
+    }
+    Ok(())
+}
+
+fn index_of(path: &Path) -> Option<Vec<u8>> {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut f = std::fs::File::open(path).ok()?;
+    let mut head = [0u8; 0x30];
+    f.read_exact(&mut head).ok()?;
+    if &head[..4] != b"ERPK" {
+        return None;
+    }
+    let at = u64::from_le_bytes(head[0x10..0x18].try_into().ok()?);
+    let len = u64::from_le_bytes(head[0x18..0x20].try_into().ok()?);
+    if len > 1 << 28 {
+        return None;
+    }
+    let mut index = vec![0; len as usize];
+    f.seek(SeekFrom::Start(at)).ok()?;
+    f.read_exact(&mut index).ok()?;
+    Some(index)
+}
+
+fn erp_files(dir: &Path, rel: &str, out: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for e in entries.flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        let path = e.path();
+        let child = format!("{rel}/{name}");
+        if path.is_dir() {
+            erp_files(&path, &child, out);
+        } else if name.to_ascii_lowercase().ends_with(".erp") {
+            out.push(child);
+        }
+    }
+}
+
+// The game loads a resource from whichever archive reads it first, so a
+// resized resource that another stock archive also carries can still show
+// the stock copy. Each name is matched as it sits in an archive index.
+fn stock_holders(game_dir: &Path, resized: &[Resized]) -> Vec<String> {
+    let mut by_root: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    let mut written = std::collections::BTreeSet::new();
+    for r in resized {
+        let root: Vec<&str> = r.erp.splitn(3, '/').take(2).collect();
+        for (uri, _) in &r.resources {
+            written.insert((r.erp.to_ascii_lowercase(), uri.as_str()));
+            by_root.entry(root.join("/")).or_default().push(uri);
+        }
+    }
+    let mut out = Vec::new();
+    for (root, mut uris) in by_root {
+        uris.sort_unstable();
+        uris.dedup();
+        let needles: Vec<(&str, Vec<u8>)> = uris
+            .iter()
+            .map(|u| {
+                let mut n = ((u.len() + 1) as u16).to_le_bytes().to_vec();
+                n.extend_from_slice(u.as_bytes());
+                n.push(0);
+                (*u, n)
+            })
+            .collect();
+        let mut files = Vec::new();
+        erp_files(&game_dir.join(&root), &root, &mut files);
+        files.sort();
+        for rel in files {
+            let Some(index) = index_of(&game_dir.join(&rel)) else {
+                continue;
+            };
+            for (uri, needle) in &needles {
+                let held = index
+                    .windows(needle.len())
+                    .any(|w| w[0] == needle[0] && w == needle.as_slice());
+                if held && !written.contains(&(rel.to_ascii_lowercase(), *uri)) {
+                    out.push(format!(
+                        "erp: {uri} is resized, but {rel} also carries it and keeps the stock copy; replace it there too, or the game may show either one"
+                    ));
+                }
+            }
+        }
+    }
+    out
 }
 
 fn put_files(
@@ -840,6 +944,82 @@ mod tests {
                 warnings: Vec::new(),
             })
         }
+    }
+
+    #[test]
+    fn warns_about_stock_archives_that_still_carry_a_resized_resource() {
+        use swofty_formats::erp::{Erp, Fragment, HEADER_LEN, MAGIC, Resource, STORED};
+        let dir = std::env::temp_dir().join(format!("swofty-build-holders-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        let ui = "2025_asset_groups/ui_package";
+        let scene = "eaid://ui_package/art/screens/career/rnd_overview.idf";
+        let archive = |names: &[&str]| {
+            let mut header = [0u8; HEADER_LEN];
+            header[..4].copy_from_slice(MAGIC);
+            header[4..8].copy_from_slice(&3u32.to_le_bytes());
+            Erp {
+                header,
+                version: 3,
+                resources: names
+                    .iter()
+                    .map(|n| Resource {
+                        name: (*n).into(),
+                        kind: swofty_formats::erp::kind("UILayout").unwrap(),
+                        unk: vec![0; 4],
+                        fragments: vec![Fragment {
+                            name: *b"temp",
+                            offset: 0,
+                            size: 1,
+                            flags: 0x10,
+                            compression: STORED,
+                            packed: 1,
+                            raw: vec![0],
+                        }],
+                        hash: [0; 16],
+                    })
+                    .collect(),
+            }
+            .to_bytes()
+        };
+        for (rel, names) in [
+            ("flow_career_hub.erp", vec![scene]),
+            ("flow_team_hq.erp", vec!["eaid://ui_package/x.idf", scene]),
+            ("screens/laptop.erp", vec![scene]),
+            (
+                "screens/other.erp",
+                vec!["eaid://ui_package/art/screens/career/rnd_overview.idf_b"],
+            ),
+        ] {
+            let path = dir.join(ui).join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, archive(&names)).unwrap();
+        }
+        std::fs::write(dir.join(ui).join("notes.txt"), b"ERPK").unwrap();
+        let resized = |erp: &str| Resized {
+            erp: format!("{ui}/{erp}"),
+            resources: vec![(scene.into(), "fragment 0 is 2 bytes, the stock one 1".into())],
+        };
+        assert_eq!(
+            stock_holders(
+                &dir,
+                &[resized("flow_career_hub.erp"), resized("screens/laptop.erp")]
+            ),
+            [format!(
+                "erp: {scene} is resized, but {ui}/flow_team_hq.erp also carries it and keeps the stock copy; replace it there too, or the game may show either one"
+            )]
+        );
+        assert!(
+            stock_holders(
+                &dir,
+                &[
+                    resized("flow_career_hub.erp"),
+                    resized("flow_team_hq.erp"),
+                    resized("screens/laptop.erp")
+                ]
+            )
+            .is_empty()
+        );
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

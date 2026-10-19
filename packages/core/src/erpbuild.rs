@@ -2,14 +2,18 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
 use swofty_formats::erp::{self, Entry, Erp, ErpFile, Resource};
-use swofty_formats::pkg::{Node, Pkg};
+use swofty_formats::pkg::{Node, Pkg, Value};
 
 use crate::asset::Source;
 use crate::builtin::loader_files;
 use crate::manifest::relative_inside;
 use crate::ops::{ErpOp, PkgTarget};
 use crate::pkgedit::{apply_edits, edit_name, sources, supported};
+use crate::runtime::{foreign_argument, layout_change};
+use crate::ui::node::component_id;
 use crate::{Error, Result};
+
+const SCENE: &str = "UILayout";
 
 type SourceKey = (String, String, usize);
 
@@ -73,6 +77,55 @@ pub struct ErpBuild<'a> {
 
 fn fail(msg: impl Into<String>) -> Error {
     Error::Resolve(msg.into())
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Resized {
+    pub erp: String,
+    pub resources: Vec<(String, String)>,
+}
+
+fn scene_ids(data: &[u8]) -> Option<Vec<u64>> {
+    let pkg = Pkg::parse(data).ok()?;
+    let list = pkg.root.as_obj()?.get("scenelist")?.as_arr()?;
+    let ids: Vec<u64> = list
+        .items
+        .iter()
+        .filter_map(|s| match &s.as_obj()?.get("name")?.as_val()?.value {
+            Value::Raw(b) if b.len() == 8 => Some(u64::from_le_bytes(b[..].try_into().ok()?)),
+            _ => None,
+        })
+        .collect();
+    (!ids.is_empty()).then_some(ids)
+}
+
+fn check_scene(uri: &str, data: &[u8]) -> std::result::Result<(), String> {
+    let want = component_id(uri.strip_suffix(".idf").unwrap_or(uri));
+    match scene_ids(data) {
+        None => Err("the source is not a scene: a UILayout resource holds a !pkg with a scenelist".into()),
+        Some(ids) if ids.contains(&want) => Ok(()),
+        Some(ids) => Err(format!(
+            "the source is scene {:#018x}, this resource is scene {want:#018x}; it was saved from another .idf",
+            ids[0]
+        )),
+    }
+}
+
+fn write_archive(out: &Path, rel: &str, archive: Archive) -> Result<()> {
+    let Archive { file, slots } = archive;
+    let path = out.join(rel);
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(crate::io_err(dir))?;
+    }
+    let entries = slots
+        .into_iter()
+        .map(|s| match s {
+            Slot::Stock(i) => Entry::Copy(&file.erp.resources[i]),
+            Slot::Owned(r) => Entry::Owned(r),
+        })
+        .collect();
+    file.write(entries, &path)
+        .map_err(|e| fail(format!("{rel}: {e}")))
 }
 
 fn key(t: &PkgTarget) -> SourceKey {
@@ -248,8 +301,11 @@ impl<'a> ErpBuild<'a> {
                 let data = read(&resolve(source)?)?;
                 let e = self.erp(erp)?;
                 let i = e.find(resource).map_err(|err| fail(format!("{erp}: {err}")))?;
-                e.owned(i)?
-                    .set_fragment(*fragment, &data)
+                let res = e.owned(i)?;
+                if res.kind() == SCENE && *fragment == 0 {
+                    check_scene(resource, &data).map_err(|err| fail(format!("{erp}: {resource}: {err}")))?;
+                }
+                res.set_fragment(*fragment, &data)
                     .map_err(|err| fail(format!("{erp}: {err}")))
             }
             ErpOp::AddResource {
@@ -405,22 +461,46 @@ impl<'a> ErpBuild<'a> {
         })
     }
 
-    pub fn write(self, out: &Path) -> Result<Vec<String>> {
-        let mut written = Vec::new();
-        for (rel, Archive { file, slots }) in self.erps {
-            let path = out.join(&rel);
-            if let Some(dir) = path.parent() {
-                std::fs::create_dir_all(dir).map_err(crate::io_err(dir))?;
-            }
-            let entries = slots
-                .into_iter()
-                .map(|s| match s {
-                    Slot::Stock(i) => Entry::Copy(&file.erp.resources[i]),
-                    Slot::Owned(r) => Entry::Owned(r),
+    // The in-game loader reads a replaced resource with the stock entry's
+    // layout, so an archive whose changes alter a stock entry's type, argument
+    // or fragment sizes is rewritten whole instead, and leaves the runtime set.
+    pub fn resized(&self) -> Vec<Resized> {
+        let mut found = Vec::new();
+        for (rel, a) in &self.erps {
+            let stock = &a.file.erp;
+            let resources: Vec<(String, String)> = a
+                .slots
+                .iter()
+                .filter_map(|s| match s {
+                    Slot::Owned(r) if !foreign_argument(r, stock) => {
+                        layout_change(r, stock).map(|why| (r.name.clone(), why))
+                    }
+                    _ => None,
                 })
                 .collect();
-            file.write(entries, &path)
-                .map_err(|e| fail(format!("{rel}: {e}")))?;
+            if !resources.is_empty() {
+                found.push(Resized {
+                    erp: rel.clone(),
+                    resources,
+                });
+            }
+        }
+        found
+    }
+
+    pub fn take_resized(&mut self, out: &Path) -> Result<Vec<Resized>> {
+        let found = self.resized();
+        for r in &found {
+            let archive = self.erps.remove(&r.erp).expect("found above");
+            write_archive(out, &r.erp, archive)?;
+        }
+        Ok(found)
+    }
+
+    pub fn write(self, out: &Path) -> Result<Vec<String>> {
+        let mut written = Vec::new();
+        for (rel, archive) in self.erps {
+            write_archive(out, &rel, archive)?;
             written.push(rel);
         }
         Ok(written)
@@ -474,6 +554,10 @@ mod tests {
     }
 
     fn erp(resources: &[(&str, Vec<u8>)]) -> Vec<u8> {
+        typed_erp("WOInstances", resources)
+    }
+
+    fn typed_erp(kind: &str, resources: &[(&str, Vec<u8>)]) -> Vec<u8> {
         let mut header = [0u8; HEADER_LEN];
         header[..4].copy_from_slice(MAGIC);
         header[4..8].copy_from_slice(&4u32.to_le_bytes());
@@ -483,7 +567,7 @@ mod tests {
                 let packed = compress(body).unwrap();
                 let mut res = Resource {
                     name: (*name).into(),
-                    kind: *b"WOInstances\0\0\0\0\0",
+                    kind: erp::kind(kind).unwrap(),
                     unk: vec![0; 6],
                     fragments: vec![Fragment {
                         name: *b"temp",
@@ -1022,6 +1106,148 @@ mod tests {
             ))
             .contains("not found")
         );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    fn scene(uri: &str, tiles: &[&str]) -> Vec<u8> {
+        let id = component_id(uri.strip_suffix(".idf").unwrap());
+        let named = |n: &str| Node::Obj(Obj::new(vec![(Val::str("name"), Node::Val(Val::str(n)))]));
+        let root = Obj::new(vec![
+            (Val::str("name"), Node::Val(Val::str("Scene Root"))),
+            (
+                Val::str("children"),
+                Node::Arr(Arr::new(tiles.iter().map(|t| named(t)).collect())),
+            ),
+        ]);
+        let entry = Obj::new(vec![
+            (Val::str("scene"), Node::Obj(root)),
+            (Val::str("name"), Node::Val(Val::raw(*b"ui64", id.to_le_bytes()))),
+        ]);
+        Pkg {
+            name: [0; 4],
+            root: Node::Obj(Obj::new(vec![(
+                Val::str("scenelist"),
+                Node::Arr(Arr::new(vec![Node::Obj(entry)])),
+            )])),
+            vca: Vec::new(),
+        }
+        .to_bytes()
+        .unwrap()
+    }
+
+    #[test]
+    fn a_resized_scene_rewrites_its_archive_instead_of_the_runtime_overlay() {
+        let root = std::env::temp_dir().join(format!("swofty-erpscene-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let (game, addon) = (root.join("game"), root.join("addon"));
+        std::fs::create_dir_all(game.join("ui")).unwrap();
+        std::fs::create_dir_all(addon.join("ui")).unwrap();
+        let uri = "eaid://ui_package/art/screens/career/rnd_overview.idf";
+        let other = "eaid://ui_package/art/screens/career/rnd_dept.idf";
+        let four = scene(uri, &["tile_1", "tile_2", "tile_3", "tile_4"]);
+        let five = scene(uri, &["tile_1", "tile_2", "tile_3", "tile_4", "tile_5"]);
+        let stock = typed_erp(
+            "UILayout",
+            &[(uri, four.clone()), (other, scene(other, &["dept"]))],
+        );
+        std::fs::write(game.join("ui/hub.erp"), &stock).unwrap();
+        let side = "eaid://ui_package/art/screens/career/rnd_side.idf";
+        std::fs::write(
+            game.join("ui/hq.erp"),
+            typed_erp("UILayout", &[(side, scene(side, &["tile_a"]))]),
+        )
+        .unwrap();
+        std::fs::write(addon.join("ui/side.idf"), scene(side, &["tile_b"])).unwrap();
+        std::fs::write(addon.join("ui/same.idf"), &four).unwrap();
+        std::fs::write(addon.join("ui/five.idf"), &five).unwrap();
+        std::fs::write(addon.join("ui/dept.idf"), scene(other, &["dept", "dept_5"])).unwrap();
+        std::fs::write(addon.join("ui/layer.bin"), layer(&["a"])).unwrap();
+        std::fs::write(addon.join("ui/text.txt"), b"not a scene").unwrap();
+        let replace = |erp: &str, res: &str, src: &str| {
+            format!(r#"{{"op":"replace-resource","erp":"{erp}","resource":"{res}","source":"ui/{src}"}}"#)
+        };
+        let ops = |list: &[String]| erp_ops(&format!(r#"{{"schema_version":1,"ops":[{}]}}"#, list.join(",")));
+        let original = |rel: &str| game.join(rel);
+
+        let mut b = ErpBuild::new(&original);
+        apply(&mut b, &ops(&[replace("ui/hub.erp", uri, "same.idf")]), &addon).unwrap();
+        assert!(b.resized().is_empty());
+        assert_eq!(b.resources().count(), 1);
+
+        let mut b = ErpBuild::new(&original);
+        apply(
+            &mut b,
+            &ops(&[
+                replace("ui/hub.erp", uri, "five.idf"),
+                replace("ui/hq.erp", side, "side.idf"),
+            ]),
+            &addon,
+        )
+        .unwrap();
+        let why = format!(
+            "fragment 0 is {} bytes, the stock one {}; stock archives that bind to the replacement read it with the stock layout",
+            five.len(),
+            four.len()
+        );
+        let expected = vec![Resized {
+            erp: "ui/hub.erp".into(),
+            resources: vec![(uri.into(), why)],
+        }];
+        assert_eq!(b.resized(), expected);
+        let out = root.join("out");
+        assert_eq!(b.take_resized(&out).unwrap(), expected);
+        let left: Vec<(&str, &str)> = b.resources().map(|(e, r, _, _)| (e, r.name.as_str())).collect();
+        assert_eq!(left, [("ui/hq.erp", side)]);
+        assert_eq!(b.write(&root.join("rest")).unwrap(), ["ui/hq.erp"]);
+
+        let built = std::fs::read(out.join("ui/hub.erp")).unwrap();
+        let written = Erp::parse(&built).unwrap();
+        let before = Erp::parse(&stock).unwrap();
+        let res = written.find(uri).unwrap();
+        assert_eq!(res.fragments[0].data().unwrap(), five);
+        assert_eq!(res.fragments[0].size, five.len() as u64);
+        assert_eq!(res.hash, res.content_hash().unwrap());
+        assert_eq!(
+            (res.kind, &res.unk),
+            (before.find(uri).unwrap().kind, &before.find(uri).unwrap().unk)
+        );
+        assert_eq!(
+            written.find(other).unwrap().fragments[0].raw,
+            before.find(other).unwrap().fragments[0].raw
+        );
+        let mut again = Erp::parse(&built).unwrap();
+        assert_eq!(again.to_bytes(), built);
+
+        let fails = |src: &str, res: &str| {
+            apply(
+                &mut ErpBuild::new(&original),
+                &ops(&[replace("ui/hub.erp", res, src)]),
+                &addon,
+            )
+            .unwrap_err()
+            .to_string()
+        };
+        assert_eq!(
+            fails("dept.idf", uri),
+            format!(
+                "ui/hub.erp: {uri}: the source is scene {:#018x}, this resource is scene {:#018x}; it was saved from another .idf",
+                component_id(other.strip_suffix(".idf").unwrap()),
+                component_id(uri.strip_suffix(".idf").unwrap())
+            )
+        );
+        for src in ["layer.bin", "text.txt"] {
+            assert!(
+                fails(src, uri).ends_with(
+                    "the source is not a scene: a UILayout resource holds a !pkg with a scenelist"
+                )
+            );
+        }
+        apply(
+            &mut ErpBuild::new(&original),
+            &ops(&[replace("ui/hub.erp", other, "dept.idf")]),
+            &addon,
+        )
+        .unwrap();
         std::fs::remove_dir_all(&root).ok();
     }
 
