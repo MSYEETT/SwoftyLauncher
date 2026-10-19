@@ -134,7 +134,7 @@
       "id": "tyres_dept_tags",
       "type": "toggle",
       "label": "Tyres icon and colour in R&D lists",
-      "description": "Tyres upgrades get an icon (borrowed stock frames) and the Tyres orange in R&D lists: In Progress, the department category rows, the perks title, Team HQ popups and upgrade cards. Install-time.",
+      "description": "Tyres upgrades get the Tyres department icon, their category icon and the Tyres orange in R&D lists: In Progress, the department category rows, the perks title, Team HQ popups and upgrade cards. Install-time.",
       "default": true,
       "binds": "native"
     },
@@ -147,11 +147,27 @@
       "binds": "db"
     },
     {
+      "id": "tyres_card_art",
+      "type": "toggle",
+      "label": "Tyres upgrade card art",
+      "description": "Own card art for the 15 Tyres upgrades (available, in progress and fitted) and the four Tyres category icons. Off, they borrow stock part art and icons. Applies after a rebuild.",
+      "default": true,
+      "binds": "db"
+    },
+    {
       "id": "tyres_test_price",
       "type": "toggle",
       "label": "Tyres upgrades cost 5 points (test)",
       "description": "Test price: every Tyres & Thermal upgrade costs 5 research points for research and development, standard or rush. Off uses the real costs.",
       "default": false,
+      "binds": "native"
+    },
+    {
+      "id": "tyres_upgrade_types",
+      "type": "toggle",
+      "label": "Tyres upgrade types",
+      "description": "Tyres upgrades use their own types (Tyre Thermal, Brake Cooling, Tyre Life, Power Unit Cooling) and car handling blocks, never diluting Chassis' Tyre Wear or Brakes. Install-time.",
+      "default": true,
       "binds": "native"
     },
     {
@@ -165,7 +181,7 @@
   ],
   "operations": {
     "database": ["db/departments.json", "db/upgrade_types.json", "db/tyres_tree.json"],
-    "erp": ["erp/rnd_fifth_pie.json", "erp/rnd_tyres_icon.json", "erp/rnd_upgrade_vtf.json"],
+    "erp": ["erp/rnd_fifth_pie.json", "erp/rnd_tyres_icon.json", "erp/rnd_tyres_card_art.json", "erp/rnd_upgrade_vtf.json"],
     "assets": ["assets/text.json"],
     "native": [{ "dll": "native/rnd_departments.dll" }]
   }

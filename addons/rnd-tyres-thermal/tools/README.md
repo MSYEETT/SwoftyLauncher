@@ -5,7 +5,7 @@ These scripts generate the addon's `ui/` folder and `erp/rnd_fifth_pie.json` fro
 ## Requirements
 
 - Python 3.14, or an older Python with the `zstandard` module or the `zstd` command.
-- numpy for `build_assets.py`, `make_bg5.py` and `render_preview.py`. `re/tools/py` runs a Python with numpy.
+- numpy for `build_assets.py`, `build_card_art.py`, `make_bg5.py` and `render_preview.py`. `re/tools/py` runs a Python with numpy.
 - `node` for BC7 decoding, and the `zstd` command for `validate.py`.
 - `resvg` for `build_icons.py`, or Nix to fetch it.
 - The stock UI archives. Run `swofty restore` first.
@@ -36,7 +36,8 @@ It prints `0 problem(s)` and exits 0 when everything passes. The two rebuilt arc
 | `make_laptop_r_and_d5.py` | adds the `focusable.tyres` tile to `screens/laptop_r_and_d.ui`, a clone of `focusable.aero` bound to `@fake` and attached to `tile_5` |
 | `make_rnd_overview5.py` | adds `tile_5` to `art/screens/career/rnd_overview.idf` and lays the tiles out 3+2; the shipped scene is `make_rnd_overview5.py stock out`, then `make_rnd_overview5.py out out2 --bottom fill` |
 | `make_bg5.py`, `bc7enc.py`, `bc7dec.mjs` | build the 5-spoke `graph_b5` backdrop from the stock `graph_bg`, encode it as BC7 and decode BC7 with Swofty UI's `bc7.js` |
-| `build_icons.py` | rasterises `../icons/tyres.svg` with `resvg`, appends the Tyres slices to `rnd_dept_icons_small`, `rnd_wheel_icon` and `rnd_department_strips` (plain and `rnd_om_xm`), and writes `../icons/frames/` and `../erp/rnd_tyres_icon.json`; compares like `build_assets.py` |
+| `build_icons.py` | rasterises `../icons/tyres.svg` with `resvg`, appends the Tyres slices to `rnd_dept_icons_small`, `rnd_wheel_icon` and `rnd_department_strips` (plain and `rnd_om_xm`) in every UI archive that carries them, and writes `../icons/frames/` and `../erp/rnd_tyres_icon.json`; compares like `build_assets.py` |
+| `build_card_art.py` | encodes `../art/out/` (listed by `../art/manifest.json`) with `bc7enc.encode_rgba`, appends the slices to `rnd_part_image`, `rnd_part_mask` and `rnd_category_icons` (plain and `rnd_om_xm`) in every UI archive that carries them, and writes `../art/arrays/` and `../erp/rnd_tyres_card_art.json`; compares like `build_assets.py` |
 | `build_pie.py` | builds the pie scenes, the 72° meshes, the backdrop material and the `.ui` wiring, and writes `ui/` and `erp/rnd_fifth_pie.json` |
 | `validate.py` | the offline checks under Validation |
 | `render_preview.py` | composites the stock and five-sector pies the way the game draws them; `../preview/pie_compare.png` is its `pie_compare.png` |
