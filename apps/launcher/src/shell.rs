@@ -84,6 +84,7 @@ pub struct Shell {
     pub(crate) update: Option<crate::update::Update>,
     _console_closed: Subscription,
     _poll: Task<()>,
+    _managed: Task<()>,
 }
 
 pub struct SliderSlot {
@@ -191,6 +192,16 @@ impl Shell {
             }
         });
         rediscover.detach();
+        let managed = cx.spawn(async move |this, cx| {
+            loop {
+                if this.update(cx, |s, cx| s.check_managed_addon(cx)).is_err() {
+                    break;
+                }
+                cx.background_executor()
+                    .timer(swofty_core::managed::CHECK_INTERVAL)
+                    .await;
+            }
+        });
         let shell = cx.weak_entity();
         let console_closed = cx.on_window_closed(move |cx, id| {
             shell.update(cx, |s, cx| s.console_closed(id, cx)).ok();
@@ -227,6 +238,7 @@ impl Shell {
             update: None,
             _console_closed: console_closed,
             _poll: poll,
+            _managed: managed,
         };
         shell.refresh_views(cx);
         shell.check_for_update(cx);
@@ -441,6 +453,33 @@ impl Shell {
                     true
                 })
         });
+    }
+
+    pub(crate) fn check_managed_addon(&mut self, cx: &mut Context<Self>) {
+        use swofty_core::managed;
+        if !self.store.config().managed.due(managed::now_secs()) {
+            return;
+        }
+        let mut config = self.store.config();
+        config.managed.record(managed::now_secs());
+        self.store.save_config(&config).ok();
+        let store = self.store.clone();
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { managed::check_and_install(&store, managed::CHECK_TIMEOUT) })
+                .await;
+            this.update(cx, |s, cx| match result {
+                Ok(managed::Outcome::Installed(version)) => {
+                    eprintln!("swofty-launcher: installed {} {version}", managed::ID);
+                    s.reload(cx);
+                }
+                Ok(managed::Outcome::UpToDate(_)) => {}
+                Err(e) => eprintln!("swofty-launcher: {} check failed: {e}", managed::ID),
+            })
+            .ok();
+        })
+        .detach();
     }
 
     pub(crate) fn update_profile(

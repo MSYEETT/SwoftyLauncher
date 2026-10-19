@@ -204,7 +204,7 @@ fn user_agent() -> String {
     )
 }
 
-fn get(url: &str, timeout: Option<Duration>) -> Result<ureq::Body> {
+pub fn get(url: &str, timeout: Option<Duration>) -> Result<ureq::Body> {
     ureq::get(url)
         .header("User-Agent", user_agent())
         .header("Accept", "application/vnd.github+json, application/octet-stream")
@@ -218,7 +218,7 @@ fn get(url: &str, timeout: Option<Duration>) -> Result<ureq::Body> {
         .map_err(|e| Error::Other(format!("{url}: {e}")))
 }
 
-fn get_text(url: &str, timeout: Duration) -> Result<String> {
+pub fn get_text(url: &str, timeout: Duration) -> Result<String> {
     get(url, Some(timeout))?
         .read_to_string()
         .map_err(|e| Error::Other(format!("{url}: {e}")))
@@ -229,7 +229,7 @@ pub fn fetch_latest(timeout: Duration) -> Result<Release> {
     serde_json::from_str(&text).map_err(|e| Error::Other(format!("{LATEST_URL}: {e}")))
 }
 
-fn download(asset: &Asset, to: &Path, progress: &dyn Fn(u64)) -> Result<(u64, String)> {
+pub fn download(asset: &Asset, to: &Path, progress: &dyn Fn(u64)) -> Result<(u64, String)> {
     let url = &asset.browser_download_url;
     let mut reader = get(url, Some(Duration::from_secs(30 * 60)))?.into_reader();
     let mut file = std::fs::File::create(to).map_err(io_err(to))?;

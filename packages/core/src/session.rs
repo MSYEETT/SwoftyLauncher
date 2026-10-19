@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::STEAM_APP_ID;
 use crate::asset::Kind;
+use crate::managed::ManagedConfig;
 use crate::update::UpdateConfig;
 
 pub const DEFAULT_WINEDEBUG: &str = "+timestamp,+pid,+tid,+loaddll,fixme-all";
@@ -83,6 +84,8 @@ pub struct Config {
     pub build_assets: BTreeSet<Kind>,
     #[serde(default, skip_serializing_if = "UpdateConfig::is_default")]
     pub updates: UpdateConfig,
+    #[serde(default, skip_serializing_if = "ManagedConfig::is_default")]
+    pub managed: ManagedConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

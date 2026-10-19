@@ -12,6 +12,7 @@ pub mod helper;
 pub mod import;
 pub mod install;
 pub mod journal;
+pub mod managed;
 pub mod map;
 pub mod offline;
 pub mod owned;
