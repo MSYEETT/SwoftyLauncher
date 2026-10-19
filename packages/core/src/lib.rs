@@ -71,6 +71,43 @@ pub(crate) fn io_err(path: impl Into<std::path::PathBuf>) -> impl FnOnce(std::io
     move |source| Error::Io { path, source }
 }
 
+/// A filesystem error worth retrying: a freshly unloaded DLL stays briefly
+/// locked while Windows Defender (or another antivirus) scans it or the loader
+/// releases its handle, so a delete or rename right after the game exits fails
+/// with Access Denied (os error 5) or a sharing violation (os error 32).
+pub(crate) fn is_locked_file_error(e: &std::io::Error) -> bool {
+    e.kind() == std::io::ErrorKind::PermissionDenied || e.raw_os_error() == Some(32)
+}
+
+/// Run a filesystem mutation, retrying a locked-file error with growing backoff
+/// before giving up. On a lasting lock the returned error names the likely
+/// locker (an antivirus holding the game folder) and what to do about it, so a
+/// half-modded folder can be cleaned rather than leaving a bare "os error 5".
+pub(crate) fn with_retry<T>(path: &std::path::Path, mut op: impl FnMut() -> std::io::Result<T>) -> Result<T> {
+    const DELAYS_MS: [u64; 5] = [50, 150, 300, 600, 1000];
+    let mut attempt = 0usize;
+    loop {
+        match op() {
+            Ok(v) => return Ok(v),
+            Err(e) if is_locked_file_error(&e) && attempt < DELAYS_MS.len() => {
+                std::thread::sleep(std::time::Duration::from_millis(DELAYS_MS[attempt]));
+                attempt += 1;
+            }
+            Err(e) if is_locked_file_error(&e) => {
+                return Err(Error::Other(format!(
+                    "{}: {e} -- still locked after {} retries. Close F1 25 and the EA app if \
+                     they are open; if Windows Defender or another antivirus is scanning the game \
+                     folder it can hold the file. Add an exclusion for the game folder, then run \
+                     `swofty restore` again.",
+                    path.display(),
+                    DELAYS_MS.len()
+                )));
+            }
+            Err(e) => return Err(io_err(path.to_path_buf())(e)),
+        }
+    }
+}
+
 pub(crate) fn read_json<T: serde::de::DeserializeOwned>(path: &std::path::Path) -> Result<T> {
     let data = std::fs::read(path).map_err(io_err(path))?;
     serde_json::from_slice(&data).map_err(|source| Error::Json {

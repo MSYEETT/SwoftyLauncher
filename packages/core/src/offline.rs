@@ -23,7 +23,7 @@ use std::process::Command;
 use serde::{Deserialize, Serialize};
 
 use crate::baseline::{sha256_file, sha256_opt};
-use crate::{Error, Result, io_err, read_json, write_json};
+use crate::{Error, Result, io_err, read_json, with_retry, write_json};
 
 /// The terms shown before consent and by `swofty offline accept`.
 pub const DISCLOSURE: &str = "\
@@ -43,37 +43,37 @@ can work. Everything is undone when the game exits.
   pinned SHA-256 digests before it is used. Source: Swofty-Developments/F1-OfflinePlay.";
 
 /// The extension release this manager pins.
-pub const EXTENSION_VERSION: &str = "0.3.6";
+pub const EXTENSION_VERSION: &str = "0.3.7";
 /// Where the artifacts are hosted (binaries; source lives in the repository).
 pub const DEFAULT_BASE_URL: &str = "https://swofty-developments.github.io/F1-OfflinePlay";
 pub const SOURCE_URL: &str = "https://github.com/Swofty-Developments/F1-OfflinePlay";
 
-/// Pinned digests for release v0.3.6. Every artifact is checked against its
+/// Pinned digests for release v0.3.7. Every artifact is checked against its
 /// pin at install time and again at use time.
 pub const PINS: &[(&str, &str)] = &[
     (
         "f1op_hook.dll",
-        "c57650e4daa58aaa02e23cebf3bccbfe2894cfbb04396c3c577c7b444240d19e",
+        "592438ff838cf2f16a51331d99c4325a0a5627180fa36f9513e541546e70d84f",
     ),
     (
         "f1op_stub.exe",
-        "04e39c7eb1e576481637c3b419b9378bbaab028ac31129089543c4ffa52b0ae7",
+        "0b2d160b8e85b5f0ce11291eae38c41bcce8bca0abcb0d3e03c4e09e7481249c",
     ),
     (
         "f1op-prelaunch.exe",
-        "9460659d9981f4f3cb04d34a38ed1afff61f615247ace161a1c5056ff2697902",
+        "6e47b13233d6b4511a0141b92cd62f04f79ce1be826f04699a2d32ba1861ed32",
     ),
     (
         "f1op-probe.exe",
-        "d7be99158665a7de8701619a00c2577cd6f76b3835b6fa58a152e544ec78f55d",
+        "9477778670a8d5951723e7804e96b3ac748e815fd68ee3323eb6bf3bfc168e0e",
     ),
     (
         "f1op-prelaunch-linux-x86_64",
-        "46c64e01a563c8448be28e1cc83cf7b13edf24fb37a7cc4b9cf80996bd35d797",
+        "3bf6a16879312b7aa2363b863152426b554a461b6e344de956cc84d123ec9edc",
     ),
     (
         "f1op-probe-linux-x86_64",
-        "5a14261e95022c4690d7b80a3806a1078ad4091eca12af2319e187f333e783b5",
+        "0f50567f8f2c57a39fc679ec248e5ee880a0615f98df8d772b9073c225e88aa7",
     ),
 ];
 
@@ -341,7 +341,7 @@ pub fn heal_stale_backup(game: &Path, journal: &Path) -> Result<Vec<String>> {
     // owns it, and staging cannot drop the new one while it is there.
     let hook = game.join("swofty/mods/core/f1op_hook.dll");
     if hook.exists() {
-        std::fs::remove_file(&hook).map_err(io_err(&hook))?;
+        with_retry(&hook, || std::fs::remove_file(&hook))?;
         notes.push("removed a stale hook from a previous session".into());
     }
     Ok(notes)
@@ -356,7 +356,7 @@ fn heal_launcher(game: &Path) -> Result<Vec<String>> {
     }
     let backup = sha256_file(&parked)?;
     if sha256_opt(&launcher)?.as_deref() == Some(backup.as_str()) {
-        std::fs::remove_file(&parked).map_err(io_err(&parked))?;
+        with_retry(&parked, || std::fs::remove_file(&parked))?;
         notes.push("removed a stale backup identical to the launcher".into());
         return Ok(notes);
     }
@@ -371,10 +371,10 @@ fn heal_launcher(game: &Path) -> Result<Vec<String>> {
         if let Some(parent) = keep.parent() {
             std::fs::create_dir_all(parent).map_err(|e| io_err(parent.to_path_buf())(e))?;
         }
-        std::fs::rename(&launcher, &keep).map_err(io_err(&launcher))?;
+        with_retry(&launcher, || std::fs::rename(&launcher, &keep))?;
         notes.push(format!("kept the staged file at {}", keep.display()));
     }
-    std::fs::rename(&parked, &launcher).map_err(io_err(&launcher))?;
+    with_retry(&launcher, || std::fs::rename(&parked, &launcher))?;
     notes.push("restored EAAntiCheat.GameServiceLauncher.exe from its backup".into());
     Ok(notes)
 }
@@ -441,7 +441,13 @@ pub fn restore(journal: &Path, force: bool) -> Result<Vec<String>> {
                 .map_err(|e| Error::Other(format!("{}: {e}", journal.display())))?,
         );
     }
+    // Best effort: every entry is attempted so one locked or changed file
+    // never strands the rest half-modded. The all-important launcher rename
+    // still happens even if a stub or hook delete is blocked. Transient locks
+    // are retried; anything left is reported together at the end so `swofty
+    // restore` can be re-run once the locker (usually an antivirus) lets go.
     let mut done = Vec::new();
+    let mut failures = Vec::new();
     for e in lines.iter().rev() {
         match e.op.as_str() {
             "meta" => {}
@@ -451,37 +457,52 @@ pub fn restore(journal: &Path, force: bool) -> Result<Vec<String>> {
                     continue;
                 }
                 if !force {
-                    let have = sha256_file(to)?;
-                    if have != e.sha256 {
-                        return Err(Error::Other(format!(
-                            "{}: changed since staging (digest mismatch); refusing to remove it",
-                            e.to
-                        )));
+                    match sha256_file(to) {
+                        Ok(have) if have != e.sha256 => {
+                            failures.push(format!(
+                                "{}: changed since staging (digest mismatch); left in place",
+                                e.to
+                            ));
+                            continue;
+                        }
+                        Ok(_) => {}
+                        Err(err) => {
+                            failures.push(err.to_string());
+                            continue;
+                        }
                     }
                 }
-                std::fs::remove_file(to).map_err(io_err(to))?;
-                done.push(format!("removed {}", e.to));
+                match with_retry(to, || std::fs::remove_file(to)) {
+                    Ok(()) => done.push(format!("removed {}", e.to)),
+                    Err(err) => failures.push(err.to_string()),
+                }
             }
             "rename" => {
                 let (from, to) = (Path::new(&e.from), Path::new(&e.to));
                 if !to.exists() {
-                    return Err(Error::Other(format!("staged backup is missing: {}", e.to)));
+                    failures.push(format!("staged backup is missing: {}", e.to));
+                    continue;
                 }
                 if from.exists() && !force {
-                    return Err(Error::Other(format!(
-                        "{}: already exists; refusing to overwrite it",
-                        e.from
-                    )));
+                    failures.push(format!("{}: already exists; left as is", e.from));
+                    continue;
                 }
-                std::fs::rename(to, from).map_err(io_err(from))?;
-                done.push(format!("restored {}", e.from));
+                match with_retry(from, || std::fs::rename(to, from)) {
+                    Ok(()) => done.push(format!("restored {}", e.from)),
+                    Err(err) => failures.push(err.to_string()),
+                }
             }
             other => {
-                return Err(Error::Other(format!(
-                    "unknown staging journal op: {other} (update swofty)"
-                )));
+                failures.push(format!("unknown staging journal op: {other} (update swofty)"));
             }
         }
+    }
+    if !failures.is_empty() {
+        return Err(Error::Other(format!(
+            "offline-play restore could not finish cleanly; re-run `swofty restore` once \
+             anything locking the files is closed:\n  {}",
+            failures.join("\n  ")
+        )));
     }
     Ok(done)
 }

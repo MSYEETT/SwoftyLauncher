@@ -608,6 +608,66 @@ static void sample_code_entropy(const char *when)
               (sum / ok) < 6.5 ? "DECRYPTED in bulk" : (sum / ok) > 7.5 ? "STILL PACKED (encrypted)" : "PARTIAL/mixed");
 }
 
+/* First match of a masked byte pattern in a loaded module's committed,
+   readable, executable pages. Bounded by SizeOfImage; pages that are not live
+   are skipped so a protected build cannot fault the diagnostic. Returns the
+   match address or NULL. */
+static uint8_t *scan_module(HMODULE mod, const uint8_t *pat, const uint8_t *msk, size_t len)
+{
+    uint8_t *base = (uint8_t *)mod;
+    MEMORY_BASIC_INFORMATION hm;
+    if (!page_live((uintptr_t)base, &hm))
+        return NULL;
+    uint32_t lfanew = *(uint32_t *)(base + 0x3C);
+    uint8_t *nt = base + lfanew;
+    uint32_t size_of_image = *(uint32_t *)(nt + 0x18 + 0x38); /* optional header SizeOfImage */
+    uint8_t *end = base + size_of_image;
+    const DWORD exec = PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+    uint8_t *p = base;
+    MEMORY_BASIC_INFORMATION m;
+    while (p < end && VirtualQuery(p, &m, sizeof m)) {
+        uint8_t *region = (uint8_t *)m.BaseAddress;
+        uint8_t *rend = region + m.RegionSize;
+        if (rend > end)
+            rend = end;
+        if (m.State == MEM_COMMIT && (m.Protect & exec) && !(m.Protect & (PAGE_GUARD | PAGE_NOACCESS))) {
+            for (uint8_t *q = region; q + len <= rend; q++) {
+                size_t j = 0;
+                for (; j < len; j++)
+                    if ((q[j] & msk[j]) != (pat[j] & msk[j]))
+                        break;
+                if (j == len)
+                    return q;
+            }
+        }
+        uint8_t *next = region + m.RegionSize;
+        if (next <= p)
+            break;
+        p = next;
+    }
+    return NULL;
+}
+
+/* Report a resolved gate: where the guarding branch sits, the bytes around it,
+   and whether offline-play has flipped it. The branch is two bytes into the
+   match (after `test al,al` / `test eax,eax`); 0xEB means answered (jmp),
+   0x74/0x75 means not yet. */
+static void report_gate(HMODULE m, const char *label, uint8_t *hit, size_t len, const char *when_patched,
+                        const char *when_not)
+{
+    char dump[64];
+    int o = 0;
+    for (size_t i = 0; i < len && o < (int)sizeof dump - 3; i++)
+        o += sprintf(dump + o, "%02X ", hit[i]);
+    if (o)
+        dump[o - 1] = 0;
+    uintptr_t rva = (uintptr_t)(hit - (uint8_t *)m);
+    uint8_t br = hit[2];
+    const char *verdict = br == 0xEB ? when_patched : (br == 0x75 || br == 0x74) ? when_not : "UNKNOWN (unexpected branch byte)";
+    ediag("%s: site RVA 0x%llx bytes [%s]; branch RVA 0x%llx byte 0x%02X -> %s", label, (unsigned long long)rva,
+          dump, (unsigned long long)(rva + 2), br, verdict);
+}
+
 static void check_activation_gate(void)
 {
     char env[8] = {0};
@@ -621,23 +681,43 @@ static void check_activation_gate(void)
     }
     if (InterlockedCompareExchange(&activation_logged, 1, 0) != 0)
         return;
+    ediag("gate 2 (activation/EADRM, Core\\Activation64.dll base %p): SWOFTY_OFFLINE_ACTIVATION=%s", (void *)m,
+          n ? env : "(unset)");
+
+    /* The activation verdict: test al,al ; jne ok ; mov dword [r12],0x186aa (exit
+       100010 'EA App not installed'). The jne (two bytes in) is wildcarded. */
+    const uint8_t vp[] = {0x84, 0xC0, 0x00, 0x00, 0x41, 0xC7, 0x04, 0x24, 0xAA, 0x86, 0x01, 0x00};
+    const uint8_t vm[] = {0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    uint8_t *vhit = scan_module(m, vp, vm, sizeof vp);
+    if (vhit)
+        report_gate(m, "  verdict (100010/0x186aa path)", vhit, sizeof vp,
+                    "PASS (0xEB = patched; this activation path is bypassed)",
+                    "FAIL (0x75 = NOT patched; verifier would abort with exit 100010)");
+    else
+        ediag("  verdict (100010/0x186aa path): pattern not found; send Core\\Activation64.dll (this build "
+              "differs from the one offline-play was built against)");
+
+    /* The entitlement exit guard: test al,al/eax ; jcc ok ; mov ecx,0xFFFFFFFF ;
+       call [exit]. Its false answer is a clean exit(-1) -- the launch failure
+       seen on this EA build -- and offline-play flips the jcc to a jmp. */
+    const uint8_t xp[] = {0x84, 0xC0, 0x00, 0x00, 0xB9, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x15};
+    const uint8_t xm[] = {0xFE, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    uint8_t *xhit = scan_module(m, xp, xm, sizeof xp);
+    if (xhit)
+        report_gate(m, "  exit guard (entitlement exit -1)", xhit, sizeof xp,
+                    "PASS (0xEB = patched; exit(-1) is skipped, the session continues)",
+                    "FAIL (0x75 = NOT patched; the game exits with code -1 here)");
+    else
+        ediag("  exit guard (entitlement exit -1): pattern not found; send Core\\Activation64.dll (this build "
+              "differs from the one offline-play was built against)");
+
+    /* The historical fixed offset, kept for continuity with earlier logs. */
     uintptr_t rva = 0xe550;
     uint8_t *at = (uint8_t *)m + rva;
     MEMORY_BASIC_INFORMATION mi;
-    if (!page_live((uintptr_t)at, &mi)) {
-        ediag("gate 2 (activation): Activation64.dll at %p but RVA 0x%llx not readable", (void *)m,
-              (unsigned long long)rva);
-        return;
-    }
-    uint8_t b = *at;
-    const char *verdict = b == 0xEB
-                              ? "PASS (0xEB = patched by offline-play; EADRM activation bypassed)"
-                          : b == 0x75
-                              ? "FAIL (0x75 = NOT patched; verifier aborts with exit 100010/0x186aa 'EA App not installed')"
-                              : "UNKNOWN (unexpected byte for this gate)";
-    ediag("gate 2 (activation/EADRM, Core\\Activation64.dll base %p, RVA 0x%llx): byte 0x%02X -> %s; "
-          "SWOFTY_OFFLINE_ACTIVATION=%s",
-          (void *)m, (unsigned long long)rva, b, verdict, n ? env : "(unset)");
+    if (page_live((uintptr_t)at, &mi))
+        ediag("  reference: RVA 0x%llx = 0x%02X (the test al,al; the verdict branch is at RVA 0x%llx)",
+              (unsigned long long)rva, *at, (unsigned long long)(rva + 2));
 }
 
 static void gate3_verdict(const char *when, int reached_window)

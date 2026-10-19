@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::baseline::{Baseline, DepotHashes, Identity, Objects, sha256_bytes, sha256_file, sha256_opt};
 use crate::journal::{Journal, Op, State};
 use crate::profile::VANILLA;
-use crate::{Error, Result, io_err};
+use crate::{Error, Result, io_err, with_retry};
 
 pub const PROXY: &str = "version.dll";
 pub const LOADER_DIR: &str = "swofty";
@@ -278,7 +278,7 @@ impl<'a> Installer<'a> {
         let proxy = self.path(PROXY);
         let baseline = self.baseline()?;
         if proxy.is_file() && !baseline.files.contains_key(PROXY) {
-            std::fs::remove_file(&proxy).map_err(io_err(&proxy))?;
+            with_retry(&proxy, || std::fs::remove_file(&proxy))?;
         }
         let loader = self.path(LOADER_DIR);
         if loader.is_dir() {
@@ -289,7 +289,7 @@ impl<'a> Installer<'a> {
                     crate::move_file(&e.path(), &logs.join(e.file_name()))?;
                 }
             }
-            std::fs::remove_dir_all(&loader).map_err(io_err(&loader))?;
+            with_retry(&loader, || std::fs::remove_dir_all(&loader))?;
         }
         if let Some(reg) = &self.game.user_reg
             && let Ok(text) = std::fs::read_to_string(reg)
