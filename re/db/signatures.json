@@ -1271,6 +1271,87 @@
    "used_by": [
     "native/src/rnd_departments.cpp (swofty.rnd-tyres-thermal)"
    ]
+  },
+  {
+   "id": "career.rnd_pie_buf_alloc",
+   "section": ".xtls",
+   "pattern": "48 8B 9E 70 02 00 00 48 8B 03 BA 00 09 00 00 41 B8 10 00 00 00 48 89 D9",
+   "match": "0x141f46f6b",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141f46f6b",
+   "kind": "mid",
+   "expect": "48 8B 9E 70 02 00 00",
+   "names": [
+    "site_Career_RnDPieBufAlloc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-19",
+     "by": "rnd-tyres",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/rnd_departments.cpp (swofty.rnd-tyres-thermal)"
+   ]
+  },
+  {
+   "id": "career.rnd_box_layout_probe",
+   "section": ".xtls",
+   "pattern": "48 8D 8E C0 07 00 00 48 8B 46 10 4C 8D 40 08",
+   "match": "0x141c86d86",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141c86d86",
+   "kind": "mid",
+   "expect": "48 8D 8E C0 07 00 00",
+   "names": [
+    "site_Career_RnDDeptBoxLayoutProbe"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-19",
+     "by": "rnd-tyres",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/rnd_departments.cpp (swofty.rnd-tyres-thermal)"
+   ]
+  },
+  {
+   "id": "career.load_upgrade_rows_deptpath",
+   "section": ".xtls",
+   "pattern": "48 8D 8C 24 98 06 00 00 48 8D 15 E1 53 12 02",
+   "match": "0x143539c84",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143539c84",
+   "kind": "mid",
+   "expect": "48 8D 8C 24 98 06 00 00",
+   "names": [
+    "site_Career_LoadUpgradeRows_DeptPath"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-19",
+     "by": "rnd-tyres",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/rnd_departments.cpp (swofty.rnd-tyres-thermal)"
+   ]
   }
  ]
 }
