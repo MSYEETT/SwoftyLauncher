@@ -141,6 +141,20 @@ const CategoryFrame kCategoryFrames[] = {
     {"turbo_charger", "maintenance_turbo_charger"},
 };
 
+struct OwnCategory {
+    const char *type;
+    const char *borrowed;
+};
+
+// The Tyres types minted by rnd_upgrade_types.cpp: their own rnd_category_icons frame (named by the
+// type key) once the art grows the category arrays, else a borrowed stock frame.
+const OwnCategory kOwnCategories[] = {
+    {"tyre_thermal", "chassis_tyre_wear"},
+    {"brake_cooling", "chassis_brakes"},
+    {"tyre_life", "chassis_tyre_wear"},
+    {"pu_cooling", "maintenance_internal_combustion"},
+};
+
 enum class TagKind { DeptIcon, Category, Strip };
 
 struct TagSite {
@@ -190,6 +204,9 @@ uintptr_t g_err = 0;
 
 const char *category_frame(const char *type)
 {
+    for (const auto &m : kOwnCategories)
+        if (cstr_is(type, m.type))
+            return rnd_tyres_icon::category_live() ? m.type : m.borrowed;
     for (const auto &m : kCategoryFrames)
         if (cstr_is(type, m.type))
             return m.frame;

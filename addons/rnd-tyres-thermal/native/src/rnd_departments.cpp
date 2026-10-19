@@ -50,6 +50,7 @@
 #include <atomic>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <utility>
 
 #include <safetyhook.hpp>
@@ -1781,11 +1782,50 @@ constexpr uint32_t djb2(const char *s)
     return h;
 }
 
-constexpr uint32_t kOurHash[3] = {djb2("tyres_thermal_1_255"), djb2("tyres_thermal_2_255"),
-                                  djb2("tyres_thermal_3_255")};
-constexpr const char *kOurNames[3] = {"tyres_wear_reduction", "tyres_brake_cooling", "tyres_thermal_reliability"};
+constexpr int kNumRows = 15;
+
+constexpr uint32_t row_hash(int n)
+{
+    uint32_t h = 0x1505;
+    for (const char *p = "tyres_thermal_"; *p; ++p)
+        h = h * 33u + static_cast<uint8_t>(*p);
+    if (n >= 10)
+        h = h * 33u + static_cast<uint8_t>('0' + n / 10);
+    h = h * 33u + static_cast<uint8_t>('0' + n % 10);
+    for (const char *p = "_255"; *p; ++p)
+        h = h * 33u + static_cast<uint8_t>(*p);
+    return h;
+}
+
+struct OurRow {
+    const char *name;
+    const char *art;
+};
+
+constexpr OurRow kOurRows[kNumRows] = {
+    {"tt_thermal_model", "tyre_blankets"},      {"tt_rim_heat_shield", "tyre_blankets"},
+    {"tt_rim_cooling", "tyre_blankets"},        {"tt_carcass_heat", "tyre_blankets"},
+    {"bc_duct_inlet", "calipers"},              {"bc_disc_ventilation", "calipers"},
+    {"bc_caliper_fins", "calipers"},            {"bc_drum_package", "calipers"},
+    {"tl_sidewall_load", "tyre_blankets"},      {"tl_pressure_telemetry", "tyre_blankets"},
+    {"tl_camber_wear", "tyre_blankets"},        {"tl_low_deg_package", "tyre_blankets"},
+    {"pc_radiator_core", "turbo_charger_wear_1"}, {"pc_cooling_louvres", "turbo_charger_wear_1"},
+    {"pc_integrated_thermal", "turbo_charger_wear_1"},
+};
+constexpr const char *kLegacyNames[3] = {"tyres_wear_reduction", "tyres_brake_cooling", "tyres_thermal_reliability"};
+
+constexpr auto make_row_hashes()
+{
+    std::array<uint32_t, kNumRows> h{};
+    for (int i = 0; i < kNumRows; ++i)
+        h[static_cast<size_t>(i)] = row_hash(i + 1);
+    return h;
+}
+constexpr auto kOurHash = make_row_hashes();
 static_assert(kOurHash[0] == 0x27e41c13u && kOurHash[1] == 0x27f63494u && kOurHash[2] == 0x28084d15u,
               "node hash drifted from the live instances");
+static_assert(kOurHash[14] == djb2("tyres_thermal_15_255") && kOurHash[9] == djb2("tyres_thermal_10_255"),
+              "row hash builder drifted from djb2");
 static_assert(djb2("default_255") == 0xbd057d45u, "hub hash drifted from the live instance");
 
 constexpr size_t   kInstSize       = 0xe0;
@@ -1913,14 +1953,17 @@ int our_index(uintptr_t u)
     if (p[kInstDept] != kDeptFake || p[kInstRowFlag] != kTeamRow)
         return -1;
     uint32_t h = *reinterpret_cast<const uint32_t *>(u + kInstHash);
-    for (int i = 0; i < 3; ++i)
-        if (h == kOurHash[i])
+    for (int i = 0; i < kNumRows; ++i)
+        if (h == kOurHash[static_cast<size_t>(i)])
             return i;
     const char *s = *reinterpret_cast<const char *const *>(u + kInstName);
     if (!s || !region_readable(s, 32))
         return -1;
+    for (int i = 0; i < kNumRows; ++i)
+        if (cstr_eq(s, kOurRows[i].name, 32))
+            return i;
     for (int i = 0; i < 3; ++i)
-        if (cstr_eq(s, kOurNames[i], 32))
+        if (cstr_eq(s, kLegacyNames[i], 32))
             return i;
     return -1;
 }
@@ -2175,9 +2218,9 @@ void install_instantiate_tyres(uintptr_t base)
     if (bytes_are(base + kRvaRefreshFn, kRefreshBytes, sizeof kRefreshBytes))
         g_refresh = reinterpret_cast<RefreshFn>(base + kRvaRefreshFn);
     g_inst_live.store(true);
-    swofty::log("[rnd-tyres] Tyres upgrade instances ENABLED: tyres_thermal_1/2/3 (hash 0x%08x/0x%08x/0x%08x) take the "
+    swofty::log("[rnd-tyres] Tyres upgrade instances ENABLED: tyres_thermal_1..%d (hash 0x%08x..0x%08x) take the "
                 "normal init + state machine; the dept-4 hub \"default\"/central_fake_upgrade keeps the stock sentinel",
-                kOurHash[0], kOurHash[1], kOurHash[2]);
+                kNumRows, kOurHash[0], kOurHash[kNumRows - 1]);
 
     install_optional_site(g_deser_hook, base + kRvaDeserEnd, kDeserBytes, sizeof kDeserBytes, &on_deser_end,
                           "load (deserialize end)", base);
@@ -2288,7 +2331,8 @@ void on_page_query_done(safetyhook::Context &c)
     swofty::log("[rnd-tyres] instances: R&D page dept=%u team=0x%x query=%llu by dept 0:%u 1:%u 2:%u 3:%u 4:%u "
                 "other:%u (Upgrades=0x%llx mode=%u owner=0x%x)%s",
                 dept, team, (unsigned long long)n, by[0], by[1], by[2], by[3], by[4], by[5], (unsigned long long)U, mode,
-                cache, dept == kDeptFake ? (by[4] == 3 ? " <<< Tyres page FIXED (4:3)" : " <<< Tyres page: expect 4:3")
+                cache, dept == kDeptFake ? (by[4] >= 12 ? " <<< Tyres page FIXED (4:12 or 4:15)"
+                                                        : " <<< Tyres page: expect 4:12 or 4:15")
                                          : "");
     if (dept != kDeptFake)
         return;
@@ -2370,9 +2414,9 @@ void install_page_instance_diag(uintptr_t base)
 // three it returns kTestPrice (flag tyres_test_price, temporary).
 
 SWOFTY_SETTING(bool, tyres_upgrade_screen, true);
-SWOFTY_SETTING(bool, tyres_test_price, true);
+SWOFTY_SETTING(bool, tyres_test_price, false);
 std::atomic<bool> g_screen_enabled{true};
-std::atomic<bool> g_price_enabled{true};
+std::atomic<bool> g_price_enabled{false};
 
 SWOFTY_ON_CHANGE(tyres_upgrade_screen, bool on)
 {
@@ -2396,8 +2440,22 @@ static_assert(kHashTyresTab == 0x107666dcu && kHashErrDept == 0x7e5c1342u && kHa
 static_assert(djb2("back_pressed") == 0x493fe92bu, "back_pressed hash drifted");
 
 constexpr uint32_t kTestPrice = 5;
-constexpr uint8_t  kEffectDept[3] = {1, 1, 2};
-constexpr const char *kArtBase[3] = {"tyre_blankets", "calipers", "turbo_charger_wear_1"};
+constexpr uint8_t kCompareChassis = 1;
+constexpr uint8_t kComparePowertrain = 3;
+
+uint8_t compare_dept(uintptr_t inst, int idx)
+{
+    int d = rnd_upgrade_types::effect_dept(*reinterpret_cast<const uint8_t *>(inst + 0x70));
+    if (d >= 0)
+        return static_cast<uint8_t>(d);
+    return idx >= 12 ? kComparePowertrain : kCompareChassis;
+}
+
+const char *compare_name(uint8_t d)
+{
+    static const char *const kNames[] = {"Aerodynamics", "Chassis", "Durability", "Powertrain"};
+    return d < 4 ? kNames[d] : "?";
+}
 const char kTyresIconFrame[] = "maintenance";
 
 constexpr uintptr_t kRvaOpenDispatch = 0x141c873acull - kImageBase;
@@ -2637,26 +2695,44 @@ void on_compare_dept(safetyhook::Context &c)
     int idx = our_index(inst);
     if (idx < 0)
         return;
-    *d = kEffectDept[idx];
+    uint8_t to = compare_dept(inst, idx);
+    *d = to;
     if (g_compare_log.fetch_add(1) < 12)
         swofty::log("[rnd-tyres] vehicle performance comparison: tyres_thermal_%d \"%s\" department 4 -> %u (%s) for "
                     "the team bars",
-                    idx + 1, inst_name(inst), static_cast<unsigned>(kEffectDept[idx]),
-                    kEffectDept[idx] == 1 ? "Chassis" : "Durability");
+                    idx + 1, inst_name(inst), static_cast<unsigned>(to), compare_name(to));
+}
+
+int match_one(const char *s, const char *n, const char *&suffix)
+{
+    size_t k = 0;
+    while (n[k] && s[k] == n[k])
+        ++k;
+    if (n[k] == '\0' && (s[k] == '\0' || s[k] == '_')) {
+        suffix = s + k;
+        return 1;
+    }
+    return 0;
 }
 
 int match_our_name(const char *s, const char *&suffix)
 {
-    for (int i = 0; i < 3; ++i) {
-        const char *n = kOurNames[i];
-        size_t k = 0;
-        while (n[k] && s[k] == n[k])
-            ++k;
-        if (n[k] == '\0' && (s[k] == '\0' || s[k] == '_')) {
-            suffix = s + k;
-            return i;
+    int best = -1;
+    size_t best_len = 0;
+    for (int i = 0; i < kNumRows; ++i) {
+        const char *t = nullptr;
+        size_t len = std::strlen(kOurRows[i].name);
+        if (len > best_len && match_one(s, kOurRows[i].name, t)) {
+            best = i;
+            best_len = len;
+            suffix = t;
         }
     }
+    if (best >= 0)
+        return best;
+    for (int i = 0; i < 3; ++i)
+        if (match_one(s, kLegacyNames[i], suffix))
+            return i;
     return -1;
 }
 
@@ -2701,14 +2777,24 @@ template <size_t I> void on_part_art(safetyhook::Context &c)
         for (; *t && o + 1 < 96; ++t)
             buf[o++] = *t;
     };
+    bool mask = false;
+    const char *atlas = reinterpret_cast<const char *>(c.r9);
+    if (atlas && region_readable(atlas, 1))
+        for (size_t i = 0; i < 64 && atlas[i]; ++i)
+            if (atlas[i] == 'm' && atlas[i + 1] == 'a' && atlas[i + 2] == 's' && atlas[i + 3] == 'k') {
+                mask = true;
+                break;
+            }
+    bool own = mask ? rnd_tyres_icon::part_mask_live() : rnd_tyres_icon::part_art_live();
     if (omxm)
         put("om_xm_");
-    put(kArtBase[idx]);
+    put(own ? kOurRows[idx].name : kOurRows[idx].art);
     put(suffix);
     buf[o] = '\0';
     *arg = buf;
     if (g_art_log.fetch_add(1) < 24)
-        swofty::log("[rnd-tyres] card art: site %u \"%s\" -> borrowed \"%s\"", static_cast<unsigned>(I), name, buf);
+        swofty::log("[rnd-tyres] card art: site %u \"%s\" -> %s \"%s\"", static_cast<unsigned>(I), name,
+                    own ? "own" : "borrowed", buf);
 }
 
 using ArtFn = void (*)(safetyhook::Context &);
@@ -2917,9 +3003,9 @@ void install_test_price(uintptr_t base)
     }
     g_ret_stub = base + kRvaRetWin + 6;
     if (hook_at(g_cost_hook, hit, &on_cost, "upgrade cost (test price)"))
-        swofty::log("[rnd-tyres] TEST PRICE LIVE: tyres_thermal_1/2/3 cost %u research points for research, development, "
+        swofty::log("[rnd-tyres] TEST PRICE LIVE: tyres_thermal_1..%d cost %u research points for research, development, "
                     "standard and rush (temporary; turn tyres_test_price off to restore the database cost)",
-                    kTestPrice);
+                    kNumRows, kTestPrice);
 }
 
 } // namespace
@@ -2932,6 +3018,7 @@ SWOFTY_ON_LOAD
 
     // v0.8.0: the Tyres icon frames, before any hook names a frame (rnd_tyres_icon.cpp).
     rnd_tyres_icon::probe();
+    rnd_tyres_icon::probe_art();
 
     // UI groundwork + instrumentation first, so it runs even if the data hooks bail.
     ui_groundwork();

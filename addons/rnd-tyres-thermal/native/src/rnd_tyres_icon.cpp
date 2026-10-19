@@ -30,16 +30,20 @@ namespace rnd_tyres_icon {
 namespace {
 
 bool g_live = false;
+bool g_part_art = false;
+bool g_part_mask = false;
+bool g_category = false;
 
 struct Want {
     const char *name;
     uint64_t size;
     bool seen;
+    bool grown = false;
 };
 
 constexpr const char kArrays[] = "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.career.";
 
-std::wstring archive_path()
+std::wstring archive_path(const wchar_t *file = L"flow_career_hub.erp")
 {
     wchar_t exe[MAX_PATH * 2];
     DWORD n = GetModuleFileNameW(nullptr, exe, MAX_PATH * 2);
@@ -49,7 +53,7 @@ std::wstring archive_path()
     size_t cut = p.find_last_of(L"\\/");
     if (cut == std::wstring::npos)
         return {};
-    return p.substr(0, cut + 1) + L"2025_asset_groups\\ui_package\\flow_career_hub.erp";
+    return p.substr(0, cut + 1) + L"2025_asset_groups\\ui_package\\" + file;
 }
 
 template <class T> bool take(const std::vector<uint8_t> &b, size_t &at, T &out)
@@ -61,9 +65,9 @@ template <class T> bool take(const std::vector<uint8_t> &b, size_t &at, T &out)
     return true;
 }
 
-int check(std::vector<Want> &want, char *why, size_t why_len)
+int check(std::vector<Want> &want, char *why, size_t why_len, const wchar_t *file = L"flow_career_hub.erp")
 {
-    std::wstring path = archive_path();
+    std::wstring path = archive_path(file);
     FILE *f = path.empty() ? nullptr : _wfopen(path.c_str(), L"rb");
     if (!f) {
         std::snprintf(why, why_len, "flow_career_hub.erp not readable");
@@ -114,7 +118,7 @@ int check(std::vector<Want> &want, char *why, size_t why_len)
         for (auto &w : want)
             if (!w.seen && name == w.name) {
                 w.seen = true;
-                if (nfrag >= 2 && sizes[1] == w.size)
+                if (nfrag >= 2 && (w.grown ? sizes[1] > w.size : sizes[1] == w.size))
                     ++found;
             }
     }
@@ -159,6 +163,45 @@ void probe()
         swofty::log("[rnd-tyres] tyres icon off: %d/%zu grown R&D icon arrays in flow_career_hub.erp (tyres_icon off "
                     "or the icon ERP ops not installed); Tyres keeps the borrowed stock frames (SAFE)",
                     found, want.size());
+}
+
+void probe_art()
+{
+    std::string img = std::string(kArrays) + "rnd_part_image.texarray.image";
+    std::string img_om = std::string(kArrays) + "rnd_om_xm.rnd_part_image.texarray.image";
+    std::string msk = std::string(kArrays) + "rnd_part_mask.texarray.image";
+    std::string msk_om = std::string(kArrays) + "rnd_om_xm.rnd_part_mask.texarray.image";
+    std::string cat = std::string(kArrays) + "rnd_category_icons.texarray.image";
+    std::string cat_om = std::string(kArrays) + "rnd_om_xm.rnd_category_icons.texarray.image";
+    char why[96] = "";
+    std::vector<Want> art = {{img.c_str(), 20851200, false, true}, {img_om.c_str(), 19411200, false, true}};
+    std::vector<Want> mask = {{msk.c_str(), 6912000, false, true}, {msk_om.c_str(), 6336000, false, true}};
+    std::vector<Want> cats = {{cat.c_str(), 21504, false, true}, {cat_om.c_str(), 20480, false, true}};
+    int a = check(art, why, sizeof why, L"flow_team_hq.erp");
+    int m = check(mask, why, sizeof why, L"flow_team_hq.erp");
+    int k = check(cats, why, sizeof why);
+    g_part_art = a == 2;
+    g_part_mask = m == 2;
+    g_category = k == 2;
+    swofty::log("[rnd-tyres] tyres art: part images %s (%d/2 grown in flow_team_hq.erp), part masks %s (%d/2), "
+                "category icons %s (%d/2 grown in flow_career_hub.erp); otherwise the borrowed stock frames (SAFE)",
+                g_part_art ? "OWN" : "borrowed", a, g_part_mask ? "OWN" : "borrowed", m,
+                g_category ? "OWN" : "borrowed", k);
+}
+
+bool part_art_live()
+{
+    return g_part_art;
+}
+
+bool part_mask_live()
+{
+    return g_part_mask;
+}
+
+bool category_live()
+{
+    return g_category;
 }
 
 bool live()
