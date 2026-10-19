@@ -2390,10 +2390,16 @@ void install_page_instance_diag(uintptr_t base)
 // the stock way (FUN_141c87620 department mode, enable the card, resume in the stock tail), or,
 // if no Tyres tab with a slot exists, route to Durability. Back can no longer dead-end.
 //
-// Card art: the upgrade card binders build "<pkg>.rnd_part_image.<upgrade_name>[_suffix]" and
-// "<pkg>.rnd_part_mask.<upgrade_name>". Our names have no atlas frame, so the card and unlock
-// tiles render blank. The six variable-name Ne_Format_String calls get a borrowed stock part, and
-// the three "<pkg>.rnd_dept_icons_small.error_department" department icons get the chassis frame.
+// Card art: the three upgrade card binders (0x14180fc60, 0x141814320, 0x1418169f0) pick the
+// state suffix from the instance's last state (+0xc8 - 8): <= 1 none, 2 "%s_in_progress", else
+// "%s_complete" (0x141810065, 0x14181541a, 0x1418183a5), then build
+// "<pkg>.rnd_part_image.<upgrade_name><suffix>" and "<pkg>.rnd_part_mask.<upgrade_name>". The
+// 2026 lists (pkg "#overrides.career.rnd_om_xm") name their frames om_xm_<part>,
+// om_xm_<part>_progress, om_xm_<part>_complete and the mask om_xm_<part>_m; the plain lists use
+// <part>, <part>_in_progress, <part>_complete and the mask <part>. The six variable-name
+// Ne_Format_String calls get that list's frame for the state: our own art once
+// tools/build_card_art.py grew the arrays (rnd_tyres_icon::probe_art), else a borrowed stock part.
+// The three "<pkg>.rnd_dept_icons_small.error_department" department icons get the Tyres frame.
 //
 // Comparison: the vehicle performance comparison sums each team's base rating plus completed
 // upgrades for the panel's department; nothing exists for department 4, so every bar is empty.
@@ -2736,6 +2742,15 @@ int match_our_name(const char *s, const char *&suffix)
     return -1;
 }
 
+const char *frame_suffix(const char *state, bool omxm, bool mask)
+{
+    if (mask)
+        return omxm ? "_m" : "";
+    if (omxm && cstr_eq(state, "_in_progress", 13))
+        return "_progress";
+    return state;
+}
+
 char *next_art_buf()
 {
     static char bufs[8][96];
@@ -2789,12 +2804,12 @@ template <size_t I> void on_part_art(safetyhook::Context &c)
     if (omxm)
         put("om_xm_");
     put(own ? kOurRows[idx].name : kOurRows[idx].art);
-    put(suffix);
+    put(frame_suffix(suffix, omxm, mask));
     buf[o] = '\0';
     *arg = buf;
-    if (g_art_log.fetch_add(1) < 24)
-        swofty::log("[rnd-tyres] card art: site %u \"%s\" -> %s \"%s\"", static_cast<unsigned>(I), name,
-                    own ? "own" : "borrowed", buf);
+    if (g_art_log.fetch_add(1) < 32)
+        swofty::log("[rnd-tyres] card art: site %u %s \"%s\" -> %s \"%s\"", static_cast<unsigned>(I),
+                    mask ? "mask" : "image", name, own ? "own" : "borrowed", buf);
 }
 
 using ArtFn = void (*)(safetyhook::Context &);
