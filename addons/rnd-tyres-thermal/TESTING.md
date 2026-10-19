@@ -1,0 +1,116 @@
+# In-game test: rnd-tyres-thermal 0.9.0
+
+What to look at on each screen, and the `swofty/loader.log` lines (in the game folder) that prove each part. Lines start with `[rnd-tyres]`; search for the quoted text.
+
+## Setup
+
+1. Build the DLL: `addons/rnd-tyres-thermal/native/build.sh`.
+2. `swofty addons install addons/rnd-tyres-thermal`, enable `swofty.rnd-tyres-thermal` on a modded profile, leave every setting at its default.
+3. Press Play. Use a 2026 career save: a new one, or one from 0.8.0 (its three Tyres states land on A1-A3).
+4. To finish upgrades quickly, turn on `tyres_test_price` (every Tyres upgrade costs 5 points). Turn it off again to check the real prices.
+
+## At launch
+
+| part | log line |
+|---|---|
+| the DLL loaded and the art arrays are installed | `tyres art: part images OWN (2/2 …), part masks OWN (2/2 with 15), category icons OWN (2/2 with 4 …)` |
+| the department icon | `tyres icon LIVE: 6/6 grown R&D icon arrays` |
+| the upgrade types | `upgrade types INSTALLED: 19 radUpgradeTyreThermal, 20 radUpgradeBrakeCooling, 21 radUpgradeTyreLife, 22 radUpgradePUCooling; 21 consumer hooks, 6 order-table leas` |
+| the apply log | `upgrade apply log INSTALLED` |
+| the list icons | `dept tags INSTALLED: 9/9 icon sites` |
+
+Any line ending in `(SAFE)` means that piece kept the stock behaviour. Send the whole log.
+
+## Career load
+
+- `upgrade types: upgrade_type_metadata row "Tyre Thermal" -> type 19 (radUpgradeTyreThermal)`, and the same for 20, 21 and 22.
+- `upgrade types: upgrade row "Brake Cooling" -> type 20 (radUpgradeBrakeCooling)` (one line per type).
+- `instance init: tyres_thermal_<n> "<name>" -> normal init` for the first rows.
+
+## R&D > Performance
+
+- Five tiles (3+2); the Tyres tile has the tyre icon, the orange ring and **0/15** fitted upgrades on a fresh save.
+- The pie has five sectors; focusing the Tyres tile highlights the orange sector. Pressing it opens the Tyres page.
+
+## The Tyres department page
+
+Four category rows, in this order, each with its own icon and label:
+
+| type | label | icon | upgrades (name, size) |
+|---|---|---|---|
+| 19 | Tyre Thermal | `art/out/tyre_thermal.png` | Tyre Thermal Model (Minor), Rim Heat Shielding (Minor), Wheel Rim Cooling Channels (Major), Carcass Heat Management (Ultimate) |
+| 20 | Brake Cooling | `art/out/brake_cooling.png` | Brake Duct Inlet Revision (Minor), High-Density Disc Ventilation (Minor), Caliper Cooling Fins (Major), Brake Drum Airflow Package (Ultimate) |
+| 21 | Tyre Life | `art/out/tyre_life.png` | Sidewall Load Analysis (Minor), Tyre Pressure Telemetry (Minor), Camber Wear Optimisation (Major), Low-Degradation Package (Ultimate) |
+| 22 | Power Unit Cooling | `art/out/pu_cooling.png` | Radiator Core Density (Minor), Cooling Exit Louvres (Major), Integrated Thermal Management (Ultimate) |
+
+That is 15 upgrades. Check:
+
+- The category icons are the Tyres ones above, not the Chassis or Durability icons. Log: `dept tag: department category row 0x141c82470 icon "error_department_tyre_thermal" -> "tyres_tyre_thermal"`.
+- The row labels read Tyre Thermal, Brake Cooling, Tyre Life, Power Unit Cooling, never "INVALID UPGRADE". Log: `upgrade types: department category row 0x141c82470 label type 19 -> "tyre_thermal"`.
+- Every card shows its name and its own art (below), and the Tyres orange.
+- The descriptions match `assets/text.json` (Develop Upgrade screen).
+
+### Prices and days
+
+Research cost / development cost, research days / development days, before team modifiers:
+
+| size | cost | days | weighting |
+|---|---|---|---|
+| Minor | 500 / 1000 | 20 / 25 | 1 |
+| Major | 1000 / 1000 | 30 / 25 | 2 |
+| Ultimate | 1500 / 1000 | 40 / 25 | 3 |
+
+The game scales these by Durability's cost and time modifiers, so compare a Tyres Minor with a stock Durability Minor on the same save: they should match. The Ultimates (A4, B4, C4, D3) unlock at facility level 3 like Durability's; if they stay locked at a higher facility level, report it.
+
+### The tree
+
+Unlocks run top to bottom in four columns: A1 → A2 → A3 → A4, B1 → B2 → B3 → B4, C1 → C2 → C3 → C4, and D1 → D2 → D3 hanging off B2. A1, B1 and C1 are available from the start; D1 becomes available once B2 is complete.
+
+```
+        x=6   x=7   x=8   x=9
+  y=5   A1    B1    .     C1        A  Tyre Thermal
+  y=6   A2    B2 -> D1    C2        B  Brake Cooling
+  y=7   A3    B3    D2    C3        C  Tyre Life
+  y=8   A4    B4    D3    C4        D  Power Unit Cooling
+```
+
+If the tree map is shown, the block sits between the Chassis and Durability trees, clear of both.
+
+## Card art in each state
+
+Compare with a stock Chassis or Durability card in the same state (`art/preview.html` shows ours next to stock):
+
+| state | how to get it | what the card shows | log (first 32 rewrites) |
+|---|---|---|---|
+| available or locked | any card you have not started | grey wireframe of the part | `card art: site N image "tt_thermal_model" -> own "om_xm_tt_thermal_model"` |
+| in progress | start researching or developing one | the same wireframe in white | `-> own "om_xm_tt_thermal_model_progress"` |
+| fitted | finish research and development | the full-colour render | `-> own "om_xm_tt_thermal_model_complete"` |
+| mask | any card | the card's highlight hugs the part's outline | `card art: site N mask "tt_thermal_model" -> own "om_xm_tt_thermal_model_m"` |
+
+Check one card of each branch in each state, and the Develop Upgrade screen's large card. A blank card means a frame name the game did not find: send the `card art:` lines.
+
+## Other surfaces
+
+- R&D > In Progress: a Tyres upgrade shows the Tyres category icon, its type label and the orange strip.
+- Team HQ popups (research or development complete): Tyres category icon and orange.
+- Back from a Tyres upgrade's Develop Upgrade screen returns to the Tyres page.
+- The vehicle performance comparison on the Develop Upgrade screen fills in (Chassis for Tyre Thermal, Brake Cooling and Tyre Life, Powertrain for Power Unit Cooling).
+
+## The upgrade-apply log
+
+1. Complete a Tyres upgrade (research and develop it until it is fitted). `tyres_test_price` makes this quick.
+2. Start any session (practice is enough). The game builds the car, which logs each type the car's upgrade map holds:
+
+```
+[rnd-tyres] upgrade apply: type 19 radUpgradeTyreThermal perc 0.1429 (vehicle component 0x…)
+[rnd-tyres] upgrade types: apply 0x14fa63050 type 19 names block radUpgradeTyreThermal
+```
+
+`perc` is the fitted weighting of that type over the type's total: Tyre Thermal, Brake Cooling and Tyre Life total 7 (a Minor gives 0.1429, a Major 0.2857, an Ultimate 0.4286), Power Unit Cooling totals 6 (0.1667, 0.3333, 0.5). Types with nothing fitted log 0.0000 or no line. The stock types log too (`type 6 radUpgradeTyreWear …`); their values must not change when a Tyres upgrade is fitted.
+
+## Only the game can confirm
+
+- That the 2026 card lookups find our frames under their stock-style names (`om_xm_<name>_progress`, `om_xm_<name>_m`). The game builds `<name>_in_progress` and an unsuffixed mask; the hook renames them, and the frames are in the lists at those names.
+- How close the BC7 encoding of the fitted renders looks to the stock cards next to them (mode 6 only: fine detail such as radiator fins loses some contrast).
+- Whether the Ultimates unlock at facility level 3.
+- Whether Brake Cooling and Power Unit Cooling change anything on track (`native/HOOKS.md`, "Power Unit Cooling" and the Brake note).

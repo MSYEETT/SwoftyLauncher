@@ -8,31 +8,38 @@ This folder is source only. The launcher's builds and releases leave it out.
 
 Version 0.7.2 works in game:
 
-- The Tyres department page lists three upgrades that can be researched and developed, with Durability's research slots and R&D modifiers.
+- The Tyres department page lists its upgrades, which can be researched and developed, with Durability's research slots and R&D modifiers.
 - R&D > Performance shows five department tiles (3+2) and a five-sector development-potential pie with an orange Tyres sector. The Tyres tile shows its fitted and total upgrades, highlights its sector and opens the Tyres page.
 - The Develop Upgrade screen, the In Progress list, the department category rows, Team HQ popups and upgrade cards show Tyres upgrades in the Tyres orange.
 
-Version 0.8.0 gives Tyres its own tyre icon on the R&D > Performance tile, the department box, the R&D lists and the Develop Upgrade screen, and an orange strip in the In Progress list. With `tyres_icon` off, or without the icon arrays installed, Tyres borrows the Durability icon and strip as 0.7.2 did. The category rows keep the stock icon of each upgrade's type.
+Version 0.8.0 gives Tyres its own tyre icon on the R&D > Performance tile, the department box, the R&D lists and the Develop Upgrade screen, and an orange strip in the In Progress list. With `tyres_icon` off, or without the icon arrays installed, Tyres borrows the Durability icon and strip as 0.7.2 did.
+
+Version 0.9.0 adds:
+
+- A full tree of 15 upgrades in four branches: Tyre Thermal, Brake Cooling, Tyre Life and Power Unit Cooling (`DESIGN.md`, "v0.9.0 — the full upgrade tree"). Costs, research and development days and facility levels follow the stock 2026 curve per size.
+- Four new upgrade types, minted natively (ids 19-22), each with its own card label, `upgrade_type_metadata` row and handling block in every career car's VTF. Tyres upgrades never dilute Chassis' stock Tyre Wear or Brakes.
+- Card art for every upgrade in the stock 2026 style (available, in progress, fitted and mask frames) and a category icon for each new type. With `tyres_card_art` off, the cards borrow stock part art and stock category icons.
+- An `upgrade apply` log line per Tyres type when a car is built for a session.
+
+`TESTING.md` lists what to check in game.
 
 ![Stock department icons and the Tyres icon](preview/tyres_icon_compare.png)
 
 ![Stock pie and the five-sector pie](preview/pie_compare.png)
 
-Temporary test values, to restore before a release (`DESIGN.md`, "TEMPORARY test values"):
-
-- `tyres_test_price` (on by default) makes the three upgrades cost 5 research points. The database cost is 1000.
-- `db/tyres_tree.json` sets 5 days to research and 5 to develop. The real values are 20 and 25.
-- `assets/text.json` names the upgrades "Pirelli Whisperer", "Brake Disc Chill Pill" and "Thermal Blanket of Destiny".
+![Stock and Tyres card art](art/preview.png)
 
 ## What it changes
 
 | part | files | change |
 |---|---|---|
-| Database | `db/departments.json`, `db/tyres_tree.json` | an `UpgradeDepartmentEntry_4` row (`department = Fake`, department code 4) cloned from Durability; three upgrades (Tyre Wear, Brakes, Upgrade All Durability) in all 46 `trees.<team>.fake` containers, linked from the tree hub |
-| Text | `assets/text.json` | the department name and description, and the upgrade names and descriptions |
+| Database | `db/departments.json`, `db/tyres_tree.json`, `db/upgrade_types.json` | an `UpgradeDepartmentEntry_4` row (`department = Fake`, department code 4) cloned from Durability; the 15 upgrades in all 46 `trees.<team>.fake` containers, the branch roots linked from the tree hub; `upgrade_type_metadata_19..22` in all 46 metadata tables |
+| Text | `assets/text.json` | the department name and description, the four type labels, and the upgrade names and descriptions |
 | UI | `erp/rnd_fifth_pie.json`, `ui/` | the five-tile R&D > Performance overview and the five-sector pie, in `flow_career_hub.erp` and `flow_team_hq.erp` |
-| Icons | `erp/rnd_tyres_icon.json`, `icons/` | a `tyres` frame in `rnd_dept_icons_small` and `rnd_wheel_icon` and a `rnd_tyres_strip` frame in `rnd_department_strips`: one more slice in each texture array (`flow_career_hub.erp`, `flow_team_hq.erp`) and one more `overrides.uidb` entry (`databases.erp`) |
-| Engine | `native/rnd_departments.dll` | reads the fifth department row, gives the Tyres upgrades R&D states, and names, colours, counts and routes the fifth tile and pie sector |
+| Icons | `erp/rnd_tyres_icon.json`, `icons/` | a `tyres` frame in `rnd_dept_icons_small` and `rnd_wheel_icon` and a `rnd_tyres_strip` frame in `rnd_department_strips`: one more slice in each texture array (`flow_career_hub.erp`, `flow_team_hq.erp`, `flow_r_and_d.erp`) and one more `overrides.uidb` entry (`databases.erp`) |
+| Card art | `erp/rnd_tyres_card_art.json`, `art/arrays/` | 45 slices in `rnd_part_image`, 15 in `rnd_part_mask` and 4 in `rnd_category_icons`, plain and `rnd_om_xm`, in every UI archive that carries them (`common_flow_misc.erp`, `flow_career_hub.erp`, `flow_r_and_d.erp`, `flow_team_hq.erp`), and the matching `overrides.uidb` entries |
+| Cars | `erp/rnd_upgrade_vtf.json`, `vtf/` | the four `radUpgrade*` blocks for the new types in 44 career handling VTFs (94 copies in 65 archives) |
+| Engine | `native/rnd_departments.dll` | reads the fifth department row, gives the Tyres upgrades R&D states, mints the four upgrade types, names, colours, counts and routes the fifth tile and pie sector, and picks the Tyres card art for each card state |
 
 The engine hooks are written for the Steam build 25251167 (`F1_25.exe` d873a1c8…). Each one checks its bytes and installs nothing when they don't match.
 
@@ -52,12 +59,15 @@ The engine hooks are written for the Steam build 25251167 (`F1_25.exe` d873a1c8�
 | `tyres_research_capacity` | on | Tyres gets Durability's research slots and R&D modifiers |
 | `diag_tree_rowcount` | on | logs the upgrade-tree row count per department |
 | `select_fifth_dept` | off | v0.5.0 experiment: lets the box grid select index 4 |
-| `instantiate_tyres_upgrades` | on | gives the three Tyres upgrades R&D states |
+| `instantiate_tyres_upgrades` | on | gives the Tyres upgrades R&D states |
 | `diag_tyres_instances` | on | logs each R&D page's upgrade instances per department |
 | `tyres_upgrade_screen` | on | fixes Back, the card art and the performance comparison on the Develop Upgrade screen |
-| `tyres_dept_tags` | on | Tyres icon and colour in R&D lists |
+| `tyres_dept_tags` | on | Tyres icon, category icons and colour in R&D lists |
 | `tyres_icon` | on | the Tyres icon frames; a rebuild applies a change |
-| `tyres_test_price` | on | the temporary 5-point price |
+| `tyres_card_art` | on | the Tyres card art and category icons; a rebuild applies a change |
+| `tyres_test_price` | off | every Tyres upgrade costs 5 research points (testing only) |
+| `tyres_upgrade_types` | on | the four Tyres upgrade types and their car effects |
+| `log_upgrade_apply` | on | logs each Tyres type's progress when a car is built for a session |
 
 Most settings apply at install. Relaunch after changing one.
 
@@ -90,6 +100,16 @@ re/tools/py addons/rnd-tyres-thermal/tools/build_icons.py --game "<F1 25>"
 
 It compares the build with the shipped files and exits 1 on a difference. `--write` replaces them.
 
+## Regenerate the card art arrays
+
+`art/arrays/` and `erp/rnd_tyres_card_art.json` are built from `art/out/` (see `art/STYLE.md`), `art/manifest.json` and the stock UI archives. It needs numpy and `node`:
+
+```sh
+re/tools/py addons/rnd-tyres-thermal/tools/build_card_art.py --game "<F1 25>"
+```
+
+It compares like `build_icons.py`; `--write` replaces the shipped files.
+
 ## Install into a profile
 
 Build the DLL first, then:
@@ -104,6 +124,7 @@ Use a modded profile and launcher v1.0.4 or later. The launcher applies the addo
 ## Details
 
 - `native/HOOKS.md`: every hook site and address, the department-byte sweep and the expected log lines for each version.
-- `DESIGN.md`: the department design, the database containers, the version history and the temporary test values.
+- `DESIGN.md`: the department design, the database containers, the upgrade tree, the card art and the version history.
+- `TESTING.md`: the in-game test checklist and the log lines that prove each part.
 - `native/PIE_INTEGRATION.md`, `native/PIE_SITES.md`: the pie's native half and its hook-site proofs.
 - `tools/README.md`: the asset tools and the UI resources they build.

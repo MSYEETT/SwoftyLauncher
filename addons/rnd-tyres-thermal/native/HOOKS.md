@@ -1242,14 +1242,7 @@ Installed independently of `tyres_upgrade_types`.
   loop; rows 1-3 keep their v0.6 hashes), names `tt_*`/`bc_*`/`tl_*`/`pc_*` from the spec, plus the three
   legacy names as a fallback. The vehicle performance comparison department comes from the instance type
   (19-21 Chassis, 22 Powertrain), else from the row (13-15 Powertrain, others Chassis).
-- Card art: `om_xm_<upgrade_name>[_in_progress]` (or `<upgrade_name>…` outside `rnd_om_xm`) when the
-  `rnd_part_image` arrays in `flow_team_hq.erp` are larger than stock (20851200 / 19411200 bytes); masks
-  only when `rnd_part_mask` grew (6912000 / 6336000). Otherwise the borrowed stock frames
-  (`tyre_blankets`, `calipers`, `turbo_charger_wear_1`).
-- Category icons (`rnd_dept_tags.cpp`): `error_department_<tyre_thermal|brake_cooling|tyre_life|pu_cooling>`
-  → the frame named by the type key when `rnd_category_icons` grew in `flow_career_hub.erp` (21504 / 20480
-  bytes stock), else `chassis_tyre_wear`, `chassis_brakes`, `chassis_tyre_wear`,
-  `maintenance_internal_combustion`.
+- Card art and category icons: see "v0.9.0 — the card art" below.
 - `tyres_test_price` defaults off in the DLL (the tree carries real prices).
 
 ### Data (`tools/build_vtf.py`)
@@ -1283,7 +1276,7 @@ tyre heat update at 0x1446b7f86) but its only static writer is the reset at 0x14
 
 Install:
 ```
-[rnd-tyres] tyres art: part images borrowed (0/2 grown in flow_team_hq.erp), part masks borrowed (0/2), category icons borrowed (0/2 grown in flow_career_hub.erp); otherwise the borrowed stock frames (SAFE)
+[rnd-tyres] tyres art: part images OWN (2/2 arrays with the 45 Tyres slices in flow_team_hq.erp), part masks OWN (2/2 with 15), category icons OWN (2/2 with 4 in flow_career_hub.erp); a borrowed piece uses stock frames (SAFE)
 [rnd-tyres] upgrade apply log INSTALLED: read-only hook @0x14fa63050 logs each type's perc once per vehicle component and value
 [rnd-tyres] upgrade types: tyres_upgrade_types=on, 4 new types (Power Unit Cooling shipped)
 [rnd-tyres] upgrade types: hooked <site> @0x… (base+0x…)                                   (x21)
@@ -1298,7 +1291,8 @@ Career load:
 [rnd-tyres] upgrade types: upgrade row "Brake Cooling" -> type 20 (radUpgradeBrakeCooling)
 ```
 Tyres page / In Progress / cards: `[rnd-tyres] upgrade types: department category row 0x141c82470 label type 19 -> "tyre_thermal"`
-and `dept tag: department category row 0x141c82470 icon "error_department_tyre_thermal" -> "chassis_tyre_wear"`.
+and `dept tag: department category row 0x141c82470 icon "error_department_tyre_thermal" -> "tyres_tyre_thermal"`
+(`chassis_tyre_wear` with `tyres_card_art` off).
 Session load (vehicle build), one line per type per component and value:
 ```
 [rnd-tyres] upgrade apply: type 6 radUpgradeTyreWear perc 0.0000 (vehicle component 0x…)
@@ -1307,3 +1301,71 @@ Session load (vehicle build), one line per type per component and value:
 ```
 With the game's `VEHICLE_UPGRADES` channel on: `Applying radUpgradeTyreThermal upgrade to vehicle N. (perc0to1: x)`.
 Refusals end in `(SAFE)`; nothing is minted unless every consumer is live.
+
+## v0.9.0 — the card art (setting `tyres_card_art`, db, default on)
+
+### Where the game picks a card's frame
+The three upgrade card binders (0x14180fc60, 0x141814320 and 0x1418169f0) read the instance's last state byte
+(`[inst+0xc8] - 8`) at 0x141810065, 0x14181541a and 0x1418183a5: state ≤ 1 keeps `upgrade_name`,
+state 2 formats `"%s_in_progress"` (0x14587e11e), anything else `"%s_complete"` (0x14587e12d). The
+result goes to `Ne_Format_String("%s.%s.%s", pkg, "rnd_part_image", name)`; the mask call
+formats `pkg.rnd_part_mask.<upgrade_name>` with no suffix. `pkg` is `#overrides.career.rnd_om_xm`
+on the 2026 career. Those are the only references to `rnd_part_image`, `rnd_part_mask` and the
+two suffix strings in `.xtls`.
+
+The 2026 lists do not use those suffixes: `rnd_om_xm.rnd_part_image` names its frames
+`om_xm_<part>`, `om_xm_<part>_progress` and `om_xm_<part>_complete`, and `rnd_om_xm.rnd_part_mask`
+names its masks `om_xm_<part>_m`. The plain lists use `<part>`, `<part>_in_progress`,
+`<part>_complete` and the mask `<part>`.
+
+### The hook (`on_part_art`, `rnd_departments.cpp`, the six v0.6.1 art sites)
+For one of our upgrades the hook rewrites the frame name `[rsp+0x20]` to the list's own name for
+the state. `om_xm_` is added when the pkg contains it; the mask is recognised by the atlas in `r9`.
+
+| card state | binder name | `rnd_om_xm` frame | plain frame |
+|---|---|---|---|
+| locked / available | `<name>` | `om_xm_<name>` | `<name>` |
+| in progress (research or development) | `<name>_in_progress` | `om_xm_<name>_progress` | `<name>_in_progress` |
+| fitted / complete | `<name>_complete` | `om_xm_<name>_complete` | `<name>_complete` |
+| mask | `<name>` | `om_xm_<name>_m` | `<name>` |
+
+`<name>` is the upgrade's own name when `rnd_tyres_icon::probe_art()` finds the grown arrays, else
+the borrowed stock part (`tyre_blankets`, `calipers`, `turbo_charger_wear_1`), which has the same
+four frames in both lists. Images and masks switch separately.
+
+### The probe (`rnd_tyres_icon::probe_art`)
+It reads the ERP index of the installed archives and needs fragment 1 of each array at exactly the
+stock size plus our slices (240×240 BC7 = 57600 bytes a slice, 32×32 = 1024):
+
+| array (`.texarray.image`) | archive | stock slices | ours | size |
+|---|---|---|---|---|
+| `rnd_part_image` | `flow_team_hq.erp` | 362 | 45 | 23443200 |
+| `rnd_om_xm.rnd_part_image` | `flow_team_hq.erp` | 337 | 45 | 22003200 |
+| `rnd_part_mask` | `flow_team_hq.erp` | 120 | 15 | 7776000 |
+| `rnd_om_xm.rnd_part_mask` | `flow_team_hq.erp` | 110 | 15 | 7200000 |
+| `rnd_category_icons` | `flow_career_hub.erp` | 21 | 4 | 25600 |
+| `rnd_om_xm.rnd_category_icons` | `flow_career_hub.erp` | 20 | 4 | 24576 |
+
+### Category icons (`rnd_dept_tags.cpp`)
+The category rows build `<department>_<type>` (`"%s_%s"`, 0x1456708d0), and department 4 gives
+`error_department`. With the arrays grown the four category sites ask for `tyres_tyre_thermal`,
+`tyres_brake_cooling`, `tyres_tyre_life` or `tyres_pu_cooling`; otherwise `chassis_tyre_wear`,
+`chassis_brakes`, `chassis_tyre_wear` and `maintenance_internal_combustion`. The icon site in
+0x1418b02b0 (`"%s_%s"` into a string, no `[rsp+0x20]` frame) is not hooked and shows no icon for
+department 4, as before.
+
+### Expected log (v0.9.0 card art)
+Install:
+```
+[rnd-tyres] tyres art: part images OWN (2/2 arrays with the 45 Tyres slices in flow_team_hq.erp), part masks OWN (2/2 with 15), category icons OWN (2/2 with 4 in flow_career_hub.erp); a borrowed piece uses stock frames (SAFE)
+```
+Tyres page and Develop Upgrade screen (first 32 rewrites):
+```
+[rnd-tyres] card art: site 2 image "tt_thermal_model" -> own "om_xm_tt_thermal_model"
+[rnd-tyres] card art: site 3 mask "tt_thermal_model" -> own "om_xm_tt_thermal_model_m"
+[rnd-tyres] card art: site 2 image "tt_thermal_model_in_progress" -> own "om_xm_tt_thermal_model_progress"
+[rnd-tyres] card art: site 2 image "tt_thermal_model_complete" -> own "om_xm_tt_thermal_model_complete"
+[rnd-tyres] dept tag: department category row 0x141c82470 icon "error_department_tyre_thermal" -> "tyres_tyre_thermal"
+```
+With `tyres_card_art` off: `part images borrowed (0/2 …)` and `-> borrowed "om_xm_tyre_blankets_progress"`, and
+the category rows fall back to the stock icons.
