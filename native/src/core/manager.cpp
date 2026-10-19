@@ -2,6 +2,8 @@
 #include <windows.h>
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <cstdarg>
 #include <cstdio>
 #include <string>
 #include <unordered_map>
@@ -26,6 +28,8 @@ const SwoftyDb *db_table();
 const SwoftyStorage *storage_table();
 void ready();
 void events_drop_module(void *module);
+const std::wstring &swofty_root();
+void on_stage(void (*fn)(int));
 }
 
 namespace {
@@ -40,7 +44,7 @@ struct Binding {
     long long anchor = 0, insn = 0, len = 0, rva = -1, slots = 0;
     bool resolved = false;
     uintptr_t addr = 0;
-    std::string sa_string;
+    std::string sa_string = {};
     long long sa_func_rva = -1, sa_func_off = 0;
     bool sa_durable = false;
 };
@@ -458,7 +462,10 @@ uintptr_t resolve_binding(const Binding &b)
     const char *pw = "signature did not match exactly once", *aw = "no string anchor";
     uintptr_t target = 0;
     const char *method = "";
-    bool anchor_first = !same_build && !b.sa_string.empty();
+    /* Resolver primary whenever the baked pattern cannot apply: a different exe than the KB build, or a
+       per-build set (e.g. bindings.ea.json) that ships no pattern for this entry. Pattern-first only on
+       the native build whose bytes the pattern was derived from. */
+    bool anchor_first = !b.sa_string.empty() && (!same_build || b.pattern.empty());
     if (anchor_first) {
         if ((target = resolve_by_anchor(b, &aw)))
             method = "string anchor";
@@ -479,6 +486,166 @@ uintptr_t resolve_binding(const Binding &b)
     api->log("[core] bind %s -> 0x%llx (base+0x%llx), %s %s via %s", b.id.c_str(), (unsigned long long)target,
              rva(target), b.kind.c_str(), b.status.c_str(), method);
     return target;
+}
+
+bool ea_diag_on()
+{
+    char v[8] = {0};
+    return GetEnvironmentVariableA("SWOFTY_EA_DIAG", v, sizeof v) && v[0] == '1';
+}
+
+void ea_log(const char *fmt, ...)
+{
+    char body[2048];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(body, sizeof body, fmt, ap);
+    va_end(ap);
+    api->log("%s", body);
+    static const std::wstring path = runtime::swofty_root() + L"ea-diagnostics.log";
+    HANDLE f = CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS,
+                           FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (f == INVALID_HANDLE_VALUE)
+        return;
+    SYSTEMTIME t;
+    GetLocalTime(&t);
+    char line[2200];
+    int n = snprintf(line, sizeof line, "%04u-%02u-%02u %02u:%02u:%02u.%03u [%5lu] %s\r\n", t.wYear, t.wMonth, t.wDay,
+                     t.wHour, t.wMinute, t.wSecond, t.wMilliseconds, GetCurrentThreadId(), body);
+    if (n > 0) {
+        DWORD w;
+        WriteFile(f, line, (DWORD)(n > (int)sizeof line ? (int)sizeof line : n), &w, nullptr);
+    }
+    CloseHandle(f);
+}
+
+const IMAGE_SECTION_HEADER *code_section()
+{
+    auto nt = nt_headers();
+    auto s = IMAGE_FIRST_SECTION(nt);
+    const IMAGE_SECTION_HEADER *exec = nullptr;
+    for (int i = 0; i < nt->FileHeader.NumberOfSections; i++, s++) {
+        DWORD c = s->Characteristics;
+        if ((c & IMAGE_SCN_MEM_EXECUTE) && (c & IMAGE_SCN_MEM_READ) && !(c & IMAGE_SCN_MEM_WRITE))
+            return s;
+        if ((c & IMAGE_SCN_MEM_EXECUTE) && !exec)
+            exec = s;
+    }
+    return exec;
+}
+
+double page_entropy(uintptr_t p)
+{
+    if (!page_readable(p, 0x1000))
+        return -1;
+    unsigned long cnt[256] = {0};
+    auto b = reinterpret_cast<const uint8_t *>(p);
+    for (int i = 0; i < 0x1000; i++)
+        cnt[b[i]]++;
+    double h = 0;
+    for (int i = 0; i < 256; i++)
+        if (cnt[i]) {
+            double pr = cnt[i] / 4096.0;
+            h -= pr * std::log2(pr);
+        }
+    return h;
+}
+
+const char *ent_word(double e)
+{
+    return e < 0 ? "unreadable" : e < 6.5 ? "decrypted" : e > 7.5 ? "encrypted" : "mixed";
+}
+
+void ea_sample_entropy(const char *when)
+{
+    auto s = code_section();
+    if (!s) {
+        ea_log("[ea] entropy (%s): no EXECUTE|READ code section found", when);
+        return;
+    }
+    uintptr_t start = base + s->VirtualAddress;
+    size_t size = s->Misc.VirtualSize ? s->Misc.VirtualSize : s->SizeOfRawData;
+    char name[9] = {0};
+    memcpy(name, s->Name, 8);
+    ea_log("[ea] entropy (%s): section %s base+0x%llx size 0x%llx, 8 pages (entropy <6.5 decrypted, ~8.0 packed)", when,
+           name, rva(start), (unsigned long long)size);
+    double sum = 0;
+    int ok = 0;
+    for (int k = 0; k < 8; k++) {
+        size_t off = size > 8 * 0x1000 ? (size_t)((double)k / 8 * (double)(size - 0x1000)) & ~(size_t)0xfff
+                                       : (size_t)k * 0x1000;
+        double e = page_entropy(start + off);
+        ea_log("[ea]   page +0x%08llx: entropy %.2f -> %s", (unsigned long long)off, e < 0 ? 0.0 : e, ent_word(e));
+        if (e >= 0)
+            ok++, sum += e;
+    }
+    if (ok)
+        ea_log("[ea] entropy (%s): %d page(s), avg %.2f -> %s", when, ok, sum / ok,
+               (sum / ok) < 6.5 ? "DECRYPTED in bulk" : (sum / ok) > 7.5 ? "STILL PACKED (encrypted)" : "PARTIAL/mixed");
+}
+
+void ea_binding_report(const char *when)
+{
+    ea_log("[ea] per-binding resolution report (%s): %zu binding(s); each shows anchor string, its code xref, the "
+           "resolved site, and whether that code is decrypted",
+           when, bindings.size());
+    size_t resolved = 0, enc = 0, nostr = 0, noxref = 0, noanchor = 0;
+    for (auto &b : bindings) {
+        if (b.sa_string.empty()) {
+            noanchor++;
+            ea_log("[ea] binding %-30s VERDICT no-anchor (pattern-only; the EA code section holds no plaintext to "
+                   "pattern-scan, needs a decrypted dump to derive an EA string anchor)",
+                   b.id.c_str());
+            continue;
+        }
+        uintptr_t sVA = locate_string(b.sa_string);
+        if (!sVA) {
+            nostr++;
+            ea_log("[ea] binding %-30s string NOT found (unique) in the image -> VERDICT string-not-found",
+                   b.id.c_str());
+            continue;
+        }
+        uintptr_t f = anchor_func(b.sa_string);
+        if (!f) {
+            noxref++;
+            ea_log("[ea] binding %-30s string @base+0x%llx, code xref NOT found (no unique rel32 to it) -> VERDICT "
+                   "xref-not-found (code section is almost certainly still encrypted here)",
+                   b.id.c_str(), rva(sVA));
+            continue;
+        }
+        const char *why = "";
+        uintptr_t target = resolve_by_anchor(b, &why);
+        uintptr_t probe = target ? target : f;
+        double e = page_entropy(probe);
+        bool dec = e >= 0 && e < 6.5;
+        if (target) {
+            resolved++;
+            ea_log("[ea] binding %-30s string @base+0x%llx, func @base+0x%llx, site @base+0x%llx, site-page entropy "
+                   "%.2f (%s) -> VERDICT resolved%s",
+                   b.id.c_str(), rva(sVA), rva(f), rva(target), e < 0 ? 0 : e, ent_word(e),
+                   dec ? "" : " [WARNING: code reads encrypted, treat the address as unverified]");
+        } else {
+            enc++;
+            ea_log("[ea] binding %-30s string @base+0x%llx, func @base+0x%llx, func-page entropy %.2f (%s) -> VERDICT "
+                   "%s (%s)",
+                   b.id.c_str(), rva(sVA), rva(f), e < 0 ? 0 : e, ent_word(e),
+                   dec ? "resolve-failed" : "code-still-encrypted", why);
+        }
+    }
+    ea_log("[ea] per-binding summary (%s): %zu resolved, %zu code-still-encrypted, %zu xref-not-found, %zu "
+           "string-not-found, %zu no-anchor (of %zu)",
+           when, resolved, enc, noxref, nostr, noanchor, bindings.size());
+}
+
+void ea_stage_handler(int stage)
+{
+    if (stage != SWOFTY_STAGE_WINDOW)
+        return;
+    ea_log("[ea] window stage reached; re-sampling entropy and re-resolving bindings (settles bulk-vs-transient "
+           "decryption: if pages/sites are now decrypted, decryption is bulk-on-unlock and the resolver works once "
+           "the menu builds)");
+    ea_sample_entropy("window");
+    ea_binding_report("window");
 }
 
 Binding *find_binding(const std::string &id)
@@ -901,6 +1068,15 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     a->db = runtime::db_table();
     a->storage = runtime::storage_table();
     a->version = SWOFTY_API_VERSION;
+    if (ea_diag_on()) {
+        ea_log("[ea] core attached on a build the loader flagged as NON-MATCHING (bindings %s, build %.16s, "
+               "same_build=%d); running EA decryption + per-binding resolution diagnostics (report-only, no mixin is "
+               "installed when resolution fails)",
+               chosen.c_str(), doc["build"]["sha256"].str("?").c_str(), (int)same_build);
+        ea_sample_entropy("core-init");
+        ea_binding_report("core-init");
+        runtime::on_stage(ea_stage_handler);
+    }
     return 1;
 }
 

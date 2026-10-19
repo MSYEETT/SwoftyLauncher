@@ -29,6 +29,8 @@ LPTOP_LEVEL_EXCEPTION_FILTER previous;
 safetyhook::InlineHook exit_hook, terminate_hook;
 uintptr_t seen[MAX_SEEN];
 volatile LONG seen_count, reports, busy, exited;
+bool ea_build;
+std::wstring diag_path;
 
 std::string fmt(const char *f, ...)
 {
@@ -38,6 +40,39 @@ std::string fmt(const char *f, ...)
     vsnprintf(b, sizeof b, f, ap);
     va_end(ap);
     return b;
+}
+
+void diag_line(const std::string &s)
+{
+    if (!ea_build || diag_path.empty())
+        return;
+    HANDLE f = CreateFileW(diag_path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS,
+                           FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (f == INVALID_HANDLE_VALUE)
+        return;
+    SYSTEMTIME t;
+    GetLocalTime(&t);
+    char line[1200];
+    int n = snprintf(line, sizeof line, "%04u-%02u-%02u %02u:%02u:%02u.%03u [%5lu] %s\r\n", t.wYear, t.wMonth, t.wDay,
+                     t.wHour, t.wMinute, t.wSecond, t.wMilliseconds, GetCurrentThreadId(), s.c_str());
+    if (n > 0) {
+        DWORD w;
+        WriteFile(f, line, (DWORD)(n > (int)sizeof line ? (int)sizeof line : n), &w, nullptr);
+    }
+    CloseHandle(f);
+}
+
+/* Like api->log, but on a non-matching (EA/other) build also mirrors the line into the dedicated
+   swofty\ea-diagnostics.log, so the friend's single file carries the symbolised crash report. */
+void cl(const char *f, ...)
+{
+    char b[1024];
+    va_list ap;
+    va_start(ap, f);
+    vsnprintf(b, sizeof b, f, ap);
+    va_end(ap);
+    api->log("%s", b);
+    diag_line(b);
 }
 
 bool readable(uintptr_t a, size_t n)
@@ -147,7 +182,7 @@ void backtrace(CONTEXT ctx, bool skip_self)
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                            reinterpret_cast<LPCWSTR>(ctx.Rip), &m);
         if (!skip_self || m != self)
-            api->log("[crash]   #%-2d %s", shown++, where(ctx.Rip).c_str());
+            cl("[crash]   #%-2d %s", shown++, where(ctx.Rip).c_str());
         if (ctx.Rsp < lo || ctx.Rsp >= hi)
             break;
         DWORD64 ib = 0;
@@ -175,7 +210,7 @@ bool first_time(uintptr_t ip)
     if (i < MAX_SEEN)
         seen[i] = ip;
     else if (i == MAX_SEEN)
-        api->log("[crash] %ld distinct fault addresses seen; no further first-chance exceptions are logged", MAX_SEEN);
+        cl("[crash] %ld distinct fault addresses seen; no further first-chance exceptions are logged", MAX_SEEN);
     return i < MAX_SEEN;
 }
 
@@ -184,26 +219,26 @@ void report(const char *when, EXCEPTION_POINTERS *e)
     auto r = e->ExceptionRecord;
     auto c = e->ContextRecord;
     LONG n = InterlockedIncrement(&reports);
-    api->log("[crash] #%ld %s %s (0x%08lx) on thread %lu, %lu s after load, at %s", n, when, code_name(r->ExceptionCode),
+    cl("[crash] #%ld %s %s (0x%08lx) on thread %lu, %lu s after load, at %s", n, when, code_name(r->ExceptionCode),
              r->ExceptionCode, GetCurrentThreadId(), (GetTickCount() - start_tick) / 1000, where(c->Rip).c_str());
     if ((r->ExceptionCode == EXCEPTION_ACCESS_VIOLATION || r->ExceptionCode == EXCEPTION_IN_PAGE_ERROR) &&
         r->NumberParameters >= 2) {
         auto op = r->ExceptionInformation[0];
-        api->log("[crash]   %s 0x%llx", op == 0 ? "reading" : op == 1 ? "writing" : op == 8 ? "executing (DEP)" : "accessing",
+        cl("[crash]   %s 0x%llx", op == 0 ? "reading" : op == 1 ? "writing" : op == 8 ? "executing (DEP)" : "accessing",
                  (unsigned long long)r->ExceptionInformation[1]);
     }
     if (r->ExceptionCode == EXCEPTION_STACK_OVERFLOW)
         return;
-    api->log("[crash]   rax=%016llx rbx=%016llx rcx=%016llx rdx=%016llx", c->Rax, c->Rbx, c->Rcx, c->Rdx);
-    api->log("[crash]   rsi=%016llx rdi=%016llx rbp=%016llx rsp=%016llx", c->Rsi, c->Rdi, c->Rbp, c->Rsp);
-    api->log("[crash]   r8 =%016llx r9 =%016llx r10=%016llx r11=%016llx", c->R8, c->R9, c->R10, c->R11);
-    api->log("[crash]   r12=%016llx r13=%016llx r14=%016llx r15=%016llx", c->R12, c->R13, c->R14, c->R15);
+    cl("[crash]   rax=%016llx rbx=%016llx rcx=%016llx rdx=%016llx", c->Rax, c->Rbx, c->Rcx, c->Rdx);
+    cl("[crash]   rsi=%016llx rdi=%016llx rbp=%016llx rsp=%016llx", c->Rsi, c->Rdi, c->Rbp, c->Rsp);
+    cl("[crash]   r8 =%016llx r9 =%016llx r10=%016llx r11=%016llx", c->R8, c->R9, c->R10, c->R11);
+    cl("[crash]   r12=%016llx r13=%016llx r14=%016llx r15=%016llx", c->R12, c->R13, c->R14, c->R15);
     if (readable(c->Rip, 16)) {
         auto b = reinterpret_cast<const uint8_t *>(c->Rip);
-        api->log("[crash]   code: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X", b[0],
+        cl("[crash]   code: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X", b[0],
                  b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]);
     }
-    api->log("[crash]   stack:");
+    cl("[crash]   stack:");
     backtrace(*c, false);
 }
 
@@ -227,7 +262,7 @@ LONG CALLBACK veh(EXCEPTION_POINTERS *e)
         if (reports < MAX_REPORTS)
             report("first-chance (the game may still handle it)", e);
         else
-            api->log("[crash] first-chance %s (0x%08lx) at %s; report cap reached, no details", code_name(code), code,
+            cl("[crash] first-chance %s (0x%08lx) at %s; report cap reached, no details", code_name(code), code,
                      where(ip).c_str());
     }
     leave();
@@ -238,7 +273,7 @@ LONG WINAPI unhandled(EXCEPTION_POINTERS *e)
 {
     if (enter()) {
         DWORD code = e->ExceptionRecord->ExceptionCode;
-        api->log("[crash] unhandled %s (0x%08lx) at %s reached the top-level filter; %s", code_name(code), code,
+        cl("[crash] unhandled %s (0x%08lx) at %s reached the top-level filter; %s", code_name(code), code,
                  where(e->ContextRecord->Rip).c_str(),
                  previous ? "passing it to the game's filter" : "the process ends here");
         if (!fatal(code) || first_time(e->ContextRecord->Rip))
@@ -252,7 +287,7 @@ void on_exit(const char *fn, UINT code)
 {
     if (InterlockedExchange(&exited, 1) || !enter())
         return;
-    api->log("[crash] %s(%u) on thread %lu, %lu s after load%s", fn, code, GetCurrentThreadId(),
+    cl("[crash] %s(%u) on thread %lu, %lu s after load%s", fn, code, GetCurrentThreadId(),
              (GetTickCount() - start_tick) / 1000, code ? "; caller stack:" : "");
     if (code) {
         CONTEXT ctx;
@@ -279,7 +314,7 @@ void load_symbols(const std::wstring &path, DWORD stamp)
 {
     FILE *f = _wfopen(path.c_str(), L"rb");
     if (!f)
-        return api->log("[crash] symbols.tsv missing; exe frames show rva only");
+        return cl("[crash] symbols.tsv missing; exe frames show rva only");
     char line[512];
     bool match = false;
     while (fgets(line, sizeof line, f)) {
@@ -294,7 +329,7 @@ void load_symbols(const std::wstring &path, DWORD stamp)
     }
     fclose(f);
     std::sort(symbols.begin(), symbols.end(), [](const Symbol &a, const Symbol &b) { return a.rva < b.rva; });
-    api->log(match ? "[crash] symbols.tsv: %zu KB function name(s) for this exe"
+    cl(match ? "[crash] symbols.tsv: %zu KB function name(s) for this exe"
                    : "[crash] symbols.tsv is for another build (%zu names loaded); exe frames show rva only",
              symbols.size());
 }
@@ -310,6 +345,9 @@ void crash_attach(SwoftyApi *a, const std::wstring &dir)
                        reinterpret_cast<LPCWSTR>(&crash_attach), &self);
     auto base = reinterpret_cast<uintptr_t>(exe);
     auto nt = reinterpret_cast<const IMAGE_NT_HEADERS *>(base + reinterpret_cast<const IMAGE_DOS_HEADER *>(base)->e_lfanew);
+    char v[8] = {0};
+    ea_build = GetEnvironmentVariableA("SWOFTY_EA_DIAG", v, sizeof v) && v[0] == '1';
+    diag_path = ea_build ? dir + L"..\\..\\ea-diagnostics.log" : std::wstring();
     load_symbols(dir + L"symbols.tsv", nt->FileHeader.TimeDateStamp);
     AddVectoredExceptionHandler(1, veh);
     previous = SetUnhandledExceptionFilter(unhandled);
@@ -320,7 +358,7 @@ void crash_attach(SwoftyApi *a, const std::wstring &dir)
         exit_hook = std::move(*e);
     if (t)
         terminate_hook = std::move(*t);
-    api->log("[crash] crash log armed: fatal exceptions (first %ld in full, deduplicated by address), the top-level "
+    cl("[crash] crash log armed: fatal exceptions (first %ld in full, deduplicated by address), the top-level "
              "filter%s, ExitProcess %s, TerminateProcess %s",
              MAX_REPORTS, previous ? " (chained to the game's)" : "", e ? "hooked" : "NOT hooked",
              t ? "hooked" : "NOT hooked");
