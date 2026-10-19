@@ -541,7 +541,7 @@ mod tests {
     use std::sync::Mutex;
 
     use swofty_addon::asset::{AssetOp, Features};
-    use swofty_addon::launcher::{GameFiles, StateStore};
+    use swofty_addon::launcher::StateStore;
 
     use super::*;
     use crate::import::{Route, route};
@@ -809,114 +809,6 @@ esac"#;
             "a stalled helper claims nothing"
         );
         assert!(!h.running(), "claims runs apart from the live session");
-        std::fs::remove_dir_all(&root).ok();
-    }
-
-    #[derive(Default)]
-    struct CountingGame {
-        build_keys: std::sync::atomic::AtomicUsize,
-        exe_versions: std::sync::atomic::AtomicUsize,
-    }
-
-    impl CountingGame {
-        fn build_keys(&self) -> usize {
-            self.build_keys.load(std::sync::atomic::Ordering::SeqCst)
-        }
-
-        fn exe_versions(&self) -> usize {
-            self.exe_versions.load(std::sync::atomic::Ordering::SeqCst)
-        }
-    }
-
-    impl GameFiles for CountingGame {
-        fn build_key(&self) -> String {
-            self.build_keys.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            "25251167".into()
-        }
-
-        fn exe_version(&self) -> Option<String> {
-            self.exe_versions
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Some("1.0".into())
-        }
-
-        fn is_stock(&self, _rel: &str) -> bool {
-            false
-        }
-
-        fn original(&self, rel: &str) -> Result<PathBuf> {
-            Err(swofty_addon::Error::Other(format!("{rel} is not available")))
-        }
-
-        fn original_lang(&self, code: &str) -> Result<PathBuf> {
-            Err(swofty_addon::Error::Other(format!("{code} is not available")))
-        }
-    }
-
-    fn bin_dir() -> PathBuf {
-        let mut dir = std::env::current_exe().expect("test binary path");
-        dir.pop();
-        if dir.ends_with("deps") {
-            dir.pop();
-        }
-        dir
-    }
-
-    #[test]
-    fn drives_the_simplified_helper_binary() {
-        let bin = bin_dir().join("swofty-simplified-helper");
-        assert!(
-            bin.is_file(),
-            "build swofty-simplified-helper first: {}",
-            bin.display()
-        );
-        let root = tmp("simplified-helper");
-        let (data, cache) = (root.join("data"), root.join("cache"));
-        std::fs::create_dir_all(&data).unwrap();
-        std::fs::create_dir_all(&cache).unwrap();
-        let manifest = AddonManifest::parse(
-            r#"{"schema_version":1,"id":"teamsimplified.mods","name":"Team Simplified",
-                "version":"0.1.0","author":"Team Simplified","compat":{"game":"f1_25"},
-                "launcher":{"program":{"linux":"swofty-simplified-helper","macos":"swofty-simplified-helper"},
-                    "sections":[{"id":"mods","title":"Mods","icon":"package"}],"build":true}}"#,
-        )
-        .unwrap();
-        let h = HelperAddon::new(manifest, bin_dir())
-            .unwrap()
-            .with_timeouts(Timeouts {
-                quick: Duration::from_secs(10),
-                long: Duration::from_secs(60),
-            });
-        let state = Memory::default();
-        let game = CountingGame::default();
-        let p = profile("career");
-        let cx = Cx::new("teamsimplified.mods", &p, &data, &cache, Some(&game), &state);
-
-        let view = h.view(&cx, "mods").unwrap();
-        assert!(h.running());
-        assert!(h.failure().is_none());
-        assert!(view.subtitle.contains("in library"));
-        assert!(matches!(view.body, Body::Empty { .. }));
-        assert!(
-            game.build_keys() > 0 && game.exe_versions() > 0,
-            "the helper answered no game-file host calls"
-        );
-
-        let options = BTreeMap::new();
-        let batch = h
-            .build(&BuildCx {
-                cx: Cx::new("teamsimplified.mods", &p, &data, &cache, Some(&game), &state),
-                options: &options,
-                features: &Features::default(),
-            })
-            .unwrap();
-        assert!(batch.ops.is_empty());
-        assert!(batch.warnings.is_empty());
-
-        assert_eq!(state.get("teamsimplified.mods").unwrap(), None);
-        assert!(h.failure().is_none());
-        h.stop();
-        assert!(!h.running());
         std::fs::remove_dir_all(&root).ok();
     }
 }

@@ -6248,23 +6248,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "swofty-addon-simplified"
-version = "1.0.2"
-dependencies = [
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "swofty-addon",
- "swofty-formats",
- "zip",
-]
-
-[[package]]
 name = "swofty-builtins"
 version = "1.0.2"
 dependencies = [
  "swofty-addon",
- "swofty-addon-simplified",
 ]
 
 [[package]]
@@ -6328,14 +6315,6 @@ dependencies = [
 [[package]]
 name = "swofty-sdk"
 version = "1.0.2"
-
-[[package]]
-name = "swofty-simplified-helper"
-version = "1.0.2"
-dependencies = [
- "swofty-addon",
- "swofty-addon-simplified",
-]
 
 [[package]]
 name = "syn"

@@ -16,13 +16,8 @@ fn old_data_dir(name: &str) -> PathBuf {
         r#"{"schema_version":1,"id":"a.old","name":"Old","version":"1.0.0","author":"t","compat":{"game":"f1_25"}}"#,
     );
     write(
-        "maps/lake/manifest.json",
-        r#"{"track_code":"lake","track_name":"Lake"}"#,
-    );
-    write("maps/lake/track.bin", "track");
-    write(
         "profiles/default.json",
-        r#"{"schema_version":1,"name":"default","addons":[],"maps":["lake"]}"#,
+        r#"{"schema_version":1,"name":"default","addons":[]}"#,
     );
     root
 }
@@ -90,12 +85,8 @@ fn only_commands_migrate_the_data_dir() {
     let out = swofty(&root, &["addons", "list"]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     assert!(String::from_utf8_lossy(&out.stdout).contains("a.old"));
-    assert!(!root.join("mods").exists() && !root.join("maps").exists());
+    assert!(!root.join("mods").exists());
     assert!(root.join("addons/a.old/swofty.json").is_file());
-    assert!(
-        root.join("addon-data/teamsimplified.mods/library/lake/track/track.bin")
-            .is_file()
-    );
     let config: serde_json::Value =
         serde_json::from_slice(&std::fs::read(root.join("config.json")).unwrap()).unwrap();
     assert_eq!(config["data_version"], 3);
