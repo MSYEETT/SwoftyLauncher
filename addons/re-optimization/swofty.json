@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "xanpavle.re-optimization",
+  "name": "F1 25 RE-Optimization",
+  "version": "0.1.0",
+  "author": "xanpavle (ported by Swofty)",
+  "description": "xanpavle's renderer optimisation: a tuned graphics delta, engine renderer overrides and a GPU-aware upscaler. Offline single-player only.",
+  "license": "MIT",
+  "homepage": "https://github.com/xanpavle/F1-25-RE-Optimization",
+  "kind": ["native"],
+  "compat": { "game": "f1_25", "game_builds": ["=25251167"], "seasons": [] },
+  "requires": [{ "id": "swofty.core", "version": ">=0.1.0" }],
+  "options": [
+    {
+      "id": "apply_profile",
+      "type": "toggle",
+      "label": "Apply the graphics profile",
+      "description": "Lowers some quality settings as the game reads them: volumetric fog, shadow maps, SSR, SSAO, grass distance, particles, hair, god rays and car reflections. Your settings file is not changed. Applies on the next launch.",
+      "default": true,
+      "binds": "native"
+    },
+    {
+      "id": "upscaler",
+      "type": "choice",
+      "label": "Upscaler",
+      "description": "Auto picks DLSS on NVIDIA RTX, FSR 3 on AMD and GTX, XeSS on Intel Arc. Keep leaves your in-game choice. The quality level is never changed. Applies on the next launch.",
+      "values": [
+        { "value": "auto", "label": "Auto" },
+        { "value": "dlss", "label": "DLSS" },
+        { "value": "fsr3", "label": "FSR 3" },
+        { "value": "xess", "label": "XeSS" },
+        { "value": "taa", "label": "TAA" },
+        { "value": "off", "label": "Off" },
+        { "value": "keep", "label": "Keep" }
+      ],
+      "default": "auto",
+      "binds": "native"
+    },
+    {
+      "id": "override_vrs_async",
+      "type": "toggle",
+      "label": "VRS and async compute",
+      "description": "Forces the engine's variable rate shading and async compute on (Renderer.Gfx.enableVRS, enableAsyncCompute).",
+      "default": true,
+      "binds": "native"
+    },
+    {
+      "id": "override_ground_cover",
+      "type": "toggle",
+      "label": "Grass and ground cover caps",
+      "description": "Lowers the engine's grass and ground cover instance caps (groundCoverMaxInstances 40000, groundCover2MaxInstances 80000) and turns off forced ultra ground cover. Lowers grass density.",
+      "default": true,
+      "binds": "native"
+    },
+    {
+      "id": "override_instance_caps",
+      "type": "toggle",
+      "label": "Static instance caps",
+      "description": "Lowers the engine's static and PVS render instance caps to 20000. Distant props can pop in; turn this off if they do.",
+      "default": true,
+      "binds": "native"
+    },
+    {
+      "id": "log_reads",
+      "type": "toggle",
+      "label": "Log setting reads",
+      "description": "Writes every engine setting read, and each later change, to swofty/loader.log. For troubleshooting; leave off for normal play.",
+      "default": false,
+      "binds": "native"
+    }
+  ],
+  "operations": {
+    "native": [{ "dll": "native/re_optimization.dll", "early": true }]
+  }
+}
