@@ -18,6 +18,11 @@ so new `upgrade_*` / `UpgradeDepartmentEntry_*` rows are ingested with no code c
 hard-coded surfaces are (a) the two department string→int enums and (b) the ~21-entry
 `upgrade_type` / unit-type vocabularies. Full feasibility in the scratchpad notes.
 
+**Correction (2026-10-19):** that holds for loading, not for a new *department*. Upgrade instances of
+department 4 get a disabled sentinel, five state mutators refuse department > 3, the availability
+search treats department 4 as the hub, team modifier entries exist only for departments 0..3, and
+every R&D screen fixes the count at 4. Map: [`rnd_ui.md`](rnd_ui.md#fixed-four).
+
 | stage | function | addr | level |
 |---|---|---|---|
 | load the per-dept upgrade rows | `Career_Load_UpgradeRows` | 0x143539bc0 | L2 |
@@ -89,6 +94,12 @@ days arrays and `development_delay.worst_case_cash_penalty`, and `target_mass_ad
 `rush_available`, `rush_fail_rate`. Each entry is stored into the pointer array at `[arg0+0xc60]`
 (stride 0x10, pointer at +8). Reached via vtable slot 0x1456cc930. Adding an `UpgradeDepartmentEntry_N`
 row + bumped instancecount mints a new department's economy with no code.
+**Correction (2026-10-19):** the row's `department` is parsed with ENUM A (switch @0x14123412a)
+into 19 maps keyed by that byte (`component+0x738 + N*0x48`), so a token that is not an ENUM A name
+(e.g. `Tyres`) resolves to 0 and overwrites Aero's attributes; `Fake` gives key 4. Even then the
+per-team modifier lists (research slots, rush, cost/time scales) hold entries for departments 0..3
+only, so department 4 has 0 research slots without native help
+([`rnd_ui.md`](rnd_ui.md#modifiers)).
 
 ## Load: upgrade effect definitions {#effect-defs}
 
@@ -145,6 +156,11 @@ resolution (0 for unknown tokens), so a SITE mixin can set `cl` to 5/6 for new t
 add R&D departments; the rest (UpgradeDepartmentEntry rows, upgrade rows, effect/dept wiring,
 `DepartmentData` bounds, lng strings) is pure data — see `02_feasibility_and_hook_plan.md`.
 
+**Correction (2026-10-19):** the store did not fire during a career R&D session, and no R&D screen
+reads ENUM B. The R&D UI, upgrade instances and modifiers are keyed by the per-upgrade ENUM A, and
+department 4 (`Fake`) is refused in several native paths, so adding an R&D department is not pure
+data. See [`rnd_ui.md`](rnd_ui.md#fixed-four).
+
 ## Career / My-Team component object model {#components}
 
 `Career_Register_Components` (0x1412cc2f0) registers the ECS-style career components by name+hash,
@@ -188,3 +204,4 @@ instruction still needs a runtime trace to pin (see "needs trace" below).
 - 2026-10-19 19:22 ui-format: UI format reference now at subsystems/ui_system.md (new 'ui' lane). It cross-references the three R&D surfaces as the canonical 'native-built, not data-driven' case: box grid 0x141c85f70 (card vector vs fixed .idf layout rects, section 5/7), pie 0x141f46eb0/0x141f41d60, upgrade-tile list-spawner. The 5th-box 'no on-screen rect' limit is explained as the unparsed .idf scene-layout gap (ui_system.md#idf). Your lane still owns the R&D fix specs; ui_system.md is format-only.
 - 2026-10-19 19:55 ui-idf: ui-format: .idf scene format SOLVED (ui_system.md#idf) + decoder tools/idf.py. R&D 5th-box lever: the on-screen box rects live in the screen's .idf eScene graph as per-element position(vec3)+scale+extents; a widget/card binds to an element by nodeId=djb2(dotted-path)=elementId; componentId=md5-64-BE(path sans .idf)=scene.name. Box grid 0x141c85f70 populates VM node view_model_data.laptop_r_and_d_departments_container and its attach loop appends the injected 5th card into that screen's layout container. Whether the 5th shows depends on that container's class: if eStacker (stock F1 card rows ARE eStackers, e.g. overview_panel.idf::card_stacker gap0.2 stackerType l with pre-authored card_0..4) it auto-lays-out N children -> 5th appears free; if fixed-anchor, add a 5th sibling element via idf.py clone-slot (new name, fresh guid, elementId=djb2(new path), append to children + nodeidlookup). idf.py round-trips byte-identical (4243/4243 stock scenes) so edits are write-back-safe. Decode this screen's container with: python3 tools/idf.py tree <scene.idf> to read which class it is.
 - 2026-10-19 19:59 ui-idf: ui-format: PIE 5th-slice answer (coordinator Q). The R&D development-potential pie IS an authored .idf scene: rnd_dev_potential.idf has 4 eXRef sector nodes sector_1..4 under null_1, each -> shared rnd_dev_potential_sector.idf, ROTATED 0/90/180/270deg via the rotation quat (4x 90deg arcs tile the circle). BUT the wedge arc SHAPE is baked mesh geometry: GfxMeshRes rnd_dev_potential_sector.idf/comp_potential?context=render&lod=0&mesh (+ vb/ib buffers), referenced by the layout node's geom resourceid; the .idf stores position/scale/rotation/extents, NOT the arc angle. => Adding a 5th slice = (a) scene edit idf.py CAN do: add sector_5 eXRef + re-set the 5 rotations to 72deg steps (0/72/144/216/288); (b) SEPARATE ART TASK .idf does not cover: a new 72deg wedge mesh (stock 90deg mesh at 72deg spacing overlaps 18deg/wedge); (c) native Career_Populate_RnDPieSlices guard emit 5th slice (your lane). So pie node = same .idf lever as the box, but with an extra baked-mesh dependency the box (generic reusable eXRef card template) does not have. Full writeup ui_system.md#idf 5.6.
+- 2026-10-19 23:41 rnd-kb: rnd-kb: recorded the rnd-tyres-thermal engine findings (36 functions, 31 globals/sites, all L1, disassembly + E8 callers re-checked on d873a1c8) in rnd_ui.md: department page Career_Build_RnDDeptPage 0x141c7b880 + instance query Career_Query_EnabledUpgrades 0x1435188d0 (#page); the Upgrades model/instance layout, the dept-4 init sentinel @0x143517e0c and the five cmp byte [x+0x72],3 mutator gates (#instances); team modifier entries created only for depts 0..3 (#modifiers); the Back route dead end (open-by-name ignores unknown names, #back); the pie object ctor 0x14180c490 (exactly 4 slots), slot dtor 0x141f45650 (was mislabelled a ctor in the 0x141f46eb0/0x141f48030 notes, corrected) and the dead moved-from block after 0x141f46fb8 (#pie-object); tile counts 0x141f49bc0 (#tile-counts); department icon/colour tables (#tags). Corrections added under #pipeline, #dept-entries and #team-dept-enum: adding an R&D department is not pure data.
