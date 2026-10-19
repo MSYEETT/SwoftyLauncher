@@ -30,6 +30,14 @@ pub struct Store {
     helpers: Arc<Helpers>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProfileDeletion {
+    pub name: String,
+    pub switch_to: Option<String>,
+    pub saves: bool,
+    pub paths: Vec<PathBuf>,
+}
+
 impl Store {
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self {
@@ -76,8 +84,12 @@ impl Store {
         self.root.join("profiles")
     }
 
+    pub fn overlays_dir(&self, profile: &str) -> PathBuf {
+        self.root.join("cache/overlay").join(profile)
+    }
+
     pub fn overlay_dir(&self, profile: &str, buildhash: &str) -> PathBuf {
-        self.root.join("cache/overlay").join(profile).join(buildhash)
+        self.overlays_dir(profile).join(buildhash)
     }
 
     pub fn saves_dir(&self, profile: &str) -> PathBuf {
@@ -94,6 +106,10 @@ impl Store {
 
     pub fn requests_dir(&self) -> PathBuf {
         self.root.join("state/requests")
+    }
+
+    pub fn launch_request_path(&self) -> PathBuf {
+        self.root.join("state/launch.json")
     }
 
     pub fn sessions_dir(&self) -> PathBuf {
@@ -356,6 +372,97 @@ impl Store {
             self.set_active_profile(to)?;
         }
         Ok(p)
+    }
+
+    pub fn plan_profile_deletion(&self, name: &str) -> Result<ProfileDeletion> {
+        if name == profile::VANILLA {
+            return Err(Error::Other(
+                "the vanilla profile is built in and cannot be deleted".into(),
+            ));
+        }
+        let names = self.profile_names()?;
+        if !names.iter().any(|n| n == name) {
+            return Err(Error::Other(format!("no profile named {name}")));
+        }
+        let others: Vec<&String> = names
+            .iter()
+            .filter(|n| *n != profile::VANILLA && *n != name)
+            .collect();
+        let Some(first) = others.first() else {
+            return Err(Error::Other(format!(
+                "{name} is the only profile; create another profile before deleting it"
+            )));
+        };
+        if let Some(j) = crate::journal::Journal::open(&self.root)?
+            .into_iter()
+            .find(|j| j.profile == name)
+        {
+            return Err(Error::Other(format!(
+                "{name} is installed in the game folder (journal {}); close F1 25 or run \
+                 swofty restore, then delete it",
+                j.id
+            )));
+        }
+        let switch_to = (self.active_profile() == name).then(|| {
+            others
+                .iter()
+                .find(|n| n.as_str() == DEFAULT_PROFILE)
+                .unwrap_or(first)
+                .to_string()
+        });
+        let saves = self.saves_dir(name);
+        let has_saves = std::fs::read_dir(&saves).is_ok_and(|mut rd| rd.next().is_some());
+        let paths = [
+            self.overlays_dir(name),
+            self.requests_path(name),
+            saves,
+            self.profiles_dir().join(format!("{name}.json")),
+        ]
+        .into_iter()
+        .filter(|p| p.symlink_metadata().is_ok())
+        .collect();
+        Ok(ProfileDeletion {
+            name: name.into(),
+            switch_to,
+            saves: has_saves,
+            paths,
+        })
+    }
+
+    pub fn delete_profile(&self, name: &str) -> Result<ProfileDeletion> {
+        let _write = profile_write();
+        let plan = self.plan_profile_deletion(name)?;
+        if let Some(to) = &plan.switch_to {
+            self.set_active_profile(to)?;
+        }
+        self.forget_launch_profile(name)?;
+        for path in &plan.paths {
+            let removed = if path.is_dir() && !path.is_symlink() {
+                std::fs::remove_dir_all(path)
+            } else {
+                std::fs::remove_file(path)
+            };
+            if let Err(e) = removed
+                && e.kind() != std::io::ErrorKind::NotFound
+            {
+                return Err(io_err(path)(e));
+            }
+        }
+        Ok(plan)
+    }
+
+    fn forget_launch_profile(&self, name: &str) -> Result<()> {
+        let path = self.launch_request_path();
+        let Ok(mut request) = crate::read_json::<serde_json::Value>(&path) else {
+            return Ok(());
+        };
+        if request.get("profile").and_then(|p| p.as_str()) != Some(name) {
+            return Ok(());
+        }
+        if let Some(fields) = request.as_object_mut() {
+            fields.remove("profile");
+        }
+        crate::write_json(&path, &request)
     }
 
     pub fn config(&self) -> Config {
@@ -772,6 +879,143 @@ mod tests {
         assert_eq!(store.active_profile(), "main");
         let grid = store.profile("grid").unwrap();
         assert_eq!(grid.enabled().collect::<Vec<_>>(), [CORE_ID, "a.b"]);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    fn touch(path: &Path) {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, "x").unwrap();
+    }
+
+    #[test]
+    fn deletes_a_profile_with_its_own_files_only() {
+        let root = tmp("delete-profile");
+        let store = Store::new(&root);
+        write_addon(&store.addons_dir().join("a.user"), "a.user");
+        store.create_profile("grid", None).unwrap();
+        store.create_profile("main", None).unwrap();
+        store.set_active_profile("main").unwrap();
+        let own = [
+            store.overlay_dir("grid", "h1").join(crate::build::PLAN_FILE),
+            store.requests_path("grid"),
+            store.saves_dir("grid").join("career.sav"),
+        ];
+        let kept = [
+            store.overlay_dir("main", "h2").join(crate::build::PLAN_FILE),
+            store.requests_path("main"),
+            store.saves_dir("main").join("career.sav"),
+            root.join("cache/maps/okayama/a1/.done"),
+            store.addon_data_dir("a.user").join("library.json"),
+        ];
+        own.iter().chain(&kept).for_each(|f| touch(f));
+
+        let plan = store.plan_profile_deletion("grid").unwrap();
+        assert_eq!(plan.switch_to, None);
+        assert!(plan.saves);
+        assert_eq!(
+            plan.paths,
+            [
+                store.overlays_dir("grid"),
+                store.requests_path("grid"),
+                store.saves_dir("grid"),
+                store.profiles_dir().join("grid.json"),
+            ]
+        );
+        assert!(own.iter().all(|f| f.is_file()));
+
+        assert_eq!(store.delete_profile("grid").unwrap(), plan);
+        assert_eq!(store.profile_names().unwrap(), ["vanilla", "main"]);
+        assert!(plan.paths.iter().all(|p| !p.exists()));
+        for f in &kept {
+            assert!(f.is_file(), "{} was removed", f.display());
+        }
+        assert!(store.addons().unwrap().contains_key("a.user"));
+        assert_eq!(store.active_profile(), "main");
+        let err = store.delete_profile("grid").unwrap_err();
+        assert!(err.to_string().contains("no profile named grid"), "{err}");
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn keeps_vanilla_and_the_last_profile() {
+        let root = tmp("delete-last");
+        let store = Store::new(&root);
+        let err = store.delete_profile(DEFAULT_PROFILE).unwrap_err();
+        assert!(err.to_string().contains("only profile"), "{err}");
+        store.create_profile("grid", None).unwrap();
+        let err = store.delete_profile("grid").unwrap_err();
+        assert!(err.to_string().contains("only profile"), "{err}");
+        let err = store.delete_profile(profile::VANILLA).unwrap_err();
+        assert!(err.to_string().contains("built in"), "{err}");
+        assert!(store.delete_profile("../config").is_err());
+        assert!(store.profiles_dir().join("grid.json").is_file());
+        store.create_profile("main", None).unwrap();
+        let plan = store.plan_profile_deletion("grid").unwrap();
+        assert!(!plan.saves);
+        assert_eq!(plan.paths, [store.profiles_dir().join("grid.json")]);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn deleting_the_active_profile_switches_first() {
+        let root = tmp("delete-active");
+        let store = Store::new(&root);
+        store
+            .save_profile(&store.profile(DEFAULT_PROFILE).unwrap())
+            .unwrap();
+        store.create_profile("grid", None).unwrap();
+        store.create_profile("zeta", None).unwrap();
+        store.set_active_profile("grid").unwrap();
+        crate::write_json(
+            &store.launch_request_path(),
+            &serde_json::json!({"id": "r1", "profile": "grid", "apply": true}),
+        )
+        .unwrap();
+
+        let plan = store.delete_profile("grid").unwrap();
+        assert_eq!(plan.switch_to.as_deref(), Some(DEFAULT_PROFILE));
+        assert_eq!(store.config().active_profile.as_deref(), Some(DEFAULT_PROFILE));
+        assert_eq!(store.active_profile(), DEFAULT_PROFILE);
+        let request: serde_json::Value = crate::read_json(&store.launch_request_path()).unwrap();
+        assert_eq!(request, serde_json::json!({"id": "r1", "apply": true}));
+
+        store.create_profile("alpha", None).unwrap();
+        crate::write_json(
+            &store.launch_request_path(),
+            &serde_json::json!({"id": "r2", "profile": "zeta"}),
+        )
+        .unwrap();
+        let plan = store.delete_profile(DEFAULT_PROFILE).unwrap();
+        assert_eq!(plan.switch_to.as_deref(), Some("alpha"));
+        assert_eq!(store.active_profile(), "alpha");
+        assert_eq!(store.profile_names().unwrap(), ["vanilla", "alpha", "zeta"]);
+        let request: serde_json::Value = crate::read_json(&store.launch_request_path()).unwrap();
+        assert_eq!(request["profile"], "zeta");
+
+        assert_eq!(store.delete_profile("zeta").unwrap().switch_to, None);
+        assert_eq!(store.active_profile(), "alpha");
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn refuses_a_profile_installed_in_the_game_folder() {
+        let root = tmp("delete-applied");
+        let store = Store::new(&root);
+        store.create_profile("grid", None).unwrap();
+        store.create_profile("main", None).unwrap();
+        touch(&store.overlay_dir("grid", "h1").join(crate::build::PLAN_FILE));
+        let j = crate::journal::Journal::create(&root, "grid", "build-1").unwrap();
+
+        let err = store.delete_profile("grid").unwrap_err();
+        assert!(err.to_string().contains("installed in the game folder"), "{err}");
+        assert!(err.to_string().contains(&j.id), "{err}");
+        assert!(store.profiles_dir().join("grid.json").is_file());
+        assert!(store.overlays_dir("grid").is_dir());
+        assert_eq!(store.plan_profile_deletion("main").unwrap().switch_to, None);
+
+        j.close().unwrap();
+        store.delete_profile("grid").unwrap();
+        assert!(!store.overlays_dir("grid").exists());
         std::fs::remove_dir_all(&root).ok();
     }
 }
