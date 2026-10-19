@@ -101,7 +101,7 @@ A `.ui` file's root is an object `{ "Screens": [ <screen-node>, ... ] }`
 | 2 | `COMMANDS` | list of command handlers `{commandName, command, signals[]}` |
 | 3 | `EVENTS` | list of event handlers `{eventName, event, signals[]}` |
 | 4 | `LAYOUT` | layout-attach list (how this node binds into its parent's layout) |
-| 5 | — | empty in authored screens (role unread; `tools/uinode.py` guesses "components") |
+| 5 | `COMPONENTS` | scene components this node instantiates: `[{componentId: ui64 = md5-64(path), debugName: <eaid path without .idf>, name}]` (e.g. `tab_content_rnd_upgrades_alt` → `rnd_overview`, the UITH `laptop_r_and_d_tab_header` → `primary_icon_nav_item`); its descendants then attach by name into that scene |
 | 6 | `BEHAVIOURS` | list of `{type: <FourCC>}` neon behaviours |
 | 7 | — | empty in authored screens (role unread) |
 
@@ -176,7 +176,11 @@ Slot 4 is a list of groups; each group is a list of attach-objects. Two legal fo
 - **`nodeId` attach** — `{ nodeId: ui32 = djb2(debugName), debugName: stri }`
   (`node.rs::layout_path`). The node drops into a named slot of the **parent's** layout, keyed
   by `djb2(slot debug name)`. This is how the launcher attaches tiles/rows into the stock
-  containers' existing slots (e.g. `"1a"`, `title_1`, `stacker_title`).
+  containers' existing slots (e.g. `"1a"`, `title_1`, `stacker_title`). `debugName` is always
+  the scene element's **leaf name**, never a dotted path (130,439/130,439 stock attaches), and it
+  resolves through the scene's `nodeidlookup` name index (§5.1). A group with several entries
+  walks a chain, e.g. `[screen_container, screen_cc]` = the `screen_container` eXRef, then
+  `screen_cc` inside the component it references.
 - **`componentId` attach** — `{ componentId: ui64 = md5-64(path), isComponentId: bool true,
   debugName: "<eaid-path>.idf" }` (`node.rs::screen`). The **screen root** points at an authored
   scene-layout component (`.idf`, §5) by the **first 8 bytes of `md5(path)` big-endian**
@@ -185,12 +189,11 @@ Slot 4 is a list of groups; each group is a list of attach-objects. Two legal fo
   (sub-page).
 
 **Key consequence for the R&D box issue** (`career.md`): the on-screen rects/slots a screen can
-lay out are the elements in its `.idf` component (§5). Whether growing a VM-side card vector
-(native inject, 6→7) yields a new on-screen box depends on the container element's class: a
-**fixed-grid** scene exposes exactly the sibling slots it authored (a 5th needs a new element,
-§5.7), whereas a **dynamic `eStacker`** re-lays-out however many children are attached (a 5th
-appears without a scene edit). The `.idf` is now fully parseable (`idf.py`), so this is a
-readable fact per screen, not a gap — see §5.6.
+lay out are the elements in its `.idf` component (§5). A **fixed-grid** scene exposes exactly the
+sibling slots it authored (a 5th needs a new element, §5.7), whereas a **dynamic `eStacker`**
+re-lays-out however many children are attached. The two R&D surfaces resolve differently (§5.6):
+the R&D > Performance department tiles are the fixed `rnd_overview.idf` grid, while the native
+box-grid builder fills a tab controller whose headers stack in an `eStacker`.
 
 ### 2.6 Behaviours (slot 6)
 A list of `{ type: ui32 = FourCC }` (`node.rs::behaviours`). Two stock sets:
@@ -327,14 +330,18 @@ Every stock `.idf` holds exactly **one** scene (scenelist length 1). The scene e
   (`node.rs::component_id`) — e.g. `md5_64_be("eaid://ui_package/art/screens/career/rnd_dept")`.
   Confirmed on **4243/4243** stock scenes. So the `.ui` `componentId` attach (debugName
   `<path>.idf`) → this scene.
-- `nodeidlookup`  flat list of every element's `elementId` (a fast index).
+- `nodeidlookup`  the scene's **name index**: the sorted, de-duplicated list of `djb2(leaf name)`
+  of every element, `"Scene Root"` included. It is **not** the elementIds. Rebuilding it this way
+  reproduces the stock bytes on 933/933 decoded scenes. Layout attaches (`nodeId =
+  djb2(debugName)`, §2.5) resolve against it, so an added element must add `djb2(its name)` here,
+  in sorted position (`idf.py: relookup`).
 - `scene`  the **root element** (name `"Scene Root"`, `typeName eScene`).
 
 ### 5.2 The element object
 Each element is an object with (observed) keys:
 ```
 name        stri   slot name a widget attaches to; root is "Scene Root"
-elementId   ui32   = djb2(dotted path)  — the `nodeId` a `.ui` layout attach binds to (§2.5)
+elementId   ui32   = djb2(dotted path)  — the element's own id (a `.ui` attach uses djb2(name))
 typeName    shnm   authoring class (see 5.4)
 position    vec3   local translation (x, y, z[, pad])   — stored as 4 floats
 scale       vec3   local scale
@@ -347,9 +354,9 @@ children    [ <element>, … ]
 **`elementId = djb2(dotted path)`**, where the path is rooted at the **top-level child's own
 name** and the `"Scene Root"` element is *excluded* (e.g. `chassis`, `chassis.chassis_increase`,
 `panel_stacker.card_centre.card_stacker.card_4`). Verified on **43746/43746** elements across
-4243 scenes. This is the authoritative derivation of the layout `nodeId` in §2.5/§9 — a widget's
-`nodeId` attach (`djb2(debugName)`) must match an element's `elementId`, i.e. `debugName` is the
-element's dotted path, not just its leaf name.
+4243 scenes. It is **not** what a `.ui` layout attach carries: a widget's `nodeId` is
+`djb2(leaf name)` and resolves through `nodeidlookup` (§5.1). So a widget binds to an element **by
+name**, and a new slot must have a unique leaf name (e.g. `tile_5`).
 
 ### 5.3 Where a rect/position is stored
 An element's on-screen placement is **`position` (vec3) composed down the tree** (each child is
@@ -390,9 +397,28 @@ document preview*` · eStacker: `gap stackerType('l'=linear) useStaticGap` · eS
   `team_0`/`pill_1..N` slots. A stacker lays out however many children are attached.
 
 The `.idf` is **no longer the blocker** for a 5th on-screen rect: a fixed-grid scene gets a 5th
-box by adding a sibling element (5.7); a dynamic stacker already sizes to N children. The one
-remaining in-game-test question (career lane) is which container class the native R&D
-box-grid builder attaches into — see §7 and `career.md`.
+box by adding a sibling element (5.7); a dynamic stacker already sizes to N children.
+
+**Which container each R&D surface uses (resolved from the assets):**
+- **R&D > Performance department tiles** = `screens/laptop_r_and_d.ui` (in `flow_career_hub.erp`
+  and `flow_team_hq.erp`), template `tab_content_rnd_upgrades_alt`, which instantiates
+  `rnd_overview.idf` (slot 5) and holds 4 authored `TILE` nodes `aero/chassis/engine/maintenance`
+  attached by name to `tile_1/tile_2/tile_3/tile_4` with `dataContext=@aero|@chassis|@engine|
+  @maintenance`. The same template carries the `init_pie_sector` dev-potential pie. This is the
+  **fixed 2×2 grid**: `tile_N` eXRefs (→ `tiles_rnd/3x4_rnd_overview.idf`, 4.15×2.32) under
+  `transition_null_1..4` at x 2.075/6.425, y −1.16/−3.68. A 5th box needs a `tile_5` element,
+  a 5th `TILE` node attached to it, and a 5th per-department VM child for its `dataContext`.
+- **`Career_Build_RnDDeptBoxGrid` (0x141c85f70)** fills a different screen,
+  `laptop_r_and_d_departments_container` (`flow_r_and_d.erp`); its `Vm_Set_*` leaves
+  `show_shoulders`/`block_input`/`career_hub` are bound only there. Its cards are **tabs** of
+  `tab_controller [UITC]`; each header is a `laptop_r_and_d_tab_header [UITH]` instancing
+  `primary_icon_nav_item`, stacked into `tabContainer = …nav_left.Scene Root.primary_nav_stacker.
+  bg_scaler.primary_toggle_stacker`, an **`eStacker` with no authored children**
+  (`components/smart/primary_toggle_navigation.idf`). The injected `card[6]` is the 7th tab,
+  appended after the purchase and perks panels. It never binds into `rnd_overview.idf`; there is
+  no index or elementId binding between the two.
+- `tab_content_research_overview` (same `.ui`) uses `team_hq/research/overview.idf`, a third
+  4-tile scene.
 
 **The R&D "development potential" pie is also an authored `.idf` scene — but its wedge *shape* is
 baked mesh geometry, not a scene parameter.** `art/components/career/rnd_tree/rnd_dev_potential.idf`
@@ -413,21 +439,50 @@ baked-mesh dependency** the box does not have.
 ### 5.7 Editing / adding a slot (write-back)
 `pkg.py`/`idf.py` re-serialise byte-identically, so the scene is editable. To add a box/slot clone
 an existing sibling and fix its identity:
-1. deep-copy the sibling element (`idf.py: clone_node`), set a new `name` and a fresh `guid`;
+1. deep-copy the sibling element (`idf.py: clone_node`), set a new **unique** `name` and a fresh
+   `guid`;
 2. set its `position` (for a fixed grid, copy the sibling's y and bump x by the column step; for a
    stacker, position is recomputed at runtime so any value works);
 3. **recompute `elementId = djb2(dotted path)` for the clone and every descendant** (their paths
    changed) — `idf.py: recompute_ids`;
-4. append the clone to the parent's `children` list and append the new `elementId`(s) to the
-   scene's `nodeidlookup`.
+4. append the clone to the parent's `children` list and rebuild the scene's `nodeidlookup` as the
+   sorted unique `djb2(leaf name)` of every element (`idf.py: relookup`).
 `tools/idf.py clone-slot <file> <src> <new> <x> <y> <z> <out>` does exactly this; the result
 re-parses with every `elementId` consistent and round-trips. (`set-pos` moves one slot.)
-Validation: all 4243 stock scenes round-trip identical; cloning `card_4`→`card_5` in
-`overview_panel.idf` reproduces a correct 5th slot.
+Validation: all 4243 stock scenes round-trip identical. (Before 2026-10-19 `clone-slot` appended
+the clone's elementIds unsorted to `nodeidlookup`, which drops its name from the index.)
 
-**Still open:** there is no *build-pipeline* step that writes an edited `.idf` back into a stock
-ERP as an addon op (the ERP patcher only does fragment-0 `clone-entry`/`set-value`, §8.1); and the
-semantics of a few rarely-used params (`document`, `preview*`, `eRTL.*`) are name-only guesses.
+**Animated parents.** An element with `anims` (e.g. `rnd_overview.idf`'s `transition_null_N`)
+plays an AnimClip whose channel is the element's name and whose keys are **absolute** local
+transforms: translation from the stock position (±0.5 y), rotation identity, scale 1. Moving or
+scaling such an element is undone whenever the transition plays. Re-lay its **unanimated
+children** instead (set `tile_N.position` as an offset from the parent and `tile_N.scale`), and give
+a cloned animated parent the **same position** as its source so the shared clip resolves the same
+either way.
+
+**Shipping the edit (built, launcher PR #138).** The scene is the single fragment of the
+`UILayout` resource `<path>.idf`; the addon replaces it with `operations.erp` `replace-resource`:
+```json
+{ "op": "replace-resource",
+  "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
+  "resource": "eaid://ui_package/art/screens/career/rnd_overview.idf",
+  "source": "ui/rnd_overview.idf" }
+```
+One stanza per archive that carries the scene (`rnd_overview.idf`: `flow_career_hub.erp` and
+`flow_team_hq.erp`; shared components can sit in 6+). The build checks that a `UILayout` source is
+a scene whose `name` equals `component_id(<path>)`. `Resource::set_fragment` recompresses it,
+updates `size`/`packed`/md5, and `ErpFile::write` re-lays every offset and the index, streaming the
+other resources byte for byte. The runtime overlay refuses a resource whose fragment sizes differ
+from stock, so any archive with a resized replacement is **rewritten into the game files**
+(journaled; `swofty restore` puts it back), and the build prints `erp: <archive> built into the game
+files; …`. A same-size replacement still goes to the overlay. It warns when another stock archive
+in the package folder also carries the resized resource, since the first archive to load it wins.
+Validated: an unmodified `rnd_overview.idf` round-trips with every resource equal to stock; a grown
+one rewrites both archives with all 10343/19723 other resources byte-identical and restore leaves
+the folder byte-identical.
+
+**Still open:** the semantics of a few rarely-used params (`document`, `preview*`, `eRTL.*`) are
+name-only guesses.
 
 ---
 
@@ -471,7 +526,9 @@ chrome (`mod.rs::build`, `read_frag`), and reads `fe_home.ui` from its copy in
 It opens the source ERP, replaces fragment 0 of named resources with transformed bytes
 (`Entry::Owned`), copies every other resource byte-for-byte by streaming its original fragment
 span (`Entry::Copy`), and writes a fresh index. Round-trip identity holds for untouched
-resources. The patched archives land in the overlay game-link; new `.ui` **screens are written
+resources. Addon `operations.erp` uses the same writer (`erpbuild.rs`); since PR #138 an archive
+whose replacement changes a stock entry's size is written this way even on the runtime route
+(§5.7). The patched archives land in the overlay game-link; new `.ui` **screens are written
 as loose files** under `swofty/ui/` and registered at runtime (§7/§8), not inserted into ERPs.
 
 ---
@@ -520,13 +577,13 @@ route** exists:
   `<pkg>.rnd_dept_icons_small.<frame>`, not a VM node, so a card needs **no** authored UIDF node.
   v0.3.0 added a live 5th card by native inject at `site_Career_RnDDeptBoxGridInject`
   (0x141c86567) growing the vector 6→7 and letting the builder's attach loop bind it; the builder
-  *populates VM node `view_model_data.laptop_r_and_d_departments_container`*. Whether the 5th
-  card then shows a rect is the §5.6 fixed-vs-stacker question, now answerable by decoding that
-  screen's container element with `idf.py`: an `eStacker` container lays the 5th card out
-  automatically (F1's stock card rows, e.g. `overview_panel.idf::card_stacker`, are exactly such
-  stackers with pre-authored `card_0..card_4` slots), while a fixed-anchor container needs a new
-  sibling element (§5.7). The live in-game confirmation of which one this screen uses is a
-  `career`-lane test.
+  *populates VM node `view_model_data.laptop_r_and_d_departments_container`*. Decoded (§5.6): the
+  cards are **tabs** of that screen's `tab_controller [UITC]` (`builder+0x2d8`); the headers stack
+  in `primary_toggle_stacker`, an `eStacker` with no authored children, so the 7th (Tyres) tab
+  needs no scene edit. It is **not** the R&D > Performance tile grid, which is the fixed
+  `rnd_overview.idf` grid with 4 authored `TILE` nodes in `laptop_r_and_d.ui`; the inject cannot
+  put a box there. A 5th Performance tile is `tile_5` (scene) + a `TILE` attached by name + a VM
+  child for its `dataContext` (§5.6–5.7).
 - **Pie** — live builder `Career_Build_RnDPieOverview` (0x141f46eb0) + `Career_Populate_RnDPieSlices`
   (0x141f48030) on class-B vtable 0x14575e300; the research-overview pie `Career_Build_RnDPotentialPie`
   (0x141f41d60, class A) allocates a per-sector buffer of **exactly 0x900** and guards
@@ -553,9 +610,11 @@ for `.uir`/`.uidb`, `clone-entry` / `set-value` with dotted paths and `[field=va
 `"<id>: N UI operation file(s) skipped; that stage is not built yet"`. Today the same
 `clone-entry`/`set-value` edits run only through the `operations.erp` **`patch-pkg`** op
 (`erpbuild.rs`/`pkgedit.rs`), and even there **only `clone-entry` and `set-value` are built** —
-any other `patch-pkg` edit, and the non-pkg ERP ops, print `"… is not built yet"` and the
-archive is skipped. So for now, programmatic screen edits either go through `patch-pkg`
-(uidb/uir/layer entries) or are done in Rust like the launcher does
+any other `patch-pkg` edit prints `"… is not built yet"` and the archive is skipped. The whole-resource
+ops (`replace-resource`, `put-resource`, `add-/copy-/remove-resource`) are built (launcher #82), so a
+screen or scene edited offline (`pkg.py`/`idf.py`/`uinode.py`) ships as a `replace-resource` of
+the `.ui` (`UIDF`) or `.idf` (`UILayout`) resource (§5.7). Otherwise programmatic screen edits go
+through `patch-pkg` (uidb/uir/layer entries) or are done in Rust like the launcher does
 (`node.rs` helpers + `write_erp`). The launcher's own menu build is the worked example:
 `clone_node`, `instance` (clone a `Templates` entry, rename refs, strip bound data, drop
 `command_vmContextValid` events), `literal_label`, `add_events`, then `fix_ids`.
@@ -616,8 +675,8 @@ Hashes used across the formats:
 - **djb2** (`h=5381; h=h*33+byte`) — node names/`id`(full path)/`nameId`(name), event/command
   names, signal `to_object`/`to_pin`, layout `nodeId`(debugName). (`node.rs`, `ui.cpp::djb2`.)
   In a scene `.idf` the same djb2 produces each element's **`elementId` from its dotted path**
-  (top-level child rooted at its own name, `"Scene Root"` excluded; §5.2) — i.e. a `.ui`
-  `nodeId` attach binds to the element whose dotted path hashes to it.
+  (top-level child rooted at its own name, `"Scene Root"` excluded; §5.2) and the `nodeidlookup`
+  name index from each **leaf name** (§5.1). A `.ui` `nodeId` attach is `djb2(leaf name)`.
 - **fnv1a32** — `!pkg` v1 object key hash + sort order (`pkg.rs`).
 - **md5-64** (first 8 bytes of `md5(path)`, big-endian) — layout `componentId` → `.idf`
   (`node.rs::component_id`). The hashed string is the `eaid://` path **with `.idf` stripped**;
@@ -640,9 +699,9 @@ Tools (`/mnt/work/VSC/F1ModManager/tools/`, mirrored in the `modlist` worktree `
 
 - **`.idf` scene-layout binary format** — **SOLVED** (§5): it is a `!pkg` `eScene` graph, decoded
   + round-tripped + write-back by `tools/idf.py`; componentId/elementId derivations confirmed on
-  4243 scenes / 43746 elements. Remaining: no *build-pipeline* op writes an edited `.idf` back
-  into a stock ERP (the ERP patcher is fragment-0 `clone-entry`/`set-value` only, §8.1), and a few
-  rarely-used element params (`document`, `preview*`, `eRTL.*`) are name-only guesses.
+  4243 scenes / 43746 elements. An edited `.idf` ships with `operations.erp` `replace-resource`
+  (§5.7, launcher PR #138). Remaining: a few rarely-used element params (`document`, `preview*`,
+  `eRTL.*`) are name-only guesses.
 - **8-slot node slots 5 and 7** — empty in authored screens; roles unread.
 - **Node-class roles** — only ~20 of ~97 FourCCs annotated (`vm.md#classes`); the rest are L1.
 - **`operations.ui` pipeline** — not built (`build.rs`); `set-text`/`clone-node`/`set-props`/
