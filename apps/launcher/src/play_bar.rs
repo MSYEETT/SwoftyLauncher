@@ -354,7 +354,7 @@ impl Shell {
             .bg(p.chrome)
             .border_t_1()
             .border_color(p.border_variant)
-            .child(crate::pages::game_art(72., 72.))
+            .child(crate::pages::game_art(56., 56.).m(px(8.)))
             .child(
                 h_flex()
                     .flex_1()

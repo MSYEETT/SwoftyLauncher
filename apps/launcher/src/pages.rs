@@ -91,7 +91,7 @@ pub(crate) fn game_art(w: f32, h: f32) -> Div {
         .h(px(h))
         .flex_shrink_0()
         .overflow_hidden()
-        .rounded_bl(px(12.))
+        .rounded(px(12.))
         .child(img(ART.clone()).size_full())
 }
 
