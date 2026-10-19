@@ -16,6 +16,7 @@ You supply the operations; the launcher applies them when it builds a profile, t
 | Teams, cars, drivers, tracks, rules, unlocks | `game_package/gamedatabases/gamedatabases.2025.bin` | [Game database](./database) |
 | Textures, models, materials, worlds | `.erp` archives under `2025_asset_groups/` | [Textures and models](./erp-assets) |
 | A special livery for one car | A `wep` archive plus the livery and unlock tables | [Adding a livery](./livery) |
+| Menu layouts | `.idf` scenes in the UI archives under `2025_asset_groups/ui_package/` | [Editing menus](/reference/ui/editing-menus) |
 | Names and descriptions | Text tags and language strings | [In-game text](./text) |
 | A new track | A track package | [Tracks](./tracks) |
 

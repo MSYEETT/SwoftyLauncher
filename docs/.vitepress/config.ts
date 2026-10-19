@@ -194,6 +194,14 @@ export default defineConfigWithTheme<DocsThemeConfig>({
             ],
           },
           {
+            text: "Menus",
+            items: [
+              { text: "UI scenes (.idf)", link: "/reference/ui/idf", icon: "file" },
+              { text: "Editing menus", link: "/reference/ui/editing-menus", icon: "file" },
+              { text: "Swofty UI", link: "/reference/ui/swofty-ui", icon: "file" },
+            ],
+          },
+          {
             text: "Engine plugin",
             items: [
               { text: "Overview", link: "/reference/addons/native-plugins", icon: "file" },

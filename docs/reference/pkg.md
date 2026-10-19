@@ -12,6 +12,7 @@ For addon changes, see [UI patches](/reference/ops/ui-patches).
 | `.uidb` | Values used by the menus, including input prompts |
 | `.uir` | Routes that open and close screens |
 | `.layer` | Objects placed in a track world, such as grid slots, garages and pit boxes |
+| `.idf` | [UI scenes](/reference/ui/idf): the layout of a menu screen |
 
 Screens contain named nodes. References connect nodes to events, actions and layout entries.
 

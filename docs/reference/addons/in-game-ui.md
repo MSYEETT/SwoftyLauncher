@@ -13,6 +13,7 @@ You can use your addon to change the game's menus in three ways:
 | A new screen | `operations.screens`. swofty_core registers it with the game's UI system |
 | A tile on the home screen | A [site mixin](/reference/addons/hooking#run-code-at-an-instruction) on the home-tile builder |
 | A change to an existing screen | [UI patches](/reference/ops/ui-patches) |
+| A change to a screen's layout | An edited [scene](/reference/ui/editing-menus), made in [Swofty UI](/reference/ui/swofty-ui) |
 
 If you just need settings, each [option](/reference/addons/manifest#options) becomes a row on your addon's page in **ADDON SETTINGS**. Use **Left** and **Right** to change its value. The launcher generates those pages from the game's own files each time it builds the profile, so most addons don't need their own screen. Add one when you need more than a settings row.
 

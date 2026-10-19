@@ -69,7 +69,7 @@ erp: built into the game files; 1 resource removal(s) cannot apply at runtime
 
 ## Scenes
 
-A UI scene, the `.idf` layout a screen attaches to, is the `UILayout` resource named exactly `<path>.idf`, with no `?context=`. Its single fragment is a `!pkg` scene. To ship an edited scene, replace that fragment with the edited file:
+A [UI scene](/reference/ui/idf), the `.idf` layout a screen attaches to, is the `UILayout` resource named exactly `<path>.idf`, with no `?context=`. Its single fragment is a `!pkg` scene. To ship an edited scene, replace that fragment with the edited file:
 
 ```json
 {
@@ -87,6 +87,8 @@ Several archives often carry the same scene. List one `replace-resource` per arc
 ```sh
 python3 tools/erp.py <archive> 'rnd_overview.idf' | grep UILayout
 ```
+
+[Swofty UI](/reference/ui/swofty-ui) exports an edited scene with these operations for every archive that holds it. See [Editing menus with an addon](/reference/ui/editing-menus).
 
 The game reads a scene from whichever archive loads it first. When the build resizes a resource that another stock archive in the same package folder also carries, it warns:
 
