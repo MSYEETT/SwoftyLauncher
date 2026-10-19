@@ -59,6 +59,7 @@
 #include "rnd_dept_tags.hpp"
 #include "rnd_fifth_pie.hpp"
 #include "rnd_tyres_icon.hpp"
+#include "rnd_upgrade_types.hpp"
 
 namespace {
 
@@ -2960,6 +2961,10 @@ SWOFTY_ON_LOAD
     // v0.7.1: Durability-equivalent research capacity and R&D modifiers for department 4
     // (rnd_capacity.cpp) - its OWN one-scan gate + feature flag.
     rnd_capacity::install(base);
+
+    // v0.9.0: the Tyres upgrade types 19-22 (rnd_upgrade_types.cpp) - its OWN one-scan gate +
+    // feature flag; the read-only upgrade apply log has its own flag.
+    rnd_upgrade_types::install(base);
 
     // The 5th-box layout diagnostic - its OWN independent gate + feature flag
     // (read-only; captures why the injected box has no visible 2x2 cell).
