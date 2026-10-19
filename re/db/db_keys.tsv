@@ -712,6 +712,7 @@ key	path	reader	sites	level	subsystem	evidence	notes
 0xa2996d13ca1578fc	?	0x140d6fe50	0x140d720c9	L1	gamedb	imm:0xa2996d13ca1578fc;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xa29b25c0908ff800	?	0x143618cf0	0x143618d0a	L1	gamedb	imm:0xa29b25c0908ff800;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xa2aa5222c0295c29	?	0x1438b5da0	0x1438b628d	L1	gamedb	imm:0xa2aa5222c0295c29;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
+0xa2b736e5be9bb667	{5e21a18f9f59dbf6}._UpgradeDepartmentEntry_instancecount_	0x1445a25c0	-	L2	gamedb	decomp:re/decomp/1445a25c0.c;doc:research/grid24-cap.md#1	Career department row count (stock 4) for one of the two real UpgradeDepartmentEntry containers the runtime loader reads (rows _0.._3 Aero/Chassis/Durability/Powertrain). rnd-tyres-thermal bumps it to 5 natively to read a 5th row _4.
 0xa2db0003cfa18217	?	0x140c69430	0x140c69ca2	L1	gamedb	imm:0xa2db0003cfa18217;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xa2e305beb78ad5b7	?	0x143618cf0	0x143619e24	L1	gamedb	imm:0xa2e305beb78ad5b7;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xa308ec84a77de84a	?	0x140bf81f0	0x140bf879b	L1	gamedb	imm:0xa308ec84a77de84a;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
@@ -1058,6 +1059,7 @@ key	path	reader	sites	level	subsystem	evidence	notes
 0xf2c860e46b34a23d	?	0x1415038c0	0x1415039dc	L1	gamedb	imm:0xf2c860e46b34a23d;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xf2cadcfef22d6705	?	0x140f6c2f0	0x140f6e5ae	L1	gamedb	imm:0xf2cadcfef22d6705;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xf2e5e6fef2443fbb	?	0x140f6c2f0	0x140f6e69e	L1	gamedb	imm:0xf2e5e6fef2443fbb;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
+0xf34bb5f29658cbf0	{1f304d36c3c2b947}._UpgradeDepartmentEntry_instancecount_	0x1445a25c0	-	L2	gamedb	decomp:re/decomp/1445a25c0.c;doc:research/grid24-cap.md#1	Career department row count (stock 4), second real UpgradeDepartmentEntry container (rows _0.._3). Sibling of 0xa2b736e5be9bb667.
 0xf34bf0ad1cfa3913	?	0x1411306e0	0x141130bf2	L1	gamedb	imm:0xf34bf0ad1cfa3913;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xf35371b5114d6d8c	?	0x14289b240	0x14289d0e1	L1	gamedb	imm:0xf35371b5114d6d8c;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xf492ec8893e593b7	?	0x1409b5fb0	0x1409b61f3	L1	gamedb	imm:0xf492ec8893e593b7;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
