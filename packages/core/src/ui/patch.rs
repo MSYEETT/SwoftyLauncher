@@ -629,6 +629,12 @@ pub fn persistent_gate(data: &[u8]) -> Result<Vec<u8>> {
                         vec![
                             sig(UIDM, "deactivate_message", "yes"),
                             sig(&format!("{UIDM}.disable_input"), "trigger", "yes"),
+                            signal(
+                                &format!("{UIDM}.user_response_setter"),
+                                "setValue",
+                                "yes",
+                                &[("value", "cancel")],
+                            ),
                         ],
                     ),
                 ],
@@ -697,6 +703,26 @@ mod tests {
             ),
             vec![label("title")],
         );
+        let back = node(
+            "back_listener",
+            "UIBT",
+            vec![],
+            vec![event(
+                "pressed",
+                vec![
+                    sig(UIDM, "deactivate_message", "pressed"),
+                    sig(&format!("{UIDM}.disable_input"), "trigger", "pressed"),
+                    signal(
+                        &format!("{UIDM}.user_response_setter"),
+                        "setValue",
+                        "pressed",
+                        &[("value", "cancel")],
+                    ),
+                ],
+            )],
+            &[],
+            &[],
+        );
         let message = with_kids(
             node(
                 "persistent_multichoice_message",
@@ -710,7 +736,9 @@ mod tests {
                 label("title"),
                 label("body"),
                 button,
+                back,
                 node("disable_input", "UIGP", vec![], vec![], &[], &[]),
+                node("user_response_setter", "UIDS", vec![], vec![], &[], &[]),
             ],
         );
         let wrapper = with_kids(
