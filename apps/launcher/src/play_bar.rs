@@ -94,9 +94,18 @@ impl Shell {
             .gap(px(9.))
             .text_size(px(13.));
         if let Some(notice) = &self.notice {
-            return launch_failed(row, notice, p).when_some(self.launch_log(), |d, log| {
-                d.child(link("launch-log", "View log", p).on_click(move |_, _, cx| cx.open_with_system(&log)))
-            });
+            return launch_failed(row, notice, p)
+                .when(self.blocked.is_some(), |d| {
+                    d.child(
+                        link("restore-folder", "Restore game folder", p)
+                            .on_click(cx.listener(|this, _, window, cx| this.confirm_restore(window, cx))),
+                    )
+                })
+                .when_some(self.launch_log(), |d, log| {
+                    d.child(
+                        link("launch-log", "View log", p).on_click(move |_, _, cx| cx.open_with_system(&log)),
+                    )
+                });
         }
         let rebuild = !self.library.profile.is_vanilla() && !self.library.rebuild.is_empty();
         match state {

@@ -14,6 +14,7 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::crash::StartFailure;
 use swofty_core::process::{GameProcess, stop_game};
+use swofty_core::recovery::{self, Blocked, Notice};
 use swofty_core::session::SessionRecord;
 use swofty_core::store::Store;
 use swofty_core::view::View;
@@ -72,6 +73,9 @@ pub struct Shell {
     pub(crate) dismissed: Option<PathBuf>,
     pub(crate) launch: Option<Launch>,
     pub(crate) notice: Option<String>,
+    pub(crate) blocked: Option<Blocked>,
+    pub(crate) recovered_seen: f64,
+    pub(crate) restoring: bool,
     pub(crate) sliders: HashMap<String, SliderSlot>,
     pub(crate) requests: Option<SystemTime>,
     pub(crate) console: Option<AnyWindowHandle>,
@@ -162,10 +166,20 @@ fn offline_terms(p: Palette) -> impl IntoElement {
 }
 
 impl Shell {
-    pub fn new(cx: &mut Context<Self>) -> Self {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let store = Store::open_default().with_builtins(swofty_builtins::all());
         let migrated = store.migrate();
-        let poll = cx.spawn(async move |this, cx| {
+        let recovered_seen = Notice::read(&store.root).map_or(0.0, |n| n.at);
+        let stale = store.clone();
+        cx.background_executor()
+            .spawn(async move {
+                match game::recover_stale(&stale) {
+                    Ok(lines) => lines.iter().for_each(|l| eprintln!("swofty-launcher: {l}")),
+                    Err(e) => eprintln!("swofty-launcher: could not check for an unfinished session: {e}"),
+                }
+            })
+            .detach();
+        let poll = cx.spawn_in(window, async move |this, cx| {
             loop {
                 let Ok((store, rediscover, seen)) = this.update(cx, |s, _| {
                     let r = std::mem::take(&mut s.rediscover);
@@ -177,7 +191,10 @@ impl Shell {
                     .background_executor()
                     .spawn(async move { game::probe(&store, rediscover, seen) })
                     .await;
-                if this.update(cx, |s, cx| s.apply(probe, cx)).is_err() {
+                if this
+                    .update_in(cx, |s, window, cx| s.apply(probe, window, cx))
+                    .is_err()
+                {
                     break;
                 }
                 cx.background_executor().timer(Duration::from_millis(1000)).await;
@@ -226,6 +243,9 @@ impl Shell {
             dismissed: None,
             launch: None,
             notice: None,
+            blocked: None,
+            recovered_seen,
+            restoring: false,
             sliders: HashMap::new(),
             requests: None,
             console: None,
@@ -281,8 +301,19 @@ impl Shell {
         }
     }
 
-    fn apply(&mut self, probe: Probe, cx: &mut Context<Self>) {
+    fn apply(&mut self, probe: Probe, window: &mut Window, cx: &mut Context<Self>) {
         self.requests = probe.requests;
+        if let Some(n) = probe.recovered.filter(|n| n.at > self.recovered_seen) {
+            self.recovered_seen = n.at;
+            let mut text: Vec<String> = n.lines.iter().take(4).cloned().collect();
+            if n.lines.len() > text.len() {
+                text.push(format!(
+                    "and {} more; the launch log has them all",
+                    n.lines.len() - text.len()
+                ));
+            }
+            window.push_notification(Notification::info(text.join("\n")).title(recovery::HEADLINE), cx);
+        }
         if let Some(install) = probe.install {
             self.install = install;
             self.detected = true;
@@ -295,7 +326,17 @@ impl Shell {
             launch.saw_game |= !self.processes.is_empty();
             if let Some(ok) = launch.finished() {
                 if !ok && !launch.saw_game {
-                    self.notice = Some(launch.failure());
+                    self.blocked = Blocked::read(&self.store.root);
+                    self.notice = Some(match &self.blocked {
+                        Some(b) if b.files.len() == 1 => {
+                            "a file Swofty did not put in the game folder is in the way".to_owned()
+                        }
+                        Some(b) => format!(
+                            "{} files Swofty did not put in the game folder are in the way",
+                            b.files.len()
+                        ),
+                        None => launch.failure(),
+                    });
                 }
                 self.launch = None;
             }
@@ -344,6 +385,9 @@ impl Shell {
                 PlayState::Launching
             };
         }
+        if self.restoring {
+            return PlayState::Restoring;
+        }
         if !self.detected {
             return PlayState::Detecting;
         }
@@ -371,6 +415,8 @@ impl Shell {
             return;
         }
         self.notice = None;
+        self.blocked = None;
+        Blocked::clear(&self.store.root).ok();
         self.dismissed = self.session.as_ref().map(|s| s.dir.clone());
         match Launch::start(&self.store, &self.library.profile.name, &install) {
             Ok(l) => self.launch = Some(l),
@@ -402,6 +448,84 @@ impl Shell {
                     true
                 })
         });
+    }
+
+    pub(crate) fn confirm_restore(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(blocked) = self.blocked.clone() else {
+            return;
+        };
+        let shell = cx.entity().downgrade();
+        let explain = blocked.explain(&self.store.root);
+        let files: Vec<String> = blocked.files.iter().map(|f| f.path.clone()).collect();
+        let p = palette(cx);
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let shell = shell.clone();
+            let shown = files.len().min(6);
+            let list = v_flex()
+                .gap(px(2.))
+                .p(px(10.))
+                .rounded(px(6.))
+                .bg(p.elevated)
+                .border_1()
+                .border_color(p.border)
+                .text_size(px(12.))
+                .children(files[..shown].iter().map(|f| div().child(f.clone())))
+                .when(files.len() > shown, |d| {
+                    d.child(
+                        div()
+                            .text_color(p.text_muted)
+                            .child(format!("and {} more", files.len() - shown)),
+                    )
+                });
+            alert
+                .width(px(600.))
+                .title("Restore the game folder?")
+                .child(
+                    v_flex()
+                        .gap(px(12.))
+                        .child(div().text_size(px(13.)).child(
+                            "F1 25 did not start because these files are where the profile puts its \
+                             own, and Swofty did not put them there. They may be mods copied in by \
+                             hand, so they were left untouched.",
+                        ))
+                        .child(list)
+                        .child(div().text_size(px(13.)).child(format!("{explain}."))),
+                )
+                .ok_text("Restore game folder")
+                .show_cancel(true)
+                .on_ok(move |_, window, cx| {
+                    shell.update(cx, |s, cx| s.restore_game_folder(window, cx)).ok();
+                    true
+                })
+        });
+    }
+
+    pub(crate) fn restore_game_folder(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(install) = self.install.clone() else {
+            return;
+        };
+        let store = self.store.clone();
+        self.notice = None;
+        self.blocked = None;
+        self.restoring = true;
+        cx.spawn_in(window, async move |this, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { game::restore(&store, install.dir) })
+                .await;
+            this.update_in(cx, |s, window, cx| {
+                s.restoring = false;
+                match result {
+                    Ok(text) => window
+                        .push_notification(Notification::success(text).title("Game folder restored"), cx),
+                    Err(e) => window.push_notification(Notification::error(e).title("Restore failed"), cx),
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        cx.notify();
     }
 
     pub(crate) fn confirm_stop(&mut self, window: &mut Window, cx: &mut Context<Self>) {

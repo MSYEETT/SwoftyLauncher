@@ -5,7 +5,9 @@ use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use swofty_core::crash::{LogScan, StartFailure, Symbols, fatal_name};
+use swofty_core::install::Game;
 use swofty_core::process::{GameProcess, game_processes};
+use swofty_core::recovery::{self, Notice, Scope, SessionLock};
 use swofty_core::session::SessionRecord;
 use swofty_core::store::Store;
 use swofty_core::{GAME_EXE, steam};
@@ -28,6 +30,7 @@ pub struct Probe {
     pub session: Option<SessionRecord>,
     pub requests: Option<SystemTime>,
     pub merged: bool,
+    pub recovered: Option<Notice>,
 }
 
 pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>) -> Probe {
@@ -39,7 +42,48 @@ pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>) -> Probe
         session: store.latest_session().map(|d| SessionRecord::read(&d)),
         requests,
         merged,
+        recovered: Notice::read(&store.root),
     }
+}
+
+/// At launcher start: put back what an unfinished `swofty run` session left
+/// in the game folder, unless a session is still live. A `swofty apply`
+/// install stays.
+pub fn recover_stale(store: &Store) -> Result<Vec<String>, String> {
+    if !game_processes().is_empty() {
+        return Ok(Vec::new());
+    }
+    let Some(install) = discover(store) else {
+        return Ok(Vec::new());
+    };
+    let Some(lock) = SessionLock::try_acquire(&store.root).map_err(|e| e.to_string())? else {
+        return Ok(Vec::new());
+    };
+    let g = Game::locate(&store.root, install.dir).map_err(|e| e.to_string())?;
+    let r = recovery::recover(&lock, &store.root, &g, Scope::Sessions).map_err(|e| e.to_string())?;
+    Ok(r.lines())
+}
+
+/// The Restore game folder button: what `swofty restore` does.
+pub fn restore(store: &Store, dir: PathBuf) -> Result<String, String> {
+    let g = Game::locate(&store.root, dir).map_err(|e| e.to_string())?;
+    let done = recovery::restore(&store.root, &g).map_err(|e| e.to_string())?;
+    if !done.left.is_empty() {
+        let left: Vec<String> = done.left.iter().map(ToString::to_string).collect();
+        return Err(format!("Not everything could be restored: {}", left.join("; ")));
+    }
+    let mut text = "The game folder matches the original game files.".to_owned();
+    if !done.set_aside.is_empty() {
+        text.push_str(&format!(
+            " {} moved to {}.",
+            match done.set_aside.len() {
+                1 => "1 file was".to_owned(),
+                n => format!("{n} files were"),
+            },
+            recovery::set_aside_dir(&store.root).display()
+        ));
+    }
+    Ok(text)
 }
 
 fn merge_requests(store: &Store, idle: bool, seen: Option<SystemTime>) -> (Option<SystemTime>, bool) {

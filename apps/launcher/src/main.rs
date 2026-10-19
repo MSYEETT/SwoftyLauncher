@@ -33,8 +33,10 @@ fn main() {
                 }),
                 ..TitleBar::window_options()
             };
-            let (main, shell) = gpui_kit::open_window(options, cx, |_, cx| cx.new(shell::Shell::new))
-                .expect("failed to open window");
+            let (main, shell) = gpui_kit::open_window(options, cx, |window, cx| {
+                cx.new(|cx| shell::Shell::new(window, cx))
+            })
+            .expect("failed to open window");
             cx.on_window_closed(move |cx, id| {
                 if id == main.window_id() {
                     cx.quit();
