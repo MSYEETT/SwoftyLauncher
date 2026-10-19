@@ -31,6 +31,21 @@ To change a profile's name or make a copy of its setup, open the **Profiles** pa
 
 You won't see either icon on `vanilla`, because that profile cannot be changed.
 
+## Delete a profile
+
+1. Open the **Profiles** page.
+2. In the profile's card footer, select the trash icon.
+3. Read the confirmation, then select **Delete profile**.
+
+Deleting a profile removes its choice of addons and mods, their settings, its build cache and its saves. Installed addons and mods stay in the library, and other profiles don't change. You can't undo it.
+
+- **The active profile:** the launcher switches to another profile first and names it in the confirmation. It picks `default` if that profile exists, otherwise the first remaining profile in alphabetical order.
+- **Your only profile:** you can't delete it, so the trash icon is unavailable. Create another profile first.
+- **`vanilla`:** it's built in, so it has no trash icon.
+- **While F1 25 runs:** close the game first. A profile that's still installed in the game folder after a crash or `swofty apply` can't be deleted until you [restore the game](/using/profiles-and-restoring).
+
+From the command line, use `swofty profile delete <name>`. It asks before deleting; add `--yes` to skip the question. `swofty profile list` shows every profile and marks the active one.
+
 ## Restoring the game
 
 Switch to `vanilla` when you want to play without any content. The game folder still keeps its backups until you restore it; to return every game file to stock, see [Restoring the game](/using/profiles-and-restoring).

@@ -94,6 +94,15 @@ These commands come from the built-in Team Simplified addon. Use them to manage 
 | `swofty settings export [--out <file>]` | Write the session settings file that the game reads |
 | `swofty settings merge` | Merge the changes made in game into the profile |
 
+## `swofty profile`
+
+| Command | Purpose |
+|---|---|
+| `swofty profile list` | List the profiles and mark the active one |
+| `swofty profile delete <name> [--yes]` | Delete a profile with its settings, build cache (`$DATA/cache/overlay/<name>/`), in-game changes and saves. It asks first; `--yes` skips the question |
+
+`swofty profile delete` follows the same rules as the launcher's [Delete a profile](/using/profiles#delete-a-profile). It refuses `vanilla`, your only profile, any profile while F1 25 runs, and a profile with an open journal in the game folder; run `swofty restore` to close the journal. When you delete the active profile, `default` (or the first remaining profile) becomes active first.
+
 ## `swofty maps`
 
 `swofty maps` is a hidden alias of `swofty mods`. Since tracks are mods, you can import a community track package with `swofty mods import <zip>`. Its mod id is the track code, or `<code>-track` if a mod in your library already has that id.
