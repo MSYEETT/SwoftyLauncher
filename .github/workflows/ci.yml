@@ -13,8 +13,86 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # A pull request runs only the jobs whose files it changes; a push to main runs every job.
+  changes:
+    name: Changed areas
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      rust: ${{ github.event_name != 'pull_request' || steps.filter.outputs.rust == 'true' }}
+      installer: ${{ github.event_name != 'pull_request' || steps.filter.outputs.installer == 'true' }}
+      native: ${{ github.event_name != 'pull_request' || steps.filter.outputs.native == 'true' }}
+      swofty-ui: ${{ github.event_name != 'pull_request' || steps.filter.outputs.swofty-ui == 'true' }}
+      docs: ${{ github.event_name != 'pull_request' || steps.filter.outputs.docs == 'true' }}
+    steps:
+      - id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            # Every area: this workflow, and the line-ending rules every checkout applies.
+            always: &always
+              - .github/workflows/ci.yml
+              - .gitattributes
+            # Every crate, plus the files outside them that the crates embed or their tests read.
+            rust:
+              - *always
+              - '**/*.rs'
+              - '**/Cargo.toml'
+              - Cargo.lock
+              - rust-toolchain.toml
+              - rustfmt.toml
+              - apps/**
+              - packages/**
+              - installer/**
+              - templates/**
+              - addons/builtins/**
+              - addons/swoftymod/**
+              - addons/custom-grid-size/**
+              - re/db/functions.tsv
+            # The installer crate, its path dependencies (swofty-core, -addon, -formats, -sdk) and what they embed.
+            installer:
+              - *always
+              - Cargo.toml
+              - Cargo.lock
+              - rust-toolchain.toml
+              - installer/**
+              - packages/core/**
+              - packages/addon-api/**
+              - packages/formats/**
+              - packages/sdk/**
+              - templates/addon/native/include/**
+              - addons/swoftymod/swofty.json
+              - apps/launcher/assets/**
+            # native/build.sh bundles the whole re-optimization addon, so its manifest and README count too.
+            native:
+              - *always
+              - native/**
+              - re/**
+              - addons/*/native/**
+              - addons/re-optimization/**
+              - packages/sdk/**
+              - tools/pack_addon.py
+              - tools/rtassets.py
+            # build.py puts tools/ on the module path; the app imports erp, pkg and idf from there.
+            swofty-ui:
+              - *always
+              - tools/swofty-ui/**
+              - tools/erp.py
+              - tools/pkg.py
+              - tools/idf.py
+            docs:
+              - *always
+              - docs/**
+              - package.json
+              - pnpm-lock.yaml
+              - pnpm-workspace.yaml
+
   rust:
     name: Rust (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -58,6 +136,8 @@ jobs:
 
   swofty-ui:
     name: Swofty UI (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.swofty-ui == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -94,6 +174,8 @@ jobs:
   # The rust job lints the installer on both systems; this job builds the release binary people test.
   installer:
     name: Installer (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.installer == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -127,6 +209,8 @@ jobs:
 
   docs:
     name: Documentation build
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -142,6 +226,8 @@ jobs:
 
   native:
     name: Native loader and Wine test
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
