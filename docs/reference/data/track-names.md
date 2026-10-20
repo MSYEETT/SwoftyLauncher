@@ -54,11 +54,11 @@ Unpack the track package into `track/`: the zip with `manifest.json` at its root
     { "op": "track.add", "source": "track" },
     { "op": "lang.set", "language": "*", "key": "lng_okayama_title", "value": "Okayama" },
     { "op": "lang.set", "language": "*", "key": "lng_okayama_gp", "value": "Okayama Grand Prix" },
-    { "op": "db.set", "select": "track_data.game_setup.TrackDataSet_0.TrackData[_metadata_=okayama]",
+    { "op": "db.set", "select": "track_data.game_setup.TrackDataSet[_metadata_=f1].TrackData[_metadata_=okayama]",
       "field": "TrackNameData_0.title", "value": "lng_okayama_title" },
-    { "op": "db.set", "select": "track_data.game_setup.TrackDataSet_16.TrackData[_metadata_=okayama]",
+    { "op": "db.set", "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=okayama]",
       "field": "TrackNameData_0.title", "value": "lng_okayama_title" },
-    { "op": "db.set", "select": "track_data.game_setup.TrackDataSet_16.TrackData[_metadata_=okayama]",
+    { "op": "db.set", "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=okayama]",
       "field": "TrackNameData_0.gp_long_name", "value": "lng_okayama_gp" }
   ]
 }
@@ -66,10 +66,11 @@ Unpack the track package into `track/`: the zip with `manifest.json` at its root
 
 - `track.add` takes `source`, a folder that holds `manifest.json`. The build activates the track before any database op runs.
 - Activation copies the base track's `TrackData` row into every dataset that has the base track and labels the copy with the track code: its `_metadata_`, `track` and `TrackNameData_0.file_name` all become `okayama`. Select the copy with `[_metadata_=okayama]` or `[track=okayama]`.
+- `TrackDataSet[_metadata_=f1_2026]` selects a dataset by its label. The datasets and their row numbers are below.
 - Your `db.set` ops run after activation, so they win over the package's own `activation.overrides`.
 - Add one `db.set` per dataset and field you want named. `TrackNameData_0` holds `title`, `country_name`, `circuit`, `city_name`, `city_name_short`, `gp_long_name`, `gp_long_name_multiline`, `gp_long_name_multiline_previous`, `gp_short_name` and `acronym_name` ([Renaming a track](/reference/gamedb/recipes#renaming-a-track)).
 
-The datasets under `track_data.game_setup`:
+The datasets under `track_data.game_setup` in the shipping database:
 
 | Row | Dataset | Row | Dataset |
 |---|---|---|---|

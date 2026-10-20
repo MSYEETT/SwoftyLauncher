@@ -77,3 +77,66 @@ fn added_se_livery_unlock_is_owned_against_the_real_database() {
     let stock = std::collections::HashSet::from([owned::item_key("eSELivery", "toro_rosso_miami_26")]);
     assert_eq!(owned::stock_collisions(&pristine, &stock), stock);
 }
+
+#[test]
+fn nested_selectors_resolve_against_the_real_database() {
+    let Some(dir) = std::env::var_os("F1_25_DIR").map(PathBuf::from) else {
+        eprintln!("F1_25_DIR is not set; skipping");
+        return;
+    };
+    let Ok(data) = std::fs::read(dir.join("game_package/gamedatabases/gamedatabases.2025.bin")) else {
+        eprintln!("no gamedatabases.2025.bin under F1_25_DIR; skipping");
+        return;
+    };
+    let mut db = Gvdb::parse(&data).unwrap();
+    let sets = "track_data.game_setup";
+    assert_eq!(
+        db.get_text(&format!("{sets}.TrackDataSet_16._metadata_"))
+            .as_deref(),
+        Some("f1_2026")
+    );
+    let ops: DbOps = serde_json::from_str(
+        r#"{"schema_version":1,
+        "fields":{"track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData":["_metadata_","track"]},
+        "ops":[
+          {"op":"set","select":"track_data.game_setup.TrackDataSet[_metadata_=f1_2026]","field":"_metadata_","value":"f1_2026"},
+          {"op":"set","select":"track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka]",
+           "field":"TrackNameData_0.title","value":"lng_nested"},
+          {"op":"add-row","table":"track_data.game_setup.TrackDataSet[_metadata_=f1_2026]",
+           "from":"track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne]",
+           "set":{"_metadata_":"nested_test","track":"nested_test"}}
+        ]}"#,
+    )
+    .unwrap();
+    let before = db
+        .instance_count(&format!("{sets}.TrackDataSet_16"), "TrackData")
+        .unwrap();
+    let replaced = apply_db_ops(&mut db, &ops, &BTreeMap::<String, Vec<String>>::new()).unwrap();
+    assert_eq!(
+        replaced[0],
+        swofty_formats::hash::fnv1a64(format!("{sets}.TrackDataSet_16._metadata_"))
+    );
+    let suzuka = (0..before)
+        .find(|j| {
+            db.get_text(&format!("{sets}.TrackDataSet_16.TrackData_{j}._metadata_"))
+                .as_deref()
+                == Some("suzuka")
+        })
+        .unwrap();
+    assert_eq!(
+        db.get_text(&format!(
+            "{sets}.TrackDataSet_16.TrackData_{suzuka}.TrackNameData_0.title"
+        ))
+        .as_deref(),
+        Some("lng_nested")
+    );
+    assert_eq!(
+        db.instance_count(&format!("{sets}.TrackDataSet_16"), "TrackData"),
+        Some(before + 1)
+    );
+    assert_eq!(
+        db.get_text(&format!("{sets}.TrackDataSet_16.TrackData_{before}.track"))
+            .as_deref(),
+        Some("nested_test")
+    );
+}

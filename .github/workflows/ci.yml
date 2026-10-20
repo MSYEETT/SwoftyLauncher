@@ -107,8 +107,11 @@ jobs:
           cache: false
 
       # Only main saves, so pull requests restore main's caches instead of evicting them with their own.
+      # The environment hash would fold in every installed rustc, and runner images differ in the stable
+      # one they preinstall; the key keeps the lockfile and rust-toolchain.toml hash, which is what matters.
       - uses: Swatinem/rust-cache@v2
         with:
+          add-rust-environment-hash-key: false
           shared-key: workspace-debug
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -130,9 +133,10 @@ jobs:
       - name: Build the workspace
         run: cargo build --workspace
 
-      # The real-file round trips skip without F1_25_DIR; CI has no game files.
+      # --workspace takes in the launcher's and the installer's tests too. The real-file round trips skip
+      # without F1_25_DIR; CI has no game files.
       - name: Test
-        run: cargo test
+        run: cargo test --workspace
 
   swofty-ui:
     name: Swofty UI (${{ matrix.os }})
@@ -191,6 +195,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
+          add-rust-environment-hash-key: false
           shared-key: installer-release
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -219,6 +224,7 @@ jobs:
         with:
           runtime: node@24
           cache: true
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
           require-lockfile: true
 
       - name: Build
@@ -257,10 +263,13 @@ jobs:
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       # The scripts below keep their own Zig cache under native/build, which the restore step covers.
+      # The tool cache installs Zig at the same path every run; the MinGW and libc++ objects are keyed
+      # on compiler arguments that include that path, so the default random temp folder missed them all.
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.16.0
           use-cache: false
+          use-tool-cache: true
 
       # The key starts over each month so the content-addressed cache cannot grow without bound.
       - name: Zig cache period
@@ -309,7 +318,7 @@ jobs:
           ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
           ZIG_LOCAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
         run: |
-          zig c++ -std=c++23 -O2 -I packages/sdk/include native/test/telemetry_feed_test.cpp -o telemetry_feed_test
+          zig c++ -target x86_64-linux-musl -std=c++23 -O2 -I packages/sdk/include native/test/telemetry_feed_test.cpp -o telemetry_feed_test
           ./telemetry_feed_test
 
       - name: Wine and Xvfb

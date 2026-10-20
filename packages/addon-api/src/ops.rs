@@ -235,6 +235,22 @@ impl Base {
             Base::Hash(h) => fnv1a64_from(*h, suffix),
         }
     }
+
+    fn child(&self, name: &str) -> Base {
+        match self {
+            Base::Path(p) => Base::Path(format!("{p}.{name}")),
+            Base::Hash(h) => Base::Hash(fnv1a64_from(*h, format!(".{name}"))),
+        }
+    }
+}
+
+impl std::fmt::Display for Base {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Base::Path(p) => f.write_str(p),
+            Base::Hash(h) => write!(f, "{{{h:016x}}}"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -338,39 +354,46 @@ fn row_name(base: &Base, idx: usize, row: &str) -> Base {
     }
 }
 
-fn split_table(path: &str) -> (&str, &str) {
-    match path.rsplit_once('.') {
-        Some((t, r)) if !t.starts_with('{') || t.contains('}') => (t, r),
-        _ => (path, ""),
-    }
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Segment<'a> {
+    pub name: &'a str,
+    pub select: Option<(&'a str, &'a str)>,
 }
 
-fn resolve_row(db: &Db, select: &str) -> Result<Row> {
-    let Some((path, filter)) = select.strip_suffix(']').and_then(|s| s.split_once('[')) else {
-        return Ok(Row {
-            base: parse_base(select)?,
-        });
+pub fn first_segment(path: &str) -> Result<(Segment<'_>, Option<&str>)> {
+    let end = path.find(['.', '[']).unwrap_or(path.len());
+    let (name, rest) = path.split_at(end);
+    let Some(inner) = rest.strip_prefix('[') else {
+        return Ok((Segment { name, select: None }, rest.strip_prefix('.')));
     };
-    let (field, want) = filter
+    let close = inner
+        .match_indices(']')
+        .map(|(i, _)| i)
+        .find(|&i| matches!(inner.as_bytes().get(i + 1), None | Some(b'.')))
+        .ok_or_else(|| Error::Resolve(format!("{path}: [ needs a ] at the end of its segment")))?;
+    let sel = &inner[..close];
+    let (field, want) = sel
         .split_once('=')
-        .ok_or_else(|| Error::Resolve(format!("bad selector {select}")))?;
-    let (base, row) = if path.starts_with('{') && !path.contains('.') {
-        (parse_base(path)?, String::new())
-    } else {
-        let (table, row) = split_table(path);
-        (parse_base(table)?, row.to_owned())
+        .ok_or_else(|| Error::Resolve(format!("{path}: bad selector [{sel}]")))?;
+    let segment = Segment {
+        name,
+        select: Some((field.trim(), want)),
     };
-    let count = match &base {
-        Base::Path(t) if !row.is_empty() => db.instance_count(t, &row),
+    Ok((segment, inner[close + 1..].strip_prefix('.')))
+}
+
+fn select_row(db: &Db, table: &Base, row: &str, field: &str, want: &str) -> std::result::Result<Base, usize> {
+    let count = match table {
+        Base::Path(t) if !row.is_empty() => db.instance_count(t, row),
         _ => None,
     };
     let mut hits = Vec::new();
     for idx in 0..count.unwrap_or(4096) {
         let candidate = Row {
-            base: row_name(&base, idx, &row),
+            base: row_name(table, idx, row),
         };
         match db.text(candidate.field("_metadata_")) {
-            Some(_) if db.text(candidate.field(field)).as_deref() == Some(want) => hits.push(candidate),
+            Some(_) if db.text(candidate.field(field)).as_deref() == Some(want) => hits.push(candidate.base),
             Some(_) => {}
             None if count.is_none() => break,
             None => {}
@@ -378,21 +401,76 @@ fn resolve_row(db: &Db, select: &str) -> Result<Row> {
     }
     match hits.len() {
         1 => Ok(hits.remove(0)),
-        0 => Err(Error::Resolve(format!("{select}: no row matches"))),
-        n => Err(Error::Resolve(format!("{select}: {n} rows match"))),
+        n => Err(n),
     }
 }
 
+fn resolve_path(db: &Db, path: &str) -> Result<Base> {
+    if !path.contains('[') {
+        return parse_base(path);
+    }
+    let mut base: Option<Base> = None;
+    let mut nested = false;
+    let mut rest = Some(path);
+    while let Some(p) = rest {
+        let (seg, tail) = first_segment(p)?;
+        if seg.name.is_empty() {
+            return Err(Error::Resolve(format!("{path}: empty segment")));
+        }
+        base = Some(match (base, seg.select) {
+            (None, None) => parse_base(seg.name)?,
+            (Some(b), None) => b.child(seg.name),
+            (prefix, Some((field, want))) => {
+                let (table, row) = match prefix {
+                    Some(b) => (b, seg.name),
+                    None => (parse_base(seg.name)?, ""),
+                };
+                match select_row(db, &table, row, field, want) {
+                    Ok(b) => {
+                        nested = true;
+                        b
+                    }
+                    Err(n) => {
+                        let upto = &path[..path.len() - tail.map_or(0, |t| t.len() + 1)];
+                        let what = match n {
+                            0 => "no row matches".to_owned(),
+                            n => format!("{n} rows match"),
+                        };
+                        let scope = match (nested, row) {
+                            (false, _) => String::new(),
+                            (true, "") => format!(" in {table}"),
+                            (true, row) => format!(" in {table}.{row}"),
+                        };
+                        return Err(Error::Resolve(format!("{upto}: {what}{scope}")));
+                    }
+                }
+            }
+        });
+        rest = tail;
+    }
+    base.ok_or_else(|| Error::Resolve(format!("bad path {path}")))
+}
+
+fn resolve_row(db: &Db, select: &str) -> Result<Row> {
+    Ok(Row {
+        base: resolve_path(db, select)?,
+    })
+}
+
 fn resolve_value(db: &Db, path: &str) -> Result<String> {
-    let (select, field) = match path.rfind(']') {
-        Some(i) => (&path[..=i], path[i + 1..].trim_start_matches('.')),
-        None => path
-            .rsplit_once('.')
-            .ok_or_else(|| Error::Resolve(format!("bad path {path}")))?,
-    };
-    let row = resolve_row(db, select)?;
-    db.text(row.field(field))
+    if !path.contains(['.', ']']) {
+        return Err(Error::Resolve(format!("bad path {path}")));
+    }
+    let key = resolve_path(db, path)?.key("");
+    db.text(key)
         .ok_or_else(|| Error::Resolve(format!("{path}: no value")))
+}
+
+fn resolve_key(db: &Db, key: &str) -> Result<u64> {
+    match key.starts_with("0x") || !key.contains('[') {
+        true => record_key(key),
+        false => Ok(resolve_path(db, key)?.key("")),
+    }
 }
 
 pub fn apply_db_ops(db: &mut Gvdb, ops: &DbOps, names: &dyn FieldNames) -> Result<Vec<u64>> {
@@ -471,7 +549,10 @@ fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<Option<u64>> 
                     )));
                 }
             };
-            let key = resolve_row(db, select)?.field(field);
+            let key = match field.contains('[') {
+                true => resolve_path(db, &format!("{select}.{field}"))?.key(""),
+                false => resolve_row(db, select)?.field(field),
+            };
             match db.get_mut(key) {
                 Some(r) => r.value = value.into_bytes(),
                 None if *create => {
@@ -489,20 +570,30 @@ fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<Option<u64>> 
         }
         DbOp::AddRow { table, from, set } => {
             let src = resolve_row(db, from)?;
-            let row = add_row_name(table, from)
-                .ok_or_else(|| Error::Resolve(format!("{from} is not a row of {table}")))?;
-            let count_path = instance_count_path(table, row);
-            let n = db.instance_count(table, row).ok_or_else(|| {
+            let Base::Path(path) = resolve_path(db, table)? else {
+                return Err(Error::Resolve(format!(
+                    "{table}: add-row needs the table's real path, not a {{hash}}"
+                )));
+            };
+            let row = match &src.base {
+                Base::Path(f) => add_row_name(&path, f),
+                Base::Hash(_) => None,
+            }
+            .ok_or_else(|| Error::Resolve(format!("{from} is not a row of {table}")))?;
+            let count_path = instance_count_path(&path, row);
+            let n = db.instance_count(&path, row).ok_or_else(|| {
                 Error::Resolve(format!(
                     "{count_path}: missing; add-row needs the table's real path"
                 ))
             })?;
             let fields = names
                 .fields(table, row)
+                .or_else(|| names.fields(&path, row))
                 .ok_or_else(|| Error::Resolve(format!("{table}.{row}: field names unknown")))?;
             if let Some(f) = set.keys().find(|f| !fields.contains(f)) {
                 return Err(Error::Resolve(format!("{table}.{row}: unknown field {f}")));
             }
+            let table = &path;
             let dst = Row {
                 base: Base::Path(format!("{table}.{row}_{n}")),
             };
@@ -540,7 +631,7 @@ fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<Option<u64>> 
         )),
         DbOp::PutRecord { key, tag, value } => {
             let value = hex_bytes(key, value)?;
-            let k = record_key(key)?;
+            let k = resolve_key(db, key)?;
             match db.get_mut(k) {
                 Some(r) => {
                     r.tag = *tag;
@@ -555,7 +646,7 @@ fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<Option<u64>> 
             Ok(Some(k))
         }
         DbOp::RemoveRecord { key } => {
-            let k = record_key(key)?;
+            let k = resolve_key(db, key)?;
             if !db.remove(k) {
                 return Err(Error::Resolve(format!("{key}: no such key")));
             }
@@ -736,6 +827,244 @@ mod tests {
             let op: DbOp = serde_json::from_str(bad).unwrap();
             assert!(apply_db_op(&mut db, &op, &names()).is_err(), "{bad}");
         }
+    }
+
+    const SETS: &str = "track_data.game_setup";
+
+    fn track_db() -> Gvdb {
+        let mut records = vec![Record::new(&instance_count_path(SETS, "TrackDataSet"), 0, "2")];
+        for (i, (label, tracks)) in [
+            ("f1", &["melbourne", "okayama", "okayama"][..]),
+            ("f1_2026", &["melbourne", "suzuka"][..]),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let set = format!("{SETS}.TrackDataSet_{i}");
+            records.push(Record::new(&format!("{set}._metadata_"), 4, label));
+            records.push(Record::new(
+                &instance_count_path(&set, "TrackData"),
+                0,
+                tracks.len().to_string(),
+            ));
+            for (j, track) in tracks.iter().enumerate() {
+                let row = format!("{set}.TrackData_{j}");
+                records.push(Record::new(&format!("{row}._metadata_"), 4, *track));
+                records.push(Record::new(&format!("{row}.track"), 2, *track));
+                records.push(Record::new(
+                    &format!("{row}._TrackNameData_instancecount_"),
+                    0,
+                    "1",
+                ));
+                records.push(Record::new(
+                    &format!("{row}.TrackNameData_0._metadata_"),
+                    4,
+                    "names",
+                ));
+                records.push(Record::new(
+                    &format!("{row}.TrackNameData_0.title"),
+                    4,
+                    format!("lng_{label}_{track}"),
+                ));
+            }
+        }
+        Gvdb { records }
+    }
+
+    #[test]
+    fn parses_segments_like_pkg_paths() {
+        let (seg, rest) = first_segment("TrackData[name=a.b$c].TrackNameData_0.title").unwrap();
+        assert_eq!(
+            (seg.name, seg.select, rest),
+            (
+                "TrackData",
+                Some(("name", "a.b$c")),
+                Some("TrackNameData_0.title")
+            )
+        );
+        let (seg, rest) = first_segment("t[ k =x[1]").unwrap();
+        assert_eq!((seg.select, rest), (Some(("k", "x[1")), None));
+        let (seg, _) = first_segment("t[k=x]y]").unwrap();
+        assert_eq!(seg.select, Some(("k", "x]y")));
+        let (seg, rest) = first_segment("{446668bc25ba571c}[k=v].a").unwrap();
+        assert_eq!((seg.name, rest), ("{446668bc25ba571c}", Some("a")));
+        for bad in ["t[k=v", "t[kv].a", "t[k=v]a"] {
+            assert!(first_segment(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn selects_rows_on_every_segment() {
+        let mut db = track_db();
+        let ops = ops(r#"{"schema_version":1,"ops":[
+            {"op":"set","select":"track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka]",
+             "field":"TrackNameData_0.title","value":"lng_a"},
+            {"op":"set","select":"track_data.game_setup.TrackDataSet_1.TrackData[_metadata_=melbourne]",
+             "field":"TrackNameData_0.title","value":"lng_b"},
+            {"op":"set","select":"track_data.game_setup.TrackDataSet[_metadata_=f1].TrackData_0",
+             "field":"TrackNameData[_metadata_=names].title","value":"lng_c"}]}"#);
+        let replaced = apply_db_ops(&mut db, &ops, &names()).unwrap();
+        let key = |p: &str| fnv1a64(format!("{SETS}.{p}.TrackNameData_0.title"));
+        assert_eq!(
+            replaced,
+            [
+                key("TrackDataSet_1.TrackData_1"),
+                key("TrackDataSet_1.TrackData_0"),
+                key("TrackDataSet_0.TrackData_0")
+            ]
+        );
+        for (row, want) in [
+            ("TrackDataSet_1.TrackData_1", "lng_a"),
+            ("TrackDataSet_1.TrackData_0", "lng_b"),
+            ("TrackDataSet_0.TrackData_0", "lng_c"),
+        ] {
+            let got = db.get_text(&format!("{SETS}.{row}.TrackNameData_0.title"));
+            assert_eq!(got.as_deref(), Some(want), "{row}");
+        }
+    }
+
+    #[test]
+    fn nested_selector_errors_name_the_segment() {
+        let set = |select: &str| {
+            let op = DbOp::Set {
+                select: select.to_owned(),
+                field: "track".into(),
+                value: Some("x".into()),
+                value_from: None,
+                datasets: Vec::new(),
+                create: false,
+                tag: None,
+            };
+            apply_db_op(&mut track_db(), &op, &names())
+                .unwrap_err()
+                .to_string()
+        };
+        assert_eq!(
+            set("track_data.game_setup.TrackDataSet[_metadata_=f9].TrackData[_metadata_=suzuka]"),
+            "track_data.game_setup.TrackDataSet[_metadata_=f9]: no row matches"
+        );
+        assert_eq!(
+            set("track_data.game_setup.TrackDataSet[_metadata_=f1].TrackData[_metadata_=okayama]"),
+            "track_data.game_setup.TrackDataSet[_metadata_=f1].TrackData[_metadata_=okayama]: \
+             2 rows match in track_data.game_setup.TrackDataSet_0.TrackData"
+        );
+        assert_eq!(
+            set("track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=okayama]"),
+            "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=okayama]: \
+             no row matches in track_data.game_setup.TrackDataSet_1.TrackData"
+        );
+        assert!(
+            set("track_data.game_setup.TrackDataSet[_metadata_=f1].TrackData[track]")
+                .contains("bad selector")
+        );
+        assert!(set("track_data.game_setup..TrackDataSet[_metadata_=f1]").contains("empty segment"));
+    }
+
+    #[test]
+    fn add_row_into_a_nested_table() {
+        let mut db = track_db();
+        let first = ops(r#"{"schema_version":1,
+            "fields":{"track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData":
+              ["_metadata_","track","_TrackNameData_instancecount_","TrackNameData_0._metadata_","TrackNameData_0.title"]},
+            "ops":[
+            {"op":"add-row","table":"track_data.game_setup.TrackDataSet[_metadata_=f1_2026]",
+             "from":"track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne]",
+             "set":{"_metadata_":"okayama","track":"okayama"}},
+            {"op":"set","select":"track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=okayama]",
+             "field":"TrackNameData_0.title","value":"lng_okayama"}]}"#);
+        apply_db_ops(&mut db, &first, &BTreeMap::new()).unwrap();
+        let set = format!("{SETS}.TrackDataSet_1");
+        assert_eq!(db.instance_count(&set, "TrackData"), Some(3));
+        assert_eq!(
+            db.instance_count(&format!("{SETS}.TrackDataSet_0"), "TrackData"),
+            Some(3)
+        );
+        for (field, want) in [
+            ("_metadata_", "okayama"),
+            ("track", "okayama"),
+            ("TrackNameData_0.title", "lng_okayama"),
+        ] {
+            let got = db.get_text(&format!("{set}.TrackData_2.{field}"));
+            assert_eq!(got.as_deref(), Some(want), "{field}");
+        }
+        let resolved_fields = first.fields.values().next().unwrap().clone();
+        let again: DbOps = serde_json::from_value(serde_json::json!({
+            "schema_version": 1,
+            "fields": { format!("{set}.TrackData"): resolved_fields },
+            "ops": [{ "op": "add-row", "table": set,
+                "from": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=okayama]",
+                "set": { "_metadata_": "sepang", "track": "sepang" } }]
+        }))
+        .unwrap();
+        apply_db_ops(&mut db, &again, &BTreeMap::new()).unwrap();
+        assert_eq!(db.instance_count(&set, "TrackData"), Some(4));
+        assert_eq!(
+            db.get_text(&format!("{set}.TrackData_3.TrackNameData_0.title"))
+                .as_deref(),
+            Some("lng_okayama")
+        );
+        let wrong_table = ops(
+            r#"{"schema_version":1,"ops":[{"op":"add-row","table":"track_data.game_setup.TrackDataSet[_metadata_=f1]",
+            "from":"track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne]"}]}"#,
+        );
+        let err = apply_db_ops(&mut db, &wrong_table, &BTreeMap::new()).unwrap_err();
+        assert!(err.to_string().contains("is not a row of"), "{err}");
+    }
+
+    #[test]
+    fn value_from_and_record_keys_take_nested_selectors() {
+        let mut db = track_db();
+        let ops = ops(r#"{"schema_version":1,"ops":[
+            {"op":"set","select":"track_data.game_setup.TrackDataSet[_metadata_=f1].TrackData[_metadata_=melbourne]",
+             "field":"TrackNameData_0.title",
+             "value_from":"track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TrackNameData_0.title"},
+            {"op":"put-record","key":"track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].laps","type":0,"value":"3533"},
+            {"op":"remove-record","key":"track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].track"}]}"#);
+        apply_db_ops(&mut db, &ops, &names()).unwrap();
+        let get = |p: &str| db.get_text(&format!("{SETS}.{p}"));
+        assert_eq!(
+            get("TrackDataSet_0.TrackData_0.TrackNameData_0.title").as_deref(),
+            Some("lng_f1_2026_suzuka")
+        );
+        assert_eq!(get("TrackDataSet_1.TrackData_1.laps").as_deref(), Some("53"));
+        assert_eq!(get("TrackDataSet_1.TrackData_0.track"), None);
+        assert_eq!(
+            get("TrackDataSet_0.TrackData_0.track").as_deref(),
+            Some("melbourne")
+        );
+    }
+
+    #[test]
+    fn hash_placeholder_takes_nested_selectors() {
+        let mut db = db();
+        let world = fnv1a64("hidden.world_table_");
+        for (i, (label, n)) in [("a", "6"), ("b", "7")].iter().enumerate() {
+            for (f, v) in [("_metadata_", *label), ("n", *n)] {
+                db.records.push(Record {
+                    key: fnv1a64_from(world, format!("1.slot_{i}.{f}")),
+                    tag: 0,
+                    value: v.as_bytes().to_vec(),
+                });
+            }
+        }
+        let h = format!("{{{world:016x}}}");
+        let json = format!(
+            r#"{{"schema_version":1,"ops":[{{"op":"set","select":"{h}[_metadata_=f1_26]","field":"worldEri",
+            "value_from":"{h}[_metadata_=myteam_26].slot[_metadata_=b].n"}}]}}"#
+        );
+        apply_db_ops(&mut db, &ops(&json), &names()).unwrap();
+        assert_eq!(db.get_key(fnv1a64_from(world, "0.worldEri")).unwrap().text(), "7");
+        let json = format!(
+            r#"{{"schema_version":1,"ops":[{{"op":"set","select":"{h}[_metadata_=myteam_26].slot[_metadata_=c]","field":"n","value":"1"}}]}}"#
+        );
+        let err = apply_db_ops(&mut db, &ops(&json), &names())
+            .unwrap_err()
+            .to_string();
+        let row = format!("{{{:016x}}}", fnv1a64_from(world, "1"));
+        assert!(
+            err.ends_with(&format!("[_metadata_=c]: no row matches in {row}.slot")),
+            "{err}"
+        );
     }
 
     #[test]

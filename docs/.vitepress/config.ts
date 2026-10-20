@@ -144,6 +144,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Mods and tracks", link: "/using/mods" },
               { text: "Profiles", link: "/using/profiles" },
               { text: "In-game addon settings", link: "/using/swofty-mod" },
+              { text: "Playing in VR", link: "/using/vr" },
               { text: "Restoring the game", link: "/using/profiles-and-restoring" },
               { text: "Updating", link: "/using/updating" },
               { text: "Uninstalling", link: "/guide/uninstall" },

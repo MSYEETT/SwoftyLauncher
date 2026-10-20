@@ -5,6 +5,7 @@ use swofty_formats::gvdb::Gvdb;
 
 use super::dbx::{Db, at, field, key, row, sub_count, sub_table};
 use crate::map::{Override, TrackPackage};
+use crate::ops::first_segment;
 use crate::{Error, Result};
 
 pub const REGISTRY_JSON: &str = include_str!("track_tables.json");
@@ -202,7 +203,7 @@ fn fresh_unique(db: &mut Db, table: Table, dst: u64, unique: &[String]) -> Resul
 fn with_paths(schema: &Schema, paths: &[&str]) -> Schema {
     let mut s = schema.clone();
     for p in paths {
-        if !s.fields.iter().any(|f| f == p) && !p.contains('*') {
+        if !s.fields.iter().any(|f| f == p) && !p.contains(['*', '[']) {
             s.fields.push((*p).to_owned());
         }
     }
@@ -211,7 +212,7 @@ fn with_paths(schema: &Schema, paths: &[&str]) -> Schema {
 
 fn copy_paths(db: &mut Db, src: u64, dst: u64, paths: &[&str]) {
     for p in paths {
-        if !p.contains('*') {
+        if !p.contains(['*', '[']) {
             db.copy(field(src, p), field(dst, p));
         }
     }
@@ -225,11 +226,36 @@ fn add_row_from(db: &mut Db, spec: &TableSpec, table: Table, src: u64, code: &st
     Ok(dst)
 }
 
-fn expand(db: &Db, row_key: u64, path: &str) -> Vec<u64> {
-    let Some((head, tail)) = path.split_once('.') else {
+fn pick(db: &Db, row_key: u64, name: &str, by: &str, want: &str) -> Result<Option<u64>> {
+    let table = Table::nested(row_key, name);
+    let hits: Vec<u64> = (0..table.len(db))
+        .map(|i| row(table.base, i))
+        .filter(|&r| db.has(field(r, "_metadata_")) && db.text(field(r, by)).as_deref() == Some(want))
+        .collect();
+    match hits.as_slice() {
+        [] => Ok(None),
+        [r] => Ok(Some(*r)),
+        _ => Err(Error::Resolve(format!(
+            "{name}[{by}={want}]: {} rows match",
+            hits.len()
+        ))),
+    }
+}
+
+fn expand(db: &Db, row_key: u64, path: &str) -> Result<Vec<u64>> {
+    let (seg, tail) = first_segment(path)?;
+    if let Some((by, want)) = seg.select {
+        let tail = tail.ok_or_else(|| Error::Resolve(format!("{path}: names a row, not a field")))?;
+        return match pick(db, row_key, seg.name, by, want)? {
+            Some(r) => expand(db, r, tail),
+            None => Ok(Vec::new()),
+        };
+    }
+    let Some(tail) = tail else {
         let k = field(row_key, path);
-        return if db.has(k) { vec![k] } else { Vec::new() };
+        return Ok(if db.has(k) { vec![k] } else { Vec::new() });
     };
+    let head = seg.name;
     if let Some((name, idx)) = head.rsplit_once('_')
         && (idx == "*" || idx.parse::<usize>().is_ok())
         && let Some(n) = db.count(sub_count(row_key, name))
@@ -239,13 +265,17 @@ fn expand(db: &Db, row_key: u64, path: &str) -> Vec<u64> {
             Ok(_) => Vec::new(),
             Err(_) => (0..n).collect(),
         };
-        return rows
-            .into_iter()
-            .flat_map(|i| expand(db, row(sub_table(row_key, name), i), tail))
-            .collect();
+        let mut keys = Vec::new();
+        for i in rows {
+            keys.extend(expand(db, row(sub_table(row_key, name), i), tail)?);
+        }
+        return Ok(keys);
+    }
+    if tail.contains('[') {
+        return expand(db, at(row_key, &format!(".{head}")), tail);
     }
     let k = field(row_key, path);
-    if db.has(k) { vec![k] } else { Vec::new() }
+    Ok(if db.has(k) { vec![k] } else { Vec::new() })
 }
 
 pub struct Dataset {
@@ -521,17 +551,18 @@ pub fn activate(
                     .get("TrackTextures")
                     .map_or(&[][..], |s| &s.fields[..])
                 {
-                    keys.extend(expand(&db, r, &format!("TrackTextures_*.{f}")));
+                    keys.extend(expand(&db, r, &format!("TrackTextures_*.{f}"))?);
                 }
             }
         }
-        keys.extend(expand(&db, track_row, "TrackTextures_*.TrackTexture_*.value"));
+        keys.extend(expand(&db, track_row, "TrackTextures_*.TrackTexture_*.value")?);
         let n = point_textures(&mut db, keys, code, ui_lists)?;
         report.note(format!("{code}: {n} texture path(s) point at its own pictures"));
     }
     apply_overrides(&mut db, &sets, pkg, &mut report)?;
     for o in &pkg.activation.track_overrides {
-        let keys = expand(&db, track_row, &o.path);
+        let keys = expand(&db, track_row, &o.path)
+            .map_err(|e| Error::Map(format!("track override {}: {e}", o.path)))?;
         if keys.is_empty() {
             report
                 .warnings
@@ -545,7 +576,6 @@ pub fn activate(
         "database: {} record(s) added, {} changed",
         db.added, db.changed
     ));
-    let _ = at;
     Ok(report)
 }
 
@@ -561,7 +591,9 @@ fn apply_overrides(db: &mut Db, sets: &[Dataset], pkg: &TrackPackage, report: &m
             let Some(r) = ds.table.row_of(db, code, "track") else {
                 continue;
             };
-            for k in expand(db, r, &o.path) {
+            let keys = expand(db, r, &o.path)
+                .map_err(|e| Error::Map(format!("override {} in {}: {e}", o.path, ds.label)))?;
+            for k in keys {
                 db.set_text(k, &o.value, &o.path)?;
                 hit += 1;
             }
@@ -579,4 +611,39 @@ fn apply_overrides(db: &mut Db, sets: &[Dataset], pkg: &TrackPackage, report: &m
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use swofty_formats::gvdb::Record;
+
+    #[test]
+    fn override_paths_take_selectors() {
+        let mut gvdb = Gvdb {
+            records: vec![Record::new("t.Row_0.Weather._Slot_instancecount_", 0, "3")],
+        };
+        for (i, label) in ["dry", "wet", "wet"].iter().enumerate() {
+            for (f, v) in [("_metadata_", *label), ("rain", &*i.to_string())] {
+                gvdb.records
+                    .push(Record::new(&format!("t.Row_0.Weather.Slot_{i}.{f}"), 0, v));
+            }
+        }
+        gvdb.records
+            .push(Record::new("t.Row_0.Weather.Slot_0.Sub._metadata_", 0, "x"));
+        let db = Db::new(&mut gvdb);
+        let r = key("t.Row_0");
+        let want = vec![key("t.Row_0.Weather.Slot_0.rain")];
+        assert_eq!(expand(&db, r, "Weather.Slot[_metadata_=dry].rain").unwrap(), want);
+        assert_eq!(expand(&db, r, "Weather.Slot[rain=0].rain").unwrap(), want);
+        assert!(
+            expand(&db, r, "Weather.Slot[_metadata_=snow].rain")
+                .unwrap()
+                .is_empty()
+        );
+        let err = expand(&db, r, "Weather.Slot[_metadata_=wet].rain").unwrap_err();
+        assert_eq!(err.to_string(), "Slot[_metadata_=wet]: 2 rows match");
+        assert!(expand(&db, r, "Weather.Slot[_metadata_=dry]").is_err());
+        assert_eq!(expand(&db, r, "Weather.Slot_0.rain").unwrap(), want);
+    }
 }

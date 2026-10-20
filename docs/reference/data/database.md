@@ -52,7 +52,10 @@ Give `select` the row you want to change. Row numbers move between game builds, 
 |---|---|
 | `tracks.Track_3` | row 3 of `tracks` |
 | `entrants.teams.team[_metadata_=williams_26]` | the team labelled `williams_26` |
+| `track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne]` | Melbourne in the `f1_2026` dataset |
 | `{446668bc25ba571c}[_metadata_=f1_26]` | a row in a table known only by its hash |
+
+Any segment of the path can pick a row by a field. Each selector must match exactly one row ([Selecting rows](/reference/ops/database#selecting-rows)).
 
 Write values as strings, whatever the field's type. For a bool, use `True` or `False`; for a list, join the entries with commas and no spaces (`0,-0.6,0`). To copy another key's value, use `value_from` instead of `value`:
 
@@ -95,7 +98,7 @@ You'll find the full field sets in [Adding a row](/reference/gamedb/recipes#addi
 Menus read a track's name from the `TrackNameData_0` row of its `TrackData` row in each dataset under `track_data.game_setup`. They don't read it from `tracks.Track_N`, so setting `tracks.Track_N.title` alone changes no menu. Set the name to a language key once per dataset:
 
 ```json
-{ "op": "set", "select": "track_data.game_setup.TrackDataSet_16.TrackData[_metadata_=melbourne]",
+{ "op": "set", "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne]",
   "field": "TrackNameData_0.title", "value": "lng_my_track_title" }
 ```
 

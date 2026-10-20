@@ -23,10 +23,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      # CI's documentation job saves this store on main, so this build only restores it.
       - uses: pnpm/setup@v3
         with:
           runtime: node@24
           cache: true
+          save-cache: false
           require-lockfile: true
 
       - name: Build

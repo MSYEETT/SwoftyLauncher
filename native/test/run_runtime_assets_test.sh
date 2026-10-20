@@ -13,7 +13,7 @@ rm -rf "$OUT/game"
 mkdir -p "$OUT/game"
 
 echo "==== dbread logic unit test"
-"${PIN[@]}" zig c++ -std=c++23 -O2 -Wall -Wextra -I../../packages/sdk/include -o "$OUT/dbread_unit" dbread_unit.cpp
+"${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O2 -Wall -Wextra -I../../packages/sdk/include -o "$OUT/dbread_unit" dbread_unit.cpp
 "$OUT/dbread_unit"
 
 ZS=../third_party/zstd
@@ -173,7 +173,7 @@ else:
 json.dump(doc, open(sys.argv[1], 'w'), indent=1)
 EOF
 }
-export WINEPREFIX="$OUT/prefix" WINEDLLOVERRIDES="version=n,b;mscoree,mshtml=;winemenubuilder.exe=d" WINEDEBUG=-all
+export WINEPREFIX="$OUT/prefix" WINEDLLOVERRIDES="version=n,b;mscoree,mshtml=;winemenubuilder.exe,winedbg.exe=d" WINEDEBUG=-all
 status=0
 LOG=$OUT/game/swofty/loader.log
 check() {

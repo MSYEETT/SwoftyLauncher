@@ -20,6 +20,7 @@ To stop following the logs while keeping the game running, press **Ctrl-C**. Whe
 | `--game <dir>` | Set the game folder if it wasn't found |
 | `--restart` | Close a running F1 25 first |
 | `--direct` | Launch directly instead of asking Steam |
+| `--vr` | Start the game in VR, like Steam's **Launch in SteamVR mode**: passes `-vr` to the game and, on Linux, starts SteamVR first. See [Playing in VR](/using/vr) |
 | `--winedebug <channels>` | Choose Wine log channels |
 | `--exe <file>` | Use a copy of `F1_25.exe` to identify crash locations |
 | `--apply` | Install the profile (database, tracks, in-game loader) before the game starts and roll it back when it exits. The launcher always passes this flag |
