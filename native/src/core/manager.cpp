@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -26,6 +27,12 @@ const SwoftyOverlay *overlay_table();
 const SwoftyTelemetry *telemetry_table();
 const SwoftyDb *db_table();
 const SwoftyStorage *storage_table();
+const SwoftyCareer *career_table();
+struct CoreMixins {
+    const char *name;
+    std::vector<SwoftyMixin> mixins;
+};
+std::vector<CoreMixins> career_mixins();
 void ready();
 void events_drop_module(void *module);
 const std::wstring &swofty_root();
@@ -721,8 +728,11 @@ Binding *find_binding(const std::string &id)
     return it == binding_index.end() ? nullptr : &bindings[it->second];
 }
 
+std::recursive_mutex resolve_lock;
+
 uintptr_t api_resolve(const char *id)
 {
+    std::lock_guard<std::recursive_mutex> g(resolve_lock);
     const char *name = id ? id : "(null)";
     Binding *b = find_binding(id ? id : "");
     if (!b) {
@@ -1068,6 +1078,18 @@ bool install_all(const std::vector<Group> &groups)
 
 }
 
+namespace runtime {
+
+bool core_mixins_active(const char *name)
+{
+    for (auto &a : addons)
+        if (a.name == name)
+            return a.active && !a.mixins.empty();
+    return false;
+}
+
+}
+
 std::string core_code_owner(uintptr_t addr)
 {
     for (auto &m : addons)
@@ -1143,7 +1165,15 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     a->telemetry = runtime::telemetry_table();
     a->db = runtime::db_table();
     a->storage = runtime::storage_table();
+    a->career = runtime::career_table();
     a->version = SWOFTY_API_VERSION;
+    for (auto &c : runtime::career_mixins()) {
+        Addon own{c.name, {}, true};
+        for (auto &m : c.mixins)
+            own.mixins.push_back({m.target, m.kind, m.priority, m.handler, m.orig});
+        api->log("[core] core mixin set '%s': %zu mixin(s), installed or dropped on its own", c.name, own.mixins.size());
+        addons.push_back(std::move(own));
+    }
     if (ea_diag_on()) {
         ea_log("[ea] core attached on a build the loader flagged as NON-MATCHING (bindings %s, build %.16s, "
                "same_build=%d); running EA decryption + per-binding resolution diagnostics (report-only, no mixin is "

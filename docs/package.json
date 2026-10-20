@@ -1,6 +1,6 @@
 {
   "name": "@f1modmanager/docs",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "private": true,
   "type": "module",
   "description": "Documentation site for Swofty Launcher for F1 25",

@@ -1,3 +1,5 @@
+#include <swofty/career.hpp>
+#include <swofty/events.hpp>
 #include <swofty/mixin.hpp>
 
 SWOFTY_SETTING(bool, verbose, false);
@@ -15,8 +17,16 @@ SWOFTY_ON_CHANGE(greeting, std::string_view text)
         swofty::log("[sample] greeting is now \"%.*s\"", int(text.size()), text.data());
 }
 
+void on_career_loaded(const SwoftyEvent *ev, void *)
+{
+    auto *s = static_cast<const SwoftyCareerState *>(ev->data);
+    swofty::log("[sample] career loaded: %s %s", swofty::career::name(swofty::career::mode(*s)), s->key);
+}
+
 SWOFTY_ON_LOAD
 {
+    if (swofty::career::available())
+        swofty::events::subscribe(SWOFTY_EVENT_CAREER_LOADED, on_career_loaded);
     std::string_view text = greeting;
     for (int i = 0; i < greeting_count; i++)
         swofty::log("[sample] %.*s from the sample mod", int(text.size()), text.data());

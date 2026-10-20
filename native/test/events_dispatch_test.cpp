@@ -66,6 +66,25 @@ int main()
         expect(d.count() == 1, "one subscription remains after the drops");
     }
 
+    // The flow and career events are known names and carry their payload pointer through.
+    {
+        Dispatcher d;
+        g_events.clear();
+        int hits = 0;
+        uint32_t t = 0;
+        for (const char *n : {SWOFTY_EVENT_FLOW_STATE, SWOFTY_EVENT_CAREER_LOADED, SWOFTY_EVENT_CAREER_UNLOADED,
+                              SWOFTY_EVENT_CAREER_HUB})
+            expect(d.subscribe(2, n, on_event, &hits, &t) == SWOFTY_ASSET_OK, std::string("subscribe ") + n);
+        SwoftyCareerState s{};
+        s.mode = SWOFTY_CAREER_DRIVER;
+        expect(d.fire(SWOFTY_EVENT_CAREER_LOADED, SWOFTY_CAREER_DRIVER, 0, &s, 1.0) == 1 && hits == 1 &&
+                   g_events.back().a == SWOFTY_CAREER_DRIVER && g_events.back().data == &s,
+               "career.loaded reaches its subscriber with mode and state");
+        expect(d.fire(SWOFTY_EVENT_CAREER_HUB, 1, SWOFTY_CAREER_DRIVER, &s, 1.5) == 1 && g_events.back().a == 1,
+               "career.hub entered");
+        expect(d.drop_owner(2) == 4, "the four subscriptions drop with their module");
+    }
+
     // dt computation across flow ticks.
     {
         Dispatcher d;

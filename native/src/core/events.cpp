@@ -52,6 +52,7 @@ std::string who(const void *from)
 
 void flow_mid(safetyhook::Context &)
 {
+    runtime::career_tick();
     double dt = disp.tick(now_seconds());
     static int logged;
     if (logged < 2)
@@ -162,6 +163,13 @@ const SwoftyEvents *events_table()
 void events_setup()
 {
     setup();
+}
+
+size_t events_fire(const char *event, int64_t a, int64_t b, const void *data)
+{
+    if (!runtime::enabled("events", nullptr))
+        return 0;
+    return disp.fire(event, a, b, data, now_seconds());
 }
 
 void events_drop_module(void *module)

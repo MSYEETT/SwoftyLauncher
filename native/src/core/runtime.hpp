@@ -69,6 +69,7 @@ const SwoftyOverlay *overlay_table();
 const SwoftyTelemetry *telemetry_table();
 const SwoftyDb *db_table();
 const SwoftyStorage *storage_table();
+const SwoftyCareer *career_table();
 const json::Value &sdk();
 void ready();
 void assets_setup();
@@ -78,6 +79,17 @@ void dbread_setup();
 void overlay_setup();
 void events_setup();
 void events_drop_module(void *module);
+size_t events_fire(const char *event, int64_t a, int64_t b, const void *data);
+
+struct CoreMixins {
+    const char *name;
+    std::vector<SwoftyMixin> mixins;
+};
+
+std::vector<CoreMixins> career_mixins();
+bool core_mixins_active(const char *name);
+void career_setup();
+void career_tick();
 void hud_setup();
 void telemetry_setup();
 int group_add(const json::Value &entry);

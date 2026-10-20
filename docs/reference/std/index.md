@@ -19,6 +19,8 @@ When your [engine plugin](/reference/addons/native-plugins) initializes, it rece
 | [Telemetry](./telemetry) | `swofty/telemetry.hpp` | `telemetry` (experimental) | 5 | Flow thread |
 | [Database read](./db) | `swofty/db.hpp` | `db` (stable) | 5 | Caller thread |
 | [Storage](./storage) | `swofty/storage.hpp` | `storage` (stable) | 5 | Caller thread |
+| [Career](./career) | `swofty/career.hpp` | `career` (stable) | 6 | Flow thread |
+| [Memory](./memory) | `swofty/mem.hpp` | none (header only) | any | Any |
 
 For screens and home tiles, use an addon operation rather than a `SwoftyApi` table; see [UI](./ui). You can find the merged engine-side contract for the version-5 tables in [the native-libraries design](/design/native-libraries).
 
@@ -35,6 +37,8 @@ Include the header for the library you need. The [addon template](/reference/add
 | `swofty/telemetry.hpp` | `packages/sdk/include/swofty/` | Live car and session reads |
 | `swofty/db.hpp` | `packages/sdk/include/swofty/` | Game-database reads |
 | `swofty/storage.hpp` | `packages/sdk/include/swofty/` | Addon storage |
+| `swofty/career.hpp` | `packages/sdk/include/swofty/` | Flow states, the running career, its components and the game bus |
+| `swofty/mem.hpp` | `packages/sdk/include/swofty/` | Guarded memory reads: `read`, `in_image`, `object_like`, `c_string` |
 | `swofty/assets.hpp` | `packages/sdk/include/swofty/` | Runtime asset loading; see [Asset API](/reference/addons/asset-api) |
 | `swofty/game.hpp`, `swofty/game/*.hpp` | `native/include/swofty/` | The [Game API](/reference/game/): the engine's functions, structs and sites |
 
@@ -42,22 +46,22 @@ If you're writing Rust, the `swofty-sdk` crate (`packages/sdk`) mirrors the C AB
 
 ## Result codes
 
-The version-5 tables (`events`, `overlay`, `telemetry`, `db`, `storage`) share the same result codes, so you can interpret their results the same way. Each wrapper exposes a `Result` enum; use `name(r)` to turn it into a string:
+The version-5 and version-6 tables (`events`, `overlay`, `telemetry`, `db`, `storage`, `career`) share the same result codes, so you can interpret their results the same way. Each wrapper exposes a `Result` enum; use `name(r)` to turn it into a string:
 
 | `Result` | `SWOFTY_ASSET_*` | Meaning |
 |---|---|---|
 | `ok` | `OK` (0) | The call succeeded |
 | `late` | `LATE` (1) | Too late to apply, or a cursor is exhausted |
-| `unavailable` | `UNAVAILABLE` (2) | The loader is older than version 5, the feature is off, or the lane is not implemented |
+| `unavailable` | `UNAVAILABLE` (2) | The loader is older than the table's version, the feature is off, or the lane is not implemented |
 | `invalid` | `INVALID` (3) | A bad argument |
 
-Guard every call with `available()`. A table's `available()` returns non-zero only when its feature is on and the core implements it. If the loader offers a version below 5 or the table pointer is null, the wrapper returns `unavailable`.
+Guard every call with `available()`. A table's `available()` returns non-zero only when its feature is on and the core implements it. If the loader offers a version below the table's (5, or 6 for `career`) or the table pointer is null, the wrapper returns `unavailable`.
 
 ## Threads
 
 | Thread | What runs on it |
 |---|---|
-| Flow thread | `Vm_Update_FlowStateMachine` each frame. Lifecycle events, the `on_frame` tick and telemetry reads fire here |
+| Flow thread | `Vm_Update_FlowStateMachine` each frame. Lifecycle, flow and career events, the `on_frame` tick and telemetry reads fire here; call the career library's game calls (`entity`, `component`, `post`) here |
 | Render thread | The swapchain present path. `on_paint` callbacks fire here |
 | Caller thread | `db` and `storage` calls run on the thread that calls them |
 
@@ -65,12 +69,13 @@ You can use subscriptions, paint callbacks, and `db` and `storage` calls from an
 
 ## API versions
 
-To see which version the running loader offers, read `SwoftyApi::version`. The header constant, `SWOFTY_API_VERSION` in `swofty_api.h`, is 5.
+To see which version the running loader offers, read `SwoftyApi::version`. The header constant, `SWOFTY_API_VERSION` in `swofty_api.h`, is 6.
 
 | Members | Offered by |
 |---|---|
 | `version`, `log`, `module_base`, `scan` | `version.dll`, as version 1 |
 | `resolve`, `register_mixins`, `fields`, `setting`, `watch_setting`, `assets` | `swofty_core.dll`, as version 4 |
 | `events`, `overlay`, `telemetry`, `db`, `storage` | `swofty_core.dll`, as version 5 |
+| `career` | `swofty_core.dll` 0.2.11, as version 6 |
 
-The helpers you use determine which version you need: the mixin helpers in `mixin.hpp` need version 2, the settings helpers version 3, `assets.hpp` version 4, and the five table headers version 5.
+The helpers you use determine which version you need: the mixin helpers in `mixin.hpp` need version 2, the settings helpers version 3, `assets.hpp` version 4, the five table headers version 5, and `career.hpp` version 6. `mem.hpp` needs no table.

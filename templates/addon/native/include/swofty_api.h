@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define SWOFTY_API_VERSION 5
+#define SWOFTY_API_VERSION 6
 
 enum {
     SWOFTY_MIXIN_WRAP = 1,
@@ -98,6 +98,10 @@ typedef struct SwoftyAssets {
 #define SWOFTY_EVENT_PAUSE "pause"
 #define SWOFTY_EVENT_RESUME "resume"
 #define SWOFTY_EVENT_RESULTS "results"
+#define SWOFTY_EVENT_FLOW_STATE "flow.state"
+#define SWOFTY_EVENT_CAREER_LOADED "career.loaded"
+#define SWOFTY_EVENT_CAREER_UNLOADED "career.unloaded"
+#define SWOFTY_EVENT_CAREER_HUB "career.hub"
 
 typedef struct SwoftyEvent {
     const char *name;
@@ -253,6 +257,61 @@ typedef struct SwoftyStorage {
     int (*list)(const char *dir, char *buf, size_t cap, size_t *len);
 } SwoftyStorage;
 
+enum {
+    SWOFTY_FLOW_NONE = 0,
+    SWOFTY_FLOW_ENTERING = 1,
+    SWOFTY_FLOW_UPDATING = 2,
+    SWOFTY_FLOW_EXITING = 3,
+};
+
+enum {
+    SWOFTY_CAREER_NONE = 0,
+    SWOFTY_CAREER_MY_TEAM = 1,
+    SWOFTY_CAREER_DRIVER = 2,
+};
+
+enum {
+    SWOFTY_CAREER_COMPONENTS_UNSEEN = 0,
+    SWOFTY_CAREER_COMPONENTS_LIVE = 1,
+    SWOFTY_CAREER_COMPONENTS_FALLBACK = 2,
+};
+
+typedef struct SwoftyFlowState {
+    uint32_t hash;
+    uint32_t from;
+    uint32_t to;
+    uint32_t named;
+    uint64_t transitions;
+    char name[64];
+} SwoftyFlowState;
+
+typedef struct SwoftyCareerState {
+    uint32_t loaded;
+    uint32_t mode;
+    uint32_t hub;
+    uint32_t humans;
+    uint32_t player_driver;
+    uint32_t player_team;
+    uint32_t has_player;
+    uint32_t components;
+    uint32_t component_mode;
+    uint32_t team_hq_mode;
+    uint32_t flow_career;
+    uint32_t reserved;
+    char key[32];
+} SwoftyCareerState;
+
+typedef struct SwoftyCareer {
+    int (*available)(void);
+    int (*state)(SwoftyCareerState *out);
+    int (*flow)(SwoftyFlowState *out);
+    int (*flow_status)(uint32_t hash, uint32_t *status, uint64_t *age_ms);
+    void *(*entity)(void);
+    void *(*component)(const char *type);
+    void *(*component_by_desc)(const void *desc);
+    int (*post)(void *msg);
+} SwoftyCareer;
+
 typedef struct SwoftyApi {
     uint32_t version;
     void (*log)(const char *fmt, ...);
@@ -269,6 +328,7 @@ typedef struct SwoftyApi {
     const SwoftyTelemetry *telemetry;
     const SwoftyDb *db;
     const SwoftyStorage *storage;
+    const SwoftyCareer *career;
 } SwoftyApi;
 
 typedef int (*SwoftyAddonInitFn)(const SwoftyApi *api);

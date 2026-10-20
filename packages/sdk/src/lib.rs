@@ -1,6 +1,6 @@
 use std::ffi::{c_char, c_int, c_void};
 
-pub const SWOFTY_API_VERSION: u32 = 5;
+pub const SWOFTY_API_VERSION: u32 = 6;
 pub const INIT_SYMBOLS: [&str; 2] = ["SwoftyAddonInit", "SwoftyModInit"];
 pub const API_SYMBOLS: [&str; 2] = ["SwoftyAddonApi", "SwoftyModApi"];
 pub const HEADER: &str = include_str!("../include/swofty_api.h");
@@ -11,6 +11,8 @@ pub const OVERLAY_HEADER: &str = include_str!("../include/swofty/overlay.hpp");
 pub const TELEMETRY_HEADER: &str = include_str!("../include/swofty/telemetry.hpp");
 pub const DB_HEADER: &str = include_str!("../include/swofty/db.hpp");
 pub const STORAGE_HEADER: &str = include_str!("../include/swofty/storage.hpp");
+pub const CAREER_HEADER: &str = include_str!("../include/swofty/career.hpp");
+pub const MEM_HEADER: &str = include_str!("../include/swofty/mem.hpp");
 
 pub const MIXIN_WRAP: u32 = 1;
 pub const MIXIN_SITE: u32 = 2;
@@ -366,6 +368,48 @@ pub struct SwoftyStorage {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct SwoftyFlowState {
+    pub hash: u32,
+    pub from: u32,
+    pub to: u32,
+    pub named: u32,
+    pub transitions: u64,
+    pub name: [c_char; 64],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SwoftyCareerState {
+    pub loaded: u32,
+    pub mode: u32,
+    pub hub: u32,
+    pub humans: u32,
+    pub player_driver: u32,
+    pub player_team: u32,
+    pub has_player: u32,
+    pub components: u32,
+    pub component_mode: u32,
+    pub team_hq_mode: u32,
+    pub flow_career: u32,
+    pub reserved: u32,
+    pub key: [c_char; 32],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SwoftyCareer {
+    pub available: Option<unsafe extern "C" fn() -> c_int>,
+    pub state: Option<unsafe extern "C" fn(out: *mut SwoftyCareerState) -> c_int>,
+    pub flow: Option<unsafe extern "C" fn(out: *mut SwoftyFlowState) -> c_int>,
+    pub flow_status: Option<unsafe extern "C" fn(hash: u32, status: *mut u32, age_ms: *mut u64) -> c_int>,
+    pub entity: Option<unsafe extern "C" fn() -> *mut c_void>,
+    pub component: Option<unsafe extern "C" fn(type_name: *const c_char) -> *mut c_void>,
+    pub component_by_desc: Option<unsafe extern "C" fn(desc: *const c_void) -> *mut c_void>,
+    pub post: Option<unsafe extern "C" fn(msg: *mut c_void) -> c_int>,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct SwoftyApi {
     pub version: u32,
     pub log: Option<LogFn>,
@@ -382,6 +426,7 @@ pub struct SwoftyApi {
     pub telemetry: *const SwoftyTelemetry,
     pub db: *const SwoftyDb,
     pub storage: *const SwoftyStorage,
+    pub career: *const SwoftyCareer,
 }
 
 pub type SwoftyAddonInitFn = unsafe extern "C" fn(api: *const SwoftyApi) -> c_int;
@@ -400,10 +445,11 @@ pub enum Capability {
     Overlay,
     Telemetry,
     Storage,
+    Career,
 }
 
 impl Capability {
-    pub const ALL: [Capability; 11] = [
+    pub const ALL: [Capability; 12] = [
         Self::Log,
         Self::Scan,
         Self::Hook,
@@ -415,6 +461,7 @@ impl Capability {
         Self::Overlay,
         Self::Telemetry,
         Self::Storage,
+        Self::Career,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -430,6 +477,7 @@ impl Capability {
             Self::Overlay => "overlay",
             Self::Telemetry => "telemetry",
             Self::Storage => "storage",
+            Self::Career => "career",
         }
     }
 
@@ -446,6 +494,7 @@ impl Capability {
             Self::ReadDb | Self::OnFrame | Self::Events | Self::Overlay | Self::Telemetry | Self::Storage => {
                 api_version >= 5
             }
+            Self::Career => api_version >= 6,
         }
     }
 }
@@ -456,7 +505,13 @@ mod tests {
 
     #[test]
     fn layout_matches_header() {
-        assert_eq!(std::mem::size_of::<SwoftyApi>(), 120);
+        assert_eq!(std::mem::size_of::<SwoftyApi>(), 128);
+        assert_eq!(std::mem::offset_of!(SwoftyApi, career), 120);
+        assert_eq!(std::mem::size_of::<SwoftyCareer>(), 64);
+        assert_eq!(std::mem::size_of::<SwoftyFlowState>(), 88);
+        assert_eq!(std::mem::offset_of!(SwoftyFlowState, name), 24);
+        assert_eq!(std::mem::size_of::<SwoftyCareerState>(), 80);
+        assert_eq!(std::mem::offset_of!(SwoftyCareerState, key), 48);
         assert_eq!(std::mem::offset_of!(SwoftyApi, assets), 72);
         assert_eq!(std::mem::offset_of!(SwoftyApi, events), 80);
         assert_eq!(std::mem::offset_of!(SwoftyApi, overlay), 88);
@@ -505,6 +560,9 @@ mod tests {
             "const SwoftyTelemetry *telemetry;",
             "const SwoftyDb *db;",
             "const SwoftyStorage *storage;",
+            "const SwoftyCareer *career;",
+            "#define SWOFTY_EVENT_CAREER_HUB \"career.hub\"",
+            "} SwoftyCareerState;",
             "#define SWOFTY_EVENT_SESSION_START \"session.start\"",
             "#define SWOFTY_TELEMETRY_VERSION 1",
             "SWOFTY_DB_BOOL = 5",
@@ -557,6 +615,14 @@ mod tests {
             include_str!("../../../templates/addon/native/include/swofty/storage.hpp"),
             STORAGE_HEADER
         );
+        assert_eq!(
+            include_str!("../../../templates/addon/native/include/swofty/career.hpp"),
+            CAREER_HEADER
+        );
+        assert_eq!(
+            include_str!("../../../templates/addon/native/include/swofty/mem.hpp"),
+            MEM_HEADER
+        );
     }
 
     #[test]
@@ -577,6 +643,8 @@ mod tests {
             assert!(c.available_in(5));
             assert!(!c.available_in(4));
         }
+        assert!(Capability::Career.available_in(6));
+        assert!(!Capability::Career.available_in(5));
     }
 
     #[test]

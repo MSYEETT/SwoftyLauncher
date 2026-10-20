@@ -98,9 +98,14 @@ done
 [[ build/safetyhook.o -nt $SH/safetyhook.cpp ]] || "${PIN[@]}" "${CXX[@]}" -O2 -I$SH -c $SH/safetyhook.cpp -o build/safetyhook.o &
 wait
 
-"${PIN[@]}" "${CXX[@]}" -O2 -Wall -Wextra "${DEFS[@]}" -I$SDK -Iinclude -I$SH -I$ZS -shared -o "$OUT/swofty_core.dll" \
+# GAME_INCLUDE points the core at other generated game headers (bindgen --dev output) ahead of the
+# shipped ones in include/. The career library and the gamedb string decode compile out, and report
+# unavailable at runtime, when the headers lack the KB structs they read (src/core/layout.hpp).
+GAME=()
+[[ -n ${GAME_INCLUDE:-} ]] && GAME=(-I"$GAME_INCLUDE")
+"${PIN[@]}" "${CXX[@]}" -O2 -Wall -Wextra "${DEFS[@]}" -I$SDK "${GAME[@]}" -Iinclude -I$SH -I$ZS -shared -o "$OUT/swofty_core.dll" \
     src/core/manager.cpp src/core/crash.cpp src/core/settings.cpp src/core/swofty_core.cpp src/core/ui.cpp src/core/ui_vm.cpp src/core/items.cpp \
-    src/core/stage.cpp src/core/assets.cpp src/core/resources.cpp src/core/gamedb.cpp src/core/overlay.cpp src/core/events.cpp src/core/hud.cpp src/core/telemetry.cpp src/core/dbread.cpp src/core/storage.cpp src/core/sdk.cpp build/safetyhook.o \
+    src/core/stage.cpp src/core/assets.cpp src/core/resources.cpp src/core/gamedb.cpp src/core/overlay.cpp src/core/events.cpp src/core/hud.cpp src/core/telemetry.cpp src/core/dbread.cpp src/core/storage.cpp src/core/career.cpp src/core/sdk.cpp build/safetyhook.o \
     build/Zydis.o "${ZOBJ[@]}" "${STATIC[@]}"
 
 "${PIN[@]}" "${CXX[@]}" -O2 -Wall -Wextra -I$SDK -Iinclude -shared -o "$OUT/swofty_gamelog.dll" src/gamelog/gamelog.cpp "${STATIC[@]}"
