@@ -7645,6 +7645,34 @@
     "native/src/core/dbread.cpp",
     "native/src/core/career.cpp"
    ]
+  },
+  {
+   "id": "career.message_driver_move_confirmed",
+   "section": ".xtls",
+   "pattern": "C5 F8 29 44 24 50 48 C7 44 24 30 00 00 00 00 48 8D 15",
+   "match": "0x140d8f376",
+   "anchor": "0x12",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xf",
+    "len": 7
+   },
+   "target": "0x145696d40",
+   "kind": "data",
+   "names": [
+    "vt_Career_MessageDriverMoveConfirmed"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-drivers",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/drivers.cpp"
+   ]
   }
  ]
 }

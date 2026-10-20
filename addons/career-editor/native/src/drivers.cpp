@@ -35,6 +35,7 @@
 #include <vector>
 
 #include <swofty/db.hpp>
+#include <swofty/career.hpp>
 #include <swofty/mem.hpp>
 #include <swofty/game.hpp>
 #include <swofty/mixin.hpp>
@@ -52,7 +53,7 @@ constexpr uintptr_t kCompData = offsetof(StatsComp, stats_data);
 constexpr uintptr_t kCompCtx = offsetof(StatsComp, stat_context);
 constexpr uintptr_t kCompTime = offsetof(StatsComp, career_time);
 constexpr uintptr_t kCompInfos = offsetof(StatsComp, stat_infos_begin);
-constexpr uintptr_t kCompGate = offsetof(StatsComp, patch_gate);
+constexpr uintptr_t kCompGate = offsetof(StatsComp, use_story_mode_data);
 constexpr uintptr_t kCompApplied = offsetof(StatsComp, last_patch_applied_checksum);
 constexpr uintptr_t kCompDeclined = offsetof(StatsComp, last_patch_declined_checksum);
 constexpr uintptr_t kCompDrivers = offsetof(StatsComp, driver_data_begin);
@@ -762,8 +763,12 @@ void seat_json(ce::Writer &w, uintptr_t row)
 void moves_json(ce::Writer &w)
 {
     w.key("recordedMoves");
-    w.begin_array();
     uintptr_t r = ce::comp::get(ce::comp::Id::CareerDriverContractRenewal);
+    if (!r) {
+        w.null();
+        return;
+    }
+    w.begin_array();
     uintptr_t b;
     size_t n;
     if (r && vec(r + offsetof(CareerDriverContractRenewalComponent, driver_moves_begin), kMoveSize, 4096, b, n)) {
@@ -1355,14 +1360,56 @@ bool entity_busy(uintptr_t entity)
     return rdv<uint8_t>(entity + offsetof(CareerEntity, entrant_update_busy)) != 0;
 }
 
-bool apply_row(uintptr_t entity, void *renewal, const Row &id_row, uint32_t old_team, uint32_t new_team,
+// How the game announces a move. My Team: Career_Record_DriverMove on the renewal component (it
+// appends driverMoveData and posts MessageDriverMoveConfirmed). Driver Career has no renewal
+// component and no move log: its signing (0x140d766b0, DriverCareerContractsManagerComponent) posts
+// MessageDriverMoveConfirmed itself, built from its weekend source and career clock, right before
+// each Career_Set_EntrantData_Thunk. The Upgrades component listens to it to reassign per-driver
+// upgrade state.
+struct MoveSink {
+    uintptr_t renewal = 0; // CareerDriverContractRenewalComponent (My Team)
+    uintptr_t manager = 0; // DriverCareerContractsManagerComponent (Driver Career)
+};
+
+constexpr uintptr_t kVtWeekendIndex = 0x108; // vtable slot of the weekend source returning the weekend index
+constexpr uint32_t kMinutesPerDay = 1440;
+
+using WeekendFn = uint32_t (*)(void *self);
+
+bool announce(const MoveSink &sink, uint32_t driver, uint32_t old_team, uint32_t new_team, uint8_t reason)
+{
+    if (sink.renewal) {
+        Career_Record_DriverMove(reinterpret_cast<void *>(sink.renewal), driver, old_team, new_team, reason);
+        return true;
+    }
+    using M = DriverCareerContractsManagerComponent;
+    uintptr_t src = rdv<uintptr_t>(sink.manager + offsetof(M, weekend_source));
+    uintptr_t time = rdv<uintptr_t>(sink.manager + offsetof(M, career_time));
+    uintptr_t vt = src ? rdv<uintptr_t>(src) : 0;
+    uintptr_t fn = vt ? rdv<uintptr_t>(vt + kVtWeekendIndex) : 0;
+    if (!swofty::mem::in_image(fn) || !time || !vt_Career_MessageDriverMoveConfirmed.address())
+        return false;
+    DriverMoveConfirmedMessage m{};
+    m.vtable = vt_Career_MessageDriverMoveConfirmed.get();
+    m.move.driver = driver;
+    m.move.old_team = old_team;
+    m.move.new_team = new_team;
+    m.move.reason = reason;
+    m.move.weekend_index = reinterpret_cast<WeekendFn>(fn)(reinterpret_cast<void *>(src));
+    m.move.day_index =
+        static_cast<uint16_t>(rdv<uint32_t>(time + offsetof(CareerTimeComponent, current_minutes)) / kMinutesPerDay);
+    return swofty::career::post(&m) == swofty::career::Result::ok;
+}
+
+bool apply_row(uintptr_t entity, const MoveSink &sink, const Row &id_row, uint32_t old_team, uint32_t new_team,
                uint8_t reason, const EntrantWriteData &data, uint16_t position)
 {
     if (entity_busy(entity) || !unique_identity(entity, id_row))
         return false;
     uint8_t id[kIdentitySize];
     std::memcpy(id, &id_row.rec, kIdentitySize);
-    Career_Record_DriverMove(renewal, data.driver, old_team, new_team, reason);
+    if (!announce(sink, data.driver, old_team, new_team, reason))
+        return false;
     Career_Set_EntrantData_Thunk(reinterpret_cast<void *>(entity), id, reinterpret_cast<const uint32_t *>(&data),
                                  position, id_row.rec.car_number);
     if (entity_busy(entity))
@@ -1384,12 +1431,20 @@ ce::OpResult op_swap(const ce::Json &args)
         return op_fail(op, "bad_args", "a and b are the same driver");
 
     uintptr_t entity = ce::comp::entity();
-    uintptr_t renewal = ce::comp::get(ce::comp::Id::CareerDriverContractRenewal);
-    if (!entity || !renewal)
-        return op_fail(op, "no_component", !entity ? "no championship entity" : "no CareerDriverContractRenewalComponent");
+    MoveSink sink;
+    sink.renewal = ce::comp::get(ce::comp::Id::CareerDriverContractRenewal);
+    if (!sink.renewal)
+        sink.manager = ce::comp::get(ce::comp::Id::DriverCareerContractsManager);
+    if (!entity)
+        return op_fail(op, "no_component", "no championship entity");
+    if (!sink.renewal && !sink.manager)
+        return op_fail(op, "no_component",
+                       "neither CareerDriverContractRenewalComponent (My Team) nor DriverCareerContractsManagerComponent "
+                       "(Driver Career) is on the championship entity");
     if (entity_busy(entity))
         return op_fail(op, "busy", "the game is in the middle of an entrant update");
-    if (rdv<uint8_t>(renewal + offsetof(CareerDriverContractRenewalComponent, disable_driver_moves)) != 0)
+    if (sink.renewal &&
+        rdv<uint8_t>(sink.renewal + offsetof(CareerDriverContractRenewalComponent, disable_driver_moves)) != 0)
         return op_fail(op, "refused", "the game has driver moves disabled for this career (disableDriverMoves)");
 
     std::vector<Row> rows;
@@ -1397,8 +1452,10 @@ ce::OpResult op_swap(const ce::Json &args)
         return op_fail(op, "no_component", "entrant table unreadable");
     const Row *pa = row_of(rows, a), *pb = row_of(rows, b);
     if (!pa || !pb)
-        return op_fail(op, "no_entrant", std::string("driver ") + std::to_string(save_id(!pa ? a : b)) +
-                                            " has no entrant row (not in this championship)");
+        return op_fail(op, "no_entrant",
+                       std::string("driver ") + std::to_string(save_id(!pa ? a : b)) +
+                           " is not in this championship's line-up (no entrant row, listed under otherDrivers), so "
+                           "it has no seat to swap; pick a driver from the drivers list");
     Row ra = *pa, rb = *pb;
     if ((ra.rec.ordinal_flags | rb.rec.ordinal_flags) & kHumanBit)
         return op_fail(op, "player_locked", "the player's own seat cannot be swapped");
@@ -1424,12 +1481,11 @@ ce::OpResult op_swap(const ce::Json &args)
 
     EntrantWriteData da = entrant_data(ra, rb), db = entrant_data(rb, ra);
     uint16_t pos_a = ra.rec.team_position, pos_b = rb.rec.team_position;
-    void *rn = reinterpret_cast<void *>(renewal);
     uint8_t reason_a = car_b ? kReasonSigned : kReasonBenched, reason_b = car_a ? kReasonSigned : kReasonBenched;
     if (!unique_identity(entity, ra) || !unique_identity(entity, rb))
         return op_fail(op, "refused", "an entrant row's identity is not unique in the line-up; nothing written");
-    bool wrote_a = apply_row(entity, rn, ra, ta, tb, reason_a, da, pos_b);
-    bool wrote_b = wrote_a && apply_row(entity, rn, rb, tb, ta, reason_b, db, pos_a);
+    bool wrote_a = apply_row(entity, sink, ra, ta, tb, reason_a, da, pos_b);
+    bool wrote_b = wrote_a && apply_row(entity, sink, rb, tb, ta, reason_b, db, pos_a);
 
     std::vector<Row> now;
     bool ok = wrote_a && wrote_b && entrant_rows(entity, now) && now.size() == rows.size();
@@ -1444,8 +1500,8 @@ ce::OpResult op_swap(const ce::Json &args)
     }
     if (!ok) {
         EntrantWriteData ua = entrant_data(ra, ra), ub = entrant_data(rb, rb);
-        bool back_a = !wrote_a || apply_row(entity, rn, ra, tb, ta, car_a ? kReasonSigned : kReasonBenched, ua, pos_a);
-        bool back_b = !wrote_b || apply_row(entity, rn, rb, ta, tb, car_b ? kReasonSigned : kReasonBenched, ub, pos_b);
+        bool back_a = !wrote_a || apply_row(entity, sink, ra, tb, ta, car_a ? kReasonSigned : kReasonBenched, ua, pos_a);
+        bool back_b = !wrote_b || apply_row(entity, sink, rb, ta, tb, car_b ? kReasonSigned : kReasonBenched, ub, pos_b);
         return op_fail(op, "write_failed",
                        std::string("the entrant rows did not read back as swapped; ") +
                            (back_a && back_b ? "restored both rows" : "COULD NOT restore every row, reload the save"));
@@ -1456,8 +1512,9 @@ ce::OpResult op_swap(const ce::Json &args)
     seat_text(na_t, sizeof na_t, *na);
     seat_text(nb_t, sizeof nb_t, *nb);
     ce::log("drivers.swap driver %u [%s] <-> driver %u [%s] -> driver %u [%s], driver %u [%s] "
-            "(2 moves recorded, %zu other entrants unchanged, applied now)",
-            save_id(a), sa, save_id(b), sb, save_id(a), na_t, save_id(b), nb_t, rows.size() - 2);
+            "(2 moves %s, %zu other entrants unchanged, applied now)",
+            save_id(a), sa, save_id(b), sb, save_id(a), na_t, save_id(b), nb_t,
+            sink.renewal ? "recorded" : "announced (Driver Career, no move log)", rows.size() - 2);
     return r;
 }
 

@@ -26,7 +26,9 @@ The game's getter (`Career_Get_DriverStatValue`, component vtable +0x280) comput
 - `base(x)` is the driver's evolution curve for that statistic, a Catmull-Rom curve over normalised
   points, evaluated at `x` = career progress (career clock / career length, both in minutes, 0..1) and scaled to
   `miny..maxy` (0..100). The curve is `patchedEvolutionGraph` when the career has an applied ratings
-  patch (`last_patch_applied_checksum` > 1) and that statistic has one, otherwise `evolutionGraph`.
+  patch (`last_patch_applied_checksum` > 1 and the gamedb flag `use_story_mode_data` is 0) and that
+  statistic has one, otherwise `evolutionGraph`. With live updates off the game forces the applied
+  checksum to 1, so the base curve is used. The op never writes these flags.
 - Dynamic statistics (`isDynamicStat`) have no curve; their base is 0 and the value is `dynamicLevel`.
 - The team attribute term (`MyTeamAttributes` value for the driver's team, minus 1) applies to
   non-dynamic statistics of drivers who hold a team seat.
@@ -117,7 +119,8 @@ ratings patch replaces it only if the player accepts that patch.
   the record has no performance clause. The contract length is not part of these records; it is not
   read yet.
 - `recordedMoves` is the last 20 entries of the game's own move log (`driverMoveData` in
-  `CareerDriverContractRenewalComponent`, saved with the career). `reason` 0 is a signing, 3 a driver
+  `CareerDriverContractRenewalComponent`, saved with the career). It is `null` in Driver Career, where
+  the game keeps no move log. `reason` 0 is a signing, 3 a driver
   benched in his team (the values the game's own signing code writes). `drivers.swap` adds two.
 - `pendingSwaps` is always empty: a swap applies immediately.
 
@@ -203,22 +206,25 @@ Status: implemented; needs in-game proof (log line `[career-editor] drivers.cont
 
 ## Op `drivers.swap`
 
-Swaps two drivers' seats **now**, mid-season, through the same two game primitives the game's own
-mid-season signing (`Career_Sign_DriverToTeam`, used by AI contract renewals and driver auctions; the op does
-not call it) and
-the season-change processor use, in the same order:
+Swaps two drivers' seats **now**, mid-season, through the same game primitives the game's own
+mid-season signing uses, in the same order: announce the move, then rewrite the entrant row.
 
-1. `Career_Record_DriverMove(renewal, a, teamA, teamB, reason)`: appends to the game's move log
-   (`driverMoveData`) and posts the game's driver-move message, which the market, contract and UI
-   listeners receive.
-2. `Career_Set_EntrantData_Thunk(entity, rowA, data, position, flag)`: rewrites driver a's entrant
-   row with team B, team B's seat (car keys, seat value) and seat position. The game brackets the
-   write with its entrant-change messages.
-3. and 4. the same for driver b with team A's seat.
+- **My Team:** `Career_Record_DriverMove(renewal, driver, oldTeam, newTeam, reason)` on
+  `CareerDriverContractRenewalComponent` appends to the game's move log (`driverMoveData`) and posts
+  `MessageDriverMoveConfirmed`; then `Career_Set_EntrantData_Thunk` rewrites the row.
+- **Driver Career:** there is no renewal component and no move log. The game's Driver Career signing
+  (`DriverCareerContractsManagerComponent`, 0x140d766b0) posts `MessageDriverMoveConfirmed` itself
+  (built from the manager's weekend source and career clock) right before each entrant write, and the
+  op does the same: it posts that message (`vt_Career_MessageDriverMoveConfirmed`,
+  `DriverMoveConfirmedMessage`), then calls `Career_Set_EntrantData_Thunk`. The message matters: the
+  Upgrades component listens to it to reassign per-driver upgrade state.
+
+For each driver: announce (a moves to b's team), write a's row with b's team, car and position; then
+the same for b with a's.
 
 What follows the seat: team, car (vehicle keys, so livery and car), seat value, seat position. What
 stays with the driver: the row identity (driver appearance, helmet, suit), driver data, ratings,
-driver flag. Car numbers follow whatever the game ties to the vehicle/seat (to be checked in game).
+driver flag. The car number stays with the driver (EntrantRecord.car_number is written from the incoming driver's own value, as the game's own signing does); the seat value (+0x78) comes from the replaced seat.
 
 Args:
 
@@ -233,8 +239,9 @@ Args:
 - `expect` (optional): the teams the launcher showed; a mismatch fails with `stale`.
 
 Refused: `player_locked` (either row is the human entrant), `same_team` (two race drivers of one
-team, or two reserves of one team), `no_seat` (neither has a car), `no_entrant` (a driver with no
-entrant row, for example a free agent outside the championship: the game's entrant writer only
+team, or two reserves of one team), `no_seat` (neither has a car), `no_entrant` (a driver who is not
+in the line-up: listed under `otherDrivers`, with no entrant row and so no seat; the error text says
+so and points to the `drivers` list. The game's entrant writer only
 rewrites existing rows and never adds one; no row-creating path was found in the game's signing
 code), `refused` (the game has `disableDriverMoves` set), `busy` (the game is mid entrant
 update), `no_component`, `bad_args`, `stale`.
@@ -265,8 +272,12 @@ re-derives its seat cache from them is what the in-game test has to show (see th
 
 Undo: `drivers.swap` with the same `a` and `b` (the swap is symmetric; it records two more moves).
 
-Modes: My Team and Driver Career (the renewal component exists in both). Runs only while
-`ce::safe()`.
+Modes: My Team (move log + message) and Driver Career (message only). Runs only while `ce::safe()`.
+
+Log line, Driver Career: `[career-editor] drivers.swap driver <A> [team <X> car 0x<cx> pos <p>] <->
+driver <B> [team <Y> car 0x<cy> pos <q>] -> driver <A> [team <Y> car 0x<cy> pos <q>], driver <B>
+[team <X> car 0x<cx> pos <p>] (2 moves announced (Driver Career, no move log), <N> other entrants
+unchanged, applied now)`; My Team says `2 moves recorded`. A teamless row shows `team 16383`.
 
 Status: implemented; needs in-game proof. Test: swap two AI drivers on different teams in Team HQ,
 check the Team HQ grid / standings driver list, save, reload the career, advance to the next weekend
@@ -284,7 +295,8 @@ and load into a session.
 | `Career_Parse_CurveString` | 0x141157100 | L2, no sig | evidence for the lookup-table rebuild |
 | `Career_Serialise_DriverContractList` | 0x140da5610 | L2, no sig | evidence for the contract record layout |
 | `Career_Set_EntrantData_Thunk` | 0x1407b72e0 | L2, sig `career.set_entrant_data_thunk` | `drivers.swap`: rewrites one entrant row |
-| `Career_Record_DriverMove` | 0x140d8f1f0 | L2, sig `career.record_driver_move` | `drivers.swap`: move log + driver-move message |
+| `Career_Record_DriverMove` | 0x140d8f1f0 | L2, sig `career.record_driver_move` | `drivers.swap` (My Team): move log + driver-move message |
+| `vt_Career_MessageDriverMoveConfirmed` | 0x145696d40 | L2, sig `career.message_driver_move_confirmed` | `drivers.swap` (Driver Career): the move message, posted with `swofty::career::post` |
 | `Career_Sign_DriverToTeam` | 0x140d8fcb0 | L1 (DISPUTE V0294), no sig | evidence for the call order only; not called. Its `offer` is a 0x2c-byte contract record it also writes into the driver's contract, and it first backfills the incoming driver's old seat with that team's reserve (no reserve: it signs nothing) |
 | `Career_Process_PendingDriverMoves` | 0x140db18e0 | L1, no sig | evidence (season-change processor, not called) |
 | `Career_Assign_EntrantTeamSlot` | 0x140db70a0 | L2, no sig | evidence (only valid inside the processor: it works on the processor's local seat map) |
@@ -292,7 +304,8 @@ and load into a session.
 KB structs (re/db/structs, all fields L2, raised by ce-drivers): `DriverStatisticsComponent`,
 `DriverStatsEntry`, `ContextStatSet`, `DriverStatistic`, `EvolutionCurve`, `CurvePoint`, `StatInfo`,
 `DriverContractsMyTeamComponent`, `ContractRecord`, `CareerDriverContractRenewalComponent`,
-`DriverMoveRecord`, `EntrantWriteData`, and `EntrantRecord` (extended). Read from other lanes:
+`DriverMoveRecord`, `EntrantWriteData`, `DriverCareerContractsManagerComponent`,
+`DriverMoveConfirmedMessage`, and `EntrantRecord` (extended). Read from other lanes:
 `CareerEntity` (economy), `CareerTimeComponent` (economy).
 
 Snapshot status: implemented; needs in-game proof (no log line; check `snapshot.json`).
