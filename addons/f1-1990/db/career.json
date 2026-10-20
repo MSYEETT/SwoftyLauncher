@@ -176,12 +176,6 @@
   {
    "op": "set",
    "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Long]",
-   "field": "weekend_formats",
-   "value": "default"
-  },
-  {
-   "op": "set",
-   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Long]",
    "field": "weekend_to_add_transfer_window",
    "value": "-1"
   },
@@ -194,14 +188,50 @@
   {
    "op": "set",
    "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Medium]",
-   "field": "game_setup_modes",
-   "value": "f1_beta"
+   "field": "max_num_tracks",
+   "value": "16"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Medium]",
+   "field": "track_list_name",
+   "value": "F1_1990"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Medium]",
+   "field": "weekend_to_add_transfer_window",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Medium]",
+   "field": "language_string",
+   "value": "lng_f1990_season_length"
   },
   {
    "op": "set",
    "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Short]",
-   "field": "game_setup_modes",
-   "value": "f1_beta"
+   "field": "max_num_tracks",
+   "value": "16"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Short]",
+   "field": "track_list_name",
+   "value": "F1_1990"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Short]",
+   "field": "weekend_to_add_transfer_window",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Short]",
+   "field": "language_string",
+   "value": "lng_f1990_season_length"
   },
   {
    "op": "set",
@@ -214,12 +244,6 @@
    "select": "schedule.dynamic_event_data.default_ui_track_list_data.track_selections.tracks_selection[_metadata_=F1_2026]",
    "field": "season_0.track_event_list",
    "value": "F1_1990"
-  },
-  {
-   "op": "set",
-   "select": "schedule.dynamic_event_data.default_ui_track_list_data.track_selections.tracks_selection[_metadata_=F1_2026]",
-   "field": "weekend_formats",
-   "value": "default"
   },
   {
    "op": "set",
