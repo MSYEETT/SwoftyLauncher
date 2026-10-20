@@ -993,6 +993,7 @@ void log_game_forecast(uintptr_t ws, const WeatherSessionSettings *set, bool scr
 
 SWOFTY_WRAP(Sess_GameWeatherSystem_SetupSession, void, void *ws, void *settings, void *config)
 {
+    ce::ensure_frame();
     uintptr_t w = reinterpret_cast<uintptr_t>(ws);
     uintptr_t set = reinterpret_cast<uintptr_t>(settings);
     const WeatherSessionSettings *sp =

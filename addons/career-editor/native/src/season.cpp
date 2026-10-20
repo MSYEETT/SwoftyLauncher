@@ -688,6 +688,7 @@ std::atomic<int> g_inject_log{0};
 SWOFTY_WRAP(Career_Rebuild_SeasonStandings, void, void *season, void *order_a, void *order_b, void *extra_points,
             void *extra_e)
 {
+    ce::ensure_frame();
     uintptr_t s = reinterpret_cast<uintptr_t>(season);
     std::vector<Adj> add;
     if (has_vtable(s, vt_Career_Season.get()))
