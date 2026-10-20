@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R&D: Tyres & Thermal Management - department 4's icon and colour in the R&D lists
-// (flag tyres_dept_tags, default on, install-time).
+// R&D: Tyres & Thermal Management - department 4's icon and colour in the R&D lists.
 //
 // Every department tag falls back to the frame "error_department" when its lookup misses:
 // the lists test the upgrade's department byte (+0x72, dept < 4 ? table[dept]), the upgrade
@@ -57,15 +56,6 @@ constexpr uintptr_t kDeptTyres = 4;
 constexpr uint32_t kColTyres = 0xff0078ff;
 constexpr uint32_t kColTyresLight = 0xff99c9ff;
 constexpr uint32_t kColWhite = 0xffffffff;
-
-SWOFTY_SETTING(bool, tyres_dept_tags, true);
-
-SWOFTY_ON_CHANGE(tyres_dept_tags, bool on)
-{
-    swofty::log("[rnd-tyres] tyres_dept_tags toggled -> %s; install-time, relaunch to apply", on ? "on" : "off");
-}
-
-std::atomic<bool> g_live{false};
 
 bool region_readable(const void *p, size_t n)
 {
@@ -196,8 +186,6 @@ const char *category_frame(const char *type)
 
 void retag(swofty::Context &c, Tag i)
 {
-    if (!g_live.load(std::memory_order_relaxed))
-        return;
     const char **arg = reinterpret_cast<const char **>(c.rsp + 0x20);
     const char *f = *arg;
     if (!f || !region_readable(f, 1))
@@ -257,8 +245,6 @@ std::atomic<int> g_colour_log[kNumColours];
 
 void recolour(uintptr_t &reg, uintptr_t dept, Colour i)
 {
-    if (!g_live.load(std::memory_order_relaxed))
-        return;
     if (dept != kDeptTyres || static_cast<uint32_t>(reg) != kColWhite)
         return;
     reg = (reg & ~0xffffffffull) | kColours[i].tyres;
@@ -337,10 +323,6 @@ namespace rnd_dept_tags {
 
 void install(uintptr_t base)
 {
-    if (!tyres_dept_tags.get()) {
-        swofty::log("[rnd-tyres] tyres_dept_tags off; Tyres upgrades keep the empty icon and white tag in R&D lists");
-        return;
-    }
     for (const TagSite &s : kTags) {
         uintptr_t at = s.at();
         swofty::log("[rnd-tyres] dept tag: hooked %s @0x%llx (base+0x%llx)", s.what, (unsigned long long)at,
@@ -351,7 +333,6 @@ void install(uintptr_t base)
         swofty::log("[rnd-tyres] dept tag: hooked %s store @0x%llx (base+0x%llx)", s.what, (unsigned long long)at,
                     (unsigned long long)(at - base));
     }
-    g_live.store(true);
     swofty::log("[rnd-tyres] dept tags INSTALLED: %u/%u icon sites; department 4 shows the %s department icon, the %s "
                 "strip, the stock category icon of its upgrade type and the Tyres orange",
                 static_cast<unsigned>(kNumTags), static_cast<unsigned>(kNumTags), rnd_tyres_icon::dept(kDeptIcon),

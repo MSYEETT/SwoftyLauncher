@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // R&D: Tyres & Thermal Management - department 4's icon and colour in the R&D lists.
-// Install once from SWOFTY_ON_LOAD with the game's module base; the piece is gated by
-// its own tyres_dept_tags setting. See rnd_dept_tags.cpp.
+// The sites are always on; install() runs once from SWOFTY_ON_LOAD with the game's module
+// base and logs them. See rnd_dept_tags.cpp.
 #pragma once
 
 #include <cstdint>

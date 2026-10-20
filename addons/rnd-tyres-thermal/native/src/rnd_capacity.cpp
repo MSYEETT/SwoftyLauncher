@@ -33,8 +33,8 @@
 // so the listener callbacks keep the attribute-driven ones current and the stock
 // save writer persists them.
 //
-// Every pointer is region-checked and everything acts ONLY for department 4. The
-// tyres_research_capacity setting is read once, in install().
+// Every pointer is region-checked and everything acts ONLY for department 4. Every
+// handler is a no-op until install() runs.
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -82,14 +82,6 @@ std::atomic<int> g_sync_log{0};
 std::atomic<int> g_page_log{0};
 std::atomic<int> g_check_log{0};
 std::atomic<uint64_t> g_check_last{~0ull};
-
-SWOFTY_SETTING(bool, tyres_research_capacity, true);
-
-SWOFTY_ON_CHANGE(tyres_research_capacity, bool on)
-{
-    swofty::log("[rnd-tyres] tyres_research_capacity toggled -> %s; install-time, relaunch to apply",
-                on ? "on" : "off");
-}
 
 bool region_readable(const void *p, size_t n)
 {
@@ -394,12 +386,6 @@ namespace rnd_capacity {
 
 void install(uintptr_t base)
 {
-    bool on = tyres_research_capacity.get();
-    swofty::log("[rnd-tyres] capacity: tyres_research_capacity=%s", on ? "on" : "off");
-    if (!on) {
-        swofty::log("[rnd-tyres] capacity: tyres_research_capacity off; dept 4 research capacity left stock (SAFE)");
-        return;
-    }
     auto hooked = [base](const char *piece, uintptr_t at, const char *what) {
         swofty::log("[rnd-tyres] capacity %s: hooked %s @0x%llx (base+0x%llx)", piece, what, (unsigned long long)at,
                     (unsigned long long)(at - base));

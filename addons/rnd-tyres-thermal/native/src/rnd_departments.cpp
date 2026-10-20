@@ -17,11 +17,11 @@
 // v0.6.0 - Tyres upgrade instances: the instance init and every state mutator
 // special-case department 4; only our instances take the normal path.
 // v0.6.1 - the Develop Upgrade screen: the Back route, card art, the vehicle
-// performance comparison and a temporary test price.
+// performance comparison and the card colour.
 // See native/HOOKS.md for every site.
 //
 // Every target is a KB binding resolved at load; one unresolved binding means
-// the addon registers nothing. Settings gate behaviour inside the handlers.
+// the addon registers nothing. The addon has no settings: it is on or off.
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -247,15 +247,6 @@ SWOFTY_SITE(site_Career_RnDPotentialPieEntry, swofty::Context &c)
 // frame, enum 4 (colour [4]). The stock attach loop binds it. The selection clamp
 // stays stock, so the fifth box only renders.
 
-SWOFTY_SETTING(bool, render_fifth_box, true);
-std::atomic<bool> g_fifth_enabled{true};
-
-SWOFTY_ON_CHANGE(render_fifth_box, bool on)
-{
-    g_fifth_enabled.store(on);
-    swofty::log("[rnd-tyres] render_fifth_box toggled -> %s", on ? "on" : "off");
-}
-
 constexpr uint8_t kTyresDeptEnum = 4;
 constexpr size_t  kDeptCardSize  = 0x950;
 constexpr size_t  kNeStrChars    = 9;
@@ -323,8 +314,6 @@ std::atomic<int> g_fifth_log{0};
 
 SWOFTY_SITE(site_Career_RnDDeptBoxGridInject, swofty::Context &c)
 {
-    if (!g_fifth_enabled.load())
-        return;
     bool first = g_fifth_log.fetch_add(1) == 0;
     uintptr_t self = c.rsi;
     uintptr_t lvar8 = c.rdi;
@@ -415,7 +404,7 @@ SWOFTY_SITE(site_Career_RnDDeptBoxGridInject, swofty::Context &c)
 //
 // Career_Build_RnDPieOverview (class B) allocates the pie object, constructs
 // exactly four 0x220 slots with Career_Construct_RnDPieObject and move-assigns
-// it into this+0x668. v0.7.1, with render_fifth_pie on (latched at load):
+// it into this+0x668. v0.7.1:
 //   site_Career_RnDPieBufSize        edx 0x900 -> 0xb40 (0x80 header + 5 slots + 0x20 footer)
 //   site_Career_RnDPieCtorRet        r14 = new object: construct slot 4 like the ctor loop
 //                                    (17 handles {vtable, 0, 0, 0}, vtables copied from the
@@ -427,15 +416,6 @@ SWOFTY_SITE(site_Career_RnDDeptBoxGridInject, swofty::Context &c)
 //   site_Career_RnDPiePopulateGate   slot index 4 runs only on a registered object with
 //                                    its footer and slot-4 vtables intact; otherwise
 //                                    resume at site_Career_RnDPiePopulateNextCode
-
-SWOFTY_SETTING(bool, render_fifth_pie, true);
-std::atomic<bool> g_pie_on{false};
-
-SWOFTY_ON_CHANGE(render_fifth_pie, bool on)
-{
-    swofty::log("[rnd-tyres] render_fifth_pie toggled -> %s; pie code patches are install-time, relaunch to apply",
-                on ? "on" : "off");
-}
 
 constexpr size_t   kPieHeader      = 0x80;
 constexpr size_t   kPieSlotStride  = 0x220;
@@ -580,9 +560,8 @@ void pie_skip_log(const char *fmt, unsigned long long a, unsigned long long b)
 
 SWOFTY_SITE(site_Career_RnDPieBufSize, swofty::Context &c)
 {
-    t_pie_grown = g_pie_on.load();
-    if (t_pie_grown)
-        c.rdx = kPieBufNew;
+    t_pie_grown = true;
+    c.rdx = kPieBufNew;
 }
 
 SWOFTY_SITE(site_Career_RnDPieCtorRet, swofty::Context &c)
@@ -590,8 +569,6 @@ SWOFTY_SITE(site_Career_RnDPieCtorRet, swofty::Context &c)
     bool grown = t_pie_grown;
     t_pie_grown = false;
     uintptr_t obj = c.r14;
-    if (!g_pie_on.load())
-        return;
     bool first = g_pie_ctor_log.fetch_add(1) < 8;
     if (!obj) {
         if (first)
@@ -717,14 +694,14 @@ SWOFTY_REDIRECT(site_Career_RnDPieMovedFromSlotDtor, void, void *slot)
 
 SWOFTY_SITE(site_Career_RnDPiePopulateDeptGuard, swofty::Context &c)
 {
-    if (g_pie_on.load() && static_cast<uint32_t>(c.r14) == 4)
+    if (static_cast<uint32_t>(c.r14) == 4)
         c.rip = site_Career_RnDPiePopulateSlotCap.address();
 }
 
 SWOFTY_SITE(site_Career_RnDPiePopulateGate, swofty::Context &c)
 {
     uint32_t index = static_cast<uint32_t>(c.r13);
-    if (index < 4 || !g_pie_on.load())
+    if (index < 4)
         return;
     auto skip = [&](const char *fmt, unsigned long long a, unsigned long long b) {
         pie_skip_log(fmt, a, b);
@@ -769,7 +746,7 @@ SWOFTY_SITE(site_Career_RnDPiePopulateGate, swofty::Context &c)
 }
 
 // ---------------------------------------------------------------------------
-// v0.7.2 - the Tyres tile's fitted/total count and progress ring (pie_tyres_counts).
+// v0.7.2 - the Tyres tile's fitted/total count and progress ring.
 //
 // Career_Write_RnDPieTileCounts (this = rdi, query = rsi) counts codes 0..3 into
 // slots 0..3. With the 5th pie slot live:
@@ -778,14 +755,6 @@ SWOFTY_SITE(site_Career_RnDPiePopulateGate, swofty::Context &c)
 //                                       on a pie object this addon built with slot 4;
 //                                       otherwise resume at site_Career_RnDTileCountExit,
 //                                       which is what the stock guard does for index 4.
-
-SWOFTY_SETTING(bool, pie_tyres_counts, true);
-std::atomic<bool> g_counts_on{false};
-
-SWOFTY_ON_CHANGE(pie_tyres_counts, bool on)
-{
-    swofty::log("[rnd-tyres] pie_tyres_counts toggled -> %s; install-time, relaunch to apply", on ? "on" : "off");
-}
 
 constexpr size_t kQueryCount    = 0xc00;
 constexpr size_t kQueryCap      = 0x180;
@@ -796,14 +765,14 @@ std::atomic<int> g_counts_skip_log{0};
 
 SWOFTY_SITE(site_Career_RnDTileCountGuards, swofty::Context &c)
 {
-    if (g_counts_on.load() && (c.rcx & 0xff) == 4)
+    if ((c.rcx & 0xff) == 4)
         c.rip = site_Career_RnDTileCountIndexGuard.address();
 }
 
 SWOFTY_SITE(site_Career_RnDTileCountIndexGuard, swofty::Context &c)
 {
     uint32_t index = static_cast<uint32_t>(c.rbx);
-    if (index != 4 || !g_counts_on.load())
+    if (index != 4)
         return;
     auto skip = [&](const char *fmt, unsigned long long a, unsigned long long b) {
         int n = g_counts_skip_log.fetch_add(1);
@@ -858,208 +827,9 @@ SWOFTY_SITE(site_Career_RnDTileCountIndexGuard, swofty::Context &c)
                 (unsigned long long)obj, (unsigned long long)gen, fitted, total);
 }
 
-// ---------------------------------------------------------------------------
-// R&D > Performance: 5th-box LAYOUT diagnostic (why the injected box is invisible).
-//
-// The grid is a UITC tab container at builder+0x2d8 whose authored slot vector
-// (builder+0x548..+0x550) holds a fixed four cells; the per-card attach never adds
-// one, so the injected card has no visible cell. Read-only, one-shot, at
-// site_Career_RnDDeptBoxLayoutProbe (rsi = builder, after the selection loop). See
-// native/HOOKS.md.
-
-SWOFTY_SETTING(bool, render_fifth_box_layout, true);
-std::atomic<bool> g_layout_enabled{true};
-std::atomic<int> g_layout_log{0};
-
-SWOFTY_ON_CHANGE(render_fifth_box_layout, bool on)
-{
-    g_layout_enabled.store(on);
-    swofty::log("[rnd-tyres] render_fifth_box_layout toggled -> %s", on ? "on" : "off");
-}
-
 uintptr_t rd_ptr(uintptr_t a)
 {
     return region_readable(reinterpret_cast<void *>(a), 8) ? *reinterpret_cast<uintptr_t *>(a) : 0;
-}
-
-SWOFTY_SITE(site_Career_RnDDeptBoxLayoutProbe, swofty::Context &c)
-{
-    if (!g_layout_enabled.load())
-        return;
-    if (g_layout_log.fetch_add(1) != 0)
-        return;
-    uintptr_t self = c.rsi;
-    uintptr_t cbeg = rd_ptr(self + 0x280), cend = rd_ptr(self + 0x288);
-    uintptr_t sbeg = rd_ptr(self + 0x548), send = rd_ptr(self + 0x550);
-    unsigned long long cards = (cbeg && cend >= cbeg) ? (cend - cbeg) / 8 : 0;
-    unsigned long long slots = (sbeg && send >= sbeg) ? (send - sbeg) / 0x10 : 0;
-    swofty::log("[rnd-tyres] box-layout: card-vec=%llu slot-vec(container+0x270)=%llu "
-                "(builder=0x%llx cards[0x280]=0x%llx..0x%llx slots[0x548]=0x%llx..0x%llx); a 5th VISIBLE cell needs "
-                "a 5th authored/cloned slot + scene rect (see HOOKS.md)",
-                cards, slots, (unsigned long long)self, (unsigned long long)cbeg, (unsigned long long)cend,
-                (unsigned long long)sbeg, (unsigned long long)send);
-    for (unsigned long long i = 0; i < slots && i < 8; ++i) {
-        uintptr_t slotobj = rd_ptr(sbeg + i * 0x10 + 8);
-        uintptr_t bound = slotobj ? rd_ptr(slotobj + 0x20) : 0;
-        uintptr_t inner = slotobj ? rd_ptr(slotobj + 8) : 0;
-        swofty::log("[rnd-tyres] box-layout slot[%llu]: slotObj=0x%llx bound-node=0x%llx inner-node=0x%llx", i,
-                    (unsigned long long)slotobj, (unsigned long long)bound, (unsigned long long)inner);
-    }
-    for (unsigned long long i = 0; i < cards && i < 8; ++i) {
-        uintptr_t card = rd_ptr(cbeg + i * 8);
-        unsigned en = (card && region_readable(reinterpret_cast<void *>(card + 0x6d8), 1))
-                          ? *reinterpret_cast<uint8_t *>(card + 0x6d8)
-                          : 0xff;
-        swofty::log("[rnd-tyres] box-layout card[%llu]: card=0x%llx node(+0x268)=0x%llx enum(+0x6d8)=%u", i,
-                    (unsigned long long)card, (unsigned long long)(card ? card + 0x268 : 0), en);
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Upgrade-tree attachment (piece 2): read-only confirmation of the code-4 ("fake")
-// container path. Career_Load_UpgradeRows loops k_Career_UpgradeDeptCodeTable and
-// formats <team_link>.<deptname>; at site_Career_LoadUpgradeRows_DeptPath (r8 =
-// team_link, r9 = dept name, dil = code) this logs each path and its FNV-1a-64
-// container hash. db/tyres_tree.json writes our rows under upgrade_department =
-// "Fake" (ENUM A = 4). See native/HOOKS.md.
-
-SWOFTY_SETTING(bool, attach_tyres_tree, true);
-std::atomic<bool> g_tree_enabled{true};
-std::atomic<int> g_tree_log{0};
-
-SWOFTY_ON_CHANGE(attach_tyres_tree, bool on)
-{
-    g_tree_enabled.store(on);
-    swofty::log("[rnd-tyres] attach_tyres_tree toggled -> %s", on ? "on" : "off");
-}
-
-constexpr uint64_t kFnvBasis = 0xcbf29ce484222325ull;
-constexpr uint64_t kFnvPrime = 0x100000001b3ull;
-
-uint64_t fnv_add(uint64_t h, const char *s, size_t n)
-{
-    for (size_t i = 0; i < n; ++i)
-        h = (h ^ static_cast<uint8_t>(s[i])) * kFnvPrime;
-    return h;
-}
-
-size_t copy_cstr(const char *src, char *dst, size_t cap)
-{
-    size_t i = 0;
-    if (!src || !region_readable(src, 1)) {
-        dst[0] = 0;
-        return 0;
-    }
-    for (; i < cap - 1 && region_readable(src + i, 1) && src[i]; ++i)
-        dst[i] = src[i];
-    dst[i] = 0;
-    return i;
-}
-
-SWOFTY_SITE(site_Career_LoadUpgradeRows_DeptPath, swofty::Context &c)
-{
-    if (!g_tree_enabled.load())
-        return;
-    if (g_tree_log.fetch_add(1) >= 10)
-        return;
-    unsigned code = static_cast<unsigned>(c.rdi & 0xff);
-    char team[192], dept[48];
-    size_t tlen = copy_cstr(reinterpret_cast<const char *>(c.r8), team, sizeof team);
-    size_t dlen = copy_cstr(reinterpret_cast<const char *>(c.r9), dept, sizeof dept);
-    uint64_t h = fnv_add(fnv_add(fnv_add(kFnvBasis, team, tlen), ".", 1), dept, dlen);
-    if (code == 4) {
-        uint64_t meta0 = fnv_add(h, ".upgrade_0._metadata_", 21);
-        uint64_t cnt = fnv_add(h, "._upgrade_instancecount_", 24);
-        swofty::log("[rnd-tyres] upgrade-tree code=4 FAKE/TYRES: path=\"%s.%s\" container FNV={%016llx} <<< place "
-                    "db/tyres_tree.json rows under this: select \"{%016llx}.upgrade_N\" + \"{%016llx}\" "
-                    "_upgrade_instancecount_ (ex: <team_link>.fake.upgrade_0._metadata_ key=%016llx, "
-                    "_upgrade_instancecount_ key=%016llx)",
-                    team, dept, (unsigned long long)h, (unsigned long long)h, (unsigned long long)h,
-                    (unsigned long long)meta0, (unsigned long long)cnt);
-    } else {
-        swofty::log("[rnd-tyres] upgrade-tree code=%u dept=\"%s\" team_link=\"%s\" container FNV={%016llx}", code,
-                    dept, team, (unsigned long long)h);
-    }
-}
-
-// ---------------------------------------------------------------------------
-// R&D upgrade tiles: tile-source-count diagnostic. At site_Career_RnDTreeRowCountProbe
-// in Career_Load_UpgradeTreeNodes, [rsp+0x378] = the container's row_count and
-// [rsp+0x58] = &dept code byte: row_count 4 for code 4 means our nodes are in the
-// tree model; 1 means the instancecount bump is not honoured. Read-only.
-
-SWOFTY_SETTING(bool, diag_tree_rowcount, true);
-std::atomic<bool> g_trc_enabled{true};
-std::atomic<int> g_trc_log{0};
-
-SWOFTY_ON_CHANGE(diag_tree_rowcount, bool on)
-{
-    g_trc_enabled.store(on);
-    swofty::log("[rnd-tyres] diag_tree_rowcount toggled -> %s", on ? "on" : "off");
-}
-
-SWOFTY_SITE(site_Career_RnDTreeRowCountProbe, swofty::Context &c)
-{
-    if (!g_trc_enabled.load())
-        return;
-    uintptr_t rsp = c.rsp;
-    const void *code_pp = reinterpret_cast<const void *>(rsp + 0x58);
-    const void *rc_p = reinterpret_cast<const void *>(rsp + 0x378);
-    if (!region_readable(code_pp, 8) || !region_readable(rc_p, 4))
-        return;
-    uintptr_t code_ptr = *reinterpret_cast<const uintptr_t *>(code_pp);
-    if (!region_readable(reinterpret_cast<const void *>(code_ptr), 1))
-        return;
-    unsigned code = *reinterpret_cast<const uint8_t *>(code_ptr);
-    uint32_t row_count = *reinterpret_cast<const uint32_t *>(rc_p);
-    int n = g_trc_log.fetch_add(1);
-    if (code == 4) {
-        if (n < 48)
-            swofty::log("[rnd-tyres] tree-rows code=4 FAKE/TYRES: tree-view data source row_count=%u "
-                        "(tiles the data layer yields for the Tyres branch; 4 = hub+our 3 loaded -> blocker is "
-                        "the DISPLAY/active-dept filter; 1 = _upgrade_instancecount_ bump NOT honoured -> data)",
-                        row_count);
-    } else if (n < 16) {
-        swofty::log("[rnd-tyres] tree-rows code=%u: tree-view data source row_count=%u", code, row_count);
-    }
-}
-
-// ---------------------------------------------------------------------------
-// R&D overview box-grid selection (v0.5.0 leftover, default OFF since v0.6.0).
-//
-// site_Career_RnDBoxGridNameRead is always live: a no-op for idx 0..3, it keeps
-// k_Career_RnDDeptNameTable[4] (= colour[0]) from ever being dereferenced.
-// site_Career_RnDBoxGridNameClamp relaxes `cmp al,4 ; cmovae` to admit idx 4 only
-// when select_fifth_dept was on at launch (resume at site_Career_RnDBoxGridNameIndex).
-
-SWOFTY_SETTING(bool, select_fifth_dept, false);
-std::atomic<bool> g_select_on{false};
-std::atomic<int> g_name_log{0};
-
-SWOFTY_ON_CHANGE(select_fifth_dept, bool on)
-{
-    swofty::log("[rnd-tyres] select_fifth_dept toggled -> %s; the box-grid clamp byte-patch is install-time, "
-                "relaunch to apply",
-                on ? "on" : "off");
-}
-
-const char kTyresDeptName[] = "Tyres & Thermal Management";
-
-SWOFTY_SITE(site_Career_RnDBoxGridNameRead, swofty::Context &c)
-{
-    if ((c.rax & 0xffull) == 4ull) {
-        c.rdx = reinterpret_cast<uintptr_t>(kTyresDeptName);
-        int n = g_name_log.fetch_add(1);
-        if (n < 16)
-            swofty::log("[rnd-tyres] dept-name[4] overrun intercepted -> \"%s\" (nameTable[4]=colour[0] char* avoided)",
-                        kTyresDeptName);
-    }
-}
-
-SWOFTY_SITE(site_Career_RnDBoxGridNameClamp, swofty::Context &c)
-{
-    if (g_select_on.load() && (c.rax & 0xffull) == 4ull)
-        c.rip = site_Career_RnDBoxGridNameIndex.address();
 }
 
 // ---------------------------------------------------------------------------
@@ -1079,18 +849,7 @@ SWOFTY_SITE(site_Career_RnDBoxGridNameClamp, swofty::Context &c)
 // last entry is still disabled (a persisted v0.4/v0.5 sentinel) at
 // site_Career_DeserialiseUpgradesEnd, at the Career_Refresh_UpgradeAvailability
 // entry and at site_Career_RnDDeptPagePreQuery, then invalidates the owner cache
-// (mode 0) or refreshes availability (modes 1/2, load only). Install-time:
-// instantiate_tyres_upgrades is latched at launch.
-
-SWOFTY_SETTING(bool, instantiate_tyres_upgrades, true);
-std::atomic<bool> g_inst_live{false};
-
-SWOFTY_ON_CHANGE(instantiate_tyres_upgrades, bool on)
-{
-    swofty::log("[rnd-tyres] instantiate_tyres_upgrades toggled -> %s; the instance hooks are install-time, relaunch "
-                "to apply",
-                on ? "on" : "off");
-}
+// (mode 0) or refreshes availability (modes 1/2, load only).
 
 constexpr uint32_t djb2(const char *s)
 {
@@ -1227,7 +986,7 @@ int our_index(uintptr_t u)
 SWOFTY_SITE(site_Career_UpgradeInitFakeDeptBranch, swofty::Context &c)
 {
     uintptr_t u = c.rcx;
-    if (!g_inst_live.load() || *reinterpret_cast<const uint8_t *>(u + kInstDept) != kDeptFake)
+    if (*reinterpret_cast<const uint8_t *>(u + kInstDept) != kDeptFake)
         return;
     int idx = our_index(u);
     if (idx < 0) {
@@ -1247,7 +1006,7 @@ SWOFTY_SITE(site_Career_UpgradeInitFakeDeptBranch, swofty::Context &c)
 int admit_guard(swofty::Context &c, size_t g)
 {
     uintptr_t u = c.rcx;
-    if (!g_inst_live.load() || *reinterpret_cast<const uint8_t *>(u + kInstDept) != kDeptFake)
+    if (*reinterpret_cast<const uint8_t *>(u + kInstDept) != kDeptFake)
         return -1;
     int idx = our_index(u);
     if (idx < 0)
@@ -1297,8 +1056,6 @@ SWOFTY_SITE(site_Career_UpgradeAutoFitDeptGate, swofty::Context &c)
 
 SWOFTY_SITE(site_Career_UpgradeGraphHubTest, swofty::Context &c)
 {
-    if (!g_inst_live.load())
-        return;
     int idx = our_index(c.rax);
     if (idx < 0)
         return;
@@ -1330,7 +1087,7 @@ bool needs_init(uintptr_t u)
 
 int sanitize_upgrades(uintptr_t U, const char *site, bool may_refresh)
 {
-    if (!g_inst_live.load() || g_sanitize_off.load() || g_sanitize_depth.load() != 0)
+    if (g_sanitize_off.load() || g_sanitize_depth.load() != 0)
         return 0;
     if (!U || !region_readable(reinterpret_cast<void *>(U), kUpSize))
         return 0;
@@ -1406,114 +1163,6 @@ SWOFTY_SITE(site_Career_RnDDeptPagePreQuery, swofty::Context &c)
 }
 
 // ---------------------------------------------------------------------------
-// Diagnostic: the R&D department page's instance query, per department. At
-// site_Career_RnDDeptPageQueryDone (right after Career_Query_EnabledUpgrades;
-// rsi = card, results at rsp+0xdf0, count at +0xc00) this logs the result by
-// department plus every dept-4 instance of the team. Read-only.
-
-SWOFTY_SETTING(bool, diag_tyres_instances, true);
-std::atomic<bool> g_diag_inst_enabled{true};
-std::atomic<int> g_page_log_tyres{0};
-std::atomic<uint32_t> g_page_log_mask{0};
-
-SWOFTY_ON_CHANGE(diag_tyres_instances, bool on)
-{
-    g_diag_inst_enabled.store(on);
-    swofty::log("[rnd-tyres] diag_tyres_instances toggled -> %s", on ? "on" : "off");
-}
-
-void log_dept4_instances(uintptr_t U)
-{
-    if (!U || !region_readable(reinterpret_cast<void *>(U), kUpSize))
-        return;
-    uint64_t nt = *reinterpret_cast<const uint64_t *>(U + kUpNumTrees);
-    if (nt == 0 || nt > 2)
-        return;
-    for (uint64_t k = 0; k < nt; ++k) {
-        uintptr_t T = U + kUpTrees + k * kUpTreeStride;
-        uintptr_t b = *reinterpret_cast<const uint64_t *>(T + 0x10);
-        uintptr_t e = *reinterpret_cast<const uint64_t *>(T + 0x18);
-        if (!b || e < b || (e - b) % kInstSize || (e - b) / kInstSize > 0x180
-            || !region_readable(reinterpret_cast<void *>(b), e - b))
-            continue;
-        for (uintptr_t u = b; u < e; u += kInstSize) {
-            if (*reinterpret_cast<const uint8_t *>(u + kInstDept) != kDeptFake)
-                continue;
-            uintptr_t sb = 0, se = 0;
-            bool ok = states_of(u, sb, se);
-            bool has = ok && se != sb;
-            int idx = our_index(u);
-            swofty::log("[rnd-tyres]   tree%llu dept-4 \"%s\" hash=0x%08x %s states=%llu last: state=%u enabled=%u "
-                        "facility-locked=%u day=0x%04x",
-                        (unsigned long long)k, inst_name(u), *reinterpret_cast<const uint32_t *>(u + kInstHash),
-                        idx >= 0 ? "OURS" : "hub/other", has ? (unsigned long long)((se - sb) / 0x10) : 0ull,
-                        has ? (unsigned)*reinterpret_cast<const uint8_t *>(se - 8) : 0xffu,
-                        has ? (unsigned)*reinterpret_cast<const uint8_t *>(se - 4) : 0xffu,
-                        has ? (unsigned)*reinterpret_cast<const uint8_t *>(se - 3) : 0xffu,
-                        has ? (unsigned)*reinterpret_cast<const uint16_t *>(se - 0xc) : 0xffffu);
-        }
-    }
-}
-
-SWOFTY_SITE(site_Career_RnDDeptPageQueryDone, swofty::Context &c)
-{
-    if (!g_diag_inst_enabled.load())
-        return;
-    uintptr_t card = c.rsi;
-    if (!region_readable(reinterpret_cast<void *>(card + 0x688), 0x58))
-        return;
-    unsigned dept = *reinterpret_cast<const uint8_t *>(card + 0x6d8);
-    if (dept == kDeptFake) {
-        if (g_page_log_tyres.fetch_add(1) >= 24)
-            return;
-    } else {
-        uint32_t bit = 1u << (dept & 31);
-        if (g_page_log_mask.fetch_or(bit) & bit)
-            return;
-    }
-    uintptr_t out = c.rsp + 0xdf0;
-    if (!region_readable(reinterpret_cast<void *>(out), 0xc08))
-        return;
-    uint64_t n = *reinterpret_cast<const uint64_t *>(out + 0xc00);
-    if (n > 0x180)
-        n = 0x180;
-    unsigned by[6] = {0, 0, 0, 0, 0, 0};
-    for (uint64_t i = 0; i < n; ++i) {
-        uintptr_t u = *reinterpret_cast<const uint64_t *>(out + i * 8);
-        if (!u || !region_readable(reinterpret_cast<void *>(u + kInstDept), 1)) {
-            ++by[5];
-            continue;
-        }
-        uint8_t d = *reinterpret_cast<const uint8_t *>(u + kInstDept);
-        ++by[d < 5 ? d : 5];
-    }
-    uintptr_t U = *reinterpret_cast<const uint64_t *>(card + 0x688);
-    uint32_t team = region_readable(reinterpret_cast<void *>(c.rsp + 0x8c), 4)
-                        ? *reinterpret_cast<const uint32_t *>(c.rsp + 0x8c)
-                        : 0;
-    unsigned mode = 0xff, cache = 0;
-    if (U && region_readable(reinterpret_cast<void *>(U), kUpSize)) {
-        mode = *reinterpret_cast<const uint8_t *>(U + kUpMode);
-        cache = *reinterpret_cast<const uint32_t *>(U + kUpOwnerCache);
-    }
-    swofty::log("[rnd-tyres] instances: R&D page dept=%u team=0x%x query=%llu by dept 0:%u 1:%u 2:%u 3:%u 4:%u "
-                "other:%u (Upgrades=0x%llx mode=%u owner=0x%x)%s",
-                dept, team, (unsigned long long)n, by[0], by[1], by[2], by[3], by[4], by[5], (unsigned long long)U, mode,
-                cache, dept == kDeptFake ? (by[4] >= 12 ? " <<< Tyres page FIXED (4:12 or 4:15)"
-                                                        : " <<< Tyres page: expect 4:12 or 4:15")
-                                         : "");
-    if (dept != kDeptFake)
-        return;
-    for (uint64_t i = 0; i < n; ++i) {
-        uintptr_t u = *reinterpret_cast<const uint64_t *>(out + i * 8);
-        if (u && region_readable(reinterpret_cast<void *>(u), kInstSize)
-            && *reinterpret_cast<const uint8_t *>(u + kInstDept) == kDeptFake)
-            swofty::log("[rnd-tyres]   Tyres page lists \"%s\"", inst_name(u));
-    }
-    log_dept4_instances(U);
-}
-
-// ---------------------------------------------------------------------------
 // v0.6.1: the DEVELOP UPGRADE screen for the Tyres upgrades.
 //
 // Back trap: the purchase panel's back_pressed (and the perks back and the
@@ -1523,9 +1172,9 @@ SWOFTY_SITE(site_Career_RnDDeptPageQueryDone, swofty::Context &c)
 // "error_department" select the Tyres card's tab the stock way
 // (Career_Refresh_RnDDeptMode department mode, Vm_Set_TabEnabled, resume at
 // site_Career_RnDContainerOpenTail), or route to Durability when no Tyres tab owns
-// a slot. Back can no longer dead-end. Install-time.
+// a slot. Back can no longer dead-end.
 //
-// v0.7.2 Tyres tile -> Tyres page (pie_tyres_open): site_Career_RnDBoxGridFirstTab
+// v0.7.2 Tyres tile -> Tyres page: site_Career_RnDBoxGridFirstTab
 // picks the Tyres card's element while the Performance page's last focused tile is
 // Tyres (rnd_fifth_pie::tyres_focus_pending) and that card owns a slot.
 //
@@ -1534,30 +1183,7 @@ SWOFTY_SITE(site_Career_RnDDeptPageQueryDone, swofty::Context &c)
 // "error_department" the Tyres frame. Comparison: site_Career_RnDCompareDept aliases
 // the comparison's department byte to the effect's stock department. Card colour:
 // site_Career_RnDCardColourPick0..4 read k_Career_RnDCardColourTable[4] as the Tyres
-// orange when the screen fixes or the pie publisher (render_fifth_pie +
-// pie_tyres_performance) are on, which is when the table write used to happen.
-// Test price: Career_Calc_UpgradeCost returns kTestPrice for ours (tyres_test_price,
-// temporary).
-
-SWOFTY_SETTING(bool, tyres_upgrade_screen, true);
-SWOFTY_SETTING(bool, tyres_test_price, false);
-std::atomic<bool> g_route_on{false};
-std::atomic<bool> g_screen_enabled{true};
-std::atomic<bool> g_price_enabled{false};
-
-SWOFTY_ON_CHANGE(tyres_upgrade_screen, bool on)
-{
-    g_screen_enabled.store(on);
-    swofty::log("[rnd-tyres] tyres_upgrade_screen toggled -> %s (art/comparison follow at once; the Back route stays "
-                "installed until relaunch)",
-                on ? "on" : "off");
-}
-
-SWOFTY_ON_CHANGE(tyres_test_price, bool on)
-{
-    g_price_enabled.store(on);
-    swofty::log("[rnd-tyres] tyres_test_price toggled -> %s", on ? "on" : "off");
-}
+// orange.
 
 constexpr uint32_t kHashTyresTab = djb2("tyres");
 constexpr uint32_t kHashErrDept  = djb2("error_department");
@@ -1566,7 +1192,6 @@ static_assert(kHashTyresTab == 0x107666dcu && kHashErrDept == 0x7e5c1342u && kHa
               "djb2 tab-name hashes drifted");
 static_assert(djb2("back_pressed") == 0x493fe92bu, "back_pressed hash drifted");
 
-constexpr uint32_t kTestPrice = 5;
 constexpr uint8_t kCompareChassis = 1;
 constexpr uint8_t kComparePowertrain = 3;
 
@@ -1585,18 +1210,9 @@ const char *compare_name(uint8_t d)
 }
 const char kTyresIconFrame[] = "maintenance";
 
-bool screen_live()
-{
-    return g_route_on.load() && g_screen_enabled.load();
-}
-
 std::atomic<int> g_open_log{0};
 std::atomic<int> g_compare_log{0};
 std::atomic<int> g_art_log{0};
-std::atomic<int> g_cost_log{0};
-std::atomic<int> g_back_log{0};
-std::atomic<int> g_option_log{0};
-std::atomic<int> g_purchase_log{0};
 std::atomic<int> g_box_tab_log{0};
 
 bool find_tyres_tab(uintptr_t C, uintptr_t &elem, uintptr_t &card)
@@ -1631,8 +1247,6 @@ bool find_tyres_tab(uintptr_t C, uintptr_t &elem, uintptr_t &card)
 
 SWOFTY_SITE(site_Career_RnDContainerOpenMaint, swofty::Context &c)
 {
-    if (!g_route_on.load())
-        return;
     uint32_t h = static_cast<uint32_t>(c.rax & 0xffffffffu);
     if (h != kHashTyresTab && h != kHashErrDept)
         return;
@@ -1661,7 +1275,7 @@ SWOFTY_SITE(site_Career_RnDContainerOpenMaint, swofty::Context &c)
 
 SWOFTY_SITE(site_Career_RnDBoxGridFirstTab, swofty::Context &c)
 {
-    if (!g_route_on.load() || !rnd_fifth_pie::open_tracking_live() || !rnd_fifth_pie::tyres_focus_pending())
+    if (!rnd_fifth_pie::open_tracking_live() || !rnd_fifth_pie::tyres_focus_pending())
         return;
     uintptr_t C = c.rsi;
     uintptr_t elem = 0, card = 0;
@@ -1683,8 +1297,6 @@ SWOFTY_SITE(site_Career_RnDBoxGridFirstTab, swofty::Context &c)
 
 SWOFTY_SITE(site_Career_RnDCompareDept, swofty::Context &c)
 {
-    if (!screen_live())
-        return;
     uint8_t *d = reinterpret_cast<uint8_t *>(c.rsp + 0x108);
     if (*d != kDeptFake || !region_readable(reinterpret_cast<void *>(c.rsi + 0x6a8), 8))
         return;
@@ -1753,8 +1365,6 @@ char *next_art_buf()
 
 void part_art(swofty::Context &c, unsigned site, bool mask)
 {
-    if (!screen_live())
-        return;
     const char **arg = reinterpret_cast<const char **>(c.rsp + 0x20);
     const char *name = *arg;
     if (!name || !region_readable(name, 1))
@@ -1807,87 +1417,9 @@ SWOFTY_SITE(site_Career_RnDCardDeptIcon0, swofty::Context &c) { part_art(c, 6, f
 SWOFTY_SITE(site_Career_RnDCardDeptIcon1, swofty::Context &c) { part_art(c, 7, false); }
 SWOFTY_SITE(site_Career_RnDCardDeptIcon2, swofty::Context &c) { part_art(c, 8, false); }
 
-SWOFTY_WRAP(Career_Calc_UpgradeCost, int32_t, void *list, void *inst, void *mods, uint32_t option)
-{
-    uintptr_t u = reinterpret_cast<uintptr_t>(inst);
-    if (g_price_enabled.load() && u && *reinterpret_cast<const uint8_t *>(u + kInstDept) == kDeptFake) {
-        int idx = our_index(u);
-        if (idx >= 0) {
-            if (g_cost_log.fetch_add(1) < 16)
-                swofty::log("[rnd-tyres] test price: tyres_thermal_%d \"%s\" option=0x%x -> %u research points",
-                            idx + 1, inst_name(u), option, kTestPrice);
-            return kTestPrice;
-        }
-    }
-    return orig(list, inst, mods, option);
-}
-
-SWOFTY_SITE(site_Career_RnDPurchaseBackOpen, swofty::Context &c)
-{
-    if (!g_route_on.load())
-        return;
-    uintptr_t panel = c.rsi;
-    if (!region_readable(reinterpret_cast<void *>(panel + 0x6a8), 0x48))
-        return;
-    unsigned dept = *reinterpret_cast<const uint8_t *>(panel + 0x6e8);
-    int n = g_back_log.fetch_add(1);
-    if (dept < 4 && n >= 4)
-        return;
-    if (n >= 48)
-        return;
-    uintptr_t inst = rd_ptr(panel + 0x6a8);
-    const char *nm = (inst && region_readable(reinterpret_cast<void *>(inst), kInstSize)) ? inst_name(inst) : "?";
-    const char *to = reinterpret_cast<const char *>(c.rdx);
-    char tob[48];
-    copy_cstr(to, tob, sizeof tob);
-    swofty::log("[rnd-tyres] develop-upgrade back_pressed: upgrade \"%s\" dept=%u -> open \"%s\"%s", nm, dept, tob,
-                dept >= 4 ? " (handled by the Tyres-tab route)" : "");
-}
-
-SWOFTY_SITE(site_Career_RnDPurchaseOptionsEntry, swofty::Context &c)
-{
-    if (!g_route_on.load())
-        return;
-    uintptr_t panel = c.rcx;
-    if (!region_readable(reinterpret_cast<void *>(panel + 0x6a8), 0x48))
-        return;
-    uintptr_t inst = rd_ptr(panel + 0x6a8);
-    if (!inst || !region_readable(reinterpret_cast<void *>(inst), kInstSize))
-        return;
-    int idx = our_index(inst);
-    if (idx < 0 || g_option_log.fetch_add(1) >= 40)
-        return;
-    uintptr_t sb = 0, se = 0;
-    bool ok = states_of(inst, sb, se) && se != sb;
-    const uint8_t *p = reinterpret_cast<const uint8_t *>(panel);
-    swofty::log("[rnd-tyres] develop-upgrade options: tyres_thermal_%d \"%s\" arg=0x%x state=%s blocked: "
-                "cannot-develop=%u insufficient-points=%u research-limit=%u",
-                idx + 1, inst_name(inst), static_cast<unsigned>(c.rdx & 0xffffffffu),
-                ok ? state_name(*reinterpret_cast<const uint8_t *>(se - 8)) : "?", p[0x6d0], p[0x6d1], p[0x6d2]);
-}
-
-SWOFTY_SITE(site_Career_RnDPurchaseRequestEntry, swofty::Context &c)
-{
-    if (!g_route_on.load())
-        return;
-    uintptr_t inst = c.r8;
-    if (!inst || !region_readable(reinterpret_cast<void *>(inst), kInstSize))
-        return;
-    int idx = our_index(inst);
-    if (idx < 0 || g_purchase_log.fetch_add(1) >= 40)
-        return;
-    uintptr_t sb = 0, se = 0;
-    bool ok = states_of(inst, sb, se) && se != sb;
-    swofty::log("[rnd-tyres] purchase request: tyres_thermal_%d \"%s\" team=0x%x option=%u state=%s", idx + 1,
-                inst_name(inst), static_cast<unsigned>(c.rdx & 0xffffffffu), static_cast<unsigned>(c.r9 & 0xffu),
-                ok ? state_name(*reinterpret_cast<const uint8_t *>(se - 8)) : "?");
-}
-
-std::atomic<bool> g_card_orange{false};
-
 void card_colour(uintptr_t &reg, uintptr_t index)
 {
-    if (g_card_orange.load() && index == kDeptFake)
+    if (index == kDeptFake)
         reg = kColTyres;
 }
 
@@ -1900,14 +1432,6 @@ SWOFTY_SITE(site_Career_RnDCardColourPick1, swofty::Context &c) { card_colour(c.
 SWOFTY_SITE(site_Career_RnDCardColourPick2, swofty::Context &c) { card_colour(c.rcx, c.rax); }
 SWOFTY_SITE(site_Career_RnDCardColourPick3, swofty::Context &c) { card_colour(c.rcx, c.rax); }
 SWOFTY_SITE(site_Career_RnDCardColourPick4, swofty::Context &c) { card_colour(c.rax, c.rcx); }
-
-bool addon_setting_on(const char *id, bool fallback)
-{
-    SwoftySettingValue v{};
-    if (swofty::detail::settings_api(swofty::api) && swofty::api->setting(id, SWOFTY_SETTING_TOGGLE, &v))
-        return v.toggle != 0;
-    return fallback;
-}
 
 } // namespace
 
@@ -1924,35 +1448,19 @@ SWOFTY_ON_LOAD
     ui_colour_init();
     swofty::log("[rnd-tyres] instrumented box-grid builder (site_Career_RnDDeptBoxGridEntry) and pie builder "
                 "(site_Career_RnDPotentialPieEntry)");
-
-    g_fifth_enabled.store(render_fifth_box.get());
-    swofty::log("[rnd-tyres] 5th-box inject hook installed (site_Career_RnDDeptBoxGridInject); render_fifth_box=%s",
-                g_fifth_enabled.load() ? "on" : "off");
-
-    g_pie_on.store(render_fifth_pie.get());
-    if (g_pie_on.load())
-        swofty::log("[rnd-tyres] pie 5th slice INSTALLED: buffer 0x%x->0x%x (5 slots + footer), slot 4 constructed "
-                    "after the ctor and destroyed with the stock four, populate gate site_Career_RnDPiePopulateGate, "
-                    "guard cmp r14d,3->4 at site_Career_RnDPiePopulateDeptGuard",
-                    kPieBufStock, kPieBufNew);
-    else
-        swofty::log("[rnd-tyres] render_fifth_pie off; pie 5th slice NOT installed (SAFE)");
+    swofty::log("[rnd-tyres] 5th-box inject hook installed (site_Career_RnDDeptBoxGridInject)");
+    swofty::log("[rnd-tyres] pie 5th slice INSTALLED: buffer 0x%x->0x%x (5 slots + footer), slot 4 constructed after "
+                "the ctor and destroyed with the stock four, populate gate site_Career_RnDPiePopulateGate, guard cmp "
+                "r14d,3->4 at site_Career_RnDPiePopulateDeptGuard",
+                kPieBufStock, kPieBufNew);
 
     // The Tyres slice names/colour/icon, the "tyres" focus path and the
     // department_performance.tyres data for the 5-sector pie (rnd_fifth_pie.cpp).
-    rnd_fifth_pie::install(base, g_pie_on.load());
+    rnd_fifth_pie::install(base);
 
-    // v0.7.2: the Tyres tile's fitted/total and progress ring, on the slot-4 machinery.
-    if (!pie_tyres_counts.get())
-        swofty::log("[rnd-tyres] pie_tyres_counts off; the Tyres tile count stays 0/0");
-    else if (!g_pie_on.load())
-        swofty::log("[rnd-tyres] pie5 counts: the 5th pie slot is not installed; Tyres tile count NOT installed (SAFE)");
-    else {
-        g_counts_on.store(true);
-        swofty::log("[rnd-tyres] pie5 counts INSTALLED: Career_Write_RnDPieTileCounts counts code 4 into slot 4 (cmp "
-                    "cl,3->4 at site_Career_RnDTileCountGuards, cmp ebx,3->4 and the slot-4 gate at "
-                    "site_Career_RnDTileCountIndexGuard)");
-    }
+    swofty::log("[rnd-tyres] pie5 counts INSTALLED: Career_Write_RnDPieTileCounts counts code 4 into slot 4 (cmp "
+                "cl,3->4 at site_Career_RnDTileCountGuards, cmp ebx,3->4 and the slot-4 gate at "
+                "site_Career_RnDTileCountIndexGuard)");
 
     // v0.7.2: department 4's icon and colour in the R&D lists (rnd_dept_tags.cpp).
     rnd_dept_tags::install(base);
@@ -1963,75 +1471,22 @@ SWOFTY_ON_LOAD
     // v0.9.0: the Tyres upgrade types 19-22 (rnd_upgrade_types.cpp).
     rnd_upgrade_types::install(base);
 
-    g_layout_enabled.store(render_fifth_box_layout.get());
-    swofty::log("[rnd-tyres] box-layout diagnostic installed (site_Career_RnDDeptBoxLayoutProbe); "
-                "render_fifth_box_layout=%s",
-                g_layout_enabled.load() ? "on" : "off");
+    swofty::log("[rnd-tyres] Tyres upgrade instances ENABLED: tyres_thermal_1..%d (hash 0x%08x..0x%08x) take the "
+                "normal init + state machine; the dept-4 hub \"default\"/central_fake_upgrade keeps the stock "
+                "sentinel; sanitizers at load (deserialize end), refresh entry and R&D page pre-query",
+                kNumRows, kOurHash[0], kOurHash[kNumRows - 1]);
 
-    g_tree_enabled.store(attach_tyres_tree.get());
-    swofty::log("[rnd-tyres] upgrade-tree instrument installed (site_Career_LoadUpgradeRows_DeptPath); "
-                "attach_tyres_tree=%s; db rows use upgrade_department=Fake (ENUM A=4, no Aero collision)",
-                g_tree_enabled.load() ? "on" : "off");
-
-    g_trc_enabled.store(diag_tree_rowcount.get());
-    swofty::log("[rnd-tyres] tree-rows diagnostic installed (site_Career_RnDTreeRowCountProbe); diag_tree_rowcount=%s",
-                g_trc_enabled.load() ? "on" : "off");
-
-    swofty::log("[rnd-tyres] box-grid name guard installed (site_Career_RnDBoxGridNameRead); idx 4 -> \"%s\"",
-                kTyresDeptName);
-    g_select_on.store(select_fifth_dept.get());
-    if (g_select_on.load())
-        swofty::log("[rnd-tyres] box-grid 5th-dept selection ENABLED (name-guarded; overview only, not the tile page): "
-                    "cmp al,4 -> cmp al,5 at site_Career_RnDBoxGridNameClamp");
+    swofty::log("[rnd-tyres] Back route LIVE: purchase back_pressed, perks back and cross-department jumps for "
+                "department 4 now open the Tyres tab (Durability if it has no slot)");
+    if (rnd_fifth_pie::open_tracking_live())
+        swofty::log("[rnd-tyres] Tyres tile route LIVE: pressing the Tyres tile on R&D > Performance opens the Tyres "
+                    "department page");
     else
-        swofty::log("[rnd-tyres] select_fifth_dept off (default); box-grid clamp left stock. The v0.5.0 TeamHQ clamp "
-                    "relax is removed.");
-
-    g_diag_inst_enabled.store(diag_tyres_instances.get());
-    swofty::log("[rnd-tyres] R&D page instance diagnostic installed (site_Career_RnDDeptPageQueryDone); "
-                "diag_tyres_instances=%s",
-                g_diag_inst_enabled.load() ? "on" : "off");
-
-    g_inst_live.store(instantiate_tyres_upgrades.get());
-    if (g_inst_live.load())
-        swofty::log("[rnd-tyres] Tyres upgrade instances ENABLED: tyres_thermal_1..%d (hash 0x%08x..0x%08x) take the "
-                    "normal init + state machine; the dept-4 hub \"default\"/central_fake_upgrade keeps the stock "
-                    "sentinel; sanitizers at load (deserialize end), refresh entry and R&D page pre-query",
-                    kNumRows, kOurHash[0], kOurHash[kNumRows - 1]);
-    else
-        swofty::log("[rnd-tyres] instantiate_tyres_upgrades off; Tyres upgrades keep the stock dept-4 sentinel "
-                    "(page stays empty)");
-
-    g_screen_enabled.store(tyres_upgrade_screen.get());
-    g_route_on.store(g_screen_enabled.load());
-    if (g_route_on.load()) {
-        swofty::log("[rnd-tyres] Back route LIVE: purchase back_pressed, perks back and cross-department jumps for "
-                    "department 4 now open the Tyres tab (Durability if it has no slot)");
-        if (rnd_fifth_pie::open_tracking_live())
-            swofty::log("[rnd-tyres] Tyres tile route LIVE: pressing the Tyres tile on R&D > Performance opens the "
-                        "Tyres department page");
-        else
-            swofty::log("[rnd-tyres] Tyres tile -> Tyres page route NOT installed: pie_tyres_open tracking is off or "
-                        "not installed (the departments screen opens the stock-focused department)");
-    } else {
-        swofty::log("[rnd-tyres] tyres_upgrade_screen off; Develop Upgrade screen fixes NOT installed (Back from a "
-                    "Tyres upgrade dead-ends, as in v0.6.0)");
-    }
-
-    g_card_orange.store(g_route_on.load() || (g_pie_on.load() && addon_setting_on("pie_tyres_performance", true)));
-    if (g_card_orange.load())
-        swofty::log("[rnd-tyres] upgrade card colour[4] (dept 4) white -> Tyres 0x%08x at the k_Career_RnDCardColourTable "
-                    "readers (site_Career_RnDCardColourPick0..4)",
-                    kColTyres);
-
-    g_price_enabled.store(tyres_test_price.get());
-    if (g_price_enabled.load())
-        swofty::log("[rnd-tyres] TEST PRICE LIVE: tyres_thermal_1..%d cost %u research points for research, "
-                    "development, standard and rush (temporary; turn tyres_test_price off to restore the database "
-                    "cost)",
-                    kNumRows, kTestPrice);
-    else
-        swofty::log("[rnd-tyres] tyres_test_price off; the Tyres upgrades use the database cost");
+        swofty::log("[rnd-tyres] Tyres tile -> Tyres page route NOT installed: the pie5 open tracking is not "
+                    "installed (the departments screen opens the stock-focused department)");
+    swofty::log("[rnd-tyres] upgrade card colour[4] (dept 4) white -> Tyres 0x%08x at the k_Career_RnDCardColourTable "
+                "readers (site_Career_RnDCardColourPick0..4)",
+                kColTyres);
 
     swofty::log("[rnd-tyres] hooked dept-enum store (site_Career_TeamDeptEnumStore); Tyres resolutions forced to %u",
                 (unsigned)kTyresValue);

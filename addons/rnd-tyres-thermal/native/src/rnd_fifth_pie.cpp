@@ -2,7 +2,7 @@
 //
 // R&D: Tyres & Thermal Management - the development-potential pie's 5th slice.
 //
-// The addon's render_fifth_pie piece (rnd_departments.cpp) makes
+// The addon's pie piece (install_fifth_pie, rnd_departments.cpp) makes
 // Career_Populate_RnDPieSlices process department code 4: the pie object grows to
 // five slots, slot 4 is constructed after the ctor and gated at populate, and the
 // `code < 4` guard is relaxed. On its own that code-4 pass takes the jump-table
@@ -14,23 +14,22 @@
 // performance publisher, which only ever lists departments that have native stat
 // entries (codes 0..3 in the stock data) and names code 4 "error_department" too.
 //
-// This translation unit finishes the job in independently gated pieces:
+// This translation unit finishes the job in four pieces, all always on:
 //
-//  pie_tyres_slice  - populate: code 4 becomes "tyres" (VM child `tyres`,
+//  slice            - populate: code 4 becomes "tyres" (VM child `tyres`,
 //                     department_name "tyres", lng_rnd_dept_tyres,
 //                     lng_rnd_dept_tyres_overview_description), colour
 //                     0xff0078ff, and the wheel icon borrows the `maintenance`
 //                     frame (overrides.career.rnd_wheel_icon has no tyres frame).
-//  pie_tyres_focus  - the class-B department_focused handler: the data string
+//  focus            - the class-B department_focused handler: the data string
 //                     "tyres" now focuses the `tyres` child and raises
 //                     highlight_pie_sector like the stock four, WITHOUT writing
 //                     the box-grid selection index g_Career_RnDOverviewSelectedDept.
-//  pie_tyres_open   - the Tyres tile opens the Tyres department page: a "Tyres is
+//  open             - the Tyres tile opens the Tyres department page: a "Tyres is
 //                     the focused department" flag replaces the stale stock
 //                     selection index for the departments screen's first tab, and
 //                     the Performance page restores its focus to the Tyres tile.
-//  pie_tyres_performance
-//                   - publisher: department code 4 is added to the department
+//  performance      - publisher: department code 4 is added to the department
 //                     loop that publishes department_performance (and only that
 //                     loop), published as `tyres` with lng_rnd_dept_tyres,
 //                     rnd_goto_tyres_department, colour 0xff0078ff, and a real
@@ -38,10 +37,9 @@
 //                     the Tyres upgrades develop.
 //
 // Every handler acts ONLY on department code 4 - the stock four never change -
-// and every pointer it dereferences is region-checked. The whole file is inert
-// unless the addon's render_fifth_pie is on; the slice and focus pieces rely on
-// its populate changes, which it applies only while render_fifth_pie is on.
-// Settings are read once, in install(). See PIE_SITES.md for the disassembly that
+// and every pointer it dereferences is region-checked. The slice and focus pieces
+// rely on install_fifth_pie's populate changes in rnd_departments.cpp. Every handler
+// is a no-op until install() runs. See PIE_SITES.md for the disassembly that
 // proves each site.
 
 #define WIN32_LEAN_AND_MEAN
@@ -85,10 +83,7 @@ static_assert(djb2("tyres") == 0x107666dcu, "tyres child hash drifted");
 // The data strings the focus handlers compare, in index order (0..3).
 const char *const kStockDepts[4] = {"aero", "chassis", "maintenance", "engine"};
 
-std::atomic<bool> g_slice_live{false};
-std::atomic<bool> g_focus_live{false};
-std::atomic<bool> g_open_live{false};
-std::atomic<bool> g_perf_live{false};
+std::atomic<bool> g_live{false};
 
 bool region_readable(const void *p, size_t n)
 {
@@ -137,32 +132,6 @@ void log_hooked(uintptr_t base, const char *piece, uintptr_t at, const char *wha
 {
     swofty::log("[rnd-tyres] pie5 %s: hooked %s @0x%llx (base+0x%llx)", piece, what, (unsigned long long)at,
                 (unsigned long long)(at - base));
-}
-
-SWOFTY_SETTING(bool, pie_tyres_slice, true);
-SWOFTY_SETTING(bool, pie_tyres_focus, true);
-SWOFTY_SETTING(bool, pie_tyres_open, true);
-SWOFTY_SETTING(bool, pie_tyres_performance, true);
-
-SWOFTY_ON_CHANGE(pie_tyres_slice, bool on)
-{
-    swofty::log("[rnd-tyres] pie_tyres_slice toggled -> %s; install-time, relaunch to apply", on ? "on" : "off");
-}
-
-SWOFTY_ON_CHANGE(pie_tyres_focus, bool on)
-{
-    swofty::log("[rnd-tyres] pie_tyres_focus toggled -> %s; install-time, relaunch to apply", on ? "on" : "off");
-}
-
-SWOFTY_ON_CHANGE(pie_tyres_open, bool on)
-{
-    swofty::log("[rnd-tyres] pie_tyres_open toggled -> %s; install-time, relaunch to apply", on ? "on" : "off");
-}
-
-SWOFTY_ON_CHANGE(pie_tyres_performance, bool on)
-{
-    swofty::log("[rnd-tyres] pie_tyres_performance toggled -> %s; install-time, relaunch to apply",
-                on ? "on" : "off");
 }
 
 std::atomic<int> g_slice_log[4];
@@ -335,7 +304,7 @@ void derive_tyres(swofty::Context &c)
 } // namespace
 
 // ---------------------------------------------------------------------------
-// Piece 1 - pie_tyres_slice: Career_Populate_RnDPieSlices.
+// Piece 1 - slice: Career_Populate_RnDPieSlices.
 //
 // r14d holds the department code for the whole loop body (written once at the
 // loop head, callee-saved across every call).
@@ -362,7 +331,7 @@ void derive_tyres(swofty::Context &c)
 
 SWOFTY_SITE(site_Career_RnDPieSliceNameJoin, swofty::Context &c)
 {
-    if (!g_slice_live.load() || !code4(c) || c.rdi != err_name())
+    if (!g_live.load() || !code4(c) || c.rdi != err_name())
         return;
     c.rdi = reinterpret_cast<uintptr_t>(kTyresName);
     if (g_slice_log[0].fetch_add(1) < 4)
@@ -372,7 +341,7 @@ SWOFTY_SITE(site_Career_RnDPieSliceNameJoin, swofty::Context &c)
 
 SWOFTY_REDIRECT(site_Career_RnDPieSliceDescFormat, int64_t, NeStr **out, const char *fmt, const char *name)
 {
-    if (g_slice_live.load() && reinterpret_cast<uintptr_t>(name) == err_name()) {
+    if (g_live.load() && reinterpret_cast<uintptr_t>(name) == err_name()) {
         name = kTyresName;
         if (g_slice_log[1].fetch_add(1) < 4)
             swofty::log("[rnd-tyres] pie5 slice: code 4 description key -> lng_rnd_dept_tyres_overview_description");
@@ -382,7 +351,7 @@ SWOFTY_REDIRECT(site_Career_RnDPieSliceDescFormat, int64_t, NeStr **out, const c
 
 SWOFTY_SITE(site_Career_RnDPieSliceDefaultColour, swofty::Context &c)
 {
-    if (!g_slice_live.load() || !code4(c) || static_cast<uint32_t>(c.rax) != kColWhite)
+    if (!g_live.load() || !code4(c) || static_cast<uint32_t>(c.rax) != kColWhite)
         return;
     c.rax = kColTyres;
     if (g_slice_log[2].fetch_add(1) < 4)
@@ -391,7 +360,7 @@ SWOFTY_SITE(site_Career_RnDPieSliceDefaultColour, swofty::Context &c)
 
 SWOFTY_SITE(site_Career_RnDPieSliceIconArgs, swofty::Context &c)
 {
-    if (!g_slice_live.load() || !code4(c))
+    if (!g_live.load() || !code4(c))
         return;
     auto *arg5 = reinterpret_cast<uintptr_t *>(c.rsp + 0x20);
     if (*arg5 != reinterpret_cast<uintptr_t>(kTyresName))
@@ -404,7 +373,7 @@ SWOFTY_SITE(site_Career_RnDPieSliceIconArgs, swofty::Context &c)
 }
 
 // ---------------------------------------------------------------------------
-// Pieces 2 and 2b - pie_tyres_focus and pie_tyres_open.
+// Pieces 2 and 2b - focus and open.
 //
 // The class-B (R&D > Performance) department_focused handler compares the data
 // chars (rbx) to aero/chassis/maintenance/engine, returns on no match, otherwise
@@ -434,10 +403,12 @@ SWOFTY_SITE(site_Career_RnDPieSliceIconArgs, swofty::Context &c)
 
 SWOFTY_SITE(site_Career_RnDPieFocusNameCmp, swofty::Context &c)
 {
+    if (!g_live.load())
+        return;
     const char *s = reinterpret_cast<const char *>(c.rbx);
     if (!s || !region_readable(s, 1))
         return;
-    if (g_focus_live.load() && cstr_is(s, kTyresName)) {
+    if (cstr_is(s, kTyresName)) {
         c.rdi = reinterpret_cast<uintptr_t>(kTyresName);
         c.rip = site_Career_RnDPieFocusJoin.address();
         g_tyres_focus.store(true);
@@ -446,8 +417,6 @@ SWOFTY_SITE(site_Career_RnDPieFocusNameCmp, swofty::Context &c)
                         "highlight_pie_sector raised (selection index untouched)");
         return;
     }
-    if (!g_open_live.load())
-        return;
     int index = stock_index(s);
     if (index >= 0)
         clear_tyres_focus(index, "R&D > Performance");
@@ -455,7 +424,7 @@ SWOFTY_SITE(site_Career_RnDPieFocusNameCmp, swofty::Context &c)
 
 SWOFTY_SITE(site_Career_RnDResearchFocusNameCmp, swofty::Context &c)
 {
-    if (!g_open_live.load())
+    if (!g_live.load())
         return;
     const char *s = reinterpret_cast<const char *>(c.rbx);
     if (!s || !region_readable(s, 1))
@@ -467,7 +436,7 @@ SWOFTY_SITE(site_Career_RnDResearchFocusNameCmp, swofty::Context &c)
 
 SWOFTY_SITE(site_Career_RnDPieFocusRestore, swofty::Context &c)
 {
-    if (!g_open_live.load() || !g_tyres_focus.load())
+    if (!g_live.load() || !g_tyres_focus.load())
         return;
     uint8_t want = code4(c) ? kDeptTyres : 0xff;
     c.rax = (c.rax & ~0xffull) | want;
@@ -477,7 +446,7 @@ SWOFTY_SITE(site_Career_RnDPieFocusRestore, swofty::Context &c)
 }
 
 // ---------------------------------------------------------------------------
-// Piece 3 - pie_tyres_performance: the per-team performance publisher.
+// Piece 3 - performance: the per-team performance publisher.
 //
 // The department list (built once per team: codes whose summed stat max is non-zero)
 // lives at [rsp+0xa0] (bytes, capacity 8) with its count at [rsp+0xa8]. It feeds
@@ -517,7 +486,7 @@ SWOFTY_SITE(site_Career_RnDPieFocusRestore, swofty::Context &c)
 
 SWOFTY_SITE(site_Career_RnDPerfDeptLoopEnd, swofty::Context &c)
 {
-    if (!g_perf_live.load())
+    if (!g_live.load())
         return;
     uint64_t n = c.rax;
     if (n == 0 || n >= 8 || *reinterpret_cast<const uint64_t *>(c.rsp + kFrmCount) != n)
@@ -540,7 +509,7 @@ SWOFTY_SITE(site_Career_RnDPerfDeptLoopEnd, swofty::Context &c)
 
 SWOFTY_SITE(site_Career_RnDPerfDeptName, swofty::Context &c)
 {
-    if (!g_perf_live.load() || !perf_code4(c))
+    if (!g_live.load() || !perf_code4(c))
         return;
     if (c.r8 == err_name())
         c.r8 = reinterpret_cast<uintptr_t>(kTyresName);
@@ -549,7 +518,7 @@ SWOFTY_SITE(site_Career_RnDPerfDeptName, swofty::Context &c)
 
 SWOFTY_SITE(site_Career_RnDPerfChildName, swofty::Context &c)
 {
-    if (!g_perf_live.load() || !perf_code4(c) || c.rax != err_name())
+    if (!g_live.load() || !perf_code4(c) || c.rax != err_name())
         return;
     c.rax = reinterpret_cast<uintptr_t>(kTyresName);
     if (g_perf_log[3].fetch_add(1) < 2)
@@ -558,7 +527,7 @@ SWOFTY_SITE(site_Career_RnDPerfChildName, swofty::Context &c)
 
 SWOFTY_SITE(site_Career_RnDPerfDeptColour, swofty::Context &c)
 {
-    if (!g_perf_live.load() || !perf_code4(c) || static_cast<uint32_t>(c.rax) != kColWhite)
+    if (!g_live.load() || !perf_code4(c) || static_cast<uint32_t>(c.rax) != kColWhite)
         return;
     c.rax = kColTyres;
     if (g_perf_log[5].fetch_add(1) < 2)
@@ -567,7 +536,7 @@ SWOFTY_SITE(site_Career_RnDPerfDeptColour, swofty::Context &c)
 
 SWOFTY_SITE(site_Career_RnDPerfGotoName, swofty::Context &c)
 {
-    if (!g_perf_live.load() || !perf_code4(c) || c.r8 != err_name())
+    if (!g_live.load() || !perf_code4(c) || c.r8 != err_name())
         return;
     c.r8 = reinterpret_cast<uintptr_t>(kTyresName);
     if (g_perf_log[4].fetch_add(1) < 2)
@@ -576,69 +545,39 @@ SWOFTY_SITE(site_Career_RnDPerfGotoName, swofty::Context &c)
 
 namespace rnd_fifth_pie {
 
-void install(uintptr_t base, bool render_fifth_pie_on)
+void install(uintptr_t base)
 {
-    if (!render_fifth_pie_on) {
-        swofty::log("[rnd-tyres] pie5: render_fifth_pie off; Tyres pie slice/focus/performance NOT installed (SAFE)");
-        return;
-    }
-
-    bool perf_on = pie_tyres_performance.get();
-    bool slice_on = pie_tyres_slice.get();
-    bool focus_on = pie_tyres_focus.get();
-    bool open_on = pie_tyres_open.get();
-    swofty::log("[rnd-tyres] pie5: pie_tyres_slice=%s pie_tyres_focus=%s pie_tyres_open=%s pie_tyres_performance=%s",
-                slice_on ? "on" : "off", focus_on ? "on" : "off", open_on ? "on" : "off", perf_on ? "on" : "off");
-
-    if (perf_on) {
-        log_hooked(base, "perf", site_Career_RnDPerfDeptLoopEnd.address(), "department_performance loop bound (rax)");
-        log_hooked(base, "perf", site_Career_RnDPerfDeptName.address(), "perf/potential + lng name (r8)");
-        log_hooked(base, "perf", site_Career_RnDPerfChildName.address(), "child-name copy (rax)");
-        log_hooked(base, "perf", site_Career_RnDPerfDeptColour.address(), "dept_colour (eax)");
-        log_hooked(base, "perf", site_Career_RnDPerfGotoName.address(), "rnd_goto name (r8)");
-        g_perf_live.store(true);
-        swofty::log("[rnd-tyres] pie5 perf INSTALLED: department_performance.tyres published per team");
-    }
-
-    if (slice_on) {
-        log_hooked(base, "slice", site_Career_RnDPieSliceNameJoin.address(), "populate name join (rdi)");
-        log_hooked(base, "slice", site_Career_RnDPieSliceDescFormat.address(), "populate default description (r8)");
-        log_hooked(base, "slice", site_Career_RnDPieSliceDefaultColour.address(), "populate default colour (eax)");
-        log_hooked(base, "slice", site_Career_RnDPieSliceIconArgs.address(), "populate wheel-icon arg ([rsp+0x20])");
-        g_slice_live.store(true);
-        swofty::log("[rnd-tyres] pie5 slice INSTALLED: code 4 populates as tyres / 0x%08x / icon %s", kColTyres,
-                    rnd_tyres_icon::wheel(kIconBorrow));
-    }
-
-    if (focus_on) {
-        log_hooked(base, "focus", site_Career_RnDPieFocusNameCmp.address(), "focus handler name compare");
-        g_focus_live.store(true);
-        swofty::log("[rnd-tyres] pie5 focus INSTALLED: data \"tyres\" resumes at 0x%llx",
-                    (unsigned long long)site_Career_RnDPieFocusJoin.address());
-    }
-
-    if (open_on) {
-        if (!focus_on) {
-            swofty::log("[rnd-tyres] pie5 open: needs pie_tyres_focus installed; NOT installed (SAFE)");
-            return;
-        }
-        log_hooked(base, "open", site_Career_RnDPieFocusNameCmp.address(), "R&D > Performance stock focus");
-        log_hooked(base, "open", site_Career_RnDResearchFocusNameCmp.address(), "Team HQ research overview stock focus");
-        log_hooked(base, "open", site_Career_RnDPieFocusRestore.address(), "populate focus restore compare");
-        g_open_live.store(true);
-        swofty::log("[rnd-tyres] pie5 open INSTALLED: the Tyres focus is tracked for the departments screen's first "
-                    "tab and restored on the Performance page");
-    }
+    log_hooked(base, "perf", site_Career_RnDPerfDeptLoopEnd.address(), "department_performance loop bound (rax)");
+    log_hooked(base, "perf", site_Career_RnDPerfDeptName.address(), "perf/potential + lng name (r8)");
+    log_hooked(base, "perf", site_Career_RnDPerfChildName.address(), "child-name copy (rax)");
+    log_hooked(base, "perf", site_Career_RnDPerfDeptColour.address(), "dept_colour (eax)");
+    log_hooked(base, "perf", site_Career_RnDPerfGotoName.address(), "rnd_goto name (r8)");
+    log_hooked(base, "slice", site_Career_RnDPieSliceNameJoin.address(), "populate name join (rdi)");
+    log_hooked(base, "slice", site_Career_RnDPieSliceDescFormat.address(), "populate default description (r8)");
+    log_hooked(base, "slice", site_Career_RnDPieSliceDefaultColour.address(), "populate default colour (eax)");
+    log_hooked(base, "slice", site_Career_RnDPieSliceIconArgs.address(), "populate wheel-icon arg ([rsp+0x20])");
+    log_hooked(base, "focus", site_Career_RnDPieFocusNameCmp.address(), "focus handler name compare");
+    log_hooked(base, "open", site_Career_RnDPieFocusNameCmp.address(), "R&D > Performance stock focus");
+    log_hooked(base, "open", site_Career_RnDResearchFocusNameCmp.address(), "Team HQ research overview stock focus");
+    log_hooked(base, "open", site_Career_RnDPieFocusRestore.address(), "populate focus restore compare");
+    g_live.store(true);
+    swofty::log("[rnd-tyres] pie5 perf INSTALLED: department_performance.tyres published per team");
+    swofty::log("[rnd-tyres] pie5 slice INSTALLED: code 4 populates as tyres / 0x%08x / icon %s", kColTyres,
+                rnd_tyres_icon::wheel(kIconBorrow));
+    swofty::log("[rnd-tyres] pie5 focus INSTALLED: data \"tyres\" resumes at 0x%llx",
+                (unsigned long long)site_Career_RnDPieFocusJoin.address());
+    swofty::log("[rnd-tyres] pie5 open INSTALLED: the Tyres focus is tracked for the departments screen's first tab "
+                "and restored on the Performance page");
 }
 
 bool tyres_focus_pending()
 {
-    return g_open_live.load() && g_tyres_focus.load();
+    return g_live.load() && g_tyres_focus.load();
 }
 
 bool open_tracking_live()
 {
-    return g_open_live.load();
+    return g_live.load();
 }
 
 } // namespace rnd_fifth_pie

@@ -18,8 +18,7 @@
 //               the loop registers instead. The stock table is never written.
 //   apply       site_Career_ApplyUpgradeKeyFilter sends our keys down the 11..17 apply
 //               call; site_Career_ApplyUpgradeBlockNameDefault returns our block name
-//               where the game names only type < 0x12 (both in .data1 bodies). The
-//               read-only apply log sits on site_Career_UpgradeBlockReplayEntry (.xtls).
+//               where the game names only type < 0x12 (both in .data1 bodies).
 //   UI labels   16 inlined type switches (cmp type,0x12 ; ja "INVALID UPGRADE") build
 //               lng_rnd_<type> and <dept>_<type>; for our types the site loads our suffix
 //               and jumps to the switch's join.
@@ -31,7 +30,8 @@
 // The metadata vector (U+0x1a38), the progress function and the type map are dynamic
 // and keyed by type, so they need nothing. Every site is a KB binding: the mixin system
 // installs all of them or none, and no id 19+ exists until install() (SWOFTY_ON_LOAD)
-// turns the module live with tyres_upgrade_types on. Details: native/HOOKS.md v0.9.0.
+// has built the extended order table and turned the module live. Details:
+// native/HOOKS.md v0.9.0.
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -41,7 +41,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <iterator>
 
 #include <swofty/game.hpp>
 #include <swofty/mixin.hpp>
@@ -51,19 +50,6 @@
 using namespace swofty::game;
 
 namespace {
-
-SWOFTY_SETTING(bool, tyres_upgrade_types, true);
-SWOFTY_SETTING(bool, log_upgrade_apply, true);
-
-SWOFTY_ON_CHANGE(tyres_upgrade_types, bool on)
-{
-    swofty::log("[rnd-tyres] tyres_upgrade_types toggled -> %s; install-time, relaunch to apply", on ? "on" : "off");
-}
-
-SWOFTY_ON_CHANGE(log_upgrade_apply, bool on)
-{
-    swofty::log("[rnd-tyres] log_upgrade_apply toggled -> %s; install-time, relaunch to apply", on ? "on" : "off");
-}
 
 constexpr bool kShipPuCooling = true;
 
@@ -97,7 +83,6 @@ constexpr size_t kOrderSites = 4;
 const char kUnknown[] = "unknown";
 
 std::atomic<bool> g_live{false};
-std::atomic<bool> g_apply_log{false};
 std::atomic<int> g_resolve_log{0};
 std::atomic<int> g_ui_log{0};
 std::atomic<int> g_tele_log{0};
@@ -181,59 +166,12 @@ uintptr_t order_end()
 }
 
 // ---------------------------------------------------------------------------
-// Upgrade apply log (read-only), at the entry of the block replay the per-type apply
-// body tail-jumps to: rdx = block name, xmm3 = perc (clamp of the type's summed
-// progress), rcx = vehicle+0x4a0. The game returns before the replay when the type is
-// absent from the vehicle's upgrade map, so only present types reach it. The type is
-// the index of the name pointer in k_Career_UpgradeBlockNameTable, or ours for 19+;
-// other callers pass names from other tables and are not logged.
-
-int block_type(uintptr_t name)
-{
-    for (size_t i = 0; i < kNumTypes; ++i)
-        if (name == reinterpret_cast<uintptr_t>(kAllTypes[i].block))
-            return kAllTypes[i].id;
-    uintptr_t table = k_Career_UpgradeBlockNameTable.address();
-    for (size_t i = 0; i < std::size(*k_Career_UpgradeBlockNameTable); ++i)
-        if (name == table + static_cast<intptr_t>((*k_Career_UpgradeBlockNameTable)[i]))
-            return static_cast<int>(i);
-    return -1;
-}
-
-struct Seen {
-    uintptr_t vehicle;
-    uint32_t type;
-    uint32_t bits;
-};
-
-SRWLOCK g_seen_lock = SRWLOCK_INIT;
-Seen g_seen[128];
-unsigned g_seen_next = 0;
-std::atomic<int> g_apply_lines{0};
-
-bool first_time(uintptr_t vehicle, uint8_t type, float perc)
-{
-    uint32_t bits = 0;
-    std::memcpy(&bits, &perc, 4);
-    AcquireSRWLockExclusive(&g_seen_lock);
-    for (auto &s : g_seen)
-        if (s.vehicle == vehicle && s.type == type) {
-            bool fresh = s.bits != bits;
-            s.bits = bits;
-            ReleaseSRWLockExclusive(&g_seen_lock);
-            return fresh;
-        }
-    g_seen[g_seen_next++ % 128] = {vehicle, type, bits};
-    ReleaseSRWLockExclusive(&g_seen_lock);
-    return true;
-}
-
-// ---------------------------------------------------------------------------
 // UI type switches. Each is `cmp <type>,0x12 ; ja <default>` -> jump table, and the
 // default is `lea r8|r9,["INVALID UPGRADE"] ; jmp <join>`; the join formats
 // lng_rnd_%s (r8) or the <dept>_<type> category frame (r9). A site sits on the default
-// lea, or on the cmp head where the default has no unique signature (clone binders);
-// either way our type loads the suffix and jumps to the join.
+// lea or on the cmp head; a head redirect leaves the registers as the default path does
+// (only the jump-table dispatch writes rax/rcx). Our type loads the suffix and jumps to
+// the join.
 
 enum class Reg { RAX, RCX, RSI, R9, R14, R8 };
 
@@ -383,21 +321,6 @@ SWOFTY_SITE(site_Career_ApplyUpgradeBlockNameDefault, swofty::Context &c)
                     t->block);
 }
 
-SWOFTY_SITE(site_Career_UpgradeBlockReplayEntry, swofty::Context &c)
-{
-    if (!g_apply_log.load(std::memory_order_relaxed))
-        return;
-    int type = block_type(c.rdx);
-    if (type < 0)
-        return;
-    float perc = c.xmm3.f32[0];
-    uintptr_t vehicle = c.rcx - 0x4a0;
-    if (!first_time(vehicle, static_cast<uint8_t>(type), perc) || g_apply_lines.fetch_add(1) >= 600)
-        return;
-    swofty::log("[rnd-tyres] upgrade apply: type %d %s perc %.4f (vehicle 0x%llx)", type,
-                reinterpret_cast<const char *>(c.rdx), perc, (unsigned long long)vehicle);
-}
-
 // ---------------------------------------------------------------------------
 // UI type switches: site, type register and width, destination register, log name. The
 // join binding is the site's name + Join.
@@ -497,22 +420,8 @@ int effect_dept(uint8_t type)
 
 void install(uintptr_t)
 {
-    g_apply_log.store(log_upgrade_apply.get());
-    if (g_apply_log.load())
-        swofty::log("[rnd-tyres] upgrade apply log INSTALLED: read-only hook @0x%llx logs each type's perc once per "
-                    "vehicle and value",
-                    (unsigned long long)site_Career_UpgradeBlockReplayEntry.address());
-    else
-        swofty::log("[rnd-tyres] upgrade apply log: log_upgrade_apply off (SAFE)");
-
-    bool on = tyres_upgrade_types.get();
-    swofty::log("[rnd-tyres] upgrade types: tyres_upgrade_types=%s, %u new types (Power Unit Cooling %s)",
-                on ? "on" : "off", (unsigned)kNumTypes, kShipPuCooling ? "shipped" : "not shipped");
-    if (!on) {
-        swofty::log("[rnd-tyres] upgrade types: tyres_upgrade_types off; the 19 stock types only, and a Tyres row "
-                    "naming a new type resolves to Engine Power (SAFE for stock rows)");
-        return;
-    }
+    swofty::log("[rnd-tyres] upgrade types: %u new types (Power Unit Cooling %s)", (unsigned)kNumTypes,
+                kShipPuCooling ? "shipped" : "not shipped");
     std::memcpy(g_order, *k_Career_UpgradeTypeOrder, kStockTypes);
     for (size_t i = 0; i < kNumTypes; ++i)
         g_order[kStockTypes + i] = kAllTypes[i].id;

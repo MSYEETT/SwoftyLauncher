@@ -6,8 +6,7 @@ frame is one BC7 slice of a texture array, named by the entry at the same index 
 `overrides.uidb` list, as in build_icons.py. This script appends the slices to the 2026
 (`rnd_om_xm.`) and the pre-2026 lists, in every UI archive that carries each array,
 writes the grown fragments into art/arrays/, and writes erp/rnd_tyres_card_art.json: the
-fragment replacements plus one patch-pkg that appends the `overrides.uidb` entries. Every
-operation is gated on the `tyres_card_art` setting.
+fragment replacements plus one patch-pkg that appends the `overrides.uidb` entries.
 
 Frame names follow each list's stock convention:
   rnd_om_xm.rnd_part_image      om_xm_<name>, om_xm_<name>_progress, om_xm_<name>_complete
@@ -38,7 +37,6 @@ OVERRIDES = build_icons.OVERRIDES
 MANIFEST = os.path.join(common.ADDON, 'art', 'manifest.json')
 OUT = 'art/arrays'
 OPS = 'erp/rnd_tyres_card_art.json'
-WHEN = {'tyres_card_art': True}
 
 TYPE_KEYS = ['tyre_thermal', 'brake_cooling', 'tyre_life', 'pu_cooling']
 STATES = [('available', '', ''), ('in_progress', '_progress', '_in_progress'), ('complete', '_complete', '_complete')]
@@ -126,7 +124,7 @@ def build(game, out):
             elif got != frags:
                 sys.exit(f'{lst}: {erp} carries a different stock array')
             for i, part in enumerate(['image.f0', 'image.f1', 'texarray.f0']):
-                ops.append({'op': 'replace-resource', 'when': WHEN, 'erp': f'2025_asset_groups/ui_package/{erp}',
+                ops.append({'op': 'replace-resource', 'erp': f'2025_asset_groups/ui_package/{erp}',
                             'resource': image_name if i < 2 else view_name, 'fragment': i if i < 2 else 0,
                             'source': f'{OUT}/{lst}.{part}'})
         head, data, view = frags
@@ -163,7 +161,7 @@ def build(game, out):
                           'set': {'Value': tif}})
         report.append(f'{lst}: {w}x{h}, slices {slices}..{slices + len(entries) - 1} '
                       f'({entries[0][0]} .. {entries[-1][0]}) in {", ".join(e for e, _a in held)}')
-    ops.append({'op': 'patch-pkg', 'when': WHEN, 'erp': f'2025_asset_groups/ui_package/{DATABASES}',
+    ops.append({'op': 'patch-pkg', 'erp': f'2025_asset_groups/ui_package/{DATABASES}',
                 'resource': OVERRIDES, 'fragment': 0, 'edits': edits})
     with open(os.path.join(out, OPS), 'w') as f:
         json.dump({'schema_version': 1, 'ops': ops}, f, indent=2)

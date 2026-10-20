@@ -3,18 +3,17 @@
 // R&D: Tyres & Thermal Management - the Tyres department's own icon frames (v0.8.0).
 //
 // A department icon is a slice of a BC7 texture array, named by the entry at the same index
-// in an overrides.uidb list. erp/rnd_tyres_icon.json (gated on the tyres_icon setting)
-// appends a slice and an entry to three arrays, in both the plain and the rnd_om_xm lists:
+// in an overrides.uidb list. erp/rnd_tyres_icon.json appends a slice and an entry to three arrays, in both the plain and the rnd_om_xm lists:
 //   rnd_dept_icons_small.tyres        48x48 white   (box card, R&D lists, Develop Upgrade card)
 //   rnd_wheel_icon.tyres              60x60 orange  (the Tyres tile on R&D > Performance)
 //   rnd_department_strips.rnd_tyres_strip  1112x4 orange (In Progress list colour strip)
 //
 // The DLL never names a frame the game lacks: probe() reads the index of the installed
 // flow_career_hub.erp and needs every one of the six arrays at its grown size. Anything
-// else (setting off, a launcher that delivered no ERP ops, a stock archive) keeps the
+// else (a launcher that delivered no ERP ops, a stock archive) keeps the
 // v0.7.2 borrowed frames.
 //
-// probe_art() does the same for the card art (v0.9.0, setting tyres_card_art): the
+// probe_art() does the same for the card art (v0.9.0): the
 // rnd_part_image arrays in flow_team_hq.erp must hold exactly the 45 Tyres slices more than
 // stock, the rnd_part_mask arrays 15 and the rnd_category_icons arrays in flow_career_hub.erp
 // 4 (tools/build_card_art.py). Each of the three switches on its own.
@@ -164,8 +163,8 @@ void probe()
     if (found < 0)
         swofty::log("[rnd-tyres] tyres icon off: %s; Tyres keeps the borrowed stock frames (SAFE)", why);
     else
-        swofty::log("[rnd-tyres] tyres icon off: %d/%zu grown R&D icon arrays in flow_career_hub.erp (tyres_icon off "
-                    "or the icon ERP ops not installed); Tyres keeps the borrowed stock frames (SAFE)",
+        swofty::log("[rnd-tyres] tyres icon off: %d/%zu grown R&D icon arrays in flow_career_hub.erp (the icon ERP ops "
+                    "not installed); Tyres keeps the borrowed stock frames (SAFE)",
                     found, want.size());
 }
 

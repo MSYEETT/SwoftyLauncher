@@ -5,7 +5,6 @@ the same index in an `overrides.uidb` list. This script appends one slice to eac
 array the Tyres surfaces read, in every UI archive that carries it, writes the three grown
 fragments of each array into icons/frames/, and writes erp/rnd_tyres_icon.json: the
 fragment replacements plus a patch-pkg that appends the matching `overrides.uidb` entries.
-Every operation is gated on the `tyres_icon` setting.
 
 It compares the build with the shipped icons/frames/ and erp/rnd_tyres_icon.json and exits
 1 on any difference. --write replaces the shipped files instead.
@@ -30,7 +29,6 @@ ARRAYS = 'eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.career.'
 SVG = os.path.join(common.ADDON, 'icons', 'tyres.svg')
 FRAMES = 'icons/frames'
 OPS = 'erp/rnd_tyres_icon.json'
-WHEN = {'tyres_icon': True}
 
 WHITE = (255, 255, 255)
 TYRES_ORANGE = (255, 120, 0)
@@ -135,7 +133,7 @@ def build(game, out):
                     sys.exit(f'{lst}: {erp} carries a different stock array')
                 for i, path in enumerate(['image.f0', 'image.f1', 'texarray.f0']):
                     res = image_name if i < 2 else view_name
-                    ops.append({'op': 'replace-resource', 'when': WHEN,
+                    ops.append({'op': 'replace-resource',
                                 'erp': f'2025_asset_groups/ui_package/{erp}', 'resource': res,
                                 'fragment': i % 2 if i < 2 else 0, 'source': f'{FRAMES}/{lst}.{path}'})
             if frags is None:
@@ -166,7 +164,7 @@ def build(game, out):
             edits.append({'op': 'clone-entry', 'at': at, 'src': f'[Name={names[-1]}]', 'as': frame,
                           'set': {'Value': tif}})
             report.append(f'{lst}: slice {slices} = {frame}')
-    ops.append({'op': 'patch-pkg', 'when': WHEN, 'erp': f'2025_asset_groups/ui_package/{DATABASES}',
+    ops.append({'op': 'patch-pkg', 'erp': f'2025_asset_groups/ui_package/{DATABASES}',
                 'resource': OVERRIDES, 'fragment': 0, 'edits': edits})
     with open(os.path.join(out, OPS), 'w') as f:
         json.dump({'schema_version': 1, 'ops': ops}, f, indent=2)
