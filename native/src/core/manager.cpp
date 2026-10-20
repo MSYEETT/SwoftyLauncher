@@ -93,6 +93,7 @@ uintptr_t base;
 bool same_build;
 std::vector<Binding> bindings;
 std::unordered_map<std::string, size_t> binding_index;
+std::string bindings_file = "bindings.json";
 std::unordered_map<std::string, uintptr_t> scans;
 std::unordered_map<std::string, uintptr_t> anchor_funcs;
 json::Value session;
@@ -671,16 +672,22 @@ Binding *find_binding(const std::string &id)
 
 uintptr_t api_resolve(const char *id)
 {
+    const char *name = id ? id : "(null)";
     Binding *b = find_binding(id ? id : "");
-    if (!b)
-        api->log("[core] %s%sno binding %s in bindings.json", current ? "addon " : "", current ? (current->name + ": ").c_str() : "",
-                 id ? id : "(null)");
-    else if (!b->resolved)
+    if (!b) {
+        if (current)
+            api->log("[core] addon %s needs %s, which %s does not list: this loader is older than the addon, or %s is "
+                     "not an exported binding",
+                     current->name.c_str(), name, bindings_file.c_str(), name);
+        else
+            api->log("[core] no binding %s in %s", name, bindings_file.c_str());
+        return 0;
+    }
+    if (!b->resolved)
         b->addr = resolve_binding(*b), b->resolved = true;
-    uintptr_t a = b ? b->addr : 0;
-    if (!a && current)
-        api->log("[core] addon %s needs %s, which does not resolve on this build", current->name.c_str(), id ? id : "(null)");
-    return a;
+    if (!b->addr && current)
+        api->log("[core] addon %s needs %s, which does not resolve on this build", current->name.c_str(), name);
+    return b->addr;
 }
 
 bool same_dll(const std::string &decl, const std::string &dll)
@@ -788,7 +795,9 @@ void check_targets(size_t i)
         if (k == SWOFTY_MIXIN_ON_LOAD)
             continue;
         Binding *b = find_binding(m.target);
-        m.addr = b ? api_resolve(m.target.c_str()) : 0;
+        if (!b)
+            return drop(i, "needs %s, which %s does not list", m.target.c_str(), bindings_file.c_str());
+        m.addr = api_resolve(m.target.c_str());
         if (!m.addr)
             return drop(i, "needs %s, which does not resolve on this build", m.target.c_str());
         const std::string &bk = b->kind;
@@ -1039,6 +1048,7 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     json::Value doc;
     if (!json::parse(select_bindings(dir, running_stamp, chosen), doc))
         api->log("[core] %ls%s missing or unreadable; no binding will resolve", dir.c_str(), chosen.c_str());
+    bindings_file = chosen;
     for (auto &j : doc["bindings"].a) {
         Binding b{j["id"].str(), j["kind"].str(), j["status"].str(), j["section"].str(), j["pattern"].str(),
                   j["resolve"]["kind"].str("addr"), hex_bytes(j["expect"].str()), j["anchor"].num(),
