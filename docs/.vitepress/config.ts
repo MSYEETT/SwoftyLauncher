@@ -145,6 +145,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Profiles", link: "/using/profiles" },
               { text: "In-game addon settings", link: "/using/swofty-mod" },
               { text: "Playing in VR", link: "/using/vr" },
+              { text: "Career Mode Editor", link: "/using/career-editor" },
               { text: "Restoring the game", link: "/using/profiles-and-restoring" },
               { text: "Updating", link: "/using/updating" },
               { text: "Uninstalling", link: "/guide/uninstall" },
@@ -161,6 +162,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
           {
             text: "Releases",
             items: [
+              { text: "1.0.10", link: "/releases/1.0.10" },
               { text: "1.0.9", link: "/releases/1.0.9" },
               { text: "1.0.8", link: "/releases/1.0.8" },
               { text: "1.0.7", link: "/releases/1.0.7" },
