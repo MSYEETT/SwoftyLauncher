@@ -79,6 +79,7 @@ AUDIO = {
 }
 
 SHARED_AUDIO_ID = {'team12_26': 'lotus', 'team13_26': None}
+CGS_VEHICLES = ('team12_2026', 'team13_2026')
 
 FALLBACK_AUDIO = [('f1_m_fom_car_26', 'V8')]
 
@@ -444,6 +445,9 @@ def db_ops(root_dir, rows):
             ops.append({'op': 'set', 'select': sel, 'field': k, 'value': '0'})
         for k in ('ai_pq_max', 'ai_pq_min', 'ai_race_max', 'ai_race_min', 'human_max', 'human_min'):
             ops.append({'op': 'set', 'select': sel, 'field': f'wear_rates.{k}', 'value': '0.0'})
+    for op in ops:
+        if any(row in op['select'] for row in SHARED_AUDIO_ID) or any(f'={v}]' in op['select'] for v in CGS_VEHICLES):
+            op['when'] = {'cars': 26}
     return {'schema_version': 1, 'ops': ops}
 
 

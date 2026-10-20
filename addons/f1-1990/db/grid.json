@@ -889,133 +889,199 @@
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "team_boss",
-   "value": "andreas_seidl"
+   "value": "andreas_seidl",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.characters.character[_metadata_=andreas_seidl]",
    "field": "full_name",
-   "value": "lng_f1990_boss_larrousse_full"
+   "value": "lng_f1990_boss_larrousse_full",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.characters.character[_metadata_=andreas_seidl]",
    "field": "first_name",
-   "value": "lng_f1990_boss_larrousse_first"
+   "value": "lng_f1990_boss_larrousse_first",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.characters.character[_metadata_=andreas_seidl]",
    "field": "last_name",
-   "value": "lng_f1990_boss_larrousse_last"
+   "value": "lng_f1990_boss_larrousse_last",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "display_name",
-   "value": "lng_f1990_team_larrousse"
+   "value": "lng_f1990_team_larrousse",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "display_name_short",
-   "value": "lng_f1990_team_larrousse_short"
+   "value": "lng_f1990_team_larrousse_short",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "display_name_super_short",
-   "value": "lng_f1990_team_larrousse_short"
+   "value": "lng_f1990_team_larrousse_short",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "display_name_code",
-   "value": "LAR"
+   "value": "LAR",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "primary_colour",
-   "value": "-10507672"
+   "value": "-10507672",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "secondary_colour",
-   "value": "-1"
+   "value": "-1",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "tertiary_colour",
-   "value": "-14730104"
+   "value": "-14730104",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "ui_team_colour",
-   "value": "-10507672"
+   "value": "-10507672",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "team_wear_primary_colour",
-   "value": "-10507672"
+   "value": "-10507672",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "team_wear_secondary_colour",
-   "value": "-1"
+   "value": "-1",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "team_wear_tertiary_colour",
-   "value": "-14730104"
+   "value": "-14730104",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "team_base",
-   "value": "lng_f1990_base_larrousse"
+   "value": "lng_f1990_base_larrousse",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "nationality",
-   "value": "france"
+   "value": "france",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "story_info_0.description",
-   "value": "lng_f1990_desc_larrousse"
+   "value": "lng_f1990_desc_larrousse",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "story_info_0.hashtag",
-   "value": "lng_f1990_tag_larrousse"
+   "value": "lng_f1990_tag_larrousse",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=team12_2026]",
    "field": "display_name",
-   "value": "lng_f1990_team_larrousse"
+   "value": "lng_f1990_team_larrousse",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=team12_2026]",
    "field": "chassis_name",
-   "value": "lng_f1990_chassis_larrousse"
+   "value": "lng_f1990_chassis_larrousse",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=team12_2026]",
    "field": "engine_name_override",
-   "value": "lng_f1990_engine_larrousse"
+   "value": "lng_f1990_engine_larrousse",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
@@ -1399,133 +1465,199 @@
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "team_boss",
-   "value": "franz_tost"
+   "value": "franz_tost",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.characters.character[_metadata_=franz_tost]",
    "field": "full_name",
-   "value": "lng_f1990_boss_dallara_full"
+   "value": "lng_f1990_boss_dallara_full",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.characters.character[_metadata_=franz_tost]",
    "field": "first_name",
-   "value": "lng_f1990_boss_dallara_first"
+   "value": "lng_f1990_boss_dallara_first",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.characters.character[_metadata_=franz_tost]",
    "field": "last_name",
-   "value": "lng_f1990_boss_dallara_last"
+   "value": "lng_f1990_boss_dallara_last",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "display_name",
-   "value": "lng_f1990_team_dallara"
+   "value": "lng_f1990_team_dallara",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "display_name_short",
-   "value": "lng_f1990_team_dallara_short"
+   "value": "lng_f1990_team_dallara_short",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "display_name_super_short",
-   "value": "lng_f1990_team_dallara_short"
+   "value": "lng_f1990_team_dallara_short",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "display_name_code",
-   "value": "DAL"
+   "value": "DAL",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "primary_colour",
-   "value": "-6943484"
+   "value": "-6943484",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "secondary_colour",
-   "value": "-1"
+   "value": "-1",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "tertiary_colour",
-   "value": "-15066598"
+   "value": "-15066598",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "ui_team_colour",
-   "value": "-6943484"
+   "value": "-6943484",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "team_wear_primary_colour",
-   "value": "-6943484"
+   "value": "-6943484",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "team_wear_secondary_colour",
-   "value": "-1"
+   "value": "-1",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "team_wear_tertiary_colour",
-   "value": "-15066598"
+   "value": "-15066598",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "team_base",
-   "value": "lng_f1990_base_dallara"
+   "value": "lng_f1990_base_dallara",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "nationality",
-   "value": "italy"
+   "value": "italy",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "story_info_0.description",
-   "value": "lng_f1990_desc_dallara"
+   "value": "lng_f1990_desc_dallara",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "story_info_0.hashtag",
-   "value": "lng_f1990_tag_dallara"
+   "value": "lng_f1990_tag_dallara",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=team13_2026]",
    "field": "display_name",
-   "value": "lng_f1990_team_dallara"
+   "value": "lng_f1990_team_dallara",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=team13_2026]",
    "field": "chassis_name",
-   "value": "lng_f1990_chassis_dallara"
+   "value": "lng_f1990_chassis_dallara",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=team13_2026]",
    "field": "engine_name_override",
-   "value": "lng_f1990_engine_dallara"
+   "value": "lng_f1990_engine_dallara",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
@@ -8332,37 +8464,55 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team12_driver_01]",
    "field": "entrant_reference",
-   "value": "f1990-eric_bernard"
+   "value": "f1990-eric_bernard",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team12_driver_01]",
    "field": "car_number",
-   "value": "29"
+   "value": "29",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team12_driver_01]",
    "field": "team_position",
-   "value": "0"
+   "value": "0",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team12_driver_02]",
    "field": "entrant_reference",
-   "value": "f1990-aguri_suzuki"
+   "value": "f1990-aguri_suzuki",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team12_driver_02]",
    "field": "car_number",
-   "value": "30"
+   "value": "30",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team12_driver_02]",
    "field": "team_position",
-   "value": "1"
+   "value": "1",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
@@ -8476,37 +8626,55 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team13_driver_01]",
    "field": "entrant_reference",
-   "value": "f1990-emanuele_pirro"
+   "value": "f1990-emanuele_pirro",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team13_driver_01]",
    "field": "car_number",
-   "value": "21"
+   "value": "21",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team13_driver_01]",
    "field": "team_position",
-   "value": "0"
+   "value": "0",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team13_driver_02]",
    "field": "entrant_reference",
-   "value": "f1990-andrea_de_cesaris"
+   "value": "f1990-andrea_de_cesaris",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team13_driver_02]",
    "field": "car_number",
-   "value": "22"
+   "value": "22",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team13_driver_02]",
    "field": "team_position",
-   "value": "1"
+   "value": "1",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",

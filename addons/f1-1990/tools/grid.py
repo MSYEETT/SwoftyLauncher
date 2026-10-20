@@ -160,6 +160,7 @@ BOSS_ROWS = {"mclaren_26": "andrea_stella", "mercedes_26": "toto_wollf", "redbul
              "renault_26": "steve_nielsen", "gm_cadillac_26": "graeme_lowdon", "team12_26": "andreas_seidl",
              "team13_26": "franz_tost"}
 OWN_BOSS = {"team12_26", "team13_26"}
+CGS_MARKERS = ("team12_", "team13_", "=andreas_seidl]", "=franz_tost]")
 STANDINGS_1989 = ["mclaren", "williams", "ferrari", "benetton", "tyrrell", "lotus", "arrows", "brabham", "minardi",
                   "march", "ligier_prost"]
 DRIVERS_1989 = ["alain_prost", "ayrton_senna", "riccardo_patrese", "nigel_mansell", "thierry_boutsen",
@@ -379,6 +380,9 @@ def build(season):
         f"{ENTRANTS}.entrant": ENTRANT_FIELDS,
         f"{POOL}.entrant": ENTRANT_FIELDS,
     }
+    for op in ops:
+        if any(marker in json.dumps(op) for marker in CGS_MARKERS):
+            op["when"] = {"cars": 26}
     report = {"rows": driver_labels,
               "ratings": {d: ratings(season, d) for d in seated + free}}
     return {"schema_version": 1, "fields": fields, "ops": ops}, {"schema_version": 1, "ops": lang}, report

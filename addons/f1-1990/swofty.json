@@ -9,14 +9,17 @@
   "kind": ["database", "erp", "native"],
   "compat": { "game": "f1_25", "game_builds": [">=25251167"], "seasons": ["f1_2026"], "launcher": ">=1.1.0" },
   "requires": [
-    { "id": "swofty.core", "version": ">=0.2.11" },
-    { "id": "swofty.custom-grid-size", "version": ">=0.1.0" }
+    { "id": "swofty.core", "version": ">=0.2.11" }
   ],
+  "load_after": ["swofty.custom-grid-size"],
   "saves": {
     "affects": true,
     "message": "1990 careers won't load without it."
   },
   "options": [
+    { "id": "cars", "type": "slider", "label": "Cars", "min": 22, "max": 26, "step": 4, "default": 22,
+      "description": "22 runs the 11 strongest 1990 teams on the 11 stock 2026 team rows. 26 adds Larrousse and Dallara on Custom Grid Size's two extra teams and needs Custom Grid Size enabled with Cars at 26.",
+      "binds": "db" },
     { "id": "career_year", "type": "choice", "label": "Career year", "default": "1990",
       "description": "The year the Driver Career starts in.",
       "values": ["1990", "2026"], "binds": "db" },
