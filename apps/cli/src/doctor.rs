@@ -35,6 +35,16 @@ pub fn report(store: &Store, session: Option<&Game>) -> (Vec<String>, bool) {
             Err(e) => row("baseline", format!("not checked: {e}")),
         }
     }
+    for p in swofty_core::damaged_state(&store.root) {
+        row(
+            "damaged state",
+            format!(
+                "{} was unreadable (a crash or power loss while it was written) and was set aside; \
+                 swofty carried on without it, and the copy is safe to delete",
+                p.display()
+            ),
+        );
+    }
     let roots = steam::steam_roots();
     if roots.is_empty() {
         row("steam", "not found".into());
