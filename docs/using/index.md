@@ -13,6 +13,7 @@ Once the launcher has found F1 25, you do everything from one window. This secti
 - **Play** sits in the bottom-right. Its status line reads **Ready** when the launcher has found the game. The arrow next to it has **Play in VR** and **Play with console**.
 - Drop a file or folder anywhere on the window to install it. Anything with a `swofty.json` goes to **Addons**; mods and tracks go to **Mods**.
 - **Send Logs to Developers**, at the bottom of the sidebar, sends your logs to the developers when something goes wrong.
+- **Join the Discord**, above it, opens the Swofty Developments Discord server for support and updates. The first time the launcher opens, a **News** popup invites you there too. Once you close it, it doesn't show again.
 
 ## Everyday tasks
 
