@@ -23,7 +23,7 @@ else
     GAME=$GAME_INCLUDE
 fi
 CXX=("${ZIG[@]}" c++ -target x86_64-windows-gnu -std=c++23)
-SRC=(src/plugin.cpp src/grid_best_of.cpp src/save_separation.cpp src/contract_skip.cpp)
+SRC=(src/plugin.cpp src/grid_best_of.cpp src/save_separation.cpp src/contract_skip.cpp src/replay_holders.cpp)
 
 "${CXX[@]}" -O2 -Wall -Wextra -I"$GAME" -I$SDK -D__USE_MINGW_ANSI_STDIO=1 -shared -s \
     -o f1_1990.dll "${SRC[@]}"

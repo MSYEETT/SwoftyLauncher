@@ -8358,6 +8358,33 @@
    "used_by": [
     "addons/f1-1990/native/src/fq_tyres.cpp"
    ]
+  },
+  {
+   "id": "core.replay_after_record",
+   "section": ".xtls",
+   "pattern": "FF 50 20 49 89 F4 48 8B 06 48 89 F1",
+   "match": "0x1445d170f",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1445d1712",
+   "kind": "mid",
+   "expect": "49 89 F4 48 8B 06",
+   "names": [
+    "site_Ne_ReplayAfterRecord"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "heap-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/replay_holders.cpp"
+   ]
   }
  ]
 }
