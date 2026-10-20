@@ -9,6 +9,7 @@ use crate::{Error, Result, io_err};
 
 pub const BUNDLED_ENV: &str = "SWOFTY_BUNDLED_DIR";
 pub const RELEASE_DIR: &str = "addons";
+pub const UPDATES_DIR: &str = "updates";
 pub const PACKAGE_EXT: &str = "swoftyaddon";
 
 pub fn bundled_dir() -> Option<PathBuf> {
@@ -23,7 +24,7 @@ pub fn bundled_dir() -> Option<PathBuf> {
     ]
     .into_iter()
     .flatten()
-    .find(|d| !packages(d).is_empty())
+    .find(|d| !packages(d).is_empty() || !packages(&d.join(UPDATES_DIR)).is_empty())
 }
 
 pub fn packages(dir: &Path) -> Vec<PathBuf> {
@@ -113,6 +114,46 @@ pub fn seed(store: &Store, dir: &Path) -> Result<Vec<String>> {
         store.save_config(&config)?;
     }
     Ok(notes)
+}
+
+pub fn outdated(installed: Option<&Version>, bundled: &Version) -> bool {
+    installed.is_some_and(|v| v < bundled)
+}
+
+/// Replace each addon installed at an older version than its package in
+/// `dir`. An addon that isn't installed stays uninstalled.
+pub fn update(store: &Store, dir: &Path) -> Vec<String> {
+    let mut notes = Vec::new();
+    for pkg in packages(dir) {
+        let m = match package_manifest(&pkg) {
+            Ok(m) => m,
+            Err(e) => {
+                notes.push(format!("addon update {} skipped: {e}", pkg.display()));
+                continue;
+            }
+        };
+        if store.is_builtin(&m.id) {
+            continue;
+        }
+        let installed = match installed_version(store, &m.id) {
+            Ok(v) => v,
+            Err(e) => {
+                notes.push(format!("addon update for {} skipped: {e}", m.id));
+                continue;
+            }
+        };
+        let Some(old) = installed.filter(|v| outdated(Some(v), &m.version)) else {
+            continue;
+        };
+        notes.push(match store.install_addon(&pkg) {
+            Ok(_) => format!("updated the addon {} from {old} to {}", m.id, m.version),
+            Err(e) => format!(
+                "could not update the addon {} from {old} to {}: {e}",
+                m.id, m.version
+            ),
+        });
+    }
+    notes
 }
 
 fn installed_version(store: &Store, id: &str) -> Result<Option<Version>> {
@@ -295,6 +336,65 @@ mod tests {
         assert!(seed(&store, &dir).unwrap().is_empty());
         assert_eq!(installed(&store), Some(v("3.0.0")));
         assert_eq!(store.config().bundled[ID], "1.0.0");
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn decides_which_installed_addons_are_outdated() {
+        let b = v("1.1.0");
+        assert!(!outdated(None, &b));
+        assert!(outdated(Some(&v("1.0.0")), &b));
+        assert!(!outdated(Some(&v("1.1.0")), &b));
+        assert!(!outdated(Some(&v("2.0.0")), &b));
+    }
+
+    #[test]
+    fn updates_only_addons_installed_at_an_older_version() {
+        let root = tmp("updates");
+        let store = Store::new(root.join("data"));
+        let bundled = root.join("bundled");
+        let updates = bundled.join(UPDATES_DIR);
+        package(&updates, "1.1.0");
+        assert!(seed(&store, &bundled).unwrap().is_empty());
+        assert!(update(&store, &updates).is_empty());
+        assert_eq!(installed(&store), None);
+
+        let own = package(&root.join("own"), "1.0.0");
+        store.install_addon(&own).unwrap();
+        let mut p = store.profile(DEFAULT_PROFILE).unwrap();
+        p.set_enabled(ID, true).unwrap();
+        let m = installed_manifest(&store);
+        assert!(p.set_option(&m, "on", serde_json::json!(false)).unwrap());
+        store.save_profile(&p).unwrap();
+        store.create_profile("other", None).unwrap();
+        let profiles = || {
+            (
+                store.profile(DEFAULT_PROFILE).unwrap(),
+                store.profile("other").unwrap(),
+            )
+        };
+        let before = profiles();
+        assert!(before.0.enabled().any(|id| id == ID));
+        assert!(!before.1.enabled().any(|id| id == ID));
+
+        let notes = update(&store, &updates);
+        assert_eq!(notes, ["updated the addon t.bundled from 1.0.0 to 1.1.0"]);
+        assert_eq!(installed(&store), Some(v("1.1.0")));
+        let dll = store.addons_dir().join(ID).join("native/plugin.dll");
+        assert_eq!(std::fs::read_to_string(&dll).unwrap(), "1.1.0");
+        assert_eq!(profiles(), before);
+        assert!(store.config().bundled.is_empty());
+
+        assert!(update(&store, &updates).is_empty());
+        package(&updates, "1.0.5");
+        assert!(update(&store, &updates).is_empty());
+        assert_eq!(installed(&store), Some(v("1.1.0")));
+        assert_eq!(std::fs::read_to_string(&dll).unwrap(), "1.1.0");
+
+        store.remove_addon(ID).unwrap();
+        package(&updates, "2.0.0");
+        assert!(update(&store, &updates).is_empty());
+        assert_eq!(installed(&store), None);
         std::fs::remove_dir_all(&root).ok();
     }
 

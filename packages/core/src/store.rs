@@ -185,10 +185,14 @@ impl Store {
     }
 
     pub fn seed_bundled(&self) -> Result<Vec<String>> {
-        match crate::bundled::bundled_dir() {
-            Some(dir) => crate::bundled::seed(self, &dir),
-            None => Ok(Vec::new()),
-        }
+        let Some(dir) = crate::bundled::bundled_dir() else {
+            return Ok(Vec::new());
+        };
+        let seeded = crate::bundled::seed(self, &dir);
+        let updated = crate::bundled::update(self, &dir.join(crate::bundled::UPDATES_DIR));
+        let mut notes = seeded?;
+        notes.extend(updated);
+        Ok(notes)
     }
 
     pub fn addons(&self) -> Result<BTreeMap<String, AddonManifest>> {
