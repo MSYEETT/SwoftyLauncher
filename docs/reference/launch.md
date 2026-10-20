@@ -19,6 +19,10 @@ Keep Steam running, then select **Play** in the launcher or run `swofty run`. To
 
 Modded sessions don't start while `F1_25.exe` is set to **Run this program as an administrator** and the launcher runs normally: Windows won't start the game unelevated (error 740), and the launch stops with a message naming the setting. To fix it, right-click `F1_25.exe` in the game folder, open **Properties > Compatibility** and untick the box, or untick it under **Change settings for all users** when it's set for all users. You can also run the launcher as administrator. `swofty doctor` shows the setting in its `run as admin` row.
 
+## VR
+
+**Play in VR** and `swofty run --vr` pass `-vr` to the game, the argument of Steam's VR launch option for F1 25. On Linux, SteamVR starts first when it isn't running, and the Steam wrapper passes on the arguments Steam gives the game, so Steam's **Launch in SteamVR mode** works too. See [Playing in VR](/using/vr).
+
 ## Logs
 
 You'll find session logs in `$DATA/sessions/<id>/`. Run `swofty logs` for the latest summary, or use `swofty run` to follow the logs as you play.
