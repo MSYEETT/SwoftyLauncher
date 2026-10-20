@@ -29,6 +29,8 @@ Every call returns `swofty::events::Result` (`ok`, `late`, `unavailable`, `inval
 
 Give `fn` for `subscribe` the signature `void(const SwoftyEvent *ev, void *user)`. For `fn` with `on_frame`, use `void(double dt, void *user)`: `dt` tells you how many seconds have passed since the previous frame.
 
+`on_frame` callbacks run on the first flow-thread update after each rendered frame, and at least every 33 ms when no frame is rendered, as on loading screens. Only one thread runs them at a time.
+
 Registration is accepted at any time from `SWOFTY_ON_LOAD` on, and already in `SwoftyAddonInit`. When the addons load in one batch (no early stage), every `SWOFTY_ON_LOAD` runs before the core's events setup: a `subscribe` or `on_frame` made then returns `ok`, the core logs it as `queued until the events setup` and arms it when the setup completes (`[events] N registration(s) queued before setup are armed`). If the setup finds no frame tick, the core logs each queued `on_frame` that will not fire.
 
 Your subscription lasts until you call `unsubscribe`. If your addon's `SwoftyAddonInit` returns failure, the core drops its subscriptions. Callbacks run on the flow thread, so yours must return at once and never block.

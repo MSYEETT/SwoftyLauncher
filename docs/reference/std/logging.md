@@ -86,4 +86,34 @@ These environment variables change what swofty_core and the loader log. Set them
 | `SWOFTY_LOG_SYNC=1` | Writes each `loader.log` line as it's logged. Without it, a background thread writes lines in batches and crash lines go out at once |
 | `SWOFTY_STORAGE_LOG=all` | Logs every storage call. Without it, swofty_core logs the first three successful calls of each kind from each addon, then only failures |
 | `SWOFTY_RESOLVE=scan` | Finds every binding by scanning for its pattern and leaves the scan cache off. Without it, swofty_core checks each pattern at its address on the analysed build first, and keeps the addresses it scanned for in `swofty/cache/scan-cache.tsv` |
-| `SWOFTY_PERF=1` | Adds `[perf]` lines: every screen open, each career flow from Entering to its next state, the game log's volume every 10 seconds and each Career Editor section pass. Screen opens of 50 ms or more are logged without it |
+| `SWOFTY_PERF=1` | Adds `[perf]` lines: every screen open, each career flow from Entering to its next state, the game log's volume every 10 seconds, each Career Editor section pass, and every hitch in the performance report. Screen opens of 50 ms or more are logged without it |
+| `SWOFTY_PROFILE=0` | Turns the performance report off |
+| `SWOFTY_PERF_HITCH_MS=<ms>` | The frame time the performance report counts as a hitch. Default 50 |
+| `SWOFTY_PERF_SLOW_CALL_MS=<ms>` | The time a single hook or callback takes before the performance report lists it as a slow call. Default 8 |
+
+## Performance report
+
+swofty_core times every hook, site handler, event callback and storage call it runs, and writes the result to `swofty/perf.log` in the game folder every 15 seconds and when the game exits. Each timed call costs about 12 ns. After the game exits, `swofty run` keeps a copy in the session folder, and [Send Logs to Developers](/using/send-logs) sends it with the other logs. Every minute, a line such as this one goes to `loader.log`:
+
+```text
+[perf] last 60 s: 8640 frame(s) (144 fps, p99 9.8 ms, 2 over 50 ms); swofty 0.912 ms/s on game threads (core flow tick (events, career poll) 31.21 ms, swofty.career-editor on_frame 20.87 ms); worst call 1.20 ms (core ui screen open)
+```
+
+Swofty time is the time spent in swofty_core and addon code, without the game code that a hook calls. Frames are counted from the frame index the game passes to NVIDIA Streamline, and from the flow-state ticks while the game does not update it, as on the pause screen.
+
+| Section | Contents |
+|---|---|
+| `== Summary` | Frame times and slow frames, swofty time in total and per second on game threads and on addon threads, the most swofty time in one frame, the slowest single call, the hitch count and the game's CPU use |
+| `== Addons` | Calls, own time, time per second and slowest call for swofty_core and each addon |
+| `== Hooks` | Every hook, callback and storage call: calls, total time, average, slowest call and calls per second |
+| `== Hitches` | The latest frames over the hitch time, with the screen or flow state at the time and the swofty calls that ran in that frame |
+| `== Slow calls` | The latest single calls over the slow call time, with the thread and the screen or flow state |
+| `== Timeline` | Screens, flow states, sessions and career events in order. Each row runs until the next one, with its duration, frames, slow frames, slowest frame and swofty time |
+
+A plugin can time its own work in the report through three functions that `swofty_core.dll` exports. Find them with `GetProcAddress`; a core without them has no report.
+
+| Export | Use |
+|---|---|
+| `uint32_t SwoftyPerfProbe(const char *owner, const char *what)` | Returns the id of a probe. Pass `owner = nullptr` for the calling addon's id |
+| `void SwoftyPerfEnter(uint32_t id)` | Starts timing the probe on this thread. Id 0 starts game code, which is not counted |
+| `void SwoftyPerfLeave(void)` | Ends the latest `SwoftyPerfEnter` on this thread |
