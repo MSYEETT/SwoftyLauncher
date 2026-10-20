@@ -70,23 +70,22 @@ What it writes:
 | Part | Ops |
 |---|---|
 | 13 teams | `set` on each slot's team row: names (`lng_f1990_team_<team>`, `_short`), code, the seven colours, base, nationality, and a 1990 description and hashtag on the 11 rows that carry `story_info`. `set` on its vehicle row: `display_name`, `chassis_name`, `engine_name_override`. Team principal: the boss's `entrants.characters` row gets `lng_f1990_boss_<team>_full/_first/_last`; Larrousse and Dallara get their own boss rows (`andreas_seidl`, `franz_tost`) instead of sharing Williams' and Haas'. `lang.set` on the stock `lng_<team>_boss` keys, which the career's email senders use |
-| 28 drivers | Senna, Prost and Mansell keep their stock rows (`set` car number, seasons, AI traits). 25 new drivers (the other 23 season regulars, plus the stand-ins Foitek, Morbidelli, Schneider, Moreno and Herbert) get a full `entrants.drivers` row copied from `jarno_opmeer`, as Driver Manager builds them |
-| Looks | One `ai_driver_customisations` row per driver (`f1990_<driver>_look`): the team's 2026 suit and gloves, a stock helmet (the classic helmets for Senna, Prost and Mansell) |
-| Ratings | No new `driver_statistics` holders: a race start aborts once the table holds more than 128 (stock 117). Each new driver takes a spare stock holder (`SPARE_HOLDERS`: drivers no 2026 list uses) by `set` on its `driver` field and curves; Senna, Prost and Mansell get `set` on their own holders (`aryton_senna`, `alain_prost`, `nigel_mansell`) |
-| Entrants | One `entrants.entrant_lists.entrants` row per driver (`f1990-<driver>`): driver, look, car number |
+| 31 drivers | No new driver, look or statistics rows (see [Why rows are reused](#why-rows-are-reused)). Senna, Prost and Mansell keep their stock rows (`set` car number, seasons, AI traits). The other 28 (23 season regulars plus the stand-ins Foitek, Morbidelli, Schneider, Moreno and Herbert) each take a stock driver row no list in the 1990 profile uses, by `set` on its names, code, number, nationality, head, birth date, seasons, voice and AI traits: a 2026 F1 driver of the same team row where one is free (`PACKAGES`), otherwise one of six old F2 drivers (`OTHER_ROWS`) |
+| Looks | A reused 2026 F1 driver keeps his `2026-<team>_<driver>` look; Senna, Prost, Mansell and the `OTHER_ROWS` drivers take a 2026 F2 look (`SPARE_LOOKS`). Each look gets `set` on helmet, suit, gloves (the team's 2026 kit) and `linked_driver_stat_id` |
+| Ratings | `set` on the curves of the reused driver's own `driver_statistics` holder, in every data set (2 for the 2026 F1 drivers) |
+| Entrants | A reused 2026 F1 driver keeps his `f1_2026-<driver>` entrant (`set` car number and look); the other 9 drivers get a new `entrants.entrant_lists.entrants` row (`f1990-<driver>`) |
 | Grid | The 26 rows of `f1_2026` (22 stock, 4 from Custom Grid Size at 26 cars) point at the season regulars (each seat's driver with the most starts), with 1990 numbers and `team_position` 0/1 |
 | Free agents | `f1_2026_driver_pool`: Senna's row becomes Foitek; Morbidelli, Schneider, Moreno and Herbert are added |
 | Standings | `f1_teams_2025` lists the stock team rows in 1989 constructors' order; `f1_drivers_2025` lists 22 of the drivers in 1989 order |
 
-### Driver ids
+### Why rows are reused
 
-| Ids | Use |
-|---|---|
-| 18, 37, 60, 61, 104-108, 119, 120, 124 | The 12 driver ids the game leaves free below 208 |
-| 253 down to 238 | The rest, from the top of Driver Manager's block (208-253) |
-| 1990-2017 | Look (`driver_customisation`) stat ids |
+A 26-car race start aborts (heap error 0x16 in `Ne_RobinHoodU8_IncreaseSize` from `Sess_Veh_UpdateWheelMap`) when the profile adds too much to the database, independent of which drivers race:
 
-Driver Manager allocates upward from 208 and checks only the stock database, so it reaches 238 after 30 drivers.
+- with only the new driver rows and 11 new statistics holders (128 holders) the race starts; with 12 (129 holders) it aborts;
+- with the holders kept at 117 but the new driver, look and entrant rows added, it still aborts.
+
+So the grid adds no driver, look or statistics rows and needs no new stat ids. Results: `/mnt/work/.f1-1990/addon/results/10-grid-race-crash.md`.
 
 ### Ratings
 

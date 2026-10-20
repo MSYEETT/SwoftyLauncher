@@ -14,8 +14,34 @@ LIST = "entrants.entrant_lists.entrant_list[_metadata_=f1_2026]"
 POOL = "entrants.entrant_lists.entrant_list[_metadata_=f1_2026_driver_pool]"
 DRIVERS = "entrants.drivers"
 DRIVER_FROM = "entrants.drivers.driver[_metadata_=jarno_opmeer]"
-LOOKS = "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]"
-LOOK_FROM = LOOKS + ".preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]"
+LOOKS = "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]"
+SPARE_LOOKS = [
+    "2026-f2-aixracing_cian_shields", "2026-f2-artgrandprix_kush_maini", "2026-f2-camposracing_nikola_tsolov",
+    "2026-f2-dams_dino_beganovic", "2026-f2-hitech_ritomo_miyata", "2026-f2-invictaracing_joshua_duerksen",
+    "2026-f2-mpmotorsport_gabriele_mini", "2026-f2-mpmotorsport_oliver_goethe", "2026-f2-prema_sebastian_montoya",
+    "2026-f2-tridentmotorsport_john_bennett",
+]
+PACKAGES = {
+    "mclaren_26": ["lando_norris", "oscar_piastri"],
+    "mercedes_26": ["george_russell", "andrea-kimi_antonelli"],
+    "redbull_26": ["max_verstappen", "isack_hadjar"],
+    "ferrari_26": ["charles_leclerc", "lewis_hamilton"],
+    "williams_26": ["alex_albon", "carlos_sainz-jr"],
+    "tororosso_26": ["liam_lawson", "arvid_lindblad"],
+    "forceindia_26": ["fernando_alonso", "lance_stroll"],
+    "haas_26": ["oliver_bearman", "esteban_ocon"],
+    "sauber_26": ["nico_hulkenberg", "gabriel_bortoleto"],
+    "renault_26": ["pierre_gasly", "franco_colapinto"],
+    "gm_cadillac_26": ["sergio_perez", "valtteri_bottas"],
+}
+LOOK_TEAM = {"gm_cadillac_26": "cadillac"}
+PACKAGE_INFO = {
+    d: (f"2026-{LOOK_TEAM.get(row, row[:-3])}_{d}", "alexander_albon" if d == "alex_albon" else d, 2)
+    for row, ds in PACKAGES.items() for d in ds
+}
+OTHER_ROWS = ["nyck_de-vries", "marino_sato", "marcus_armstrong", "juri_vips", "felipe_drugovich", "olli_caldwell"]
+MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+          "November", "December"]
 STATS_TABLE = "driver_statistics.driver_statistics"
 ENTRANTS = "entrants.entrant_lists.entrants"
 ENTRANT_FROM = ENTRANTS + ".entrant[_metadata_=jarno_opmeer]"
@@ -24,8 +50,6 @@ DRIVER_STANDINGS = "entrants.standings.standings[_metadata_=f1_drivers_2025]"
 
 STATS = ("experience", "racecraft", "awareness", "pace", "focus")
 TRAITS = ("aggression", "control", "mistakes", "reaction_speed", "speed_in", "speed_out")
-LOOK_FIELDS = ["_metadata_", "available", "badge", "car_livery", "gloves", "helmet", "linked_driver_stat_id",
-               "podium_emote", "pose", "stat_id", "suit", "victory_vo"]
 ENTRANT_FIELDS = ["_metadata_", "badge_customisation", "car_number", "driver", "driver_customisation",
                   "entrant_reference", "team", "team_position", "vehicle", "vehicle_customisation"]
 
@@ -34,17 +58,8 @@ STOCK = {
     "alain_prost": ("alain_prost", "classic-prost01_alain_prost"),
     "nigel_mansell": ("nigel_mansell", "classic-mansell01_nigel_mansell"),
 }
-SPARE_HOLDERS = [
-    "nyck_de-vries", "marino_sato", "marcus_armstrong", "juri_vips", "felipe_drugovich", "olli_caldwell",
-    "calan_williams", "tatiana_calderon", "jake_hughes", "sebastian_vettel", "kimi_raikkonen", "zak_osullivan",
-    "zane_maloney", "juan-manuel_correa", "dennis_hauger", "enzo_fittipaldi", "paul_aron", "taylor_barnard",
-    "guanyu_zhou", "kevin_magnussen", "logan_sargeant", "jehan_daruvala", "frederik_vesti", "theo_pourchaire",
-    "clement_novalak", "ralph_boschung", "roy_nissany", "ayumu_iwasa", "arthur_leclerc",
-]
 OWN_HOLDERS = {"ayrton_senna": "aryton_senna", "alain_prost": "alain_prost", "nigel_mansell": "nigel_mansell"}
 
-DRIVER_IDS = [18, 37, 60, 61, 104, 105, 106, 107, 108, 119, 120, 124] + list(range(253, 236, -1))
-FIRST_PRESET = 1990
 
 
 DRIVER_INFO = {
@@ -207,10 +222,6 @@ def ratings(season, did):
     return stats, traits
 
 
-def driver_label(did):
-    return STOCK[did][0] if did in STOCK else f"f1990_{did}"
-
-
 def build(season):
     teams = [s.team for s in slots()]
     regulars = season.regulars(teams)
@@ -221,10 +232,6 @@ def build(season):
         for pos, seat in enumerate(regulars[s.team]):
             lineup.append((s, pos, seat))
     seated = [seat.driver for _, _, seat in lineup]
-    new = [d for d in seated if d not in STOCK] + free
-    ids = dict(zip(new, DRIVER_IDS))
-    if len(ids) != len(new):
-        raise SystemExit("not enough driver ids")
     team_of = {seat.driver: s for s, _, seat in lineup}
     team_by_id = {s.team: s for s in slots()}
     for d, tid in stand_ins:
@@ -286,73 +293,90 @@ def build(season):
         setop(vehicle, "chassis_name", f"lng_f1990_chassis_{s.team}")
         setop(vehicle, "engine_name_override", f"lng_f1990_engine_{s.team}")
 
-    preset = FIRST_PRESET
-    spare = iter(SPARE_HOLDERS)
+    driver_labels, entrant_of = {}, {}
+    packages = {row: list(drivers) for row, drivers in PACKAGES.items()}
+    others = iter(OTHER_ROWS)
+    reuse = {}
+    for s, pos, seat in lineup:
+        if seat.driver not in STOCK:
+            team_packages = packages.get(s.team_row)
+            reuse[seat.driver] = team_packages.pop(0) if team_packages else next(others)
+    leftover = [d for row in PACKAGES for d in packages[row]]
+    for did in free:
+        reuse[did] = leftover.pop(0) if leftover else next(others)
+    f2_looks = iter(SPARE_LOOKS)
     for did in seated + free:
         d = season.drivers[did]
         code, debut, (by, bm, bd), head, helmet = DRIVER_INFO[did]
-        label = driver_label(did)
-        look = f"f1990_{did}_look"
-        entrant = f"f1990-{did}"
         number = number_of[did]
         stats, traits = ratings(season, did)
-        s = team_of[did]
-        suit = SUITS[s.team_row]
+        suit = SUITS[team_of[did].team_row]
         if did in STOCK:
+            label, holder_label, datasets, look, entrant = STOCK[did][0], OWN_HOLDERS[did], 1, None, None
+            helmet = STOCK[did][1]
             row = f"entrants.drivers.driver[_metadata_={label}]"
             setop(row, "car_number", str(number))
             setop(row, "f1_seasons_completed", str(1990 - debut))
             for t in TRAITS:
                 setop(row, f"driver_characteristics.{t}", num(traits[t], 2))
-            helmet = STOCK[did][1]
         else:
+            label = reuse[did]
+            if label in PACKAGE_INFO:
+                look, holder_label, datasets = PACKAGE_INFO[label]
+                entrant = f"f1_2026-{label}"
+            else:
+                look, holder_label, datasets, entrant = next(f2_looks), label, 1, None
             first, last = d.first, d.last
             L(f"lng_f1990_{did}_first", first)
             L(f"lng_f1990_{did}_last", last.upper())
             L(f"lng_f1990_{did}_full", f"{first} {last.upper()}")
+            row = f"entrants.drivers.driver[_metadata_={label}]"
             values = {
-                "_metadata_": label, "audio_name": VOICES.get(did, "DefaultName"), "available": "True",
-                "car_number": str(number), "date_of_birth.year": str(by),
-                "date_of_birth.month": ["January", "February", "March", "April", "May", "June", "July", "August",
-                                        "September", "October", "November", "December"][bm - 1],
-                "date_of_birth.day": str(bd), "f1_seasons_completed": str(1990 - debut),
-                "first_name": f"lng_f1990_{did}_first", "full_name": f"lng_f1990_{did}_full",
-                "garage_slot_preference": "0", "head": head, "initials": code, "is_name_reversed": "False",
-                "last_name": f"lng_f1990_{did}_last", "nationality": d.nationality, "stat_id": str(ids[did]),
+                "audio_name": VOICES.get(did, "DefaultName"), "available": "True", "car_number": str(number),
+                "date_of_birth.year": str(by), "date_of_birth.month": MONTHS[bm - 1], "date_of_birth.day": str(bd),
+                "f1_seasons_completed": str(1990 - debut), "first_name": f"lng_f1990_{did}_first",
+                "full_name": f"lng_f1990_{did}_full", "garage_slot_preference": "0", "head": head, "initials": code,
+                "is_name_reversed": "False", "last_name": f"lng_f1990_{did}_last", "nationality": d.nationality,
             }
             for t in TRAITS:
                 values[f"driver_characteristics.{t}"] = num(traits[t], 2)
-            add(DRIVERS, DRIVER_FROM, values)
-        add(LOOKS, LOOK_FROM, {
-            "_metadata_": look, "available": "False", "badge": "Basic Badge",
-            "car_livery": "livery_titlesponsor_livery23", "gloves": suit, "helmet": helmet,
-            "linked_driver_stat_id": label, "podium_emote": "Emote01", "pose": "Pose03", "stat_id": str(preset),
-            "suit": suit, "victory_vo": "",
-        })
-        preset += 1
-        holder_label = OWN_HOLDERS.get(did) or next(spare)
+            for fld, value in values.items():
+                setop(row, fld, value)
+        driver_labels[did] = label
         holder = f"{STATS_TABLE}.DriverStatisticsHolder[_metadata_={holder_label}]"
-        if did not in OWN_HOLDERS:
-            setop(holder, "driver", label)
-        for i, k in enumerate(STATS):
-            setop(holder, f"StatisticsDataSet_0.Statistic_{i}.evolution", curve(stats[k]))
-        add(ENTRANTS, ENTRANT_FROM, {
-            "_metadata_": entrant, "badge_customisation": "", "car_number": str(number), "driver": label,
-            "driver_customisation": look, "entrant_reference": "", "team": "", "team_position": "-1",
-            "vehicle": "", "vehicle_customisation": "",
-        })
+        for ds in range(datasets):
+            for i, k in enumerate(STATS):
+                setop(holder, f"StatisticsDataSet_{ds}.Statistic_{i}.evolution", curve(stats[k]))
+        if look is None:
+            look = next(f2_looks)
+        look_row = f"{LOOKS}.preloaded_driver_customisation_properties[_metadata_={look}]"
+        for fld, value in (("helmet", helmet), ("suit", suit), ("gloves", suit), ("linked_driver_stat_id", label)):
+            setop(look_row, fld, value)
+        if entrant:
+            erow = f"{ENTRANTS}.entrant[_metadata_={entrant}]"
+            setop(erow, "car_number", str(number))
+            setop(erow, "driver_customisation", look)
+            entrant_of[did] = entrant
+        else:
+            entrant = f"f1990-{did}"
+            entrant_of[did] = entrant
+            add(ENTRANTS, ENTRANT_FROM, {
+                "_metadata_": entrant, "badge_customisation": "", "car_number": str(number), "driver": label,
+                "driver_customisation": look, "entrant_reference": "", "team": "", "team_position": "-1",
+                "vehicle": "", "vehicle_customisation": "",
+            })
 
     for s, pos, seat in lineup:
         row = f"{LIST}.entrant[_metadata_={STOCK_SEATS[s.team_row][pos]}]"
-        setop(row, "entrant_reference", f"f1990-{seat.driver}")
+        setop(row, "entrant_reference", entrant_of[seat.driver])
         setop(row, "car_number", str(seat.number))
         setop(row, "team_position", str(pos))
 
-    setop(f"{POOL}.entrant[_metadata_=senna]", "entrant_reference", f"f1990-{free[0]}")
+    setop(f"{POOL}.entrant[_metadata_=senna]", "entrant_reference", entrant_of[free[0]])
     for did in free[1:]:
         add(POOL, f"{POOL}.entrant[_metadata_=opmeer]", {
             "_metadata_": f"f1990_{did}", "badge_customisation": "", "car_number": "255", "driver": "",
-            "driver_customisation": "", "entrant_reference": f"f1990-{did}", "team": "", "team_position": "-1",
+            "driver_customisation": "", "entrant_reference": entrant_of[did], "team": "", "team_position": "-1",
             "vehicle": "", "vehicle_customisation": "",
         })
 
@@ -360,15 +384,14 @@ def build(season):
     for i, tid in enumerate(STANDINGS_1989):
         setop(f"{TEAM_STANDINGS}.team_reference_{i}", "team", rows[tid])
     for i, did in enumerate(DRIVERS_1989):
-        setop(f"{DRIVER_STANDINGS}.driver_reference_{i}", "driver", driver_label(did))
+        setop(f"{DRIVER_STANDINGS}.driver_reference_{i}", "driver", driver_labels[did])
 
     fields = {
         f"{DRIVERS}.driver": rust_list(DM_SRC / "fields.rs", "DRIVER_FIELDS"),
-        f"{LOOKS}.preloaded_driver_customisation_properties": LOOK_FIELDS,
         f"{ENTRANTS}.entrant": ENTRANT_FIELDS,
         f"{POOL}.entrant": ENTRANT_FIELDS,
     }
-    report = {"ids": ids, "presets": {d: FIRST_PRESET + i for i, d in enumerate(seated + free)},
+    report = {"rows": driver_labels,
               "ratings": {d: ratings(season, d) for d in seated + free}}
     return {"schema_version": 1, "fields": fields, "ops": ops}, {"schema_version": 1, "ops": lang}, report
 
@@ -382,8 +405,8 @@ def main(argv):
     (ROOT / "lang/grid.json").write_text(json.dumps(lang, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"db/grid.json: {len(db['ops'])} ops; lang/grid.json: {len(lang['ops'])} strings")
     if "-v" in argv:
-        for d, i in report["ids"].items():
-            print(f"{d:22} stat_id {i:3}")
+        for d, r in report["rows"].items():
+            print(f"{d:22} row {r}")
         for d, (st, tr) in report["ratings"].items():
             print(f"{d:22} " + " ".join(f"{k[:4]} {v*100:4.0f}" for k, v in st.items()) + " | "
                   + " ".join(f"{k[:5]} {v:.2f}" for k, v in tr.items()))
