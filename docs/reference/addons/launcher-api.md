@@ -346,6 +346,7 @@ Use these **blocks** to fill a row's `detail` or a `blocks` body:
 | A card holding blocks *(1.0.10)* | `{ "card": { "title", "blocks": [ … ] } }` |
 | Blocks side by side *(1.0.10)* | `{ "grid": { "columns": 2, "blocks": [ … ] } }` |
 | A form *(1.0.10)* | `{ "form": { "id", "fields": [ … ] } }` ([Forms](#forms)) |
+| A tab bar *(1.0.10)* | `{ "tabs": { "id", "items": [ { "id", "label" } ], "active" } }` ([Tabs](#tabs)) |
 
 Give each **button** an `id` and `label`, with an optional `icon`. Its `style` is `primary`, `outline`, `ghost` or `danger` (default `outline`); its `kind` determines what happens when you click:
 
@@ -374,6 +375,7 @@ When you handle `event`, you receive one event and return one effect to tell the
 | A file-picker result | `{ "picked": { "id": "pick", "paths": ["/home/you/okayama.exmod"] } }` |
 | A form's Apply, a live field or an edited table cell *(1.0.10)* | `{ "submit": { "form": "finance", "values": { "cash": 15000000 }, "changed": ["cash"] } }`, plus `"row"` for a table cell ([Forms](#forms), [Tables](#tables)) |
 | A search box, when it asks for events *(1.0.10)* | `{ "search": { "id": "drivers", "query": "ver" } }` ([Search](#search)) |
+| A tab click *(1.0.10)* | `{ "tab": { "id": "page", "tab": "drivers" } }` ([Tabs](#tabs)) |
 
 | Effect | The launcher |
 |---|---|
@@ -452,6 +454,31 @@ if let Some(toggle) = event.get("toggle") {
 **`card`**: a bordered surface that holds blocks under an optional header. `{ title, subtitle, pills, buttons, blocks }`; `blocks` defaults to empty. A table in a card loses its own border.
 
 **`grid`**: blocks side by side. `{ columns, blocks }`: `columns` is a count from 1 to 4 for equal columns (default 2), or a list of relative widths such as `[2, 1]`. The blocks fill the columns left to right, then the next row; blocks in a row share its height. On a page too narrow for about 280 px per column, the grid becomes one column.
+
+## Tabs {#tabs}
+
+*Launcher 1.0.10.* A `tabs` block draws a row of tabs, so one sidebar page can hold several views:
+
+```json
+{ "tabs": {
+  "id": "page",
+  "items": [
+    { "id": "overview", "label": "Overview", "icon": "gauge" },
+    { "id": "drivers", "label": "Drivers", "icon": "users" },
+    { "id": "history", "label": "History", "icon": "history", "badge": "2" },
+    { "id": "weather", "label": "Weather", "icon": "cloud-rain", "disabled": true }
+  ],
+  "active": "overview"
+} }
+```
+
+| Field | Does |
+|---|---|
+| `id` *(required)* | Names the tab bar in its events. |
+| `items` *(required)* | The tabs, left to right: `{ id, label, icon, badge, disabled }`. `id` and `label` are required; `badge` is a short count or word shown after the label; a `disabled` tab is greyed out and can't be clicked. |
+| `active` | The highlighted tab's `id` (default: the first). |
+
+Clicking a tab that isn't active fires `{ "tab": { "id": "page", "tab": "drivers" } }`. The launcher doesn't switch anything itself: keep the active tab in your plugin, return `"reload"`, and build the next view with that tab's blocks under the bar. Forms and searches keep their state per form `id`, so give forms on different tabs different ids.
 
 ## Forms {#forms}
 

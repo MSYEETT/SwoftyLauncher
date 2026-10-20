@@ -54,6 +54,7 @@ struct Addon {
     vanilla: bool,
     seen: Option<SystemTime>,
     running: bool,
+    tab: String,
 }
 
 fn default_dashboard() -> Value {
@@ -131,70 +132,84 @@ impl Addon {
             })
             .collect();
         let path_or = |p: &Option<String>| p.clone().unwrap_or_else(|| "Not found".into());
+        let mut blocks = vec![
+            json!({ "hero": {
+                "title": d["name"],
+                "subtitle": format!("Profile {} · {} items, {} on", if self.vanilla { "vanilla" } else { "modded" }, items.len(), on.len()),
+                "art": { "monogram": d["name"].as_str().unwrap_or("E") },
+                "pills": [ live, { "text": if d["lock"] == true { "Budget locked" } else { "Budget open" }, "tone": "accent" } ],
+                "facts": [
+                    { "label": "Addon folder", "value": path_or(&addon_dir) },
+                    { "label": "Saves", "value": path_or(&saves) }
+                ],
+                "buttons": [ { "id": "reset", "label": "Reset", "icon": "undo", "style": "ghost",
+                    "kind": { "confirm": { "title": "Reset the dashboard?", "text": "The settings and ratings go back to the defaults." } } } ]
+            } }),
+            json!({ "tabs": { "id": "overview", "active": self.tab, "items": [
+                { "id": "status", "label": "Status", "icon": "gauge" },
+                { "id": "drivers", "label": "Drivers", "icon": "users", "badge": drivers.len().to_string() }
+            ] } }),
+        ];
+        if self.tab == "drivers" {
+            blocks.push(
+                json!({ "card": { "title": "Drivers", "subtitle": "Click a rating to edit it", "blocks": [
+                { "table": {
+                    "id": "drivers",
+                    "columns": [
+                        { "key": "name", "title": "Driver", "sort": true },
+                        { "key": "team", "title": "Team", "sort": true },
+                        { "key": "rating", "title": "Rating", "sort": true, "width": 150 },
+                        { "key": "form", "title": "Form", "width": 96 }
+                    ],
+                    "rows": rows,
+                    "sort": { "column": "rating", "desc": true },
+                    "search": { "placeholder": "Search drivers" },
+                    "compact": true
+                } }
+            ] } }),
+            );
+        } else {
+            blocks.push(json!({ "tiles": [
+                { "label": "Budget", "value": format!("${}k", d["budget"]), "delta": "+$12k", "hint": "since the last race", "icon": "wallet" },
+                { "label": "Speed", "value": format!("{speed}"), "hint": "of 100", "progress": speed / 100.0, "tone": "accent", "icon": "gauge" },
+                { "label": "Average rating", "value": format!("{average:.1}"), "delta": "-0.4", "hint": "6 drivers", "icon": "users" },
+                { "label": "Items on", "value": format!("{} / {}", on.len(), items.len()), "icon": "package" }
+            ] }));
+            blocks.push(json!({ "grid": { "columns": [3, 2], "blocks": [
+                { "card": { "title": "Settings", "subtitle": "Applied together with Apply", "blocks": [
+                    { "form": { "id": "settings", "columns": 2, "fields": [
+                        { "number": { "id": "budget", "label": "Budget", "value": d["budget"], "min": 0, "max": 1000, "step": 10, "unit": "k" } },
+                        { "text": { "id": "name", "label": "Team name", "value": d["name"], "max_len": 32 } },
+                        { "slider": { "id": "speed", "label": "Speed", "value": d["speed"], "min": 0, "max": 100, "step": 5 } },
+                        { "select": { "id": "mode", "label": "Weather", "value": d["mode"], "options": [
+                            { "value": "dry", "label": "Dry" }, { "value": "light", "label": "Light rain" }, { "value": "heavy", "label": "Heavy rain" } ] } },
+                        { "toggle": { "id": "lock", "label": "Lock budget", "value": d["lock"], "help": "Stops the budget from changing." } }
+                    ] } }
+                ] } },
+                { "card": { "title": "Facilities", "pills": [ { "text": "3 upgrading", "tone": "warn" } ], "blocks": [
+                    { "meters": [
+                        { "label": "Wind tunnel", "value": 3, "max": 4, "text": "Phase 3 of 4", "tone": "good" },
+                        { "label": "Simulator", "value": 2, "max": 4, "text": "Phase 2 of 4" },
+                        { "label": "Factory", "value": 1, "max": 4, "text": "Phase 1 of 4", "tone": "warn" },
+                        { "label": "Resource points", "value": 340, "max": 500, "text": "340 / 500 RP" }
+                    ] }
+                ] } }
+            ] } }));
+        }
         Ok(json!({
             "subtitle": "Every launcher block, live from dashboard.json",
             "tick": true,
             "actions": [ { "id": "open", "label": "Open data folder", "icon": "folder-open" } ],
-            "body": { "blocks": [
-                { "hero": {
-                    "title": d["name"],
-                    "subtitle": format!("Profile {} · {} items, {} on", if self.vanilla { "vanilla" } else { "modded" }, items.len(), on.len()),
-                    "art": { "monogram": d["name"].as_str().unwrap_or("E") },
-                    "pills": [ live, { "text": if d["lock"] == true { "Budget locked" } else { "Budget open" }, "tone": "accent" } ],
-                    "facts": [
-                        { "label": "Addon folder", "value": path_or(&addon_dir) },
-                        { "label": "Saves", "value": path_or(&saves) }
-                    ],
-                    "buttons": [ { "id": "reset", "label": "Reset", "icon": "undo", "style": "ghost",
-                        "kind": { "confirm": { "title": "Reset the dashboard?", "text": "The settings and ratings go back to the defaults." } } } ]
-                } },
-                { "tiles": [
-                    { "label": "Budget", "value": format!("${}k", d["budget"]), "delta": "+$12k", "hint": "since the last race", "icon": "wallet" },
-                    { "label": "Speed", "value": format!("{speed}"), "hint": "of 100", "progress": speed / 100.0, "tone": "accent", "icon": "gauge" },
-                    { "label": "Average rating", "value": format!("{average:.1}"), "delta": "-0.4", "hint": "6 drivers", "icon": "users" },
-                    { "label": "Items on", "value": format!("{} / {}", on.len(), items.len()), "icon": "package" }
-                ] },
-                { "grid": { "columns": [3, 2], "blocks": [
-                    { "card": { "title": "Settings", "subtitle": "Applied together with Apply", "blocks": [
-                        { "form": { "id": "settings", "columns": 2, "fields": [
-                            { "number": { "id": "budget", "label": "Budget", "value": d["budget"], "min": 0, "max": 1000, "step": 10, "unit": "k" } },
-                            { "text": { "id": "name", "label": "Team name", "value": d["name"], "max_len": 32 } },
-                            { "slider": { "id": "speed", "label": "Speed", "value": d["speed"], "min": 0, "max": 100, "step": 5 } },
-                            { "select": { "id": "mode", "label": "Weather", "value": d["mode"], "options": [
-                                { "value": "dry", "label": "Dry" }, { "value": "light", "label": "Light rain" }, { "value": "heavy", "label": "Heavy rain" } ] } },
-                            { "toggle": { "id": "lock", "label": "Lock budget", "value": d["lock"], "help": "Stops the budget from changing." } }
-                        ] } }
-                    ] } },
-                    { "card": { "title": "Facilities", "pills": [ { "text": "3 upgrading", "tone": "warn" } ], "blocks": [
-                        { "meters": [
-                            { "label": "Wind tunnel", "value": 3, "max": 4, "text": "Phase 3 of 4", "tone": "good" },
-                            { "label": "Simulator", "value": 2, "max": 4, "text": "Phase 2 of 4" },
-                            { "label": "Factory", "value": 1, "max": 4, "text": "Phase 1 of 4", "tone": "warn" },
-                            { "label": "Resource points", "value": 340, "max": 500, "text": "340 / 500 RP" }
-                        ] }
-                    ] } }
-                ] } },
-                { "card": { "title": "Drivers", "subtitle": "Click a rating to edit it", "blocks": [
-                    { "table": {
-                        "id": "drivers",
-                        "columns": [
-                            { "key": "name", "title": "Driver", "sort": true },
-                            { "key": "team", "title": "Team", "sort": true },
-                            { "key": "rating", "title": "Rating", "sort": true, "width": 150 },
-                            { "key": "form", "title": "Form", "width": 96 }
-                        ],
-                        "rows": rows,
-                        "sort": { "column": "rating", "desc": true },
-                        "search": { "placeholder": "Search drivers" },
-                        "compact": true
-                    } }
-                ] } }
-            ] },
+            "body": { "blocks": blocks },
             "footer": "Edit dashboard.json in the data folder and this page follows it."
         }))
     }
 
     fn overview_event(&mut self, event: &Value) -> Result<Value, String> {
+        if let Some(tab) = event["tab"]["tab"].as_str() {
+            self.tab = tab.to_owned();
+            return Ok(json!("reload"));
+        }
         let mut d = self.dashboard();
         if let Some(submit) = event.get("submit") {
             let values = &submit["values"];
@@ -394,6 +409,7 @@ fn main() {
         vanilla: false,
         seen: None,
         running: false,
+        tab: "status".into(),
     };
     while let Some(Ok(line)) = host.lines.next() {
         let Ok(message) = serde_json::from_str::<Value>(&line) else {

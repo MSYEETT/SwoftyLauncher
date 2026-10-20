@@ -13,7 +13,8 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use serde_json::{Map, Value};
 use swofty_core::view::{
-    Align, Block, Body, Card, Cell, Field, Form, Grid, Hero, Meter, Pill, Search, Table, Tile, Tone, View,
+    Align, Block, Body, Card, Cell, Field, Form, Grid, Hero, Meter, Pill, Search, Table, Tabs, Tile, Tone,
+    View,
 };
 
 use crate::pages::label;
@@ -652,9 +653,93 @@ impl Shell {
             Block::Card(c) => self.card(at, c, p, cx),
             Block::Grid(g) => self.grid(at, g, p, cx),
             Block::Form(f) => self.form(at, f, p, cx),
+            Block::Tabs(t) => self.tabs(at, t, p, cx),
             Block::Table(t) if !t.is_plain() => self.table(at, t, p, cx),
             _ => return None,
         })
+    }
+
+    fn tabs(&self, at: At, t: &Tabs, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+        let active = t.active.clone().or_else(|| t.items.first().map(|i| i.id.clone()));
+        let items = t.items.iter().map(|item| {
+            let on = active.as_deref() == Some(item.id.as_str());
+            let control = format!("{}/{}/{}:{}", at.addon, at.section, t.id, item.id);
+            let busy = self.busy.contains(&control);
+            let fg = if item.disabled {
+                p.text_placeholder
+            } else if on {
+                p.on_accent
+            } else {
+                p.text_muted
+            };
+            let mut tab = div()
+                .id(SharedString::from(format!("tab-{control}")))
+                .h(px(32.))
+                .px(px(14.))
+                .flex()
+                .items_center()
+                .gap(px(7.))
+                .rounded(px(7.))
+                .text_size(px(13.))
+                .font_weight(if on {
+                    FontWeight::SEMIBOLD
+                } else {
+                    FontWeight::MEDIUM
+                })
+                .text_color(fg)
+                .whitespace_nowrap()
+                .when(on, |d| d.bg(p.accent))
+                .when_some(item.icon, |d, i| d.child(Icon::new(icon(i)).size(px(14.))))
+                .child(item.label.clone())
+                .when_some(item.badge.clone(), |d, badge| {
+                    d.child(
+                        div()
+                            .h(px(18.))
+                            .min_w(px(18.))
+                            .px(px(5.))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded(px(9.))
+                            .text_size(px(10.))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .bg(if on { p.on_accent.opacity(0.22) } else { p.elevated })
+                            .text_color(if on { p.on_accent } else { p.text })
+                            .child(badge),
+                    )
+                })
+                .when(busy, |d| d.opacity(0.6));
+            if !on && !item.disabled && !busy {
+                let (addon, section, id, tab_id) = (
+                    at.addon.to_owned(),
+                    at.section.to_owned(),
+                    t.id.clone(),
+                    item.id.clone(),
+                );
+                tab = tab
+                    .cursor_pointer()
+                    .hover(|d| d.bg(p.hover).text_color(p.text))
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        cx.stop_propagation();
+                        let event = swofty_core::view::Event::Tab {
+                            id: id.clone(),
+                            tab: tab_id.clone(),
+                        };
+                        this.send(&addon, &section, control.clone(), event, window, cx);
+                    }));
+            }
+            tab
+        });
+        h_flex()
+            .p(px(4.))
+            .gap(px(4.))
+            .flex_wrap()
+            .rounded(px(10.))
+            .border_1()
+            .border_color(p.border_variant)
+            .bg(p.surface)
+            .children(items)
+            .into_any_element()
     }
 
     fn hero(&self, at: At, h: &Hero, p: Palette, cx: &mut Context<Self>) -> AnyElement {

@@ -74,6 +74,28 @@ pub enum Block {
     Card(Card),
     Grid(Grid),
     Form(Form),
+    Tabs(Tabs),
+}
+
+/// A row of tabs. Clicking an enabled tab that isn't active sends `Event::Tab`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Tabs {
+    pub id: String,
+    pub items: Vec<TabItem>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct TabItem {
+    pub id: String,
+    pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<Icon>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub badge: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub disabled: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -781,6 +803,10 @@ pub enum Event {
         id: String,
         query: String,
     },
+    Tab {
+        id: String,
+        tab: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1216,6 +1242,29 @@ mod tests {
         ));
         let plain: Body = serde_json::from_str(r#"{"list":{"rows":[],"reorder":false}}"#).unwrap();
         assert!(!serde_json::to_string(&plain).unwrap().contains("search"));
+    }
+
+    #[test]
+    fn tabs_block_and_tab_event_match_the_documented_json() {
+        let b: Block = serde_json::from_value(serde_json::json!({ "tabs": { "id": "page",
+            "items": [ { "id": "overview", "label": "Overview", "icon": "gauge" },
+                       { "id": "team", "label": "Team", "badge": "2", "disabled": true } ],
+            "active": "overview" } }))
+        .unwrap();
+        let Block::Tabs(t) = &b else { panic!("tabs") };
+        assert_eq!(t.active.as_deref(), Some("overview"));
+        assert_eq!(
+            (t.items[1].badge.as_deref(), t.items[1].disabled, t.items[0].icon),
+            (Some("2"), true, Some(Icon::Gauge))
+        );
+        assert_eq!(
+            serde_json::to_value(Event::Tab {
+                id: "page".into(),
+                tab: "team".into()
+            })
+            .unwrap(),
+            serde_json::json!({ "tab": { "id": "page", "tab": "team" } })
+        );
     }
 
     #[test]
