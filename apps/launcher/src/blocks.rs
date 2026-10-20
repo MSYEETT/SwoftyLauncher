@@ -1,20 +1,22 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::time::Duration;
 
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState, NumberInput};
-use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::notification::Notification;
+use gpui_kit::component::select::{SearchableVec, Select, SelectEvent, SelectItem, SelectState};
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::switch::Switch;
-use gpui_kit::component::{Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{Disableable, Icon, IndexPath, Sizable, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use serde_json::{Map, Value};
 use swofty_core::view::{
-    Align, Block, Body, Card, Cell, Field, Form, Grid, Hero, Meter, Pill, Search, Table, Tabs, Tile, Tone,
-    View,
+    Align, Block, Body, Card, Cell, Choice, Field, Form, Grid, Hero, Meter, Pill, Search, SelectField, Table,
+    Tabs, Tile, Tone, View,
 };
 
 use crate::pages::label;
@@ -23,6 +25,7 @@ use crate::shell::{Page, Shell};
 use crate::theme::Palette;
 
 const GAP: f32 = 16.;
+const SELECT_MENU_H: f32 = 320.;
 const GRID_COLUMN: f32 = 280.;
 const TILE_COLUMN: f32 = 170.;
 
@@ -56,9 +59,62 @@ pub(crate) enum Reset {
     After(u64),
 }
 
+#[derive(Clone)]
+struct Opt {
+    value: String,
+    label: SharedString,
+    shown: Rc<RefCell<SharedString>>,
+}
+
+impl SelectItem for Opt {
+    type Value = String;
+
+    fn title(&self) -> SharedString {
+        self.label.clone()
+    }
+
+    // The closed field keeps showing the committed value while the cursor moves.
+    fn display_title(&self) -> Option<AnyElement> {
+        Some(self.shown.borrow().clone().into_any_element())
+    }
+
+    fn value(&self) -> &String {
+        &self.value
+    }
+}
+
+struct SelectSlot {
+    state: Entity<SelectState<SearchableVec<Opt>>>,
+    options: Vec<Choice>,
+    shown: Rc<RefCell<SharedString>>,
+}
+
+fn opts(sf: &SelectField, shown: &Rc<RefCell<SharedString>>) -> SearchableVec<Opt> {
+    SearchableVec::new(
+        sf.options
+            .iter()
+            .map(|o| Opt {
+                value: o.value().to_owned(),
+                label: SharedString::from(o.label().to_owned()),
+                shown: shown.clone(),
+            })
+            .collect::<Vec<_>>(),
+    )
+}
+
+fn option_label(sf: &SelectField, value: &str) -> SharedString {
+    let label = sf
+        .options
+        .iter()
+        .find(|o| o.value() == value)
+        .map_or(value, |o| o.label());
+    SharedString::from(label.to_owned())
+}
+
 pub(crate) struct FormSlot {
     inputs: HashMap<String, Entity<InputState>>,
     sliders: HashMap<String, Entity<SliderState>>,
+    selects: HashMap<String, SelectSlot>,
     picks: HashMap<String, Value>,
     synced: HashMap<String, Value>,
     pub(crate) reset: Reset,
@@ -388,6 +444,7 @@ impl Shell {
                 FormSlot {
                     inputs: HashMap::new(),
                     sliders: HashMap::new(),
+                    selects: HashMap::new(),
                     picks: HashMap::new(),
                     synced: HashMap::new(),
                     reset: Reset::No,
@@ -496,7 +553,68 @@ impl Shell {
                         slot.sliders.insert(id.clone(), state);
                     }
                 }
-                Field::Select(_) | Field::Toggle(_) => {
+                Field::Select(sf) => {
+                    if force || slot.picks.get(&id) == Some(&value) {
+                        slot.picks.remove(&id);
+                    }
+                    let current = slot.picks.get(&id).unwrap_or(&value);
+                    let current = current.as_str().unwrap_or_default().to_owned();
+                    if let Some(select) = slot.selects.get_mut(&id) {
+                        let state = select.state.clone();
+                        if select.options != sf.options {
+                            select.options = sf.options.clone();
+                            let items = opts(sf, &select.shown);
+                            state.update(cx, |s, cx| s.set_items(items, window, cx));
+                        }
+                        if state.read(cx).selected_value() != Some(&current) {
+                            state.update(cx, |s, cx| s.set_selected_value(&current, window, cx));
+                        }
+                    } else {
+                        let shown = Rc::new(RefCell::new(option_label(sf, &current)));
+                        let at = sf
+                            .options
+                            .iter()
+                            .position(|o| o.value() == current)
+                            .map(IndexPath::new);
+                        let items = opts(sf, &shown);
+                        let state = cx.new(|cx| {
+                            let mut s = SelectState::new(items, at, window, cx).searchable(sf.search);
+                            s.set_selected_index(at, window, cx);
+                            s
+                        });
+                        let (key, field_id, addon, section, form_id) = (
+                            key.clone(),
+                            id.clone(),
+                            addon.to_owned(),
+                            section.to_owned(),
+                            form.id.clone(),
+                        );
+                        subs.push(cx.subscribe_in(
+                            &state,
+                            window,
+                            move |this, state, ev: &SelectEvent<SearchableVec<Opt>>, window, cx| {
+                                let SelectEvent::Confirm(Some(v)) = ev else {
+                                    return;
+                                };
+                                state.update(cx, |s, cx| s.set_selected_value(v, window, cx));
+                                let live = this
+                                    .find_form(&addon, &section, &form_id)
+                                    .filter(|f| f.live)
+                                    .map(|f| (addon.clone(), section.clone(), f));
+                                this.pick(&key, &field_id, Value::String(v.clone()), live, window, cx);
+                            },
+                        ));
+                        slot.selects.insert(
+                            id.clone(),
+                            SelectSlot {
+                                state,
+                                options: sf.options.clone(),
+                                shown,
+                            },
+                        );
+                    }
+                }
+                Field::Toggle(_) => {
                     if force || slot.picks.get(&id) == Some(&value) {
                         slot.picks.remove(&id);
                     }
@@ -1122,48 +1240,26 @@ impl Shell {
                 }
                 None => div().into_any_element(),
             },
-            Field::Select(sf) => {
-                let current = slot
-                    .and_then(|s| s.picks.get(&id))
-                    .cloned()
-                    .unwrap_or_else(|| field.value());
-                let current = current.as_str().unwrap_or_default().to_owned();
-                let label_text = sf
-                    .options
-                    .iter()
-                    .find(|o| o.value() == current)
-                    .map_or(current.clone(), |o| o.label().to_owned());
-                let shell = cx.entity().downgrade();
-                let (options, key, id) = (sf.options.clone(), key.to_owned(), id.clone());
-                Button::new(control_id)
-                    .outline()
-                    .small()
-                    .w_full()
-                    .label(label_text)
-                    .dropdown_caret(true)
-                    .disabled(disabled)
-                    .dropdown_menu_with_anchor(Anchor::TopLeft, move |mut menu, _, _| {
-                        for o in &options {
-                            let (shell, key, id, live) =
-                                (shell.clone(), key.clone(), id.clone(), live.clone());
-                            let value = Value::String(o.value().to_owned());
-                            menu = menu.item(
-                                PopupMenuItem::new(o.label().to_owned())
-                                    .checked(o.value() == current)
-                                    .on_click(move |_, window, cx| {
-                                        let (value, live) = (value.clone(), live.clone());
-                                        shell
-                                            .update(cx, |this, cx| {
-                                                this.pick(&key, &id, value, live, window, cx)
-                                            })
-                                            .ok();
-                                    }),
-                            );
-                        }
-                        menu
-                    })
-                    .into_any_element()
-            }
+            Field::Select(sf) => match slot.and_then(|s| s.selects.get(&id)) {
+                Some(select) => {
+                    let current = slot
+                        .and_then(|s| s.picks.get(&id))
+                        .cloned()
+                        .unwrap_or_else(|| field.value());
+                    let label = option_label(sf, current.as_str().unwrap_or_default());
+                    select.shown.replace(label.clone());
+                    Select::new(&select.state)
+                        .id(control_id)
+                        .small()
+                        .w_full()
+                        .menu_max_h(px(SELECT_MENU_H))
+                        .search_placeholder("Search")
+                        .placeholder(label)
+                        .disabled(disabled)
+                        .into_any_element()
+                }
+                None => div().into_any_element(),
+            },
             Field::Toggle(_) => {
                 let on = slot
                     .and_then(|s| s.picks.get(&id))

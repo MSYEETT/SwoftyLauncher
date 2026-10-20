@@ -371,10 +371,7 @@ impl Shell {
                 window.push_notification(Notification::info(text), cx);
                 self.reload(cx);
             }
-            Ok(Effect::SetAddonEnabled(on)) => {
-                let registry = self.library.registry.clone();
-                self.update_profile(window, cx, |p| registry.set_enabled(p, addon, on))
-            }
+            Ok(Effect::SetAddonEnabled(on)) => self.set_addon_enabled(addon, on, window, cx),
             Ok(Effect::Open(path)) => {
                 cx.open_with_system(&path);
                 cx.notify();

@@ -148,7 +148,7 @@ plugin    {"id":1,"result":{"subtitle":"1 item, 1 on","body":{"list":{"rows":[],
 | `view` | `{ section }` | a [View](#views) |
 | `event` | `{ section, event }` | an [Effect](#events-and-effects) |
 | `import` | `{ paths }` | `[string]` — lines to show |
-| `build` | `{ options, features }` | `{ ops, items, lines, warnings }` ([build reply](#the-build-reply)) |
+| `build` | `{ options, features }` | `{ ops, items, lines, warnings, fields }` ([build reply](#the-build-reply)) |
 | `command` | `{ path, args }` | a string to print |
 | `summary` | — | `{ label, items }` or `null` |
 | `tick` | `{ section }` | `null` ([Live pages](#live-pages)) |
@@ -517,10 +517,17 @@ Every field takes `id` *(required: its key in `values`)*, `label`, `help` (a mut
 | `number` | `value`, `min`, `max`, `step` (default `1`), `unit` (shown after the number) | a number |
 | `slider` | `value`, `min` (default `0`), `max` (default `100`), `step` (default `1`), `unit` | a number |
 | `text` | `value`, `placeholder`, `max_len` | a string |
-| `select` | `value`, `options`: strings, or `{ value, label }` objects | the chosen option's `value` (a string option is its own value) |
+| `select` | `value`, `options`: strings, or `{ value, label }` objects; `search` *(1.0.11)* | the chosen option's `value` (a string option is its own value) |
 | `toggle` | `value` | `true` or `false` |
 
 A number is clamped to `min`–`max` and rounded to `step` when it's committed, and is sent as an integer when the step and the value are whole. Up and Down step a focused number field.
+
+A select's list opens below it, at most 320 pixels tall, and scrolls when the options don't fit. Up and Down move through the options, Enter picks one and Escape closes the list. *Launcher 1.0.11* adds `"search": true`, which puts a search box at the top of the list: typing filters the options to those whose label contains the text, ignoring case. The field still shows the current value while you search. An older launcher ignores `search` and shows the full list.
+
+```json
+{ "select": { "id": "helmet", "label": "Helmet", "value": "helmet_042", "search": true,
+  "options": [ { "value": "helmet_001", "label": "Classic red" }, { "value": "helmet_042", "label": "Carbon stripe" } ] } }
+```
 
 How a form behaves:
 
@@ -649,12 +656,24 @@ Return your addon's asset ops from `build`, along with lines and warnings:
 }
 ```
 
+*Launcher 1.0.11* adds `fields`, the field names a `db.add-row` copies, in the same shape as an [op file's `fields`](/reference/ops/database): an object keyed by `<table>.<row>`, each holding a list of field names:
+
+```json
+{
+  "ops": [ { "op": "db.add-row", "table": "entrants.teams",
+             "from": "entrants.teams.team[_metadata_=mclaren_26]",
+             "set": { "_metadata_": "team12_26" } } ],
+  "fields": { "entrants.teams.team": ["_metadata_", "stat_id", "display_name_code"] }
+}
+```
+
 - Write each op exactly as you would in an [op file](./asset-api#op-files): set the `op` field to `<kind>.<name>`, such as `file.put`, `db.set`, `erp.patch-pkg`, `lang.set` or `warn`.
 - For a `source` inside the addon folder, use a relative path (`"art/okayama.dds"`). Use `{ "root": "data" | "cache", "path": "…" }` to read from `data_dir` or `cache_dir`.
 - The launcher tags every op with this addon's id as its origin, routes them like declared ops, and reports conflicts by origin ([Asset API](./asset-api#deliveries)).
 - If your addon loads several items, such as the mods in a library, you can add `items`: the item each op comes from, by position in `ops`, with `null` for an op that belongs to no item. The launcher adds the item to the op's origin, so each item gets its own runtime overlay archive and conflicts name it. Leave `items` out, or shorter than `ops`, and the remaining ops have no item.
 - Check `features.stable` and `features.experimental` before returning ops. They list the op `kind`s the installed loader supports: `group`, `erp`, `db`, `lang`, `file`. Drop any ops it cannot apply.
 - The build calls `build` for each enabled addon in load order, after that addon's declared ops. It prints `lines` and `warnings` with the addon id as a prefix.
+- `fields` applies to every `db.add-row` of your addon, from the reply and from your op files. An op file's own `fields` takes precedence for the tables it lists. An `add-row` whose table is in neither fails with `field names unknown`. A launcher before 1.0.11 ignores `fields`; set `"compat": { "launcher": ">=1.0.11" }` when you return `add-row` ops.
 
 ```rust [src/main.rs]
 fn build(&self, host: &mut Host) -> Result<Value, String> {

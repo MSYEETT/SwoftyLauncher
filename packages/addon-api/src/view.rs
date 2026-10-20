@@ -620,6 +620,8 @@ pub struct SelectField {
     pub value: Option<String>,
     #[serde(default)]
     pub options: Vec<Choice>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub search: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1123,6 +1125,34 @@ mod tests {
         assert!(!form.live && !form.disabled);
         let again: Form = serde_json::from_value(serde_json::to_value(&form).unwrap()).unwrap();
         assert_eq!(again, form);
+    }
+
+    #[test]
+    fn select_fields_can_ask_for_search() {
+        let field: Field = serde_json::from_value(serde_json::json!(
+            { "select": { "id": "helmet", "value": "h2", "search": true,
+                          "options": [ { "value": "h1", "label": "Classic Red" }, { "value": "h2", "label": "Carbon" } ] } }
+        ))
+        .unwrap();
+        let Field::Select(select) = &field else {
+            panic!("select");
+        };
+        assert!(select.search);
+        assert_eq!(field.value(), serde_json::json!("h2"));
+        assert_eq!(serde_json::to_value(&field).unwrap()["select"]["search"], true);
+        let plain: Field = serde_json::from_value(
+            serde_json::json!({ "select": { "id": "garage", "options": ["Front", "Back"] } }),
+        )
+        .unwrap();
+        let Field::Select(select) = &plain else {
+            panic!("select");
+        };
+        assert!(!select.search);
+        assert!(
+            serde_json::to_value(&plain).unwrap()["select"]
+                .get("search")
+                .is_none()
+        );
     }
 
     #[test]
