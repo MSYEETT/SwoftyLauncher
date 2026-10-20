@@ -504,7 +504,7 @@
    "op": "set",
    "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race]",
    "field": "points",
-   "value": "9,6,4,3,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+   "value": "9,6,4,3,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
   },
   {
    "op": "set",
@@ -522,7 +522,7 @@
    "op": "set",
    "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race].reduced_points_data_0",
    "field": "points",
-   "value": "4,3,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+   "value": "4,3,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
   },
   {
    "op": "set",
@@ -540,7 +540,7 @@
    "op": "set",
    "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race].reduced_points_data_1",
    "field": "points",
-   "value": "4,3,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+   "value": "4,3,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
   },
   {
    "op": "set",
@@ -558,7 +558,7 @@
    "op": "set",
    "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race].reduced_points_data_2",
    "field": "points",
-   "value": "4,3,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+   "value": "4,3,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
   },
   {
    "op": "set",

@@ -34,7 +34,7 @@ BASE_DATASET_TRACKS = {"imola"}
 
 POINTS = [9, 6, 4, 3, 2, 1]
 HALF_POINTS = [4, 3, 2, 1, 1, 0]
-POINT_SLOTS = 23
+POINT_SLOTS = 26
 
 MODE = "game_modes.ModeChampionship[_metadata_=driver_career_26]"
 CHAMPIONSHIP = "championships.Championship[_metadata_=F1_driver_career_26]"
