@@ -10,7 +10,9 @@ Each of the 11 stock 2026 team cars gets a 1990 handling file built from its sto
   FuelTank               BSFC scaled so fuel per second at full power stays stock (baked AI fuel data)
   FuelECU                power scales divided by the stock standard scale, so the team delta is the season pack's
   Chassis                mass from the season pack
-  F1Aero                 drag scaled by the season pack, no moving front wing; downforce stays stock
+  F1Aero                 drag scaled by the season pack, no moving front wing; downforce stays stock; no DRS
+                         hardware: the DRS failure/joint keys removed, flap angle, open/close speed and
+                         DRS-open wing factors as on the safety car (0, 1, 1.0), radUpgradeDRS emptied
 
 Option tyre_size: stock keeps the stock tyres (the Pirelli 2018 set ships the stock 18-inch meshes, which match
 the stock TyreRadius 0.354/0.351). 13in matches the MP4/5B 13-inch shared tyre mesh: TyreRadius 0.323 front /
@@ -21,7 +23,9 @@ radius drop to each axle's RideHeight and setup ride-height range, for if the ch
 
 Team power, mass and drag come from the season pack's per-team scalars (season.py), applied around a
 common base. Teams that share a car folder (season.slots(): Larrousse on T12 drives the Williams car,
-Dallara on T13 the Haas car) get the mean of their scalars and the engine of the team on the stock row.
+Dallara on T13 the Haas car) get, at 26 cars, the mean of their scalars and the engine of the team on the
+stock row; at 22 cars that folder carries only the stock-row team. Those two folders get a handling file
+per `cars` value.
 T12 takes the audio id of the Lotus row, so Larrousse plays the V12.
 
 Outputs (relative to the addon folder): erp/cars/vtf/<team>.vtf.f0/.f1, erp/cars/handling.json,
@@ -87,6 +91,10 @@ COMPONENT_SETS = [0x0516baca528f3258, 0xf818582c90f40d78]
 PACKAGE_ROW = '{df75292f0fdc1a5c}[_metadata_=f1_2026]'
 
 ERS_UPGRADES = [b'radUpgradeERS', b'radUpgradeWearES', b'radUpgradeWearMGUK']
+DRS_REMOVED = [b'DistanceDrivenCumulativeDRSFailureChance', b'DRSRotationJointAngleRatio', b'DRSFailTimeMin',
+               b'DRSFailTimeMax']
+DRS_SET = {b'DRSRotationAngleRadians': '0.0', b'DRSOpenCloseSpeed': '1', b'm_aero_wing_front_drag': '1.0',
+           b'm_aero_wing_front_force': '1.0', b'm_aero_wing_rear_drag': '1.0', b'm_aero_wing_rear_force': '1.0'}
 ERS_ZERO = {b'MaxDeployPower': 0, b'MaxDeratePower': 0, b'MinInitialDeployPower': 0, b'HarvestLimitMGUK': 0,
             b'HarvestOverrideBonusMGUK': 0, b'HarvestLimitQualifyingMGUK': 0, b'DeployLimitMGUK': 0,
             b'MaxBrakeTorqueMGUK': 0, b'OverrideModeAvailable': 'false'}
@@ -134,18 +142,21 @@ def cars():
     rows = []
     for asset, group in out.items():
         own = [sl for sl in group if sl.team_row not in SHARED_AUDIO_ID] or group
-        teams = [pack.teams[sl.team] for sl in group]
-        rows.append({
-            'car': asset,
-            'vehicles': [sl.vehicle for sl in group],
-            'teams': [t.id for t in teams],
-            'name': ' / '.join(t.name for t in teams),
-            'engine': ENGINES[own[0].team],
-            'power': sum(t.power for t in teams) / len(teams),
-            'weight': sum(t.weight for t in teams) / len(teams),
-            'drag': sum(t.drag for t in teams) / len(teams),
-            'audio': AUDIO[asset],
-        })
+        grids = {None: group} if len(group) == 1 else {22: own, 26: group}
+        for cars_count, seated in grids.items():
+            teams = [pack.teams[sl.team] for sl in seated]
+            rows.append({
+                'car': asset,
+                'cars': cars_count,
+                'vehicles': [sl.vehicle for sl in seated],
+                'teams': [t.id for t in teams],
+                'name': ' / '.join(t.name for t in teams),
+                'engine': ENGINES[own[0].team],
+                'power': sum(t.power for t in teams) / len(teams),
+                'weight': sum(t.weight for t in teams) / len(teams),
+                'drag': sum(t.drag for t in teams) / len(teams),
+                'audio': AUDIO[asset],
+            })
     return rows
 
 
@@ -226,6 +237,15 @@ def zero_ers(root):
 
 
 ERS_MODES = {'removed': remove_ers, 'zeroed': zero_ers}
+
+
+def remove_drs(root, aero):
+    aero.children = [k for k in aero.children if not (k.kind == 0 and k.name in DRS_REMOVED)]
+    for k, v in DRS_SET.items():
+        set_value(aero, k, v)
+    for c in root.children:
+        if c.kind == 0 and c.name == b'Upgrade' and c.attr(b'name') == b'radUpgradeDRS':
+            c.children = [k for k in c.children if k.kind != 0]
 
 
 def named(node, name):
@@ -310,6 +330,7 @@ def convert(root, row, ers, size='stock'):
               b'RearWingCoD0', b'RearWingCoD1'):
         set_value(aero, k, value(aero, k) * drag)
     set_value(aero, b'FrontWingRotationAngleRadians', 0)
+    remove_drs(root, aero)
 
     return {'team': row['name'], 'engine': row['engine'], 'hp': round(real_peak / HP_W),
             'limiter_rpm': fam['limiter_rpm'], 'mass': round(mass, 1), 'drag': round(drag, 3),
@@ -321,6 +342,8 @@ def collect(root_dir, rows):
     top = os.path.join(root_dir, GROUPS, PACKAGE, 'teams')
     for row in rows:
         car = row['car']
+        if car in found:
+            continue
         name = f'eaid://{PACKAGE}/teams/{car}/handling/{car}.vtf'
         d = os.path.join(top, car, 'wep')
         for n in sorted(os.listdir(d)):
@@ -356,18 +379,22 @@ def build(game, out):
                 n1 = vtf.tsmd(root, version)
                 if ers == 'removed' and tyre_size == 'stock':
                     info, size = got, len(n0)
+                stem = row['car'] if row['cars'] in (None, 22) else f'{row["car"]}.{row["cars"]}'
+                when = {'ers': ers, 'tyre_size': tyre_size}
+                if row['cars']:
+                    when['cars'] = row['cars']
                 for i, blob in enumerate((n0, n1)):
-                    rel = f'{folder}{suffix}/{row["car"]}.vtf.f{i}'
+                    rel = f'{folder}{suffix}/{stem}.vtf.f{i}'
                     files[rel] = blob
                     for erp, name, _a, _b in copies:
-                        ops.append({'op': 'replace-resource', 'when': {'ers': ers, 'tyre_size': tyre_size},
-                                    'erp': erp, 'resource': name, 'fragment': i, 'source': rel})
-        info['car'] = row['car']
+                        ops.append({'op': 'replace-resource', 'when': dict(when), 'erp': erp, 'resource': name,
+                                    'fragment': i, 'source': rel})
+        info['car'] = row['car'] if not row['cars'] else f'{row["car"]}@{row["cars"]}'
         info['archives'] = len(copies)
         info['bytes'] = (len(f0), size)
         report.append(info)
     ops.sort(key=lambda o: (o['when']['ers'] != 'removed', list(TYRE_SIZES).index(o['when']['tyre_size']),
-                            o['erp'], o['resource'], o['fragment']))
+                            o['when'].get('cars', 0), o['erp'], o['resource'], o['fragment']))
     files['erp/cars/handling.json'] = (json.dumps({'schema_version': 1, 'ops': ops}, indent=1) + '\n').encode()
     files['db/physics.json'] = (json.dumps(db_ops(root_dir, rows), indent=1) + '\n').encode()
     for rel, blob in files.items():
@@ -422,8 +449,9 @@ def db_ops(root_dir, rows):
     labels = [a for row in rows for a in row['audio']] + [a for a, _ in FALLBACK_AUDIO]
     audio = audio_rows(recs, labels)
     ops = []
+    rows = [r for r in rows if r['cars'] in (None, 26)]
     for row in rows:
-        for v in row['vehicles']:
+        for v in row['vehicles'] + [f'{row["car"]}_2026_equal_performance']:
             sel = f'entrants.vehicles.vehicle[_metadata_={v}]'
             ops.append({'op': 'set', 'select': sel, 'field': 'hud_dial', 'value': '{{hud_dial}}'})
             ops.append({'op': 'set', 'select': sel, 'field': 'drs_capable', 'value': 'False'})
