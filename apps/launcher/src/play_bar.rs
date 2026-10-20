@@ -3,7 +3,7 @@ use gpui_kit::component::button::Button;
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::spinner::Spinner;
 use gpui_kit::component::tooltip::Tooltip;
-use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
+use gpui_kit::component::{Disableable, Icon, Side, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
@@ -12,6 +12,7 @@ use crate::library::plural;
 use crate::pages::avatar;
 use crate::shell::{Page, PlayState, Shell};
 use crate::theme::Palette;
+use swofty_core::session::LaunchMode;
 use swofty_core::updater::Gate;
 
 pub(crate) fn link(id: &'static str, label: &'static str, p: Palette) -> Stateful<Div> {
@@ -122,8 +123,9 @@ impl Shell {
             PlayState::Launching => row
                 .child(dot(p.warning))
                 .child(format!(
-                    "Starting with profile {}… {}",
+                    "Starting with profile {}{}… {}",
                     self.library.profile.name,
+                    if self.launch_mode().is_vr() { " in VR" } else { "" },
                     self.launch
                         .as_ref()
                         .map(|l| duration(l.since.elapsed().as_secs()))
@@ -281,6 +283,7 @@ impl Shell {
 
     fn play_caret(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let shell = cx.entity().downgrade();
+        let vr = self.launch_mode().is_vr();
         Button::new("play-menu")
             .h(px(52.))
             .w(px(34.))
@@ -291,19 +294,38 @@ impl Shell {
             .hover(move |s| s.bg(p.accent_hover))
             .child(Icon::new(IconName::ChevronDown).size(px(16.)))
             .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
-                let shell = shell.clone();
-                menu.min_w(px(220.)).item(
-                    PopupMenuItem::new("Play with console")
-                        .icon(IconName::SquareTerminal)
+                let mode = |label: &'static str, icon: IconName, mode: LaunchMode| {
+                    let shell = shell.clone();
+                    PopupMenuItem::new(label)
+                        .icon(icon)
+                        .checked(vr == mode.is_vr())
                         .on_click(move |_, window, cx| {
                             shell
                                 .update(cx, |s, cx| {
-                                    s.set_console(true, window, cx);
+                                    s.set_launch_mode(mode, window, cx);
                                     s.play(window, cx);
                                 })
                                 .ok();
-                        }),
-                )
+                        })
+                };
+                let shell = shell.clone();
+                menu.min_w(px(220.))
+                    .check_side(Side::Right)
+                    .item(mode("Play", IconName::Play, LaunchMode::Normal))
+                    .item(mode("Play in VR", IconName::RectangleGoggles, LaunchMode::Vr))
+                    .separator()
+                    .item(
+                        PopupMenuItem::new("Play with console")
+                            .icon(IconName::SquareTerminal)
+                            .on_click(move |_, window, cx| {
+                                shell
+                                    .update(cx, |s, cx| {
+                                        s.set_console(true, window, cx);
+                                        s.play(window, cx);
+                                    })
+                                    .ok();
+                            }),
+                    )
             })
     }
 
@@ -312,7 +334,15 @@ impl Shell {
         if gate != Gate::Play {
             return self.update_button(gate, p, cx);
         }
+        let vr = self.launch_mode().is_vr();
         let (icon, label, bg, fg, enabled) = match state {
+            PlayState::Ready | PlayState::Crashed(_) if vr => (
+                IconName::RectangleGoggles,
+                "Play in VR",
+                p.accent,
+                p.on_accent,
+                true,
+            ),
             PlayState::Ready | PlayState::Crashed(_) => (IconName::Play, "Play", p.accent, p.on_accent, true),
             PlayState::Launching => (IconName::LoaderCircle, "Launching…", p.elevated, p.accent, false),
             PlayState::Restoring => (IconName::LoaderCircle, "Restoring…", p.elevated, p.accent, false),

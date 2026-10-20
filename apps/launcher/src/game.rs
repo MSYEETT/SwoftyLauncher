@@ -8,7 +8,7 @@ use swofty_core::crash::{LogScan, StartFailure, Symbols, fatal_name};
 use swofty_core::install::Game;
 use swofty_core::process::{GameProcess, game_processes};
 use swofty_core::recovery::{self, Notice, Scope, SessionLock};
-use swofty_core::session::SessionRecord;
+use swofty_core::session::{LaunchMode, SessionRecord};
 use swofty_core::store::Store;
 use swofty_core::{GAME_EXE, steam};
 
@@ -148,7 +148,7 @@ pub struct Launch {
 }
 
 impl Launch {
-    pub fn start(store: &Store, profile: &str, install: &Install) -> Result<Self, String> {
+    pub fn start(store: &Store, profile: &str, install: &Install, mode: LaunchMode) -> Result<Self, String> {
         let cli = cli_path(store).ok_or("the swofty command was not found next to the launcher")?;
         let log = store.root.join("state/launcher-run.log");
         let out = std::fs::create_dir_all(store.root.join("state"))
@@ -162,6 +162,9 @@ impl Launch {
             .arg(profile)
             .arg("run")
             .arg("--apply");
+        if mode.is_vr() {
+            c.arg("--vr");
+        }
         if install.manual {
             c.arg("--game").arg(&install.dir);
         }

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -15,7 +15,7 @@ use gpui_kit::*;
 use swofty_core::crash::StartFailure;
 use swofty_core::process::{GameProcess, stop_game};
 use swofty_core::recovery::{self, Blocked, Notice};
-use swofty_core::session::SessionRecord;
+use swofty_core::session::{LaunchMode, SessionRecord};
 use swofty_core::store::Store;
 use swofty_core::view::View;
 
@@ -88,6 +88,7 @@ pub struct Shell {
     pub(crate) progress: Option<(f32, String)>,
     pub(crate) dropping: bool,
     pub(crate) sidebar_list: bool,
+    pub(crate) vr_profiles: BTreeSet<String>,
     pub(crate) updates: crate::update::Updates,
     _console_closed: Subscription,
     _poll: Task<()>,
@@ -226,7 +227,8 @@ impl Shell {
             Ok(notes) => notes.iter().for_each(|n| eprintln!("swofty-launcher: {n}")),
             Err(e) => library.error = Some(e.to_string()),
         }
-        let sidebar_list = store.config().sidebar_list;
+        let config = store.config();
+        let (sidebar_list, vr_profiles) = (config.sidebar_list, config.vr_profiles);
         let mut shell = Self {
             library,
             store,
@@ -256,6 +258,7 @@ impl Shell {
             progress: None,
             dropping: false,
             sidebar_list,
+            vr_profiles,
             updates: crate::update::Updates::new(),
             _console_closed: console_closed,
             _poll: poll,
@@ -370,6 +373,7 @@ impl Shell {
 
     pub(crate) fn reload(&mut self, cx: &mut Context<Self>) {
         self.library = Library::load(&self.store);
+        self.vr_profiles = self.store.config().vr_profiles;
         if matches!(self.page, Page::Section(i) if i >= self.library.sections.len()) {
             self.page = Page::Addons;
         }
@@ -421,10 +425,33 @@ impl Shell {
         self.blocked = None;
         Blocked::clear(&self.store.root).ok();
         self.dismissed = self.session.as_ref().map(|s| s.dir.clone());
-        match Launch::start(&self.store, &self.library.profile.name, &install) {
+        match Launch::start(
+            &self.store,
+            &self.library.profile.name,
+            &install,
+            self.launch_mode(),
+        ) {
             Ok(l) => self.launch = Some(l),
             Err(e) => window.push_notification(Notification::error(e).title("Could not launch F1 25"), cx),
         }
+        cx.notify();
+    }
+
+    pub(crate) fn launch_mode(&self) -> LaunchMode {
+        if self.vr_profiles.contains(&self.library.profile.name) {
+            LaunchMode::Vr
+        } else {
+            LaunchMode::Normal
+        }
+    }
+
+    pub(crate) fn set_launch_mode(&mut self, mode: LaunchMode, window: &mut Window, cx: &mut Context<Self>) {
+        let mut config = self.store.config();
+        config.set_launch_mode(&self.library.profile.name, mode);
+        if let Err(e) = self.store.save_config(&config) {
+            window.push_notification(Notification::error(e.to_string()), cx);
+        }
+        self.vr_profiles = config.vr_profiles;
         cx.notify();
     }
 
