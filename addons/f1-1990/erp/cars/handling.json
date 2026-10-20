@@ -4,7 +4,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/ferrari/wep/ferrari.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/ferrari/handling/ferrari.vtf",
@@ -14,7 +15,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/ferrari/wep/ferrari.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/ferrari/handling/ferrari.vtf",
@@ -24,7 +26,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
@@ -34,7 +37,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
@@ -44,7 +48,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_2026.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
@@ -54,7 +59,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_2026.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
@@ -64,7 +70,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
@@ -74,7 +81,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
@@ -84,7 +92,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
@@ -94,7 +103,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
@@ -104,7 +114,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_miami_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
@@ -114,7 +125,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_miami_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
@@ -124,7 +136,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_silverstone_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
@@ -134,7 +147,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_silverstone_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
@@ -144,7 +158,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
@@ -154,7 +169,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
@@ -164,7 +180,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_montreal_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
@@ -174,7 +191,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_montreal_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
@@ -184,7 +202,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_suzuka_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
@@ -194,7 +213,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_suzuka_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
@@ -204,7 +224,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/lotus/wep/lotus.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/lotus/handling/lotus.vtf",
@@ -214,7 +235,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/lotus/wep/lotus.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/lotus/handling/lotus.vtf",
@@ -224,7 +246,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -234,7 +257,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -244,7 +268,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_monaco_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -254,7 +279,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_monaco_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -264,7 +290,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -274,7 +301,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -284,7 +312,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -294,7 +323,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -304,7 +334,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mercedes/wep/mercedes.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mercedes/handling/mercedes.vtf",
@@ -314,7 +345,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mercedes/wep/mercedes.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mercedes/handling/mercedes.vtf",
@@ -324,7 +356,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
@@ -334,7 +367,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
@@ -344,7 +378,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull_suzuka_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
@@ -354,7 +389,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull_suzuka_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
@@ -364,7 +400,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -374,7 +411,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -384,7 +422,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_barcelona_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -394,7 +433,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_barcelona_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -404,7 +444,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_miami_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -414,7 +455,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_miami_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -424,7 +466,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_monaco_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -434,7 +477,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_monaco_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -444,7 +488,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -454,7 +499,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -464,7 +510,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -474,7 +521,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -484,7 +532,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -494,7 +543,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -504,7 +554,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -514,7 +565,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -524,7 +576,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_silverstone_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -534,7 +587,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_silverstone_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -544,7 +598,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_suzuka_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -554,7 +609,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_suzuka_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -564,7 +620,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/williams/wep/williams.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/williams/handling/williams.vtf",
@@ -574,7 +631,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "removed"
+    "ers": "removed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/williams/wep/williams.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/williams/handling/williams.vtf",
@@ -584,7 +642,1284 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/ferrari/wep/ferrari.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/ferrari/handling/ferrari.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/ferrari.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/ferrari/wep/ferrari.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/ferrari/handling/ferrari.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/ferrari.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/force_india.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/force_india.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_2026.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/force_india.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_2026.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/force_india.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/force_india.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/force_india.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/gm_cadillac.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/gm_cadillac.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/gm_cadillac.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/gm_cadillac.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/gm_cadillac.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/gm_cadillac.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/haas.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/haas.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_montreal_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/haas.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_montreal_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/haas.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/haas.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/haas.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/lotus/wep/lotus.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/lotus/handling/lotus.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/lotus.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/lotus/wep/lotus.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/lotus/handling/lotus.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/lotus.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mercedes/wep/mercedes.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mercedes/handling/mercedes.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/mercedes.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mercedes/wep/mercedes.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mercedes/handling/mercedes.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/mercedes.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/redbull.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/redbull.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/redbull.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/redbull.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_barcelona_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_barcelona_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_suzuka_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_suzuka_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/williams/wep/williams.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/williams/handling/williams.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in/williams.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/williams/wep/williams.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/williams/handling/williams.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in/williams.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/ferrari/wep/ferrari.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/ferrari/handling/ferrari.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/ferrari.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/ferrari/wep/ferrari.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/ferrari/handling/ferrari.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/ferrari.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/force_india.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/force_india.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_2026.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/force_india.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_2026.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/force_india.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/force_india.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/force_india.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/gm_cadillac.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/gm_cadillac.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/gm_cadillac.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/gm_cadillac.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/gm_cadillac.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/gm_cadillac.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/haas.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/haas.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_montreal_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/haas.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_montreal_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/haas.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/haas.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/haas.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/lotus/wep/lotus.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/lotus/handling/lotus.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/lotus.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/lotus/wep/lotus.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/lotus/handling/lotus.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/lotus.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mercedes/wep/mercedes.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mercedes/handling/mercedes.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/mercedes.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mercedes/wep/mercedes.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mercedes/handling/mercedes.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/mercedes.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/redbull.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/redbull.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/redbull.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/redbull.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_barcelona_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_barcelona_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_suzuka_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_suzuka_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/williams/wep/williams.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/williams/handling/williams.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_13in_raised/williams.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/williams/wep/williams.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/williams/handling/williams.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_13in_raised/williams.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/ferrari/wep/ferrari.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/ferrari/handling/ferrari.vtf",
@@ -594,7 +1929,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/ferrari/wep/ferrari.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/ferrari/handling/ferrari.vtf",
@@ -604,7 +1940,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
@@ -614,7 +1951,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
@@ -624,7 +1962,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_2026.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
@@ -634,7 +1973,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_2026.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
@@ -644,7 +1984,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
@@ -654,7 +1995,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
@@ -664,7 +2006,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
@@ -674,7 +2017,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
@@ -684,7 +2028,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_miami_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
@@ -694,7 +2039,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_miami_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
@@ -704,7 +2050,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_silverstone_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
@@ -714,7 +2061,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_silverstone_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
@@ -724,7 +2072,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
@@ -734,7 +2083,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
@@ -744,7 +2094,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_montreal_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
@@ -754,7 +2105,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_montreal_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
@@ -764,7 +2116,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_suzuka_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
@@ -774,7 +2127,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_suzuka_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
@@ -784,7 +2138,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/lotus/wep/lotus.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/lotus/handling/lotus.vtf",
@@ -794,7 +2149,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/lotus/wep/lotus.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/lotus/handling/lotus.vtf",
@@ -804,7 +2160,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -814,7 +2171,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -824,7 +2182,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_monaco_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -834,7 +2193,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_monaco_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -844,7 +2204,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -854,7 +2215,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -864,7 +2226,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -874,7 +2237,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
@@ -884,7 +2248,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mercedes/wep/mercedes.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mercedes/handling/mercedes.vtf",
@@ -894,7 +2259,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mercedes/wep/mercedes.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/mercedes/handling/mercedes.vtf",
@@ -904,7 +2270,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
@@ -914,7 +2281,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
@@ -924,7 +2292,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull_suzuka_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
@@ -934,7 +2303,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull_suzuka_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
@@ -944,7 +2314,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -954,7 +2325,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -964,7 +2336,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_barcelona_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -974,7 +2347,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_barcelona_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -984,7 +2358,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_miami_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -994,7 +2369,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_miami_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -1004,7 +2380,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_monaco_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -1014,7 +2391,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_monaco_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
@@ -1024,7 +2402,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -1034,7 +2413,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -1044,7 +2424,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -1054,7 +2435,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -1064,7 +2446,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -1074,7 +2457,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -1084,7 +2468,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -1094,7 +2479,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -1104,7 +2490,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_silverstone_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -1114,7 +2501,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_silverstone_25.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -1124,7 +2512,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_suzuka_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -1134,7 +2523,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_suzuka_26.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
@@ -1144,7 +2534,8 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/williams/wep/williams.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/williams/handling/williams.vtf",
@@ -1154,12 +2545,1289 @@
   {
    "op": "replace-resource",
    "when": {
-    "ers": "zeroed"
+    "ers": "zeroed",
+    "tyre_size": "stock"
    },
    "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/williams/wep/williams.erp",
    "resource": "eaid://f1_2026_vehicle_package/teams/williams/handling/williams.vtf",
    "fragment": 1,
    "source": "erp/cars/vtf_ers_zeroed/williams.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/ferrari/wep/ferrari.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/ferrari/handling/ferrari.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/ferrari.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/ferrari/wep/ferrari.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/ferrari/handling/ferrari.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/ferrari.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/force_india.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/force_india.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_2026.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/force_india.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_2026.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/force_india.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/force_india.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/force_india.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/gm_cadillac.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/gm_cadillac.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/gm_cadillac.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/gm_cadillac.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/gm_cadillac.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/gm_cadillac.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/haas.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/haas.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_montreal_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/haas.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_montreal_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/haas.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/haas.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/haas.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/lotus/wep/lotus.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/lotus/handling/lotus.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/lotus.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/lotus/wep/lotus.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/lotus/handling/lotus.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/lotus.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mercedes/wep/mercedes.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mercedes/handling/mercedes.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/mercedes.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mercedes/wep/mercedes.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mercedes/handling/mercedes.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/mercedes.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/redbull.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/redbull.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/redbull.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/redbull.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_barcelona_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_barcelona_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_suzuka_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_suzuka_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/williams/wep/williams.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/williams/handling/williams.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in/williams.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/williams/wep/williams.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/williams/handling/williams.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in/williams.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/ferrari/wep/ferrari.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/ferrari/handling/ferrari.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/ferrari.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/ferrari/wep/ferrari.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/ferrari/handling/ferrari.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/ferrari.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/force_india.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/force_india.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_2026.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/force_india.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_2026.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/force_india.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/force_india.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/force_india/wep/force_india_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/force_india/handling/force_india.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/force_india.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/gm_cadillac.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/gm_cadillac.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/gm_cadillac.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/gm_cadillac.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/gm_cadillac.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/gm_cadillac/handling/gm_cadillac.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/gm_cadillac.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/haas.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/haas.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_montreal_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/haas.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_montreal_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/haas.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/haas.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/haas/wep/haas_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/haas/handling/haas.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/haas.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/lotus/wep/lotus.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/lotus/handling/lotus.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/lotus.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/lotus/wep/lotus.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/lotus/handling/lotus.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/lotus.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/mclaren.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren_silverstone_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/mclaren.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mercedes/wep/mercedes.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mercedes/handling/mercedes.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/mercedes.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/mercedes/wep/mercedes.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/mercedes/handling/mercedes.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/mercedes.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/redbull.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/redbull.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/redbull.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/redbull/wep/redbull_suzuka_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/redbull.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_barcelona_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_barcelona_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/sauber.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/sauber/wep/sauber_monaco_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/sauber/handling/sauber.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/sauber.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_barcelona_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_miami_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_silverstone_25.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_suzuka_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/toro_rosso.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/toro_rosso/wep/toro_rosso_suzuka_26.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/toro_rosso/handling/toro_rosso.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/toro_rosso.vtf.f1"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/williams/wep/williams.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/williams/handling/williams.vtf",
+   "fragment": 0,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/williams.vtf.f0"
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised"
+   },
+   "erp": "2025_asset_groups/f1_2026_vehicle_package/teams/williams/wep/williams.erp",
+   "resource": "eaid://f1_2026_vehicle_package/teams/williams/handling/williams.vtf",
+   "fragment": 1,
+   "source": "erp/cars/vtf_ers_zeroed_13in_raised/williams.vtf.f1"
   }
  ]
 }

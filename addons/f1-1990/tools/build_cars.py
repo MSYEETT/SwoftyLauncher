@@ -12,8 +12,12 @@ Each of the 11 stock 2026 team cars gets a 1990 handling file built from its sto
   Chassis                mass from the season pack
   F1Aero                 drag scaled by the season pack, no moving front wing; downforce stays stock
 
-Tyres stay stock: the Pirelli 2018 set (D9) ships the stock tyre meshes (rear 0.3542 m, front 0.3531 m
-outer radius at LOD 0), which match the stock TyreRadius 0.354/0.351.
+Option tyre_size: stock keeps the stock tyres (the Pirelli 2018 set ships the stock 18-inch meshes, which match
+the stock TyreRadius 0.354/0.351). 13in matches the MP4/5B 13-inch shared tyre mesh: TyreRadius 0.323 front /
+0.330 rear, AlloyRadius at its 0.175 m bead, the tyre damage node graphs remapped radially from the stock bead and
+tread onto the new ones and widened to the new mesh, and the final drive scaled by the rear radius so road speed
+per engine rev stays the same. TyreWidth, tyre mass, inertia and compression stay stock. 13in_raised also adds the
+radius drop to each axle's RideHeight and setup ride-height range, for if the chassis sits lower on the smaller tyres.
 
 Team power, mass and drag come from the season pack's per-team scalars (season.py), applied around a
 common base. Teams that share a car folder (season.slots(): Larrousse on T12 drives the Williams car,
@@ -86,6 +90,13 @@ ERS_ZERO = {b'MaxDeployPower': 0, b'MaxDeratePower': 0, b'MinInitialDeployPower'
             b'HarvestOverrideBonusMGUK': 0, b'HarvestLimitQualifyingMGUK': 0, b'DeployLimitMGUK': 0,
             b'MaxBrakeTorqueMGUK': 0, b'OverrideModeAvailable': 'false'}
 VTF_DIRS = {'removed': 'erp/cars/vtf', 'zeroed': 'erp/cars/vtf_ers_zeroed'}
+
+TYRE_SIZES = {'stock': '', '13in': '_13in', '13in_raised': '_13in_raised'}
+TYRES_13 = {'Front': {'radius': 0.323, 'width': 0.311}, 'Rear': {'radius': 0.330, 'width': 0.454}}
+STOCK_MESH_WIDTH = {'Front': 0.339, 'Rear': 0.418}
+BEAD_13 = 0.175
+ALLOY_13 = 0.182
+TYRE_GRAPHS = {b'x0_tyre_fl': 'Front', b'x0_tyre_fr': 'Front', b'x0_tyre_bl': 'Rear', b'x0_tyre_br': 'Rear'}
 
 
 class Archive:
@@ -216,9 +227,50 @@ def zero_ers(root):
 ERS_MODES = {'removed': remove_ers, 'zeroed': zero_ers}
 
 
-def convert(root, row, ers):
+def named(node, name):
+    return {c.attr(b'name').decode(): c for c in node.children if c.kind == 0 and c.name == name}
+
+
+def remap_graph(graph, end, stock_radius):
+    nodes = [n for n in graph.children if n.kind == 0 and n.name == b'node']
+    radii = [math.hypot(float(n.attr(b'y')), float(n.attr(b'z'))) for n in nodes]
+    bead, outer = min(radii), max(radii)
+    new_outer = TYRES_13[end]['radius'] * outer / stock_radius
+    widen = TYRES_13[end]['width'] / STOCK_MESH_WIDTH[end]
+    for n, r in zip(nodes, radii):
+        k = (BEAD_13 + (r - bead) * (new_outer - BEAD_13) / (outer - bead)) / r
+        n.set_attr(b'x', fmt(float(n.attr(b'x')) * widen))
+        n.set_attr(b'y', fmt(float(n.attr(b'y')) * k))
+        n.set_attr(b'z', fmt(float(n.attr(b'z')) * k))
+
+
+def tyres(root, size):
+    if size == 'stock':
+        return 1.0
+    susp = section(root, b'SuspensionSystem')
+    tyre = named(susp, b'Tyre')
+    stock = {end: value(tyre[end], b'TyreRadius') for end in TYRES_13}
+    for end, t in TYRES_13.items():
+        set_value(tyre[end], b'TyreRadius', t['radius'])
+        set_value(tyre[end], b'AlloyRadius', ALLOY_13)
+    for graph in section(root, b'F1TyreDamage').children:
+        if graph.kind == 0 and graph.name == b'PhysicsNodeGraph':
+            end = TYRE_GRAPHS[graph.attr(b'name')]
+            remap_graph(graph, end, stock[end])
+    if size == '13in_raised':
+        tuning = section(root, b'F1Tuning')
+        for end, node in named(susp, b'Suspension').items():
+            drop = stock[end] - TYRES_13[end]['radius']
+            set_value(node, b'RideHeight', round(value(node, b'RideHeight') + drop, 4))
+            for k in (f'{end}RideHeightMin', f'{end}RideHeightMax'):
+                set_value(tuning, k.encode(), round(value(tuning, k.encode()) + drop, 4))
+    return TYRES_13['Rear']['radius'] / stock['Rear']
+
+
+def convert(root, row, ers, size='stock'):
     fam = FAMILIES[row['engine']]
     ERS_MODES[ers](root)
+    rolling = tyres(root, size)
 
     eng = section(root, b'Engine')
     curve = child(eng, b'RevsPowerSpline')
@@ -234,7 +286,7 @@ def convert(root, row, ers):
     set_value(eng, b'TurboMode', 'Off')
 
     box = section(root, b'GearBox')
-    final = value(box, b'FinalDriveRatio') * limiter / stock_limiter
+    final = value(box, b'FinalDriveRatio') * limiter / stock_limiter * rolling
     set_value(box, b'FinalDriveRatio', round(final, 3))
 
     real_peak = max(peak_w * power_fraction(fam, x) for x, _ in stock_curve)
@@ -296,23 +348,25 @@ def build(game, out):
         if vtf.write(stock) != f0 or vtf.tsmd(stock, version) != f1:
             raise ValueError(f'{row["car"]}: stock VTF does not round-trip')
         for ers, folder in VTF_DIRS.items():
-            root = vtf.parse(f0)
-            info = convert(root, row, ers)
-            n0 = vtf.write(root)
-            n1 = vtf.tsmd(root, version)
-            if ers == 'removed':
-                size = len(n0)
-            for i, blob in enumerate((n0, n1)):
-                rel = f'{folder}/{row["car"]}.vtf.f{i}'
-                files[rel] = blob
-                for erp, name, _a, _b in copies:
-                    ops.append({'op': 'replace-resource', 'when': {'ers': ers}, 'erp': erp, 'resource': name,
-                                'fragment': i, 'source': rel})
+            for tyre_size, suffix in TYRE_SIZES.items():
+                root = vtf.parse(f0)
+                got = convert(root, row, ers, tyre_size)
+                n0 = vtf.write(root)
+                n1 = vtf.tsmd(root, version)
+                if ers == 'removed' and tyre_size == 'stock':
+                    info, size = got, len(n0)
+                for i, blob in enumerate((n0, n1)):
+                    rel = f'{folder}{suffix}/{row["car"]}.vtf.f{i}'
+                    files[rel] = blob
+                    for erp, name, _a, _b in copies:
+                        ops.append({'op': 'replace-resource', 'when': {'ers': ers, 'tyre_size': tyre_size},
+                                    'erp': erp, 'resource': name, 'fragment': i, 'source': rel})
         info['car'] = row['car']
         info['archives'] = len(copies)
         info['bytes'] = (len(f0), size)
         report.append(info)
-    ops.sort(key=lambda o: (o['when']['ers'] != 'removed', o['erp'], o['resource'], o['fragment']))
+    ops.sort(key=lambda o: (o['when']['ers'] != 'removed', list(TYRE_SIZES).index(o['when']['tyre_size']),
+                            o['erp'], o['resource'], o['fragment']))
     files['erp/cars/handling.json'] = (json.dumps({'schema_version': 1, 'ops': ops}, indent=1) + '\n').encode()
     files['db/physics.json'] = (json.dumps(db_ops(root_dir, rows), indent=1) + '\n').encode()
     for rel, blob in files.items():
