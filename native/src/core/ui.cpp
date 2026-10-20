@@ -1,6 +1,7 @@
 #include <windows.h>
 
 #include <safetyhook.hpp>
+#include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 
 #include <string>
@@ -149,10 +150,7 @@ uintptr_t find(const Target &t)
 
 bool readable(const void *p, size_t n)
 {
-    MEMORY_BASIC_INFORMATION m{};
-    if (!p || !VirtualQuery(p, &m, sizeof m) || m.State != MEM_COMMIT || (m.Protect & (PAGE_NOACCESS | PAGE_GUARD)))
-        return false;
-    return uintptr_t(p) + n <= uintptr_t(m.BaseAddress) + m.RegionSize;
+    return swofty::mem::readable(p, n);
 }
 
 void *screen_lookup(uint32_t h, bool *ok)
