@@ -3212,6 +3212,18 @@
    "value": "False"
   },
   {
+   "op": "set",
+   "select": "options_system.restrictions.restrictions_folder[_metadata_=session_lengths].restrictions[_metadata_=short_race_f1].value_subset[_metadata_=red_flag_frequency]",
+   "field": "values",
+   "value": "red_flag_frequency"
+  },
+  {
+   "op": "set",
+   "select": "options_system.restrictions.inter_value_restriction[_metadata_=rules_and_flags].restrictions.value_subset[_metadata_=red_flag_frequency]",
+   "field": "values",
+   "value": "red_flag_frequency"
+  },
+  {
    "op": "add-row",
    "table": "drs.drs_allowed_lap",
    "from": "drs.drs_allowed_lap.drs_allowed_lap_group[_metadata_=f1_2024]",

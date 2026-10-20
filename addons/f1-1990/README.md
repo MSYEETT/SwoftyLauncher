@@ -8,7 +8,7 @@ Turns the F1 2026 season into the 1990 season in a profile of its own.
 
 - Weekend (default structure): P1, P2, Friday qualifying (a single sprint-shootout session), Saturday qualifying (a single qualifying session), race. Full qualifying runs the single sessions; the race grid comes from Saturday qualifying. Every 2026 track runs the default format, and Grand Prix only offers the standard weekend.
 - Tyres: every allocation preset hands out `soft_sets` softer-compound sets in P1, P2, Friday qualifying, Saturday qualifying and the race, and no medium or hard sets. On every 2026 track the softer, medium and harder compounds are all C4 (`sup`), and the three 2026 dry visuals show as Supersoft (`SuperSoft` sidewall context, red icon), so the track card lists one Supersoft C4. Mandatory-tyre presets are empty, every track requires 0 pit stops, and there are no tyre warmers.
-- Race control: safety car off and parc fermé off, as defaults and as the only values the `gamesetup_f1` tag allows. Red flags stay. DRS uses the `f1_1990` lap group, which opens on lap 200.
+- Race control: safety car off and parc fermé off, as defaults and as the only values the `gamesetup_f1` tag allows. Red flags stay selectable, also in short races and with the safety car off. DRS uses the `f1_1990` lap group, which opens on lap 200.
 
 ## Cars (db/physics.json, erp/cars/, files/audio/, tools/build_cars.py)
 

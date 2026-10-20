@@ -174,6 +174,13 @@ def race_control():
         row = f"{OPTIONS}.option[_metadata_={option}]"
         ops.append(set_(f"{row}.value[_metadata_={default}]", "is_default", "True"))
         ops += [set_(f"{row}.value[_metadata_={v}]", "is_default", "False") for v in others]
+    ops += [
+        set_("options_system.restrictions.restrictions_folder[_metadata_=session_lengths]"
+             ".restrictions[_metadata_=short_race_f1].value_subset[_metadata_=red_flag_frequency]",
+             "values", "red_flag_frequency"),
+        set_("options_system.restrictions.inter_value_restriction[_metadata_=rules_and_flags]"
+             ".restrictions.value_subset[_metadata_=red_flag_frequency]", "values", "red_flag_frequency"),
+    ]
 
     group = "drs.drs_allowed_lap.drs_allowed_lap_group"
     ops.append({
