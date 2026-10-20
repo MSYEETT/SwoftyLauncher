@@ -2,6 +2,10 @@
 
 Turns the F1 2026 season into the 1990 season in a profile of its own.
 
+## Grid size
+
+The **Cars** setting (`cars`) is 22 (default) or 26. At 22 the grid is the 11 teams on the stock 2026 team rows and the addon needs no other addon. At 26 Larrousse and Dallara join on Custom Grid Size's two extra teams: enable Custom Grid Size with Cars at 26. The grid ops are in `db/grid.json`, written by `tools/grid.py` (see `tools/README.md`).
+
 ## Rules (db/rules.json, db/rules_text.json, tools/rules.py)
 
 `tools/rules.py` writes both op files. In the `f1_26` setup mode:
