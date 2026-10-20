@@ -121,7 +121,8 @@ nothing changed).
 
 Log: `[career-editor] weather.plan.set weekend=<w> <key>: before=<n|none> after=<n points|none>` per
 session, plus one `[career-editor] weather: rebuilt <key> (weekend <w>, forecast build|plan.set)
-states=<n> len=<s>s: <type>(<intensity>)@<end>/<trans> ...` line for each rebuild. That line is the
+states=<n> transitions=<n-1> len=<s>s: <type>(<intensity>)@<end>/<trans> ... <last type>(<intensity>)` line
+for each rebuild. That line is the
 dataset as the game holds it afterwards, read back. It ends in `MISMATCH` if the game's dataset doesn't
 hold the planned states (then the per-state intensity isn't written and `rebuilt` stays false).
 
@@ -191,7 +192,10 @@ Mode availability: all ops both modes. Errors common to all: `not_ready` (no car
 - `sessions.<key>.states`: the dataset as the game holds it now (up to 38 states, since the game inserts
   in-between states for gradual changes). `end` is the fraction where the state's hold ends and the
   transition to the next one begins, and `transition` is that transition's length (both fractions of
-  `length_s`).
+  `length_s`). The last state is only the blend target of the one before it, so its `end` and
+  `transition` are `null`. The game walks states − 1 transitions (WeatherDataset +0xdf8), while the full
+  state count is at +0xdf0. A plan with N states reads back as N states (N = 1 reads back as 2 of the same
+  type, from the builder's "not enough states" fill).
 - `progress`: the fraction of weather time elapsed (L1; only meaningful for `active_dataset`).
   `started`: the session was entered (lifecycle `session.start` while this dataset was active), or it's the
   active dataset with progress > 0. `locked` = `started`. Locks persist in the sidecar per weekend, and are
@@ -246,8 +250,8 @@ addon init.
 | `TimeOfDayOwner` | 1 | the build thunk's first argument, checked against the TOD |
 | `TimeOfDaySystem` | 13 | clocks, active dataset, datasets, seed, dataset lengths, type ranges, exact/ready/busy flags, override gate (override_active, random_override, scripted_scenario) |
 | `TimeOfDayClock` (0x288) | 4 | weather progress |
-| `WeatherDataset` (0xe00) | 2 | states and state count |
+| `WeatherDataset` (0xe00) | 3 | states, full state count (+0xdf0), walked transitions (+0xdf8 = states − 1) |
 | `WeatherState` (0x10) | 4 | type, intensity, end, transition |
-| `WeatherTypeRange` (0x14) | 3 | per-type intensity range (pinned while a planned intensity is built) |
+| `WeatherTypeRange` (0x14) | 3 | per-type intensity range (pinned while a planned intensity is built); the weight isn't read or written (only types 0..4 are weighted) |
 | `WeatherSessionSettings` | 3 | session type (time trial skip), mode, exact flag (scripted skip) |
 | `WeatherAndTimeOfDayComponent` | 2 | weather system pointer, `rnd_seed` |
