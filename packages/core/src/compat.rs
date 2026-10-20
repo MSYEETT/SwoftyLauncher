@@ -105,7 +105,7 @@ pub fn elevated() -> bool {
 }
 
 #[cfg(windows)]
-fn windows_tool(program: &str, args: &[&str]) -> Option<String> {
+pub(crate) fn windows_tool(program: &str, args: &[&str]) -> Option<String> {
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     let out = std::process::Command::new(program)
@@ -117,7 +117,7 @@ fn windows_tool(program: &str, args: &[&str]) -> Option<String> {
 }
 
 #[cfg(not(windows))]
-fn windows_tool(_: &str, _: &[&str]) -> Option<String> {
+pub(crate) fn windows_tool(_: &str, _: &[&str]) -> Option<String> {
     None
 }
 

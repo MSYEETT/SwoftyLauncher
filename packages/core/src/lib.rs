@@ -29,6 +29,7 @@ pub mod registry;
 pub mod resolver;
 pub mod runtime;
 pub mod saves;
+pub mod send_logs;
 pub mod session;
 pub mod settings;
 pub mod steam;
