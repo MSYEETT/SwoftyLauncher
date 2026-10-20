@@ -139,14 +139,15 @@ To check for a newer release without installing it, use `swofty update --check`.
 
 On Linux, each new file is renamed over the old one. On Windows, the old file moves into `.update/` first; the launcher removes `.update/` when you next start it. If a release has no `SHA256SUMS`, the command checks the download against the size and digest GitHub lists for the asset.
 
-You'll find the state of the launcher's update check under `"updates"` in `$DATA/config.json`:
+The launcher's update check reads `"updates"` in `$DATA/config.json`:
 
 | Key | Purpose |
 |---|---|
-| `check` | `false` turns off the launcher's check; `swofty update` still works. The default is `true` |
-| `skip` | The version **Skip this version** chose; the launcher offers later versions again |
-| `checked_at` | Time of the last check, in Unix seconds; the launcher checks again 6 hours later |
-| `latest` | Tag of the newest release the last check found |
+| `check` | `false` turns off the launcher's check for new launcher releases; `swofty update` still works and Simplified for Swofty is still kept up to date. The default is `true` |
+
+Older configs may still hold `skip`, `checked_at` and `latest` under `"updates"`, and `checked_at` under `"managed"`. The launcher ignores them and drops them the next time it saves the config.
+
+The launcher reads the latest release tag from the `releases/latest` redirect on github.com, which doesn't count against GitHub's API rate limit. It calls the GitHub API once for each new release, to get its downloads, and waits for `Retry-After` or the rate limit reset when GitHub refuses a request.
 
 To test an update, set `SWOFTY_UPDATE_PRETEND_VERSION=0.1.0`. The launcher and `swofty update` will treat the running version as `0.1.0`.
 

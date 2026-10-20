@@ -20,7 +20,7 @@ Once the launcher has found F1 25, you do everything from one window. This secti
 3. [Create or switch profiles](/using/profiles) to keep separate setups.
 4. Press **Play**, then [change addon settings in game](/using/swofty-mod) under **ADDON SETTINGS**.
 5. [Restore the game](/using/profiles-and-restoring) when a file is in the way or after a game update.
-6. [Update the launcher](/using/updating) when it offers a new release.
+6. [Update the launcher](/using/updating) when **Play** becomes **Update**.
 7. [Uninstall](/guide/uninstall) when you're done with it.
 
 ## What's in this section

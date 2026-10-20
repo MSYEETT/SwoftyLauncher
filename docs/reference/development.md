@@ -38,6 +38,10 @@ cargo fmt --all --check
 cargo build -p swofty-launcher
 ```
 
+## Test updates
+
+In a debug build, `SWOFTY_TEST_GITHUB=http://127.0.0.1:<port>` sends the launcher's and `swofty update`'s GitHub requests to a local server instead: `https://github.com/<path>` and `https://api.github.com/<path>` both become `<server>/<path>`. Release builds ignore it. Combine it with `SWOFTY_UPDATE_PRETEND_VERSION` and a `SWOFTY_DATA_DIR` of your own to run an update end to end.
+
 ## Test with game files
 
 Point `F1_25_DIR` at your game files to run these tests; leave it unset and they're skipped. The tests only read the files.
