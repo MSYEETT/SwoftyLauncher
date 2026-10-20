@@ -32,6 +32,8 @@ RS_PRIM = {'void': 'c_void', 'char': 'c_char', 'bool': 'bool', 'int': 'c_int', '
 
 
 class Gate:
+    dev = False
+
     def __init__(self):
         self.verdicts = {}
         for r in kb.read_table('verify')[0]:
@@ -54,6 +56,8 @@ class Gate:
                 v = self.verdicts.get(key)
                 if v and v[0] == 'agree':
                     return 'experimental', 'verify:' + v[1]
+            if self.dev:
+                return 'dev', 'unverified'
             return None, f'{level} without an agree verify row'
         return None, f'{level}'
 
@@ -404,7 +408,15 @@ def main():
     ap.add_argument('--include', default=OUT_INC)
     ap.add_argument('--rust', default=OUT_RS)
     ap.add_argument('--symbols', default=OUT_SYMBOLS)
+    ap.add_argument('--dev', action='store_true',
+                    help='also export L2 rows that have no agree verify row (status dev); needs --json, --include, --rust '
+                         'and --symbols outside the shipped paths')
     a = ap.parse_args()
+    if a.dev:
+        shipped = {os.path.normpath(p) for p in (OUT_JSON, OUT_INC, OUT_RS, OUT_SYMBOLS)}
+        if {os.path.normpath(p) for p in (a.json, a.include, a.rust, a.symbols)} & shipped:
+            raise SystemExit('--dev writes only to scratch paths: pass --json, --include, --rust and --symbols')
+        Gate.dev = True
     build, bindings, structs, skipped = load()
     bindings, sc = run_sigcheck(build, bindings, not a.no_exe)
     doc = {'schema': 1, 'generator': 're/tools/bindgen.py', 'build': build, 'bindings': bindings}

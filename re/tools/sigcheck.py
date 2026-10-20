@@ -139,8 +139,10 @@ def disasm_one(img, va):
     return None
 
 
-def insn_boundary(img, va):
+def insn_boundary(img, va, func_start=None):
     f = img.func_of(va)
+    if not f and func_start is not None and func_start <= va < func_start + 0x10000:
+        f = (func_start, va + 16)
     if not f:
         return False, 'not inside a .pdata function'
     from capstone import Cs, CS_ARCH_X86, CS_MODE_64
@@ -236,10 +238,12 @@ def check(img, sig, kb_build, names, same_build):
     kind = sig.get('kind')
     tsec = img.sec_of(target)
     if kind in ('mid', 'func_start', 'call'):
-        if tsec != '.xtls' and kind == 'mid':
-            errs.append(f'mid target in {tsec}, hooks are only allowed in .xtls')
+        data1 = tsec == '.data1' and section == '.data1' and bool(sig.get('data1_reason'))
+        if tsec != '.xtls' and kind == 'mid' and not data1:
+            errs.append(f'mid target in {tsec}, hooks are only allowed in .xtls (a .data1 site needs section .data1 and a data1_reason)')
         if kind == 'mid':
-            ok, why = insn_boundary(img, target)
+            fs = int(str(sig['func_start']), 0) if sig.get('func_start') else None
+            ok, why = insn_boundary(img, target, fs)
             if not ok:
                 errs.append(f'mid target not an instruction boundary: {why}')
         if kind in ('func_start', 'call') and tsec == '.xtls':
@@ -293,8 +297,11 @@ def pattern_for(img, start, length):
     return pat
 
 
-def make(img, va, kind):
+def make(img, va, kind, func_start=None):
     f = img.func_of(va)
+    if not f and func_start is not None:
+        f = (func_start, va + 16)
+    section = img.sec_of(va)
     starts = [va]
     if kind == 'mid' and f:
         from capstone import Cs, CS_ARCH_X86, CS_MODE_64
@@ -312,7 +319,7 @@ def make(img, va, kind):
             pat = pattern_for(img, s, max(n, va - s + 6))
             if len(pat) < MIN_LEN:
                 continue
-            hits = find_all(img, '.xtls', pat, limit=2)
+            hits = find_all(img, section, pat, limit=2)
             if len(hits) == 1:
                 if best is None or len(pat) < len(best[1]):
                     best = (s, pat)
@@ -320,7 +327,7 @@ def make(img, va, kind):
     if not best:
         return None
     s, pat = best
-    return {'id': '<subsystem>.<name>', 'section': '.xtls', 'pattern': ' '.join('??' if x is None else f'{x:02X}' for x in pat),
+    return {'id': '<subsystem>.<name>', 'section': section, 'pattern': ' '.join('??' if x is None else f'{x:02X}' for x in pat),
             'match': hex(s), 'anchor': hex(va - s), 'resolve': {'kind': 'addr'}, 'target': hex(va), 'kind': kind,
             'expect': ' '.join(f'{x:02X}' for x in img.read(va, 4)) if kind == 'mid' else None,
             'names': [], 'verified': [], 'used_by': []}
