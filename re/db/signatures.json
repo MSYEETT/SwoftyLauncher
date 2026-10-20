@@ -7913,6 +7913,84 @@
    "used_by": [
     "addons/f1-1990/native/src/save_separation.cpp"
    ]
+  },
+  {
+   "id": "core.save_system2_win_start",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 40 C5 F8 29 74 24 30 48 89 CE 48 8B 49 08",
+   "match": "0x14413af70",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14413af70",
+   "kind": "func_start",
+   "names": [
+    "Ne_SaveSystem2Win_Start"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/save_separation.cpp"
+   ]
+  },
+  {
+   "id": "core.request_save_op_kind2",
+   "section": ".xtls",
+   "pattern": "15 DB 37 C0 01 89 05 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? CC CC CC CC CC CC CC CC 41 57 41 56 41 54",
+   "match": "0x144139170",
+   "anchor": "0x30",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1441391a0",
+   "kind": "func_start",
+   "names": [
+    "Ne_Request_SaveOpKind2"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/save_separation.cpp"
+   ]
+  },
+  {
+   "id": "core.request_save_op_kind1",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 53 48 83 EC 68 48 89 D6 4C 89 4C 24 60 C5 F8 57 C0 C5 F8 11 02 80 B9 DC 02 00 00 00 0F 84 ?? ?? ?? ?? 4D 89 CE 4D 89 C4 48 89 CF 4C 8B B9 B8 03 00 00 49 8B 07 BA 10 01 00 00 41 B8 08 00 00 00 4C 89 F9 FF 50 18 48 89 C3 48 85 C0 74 24 48 8B 84 24 C8 00 00 00 4C 8D 47 50 48 85 C0 4C 0F 45 C0 48 89 D9 4C 89 E2 41 B9 01 00 00 00",
+   "match": "0x144138aa0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x144138aa0",
+   "kind": "func_start",
+   "names": [
+    "Ne_Request_SaveOpKind1"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/save_separation.cpp"
+   ]
   }
  ]
 }
