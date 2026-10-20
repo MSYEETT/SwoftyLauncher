@@ -101,8 +101,11 @@ jobs:
           sudo apt-get install -y pkg-config libfontconfig-dev libfreetype-dev libwayland-dev \
             libxkbcommon-dev libxkbcommon-x11-dev libx11-xcb-dev libxcb1-dev libvulkan-dev
 
+      # The webhook that "Send Logs to Developers" posts to; without it the button is disabled.
       - name: Build
         run: cargo build --release --workspace
+        env:
+          SWOFTY_LOG_WEBHOOK: ${{ secrets.SWOFTY_LOG_WEBHOOK }}
 
       - uses: actions/setup-python@v7
         with:
@@ -186,8 +189,11 @@ jobs:
           shared-key: release
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
+      # The webhook that "Send Logs to Developers" posts to; without it the button is disabled.
       - name: Build
         run: cargo build --release --workspace
+        env:
+          SWOFTY_LOG_WEBHOOK: ${{ secrets.SWOFTY_LOG_WEBHOOK }}
 
       - uses: actions/setup-python@v7
         with:
