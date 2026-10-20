@@ -47,6 +47,12 @@
     "database": ["db/career.json", "db/grid.json", "db/rules.json", "db/physics.json"],
     "assets": ["db/rules_text.json", "lang/grid.json"],
     "erp": ["erp/cars/handling.json"],
-    "native": [{ "dll": "native/f1_1990.dll" }]
+    "native": [{ "dll": "native/f1_1990.dll" }],
+    "files": [
+      { "source": "files/audio/v12_1990.bdl", "target": "audio/2025/bundles/ferrari_2026.bdl" },
+      { "source": "files/audio/v10_1990.bdl", "target": "audio/2025/bundles/renault_2026.bdl" },
+      { "source": "files/audio/v8_1990.bdl", "target": "audio/2025/bundles/ford_2026.bdl" },
+      { "source": "files/audio/v8_1990.bdl", "target": "audio/2025/bundles/mercedes_2026.bdl" }
+    ]
   }
 }
