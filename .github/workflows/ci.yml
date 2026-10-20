@@ -14,8 +14,12 @@ env:
 
 jobs:
   rust:
-    name: Format, clippy, test
-    runs-on: ubuntu-latest
+    name: Rust (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v7
 
@@ -25,35 +29,6 @@ jobs:
           cache: false
 
       # Only main saves, so pull requests restore main's caches instead of evicting them with their own.
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: workspace-lint
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Format
-        run: cargo fmt --all --check
-
-      - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
-
-      # The real-file round trips skip without F1_25_DIR; CI has no game files.
-      - name: Test
-        run: cargo test
-
-  launcher:
-    name: Launcher (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions-rust-lang/setup-rust-toolchain@v2
-        with:
-          cache: false
-
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace-debug
@@ -66,14 +41,19 @@ jobs:
           sudo apt-get install -y pkg-config libfontconfig-dev libfreetype-dev libwayland-dev \
             libxkbcommon-dev libxkbcommon-x11-dev libx11-xcb-dev libxcb1-dev libvulkan-dev
 
+      - name: Format
+        if: runner.os == 'Linux'
+        run: cargo fmt --all --check
+
+      # The launcher and the installer are not default members; --workspace reaches them too.
       - name: Clippy
-        run: cargo clippy -p swofty-launcher --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Build the workspace
         run: cargo build --workspace
 
+      # The real-file round trips skip without F1_25_DIR; CI has no game files.
       - name: Test
-        if: runner.os == 'Windows'
         run: cargo test
 
   swofty-ui:
@@ -111,6 +91,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  # The rust job lints the installer on both systems; this job builds the release binary people test.
   installer:
     name: Installer (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -130,9 +111,6 @@ jobs:
         with:
           shared-key: installer-release
           save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Clippy
-        run: cargo clippy -p swofty-launcher-installer --all-targets -- -D warnings
 
       - name: Build
         run: cargo build --release -p swofty-launcher-installer
