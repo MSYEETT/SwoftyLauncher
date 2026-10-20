@@ -3,7 +3,6 @@ use std::sync::Mutex;
 
 use anyhow::{Result, bail};
 use swofty_core::launcher::Progress;
-use swofty_core::store::Store;
 use swofty_core::update::{self, Install};
 
 struct Printer(Mutex<(i32, String)>);
@@ -20,12 +19,9 @@ impl Progress for Printer {
     }
 }
 
-pub fn update(store: &Store, check: bool) -> Result<ExitCode> {
+pub fn update(check: bool) -> Result<ExitCode> {
     let current = update::current_version();
     let release = update::fetch_latest(update::CHECK_TIMEOUT)?;
-    let mut config = store.config();
-    config.updates.record(&release.tag_name, update::now_secs());
-    store.save_config(&config)?;
     let Some(latest) = release.version().filter(|v| *v > current) else {
         println!("swofty {current} is up to date");
         return Ok(ExitCode::SUCCESS);

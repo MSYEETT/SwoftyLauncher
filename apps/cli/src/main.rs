@@ -335,7 +335,7 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Profile(cmd) => profiles(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Logs { dir, exe } => run::logs(&store, dir, exe),
         Command::Doctor => doctor::doctor(&store),
-        Command::Update { check } => update::update(&store, check),
+        Command::Update { check } => update::update(check),
     }
 }
 

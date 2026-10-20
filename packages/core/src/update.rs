@@ -15,7 +15,7 @@ pub const LATEST_URL: &str =
 pub const RELEASES_URL: &str = "https://github.com/Swofty-Developments/SwoftyLauncher/releases";
 pub const SUMS_FILE: &str = "SHA256SUMS";
 pub const PRETEND_ENV: &str = "SWOFTY_UPDATE_PRETEND_VERSION";
-pub const CHECK_INTERVAL: Duration = Duration::from_secs(6 * 3600);
+pub const FIXTURE_ENV: &str = "SWOFTY_TEST_GITHUB";
 pub const CHECK_TIMEOUT: Duration = Duration::from_secs(10);
 pub const STAGING_DIR: &str = ".update";
 
@@ -23,12 +23,6 @@ pub const STAGING_DIR: &str = ".update";
 pub struct UpdateConfig {
     #[serde(default = "yes")]
     pub check: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub skip: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub checked_at: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub latest: Option<String>,
 }
 
 fn yes() -> bool {
@@ -37,39 +31,13 @@ fn yes() -> bool {
 
 impl Default for UpdateConfig {
     fn default() -> Self {
-        Self {
-            check: true,
-            skip: None,
-            checked_at: None,
-            latest: None,
-        }
+        Self { check: true }
     }
 }
 
 impl UpdateConfig {
     pub fn is_default(&self) -> bool {
         *self == Self::default()
-    }
-
-    pub fn due(&self, now: u64) -> bool {
-        self.check
-            && self
-                .checked_at
-                .is_none_or(|t| t > now || now - t >= CHECK_INTERVAL.as_secs())
-    }
-
-    pub fn record(&mut self, tag: &str, now: u64) {
-        self.checked_at = Some(now);
-        self.latest = Some(tag.to_owned());
-    }
-
-    pub fn offer(&self, current: &Version) -> Option<Version> {
-        if !self.check {
-            return None;
-        }
-        let latest = parse_version(self.latest.as_deref()?)?;
-        let skipped = self.skip.as_deref().and_then(parse_version);
-        (latest > *current && skipped.as_ref() != Some(&latest)).then_some(latest)
     }
 }
 
@@ -204,18 +172,116 @@ fn user_agent() -> String {
     )
 }
 
-pub fn get(url: &str, timeout: Option<Duration>) -> Result<ureq::Body> {
-    ureq::get(url)
-        .header("User-Agent", user_agent())
-        .header("Accept", "application/vnd.github+json, application/octet-stream")
-        .config()
-        .timeout_global(timeout)
-        .timeout_connect(Some(Duration::from_secs(15)))
-        .timeout_recv_response(Some(Duration::from_secs(30)))
+pub fn endpoint(url: &str) -> String {
+    #[cfg(debug_assertions)]
+    if let Some(base) = std::env::var(FIXTURE_ENV).ok().filter(|b| !b.is_empty()) {
+        let base = base.trim_end_matches('/');
+        for host in ["https://api.github.com", "https://github.com"] {
+            if let Some(rest) = url.strip_prefix(host) {
+                return format!("{base}{rest}");
+            }
+        }
+    }
+    url.to_owned()
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Failure {
+    Wait(u64, String),
+    Failed(String),
+}
+
+impl std::fmt::Display for Failure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Wait(_, text) | Self::Failed(text) => f.write_str(text),
+        }
+    }
+}
+
+impl From<Failure> for Error {
+    fn from(f: Failure) -> Self {
+        Error::Other(f.to_string())
+    }
+}
+
+pub fn in_minutes(secs: u64) -> String {
+    match secs.div_ceil(60) {
+        0 | 1 => "a minute".into(),
+        n => format!("{n} minutes"),
+    }
+}
+
+pub fn refusal(
+    url: &str,
+    status: u16,
+    retry_after: Option<&str>,
+    remaining: Option<&str>,
+    reset: Option<&str>,
+    now: u64,
+) -> Failure {
+    let number = |v: Option<&str>| v.and_then(|v| v.trim().parse::<u64>().ok());
+    let wait = number(retry_after).or_else(|| {
+        (remaining.map(str::trim) == Some("0"))
+            .then(|| number(reset).map(|at| at.saturating_sub(now)))
+            .flatten()
+    });
+    match wait {
+        Some(secs) => Failure::Wait(
+            secs.max(1),
+            format!(
+                "{url}: GitHub's rate limit is reached; try again in {}",
+                in_minutes(secs)
+            ),
+        ),
+        None if status == 429 => Failure::Wait(
+            60,
+            format!("{url}: GitHub's rate limit is reached; try again in a minute"),
+        ),
+        None => Failure::Failed(format!("{url}: HTTP {status}")),
+    }
+}
+
+pub fn request(
+    url: &str,
+    head: bool,
+    timeout: Option<Duration>,
+) -> std::result::Result<ureq::http::Response<ureq::Body>, Failure> {
+    let target = endpoint(url);
+    let builder = if head {
+        ureq::head(&target)
+    } else {
+        ureq::get(&target)
+    }
+    .header("User-Agent", user_agent())
+    .header("Accept", "application/vnd.github+json, application/octet-stream")
+    .config()
+    .timeout_global(timeout)
+    .timeout_connect(Some(Duration::from_secs(15)))
+    .timeout_recv_response(Some(Duration::from_secs(30)))
+    .http_status_as_error(false);
+    let config = if head { builder.max_redirects(0) } else { builder };
+    let response = config
         .build()
         .call()
-        .map(|r| r.into_body())
-        .map_err(|e| Error::Other(format!("{url}: {e}")))
+        .map_err(|e| Failure::Failed(format!("{url}: {e}")))?;
+    let status = response.status().as_u16();
+    if status < 400 {
+        return Ok(response);
+    }
+    let header = |name: &str| response.headers().get(name).and_then(|v| v.to_str().ok());
+    Err(refusal(
+        url,
+        status,
+        header("retry-after"),
+        header("x-ratelimit-remaining"),
+        header("x-ratelimit-reset"),
+        now_secs(),
+    ))
+}
+
+pub fn get(url: &str, timeout: Option<Duration>) -> Result<ureq::Body> {
+    Ok(request(url, false, timeout)?.into_body())
 }
 
 pub fn get_text(url: &str, timeout: Duration) -> Result<String> {
@@ -224,9 +290,20 @@ pub fn get_text(url: &str, timeout: Duration) -> Result<String> {
         .map_err(|e| Error::Other(format!("{url}: {e}")))
 }
 
+pub fn fetch_release(url: &str, timeout: Duration) -> std::result::Result<Release, Failure> {
+    let text = request(url, false, Some(timeout))?
+        .into_body()
+        .read_to_string()
+        .map_err(|e| Failure::Failed(format!("{url}: {e}")))?;
+    serde_json::from_str(&text).map_err(|e| Failure::Failed(format!("{url}: {e}")))
+}
+
 pub fn fetch_latest(timeout: Duration) -> Result<Release> {
-    let text = get_text(LATEST_URL, timeout)?;
-    serde_json::from_str(&text).map_err(|e| Error::Other(format!("{LATEST_URL}: {e}")))
+    Ok(fetch_release(LATEST_URL, timeout)?)
+}
+
+pub fn verifiable(release: &Release, asset: &Asset) -> bool {
+    release.sums().is_some() || asset.digest.as_deref().is_some_and(|d| d.starts_with("sha256:"))
 }
 
 pub fn download(asset: &Asset, to: &Path, progress: &dyn Fn(u64)) -> Result<(u64, String)> {
@@ -654,43 +731,78 @@ mod tests {
         assert_eq!(parse_version("latest"), None);
         assert!(parse_version("v0.10.0").unwrap() > v("0.9.9"));
         assert!(parse_version("v0.2.1-rc.1").unwrap() < v("0.2.1"));
-        let config = UpdateConfig {
-            latest: Some("v0.2.1".into()),
-            ..UpdateConfig::default()
-        };
-        assert_eq!(config.offer(&v("0.2.0")), Some(v("0.2.1")));
-        assert_eq!(config.offer(&v("0.2.1")), None);
-        assert_eq!(config.offer(&v("0.3.0")), None);
     }
 
     #[test]
-    fn skipped_and_disabled_versions_are_not_offered() {
-        let mut config = UpdateConfig {
-            latest: Some("v0.2.1".into()),
-            skip: Some("0.2.1".into()),
-            ..UpdateConfig::default()
-        };
-        assert_eq!(config.offer(&v("0.2.0")), None);
-        config.record("v0.2.2", 100);
-        assert_eq!(config.offer(&v("0.2.0")), Some(v("0.2.2")));
-        config.check = false;
-        assert_eq!(config.offer(&v("0.2.0")), None);
+    fn old_update_settings_still_load() {
         let json = serde_json::to_value(UpdateConfig::default()).unwrap();
         assert_eq!(json, serde_json::json!({ "check": true }));
         let off: UpdateConfig = serde_json::from_str(r#"{"check":false}"#).unwrap();
-        assert!(!off.check && !off.due(0));
+        assert!(!off.check);
+        let old = r#"{
+            "data_version": 3,
+            "updates": { "check": true, "skip": "1.0.7", "checked_at": 1790000000, "latest": "v1.0.7" },
+            "managed": { "checked_at": 1790000000 },
+            "sidebar_list": true
+        }"#;
+        let config: crate::session::Config = serde_json::from_str(old).unwrap();
+        assert!(config.updates.is_default() && config.sidebar_list);
+        assert_eq!(config.data_version, 3);
+        let saved = serde_json::to_value(&config).unwrap();
+        assert!(
+            saved.get("updates").is_none() && saved.get("managed").is_none(),
+            "{saved}"
+        );
     }
 
     #[test]
-    fn checks_at_most_once_per_interval() {
-        let interval = CHECK_INTERVAL.as_secs();
-        let mut config = UpdateConfig::default();
-        assert!(config.due(1_000_000));
-        config.record("v0.2.0", 1_000_000);
-        assert!(!config.due(1_000_000));
-        assert!(!config.due(1_000_000 + interval - 1));
-        assert!(config.due(1_000_000 + interval));
-        assert!(config.due(999_000), "a clock that went back checks again");
+    fn reads_rate_limits_from_the_response() {
+        let url = "https://api.github.com/x";
+        assert!(matches!(
+            refusal(url, 403, Some("120"), None, None, 1000),
+            Failure::Wait(120, _)
+        ));
+        assert!(matches!(
+            refusal(url, 403, None, Some("0"), Some("1600"), 1000),
+            Failure::Wait(600, _)
+        ));
+        assert!(matches!(
+            refusal(url, 403, None, Some("0"), Some("900"), 1000),
+            Failure::Wait(1, _)
+        ));
+        assert!(matches!(
+            refusal(url, 429, None, None, None, 1000),
+            Failure::Wait(60, _)
+        ));
+        assert!(matches!(
+            refusal(url, 403, None, Some("12"), Some("1600"), 1000),
+            Failure::Failed(_)
+        ));
+        assert_eq!(
+            refusal(url, 404, None, None, None, 0),
+            Failure::Failed(format!("{url}: HTTP 404"))
+        );
+        let text = refusal(url, 403, None, Some("0"), Some("1600"), 1000).to_string();
+        assert!(
+            text.contains("rate limit") && text.contains("10 minutes"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn a_release_offers_only_what_it_can_verify() {
+        let name = "swofty-launcher-v0.2.1-linux-x86_64.tar.gz";
+        let mut release = Release {
+            tag_name: "v0.2.1".into(),
+            html_url: String::new(),
+            assets: vec![asset(name, 1, None)],
+        };
+        assert!(!verifiable(&release, &release.assets[0]));
+        release.assets[0].digest = Some(format!("sha256:{}", "a".repeat(64)));
+        assert!(verifiable(&release, &release.assets[0]));
+        release.assets[0].digest = None;
+        release.assets.push(asset(SUMS_FILE, 3, None));
+        assert!(verifiable(&release, &release.assets[0]));
     }
 
     #[test]
