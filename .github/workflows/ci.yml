@@ -21,6 +21,14 @@ jobs:
 
       # Installs the toolchain rust-toolchain.toml pins, with rustfmt and clippy.
       - uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          cache: false
+
+      # Only main saves, so pull requests restore main's caches instead of evicting them with their own.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace-lint
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Format
         run: cargo fmt --all --check
@@ -43,6 +51,13 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          cache: false
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace-debug
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: GPUI system libraries
         if: runner.os == 'Linux'
@@ -108,6 +123,13 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          cache: false
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: installer-release
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Clippy
         run: cargo clippy -p swofty-launcher-installer --all-targets -- -D warnings
@@ -146,9 +168,26 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The scripts below keep their own Zig cache under native/build, which the restore step covers.
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.16.0
+          use-cache: false
+
+      # The key starts over each month so the content-addressed cache cannot grow without bound.
+      - name: Zig cache period
+        id: zig-period
+        run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Zig cache
+        id: zig-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            native/build/zig-cache
+            addons/re-optimization/native/build/zig-cache
+          key: zig-${{ runner.os }}-0.16.0-${{ steps.zig-period.outputs.month }}-${{ hashFiles('native/**', 'addons/*/native/**', 'packages/sdk/include/**') }}
+          restore-keys: zig-${{ runner.os }}-0.16.0-${{ steps.zig-period.outputs.month }}-
 
       - name: Build version.dll, swofty_core.dll and the bundled addons
         run: native/build.sh
@@ -178,6 +217,9 @@ jobs:
       - name: Overlay draw-list unit test
         run: native/test/run_hud_test.sh
       - name: Telemetry feed unit test
+        env:
+          ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+          ZIG_LOCAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
         run: |
           zig c++ -std=c++23 -O2 -I packages/sdk/include native/test/telemetry_feed_test.cpp -o telemetry_feed_test
           ./telemetry_feed_test
@@ -194,3 +236,13 @@ jobs:
 
       - name: Runtime assets Wine test
         run: native/test/run_runtime_assets_test.sh
+
+      # Saved after the Wine tests, which compile their fixtures into the same cache.
+      - name: Save the Zig cache
+        if: github.ref == 'refs/heads/main' && steps.zig-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            native/build/zig-cache
+            addons/re-optimization/native/build/zig-cache
+          key: ${{ steps.zig-cache.outputs.cache-primary-key }}
