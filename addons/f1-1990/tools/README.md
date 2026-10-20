@@ -91,6 +91,18 @@ A 26-car race start aborts (heap error 0x16 in `Ne_RobinHoodU8_IncreaseSize` fro
 
 So the grid adds no driver, look or statistics rows and needs no new stat ids. Results: `/mnt/work/.f1-1990/addon/results/10-grid-race-crash.md`.
 
+### Front-end art still on 2026
+
+Database and lang ops don't reach these; each needs art or ERP ops.
+
+| What | Where it comes from |
+|---|---|
+| Driver Select backdrop name | Pre-rendered texture on `mfe_2025_main_menu_driver_select_name.idf` in `environment_package/second_world/main_front_end/wep/main_front_end.erp`. The game sets the material context to the driver row label: `mfe_2025_main_menu_driver_select_name.emb?context=<label>` → `mfe_2025_driver_select_<name>_a.material` → `f1_drivername_<name>.tif` (BC7 2048x512; mips 256x64 and down in fragment 1, the top three in the loose `f1_driver_names~f1_drivername_<name>.tif.2025.mipmaps`). A reused 2026 row shows the 2026 name; a row with no context (`ayrton_senna`, `alain_prost`, `nigel_mansell`, the six `OTHER_ROWS`) keeps the previous name, and `default` is LEWIS HAMILTON. `native-requests.md` N4 has the data route |
+| Team Select backdrop name | The same, with `mfe_2025_main_menu_vehicle_select_name.emb?context=<team row>` and `f1_teamname_<team>.tif`: Lotus shows RED BULL, Tyrrell MERCEDES |
+| Team icons | Name-keyed lists in `databases.erp: overrides.uidb`, baked into `ui_package/art/texture_arrays/overrides.uidb/overrides.<path>.texarray`. Keyed by team row (`mclaren_26` ...): `team_logos.f1_2026`, `team_logos.driver_career_2024_team_select`, `teams.mp_team_select_logos`, `teams.badges_broadcast`, `teams.fanzone_*`, `teams.teams_f1_2024_gp_voting`, `broadcast_ui_generic.grid_team_logos`, `broadcast_ui_generic.team`. Keyed by other names: `teams.driver_select_team_logos` (`mclaren`, `redbull`, ...), `teams.career_team_select_logo_small` (`team_select_<team>`), `osd.timing_tower.team_badges_hud`/`_broadcast` (`mclaren_26`, `red_bull_26`, `alpine_26`, ...). `team12_26` and `team13_26` have no entry in any of them |
+| F1 / F2 / ICONS tabs | The Driver Career Choose Driver screen (`driver_career_driver_select`, `flow_career_season_setup.erp`); the tabs are the `driver_career_driver_select_header` group of `persistent.erp: screen_groups.uicontentgroup` (`header_f1`, `header_selected_team_icon`, `header_f2`, `header_icon`). The Grand Prix flow (Team Select, then Driver Select with Change Driver) has no tabs. `patch-pkg` can't remove an array entry |
+| Suits and gloves | The look's `suit`/`gloves` fields, which the game honours (Senna's spare F2 look wears the `2026-mclaren` suit grid.py sets). Era-neutral choices that exist: `tier01_livery*` ... `tier05_livery*`, `titlesponsor_livery*`, `unassigned_livery17/18`. 1990 kits need new `character_package/team_livery/1990-<team>` packages |
+
 ### Ratings
 
 The pack's 14 ratings are scaled to 0..1 across its 44 drivers (`Season.normalised`), then:
