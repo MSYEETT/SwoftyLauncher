@@ -146,6 +146,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "In-game addon settings", link: "/using/swofty-mod" },
               { text: "Playing in VR", link: "/using/vr" },
               { text: "Career Mode Editor", link: "/using/career-editor" },
+              { text: "Driver Manager", link: "/using/driver-manager" },
               { text: "Restoring the game", link: "/using/profiles-and-restoring" },
               { text: "Updating", link: "/using/updating" },
               { text: "Uninstalling", link: "/guide/uninstall" },

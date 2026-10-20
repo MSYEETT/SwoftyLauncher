@@ -1,0 +1,44 @@
+---
+title: Driver Manager
+description: Create new F1 25 drivers in the launcher and sign them as free agents in new careers.
+---
+
+# Driver Manager
+
+The Driver Manager addon adds a **Driver Manager** page to the launcher. It creates new drivers, each with its own id and its own rows in the game database. New drivers are free agents in careers started after they are added. It needs Swofty Launcher for F1 25 1.0.11 or later.
+
+## Install
+
+1. Download `swofty.driver-manager.zip` from the [1.0.11 release](https://github.com/Swofty-Developments/SwoftyLauncher/releases/tag/v1.0.11).
+2. Drag it onto the launcher window, or follow [Install an addon](/using/addons#install-an-addon).
+3. Turn it on in your profile.
+
+## Create a driver
+
+Open **Driver Manager** and press **Add driver**. Set:
+
+| Field | Values |
+|---|---|
+| First and last name | Up to 24 characters each. **Surname first** shows the name as "LAST First". |
+| Code | 3 letters, A to Z, unique among your drivers |
+| Number | 1 to 99 |
+| Nationality, head, helmet, suit, gloves, pose, podium emote | The game's own choices. Heads are generic, or look like a real driver. |
+| Commentary name | The surname the commentators say, or none |
+| Ratings | Experience, racecraft, awareness, pace and focus, each with a start and a peak value from 0 to 100 |
+| F1 seasons completed, garage slot preference | As on the game's own drivers |
+
+Press **Add driver** to save. The page lists every driver with code, number, nationality, status and check result. **Edit**, **Duplicate**, **Retire** and **Restore** act on one driver. Every profile with Driver Manager on gets the same drivers.
+
+The next launch adds the drivers to the game. Start a new career to find them among the free agents. The [Career Mode Editor](/using/career-editor) swaps a free agent into a race seat in Driver Career.
+
+## Checks
+
+A driver with an error is marked **left out** and isn't added to the game. Errors include an empty name, a code that isn't 3 letters or is already used, a number outside 1 to 99, a choice the game doesn't have and a peak below its start. Warnings, such as a number another driver also uses, don't stop the driver being added.
+
+## Existing careers
+
+- Drivers appear only in careers created after they are added.
+- Ratings apply to new careers. A career keeps its own copy of every driver's ratings.
+- Name, number, nationality, head and commentary name changes reach careers that already have the driver.
+- **Retire** removes a driver from new careers and keeps careers that have the driver loading.
+- Turning Driver Manager off or deleting it breaks careers that contain its drivers. The launcher asks before it does either.
