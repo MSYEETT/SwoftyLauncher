@@ -4,7 +4,7 @@
   sitereg.py --agent A site NAME VA [--expect-len N] [--func-start VA] [--data1-reason TEXT]
   sitereg.py --agent A data NAME VA --type CTYPE --via INSN_VA
   sitereg.py --agent A func NAME VA [--proto PROTO]
-  common: --subsystem ID --level L2 --evidence "decomp:...;xref:..." --notes "..." --used-by FILE [--dry-run]
+  common: --subsystem ID --level L2 --evidence "decomp:...;xref:..." --notes "..." --used-by FILE [--match-from VA] [--dry-run]
 
 It makes a unique signature with sigcheck's maker (a `site` gets kind mid, `data` a riprel signature through the
 instruction at --via, `func` kind func_start), checks it with sigcheck, writes it into signatures.json under the KB
@@ -49,6 +49,20 @@ def data_candidate(img, target, via):
     return cand
 
 
+def anchored_candidate(img, va, start, kind):
+    sec = img.sec_of(va)
+    for n in range(sigcheck.MIN_LEN, 257, 4):
+        pat = sigcheck.pattern_for(img, start, max(n, va - start + 6))
+        if len(pat) < max(sigcheck.MIN_LEN, va - start + 1):
+            continue
+        if len(sigcheck.find_all(img, sec, pat, limit=2)) == 1:
+            return {'id': '<subsystem>.<name>', 'section': sec,
+                    'pattern': ' '.join('??' if x is None else f'{x:02X}' for x in pat), 'match': hex(start),
+                    'anchor': hex(va - start), 'resolve': {'kind': 'addr'}, 'target': hex(va), 'kind': kind,
+                    'names': [], 'verified': [], 'used_by': []}
+    raise SystemExit(f'no unique pattern from 0x{start:x} covering 0x{va:x} within 256 bytes')
+
+
 def expect_bytes(img, va, n):
     if n is None:
         from capstone import Cs, CS_ARCH_X86, CS_MODE_64
@@ -79,6 +93,7 @@ def main():
     ap.add_argument('--func-start', default=None)
     ap.add_argument('--data1-reason', default=None)
     ap.add_argument('--id', default=None)
+    ap.add_argument('--match-from', default=None, help='start the pattern at this instruction (for code cloned around the target)')
     ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--force', action='store_true')
     a = ap.parse_args()
@@ -110,7 +125,8 @@ def main():
                 raise SystemExit('data needs --type and --via')
             sig = data_candidate(img, va, int(a.via, 16))
         else:
-            sig = sigcheck.make(img, va, 'mid' if a.what == 'site' else 'func_start', fs)
+            kind = 'mid' if a.what == 'site' else 'func_start'
+            sig = anchored_candidate(img, va, int(a.match_from, 16), kind) if a.match_from else sigcheck.make(img, va, kind, fs)
             if not sig:
                 raise SystemExit(f'no unique pattern within 96 bytes of 0x{va:x}')
             if a.what == 'site':
