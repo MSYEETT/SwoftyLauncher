@@ -532,7 +532,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "swofty-addon"
-version = "1.0.11"
+version = "1.0.12"
 dependencies = [
  "semver",
  "serde",
@@ -544,7 +544,7 @@ dependencies = [
 
 [[package]]
 name = "swofty-core"
-version = "1.0.11"
+version = "1.0.12"
 dependencies = [
  "flate2",
  "md-5",
@@ -564,7 +564,7 @@ dependencies = [
 
 [[package]]
 name = "swofty-formats"
-version = "1.0.11"
+version = "1.0.12"
 dependencies = [
  "aes",
  "bcdec_rs",
@@ -575,7 +575,7 @@ dependencies = [
 
 [[package]]
 name = "swofty-sdk"
-version = "1.0.11"
+version = "1.0.12"
 
 [[package]]
 name = "syn"
