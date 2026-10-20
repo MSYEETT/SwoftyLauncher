@@ -93,14 +93,11 @@ So the grid adds no driver, look or statistics rows and needs no new stat ids. R
 
 ### Front-end art still on 2026
 
-Database and lang ops don't reach these; each needs art or ERP ops.
+Database and lang ops don't reach these. `frontend.py` covers the backdrop names and the tabs.
 
 | What | Where it comes from |
 |---|---|
-| Driver Select backdrop name | Pre-rendered texture on `mfe_2025_main_menu_driver_select_name.idf` in `environment_package/second_world/main_front_end/wep/main_front_end.erp`. The game sets the material context to the driver row label: `mfe_2025_main_menu_driver_select_name.emb?context=<label>` → `mfe_2025_driver_select_<name>_a.material` → `f1_drivername_<name>.tif` (BC7 2048x512; mips 256x64 and down in fragment 1, the top three in the loose `f1_driver_names~f1_drivername_<name>.tif.2025.mipmaps`). A reused 2026 row shows the 2026 name; a row with no context (`ayrton_senna`, `alain_prost`, `nigel_mansell`, the six `OTHER_ROWS`) keeps the previous name, and `default` is LEWIS HAMILTON. `native-requests.md` N4 has the data route |
-| Team Select backdrop name | The same, with `mfe_2025_main_menu_vehicle_select_name.emb?context=<team row>` and `f1_teamname_<team>.tif`: Lotus shows RED BULL, Tyrrell MERCEDES |
 | Team icons | Name-keyed lists in `databases.erp: overrides.uidb`, baked into `ui_package/art/texture_arrays/overrides.uidb/overrides.<path>.texarray`. Keyed by team row (`mclaren_26` ...): `team_logos.f1_2026`, `team_logos.driver_career_2024_team_select`, `teams.mp_team_select_logos`, `teams.badges_broadcast`, `teams.fanzone_*`, `teams.teams_f1_2024_gp_voting`, `broadcast_ui_generic.grid_team_logos`, `broadcast_ui_generic.team`. Keyed by other names: `teams.driver_select_team_logos` (`mclaren`, `redbull`, ...), `teams.career_team_select_logo_small` (`team_select_<team>`), `osd.timing_tower.team_badges_hud`/`_broadcast` (`mclaren_26`, `red_bull_26`, `alpine_26`, ...). `team12_26` and `team13_26` have no entry in any of them |
-| F1 / F2 / ICONS tabs | The Driver Career Choose Driver screen (`driver_career_driver_select`, `flow_career_season_setup.erp`); the tabs are the `driver_career_driver_select_header` group of `persistent.erp: screen_groups.uicontentgroup` (`header_f1`, `header_selected_team_icon`, `header_f2`, `header_icon`). The Grand Prix flow (Team Select, then Driver Select with Change Driver) has no tabs. `patch-pkg` can't remove an array entry |
 | Suit colours | Generic suits are colour-customisable (`nb_colours` 3 or 4); their diffuse is composed at run time (`charname_livery_v2_d`), so the colour an AI driver gets isn't in the data. 1990 kits need new `character_package/team_livery/1990-<team>` packages |
 
 ### Ratings
@@ -122,6 +119,21 @@ The pack's 14 ratings are scaled to 0..1 across its 44 drivers (`Season.normalis
 | trait speed_out | 0.55 + 0.45 × mean(qualifying_skill, race_skill) |
 
 Each rating curve is flat at its value. `consistency` is not used.
+
+## frontend.py
+
+Writes `erp/frontend.json` and its sources under `erp/frontend/` (about 3 MB) from the season pack, `grid.py`'s row choices and the stock archives in `--game`. Needs Pillow and lz4 (`nix-shell -p "python3.withPackages (ps: [ ps.pillow ps.lz4 ])"`), `fc-match` and rnd-tyres-thermal's `bc7enc.py` (mode-6 encoder, white on alpha). `JOBS` sets the encoder processes (default 8).
+
+```sh
+python3 addons/f1-1990/tools/frontend.py --game <game folder> [--preview <dir>]
+```
+
+| Part | Ops |
+|---|---|
+| Driver Select names | The backdrop is a texture on `mfe_2025_main_menu_driver_select_name.idf` in `environment_package/second_world/main_front_end/wep/main_front_end.erp`, picked by material context = the driver row label (`...driver_select_name.emb?context=<label>` → `mfe_2025_driver_select_<name>_a.material` → `f1_drivername_<name>.tif`, BC7 2048x512). A missing context keeps the previous name. Each of the 31 rows the grid uses gets the 1990 driver's name (first name filled, surname outlined, right-aligned, DejaVu Sans Bold stretched 1.25): the 22 rows with a context reuse their own texture; `ayrton_senna`, `alain_prost`, `nigel_mansell` and the six `OTHER_ROWS` get a new context (`add-resource`) copied from an unused one (Zenith, Konnersport, Doohan, Tsunoda, F2); `lewis_hamilton` moves to an unused F2 slot of the same size, and its texture, which `default` also uses, is left blank |
+| Team Select names | The same with `mfe_2025_main_menu_vehicle_select_name.emb?context=<team row>` and `f1_teamname_<team>.tif` (2048x256, outlined): the 13 slots' rows show the team's short name; `team12_26` and `team13_26` get contexts copied from F2 teams |
+| Textures | `replace-resource` fragment 1 (the mips in the archive, same size) and fragment 2 (the mip-file descriptor, same length, pointing at `names/f1990_drv_names~...` or `names/f1990_tmnames~...`); `add-mipmaps` installs the LZ4 mip files |
+| Tabs | `persistent.erp: screen_groups.uicontentgroup` without `header_f2` and `header_icon` in the `driver_career_driver_select_header` group (the Driver Career Choose Driver screen), behind `hide_f2_icon_tabs` (default on). The tool checks the stock resource round-trips byte-exact through `tools/pkg.py` and that the edit differs only by the two entries. The resource shrinks, so the build writes `persistent.erp` into the game files on both routes |
 
 ## check_grid.py
 

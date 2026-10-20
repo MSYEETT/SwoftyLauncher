@@ -1,0 +1,756 @@
+{
+ "schema_version": 1,
+ "ops": [
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_sonny_hayes.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_sonny_hayes.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_sonny_hayes.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_sonny_hayes.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_lando_norris.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_lando_norris.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_lando_norris.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_lando_norris.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_joshua_pearce.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_joshua_pearce.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_joshua_pearce.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_joshua_pearce.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_callie_mayer.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_callie_mayer.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_callie_mayer.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_callie_mayer.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_alexander_albon.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_alexander_albon.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_alexander_albon.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_alexander_albon.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_carlos_sainz.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_carlos_sainz.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_carlos_sainz.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_carlos_sainz.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_pierre_gasly.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_pierre_gasly.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_pierre_gasly.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_pierre_gasly.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_driver_names/f2_drivername_franco_colapinto.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f2_driver_names__f2_drivername_franco_colapinto.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_driver_names/f2_drivername_franco_colapinto.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f2_driver_names__f2_drivername_franco_colapinto.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_george_russell.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_george_russell.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_george_russell.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_george_russell.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_andrea_kimi_antonelli.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_andrea_kimi_antonelli.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_andrea_kimi_antonelli.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_andrea_kimi_antonelli.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_max_verstappen.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_max_verstappen.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_max_verstappen.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_max_verstappen.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_isack_hadjar.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_isack_hadjar.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_isack_hadjar.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_isack_hadjar.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_fernando_alonso.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_fernando_alonso.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_fernando_alonso.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_fernando_alonso.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_lance_stroll.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_lance_stroll.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_lance_stroll.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_lance_stroll.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_aiden_jackson.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_aiden_jackson.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_aiden_jackson.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_aiden_jackson.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_jack_doohan.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_jack_doohan.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_jack_doohan.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_jack_doohan.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_nico_hulkenberg.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_nico_hulkenberg.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_nico_hulkenberg.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_nico_hulkenberg.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_gabriel_bortoleto.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_gabriel_bortoleto.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_gabriel_bortoleto.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_gabriel_bortoleto.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_lliam_lawson.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_lliam_lawson.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_lliam_lawson.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_lliam_lawson.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_driver_names/f2_drivername_arvid_lindblad.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f2_driver_names__f2_drivername_arvid_lindblad.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_driver_names/f2_drivername_arvid_lindblad.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f2_driver_names__f2_drivername_arvid_lindblad.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_sergio_perez.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_sergio_perez.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_sergio_perez.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_sergio_perez.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_valtteri_bottas.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_valtteri_bottas.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_valtteri_bottas.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_valtteri_bottas.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_yuki_tsunoda.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_yuki_tsunoda.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_yuki_tsunoda.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_yuki_tsunoda.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_driver_names/f2_drivername_alexander_dunne.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f2_driver_names__f2_drivername_alexander_dunne.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_driver_names/f2_drivername_alexander_dunne.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f2_driver_names__f2_drivername_alexander_dunne.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_oliver_bearman.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_oliver_bearman.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_oliver_bearman.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_oliver_bearman.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_esteban_ocon.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_esteban_ocon.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_esteban_ocon.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_esteban_ocon.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_oscar_piastri.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_oscar_piastri.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_oscar_piastri.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_oscar_piastri.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_charles_leclerc.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_charles_leclerc.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_charles_leclerc.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_charles_leclerc.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_driver_names/f2_drivername_amaury_cordeel.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f2_driver_names__f2_drivername_amaury_cordeel.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_driver_names/f2_drivername_amaury_cordeel.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f2_driver_names__f2_drivername_amaury_cordeel.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_driver_names/f2_drivername_christian_mansell.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f2_driver_names__f2_drivername_christian_mansell.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_driver_names/f2_drivername_christian_mansell.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f2_driver_names__f2_drivername_christian_mansell.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_driver_names/f2_drivername_cian_shields.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f2_driver_names__f2_drivername_cian_shields.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_driver_names/f2_drivername_cian_shields.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f2_driver_names__f2_drivername_cian_shields.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_lewis_hamilton.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_lewis_hamilton.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_lewis_hamilton.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_driver_names__f1_drivername_lewis_hamilton.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_mclaren.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_team_names__f1_teamname_mclaren.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_mclaren.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_team_names__f1_teamname_mclaren.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_ferrari.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_team_names__f1_teamname_ferrari.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_ferrari.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_team_names__f1_teamname_ferrari.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_williams.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_team_names__f1_teamname_williams.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_williams.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_team_names__f1_teamname_williams.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_alpine.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_team_names__f1_teamname_alpine.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_alpine.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_team_names__f1_teamname_alpine.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_mercedes.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_team_names__f1_teamname_mercedes.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_mercedes.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_team_names__f1_teamname_mercedes.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_red_bull.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_team_names__f1_teamname_red_bull.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_red_bull.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_team_names__f1_teamname_red_bull.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_amaf1.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_team_names__f1_teamname_amaf1.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_amaf1.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_team_names__f1_teamname_amaf1.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_team_names/f2_teamname_aix.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f2_team_names__f2_teamname_aix.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_team_names/f2_teamname_aix.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f2_team_names__f2_teamname_aix.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_audi.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_team_names__f1_teamname_audi.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_audi.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_team_names__f1_teamname_audi.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_vcarb.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_team_names__f1_teamname_vcarb.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_vcarb.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_team_names__f1_teamname_vcarb.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_cadillac.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_team_names__f1_teamname_cadillac.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_cadillac.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_team_names__f1_teamname_cadillac.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_team_names/f2_teamname_art.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f2_team_names__f2_teamname_art.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f2_team_names/f2_teamname_art.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f2_team_names__f2_teamname_art.f2"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_haas.tif.image",
+   "fragment": 1,
+   "source": "erp/frontend/f1_team_names__f1_teamname_haas.f1"
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_haas.tif.image",
+   "fragment": 2,
+   "source": "erp/frontend/f1_team_names__f1_teamname_haas.f2"
+  },
+  {
+   "op": "add-mipmaps",
+   "source": "erp/frontend/mipmaps/",
+   "target": "environment_package/core_assets/objects/textures/main_front_end/names/"
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=alain_prost",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/bind__mfe_2025_main_menu_driver_select_name__alain_prost"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=ayrton_senna",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/bind__mfe_2025_main_menu_driver_select_name__ayrton_senna"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=felipe_drugovich",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/bind__mfe_2025_main_menu_driver_select_name__felipe_drugovich"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=juri_vips",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/bind__mfe_2025_main_menu_driver_select_name__juri_vips"
+   ]
+  },
+  {
+   "op": "replace-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=lewis_hamilton",
+   "fragment": 0,
+   "source": "erp/frontend/bind__mfe_2025_main_menu_driver_select_name__lewis_hamilton"
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=marcus_armstrong",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/bind__mfe_2025_main_menu_driver_select_name__marcus_armstrong"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=marino_sato",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/bind__mfe_2025_main_menu_driver_select_name__marino_sato"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=nigel_mansell",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/bind__mfe_2025_main_menu_driver_select_name__nigel_mansell"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=nyck_de-vries",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/bind__mfe_2025_main_menu_driver_select_name__nyck_de-vries"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=olli_caldwell",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/bind__mfe_2025_main_menu_driver_select_name__olli_caldwell"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_vehicle_select_name.emb?context=team12_26",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/bind__mfe_2025_main_menu_vehicle_select_name__team12_26"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_vehicle_select_name.emb?context=team13_26",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/bind__mfe_2025_main_menu_vehicle_select_name__team13_26"
+   ]
+  },
+  {
+   "op": "replace-resource",
+   "when": {
+    "hide_f2_icon_tabs": true
+   },
+   "erp": "2025_asset_groups/ui_package/persistent.erp",
+   "resource": "eaid://ui_package/screen_groups/screen_groups.uicontentgroup",
+   "fragment": 0,
+   "source": "erp/frontend/screen_groups.uicontentgroup"
+  }
+ ]
+}
