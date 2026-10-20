@@ -50,8 +50,8 @@ ENTRANT_FIELDS = ["_metadata_", "badge_customisation", "car_number", "driver", "
 
 STOCK = {
     "ayrton_senna": ("ayrton_senna", "classic-senna01_ayrton_senna"),
-    "alain_prost": ("alain_prost", "classic-prost01_alain_prost"),
-    "nigel_mansell": ("nigel_mansell", "classic-mansell01_nigel_mansell"),
+    "alain_prost": ("alain_prost", "tier01_livery85"),
+    "nigel_mansell": ("nigel_mansell", "tier04_livery86"),
 }
 OWN_HOLDERS = {"ayrton_senna": "aryton_senna", "alain_prost": "alain_prost", "nigel_mansell": "nigel_mansell"}
 
@@ -59,15 +59,15 @@ OWN_HOLDERS = {"ayrton_senna": "aryton_senna", "alain_prost": "alain_prost", "ni
 
 DRIVER_INFO = {
     "ayrton_senna": ("SEN", 1984, (1960, 3, 21), None, None),
-    "alain_prost": ("PRO", 1980, (1955, 2, 24), None, None),
-    "nigel_mansell": ("MAN", 1980, (1953, 8, 8), None, None),
+    "alain_prost": ("PRO", 1980, (1955, 2, 24), "male_ls347", None),
+    "nigel_mansell": ("MAN", 1980, (1953, 8, 8), "male_ls144", None),
     "gerhard_berger": ("BER", 1984, (1959, 8, 27), "male_ls204", "tier03_livery101"),
     "thierry_boutsen": ("BOU", 1983, (1957, 7, 13), "male_ls222", "tier01_livery76"),
     "riccardo_patrese": ("PAT", 1977, (1954, 4, 17), "male_ls240", "tier02_livery95"),
     "alessandro_nannini": ("NAN", 1986, (1959, 7, 7), "male_ls248", "tier02_livery104"),
-    "nelson_piquet": ("PIQ", 1978, (1952, 8, 17), "pedro_piquet", "tier01_livery79"),
+    "nelson_piquet": ("PIQ", 1978, (1952, 8, 17), "male_ls192", "tier01_livery79"),
     "satoru_nakajima": ("NAK", 1987, (1953, 2, 23), "male_ls345", "tier05_livery73"),
-    "jean_alesi": ("ALE", 1989, (1964, 6, 11), "giuliano_alesi", "tier04_livery103"),
+    "jean_alesi": ("ALE", 1989, (1964, 6, 11), "male_ls247", "tier04_livery103"),
     "derek_warwick": ("WAR", 1981, (1954, 8, 27), "male_ls356", "tier01_livery75"),
     "martin_donnelly": ("DON", 1989, (1964, 3, 26), "male_ls526", "tier02_livery82"),
     "mauricio_gugelmin": ("GUG", 1988, (1963, 4, 20), "male_ls758", "tier03_livery105"),
@@ -212,6 +212,13 @@ def ratings(season, did):
     return stats, traits
 
 
+TIER_BY_REPUTATION = {"TOP_TEAM": 0, "MIDFIELD_HIGH": 0, "MIDFIELD": 1, "MINNOW": 2, "SUPER_MINNOW": 2}
+
+
+def performance_tiers(season):
+    return {s.team: TIER_BY_REPUTATION[season.teams[s.team].reputation] for s in slots()}
+
+
 def build(season):
     teams = [s.team for s in slots()]
     regulars = season.regulars(teams)
@@ -245,6 +252,7 @@ def build(season):
     def add(table, frm, values):
         ops.append({"op": "add-row", "table": table, "from": frm, "set": values})
 
+    tiers = performance_tiers(season)
     for s in slots():
         name, short, code, colours, base, nat, chassis, engine, boss_key, boss = TEAM_INFO[s.team]
         team = f"entrants.teams.team[_metadata_={s.team_row}]"
@@ -282,6 +290,7 @@ def build(season):
         setop(vehicle, "display_name", key)
         setop(vehicle, "chassis_name", f"lng_f1990_chassis_{s.team}")
         setop(vehicle, "engine_name_override", f"lng_f1990_engine_{s.team}")
+        setop(vehicle, "performance_tier", str(tiers[s.team]))
 
     driver_labels, entrant_of = {}, {}
     packages = {row: list(drivers) for row, drivers in PACKAGES.items()}
@@ -305,6 +314,8 @@ def build(season):
             label, holder_label, datasets, look, entrant = STOCK[did][0], OWN_HOLDERS[did], 1, None, None
             helmet = STOCK[did][1]
             row = f"entrants.drivers.driver[_metadata_={label}]"
+            if head:
+                setop(row, "head", head)
             setop(row, "car_number", str(number))
             setop(row, "f1_seasons_completed", str(1990 - debut))
             for t in TRAITS:

@@ -73,6 +73,8 @@ Every op on Custom Grid Size's rows (`team12_*`, `team13_*`, their seats and the
 |---|---|
 | 13 teams | `set` on each slot's team row: names (`lng_f1990_team_<team>`, `_short`), code, the seven colours, base, nationality, and a 1990 description and hashtag on the 11 rows that carry `story_info`. `set` on its vehicle row: `display_name`, `chassis_name`, `engine_name_override`. Team principal: the boss's `entrants.characters` row gets `lng_f1990_boss_<team>_full/_first/_last`; Larrousse and Dallara get their own boss rows (`andreas_seidl`, `franz_tost`) instead of sharing Williams' and Haas'. `lang.set` on the stock `lng_<team>_boss` keys, which the career's email senders use |
 | 31 drivers | No new driver, look or statistics rows (see [Why rows are reused](#why-rows-are-reused)). Senna, Prost and Mansell keep their stock rows (`set` car number, seasons, AI traits). The other 28 (23 season regulars plus the stand-ins Foitek, Morbidelli, Schneider, Moreno and Herbert) each take a stock driver row no list in the 1990 profile uses, by `set` on its names, code, number, nationality, head, birth date, seasons, voice and AI traits: a 2026 F1 driver of the same team row where one is free (`PACKAGES`), otherwise one of six old F2 drivers (`OTHER_ROWS`) |
+| Performance tier | `performance_tier` on each slot's vehicle row from the pack's team reputation: TOP_TEAM and MIDFIELD_HIGH 0 (McLaren, Ferrari, Williams, Benetton), MIDFIELD 1, MINNOW and SUPER_MINNOW 2 (Ligier, Larrousse) |
+| Heads and helmets | Every head and helmet is one the game ships an asset for: the `alain_prost`, `nigel_mansell`, `pedro_piquet` and `giuliano_alesi` heads and the `classic-prost01`/`classic-mansell01` helmets have database rows but no assets (the driver renders headless), so Prost, Mansell, Piquet and Alesi get generic heads and Prost and Mansell stock helmets |
 | Looks | A reused 2026 F1 driver keeps his `2026-<team>_<driver>` look; Senna, Prost, Mansell and the `OTHER_ROWS` drivers take a 2026 F2 look (`SPARE_LOOKS`). Each look gets `set` on helmet, suit, gloves (the team's 2026 kit) and `linked_driver_stat_id` |
 | Ratings | `set` on the curves of the reused driver's own `driver_statistics` holder, in every data set (2 for the 2026 F1 drivers) |
 | Entrants | A reused 2026 F1 driver keeps his `f1_2026-<driver>` entrant (`set` car number and look); the other 9 drivers get a new `entrants.entrant_lists.entrants` row (`f1990-<driver>`) |
@@ -114,8 +116,10 @@ Each rating curve is flat at its value. `consistency` is not used.
 Checks a built database against `db/grid.json`: the 26 `f1_2026` seats resolve to a team, a car, an entrant, a driver and a look; car numbers, driver stat ids, look stat ids and driver labels are unique; no free agent is also seated; the statistics table holds at most 128 holders and each seated driver exactly one; every added row has every listed field its source row has, and no more.
 
 ```sh
-python3 addons/f1-1990/tools/check_grid.py <overlay>/game_package/gamedatabases/gamedatabases.2025.bin
+python3 addons/f1-1990/tools/check_grid.py <overlay>/game_package/gamedatabases/gamedatabases.2025.bin [--lists <driver-manager cache>/game-lists.json]
 ```
+
+With `--lists` (Driver Manager's `game-lists.json`, whose `missing` list names the heads and kit the game has no asset for) it also checks each seated driver's head, helmet, suit and gloves.
 
 `swofty build` reads the database in the game folder. While a test build is installed there, build with `--game` pointing at a folder holding a copy of `F1_25.exe` and the stock `game_package/gamedatabases/gamedatabases.2025.bin`, and a copy of Custom Grid Size without its `erp` ops.
 

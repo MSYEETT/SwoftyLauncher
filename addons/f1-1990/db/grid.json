@@ -143,6 +143,12 @@
   },
   {
    "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=mclaren_2026]",
+   "field": "performance_tier",
+   "value": "0"
+  },
+  {
+   "op": "set",
    "select": "entrants.characters.character[_metadata_=frederic_vasseur]",
    "field": "full_name",
    "value": "lng_f1990_boss_ferrari_full"
@@ -266,6 +272,12 @@
    "select": "entrants.vehicles.vehicle[_metadata_=ferrari_2026]",
    "field": "engine_name_override",
    "value": "lng_f1990_engine_ferrari"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=ferrari_2026]",
+   "field": "performance_tier",
+   "value": "0"
   },
   {
    "op": "set",
@@ -395,6 +407,12 @@
   },
   {
    "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=williams_2026]",
+   "field": "performance_tier",
+   "value": "0"
+  },
+  {
+   "op": "set",
    "select": "entrants.characters.character[_metadata_=steve_nielsen]",
    "field": "full_name",
    "value": "lng_f1990_boss_benetton_full"
@@ -506,6 +524,12 @@
    "select": "entrants.vehicles.vehicle[_metadata_=lotus_2026]",
    "field": "engine_name_override",
    "value": "lng_f1990_engine_benetton"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=lotus_2026]",
+   "field": "performance_tier",
+   "value": "0"
   },
   {
    "op": "set",
@@ -635,6 +659,12 @@
   },
   {
    "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=mercedes_2026]",
+   "field": "performance_tier",
+   "value": "1"
+  },
+  {
+   "op": "set",
    "select": "entrants.characters.character[_metadata_=laurent_mekies]",
    "field": "full_name",
    "value": "lng_f1990_boss_lotus_full"
@@ -761,6 +791,12 @@
   },
   {
    "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=redbull_2026]",
+   "field": "performance_tier",
+   "value": "1"
+  },
+  {
+   "op": "set",
    "select": "entrants.characters.character[_metadata_=adrian_newey]",
    "field": "full_name",
    "value": "lng_f1990_boss_march_full"
@@ -884,6 +920,12 @@
    "select": "entrants.vehicles.vehicle[_metadata_=force_india_2026]",
    "field": "engine_name_override",
    "value": "lng_f1990_engine_march"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=force_india_2026]",
+   "field": "performance_tier",
+   "value": "1"
   },
   {
    "op": "set",
@@ -1085,6 +1127,15 @@
   },
   {
    "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=team12_2026]",
+   "field": "performance_tier",
+   "value": "2",
+   "when": {
+    "cars": 26
+   }
+  },
+  {
+   "op": "set",
    "select": "entrants.characters.character[_metadata_=mattia_binotto]",
    "field": "full_name",
    "value": "lng_f1990_boss_ligier_prost_full"
@@ -1208,6 +1259,12 @@
    "select": "entrants.vehicles.vehicle[_metadata_=sauber_2026]",
    "field": "engine_name_override",
    "value": "lng_f1990_engine_ligier_prost"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=sauber_2026]",
+   "field": "performance_tier",
+   "value": "2"
   },
   {
    "op": "set",
@@ -1337,6 +1394,12 @@
   },
   {
    "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=toro_rosso_2026]",
+   "field": "performance_tier",
+   "value": "1"
+  },
+  {
+   "op": "set",
    "select": "entrants.characters.character[_metadata_=graeme_lowdon]",
    "field": "full_name",
    "value": "lng_f1990_boss_brabham_full"
@@ -1460,6 +1523,12 @@
    "select": "entrants.vehicles.vehicle[_metadata_=gm_cadillac_2026]",
    "field": "engine_name_override",
    "value": "lng_f1990_engine_brabham"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=gm_cadillac_2026]",
+   "field": "performance_tier",
+   "value": "1"
   },
   {
    "op": "set",
@@ -1661,6 +1730,15 @@
   },
   {
    "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=team13_2026]",
+   "field": "performance_tier",
+   "value": "1",
+   "when": {
+    "cars": 26
+   }
+  },
+  {
+   "op": "set",
    "select": "entrants.characters.character[_metadata_=ayao_komatsu]",
    "field": "full_name",
    "value": "lng_f1990_boss_arrows_full"
@@ -1784,6 +1862,12 @@
    "select": "entrants.vehicles.vehicle[_metadata_=haas_2026]",
    "field": "engine_name_override",
    "value": "lng_f1990_engine_arrows"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=haas_2026]",
+   "field": "performance_tier",
+   "value": "1"
   },
   {
    "op": "set",
@@ -2129,6 +2213,12 @@
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=alain_prost]",
+   "field": "head",
+   "value": "male_ls347"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=alain_prost]",
    "field": "car_number",
    "value": "1"
   },
@@ -2208,7 +2298,7 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-artgrandprix_kush_maini]",
    "field": "helmet",
-   "value": "classic-prost01_alain_prost"
+   "value": "tier01_livery85"
   },
   {
    "op": "set",
@@ -2244,6 +2334,12 @@
     "vehicle": "",
     "vehicle_customisation": ""
    }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=nigel_mansell]",
+   "field": "head",
+   "value": "male_ls144"
   },
   {
    "op": "set",
@@ -2327,7 +2423,7 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-camposracing_nikola_tsolov]",
    "field": "helmet",
-   "value": "classic-mansell01_nigel_mansell"
+   "value": "tier04_livery86"
   },
   {
    "op": "set",
@@ -3094,7 +3190,7 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=franco_colapinto]",
    "field": "head",
-   "value": "pedro_piquet"
+   "value": "male_ls192"
   },
   {
    "op": "set",
@@ -3538,7 +3634,7 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=andrea-kimi_antonelli]",
    "field": "head",
-   "value": "giuliano_alesi"
+   "value": "male_ls247"
   },
   {
    "op": "set",
