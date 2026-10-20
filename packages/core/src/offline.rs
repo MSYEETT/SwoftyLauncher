@@ -182,14 +182,51 @@ pub struct Artifacts {
     pub probe: PathBuf,
 }
 
-fn verify_file(path: &Path, name: &str) -> Result<()> {
-    let want = pin(name).ok_or_else(|| Error::Other(format!("no pinned digest for {name}")))?;
+/// The two artifacts the manager runs: (prelaunch, probe).
+#[cfg(windows)]
+const RUNNERS: [&str; 2] = ["f1op-prelaunch.exe", "f1op-probe.exe"];
+#[cfg(not(windows))]
+const RUNNERS: [&str; 2] = ["f1op-prelaunch-linux-x86_64", "f1op-probe-linux-x86_64"];
+
+fn verify_digest(path: &Path, name: &str, want: &str) -> Result<()> {
     let have = sha256_file(path)?;
     if have != want {
         return Err(Error::Other(format!(
             "{name}: digest mismatch (have {have}, want {want}); refusing to use it"
         )));
     }
+    Ok(())
+}
+
+fn verify_file(path: &Path, name: &str) -> Result<()> {
+    let want = pin(name).ok_or_else(|| Error::Other(format!("no pinned digest for {name}")))?;
+    verify_digest(path, name, want)
+}
+
+/// The files this platform needs, each with its pinned digest.
+fn pinned_files() -> Result<Vec<(&'static str, &'static str)>> {
+    REQUIRED
+        .iter()
+        .map(|name| {
+            pin(name)
+                .map(|digest| (*name, digest))
+                .ok_or_else(|| Error::Other(format!("no pinned digest for {name}")))
+        })
+        .collect()
+}
+
+/// Downloads and copies do not carry the execute bit, and the runners need it
+/// on Unix.
+fn set_executable(path: &Path) -> Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(path).map_err(io_err(path))?.permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(path, perms).map_err(io_err(path))?;
+    }
+    #[cfg(not(unix))]
+    let _ = path;
     Ok(())
 }
 
@@ -207,10 +244,7 @@ pub fn artifacts(data: &Path) -> Result<Artifacts> {
         }
         verify_file(&path, name)?;
     }
-    #[cfg(windows)]
-    let (prelaunch, probe) = ("f1op-prelaunch.exe", "f1op-probe.exe");
-    #[cfg(not(windows))]
-    let (prelaunch, probe) = ("f1op-prelaunch-linux-x86_64", "f1op-probe-linux-x86_64");
+    let [prelaunch, probe] = RUNNERS;
     let out = Artifacts {
         hook: dir.join("f1op_hook.dll"),
         stub: dir.join("f1op_stub.exe"),
@@ -218,73 +252,276 @@ pub fn artifacts(data: &Path) -> Result<Artifacts> {
         probe: dir.join(probe),
         dir,
     };
-    // Downloads and copies do not carry the execute bit, and the runners need
-    // it on Unix. Re-applied on every use so an install made before this fix
-    // heals itself without being downloaded again.
-    #[cfg(unix)]
-    for path in [&out.prelaunch, &out.probe] {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = std::fs::metadata(path)
-            .map_err(|e| io_err(path.to_path_buf())(e))?
-            .permissions();
-        perms.set_mode(0o755);
-        std::fs::set_permissions(path, perms).map_err(|e| io_err(path.to_path_buf())(e))?;
-    }
+    // Re-applied on every use so an older install without the bit heals
+    // itself without being downloaded again.
+    set_executable(&out.prelaunch)?;
+    set_executable(&out.probe)?;
     Ok(out)
+}
+
+/// Where a release is assembled before it replaces the installed one. It sits
+/// next to the extension directory so the final rename stays on one
+/// filesystem.
+fn staging_dir(data: &Path) -> PathBuf {
+    data.join("extensions/.offline-play.partial")
+}
+
+fn fresh_dir(dir: &Path) -> Result<()> {
+    if dir.exists() {
+        std::fs::remove_dir_all(dir).map_err(io_err(dir))?;
+    }
+    std::fs::create_dir_all(dir).map_err(io_err(dir))
+}
+
+/// Verify a fully assembled release in the staging directory, then swap it in
+/// for the installed one. Until the swap the installed copy is untouched; a
+/// crash between the two renames leaves no extension directory, which reads
+/// as "not installed" and is fetched again.
+fn commit(data: &Path, staging: &Path, files: &[(&str, &str)]) -> Result<()> {
+    for (name, digest) in files {
+        verify_digest(&staging.join(name), name, digest)?;
+    }
+    for name in RUNNERS {
+        let path = staging.join(name);
+        if path.is_file() {
+            set_executable(&path)?;
+        }
+    }
+    let dir = extension_dir(data);
+    let old = data.join("extensions/.offline-play.old");
+    if old.exists() {
+        std::fs::remove_dir_all(&old).map_err(io_err(&old))?;
+    }
+    if dir.exists() {
+        with_retry(&dir, || std::fs::rename(&dir, &old))?;
+    }
+    if let Err(e) = with_retry(&dir, || std::fs::rename(staging, &dir)) {
+        if old.exists() {
+            std::fs::rename(&old, &dir).ok();
+        }
+        return Err(e);
+    }
+    std::fs::remove_dir_all(&old).ok();
+    Ok(())
 }
 
 /// Verify a downloaded release folder against the pins and install it.
 pub fn install(data: &Path, src: &Path) -> Result<Artifacts> {
-    for name in REQUIRED {
-        let path = src.join(name);
-        if !path.is_file() {
-            return Err(Error::Other(format!("{}: not found in {}", name, src.display())));
-        }
-        verify_file(&path, name)?;
-    }
-    let dir = extension_dir(data);
-    std::fs::create_dir_all(&dir).map_err(io_err(&dir))?;
-    for name in REQUIRED {
-        let to = dir.join(name);
-        std::fs::copy(src.join(name), &to).map_err(io_err(&to))?;
-    }
+    install_files(data, src, &pinned_files()?)?;
     artifacts(data)
+}
+
+fn install_files(data: &Path, src: &Path, files: &[(&str, &str)]) -> Result<()> {
+    let staging = staging_dir(data);
+    fresh_dir(&staging)?;
+    let done = files
+        .iter()
+        .try_for_each(|(name, _)| {
+            let from = src.join(name);
+            if !from.is_file() {
+                return Err(Error::Other(format!("{name}: not found in {}", src.display())));
+            }
+            let to = staging.join(name);
+            std::fs::copy(&from, &to).map(|_| ()).map_err(io_err(&to))
+        })
+        .and_then(|()| commit(data, &staging, files));
+    std::fs::remove_dir_all(&staging).ok();
+    done
 }
 
 /// Download the pinned release from the artifact host and install it. The
 /// digests decide what is trusted; the host is only a transport.
 pub fn fetch(data: &Path) -> Result<Artifacts> {
-    let tmp = data.join("extensions/.download");
-    std::fs::create_dir_all(&tmp).map_err(io_err(&tmp))?;
-    for name in REQUIRED {
-        let url = format!("{}/v{}/{}", base_url(), EXTENSION_VERSION, name);
-        let to = tmp.join(name);
-        download(&url, &to)?;
-        verify_file(&to, name).map_err(|e| {
-            let _ = std::fs::remove_file(&to);
-            Error::Other(format!("{url}: {e}"))
-        })?;
-    }
-    let out = install(data, &tmp)?;
-    std::fs::remove_dir_all(&tmp).ok();
-    Ok(out)
+    fetch_release(data, &base_url(), EXTENSION_VERSION, &pinned_files()?)?;
+    artifacts(data)
 }
 
-fn download(url: &str, to: &Path) -> Result<()> {
+/// Download every file into the staging directory, verify each one, and only
+/// then replace the installed extension. Any failure leaves the installed copy
+/// as it was and names the file and the reason.
+fn fetch_release(data: &Path, base: &str, version: &str, files: &[(&str, &str)]) -> Result<()> {
+    // Earlier launchers downloaded into this folder and could leave it behind.
+    std::fs::remove_dir_all(data.join("extensions/.download")).ok();
+    let staging = staging_dir(data);
+    fresh_dir(&staging)?;
+    let done = files
+        .iter()
+        .try_for_each(|(name, digest)| {
+            let url = format!("{}/v{version}/{name}", base.trim_end_matches('/'));
+            let to = staging.join(name);
+            download(&url, &to).map_err(|e| Error::Other(format!("offline play {version}: {e}")))?;
+            verify_digest(&to, name, digest)
+                .map_err(|e| Error::Other(format!("offline play {version}: {url}: {e}")))
+        })
+        .and_then(|()| commit(data, &staging, files));
+    std::fs::remove_dir_all(&staging).ok();
+    done
+}
+
+fn download(url: &str, to: &Path) -> std::result::Result<(), String> {
     let resp = ureq::get(url)
         .config()
         .timeout_connect(Some(std::time::Duration::from_secs(30)))
+        .timeout_global(Some(std::time::Duration::from_secs(300)))
+        .http_status_as_error(false)
         .build()
         .call()
-        .map_err(|e| Error::Other(format!("{url}: {e}")))?;
-    let status = resp.status().as_u16();
-    if !(200..300).contains(&status) {
-        return Err(Error::Other(format!("{url}: HTTP {status}")));
+        .map_err(|e| format!("could not download {url}: {e}"))?;
+    let status = resp.status();
+    if status == 404 {
+        return Err(format!(
+            "{url}: HTTP {status}: the release on the host has no such file"
+        ));
     }
-    let mut reader = resp.into_body().into_reader();
-    let mut buf = Vec::new();
-    std::io::Read::read_to_end(&mut reader, &mut buf).map_err(|e| Error::Other(format!("{url}: {e}")))?;
-    std::fs::write(to, &buf).map_err(io_err(to))
+    if !status.is_success() {
+        return Err(format!("{url}: HTTP {status}"));
+    }
+    let expected = resp.body().content_length();
+    let mut body = Vec::new();
+    let read = std::io::Read::read_to_end(&mut resp.into_body().into_reader(), &mut body);
+    if let Err(e) = read {
+        return Err(format!(
+            "{url}: the download was cut off after {} bytes: {e}",
+            body.len()
+        ));
+    }
+    if let Some(n) = expected
+        && body.len() as u64 != n
+    {
+        return Err(format!(
+            "{url}: the download was cut off ({} of {n} bytes)",
+            body.len()
+        ));
+    }
+    std::fs::write(to, &body).map_err(|e| format!("{}: {e}", to.display()))
+}
+
+// ---------------------------------------------------------------------------
+// Running the extension's tools
+// ---------------------------------------------------------------------------
+
+/// How a runner is started.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Exec {
+    /// Executed as is.
+    Direct,
+    /// The binary names a program loader (ELF interpreter) this system does
+    /// not have, so it runs through the system's copy of that loader.
+    Loader { wanted: PathBuf, system: PathBuf },
+}
+
+/// Where Linux distributions keep the program loader.
+#[cfg(target_os = "linux")]
+const LOADER_DIRS: &[&str] = &[
+    "/lib64",
+    "/usr/lib64",
+    "/lib/x86_64-linux-gnu",
+    "/usr/lib/x86_64-linux-gnu",
+    "/lib",
+    "/usr/lib",
+];
+
+/// Decide how to start a runner, refusing one that is missing or cannot start
+/// here. A Linux binary whose ELF interpreter does not exist fails to exec with
+/// "No such file or directory" even though the file is present; it is run
+/// through the system loader instead when there is one.
+pub fn exec_mode(program: &Path) -> Result<Exec> {
+    #[cfg(target_os = "linux")]
+    let dirs: Vec<&Path> = LOADER_DIRS.iter().map(Path::new).collect();
+    #[cfg(not(target_os = "linux"))]
+    let dirs: Vec<&Path> = Vec::new();
+    exec_mode_in(program, &dirs)
+}
+
+fn exec_mode_in(program: &Path, loader_dirs: &[&Path]) -> Result<Exec> {
+    if !program.is_file() {
+        return Err(Error::Other(format!(
+            "{} is missing; reinstall the extension with `swofty offline fetch`",
+            program.display()
+        )));
+    }
+    if !cfg!(target_os = "linux") {
+        return Ok(Exec::Direct);
+    }
+    let Some(wanted) = elf_interpreter(program)? else {
+        return Ok(Exec::Direct);
+    };
+    if wanted.exists() {
+        return Ok(Exec::Direct);
+    }
+    let system = wanted
+        .file_name()
+        .and_then(|name| loader_dirs.iter().map(|d| d.join(name)).find(|p| p.is_file()));
+    match system {
+        Some(system) => Ok(Exec::Loader { wanted, system }),
+        None => Err(Error::Other(format!(
+            "{} cannot run on this system: it was built to start through {}, which does not \
+             exist here, and no system copy of that loader was found. This is a packaging \
+             problem in the offline play {EXTENSION_VERSION} Linux build, not in your install.",
+            program.display(),
+            wanted.display()
+        ))),
+    }
+}
+
+/// The PT_INTERP path of a 64-bit little-endian ELF file, or None for a static
+/// binary or anything that is not one.
+fn elf_interpreter(path: &Path) -> Result<Option<PathBuf>> {
+    const PT_INTERP: usize = 3;
+    let data = std::fs::read(path).map_err(io_err(path))?;
+    if data.get(..6) != Some(b"\x7fELF\x02\x01".as_slice()) {
+        return Ok(None);
+    }
+    let le = |at: usize, len: usize| -> Option<usize> {
+        let bytes = data.get(at..at.checked_add(len)?)?;
+        let value = bytes.iter().rev().fold(0u64, |v, b| (v << 8) | u64::from(*b));
+        usize::try_from(value).ok()
+    };
+    let (Some(phoff), Some(phentsize), Some(phnum)) = (le(0x20, 8), le(0x36, 2), le(0x38, 2)) else {
+        return Ok(None);
+    };
+    for i in 0..phnum {
+        let Some(ph) = i.checked_mul(phentsize).and_then(|o| o.checked_add(phoff)) else {
+            return Ok(None);
+        };
+        if le(ph, 4) != Some(PT_INTERP) {
+            continue;
+        }
+        let interp = (|| {
+            let offset = le(ph.checked_add(0x08)?, 8)?;
+            let size = le(ph.checked_add(0x20)?, 8)?;
+            data.get(offset..offset.checked_add(size)?)
+        })();
+        return Ok(interp.map(|raw| PathBuf::from(String::from_utf8_lossy(raw).trim_end_matches('\0'))));
+    }
+    Ok(None)
+}
+
+fn command(program: &Path) -> Result<Command> {
+    Ok(command_for(program, exec_mode(program)?))
+}
+
+fn command_for(program: &Path, exec: Exec) -> Command {
+    match exec {
+        Exec::Direct => Command::new(program),
+        Exec::Loader { system, .. } => {
+            let mut cmd = Command::new(system);
+            cmd.arg(program);
+            cmd
+        }
+    }
+}
+
+/// Explain an exit that came from the system loader rather than the tool: a C
+/// library older than the build needs, or a missing shared library.
+fn loader_hint(program: &Path, status: std::process::ExitStatus) -> &'static str {
+    let via_loader = matches!(exec_mode(program), Ok(Exec::Loader { .. }));
+    if via_loader && status.code() == Some(127) {
+        " (the system loader could not start it: this system's libraries are older than the \
+         offline play Linux build needs)"
+    } else {
+        ""
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -300,10 +537,10 @@ pub struct Probe {
 
 /// Ask the extension whether this game build is supported (fail closed).
 pub fn probe(game: &Path, a: &Artifacts) -> Result<Probe> {
-    let out = Command::new(&a.probe)
+    let out = command(&a.probe)?
         .arg(game.join(crate::GAME_EXE))
         .output()
-        .map_err(|e| Error::Other(format!("{}: {e}", a.probe.display())))?;
+        .map_err(|e| Error::Other(format!("could not start {}: {e}", a.probe.display())))?;
     let report = String::from_utf8_lossy(&out.stdout).trim().to_owned();
     match out.status.code() {
         Some(0) => Ok(Probe {
@@ -315,8 +552,9 @@ pub fn probe(game: &Path, a: &Artifacts) -> Result<Probe> {
             report,
         }),
         code => Err(Error::Other(format!(
-            "probe failed ({code:?}): {}",
-            String::from_utf8_lossy(&out.stderr).trim()
+            "probe failed ({code:?}): {}{}",
+            String::from_utf8_lossy(&out.stderr).trim(),
+            loader_hint(&a.probe, out.status)
         ))),
     }
 }
@@ -389,7 +627,7 @@ pub fn stage(game: &Path, a: &Artifacts, journal: &Path) -> Result<Vec<String>> 
     }
     let mut notes = heal_stale_backup(game, journal)?;
     let hook_dest = game.join("swofty/mods/core/f1op_hook.dll");
-    let out = Command::new(&a.prelaunch)
+    let out = command(&a.prelaunch)?
         .arg("stage")
         .arg("--game-dir")
         .arg(game)
@@ -402,11 +640,12 @@ pub fn stage(game: &Path, a: &Artifacts, journal: &Path) -> Result<Vec<String>> 
         .arg("--journal")
         .arg(journal)
         .output()
-        .map_err(|e| Error::Other(format!("{}: {e}", a.prelaunch.display())))?;
+        .map_err(|e| Error::Other(format!("could not start {}: {e}", a.prelaunch.display())))?;
     if !out.status.success() {
         return Err(Error::Other(format!(
-            "offline play staging failed: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
+            "offline play staging failed: {}{}",
+            String::from_utf8_lossy(&out.stderr).trim(),
+            loader_hint(&a.prelaunch, out.status)
         )));
     }
     notes.push("staged offline play for this session".into());
@@ -563,6 +802,314 @@ mod tests {
         let err = install(&d, &src).unwrap_err().to_string();
         assert!(err.contains("digest mismatch"), "{err}");
         assert!(!extension_dir(&d).join("f1op_hook.dll").exists());
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn install_from_a_folder_leaves_no_staging_behind() {
+        let d = temp("install-ok");
+        let src = d.join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        let release = fake_release();
+        for (name, body) in &release {
+            std::fs::write(src.join(name), body).unwrap();
+        }
+        let pins = digests(&release);
+        let pins: Vec<(&str, &str)> = pins.iter().map(|(n, h)| (*n, h.as_str())).collect();
+        install_files(&d, &src, &pins).unwrap();
+        for (name, body) in &release {
+            assert_eq!(
+                std::fs::read(extension_dir(&d).join(name)).unwrap(),
+                body.as_bytes()
+            );
+        }
+        assert!(!staging_dir(&d).exists());
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    enum Reply {
+        Body(Vec<u8>),
+        Status(u16),
+        CutOff { claimed: usize, sent: Vec<u8> },
+    }
+
+    fn serve(routes: Vec<(String, Reply)>) -> String {
+        use std::io::{BufRead, BufReader, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            for mut stream in listener.incoming().flatten() {
+                let mut reader = BufReader::new(stream.try_clone().unwrap());
+                let mut request = String::new();
+                reader.read_line(&mut request).ok();
+                let path = request.split_whitespace().nth(1).unwrap_or_default().to_owned();
+                loop {
+                    let mut header = String::new();
+                    if reader.read_line(&mut header).unwrap_or(0) <= 2 {
+                        break;
+                    }
+                }
+                let (status, length, body) = match routes.iter().find(|(p, _)| *p == path) {
+                    Some((_, Reply::Body(b))) => (200, b.len(), b.clone()),
+                    Some((_, Reply::Status(code))) => (*code, 0, Vec::new()),
+                    Some((_, Reply::CutOff { claimed, sent })) => (200, *claimed, sent.clone()),
+                    None => (404, 0, Vec::new()),
+                };
+                let head =
+                    format!("HTTP/1.1 {status} X\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n");
+                stream.write_all(head.as_bytes()).ok();
+                stream.write_all(&body).ok();
+            }
+        });
+        base
+    }
+
+    fn fake_release() -> Vec<(&'static str, String)> {
+        REQUIRED.iter().map(|n| (*n, format!("fake {n}"))).collect()
+    }
+
+    fn digests(release: &[(&'static str, String)]) -> Vec<(&'static str, String)> {
+        release
+            .iter()
+            .map(|(n, b)| (*n, crate::baseline::sha256_bytes(b.as_bytes())))
+            .collect()
+    }
+
+    fn fetch_fake(d: &Path, base: &str, release: &[(&'static str, String)]) -> Result<()> {
+        let pins = digests(release);
+        let pins: Vec<(&str, &str)> = pins.iter().map(|(n, h)| (*n, h.as_str())).collect();
+        fetch_release(d, base, "9.9.9", &pins)
+    }
+
+    fn routes(
+        release: &[(&'static str, String)],
+        mut tweak: impl FnMut(&str) -> Option<Reply>,
+    ) -> Vec<(String, Reply)> {
+        release
+            .iter()
+            .map(|(n, b)| {
+                let reply = tweak(n).unwrap_or_else(|| Reply::Body(b.clone().into_bytes()));
+                (format!("/v9.9.9/{n}"), reply)
+            })
+            .collect()
+    }
+
+    fn previous_install(d: &Path) -> PathBuf {
+        let marker = extension_dir(d).join("previous.txt");
+        std::fs::create_dir_all(marker.parent().unwrap()).unwrap();
+        std::fs::write(&marker, "previous install").unwrap();
+        marker
+    }
+
+    fn assert_untouched(d: &Path, marker: &Path) {
+        assert_eq!(std::fs::read_to_string(marker).unwrap(), "previous install");
+        assert!(!extension_dir(d).join(REQUIRED[0]).exists());
+        assert!(!staging_dir(d).exists(), "the partial download is cleaned up");
+    }
+
+    #[test]
+    fn fetch_installs_atomically_over_an_incomplete_copy() {
+        let d = temp("fetch-ok");
+        let release = fake_release();
+        let ext = extension_dir(&d);
+        std::fs::create_dir_all(&ext).unwrap();
+        std::fs::write(ext.join(REQUIRED[0]), "half an old install").unwrap();
+        std::fs::write(ext.join("stale.bin"), "junk").unwrap();
+        std::fs::create_dir_all(d.join("extensions/.download")).unwrap();
+
+        let base = serve(routes(&release, |_| None));
+        fetch_fake(&d, &base, &release).unwrap();
+
+        for (name, body) in &release {
+            assert_eq!(std::fs::read_to_string(ext.join(name)).unwrap(), *body);
+        }
+        assert!(
+            !ext.join("stale.bin").exists(),
+            "the old copy is replaced, not merged"
+        );
+        assert!(!staging_dir(&d).exists());
+        assert!(!d.join("extensions/.offline-play.old").exists());
+        assert!(!d.join("extensions/.download").exists());
+        #[cfg(unix)]
+        for runner in RUNNERS {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(ext.join(runner)).unwrap().permissions().mode();
+            assert_eq!(mode & 0o111, 0o111, "{runner} is executable");
+        }
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn fetch_names_a_file_missing_from_the_release() {
+        let d = temp("fetch-404");
+        let marker = previous_install(&d);
+        let release = fake_release();
+        let missing = RUNNERS[1];
+        let base = serve(routes(&release, |n| (n == missing).then_some(Reply::Status(404))));
+        let err = fetch_fake(&d, &base, &release).unwrap_err().to_string();
+        assert!(err.contains(missing), "{err}");
+        assert!(err.contains("HTTP 404"), "{err}");
+        assert!(err.contains("has no such file"), "{err}");
+        assert_untouched(&d, &marker);
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn fetch_reports_a_server_error() {
+        let d = temp("fetch-503");
+        let marker = previous_install(&d);
+        let release = fake_release();
+        let base = serve(routes(&release, |n| {
+            (n == REQUIRED[2]).then_some(Reply::Status(503))
+        }));
+        let err = fetch_fake(&d, &base, &release).unwrap_err().to_string();
+        assert!(err.contains("HTTP 503"), "{err}");
+        assert_untouched(&d, &marker);
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn fetch_reports_a_cut_off_download() {
+        let d = temp("fetch-partial");
+        let marker = previous_install(&d);
+        let release = fake_release();
+        let last = REQUIRED[REQUIRED.len() - 1];
+        let base = serve(routes(&release, |n| {
+            (n == last).then(|| Reply::CutOff {
+                claimed: 4096,
+                sent: b"only the start".to_vec(),
+            })
+        }));
+        let err = fetch_fake(&d, &base, &release).unwrap_err().to_string();
+        assert!(err.contains(last), "{err}");
+        assert!(err.contains("cut off"), "{err}");
+        assert_untouched(&d, &marker);
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn fetch_refuses_a_digest_mismatch() {
+        let d = temp("fetch-digest");
+        let marker = previous_install(&d);
+        let release = fake_release();
+        let base = serve(routes(&release, |n| {
+            (n == REQUIRED[1]).then(|| Reply::Body(b"<html>captive portal</html>".to_vec()))
+        }));
+        let err = fetch_fake(&d, &base, &release).unwrap_err().to_string();
+        assert!(err.contains("digest mismatch"), "{err}");
+        assert!(err.contains(&format!("/v9.9.9/{}", REQUIRED[1])), "{err}");
+        assert_untouched(&d, &marker);
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn fetch_reports_an_unreachable_host() {
+        let d = temp("fetch-refused");
+        let marker = previous_install(&d);
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let err = fetch_fake(&d, &format!("http://127.0.0.1:{port}"), &fake_release())
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("could not download"), "{err}");
+        assert_untouched(&d, &marker);
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn a_missing_runner_is_never_started() {
+        let d = temp("no-runner");
+        let a = Artifacts {
+            hook: d.join("f1op_hook.dll"),
+            stub: d.join("f1op_stub.exe"),
+            prelaunch: d.join(RUNNERS[0]),
+            probe: d.join(RUNNERS[1]),
+            dir: d.clone(),
+        };
+        let err = probe(&d, &a).unwrap_err().to_string();
+        assert!(err.contains("is missing"), "{err}");
+        assert!(err.contains("swofty offline fetch"), "{err}");
+        let err = stage(&d.join("game"), &a, &d.join("state/offline/staging.jsonl"))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("is missing"), "{err}");
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    /// A copy of this test binary whose ELF interpreter points at a loader
+    /// that does not exist: what a Linux build linked on NixOS looks like on a
+    /// Steam Deck. Returns the copy and the real loader.
+    #[cfg(target_os = "linux")]
+    fn binary_with_a_missing_loader(d: &Path) -> Option<(PathBuf, PathBuf)> {
+        let exe = std::env::current_exe().unwrap();
+        let real = elf_interpreter(&exe).unwrap()?;
+        let name = real.file_name()?.to_str()?.to_owned();
+        let dir_len = real.to_str()?.len() - name.len() - 1;
+        let fake = format!("/{}/{name}", "z".repeat(dir_len.checked_sub(1)?));
+        let mut data = std::fs::read(&exe).unwrap();
+        let at = data
+            .windows(real.as_os_str().len())
+            .position(|w| w == real.as_os_str().as_encoded_bytes())?;
+        data[at..at + fake.len()].copy_from_slice(fake.as_bytes());
+        let copy = d.join("runner");
+        std::fs::write(&copy, data).unwrap();
+        set_executable(&copy).unwrap();
+        Some((copy, real))
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_runner_whose_loader_is_missing_runs_through_the_system_loader() {
+        let d = temp("loader");
+        let Some((runner, real)) = binary_with_a_missing_loader(&d) else {
+            eprintln!("skipping: the test binary is statically linked");
+            return;
+        };
+        let direct = Command::new(&runner).arg("--list").output().unwrap_err();
+        assert_eq!(
+            direct.kind(),
+            std::io::ErrorKind::NotFound,
+            "the Steam Deck symptom"
+        );
+
+        let dirs = [real.parent().unwrap()];
+        let exec = exec_mode_in(&runner, &dirs).unwrap();
+        assert_eq!(
+            exec,
+            Exec::Loader {
+                wanted: elf_interpreter(&runner).unwrap().unwrap(),
+                system: real.clone(),
+            }
+        );
+        let out = command_for(&runner, exec).arg("--list").output().unwrap();
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_runner_with_no_usable_loader_is_explained() {
+        let d = temp("no-loader");
+        let Some((runner, _)) = binary_with_a_missing_loader(&d) else {
+            eprintln!("skipping: the test binary is statically linked");
+            return;
+        };
+        let err = exec_mode_in(&runner, &[]).unwrap_err().to_string();
+        let wanted = elf_interpreter(&runner).unwrap().unwrap();
+        assert!(err.contains("cannot run on this system"), "{err}");
+        assert!(err.contains(&wanted.display().to_string()), "{err}");
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn a_runner_that_is_not_elf_runs_directly() {
+        let d = temp("not-elf");
+        let runner = d.join("runner");
+        std::fs::write(&runner, "#!/bin/sh\n").unwrap();
+        assert_eq!(exec_mode_in(&runner, &[]).unwrap(), Exec::Direct);
         std::fs::remove_dir_all(&d).ok();
     }
 

@@ -317,6 +317,9 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
     }
     become_subreaper();
     let artifacts = crate::offline::ensure_extension(store)?;
+    if let Some(note) = crate::offline::loader_note(&artifacts) {
+        say("info", &format!("offline play: {note}"));
+    }
     let probe = swofty_core::offline::probe(&game, &artifacts)?;
     if !probe.supported {
         bail!(

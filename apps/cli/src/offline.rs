@@ -82,6 +82,13 @@ fn status(store: &Store) -> Result<()> {
                 offline::EXTENSION_VERSION
             );
             println!("source:         {}", offline::SOURCE_URL);
+            match offline::exec_mode(&a.probe).and_then(|_| offline::exec_mode(&a.prelaunch)) {
+                Ok(_) => println!(
+                    "runs:           {}",
+                    loader_note(&a).unwrap_or_else(|| "directly".into())
+                ),
+                Err(e) => println!("runs:           no: {e}"),
+            }
         }
         Err(e) => {
             println!("extension:      not usable: {e}");
@@ -114,6 +121,20 @@ pub fn fetch(store: &Store) -> Result<Artifacts> {
     );
     let a = offline::fetch(&store.root).context("downloading the offline play extension")?;
     Ok(a)
+}
+
+/// Say so when the tools start through the system loader instead of the one
+/// they were built against.
+pub fn loader_note(a: &Artifacts) -> Option<String> {
+    match offline::exec_mode(&a.probe) {
+        Ok(offline::Exec::Loader { wanted, system }) => Some(format!(
+            "the extension's Linux tools were built for {}, which this system does not have; \
+             running them through {}",
+            wanted.display(),
+            system.display()
+        )),
+        _ => None,
+    }
 }
 
 /// The gate: every modded launch passes through here. The terms are shown
