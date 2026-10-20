@@ -3233,6 +3233,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "game_setup.game_setup_modes.game_setup_mode[_metadata_=f1_26]",
+   "field": "grid_rundown_enabled",
+   "value": "False",
+   "when": {
+    "grid_rundown": false
+   }
+  },
+  {
    "op": "add-row",
    "table": "drs.drs_allowed_lap",
    "from": "drs.drs_allowed_lap.drs_allowed_lap_group[_metadata_=f1_2024]",

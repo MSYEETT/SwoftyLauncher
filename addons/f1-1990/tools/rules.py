@@ -187,6 +187,9 @@ def race_control():
     grid_cutscene = set_(MODE, "show_grid_cutscene", "False")
     grid_cutscene["when"] = {"grid_cutscene": False}
     ops.append(grid_cutscene)
+    grid_rundown = set_(MODE, "grid_rundown_enabled", "False")
+    grid_rundown["when"] = {"grid_rundown": False}
+    ops.append(grid_rundown)
 
     group = "drs.drs_allowed_lap.drs_allowed_lap_group"
     ops.append({
