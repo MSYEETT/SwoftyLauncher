@@ -137,7 +137,7 @@ If there's a conflict, every addon involved is dropped and none of their mixins 
 ## Rules
 
 - Hook bindings, not fixed addresses.
-- Hook only `.xtls` code. Never patch `.data1` bodies.
+- Hook `.xtls` code. A site inside a `.data1` body resolves only when its binding comes from a `.data1` signature, which the knowledge base records for code that no `.xtls` site reaches; it never resolves on the EA build.
 - Keep hook setup out of `DllMain`.
 
 When you use the [C++ Mixin API](/reference/std/mixin), you also get `SWOFTY_WRAP`, `SWOFTY_SITE`, `SWOFTY_VTABLE`, `SWOFTY_REDIRECT`, `SWOFTY_PATCH`, `SWOFTY_ON_LOAD`, typed bindings from the [Game API](/reference/game/), per-object [fields](/reference/std/mixin#fields) and [`subclass`](/reference/std/mixin#subclass).

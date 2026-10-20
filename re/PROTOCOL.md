@@ -30,7 +30,7 @@ Rules:
 | **Behaviour hook** (writes registers/memory, calls game code, swaps vtables) | every function it calls or hooks, every field it reads or writes: **L2**, plus one `agree` row in `verify.tsv` from a different agent (§5) |
 | **Ship** (enabled by default in the launcher) | every item above **L3** on the shipping build, and the hook's own T### test passed |
 
-`.data1` bodies are black boxes: they may be called (L2 on the thunk) but never hooked or patched.
+`.data1` bodies are black boxes: they may be called (L2 on the thunk) but never hooked or patched, with one exception. A behaviour site inside a `.data1` body is allowed when the code it relies on has no `.xtls` route: the body is decompiled and read on the Steam build (where `.data1` is plaintext), and its signature declares `"section": ".data1"`, a `data1_reason` naming why no `.xtls` site works and, where `.pdata` does not cover the body, a `func_start` for the boundary check. Core binds such a site only from a `.data1` signature. The EA build's `.data1` is packed, so these sites never resolve there.
 
 ## 3. Naming
 
@@ -141,7 +141,7 @@ The verifier appends one `verify.tsv` row via `kb.py verify`: verdict `agree`, `
 | `verified` | list of `{build, date, by}`; `build` is the first 16 hex chars of the exe sha256 |
 | `used_by` | files that consume it (`native/src/core/swofty_core.cpp`) |
 
-Rules: a pattern must match **exactly once** in its section on every build listed in `verified`; it must not start or end on a wildcard; it is at least 12 bytes; a `mid` target must sit on an instruction boundary inside a `.pdata` function in `.xtls`; `.data1` bodies never get signatures. `sigcheck.py --make <va> --kind mid|func_start` prints a candidate object; `sigcheck.py --sigs <file>` checks candidates before they go in; plain `sigcheck.py` is the gate.
+Rules: a pattern must match **exactly once** in its section on every build listed in `verified`; it must not start or end on a wildcard; it is at least 12 bytes; a `mid` target must sit on an instruction boundary inside a `.pdata` function in `.xtls`; `.data1` bodies get signatures only for the §2 exception (`section` `.data1`, `data1_reason`, `func_start` when `.pdata` lacks the body). `re/tools/sitereg.py` makes, checks and records a site, data or function signature together with its KB row. `sigcheck.py --make <va> --kind mid|func_start` prints a candidate object; `sigcheck.py --sigs <file>` checks candidates before they go in; plain `sigcheck.py` is the gate.
 
 ## 8. Hook development workflow
 

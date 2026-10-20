@@ -86,7 +86,7 @@ struct Mark {
     size_t written, stubs, mids, inlines, sites;
 };
 
-constexpr size_t MAX_SITES = 64;
+constexpr size_t MAX_SITES = 256;
 
 SwoftyApi *api;
 uintptr_t base;
@@ -226,6 +226,12 @@ bool is_code(uintptr_t a)
 {
     auto s = section_of(a);
     return s && (s->Characteristics & IMAGE_SCN_MEM_EXECUTE) && !(s->Characteristics & IMAGE_SCN_MEM_WRITE);
+}
+
+bool is_data1_code(uintptr_t a)
+{
+    auto s = section_of(a);
+    return s && !memcmp(s->Name, ".data1", 7) && (s->Characteristics & IMAGE_SCN_MEM_EXECUTE);
 }
 
 uint8_t byte_at(uintptr_t a)
@@ -413,7 +419,8 @@ uintptr_t apply_match(const Binding &b, uintptr_t match, const char **why)
         return 0;
     }
     bool code = b.kind == "func" || b.kind == "site" || b.kind == "call";
-    if (code ? !is_code(target) : !section_of(target)) {
+    bool data1_site = b.kind == "site" && b.section == ".data1" && is_data1_code(target);
+    if (code ? !is_code(target) && !data1_site : !section_of(target)) {
         *why = code ? "target is not in read-only code" : "target is outside the exe";
         return 0;
     }
