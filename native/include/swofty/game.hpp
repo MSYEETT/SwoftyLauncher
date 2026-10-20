@@ -2,6 +2,7 @@
 #include <swofty/game/car.hpp>
 #include <swofty/game/career.hpp>
 #include <swofty/game/core.hpp>
+#include <swofty/game/entrants.hpp>
 #include <swofty/game/fe_flow.hpp>
 #include <swofty/game/fe_home.hpp>
 #include <swofty/game/fe_tiles.hpp>

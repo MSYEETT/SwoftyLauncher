@@ -28,26 +28,6 @@ pub struct AiHandlingConfig {
 }
 
 #[repr(C)]
-pub struct BankAccount {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct BankSubAccount {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct BankTransaction {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct BankTransactionMessage {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct CarPerfVehicle {
     _opaque: [u8; 0],
 }
@@ -63,107 +43,7 @@ pub struct CarWheelState {
 }
 
 #[repr(C)]
-pub struct CareerBankComponent {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct CareerDriverContractRenewalComponent {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct CareerEntity {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct CareerSponsorsComponent {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct CareerTimeComponent {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct Championship {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct ChampionshipHolder {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct ChampionshipSeasonEntry {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct ContextStatSet {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct ContractRecord {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct CostCapComponent {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct CostCapSeason {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct CostCapTeam {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct CurvePoint {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct DepartmentData {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct DriverContractsMyTeamComponent {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct DriverMoveRecord {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct DriverStatistic {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct DriverStatisticsComponent {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct DriverStatsEntry {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct EntrantRecord {
     _opaque: [u8; 0],
 }
 
@@ -173,22 +53,7 @@ pub struct EntrantSetupMode {
 }
 
 #[repr(C)]
-pub struct EntrantWriteData {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct EntrantsManager {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct EvolutionCurve {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct F1SeasonStandings {
     _opaque: [u8; 0],
 }
 
@@ -198,92 +63,7 @@ pub struct FEHomeViewModel {
 }
 
 #[repr(C)]
-pub struct FacilityNode {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct FacilityPerkTree {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct FacilityTeamData {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct FacilityTeamEntry {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct FlowState {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct GameManager {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct GameMessageBusHolder {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct GameModeContext {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct GameWeatherSystem {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct GdbStringRecord {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct GdbTableCursor {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct MyTeamFacilitiesComponent {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct MyTeamFacility {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct NeAllocator {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct NeAllocatorVtbl {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct NeMessageBus {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct NeOptionalVec {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct NeSharedCtrl {
     _opaque: [u8; 0],
 }
 
@@ -293,97 +73,7 @@ pub struct NeStr {
 }
 
 #[repr(C)]
-pub struct RenownAwardedMessage {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct RenownConfig {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct ResourcePointsComponent {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct RnDDepartmentConfig {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct Season {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct Session {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct SponsorEntry {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct SponsorLoyaltyLevel {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct SponsorLoyaltyXpMessage {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct SponsorTeamRecord {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct StandingsPoints {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct StandingsResult {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct StandingsRound {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct StandingsSession {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct StatInfo {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct TeamRenownData {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct TimeOfDayClock {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct TimeOfDayOwner {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct TimeOfDaySystem {
     _opaque: [u8; 0],
 }
 
@@ -393,32 +83,7 @@ pub struct UpgradeEffectDef {
 }
 
 #[repr(C)]
-pub struct UpgradeInstance {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct UpgradeRecord {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct UpgradeStateEntry {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct UpgradeTree {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct Upgrades {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct UpgradesComponent {
     _opaque: [u8; 0],
 }
 
@@ -433,36 +98,6 @@ pub struct VehiclePackageRow {
 }
 
 #[repr(C)]
-pub struct WeatherAndTimeOfDayComponent {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct WeatherDataset {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct WeatherSessionSettings {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct WeatherState {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct WeatherTypeRange {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct Weekend {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct Action {
     pub r#type: i32,
     _pad_0x4: [u8; 0x4],
@@ -470,6 +105,749 @@ pub struct Action {
 }
 const _: () = assert!(core::mem::offset_of!(Action, r#type) == 0x0);
 const _: () = assert!(core::mem::offset_of!(Action, str) == 0x8);
+
+#[repr(C)]
+pub struct BankAccount {
+    _pad_0x0: [u8; 0x10],
+    pub subs_begin: *mut BankSubAccount,
+    pub subs_end: *mut BankSubAccount,
+    _pad_0x20: [u8; 0x8],
+    pub key: u32,
+    _pad_0x2c: [u8; 0x4],
+}
+const _: () = assert!(core::mem::offset_of!(BankAccount, subs_begin) == 0x10);
+const _: () = assert!(core::mem::offset_of!(BankAccount, subs_end) == 0x18);
+const _: () = assert!(core::mem::offset_of!(BankAccount, key) == 0x28);
+const _: () = assert!(core::mem::size_of::<BankAccount>() == 0x30);
+
+#[repr(C)]
+pub struct BankSubAccount {
+    _pad_0x0: [u8; 0xc],
+    pub category: u8,
+    _pad_0xd: [u8; 0x3],
+    pub balance: i32,
+    pub minimum: i32,
+    _pad_0x18: [u8; 0x28],
+    pub history_begin: *mut BankTransaction,
+    pub history_end: *mut BankTransaction,
+    _pad_0x50: [u8; 0x160],
+}
+const _: () = assert!(core::mem::offset_of!(BankSubAccount, category) == 0xc);
+const _: () = assert!(core::mem::offset_of!(BankSubAccount, balance) == 0x10);
+const _: () = assert!(core::mem::offset_of!(BankSubAccount, minimum) == 0x14);
+const _: () = assert!(core::mem::offset_of!(BankSubAccount, history_begin) == 0x40);
+const _: () = assert!(core::mem::offset_of!(BankSubAccount, history_end) == 0x48);
+const _: () = assert!(core::mem::size_of::<BankSubAccount>() == 0x1b0);
+
+#[repr(C)]
+pub struct BankTransaction {
+    pub r#type: u8,
+    _pad_0x1: [u8; 0x3],
+    pub amount: i32,
+    _pad_0x8: [u8; 0x4],
+    pub time: u32,
+    pub flow: u8,
+    _pad_0x11: [u8; 0x3],
+}
+const _: () = assert!(core::mem::offset_of!(BankTransaction, r#type) == 0x0);
+const _: () = assert!(core::mem::offset_of!(BankTransaction, amount) == 0x4);
+const _: () = assert!(core::mem::offset_of!(BankTransaction, time) == 0xc);
+const _: () = assert!(core::mem::offset_of!(BankTransaction, flow) == 0x10);
+const _: () = assert!(core::mem::size_of::<BankTransaction>() == 0x14);
+
+#[repr(C)]
+pub struct BankTransactionMessage {
+    pub vtable: *mut *mut c_void,
+    _pad_0x8: [u8; 0x8],
+    pub account: u16,
+    _pad_0x12: [u8; 0x2],
+    pub r#type: u8,
+    _pad_0x15: [u8; 0x3],
+    pub amount: i32,
+    pub created: u32,
+    pub time: u32,
+    pub flow: u8,
+    pub check_funds: u8,
+    _pad_0x26: [u8; 0x2],
+    pub category: u8,
+}
+const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, account) == 0x10);
+const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, r#type) == 0x14);
+const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, amount) == 0x18);
+const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, created) == 0x1c);
+const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, time) == 0x20);
+const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, flow) == 0x24);
+const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, check_funds) == 0x25);
+const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, category) == 0x28);
+
+#[repr(C)]
+pub struct CareerBankComponent {
+    _pad_0x0: [u8; 0x298],
+    pub team_accounts_begin: *mut BankAccount,
+    pub team_accounts_end: *mut BankAccount,
+}
+const _: () = assert!(core::mem::offset_of!(CareerBankComponent, team_accounts_begin) == 0x298);
+const _: () = assert!(core::mem::offset_of!(CareerBankComponent, team_accounts_end) == 0x2a0);
+
+#[repr(C)]
+pub struct CareerDriverContractRenewalComponent {
+    _pad_0x0: [u8; 0x3a1],
+    pub disable_driver_moves: u8,
+    _pad_0x3a2: [u8; 0x6],
+    pub driver_moves_allocator: *mut c_void,
+    pub driver_moves_begin: *mut DriverMoveRecord,
+    pub driver_moves_end: *mut DriverMoveRecord,
+    pub driver_moves_capacity: u64,
+}
+const _: () =
+    assert!(core::mem::offset_of!(CareerDriverContractRenewalComponent, disable_driver_moves) == 0x3a1);
+const _: () =
+    assert!(core::mem::offset_of!(CareerDriverContractRenewalComponent, driver_moves_allocator) == 0x3a8);
+const _: () =
+    assert!(core::mem::offset_of!(CareerDriverContractRenewalComponent, driver_moves_begin) == 0x3b0);
+const _: () = assert!(core::mem::offset_of!(CareerDriverContractRenewalComponent, driver_moves_end) == 0x3b8);
+const _: () =
+    assert!(core::mem::offset_of!(CareerDriverContractRenewalComponent, driver_moves_capacity) == 0x3c0);
+
+#[repr(C)]
+pub struct CareerEntity {
+    pub vtable: *mut *mut c_void,
+    _pad_0x8: [u8; 0x2d8],
+    pub entrants_begin: *mut EntrantRecord,
+    pub entrants_end: *mut EntrantRecord,
+    _pad_0x2f0: [u8; 0x8],
+    pub entrant_update_busy: u8,
+    _pad_0x2f9: [u8; 0xd37],
+    pub component_registry: *mut *mut c_void,
+    _pad_0x1038: [u8; 0x8],
+    pub championships_begin: *mut c_void,
+    pub championships_end: *mut c_void,
+    _pad_0x1050: [u8; 0x8],
+    pub current_championship: *mut c_void,
+    _pad_0x1060: [u8; 0x8],
+    pub championship_order_begin: *mut *mut c_void,
+    pub championship_order_end: *mut *mut c_void,
+}
+const _: () = assert!(core::mem::offset_of!(CareerEntity, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(CareerEntity, entrants_begin) == 0x2e0);
+const _: () = assert!(core::mem::offset_of!(CareerEntity, entrants_end) == 0x2e8);
+const _: () = assert!(core::mem::offset_of!(CareerEntity, entrant_update_busy) == 0x2f8);
+const _: () = assert!(core::mem::offset_of!(CareerEntity, component_registry) == 0x1030);
+const _: () = assert!(core::mem::offset_of!(CareerEntity, championships_begin) == 0x1040);
+const _: () = assert!(core::mem::offset_of!(CareerEntity, championships_end) == 0x1048);
+const _: () = assert!(core::mem::offset_of!(CareerEntity, current_championship) == 0x1058);
+const _: () = assert!(core::mem::offset_of!(CareerEntity, championship_order_begin) == 0x1068);
+const _: () = assert!(core::mem::offset_of!(CareerEntity, championship_order_end) == 0x1070);
+
+#[repr(C)]
+pub struct CareerSponsorsComponent {
+    _pad_0x0: [u8; 0x298],
+    pub teams_begin: *mut SponsorTeamRecord,
+    pub teams_end: *mut SponsorTeamRecord,
+}
+const _: () = assert!(core::mem::offset_of!(CareerSponsorsComponent, teams_begin) == 0x298);
+const _: () = assert!(core::mem::offset_of!(CareerSponsorsComponent, teams_end) == 0x2a0);
+
+#[repr(C)]
+pub struct CareerTimeComponent {
+    _pad_0x0: [u8; 0x290],
+    pub season_dates: u8,
+    _pad_0x291: [u8; 0x1f],
+    pub current_minutes: u32,
+}
+const _: () = assert!(core::mem::offset_of!(CareerTimeComponent, season_dates) == 0x290);
+const _: () = assert!(core::mem::offset_of!(CareerTimeComponent, current_minutes) == 0x2b0);
+
+#[repr(C)]
+pub struct Championship {
+    pub vtable: *mut *mut c_void,
+    _pad_0x8: [u8; 0x200],
+    pub list_vtable: *mut *mut c_void,
+    _pad_0x210: [u8; 0x328],
+    pub completion: u32,
+    _pad_0x53c: [u8; 0xc],
+    pub seasons_begin: *mut ChampionshipSeasonEntry,
+    pub seasons_end: *mut ChampionshipSeasonEntry,
+    _pad_0x558: [u8; 0x8],
+    pub season_index: u32,
+    _pad_0x564: [u8; 0x4c],
+}
+const _: () = assert!(core::mem::offset_of!(Championship, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(Championship, list_vtable) == 0x208);
+const _: () = assert!(core::mem::offset_of!(Championship, completion) == 0x538);
+const _: () = assert!(core::mem::offset_of!(Championship, seasons_begin) == 0x548);
+const _: () = assert!(core::mem::offset_of!(Championship, seasons_end) == 0x550);
+const _: () = assert!(core::mem::offset_of!(Championship, season_index) == 0x560);
+const _: () = assert!(core::mem::size_of::<Championship>() == 0x5b0);
+
+#[repr(C)]
+pub struct ChampionshipHolder {
+    _pad_0x0: [u8; 0x260],
+    pub entity: *mut CareerEntity,
+}
+const _: () = assert!(core::mem::offset_of!(ChampionshipHolder, entity) == 0x260);
+
+#[repr(C)]
+pub struct ChampionshipSeasonEntry {
+    _pad_0x0: [u8; 0x8],
+    pub season: *mut Season,
+}
+const _: () = assert!(core::mem::offset_of!(ChampionshipSeasonEntry, season) == 0x8);
+const _: () = assert!(core::mem::size_of::<ChampionshipSeasonEntry>() == 0x10);
+
+#[repr(C)]
+pub struct ContextStatSet {
+    _pad_0x0: [u8; 0x10],
+    pub stats_begin: *mut DriverStatistic,
+    pub stats_end: *mut DriverStatistic,
+    _pad_0x20: [u8; 0x8],
+    pub mask_a: u32,
+    pub mask_b: u32,
+    _pad_0x30: [u8; 0x8],
+}
+const _: () = assert!(core::mem::offset_of!(ContextStatSet, stats_begin) == 0x10);
+const _: () = assert!(core::mem::offset_of!(ContextStatSet, stats_end) == 0x18);
+const _: () = assert!(core::mem::offset_of!(ContextStatSet, mask_a) == 0x28);
+const _: () = assert!(core::mem::offset_of!(ContextStatSet, mask_b) == 0x2c);
+const _: () = assert!(core::mem::size_of::<ContextStatSet>() == 0x38);
+
+#[repr(C)]
+pub struct ContractRecord {
+    _pad_0x0: [u8; 0x28],
+    pub clause_stat: u8,
+    _pad_0x29: [u8; 0x3],
+    pub clause_target: i32,
+    _pad_0x30: [u8; 0x4],
+    pub salary: i32,
+    pub signing_bonus: i32,
+    pub team_perf_money: i32,
+    pub team_perf_race_value: i32,
+    pub success_chance: f32,
+    pub negotiation_bonus: i32,
+    pub is_counteroffer: u8,
+    _pad_0x4d: [u8; 0x3],
+    pub driver: u32,
+    pub old_team: u32,
+    pub new_team: u32,
+    pub driver_move_reason: u8,
+    _pad_0x5d: [u8; 0x3],
+    pub weekend_index: u32,
+    pub career_day_index: u16,
+    _pad_0x66: [u8; 0x2],
+    pub day_contract_sent: u16,
+    pub day_contract_decided: u16,
+    pub accepted: u8,
+    pub acknowledged: u8,
+    _pad_0x6e: [u8; 0x2],
+}
+const _: () = assert!(core::mem::offset_of!(ContractRecord, clause_stat) == 0x28);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, clause_target) == 0x2c);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, salary) == 0x34);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, signing_bonus) == 0x38);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, team_perf_money) == 0x3c);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, team_perf_race_value) == 0x40);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, success_chance) == 0x44);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, negotiation_bonus) == 0x48);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, is_counteroffer) == 0x4c);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, driver) == 0x50);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, old_team) == 0x54);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, new_team) == 0x58);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, driver_move_reason) == 0x5c);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, weekend_index) == 0x60);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, career_day_index) == 0x64);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, day_contract_sent) == 0x68);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, day_contract_decided) == 0x6a);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, accepted) == 0x6c);
+const _: () = assert!(core::mem::offset_of!(ContractRecord, acknowledged) == 0x6d);
+const _: () = assert!(core::mem::size_of::<ContractRecord>() == 0x70);
+
+#[repr(C)]
+pub struct CostCapComponent {
+    _pad_0x0: [u8; 0x2d8],
+    pub team_slots: *mut *mut CostCapTeam,
+    pub team_ctrl: *mut u8,
+}
+const _: () = assert!(core::mem::offset_of!(CostCapComponent, team_slots) == 0x2d8);
+const _: () = assert!(core::mem::offset_of!(CostCapComponent, team_ctrl) == 0x2e0);
+
+#[repr(C)]
+pub struct CostCapSeason {
+    pub season_id: i32,
+    _pad_0x4: [u8; 0x4],
+    pub cached_expenses: i32,
+    pub cost_cap: i32,
+    pub cached_modifier: f32,
+}
+const _: () = assert!(core::mem::offset_of!(CostCapSeason, season_id) == 0x0);
+const _: () = assert!(core::mem::offset_of!(CostCapSeason, cached_expenses) == 0x8);
+const _: () = assert!(core::mem::offset_of!(CostCapSeason, cost_cap) == 0xc);
+const _: () = assert!(core::mem::offset_of!(CostCapSeason, cached_modifier) == 0x10);
+
+#[repr(C)]
+pub struct CostCapTeam {
+    pub account: u16,
+    _pad_0x2: [u8; 0x2e],
+    pub season_slots: *mut *mut CostCapSeason,
+    pub season_ctrl: *mut u8,
+}
+const _: () = assert!(core::mem::offset_of!(CostCapTeam, account) == 0x0);
+const _: () = assert!(core::mem::offset_of!(CostCapTeam, season_slots) == 0x30);
+const _: () = assert!(core::mem::offset_of!(CostCapTeam, season_ctrl) == 0x38);
+
+#[repr(C)]
+pub struct CurvePoint {
+    pub x: f32,
+    pub y: f32,
+}
+const _: () = assert!(core::mem::offset_of!(CurvePoint, x) == 0x0);
+const _: () = assert!(core::mem::offset_of!(CurvePoint, y) == 0x4);
+const _: () = assert!(core::mem::size_of::<CurvePoint>() == 0x8);
+
+#[repr(C)]
+pub struct DriverCareerContractOwner {
+    _pad_0x0: [u8; 0x298],
+    pub contracts_begin: *mut c_void,
+    pub contracts_end: *mut c_void,
+}
+const _: () = assert!(core::mem::offset_of!(DriverCareerContractOwner, contracts_begin) == 0x298);
+const _: () = assert!(core::mem::offset_of!(DriverCareerContractOwner, contracts_end) == 0x2a0);
+
+#[repr(C)]
+pub struct DriverCareerContractsManagerComponent {
+    _pad_0x0: [u8; 0x270],
+    pub weekend_source: *mut c_void,
+    pub entity: *mut CareerEntity,
+    _pad_0x280: [u8; 0xd0],
+    pub contract_owner: *mut DriverCareerContractOwner,
+    pub career_time: *mut CareerTimeComponent,
+}
+const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, weekend_source) == 0x270);
+const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, entity) == 0x278);
+const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, contract_owner) == 0x350);
+const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, career_time) == 0x358);
+
+#[repr(C)]
+pub struct DriverContract {
+    _pad_0x0: [u8; 0x50],
+    pub driver: u32,
+}
+const _: () = assert!(core::mem::offset_of!(DriverContract, driver) == 0x50);
+
+#[repr(C)]
+pub struct DriverContractsMyTeamComponent {
+    _pad_0x0: [u8; 0x798],
+    pub pending_contracts_begin: *mut ContractRecord,
+    _pad_0x7a0: [u8; 0x18],
+    pub decided_contracts_begin: *mut ContractRecord,
+    _pad_0x7c0: [u8; 0x18],
+    pub pending_moves_begin: *mut ContractRecord,
+    pub pending_moves_end: *mut ContractRecord,
+    _pad_0x7e8: [u8; 0x10],
+    pub last_season_signings_begin: *mut ContractRecord,
+    pub last_season_signings_end: *mut ContractRecord,
+}
+const _: () =
+    assert!(core::mem::offset_of!(DriverContractsMyTeamComponent, pending_contracts_begin) == 0x798);
+const _: () =
+    assert!(core::mem::offset_of!(DriverContractsMyTeamComponent, decided_contracts_begin) == 0x7b8);
+const _: () = assert!(core::mem::offset_of!(DriverContractsMyTeamComponent, pending_moves_begin) == 0x7d8);
+const _: () = assert!(core::mem::offset_of!(DriverContractsMyTeamComponent, pending_moves_end) == 0x7e0);
+const _: () =
+    assert!(core::mem::offset_of!(DriverContractsMyTeamComponent, last_season_signings_begin) == 0x7f8);
+const _: () =
+    assert!(core::mem::offset_of!(DriverContractsMyTeamComponent, last_season_signings_end) == 0x800);
+
+#[repr(C)]
+pub struct DriverMoveRecord {
+    pub driver: u32,
+    pub old_team: u32,
+    pub new_team: u32,
+    pub reason: u8,
+    _pad_0xd: [u8; 0x3],
+    pub weekend_index: u32,
+    pub day_index: u16,
+    _pad_0x16: [u8; 0x2],
+}
+const _: () = assert!(core::mem::offset_of!(DriverMoveRecord, driver) == 0x0);
+const _: () = assert!(core::mem::offset_of!(DriverMoveRecord, old_team) == 0x4);
+const _: () = assert!(core::mem::offset_of!(DriverMoveRecord, new_team) == 0x8);
+const _: () = assert!(core::mem::offset_of!(DriverMoveRecord, reason) == 0xc);
+const _: () = assert!(core::mem::offset_of!(DriverMoveRecord, weekend_index) == 0x10);
+const _: () = assert!(core::mem::offset_of!(DriverMoveRecord, day_index) == 0x14);
+const _: () = assert!(core::mem::size_of::<DriverMoveRecord>() == 0x18);
+
+#[repr(C)]
+pub struct DriverMoveConfirmedMessage {
+    pub vtable: *mut *mut c_void,
+    pub reserved: u64,
+    pub r#move: DriverMoveRecord,
+}
+const _: () = assert!(core::mem::offset_of!(DriverMoveConfirmedMessage, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(DriverMoveConfirmedMessage, reserved) == 0x8);
+const _: () = assert!(core::mem::offset_of!(DriverMoveConfirmedMessage, r#move) == 0x10);
+const _: () = assert!(core::mem::size_of::<DriverMoveConfirmedMessage>() == 0x28);
+
+#[repr(C)]
+pub struct LineupChange {
+    pub driver: u32,
+    pub old_team: u32,
+    pub new_team: u32,
+    _pad_0xc: [u8; 0x4],
+}
+const _: () = assert!(core::mem::offset_of!(LineupChange, driver) == 0x0);
+const _: () = assert!(core::mem::offset_of!(LineupChange, old_team) == 0x4);
+const _: () = assert!(core::mem::offset_of!(LineupChange, new_team) == 0x8);
+const _: () = assert!(core::mem::size_of::<LineupChange>() == 0x10);
+
+#[repr(C)]
+pub struct DriverMovesFinalisedMessage {
+    pub vtable: *mut *mut c_void,
+    pub reserved: u64,
+    pub changes: [LineupChange; 40],
+    pub count: u64,
+}
+const _: () = assert!(core::mem::offset_of!(DriverMovesFinalisedMessage, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(DriverMovesFinalisedMessage, reserved) == 0x8);
+const _: () = assert!(core::mem::offset_of!(DriverMovesFinalisedMessage, changes) == 0x10);
+const _: () = assert!(core::mem::offset_of!(DriverMovesFinalisedMessage, count) == 0x290);
+const _: () = assert!(core::mem::size_of::<DriverMovesFinalisedMessage>() == 0x298);
+
+#[repr(C)]
+pub struct EvolutionCurve {
+    pub vtable: *mut *mut c_void,
+    pub inv_x_range: f32,
+    pub min_x: f32,
+    pub y_step: f32,
+    pub end_value: f32,
+    _pad_0x18: [u8; 0x4],
+    pub min_y: f32,
+    pub max_y: f32,
+    pub lut: [u8; 65],
+    _pad_0x65: [u8; 0x3],
+    pub allocator: *mut c_void,
+    pub points_begin: *mut CurvePoint,
+    _pad_0x78: [u8; 0x8],
+    pub points_capacity: u64,
+}
+const _: () = assert!(core::mem::offset_of!(EvolutionCurve, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(EvolutionCurve, inv_x_range) == 0x8);
+const _: () = assert!(core::mem::offset_of!(EvolutionCurve, min_x) == 0xc);
+const _: () = assert!(core::mem::offset_of!(EvolutionCurve, y_step) == 0x10);
+const _: () = assert!(core::mem::offset_of!(EvolutionCurve, end_value) == 0x14);
+const _: () = assert!(core::mem::offset_of!(EvolutionCurve, min_y) == 0x1c);
+const _: () = assert!(core::mem::offset_of!(EvolutionCurve, max_y) == 0x20);
+const _: () = assert!(core::mem::offset_of!(EvolutionCurve, lut) == 0x24);
+const _: () = assert!(core::mem::offset_of!(EvolutionCurve, allocator) == 0x68);
+const _: () = assert!(core::mem::offset_of!(EvolutionCurve, points_begin) == 0x70);
+const _: () = assert!(core::mem::offset_of!(EvolutionCurve, points_capacity) == 0x80);
+const _: () = assert!(core::mem::size_of::<EvolutionCurve>() == 0x88);
+
+#[repr(C)]
+pub struct DriverStatistic {
+    _pad_0x0: [u8; 0x10],
+    pub info_stat_id: u16,
+    _pad_0x12: [u8; 0x6],
+    pub evolution_graph: EvolutionCurve,
+    pub patched_evolution_graph: EvolutionCurve,
+    pub has_patched_graph: u8,
+    _pad_0x129: [u8; 0x7],
+    pub temporary_boost_value: f32,
+    pub is_dynamic_stat: u8,
+    _pad_0x135: [u8; 0x3],
+    pub dynamic_level: f32,
+    _pad_0x13c: [u8; 0x4],
+}
+const _: () = assert!(core::mem::offset_of!(DriverStatistic, info_stat_id) == 0x10);
+const _: () = assert!(core::mem::offset_of!(DriverStatistic, evolution_graph) == 0x18);
+const _: () = assert!(core::mem::offset_of!(DriverStatistic, patched_evolution_graph) == 0xa0);
+const _: () = assert!(core::mem::offset_of!(DriverStatistic, has_patched_graph) == 0x128);
+const _: () = assert!(core::mem::offset_of!(DriverStatistic, temporary_boost_value) == 0x130);
+const _: () = assert!(core::mem::offset_of!(DriverStatistic, is_dynamic_stat) == 0x134);
+const _: () = assert!(core::mem::offset_of!(DriverStatistic, dynamic_level) == 0x138);
+const _: () = assert!(core::mem::size_of::<DriverStatistic>() == 0x140);
+
+#[repr(C)]
+pub struct DriverStatisticsComponent {
+    _pad_0x0: [u8; 0x278],
+    pub stat_context: *mut c_void,
+    _pad_0x280: [u8; 0x10],
+    pub career_time: *mut CareerTimeComponent,
+    _pad_0x298: [u8; 0x10],
+    pub stats_data: u8,
+    pub use_story_mode_data: u8,
+    _pad_0x2aa: [u8; 0x2],
+    pub last_patch_applied_checksum: u32,
+    pub last_patch_declined_checksum: u32,
+    _pad_0x2b4: [u8; 0x1c],
+    pub stat_infos_begin: *mut c_void,
+    pub stat_infos_end: *mut c_void,
+    _pad_0x2e0: [u8; 0x30],
+    pub driver_data_begin: *mut DriverStatsEntry,
+    pub driver_data_end: *mut DriverStatsEntry,
+}
+const _: () = assert!(core::mem::offset_of!(DriverStatisticsComponent, stat_context) == 0x278);
+const _: () = assert!(core::mem::offset_of!(DriverStatisticsComponent, career_time) == 0x290);
+const _: () = assert!(core::mem::offset_of!(DriverStatisticsComponent, stats_data) == 0x2a8);
+const _: () = assert!(core::mem::offset_of!(DriverStatisticsComponent, use_story_mode_data) == 0x2a9);
+const _: () = assert!(core::mem::offset_of!(DriverStatisticsComponent, last_patch_applied_checksum) == 0x2ac);
+const _: () =
+    assert!(core::mem::offset_of!(DriverStatisticsComponent, last_patch_declined_checksum) == 0x2b0);
+const _: () = assert!(core::mem::offset_of!(DriverStatisticsComponent, stat_infos_begin) == 0x2d0);
+const _: () = assert!(core::mem::offset_of!(DriverStatisticsComponent, stat_infos_end) == 0x2d8);
+const _: () = assert!(core::mem::offset_of!(DriverStatisticsComponent, driver_data_begin) == 0x310);
+const _: () = assert!(core::mem::offset_of!(DriverStatisticsComponent, driver_data_end) == 0x318);
+
+#[repr(C)]
+pub struct DriverStatsEntry {
+    pub kind: u8,
+    _pad_0x1: [u8; 0x1],
+    pub stat_id: u16,
+    _pad_0x4: [u8; 0x14],
+    pub stats_begin: *mut DriverStatistic,
+    pub stats_end: *mut DriverStatistic,
+    _pad_0x28: [u8; 0x10],
+    pub context_sets_begin: *mut ContextStatSet,
+    pub context_sets_end: *mut ContextStatSet,
+    _pad_0x48: [u8; 0x8],
+}
+const _: () = assert!(core::mem::offset_of!(DriverStatsEntry, kind) == 0x0);
+const _: () = assert!(core::mem::offset_of!(DriverStatsEntry, stat_id) == 0x2);
+const _: () = assert!(core::mem::offset_of!(DriverStatsEntry, stats_begin) == 0x18);
+const _: () = assert!(core::mem::offset_of!(DriverStatsEntry, stats_end) == 0x20);
+const _: () = assert!(core::mem::offset_of!(DriverStatsEntry, context_sets_begin) == 0x38);
+const _: () = assert!(core::mem::offset_of!(DriverStatsEntry, context_sets_end) == 0x40);
+const _: () = assert!(core::mem::size_of::<DriverStatsEntry>() == 0x50);
+
+#[repr(C)]
+pub struct EntrantRecord {
+    pub vtable: *mut *mut c_void,
+    _pad_0x8: [u8; 0x40],
+    pub ordinal_flags: u32,
+    _pad_0x4c: [u8; 0x4],
+    pub id_lo: u8,
+    _pad_0x51: [u8; 0x1],
+    pub id_hi: u16,
+    pub driver_customisation: u32,
+    pub team_stat_id: u32,
+    pub vehicle_ref: u32,
+    pub driver_reg_value: u32,
+    pub vehicle_customisation: u32,
+    pub badge_stat_id: u32,
+    _pad_0x6c: [u8; 0x4],
+    pub subobj_vtable: *mut *mut c_void,
+    pub const_ffff0012: u32,
+    _pad_0x7c: [u8; 0x4],
+    pub team_position: u16,
+    _pad_0x82: [u8; 0x1],
+    pub car_number: u8,
+    _pad_0x84: [u8; 0x4],
+}
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, ordinal_flags) == 0x48);
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, id_lo) == 0x50);
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, id_hi) == 0x52);
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, driver_customisation) == 0x54);
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, team_stat_id) == 0x58);
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, vehicle_ref) == 0x5c);
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, driver_reg_value) == 0x60);
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, vehicle_customisation) == 0x64);
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, badge_stat_id) == 0x68);
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, subobj_vtable) == 0x70);
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, const_ffff0012) == 0x78);
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, team_position) == 0x80);
+const _: () = assert!(core::mem::offset_of!(EntrantRecord, car_number) == 0x83);
+const _: () = assert!(core::mem::size_of::<EntrantRecord>() == 0x88);
+
+#[repr(C)]
+pub struct EntrantWriteData {
+    pub driver: u32,
+    pub driver_customisation: u32,
+    pub team_stat_id: u32,
+    pub vehicle_ref: u32,
+    pub driver_reg_value: u32,
+    pub vehicle_customisation: u32,
+    pub badge_stat_id: u32,
+    _pad_0x1c: [u8; 0xc],
+    pub seat_value: u32,
+}
+const _: () = assert!(core::mem::offset_of!(EntrantWriteData, driver) == 0x0);
+const _: () = assert!(core::mem::offset_of!(EntrantWriteData, driver_customisation) == 0x4);
+const _: () = assert!(core::mem::offset_of!(EntrantWriteData, team_stat_id) == 0x8);
+const _: () = assert!(core::mem::offset_of!(EntrantWriteData, vehicle_ref) == 0xc);
+const _: () = assert!(core::mem::offset_of!(EntrantWriteData, driver_reg_value) == 0x10);
+const _: () = assert!(core::mem::offset_of!(EntrantWriteData, vehicle_customisation) == 0x14);
+const _: () = assert!(core::mem::offset_of!(EntrantWriteData, badge_stat_id) == 0x18);
+const _: () = assert!(core::mem::offset_of!(EntrantWriteData, seat_value) == 0x28);
+const _: () = assert!(core::mem::size_of::<EntrantWriteData>() == 0x2c);
+
+#[repr(C)]
+pub struct F1SeasonStandings {
+    pub vtable: *mut *mut c_void,
+    _pad_0x8: [u8; 0x18],
+    pub points_begin: *mut StandingsRound,
+    pub points_end: *mut StandingsRound,
+    _pad_0x30: [u8; 0x78],
+    pub extra_points_begin: *mut StandingsPoints,
+    pub extra_points_end: *mut StandingsPoints,
+    _pad_0xb8: [u8; 0x18],
+    pub results_begin: *mut StandingsRound,
+    pub results_end: *mut StandingsRound,
+}
+const _: () = assert!(core::mem::offset_of!(F1SeasonStandings, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(F1SeasonStandings, points_begin) == 0x20);
+const _: () = assert!(core::mem::offset_of!(F1SeasonStandings, points_end) == 0x28);
+const _: () = assert!(core::mem::offset_of!(F1SeasonStandings, extra_points_begin) == 0xa8);
+const _: () = assert!(core::mem::offset_of!(F1SeasonStandings, extra_points_end) == 0xb0);
+const _: () = assert!(core::mem::offset_of!(F1SeasonStandings, results_begin) == 0xd0);
+const _: () = assert!(core::mem::offset_of!(F1SeasonStandings, results_end) == 0xd8);
+
+#[repr(C)]
+pub struct FacilityNode {
+    pub vtable: *mut *mut c_void,
+    pub state: u8,
+    _pad_0x9: [u8; 0x3],
+    pub stat_id: u32,
+    _pad_0x10: [u8; 0x10],
+    pub children_begin: *mut c_void,
+    pub children_end: *mut c_void,
+    _pad_0x30: [u8; 0x10],
+    pub phase: i32,
+    _pad_0x44: [u8; 0x3c],
+    pub cost: i32,
+    _pad_0x84: [u8; 0x4],
+    pub name_loc_tag: *mut c_char,
+    _pad_0x90: [u8; 0x18],
+    pub days_to_complete: i32,
+    pub days_remaining: i32,
+    pub purchased: u8,
+    _pad_0xb1: [u8; 0x2],
+    pub seen_completed: u8,
+    _pad_0xb4: [u8; 0x28],
+    pub ui_level: i32,
+    pub ui_max_level: i32,
+    _pad_0xe4: [u8; 0x4],
+}
+const _: () = assert!(core::mem::offset_of!(FacilityNode, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(FacilityNode, state) == 0x8);
+const _: () = assert!(core::mem::offset_of!(FacilityNode, stat_id) == 0xc);
+const _: () = assert!(core::mem::offset_of!(FacilityNode, children_begin) == 0x20);
+const _: () = assert!(core::mem::offset_of!(FacilityNode, children_end) == 0x28);
+const _: () = assert!(core::mem::offset_of!(FacilityNode, phase) == 0x40);
+const _: () = assert!(core::mem::offset_of!(FacilityNode, cost) == 0x80);
+const _: () = assert!(core::mem::offset_of!(FacilityNode, name_loc_tag) == 0x88);
+const _: () = assert!(core::mem::offset_of!(FacilityNode, days_to_complete) == 0xa8);
+const _: () = assert!(core::mem::offset_of!(FacilityNode, days_remaining) == 0xac);
+const _: () = assert!(core::mem::offset_of!(FacilityNode, purchased) == 0xb0);
+const _: () = assert!(core::mem::offset_of!(FacilityNode, seen_completed) == 0xb3);
+const _: () = assert!(core::mem::offset_of!(FacilityNode, ui_level) == 0xdc);
+const _: () = assert!(core::mem::offset_of!(FacilityNode, ui_max_level) == 0xe0);
+const _: () = assert!(core::mem::size_of::<FacilityNode>() == 0xe8);
+
+#[repr(C)]
+pub struct FacilityPerkTree {
+    _pad_0x0: [u8; 0x8],
+    pub nodes_begin: *mut c_void,
+    pub nodes_end: *mut c_void,
+    _pad_0x18: [u8; 0x10],
+}
+const _: () = assert!(core::mem::offset_of!(FacilityPerkTree, nodes_begin) == 0x8);
+const _: () = assert!(core::mem::offset_of!(FacilityPerkTree, nodes_end) == 0x10);
+const _: () = assert!(core::mem::size_of::<FacilityPerkTree>() == 0x28);
+
+#[repr(C)]
+pub struct FacilityTeamData {
+    _pad_0x0: [u8; 0x10],
+    pub facilities_begin: *mut c_void,
+    pub facilities_end: *mut c_void,
+    _pad_0x20: [u8; 0x8],
+    pub team_key: u32,
+    _pad_0x2c: [u8; 0x54],
+}
+const _: () = assert!(core::mem::offset_of!(FacilityTeamData, facilities_begin) == 0x10);
+const _: () = assert!(core::mem::offset_of!(FacilityTeamData, facilities_end) == 0x18);
+const _: () = assert!(core::mem::offset_of!(FacilityTeamData, team_key) == 0x28);
+const _: () = assert!(core::mem::size_of::<FacilityTeamData>() == 0x80);
+
+#[repr(C)]
+pub struct FacilityTeamEntry {
+    _pad_0x0: [u8; 0x8],
+    pub data: *mut FacilityTeamData,
+}
+const _: () = assert!(core::mem::offset_of!(FacilityTeamEntry, data) == 0x8);
+
+#[repr(C)]
+pub struct FlowState {
+    _pad_0x0: [u8; 0x20],
+    pub name_size: u64,
+    pub name: *mut c_char,
+    _pad_0x30: [u8; 0x80],
+    pub name_hash: u32,
+    _pad_0xb4: [u8; 0x4],
+    pub status: i32,
+}
+const _: () = assert!(core::mem::offset_of!(FlowState, name_size) == 0x20);
+const _: () = assert!(core::mem::offset_of!(FlowState, name) == 0x28);
+const _: () = assert!(core::mem::offset_of!(FlowState, name_hash) == 0xb0);
+const _: () = assert!(core::mem::offset_of!(FlowState, status) == 0xb8);
+
+#[repr(C)]
+pub struct GameManager {
+    _pad_0x0: [u8; 0xc0],
+    pub mode_context: *mut GameModeContext,
+}
+const _: () = assert!(core::mem::offset_of!(GameManager, mode_context) == 0xc0);
+
+#[repr(C)]
+pub struct GameMessageBusHolder {
+    _pad_0x0: [u8; 0x8],
+    pub bus: *mut NeMessageBus,
+}
+const _: () = assert!(core::mem::offset_of!(GameMessageBusHolder, bus) == 0x8);
+
+#[repr(C)]
+pub struct GameModeContext {
+    _pad_0x0: [u8; 0x88],
+    pub championship_holder: *mut ChampionshipHolder,
+}
+const _: () = assert!(core::mem::offset_of!(GameModeContext, championship_holder) == 0x88);
+
+#[repr(C)]
+pub struct GameWeatherSystem {
+    _pad_0x0: [u8; 0x1d98],
+    pub tod: *mut TimeOfDaySystem,
+    _pad_0x1da0: [u8; 0x8],
+    pub tod_owner: *mut TimeOfDayOwner,
+    _pad_0x1db0: [u8; 0x152],
+    pub weekend_valid: u8,
+    _pad_0x1f03: [u8; 0x1],
+    pub season_index: u32,
+    pub weekend_index: u32,
+    _pad_0x1f0c: [u8; 0x4],
+    pub base_seed: u32,
+    pub forced_seed: u32,
+    pub weekend: u32,
+    _pad_0x1f1c: [u8; 0x101e],
+    pub dataset_dynamic: [u8; 8],
+}
+const _: () = assert!(core::mem::offset_of!(GameWeatherSystem, tod) == 0x1d98);
+const _: () = assert!(core::mem::offset_of!(GameWeatherSystem, tod_owner) == 0x1da8);
+const _: () = assert!(core::mem::offset_of!(GameWeatherSystem, weekend_valid) == 0x1f02);
+const _: () = assert!(core::mem::offset_of!(GameWeatherSystem, season_index) == 0x1f04);
+const _: () = assert!(core::mem::offset_of!(GameWeatherSystem, weekend_index) == 0x1f08);
+const _: () = assert!(core::mem::offset_of!(GameWeatherSystem, base_seed) == 0x1f10);
+const _: () = assert!(core::mem::offset_of!(GameWeatherSystem, forced_seed) == 0x1f14);
+const _: () = assert!(core::mem::offset_of!(GameWeatherSystem, weekend) == 0x1f18);
+const _: () = assert!(core::mem::offset_of!(GameWeatherSystem, dataset_dynamic) == 0x2f3a);
+
+#[repr(C)]
+pub struct GdbStringRecord {
+    _pad_0x0: [u8; 0x10],
+    pub enc_size: u64,
+    pub enc: *mut u8,
+}
+const _: () = assert!(core::mem::offset_of!(GdbStringRecord, enc_size) == 0x10);
+const _: () = assert!(core::mem::offset_of!(GdbStringRecord, enc) == 0x18);
 
 #[repr(C)]
 pub struct VmPropHolder {
@@ -499,12 +877,306 @@ const _: () = assert!(core::mem::offset_of!(ItemVtbl, populate) == 0x20);
 const _: () = assert!(core::mem::offset_of!(ItemVtbl, get_action) == 0x28);
 
 #[repr(C)]
+pub struct MyTeamFacilitiesComponent {
+    _pad_0x0: [u8; 0x2b8],
+    pub team_slots: *mut *mut FacilityTeamEntry,
+    pub team_ctrl: *mut u8,
+    pub team_count: u64,
+}
+const _: () = assert!(core::mem::offset_of!(MyTeamFacilitiesComponent, team_slots) == 0x2b8);
+const _: () = assert!(core::mem::offset_of!(MyTeamFacilitiesComponent, team_ctrl) == 0x2c0);
+const _: () = assert!(core::mem::offset_of!(MyTeamFacilitiesComponent, team_count) == 0x2c8);
+
+#[repr(C)]
+pub struct MyTeamFacility {
+    pub facility_type: u8,
+    _pad_0x1: [u8; 0x7],
+    pub tree: *mut FacilityPerkTree,
+    _pad_0x10: [u8; 0x40],
+    pub workforce_cap: i32,
+    pub workforce_cap_set: u8,
+    _pad_0x55: [u8; 0x183],
+    pub highest_phase_seen: i32,
+    _pad_0x1dc: [u8; 0x1c],
+}
+const _: () = assert!(core::mem::offset_of!(MyTeamFacility, facility_type) == 0x0);
+const _: () = assert!(core::mem::offset_of!(MyTeamFacility, tree) == 0x8);
+const _: () = assert!(core::mem::offset_of!(MyTeamFacility, workforce_cap) == 0x50);
+const _: () = assert!(core::mem::offset_of!(MyTeamFacility, workforce_cap_set) == 0x54);
+const _: () = assert!(core::mem::offset_of!(MyTeamFacility, highest_phase_seen) == 0x1d8);
+const _: () = assert!(core::mem::size_of::<MyTeamFacility>() == 0x1f8);
+
+#[repr(C)]
+pub struct NeAllocator {
+    pub vtable: *mut NeAllocatorVtbl,
+}
+const _: () = assert!(core::mem::offset_of!(NeAllocator, vtable) == 0x0);
+
+#[repr(C)]
+pub struct NeAllocatorVtbl {
+    _pad_0x0: [u8; 0x18],
+    pub alloc: *mut c_void,
+    _pad_0x20: [u8; 0x18],
+    pub free: *mut c_void,
+}
+const _: () = assert!(core::mem::offset_of!(NeAllocatorVtbl, alloc) == 0x18);
+const _: () = assert!(core::mem::offset_of!(NeAllocatorVtbl, free) == 0x38);
+
+#[repr(C)]
 pub struct NeLogGate {
     pub channel_hashes: [u32; 373],
     pub enabled: u8,
 }
 const _: () = assert!(core::mem::offset_of!(NeLogGate, channel_hashes) == 0x0);
 const _: () = assert!(core::mem::offset_of!(NeLogGate, enabled) == 0x5d4);
+
+#[repr(C)]
+pub struct NeMessageBus {
+    _pad_0x0: [u8; 0x68],
+    pub active: u8,
+}
+const _: () = assert!(core::mem::offset_of!(NeMessageBus, active) == 0x68);
+
+#[repr(C)]
+pub struct NeOptionalVec {
+    pub alloc: *mut NeAllocator,
+    pub begin: *mut c_void,
+    pub end: *mut c_void,
+    pub count: u64,
+    pub engaged: u8,
+    _pad_0x21: [u8; 0x7],
+}
+const _: () = assert!(core::mem::offset_of!(NeOptionalVec, alloc) == 0x0);
+const _: () = assert!(core::mem::offset_of!(NeOptionalVec, begin) == 0x8);
+const _: () = assert!(core::mem::offset_of!(NeOptionalVec, end) == 0x10);
+const _: () = assert!(core::mem::offset_of!(NeOptionalVec, count) == 0x18);
+const _: () = assert!(core::mem::offset_of!(NeOptionalVec, engaged) == 0x20);
+const _: () = assert!(core::mem::size_of::<NeOptionalVec>() == 0x28);
+
+#[repr(C)]
+pub struct NeSharedCtrl {
+    pub vtable: *mut *mut c_void,
+    pub strong: i32,
+    pub weak: i32,
+}
+const _: () = assert!(core::mem::offset_of!(NeSharedCtrl, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(NeSharedCtrl, strong) == 0x8);
+const _: () = assert!(core::mem::offset_of!(NeSharedCtrl, weak) == 0xc);
+
+#[repr(C)]
+pub struct RenownAwardedMessage {
+    pub vtable: *mut *mut c_void,
+    _pad_0x8: [u8; 0x8],
+    pub team: u32,
+    pub amount: f32,
+}
+const _: () = assert!(core::mem::offset_of!(RenownAwardedMessage, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(RenownAwardedMessage, team) == 0x10);
+const _: () = assert!(core::mem::offset_of!(RenownAwardedMessage, amount) == 0x14);
+
+#[repr(C)]
+pub struct RenownConfig {
+    _pad_0x0: [u8; 0x8],
+    pub tiers_begin: *mut u32,
+    pub tiers_end: *mut u32,
+}
+const _: () = assert!(core::mem::offset_of!(RenownConfig, tiers_begin) == 0x8);
+const _: () = assert!(core::mem::offset_of!(RenownConfig, tiers_end) == 0x10);
+
+#[repr(C)]
+pub struct ResourcePointsComponent {
+    _pad_0x0: [u8; 0x4a8],
+    pub wallet_entity: *mut CareerEntity,
+    pub wallet_mode: u8,
+    _pad_0x4b1: [u8; 0x7],
+    pub driver_wallets: *mut c_void,
+    _pad_0x4c0: [u8; 0x68],
+    pub team_wallets: *mut c_void,
+}
+const _: () = assert!(core::mem::offset_of!(ResourcePointsComponent, wallet_entity) == 0x4a8);
+const _: () = assert!(core::mem::offset_of!(ResourcePointsComponent, wallet_mode) == 0x4b0);
+const _: () = assert!(core::mem::offset_of!(ResourcePointsComponent, driver_wallets) == 0x4b8);
+const _: () = assert!(core::mem::offset_of!(ResourcePointsComponent, team_wallets) == 0x528);
+
+#[repr(C)]
+pub struct Season {
+    pub vtable: *mut *mut c_void,
+    _pad_0x8: [u8; 0x218],
+    pub name: *mut c_char,
+    _pad_0x228: [u8; 0x58],
+    pub allocator: *mut NeAllocator,
+    pub weekends_begin: *mut *mut Weekend,
+    pub weekends_end: *mut *mut Weekend,
+    _pad_0x298: [u8; 0x8],
+    pub current_weekend: u32,
+    _pad_0x2a4: [u8; 0x4],
+    pub standings_vtable: *mut *mut c_void,
+    _pad_0x2b0: [u8; 0x288],
+    pub completion_state: u32,
+    _pad_0x53c: [u8; 0x14],
+}
+const _: () = assert!(core::mem::offset_of!(Season, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(Season, name) == 0x220);
+const _: () = assert!(core::mem::offset_of!(Season, allocator) == 0x280);
+const _: () = assert!(core::mem::offset_of!(Season, weekends_begin) == 0x288);
+const _: () = assert!(core::mem::offset_of!(Season, weekends_end) == 0x290);
+const _: () = assert!(core::mem::offset_of!(Season, current_weekend) == 0x2a0);
+const _: () = assert!(core::mem::offset_of!(Season, standings_vtable) == 0x2a8);
+const _: () = assert!(core::mem::offset_of!(Season, completion_state) == 0x538);
+const _: () = assert!(core::mem::size_of::<Season>() == 0x550);
+
+#[repr(C)]
+pub struct Session {
+    _pad_0x0: [u8; 0x8],
+    pub session_id: u32,
+    _pad_0xc: [u8; 0x4],
+    pub completion: u32,
+    _pad_0x14: [u8; 0xc],
+    pub participants_begin: *mut EntrantRecord,
+    pub participants_end: *mut EntrantRecord,
+    _pad_0x30: [u8; 0x70],
+}
+const _: () = assert!(core::mem::offset_of!(Session, session_id) == 0x8);
+const _: () = assert!(core::mem::offset_of!(Session, completion) == 0x10);
+const _: () = assert!(core::mem::offset_of!(Session, participants_begin) == 0x20);
+const _: () = assert!(core::mem::offset_of!(Session, participants_end) == 0x28);
+const _: () = assert!(core::mem::size_of::<Session>() == 0xa0);
+
+#[repr(C)]
+pub struct SponsorEntry {
+    _pad_0x0: [u8; 0x10],
+    pub name: *const c_char,
+    _pad_0x18: [u8; 0x10],
+    pub stat_id: u16,
+    _pad_0x2a: [u8; 0x6e],
+    pub levels_begin: *mut SponsorLoyaltyLevel,
+    pub levels_end: *mut SponsorLoyaltyLevel,
+    _pad_0xa8: [u8; 0x30],
+    pub slot: u8,
+    _pad_0xd9: [u8; 0x3b],
+    pub loyalty_xp: i32,
+    _pad_0x118: [u8; 0x40],
+    pub active: u8,
+    _pad_0x159: [u8; 0x7],
+}
+const _: () = assert!(core::mem::offset_of!(SponsorEntry, name) == 0x10);
+const _: () = assert!(core::mem::offset_of!(SponsorEntry, stat_id) == 0x28);
+const _: () = assert!(core::mem::offset_of!(SponsorEntry, levels_begin) == 0x98);
+const _: () = assert!(core::mem::offset_of!(SponsorEntry, levels_end) == 0xa0);
+const _: () = assert!(core::mem::offset_of!(SponsorEntry, slot) == 0xd8);
+const _: () = assert!(core::mem::offset_of!(SponsorEntry, loyalty_xp) == 0x114);
+const _: () = assert!(core::mem::offset_of!(SponsorEntry, active) == 0x158);
+const _: () = assert!(core::mem::size_of::<SponsorEntry>() == 0x160);
+
+#[repr(C)]
+pub struct SponsorLoyaltyLevel {
+    pub claimed: u8,
+    _pad_0x1: [u8; 0x3],
+    pub xp_threshold: i32,
+    _pad_0x8: [u8; 0x70],
+}
+const _: () = assert!(core::mem::offset_of!(SponsorLoyaltyLevel, claimed) == 0x0);
+const _: () = assert!(core::mem::offset_of!(SponsorLoyaltyLevel, xp_threshold) == 0x4);
+const _: () = assert!(core::mem::size_of::<SponsorLoyaltyLevel>() == 0x78);
+
+#[repr(C)]
+pub struct SponsorLoyaltyXpMessage {
+    pub vtable: *mut *mut c_void,
+    _pad_0x8: [u8; 0x8],
+    pub team: u32,
+    pub amount: i32,
+    pub reason: u8,
+}
+const _: () = assert!(core::mem::offset_of!(SponsorLoyaltyXpMessage, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(SponsorLoyaltyXpMessage, team) == 0x10);
+const _: () = assert!(core::mem::offset_of!(SponsorLoyaltyXpMessage, amount) == 0x14);
+const _: () = assert!(core::mem::offset_of!(SponsorLoyaltyXpMessage, reason) == 0x18);
+
+#[repr(C)]
+pub struct SponsorTeamRecord {
+    _pad_0x0: [u8; 0x8],
+    pub team: u32,
+    _pad_0xc: [u8; 0xc],
+    pub sponsors_begin: *mut SponsorEntry,
+    pub sponsors_end: *mut SponsorEntry,
+    _pad_0x28: [u8; 0x60],
+}
+const _: () = assert!(core::mem::offset_of!(SponsorTeamRecord, team) == 0x8);
+const _: () = assert!(core::mem::offset_of!(SponsorTeamRecord, sponsors_begin) == 0x18);
+const _: () = assert!(core::mem::offset_of!(SponsorTeamRecord, sponsors_end) == 0x20);
+const _: () = assert!(core::mem::size_of::<SponsorTeamRecord>() == 0x88);
+
+#[repr(C)]
+pub struct StandingsPoints {
+    pub key: u32,
+    pub points: i32,
+}
+const _: () = assert!(core::mem::offset_of!(StandingsPoints, key) == 0x0);
+const _: () = assert!(core::mem::offset_of!(StandingsPoints, points) == 0x4);
+const _: () = assert!(core::mem::size_of::<StandingsPoints>() == 0x8);
+
+#[repr(C)]
+pub struct StandingsResult {
+    pub key: u32,
+    pub position: i32,
+    pub fastest_lap_rank: i32,
+    pub status: u32,
+}
+const _: () = assert!(core::mem::offset_of!(StandingsResult, key) == 0x0);
+const _: () = assert!(core::mem::offset_of!(StandingsResult, position) == 0x4);
+const _: () = assert!(core::mem::offset_of!(StandingsResult, fastest_lap_rank) == 0x8);
+const _: () = assert!(core::mem::offset_of!(StandingsResult, status) == 0xc);
+const _: () = assert!(core::mem::size_of::<StandingsResult>() == 0x10);
+
+#[repr(C)]
+pub struct StandingsRound {
+    _pad_0x0: [u8; 0x8],
+    pub sessions_begin: *mut StandingsSession,
+    pub sessions_end: *mut StandingsSession,
+    _pad_0x18: [u8; 0x8],
+}
+const _: () = assert!(core::mem::offset_of!(StandingsRound, sessions_begin) == 0x8);
+const _: () = assert!(core::mem::offset_of!(StandingsRound, sessions_end) == 0x10);
+const _: () = assert!(core::mem::size_of::<StandingsRound>() == 0x20);
+
+#[repr(C)]
+pub struct StandingsSession {
+    _pad_0x0: [u8; 0x8],
+    pub records_begin: *mut c_void,
+    pub records_end: *mut c_void,
+    _pad_0x18: [u8; 0x8],
+    pub session_id: u32,
+    _pad_0x24: [u8; 0x4],
+}
+const _: () = assert!(core::mem::offset_of!(StandingsSession, records_begin) == 0x8);
+const _: () = assert!(core::mem::offset_of!(StandingsSession, records_end) == 0x10);
+const _: () = assert!(core::mem::offset_of!(StandingsSession, session_id) == 0x20);
+const _: () = assert!(core::mem::size_of::<StandingsSession>() == 0x28);
+
+#[repr(C)]
+pub struct StatInfo {
+    _pad_0x0: [u8; 0x8],
+    pub stat_id: u16,
+    _pad_0xa: [u8; 0x126],
+    pub weight: f32,
+    pub default_value: f32,
+}
+const _: () = assert!(core::mem::offset_of!(StatInfo, stat_id) == 0x8);
+const _: () = assert!(core::mem::offset_of!(StatInfo, weight) == 0x130);
+const _: () = assert!(core::mem::offset_of!(StatInfo, default_value) == 0x134);
+
+#[repr(C)]
+pub struct TeamRenownData {
+    pub team: u32,
+    pub points: f32,
+    _pad_0x8: [u8; 0x10],
+    pub config: *mut RenownConfig,
+    _pad_0x20: [u8; 0x120],
+}
+const _: () = assert!(core::mem::offset_of!(TeamRenownData, team) == 0x0);
+const _: () = assert!(core::mem::offset_of!(TeamRenownData, points) == 0x4);
+const _: () = assert!(core::mem::offset_of!(TeamRenownData, config) == 0x18);
+const _: () = assert!(core::mem::size_of::<TeamRenownData>() == 0x140);
 
 #[repr(C)]
 pub struct Tile {
@@ -529,11 +1201,276 @@ pub struct TileList {
 const _: () = assert!(core::mem::offset_of!(TileList, items_begin) == 0x78);
 const _: () = assert!(core::mem::offset_of!(TileList, items_end) == 0x80);
 
+#[repr(C)]
+pub struct TimeOfDayClock {
+    _pad_0x0: [u8; 0x68],
+    pub time_a: f64,
+    pub time_b: f64,
+    _pad_0x78: [u8; 0x8],
+    pub time_scale: f32,
+    pub length: f32,
+    _pad_0x88: [u8; 0x200],
+}
+const _: () = assert!(core::mem::offset_of!(TimeOfDayClock, time_a) == 0x68);
+const _: () = assert!(core::mem::offset_of!(TimeOfDayClock, time_b) == 0x70);
+const _: () = assert!(core::mem::offset_of!(TimeOfDayClock, time_scale) == 0x80);
+const _: () = assert!(core::mem::offset_of!(TimeOfDayClock, length) == 0x84);
+const _: () = assert!(core::mem::size_of::<TimeOfDayClock>() == 0x288);
+
+#[repr(C)]
+pub struct TimeOfDayOwner {
+    _pad_0x0: [u8; 0x2d0],
+    pub tod: *mut TimeOfDaySystem,
+}
+const _: () = assert!(core::mem::offset_of!(TimeOfDayOwner, tod) == 0x2d0);
+
+#[repr(C)]
+pub struct WeatherState {
+    pub r#type: u32,
+    pub intensity: f32,
+    pub end: f32,
+    pub transition: f32,
+}
+const _: () = assert!(core::mem::offset_of!(WeatherState, r#type) == 0x0);
+const _: () = assert!(core::mem::offset_of!(WeatherState, intensity) == 0x4);
+const _: () = assert!(core::mem::offset_of!(WeatherState, end) == 0x8);
+const _: () = assert!(core::mem::offset_of!(WeatherState, transition) == 0xc);
+const _: () = assert!(core::mem::size_of::<WeatherState>() == 0x10);
+
+#[repr(C)]
+pub struct WeatherDataset {
+    _pad_0x0: [u8; 0xb90],
+    pub states: [WeatherState; 38],
+    pub state_total: u32,
+    _pad_0xdf4: [u8; 0x4],
+    pub state_count: u32,
+    _pad_0xdfc: [u8; 0x4],
+}
+const _: () = assert!(core::mem::offset_of!(WeatherDataset, states) == 0xb90);
+const _: () = assert!(core::mem::offset_of!(WeatherDataset, state_total) == 0xdf0);
+const _: () = assert!(core::mem::offset_of!(WeatherDataset, state_count) == 0xdf8);
+const _: () = assert!(core::mem::size_of::<WeatherDataset>() == 0xe00);
+
+#[repr(C)]
+pub struct WeatherTypeRange {
+    pub weight: f32,
+    _pad_0x4: [u8; 0x8],
+    pub intensity_min: f32,
+    pub intensity_max: f32,
+}
+const _: () = assert!(core::mem::offset_of!(WeatherTypeRange, weight) == 0x0);
+const _: () = assert!(core::mem::offset_of!(WeatherTypeRange, intensity_min) == 0xc);
+const _: () = assert!(core::mem::offset_of!(WeatherTypeRange, intensity_max) == 0x10);
+const _: () = assert!(core::mem::size_of::<WeatherTypeRange>() == 0x14);
+
+#[repr(C)]
+pub struct TimeOfDaySystem {
+    _pad_0x0: [u8; 0x2c8],
+    pub clocks: [TimeOfDayClock; 10],
+    _pad_0x1c18: [u8; 0xa3c],
+    pub scripted_scenario: u8,
+    _pad_0x2655: [u8; 0x6f],
+    pub active_dataset: u8,
+    _pad_0x26c5: [u8; 0x13],
+    pub datasets: [WeatherDataset; 10],
+    _pad_0xb2d8: [u8; 0x64],
+    pub seed: u32,
+    _pad_0xb340: [u8; 0x10],
+    pub dataset_length: [f32; 10],
+    pub type_ranges: [WeatherTypeRange; 6],
+    _pad_0xb3f0: [u8; 0x36],
+    pub exact_timing: u8,
+    _pad_0xb427: [u8; 0x2],
+    pub ready_a: u8,
+    pub ready_b: u8,
+    _pad_0xb42b: [u8; 0x2],
+    pub random_override: u8,
+    _pad_0xb42e: [u8; 0x4],
+    pub busy: u8,
+    _pad_0xb433: [u8; 0x3],
+    pub override_active: u8,
+}
+const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, clocks) == 0x2c8);
+const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, scripted_scenario) == 0x2654);
+const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, active_dataset) == 0x26c4);
+const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, datasets) == 0x26d8);
+const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, seed) == 0xb33c);
+const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, dataset_length) == 0xb350);
+const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, type_ranges) == 0xb378);
+const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, exact_timing) == 0xb426);
+const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, ready_a) == 0xb429);
+const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, ready_b) == 0xb42a);
+const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, random_override) == 0xb42d);
+const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, busy) == 0xb432);
+const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, override_active) == 0xb436);
+
+#[repr(C)]
+pub struct UpgradeInstance {
+    _pad_0x0: [u8; 0x10],
+    pub name: *mut c_char,
+    _pad_0x18: [u8; 0x40],
+    pub node_hash: u32,
+    pub cost: i32,
+    pub cost_to_develop: i32,
+    _pad_0x64: [u8; 0x4],
+    pub num_days_to_research: i32,
+    pub num_days_to_develop: i32,
+    _pad_0x70: [u8; 0x2],
+    pub department: u8,
+    _pad_0x73: [u8; 0x1],
+    pub unlock_at_facility_level: i32,
+    _pad_0x78: [u8; 0x4],
+    pub row_flag: u8,
+    _pad_0x7d: [u8; 0x1],
+    pub research_start_day: u16,
+    pub research_end_day: u16,
+    _pad_0x82: [u8; 0x16],
+    pub develop_start_day: u16,
+    pub develop_end_day: u16,
+    _pad_0x9c: [u8; 0x24],
+    pub states_begin: *mut UpgradeStateEntry,
+    pub states_end: *mut UpgradeStateEntry,
+    _pad_0xd0: [u8; 0x10],
+}
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, name) == 0x10);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, node_hash) == 0x58);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, cost) == 0x5c);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, cost_to_develop) == 0x60);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, num_days_to_research) == 0x68);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, num_days_to_develop) == 0x6c);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, department) == 0x72);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, unlock_at_facility_level) == 0x74);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, row_flag) == 0x7c);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, research_start_day) == 0x7e);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, research_end_day) == 0x80);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, develop_start_day) == 0x98);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, develop_end_day) == 0x9a);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, states_begin) == 0xc0);
+const _: () = assert!(core::mem::offset_of!(UpgradeInstance, states_end) == 0xc8);
+const _: () = assert!(core::mem::size_of::<UpgradeInstance>() == 0xe0);
+
+#[repr(C)]
+pub struct UpgradeStateEntry {
+    pub owner: u32,
+    pub day: u16,
+    _pad_0x6: [u8; 0x2],
+    pub state: u8,
+    pub adaptation: u8,
+    _pad_0xa: [u8; 0x2],
+    pub enabled: u8,
+    pub facility_locked: u8,
+    _pad_0xe: [u8; 0x2],
+}
+const _: () = assert!(core::mem::offset_of!(UpgradeStateEntry, owner) == 0x0);
+const _: () = assert!(core::mem::offset_of!(UpgradeStateEntry, day) == 0x4);
+const _: () = assert!(core::mem::offset_of!(UpgradeStateEntry, state) == 0x8);
+const _: () = assert!(core::mem::offset_of!(UpgradeStateEntry, adaptation) == 0x9);
+const _: () = assert!(core::mem::offset_of!(UpgradeStateEntry, enabled) == 0xc);
+const _: () = assert!(core::mem::offset_of!(UpgradeStateEntry, facility_locked) == 0xd);
+const _: () = assert!(core::mem::size_of::<UpgradeStateEntry>() == 0x10);
+
+#[repr(C)]
+pub struct UpgradeTree {
+    _pad_0x0: [u8; 0x10],
+    pub instances_begin: *mut UpgradeInstance,
+    pub instances_end: *mut UpgradeInstance,
+    _pad_0x20: [u8; 0xc20],
+}
+const _: () = assert!(core::mem::offset_of!(UpgradeTree, instances_begin) == 0x10);
+const _: () = assert!(core::mem::offset_of!(UpgradeTree, instances_end) == 0x18);
+const _: () = assert!(core::mem::size_of::<UpgradeTree>() == 0xc40);
+
+#[repr(C)]
+pub struct Upgrades {
+    _pad_0x0: [u8; 0x8],
+    pub mode: u8,
+    _pad_0x9: [u8; 0x3],
+    pub team_key: u32,
+    _pad_0x10: [u8; 0xd0],
+    pub trees: [UpgradeTree; 2],
+    pub tree_count: u64,
+    _pad_0x1968: [u8; 0x140],
+    pub owner_cache: u32,
+    _pad_0x1aac: [u8; 0x64],
+}
+const _: () = assert!(core::mem::offset_of!(Upgrades, mode) == 0x8);
+const _: () = assert!(core::mem::offset_of!(Upgrades, team_key) == 0xc);
+const _: () = assert!(core::mem::offset_of!(Upgrades, trees) == 0xe0);
+const _: () = assert!(core::mem::offset_of!(Upgrades, tree_count) == 0x1960);
+const _: () = assert!(core::mem::offset_of!(Upgrades, owner_cache) == 0x1aa8);
+const _: () = assert!(core::mem::size_of::<Upgrades>() == 0x1b10);
+
+#[repr(C)]
+pub struct UpgradesComponent {
+    _pad_0x0: [u8; 0x298],
+    pub upgrades_begin: *mut *mut Upgrades,
+    pub upgrades_end: *mut *mut Upgrades,
+    _pad_0x2a8: [u8; 0x18],
+    pub career_time: *mut CareerTimeComponent,
+}
+const _: () = assert!(core::mem::offset_of!(UpgradesComponent, upgrades_begin) == 0x298);
+const _: () = assert!(core::mem::offset_of!(UpgradesComponent, upgrades_end) == 0x2a0);
+const _: () = assert!(core::mem::offset_of!(UpgradesComponent, career_time) == 0x2c0);
+
+#[repr(C)]
+pub struct WeatherAndTimeOfDayComponent {
+    _pad_0x0: [u8; 0x2a0],
+    pub weather_system: *mut GameWeatherSystem,
+    _pad_0x2a8: [u8; 0x1c],
+    pub random_seed: u32,
+}
+const _: () = assert!(core::mem::offset_of!(WeatherAndTimeOfDayComponent, weather_system) == 0x2a0);
+const _: () = assert!(core::mem::offset_of!(WeatherAndTimeOfDayComponent, random_seed) == 0x2c4);
+
+#[repr(C)]
+pub struct WeatherSessionSettings {
+    _pad_0x0: [u8; 0x4],
+    pub session_type: u32,
+    _pad_0x8: [u8; 0xb0c],
+    pub mode: u32,
+    pub exact_timing: u8,
+}
+const _: () = assert!(core::mem::offset_of!(WeatherSessionSettings, session_type) == 0x4);
+const _: () = assert!(core::mem::offset_of!(WeatherSessionSettings, mode) == 0xb14);
+const _: () = assert!(core::mem::offset_of!(WeatherSessionSettings, exact_timing) == 0xb18);
+
+#[repr(C)]
+pub struct Weekend {
+    pub vtable: *mut *mut c_void,
+    _pad_0x8: [u8; 0x20],
+    pub name: *mut c_char,
+    _pad_0x30: [u8; 0x1f0],
+    pub sessions_begin: *mut Session,
+    pub sessions_end: *mut Session,
+    _pad_0x230: [u8; 0xc],
+    pub progress_state: u32,
+    _pad_0x240: [u8; 0x38],
+    pub track_stat_id: u8,
+    _pad_0x279: [u8; 0x277],
+}
+const _: () = assert!(core::mem::offset_of!(Weekend, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(Weekend, name) == 0x28);
+const _: () = assert!(core::mem::offset_of!(Weekend, sessions_begin) == 0x220);
+const _: () = assert!(core::mem::offset_of!(Weekend, sessions_end) == 0x228);
+const _: () = assert!(core::mem::offset_of!(Weekend, progress_state) == 0x23c);
+const _: () = assert!(core::mem::offset_of!(Weekend, track_stat_id) == 0x278);
+const _: () = assert!(core::mem::size_of::<Weekend>() == 0x4f0);
+
 pub type Car_Reset_LastFittedUpgrade_t = unsafe extern "C" fn(inst: *mut c_void);
 pub type Career_Add_SeasonWeekend_t = unsafe extern "C" fn(season: *mut c_void, weekend: *mut c_void) -> u64;
 pub type Career_Add_TeamModifier_t = unsafe extern "C" fn(list: *mut c_void, key: u32, value: f32);
+pub type Career_Adjust_RpDriverWallet_t =
+    unsafe extern "C" fn(wallets: *mut c_void, driver_key: u32, delta: i32);
+pub type Career_Adjust_RpTeamWallet_t = unsafe extern "C" fn(wallets: *mut c_void, team_key: u32, delta: i32);
+pub type Career_Build_LineupChanges_t = unsafe extern "C" fn(
+    out: *mut c_void,
+    current_entrants: *const c_void,
+    baseline_entrants: *const c_void,
+) -> *mut c_void;
 pub type Career_Calc_UpgradeCost_t =
     unsafe extern "C" fn(list: *mut c_void, inst: *mut c_void, mods: *mut c_void, option: u32) -> i32;
+pub type Career_Cancel_UpgradeDevelopment_t =
+    unsafe extern "C" fn(upgrades: *mut c_void, owner: u32, inst: *mut c_void, day: u32);
 pub type Career_Cancel_UpgradeResearch_t =
     unsafe extern "C" fn(upgrades: *mut c_void, owner: u32, inst: *mut c_void, day: u32);
 pub type Career_Complete_PerkTreeNode_t = unsafe extern "C" fn(node: *mut c_void) -> u8;
@@ -548,6 +1485,8 @@ pub type Career_Construct_RnDDeptCard_t = unsafe extern "C" fn(
 ) -> *mut c_void;
 pub type Career_Create_SeasonWeekend_t =
     unsafe extern "C" fn(season: *mut c_void, index: u64, track: u8, name: *const c_char) -> *mut c_void;
+pub type Career_Eval_Curve_t = unsafe extern "C" fn(curve: *mut c_void, x: f32) -> f32;
+pub type Career_Get_CareerLengthDays_Thunk_t = unsafe extern "C" fn(time: *mut c_void) -> u32;
 pub type Career_Get_DriverOverallRating_t =
     unsafe extern "C" fn(self_: *mut c_void, data: *mut c_void, driver: *const u32, round: bool) -> f32;
 pub type Career_Get_RpWallet_t = unsafe extern "C" fn(wallets: *mut c_void, out: *mut u64, driver_key: u32);
@@ -568,6 +1507,15 @@ pub type Career_Record_DriverMove_t =
     unsafe extern "C" fn(renewal: *mut c_void, driver: u32, old_team: u32, new_team: u32, reason: u8);
 pub type Career_Refresh_RnDDeptMode_t = unsafe extern "C" fn(holder: *mut usize, mode: u32);
 pub type Career_Refresh_UpgradeAvailability_t = unsafe extern "C" fn(upgrades: *mut c_void, day: u16);
+pub type Career_Set_DriverContractState_t =
+    unsafe extern "C" fn(contract: *mut c_void, day: u16, state: u8, value: u32);
+pub type Career_Set_EntrantData_Thunk_t = unsafe extern "C" fn(
+    entity: *mut c_void,
+    entrant_id: *const c_void,
+    data: *const u32,
+    position: u16,
+    flag: u8,
+);
 pub type Career_Set_UpgradeFacilityLocked_t = unsafe extern "C" fn(inst: *mut c_void, locked: u8, day: u16);
 pub type Career_Set_UpgradesOwner_t = unsafe extern "C" fn(upgrades: *mut c_void, owner: u32);
 pub type Career_Start_UpgradeDevelopment_t = unsafe extern "C" fn(
@@ -607,6 +1555,7 @@ pub type FeTile_Build_List_t = unsafe extern "C" fn(
     a7: u32,
 );
 pub type FeTile_ItemBase_Populate_t = unsafe extern "C" fn(item: *mut HomeItem, node: *mut c_void, a7: u32);
+pub type Gdb_Lookup_Key_t = unsafe extern "C" fn(path: *const c_char) -> *mut *mut c_void;
 pub type Ne_Detach_ChildNode_t = unsafe extern "C" fn(parent: *mut c_void, child: *mut c_void) -> c_int;
 pub type Ne_Format_String_t = unsafe extern "C" fn(out: *mut *mut NeStr, fmt: *const c_char, ...) -> i64;
 pub type Ne_Get_SettingBool_t =
@@ -621,6 +1570,17 @@ pub type Sess_GameWeatherSystem_SetupSession_t =
     unsafe extern "C" fn(ws: *mut c_void, settings: *mut c_void, config: *mut c_void);
 pub type Sess_GameWeatherSystem_UpdateRandomSeed_t =
     unsafe extern "C" fn(ws: *mut c_void, seed: u32, weekend: u32);
+pub type Sess_Tod_BuildSessionDataset_Thunk_t = unsafe extern "C" fn(
+    tod_owner: *mut c_void,
+    types: *const u8,
+    hold_s: *const f32,
+    trans_s: *const f32,
+    random: *const u8,
+    count: u32,
+    len_s: f32,
+    session: u16,
+    use_count: u8,
+);
 pub type Sess_WeatherComponent_SetSystemRandomSeed_t = unsafe extern "C" fn(component: *mut c_void);
 pub type Vm_Set_Bool_t = unsafe extern "C" fn(
     registry: *mut c_void,
@@ -655,8 +1615,28 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Career_Adjust_RpDriverWallet: Binding = Binding {
+        id: "Career_Adjust_RpDriverWallet",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Adjust_RpTeamWallet: Binding = Binding {
+        id: "Career_Adjust_RpTeamWallet",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Build_LineupChanges: Binding = Binding {
+        id: "Career_Build_LineupChanges",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Career_Calc_UpgradeCost: Binding = Binding {
         id: "Career_Calc_UpgradeCost",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Cancel_UpgradeDevelopment: Binding = Binding {
+        id: "Career_Cancel_UpgradeDevelopment",
         kind: "func",
         status: Status::Experimental,
     };
@@ -677,6 +1657,16 @@ pub mod bindings {
     };
     pub const Career_Create_SeasonWeekend: Binding = Binding {
         id: "Career_Create_SeasonWeekend",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Eval_Curve: Binding = Binding {
+        id: "Career_Eval_Curve",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Get_CareerLengthDays_Thunk: Binding = Binding {
+        id: "Career_Get_CareerLengthDays_Thunk",
         kind: "func",
         status: Status::Experimental,
     };
@@ -725,6 +1715,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Career_Set_DriverContractState: Binding = Binding {
+        id: "Career_Set_DriverContractState",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Set_EntrantData_Thunk: Binding = Binding {
+        id: "Career_Set_EntrantData_Thunk",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Career_Set_UpgradeFacilityLocked: Binding = Binding {
         id: "Career_Set_UpgradeFacilityLocked",
         kind: "func",
@@ -750,6 +1750,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const FeFlow_Set_StateStatus: Binding = Binding {
+        id: "FeFlow_Set_StateStatus",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const FeHome_Add_CareerTile: Binding = Binding {
         id: "FeHome_Add_CareerTile",
         kind: "func",
@@ -769,6 +1774,11 @@ pub mod bindings {
         id: "FeTile_ItemBase_Populate",
         kind: "func",
         status: Status::Stable,
+    };
+    pub const Gdb_Lookup_Key: Binding = Binding {
+        id: "Gdb_Lookup_Key",
+        kind: "func",
+        status: Status::Experimental,
     };
     pub const Ne_Detach_ChildNode: Binding = Binding {
         id: "Ne_Detach_ChildNode",
@@ -815,6 +1825,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Tod_BuildSessionDataset_Thunk: Binding = Binding {
+        id: "Sess_Tod_BuildSessionDataset_Thunk",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_WeatherComponent_SetSystemRandomSeed: Binding = Binding {
         id: "Sess_WeatherComponent_SetSystemRandomSeed",
         kind: "func",
@@ -840,8 +1855,18 @@ pub mod bindings {
         kind: "data",
         status: Status::Experimental,
     };
+    pub const g_Career_UpgradeLifecycle: Binding = Binding {
+        id: "g_Career_UpgradeLifecycle",
+        kind: "data",
+        status: Status::Experimental,
+    };
     pub const g_Game_Manager: Binding = Binding {
         id: "g_Game_Manager",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const g_Game_MessageBus: Binding = Binding {
+        id: "g_Game_MessageBus",
         kind: "data",
         status: Status::Experimental,
     };
@@ -900,6 +1925,16 @@ pub mod bindings {
         kind: "data",
         status: Status::Experimental,
     };
+    pub const k_Career_ChampionshipComponentDesc: Binding = Binding {
+        id: "k_Career_ChampionshipComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_ChampionshipDesc: Binding = Binding {
+        id: "k_Career_ChampionshipDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
     pub const k_Career_CostCapComponentDesc: Binding = Binding {
         id: "k_Career_CostCapComponentDesc",
         kind: "data",
@@ -942,6 +1977,11 @@ pub mod bindings {
     };
     pub const k_Career_MyTeamRFComponentDesc: Binding = Binding {
         id: "k_Career_MyTeamRFComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_MyTeamStatsComponentDesc: Binding = Binding {
+        id: "k_Career_MyTeamStatsComponentDesc",
         kind: "data",
         status: Status::Experimental,
     };
@@ -1002,6 +2042,11 @@ pub mod bindings {
     };
     pub const k_Career_WeatherAndTimeOfDayComponentDesc: Binding = Binding {
         id: "k_Career_WeatherAndTimeOfDayComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Gdb_StringXorKey: Binding = Binding {
+        id: "k_Gdb_StringXorKey",
         kind: "data",
         status: Status::Experimental,
     };
@@ -1772,6 +2817,26 @@ pub mod bindings {
     };
     pub const vt_Career_FacilityNode: Binding = Binding {
         id: "vt_Career_FacilityNode",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Career_MessageDriverMoveConfirmed: Binding = Binding {
+        id: "vt_Career_MessageDriverMoveConfirmed",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Career_MessageDriverMovesFinalised: Binding = Binding {
+        id: "vt_Career_MessageDriverMovesFinalised",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Career_MessageDriverMovesFinalisedRecognition: Binding = Binding {
+        id: "vt_Career_MessageDriverMovesFinalisedRecognition",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Career_MessageDriverMovesFinalisedUpgrades: Binding = Binding {
+        id: "vt_Career_MessageDriverMovesFinalisedUpgrades",
         kind: "vtable",
         status: Status::Experimental,
     };
