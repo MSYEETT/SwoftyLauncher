@@ -55,7 +55,9 @@ ALLOCATION_SESSIONS = [
     "Race", "Race2", "Race3", "SprintShootout1", "SprintShootout2", "SprintShootout3",
 ]
 SOFT_SESSIONS = {"Practice1", "Practice2", "SprintShootout1", "Qualifying1", "Race"}
+SHOOTOUT_SESSIONS = {"SprintShootout1", "SprintShootout2", "SprintShootout3"}
 NONE = "0,0,0,0,0"
+SOFTER = "1,0,0,0,0"
 
 
 def set_(select, field, value, type_=None):
@@ -128,7 +130,8 @@ def tyres():
             ops.append(set_(row, session, value))
     for preset in ["TyresPerSessionPreset", "TyresPerSessionSprintPreset"]:
         row = f"tyres.mandatory_tyre_presets.TyresPerSessionPreset[_metadata_={preset}]"
-        ops += [set_(row, session, NONE) for session in ALLOCATION_SESSIONS]
+        ops += [set_(row, session, SOFTER if session in SHOOTOUT_SESSIONS else NONE)
+                for session in ALLOCATION_SESSIONS]
     for track in TRACKS:
         tyre = f"{DATASET}.TrackData[_metadata_={track}].TyreData_0"
         ops += [set_(tyre, f"compound_{c}", "C4") for c in ("softer", "medium", "harder")]

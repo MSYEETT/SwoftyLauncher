@@ -1421,19 +1421,19 @@
    "op": "set",
    "select": "tyres.mandatory_tyre_presets.TyresPerSessionPreset[_metadata_=TyresPerSessionPreset]",
    "field": "SprintShootout1",
-   "value": "0,0,0,0,0"
+   "value": "1,0,0,0,0"
   },
   {
    "op": "set",
    "select": "tyres.mandatory_tyre_presets.TyresPerSessionPreset[_metadata_=TyresPerSessionPreset]",
    "field": "SprintShootout2",
-   "value": "0,0,0,0,0"
+   "value": "1,0,0,0,0"
   },
   {
    "op": "set",
    "select": "tyres.mandatory_tyre_presets.TyresPerSessionPreset[_metadata_=TyresPerSessionPreset]",
    "field": "SprintShootout3",
-   "value": "0,0,0,0,0"
+   "value": "1,0,0,0,0"
   },
   {
    "op": "set",
@@ -1493,19 +1493,19 @@
    "op": "set",
    "select": "tyres.mandatory_tyre_presets.TyresPerSessionPreset[_metadata_=TyresPerSessionSprintPreset]",
    "field": "SprintShootout1",
-   "value": "0,0,0,0,0"
+   "value": "1,0,0,0,0"
   },
   {
    "op": "set",
    "select": "tyres.mandatory_tyre_presets.TyresPerSessionPreset[_metadata_=TyresPerSessionSprintPreset]",
    "field": "SprintShootout2",
-   "value": "0,0,0,0,0"
+   "value": "1,0,0,0,0"
   },
   {
    "op": "set",
    "select": "tyres.mandatory_tyre_presets.TyresPerSessionPreset[_metadata_=TyresPerSessionSprintPreset]",
    "field": "SprintShootout3",
-   "value": "0,0,0,0,0"
+   "value": "1,0,0,0,0"
   },
   {
    "op": "set",
