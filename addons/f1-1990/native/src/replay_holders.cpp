@@ -109,7 +109,7 @@ uintptr_t &slot(swofty::Context &c, uint32_t off)
 void upgrade(swofty::Context &c)
 {
     uintptr_t pos = slot(c, kStreamPos), base = slot(c, kStreamBase), old = slot(c, kHolder);
-    if (pos <= base || !::swofty::mem::object_like(old))
+    if (pos <= base || pos - base <= slot(c, kCapSlots[1]) || !::swofty::mem::object_like(old))
         return;
     uintptr_t size = pos - base;
     int from = class_of(*reinterpret_cast<uintptr_t *>(old));
