@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "swofty.f1-1990",
+  "name": "F1 1990",
+  "version": "0.1.0",
+  "author": "Swofty",
+  "description": "Turns the F1 2026 season into the 1990 season: 1990 teams, drivers, calendar, rules and cars, in Driver Career and Grand Prix.",
+  "license": "AGPL-3.0-or-later",
+  "kind": ["database", "erp"],
+  "compat": { "game": "f1_25", "game_builds": [">=25251167"], "seasons": ["f1_2026"], "launcher": ">=1.1.0" },
+  "requires": [
+    { "id": "swofty.core", "version": ">=0.2.11" },
+    { "id": "swofty.custom-grid-size", "version": ">=0.1.0" }
+  ],
+  "saves": {
+    "affects": true,
+    "message": "1990 careers won't load without it."
+  },
+  "operations": {
+    "database": ["db/career.json", "db/grid.json", "db/rules.json", "db/physics.json"],
+    "erp": []
+  }
+}
