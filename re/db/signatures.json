@@ -8332,6 +8332,32 @@
    "used_by": [
     "addons/f1-1990/native/src/contract_skip.cpp"
    ]
+  },
+  {
+   "id": "session.tyre_allocation_on_session_start",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 00 00 00 48 89 CE 48 8B 89 70 02 00 00",
+   "match": "0x140bcc190",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140bcc190",
+   "kind": "func_start",
+   "names": [
+    "Sess_TyreAllocation_OnSessionStart"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/fq_tyres.cpp"
+   ]
   }
  ]
 }
