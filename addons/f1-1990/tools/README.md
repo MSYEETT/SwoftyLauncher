@@ -119,3 +119,7 @@ python3 addons/f1-1990/tools/check_grid.py <overlay>/game_package/gamedatabases/
 `swofty build` reads the database in the game folder. While a test build is installed there, build with `--game` pointing at a folder holding a copy of `F1_25.exe` and the stock `game_package/gamedatabases/gamedatabases.2025.bin`, and a copy of Custom Grid Size without its `erp` ops.
 
 Put the database on the build route (`"build_assets": ["db"]` in `$DATA/config.json`, or build without the in-game loader) to get the file.
+
+## build_cars.py
+
+Writes `erp/cars/vtf/` and `erp/cars/vtf_ers_zeroed/` (fragment 0 = BXML, 1 = TSMD stats of each 2026 team handling file), `erp/cars/handling.json` (`replace-resource` ops for every archive that carries each file, keyed by the `ers` option) and `db/physics.json`. Reads the car slots and scalars through `season.py`, and the stock VTFs and game database from `--game`. Without `--write` it builds into `build/` and exits 1 when that differs from the shipped files. Tuning constants: `BASE_HP`, `BASE_MASS`, `SPREAD` (scales every scalar's distance from 1), `FAMILIES` (rev limit, peak-power rpm, torque peak per engine), `ENGINES`, `AUDIO`.
