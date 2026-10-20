@@ -11,6 +11,15 @@ inline constexpr call<"wine-test:call_Fake_Callee"> call_Fake_Callee{};
 inline constexpr site<"wine-test:site_Fake_Patch"> site_Fake_Patch{};
 using Fake_Missing_t = int();
 inline constexpr fn<"wine-test:Fake_Missing", Fake_Missing_t> Fake_Missing{};
+inline constexpr site<"wine-test:site_Stage_Entry"> site_Stage_Entry{};
+using Fake_Stage_Wrap_Early_t = int();
+inline constexpr fn<"wine-test:Fake_Stage_Wrap_Early", Fake_Stage_Wrap_Early_t> Fake_Stage_Wrap_Early{};
+using Fake_Stage_t = int();
+inline constexpr fn<"wine-test:Fake_Stage_Site", Fake_Stage_t> Fake_Stage_Site{};
+inline constexpr fn<"wine-test:Fake_Stage_Wrap", Fake_Stage_t> Fake_Stage_Wrap{};
+inline constexpr fn<"wine-test:Fake_Stage_Wrong", Fake_Stage_t> Fake_Stage_Wrong{};
+inline constexpr fn<"wine-test:Fake_Stage_Site_Wrong", Fake_Stage_t> Fake_Stage_Site_Wrong{};
+inline constexpr fn<"wine-test:Fake_Stage_Ambiguous", Fake_Stage_t> Fake_Stage_Ambiguous{};
 }
 
 using namespace swofty::game;

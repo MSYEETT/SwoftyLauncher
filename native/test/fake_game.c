@@ -14,7 +14,7 @@ typedef struct { const char *name; uint32_t index; } AdderCall;
 
 void *g_registry = (void *)0x5157;
 uint64_t out_r12, out_r15;
-__declspec(dllexport) volatile int64_t probe[32];
+__declspec(dllexport) volatile int64_t probe[40];
 void *fake_cmd_global;
 const char fake_cmd_name[] = "select_pressed";
 static uint8_t list[0x100];
@@ -213,6 +213,19 @@ __asm__(
     ".text\n");
 ATOM vm_thunk_register(const WNDCLASSEXW *wc);
 void fake_flow(void);
+
+__asm__(
+    ".section .xtls,\"xr\"\n"
+    ".globl fake_stage_site\nfake_stage_site:\n"
+    ".byte 0x48,0xB8,0x53,0x57,0x46,0x54,0x53,0x49,0x54,0x45\nmov $7, %eax\nret\n"
+    ".globl fake_stage_wrap\nfake_stage_wrap:\n"
+    ".byte 0x48,0xB8,0x53,0x57,0x46,0x54,0x57,0x52,0x41,0x50\nmov $9, %eax\nret\n"
+    ".globl fake_stage_plain\nfake_stage_plain:\n"
+    ".byte 0x48,0xB8,0x53,0x57,0x46,0x54,0x50,0x4C,0x41,0x4E\nmov $5, %eax\nret\n"
+    ".text\n");
+int fake_stage_site(void);
+int fake_stage_wrap(void);
+int fake_stage_plain(void);
 
 struct FakeLogGate {
     uint32_t hashes[373];
@@ -536,10 +549,51 @@ static void test_gamelog(int on)
     expect(gamelog_body_calls == 0, "gamelog: the overwritten logger never runs the game's own body");
 }
 
+static void stage_early(void)
+{
+    expect(fake_stage_site() == 7 && fake_stage_wrap() == 9 && fake_stage_plain() == 5 && probe[32] == 0,
+           "stages: before mods load, the stage targets are vanilla");
+    HANDLE mx = CreateMutexW(NULL, FALSE, L"Codemasters F1 25");
+    expect(mx && GetModuleHandleW(L"t_stage_early.dll") && !GetModuleHandleW(L"t_stage_late.dll") &&
+               !GetModuleHandleW(L"t_stage_refused.dll"),
+           "stages: CreateMutexW('Codemasters F1 25') loaded the early plugin, the window-stage plugins wait");
+    int site = fake_stage_site(), wrap = fake_stage_wrap();
+    printf("      after the early stage: site target %d (site handler ran %lld time(s)), wrap target %d\n", site,
+           (long long)probe[32], wrap);
+    expect(site == 7 && probe[32] == 1 && wrap == 91,
+           "stages: the early plugin's site and wrap are installed at the entries of both targets");
+    if (mx)
+        CloseHandle(mx);
+}
+
+static int stage_window(HWND w)
+{
+    printf("      window stage: fn<Fake_Stage_Site> = %p (function at %p) returned %lld; fn<Fake_Stage_Wrap> = %p "
+           "(function at %p) returned %lld; refused plugin marker %lld\n",
+           (void *)(intptr_t)probe[33], (void *)fake_stage_site, (long long)probe[34], (void *)(intptr_t)probe[35],
+           (void *)fake_stage_wrap, (long long)probe[36], (long long)probe[37]);
+    expect(GetModuleHandleW(L"t_stage_late.dll") && GetModuleHandleW(L"t_stage_refused.dll"),
+           "stages: the window-stage plugins load with the window");
+    expect(probe[33] == (intptr_t)fake_stage_site,
+           "stages: fn<Fake_Stage_Site> bound at the window stage resolves to the function under the early site hook");
+    expect(probe[34] == 7 && probe[32] == 2,
+           "stages: the call through fn<Fake_Stage_Site> runs the early site handler and returns the game's 7");
+    expect(probe[35] == (intptr_t)fake_stage_wrap,
+           "stages: fn<Fake_Stage_Wrap> bound at the window stage resolves to the function under the early wrap");
+    expect(probe[36] == 91, "stages: the call through fn<Fake_Stage_Wrap> returns the early wrap's 91");
+    expect(probe[37] == 0, "stages: the plugin whose patterns fail without a hook to explain it is refused and runs nothing");
+    expect(fake_stage_site() == 7 && probe[32] == 3 && fake_stage_wrap() == 91 && fake_stage_plain() == 5,
+           "stages: the game's own calls still go through the early hooks, the unhooked target is vanilla");
+    printf("%s (%d failure(s))\n", fails ? "FAILED" : "ALL PASSED", fails);
+    DestroyWindow(w);
+    return fails != 0;
+}
+
 int main(int argc, char **argv)
 {
     int fallback = argc > 1 && !strcmp(argv[1], "fallback"), vm = argc > 1 && !strcmp(argv[1], "vm");
     int session = argc > 1 && !strcmp(argv[1], "session"), settings = argc > 1 && !strncmp(argv[1], "settings", 8);
+    int stages = argc > 1 && !strcmp(argv[1], "stages");
     setvbuf(stdout, NULL, _IONBF, 0);
     fake_log_gate.hashes[0x22222222 % 373] = 0xbeef;
     for (int i = 0; i < 40; i++)
@@ -569,6 +623,8 @@ int main(int argc, char **argv)
     void *real_rc = (void *)GetProcAddress(u32, "RegisterClassExW"), *real_cw = (void *)GetProcAddress(u32, "CreateWindowExW");
     expect(fallback || ((void *)__imp_RegisterClassExW != real_rc && (void *)__imp_CreateWindowExW != real_cw),
            "IAT trigger armed on USER32!RegisterClassExW and CreateWindowExW before the window exists");
+    if (stages)
+        stage_early();
     ATOM(WINAPI * rc)(const WNDCLASSEXW *) = fallback ? (void *)real_rc : (void *)__imp_RegisterClassExW;
     HWND(WINAPI * cw)(DWORD, LPCWSTR, LPCWSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID) =
         fallback ? (void *)real_cw : (void *)__imp_CreateWindowExW;
@@ -586,6 +642,8 @@ int main(int argc, char **argv)
     HWND w = cw(0, L"EGO_WindowClass", L"F1 25", WS_OVERLAPPEDWINDOW, 0, 0, 320, 200, NULL, NULL, wc.hInstance, NULL);
     expect((void *)__imp_RegisterClassExW == real_rc && (void *)__imp_CreateWindowExW == real_cw || fallback,
            "IAT slots restored after the trigger");
+    if (stages)
+        return stage_window(w);
 
     run_build(1, 1);
     if (fallback)

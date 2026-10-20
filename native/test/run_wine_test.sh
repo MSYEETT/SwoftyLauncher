@@ -10,17 +10,21 @@ ITEMS=
 grep -qa '\[items\] ownership check hooked' ../dist/swofty/addons/core/swofty_core.dll && ITEMS=1
 export ZIG_GLOBAL_CACHE_DIR=$PWD/../build/zig-cache ZIG_LOCAL_CACHE_DIR=$PWD/../build/zig-cache
 PIN=(taskset -c 2-7,10,11,14-31 nice -n 10)
-rm -rf "$OUT/game"
-mkdir -p "$OUT/game"
+rm -rf "$OUT/game" "$OUT/stages"
+mkdir -p "$OUT/game" "$OUT/stages"
 "${PIN[@]}" zig cc -target x86_64-windows-gnu -O2 -o "$OUT/game/F1_25.exe" fake_game.c -lversion -luser32 &
 cp -r ../dist/. "$OUT/game/"
 mkdir -p "$OUT/game/swofty/mods/core"
 mv "$OUT/game/swofty/addons/core/swofty_gamelog.dll" "$OUT/game/swofty/addons/core/log_channels.tsv" "$OUT/game/swofty/mods/core/"
 for m in addons/t_*.cpp; do
     name=$(basename "${m%.cpp}")
-    [[ $name == t_chain_b ]] && dir=mods || dir=addons
+    case $name in
+    t_chain_b) dest=$OUT/game/swofty/mods ;;
+    t_stage_*) dest=$OUT/stages ;;
+    *) dest=$OUT/game/swofty/addons ;;
+    esac
     "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -I../../packages/sdk/include -I../include -shared -s \
-        -o "$OUT/game/swofty/$dir/$name.dll" "$m" &
+        -o "$dest/$name.dll" "$m" &
 done
 wait
 cp "$OUT/game/swofty/addons/t_drop.dll" "$OUT/game/swofty/mods/t_drop.dll"
@@ -36,6 +40,37 @@ b = open(sys.argv[1], 'rb').read()
 stamp = struct.unpack_from('<I', b, struct.unpack_from('<I', b, 0x3c)[0] + 8)[0]
 open(sys.argv[2], 'w').write(f'# F1_25.exe fake {stamp}\n# hash\tsites\tchannels\n'
                              '0x7c7c88cb\t1\tTEST_WARN\n0x11111111\t1\tTEST_VERBOSE\n0x22222222\t1\tUI_FLOW\n')
+EOF
+SG=$OUT/stages/game
+cp -r "$OUT/game" "$SG"
+rm "$SG"/swofty/addons/t_*.dll "$SG"/swofty/mods/t_*.dll
+mv "$OUT"/stages/t_stage_*.dll "$SG/swofty/addons/"
+python3 - "$SG/F1_25.exe" "$SG/swofty" <<'EOF'
+import json, struct, sys
+exe, root = sys.argv[1], sys.argv[2]
+b = open(exe, 'rb').read()
+pe = struct.unpack_from('<I', b, 0x3c)[0]
+nsec, stamp, opt = struct.unpack_from('<H', b, pe + 6)[0], struct.unpack_from('<I', b, pe + 8)[0], struct.unpack_from('<H', b, pe + 20)[0]
+secs = [struct.unpack_from('<8sIIII', b, pe + 24 + opt + 40 * i) for i in range(nsec)]
+_, _, va, size, raw = next(s for s in secs if s[0].rstrip(b'\0') == b'.xtls')
+code = b[raw:raw + size]
+def kb(tag):
+    at = code.find(b'\x48\xb8' + tag.encode())
+    assert at >= 0 and code.find(b'\x48\xb8' + tag.encode(), at + 1) < 0, tag
+    return hex(va + at)
+core = root + '/addons/core/'
+doc = json.load(open(core + 'bindings.json'))
+for x in doc['bindings']:
+    if 'kb_tag' in x:
+        x['rva'] = kb(x.pop('kb_tag'))
+    else:
+        x.pop('rva', None)
+        if isinstance(x.get('string_anchor'), dict):
+            x['string_anchor'].pop('func_rva', None)
+doc['build'] = {'exe': 'F1_25.exe', 'sha256': 'wine-test', 'pe_timestamp': stamp}
+json.dump(doc, open(core + 'bindings.wine-test.json', 'w'), indent=1)
+json.dump({'schema': 1, 'profile': 'wine-test', 'addons': [], 'early_plugins': ['t_stage_early.dll']},
+          open(root + '/settings.json', 'w'))
 EOF
 export WINEPREFIX="$OUT/prefix" WINEDLLOVERRIDES="version=n,b;mscoree,mshtml=;winemenubuilder.exe=d" WINEDEBUG=-all
 status=0
@@ -283,4 +318,40 @@ for mode in crash exit; do
         [[ $code == 255 ]] && echo "ok  : exit: process ended with 255" || { echo "FAIL: exit: process ended with $code"; status=1; }
     fi
 done
+echo "==== stages"
+LOG=$SG/swofty/loader.log
+SWOFTY_EARLY_STAGE=1 "${PIN[@]}" xvfb-run -a wine "$SG/F1_25.exe" stages || status=1
+echo "---- $LOG (stages)"
+grep -v '  section ' "$LOG"
+check "stages: early stage on from the environment" 'early stage: on \(SWOFTY_EARLY_STAGE=1\)'
+check "stages: early plugin list read from settings.json" 'early stage: plugin t_stage_early\.dll has "early": true'
+check "stages: early trigger fired inside the game's CreateMutexW" "trigger: KERNEL32!CreateMutexW from .* \(\.text\) name 'Codemasters F1 25' on thread .*loading addons now \(early stage\)"
+once "stages: the window-stage plugin waits for the window" 'addon t_stage_late\.dll: loads at the window stage'
+check "stages: core picks the wine-test bindings set by the fake exe's PE timestamp" '\[core\] bindings: 3 set\(s\) present, selected bindings\.wine-test\.json by PE timestamp [0-9]+'
+check "stages: the fake exe is the analysed build of that set" '\[core\] bindings\.wine-test\.json: [0-9]+ binding\(s\) for build wine-test, this exe \(rva checked\)'
+check "stages: core's own wrap still installs with the Steam rvas left out of the set" 'wrap FeHome_Handle_Command at .* installed: swofty_core\.dll\(0\)'
+once "stages: the early site on the entry of Fake_Stage_Site installs" '\[core\] site wine-test:site_Stage_Entry at 0x[0-9a-f]+ \(base\+0x[0-9a-f]+\) installed: t_stage_early\.dll\(0\)[[:space:]]*$'
+once "stages: the early wrap on the entry of Fake_Stage_Wrap installs" '\[core\] wrap wine-test:Fake_Stage_Wrap_Early at 0x[0-9a-f]+ \(base\+0x[0-9a-f]+\) installed: t_stage_early\.dll\(0\)[[:space:]]*$'
+check "stages: window stage after the early load" 'stage: window \(USER32!RegisterClassExW .*\), addons were loaded at the early stage'
+once "stages: the live bytes of Fake_Stage_Site no longer match its pattern" 'scan \.xtls \[48 B8 53 57 46 54 53 49 54 45 B8 07 00 00 00 C3\] -> 0 hits'
+once "stages: the live bytes of Fake_Stage_Wrap no longer match its pattern" 'scan \.xtls \[48 B8 53 57 46 54 57 52 41 50 B8 09 00 00 00 C3\] -> 0 hits'
+for id in Fake_Stage_Site Fake_Stage_Wrap; do
+    rva=$(python3 -c 'import json, sys; print(next(b["rva"] for b in json.load(open(sys.argv[1]))["bindings"] if b["id"] == sys.argv[2]))' \
+        "$SG/swofty/addons/core/bindings.wine-test.json" "wine-test:$id" || true)
+    addr=$(grep -oE "\[core\] bind wine-test:$id -> 0x[0-9a-f]+ \(base\+$rva\)" "$LOG" | grep -oE '0x[0-9a-f]+' | head -n1 || true)
+    once "stages: wine-test:$id binds at its KB rva $rva" "\[core\] bind wine-test:$id -> 0x[0-9a-f]+ \(base\+$rva\), func experimental via pattern"
+    once "stages: wine-test:$id matches the bytes under the early hook at its KB address" \
+        "\[core\] binding wine-test:$id: its bytes carry an installed hook; the pattern matches the bytes under it at the KB address ${addr:-none}[[:space:]]*\$"
+done
+awk '/site wine-test:site_Stage_Entry at .* installed/ && !a {a = NR} /stage: window/ && !b {b = NR} /its bytes carry an installed hook/ && !c {c = NR}
+     END {exit !(a && a < b && b < c)}' "$LOG" && echo "ok  : stages: the fallback runs at the window stage, after the early hooks installed" ||
+    { echo "FAIL: stages: the fallback runs at the window stage, after the early hooks installed"; status=1; }
+once "stages: the window-stage plugin that binds both hooked functions initialises" 'addon t_stage_late\.dll: SwoftyAddonInit returned 1 \(ok\)'
+for id in Fake_Stage_Wrong Fake_Stage_Site_Wrong Fake_Stage_Ambiguous; do
+    once "stages: wine-test:$id is refused" "\[core\] binding wine-test:$id: signature did not match exactly once"
+    once "stages: t_stage_refused needs wine-test:$id" "\[core\] addon t_stage_refused\.dll needs wine-test:$id, which does not resolve on this build"
+done
+check "stages: the ambiguous pattern hits more than once" 'scan \.xtls \[48 B8 53 57 46 54\] -> ([2-9]|[1-9][0-9]+) hits'
+count "stages: only the two bindings under early hooks take the fallback" 2 'its bytes carry an installed hook'
+once "stages: the plugin with wrong or ambiguous patterns fails its init" 'addon t_stage_refused\.dll: SwoftyAddonInit returned 0 \(FAILED\)'
 exit $status

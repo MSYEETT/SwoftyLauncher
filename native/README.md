@@ -61,7 +61,7 @@ Wine uses its builtin `version.dll` unless the prefix overrides it for the game.
 native/test/run_wine_test.sh
 ```
 
-Builds a small stand-in `F1_25.exe` that carries the signatures and the real home-menu instructions, nine test plugins and test bindings, then runs it under Wine with `native/dist/` in nine modes. It checks the proxy, the load trigger, loading from `swofty/addons/` and the legacy `swofty/mods/`, both init exports, the ADDON SETTINGS tile, mixin chains, refused and conflicting registrations, the settings bridge with and without a requests path and with the old settings fields, the ownership check for `owned_items`, `session.json`, the game log, the crash report and the `ExitProcess` log. CI runs it on every push.
+Builds a small stand-in `F1_25.exe` that carries the signatures and the real home-menu instructions, the test plugins and test bindings, then runs it under Wine with `native/dist/` in each mode. It checks the proxy, the load trigger, loading from `swofty/addons/` and the legacy `swofty/mods/`, both init exports, the ADDON SETTINGS tile, mixin chains, refused and conflicting registrations, the settings bridge with and without a requests path and with the old settings fields, the ownership check for `owned_items`, `session.json`, the game log, the crash report and the `ExitProcess` log. A staged run loads one plugin at the early stage and two at the window stage, and checks that a window-stage binding still resolves on a function the early plugin already hooked, and that wrong or ambiguous patterns are still refused. CI runs it on every push.
 
 ```sh
 native/test/run_runtime_assets_test.sh
