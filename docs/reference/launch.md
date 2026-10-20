@@ -17,6 +17,8 @@ To go back to Steam's normal launch, clear the option.
 
 Keep Steam running, then select **Play** in the launcher or run `swofty run`. To follow the logs in the launcher, select the arrow next to **Play** and choose **Play with console**.
 
+Modded sessions don't start while `F1_25.exe` is set to **Run this program as an administrator** and the launcher runs normally: Windows won't start the game unelevated (error 740), and the launch stops with a message naming the setting. To fix it, right-click `F1_25.exe` in the game folder, open **Properties > Compatibility** and untick the box, or untick it under **Change settings for all users** when it's set for all users. You can also run the launcher as administrator. `swofty doctor` shows the setting in its `run as admin` row.
+
 ## Logs
 
 You'll find session logs in `$DATA/sessions/<id>/`. Run `swofty logs` for the latest summary, or use `swofty run` to follow the logs as you play.

@@ -153,4 +153,4 @@ To test an update, set `SWOFTY_UPDATE_PRETEND_VERSION=0.1.0`. The launcher and `
 
 ## `swofty doctor`
 
-Use `swofty doctor` to check Steam, your game install, Proton, launch options and the data folder. You'll also see any changes from the backed-up originals.
+Use `swofty doctor` to check Steam, your game install, Proton, launch options and the data folder. You'll also see any changes from the backed-up originals. On Windows, the `run as admin` row shows whether `F1_25.exe` is set to run as administrator, which stops modded sessions from starting (see [Launching the game](/reference/launch#windows)).
