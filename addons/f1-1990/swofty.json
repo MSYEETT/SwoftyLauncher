@@ -40,6 +40,14 @@
       "binds": "db"
     },
     {
+      "id": "no_tyre_allocation",
+      "type": "toggle",
+      "label": "No weekend tyre allocation",
+      "description": "Turns off the weekend tyre allocation screen for the 2026 compound class, as the classic class does. Test switch for the Friday qualifying tyre problem.",
+      "default": false,
+      "binds": "db"
+    },
+    {
       "id": "grid_cutscene",
       "type": "toggle",
       "label": "Pre-race grid cutscene",

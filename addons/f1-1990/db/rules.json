@@ -3121,6 +3121,15 @@
   },
   {
    "op": "set",
+   "select": "tyres.compound_classes.CompoundClass[_metadata_=f1_26]",
+   "field": "show_allocation_screen",
+   "value": "False",
+   "when": {
+    "no_tyre_allocation": true
+   }
+  },
+  {
+   "op": "set",
    "select": "game_setup.game_setup_modes.game_setup_mode[_metadata_=f1_26]",
    "field": "has_tyre_warmers",
    "value": "False"

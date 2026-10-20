@@ -155,6 +155,9 @@ def tyres():
             ("desc", "lng_tyre_compound_supersoft_desc"),
         ]:
             ops.append(set_(visual, field, value))
+    no_allocation = set_("tyres.compound_classes.CompoundClass[_metadata_=f1_26]", "show_allocation_screen", "False")
+    no_allocation["when"] = {"no_tyre_allocation": True}
+    ops.append(no_allocation)
     ops.append(set_(MODE, "has_tyre_warmers", "False"))
     return ops
 
