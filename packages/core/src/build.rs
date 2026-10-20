@@ -273,6 +273,9 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                 })
                 .map_err(|e| Error::Other(format!("building {id}: {e}")))?;
             hasher.update(serde_json::to_vec(&batch.ops).expect("serialisable"));
+            if !batch.fields.is_empty() {
+                hasher.update(serde_json::to_vec(&batch.fields).expect("serialisable"));
+            }
             let ops: Vec<AssetOp> = batch.ops.iter().map(|op| op.op.clone()).collect();
             hash_sources(&mut hasher, store, id, &ops)?;
             built
@@ -288,6 +291,7 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
                     .push(format!("{id}: ERP operations skipped; {op} is not built yet"));
                 ops.retain(|o| !matches!(o.op, AssetOp::Erp(_)));
             }
+            planner.add_fields(id, batch.fields);
             for op in ops {
                 planner.push(op);
             }
@@ -960,7 +964,7 @@ mod tests {
                     },
                 ],
                 lines: vec![format!("profile {}", cx.cx.profile.name)],
-                warnings: Vec::new(),
+                ..AssetBatch::default()
             })
         }
     }
@@ -1078,6 +1082,87 @@ mod tests {
                 .contains(&"t.hook: ERP operations skipped; set-text is not built yet".to_owned())
         );
         assert!(store.addon_data_dir("t.hook").is_dir());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    struct Rows(AddonManifest);
+
+    impl Addon for Rows {
+        fn manifest(&self) -> &AddonManifest {
+            &self.0
+        }
+
+        fn build(&self, cx: &BuildCx) -> swofty_addon::Result<AssetBatch> {
+            let reply: swofty_addon::helper::Built = serde_json::from_str(
+                r#"{ "ops": [{ "op": "db.add-row", "table": "entrants.teams",
+                               "from": "entrants.teams.team[_metadata_=mclaren_26]",
+                               "set": { "_metadata_": "team12_26" } }],
+                     "fields": { "entrants.teams.team": ["_metadata_", "stat_id"] } }"#,
+            )
+            .expect("valid reply");
+            let origin = Origin {
+                addon: cx.cx.addon.into(),
+                item: None,
+            };
+            Ok(AssetBatch {
+                ops: reply
+                    .ops
+                    .into_iter()
+                    .map(|op| Op {
+                        op,
+                        origin: origin.clone(),
+                    })
+                    .collect(),
+                fields: reply.fields,
+                ..AssetBatch::default()
+            })
+        }
+    }
+
+    #[test]
+    fn build_reply_fields_name_the_columns_add_row_copies() {
+        use swofty_formats::gvdb::Record;
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-fields-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        let mut records = vec![Record::new("entrants.teams._team_instancecount_", 0, "2")];
+        for (i, label) in ["mclaren_26", "gm_cadillac_26"].iter().enumerate() {
+            let row = format!("entrants.teams.team_{i}");
+            records.push(Record::new(&format!("{row}._metadata_"), 4, *label));
+            records.push(Record::new(&format!("{row}.stat_id"), 0, (100 + i).to_string()));
+        }
+        std::fs::write(dir.join(GVDB), Gvdb { records }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let manifest = AddonManifest::parse(
+            r#"{ "schema_version": 1, "id": "t.rows", "name": "Rows", "version": "1.0.0", "author": "t",
+                 "compat": { "game": "f1_25" } }"#,
+        )
+        .unwrap();
+        let store = Store::new(root.join("data")).with_builtins(vec![Builtin {
+            addon: Arc::new(Rows(manifest)),
+            locked: false,
+            default_on: true,
+        }]);
+        let built = build(&store, "default", &game).unwrap();
+        let db = Gvdb::parse(&std::fs::read(&built.plan.data[GVDB]).unwrap()).unwrap();
+        assert_eq!(db.instance_count("entrants.teams", "team"), Some(3));
+        assert_eq!(
+            db.get_text("entrants.teams.team_2._metadata_").as_deref(),
+            Some("team12_26")
+        );
+        assert_eq!(
+            db.get_text("entrants.teams.team_2.stat_id").as_deref(),
+            Some("100")
+        );
         std::fs::remove_dir_all(&root).ok();
     }
 

@@ -272,6 +272,8 @@ pub struct AssetBatch {
     pub ops: Vec<Op>,
     pub lines: Vec<String>,
     pub warnings: Vec<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub fields: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

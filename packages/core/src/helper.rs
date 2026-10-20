@@ -581,6 +581,7 @@ impl Addon for HelperAddon {
                 .collect(),
             lines: built.lines,
             warnings: built.warnings,
+            fields: built.fields,
         })
     }
 
@@ -746,7 +747,7 @@ answer '{"id":1,"result":{"subtitle":"s","body":{"blocks":[]}}}'
 answer '{"method":"progress","params":{"done":0.5,"text":"half"}}'
 echo '{"id":2,"result":["imported a.exmod"]}'
 read -r l; echo "$l" >> received
-answer '{"id":3,"result":{"ops":[{"op":"file.put","source":"a.dds","target":"b.dds"},{"op":"file.put","source":"c.dds","target":"d.dds"}],"items":["mod.a"],"lines":["one"]}}'
+answer '{"id":3,"result":{"ops":[{"op":"file.put","source":"a.dds","target":"b.dds"},{"op":"file.put","source":"c.dds","target":"d.dds"}],"items":["mod.a"],"lines":["one"],"fields":{"t.r":["a"]}}}'
 answer '{"id":4,"error":"nope"}'
 read -r l
 "#;
@@ -791,6 +792,7 @@ read -r l
         assert_eq!(batch.ops[0].origin.item.as_deref(), Some("mod.a"));
         assert_eq!(batch.ops[1].origin.item, None);
         assert_eq!(batch.lines, ["one"]);
+        assert_eq!(batch.fields["t.r"], ["a"]);
         let e = h.command(&cx, &["x".into()], &[]).unwrap_err();
         assert_eq!(e.to_string(), "Helper: nope");
         assert!(h.running());

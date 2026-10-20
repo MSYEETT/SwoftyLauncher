@@ -105,6 +105,7 @@ fn dispatch(
                 items,
                 lines: batch.lines,
                 warnings: batch.warnings,
+                fields: batch.fields,
             })
         }
         Call::Command { path, args } => addon.command(&cx, &path, &args).map_err(text).and_then(json),

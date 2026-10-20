@@ -116,6 +116,9 @@ pub struct Built {
     pub lines: Vec<String>,
     #[serde(default)]
     pub warnings: Vec<String>,
+    // Field names for add-row, keyed `<table>.<row>` as in an op file's `fields`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub fields: BTreeMap<String, Vec<String>>,
 }
 
 #[cfg(test)]
@@ -285,6 +288,18 @@ mod tests {
             serde_json::to_value(Built::default())
                 .unwrap()
                 .get("items")
+                .is_none()
+        );
+        assert!(built.fields.is_empty());
+        let built: Built = serde_json::from_value(json!({"ops": [
+            {"op": "db.add-row", "table": "t", "from": "t.r_0"}
+        ], "fields": {"t.r": ["a", "b"]}}))
+        .unwrap();
+        assert_eq!(built.fields["t.r"], ["a", "b"]);
+        assert!(
+            serde_json::to_value(Built::default())
+                .unwrap()
+                .get("fields")
                 .is_none()
         );
         assert_eq!(

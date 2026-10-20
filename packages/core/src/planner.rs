@@ -117,6 +117,7 @@ pub struct Planner<'a> {
     planned: Planned,
     writers: BTreeMap<Target, Vec<Origin>>,
     removals: usize,
+    fields: BTreeMap<String, BTreeMap<String, Vec<String>>>,
 }
 
 fn erp_target(op: &ErpOp) -> Option<(Target, bool)> {
@@ -184,6 +185,7 @@ impl<'a> Planner<'a> {
             planned: Planned::default(),
             writers: BTreeMap::new(),
             removals: 0,
+            fields: BTreeMap::new(),
         }
     }
 
@@ -282,6 +284,12 @@ impl<'a> Planner<'a> {
         }
     }
 
+    pub fn add_fields(&mut self, addon: &str, fields: BTreeMap<String, Vec<String>>) {
+        if !fields.is_empty() {
+            self.fields.entry(addon.to_owned()).or_default().extend(fields);
+        }
+    }
+
     fn write(&mut self, target: Target, origin: &Origin, replaces: bool) {
         let writers = self.writers.entry(target.clone()).or_default();
         if replaces {
@@ -323,12 +331,14 @@ impl<'a> Planner<'a> {
     }
 
     pub fn apply_db(&mut self, db: &mut Gvdb) -> Result<Vec<Added>> {
-        let names: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        let fields = std::mem::take(&mut self.fields);
+        let none = BTreeMap::new();
         let mut added = Vec::new();
         for (origin, ops) in std::mem::take(&mut self.db) {
             let before = owned::counts(db);
-            let replaced = apply_db_ops(db, &ops, &names)
-                .map_err(|e| Error::Other(format!("applying {origin}: {e}")))?;
+            let names = fields.get(&origin.addon).unwrap_or(&none);
+            let replaced =
+                apply_db_ops(db, &ops, names).map_err(|e| Error::Other(format!("applying {origin}: {e}")))?;
             for key in replaced {
                 self.write(Target::Record(key), &origin, true);
             }
@@ -532,6 +542,31 @@ mod tests {
         p.push(op("b", &remove("r")));
         assert_eq!(p.route(Kind::Erp), Route::Build);
         assert_eq!(p.route_note(Kind::Erp), None);
+    }
+
+    #[test]
+    fn build_fields_apply_to_their_own_addon_only() {
+        use swofty_formats::gvdb::Record;
+        let features = Features::default();
+        let opt_in = BTreeSet::new();
+        let add = r#"{"op":"db.add-row","table":"t","from":"t.r_0"}"#;
+        let db = || Gvdb {
+            records: vec![
+                Record::new("t._r_instancecount_", 0, "1"),
+                Record::new("t.r_0.a", 0, "7"),
+            ],
+        };
+        let mut p = Planner::new(&features, &opt_in);
+        p.add_fields("a", BTreeMap::from([("t.r".to_owned(), vec!["a".to_owned()])]));
+        p.push(op("a", add));
+        let mut built = db();
+        p.apply_db(&mut built).unwrap();
+        assert_eq!(built.get_text("t.r_1.a").as_deref(), Some("7"));
+        let mut p = Planner::new(&features, &opt_in);
+        p.add_fields("a", BTreeMap::from([("t.r".to_owned(), vec!["a".to_owned()])]));
+        p.push(op("b", add));
+        let e = p.apply_db(&mut db()).unwrap_err();
+        assert!(e.to_string().contains("field names unknown"), "{e}");
     }
 
     #[test]
