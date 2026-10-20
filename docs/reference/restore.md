@@ -41,6 +41,23 @@ A file in the way of an install counts as the launcher's own when `placed.json` 
 
 At start, files that `placed.json` records and no open journal covers are cleared the same way.
 
+## Damaged state files
+
+State files are written to a temporary file, flushed to disk and renamed over the old one. Backups in `baseline/objects` and restored originals are flushed before they take their name.
+
+A state file that is not JSON at all (empty, zero-filled or truncated) is moved to `<name>.corrupt-<unix time>` and never deleted. Valid JSON in a shape the launcher cannot read is left in place and reported as an error.
+
+| File | When damaged |
+|---|---|
+| `baseline.json` | Started over in rebuild mode (`"rebuild"` in the file) |
+| A journal | Skipped; `placed.json` and the baseline clear its leftovers |
+| `placed.json` | Started over empty; leftovers are reported as files of unknown origin |
+| A profile or `config.json` | Started over as if missing |
+
+In rebuild mode a game file is recorded as an original only when its bytes are already a backed-up original in `baseline/objects`. Any other file stops the install untouched with "the launcher's record of your original game files is damaged; verify the game files in Steam, then press Play again". The next install records such files at first sight. A file that `placed.json` records as written by the launcher is never recorded as an original, and `swofty verify` reports it until the game files are verified.
+
+`swofty doctor` lists the set-aside copies.
+
 ## Commands
 
 - `swofty restore`: restore originals and remove launcher additions.
@@ -49,8 +66,8 @@ At start, files that `placed.json` records and no open journal covers are cleare
 
 ## Tests
 
-`packages/core/tests/restore.rs` covers profile changes, interrupted changes and game updates using a test folder. `packages/core/tests/session_recovery.rs` covers crashed and killed sessions, leftovers of lost journals and files copied in by hand.
+`packages/core/tests/restore.rs` covers profile changes, interrupted changes and game updates using a test folder. `packages/core/tests/session_recovery.rs` covers crashed and killed sessions, leftovers of lost journals and files copied in by hand. `packages/core/tests/damaged_state.rs` covers damaged state files.
 
 ```sh
-cargo test -p swofty-core --test restore --test session_recovery
+cargo test -p swofty-core --test restore --test session_recovery --test damaged_state
 ```
