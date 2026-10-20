@@ -82,12 +82,10 @@ def main(argv):
     for op in grid["ops"]:
         if op["op"] != "add-row":
             continue
-        fields = grid["fields"].get(f"{op['table']}.{op['from'].rsplit('.', 1)[1].split('[')[0]}")
         table = op["table"]
         word = op["from"].rsplit(".", 1)[1].split("[")[0]
+        fields = grid["fields"][f"{table}.{word}"]
         parent = table
-        for seg_label in [None]:
-            pass
         if "[" in table:
             name, label = table.rsplit("[_metadata_=", 1)
             base, w = name.rsplit(".", 1)

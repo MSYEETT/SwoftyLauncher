@@ -76,6 +76,18 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_desc_ferrari",
+   "value": "Prost joins Mansell at Maranello, with the 641 and its semi-automatic gearbox."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_ferrari",
+   "value": "#Ferrari"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_team_williams",
    "value": "Williams Renault"
   },
@@ -108,6 +120,18 @@
    "language": "*",
    "key": "lng_williams_boss",
    "value": "Frank Williams"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_desc_williams",
+   "value": "Renault V10 power and the FW13B for Boutsen and Patrese."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_williams",
+   "value": "#Williams"
   },
   {
    "op": "lang.set",
@@ -184,6 +208,18 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_desc_tyrrell",
+   "value": "Alesi and Nakajima drive; Harvey Postlethwaite's raised-nose 019 arrives at Imola."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_tyrrell",
+   "value": "#Tyrrell"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_team_lotus",
    "value": "Lotus Lamborghini"
   },
@@ -216,6 +252,18 @@
    "language": "*",
    "key": "lng_red_bull_boss",
    "value": "Tony Rudd"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_desc_lotus",
+   "value": "Lamborghini V12 power for Warwick and Donnelly in the 102."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_lotus",
+   "value": "#Lotus"
   },
   {
    "op": "lang.set",
@@ -256,6 +304,18 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_desc_march",
+   "value": "Adrian Newey's CG901 with Judd power for Gugelmin and Capelli."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_march",
+   "value": "#LeytonHouse"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_team_larrousse",
    "value": "Larrousse Lamborghini"
   },
@@ -282,6 +342,18 @@
    "language": "*",
    "key": "lng_f1990_engine_larrousse",
    "value": "Lamborghini V12"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_desc_larrousse",
+   "value": "The Lola-built LC90 with the Lamborghini V12 for Bernard and Suzuki."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_larrousse",
+   "value": "#Larrousse"
   },
   {
    "op": "lang.set",
@@ -322,6 +394,18 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_desc_ligier_prost",
+   "value": "The JS33B with Ford power for Larini and Alliot."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_ligier_prost",
+   "value": "#Ligier"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_team_minardi",
    "value": "Minardi Ford"
   },
@@ -354,6 +438,18 @@
    "language": "*",
    "key": "lng_toro_rosso_boss",
    "value": "Giancarlo Minardi"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_desc_minardi",
+   "value": "The Faenza team runs the M190 with Ford power for Martini and Barilla."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_minardi",
+   "value": "#Minardi"
   },
   {
    "op": "lang.set",
@@ -394,6 +490,18 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_desc_brabham",
+   "value": "The BT59 with Judd power for Modena and David Brabham."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_brabham",
+   "value": "#Brabham"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_team_dallara",
    "value": "Dallara Ford"
   },
@@ -420,6 +528,18 @@
    "language": "*",
    "key": "lng_f1990_engine_dallara",
    "value": "Ford V8"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_desc_dallara",
+   "value": "BMS Scuderia Italia runs the Dallara F190 for de Cesaris and Pirro."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_dallara",
+   "value": "#ScuderiaItalia"
   },
   {
    "op": "lang.set",
@@ -456,6 +576,18 @@
    "language": "*",
    "key": "lng_haas_boss",
    "value": "Jackie Oliver"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_desc_arrows",
+   "value": "Arrows runs the A11B with Ford power for Alboreto and Caffi."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_arrows",
+   "value": "#Arrows"
   },
   {
    "op": "lang.set",

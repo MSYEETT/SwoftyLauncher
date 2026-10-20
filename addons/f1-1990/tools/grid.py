@@ -108,6 +108,19 @@ TEAM_INFO = {
                "A11B", "Ford V8", "haas", "Jackie Oliver"),
 }
 UI_COLOUR = {"arrows": "#C8102E"}
+STORY = {
+    "ferrari": ("Prost joins Mansell at Maranello, with the 641 and its semi-automatic gearbox.", "#Ferrari"),
+    "williams": ("Renault V10 power and the FW13B for Boutsen and Patrese.", "#Williams"),
+    "tyrrell": ("Alesi and Nakajima drive; Harvey Postlethwaite's raised-nose 019 arrives at Imola.", "#Tyrrell"),
+    "lotus": ("Lamborghini V12 power for Warwick and Donnelly in the 102.", "#Lotus"),
+    "march": ("Adrian Newey's CG901 with Judd power for Gugelmin and Capelli.", "#LeytonHouse"),
+    "larrousse": ("The Lola-built LC90 with the Lamborghini V12 for Bernard and Suzuki.", "#Larrousse"),
+    "ligier_prost": ("The JS33B with Ford power for Larini and Alliot.", "#Ligier"),
+    "minardi": ("The Faenza team runs the M190 with Ford power for Martini and Barilla.", "#Minardi"),
+    "brabham": ("The BT59 with Judd power for Modena and David Brabham.", "#Brabham"),
+    "dallara": ("BMS Scuderia Italia runs the Dallara F190 for de Cesaris and Pirro.", "#ScuderiaItalia"),
+    "arrows": ("Arrows runs the A11B with Ford power for Alboreto and Caffi.", "#Arrows"),
+}
 SUITS = {"mclaren_26": "2026-mclaren", "ferrari_26": "2026-ferrari", "williams_26": "2026-williams",
          "renault_26": "2026-renault", "mercedes_26": "2026-mercedes", "redbull_26": "2026-redbull",
          "forceindia_26": "2026-forceindia", "team12_26": "2026-williams", "sauber_26": "2026-sauber",
@@ -254,6 +267,11 @@ def build(season):
             ("team_base", f"lng_f1990_base_{s.team}"), ("nationality", nat),
         ]:
             setop(team, fld, value)
+        if s.team in STORY:
+            L(f"lng_f1990_desc_{s.team}", STORY[s.team][0])
+            L(f"lng_f1990_tag_{s.team}", STORY[s.team][1])
+            setop(team, "story_info_0.description", f"lng_f1990_desc_{s.team}")
+            setop(team, "story_info_0.hashtag", f"lng_f1990_tag_{s.team}")
         vehicle = f"entrants.vehicles.vehicle[_metadata_={s.vehicle}]"
         setop(vehicle, "display_name", key)
         setop(vehicle, "chassis_name", f"lng_f1990_chassis_{s.team}")

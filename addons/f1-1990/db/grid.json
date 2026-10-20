@@ -374,6 +374,18 @@
   },
   {
    "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "story_info_0.description",
+   "value": "lng_f1990_desc_ferrari"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "story_info_0.hashtag",
+   "value": "lng_f1990_tag_ferrari"
+  },
+  {
+   "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=ferrari_2026]",
    "field": "display_name",
    "value": "lng_f1990_team_ferrari"
@@ -467,6 +479,18 @@
    "select": "entrants.teams.team[_metadata_=williams_26]",
    "field": "nationality",
    "value": "britain"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "story_info_0.description",
+   "value": "lng_f1990_desc_williams"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "story_info_0.hashtag",
+   "value": "lng_f1990_tag_williams"
   },
   {
    "op": "set",
@@ -662,6 +686,18 @@
   },
   {
    "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "story_info_0.description",
+   "value": "lng_f1990_desc_tyrrell"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "story_info_0.hashtag",
+   "value": "lng_f1990_tag_tyrrell"
+  },
+  {
+   "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=mercedes_2026]",
    "field": "display_name",
    "value": "lng_f1990_team_tyrrell"
@@ -755,6 +791,18 @@
    "select": "entrants.teams.team[_metadata_=redbull_26]",
    "field": "nationality",
    "value": "britain"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "story_info_0.description",
+   "value": "lng_f1990_desc_lotus"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "story_info_0.hashtag",
+   "value": "lng_f1990_tag_lotus"
   },
   {
    "op": "set",
@@ -854,6 +902,18 @@
   },
   {
    "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "story_info_0.description",
+   "value": "lng_f1990_desc_march"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "story_info_0.hashtag",
+   "value": "lng_f1990_tag_march"
+  },
+  {
+   "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=force_india_2026]",
    "field": "display_name",
    "value": "lng_f1990_team_march"
@@ -947,6 +1007,18 @@
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "nationality",
    "value": "france"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "story_info_0.description",
+   "value": "lng_f1990_desc_larrousse"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "story_info_0.hashtag",
+   "value": "lng_f1990_tag_larrousse"
   },
   {
    "op": "set",
@@ -1046,6 +1118,18 @@
   },
   {
    "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "story_info_0.description",
+   "value": "lng_f1990_desc_ligier_prost"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "story_info_0.hashtag",
+   "value": "lng_f1990_tag_ligier_prost"
+  },
+  {
+   "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=sauber_2026]",
    "field": "display_name",
    "value": "lng_f1990_team_ligier_prost"
@@ -1139,6 +1223,18 @@
    "select": "entrants.teams.team[_metadata_=tororosso_26]",
    "field": "nationality",
    "value": "italy"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "story_info_0.description",
+   "value": "lng_f1990_desc_minardi"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "story_info_0.hashtag",
+   "value": "lng_f1990_tag_minardi"
   },
   {
    "op": "set",
@@ -1238,6 +1334,18 @@
   },
   {
    "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "story_info_0.description",
+   "value": "lng_f1990_desc_brabham"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "story_info_0.hashtag",
+   "value": "lng_f1990_tag_brabham"
+  },
+  {
+   "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=gm_cadillac_2026]",
    "field": "display_name",
    "value": "lng_f1990_team_brabham"
@@ -1334,6 +1442,18 @@
   },
   {
    "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "story_info_0.description",
+   "value": "lng_f1990_desc_dallara"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "story_info_0.hashtag",
+   "value": "lng_f1990_tag_dallara"
+  },
+  {
+   "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=team13_2026]",
    "field": "display_name",
    "value": "lng_f1990_team_dallara"
@@ -1427,6 +1547,18 @@
    "select": "entrants.teams.team[_metadata_=haas_26]",
    "field": "nationality",
    "value": "britain"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "story_info_0.description",
+   "value": "lng_f1990_desc_arrows"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "story_info_0.hashtag",
+   "value": "lng_f1990_tag_arrows"
   },
   {
    "op": "set",
