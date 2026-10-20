@@ -232,6 +232,30 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Only the Wine tests need these, so the install runs in the background while the build and unit tests do.
+      - name: Start installing Wine and Xvfb
+        run: |
+          (
+            set +e
+            sudo dpkg --add-architecture i386 &&
+              sudo apt-get update &&
+              sudo apt-get install -y wine64 wine xvfb
+            echo $? > "$RUNNER_TEMP/wine-install.status"
+          ) > "$RUNNER_TEMP/wine-install.log" 2>&1 &
+
+      # The native scripts pin their compilers to the maintainer's healthy cores (taskset -c 2-7,...),
+      # which leaves two of a hosted runner's four. This shim drops the pin and runs the command as is.
+      - name: Use every runner core
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          cat > "$RUNNER_TEMP/bin/taskset" <<'EOF'
+          #!/bin/sh
+          [ "$1" = -c ] && shift 2
+          exec "$@"
+          EOF
+          chmod +x "$RUNNER_TEMP/bin/taskset"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
       # The scripts below keep their own Zig cache under native/build, which the restore step covers.
       - uses: mlugg/setup-zig@v2
         with:
@@ -289,10 +313,11 @@ jobs:
           ./telemetry_feed_test
 
       - name: Wine and Xvfb
+        timeout-minutes: 10
         run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install -y wine64 wine xvfb
+          while [ ! -f "$RUNNER_TEMP/wine-install.status" ]; do sleep 2; done
+          cat "$RUNNER_TEMP/wine-install.log"
+          exit "$(cat "$RUNNER_TEMP/wine-install.status")"
 
       # A synthetic F1_25.exe carries the signatures; no game files are used.
       - name: Wine test
