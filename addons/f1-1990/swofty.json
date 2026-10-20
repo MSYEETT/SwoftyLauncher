@@ -31,7 +31,7 @@
   ],
   "operations": {
     "database": ["db/career.json", "db/grid.json", "db/rules.json", "db/physics.json"],
-    "assets": ["db/rules_text.json"],
+    "assets": ["db/rules_text.json", "lang/grid.json"],
     "erp": []
   }
 }
