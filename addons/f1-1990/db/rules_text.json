@@ -1,0 +1,65 @@
+{
+ "schema_version": 1,
+ "ops": [
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_sprint_shootout",
+   "value": "Friday Qualifying"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_sprintshootout",
+   "value": "Friday Qualifying"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_sprintshootout_single",
+   "value": "Friday Qualifying"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_sprintshootout_single_short",
+   "value": "FQ"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_sprintshootout_oneshot",
+   "value": "One-Shot Friday Qualifying"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_sprintshootout_oneshot_short",
+   "value": "OSFQ"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_sprintshootout_results",
+   "value": "Friday Qualifying Results"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_qualifying_results",
+   "value": "Saturday Qualifying Results"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_qualifying_length_short",
+   "value": "Saturday Qualifying"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_qualifying_length_one_shot",
+   "value": "One-Shot Saturday Qualifying"
+  }
+ ]
+}

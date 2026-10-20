@@ -16,8 +16,22 @@
     "affects": true,
     "message": "1990 careers won't load without it."
   },
+  "options": [
+    {
+      "id": "soft_sets",
+      "type": "slider",
+      "label": "Soft sets per session",
+      "description": "New soft tyre sets handed out in each of practice 1, practice 2, Friday qualifying, Saturday qualifying and the race. No medium or hard sets are given.",
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "default": 2,
+      "binds": "db"
+    }
+  ],
   "operations": {
     "database": ["db/career.json", "db/grid.json", "db/rules.json", "db/physics.json"],
+    "assets": ["db/rules_text.json"],
     "erp": []
   }
 }
