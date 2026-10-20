@@ -5,7 +5,8 @@
 
 --zip writes <out>/<id>.zip instead; the launcher installs either.
 
-Only swofty.json, LICENSE, README.md, the icon and the files the manifest's operations name go in, plus every
+Only swofty.json, LICENSE, README.md, the icon, the launcher plugin's programs and the files the manifest's
+operations name go in, plus every
 file an operation file names in a "source" or "sources" field (texture fragments, VTFs, UI files). Entries are
 sorted with a fixed timestamp and mode, so the same inputs give the same bytes.
 """
@@ -23,6 +24,8 @@ def wanted(m):
     out += [s['file'] for s in ops.get('screens', [])]
     for n in ops.get('native', []):
         out += [n['dll'], *n.get('files', [])]
+    program = m.get('launcher', {}).get('program')
+    out += list(program.values()) if isinstance(program, dict) else [program]
     return [r.rstrip('/') for r in out if r]
 
 
