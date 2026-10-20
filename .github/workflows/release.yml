@@ -8,6 +8,10 @@ on:
       tag:
         description: The tag to build, for example v0.2.0
         required: true
+      dry-run:
+        description: Build and package without publishing; the archives stay on the run as the linux and windows artefacts
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -67,9 +71,10 @@ jobs:
             native/dist/
             native/bundled/
 
-  linux:
-    name: Linux
-    needs: native
+  # The Linux and Windows builds do not need the native loader, so they run alongside it, and a
+  # packaging job per system joins the two once both are done.
+  linux-build:
+    name: Linux build
     # The oldest supported runner gives the oldest glibc baseline, for SteamOS.
     runs-on: ubuntu-22.04
     steps:
@@ -106,6 +111,33 @@ jobs:
           python tools/swofty-ui/build.py
           dist/swofty-ui/swofty-ui --self-test
 
+      # Artefacts drop the executable bit, so the binaries travel in a tar.
+      - name: Bundle the binaries
+        run: tar cf linux-binaries.tar target/release/swofty target/release/swofty-launcher dist/swofty-ui/swofty-ui
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-binaries
+          path: linux-binaries.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  linux:
+    name: Linux
+    needs: [native, linux-build]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-binaries
+
+      - name: Unbundle the binaries
+        run: tar xf linux-binaries.tar && rm linux-binaries.tar
+
       - uses: actions/download-artifact@v8
         with:
           name: native
@@ -113,28 +145,27 @@ jobs:
 
       - name: Package
         run: |
-          out=swofty-launcher-$TAG-linux-x86_64
-          mkdir -p $out/bin $out/loader $out/addons $out/share/applications $out/share/icons/hicolor/256x256/apps $out/share/icons/hicolor/512x512/apps $out/share/icons/hicolor/scalable/apps
-          cp target/release/swofty target/release/swofty-launcher dist/swofty-ui/swofty-ui $out/bin/
-          cp -r native/dist/. $out/loader/
-          cp native/bundled/*.swoftyaddon $out/addons/
-          cp apps/launcher/assets/net.swofty.ModLauncher.desktop tools/swofty-ui/res/net.swofty.SwoftyUI.desktop $out/share/applications/
-          cp apps/launcher/assets/icon-256.png $out/share/icons/hicolor/256x256/apps/net.swofty.ModLauncher.png
-          cp apps/launcher/assets/icon-512.png $out/share/icons/hicolor/512x512/apps/net.swofty.ModLauncher.png
-          cp apps/launcher/assets/icon.svg $out/share/icons/hicolor/scalable/apps/net.swofty.ModLauncher.svg
-          cp tools/swofty-ui/res/icon-256.png $out/share/icons/hicolor/256x256/apps/net.swofty.SwoftyUI.png
-          cp tools/swofty-ui/res/icon-512.png $out/share/icons/hicolor/512x512/apps/net.swofty.SwoftyUI.png
-          cp LICENSE README.md THIRD_PARTY.md $out/
-          tar czf $out.tar.gz $out
+          out="swofty-launcher-$TAG-linux-x86_64"
+          mkdir -p "$out/bin" "$out/loader" "$out/addons" "$out/share/applications" "$out/share/icons/hicolor/256x256/apps" "$out/share/icons/hicolor/512x512/apps" "$out/share/icons/hicolor/scalable/apps"
+          cp target/release/swofty target/release/swofty-launcher dist/swofty-ui/swofty-ui "$out/bin/"
+          cp -r native/dist/. "$out/loader/"
+          cp native/bundled/*.swoftyaddon "$out/addons/"
+          cp apps/launcher/assets/net.swofty.ModLauncher.desktop tools/swofty-ui/res/net.swofty.SwoftyUI.desktop "$out/share/applications/"
+          cp apps/launcher/assets/icon-256.png "$out/share/icons/hicolor/256x256/apps/net.swofty.ModLauncher.png"
+          cp apps/launcher/assets/icon-512.png "$out/share/icons/hicolor/512x512/apps/net.swofty.ModLauncher.png"
+          cp apps/launcher/assets/icon.svg "$out/share/icons/hicolor/scalable/apps/net.swofty.ModLauncher.svg"
+          cp tools/swofty-ui/res/icon-256.png "$out/share/icons/hicolor/256x256/apps/net.swofty.SwoftyUI.png"
+          cp tools/swofty-ui/res/icon-512.png "$out/share/icons/hicolor/512x512/apps/net.swofty.SwoftyUI.png"
+          cp LICENSE README.md THIRD_PARTY.md "$out/"
+          tar czf "$out.tar.gz" "$out"
 
       - uses: actions/upload-artifact@v7
         with:
           name: linux
           path: swofty-launcher-*.tar.gz
 
-  windows:
-    name: Windows
-    needs: native
+  windows-build:
+    name: Windows build
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -167,6 +198,30 @@ jobs:
       - name: Self-test Swofty UI
         run: dist/swofty-ui/swofty-ui.exe --self-test
 
+      # The artefact keeps the paths below the checkout, target/release/ and dist/swofty-ui/.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-binaries
+          path: |
+            target/release/swofty.exe
+            target/release/swofty-launcher.exe
+            dist/swofty-ui/swofty-ui.exe
+          if-no-files-found: error
+          retention-days: 1
+
+  windows:
+    name: Windows
+    needs: [native, windows-build]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-binaries
+
       - uses: actions/download-artifact@v8
         with:
           name: native
@@ -191,12 +246,18 @@ jobs:
   publish:
     name: Publish the release
     needs: [linux, windows]
+    if: ${{ !inputs.dry-run }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8
         with:
+          name: linux
           path: artefacts
-          merge-multiple: true
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows
+          path: artefacts
 
       - name: Checksums
         working-directory: artefacts
