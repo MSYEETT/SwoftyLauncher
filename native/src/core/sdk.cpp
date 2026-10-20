@@ -4,6 +4,8 @@
 
 #include <mutex>
 
+#include "perf.hpp"
+
 std::string settings_addon(const void *from, std::string &dll);
 
 namespace {
@@ -271,6 +273,7 @@ void ready()
     events_setup();
     hud_setup();
     telemetry_setup();
+    perf::start();
 }
 
 }

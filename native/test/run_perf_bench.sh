@@ -16,7 +16,7 @@ mkdir -p "$OUT"
     "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -I$SH -c $SH/safetyhook.cpp -o "$OUT/safetyhook.o" &
 wait
 "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wno-nullability-completeness -I../../packages/sdk/include \
-    -I../include -I$SH -o "$OUT/perf_bench.exe" perf_bench.cpp "$OUT/safetyhook.o" "$OUT/Zydis.o" -s
+    -I../include -I$SH -o "$OUT/perf_bench.exe" perf_bench.cpp ../src/core/perf.cpp "$OUT/safetyhook.o" "$OUT/Zydis.o" -s
 cd "$OUT"
 export WINEPREFIX=${WINEPREFIX:-$OUT/prefix} WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtml=;winemenubuilder.exe=d"
 "${PIN[@]}" $WINE ./perf_bench.exe "$@"

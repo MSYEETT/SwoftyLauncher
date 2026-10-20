@@ -12,6 +12,7 @@
 #include <vector>
 #include "Zydis.h"
 #include "json.hpp"
+#include "perf.hpp"
 #include "safetyhook.hpp"
 #include "scan_cache.hpp"
 #include "swofty_api.h"
@@ -124,13 +125,20 @@ std::vector<std::string> inline_names;
 std::vector<safetyhook::MidHook> mid_hooks;
 std::vector<safetyhook::Allocation> stubs;
 std::vector<std::pair<uintptr_t, std::vector<uint8_t>>> written;
-std::vector<void (*)(SwoftyContext *)> site_chains[MAX_SITES];
+struct SiteHandler {
+    void (*fn)(SwoftyContext *);
+    uint32_t probe;
+};
+
+std::vector<SiteHandler> site_chains[MAX_SITES];
 size_t sites_used;
 
 template <size_t I> void site_thunk(safetyhook::Context &c)
 {
-    for (auto f : site_chains[I])
-        f(reinterpret_cast<SwoftyContext *>(&c));
+    for (auto &h : site_chains[I]) {
+        perf::Scope p(h.probe);
+        h.fn(reinterpret_cast<SwoftyContext *>(&c));
+    }
 }
 
 template <size_t... I> constexpr auto make_thunks(std::index_sequence<I...>)
@@ -1150,7 +1158,8 @@ const char *install(const Group &g)
             return "too many sites";
         size_t s = sites_used++;
         for (auto &h : g.handlers)
-            site_chains[s].push_back(reinterpret_cast<void (*)(SwoftyContext *)>(h.m->handler));
+            site_chains[s].push_back({reinterpret_cast<void (*)(SwoftyContext *)>(h.m->handler),
+                                      perf::probe(perf::owner_of(h.m->handler), "site " + h.m->target)});
         auto h = safetyhook::MidHook::create(reinterpret_cast<void *>(g.addr), site_thunks[s]);
         if (!h)
             return "MidHook failed";
@@ -1239,6 +1248,7 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     dir.resize(dir.find_last_of(L'\\') + 1);
     crash_attach(a, dir);
     settings_attach(a, dir);
+    perf::attach();
     auto nt = reinterpret_cast<const IMAGE_NT_HEADERS *>(base + reinterpret_cast<const IMAGE_DOS_HEADER *>(base)->e_lfanew);
     long long running_stamp = (long long)nt->FileHeader.TimeDateStamp;
     std::string chosen = "bindings.json";

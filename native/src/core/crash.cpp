@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <string>
 #include <vector>
+#include "perf.hpp"
 #include "safetyhook.hpp"
 #include "swofty_api.h"
 
@@ -285,6 +286,7 @@ LONG WINAPI unhandled(EXCEPTION_POINTERS *e)
 
 void on_exit(const char *fn, UINT code)
 {
+    perf::flush(fn);
     if (InterlockedExchange(&exited, 1) || !enter())
         return;
     cl("[crash] %s(%u) on thread %lu, %lu s after load%s", fn, code, GetCurrentThreadId(),

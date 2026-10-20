@@ -1,5 +1,7 @@
 #include "runtime.hpp"
 
+#include "perf.hpp"
+
 #include <safetyhook.hpp>
 #include <swofty/mixin.hpp>
 
@@ -422,8 +424,10 @@ void late_inplace(uint8_t *db)
 
 void *load_hook(void *db, void *cfg)
 {
+    static const uint32_t probe = perf::probe("core", "gamedb load edits");
     swofty::log("[assets] gamedb: Gdb_Load_GameDatabase(%p) entered on thread %lu", db, GetCurrentThreadId());
     void *r = h_load.call<void *>(db, cfg);
+    perf::Scope p(probe);
     std::lock_guard<std::mutex> g(edits_lock);
     apply(static_cast<uint8_t *>(db), "right after Gdb_Load_GameDatabase returned");
     return r;

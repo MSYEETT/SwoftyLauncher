@@ -2,6 +2,8 @@
 
 #include <swofty/mixin.hpp>
 
+#include "perf.hpp"
+
 #include <cstdio>
 #include <unordered_map>
 
@@ -57,6 +59,11 @@ int done(const Caller &c, const std::string &call, int r, const std::string &why
     return r;
 }
 
+uint32_t probe(const Caller &c, const char *op)
+{
+    return perf::live() ? perf::probe(c.id.empty() ? c.dll : c.id, std::string("api storage ") + op) : 0;
+}
+
 std::string bytes(size_t n)
 {
     char b[48];
@@ -92,6 +99,7 @@ int st_available()
 int st_read(const char *path, void *buf, size_t cap, size_t *len)
 {
     Caller c = caller(__builtin_return_address(0));
+    perf::Scope p(probe(c, "read"));
     std::string call = std::string("read ") + (path ? path : "(null)");
     std::string why, rel = addon_rel(c, path, false, why);
     if (rel.empty())
@@ -117,6 +125,7 @@ int st_read(const char *path, void *buf, size_t cap, size_t *len)
 int st_write(const char *path, const void *data, size_t len)
 {
     Caller c = caller(__builtin_return_address(0));
+    perf::Scope p(probe(c, "write"));
     std::string call = std::string("write ") + (path ? path : "(null)") + bytes(len);
     if (len && !data)
         return done(c, call, SWOFTY_ASSET_INVALID, "no data");
@@ -133,6 +142,7 @@ int st_write(const char *path, const void *data, size_t len)
 int st_append(const char *path, const void *data, size_t len)
 {
     Caller c = caller(__builtin_return_address(0));
+    perf::Scope p(probe(c, "append"));
     std::string call = std::string("append ") + (path ? path : "(null)") + bytes(len);
     if (len && !data)
         return done(c, call, SWOFTY_ASSET_INVALID, "no data");
@@ -158,6 +168,7 @@ int st_append(const char *path, const void *data, size_t len)
 int st_remove(const char *path)
 {
     Caller c = caller(__builtin_return_address(0));
+    perf::Scope p(probe(c, "remove"));
     std::string call = std::string("remove ") + (path ? path : "(null)");
     std::string why, rel = addon_rel(c, path, false, why);
     if (rel.empty())
@@ -172,6 +183,7 @@ int st_remove(const char *path)
 int st_size(const char *path, uint64_t *out)
 {
     Caller c = caller(__builtin_return_address(0));
+    perf::Scope p(probe(c, "size"));
     std::string call = std::string("size ") + (path ? path : "(null)");
     std::string why, rel = addon_rel(c, path, false, why);
     if (rel.empty())
@@ -187,6 +199,7 @@ int st_size(const char *path, uint64_t *out)
 int st_list(const char *dir, char *buf, size_t cap, size_t *len)
 {
     Caller c = caller(__builtin_return_address(0));
+    perf::Scope p(probe(c, "list"));
     std::string call = std::string("list ") + (dir && *dir ? dir : ".");
     std::string why, rel = addon_rel(c, dir, true, why);
     if (rel.empty())

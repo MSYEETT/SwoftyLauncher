@@ -1,5 +1,7 @@
 #include "runtime.hpp"
 
+#include "perf.hpp"
+
 #include <safetyhook.hpp>
 #include <swofty/mixin.hpp>
 
@@ -302,6 +304,8 @@ Redirect *match(const char *rel)
 
 void *resolve_hook(void *fs, void *after, const char *path, void *out, uint8_t wild, uint8_t want)
 {
+    static const uint32_t probe = perf::probe("core", "file resolve (overlay)");
+    perf::Scope p(probe);
     if (!wild && path && *path) {
         const char *rel = nullptr;
         if (path[0] == '/')
@@ -315,7 +319,11 @@ void *resolve_hook(void *fs, void *after, const char *path, void *out, uint8_t w
             char buf[PATH_MAX_FS];
             int len = snprintf(buf, sizeof buf, "/game/%s", r->target.c_str());
             if (len > 0 && len < int(PATH_MAX_FS)) {
-                void *m = h_resolve.call<void *>(fs, after, static_cast<const char *>(buf), out, wild, want);
+                void *m;
+                {
+                    perf::Pause game;
+                    m = h_resolve.call<void *>(fs, after, static_cast<const char *>(buf), out, wild, want);
+                }
                 unsigned use = r->uses.fetch_add(1);
                 if (use < 4) {
                     int probe = m && runtime::readable(static_cast<uint8_t *>(m) + MOUNT_PROBE, 1)
@@ -331,12 +339,15 @@ void *resolve_hook(void *fs, void *after, const char *path, void *out, uint8_t w
             }
         }
     }
+    perf::Pause game;
     return h_resolve.call<void *>(fs, after, path, out, wild, want);
 }
 
 int32_t load_lang_hook(void *module, uint32_t lang, void *path)
 {
+    static const uint32_t probe = perf::probe("core", "language file load");
     int32_t r = h_lang.call<int32_t>(module, lang, path);
+    perf::Scope prof(probe);
     const char *p = path && runtime::readable(static_cast<uint8_t *>(path) + 0x10, 8)
                         ? *reinterpret_cast<const char *const *>(static_cast<uint8_t *>(path) + 0x10)
                         : nullptr;

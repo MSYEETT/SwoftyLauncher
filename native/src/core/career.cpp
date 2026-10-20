@@ -11,6 +11,7 @@
 #include "career_state.hpp"
 #include "dbread_logic.hpp"
 #include "layout.hpp"
+#include "perf.hpp"
 
 // Flow states (site_FeFlow_SetStateStatus, FlowState). Every flow state's status change goes
 // through FeFlow_Set_StateStatus(state, status); the site sits after its prologue with rcx = the
@@ -59,7 +60,7 @@ std::mutex lock;
 Tracker tracker;
 std::atomic<bool> armed, set_up;
 bool flow_live, team_hq_live;
-uint64_t last_poll;
+std::atomic<uint64_t> last_poll;
 std::mutex names_lock;
 std::unordered_map<uint32_t, std::string> names;
 
@@ -126,14 +127,17 @@ const char *mode_name(uint32_t m)
 void publish(const runtime::career::Edges &e, const SwoftyCareerState &s)
 {
     if (e.hub == 0) {
+        perf::mark("career", "hub left");
         swofty::log("[career] career.hub left (mode %s)", mode_name(e.unloaded ? e.old_mode : s.mode));
         fire(SWOFTY_EVENT_CAREER_HUB, 0, e.unloaded ? e.old_mode : s.mode, &s);
     }
     if (e.unloaded) {
+        perf::mark("career", "unloaded");
         swofty::log("[career] career.unloaded (mode %s)", mode_name(e.old_mode));
         fire(SWOFTY_EVENT_CAREER_UNLOADED, e.old_mode, 0, &s);
     }
     if (e.loaded) {
+        perf::mark("career", "loaded");
         swofty::log("[career] career.loaded: mode %s, key '%s' (components %s, component mode %s, Team HQ answer %s)",
                     mode_name(s.mode), s.key,
                     s.components == SWOFTY_CAREER_COMPONENTS_LIVE       ? "live"
@@ -143,6 +147,7 @@ void publish(const runtime::career::Edges &e, const SwoftyCareerState &s)
         fire(SWOFTY_EVENT_CAREER_LOADED, s.mode, 0, &s);
     }
     if (e.hub == 1) {
+        perf::mark("career", "hub entered");
         swofty::log("[career] career.hub entered (mode %s)", mode_name(s.mode));
         fire(SWOFTY_EVENT_CAREER_HUB, 1, s.mode, &s);
     }
@@ -229,6 +234,8 @@ void on_flow(SwoftyContext *c)
     if (known || first)
         swofty::log("[career] flow \"%s\" %s -> %s%s", name.c_str(), STATUS[from & 3], STATUS[to & 3],
                     known ? "" : " (first sighting)");
+    if (to == 1 || to == 3)
+        perf::mark("flow", name + " " + STATUS[to]);
     if (perf_on())
         perf_flow(hash, uint32_t(from), to, name);
     fire(SWOFTY_EVENT_FLOW_STATE, to, from, &f);
@@ -496,10 +503,9 @@ void career_tick()
 {
     if (!armed || !layout::CAREER)
         return;
-    uint64_t now = now_ms();
-    if (now - last_poll < POLL_MS)
+    uint64_t now = now_ms(), was = last_poll.load();
+    if (now - was < POLL_MS || !last_poll.compare_exchange_strong(was, now))
         return;
-    last_poll = now;
     runtime::career::Components c = poll();
     {
         std::lock_guard<std::mutex> g(lock);

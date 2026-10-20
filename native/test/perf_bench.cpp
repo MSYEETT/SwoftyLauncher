@@ -12,7 +12,22 @@
 #include <safetyhook.hpp>
 #include <swofty/mem.hpp>
 
+#include "../src/core/perf.hpp"
 #include "../src/loader/alog.h"
+
+std::string settings_addon(const void *, std::string &dll)
+{
+    dll = "bench.dll";
+    return "bench";
+}
+
+namespace runtime {
+const std::wstring &swofty_root()
+{
+    static const std::wstring root = L".\\";
+    return root;
+}
+}
 
 namespace {
 
@@ -346,6 +361,54 @@ void bench_midhook()
     }
 }
 
+__attribute__((noinline)) int probed_fn(int i, uint32_t id)
+{
+    perf::Scope p(id);
+    return site_fn(i);
+}
+
+__attribute__((noinline)) int paused_fn(int i, uint32_t id)
+{
+    perf::Scope p(id);
+    perf::Pause game;
+    return site_fn(i);
+}
+
+void bench_profile()
+{
+    perf::attach();
+    uint32_t id = perf::probe("bench", "probe"), inner = perf::probe("bench", "inner");
+    const int N = 2000000;
+    double base = per_call_ns(N, [&](int i) { sink += site_fn(i); });
+    row("call, no probe", base);
+    row("call inside perf::Scope", per_call_ns(N, [&](int i) { sink += probed_fn(i, id); }) - base);
+    row("call inside perf::Scope + perf::Pause", per_call_ns(N, [&](int i) { sink += paused_fn(i, id); }) - base);
+    row("two nested perf::Scope", per_call_ns(N, [&](int i) {
+            perf::Scope outer(id);
+            sink += probed_fn(i, inner);
+        }) - base);
+    for (int threads : {4, 16}) {
+        std::vector<std::thread> ts;
+        double t0 = now_ns();
+        for (int t = 0; t < threads; t++)
+            ts.emplace_back([&] {
+                uint64_t acc = 0;
+                for (int i = 0; i < N / 4; i++)
+                    acc += probed_fn(i, id);
+                sink += acc;
+            });
+        for (auto &t : ts)
+            t.join();
+        char what[64];
+        snprintf(what, sizeof what, "perf::Scope, %d threads on one probe (per call per thread)", threads);
+        row(what, (now_ns() - t0) / double(N / 4));
+    }
+    row("perf::frame_claim when not due", per_call_ns(N, [&](int) { sink += perf::frame_claim(); }));
+    double t0 = now_ns();
+    perf::flush("bench");
+    row("perf.log report written", now_ns() - t0);
+}
+
 void bench_files(const std::wstring &dir)
 {
     std::wstring sd = dir + L"\\storage";
@@ -401,5 +464,7 @@ int main(int argc, char **argv)
         bench_midhook();
     if (only.empty() || only == "files")
         bench_files(dir);
+    if (only.empty() || only == "profile")
+        bench_profile();
     return 0;
 }

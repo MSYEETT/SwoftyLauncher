@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "json.hpp"
+#include "perf.hpp"
 #include "runtime.hpp"
 
 namespace {
@@ -710,19 +711,25 @@ void groups_call(safetyhook::InlineHook &hook, void *loader, uint64_t *h, void *
             memcpy(copy, h, sizeof copy);
             copy[3] = reinterpret_cast<uint64_t>(aug->data());
             copy[4] = reinterpret_cast<uint64_t>(aug->data() + aug->size());
+            perf::Pause game;
             hook.call<void>(loader, copy, out);
             return;
         }
+    perf::Pause game;
     hook.call<void>(loader, h, out);
 }
 
 void expand_hook(void *loader, uint64_t *h, void *out)
 {
+    static const uint32_t probe = perf::probe("core", "assets group expand");
+    perf::Scope p(probe);
     groups_call(h_expand, loader, h, out);
 }
 
 void release_hook(void *loader, uint64_t *h, void *out)
 {
+    static const uint32_t probe = perf::probe("core", "assets group release");
+    perf::Scope p(probe);
     groups_call(h_release, loader, h, out);
 }
 
@@ -1144,7 +1151,9 @@ void apply(uint8_t *m, const char *when, const runtime::Overlay *ov)
 
 uint64_t parse_hook(void *manifest, void *path, void *a3)
 {
+    static const uint32_t probe = perf::probe("core", "assets manifest parse");
     uint64_t r = h_parse.call<uint64_t>(manifest, path, a3);
+    perf::Scope p(probe);
     if (uint32_t(r) == 0)
         apply(static_cast<uint8_t *>(manifest), "parsed after addons loaded",
               patched == manifest ? nullptr : runtime::resource_overlay(OVERLAY_WAIT_MS));

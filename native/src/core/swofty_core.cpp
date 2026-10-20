@@ -1,6 +1,8 @@
 #include <swofty/game.hpp>
 #include <swofty/mixin.hpp>
 
+#include "perf.hpp"
+
 using namespace swofty::game;
 
 bool settings_command(uint32_t hash);
@@ -156,7 +158,11 @@ SWOFTY_SITE(site_FeHome_AfterCareerCall, swofty::Context &c)
 
 SWOFTY_WRAP(FeHome_Handle_Command, uint64_t, FEHomeViewModel *vm, NeStr **cmd)
 {
-    settings_command(cmd && *cmd ? *reinterpret_cast<const uint32_t *>(*cmd) : 0x1505);
+    static const uint32_t probe = perf::probe("core", "home command (addon settings)");
+    {
+        perf::Scope p(probe);
+        settings_command(cmd && *cmd ? *reinterpret_cast<const uint32_t *>(*cmd) : 0x1505);
+    }
     return orig(vm, cmd);
 }
 

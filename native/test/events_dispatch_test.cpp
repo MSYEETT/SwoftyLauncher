@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-using runtime::ev::Dispatcher;
+using Dispatcher = runtime::ev::Dispatcher<>;
 using runtime::ev::Phase;
 
 static int fails;
@@ -44,6 +44,24 @@ static void reentrant_frame(double, void *)
     g_reentrant_disp->unsubscribe(g_reentrant_token);
     uint32_t t = 0;
     g_reentrant_disp->on_frame(9, on_frame, &g_reentrant_added, &t);
+}
+
+// A profile scope that records which probe each callback ran under.
+static std::vector<uint32_t> g_scopes;
+static int g_open;
+struct Recorder {
+    explicit Recorder(uint32_t probe)
+    {
+        g_scopes.push_back(probe);
+        g_open++;
+    }
+    ~Recorder() { g_open--; }
+};
+
+static int g_open_seen = -1;
+static void open_frame(double, void *)
+{
+    g_open_seen = g_open;
 }
 
 int main()
@@ -197,6 +215,23 @@ int main()
                "subscribe after a failed setup is still accepted");
         expect(d.unsubscribe(tf) == SWOFTY_ASSET_OK, "the queued frame callback can still be unsubscribed");
         expect(frames == 0, "nothing fired");
+    }
+
+    // Every callback runs inside a profile scope carrying the probe set for its token.
+    {
+        runtime::ev::Dispatcher<Recorder> d;
+        uint32_t tf = 0, te = 0;
+        d.on_frame(1, open_frame, nullptr, &tf);
+        d.subscribe(1, SWOFTY_EVENT_SESSION_START, on_event, nullptr, &te);
+        d.set_probe(tf, 11);
+        d.set_probe(te, 12);
+        d.arm(true);
+        g_scopes.clear();
+        d.tick(1.0);
+        d.fire(SWOFTY_EVENT_SESSION_START, 0, 0, nullptr, 1.5);
+        expect(g_scopes.size() == 2 && g_scopes[0] == 11 && g_scopes[1] == 12,
+               "each callback runs in a profile scope with its own probe");
+        expect(g_open_seen == 1 && g_open == 0, "the scope is open while the callback runs and closed after it");
     }
 
     printf("%s\n", fails ? "events dispatcher: FAILED" : "events dispatcher: all checks passed");

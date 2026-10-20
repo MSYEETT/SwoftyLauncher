@@ -101,6 +101,37 @@ std::atomic<bool> capped;
 std::vector<uint32_t> opened;
 HMODULE self;
 
+using PerfProbe = uint32_t (*)(const char *, const char *);
+using PerfEnter = void (*)(uint32_t);
+using PerfLeave = void (*)();
+PerfEnter perf_enter;
+PerfLeave perf_leave;
+uint32_t log_probe;
+
+struct Timed {
+    bool on = perf_enter && log_probe;
+    Timed()
+    {
+        if (on)
+            perf_enter(log_probe);
+    }
+    ~Timed()
+    {
+        if (on)
+            perf_leave();
+    }
+};
+
+void find_profiler()
+{
+    HMODULE core = GetModuleHandleW(L"swofty_core.dll");
+    auto probe = core ? reinterpret_cast<PerfProbe>(reinterpret_cast<void *>(GetProcAddress(core, "SwoftyPerfProbe"))) : nullptr;
+    perf_enter = core ? reinterpret_cast<PerfEnter>(reinterpret_cast<void *>(GetProcAddress(core, "SwoftyPerfEnter"))) : nullptr;
+    perf_leave = core ? reinterpret_cast<PerfLeave>(reinterpret_cast<void *>(GetProcAddress(core, "SwoftyPerfLeave"))) : nullptr;
+    if (probe && perf_enter && perf_leave)
+        log_probe = probe("core", "game log (Ne_Log_Thunk)");
+}
+
 bool icontains(const char *s, const char *w)
 {
     size_t n = strlen(w);
@@ -463,6 +494,7 @@ bool check()
     GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                        reinterpret_cast<LPCWSTR>(&check), &self);
     load_config(self_dir());
+    find_profiler();
     active = cfg.level != L_OFF;
     swofty::log("[gamelog] game log to loader.log: %s (level %s, from %s), channels '%s', %u line(s)/s, %u repeat(s) per "
                 "format, cap %u line(s)",
@@ -477,6 +509,7 @@ SWOFTY_OVERWRITE(0, Ne_Log_Thunk, void, const char *channel, const char *fmt, ..
 {
     if (!active || !fmt)
         return;
+    Timed timed;
     if (!channel)
         channel = "?";
     Slot *cs = channel_levels.find(reinterpret_cast<uintptr_t>(channel));

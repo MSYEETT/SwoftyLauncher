@@ -4,6 +4,7 @@
 #include <swofty/mixin.hpp>
 
 #include "events_dispatch.hpp"
+#include "perf.hpp"
 
 #include <mutex>
 #include <string>
@@ -24,7 +25,7 @@ const runtime::Sig S_RACE_STARTED{"Game_ChampionshipFormationLapComponent_OnRace
                                   "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 28 48 89 CE 80 3D ?? ?? ?? ?? 01 75 53",
                                   0xb808a0};
 
-runtime::ev::Dispatcher disp;
+runtime::ev::Dispatcher<perf::Scope> disp;
 safetyhook::MidHook h_flow, h_session_enter, h_race_started;
 std::mutex queued_lock;
 std::vector<std::pair<uint32_t, std::string>> queued_by;
@@ -58,8 +59,14 @@ std::string who(const void *from)
 
 void flow_mid(safetyhook::Context &)
 {
+    static const uint32_t probe = perf::probe("core", "flow tick (events, career poll)");
+    perf::flow_tick();
+    perf::Scope p(probe);
     runtime::career_tick();
+    if (!perf::frame_claim())
+        return;
     double dt = disp.tick(now_seconds());
+    perf::frame_release();
     static int logged;
     if (logged < 2)
         swofty::log("[events] flow tick %d observed, dt %f; onFrame is live", ++logged, dt);
@@ -67,11 +74,17 @@ void flow_mid(safetyhook::Context &)
 
 void session_enter_mid(safetyhook::Context &)
 {
+    static const uint32_t probe = perf::probe("core", "session enter");
+    perf::mark("session", "enter");
+    perf::Scope p(probe);
     disp.fire(SWOFTY_EVENT_SESSION_START, 0, 0, nullptr, now_seconds());
 }
 
 void race_started_mid(safetyhook::Context &)
 {
+    static const uint32_t probe = perf::probe("core", "race start");
+    perf::mark("race", "start");
+    perf::Scope p(probe);
     disp.fire(SWOFTY_EVENT_RACE_START, 0, 0, nullptr, now_seconds());
 }
 
@@ -106,6 +119,8 @@ int ev_subscribe(const char *event, SwoftyEventFn fn, void *user, uint32_t *toke
     if (r == SWOFTY_ASSET_OK && token)
         *token = t;
     std::string by = who(from);
+    if (r == SWOFTY_ASSET_OK)
+        disp.set_probe(t, perf::probe(perf::owner_of(reinterpret_cast<const void *>(fn)), std::string("event ") + event));
     if (r == SWOFTY_ASSET_OK && queued)
         remember(t, by);
     swofty::log("[events] subscribe %s by %s -> %s", event ? event : "(null)", by.c_str(), outcome(r, t, queued).c_str());
@@ -123,6 +138,8 @@ int ev_on_frame(SwoftyFrameFn fn, void *user, uint32_t *token)
     if (r == SWOFTY_ASSET_OK && token)
         *token = t;
     std::string by = who(from);
+    if (r == SWOFTY_ASSET_OK)
+        disp.set_probe(t, perf::probe(perf::owner_of(reinterpret_cast<const void *>(fn)), "on_frame"));
     if (r == SWOFTY_ASSET_OK && queued)
         remember(t, by);
     swofty::log("[events] on_frame by %s -> %s", by.c_str(), outcome(r, t, queued).c_str());

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "json.hpp"
+#include "perf.hpp"
 
 namespace {
 
@@ -101,6 +102,8 @@ bool load_config()
 
 uint32_t owned_hook(void *item)
 {
+    static const uint32_t probe = perf::probe("core", "item ownership check");
+    perf::Scope p(probe);
     auto key_of = reinterpret_cast<KeyOf_t *>((*static_cast<void ***>(item))[1]);
     uint32_t key = *reinterpret_cast<const uint32_t *>(key_of(item) + KEY_HASH);
     for (auto &it : items)
@@ -109,6 +112,7 @@ uint32_t owned_hook(void *item)
                 swofty::log("[items] reporting mod item 0x%08x (%s, %s) as owned", key, it.what.c_str(), it.addon.c_str());
             return OWNED;
         }
+    perf::Pause game;
     return h_owned.call<uint32_t>(item);
 }
 

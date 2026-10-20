@@ -41,6 +41,11 @@ struct Sub {
     SwoftyEventFn event_fn;
     SwoftyFrameFn frame_fn;
     void *user;
+    uint32_t probe;
+};
+
+struct NoProfile {
+    explicit NoProfile(uint32_t) {}
 };
 
 // Holds the addon subscriptions and turns flow-thread hook calls into callbacks. The clock is a
@@ -49,7 +54,8 @@ struct Sub {
 // point is thread-safe; callbacks run outside the lock so a handler may subscribe or unsubscribe
 // from inside another callback without deadlocking. A registration made while pending is held like
 // any other and delivered as soon as the hooks call tick() or fire(); queued reports that case.
-class Dispatcher {
+// Each callback runs inside a Profile scope built from the probe id set with set_probe.
+template <class Profile = NoProfile> class Dispatcher {
 public:
     int subscribe(uint64_t owner, const char *name, SwoftyEventFn fn, void *user, uint32_t *token,
                   bool *queued = nullptr)
@@ -59,7 +65,7 @@ public:
             return SWOFTY_ASSET_INVALID;
         std::lock_guard<std::mutex> g(lock_);
         uint32_t t = ++next_;
-        subs_.push_back({t, owner, canon, fn, nullptr, user});
+        subs_.push_back({t, owner, canon, fn, nullptr, user, 0});
         if (token)
             *token = t;
         if (queued)
@@ -75,7 +81,7 @@ public:
         if (phase_ == Phase::failed)
             return SWOFTY_ASSET_UNAVAILABLE;
         uint32_t t = ++next_;
-        subs_.push_back({t, owner, nullptr, nullptr, fn, user});
+        subs_.push_back({t, owner, nullptr, nullptr, fn, user, 0});
         if (token)
             *token = t;
         if (queued)
@@ -102,6 +108,14 @@ public:
     {
         std::lock_guard<std::mutex> g(lock_);
         return phase_;
+    }
+
+    void set_probe(uint32_t token, uint32_t probe)
+    {
+        std::lock_guard<std::mutex> g(lock_);
+        for (auto &s : subs_)
+            if (s.token == token)
+                s.probe = probe;
     }
 
     int unsubscribe(uint32_t token)
@@ -134,6 +148,7 @@ public:
         struct Call {
             SwoftyEventFn fn;
             void *user;
+            uint32_t probe;
         };
         std::vector<Call> calls;
         SwoftyEvent ev{};
@@ -149,10 +164,12 @@ public:
             ev.data = data;
             for (auto &s : subs_)
                 if (s.name == canon)
-                    calls.push_back({s.event_fn, s.user});
+                    calls.push_back({s.event_fn, s.user, s.probe});
         }
-        for (auto &c : calls)
+        for (auto &c : calls) {
+            Profile p(c.probe);
             c.fn(&ev, c.user);
+        }
         return calls.size();
     }
 
@@ -162,6 +179,7 @@ public:
         struct Call {
             SwoftyFrameFn fn;
             void *user;
+            uint32_t probe;
         };
         std::vector<Call> calls;
         double dt;
@@ -176,10 +194,12 @@ public:
             ++frame_;
             for (auto &s : subs_)
                 if (s.frame_fn)
-                    calls.push_back({s.frame_fn, s.user});
+                    calls.push_back({s.frame_fn, s.user, s.probe});
         }
-        for (auto &c : calls)
+        for (auto &c : calls) {
+            Profile p(c.probe);
             c.fn(dt, c.user);
+        }
         return dt;
     }
 
