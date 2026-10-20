@@ -61,6 +61,10 @@ std::string career_id();
 
 void log(const char *fmt, ...);
 
+// Registers the bridge's frame callback if the plugin's load could not. Cheap once it is in; the
+// modules' game hooks call it so a refused registration recovers.
+void ensure_frame();
+
 } // namespace ce
 
 #define CE_CAT_(a, b) a##b
