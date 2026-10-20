@@ -69,6 +69,7 @@ pub enum Drift {
     OpenJournal(String),
     NewBuild { baseline: String, current: String },
     LeftInPlace(String),
+    NoOriginal(String),
 }
 
 impl std::fmt::Display for Drift {
@@ -85,6 +86,10 @@ impl std::fmt::Display for Drift {
             Drift::LeftInPlace(p) => write!(
                 f,
                 "{p} changed since it was written (game update?); left in place"
+            ),
+            Drift::NoOriginal(p) => write!(
+                f,
+                "{p} still holds a file swofty wrote and its original is not on record; verify the game files in Steam"
             ),
         }
     }
@@ -417,6 +422,23 @@ impl<'a> Installer<'a> {
         Ok(moved)
     }
 
+    /// Whether the file at `rel`, which the baseline has no original for, may
+    /// be recorded as one. Never when it holds exactly what the launcher wrote
+    /// there in place of an original (a session whose journal and baseline
+    /// were both lost); and while a damaged baseline is being rebuilt, only
+    /// when its bytes are already a backed-up original.
+    fn may_record(&self, baseline: &Baseline, objects: &Objects, placed: &Placed, rel: &str) -> Result<bool> {
+        let ours = placed.get(rel).filter(|p| p.replaced);
+        if ours.is_none() && !baseline.checking() {
+            return Ok(true);
+        }
+        let now = sha256_file(&self.path(rel))?;
+        if ours.is_some_and(|p| p.sha256 == now) {
+            return Ok(false);
+        }
+        Ok(!baseline.checking() || objects.has(&now))
+    }
+
     fn step(&self, n: &mut usize) -> Result<()> {
         *n += 1;
         match self.stop_after {
@@ -431,13 +453,15 @@ impl<'a> Installer<'a> {
             return Ok(());
         }
         let objects = self.objects();
-        let mut baseline = self.baseline()?;
+        let loaded = self.baseline()?;
+        let mut baseline = loaded.clone();
         let mut placed = Placed::load(self.data)?;
         let mut after = BTreeMap::new();
         for (rel, src) in plan.data.iter().chain(&plan.added).chain(&plan.loader) {
             after.insert(rel.as_str(), sha256_file(src)?);
         }
         let mut conflicts = Vec::new();
+        let mut unproven = Vec::new();
         for rel in plan.data.keys() {
             let path = self.path(rel);
             if !baseline.files.contains_key(rel)
@@ -450,6 +474,10 @@ impl<'a> Installer<'a> {
                     owned: true,
                     replaced: false,
                 });
+                continue;
+            }
+            if !baseline.files.contains_key(rel) && !self.may_record(&baseline, &objects, &placed, rel)? {
+                unproven.push(rel.clone());
                 continue;
             }
             let rec = baseline
@@ -465,7 +493,32 @@ impl<'a> Installer<'a> {
                 });
             }
         }
-        baseline.save(self.data)?;
+        if !unproven.is_empty() {
+            let rebuilt = baseline.rebuild.is_some();
+            if let Some(r) = baseline.rebuild.as_mut() {
+                r.told_to_verify = true;
+            }
+            baseline.save(self.data)?;
+            let first = &unproven[0];
+            let more = match unproven.len() {
+                1 => String::new(),
+                n => format!(" (and {} more)", n - 1),
+            };
+            return Err(Error::Other(if rebuilt {
+                format!(
+                    "{}. {first}{more} could not be checked against a backed-up original; nothing in the game folder was changed",
+                    crate::baseline::DAMAGED
+                )
+            } else {
+                format!(
+                    "{}. {first}{more} still holds a file swofty wrote, and no original is on record for it; nothing in the game folder was changed",
+                    crate::baseline::DAMAGED
+                )
+            }));
+        }
+        if baseline != loaded {
+            baseline.save(self.data)?;
+        }
         for rel in plan.added.keys().chain(plan.loader.keys()) {
             let path = self.path(rel);
             if std::fs::symlink_metadata(&path).is_err() {
@@ -615,6 +668,14 @@ impl<'a> Installer<'a> {
         for rel in [PROXY, LOADER_DIR] {
             if self.path(rel).exists() && !baseline.files.contains_key(rel) {
                 out.push(Drift::Addition(rel.into()));
+            }
+        }
+        for f in Placed::load(self.data)?.files.values() {
+            if f.replaced
+                && !baseline.files.contains_key(&f.path)
+                && sha256_opt(&self.path(&f.path))?.as_deref() == Some(f.sha256.as_str())
+            {
+                out.push(Drift::NoOriginal(f.path.clone()));
             }
         }
         if let Some(reg) = &self.game.user_reg

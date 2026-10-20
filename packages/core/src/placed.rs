@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Result, read_json, write_json};
+use crate::{Loaded, Result, load_json, write_json};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlacedFile {
@@ -44,15 +44,17 @@ impl Placed {
         data.join("state/placed.json")
     }
 
+    /// The record, or an empty one when there is none or it was damaged (set
+    /// aside by [`load_json`]): without it a leftover file is not proven to be
+    /// the launcher's, so it is reported as a conflict instead of cleared.
     pub fn load(data: &Path) -> Result<Self> {
-        let path = Self::path(data);
-        if !path.is_file() {
-            return Ok(Self {
+        match load_json(&Self::path(data))? {
+            Loaded::Found(p) => Ok(p),
+            Loaded::Missing | Loaded::Damaged(_) => Ok(Self {
                 schema_version: 1,
                 ..Self::default()
-            });
+            }),
         }
-        read_json(&path)
     }
 
     pub fn save(&self, data: &Path) -> Result<()> {

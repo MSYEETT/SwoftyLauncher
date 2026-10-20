@@ -129,11 +129,10 @@ impl Store {
         if !self.root.is_dir() {
             return Ok(notes);
         }
-        let path = self.config_path();
-        let config: Result<Config> = if path.is_file() {
-            crate::read_json(&path)
-        } else {
-            Ok(Config::default())
+        let config: Result<Config> = match crate::load_json(&self.config_path()) {
+            Ok(crate::Loaded::Found(c)) => Ok(c),
+            Ok(crate::Loaded::Missing | crate::Loaded::Damaged(_)) => Ok(Config::default()),
+            Err(e) => Err(e),
         };
         if config.as_ref().is_ok_and(|c| c.data_version >= DATA_VERSION) {
             return Ok(notes);
@@ -291,7 +290,9 @@ impl Store {
             if name == profile::VANILLA || !path.is_file() {
                 continue;
             }
-            let mut p: Profile = crate::read_json(&path)?;
+            let Some(mut p) = load_profile(&path)? else {
+                continue;
+            };
             let listed = p.addons.iter().any(|a| a.id == id);
             let had_options = p.options.contains_key(id) || p.applied.contains_key(id);
             if listed || had_options {
@@ -310,11 +311,7 @@ impl Store {
             return Ok(Profile::vanilla());
         }
         let path = self.profiles_dir().join(format!("{name}.json"));
-        let mut p = if path.is_file() {
-            crate::read_json(&path)?
-        } else {
-            Profile::new(name)
-        };
+        let mut p = load_profile(&path)?.unwrap_or_else(|| Profile::new(name));
         p.normalise();
         self.adopt_builtins(&mut p);
         Ok(p)
@@ -476,7 +473,10 @@ impl Store {
     }
 
     pub fn config(&self) -> Config {
-        crate::read_json(&self.config_path()).unwrap_or_default()
+        match crate::load_json(&self.config_path()) {
+            Ok(crate::Loaded::Found(c)) => c,
+            _ => Config::default(),
+        }
     }
 
     pub fn save_config(&self, config: &Config) -> Result<()> {
@@ -554,6 +554,16 @@ impl Store {
         }
         crate::write_json(&self.profiles_dir().join(format!("{}.json", p.name)), p)
     }
+}
+
+/// A saved profile. One that is damaged (not JSON at all) was set aside by
+/// [`crate::load_json`] and starts over empty, as a missing one does, so it
+/// cannot block a launch; the set-aside copy is kept for the player.
+fn load_profile(path: &Path) -> Result<Option<Profile>> {
+    Ok(match crate::load_json(path)? {
+        crate::Loaded::Found(p) => Some(p),
+        crate::Loaded::Missing | crate::Loaded::Damaged(_) => None,
+    })
 }
 
 fn manifest_id(dir: &Path) -> Option<String> {
@@ -721,7 +731,7 @@ mod tests {
         write_addon(&root.join("mods/one-copy"), "a.one");
         write_addon(&root.join("mods/a.two"), "a.two");
         std::fs::create_dir_all(root.join("mods/stray")).unwrap();
-        std::fs::write(store.config_path(), "{").unwrap();
+        std::fs::write(store.config_path(), r#"{"data_version":"from a newer launcher"}"#).unwrap();
         let notes = store.migrate().unwrap();
         assert_eq!(notes.len(), 4, "{notes:?}");
         assert!(notes[3].starts_with("data_version not recorded"));

@@ -135,6 +135,99 @@ pub(crate) fn read_json<T: serde::de::DeserializeOwned>(path: &std::path::Path) 
     })
 }
 
+/// A state file as [`load_json`] found it.
+#[derive(Debug)]
+pub(crate) enum Loaded<T> {
+    Missing,
+    Found(T),
+    /// The file was not JSON at all (empty, zero-filled, truncated or
+    /// garbage) and was moved to this path.
+    Damaged(std::path::PathBuf),
+}
+
+/// Read a state file the launcher wrote. A file that is not JSON at all is
+/// what a crash or power loss during a write leaves; it is moved aside to
+/// `<name>.corrupt-<unix time>` (never deleted) with a warning, so the
+/// caller can fall back. Valid JSON in a shape this build cannot read (a
+/// newer launcher's file, say) is left where it is and reported as an error.
+pub(crate) fn load_json<T: serde::de::DeserializeOwned>(path: &std::path::Path) -> Result<Loaded<T>> {
+    let data = match std::fs::read(path) {
+        Ok(d) => d,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Loaded::Missing),
+        Err(e) => return Err(io_err(path)(e)),
+    };
+    match serde_json::from_slice(&data) {
+        Ok(v) => Ok(Loaded::Found(v)),
+        Err(e)
+            if matches!(
+                e.classify(),
+                serde_json::error::Category::Syntax | serde_json::error::Category::Eof
+            ) =>
+        {
+            let moved = set_aside_damaged(path)?;
+            eprintln!(
+                "swofty: warning: {} was damaged ({} bytes, {e}); moved it to {}",
+                path.display(),
+                data.len(),
+                moved.display()
+            );
+            Ok(Loaded::Damaged(moved))
+        }
+        Err(source) => Err(Error::Json {
+            path: path.into(),
+            source,
+        }),
+    }
+}
+
+pub(crate) const DAMAGED_SUFFIX: &str = ".corrupt-";
+
+fn set_aside_damaged(path: &std::path::Path) -> Result<std::path::PathBuf> {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let name = path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned();
+    let mut to = path.with_file_name(format!("{name}{DAMAGED_SUFFIX}{secs}"));
+    let mut n = 1;
+    while to.exists() {
+        to = path.with_file_name(format!("{name}{DAMAGED_SUFFIX}{secs}-{n}"));
+        n += 1;
+    }
+    with_retry(path, || std::fs::rename(path, &to))?;
+    sync_dir(path.parent());
+    Ok(to)
+}
+
+/// State files that were found damaged and set aside, for `swofty doctor`.
+pub fn damaged_state(data: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut dirs = vec![
+        data.to_path_buf(),
+        data.join("state"),
+        data.join("state/journal"),
+        data.join("profiles"),
+    ];
+    if let Ok(rd) = std::fs::read_dir(data.join("baseline")) {
+        dirs.extend(rd.flatten().map(|e| e.path()).filter(|p| p.is_dir()));
+    }
+    let mut out: Vec<_> = dirs
+        .iter()
+        .filter_map(|d| std::fs::read_dir(d).ok())
+        .flat_map(|rd| rd.flatten())
+        .map(|e| e.path())
+        .filter(|p| {
+            p.is_file()
+                && p.file_name()
+                    .is_some_and(|n| n.to_string_lossy().contains(&format!(".json{DAMAGED_SUFFIX}")))
+        })
+        .collect();
+    out.sort();
+    out
+}
+
 /// Flush a file's data to disk. Windows only flushes a handle opened for
 /// writing, so there the file is opened that way (not truncated), lifting a
 /// read-only attribute the copy carried over for as long as the open takes,
@@ -241,6 +334,28 @@ mod tests {
             .map(|e| e.file_name())
             .collect();
         assert_eq!(names, ["x.json"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn load_json_sets_damage_aside_and_leaves_other_shapes() {
+        let dir = tmp("load");
+        let path = dir.join("x.json");
+        assert!(matches!(load_json::<Vec<u32>>(&path).unwrap(), Loaded::Missing));
+        write_json(&path, &vec![7]).unwrap();
+        assert!(matches!(load_json::<Vec<u32>>(&path).unwrap(), Loaded::Found(v) if v == [7]));
+        for (i, damage) in [&b""[..], b"\0\0\0\0", b"[7,", b"]"].into_iter().enumerate() {
+            std::fs::write(&path, damage).unwrap();
+            let Loaded::Damaged(moved) = load_json::<Vec<u32>>(&path).unwrap() else {
+                panic!("{damage:?} is damage");
+            };
+            assert!(!path.exists());
+            assert_eq!(std::fs::read(&moved).unwrap(), damage);
+            assert_eq!(damaged_state(&dir).len(), i + 1);
+        }
+        std::fs::write(&path, br#"{"a":1}"#).unwrap();
+        assert!(matches!(load_json::<Vec<u32>>(&path), Err(Error::Json { .. })));
+        assert!(path.exists());
         std::fs::remove_dir_all(&dir).ok();
     }
 }

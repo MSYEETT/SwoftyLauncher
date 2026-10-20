@@ -85,9 +85,10 @@ impl Journal {
             .collect();
         paths.sort();
         for p in paths {
-            let mut j: Self = crate::read_json(&p)?;
-            j.file = p;
-            out.push(j);
+            if let crate::Loaded::Found(mut j) = crate::load_json::<Self>(&p)? {
+                j.file = p;
+                out.push(j);
+            }
         }
         Ok(out)
     }
