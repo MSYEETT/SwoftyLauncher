@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
 import json
-import re
 import sys
 from pathlib import Path
 
 from season import Season, slots
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO = ROOT.parents[1]
-DM_SRC = REPO / "addons/driver-manager/launcher/src"
 
 LIST = "entrants.entrant_lists.entrant_list[_metadata_=f1_2026]"
 POOL = "entrants.entrant_lists.entrant_list[_metadata_=f1_2026_driver_pool]"
-DRIVERS = "entrants.drivers"
-DRIVER_FROM = "entrants.drivers.driver[_metadata_=jarno_opmeer]"
 LOOKS = "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]"
 SPARE_LOOKS = [
     "2026-f2-aixracing_cian_shields", "2026-f2-artgrandprix_kush_maini", "2026-f2-camposracing_nikola_tsolov",
@@ -177,12 +172,6 @@ DRIVERS_1989 = ["alain_prost", "ayrton_senna", "riccardo_patrese", "nigel_mansel
 def argb(hex_colour):
     v = int(hex_colour.lstrip("#"), 16) | 0xFF000000
     return str(v - (1 << 32))
-
-
-def rust_list(path, name):
-    text = path.read_text(encoding="utf-8")
-    body = re.search(rf"{name}[^=]*=\s*\[(.*?)\];", text, re.S).group(1)
-    return re.findall(r'"([^"]+)"', body)
 
 
 def num(v, places=3):
@@ -387,7 +376,6 @@ def build(season):
         setop(f"{DRIVER_STANDINGS}.driver_reference_{i}", "driver", driver_labels[did])
 
     fields = {
-        f"{DRIVERS}.driver": rust_list(DM_SRC / "fields.rs", "DRIVER_FIELDS"),
         f"{ENTRANTS}.entrant": ENTRANT_FIELDS,
         f"{POOL}.entrant": ENTRANT_FIELDS,
     }
