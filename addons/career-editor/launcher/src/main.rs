@@ -2,6 +2,7 @@ mod host;
 mod live;
 mod pages;
 mod store;
+mod tracks;
 mod ui;
 mod undo;
 
@@ -21,6 +22,7 @@ pub struct App {
     pub enabled: bool,
     pub launcher: String,
     pub tab: String,
+    pub profile_tracks: Option<Result<Value, String>>,
     last_tick: Option<(Option<bool>, Option<u64>, u64)>,
 }
 
@@ -32,6 +34,7 @@ impl App {
             enabled: true,
             launcher: String::new(),
             tab: "overview".into(),
+            profile_tracks: None,
             last_tick: None,
         }
     }

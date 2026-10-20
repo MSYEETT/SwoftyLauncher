@@ -359,6 +359,9 @@ pub fn view(app: &mut App, host: &mut Host, _section: &str) -> Value {
     } else {
         "overview".to_owned()
     };
+    if tab == "season" {
+        app.profile_tracks = Some(crate::tracks::fetch(host, &app.launcher));
+    }
     let mut v = match tab.as_str() {
         "team" => team(app, &live),
         "drivers" => drivers(app, &live),
@@ -1264,44 +1267,89 @@ fn known_weekends(app: &App, live: &Live) -> Vec<String> {
     v
 }
 
+fn season_weekends(cal: &Value) -> Vec<String> {
+    cal["rounds"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|r| r["weekend"].as_str().map(str::to_owned))
+        .collect()
+}
+
+fn track_catalogue(app: &App, live: &Live, profile: &Value) -> crate::tracks::Catalogue {
+    let in_season = live.section("calendar").map(season_weekends).unwrap_or_default();
+    crate::tracks::catalogue(profile, &in_season, &known_weekends(app, live))
+}
+
+fn verify_weekend(app: &App, host: &mut Host, live: &Live, args: &mut Value) -> Result<(), String> {
+    match crate::tracks::fetch(host, &app.launcher) {
+        Ok(profile) => crate::tracks::verify(args, Some(&track_catalogue(app, live, &profile))),
+        Err(_) => crate::tracks::verify(args, None),
+    }
+}
+
 fn calendar_ops_card(app: &App, live: &Live, cal: &Value) -> Value {
     let rounds = cal["rounds"].as_array().cloned().unwrap_or_default();
-    let in_season: Vec<String> = rounds
-        .iter()
-        .filter_map(|r| r["weekend"].as_str().map(str::to_owned))
-        .collect();
+    let in_season = season_weekends(cal);
     let editable: Vec<&Value> = rounds.iter().filter(|r| r["editable"] == true).collect();
-    let spare: Vec<String> = known_weekends(app, live)
-        .into_iter()
-        .filter(|w| !in_season.contains(w))
-        .collect();
     let mut round_opts = vec![json!({ "value": "", "label": "Choose a round…" })];
     round_opts.extend(editable.iter().map(|r| json!({ "value": r["round"].to_string(), "label": format!("Round {} · {}", r["round"], track_name(r["weekend"].as_str().unwrap_or(""))) })));
-    let mut spare_opts = vec![
-        json!({ "value": "", "label": if spare.is_empty() { "No other tracks known yet…" } else { "Choose a track…" } }),
-    ];
-    spare_opts.extend(
-        spare
-            .iter()
-            .map(|w| json!({ "value": w, "label": track_name(w) })),
-    );
+    let mut notes: Vec<String> = Vec::new();
+    let (spare_opts, any) = match &app.profile_tracks {
+        Some(Ok(profile)) => {
+            let cat = track_catalogue(app, live, profile);
+            if profile["built"] != true {
+                notes.push("This profile hasn't been built yet, so only the stock tracks are listed. Modded tracks appear once it builds (Play builds it).".into());
+            }
+            for (label, why) in &cat.refused {
+                notes.push(format!("{label} isn't offered: {why}."));
+            }
+            let placeholder = if cat.picks.is_empty() {
+                "No other tracks in this profile…"
+            } else {
+                "Choose a track…"
+            };
+            (cat.options(placeholder, true), !cat.picks.is_empty())
+        }
+        other => {
+            if let Some(Err(why)) = other {
+                notes.push(why.clone());
+            }
+            let spare: Vec<String> = known_weekends(app, live)
+                .into_iter()
+                .filter(|w| !in_season.contains(w))
+                .collect();
+            let mut opts = vec![
+                json!({ "value": "", "label": if spare.is_empty() { "No other tracks known yet…" } else { "Choose a track…" } }),
+            ];
+            opts.extend(
+                spare
+                    .iter()
+                    .map(|w| json!({ "value": w, "label": track_name(w) })),
+            );
+            (opts, !spare.is_empty())
+        }
+    };
     let first = int(&cal["editable_from"]).unwrap_or(1);
     let last = rounds.len() as i64 + 1;
     let can_edit = !editable.is_empty();
     let mut blocks = vec![
         json!({ "form": { "id": "cal_remove", "columns": 2, "apply": "Remove round", "disabled": !(can_edit && live.can("season.calendar.remove_round")), "fields": [
             { "select": { "id": "round", "label": "Remove", "value": "", "options": round_opts } } ] } }),
-        json!({ "form": { "id": "cal_set", "columns": 2, "apply": "Replace track", "disabled": !(can_edit && !spare.is_empty() && live.can("season.calendar.set_round")), "fields": [
+        json!({ "form": { "id": "cal_set", "columns": 2, "apply": "Replace track", "disabled": !(can_edit && any && live.can("season.calendar.set_round")), "fields": [
             { "select": { "id": "round", "label": "Round", "value": "", "options": round_opts } },
             { "select": { "id": "weekend", "label": "New track", "value": "", "options": spare_opts } } ] } }),
-        json!({ "form": { "id": "cal_add", "columns": 2, "apply": "Add round", "disabled": spare.is_empty() || !live.can("season.calendar.add_round"), "fields": [
+        json!({ "form": { "id": "cal_add", "columns": 2, "apply": "Add round", "disabled": !any || !live.can("season.calendar.add_round"), "fields": [
             { "select": { "id": "weekend", "label": "Track", "value": "", "options": spare_opts } },
             { "number": { "id": "at", "label": "As round", "value": last, "min": first, "max": last, "step": 1 } } ] } }),
     ];
     blocks.push(text(
-        "Only rounds after this weekend that haven't started can change. New rounds can use tracks this championship already has (a removed round, or one from another season); other tracks need the gamedb path, which isn't offered yet. Sprint format can't be changed live.",
+        "Only rounds after this weekend that haven't started can change. New rounds can use any Grand Prix track in this profile's last build, modded tracks included, except one already on this calendar. Sprint format can't be changed live.",
         "muted",
     ));
+    for n in notes {
+        blocks.push(text(&n, "muted"));
+    }
     card_full(
         "Change rounds",
         None,
@@ -2654,14 +2702,22 @@ fn click(app: &mut App, host: &mut Host, live: &Live, _section: &str, id: &str) 
 
 fn undo(app: &mut App, host: &mut Host, live: &Live, e: &Entry) -> Result<Value, String> {
     match inverse(e) {
-        Undo::Op(op) => send(
-            app,
-            host,
-            live,
-            &format!("Undo {}", op_label(&e.op).to_lowercase()),
-            vec![op],
-            Some((e.seq, e.i)),
-        ),
+        Undo::Op(mut op) => {
+            if matches!(
+                op["op"].as_str(),
+                Some("season.calendar.set_round" | "season.calendar.add_round")
+            ) {
+                verify_weekend(app, host, live, &mut op["args"]).ok();
+            }
+            send(
+                app,
+                host,
+                live,
+                &format!("Undo {}", op_label(&e.op).to_lowercase()),
+                vec![op],
+                Some((e.seq, e.i)),
+            )
+        }
         Undo::Ops(ops) => send(
             app,
             host,
@@ -3145,12 +3201,14 @@ fn submit(app: &mut App, host: &mut Host, live: &Live, form: &str, ev: &Value) -
                 .as_str()
                 .filter(|w| !w.is_empty())
                 .ok_or("Choose a track.")?;
+            let mut args = json!({ "round": r, "weekend": w });
+            verify_weekend(app, host, live, &mut args)?;
             send(
                 app,
                 host,
                 live,
                 &format!("Round {r} becomes {}", track_name(w)),
-                vec![json!({ "op": "season.calendar.set_round", "args": { "round": r, "weekend": w } })],
+                vec![json!({ "op": "season.calendar.set_round", "args": args })],
                 None,
             )
         }
@@ -3160,12 +3218,14 @@ fn submit(app: &mut App, host: &mut Host, live: &Live, form: &str, ev: &Value) -
                 .filter(|w| !w.is_empty())
                 .ok_or("Choose a track.")?;
             let at = int(&v["at"]).ok_or("Choose where the round goes.")?;
+            let mut args = json!({ "weekend": w, "at": at });
+            verify_weekend(app, host, live, &mut args)?;
             send(
                 app,
                 host,
                 live,
                 &format!("Add {} as round {at}", track_name(w)),
-                vec![json!({ "op": "season.calendar.add_round", "args": { "weekend": w, "at": at } })],
+                vec![json!({ "op": "season.calendar.add_round", "args": args })],
                 None,
             )
         }
