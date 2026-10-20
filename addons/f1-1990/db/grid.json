@@ -1957,13 +1957,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-aixracing_cian_shields]",
    "field": "suit",
-   "value": "2026-mclaren"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-aixracing_cian_shields]",
    "field": "gloves",
-   "value": "2026-mclaren"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -2184,13 +2184,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-mclaren_lando_norris]",
    "field": "suit",
-   "value": "2026-mclaren"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-mclaren_lando_norris]",
    "field": "gloves",
-   "value": "2026-mclaren"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -2304,13 +2304,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-artgrandprix_kush_maini]",
    "field": "suit",
-   "value": "2026-ferrari"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-artgrandprix_kush_maini]",
    "field": "gloves",
-   "value": "2026-ferrari"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -2429,13 +2429,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-camposracing_nikola_tsolov]",
    "field": "suit",
-   "value": "2026-ferrari"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-camposracing_nikola_tsolov]",
    "field": "gloves",
-   "value": "2026-ferrari"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -2656,13 +2656,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-williams_alex_albon]",
    "field": "suit",
-   "value": "2026-williams"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-williams_alex_albon]",
    "field": "gloves",
-   "value": "2026-williams"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -2878,13 +2878,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-williams_carlos_sainz-jr]",
    "field": "suit",
-   "value": "2026-williams"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-williams_carlos_sainz-jr]",
    "field": "gloves",
-   "value": "2026-williams"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -3100,13 +3100,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-renault_pierre_gasly]",
    "field": "suit",
-   "value": "2026-renault"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-renault_pierre_gasly]",
    "field": "gloves",
-   "value": "2026-renault"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -3322,13 +3322,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-renault_franco_colapinto]",
    "field": "suit",
-   "value": "2026-renault"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-renault_franco_colapinto]",
    "field": "gloves",
-   "value": "2026-renault"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -3544,13 +3544,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-mercedes_george_russell]",
    "field": "suit",
-   "value": "2026-mercedes"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-mercedes_george_russell]",
    "field": "gloves",
-   "value": "2026-mercedes"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -3766,13 +3766,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-mercedes_andrea-kimi_antonelli]",
    "field": "suit",
-   "value": "2026-mercedes"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-mercedes_andrea-kimi_antonelli]",
    "field": "gloves",
-   "value": "2026-mercedes"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -3988,13 +3988,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-redbull_max_verstappen]",
    "field": "suit",
-   "value": "2026-redbull"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-redbull_max_verstappen]",
    "field": "gloves",
-   "value": "2026-redbull"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -4210,13 +4210,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-redbull_isack_hadjar]",
    "field": "suit",
-   "value": "2026-redbull"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-redbull_isack_hadjar]",
    "field": "gloves",
-   "value": "2026-redbull"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -4432,13 +4432,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-forceindia_fernando_alonso]",
    "field": "suit",
-   "value": "2026-forceindia"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-forceindia_fernando_alonso]",
    "field": "gloves",
-   "value": "2026-forceindia"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -4654,13 +4654,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-forceindia_lance_stroll]",
    "field": "suit",
-   "value": "2026-forceindia"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-forceindia_lance_stroll]",
    "field": "gloves",
-   "value": "2026-forceindia"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -4846,13 +4846,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-dams_dino_beganovic]",
    "field": "suit",
-   "value": "2026-williams"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-dams_dino_beganovic]",
    "field": "gloves",
-   "value": "2026-williams"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -5043,13 +5043,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-hitech_ritomo_miyata]",
    "field": "suit",
-   "value": "2026-williams"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-hitech_ritomo_miyata]",
    "field": "gloves",
-   "value": "2026-williams"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -5270,13 +5270,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-sauber_nico_hulkenberg]",
    "field": "suit",
-   "value": "2026-sauber"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-sauber_nico_hulkenberg]",
    "field": "gloves",
-   "value": "2026-sauber"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -5492,13 +5492,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-sauber_gabriel_bortoleto]",
    "field": "suit",
-   "value": "2026-sauber"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-sauber_gabriel_bortoleto]",
    "field": "gloves",
-   "value": "2026-sauber"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -5714,13 +5714,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-tororosso_liam_lawson]",
    "field": "suit",
-   "value": "2026-tororosso"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-tororosso_liam_lawson]",
    "field": "gloves",
-   "value": "2026-tororosso"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -5936,13 +5936,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-tororosso_arvid_lindblad]",
    "field": "suit",
-   "value": "2026-tororosso"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-tororosso_arvid_lindblad]",
    "field": "gloves",
-   "value": "2026-tororosso"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -6158,13 +6158,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-cadillac_sergio_perez]",
    "field": "suit",
-   "value": "2026-cadillac"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-cadillac_sergio_perez]",
    "field": "gloves",
-   "value": "2026-cadillac"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -6380,13 +6380,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-cadillac_valtteri_bottas]",
    "field": "suit",
-   "value": "2026-cadillac"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-cadillac_valtteri_bottas]",
    "field": "gloves",
-   "value": "2026-cadillac"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -6572,13 +6572,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-invictaracing_joshua_duerksen]",
    "field": "suit",
-   "value": "2026-haas"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-invictaracing_joshua_duerksen]",
    "field": "gloves",
-   "value": "2026-haas"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -6769,13 +6769,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-mpmotorsport_gabriele_mini]",
    "field": "suit",
-   "value": "2026-haas"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-mpmotorsport_gabriele_mini]",
    "field": "gloves",
-   "value": "2026-haas"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -6996,13 +6996,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-haas_oliver_bearman]",
    "field": "suit",
-   "value": "2026-haas"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-haas_oliver_bearman]",
    "field": "gloves",
-   "value": "2026-haas"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -7218,13 +7218,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-haas_esteban_ocon]",
    "field": "suit",
-   "value": "2026-haas"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-haas_esteban_ocon]",
    "field": "gloves",
-   "value": "2026-haas"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -7440,13 +7440,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-mclaren_oscar_piastri]",
    "field": "suit",
-   "value": "2026-cadillac"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-mclaren_oscar_piastri]",
    "field": "gloves",
-   "value": "2026-cadillac"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -7662,13 +7662,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-ferrari_charles_leclerc]",
    "field": "suit",
-   "value": "2026-haas"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-ferrari_charles_leclerc]",
    "field": "gloves",
-   "value": "2026-haas"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -7884,13 +7884,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-ferrari_lewis_hamilton]",
    "field": "suit",
-   "value": "2026-haas"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-ferrari_lewis_hamilton]",
    "field": "gloves",
-   "value": "2026-haas"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -8076,13 +8076,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-mpmotorsport_oliver_goethe]",
    "field": "suit",
-   "value": "2026-renault"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-mpmotorsport_oliver_goethe]",
    "field": "gloves",
-   "value": "2026-renault"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
@@ -8273,13 +8273,13 @@
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-prema_sebastian_montoya]",
    "field": "suit",
-   "value": "2026-redbull"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",
    "select": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2026-f2-prema_sebastian_montoya]",
    "field": "gloves",
-   "value": "2026-redbull"
+   "value": "tier01_livery76"
   },
   {
    "op": "set",

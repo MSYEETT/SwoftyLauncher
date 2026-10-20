@@ -134,11 +134,7 @@ STORY = {
     "dallara": ("BMS Scuderia Italia runs the Dallara F190 for de Cesaris and Pirro.", "#ScuderiaItalia"),
     "arrows": ("Arrows runs the A11B with Ford power for Alboreto and Caffi.", "#Arrows"),
 }
-SUITS = {"mclaren_26": "2026-mclaren", "ferrari_26": "2026-ferrari", "williams_26": "2026-williams",
-         "renault_26": "2026-renault", "mercedes_26": "2026-mercedes", "redbull_26": "2026-redbull",
-         "forceindia_26": "2026-forceindia", "team12_26": "2026-williams", "sauber_26": "2026-sauber",
-         "tororosso_26": "2026-tororosso", "gm_cadillac_26": "2026-cadillac", "team13_26": "2026-haas",
-         "haas_26": "2026-haas"}
+SUIT = "tier01_livery76"
 STOCK_SEATS = {
     "mclaren_26": ("mclaren_driver_01", "mclaren_driver_02"),
     "mercedes_26": ("mercedes_driver_01", "mercedes_driver_02"),
@@ -229,10 +225,6 @@ def build(season):
         for pos, seat in enumerate(regulars[s.team]):
             lineup.append((s, pos, seat))
     seated = [seat.driver for _, _, seat in lineup]
-    team_of = {seat.driver: s for s, _, seat in lineup}
-    team_by_id = {s.team: s for s in slots()}
-    for d, tid in stand_ins:
-        team_of[d] = team_by_id[tid]
     number_of = {seat.driver: seat.number for _, _, seat in lineup}
     for d, tid in stand_ins:
         for r in season.races:
@@ -309,7 +301,6 @@ def build(season):
         code, debut, (by, bm, bd), head, helmet = DRIVER_INFO[did]
         number = number_of[did]
         stats, traits = ratings(season, did)
-        suit = SUITS[team_of[did].team_row]
         if did in STOCK:
             label, holder_label, datasets, look, entrant = STOCK[did][0], OWN_HOLDERS[did], 1, None, None
             helmet = STOCK[did][1]
@@ -351,7 +342,7 @@ def build(season):
         if look is None:
             look = next(f2_looks)
         look_row = f"{LOOKS}.preloaded_driver_customisation_properties[_metadata_={look}]"
-        for fld, value in (("helmet", helmet), ("suit", suit), ("gloves", suit), ("linked_driver_stat_id", label)):
+        for fld, value in (("helmet", helmet), ("suit", SUIT), ("gloves", SUIT), ("linked_driver_stat_id", label)):
             setop(look_row, fld, value)
         if entrant:
             erow = f"{ENTRANTS}.entrant[_metadata_={entrant}]"
