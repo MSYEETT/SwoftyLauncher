@@ -123,22 +123,18 @@ def career_ops():
         setop(MODE, "championship_setups.ChampionshipSetupList_0.ChampionshipSetup_0.event_list", EVENT_LIST),
         setop(CHAMPIONSHIP, "event_list", EVENT_LIST),
     ]
-    long_row = f"{LENGTHS}.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Long]"
-    ops += [
-        setop(long_row, "max_num_tracks", len(ROUNDS)),
-        setop(long_row, "track_list_name", TRACK_LIST),
-        setop(long_row, "weekend_formats", "default"),
-        setop(long_row, "weekend_to_add_transfer_window", -1),
-        setop(long_row, "language_string", "lng_f1990_season_length"),
-    ]
-    for hidden in ("F1_2026_Medium", "F1_2026_Short"):
-        row = f"{LENGTHS}.custom_dynamic_available_track_list_data[_metadata_={hidden}]"
-        ops.append(setop(row, "game_setup_modes", "f1_beta"))
+    for length in ("F1_2026_Long", "F1_2026_Medium", "F1_2026_Short"):
+        row = f"{LENGTHS}.custom_dynamic_available_track_list_data[_metadata_={length}]"
+        ops += [
+            setop(row, "max_num_tracks", len(ROUNDS)),
+            setop(row, "track_list_name", TRACK_LIST),
+            setop(row, "weekend_to_add_transfer_window", -1),
+            setop(row, "language_string", "lng_f1990_season_length"),
+        ]
     selection = f"{LENGTHS}.track_selections.tracks_selection[_metadata_=F1_2026]"
     ops += [
         setop(selection, "default", TRACK_LIST),
         setop(selection, "season_0.track_event_list", TRACK_LIST),
-        setop(selection, "weekend_formats", "default"),
     ]
     for _, track, _, day, month in ROUNDS:
         dataset = "f1" if track in BASE_DATASET_TRACKS else "f1_2026"

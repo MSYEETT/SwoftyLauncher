@@ -49,6 +49,9 @@ Hockenheim track is added), no sprints, no transfer window, 9-6-4-3-2-1 points, 
 Its careers save in their own `driver_career_1990` container, apart from 2026 careers.
 The **Career year** setting starts the career in 1990 (default) or 2026.
 The season has no New Season Grid Reveal event; the reveal crashes the game with 13 teams.
+The season-length screen lists three "1990 Season" entries, the `f1_26` Long, Medium and Short rows, all with the same
+16 rounds. The game needs all three rows: the career activity report (0x143867ff0) reads the Short and Medium lengths
+and crashes on a missing row.
 
 The agent's English speech banks are replaced with silent copies of the same length (`files/speech/`), so her lines
 show subtitles with no voice; `tools/mute_agent.py <F1 25> <out> [language ...]` writes them for any language. The
