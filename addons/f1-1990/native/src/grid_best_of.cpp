@@ -162,4 +162,3 @@ SWOFTY_ON_LOAD
     swofty::log("[f1-1990] loaded v%s: qualifying grid = best lap of the Friday and Saturday sessions", kVersion);
 }
 
-SWOFTY_ADDON()

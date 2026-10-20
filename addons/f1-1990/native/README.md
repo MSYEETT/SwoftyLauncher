@@ -1,8 +1,14 @@
 # F1 1990 native DLL
 
-`f1_1990.dll` sets the race grid from each driver's best lap in either 1990 qualifying session: Friday (SprintShootout group, 2) and Saturday (Qualifying group, 1).
+`f1_1990.dll` gives the 1990 profile its own profile save and sets the race grid from each driver's best lap in either 1990 qualifying session: Friday (SprintShootout group, 2) and Saturday (Qualifying group, 1). It loads at the early stage, before the game loads its profile.
 
-## Hooks
+## Save separation
+
+`Game_SaveMgr_CreateSaveJob` (0x143659750, the save-job factory thunk) is wrapped: a job for the save named `profile` is created for `f1990` instead, so the profile save and every career slot in it go to `savegame@f1990#*` (Steam remote storage) and the stock `savegame@profile#*` files are never opened. Replay saves (`highlights%03d`) keep their names. The first launch in the profile starts a new game profile.
+
+Each redirect logs `[f1-1990] save: profile -> f1990 (...)`. If the addon's hooks do not install, `SwoftyAddonInit` logs `[f1-1990] SAVE SEPARATION OFF` three times; the profile then uses the real profile save.
+
+## Grid hooks
 
 | binding | address | use |
 |---|---|---|
