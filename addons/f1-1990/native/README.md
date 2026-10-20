@@ -1,8 +1,10 @@
 # F1 1990 native DLL
 
-`f1_1990.dll` gives the 1990 profile its own profile save and sets the race grid from each driver's best lap in either 1990 qualifying session: Friday (SprintShootout group, 2) and Saturday (Qualifying group, 1). It loads at the early stage, before the game loads its profile.
+`f1_1990.dll` sets the race grid from each driver's best lap in either 1990 qualifying session: Friday (SprintShootout group, 2) and Saturday (Qualifying group, 1). It loads at the early stage, before the game loads its profile.
 
 ## Save separation
+
+Not in the default build: `SAVE_SEPARATION=1 ./build.sh` adds `src/save_separation.cpp`. This version renames only the save job, and in game it wrote a new data file into the stock `profile` container (test 11), so it stays off. The 1990 profile shares the real profile save until a working version lands.
 
 `Game_SaveMgr_CreateSaveJob` (0x143659750, the save-job factory thunk) is wrapped: a job for the save named `profile` is created for `f1990` instead, so the profile save and every career slot in it go to `savegame@f1990#*` (Steam remote storage) and the stock `savegame@profile#*` files are never opened. Replay saves (`highlights%03d`) keep their names. The first launch in the profile starts a new game profile.
 
