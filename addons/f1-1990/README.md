@@ -46,7 +46,10 @@ The stock 2026 team archives and game database must be the stock files.
 
 Driver Career 2026 is the 1990 career: one season of the 16 1990 rounds in order (Hockenheim on Shanghai until a
 Hockenheim track is added), no sprints, no transfer window, 9-6-4-3-2-1 points, and the agent is Flavio Briatore.
-Its careers save in their own `driver_career_1990` container, apart from 2026 careers.
+The mode row's save container is `driver_career_1990`, but that container sits inside the one profile save
+(`savegame@profile#...`) with every other career, so the 1990 profile lists and can load the real 2026 careers. A
+separate save file needs the native save hook (N2: the profile save named `f1990`); until it lands, back up saves before
+playing a career in this profile.
 The **Career year** setting starts the career in 1990 (default) or 2026.
 The season has no New Season Grid Reveal event; the reveal crashes the game with 13 teams.
 The season-length screen lists three "1990 Season" entries, the `f1_26` Long, Medium and Short rows, all with the same
