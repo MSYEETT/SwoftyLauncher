@@ -20,9 +20,10 @@ The logs go to the developers' Discord as one zip file, `swofty-logs-<username>-
 
 | In the zip | Contents |
 |---|---|
-| `summary.txt` | Your username and message, the launcher version, your operating system, CPU and memory, and the game's version and folder |
+| `summary.txt` | Your username and message, the launcher version, your operating system, CPU and memory, the game's version and folder, the summary of the latest performance report, and each installed addon's version and whether it's on in the active profile |
+| `game/loader.log`, `game/perf.log` | The loader log and the performance report of the game that's running |
 | `state/*.log` | The launcher's own logs, such as `launcher-run.log` and `wrapper-run.log` |
-| `sessions/<time>/` | The logs and small files of your three latest game sessions, such as `loader.log`, `env.txt` and `exit_code` |
+| `sessions/<time>/` | The logs and small files of your three latest game sessions, such as `loader.log`, `perf.log`, `env.txt` and `exit_code` |
 | `addons/<id>/helper.log` | Each addon helper's log |
 | `addons.json` | The id and version of every installed addon, and the addons in each profile |
 | `config.json` | The launcher's settings |

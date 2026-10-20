@@ -3,9 +3,11 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
 
+use crate::session::{LOADER_LOG, PERF_LOG};
 use crate::store::Store;
 use crate::{Error, GAME_EXE, Result};
 
+pub mod perf;
 pub mod webhook;
 
 pub use webhook::{SendError, Stage, Webhook};
@@ -19,10 +21,12 @@ pub const TOTAL_CAP: u64 = 40 << 20;
 pub const PART_LIMIT: usize = 9 << 20;
 pub const SESSIONS: usize = 3;
 pub const SNAPSHOT: &str = "swofty/addons/swofty.career-editor/snapshot.json";
+pub const PERF_LINES: usize = 60;
 
 const REDACTED: &str = "[redacted]";
 const SESSION_DEPTH: usize = 3;
 const MIN_TAIL: u64 = 64 << 10;
+const PERF_READ: u64 = 1 << 20;
 
 /// Where the logs go: the webhook baked in at build time, if any.
 pub fn destination() -> Option<Webhook> {
@@ -235,6 +239,24 @@ impl Bundle {
         }
         let addons = serde_json::to_string_pretty(&addons_summary(store)).unwrap_or_default();
         c.push("addons.json".into(), addons.into_bytes(), None);
+        let sessions = newest_sessions(store, SESSIONS);
+        let mut live_perf = None;
+        if let Some(game) = &report.game.dir {
+            for (name, rel) in [("loader.log", LOADER_LOG), ("perf.log", PERF_LOG)] {
+                let live = game.join(rel);
+                if !live.is_file()
+                    || sessions
+                        .first()
+                        .is_some_and(|d| same_contents(&live, &d.join(name)))
+                {
+                    continue;
+                }
+                c.file(format!("game/{name}"), &live, None);
+                if name == "perf.log" {
+                    live_perf = Some(live);
+                }
+            }
+        }
         for (id, log) in helper_logs(store) {
             c.file(format!("addons/{id}/{}", crate::helper::LOG_FILE), &log, None);
         }
@@ -247,9 +269,9 @@ impl Bundle {
             let name = file_name(&log);
             c.file(format!("state/{name}"), &log, None);
         }
-        for dir in newest_sessions(store, SESSIONS) {
-            let session = file_name(&dir);
-            for (rel, file) in files_under(&dir, SESSION_DEPTH) {
+        for dir in &sessions {
+            let session = file_name(dir);
+            for (rel, file) in files_under(dir, SESSION_DEPTH) {
                 let redact = (rel == "env.txt").then_some(redact_env as fn(&str) -> String);
                 c.file(format!("sessions/{session}/{rel}"), &file, redact);
             }
@@ -265,7 +287,8 @@ impl Bundle {
             entries: c.entries,
             skipped: c.skipped,
         };
-        let summary = bundle.summary(store, report, stamp);
+        let perf = newest_perf(live_perf, &sessions);
+        let summary = bundle.summary(store, report, stamp, perf);
         bundle.entries.insert(
             0,
             Entry {
@@ -277,7 +300,13 @@ impl Bundle {
         bundle
     }
 
-    fn summary(&self, store: &Store, report: &Report, stamp: &str) -> String {
+    fn summary(
+        &self,
+        store: &Store,
+        report: &Report,
+        stamp: &str,
+        perf: Option<(String, PathBuf)>,
+    ) -> String {
         let mut s = String::new();
         let mut line = |k: &str, v: &str| s.push_str(&format!("{k:16} {v}\n"));
         line("Discord username", &self.name);
@@ -296,7 +325,28 @@ impl Bundle {
         } else {
             &self.message
         });
-        s.push_str("\n\nFiles\n");
+        s.push_str("\n\nPerformance\n");
+        match perf {
+            Some((label, path)) => {
+                let text = read_head(&path, PERF_READ).map(|d| String::from_utf8_lossy(&d).into_owned());
+                match text {
+                    Ok(text) => {
+                        s.push_str(&format!("From {label}\n"));
+                        for l in perf::excerpt(&text, PERF_LINES) {
+                            s.push_str(&l);
+                            s.push('\n');
+                        }
+                    }
+                    Err(e) => s.push_str(&format!("{label} could not be read: {e}\n")),
+                }
+            }
+            None => s.push_str(
+                "No performance report was found (an older launcher, or the game never reached the menus)\n",
+            ),
+        }
+        s.push_str("\nAddons\n");
+        s.push_str(&addon_lines(store));
+        s.push_str("\nFiles\n");
         for e in &self.entries {
             s.push_str(&format!("  {:60} {:>9}", e.path, size(e.data.len() as u64)));
             if let Some(n) = &e.note {
@@ -410,6 +460,37 @@ fn read_tail(path: &Path, cap: u64) -> std::io::Result<(Vec<u8>, bool)> {
         data.drain(..=nl);
     }
     Ok((data, true))
+}
+
+fn read_head(path: &Path, cap: u64) -> std::io::Result<Vec<u8>> {
+    let mut data = Vec::new();
+    std::fs::File::open(path)?.take(cap).read_to_end(&mut data)?;
+    Ok(data)
+}
+
+fn same_contents(a: &Path, b: &Path) -> bool {
+    let len = |p: &Path| std::fs::metadata(p).map(|m| m.len()).ok();
+    len(a).is_some_and(|n| len(b) == Some(n))
+        && matches!((std::fs::read(a), std::fs::read(b)), (Ok(x), Ok(y)) if x == y)
+}
+
+fn modified(path: &Path) -> Option<std::time::SystemTime> {
+    std::fs::metadata(path).and_then(|m| m.modified()).ok()
+}
+
+fn newest_perf(live: Option<PathBuf>, sessions: &[PathBuf]) -> Option<(String, PathBuf)> {
+    let kept = sessions.iter().map(|d| d.join("perf.log")).find(|p| p.is_file());
+    match (live, kept) {
+        (Some(live), Some(kept)) if modified(&live) <= modified(&kept) => Some((session_label(&kept), kept)),
+        (Some(live), _) => Some(("game/perf.log".into(), live)),
+        (None, Some(kept)) => Some((session_label(&kept), kept)),
+        (None, None) => None,
+    }
+}
+
+fn session_label(file: &Path) -> String {
+    let session = file.parent().map(file_name).unwrap_or_default();
+    format!("sessions/{session}/{}", file_name(file))
 }
 
 fn file_name(path: &Path) -> String {
@@ -532,6 +613,36 @@ fn addons_summary(store: &Store) -> Value {
         Err(e) => json!({ "error": e.to_string() }),
     };
     json!({ "installed": installed, "profiles": profiles })
+}
+
+fn addon_lines(store: &Store) -> String {
+    let addons = match store.addons() {
+        Ok(a) => a,
+        Err(e) => return format!("  could not list the addons: {e}\n"),
+    };
+    let active = store.active_profile();
+    let (on, mut s) = match store.profile(&active) {
+        Ok(p) => (
+            p.enabled()
+                .map(str::to_owned)
+                .collect::<std::collections::BTreeSet<_>>(),
+            format!("  Active profile: {active}\n"),
+        ),
+        Err(e) => (
+            Default::default(),
+            format!("  Active profile: {active} (could not be read: {e})\n"),
+        ),
+    };
+    for m in addons.values() {
+        let state = if on.contains(&m.id) { "on" } else { "off" };
+        let builtin = if store.is_builtin(&m.id) { "  built in" } else { "" };
+        s.push_str(&format!(
+            "  {:40} {:12} {state}{builtin}\n",
+            m.id,
+            m.version.to_string()
+        ));
+    }
+    s
 }
 
 /// A field or variable name that may hold a secret.

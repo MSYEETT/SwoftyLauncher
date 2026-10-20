@@ -664,3 +664,217 @@ fn checks_the_name_and_message() {
     assert!(ct.starts_with("multipart/form-data; boundary=swofty-logs-"));
     assert!(String::from_utf8_lossy(&body).contains("filename=\"a_.zip\""));
 }
+
+const PERF: &str = "Swofty Launcher performance report
+written 2026-10-21 09:14:02 UTC, F1 25 build 25251167, launcher 1.0.12
+
+== Summary
+uptime: 00:12:41
+frames: 41230
+fps: 54.2 average, 31.0 1% low
+frame times: 18.4 ms average, 33.1 ms p99, 212.6 ms worst
+slow frames: 412 over 33.3 ms (1.0%)
+swofty time: 0.41 ms per frame (2.2% of the frame)
+worst call: swofty.career-editor menu_tick 48.2 ms at 00:03:12
+hitches: 7 over 100 ms
+
+== Addons
+addon                         calls   total ms  per frame  worst ms
+swofty.core                  412300     1803.2      0.044       3.1
+swofty.career-editor          41230     9120.7      0.221      48.2
+xanpavle.re-optimization        206       12.4      0.000       1.9
+
+== Hooks
+hook                    addon                  calls   total ms  worst ms
+ui_menu_update          swofty.career-editor   41230     8911.0      48.2
+renderer_settings_read  xanpavle.re-optimization 206       12.4       1.9
+
+== Hitches
+00:03:12.418  212.6 ms  swofty.career-editor menu_tick 48.2 ms
+00:07:55.020  140.1 ms  (no addon call over 1 ms)
+
+== Timeline
+00:00:00  loader attached
+00:00:41  main menu
+00:03:12  career menu
+";
+
+#[test]
+fn splits_a_perf_report_into_sections() {
+    for text in [PERF.to_owned(), PERF.replace('\n', "\r\n")] {
+        let s = perf::sections(&text);
+        let titles: Vec<_> = s.iter().map(|s| s.title).collect();
+        assert_eq!(titles, ["Summary", "Addons", "Hooks", "Hitches", "Timeline"]);
+        assert_eq!(s[0].header, "== Summary");
+        assert_eq!(s[0].lines.len(), 8);
+        assert_eq!(s[0].lines[0], "uptime: 00:12:41");
+        assert_eq!(s[1].lines.len(), 4);
+        assert!(s[1].lines[2].starts_with("swofty.career-editor          41230"));
+        assert_eq!(s[4].lines.last(), Some(&"00:03:12  career menu"));
+    }
+    let lenient = perf::sections("junk\n== Summary ==\nfps: 60\n\n\n==Not a header\n");
+    assert_eq!(lenient.len(), 1);
+    assert_eq!(lenient[0].title, "Summary");
+    assert_eq!(lenient[0].lines, ["fps: 60", "", "", "==Not a header"]);
+    assert!(perf::sections("").is_empty());
+}
+
+#[test]
+fn excerpts_the_summary_and_addons_sections_in_sixty_lines() {
+    let lines = perf::excerpt(PERF, PERF_LINES);
+    assert_eq!(lines.first().map(String::as_str), Some("== Summary"));
+    assert_eq!(lines[1], "uptime: 00:12:41");
+    assert_eq!(lines[9], "");
+    assert_eq!(lines[10], "== Addons");
+    assert_eq!(
+        lines.last().map(String::as_str),
+        Some("xanpavle.re-optimization        206       12.4      0.000       1.9")
+    );
+    assert!(
+        !lines
+            .iter()
+            .any(|l| l.contains("Hooks") || l.contains("loader attached"))
+    );
+
+    let rows: String = (0..100)
+        .map(|i| format!("t.addon{i:03}  {i}  0.1  0.0  0.1\n"))
+        .collect();
+    let long = format!("{PERF}\n== Addons\n{rows}");
+    let lines = perf::excerpt(&long, PERF_LINES);
+    assert_eq!(lines.len(), PERF_LINES);
+    assert!(
+        lines.last().unwrap().ends_with("more lines in the file]"),
+        "{lines:?}"
+    );
+
+    let other = perf::excerpt(
+        "Swofty Launcher performance report\n== Frames\nfps: 60\n\n",
+        PERF_LINES,
+    );
+    assert_eq!(
+        other,
+        ["Swofty Launcher performance report", "== Frames", "fps: 60"]
+    );
+    assert_eq!(perf::excerpt("\n\n", PERF_LINES), ["(the report is empty)"]);
+}
+
+fn summary_of(bundle: &Bundle) -> String {
+    assert_eq!(bundle.entries[0].path, "summary.txt");
+    String::from_utf8(bundle.entries[0].data.clone()).unwrap()
+}
+
+#[test]
+fn bundles_the_running_games_logs_first_with_its_performance_summary() {
+    let root = tmp("live");
+    let (store, game) = fake_data(&root);
+    put(&game.join("swofty/loader.log"), "live loader line\n");
+    put(&game.join("swofty/perf.log"), PERF);
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261021-091500");
+    let order: Vec<_> = bundle.entries.iter().take(5).map(|e| e.path.as_str()).collect();
+    assert_eq!(
+        order,
+        [
+            "summary.txt",
+            "config.json",
+            "addons.json",
+            "game/loader.log",
+            "game/perf.log"
+        ]
+    );
+    let zip = bundle.zip().unwrap();
+    assert_eq!(entry(&zip, "game/loader.log"), "live loader line\n");
+    assert_eq!(entry(&zip, "game/perf.log"), PERF);
+    let summary = summary_of(&bundle);
+    let excerpt = perf::excerpt(PERF, PERF_LINES).join("\n");
+    assert!(
+        summary.contains(&format!(
+            "\n\nPerformance\nFrom game/perf.log\n{excerpt}\n\nAddons\n"
+        )),
+        "{summary}"
+    );
+    let addons = summary
+        .split_once("\nAddons\n  Active profile: default\n")
+        .and_then(|(_, rest)| rest.split_once("\nFiles\n"))
+        .map(|(block, _)| block)
+        .unwrap_or_else(|| panic!("{summary}"));
+    let row = |id: &str| {
+        addons
+            .lines()
+            .find(|l| l.split_whitespace().next() == Some(id))
+            .unwrap_or_else(|| panic!("{id} missing from:\n{addons}"))
+    };
+    let helper = row("t.helper");
+    assert_eq!(
+        helper.split_whitespace().collect::<Vec<_>>(),
+        ["t.helper", "1.2.3", "off"]
+    );
+    let core = row(crate::builtin::CORE_ID);
+    assert!(core.ends_with("on  built in"), "{core}");
+    assert!(summary.find("\nPerformance\n") < summary.find("\nFiles\n"));
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn leaves_out_live_logs_the_newest_session_already_kept() {
+    let root = tmp("kept");
+    let (store, game) = fake_data(&root);
+    let newest = store.sessions_dir().join("20261020-090000");
+    let perf = PERF.replace("uptime: 00:12:41", "uptime: 00:02:00");
+    put(&game.join("swofty/loader.log"), "loader 3\n");
+    put(&game.join("swofty/perf.log"), &perf);
+    put(&newest.join("perf.log"), &perf);
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "x");
+    assert!(
+        !bundle
+            .entries
+            .iter()
+            .any(|e| e.path.starts_with("game/") && e.path.ends_with(".log"))
+    );
+    assert!(bundle.skipped.is_empty(), "{:?}", bundle.skipped);
+    let summary = summary_of(&bundle);
+    assert!(
+        summary
+            .contains("Performance\nFrom sessions/20261020-090000/perf.log\n== Summary\nuptime: 00:02:00\n"),
+        "{summary}"
+    );
+
+    put(&game.join("swofty/perf.log"), PERF);
+    let old = std::time::SystemTime::now() - Duration::from_secs(3600);
+    std::fs::File::options()
+        .write(true)
+        .open(game.join("swofty/perf.log"))
+        .unwrap()
+        .set_modified(old)
+        .unwrap();
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "x");
+    assert!(bundle.entries.iter().any(|e| e.path == "game/perf.log"));
+    assert!(summary_of(&bundle).contains("From sessions/20261020-090000/perf.log\n"));
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn says_when_there_is_no_performance_report() {
+    let root = tmp("noperf");
+    let (store, game) = fake_data(&root);
+    put(&store.sessions_dir().join("20261017-090000/perf.log"), PERF);
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "x");
+    let summary = summary_of(&bundle);
+    assert!(
+        summary.contains(
+            "\nPerformance\nNo performance report was found (an older launcher, or the game never reached the menus)\n\nAddons\n"
+        ),
+        "{summary}"
+    );
+    put(&store.sessions_dir().join("20261019-090000/perf.log"), PERF);
+    let summary = summary_of(&Bundle::collect_with(
+        &store,
+        &report(&game),
+        Limits::default(),
+        "x",
+    ));
+    assert!(
+        summary.contains("From sessions/20261019-090000/perf.log\n== Summary\n"),
+        "{summary}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
