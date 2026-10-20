@@ -13,6 +13,8 @@ using Vm_Set_Bool_t = void *(void *registry, void *parent, const char *name, uin
 inline constexpr fn<"Vm_Set_Bool", Vm_Set_Bool_t> Vm_Set_Bool{}; // L2 experimental
 using Vm_Set_String_t = void *(void *registry, void *parent, const char *name, NeStr **value, int overwrite);
 inline constexpr fn<"Vm_Set_String", Vm_Set_String_t> Vm_Set_String{}; // L2 experimental
+using Vm_Set_TabEnabled_t = void(uintptr_t tabs, uintptr_t node, uint32_t enabled);
+inline constexpr fn<"Vm_Set_TabEnabled", Vm_Set_TabEnabled_t> Vm_Set_TabEnabled{}; // L2 experimental
 inline constexpr data<"g_Vm_Registry", void *> g_Vm_Registry{}; // L3 stable
 
 }

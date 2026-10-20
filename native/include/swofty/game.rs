@@ -179,6 +179,21 @@ pub struct TileList {
 const _: () = assert!(core::mem::offset_of!(TileList, items_begin) == 0x78);
 const _: () = assert!(core::mem::offset_of!(TileList, items_end) == 0x80);
 
+pub type Car_Reset_LastFittedUpgrade_t = unsafe extern "C" fn(inst: *mut c_void);
+pub type Career_Add_TeamModifier_t = unsafe extern "C" fn(list: *mut c_void, key: u32, value: f32);
+pub type Career_Calc_UpgradeCost_t =
+    unsafe extern "C" fn(list: *mut c_void, inst: *mut c_void, mods: *mut c_void, option: u32) -> i32;
+pub type Career_Construct_RnDDeptCard_t = unsafe extern "C" fn(
+    card: *mut c_void,
+    ctx: *mut c_void,
+    builder: *mut c_void,
+    allocator: *mut c_void,
+    name: *const c_char,
+    icon: *const c_char,
+    dept: u8,
+) -> *mut c_void;
+pub type Career_Refresh_RnDDeptMode_t = unsafe extern "C" fn(holder: *mut usize, mode: u32);
+pub type Career_Refresh_UpgradeAvailability_t = unsafe extern "C" fn(upgrades: *mut c_void, day: u16);
 pub type FeHome_Add_CareerTile_t = unsafe extern "C" fn(list: *mut TileList, index: u8);
 pub type FeHome_Handle_Command_t =
     unsafe extern "C" fn(vm: *mut FEHomeViewModel, cmd: *mut *mut NeStr) -> u64;
@@ -192,6 +207,7 @@ pub type FeTile_Build_List_t = unsafe extern "C" fn(
     a7: u32,
 );
 pub type FeTile_ItemBase_Populate_t = unsafe extern "C" fn(item: *mut HomeItem, node: *mut c_void, a7: u32);
+pub type Ne_Format_String_t = unsafe extern "C" fn(out: *mut *mut NeStr, fmt: *const c_char, ...) -> i64;
 pub type Ne_Get_SettingBool_t =
     unsafe extern "C" fn(node: *mut c_void, name: *const c_char, out: *mut u8, def: u8) -> u64;
 pub type Ne_Get_SettingU32_t =
@@ -213,9 +229,40 @@ pub type Vm_Set_String_t = unsafe extern "C" fn(
     value: *mut *mut NeStr,
     overwrite: c_int,
 ) -> *mut c_void;
+pub type Vm_Set_TabEnabled_t = unsafe extern "C" fn(tabs: usize, node: usize, enabled: u32);
 
 pub mod bindings {
     use super::{Binding, Status};
+    pub const Car_Reset_LastFittedUpgrade: Binding = Binding {
+        id: "Car_Reset_LastFittedUpgrade",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Add_TeamModifier: Binding = Binding {
+        id: "Career_Add_TeamModifier",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Calc_UpgradeCost: Binding = Binding {
+        id: "Career_Calc_UpgradeCost",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Construct_RnDDeptCard: Binding = Binding {
+        id: "Career_Construct_RnDDeptCard",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Refresh_RnDDeptMode: Binding = Binding {
+        id: "Career_Refresh_RnDDeptMode",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Refresh_UpgradeAvailability: Binding = Binding {
+        id: "Career_Refresh_UpgradeAvailability",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const FeHome_Add_CareerTile: Binding = Binding {
         id: "FeHome_Add_CareerTile",
         kind: "func",
@@ -235,6 +282,11 @@ pub mod bindings {
         id: "FeTile_ItemBase_Populate",
         kind: "func",
         status: Status::Stable,
+    };
+    pub const Ne_Format_String: Binding = Binding {
+        id: "Ne_Format_String",
+        kind: "func",
+        status: Status::Experimental,
     };
     pub const Ne_Get_SettingBool: Binding = Binding {
         id: "Ne_Get_SettingBool",
@@ -266,6 +318,21 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Vm_Set_TabEnabled: Binding = Binding {
+        id: "Vm_Set_TabEnabled",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const g_Career_RnDOverviewSelectedDept: Binding = Binding {
+        id: "g_Career_RnDOverviewSelectedDept",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const g_Ne_DefaultAllocator: Binding = Binding {
+        id: "g_Ne_DefaultAllocator",
+        kind: "data",
+        status: Status::Experimental,
+    };
     pub const g_Ne_LogGate: Binding = Binding {
         id: "g_Ne_LogGate",
         kind: "data",
@@ -276,10 +343,750 @@ pub mod bindings {
         kind: "data",
         status: Status::Stable,
     };
+    pub const k_Career_RnDCardColourTable: Binding = Binding {
+        id: "k_Career_RnDCardColourTable",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_RnDDeptColourTable: Binding = Binding {
+        id: "k_Career_RnDDeptColourTable",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_RnDErrorDeptName: Binding = Binding {
+        id: "k_Career_RnDErrorDeptName",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_UpgradeBlockNameTable: Binding = Binding {
+        id: "k_Career_UpgradeBlockNameTable",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_UpgradeTypeOrder: Binding = Binding {
+        id: "k_Career_UpgradeTypeOrder",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const site_Career_ApplyUpgradeBlockNameDefault: Binding = Binding {
+        id: "site_Career_ApplyUpgradeBlockNameDefault",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_ApplyUpgradeBlockNameJoin: Binding = Binding {
+        id: "site_Career_ApplyUpgradeBlockNameJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_ApplyUpgradeKeyCall: Binding = Binding {
+        id: "site_Career_ApplyUpgradeKeyCall",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_ApplyUpgradeKeyFilter: Binding = Binding {
+        id: "site_Career_ApplyUpgradeKeyFilter",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_DeserialiseUpgradesEnd: Binding = Binding {
+        id: "site_Career_DeserialiseUpgradesEnd",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_LoadUpgradeRows_DeptPath: Binding = Binding {
+        id: "site_Career_LoadUpgradeRows_DeptPath",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDBoxGridFirstTab: Binding = Binding {
+        id: "site_Career_RnDBoxGridFirstTab",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDBoxGridNameClamp: Binding = Binding {
+        id: "site_Career_RnDBoxGridNameClamp",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDBoxGridNameIndex: Binding = Binding {
+        id: "site_Career_RnDBoxGridNameIndex",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDBoxGridNameRead: Binding = Binding {
+        id: "site_Career_RnDBoxGridNameRead",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardArtImage0: Binding = Binding {
+        id: "site_Career_RnDCardArtImage0",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardArtImage1: Binding = Binding {
+        id: "site_Career_RnDCardArtImage1",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardArtImage2: Binding = Binding {
+        id: "site_Career_RnDCardArtImage2",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardArtMask0: Binding = Binding {
+        id: "site_Career_RnDCardArtMask0",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardArtMask1: Binding = Binding {
+        id: "site_Career_RnDCardArtMask1",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardArtMask2: Binding = Binding {
+        id: "site_Career_RnDCardArtMask2",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardColourPick0: Binding = Binding {
+        id: "site_Career_RnDCardColourPick0",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardColourPick1: Binding = Binding {
+        id: "site_Career_RnDCardColourPick1",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardColourPick2: Binding = Binding {
+        id: "site_Career_RnDCardColourPick2",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardColourPick3: Binding = Binding {
+        id: "site_Career_RnDCardColourPick3",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardColourPick4: Binding = Binding {
+        id: "site_Career_RnDCardColourPick4",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardDeptIcon0: Binding = Binding {
+        id: "site_Career_RnDCardDeptIcon0",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardDeptIcon1: Binding = Binding {
+        id: "site_Career_RnDCardDeptIcon1",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCardDeptIcon2: Binding = Binding {
+        id: "site_Career_RnDCardDeptIcon2",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDCompareDept: Binding = Binding {
+        id: "site_Career_RnDCompareDept",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDContainerOpenMaint: Binding = Binding {
+        id: "site_Career_RnDContainerOpenMaint",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDContainerOpenTail: Binding = Binding {
+        id: "site_Career_RnDContainerOpenTail",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDDeptBoxGridEntry: Binding = Binding {
+        id: "site_Career_RnDDeptBoxGridEntry",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDDeptBoxGridInject: Binding = Binding {
+        id: "site_Career_RnDDeptBoxGridInject",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDDeptBoxLayoutProbe: Binding = Binding {
+        id: "site_Career_RnDDeptBoxLayoutProbe",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDDeptPagePreQuery: Binding = Binding {
+        id: "site_Career_RnDDeptPagePreQuery",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDDeptPageQueryDone: Binding = Binding {
+        id: "site_Career_RnDDeptPageQueryDone",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDDeptPageTypeLoop: Binding = Binding {
+        id: "site_Career_RnDDeptPageTypeLoop",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDDeptRowCategoryIcon: Binding = Binding {
+        id: "site_Career_RnDDeptRowCategoryIcon",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDDeptRowTypeIcon: Binding = Binding {
+        id: "site_Career_RnDDeptRowTypeIcon",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDDeptRowTypeIconJoin: Binding = Binding {
+        id: "site_Career_RnDDeptRowTypeIconJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDDeptRowTypeLabel: Binding = Binding {
+        id: "site_Career_RnDDeptRowTypeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDDeptRowTypeLabelJoin: Binding = Binding {
+        id: "site_Career_RnDDeptRowTypeLabelJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDInProgressColourStore: Binding = Binding {
+        id: "site_Career_RnDInProgressColourStore",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDInProgressPartIcon: Binding = Binding {
+        id: "site_Career_RnDInProgressPartIcon",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDInProgressStrip: Binding = Binding {
+        id: "site_Career_RnDInProgressStrip",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDInProgressTypeIcon: Binding = Binding {
+        id: "site_Career_RnDInProgressTypeIcon",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDInProgressTypeIconJoin: Binding = Binding {
+        id: "site_Career_RnDInProgressTypeIconJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDInProgressTypeLabel: Binding = Binding {
+        id: "site_Career_RnDInProgressTypeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDInProgressTypeLabelJoin: Binding = Binding {
+        id: "site_Career_RnDInProgressTypeLabelJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDListRowColourStore: Binding = Binding {
+        id: "site_Career_RnDListRowColourStore",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDListRowDeptIcon: Binding = Binding {
+        id: "site_Career_RnDListRowDeptIcon",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDListRowLightColourStore: Binding = Binding {
+        id: "site_Career_RnDListRowLightColourStore",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPageModifierList: Binding = Binding {
+        id: "site_Career_RnDPageModifierList",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPanelModifierList: Binding = Binding {
+        id: "site_Career_RnDPanelModifierList",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPanelResearchLimit: Binding = Binding {
+        id: "site_Career_RnDPanelResearchLimit",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPerfChildName: Binding = Binding {
+        id: "site_Career_RnDPerfChildName",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPerfDeptColour: Binding = Binding {
+        id: "site_Career_RnDPerfDeptColour",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPerfDeptLoopEnd: Binding = Binding {
+        id: "site_Career_RnDPerfDeptLoopEnd",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPerfDeptName: Binding = Binding {
+        id: "site_Career_RnDPerfDeptName",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPerfGotoName: Binding = Binding {
+        id: "site_Career_RnDPerfGotoName",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPerfViewModelSlotDtor: Binding = Binding {
+        id: "site_Career_RnDPerfViewModelSlotDtor",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPerksTitleDeptIcon: Binding = Binding {
+        id: "site_Career_RnDPerksTitleDeptIcon",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPieBufSize: Binding = Binding {
+        id: "site_Career_RnDPieBufSize",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPieCtorRet: Binding = Binding {
+        id: "site_Career_RnDPieCtorRet",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPieFocusJoin: Binding = Binding {
+        id: "site_Career_RnDPieFocusJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPieFocusNameCmp: Binding = Binding {
+        id: "site_Career_RnDPieFocusNameCmp",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPieFocusRestore: Binding = Binding {
+        id: "site_Career_RnDPieFocusRestore",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPieMoveAssignSlotDtor: Binding = Binding {
+        id: "site_Career_RnDPieMoveAssignSlotDtor",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPieMovedFromSlotDtor: Binding = Binding {
+        id: "site_Career_RnDPieMovedFromSlotDtor",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPiePopulateDeptGuard: Binding = Binding {
+        id: "site_Career_RnDPiePopulateDeptGuard",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPiePopulateGate: Binding = Binding {
+        id: "site_Career_RnDPiePopulateGate",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPiePopulateNextCode: Binding = Binding {
+        id: "site_Career_RnDPiePopulateNextCode",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPiePopulateSlotCap: Binding = Binding {
+        id: "site_Career_RnDPiePopulateSlotCap",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPieSliceDefaultColour: Binding = Binding {
+        id: "site_Career_RnDPieSliceDefaultColour",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPieSliceDescFormat: Binding = Binding {
+        id: "site_Career_RnDPieSliceDescFormat",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPieSliceIconArgs: Binding = Binding {
+        id: "site_Career_RnDPieSliceIconArgs",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPieSliceNameJoin: Binding = Binding {
+        id: "site_Career_RnDPieSliceNameJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPieTeardownSlotDtor: Binding = Binding {
+        id: "site_Career_RnDPieTeardownSlotDtor",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPopupCategoryIcon: Binding = Binding {
+        id: "site_Career_RnDPopupCategoryIcon",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPopupColourStore: Binding = Binding {
+        id: "site_Career_RnDPopupColourStore",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPotentialPieEntry: Binding = Binding {
+        id: "site_Career_RnDPotentialPieEntry",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPurchaseBackOpen: Binding = Binding {
+        id: "site_Career_RnDPurchaseBackOpen",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPurchaseOptionsEntry: Binding = Binding {
+        id: "site_Career_RnDPurchaseOptionsEntry",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPurchasePanelTypeLabel: Binding = Binding {
+        id: "site_Career_RnDPurchasePanelTypeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPurchasePanelTypeLabelJoin: Binding = Binding {
+        id: "site_Career_RnDPurchasePanelTypeLabelJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPurchaseRequestEntry: Binding = Binding {
+        id: "site_Career_RnDPurchaseRequestEntry",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPurchaseScreenTypeLabel: Binding = Binding {
+        id: "site_Career_RnDPurchaseScreenTypeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDPurchaseScreenTypeLabelJoin: Binding = Binding {
+        id: "site_Career_RnDPurchaseScreenTypeLabelJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDResearchFocusNameCmp: Binding = Binding {
+        id: "site_Career_RnDResearchFocusNameCmp",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDResearchRowCategoryIcon: Binding = Binding {
+        id: "site_Career_RnDResearchRowCategoryIcon",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDResearchRowTypeIcon: Binding = Binding {
+        id: "site_Career_RnDResearchRowTypeIcon",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDResearchRowTypeIconJoin: Binding = Binding {
+        id: "site_Career_RnDResearchRowTypeIconJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDResearchRowTypeLabel: Binding = Binding {
+        id: "site_Career_RnDResearchRowTypeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDResearchRowTypeLabelJoin: Binding = Binding {
+        id: "site_Career_RnDResearchRowTypeLabelJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDResearchTypeLoop: Binding = Binding {
+        id: "site_Career_RnDResearchTypeLoop",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDResultTypeIcon: Binding = Binding {
+        id: "site_Career_RnDResultTypeIcon",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDResultTypeIconJoin: Binding = Binding {
+        id: "site_Career_RnDResultTypeIconJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDResultTypeLabel: Binding = Binding {
+        id: "site_Career_RnDResultTypeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDResultTypeLabelJoin: Binding = Binding {
+        id: "site_Career_RnDResultTypeLabelJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDTileCountBody: Binding = Binding {
+        id: "site_Career_RnDTileCountBody",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDTileCountExit: Binding = Binding {
+        id: "site_Career_RnDTileCountExit",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDTileCountGuards: Binding = Binding {
+        id: "site_Career_RnDTileCountGuards",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDTileCountIndexGuard: Binding = Binding {
+        id: "site_Career_RnDTileCountIndexGuard",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDTodoTypeLabel: Binding = Binding {
+        id: "site_Career_RnDTodoTypeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDTodoTypeLabelJoin: Binding = Binding {
+        id: "site_Career_RnDTodoTypeLabelJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDTreeRowCountProbe: Binding = Binding {
+        id: "site_Career_RnDTreeRowCountProbe",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDUpgradeInfoTypeLabel: Binding = Binding {
+        id: "site_Career_RnDUpgradeInfoTypeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDUpgradeInfoTypeLabelJoin: Binding = Binding {
+        id: "site_Career_RnDUpgradeInfoTypeLabelJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_RnDUpgradeListDeptIcon: Binding = Binding {
+        id: "site_Career_RnDUpgradeListDeptIcon",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_TeamDeptEnumStore: Binding = Binding {
+        id: "site_Career_TeamDeptEnumStore",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_TeamHqRnDPopupTypeIcon: Binding = Binding {
+        id: "site_Career_TeamHqRnDPopupTypeIcon",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_TeamHqRnDPopupTypeIconJoin: Binding = Binding {
+        id: "site_Career_TeamHqRnDPopupTypeIconJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_TeleFailedTypeName: Binding = Binding {
+        id: "site_Career_TeleFailedTypeName",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_TeleFailedTypeNameJoin: Binding = Binding {
+        id: "site_Career_TeleFailedTypeNameJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_TeleRecordTypeName: Binding = Binding {
+        id: "site_Career_TeleRecordTypeName",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_TeleRecordTypeNameCall: Binding = Binding {
+        id: "site_Career_TeleRecordTypeNameCall",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Career_TeleResearchTypeName: Binding = Binding {
+        id: "site_Career_TeleResearchTypeName",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_TeleResearchTypeNameCall: Binding = Binding {
+        id: "site_Career_TeleResearchTypeNameCall",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Career_Unk141814320TypeLabel: Binding = Binding {
+        id: "site_Career_Unk141814320TypeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_Unk141814320TypeLabelJoin: Binding = Binding {
+        id: "site_Career_Unk141814320TypeLabelJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_Unk1418169f0TypeLabel: Binding = Binding {
+        id: "site_Career_Unk1418169f0TypeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_Unk1418169f0TypeLabelJoin: Binding = Binding {
+        id: "site_Career_Unk1418169f0TypeLabelJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeAutoFitBody: Binding = Binding {
+        id: "site_Career_UpgradeAutoFitBody",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeAutoFitDeptGate: Binding = Binding {
+        id: "site_Career_UpgradeAutoFitDeptGate",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeBlockReplayEntry: Binding = Binding {
+        id: "site_Career_UpgradeBlockReplayEntry",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeCardDeptIcon: Binding = Binding {
+        id: "site_Career_UpgradeCardDeptIcon",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeCardTypeLabel: Binding = Binding {
+        id: "site_Career_UpgradeCardTypeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeCardTypeLabelJoin: Binding = Binding {
+        id: "site_Career_UpgradeCardTypeLabelJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeGraphHubTest: Binding = Binding {
+        id: "site_Career_UpgradeGraphHubTest",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeGraphRegularNode: Binding = Binding {
+        id: "site_Career_UpgradeGraphRegularNode",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeInitFakeDeptBranch: Binding = Binding {
+        id: "site_Career_UpgradeInitFakeDeptBranch",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeInitNormal: Binding = Binding {
+        id: "site_Career_UpgradeInitNormal",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeMetaTypeJoin: Binding = Binding {
+        id: "site_Career_UpgradeMetaTypeJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradePushStateBody: Binding = Binding {
+        id: "site_Career_UpgradePushStateBody",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradePushStateDeptGate: Binding = Binding {
+        id: "site_Career_UpgradePushStateDeptGate",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeRowTypeJoin: Binding = Binding {
+        id: "site_Career_UpgradeRowTypeJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeSetEnabledBody: Binding = Binding {
+        id: "site_Career_UpgradeSetEnabledBody",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeSetEnabledDeptGate: Binding = Binding {
+        id: "site_Career_UpgradeSetEnabledDeptGate",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeSetFittedBody: Binding = Binding {
+        id: "site_Career_UpgradeSetFittedBody",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeSetFittedDeptGate: Binding = Binding {
+        id: "site_Career_UpgradeSetFittedDeptGate",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeSetLockedBody: Binding = Binding {
+        id: "site_Career_UpgradeSetLockedBody",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_UpgradeSetLockedDeptGate: Binding = Binding {
+        id: "site_Career_UpgradeSetLockedDeptGate",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_VehicleFillOrderEnd: Binding = Binding {
+        id: "site_Career_VehicleFillOrderEnd",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_VehicleFillOrderStart: Binding = Binding {
+        id: "site_Career_VehicleFillOrderStart",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_WeekendObjectiveNext: Binding = Binding {
+        id: "site_Career_WeekendObjectiveNext",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Career_WeekendObjectiveType: Binding = Binding {
+        id: "site_Career_WeekendObjectiveType",
+        kind: "site",
+        status: Status::Experimental,
+    };
     pub const site_FeHome_AfterCareerCall: Binding = Binding {
         id: "site_FeHome_AfterCareerCall",
         kind: "site",
         status: Status::Stable,
+    };
+    pub const site_Gdb_DeptCountStore: Binding = Binding {
+        id: "site_Gdb_DeptCountStore",
+        kind: "site",
+        status: Status::Experimental,
     };
     pub const site_Ne_Format_String_Entry: Binding = Binding {
         id: "site_Ne_Format_String_Entry",
@@ -304,6 +1111,11 @@ pub mod bindings {
     pub const site_Sess_AiVehicleRegisterCall: Binding = Binding {
         id: "site_Sess_AiVehicleRegisterCall",
         kind: "call",
+        status: Status::Experimental,
+    };
+    pub const vt_Career_RnDDeptCard: Binding = Binding {
+        id: "vt_Career_RnDDeptCard",
+        kind: "vtable",
         status: Status::Experimental,
     };
 }
