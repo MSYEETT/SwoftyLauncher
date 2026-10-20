@@ -12,6 +12,7 @@ Once the launcher has found F1 25, you do everything from one window. This secti
 - The **sidebar** on the left opens **Profiles**, **Addons** and the pages that addons add, such as **Mods**. You can see which profile is active at the bottom, under **ACTIVE PROFILE**.
 - **Play** sits in the bottom-right. Its status line reads **Ready** when the launcher has found the game. The arrow next to it has **Play in VR** and **Play with console**.
 - Drop a file or folder anywhere on the window to install it. Anything with a `swofty.json` goes to **Addons**; mods and tracks go to **Mods**.
+- **Send Logs to Developers**, at the bottom of the sidebar, sends your logs to the developers when something goes wrong.
 
 ## Everyday tasks
 
@@ -35,4 +36,5 @@ Once the launcher has found F1 25, you do everything from one window. This secti
 | [Playing in VR](/using/vr) | **Play in VR**, SteamVR and `swofty run --vr` |
 | [Restoring the game](/using/profiles-and-restoring) | When the game folder rolls back on its own, and `swofty restore` for the rest |
 | [Updating](/using/updating) | Updating the launcher, Simplified for Swofty, addons and mods |
+| [Sending your logs](/using/send-logs) | **Send Logs to Developers**, what it sends and `swofty logs send` |
 | [Uninstalling](/guide/uninstall) | Removing the launcher and its changes |

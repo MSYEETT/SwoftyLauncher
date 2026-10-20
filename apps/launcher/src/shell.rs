@@ -974,9 +974,11 @@ impl Shell {
                     .child(wrap(items))
             }))
             .child(div().flex_1())
+            .child(self.send_logs_button(p, cx))
             .child(
                 v_flex()
                     .gap(px(6.))
+                    .pt(px(4.))
                     .pb(px(2.))
                     .child(label("ACTIVE PROFILE", p).px(px(4.)))
                     .child(self.profile_picker(p, cx)),

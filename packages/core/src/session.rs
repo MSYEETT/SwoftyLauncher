@@ -87,6 +87,8 @@ pub struct Config {
     pub bundled: BTreeMap<String, String>,
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub vr_profiles: BTreeSet<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discord_username: Option<String>,
 }
 
 impl Config {

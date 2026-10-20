@@ -1,0 +1,82 @@
+use std::path::PathBuf;
+use std::process::ExitCode;
+
+use anyhow::{Context, Result, anyhow, bail};
+use clap::Args;
+use swofty_core::send_logs::{self, Bundle, GameInfo, PART_LIMIT, Report, Stage};
+use swofty_core::store::Store;
+
+#[derive(Args, Debug)]
+pub struct SendArgs {
+    #[arg(
+        long,
+        value_name = "USERNAME",
+        help = "Your Discord username, so the developers can reply (default: the last one used)"
+    )]
+    pub name: Option<String>,
+    #[arg(long, value_name = "TEXT", help = "What went wrong, up to 1000 characters")]
+    pub message: Option<String>,
+    #[arg(
+        long,
+        value_name = "ZIP",
+        num_args = 0..=1,
+        help = "Write the zip here (a file or a folder; default: the current folder) and list what it holds, without sending"
+    )]
+    pub dry_run: Option<Option<PathBuf>>,
+}
+
+pub fn send(store: &Store, args: SendArgs) -> Result<ExitCode> {
+    let remembered = store.config().discord_username;
+    let raw = args
+        .name
+        .or(remembered)
+        .context("pass --name <your Discord username> so the developers can reply")?;
+    let name = send_logs::check_name(&raw).map_err(|e| anyhow!(e))?;
+    let message =
+        send_logs::check_message(args.message.as_deref().unwrap_or_default()).map_err(|e| anyhow!(e))?;
+    if args.dry_run.is_none() && !send_logs::available() {
+        bail!("{}", send_logs::UNAVAILABLE);
+    }
+    eprintln!("swofty: {}", Stage::Collecting);
+    let report = Report {
+        name: name.clone(),
+        message,
+        game: GameInfo::detect(store),
+    };
+    let bundle = Bundle::collect(store, &report);
+    if let Some(out) = args.dry_run {
+        return dry_run(&bundle, out);
+    }
+    send_logs::send(&bundle, &|stage| eprintln!("swofty: {stage}")).map_err(|e| anyhow!(e))?;
+    let mut config = store.config();
+    if config.discord_username.as_deref() != Some(name.as_str()) {
+        config.discord_username = Some(name);
+        store.save_config(&config)?;
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn dry_run(bundle: &Bundle, out: Option<PathBuf>) -> Result<ExitCode> {
+    let out = match out {
+        Some(p) if p.is_dir() => p.join(bundle.file_name()),
+        Some(p) => p,
+        None => PathBuf::from(bundle.file_name()),
+    };
+    let zip = bundle.zip()?;
+    std::fs::write(&out, &zip).with_context(|| format!("writing {}", out.display()))?;
+    println!("{} ({})", out.display(), send_logs::size(zip.len() as u64));
+    for line in bundle.listing() {
+        println!("  {line}");
+    }
+    for s in &bundle.skipped {
+        println!("  left out: {s}");
+    }
+    let parts = bundle.parts(PART_LIMIT)?.len();
+    if parts > 1 {
+        println!("Sending it would take {parts} messages.");
+    }
+    if !send_logs::available() {
+        println!("{}.", send_logs::UNAVAILABLE);
+    }
+    Ok(ExitCode::SUCCESS)
+}

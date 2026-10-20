@@ -1,0 +1,666 @@
+use std::collections::BTreeSet;
+use std::io::{Read, Write};
+use std::net::TcpListener;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+use super::webhook::{SendError, Stage, multipart, payload};
+use super::*;
+
+fn tmp(name: &str) -> PathBuf {
+    let d = std::env::temp_dir().join(format!("swofty-sendlogs-{name}-{}", std::process::id()));
+    std::fs::remove_dir_all(&d).ok();
+    std::fs::create_dir_all(&d).unwrap();
+    d
+}
+
+fn put(path: &Path, data: impl AsRef<[u8]>) {
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(path, data).unwrap();
+}
+
+fn noise(len: usize, seed: u64) -> Vec<u8> {
+    let mut x = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
+    (0..len)
+        .map(|_| {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            (x >> 24) as u8
+        })
+        .collect()
+}
+
+fn fake_data(root: &Path) -> (Store, PathBuf) {
+    let data = root.join("data");
+    put(&data.join("state/launcher-run.log"), "launcher line\n");
+    put(&data.join("state/wrapper-run.log"), "wrapper line\n");
+    put(&data.join("state/offline.log"), "offline line\n");
+    put(&data.join("state/placed.json"), "{}");
+    put(&data.join("state/journal/1.json"), "{}");
+    for (i, s) in [
+        "20261017-090000",
+        "20261018-090000",
+        "20261019-090000",
+        "20261020-090000",
+    ]
+    .iter()
+    .enumerate()
+    {
+        let dir = data.join("sessions").join(s);
+        put(&dir.join("loader.log"), format!("loader {i}\n"));
+        put(&dir.join("exit_code"), "0\n");
+        put(&dir.join("steam_command.txt"), "steam -applaunch 3059520\n");
+        put(
+            &dir.join("env.txt"),
+            "HOME=/home/player\nDISCORD_TOKEN=abc123\nOPENAI_API_KEY=sk-live\nPATH=/usr/bin\n",
+        );
+        put(&dir.join("game-logs/loader.prev.log"), "previous\n");
+    }
+    put(&data.join("sessions/orphaned-logs/loader.log"), "orphan\n");
+    put(&data.join("sessions/latest.txt"), "x");
+    put(&data.join("cache/addons/t.helper/helper.log"), "helper says hi\n");
+    put(
+        &data.join("cache/addons/t.quiet/other.txt"),
+        "no helper log here\n",
+    );
+    put(
+        &data.join("addons/t.helper/swofty.json"),
+        r#"{"schema_version":1,"id":"t.helper","name":"Helper","version":"1.2.3","author":"t","compat":{"game":"f1_25"}}"#,
+    );
+    put(
+        &data.join("profiles/default.json"),
+        r#"{"schema_version":1,"name":"default","addons":[{"id":"t.helper","enabled":false}]}"#,
+    );
+    put(
+        &data.join("config.json"),
+        r#"{"active_profile":"default","launch":{"env":{"STEAM_API_KEY":"k-123","DXVK_HUD":"1"},"winedebug":"-all"},
+            "updates":{"check":true,"github_token":"ghp_secret"},"password":"hunter2","discord_username":"swofty"}"#,
+    );
+    let game = root.join("game");
+    put(&game.join(SNAPSHOT), r#"{"status":{"career":true}}"#);
+    (Store::new(&data), game)
+}
+
+fn report(game: &Path) -> Report {
+    Report {
+        name: "swofty".into(),
+        message: "It crashed on the grid".into(),
+        game: GameInfo {
+            dir: Some(game.to_path_buf()),
+            build_id: Some(20_553_335),
+            version: Some("1.17.0".into()),
+        },
+    }
+}
+
+fn names(zip: &[u8]) -> BTreeSet<String> {
+    let mut z = zip::ZipArchive::new(std::io::Cursor::new(zip)).unwrap();
+    (0..z.len())
+        .map(|i| z.by_index(i).unwrap().name().unwrap().into_owned())
+        .collect()
+}
+
+fn entry(zip: &[u8], name: &str) -> String {
+    let mut z = zip::ZipArchive::new(std::io::Cursor::new(zip)).unwrap();
+    let mut s = String::new();
+    z.by_name(name).unwrap().read_to_string(&mut s).unwrap();
+    s
+}
+
+#[test]
+fn collects_the_logs_the_developers_need() {
+    let root = tmp("collect");
+    let (store, game) = fake_data(&root);
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261020-101010");
+    assert_eq!(bundle.file_name(), "swofty-logs-swofty-20261020-101010.zip");
+    let zip = bundle.zip().unwrap();
+    let mut want: BTreeSet<String> = [
+        "summary.txt",
+        "config.json",
+        "addons.json",
+        "addons/t.helper/helper.log",
+        "game/career-editor/snapshot.json",
+        "state/launcher-run.log",
+        "state/wrapper-run.log",
+        "state/offline.log",
+    ]
+    .map(String::from)
+    .into();
+    for s in ["20261018-090000", "20261019-090000", "20261020-090000"] {
+        for f in [
+            "env.txt",
+            "exit_code",
+            "game-logs/loader.prev.log",
+            "loader.log",
+            "steam_command.txt",
+        ] {
+            want.insert(format!("sessions/{s}/{f}"));
+        }
+    }
+    assert_eq!(names(&zip), want);
+    let addons: Value = serde_json::from_str(&entry(&zip, "addons.json")).unwrap();
+    let helper = addons["installed"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "t.helper")
+        .unwrap();
+    assert_eq!(helper["version"], "1.2.3");
+    let default = addons["profiles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["name"] == "default")
+        .unwrap();
+    assert_eq!(default["active"], true);
+    assert!(
+        default["addons"]
+            .as_array()
+            .unwrap()
+            .contains(&json!({"id": "t.helper", "enabled": false}))
+    );
+    let summary = entry(&zip, "summary.txt");
+    for want in [
+        "swofty",
+        "2026-10-20 10:10:10 UTC",
+        "It crashed on the grid",
+        "1.17.0 (Steam build 20553335)",
+        "state/launcher-run.log",
+    ] {
+        assert!(summary.contains(want), "{want} missing from:\n{summary}");
+    }
+    assert!(
+        bundle
+            .listing()
+            .iter()
+            .any(|l| l.starts_with("sessions/20261020-090000/env.txt"))
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn redacts_secrets_from_config_and_environment() {
+    let root = tmp("redact");
+    let (store, game) = fake_data(&root);
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261020-101010");
+    let zip = bundle.zip().unwrap();
+    let config = entry(&zip, "config.json");
+    for secret in ["k-123", "ghp_secret", "hunter2"] {
+        assert!(!config.contains(secret), "{secret} leaked:\n{config}");
+    }
+    let v: Value = serde_json::from_str(&config).unwrap();
+    assert_eq!(v["launch"]["env"]["STEAM_API_KEY"], "[redacted]");
+    assert_eq!(v["launch"]["env"]["DXVK_HUD"], "1");
+    assert_eq!(v["updates"]["github_token"], "[redacted]");
+    assert_eq!(v["updates"]["check"], true);
+    assert_eq!(v["active_profile"], "default");
+    let env = entry(&zip, "sessions/20261020-090000/env.txt");
+    assert_eq!(
+        env,
+        "HOME=/home/player\nDISCORD_TOKEN=[redacted]\nOPENAI_API_KEY=[redacted]\nPATH=/usr/bin\n"
+    );
+    let notes: Vec<_> = bundle
+        .entries
+        .iter()
+        .filter(|e| e.path == "config.json")
+        .collect();
+    assert_eq!(notes[0].note.as_deref(), Some("secrets redacted"));
+    put(&store.config_path(), "{ not json");
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "x");
+    let config = String::from_utf8(
+        bundle
+            .entries
+            .iter()
+            .find(|e| e.path == "config.json")
+            .unwrap()
+            .data
+            .clone(),
+    )
+    .unwrap();
+    assert!(config.starts_with("config.json is not valid JSON"));
+    assert!(!config.contains("not json"));
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn secret_names_and_webhook_values() {
+    for n in [
+        "token",
+        "API_KEY",
+        "github_token",
+        "Password",
+        "client_secret",
+        "AUTH",
+        "oauth_code",
+        "SWOFTY_LOG_WEBHOOK",
+    ] {
+        assert!(secret_name(n), "{n}");
+    }
+    for n in [
+        "HOME",
+        "PATH",
+        "author",
+        "active_profile",
+        "winedebug",
+        "PWD",
+        "DXVK_HUD",
+    ] {
+        assert!(!secret_name(n), "{n}");
+    }
+    assert_eq!(
+        redact_env("X=https://discord.com/api/webhooks/1/abc\r\nY=1\n"),
+        "X=[redacted]\r\nY=1\n"
+    );
+}
+
+#[test]
+fn caps_big_files_and_the_whole_bundle() {
+    let root = tmp("caps");
+    let (store, game) = fake_data(&root);
+    let lines: String = (0..400)
+        .map(|i| format!("line {i:04} of the launcher log\n"))
+        .collect();
+    put(&store.root.join("state/launcher-run.log"), &lines);
+    let limits = Limits {
+        file: 1024,
+        total: 1 << 20,
+    };
+    let bundle = Bundle::collect_with(&store, &report(&game), limits, "x");
+    let log = bundle
+        .entries
+        .iter()
+        .find(|e| e.path == "state/launcher-run.log")
+        .unwrap();
+    let text = String::from_utf8(log.data.clone()).unwrap();
+    assert!(text.starts_with("[swofty: kept the last 1.0 KB of "), "{text}");
+    assert!(text.ends_with("line 0399 of the launcher log\n"));
+    assert!(text.lines().nth(1).unwrap().starts_with("line "));
+    assert!(log.data.len() <= 1024 + 64);
+    assert!(log.note.as_deref().unwrap().starts_with("last 1.0 KB of"));
+
+    let limits = Limits {
+        file: 1024,
+        total: 2048,
+    };
+    let bundle = Bundle::collect_with(&store, &report(&game), limits, "x");
+    let used: usize = bundle.entries.iter().skip(1).map(|e| e.data.len()).sum();
+    assert!(used <= 2048 + 64, "{used}");
+    assert!(!bundle.skipped.is_empty());
+    assert!(
+        bundle
+            .skipped
+            .iter()
+            .any(|s| s.contains("reached its 2.0 KB limit")),
+        "{:?}",
+        bundle.skipped
+    );
+    let summary = String::from_utf8(bundle.entries[0].data.clone()).unwrap();
+    assert!(summary.contains("Left out"));
+    std::fs::remove_dir_all(&root).ok();
+}
+
+fn noisy_bundle(sizes: &[usize]) -> Bundle {
+    Bundle {
+        stem: "swofty-logs-t-20261020-101010".into(),
+        name: "t".into(),
+        message: "help".into(),
+        launcher: "1.0.12".into(),
+        os: "Linux".into(),
+        game: "1.17.0".into(),
+        entries: sizes
+            .iter()
+            .enumerate()
+            .map(|(i, &n)| Entry {
+                path: format!("f{i}.bin"),
+                data: noise(n, i as u64 + 1),
+                note: None,
+            })
+            .collect(),
+        skipped: Vec::new(),
+    }
+}
+
+#[test]
+fn splits_a_big_bundle_into_standalone_zips() {
+    let bundle = noisy_bundle(&[600 << 10, 600 << 10, 600 << 10, 100 << 10]);
+    let one = bundle.parts(8 << 20).unwrap();
+    assert_eq!(one.len(), 1);
+    assert_eq!(one[0].file_name, "swofty-logs-t-20261020-101010.zip");
+    let parts = bundle.parts(1 << 20).unwrap();
+    assert!(parts.len() >= 3, "{}", parts.len());
+    let mut seen = BTreeSet::new();
+    for (i, p) in parts.iter().enumerate() {
+        assert!(p.data.len() <= 1 << 20, "part {} is {}", p.index, p.data.len());
+        assert_eq!((p.index, p.total), (i + 1, parts.len()));
+        assert_eq!(
+            p.file_name,
+            format!("swofty-logs-t-20261020-101010-part{}.zip", i + 1)
+        );
+        seen.extend(names(&p.data));
+    }
+    assert_eq!(seen, (0..4).map(|i| format!("f{i}.bin")).collect());
+}
+
+#[derive(Debug, Clone)]
+struct Got {
+    head: String,
+    body: Vec<u8>,
+}
+
+impl Got {
+    fn header(&self, name: &str) -> Option<String> {
+        self.head.lines().find_map(|l| {
+            let (k, v) = l.split_once(':')?;
+            k.eq_ignore_ascii_case(name).then(|| v.trim().to_owned())
+        })
+    }
+
+    fn parts(&self) -> Vec<(String, Vec<u8>)> {
+        let ct = self.header("content-type").unwrap();
+        let boundary = format!("--{}", ct.split_once("boundary=").unwrap().1);
+        let mut out = Vec::new();
+        let b = boundary.as_bytes();
+        let mut starts: Vec<usize> = self
+            .body
+            .windows(b.len())
+            .enumerate()
+            .filter(|(_, w)| *w == b)
+            .map(|(i, _)| i)
+            .collect();
+        starts.push(self.body.len());
+        for pair in starts.windows(2) {
+            let chunk = &self.body[pair[0] + b.len()..pair[1]];
+            if chunk.starts_with(b"--") {
+                break;
+            }
+            let chunk = &chunk[2..chunk.len() - 2];
+            let split = chunk.windows(4).position(|w| w == b"\r\n\r\n").unwrap();
+            out.push((
+                String::from_utf8_lossy(&chunk[..split]).into_owned(),
+                chunk[split + 4..].to_vec(),
+            ));
+        }
+        out
+    }
+}
+
+type Responder = Box<dyn Fn(usize, &Got) -> (u16, String) + Send>;
+
+fn serve(expect: usize, respond: Responder) -> (String, std::thread::JoinHandle<Vec<Got>>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    listener.set_nonblocking(true).unwrap();
+    let handle = std::thread::spawn(move || {
+        let mut got = Vec::new();
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while got.len() < expect && Instant::now() < deadline {
+            let Ok((mut stream, _)) = listener.accept() else {
+                std::thread::sleep(Duration::from_millis(5));
+                continue;
+            };
+            stream.set_nonblocking(false).unwrap();
+            stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+            let mut buf = Vec::new();
+            let mut chunk = [0u8; 64 << 10];
+            let head_end = loop {
+                if let Some(i) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                    break i;
+                }
+                let n = stream.read(&mut chunk).unwrap();
+                assert!(n > 0, "client closed early");
+                buf.extend_from_slice(&chunk[..n]);
+            };
+            let head = String::from_utf8_lossy(&buf[..head_end]).into_owned();
+            let mut req = Got {
+                head,
+                body: Vec::new(),
+            };
+            let len: usize = req.header("content-length").unwrap().parse().unwrap();
+            let mut body = buf[head_end + 4..].to_vec();
+            while body.len() < len {
+                let n = stream.read(&mut chunk).unwrap();
+                assert!(n > 0, "client closed early");
+                body.extend_from_slice(&chunk[..n]);
+            }
+            req.body = body;
+            let (code, reply) = respond(got.len(), &req);
+            write!(
+                stream,
+                "HTTP/1.1 {code} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}",
+                reply.len()
+            )
+            .unwrap();
+            stream.flush().unwrap();
+            got.push(req);
+        }
+        got
+    });
+    (
+        format!("http://127.0.0.1:{port}/api/webhooks/987654321098/TOKENtokenTOKEN"),
+        handle,
+    )
+}
+
+fn collect_stages() -> (Arc<Mutex<Vec<Stage>>>, impl Fn(Stage)) {
+    let stages = Arc::new(Mutex::new(Vec::new()));
+    let sink = stages.clone();
+    (stages, move |s| sink.lock().unwrap().push(s))
+}
+
+#[test]
+fn posts_multipart_with_payload_json_and_the_zip() {
+    let root = tmp("multipart");
+    let (store, game) = fake_data(&root);
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261020-101010");
+    let (url, server) = serve(1, Box::new(|_, _| (204, String::new())));
+    let hook = Webhook::new(Some(&url)).unwrap();
+    let (stages, progress) = collect_stages();
+    assert_eq!(hook.send(&bundle, &progress), Ok(1));
+    let got = server.join().unwrap();
+    assert_eq!(got.len(), 1);
+    assert!(
+        got[0]
+            .head
+            .starts_with("POST /api/webhooks/987654321098/TOKENtokenTOKEN HTTP/1.1")
+    );
+    assert!(
+        got[0]
+            .header("content-type")
+            .unwrap()
+            .starts_with("multipart/form-data; boundary=")
+    );
+    let parts = got[0].parts();
+    assert_eq!(parts.len(), 2);
+    assert!(parts[0].0.contains("name=\"payload_json\""));
+    assert!(parts[0].0.contains("Content-Type: application/json"));
+    let payload: Value = serde_json::from_slice(&parts[0].1).unwrap();
+    let content = payload["content"].as_str().unwrap();
+    assert!(
+        content.starts_with("**Logs from `swofty`**\nLauncher "),
+        "{content}"
+    );
+    assert!(content.contains("F1 25 1.17.0 (Steam build 20553335)"));
+    assert!(content.ends_with(">>> It crashed on the grid"));
+    assert!(!content.contains("part"));
+    assert_eq!(payload["allowed_mentions"], json!({"parse": []}));
+    assert_eq!(
+        payload["attachments"][0]["filename"],
+        "swofty-logs-swofty-20261020-101010.zip"
+    );
+    assert!(
+        parts[1]
+            .0
+            .contains("name=\"files[0]\"; filename=\"swofty-logs-swofty-20261020-101010.zip\"")
+    );
+    assert!(parts[1].0.contains("Content-Type: application/zip"));
+    assert_eq!(parts[1].1, bundle.zip().unwrap());
+    assert!(names(&parts[1].1).contains("summary.txt"));
+    let stages = stages.lock().unwrap();
+    assert_eq!(stages.last(), Some(&Stage::Sent { parts: 1 }));
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn sends_parts_and_waits_out_rate_limits() {
+    let bundle = noisy_bundle(&[700 << 10, 700 << 10, 700 << 10]);
+    let (url, server) = serve(
+        4,
+        Box::new(|i, _| match i {
+            1 => (
+                429,
+                r#"{"message":"You are being rate limited.","retry_after":0.05,"global":false}"#.into(),
+            ),
+            _ => (200, "{}".into()),
+        }),
+    );
+    let hook = Webhook::new(Some(&url)).unwrap();
+    let (stages, progress) = collect_stages();
+    let sent = hook.send_with(&bundle, 1 << 20, Duration::from_secs(30), &progress);
+    assert_eq!(sent, Ok(3));
+    let got = server.join().unwrap();
+    assert_eq!(got.len(), 4);
+    let labels: Vec<String> = got
+        .iter()
+        .map(|g| {
+            let p: Value = serde_json::from_slice(&g.parts()[0].1).unwrap();
+            p["content"].as_str().unwrap().lines().next().unwrap().to_owned()
+        })
+        .collect();
+    assert_eq!(
+        labels,
+        [
+            "**Logs from `t`** · part 1/3",
+            "**Logs from `t`** · part 2/3",
+            "**Logs from `t`** · part 2/3",
+            "**Logs from `t`** · part 3/3",
+        ]
+    );
+    for g in &got {
+        assert!(g.body.len() < (1 << 20) + 4096);
+    }
+    assert!(stages.lock().unwrap().contains(&Stage::Waiting { secs: 1 }));
+}
+
+#[test]
+fn halves_the_part_size_when_discord_says_too_big() {
+    let bundle = noisy_bundle(&[700 << 10, 700 << 10]);
+    let (url, server) = serve(
+        4,
+        Box::new(|_, g| {
+            if g.body.len() > 1_100_000 {
+                (
+                    413,
+                    r#"{"message":"Request entity too large","code":40005}"#.into(),
+                )
+            } else {
+                (204, String::new())
+            }
+        }),
+    );
+    let hook = Webhook::new(Some(&url)).unwrap();
+    let (_, progress) = collect_stages();
+    assert_eq!(
+        hook.send_with(&bundle, 4 << 20, Duration::from_secs(30), &progress),
+        Ok(2)
+    );
+    let got = server.join().unwrap();
+    assert_eq!(got.len(), 4);
+    assert!(got[0].body.len() > 1_100_000 && got[1].body.len() > 1_100_000);
+
+    let (url, server) = serve(1, Box::new(|_, _| (413, String::new())));
+    let hook = Webhook::new(Some(&url)).unwrap();
+    assert_eq!(
+        hook.send_with(&bundle, 1 << 20, Duration::from_secs(30), &progress),
+        Err(SendError::TooBig)
+    );
+    server.join().unwrap();
+}
+
+#[test]
+fn never_shows_the_webhook_url_in_errors() {
+    let url = "http://127.0.0.1:1/api/webhooks/123456789012345/SuperSecretToken_abcdef";
+    let hook = Webhook::new(Some(url)).unwrap();
+    assert_eq!(format!("{hook:?}"), "Webhook([hidden])");
+    let bundle = noisy_bundle(&[10]);
+    let (_, progress) = collect_stages();
+    let err = hook
+        .send_with(&bundle, 1 << 20, Duration::from_secs(5), &progress)
+        .unwrap_err();
+    let text = err.to_string();
+    assert!(matches!(err, SendError::Unreachable(_)), "{err:?}");
+    assert!(text.starts_with("Couldn't reach Discord"), "{text}");
+    for secret in ["SuperSecretToken", "123456789012345", "/api/webhooks"] {
+        assert!(!text.contains(secret), "{text}");
+    }
+    assert_eq!(
+        hook.redact(&format!(
+            "error sending request for url ({url}): refused; token SuperSecretToken_abcdef"
+        )),
+        "error sending request for url ([webhook]): refused; token [webhook]"
+    );
+
+    let (url, server) = serve(
+        1,
+        Box::new(|_, g| {
+            let path = g.head.split(' ').nth(1).unwrap().to_owned();
+            (
+                404,
+                json!({"message": format!("Unknown Webhook {path}"), "code": 10015}).to_string(),
+            )
+        }),
+    );
+    let hook = Webhook::new(Some(&url)).unwrap();
+    let err = hook
+        .send_with(&bundle, 1 << 20, Duration::from_secs(5), &progress)
+        .unwrap_err();
+    server.join().unwrap();
+    assert_eq!(
+        err.to_string(),
+        "Discord answered HTTP 404: Unknown Webhook /api/webhooks/[webhook]/[webhook]"
+    );
+}
+
+#[test]
+fn disabled_without_a_webhook_at_build_time() {
+    assert!(Webhook::new(None).is_none());
+    assert!(Webhook::new(Some("")).is_none());
+    assert!(Webhook::new(Some("   ")).is_none());
+    assert!(Webhook::new(Some("not a url")).is_none());
+    if option_env!("SWOFTY_LOG_WEBHOOK").is_none() {
+        assert!(!available());
+        let (_, progress) = collect_stages();
+        assert_eq!(send(&noisy_bundle(&[1]), &progress), Err(SendError::Unavailable));
+        assert_eq!(
+            SendError::Unavailable.to_string(),
+            "Sending logs isn't available in this build"
+        );
+    }
+}
+
+#[test]
+fn checks_the_name_and_message() {
+    assert_eq!(check_name("  swofty  "), Ok("swofty".into()));
+    assert!(check_name(" a ").is_err());
+    assert!(check_name("").is_err());
+    assert!(check_name(&"x".repeat(32)).is_ok());
+    assert!(check_name(&"x".repeat(33)).is_err());
+    assert!(check_message(&"m".repeat(1000)).is_ok());
+    assert!(check_message(&"m".repeat(1001)).is_err());
+    assert_eq!(utc_stamp(0), "19700101-000000");
+    assert_eq!(utc_stamp(1_792_467_946), "20261020-034546");
+    let mut b = noisy_bundle(&[1]);
+    b.name = "we`ird @everyone".into();
+    b.message = "m".repeat(1000);
+    let part = &b.parts(1 << 20).unwrap()[0];
+    let p: Value = serde_json::from_str(&payload(&b, part)).unwrap();
+    let content = p["content"].as_str().unwrap();
+    assert!(content.chars().count() <= 2000);
+    assert!(content.starts_with("**Logs from `weird @everyone`**"));
+    assert!(content.ends_with(&"m".repeat(1000)));
+    assert_eq!(b.stem, "swofty-logs-t-20261020-101010");
+    let (ct, body) = multipart("{}", "a\".zip", b"zip");
+    assert!(ct.starts_with("multipart/form-data; boundary=swofty-logs-"));
+    assert!(String::from_utf8_lossy(&body).contains("filename=\"a_.zip\""));
+}
