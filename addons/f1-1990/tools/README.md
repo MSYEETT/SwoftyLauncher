@@ -53,3 +53,64 @@ Each 1990 team takes one 2026 team row. `asset` is the car folder the vehicle ro
 | Brabham | `gm_cadillac_26` | `gm_cadillac_2026` | `gm_cadillac` |
 | Dallara | `team13_26` | `team13_2026` | `haas` |
 | Arrows | `haas_26` | `haas_2026` | `haas` |
+
+## grid.py
+
+Writes `db/grid.json` (database ops) and `lang/grid.json` (`lang.set` strings) from the season pack. Run it after changing the pack or the tables in it; `-v` prints the driver ids and ratings.
+
+```sh
+python3 addons/f1-1990/tools/grid.py -v
+```
+
+What it writes:
+
+| Part | Ops |
+|---|---|
+| 13 teams | `set` on each slot's team row: names (`lng_f1990_team_<team>`, `_short`), code, the seven colours, base, nationality. `set` on its vehicle row: `display_name`, `chassis_name`, `engine_name_override`. `lang.set` on the stock `lng_<team>_boss` keys for the 1990 team principals |
+| 28 drivers | Senna, Prost and Mansell keep their stock rows (`set` car number, seasons, AI traits). 25 new drivers (the other 23 seated at round 1, plus David Brabham, Pirro, Caffi, Moreno and Herbert) get a full `entrants.drivers` row copied from `jarno_opmeer`, as Driver Manager builds them |
+| Looks | One `ai_driver_customisations` row per driver (`f1990_<driver>_look`): the team's 2026 suit and gloves, a stock helmet (the classic helmets for Senna, Prost and Mansell) |
+| Ratings | One `driver_statistics` holder per new driver and for Senna; `set` on Prost's and Mansell's |
+| Entrants | One `entrants.entrant_lists.entrants` row per driver (`f1990-<driver>`): driver, look, car number |
+| Grid | The 26 rows of `f1_2026` (22 stock, 4 from Custom Grid Size at 26 cars) point at the round 1 line-up, with 1990 numbers and `team_position` 0/1 |
+| Free agents | `f1_2026_driver_pool`: Senna's row becomes David Brabham; Pirro, Caffi, Moreno and Herbert are added |
+| Standings | `f1_teams_2025` lists the stock team rows in 1989 constructors' order; `f1_drivers_2025` lists 22 of the drivers in 1989 order |
+
+### Driver ids
+
+| Ids | Use |
+|---|---|
+| 18, 37, 60, 61, 104-108, 119, 120, 124 | The 12 driver ids the game leaves free below 208 |
+| 253 down to 238 | The rest, from the top of Driver Manager's block (208-253) |
+| 1990-2017 | Look (`driver_customisation`) stat ids |
+
+Driver Manager allocates upward from 208 and checks only the stock database, so it reaches 238 after 30 drivers.
+
+### Ratings
+
+The pack's 14 ratings are scaled to 0..1 across its 44 drivers (`Season.normalised`), then:
+
+| F1 25 | From |
+|---|---|
+| experience | 0.62 + 0.33 × min(seasons before 1990 / 10, 1) |
+| racecraft | 0.70 + 0.27 × mean(race_skill, defending, aggression) |
+| awareness | 0.70 + 0.27 × mean(avoidance_of_mistakes, avoidance_of_forced_mistakes, blue_flag_conceding) |
+| pace | 0.70 + 0.27 × mean(qualifying_skill, race_skill) |
+| focus | 0.70 + 0.27 × mean(stamina, tyre_management, fuel_management, weather_tyre_changes) |
+| trait aggression | 0.55 + 0.45 × aggression |
+| trait control | 0.55 + 0.45 × mean(race_skill, wet_skill) |
+| trait mistakes | 0.55 + 0.45 × mean(avoidance_of_mistakes, avoidance_of_forced_mistakes) |
+| trait reaction_speed | 0.55 + 0.45 × start_reactions |
+| trait speed_in | 0.55 + 0.45 × qualifying_skill |
+| trait speed_out | 0.55 + 0.45 × mean(qualifying_skill, race_skill) |
+
+Each rating curve is flat at its value. `consistency` is not used.
+
+## check_grid.py
+
+Checks a built database against `db/grid.json`: the 26 `f1_2026` seats resolve to a team, a car, an entrant, a driver and a look; car numbers, driver stat ids, look stat ids and driver labels are unique; no free agent is also seated; every added row has every listed field its source row has, and no more.
+
+```sh
+python3 addons/f1-1990/tools/check_grid.py <overlay>/game_package/gamedatabases/gamedatabases.2025.bin
+```
+
+Put the database on the build route (`"build_assets": ["db"]` in `$DATA/config.json`, or build without the in-game loader) to get the file.

@@ -1,0 +1,5249 @@
+{
+ "schema_version": 1,
+ "fields": {
+  "entrants.drivers.driver": [
+   "_metadata_",
+   "ai_driver_config.alongside.min_presence_within_buffer",
+   "ai_driver_config.alongside.off_target_angle_interpolation",
+   "ai_driver_config.alongside.offset_limiter_to_vehicle_blend_graph",
+   "ai_driver_config.alongside.speed_difference_for_limited_zone_yielding",
+   "ai_driver_config.alongside.steering_understeer_offset",
+   "ai_driver_config.alongside.steering_understeer_slip_max_throttle",
+   "ai_driver_config.alongside.trailbrake_speed_reduction_scalar",
+   "ai_driver_config.alongside.yield_overtake_rate",
+   "ai_driver_config.blocking.avoidance_decrease_rate",
+   "ai_driver_config.blocking.blocking_offset_from_car_behind",
+   "ai_driver_config.blocking.blocking_speed_differential",
+   "ai_driver_config.blocking.blocking_threat_time_modifier",
+   "ai_driver_config.blocking.blocking_variable_offset_fraction",
+   "ai_driver_config.blocking.end_blocking_time_to_corner_vs_offset",
+   "ai_driver_config.blocking.fraction_of_follow_speed",
+   "ai_driver_config.blocking.fraction_of_follow_speed_at_race_start",
+   "ai_driver_config.blocking.max_blocking_distance",
+   "ai_driver_config.blocking.max_blocking_distance_at_race_start",
+   "ai_driver_config.blocking.merge_back_to_racing_line",
+   "ai_driver_config.blocking.start_blocking_intersection_time",
+   "ai_driver_config.blocking.start_blocking_maximum_time_to_corner",
+   "ai_driver_config.blocking.start_blocking_minimum_time_to_corner",
+   "ai_driver_config.blocking.time_to_corner_for_end_merge_rate",
+   "ai_driver_config.blocking.time_to_corner_for_start_merge_rate",
+   "ai_driver_config.cede_position.ceding_radius",
+   "ai_driver_config.cede_position.flying_lap_yield_to_human_track_speed_diff",
+   "ai_driver_config.cede_position.ignore_ceding_over_speed",
+   "ai_driver_config.cede_position.max_cede_time_ratio",
+   "ai_driver_config.cede_position.min_cede_time_ratio",
+   "ai_driver_config.cede_position.yellow_flag_ramp_up_time",
+   "ai_driver_config.divebomb_defense.max_presence_alongside",
+   "ai_driver_config.divebomb_defense.max_time_to_ignore",
+   "ai_driver_config.divebomb_defense.max_track_offset",
+   "ai_driver_config.divebomb_defense.max_track_radius",
+   "ai_driver_config.exit_fallibility.throttle_error_practice",
+   "ai_driver_config.exit_fallibility.throttle_error_qualifying_race",
+   "ai_driver_config.offset_variation.blend_rate_inside_of_curve",
+   "ai_driver_config.offset_variation.blend_rate_outside_of_curve",
+   "ai_driver_config.offset_variation.half_width_scaling_graph",
+   "ai_driver_config.offset_variation.max_offset",
+   "ai_driver_config.offset_variation.offset_limit_at_corner_start",
+   "ai_driver_config.offset_variation.offset_limit_blend_distance",
+   "ai_driver_config.offset_variation.radius_scalar_graph",
+   "ai_driver_config.overtake.attacker_close_enough_car_lengths",
+   "ai_driver_config.overtake.braking_zone_abort_overtake_time",
+   "ai_driver_config.overtake.close_range_car_lengths_to_continue_overtake",
+   "ai_driver_config.overtake.close_range_car_lengths_to_start_overtake",
+   "ai_driver_config.overtake.concede_slowdown_speed_diff",
+   "ai_driver_config.overtake.concede_speed_diff",
+   "ai_driver_config.overtake.concede_time_vs_behind",
+   "ai_driver_config.overtake.danger_overtake_buffer",
+   "ai_driver_config.overtake.danger_overtake_continue_time_adjustment",
+   "ai_driver_config.overtake.danger_overtake_full_heat_time_adjustment",
+   "ai_driver_config.overtake.danger_overtake_initiate_time_adjustment",
+   "ai_driver_config.overtake.danger_overtake_pull_out_time",
+   "ai_driver_config.overtake.oppertunist_overtake_time",
+   "ai_driver_config.overtake.oppertunist_overtake_track_speed_difference",
+   "ai_driver_config.overtake.overlap_percentage",
+   "ai_driver_config.overtake.regular_overtake_continue_time_adjustment",
+   "ai_driver_config.overtake.regular_overtake_full_heat_time_adjustment",
+   "ai_driver_config.overtake.regular_overtake_initiate_time_adjustment",
+   "ai_driver_config.overtake.regular_overtake_pull_out_time",
+   "ai_driver_config.race_start.max_bad_start_lower_bound",
+   "ai_driver_config.race_start.max_bad_start_upper_bound",
+   "ai_driver_config.race_start.max_reaction_time_lower_bound",
+   "ai_driver_config.race_start.max_reaction_time_upper_bound",
+   "ai_driver_config.race_start.min_bad_start_lower_bound",
+   "ai_driver_config.race_start.min_bad_start_upper_bound",
+   "ai_driver_config.race_start.min_reaction_time_lower_bound",
+   "ai_driver_config.race_start.min_reaction_time_upper_bound",
+   "ai_driver_config.race_start.stationary_vehicle_space",
+   "ai_driver_config.space_seeking.added_buffer",
+   "ai_driver_config.space_seeking.can_start_track_radius",
+   "ai_driver_config.space_seeking.car_in_front_needed",
+   "ai_driver_config.space_seeking.cars_moving_away_speed_to_ignore",
+   "ai_driver_config.space_seeking.concede_overtake_blocked_by_crowed_time",
+   "ai_driver_config.space_seeking.distance_braking_point",
+   "ai_driver_config.space_seeking.first_speed_below_follow",
+   "ai_driver_config.space_seeking.remember_crowed",
+   "ai_driver_config.space_seeking.speed_below_follow",
+   "ai_driver_config.space_seeking.time_to_switch_sides",
+   "ai_driver_config.space_seeking.total_queue_needed",
+   "ai_driver_config.space_seeking.track_abort_distance",
+   "ai_driver_config.space_seeking.track_distance_needed",
+   "audio_name",
+   "available",
+   "car_number",
+   "chance_to_use_number_1",
+   "date_of_birth.day",
+   "date_of_birth.daylight_saving",
+   "date_of_birth.hour",
+   "date_of_birth.minute",
+   "date_of_birth.month",
+   "date_of_birth.second",
+   "date_of_birth.year",
+   "driver_characteristics.aggression",
+   "driver_characteristics.control",
+   "driver_characteristics.mistakes",
+   "driver_characteristics.preferred_tracks",
+   "driver_characteristics.reaction_speed",
+   "driver_characteristics.speed_in",
+   "driver_characteristics.speed_out",
+   "driver_strategy.fastest_strategy_base_selection_chance",
+   "driver_strategy.fuel_load_max_modifier",
+   "driver_strategy.fuel_load_min_modifier",
+   "driver_strategy.safety_car_pit_max_laps_early",
+   "driver_strategy.safety_car_pit_min_lap",
+   "driver_strategy.safety_car_pit_wear_max",
+   "driver_strategy.safety_car_pit_wear_min",
+   "driver_strategy.slowest_strategy_selection_time_limit",
+   "driver_strategy.weather_change_max_time_percentage",
+   "driver_strategy.weather_change_min_time_percentage",
+   "expression_label",
+   "f1_seasons_completed",
+   "first_name",
+   "full_name",
+   "garage_slot_preference",
+   "head",
+   "initials",
+   "is_name_reversed",
+   "is_using_number_1_in_first_season",
+   "last_name",
+   "last_name_standard",
+   "nationality",
+   "rev_lights_configuration.green_rev_lights_configuration",
+   "rev_lights_configuration.purple_rev_lights_configuration",
+   "rev_lights_configuration.red_rev_lights_configuration",
+   "stat_id"
+  ],
+  "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties": [
+   "_metadata_",
+   "available",
+   "badge",
+   "car_livery",
+   "gloves",
+   "helmet",
+   "linked_driver_stat_id",
+   "podium_emote",
+   "pose",
+   "stat_id",
+   "suit",
+   "victory_vo"
+  ],
+  "driver_statistics.driver_statistics.DriverStatisticsHolder": [
+   "_metadata_",
+   "driver",
+   "_StatisticsDataSet_instancecount_",
+   "StatisticsDataSet_0._metadata_",
+   "StatisticsDataSet_0.game_setup_modes",
+   "StatisticsDataSet_0.is_invalid",
+   "StatisticsDataSet_0.seasons",
+   "StatisticsDataSet_0.weekend_formats",
+   "StatisticsDataSet_0._Statistic_instancecount_",
+   "StatisticsDataSet_0.Statistic_0._metadata_",
+   "StatisticsDataSet_0.Statistic_0.info",
+   "StatisticsDataSet_0.Statistic_0.evolution",
+   "StatisticsDataSet_0.Statistic_1._metadata_",
+   "StatisticsDataSet_0.Statistic_1.info",
+   "StatisticsDataSet_0.Statistic_1.evolution",
+   "StatisticsDataSet_0.Statistic_2._metadata_",
+   "StatisticsDataSet_0.Statistic_2.info",
+   "StatisticsDataSet_0.Statistic_2.evolution",
+   "StatisticsDataSet_0.Statistic_3._metadata_",
+   "StatisticsDataSet_0.Statistic_3.info",
+   "StatisticsDataSet_0.Statistic_3.evolution",
+   "StatisticsDataSet_0.Statistic_4._metadata_",
+   "StatisticsDataSet_0.Statistic_4.info",
+   "StatisticsDataSet_0.Statistic_4.evolution"
+  ],
+  "entrants.entrant_lists.entrants.entrant": [
+   "_metadata_",
+   "badge_customisation",
+   "car_number",
+   "driver",
+   "driver_customisation",
+   "entrant_reference",
+   "team",
+   "team_position",
+   "vehicle",
+   "vehicle_customisation"
+  ],
+  "entrants.entrant_lists.entrant_list[_metadata_=f1_2026_driver_pool].entrant": [
+   "_metadata_",
+   "badge_customisation",
+   "car_number",
+   "driver",
+   "driver_customisation",
+   "entrant_reference",
+   "team",
+   "team_position",
+   "vehicle",
+   "vehicle_customisation"
+  ]
+ },
+ "ops": [
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mclaren_26]",
+   "field": "display_name",
+   "value": "lng_f1990_team_mclaren"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mclaren_26]",
+   "field": "display_name_short",
+   "value": "lng_f1990_team_mclaren_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mclaren_26]",
+   "field": "display_name_super_short",
+   "value": "lng_f1990_team_mclaren_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mclaren_26]",
+   "field": "display_name_code",
+   "value": "MCL"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mclaren_26]",
+   "field": "primary_colour",
+   "value": "-1966054"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mclaren_26]",
+   "field": "secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mclaren_26]",
+   "field": "tertiary_colour",
+   "value": "-15066598"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mclaren_26]",
+   "field": "ui_team_colour",
+   "value": "-1966054"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mclaren_26]",
+   "field": "team_wear_primary_colour",
+   "value": "-1966054"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mclaren_26]",
+   "field": "team_wear_secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mclaren_26]",
+   "field": "team_wear_tertiary_colour",
+   "value": "-15066598"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mclaren_26]",
+   "field": "team_base",
+   "value": "lng_f1990_base_mclaren"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mclaren_26]",
+   "field": "nationality",
+   "value": "britain"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=mclaren_2026]",
+   "field": "display_name",
+   "value": "lng_f1990_team_mclaren"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=mclaren_2026]",
+   "field": "chassis_name",
+   "value": "lng_f1990_chassis_mclaren"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=mclaren_2026]",
+   "field": "engine_name_override",
+   "value": "lng_f1990_engine_mclaren"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "display_name",
+   "value": "lng_f1990_team_ferrari"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "display_name_short",
+   "value": "lng_f1990_team_ferrari_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "display_name_super_short",
+   "value": "lng_f1990_team_ferrari_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "display_name_code",
+   "value": "FER"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "primary_colour",
+   "value": "-5824734"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "tertiary_colour",
+   "value": "-15066598"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "ui_team_colour",
+   "value": "-5824734"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "team_wear_primary_colour",
+   "value": "-5824734"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "team_wear_secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "team_wear_tertiary_colour",
+   "value": "-15066598"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "team_base",
+   "value": "lng_f1990_base_ferrari"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=ferrari_26]",
+   "field": "nationality",
+   "value": "italy"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=ferrari_2026]",
+   "field": "display_name",
+   "value": "lng_f1990_team_ferrari"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=ferrari_2026]",
+   "field": "chassis_name",
+   "value": "lng_f1990_chassis_ferrari"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=ferrari_2026]",
+   "field": "engine_name_override",
+   "value": "lng_f1990_engine_ferrari"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "display_name",
+   "value": "lng_f1990_team_williams"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "display_name_short",
+   "value": "lng_f1990_team_williams_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "display_name_super_short",
+   "value": "lng_f1990_team_williams_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "display_name_code",
+   "value": "WIL"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "primary_colour",
+   "value": "-15318404"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "tertiary_colour",
+   "value": "-867840"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "ui_team_colour",
+   "value": "-15318404"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "team_wear_primary_colour",
+   "value": "-15318404"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "team_wear_secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "team_wear_tertiary_colour",
+   "value": "-867840"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "team_base",
+   "value": "lng_f1990_base_williams"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=williams_26]",
+   "field": "nationality",
+   "value": "britain"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=williams_2026]",
+   "field": "display_name",
+   "value": "lng_f1990_team_williams"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=williams_2026]",
+   "field": "chassis_name",
+   "value": "lng_f1990_chassis_williams"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=williams_2026]",
+   "field": "engine_name_override",
+   "value": "lng_f1990_engine_williams"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=renault_26]",
+   "field": "display_name",
+   "value": "lng_f1990_team_benetton"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=renault_26]",
+   "field": "display_name_short",
+   "value": "lng_f1990_team_benetton_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=renault_26]",
+   "field": "display_name_super_short",
+   "value": "lng_f1990_team_benetton_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=renault_26]",
+   "field": "display_name_code",
+   "value": "BEN"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=renault_26]",
+   "field": "primary_colour",
+   "value": "-14706104"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=renault_26]",
+   "field": "secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=renault_26]",
+   "field": "tertiary_colour",
+   "value": "-14790752"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=renault_26]",
+   "field": "ui_team_colour",
+   "value": "-14706104"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=renault_26]",
+   "field": "team_wear_primary_colour",
+   "value": "-14706104"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=renault_26]",
+   "field": "team_wear_secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=renault_26]",
+   "field": "team_wear_tertiary_colour",
+   "value": "-14790752"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=renault_26]",
+   "field": "team_base",
+   "value": "lng_f1990_base_benetton"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=renault_26]",
+   "field": "nationality",
+   "value": "britain"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=lotus_2026]",
+   "field": "display_name",
+   "value": "lng_f1990_team_benetton"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=lotus_2026]",
+   "field": "chassis_name",
+   "value": "lng_f1990_chassis_benetton"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=lotus_2026]",
+   "field": "engine_name_override",
+   "value": "lng_f1990_engine_benetton"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "display_name",
+   "value": "lng_f1990_team_tyrrell"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "display_name_short",
+   "value": "lng_f1990_team_tyrrell_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "display_name_super_short",
+   "value": "lng_f1990_team_tyrrell_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "display_name_code",
+   "value": "TYR"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "primary_colour",
+   "value": "-14733461"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "tertiary_colour",
+   "value": "-7686936"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "ui_team_colour",
+   "value": "-14733461"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "team_wear_primary_colour",
+   "value": "-14733461"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "team_wear_secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "team_wear_tertiary_colour",
+   "value": "-7686936"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "team_base",
+   "value": "lng_f1990_base_tyrrell"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=mercedes_26]",
+   "field": "nationality",
+   "value": "britain"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=mercedes_2026]",
+   "field": "display_name",
+   "value": "lng_f1990_team_tyrrell"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=mercedes_2026]",
+   "field": "chassis_name",
+   "value": "lng_f1990_chassis_tyrrell"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=mercedes_2026]",
+   "field": "engine_name_override",
+   "value": "lng_f1990_engine_tyrrell"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "display_name",
+   "value": "lng_f1990_team_lotus"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "display_name_short",
+   "value": "lng_f1990_team_lotus_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "display_name_super_short",
+   "value": "lng_f1990_team_lotus_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "display_name_code",
+   "value": "LOT"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "primary_colour",
+   "value": "-867072"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "secondary_colour",
+   "value": "-14725476"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "tertiary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "ui_team_colour",
+   "value": "-867072"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "team_wear_primary_colour",
+   "value": "-867072"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "team_wear_secondary_colour",
+   "value": "-14725476"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "team_wear_tertiary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "team_base",
+   "value": "lng_f1990_base_lotus"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=redbull_26]",
+   "field": "nationality",
+   "value": "britain"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=redbull_2026]",
+   "field": "display_name",
+   "value": "lng_f1990_team_lotus"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=redbull_2026]",
+   "field": "chassis_name",
+   "value": "lng_f1990_chassis_lotus"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=redbull_2026]",
+   "field": "engine_name_override",
+   "value": "lng_f1990_engine_lotus"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "display_name",
+   "value": "lng_f1990_team_march"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "display_name_short",
+   "value": "lng_f1990_team_march_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "display_name_super_short",
+   "value": "lng_f1990_team_march_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "display_name_code",
+   "value": "LEY"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "primary_colour",
+   "value": "-10690843"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "secondary_colour",
+   "value": "-14996900"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "tertiary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "ui_team_colour",
+   "value": "-10690843"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "team_wear_primary_colour",
+   "value": "-10690843"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "team_wear_secondary_colour",
+   "value": "-14996900"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "team_wear_tertiary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "team_base",
+   "value": "lng_f1990_base_march"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=forceindia_26]",
+   "field": "nationality",
+   "value": "britain"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=force_india_2026]",
+   "field": "display_name",
+   "value": "lng_f1990_team_march"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=force_india_2026]",
+   "field": "chassis_name",
+   "value": "lng_f1990_chassis_march"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=force_india_2026]",
+   "field": "engine_name_override",
+   "value": "lng_f1990_engine_march"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "display_name",
+   "value": "lng_f1990_team_larrousse"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "display_name_short",
+   "value": "lng_f1990_team_larrousse_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "display_name_super_short",
+   "value": "lng_f1990_team_larrousse_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "display_name_code",
+   "value": "LAR"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "primary_colour",
+   "value": "-10507672"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "tertiary_colour",
+   "value": "-14730104"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "ui_team_colour",
+   "value": "-10507672"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "team_wear_primary_colour",
+   "value": "-10507672"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "team_wear_secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "team_wear_tertiary_colour",
+   "value": "-14730104"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "team_base",
+   "value": "lng_f1990_base_larrousse"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "nationality",
+   "value": "france"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=team12_2026]",
+   "field": "display_name",
+   "value": "lng_f1990_team_larrousse"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=team12_2026]",
+   "field": "chassis_name",
+   "value": "lng_f1990_chassis_larrousse"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=team12_2026]",
+   "field": "engine_name_override",
+   "value": "lng_f1990_engine_larrousse"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "display_name",
+   "value": "lng_f1990_team_ligier_prost"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "display_name_short",
+   "value": "lng_f1990_team_ligier_prost_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "display_name_super_short",
+   "value": "lng_f1990_team_ligier_prost_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "display_name_code",
+   "value": "LIG"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "primary_colour",
+   "value": "-15769635"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "tertiary_colour",
+   "value": "-9521921"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "ui_team_colour",
+   "value": "-15769635"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "team_wear_primary_colour",
+   "value": "-15769635"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "team_wear_secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "team_wear_tertiary_colour",
+   "value": "-9521921"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "team_base",
+   "value": "lng_f1990_base_ligier_prost"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=sauber_26]",
+   "field": "nationality",
+   "value": "france"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=sauber_2026]",
+   "field": "display_name",
+   "value": "lng_f1990_team_ligier_prost"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=sauber_2026]",
+   "field": "chassis_name",
+   "value": "lng_f1990_chassis_ligier_prost"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=sauber_2026]",
+   "field": "engine_name_override",
+   "value": "lng_f1990_engine_ligier_prost"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "display_name",
+   "value": "lng_f1990_team_minardi"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "display_name_short",
+   "value": "lng_f1990_team_minardi_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "display_name_super_short",
+   "value": "lng_f1990_team_minardi_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "display_name_code",
+   "value": "MIN"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "primary_colour",
+   "value": "-545771"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "tertiary_colour",
+   "value": "-15066598"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "ui_team_colour",
+   "value": "-545771"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "team_wear_primary_colour",
+   "value": "-545771"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "team_wear_secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "team_wear_tertiary_colour",
+   "value": "-15066598"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "team_base",
+   "value": "lng_f1990_base_minardi"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=tororosso_26]",
+   "field": "nationality",
+   "value": "italy"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=toro_rosso_2026]",
+   "field": "display_name",
+   "value": "lng_f1990_team_minardi"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=toro_rosso_2026]",
+   "field": "chassis_name",
+   "value": "lng_f1990_chassis_minardi"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=toro_rosso_2026]",
+   "field": "engine_name_override",
+   "value": "lng_f1990_engine_minardi"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "display_name",
+   "value": "lng_f1990_team_brabham"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "display_name_short",
+   "value": "lng_f1990_team_brabham_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "display_name_super_short",
+   "value": "lng_f1990_team_brabham_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "display_name_code",
+   "value": "BRA"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "primary_colour",
+   "value": "-14012334"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "tertiary_colour",
+   "value": "-3665874"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "ui_team_colour",
+   "value": "-14012334"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "team_wear_primary_colour",
+   "value": "-14012334"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "team_wear_secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "team_wear_tertiary_colour",
+   "value": "-3665874"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "team_base",
+   "value": "lng_f1990_base_brabham"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=gm_cadillac_26]",
+   "field": "nationality",
+   "value": "britain"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=gm_cadillac_2026]",
+   "field": "display_name",
+   "value": "lng_f1990_team_brabham"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=gm_cadillac_2026]",
+   "field": "chassis_name",
+   "value": "lng_f1990_chassis_brabham"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=gm_cadillac_2026]",
+   "field": "engine_name_override",
+   "value": "lng_f1990_engine_brabham"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "display_name",
+   "value": "lng_f1990_team_dallara"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "display_name_short",
+   "value": "lng_f1990_team_dallara_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "display_name_super_short",
+   "value": "lng_f1990_team_dallara_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "display_name_code",
+   "value": "DAL"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "primary_colour",
+   "value": "-6943484"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "tertiary_colour",
+   "value": "-15066598"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "ui_team_colour",
+   "value": "-6943484"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "team_wear_primary_colour",
+   "value": "-6943484"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "team_wear_secondary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "team_wear_tertiary_colour",
+   "value": "-15066598"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "team_base",
+   "value": "lng_f1990_base_dallara"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "nationality",
+   "value": "italy"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=team13_2026]",
+   "field": "display_name",
+   "value": "lng_f1990_team_dallara"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=team13_2026]",
+   "field": "chassis_name",
+   "value": "lng_f1990_chassis_dallara"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=team13_2026]",
+   "field": "engine_name_override",
+   "value": "lng_f1990_engine_dallara"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "display_name",
+   "value": "lng_f1990_team_arrows"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "display_name_short",
+   "value": "lng_f1990_team_arrows_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "display_name_super_short",
+   "value": "lng_f1990_team_arrows_short"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "display_name_code",
+   "value": "ARR"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "primary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "secondary_colour",
+   "value": "-3665874"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "tertiary_colour",
+   "value": "-15057780"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "ui_team_colour",
+   "value": "-3665874"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "team_wear_primary_colour",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "team_wear_secondary_colour",
+   "value": "-3665874"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "team_wear_tertiary_colour",
+   "value": "-15057780"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "team_base",
+   "value": "lng_f1990_base_arrows"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=haas_26]",
+   "field": "nationality",
+   "value": "britain"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=haas_2026]",
+   "field": "display_name",
+   "value": "lng_f1990_team_arrows"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=haas_2026]",
+   "field": "chassis_name",
+   "value": "lng_f1990_chassis_arrows"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=haas_2026]",
+   "field": "engine_name_override",
+   "value": "lng_f1990_engine_arrows"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=ayrton_senna]",
+   "field": "car_number",
+   "value": "27"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=ayrton_senna]",
+   "field": "f1_seasons_completed",
+   "value": "6"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=ayrton_senna]",
+   "field": "driver_characteristics.aggression",
+   "value": "0.96"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=ayrton_senna]",
+   "field": "driver_characteristics.control",
+   "value": "0.92"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=ayrton_senna]",
+   "field": "driver_characteristics.mistakes",
+   "value": "0.91"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=ayrton_senna]",
+   "field": "driver_characteristics.reaction_speed",
+   "value": "0.94"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=ayrton_senna]",
+   "field": "driver_characteristics.speed_in",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=ayrton_senna]",
+   "field": "driver_characteristics.speed_out",
+   "value": "0.95"
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_ayrton_senna_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-mclaren",
+    "helmet": "classic-senna01_ayrton_senna",
+    "linked_driver_stat_id": "ayrton_senna",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "1990",
+    "suit": "2026-mclaren",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "ayrton_senna",
+    "driver": "ayrton_senna",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.925,0.25:0.925,0.5:0.925,1:0.925",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.932,0.25:0.932,0.5:0.932,1:0.932",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.943,0.25:0.943,0.5:0.943,1:0.943",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.921,0.25:0.921,0.5:0.921,1:0.921"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-ayrton_senna",
+    "badge_customisation": "",
+    "car_number": "27",
+    "driver": "ayrton_senna",
+    "driver_customisation": "f1990_ayrton_senna_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_gerhard_berger",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "28",
+    "date_of_birth.year": "1959",
+    "date_of_birth.month": "August",
+    "date_of_birth.day": "27",
+    "f1_seasons_completed": "6",
+    "first_name": "lng_f1990_gerhard_berger_first",
+    "full_name": "lng_f1990_gerhard_berger_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls204",
+    "initials": "BER",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_gerhard_berger_last",
+    "nationality": "austria",
+    "stat_id": "18",
+    "driver_characteristics.aggression": "0.83",
+    "driver_characteristics.control": "0.79",
+    "driver_characteristics.mistakes": "0.76",
+    "driver_characteristics.reaction_speed": "0.82",
+    "driver_characteristics.speed_in": "0.87",
+    "driver_characteristics.speed_out": "0.84"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_gerhard_berger_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-mclaren",
+    "helmet": "tier03_livery101",
+    "linked_driver_stat_id": "f1990_gerhard_berger",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "1991",
+    "suit": "2026-mclaren",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_gerhard_berger",
+    "driver": "f1990_gerhard_berger",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.861,0.25:0.861,0.5:0.861,1:0.861",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.822,0.25:0.822,0.5:0.822,1:0.822",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.876,0.25:0.876,0.5:0.876,1:0.876",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.851,0.25:0.851,0.5:0.851,1:0.851"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-gerhard_berger",
+    "badge_customisation": "",
+    "car_number": "28",
+    "driver": "f1990_gerhard_berger",
+    "driver_customisation": "f1990_gerhard_berger_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=alain_prost]",
+   "field": "car_number",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=alain_prost]",
+   "field": "f1_seasons_completed",
+   "value": "10"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=alain_prost]",
+   "field": "driver_characteristics.aggression",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=alain_prost]",
+   "field": "driver_characteristics.control",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=alain_prost]",
+   "field": "driver_characteristics.mistakes",
+   "value": "0.96"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=alain_prost]",
+   "field": "driver_characteristics.reaction_speed",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=alain_prost]",
+   "field": "driver_characteristics.speed_in",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=alain_prost]",
+   "field": "driver_characteristics.speed_out",
+   "value": "1"
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_alain_prost_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-ferrari",
+    "helmet": "classic-prost01_alain_prost",
+    "linked_driver_stat_id": "alain_prost",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "1992",
+    "suit": "2026-ferrari",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=alain_prost]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.95,0.25:0.95,0.5:0.95,1:0.95"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=alain_prost]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.97,0.25:0.97,0.5:0.97,1:0.97"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=alain_prost]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.941,0.25:0.941,0.5:0.941,1:0.941"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=alain_prost]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.97,0.25:0.97,0.5:0.97,1:0.97"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=alain_prost]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.955,0.25:0.955,0.5:0.955,1:0.955"
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-alain_prost",
+    "badge_customisation": "",
+    "car_number": "1",
+    "driver": "alain_prost",
+    "driver_customisation": "f1990_alain_prost_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=nigel_mansell]",
+   "field": "car_number",
+   "value": "2"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=nigel_mansell]",
+   "field": "f1_seasons_completed",
+   "value": "10"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=nigel_mansell]",
+   "field": "driver_characteristics.aggression",
+   "value": "0.9"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=nigel_mansell]",
+   "field": "driver_characteristics.control",
+   "value": "0.93"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=nigel_mansell]",
+   "field": "driver_characteristics.mistakes",
+   "value": "0.96"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=nigel_mansell]",
+   "field": "driver_characteristics.reaction_speed",
+   "value": "0.94"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=nigel_mansell]",
+   "field": "driver_characteristics.speed_in",
+   "value": "0.94"
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=nigel_mansell]",
+   "field": "driver_characteristics.speed_out",
+   "value": "0.94"
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_nigel_mansell_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-ferrari",
+    "helmet": "classic-mansell01_nigel_mansell",
+    "linked_driver_stat_id": "nigel_mansell",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "1993",
+    "suit": "2026-ferrari",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nigel_mansell]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.95,0.25:0.95,0.5:0.95,1:0.95"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nigel_mansell]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.921,0.25:0.921,0.5:0.921,1:0.921"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nigel_mansell]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.946,0.25:0.946,0.5:0.946,1:0.946"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nigel_mansell]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.932,0.25:0.932,0.5:0.932,1:0.932"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nigel_mansell]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.948,0.25:0.948,0.5:0.948,1:0.948"
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-nigel_mansell",
+    "badge_customisation": "",
+    "car_number": "2",
+    "driver": "nigel_mansell",
+    "driver_customisation": "f1990_nigel_mansell_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_thierry_boutsen",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "5",
+    "date_of_birth.year": "1957",
+    "date_of_birth.month": "July",
+    "date_of_birth.day": "13",
+    "f1_seasons_completed": "7",
+    "first_name": "lng_f1990_thierry_boutsen_first",
+    "full_name": "lng_f1990_thierry_boutsen_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls222",
+    "initials": "BOU",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_thierry_boutsen_last",
+    "nationality": "belgium",
+    "stat_id": "37",
+    "driver_characteristics.aggression": "0.86",
+    "driver_characteristics.control": "0.82",
+    "driver_characteristics.mistakes": "0.77",
+    "driver_characteristics.reaction_speed": "0.84",
+    "driver_characteristics.speed_in": "0.87",
+    "driver_characteristics.speed_out": "0.86"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_thierry_boutsen_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-williams",
+    "helmet": "tier01_livery76",
+    "linked_driver_stat_id": "f1990_thierry_boutsen",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "1994",
+    "suit": "2026-williams",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_thierry_boutsen",
+    "driver": "f1990_thierry_boutsen",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.851,0.25:0.851,0.5:0.851,1:0.851",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.865,0.25:0.865,0.5:0.865,1:0.865",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.822,0.25:0.822,0.5:0.822,1:0.822",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.885,0.25:0.885,0.5:0.885,1:0.885",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.868,0.25:0.868,0.5:0.868,1:0.868"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-thierry_boutsen",
+    "badge_customisation": "",
+    "car_number": "5",
+    "driver": "f1990_thierry_boutsen",
+    "driver_customisation": "f1990_thierry_boutsen_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_riccardo_patrese",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "6",
+    "date_of_birth.year": "1954",
+    "date_of_birth.month": "April",
+    "date_of_birth.day": "17",
+    "f1_seasons_completed": "13",
+    "first_name": "lng_f1990_riccardo_patrese_first",
+    "full_name": "lng_f1990_riccardo_patrese_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls240",
+    "initials": "PAT",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_riccardo_patrese_last",
+    "nationality": "italy",
+    "stat_id": "60",
+    "driver_characteristics.aggression": "0.64",
+    "driver_characteristics.control": "0.78",
+    "driver_characteristics.mistakes": "0.78",
+    "driver_characteristics.reaction_speed": "0.84",
+    "driver_characteristics.speed_in": "0.78",
+    "driver_characteristics.speed_out": "0.8"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_riccardo_patrese_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-williams",
+    "helmet": "tier02_livery95",
+    "linked_driver_stat_id": "f1990_riccardo_patrese",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "1995",
+    "suit": "2026-williams",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_riccardo_patrese",
+    "driver": "f1990_riccardo_patrese",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.95,0.25:0.95,0.5:0.95,1:0.95",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.816,0.25:0.816,0.5:0.816,1:0.816",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.84,0.25:0.84,0.5:0.84,1:0.84",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.852,0.25:0.852,0.5:0.852,1:0.852",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.817,0.25:0.817,0.5:0.817,1:0.817"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-riccardo_patrese",
+    "badge_customisation": "",
+    "car_number": "6",
+    "driver": "f1990_riccardo_patrese",
+    "driver_customisation": "f1990_riccardo_patrese_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_alessandro_nannini",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "19",
+    "date_of_birth.year": "1959",
+    "date_of_birth.month": "July",
+    "date_of_birth.day": "7",
+    "f1_seasons_completed": "4",
+    "first_name": "lng_f1990_alessandro_nannini_first",
+    "full_name": "lng_f1990_alessandro_nannini_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls248",
+    "initials": "NAN",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_alessandro_nannini_last",
+    "nationality": "italy",
+    "stat_id": "61",
+    "driver_characteristics.aggression": "0.81",
+    "driver_characteristics.control": "0.83",
+    "driver_characteristics.mistakes": "0.77",
+    "driver_characteristics.reaction_speed": "0.76",
+    "driver_characteristics.speed_in": "0.84",
+    "driver_characteristics.speed_out": "0.82"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_alessandro_nannini_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-renault",
+    "helmet": "tier02_livery104",
+    "linked_driver_stat_id": "f1990_alessandro_nannini",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "1996",
+    "suit": "2026-renault",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_alessandro_nannini",
+    "driver": "f1990_alessandro_nannini",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.752,0.25:0.752,0.5:0.752,1:0.752",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.848,0.25:0.848,0.5:0.848,1:0.848",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.845,0.25:0.845,0.5:0.845,1:0.845",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.865,0.25:0.865,0.5:0.865,1:0.865",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.87,0.25:0.87,0.5:0.87,1:0.87"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-alessandro_nannini",
+    "badge_customisation": "",
+    "car_number": "19",
+    "driver": "f1990_alessandro_nannini",
+    "driver_customisation": "f1990_alessandro_nannini_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_nelson_piquet",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "20",
+    "date_of_birth.year": "1952",
+    "date_of_birth.month": "August",
+    "date_of_birth.day": "17",
+    "f1_seasons_completed": "12",
+    "first_name": "lng_f1990_nelson_piquet_first",
+    "full_name": "lng_f1990_nelson_piquet_full",
+    "garage_slot_preference": "0",
+    "head": "pedro_piquet",
+    "initials": "PIQ",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_nelson_piquet_last",
+    "nationality": "brazil",
+    "stat_id": "104",
+    "driver_characteristics.aggression": "0.84",
+    "driver_characteristics.control": "0.82",
+    "driver_characteristics.mistakes": "0.83",
+    "driver_characteristics.reaction_speed": "0.87",
+    "driver_characteristics.speed_in": "0.91",
+    "driver_characteristics.speed_out": "0.88"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_nelson_piquet_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-renault",
+    "helmet": "tier01_livery79",
+    "linked_driver_stat_id": "f1990_nelson_piquet",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "1997",
+    "suit": "2026-renault",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_nelson_piquet",
+    "driver": "f1990_nelson_piquet",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.95,0.25:0.95,0.5:0.95,1:0.95",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.87,0.25:0.87,0.5:0.87,1:0.87",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.862,0.25:0.862,0.5:0.862,1:0.862",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.897,0.25:0.897,0.5:0.897,1:0.897",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.894,0.25:0.894,0.5:0.894,1:0.894"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-nelson_piquet",
+    "badge_customisation": "",
+    "car_number": "20",
+    "driver": "f1990_nelson_piquet",
+    "driver_customisation": "f1990_nelson_piquet_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_satoru_nakajima",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "3",
+    "date_of_birth.year": "1953",
+    "date_of_birth.month": "February",
+    "date_of_birth.day": "23",
+    "f1_seasons_completed": "3",
+    "first_name": "lng_f1990_satoru_nakajima_first",
+    "full_name": "lng_f1990_satoru_nakajima_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls345",
+    "initials": "NAK",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_satoru_nakajima_last",
+    "nationality": "japan",
+    "stat_id": "105",
+    "driver_characteristics.aggression": "0.74",
+    "driver_characteristics.control": "0.77",
+    "driver_characteristics.mistakes": "0.68",
+    "driver_characteristics.reaction_speed": "0.76",
+    "driver_characteristics.speed_in": "0.73",
+    "driver_characteristics.speed_out": "0.76"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_satoru_nakajima_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-mercedes",
+    "helmet": "tier05_livery73",
+    "linked_driver_stat_id": "f1990_satoru_nakajima",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "1998",
+    "suit": "2026-mercedes",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_satoru_nakajima",
+    "driver": "f1990_satoru_nakajima",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.719,0.25:0.719,0.5:0.719,1:0.719",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.827,0.25:0.827,0.5:0.827,1:0.827",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.773,0.25:0.773,0.5:0.773,1:0.773",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.824,0.25:0.824,0.5:0.824,1:0.824",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.783,0.25:0.783,0.5:0.783,1:0.783"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-satoru_nakajima",
+    "badge_customisation": "",
+    "car_number": "3",
+    "driver": "f1990_satoru_nakajima",
+    "driver_customisation": "f1990_satoru_nakajima_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_jean_alesi",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "4",
+    "date_of_birth.year": "1964",
+    "date_of_birth.month": "June",
+    "date_of_birth.day": "11",
+    "f1_seasons_completed": "1",
+    "first_name": "lng_f1990_jean_alesi_first",
+    "full_name": "lng_f1990_jean_alesi_full",
+    "garage_slot_preference": "0",
+    "head": "giuliano_alesi",
+    "initials": "ALE",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_jean_alesi_last",
+    "nationality": "france",
+    "stat_id": "106",
+    "driver_characteristics.aggression": "0.78",
+    "driver_characteristics.control": "0.86",
+    "driver_characteristics.mistakes": "0.85",
+    "driver_characteristics.reaction_speed": "0.85",
+    "driver_characteristics.speed_in": "0.89",
+    "driver_characteristics.speed_out": "0.86"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_jean_alesi_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-mercedes",
+    "helmet": "tier04_livery103",
+    "linked_driver_stat_id": "f1990_jean_alesi",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "1999",
+    "suit": "2026-mercedes",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_jean_alesi",
+    "driver": "f1990_jean_alesi",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.849,0.25:0.849,0.5:0.849,1:0.849",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.887,0.25:0.887,0.5:0.887,1:0.887",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.884,0.25:0.884,0.5:0.884,1:0.884",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.876,0.25:0.876,0.5:0.876,1:0.876"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-jean_alesi",
+    "badge_customisation": "",
+    "car_number": "4",
+    "driver": "f1990_jean_alesi",
+    "driver_customisation": "f1990_jean_alesi_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_derek_warwick",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "11",
+    "date_of_birth.year": "1954",
+    "date_of_birth.month": "August",
+    "date_of_birth.day": "27",
+    "f1_seasons_completed": "9",
+    "first_name": "lng_f1990_derek_warwick_first",
+    "full_name": "lng_f1990_derek_warwick_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls356",
+    "initials": "WAR",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_derek_warwick_last",
+    "nationality": "britain",
+    "stat_id": "107",
+    "driver_characteristics.aggression": "0.64",
+    "driver_characteristics.control": "0.79",
+    "driver_characteristics.mistakes": "0.69",
+    "driver_characteristics.reaction_speed": "0.71",
+    "driver_characteristics.speed_in": "0.8",
+    "driver_characteristics.speed_out": "0.79"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_derek_warwick_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-redbull",
+    "helmet": "tier01_livery75",
+    "linked_driver_stat_id": "f1990_derek_warwick",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2000",
+    "suit": "2026-redbull",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_derek_warwick",
+    "driver": "f1990_derek_warwick",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.917,0.25:0.917,0.5:0.917,1:0.917",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.805,0.25:0.805,0.5:0.805,1:0.805",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.799,0.25:0.799,0.5:0.799,1:0.799",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.842,0.25:0.842,0.5:0.842,1:0.842",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.79,0.25:0.79,0.5:0.79,1:0.79"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-derek_warwick",
+    "badge_customisation": "",
+    "car_number": "11",
+    "driver": "f1990_derek_warwick",
+    "driver_customisation": "f1990_derek_warwick_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_martin_donnelly",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "12",
+    "date_of_birth.year": "1964",
+    "date_of_birth.month": "March",
+    "date_of_birth.day": "26",
+    "f1_seasons_completed": "1",
+    "first_name": "lng_f1990_martin_donnelly_first",
+    "full_name": "lng_f1990_martin_donnelly_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls526",
+    "initials": "DON",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_martin_donnelly_last",
+    "nationality": "northern_ireland",
+    "stat_id": "108",
+    "driver_characteristics.aggression": "0.8",
+    "driver_characteristics.control": "0.73",
+    "driver_characteristics.mistakes": "0.74",
+    "driver_characteristics.reaction_speed": "0.74",
+    "driver_characteristics.speed_in": "0.77",
+    "driver_characteristics.speed_out": "0.77"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_martin_donnelly_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-redbull",
+    "helmet": "tier02_livery82",
+    "linked_driver_stat_id": "f1990_martin_donnelly",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2001",
+    "suit": "2026-redbull",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_martin_donnelly",
+    "driver": "f1990_martin_donnelly",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.832,0.25:0.832,0.5:0.832,1:0.832",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.812,0.25:0.812,0.5:0.812,1:0.812",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.831,0.25:0.831,0.5:0.831,1:0.831",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.824,0.25:0.824,0.5:0.824,1:0.824"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-martin_donnelly",
+    "badge_customisation": "",
+    "car_number": "12",
+    "driver": "f1990_martin_donnelly",
+    "driver_customisation": "f1990_martin_donnelly_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_mauricio_gugelmin",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "15",
+    "date_of_birth.year": "1963",
+    "date_of_birth.month": "April",
+    "date_of_birth.day": "20",
+    "f1_seasons_completed": "2",
+    "first_name": "lng_f1990_mauricio_gugelmin_first",
+    "full_name": "lng_f1990_mauricio_gugelmin_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls758",
+    "initials": "GUG",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_mauricio_gugelmin_last",
+    "nationality": "brazil",
+    "stat_id": "119",
+    "driver_characteristics.aggression": "0.78",
+    "driver_characteristics.control": "0.74",
+    "driver_characteristics.mistakes": "0.77",
+    "driver_characteristics.reaction_speed": "0.79",
+    "driver_characteristics.speed_in": "0.75",
+    "driver_characteristics.speed_out": "0.76"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_mauricio_gugelmin_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-forceindia",
+    "helmet": "tier03_livery105",
+    "linked_driver_stat_id": "f1990_mauricio_gugelmin",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2002",
+    "suit": "2026-forceindia",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_mauricio_gugelmin",
+    "driver": "f1990_mauricio_gugelmin",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.686,0.25:0.686,0.5:0.686,1:0.686",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.837,0.25:0.837,0.5:0.837,1:0.837",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.825,0.25:0.825,0.5:0.825,1:0.825",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.824,0.25:0.824,0.5:0.824,1:0.824",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.813,0.25:0.813,0.5:0.813,1:0.813"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-mauricio_gugelmin",
+    "badge_customisation": "",
+    "car_number": "15",
+    "driver": "f1990_mauricio_gugelmin",
+    "driver_customisation": "f1990_mauricio_gugelmin_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_ivan_capelli",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "16",
+    "date_of_birth.year": "1963",
+    "date_of_birth.month": "May",
+    "date_of_birth.day": "24",
+    "f1_seasons_completed": "5",
+    "first_name": "lng_f1990_ivan_capelli_first",
+    "full_name": "lng_f1990_ivan_capelli_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls161",
+    "initials": "CAP",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_ivan_capelli_last",
+    "nationality": "italy",
+    "stat_id": "120",
+    "driver_characteristics.aggression": "0.78",
+    "driver_characteristics.control": "0.82",
+    "driver_characteristics.mistakes": "0.81",
+    "driver_characteristics.reaction_speed": "0.92",
+    "driver_characteristics.speed_in": "0.91",
+    "driver_characteristics.speed_out": "0.85"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_ivan_capelli_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-forceindia",
+    "helmet": "tier01_livery80",
+    "linked_driver_stat_id": "f1990_ivan_capelli",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2003",
+    "suit": "2026-forceindia",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_ivan_capelli",
+    "driver": "f1990_ivan_capelli",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.785,0.25:0.785,0.5:0.785,1:0.785",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.86,0.25:0.86,0.5:0.86,1:0.86",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.857,0.25:0.857,0.5:0.857,1:0.857",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.881,0.25:0.881,0.5:0.881,1:0.881",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.893,0.25:0.893,0.5:0.893,1:0.893"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-ivan_capelli",
+    "badge_customisation": "",
+    "car_number": "16",
+    "driver": "f1990_ivan_capelli",
+    "driver_customisation": "f1990_ivan_capelli_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_eric_bernard",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "29",
+    "date_of_birth.year": "1964",
+    "date_of_birth.month": "August",
+    "date_of_birth.day": "24",
+    "f1_seasons_completed": "1",
+    "first_name": "lng_f1990_eric_bernard_first",
+    "full_name": "lng_f1990_eric_bernard_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls212",
+    "initials": "BRN",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_eric_bernard_last",
+    "nationality": "france",
+    "stat_id": "124",
+    "driver_characteristics.aggression": "0.75",
+    "driver_characteristics.control": "0.71",
+    "driver_characteristics.mistakes": "0.63",
+    "driver_characteristics.reaction_speed": "0.71",
+    "driver_characteristics.speed_in": "0.6",
+    "driver_characteristics.speed_out": "0.65"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_eric_bernard_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-williams",
+    "helmet": "tier01_livery78",
+    "linked_driver_stat_id": "f1990_eric_bernard",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2004",
+    "suit": "2026-williams",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_eric_bernard",
+    "driver": "f1990_eric_bernard",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.78,0.25:0.78,0.5:0.78,1:0.78",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.756,0.25:0.756,0.5:0.756,1:0.756",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.758,0.25:0.758,0.5:0.758,1:0.758",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.782,0.25:0.782,0.5:0.782,1:0.782"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-eric_bernard",
+    "badge_customisation": "",
+    "car_number": "29",
+    "driver": "f1990_eric_bernard",
+    "driver_customisation": "f1990_eric_bernard_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_aguri_suzuki",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "30",
+    "date_of_birth.year": "1960",
+    "date_of_birth.month": "September",
+    "date_of_birth.day": "8",
+    "f1_seasons_completed": "2",
+    "first_name": "lng_f1990_aguri_suzuki_first",
+    "full_name": "lng_f1990_aguri_suzuki_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls197",
+    "initials": "SUZ",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_aguri_suzuki_last",
+    "nationality": "japan",
+    "stat_id": "253",
+    "driver_characteristics.aggression": "0.73",
+    "driver_characteristics.control": "0.61",
+    "driver_characteristics.mistakes": "0.62",
+    "driver_characteristics.reaction_speed": "0.67",
+    "driver_characteristics.speed_in": "0.57",
+    "driver_characteristics.speed_out": "0.57"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_aguri_suzuki_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-williams",
+    "helmet": "tier02_livery103",
+    "linked_driver_stat_id": "f1990_aguri_suzuki",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2005",
+    "suit": "2026-williams",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_aguri_suzuki",
+    "driver": "f1990_aguri_suzuki",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.686,0.25:0.686,0.5:0.686,1:0.686",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.747,0.25:0.747,0.5:0.747,1:0.747",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.751,0.25:0.751,0.5:0.751,1:0.751",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.713,0.25:0.713,0.5:0.713,1:0.713",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.762,0.25:0.762,0.5:0.762,1:0.762"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-aguri_suzuki",
+    "badge_customisation": "",
+    "car_number": "30",
+    "driver": "f1990_aguri_suzuki",
+    "driver_customisation": "f1990_aguri_suzuki_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_nicola_larini",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "25",
+    "date_of_birth.year": "1964",
+    "date_of_birth.month": "March",
+    "date_of_birth.day": "19",
+    "f1_seasons_completed": "3",
+    "first_name": "lng_f1990_nicola_larini_first",
+    "full_name": "lng_f1990_nicola_larini_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls235",
+    "initials": "LAR",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_nicola_larini_last",
+    "nationality": "italy",
+    "stat_id": "252",
+    "driver_characteristics.aggression": "0.76",
+    "driver_characteristics.control": "0.84",
+    "driver_characteristics.mistakes": "0.81",
+    "driver_characteristics.reaction_speed": "0.86",
+    "driver_characteristics.speed_in": "0.9",
+    "driver_characteristics.speed_out": "0.84"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_nicola_larini_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-sauber",
+    "helmet": "tier03_livery99",
+    "linked_driver_stat_id": "f1990_nicola_larini",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2006",
+    "suit": "2026-sauber",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_nicola_larini",
+    "driver": "f1990_nicola_larini",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.719,0.25:0.719,0.5:0.719,1:0.719",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.837,0.25:0.837,0.5:0.837,1:0.837",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.867,0.25:0.867,0.5:0.867,1:0.867",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.877,0.25:0.877,0.5:0.877,1:0.877",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.885,0.25:0.885,0.5:0.885,1:0.885"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-nicola_larini",
+    "badge_customisation": "",
+    "car_number": "25",
+    "driver": "f1990_nicola_larini",
+    "driver_customisation": "f1990_nicola_larini_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_philippe_alliot",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "26",
+    "date_of_birth.year": "1954",
+    "date_of_birth.month": "July",
+    "date_of_birth.day": "27",
+    "f1_seasons_completed": "6",
+    "first_name": "lng_f1990_philippe_alliot_first",
+    "full_name": "lng_f1990_philippe_alliot_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls343",
+    "initials": "ALL",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_philippe_alliot_last",
+    "nationality": "france",
+    "stat_id": "251",
+    "driver_characteristics.aggression": "0.69",
+    "driver_characteristics.control": "0.71",
+    "driver_characteristics.mistakes": "0.68",
+    "driver_characteristics.reaction_speed": "0.71",
+    "driver_characteristics.speed_in": "0.7",
+    "driver_characteristics.speed_out": "0.71"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_philippe_alliot_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-sauber",
+    "helmet": "tier02_livery01",
+    "linked_driver_stat_id": "f1990_philippe_alliot",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2007",
+    "suit": "2026-sauber",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_philippe_alliot",
+    "driver": "f1990_philippe_alliot",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.793,0.25:0.793,0.5:0.793,1:0.793",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.764,0.25:0.764,0.5:0.764,1:0.764",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.796,0.25:0.796,0.5:0.796,1:0.796",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.807,0.25:0.807,0.5:0.807,1:0.807"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-philippe_alliot",
+    "badge_customisation": "",
+    "car_number": "26",
+    "driver": "f1990_philippe_alliot",
+    "driver_customisation": "f1990_philippe_alliot_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_pierluigi_martini",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "23",
+    "date_of_birth.year": "1961",
+    "date_of_birth.month": "April",
+    "date_of_birth.day": "23",
+    "f1_seasons_completed": "6",
+    "first_name": "lng_f1990_pierluigi_martini_first",
+    "full_name": "lng_f1990_pierluigi_martini_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls807",
+    "initials": "MAR",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_pierluigi_martini_last",
+    "nationality": "italy",
+    "stat_id": "250",
+    "driver_characteristics.aggression": "0.71",
+    "driver_characteristics.control": "0.74",
+    "driver_characteristics.mistakes": "0.76",
+    "driver_characteristics.reaction_speed": "0.73",
+    "driver_characteristics.speed_in": "0.81",
+    "driver_characteristics.speed_out": "0.78"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_pierluigi_martini_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-tororosso",
+    "helmet": "tier01_livery52",
+    "linked_driver_stat_id": "f1990_pierluigi_martini",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2008",
+    "suit": "2026-tororosso",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_pierluigi_martini",
+    "driver": "f1990_pierluigi_martini",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.811,0.25:0.811,0.5:0.811,1:0.811",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.804,0.25:0.804,0.5:0.804,1:0.804",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.837,0.25:0.837,0.5:0.837,1:0.837",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.8,0.25:0.8,0.5:0.8,1:0.8"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-pierluigi_martini",
+    "badge_customisation": "",
+    "car_number": "23",
+    "driver": "f1990_pierluigi_martini",
+    "driver_customisation": "f1990_pierluigi_martini_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_paolo_barilla",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "24",
+    "date_of_birth.year": "1961",
+    "date_of_birth.month": "April",
+    "date_of_birth.day": "20",
+    "f1_seasons_completed": "1",
+    "first_name": "lng_f1990_paolo_barilla_first",
+    "full_name": "lng_f1990_paolo_barilla_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls206",
+    "initials": "BAR",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_paolo_barilla_last",
+    "nationality": "italy",
+    "stat_id": "249",
+    "driver_characteristics.aggression": "0.73",
+    "driver_characteristics.control": "0.65",
+    "driver_characteristics.mistakes": "0.62",
+    "driver_characteristics.reaction_speed": "0.67",
+    "driver_characteristics.speed_in": "0.63",
+    "driver_characteristics.speed_out": "0.65"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_paolo_barilla_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-tororosso",
+    "helmet": "tier01_livery88",
+    "linked_driver_stat_id": "f1990_paolo_barilla",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2009",
+    "suit": "2026-tororosso",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_paolo_barilla",
+    "driver": "f1990_paolo_barilla",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.774,0.25:0.774,0.5:0.774,1:0.774",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.741,0.25:0.741,0.5:0.741,1:0.741",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.761,0.25:0.761,0.5:0.761,1:0.761",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.736,0.25:0.736,0.5:0.736,1:0.736"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-paolo_barilla",
+    "badge_customisation": "",
+    "car_number": "24",
+    "driver": "f1990_paolo_barilla",
+    "driver_customisation": "f1990_paolo_barilla_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_gregor_foitek",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "7",
+    "date_of_birth.year": "1965",
+    "date_of_birth.month": "March",
+    "date_of_birth.day": "27",
+    "f1_seasons_completed": "1",
+    "first_name": "lng_f1990_gregor_foitek_first",
+    "full_name": "lng_f1990_gregor_foitek_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls247",
+    "initials": "FOI",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_gregor_foitek_last",
+    "nationality": "switzerland",
+    "stat_id": "248",
+    "driver_characteristics.aggression": "0.66",
+    "driver_characteristics.control": "0.6",
+    "driver_characteristics.mistakes": "0.62",
+    "driver_characteristics.reaction_speed": "0.72",
+    "driver_characteristics.speed_in": "0.6",
+    "driver_characteristics.speed_out": "0.61"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_gregor_foitek_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-cadillac",
+    "helmet": "tier01_livery77",
+    "linked_driver_stat_id": "f1990_gregor_foitek",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2010",
+    "suit": "2026-cadillac",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_gregor_foitek",
+    "driver": "f1990_gregor_foitek",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.736,0.25:0.736,0.5:0.736,1:0.736",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.727,0.25:0.727,0.5:0.727,1:0.727",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.736,0.25:0.736,0.5:0.736,1:0.736",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.756,0.25:0.756,0.5:0.756,1:0.756"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-gregor_foitek",
+    "badge_customisation": "",
+    "car_number": "7",
+    "driver": "f1990_gregor_foitek",
+    "driver_customisation": "f1990_gregor_foitek_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_stefano_modena",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "8",
+    "date_of_birth.year": "1963",
+    "date_of_birth.month": "May",
+    "date_of_birth.day": "12",
+    "f1_seasons_completed": "3",
+    "first_name": "lng_f1990_stefano_modena_first",
+    "full_name": "lng_f1990_stefano_modena_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls265",
+    "initials": "MOD",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_stefano_modena_last",
+    "nationality": "italy",
+    "stat_id": "247",
+    "driver_characteristics.aggression": "0.73",
+    "driver_characteristics.control": "0.76",
+    "driver_characteristics.mistakes": "0.75",
+    "driver_characteristics.reaction_speed": "0.76",
+    "driver_characteristics.speed_in": "0.76",
+    "driver_characteristics.speed_out": "0.74"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_stefano_modena_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-cadillac",
+    "helmet": "tier03_livery107",
+    "linked_driver_stat_id": "f1990_stefano_modena",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2011",
+    "suit": "2026-cadillac",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_stefano_modena",
+    "driver": "f1990_stefano_modena",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.719,0.25:0.719,0.5:0.719,1:0.719",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.816,0.25:0.816,0.5:0.816,1:0.816",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.813,0.25:0.813,0.5:0.813,1:0.813",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.795,0.25:0.795,0.5:0.795,1:0.795"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-stefano_modena",
+    "badge_customisation": "",
+    "car_number": "8",
+    "driver": "f1990_stefano_modena",
+    "driver_customisation": "f1990_stefano_modena_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_gianni_morbidelli",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "21",
+    "date_of_birth.year": "1968",
+    "date_of_birth.month": "January",
+    "date_of_birth.day": "13",
+    "f1_seasons_completed": "1",
+    "first_name": "lng_f1990_gianni_morbidelli_first",
+    "full_name": "lng_f1990_gianni_morbidelli_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls553",
+    "initials": "MOR",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_gianni_morbidelli_last",
+    "nationality": "italy",
+    "stat_id": "246",
+    "driver_characteristics.aggression": "0.74",
+    "driver_characteristics.control": "0.71",
+    "driver_characteristics.mistakes": "0.67",
+    "driver_characteristics.reaction_speed": "0.76",
+    "driver_characteristics.speed_in": "0.63",
+    "driver_characteristics.speed_out": "0.67"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_gianni_morbidelli_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-haas",
+    "helmet": "tier01_livery86",
+    "linked_driver_stat_id": "f1990_gianni_morbidelli",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2012",
+    "suit": "2026-haas",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_gianni_morbidelli",
+    "driver": "f1990_gianni_morbidelli",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.796,0.25:0.796,0.5:0.796,1:0.796",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.774,0.25:0.774,0.5:0.774,1:0.774",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.77,0.25:0.77,0.5:0.77,1:0.77",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.764,0.25:0.764,0.5:0.764,1:0.764"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-gianni_morbidelli",
+    "badge_customisation": "",
+    "car_number": "21",
+    "driver": "f1990_gianni_morbidelli",
+    "driver_customisation": "f1990_gianni_morbidelli_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_andrea_de_cesaris",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "22",
+    "date_of_birth.year": "1959",
+    "date_of_birth.month": "May",
+    "date_of_birth.day": "31",
+    "f1_seasons_completed": "10",
+    "first_name": "lng_f1990_andrea_de_cesaris_first",
+    "full_name": "lng_f1990_andrea_de_cesaris_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls683",
+    "initials": "DEC",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_andrea_de_cesaris_last",
+    "nationality": "italy",
+    "stat_id": "245",
+    "driver_characteristics.aggression": "0.59",
+    "driver_characteristics.control": "0.76",
+    "driver_characteristics.mistakes": "0.72",
+    "driver_characteristics.reaction_speed": "0.78",
+    "driver_characteristics.speed_in": "0.65",
+    "driver_characteristics.speed_out": "0.68"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_andrea_de_cesaris_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-haas",
+    "helmet": "tier02_livery94",
+    "linked_driver_stat_id": "f1990_andrea_de_cesaris",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2013",
+    "suit": "2026-haas",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_andrea_de_cesaris",
+    "driver": "f1990_andrea_de_cesaris",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.95,0.25:0.95,0.5:0.95,1:0.95",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.78,0.25:0.78,0.5:0.78,1:0.78",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.796,0.25:0.796,0.5:0.796,1:0.796",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.781,0.25:0.781,0.5:0.781,1:0.781",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.815,0.25:0.815,0.5:0.815,1:0.815"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-andrea_de_cesaris",
+    "badge_customisation": "",
+    "car_number": "22",
+    "driver": "f1990_andrea_de_cesaris",
+    "driver_customisation": "f1990_andrea_de_cesaris_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_michele_alboreto",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "9",
+    "date_of_birth.year": "1956",
+    "date_of_birth.month": "December",
+    "date_of_birth.day": "23",
+    "f1_seasons_completed": "9",
+    "first_name": "lng_f1990_michele_alboreto_first",
+    "full_name": "lng_f1990_michele_alboreto_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls766",
+    "initials": "ALB",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_michele_alboreto_last",
+    "nationality": "italy",
+    "stat_id": "244",
+    "driver_characteristics.aggression": "0.76",
+    "driver_characteristics.control": "0.84",
+    "driver_characteristics.mistakes": "0.78",
+    "driver_characteristics.reaction_speed": "0.88",
+    "driver_characteristics.speed_in": "0.86",
+    "driver_characteristics.speed_out": "0.87"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_michele_alboreto_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-haas",
+    "helmet": "tier04_livery105",
+    "linked_driver_stat_id": "f1990_michele_alboreto",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2014",
+    "suit": "2026-haas",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_michele_alboreto",
+    "driver": "f1990_michele_alboreto",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.917,0.25:0.917,0.5:0.917,1:0.917",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.848,0.25:0.848,0.5:0.848,1:0.848",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.837,0.25:0.837,0.5:0.837,1:0.837",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.891,0.25:0.891,0.5:0.891,1:0.891",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.861,0.25:0.861,0.5:0.861,1:0.861"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-michele_alboreto",
+    "badge_customisation": "",
+    "car_number": "9",
+    "driver": "f1990_michele_alboreto",
+    "driver_customisation": "f1990_michele_alboreto_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_bernd_schneider",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "10",
+    "date_of_birth.year": "1964",
+    "date_of_birth.month": "July",
+    "date_of_birth.day": "20",
+    "f1_seasons_completed": "2",
+    "first_name": "lng_f1990_bernd_schneider_first",
+    "full_name": "lng_f1990_bernd_schneider_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls790",
+    "initials": "SCH",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_bernd_schneider_last",
+    "nationality": "germany",
+    "stat_id": "243",
+    "driver_characteristics.aggression": "0.69",
+    "driver_characteristics.control": "0.58",
+    "driver_characteristics.mistakes": "0.58",
+    "driver_characteristics.reaction_speed": "0.62",
+    "driver_characteristics.speed_in": "0.55",
+    "driver_characteristics.speed_out": "0.55"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_bernd_schneider_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-haas",
+    "helmet": "tier04_livery20",
+    "linked_driver_stat_id": "f1990_bernd_schneider",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2015",
+    "suit": "2026-haas",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_bernd_schneider",
+    "driver": "f1990_bernd_schneider",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.686,0.25:0.686,0.5:0.686,1:0.686",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.744,0.25:0.744,0.5:0.744,1:0.744",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.714,0.25:0.714,0.5:0.714,1:0.714",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.7,0.25:0.7,0.5:0.7,1:0.7",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.734,0.25:0.734,0.5:0.734,1:0.734"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-bernd_schneider",
+    "badge_customisation": "",
+    "car_number": "10",
+    "driver": "f1990_bernd_schneider",
+    "driver_customisation": "f1990_bernd_schneider_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_david_brabham",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "7",
+    "date_of_birth.year": "1965",
+    "date_of_birth.month": "September",
+    "date_of_birth.day": "5",
+    "f1_seasons_completed": "0",
+    "first_name": "lng_f1990_david_brabham_first",
+    "full_name": "lng_f1990_david_brabham_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls752",
+    "initials": "BRA",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_david_brabham_last",
+    "nationality": "australia",
+    "stat_id": "242",
+    "driver_characteristics.aggression": "0.75",
+    "driver_characteristics.control": "0.65",
+    "driver_characteristics.mistakes": "0.65",
+    "driver_characteristics.reaction_speed": "0.64",
+    "driver_characteristics.speed_in": "0.72",
+    "driver_characteristics.speed_out": "0.69"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_david_brabham_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-cadillac",
+    "helmet": "tier04_livery94",
+    "linked_driver_stat_id": "f1990_david_brabham",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2016",
+    "suit": "2026-cadillac",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_david_brabham",
+    "driver": "f1990_david_brabham",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.62,0.25:0.62,0.5:0.62,1:0.62",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.788,0.25:0.788,0.5:0.788,1:0.788",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.746,0.25:0.746,0.5:0.746,1:0.746",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.784,0.25:0.784,0.5:0.784,1:0.784",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.754,0.25:0.754,0.5:0.754,1:0.754"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-david_brabham",
+    "badge_customisation": "",
+    "car_number": "7",
+    "driver": "f1990_david_brabham",
+    "driver_customisation": "f1990_david_brabham_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_emanuele_pirro",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "21",
+    "date_of_birth.year": "1962",
+    "date_of_birth.month": "January",
+    "date_of_birth.day": "12",
+    "f1_seasons_completed": "1",
+    "first_name": "lng_f1990_emanuele_pirro_first",
+    "full_name": "lng_f1990_emanuele_pirro_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls533",
+    "initials": "PIR",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_emanuele_pirro_last",
+    "nationality": "italy",
+    "stat_id": "241",
+    "driver_characteristics.aggression": "0.71",
+    "driver_characteristics.control": "0.66",
+    "driver_characteristics.mistakes": "0.61",
+    "driver_characteristics.reaction_speed": "0.64",
+    "driver_characteristics.speed_in": "0.73",
+    "driver_characteristics.speed_out": "0.68"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_emanuele_pirro_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-haas",
+    "helmet": "tier03_livery106",
+    "linked_driver_stat_id": "f1990_emanuele_pirro",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2017",
+    "suit": "2026-haas",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_emanuele_pirro",
+    "driver": "f1990_emanuele_pirro",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.77,0.25:0.77,0.5:0.77,1:0.77",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.751,0.25:0.751,0.5:0.751,1:0.751",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.777,0.25:0.777,0.5:0.777,1:0.777",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.781,0.25:0.781,0.5:0.781,1:0.781"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-emanuele_pirro",
+    "badge_customisation": "",
+    "car_number": "21",
+    "driver": "f1990_emanuele_pirro",
+    "driver_customisation": "f1990_emanuele_pirro_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_alex_caffi",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "10",
+    "date_of_birth.year": "1964",
+    "date_of_birth.month": "March",
+    "date_of_birth.day": "18",
+    "f1_seasons_completed": "4",
+    "first_name": "lng_f1990_alex_caffi_first",
+    "full_name": "lng_f1990_alex_caffi_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls515",
+    "initials": "CAF",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_alex_caffi_last",
+    "nationality": "italy",
+    "stat_id": "240",
+    "driver_characteristics.aggression": "0.77",
+    "driver_characteristics.control": "0.77",
+    "driver_characteristics.mistakes": "0.74",
+    "driver_characteristics.reaction_speed": "0.72",
+    "driver_characteristics.speed_in": "0.73",
+    "driver_characteristics.speed_out": "0.77"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_alex_caffi_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-haas",
+    "helmet": "tier05_livery74",
+    "linked_driver_stat_id": "f1990_alex_caffi",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2018",
+    "suit": "2026-haas",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_alex_caffi",
+    "driver": "f1990_alex_caffi",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.752,0.25:0.752,0.5:0.752,1:0.752",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.839,0.25:0.839,0.5:0.839,1:0.839",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.82,0.25:0.82,0.5:0.82,1:0.82",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.831,0.25:0.831,0.5:0.831,1:0.831",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.839,0.25:0.839,0.5:0.839,1:0.839"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-alex_caffi",
+    "badge_customisation": "",
+    "car_number": "10",
+    "driver": "f1990_alex_caffi",
+    "driver_customisation": "f1990_alex_caffi_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_roberto_moreno",
+    "audio_name": "DefaultName",
+    "available": "True",
+    "car_number": "19",
+    "date_of_birth.year": "1959",
+    "date_of_birth.month": "February",
+    "date_of_birth.day": "11",
+    "f1_seasons_completed": "8",
+    "first_name": "lng_f1990_roberto_moreno_first",
+    "full_name": "lng_f1990_roberto_moreno_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls487",
+    "initials": "MRN",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_roberto_moreno_last",
+    "nationality": "brazil",
+    "stat_id": "239",
+    "driver_characteristics.aggression": "0.65",
+    "driver_characteristics.control": "0.76",
+    "driver_characteristics.mistakes": "0.71",
+    "driver_characteristics.reaction_speed": "0.74",
+    "driver_characteristics.speed_in": "0.73",
+    "driver_characteristics.speed_out": "0.75"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_roberto_moreno_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-renault",
+    "helmet": "tier02_livery84",
+    "linked_driver_stat_id": "f1990_roberto_moreno",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2019",
+    "suit": "2026-renault",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_roberto_moreno",
+    "driver": "f1990_roberto_moreno",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.884,0.25:0.884,0.5:0.884,1:0.884",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.803,0.25:0.803,0.5:0.803,1:0.803",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.786,0.25:0.786,0.5:0.786,1:0.786",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.82,0.25:0.82,0.5:0.82,1:0.82",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.794,0.25:0.794,0.5:0.794,1:0.794"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-roberto_moreno",
+    "badge_customisation": "",
+    "car_number": "19",
+    "driver": "f1990_roberto_moreno",
+    "driver_customisation": "f1990_roberto_moreno_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_johnny_herbert",
+    "audio_name": "Name175",
+    "available": "True",
+    "car_number": "12",
+    "date_of_birth.year": "1964",
+    "date_of_birth.month": "June",
+    "date_of_birth.day": "25",
+    "f1_seasons_completed": "1",
+    "first_name": "lng_f1990_johnny_herbert_first",
+    "full_name": "lng_f1990_johnny_herbert_full",
+    "garage_slot_preference": "0",
+    "head": "male_ls355",
+    "initials": "HER",
+    "is_name_reversed": "False",
+    "last_name": "lng_f1990_johnny_herbert_last",
+    "nationality": "britain",
+    "stat_id": "238",
+    "driver_characteristics.aggression": "0.73",
+    "driver_characteristics.control": "0.72",
+    "driver_characteristics.mistakes": "0.67",
+    "driver_characteristics.reaction_speed": "0.67",
+    "driver_characteristics.speed_in": "0.73",
+    "driver_characteristics.speed_out": "0.74"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]",
+   "set": {
+    "_metadata_": "f1990_johnny_herbert_look",
+    "available": "False",
+    "badge": "Basic Badge",
+    "car_livery": "livery_titlesponsor_livery23",
+    "gloves": "2026-redbull",
+    "helmet": "tier04_livery99",
+    "linked_driver_stat_id": "f1990_johnny_herbert",
+    "podium_emote": "Emote01",
+    "pose": "Pose03",
+    "stat_id": "2020",
+    "suit": "2026-redbull",
+    "victory_vo": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990_johnny_herbert",
+    "driver": "f1990_johnny_herbert",
+    "_StatisticsDataSet_instancecount_": "1",
+    "StatisticsDataSet_0._metadata_": "default",
+    "StatisticsDataSet_0.game_setup_modes": "",
+    "StatisticsDataSet_0.is_invalid": "False",
+    "StatisticsDataSet_0.seasons": "",
+    "StatisticsDataSet_0.weekend_formats": "",
+    "StatisticsDataSet_0._Statistic_instancecount_": "5",
+    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
+    "StatisticsDataSet_0.Statistic_0.info": "experience",
+    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
+    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
+    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
+    "StatisticsDataSet_0.Statistic_2.info": "awareness",
+    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
+    "StatisticsDataSet_0.Statistic_3.info": "pace",
+    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
+    "StatisticsDataSet_0.Statistic_4.info": "focus",
+    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
+    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.806,0.25:0.806,0.5:0.806,1:0.806",
+    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.792,0.25:0.792,0.5:0.792,1:0.792",
+    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.813,0.25:0.813,0.5:0.813,1:0.813",
+    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.797,0.25:0.797,0.5:0.797,1:0.797"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=jarno_opmeer]",
+   "set": {
+    "_metadata_": "f1990-johnny_herbert",
+    "badge_customisation": "",
+    "car_number": "12",
+    "driver": "f1990_johnny_herbert",
+    "driver_customisation": "f1990_johnny_herbert_look",
+    "entrant_reference": "",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mclaren_driver_01]",
+   "field": "entrant_reference",
+   "value": "f1990-ayrton_senna"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mclaren_driver_01]",
+   "field": "car_number",
+   "value": "27"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mclaren_driver_01]",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mclaren_driver_02]",
+   "field": "entrant_reference",
+   "value": "f1990-gerhard_berger"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mclaren_driver_02]",
+   "field": "car_number",
+   "value": "28"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mclaren_driver_02]",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=ferrari_driver_01]",
+   "field": "entrant_reference",
+   "value": "f1990-alain_prost"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=ferrari_driver_01]",
+   "field": "car_number",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=ferrari_driver_01]",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=ferrari_driver_02]",
+   "field": "entrant_reference",
+   "value": "f1990-nigel_mansell"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=ferrari_driver_02]",
+   "field": "car_number",
+   "value": "2"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=ferrari_driver_02]",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=williams_driver_01]",
+   "field": "entrant_reference",
+   "value": "f1990-thierry_boutsen"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=williams_driver_01]",
+   "field": "car_number",
+   "value": "5"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=williams_driver_01]",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=williams_driver_02]",
+   "field": "entrant_reference",
+   "value": "f1990-riccardo_patrese"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=williams_driver_02]",
+   "field": "car_number",
+   "value": "6"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=williams_driver_02]",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=alpine_driver_01]",
+   "field": "entrant_reference",
+   "value": "f1990-alessandro_nannini"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=alpine_driver_01]",
+   "field": "car_number",
+   "value": "19"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=alpine_driver_01]",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=alpine_driver_02]",
+   "field": "entrant_reference",
+   "value": "f1990-nelson_piquet"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=alpine_driver_02]",
+   "field": "car_number",
+   "value": "20"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=alpine_driver_02]",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mercedes_driver_01]",
+   "field": "entrant_reference",
+   "value": "f1990-satoru_nakajima"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mercedes_driver_01]",
+   "field": "car_number",
+   "value": "3"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mercedes_driver_01]",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mercedes_driver_02]",
+   "field": "entrant_reference",
+   "value": "f1990-jean_alesi"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mercedes_driver_02]",
+   "field": "car_number",
+   "value": "4"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mercedes_driver_02]",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=redbull_driver_01]",
+   "field": "entrant_reference",
+   "value": "f1990-derek_warwick"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=redbull_driver_01]",
+   "field": "car_number",
+   "value": "11"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=redbull_driver_01]",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=redbull_driver_02]",
+   "field": "entrant_reference",
+   "value": "f1990-martin_donnelly"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=redbull_driver_02]",
+   "field": "car_number",
+   "value": "12"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=redbull_driver_02]",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=astonmartin_driver_01]",
+   "field": "entrant_reference",
+   "value": "f1990-mauricio_gugelmin"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=astonmartin_driver_01]",
+   "field": "car_number",
+   "value": "15"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=astonmartin_driver_01]",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=astonmartin_driver_02]",
+   "field": "entrant_reference",
+   "value": "f1990-ivan_capelli"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=astonmartin_driver_02]",
+   "field": "car_number",
+   "value": "16"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=astonmartin_driver_02]",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team12_driver_01]",
+   "field": "entrant_reference",
+   "value": "f1990-eric_bernard"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team12_driver_01]",
+   "field": "car_number",
+   "value": "29"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team12_driver_01]",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team12_driver_02]",
+   "field": "entrant_reference",
+   "value": "f1990-aguri_suzuki"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team12_driver_02]",
+   "field": "car_number",
+   "value": "30"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team12_driver_02]",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=kick_driver_01]",
+   "field": "entrant_reference",
+   "value": "f1990-nicola_larini"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=kick_driver_01]",
+   "field": "car_number",
+   "value": "25"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=kick_driver_01]",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=kick_driver_02]",
+   "field": "entrant_reference",
+   "value": "f1990-philippe_alliot"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=kick_driver_02]",
+   "field": "car_number",
+   "value": "26"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=kick_driver_02]",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=vcarb_driver_01]",
+   "field": "entrant_reference",
+   "value": "f1990-pierluigi_martini"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=vcarb_driver_01]",
+   "field": "car_number",
+   "value": "23"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=vcarb_driver_01]",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=vcarb_driver_02]",
+   "field": "entrant_reference",
+   "value": "f1990-paolo_barilla"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=vcarb_driver_02]",
+   "field": "car_number",
+   "value": "24"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=vcarb_driver_02]",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=gm_cadillac_01]",
+   "field": "entrant_reference",
+   "value": "f1990-gregor_foitek"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=gm_cadillac_01]",
+   "field": "car_number",
+   "value": "7"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=gm_cadillac_01]",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=gm_cadillac_02]",
+   "field": "entrant_reference",
+   "value": "f1990-stefano_modena"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=gm_cadillac_02]",
+   "field": "car_number",
+   "value": "8"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=gm_cadillac_02]",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team13_driver_01]",
+   "field": "entrant_reference",
+   "value": "f1990-gianni_morbidelli"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team13_driver_01]",
+   "field": "car_number",
+   "value": "21"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team13_driver_01]",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team13_driver_02]",
+   "field": "entrant_reference",
+   "value": "f1990-andrea_de_cesaris"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team13_driver_02]",
+   "field": "car_number",
+   "value": "22"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=team13_driver_02]",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=haas_driver_01]",
+   "field": "entrant_reference",
+   "value": "f1990-michele_alboreto"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=haas_driver_01]",
+   "field": "car_number",
+   "value": "9"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=haas_driver_01]",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=haas_driver_02]",
+   "field": "entrant_reference",
+   "value": "f1990-bernd_schneider"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=haas_driver_02]",
+   "field": "car_number",
+   "value": "10"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=haas_driver_02]",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026_driver_pool].entrant[_metadata_=senna]",
+   "field": "entrant_reference",
+   "value": "f1990-david_brabham"
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026_driver_pool]",
+   "from": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026_driver_pool].entrant[_metadata_=opmeer]",
+   "set": {
+    "_metadata_": "f1990_emanuele_pirro",
+    "badge_customisation": "",
+    "car_number": "255",
+    "driver": "",
+    "driver_customisation": "",
+    "entrant_reference": "f1990-emanuele_pirro",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026_driver_pool]",
+   "from": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026_driver_pool].entrant[_metadata_=opmeer]",
+   "set": {
+    "_metadata_": "f1990_alex_caffi",
+    "badge_customisation": "",
+    "car_number": "255",
+    "driver": "",
+    "driver_customisation": "",
+    "entrant_reference": "f1990-alex_caffi",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026_driver_pool]",
+   "from": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026_driver_pool].entrant[_metadata_=opmeer]",
+   "set": {
+    "_metadata_": "f1990_roberto_moreno",
+    "badge_customisation": "",
+    "car_number": "255",
+    "driver": "",
+    "driver_customisation": "",
+    "entrant_reference": "f1990-roberto_moreno",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026_driver_pool]",
+   "from": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026_driver_pool].entrant[_metadata_=opmeer]",
+   "set": {
+    "_metadata_": "f1990_johnny_herbert",
+    "badge_customisation": "",
+    "car_number": "255",
+    "driver": "",
+    "driver_customisation": "",
+    "entrant_reference": "f1990-johnny_herbert",
+    "team": "",
+    "team_position": "-1",
+    "vehicle": "",
+    "vehicle_customisation": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_teams_2025].team_reference_0",
+   "field": "team",
+   "value": "mclaren_26"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_teams_2025].team_reference_1",
+   "field": "team",
+   "value": "williams_26"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_teams_2025].team_reference_2",
+   "field": "team",
+   "value": "ferrari_26"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_teams_2025].team_reference_3",
+   "field": "team",
+   "value": "renault_26"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_teams_2025].team_reference_4",
+   "field": "team",
+   "value": "mercedes_26"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_teams_2025].team_reference_5",
+   "field": "team",
+   "value": "redbull_26"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_teams_2025].team_reference_6",
+   "field": "team",
+   "value": "haas_26"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_teams_2025].team_reference_7",
+   "field": "team",
+   "value": "gm_cadillac_26"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_teams_2025].team_reference_8",
+   "field": "team",
+   "value": "tororosso_26"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_teams_2025].team_reference_9",
+   "field": "team",
+   "value": "forceindia_26"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_teams_2025].team_reference_10",
+   "field": "team",
+   "value": "sauber_26"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_0",
+   "field": "driver",
+   "value": "alain_prost"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_1",
+   "field": "driver",
+   "value": "ayrton_senna"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_2",
+   "field": "driver",
+   "value": "f1990_riccardo_patrese"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_3",
+   "field": "driver",
+   "value": "nigel_mansell"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_4",
+   "field": "driver",
+   "value": "f1990_thierry_boutsen"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_5",
+   "field": "driver",
+   "value": "f1990_alessandro_nannini"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_6",
+   "field": "driver",
+   "value": "f1990_gerhard_berger"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_7",
+   "field": "driver",
+   "value": "f1990_nelson_piquet"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_8",
+   "field": "driver",
+   "value": "f1990_jean_alesi"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_9",
+   "field": "driver",
+   "value": "f1990_derek_warwick"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_10",
+   "field": "driver",
+   "value": "f1990_michele_alboreto"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_11",
+   "field": "driver",
+   "value": "f1990_stefano_modena"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_12",
+   "field": "driver",
+   "value": "f1990_pierluigi_martini"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_13",
+   "field": "driver",
+   "value": "f1990_andrea_de_cesaris"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_14",
+   "field": "driver",
+   "value": "f1990_mauricio_gugelmin"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_15",
+   "field": "driver",
+   "value": "f1990_satoru_nakajima"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_16",
+   "field": "driver",
+   "value": "f1990_philippe_alliot"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_17",
+   "field": "driver",
+   "value": "f1990_ivan_capelli"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_18",
+   "field": "driver",
+   "value": "f1990_nicola_larini"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_19",
+   "field": "driver",
+   "value": "f1990_eric_bernard"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_20",
+   "field": "driver",
+   "value": "f1990_aguri_suzuki"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=f1_drivers_2025].driver_reference_21",
+   "field": "driver",
+   "value": "f1990_martin_donnelly"
+  }
+ ]
+}
