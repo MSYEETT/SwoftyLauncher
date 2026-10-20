@@ -12,6 +12,7 @@ use crate::library::plural;
 use crate::pages::avatar;
 use crate::shell::{Page, PlayState, Shell};
 use crate::theme::Palette;
+use swofty_core::updater::Gate;
 
 pub(crate) fn link(id: &'static str, label: &'static str, p: Palette) -> Stateful<Div> {
     div()
@@ -22,6 +23,15 @@ pub(crate) fn link(id: &'static str, label: &'static str, p: Palette) -> Statefu
         .underline()
         .hover(move |s| s.text_color(p.text))
         .child(label)
+}
+
+fn status_row() -> Div {
+    h_flex()
+        .flex_1()
+        .min_w_0()
+        .overflow_hidden()
+        .gap(px(9.))
+        .text_size(px(13.))
 }
 
 fn launch_failed(row: Div, text: impl std::fmt::Display, p: Palette) -> Div {
@@ -87,12 +97,7 @@ impl Shell {
 
     fn status(&self, state: &PlayState, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
         let dot = |c: Hsla| div().size(px(7.)).rounded_full().bg(c).flex_shrink_0();
-        let row = h_flex()
-            .flex_1()
-            .min_w_0()
-            .overflow_hidden()
-            .gap(px(9.))
-            .text_size(px(13.));
+        let row = status_row();
         if let Some(notice) = &self.notice {
             return launch_failed(row, notice, p)
                 .when(self.blocked.is_some(), |d| {
@@ -106,6 +111,9 @@ impl Shell {
                         link("launch-log", "View log", p).on_click(move |_, _, cx| cx.open_with_system(&log)),
                     )
                 });
+        }
+        if let Some(row) = self.update_status(self.update_gate(state), status_row(), p, cx) {
+            return row;
         }
         let rebuild = !self.library.profile.is_vanilla() && !self.library.rebuild.is_empty();
         match state {
@@ -299,7 +307,11 @@ impl Shell {
             })
     }
 
-    fn big_button(&self, state: &PlayState, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+    fn big_button(&self, state: &PlayState, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+        let gate = self.update_gate(state);
+        if gate != Gate::Play {
+            return self.update_button(gate, p, cx);
+        }
         let (icon, label, bg, fg, enabled) = match state {
             PlayState::Ready | PlayState::Crashed(_) => (IconName::Play, "Play", p.accent, p.on_accent, true),
             PlayState::Launching => (IconName::LoaderCircle, "Launching…", p.elevated, p.accent, false),
@@ -353,6 +365,7 @@ impl Shell {
             .flex_shrink_0()
             .child(button)
             .when(ready, |d| d.child(self.play_caret(p, cx)))
+            .into_any_element()
     }
 
     pub(crate) fn play_bar(&self, p: Palette, wide: bool, cx: &mut Context<Self>) -> impl IntoElement {
