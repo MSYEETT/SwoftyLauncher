@@ -1,0 +1,1034 @@
+{
+ "schema_version": 1,
+ "ops": [
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=mclaren_2026]",
+   "field": "hud_dial",
+   "value": "{{hud_dial}}"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=mclaren_2026]",
+   "field": "drs_capable",
+   "value": "False"
+  },
+  {
+   "op": "set",
+   "select": "{aef80360e02910b4}[_metadata_=f1_m_mclaren_26]",
+   "field": "bundle_name",
+   "value": "renault_2026.bdl"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=ferrari_2026]",
+   "field": "hud_dial",
+   "value": "{{hud_dial}}"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=ferrari_2026]",
+   "field": "drs_capable",
+   "value": "False"
+  },
+  {
+   "op": "set",
+   "select": "{9883c2126af4b595}[_metadata_=f1_m_ferrari_26]",
+   "field": "bundle_name",
+   "value": "ferrari_2026.bdl"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=williams_2026]",
+   "field": "hud_dial",
+   "value": "{{hud_dial}}"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=williams_2026]",
+   "field": "drs_capable",
+   "value": "False"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=team12_2026]",
+   "field": "hud_dial",
+   "value": "{{hud_dial}}"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=team12_2026]",
+   "field": "drs_capable",
+   "value": "False"
+  },
+  {
+   "op": "set",
+   "select": "{0670812238954dd8}[_metadata_=f1_m_williams_26]",
+   "field": "bundle_name",
+   "value": "renault_2026.bdl"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=lotus_2026]",
+   "field": "hud_dial",
+   "value": "{{hud_dial}}"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=lotus_2026]",
+   "field": "drs_capable",
+   "value": "False"
+  },
+  {
+   "op": "set",
+   "select": "{d7e684dba1cae225}[_metadata_=f1_m_alpine_26]",
+   "field": "bundle_name",
+   "value": "ford_2026.bdl"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=mercedes_2026]",
+   "field": "hud_dial",
+   "value": "{{hud_dial}}"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=mercedes_2026]",
+   "field": "drs_capable",
+   "value": "False"
+  },
+  {
+   "op": "set",
+   "select": "{cd8088f7a275e856}[_metadata_=f1_m_mercedes_26]",
+   "field": "bundle_name",
+   "value": "ford_2026.bdl"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=redbull_2026]",
+   "field": "hud_dial",
+   "value": "{{hud_dial}}"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=redbull_2026]",
+   "field": "drs_capable",
+   "value": "False"
+  },
+  {
+   "op": "set",
+   "select": "{08ff5fdb71144e4f}[_metadata_=f1_m_red_bull_26]",
+   "field": "bundle_name",
+   "value": "ferrari_2026.bdl"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=force_india_2026]",
+   "field": "hud_dial",
+   "value": "{{hud_dial}}"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=force_india_2026]",
+   "field": "drs_capable",
+   "value": "False"
+  },
+  {
+   "op": "set",
+   "select": "{945f77df18e9ebcf}[_metadata_=f1_m_aston_martin_26]",
+   "field": "bundle_name",
+   "value": "ford_2026.bdl"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=sauber_2026]",
+   "field": "hud_dial",
+   "value": "{{hud_dial}}"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=sauber_2026]",
+   "field": "drs_capable",
+   "value": "False"
+  },
+  {
+   "op": "set",
+   "select": "{07d5cc223a387042}[_metadata_=f1_m_sauber_26]",
+   "field": "bundle_name",
+   "value": "ford_2026.bdl"
+  },
+  {
+   "op": "set",
+   "select": "{b167880f361e8fb7}[_metadata_=f1_m_audi_26]",
+   "field": "bundle_name",
+   "value": "ford_2026.bdl"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=toro_rosso_2026]",
+   "field": "hud_dial",
+   "value": "{{hud_dial}}"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=toro_rosso_2026]",
+   "field": "drs_capable",
+   "value": "False"
+  },
+  {
+   "op": "set",
+   "select": "{8f456a69f98f6e92}[_metadata_=f1_m_rb_26]",
+   "field": "bundle_name",
+   "value": "ford_2026.bdl"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=gm_cadillac_2026]",
+   "field": "hud_dial",
+   "value": "{{hud_dial}}"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=gm_cadillac_2026]",
+   "field": "drs_capable",
+   "value": "False"
+  },
+  {
+   "op": "set",
+   "select": "{8d0bfac67e21a2ed}[_metadata_=f1_m_cadillac_26]",
+   "field": "bundle_name",
+   "value": "ford_2026.bdl"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=team13_2026]",
+   "field": "hud_dial",
+   "value": "{{hud_dial}}"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=team13_2026]",
+   "field": "drs_capable",
+   "value": "False"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=haas_2026]",
+   "field": "hud_dial",
+   "value": "{{hud_dial}}"
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle[_metadata_=haas_2026]",
+   "field": "drs_capable",
+   "value": "False"
+  },
+  {
+   "op": "set",
+   "select": "{5ca6cb30df7057e5}[_metadata_=f1_m_haas_26]",
+   "field": "bundle_name",
+   "value": "ford_2026.bdl"
+  },
+  {
+   "op": "set",
+   "select": "{73f90d01053d6763}[_metadata_=f1_m_fom_car_26]",
+   "field": "bundle_name",
+   "value": "ford_2026.bdl"
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "audio_id",
+   "value_from": "entrants.teams.team[_metadata_=redbull_26].audio_id"
+  },
+  {
+   "op": "set",
+   "select": "{df75292f0fdc1a5c}[_metadata_=f1_2026]",
+   "field": "is_26_aero_regulations",
+   "value": "False",
+   "when": {
+    "classic_aero": true
+   }
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3258}[_metadata_=gearbox]",
+   "field": "allocation",
+   "value": "99"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3258}[_metadata_=gearbox]",
+   "field": "first_new_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3258}[_metadata_=gearbox]",
+   "field": "subsequent_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3258}[_metadata_=gearbox]",
+   "field": "parc_ferme_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3258}[_metadata_=gearbox]",
+   "field": "wear_rates.ai_pq_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3258}[_metadata_=gearbox]",
+   "field": "wear_rates.ai_pq_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3258}[_metadata_=gearbox]",
+   "field": "wear_rates.ai_race_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3258}[_metadata_=gearbox]",
+   "field": "wear_rates.ai_race_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3258}[_metadata_=gearbox]",
+   "field": "wear_rates.human_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3258}[_metadata_=gearbox]",
+   "field": "wear_rates.human_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3259}[_metadata_=ice]",
+   "field": "allocation",
+   "value": "99"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3259}[_metadata_=ice]",
+   "field": "first_new_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3259}[_metadata_=ice]",
+   "field": "subsequent_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3259}[_metadata_=ice]",
+   "field": "parc_ferme_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3259}[_metadata_=ice]",
+   "field": "wear_rates.ai_pq_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3259}[_metadata_=ice]",
+   "field": "wear_rates.ai_pq_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3259}[_metadata_=ice]",
+   "field": "wear_rates.ai_race_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3259}[_metadata_=ice]",
+   "field": "wear_rates.ai_race_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3259}[_metadata_=ice]",
+   "field": "wear_rates.human_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f3259}[_metadata_=ice]",
+   "field": "wear_rates.human_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325a}[_metadata_=ce]",
+   "field": "allocation",
+   "value": "99"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325a}[_metadata_=ce]",
+   "field": "first_new_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325a}[_metadata_=ce]",
+   "field": "subsequent_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325a}[_metadata_=ce]",
+   "field": "parc_ferme_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325a}[_metadata_=ce]",
+   "field": "wear_rates.ai_pq_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325a}[_metadata_=ce]",
+   "field": "wear_rates.ai_pq_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325a}[_metadata_=ce]",
+   "field": "wear_rates.ai_race_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325a}[_metadata_=ce]",
+   "field": "wear_rates.ai_race_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325a}[_metadata_=ce]",
+   "field": "wear_rates.human_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325a}[_metadata_=ce]",
+   "field": "wear_rates.human_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325b}[_metadata_=es]",
+   "field": "allocation",
+   "value": "99"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325b}[_metadata_=es]",
+   "field": "first_new_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325b}[_metadata_=es]",
+   "field": "subsequent_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325b}[_metadata_=es]",
+   "field": "parc_ferme_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325b}[_metadata_=es]",
+   "field": "wear_rates.ai_pq_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325b}[_metadata_=es]",
+   "field": "wear_rates.ai_pq_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325b}[_metadata_=es]",
+   "field": "wear_rates.ai_race_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325b}[_metadata_=es]",
+   "field": "wear_rates.ai_race_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325b}[_metadata_=es]",
+   "field": "wear_rates.human_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325b}[_metadata_=es]",
+   "field": "wear_rates.human_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325c}[_metadata_=tc]",
+   "field": "allocation",
+   "value": "99"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325c}[_metadata_=tc]",
+   "field": "first_new_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325c}[_metadata_=tc]",
+   "field": "subsequent_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325c}[_metadata_=tc]",
+   "field": "parc_ferme_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325c}[_metadata_=tc]",
+   "field": "wear_rates.ai_pq_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325c}[_metadata_=tc]",
+   "field": "wear_rates.ai_pq_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325c}[_metadata_=tc]",
+   "field": "wear_rates.ai_race_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325c}[_metadata_=tc]",
+   "field": "wear_rates.ai_race_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325c}[_metadata_=tc]",
+   "field": "wear_rates.human_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325c}[_metadata_=tc]",
+   "field": "wear_rates.human_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325e}[_metadata_=mguh]",
+   "field": "allocation",
+   "value": "99"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325e}[_metadata_=mguh]",
+   "field": "first_new_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325e}[_metadata_=mguh]",
+   "field": "subsequent_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325e}[_metadata_=mguh]",
+   "field": "parc_ferme_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325e}[_metadata_=mguh]",
+   "field": "wear_rates.ai_pq_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325e}[_metadata_=mguh]",
+   "field": "wear_rates.ai_pq_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325e}[_metadata_=mguh]",
+   "field": "wear_rates.ai_race_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325e}[_metadata_=mguh]",
+   "field": "wear_rates.ai_race_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325e}[_metadata_=mguh]",
+   "field": "wear_rates.human_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325e}[_metadata_=mguh]",
+   "field": "wear_rates.human_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325f}[_metadata_=mguk]",
+   "field": "allocation",
+   "value": "99"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325f}[_metadata_=mguk]",
+   "field": "first_new_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325f}[_metadata_=mguk]",
+   "field": "subsequent_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325f}[_metadata_=mguk]",
+   "field": "parc_ferme_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325f}[_metadata_=mguk]",
+   "field": "wear_rates.ai_pq_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325f}[_metadata_=mguk]",
+   "field": "wear_rates.ai_pq_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325f}[_metadata_=mguk]",
+   "field": "wear_rates.ai_race_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325f}[_metadata_=mguk]",
+   "field": "wear_rates.ai_race_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325f}[_metadata_=mguk]",
+   "field": "wear_rates.human_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{0516baca528f325f}[_metadata_=mguk]",
+   "field": "wear_rates.human_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7a}[_metadata_=tc]",
+   "field": "allocation",
+   "value": "99"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7a}[_metadata_=tc]",
+   "field": "first_new_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7a}[_metadata_=tc]",
+   "field": "subsequent_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7a}[_metadata_=tc]",
+   "field": "parc_ferme_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7a}[_metadata_=tc]",
+   "field": "wear_rates.ai_pq_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7a}[_metadata_=tc]",
+   "field": "wear_rates.ai_pq_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7a}[_metadata_=tc]",
+   "field": "wear_rates.ai_race_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7a}[_metadata_=tc]",
+   "field": "wear_rates.ai_race_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7a}[_metadata_=tc]",
+   "field": "wear_rates.human_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7a}[_metadata_=tc]",
+   "field": "wear_rates.human_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7b}[_metadata_=mguk]",
+   "field": "allocation",
+   "value": "99"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7b}[_metadata_=mguk]",
+   "field": "first_new_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7b}[_metadata_=mguk]",
+   "field": "subsequent_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7b}[_metadata_=mguk]",
+   "field": "parc_ferme_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7b}[_metadata_=mguk]",
+   "field": "wear_rates.ai_pq_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7b}[_metadata_=mguk]",
+   "field": "wear_rates.ai_pq_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7b}[_metadata_=mguk]",
+   "field": "wear_rates.ai_race_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7b}[_metadata_=mguk]",
+   "field": "wear_rates.ai_race_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7b}[_metadata_=mguk]",
+   "field": "wear_rates.human_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7b}[_metadata_=mguk]",
+   "field": "wear_rates.human_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7c}[_metadata_=ice]",
+   "field": "allocation",
+   "value": "99"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7c}[_metadata_=ice]",
+   "field": "first_new_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7c}[_metadata_=ice]",
+   "field": "subsequent_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7c}[_metadata_=ice]",
+   "field": "parc_ferme_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7c}[_metadata_=ice]",
+   "field": "wear_rates.ai_pq_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7c}[_metadata_=ice]",
+   "field": "wear_rates.ai_pq_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7c}[_metadata_=ice]",
+   "field": "wear_rates.ai_race_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7c}[_metadata_=ice]",
+   "field": "wear_rates.ai_race_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7c}[_metadata_=ice]",
+   "field": "wear_rates.human_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7c}[_metadata_=ice]",
+   "field": "wear_rates.human_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7d}[_metadata_=gearbox]",
+   "field": "allocation",
+   "value": "99"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7d}[_metadata_=gearbox]",
+   "field": "first_new_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7d}[_metadata_=gearbox]",
+   "field": "subsequent_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7d}[_metadata_=gearbox]",
+   "field": "parc_ferme_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7d}[_metadata_=gearbox]",
+   "field": "wear_rates.ai_pq_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7d}[_metadata_=gearbox]",
+   "field": "wear_rates.ai_pq_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7d}[_metadata_=gearbox]",
+   "field": "wear_rates.ai_race_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7d}[_metadata_=gearbox]",
+   "field": "wear_rates.ai_race_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7d}[_metadata_=gearbox]",
+   "field": "wear_rates.human_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7d}[_metadata_=gearbox]",
+   "field": "wear_rates.human_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7e}[_metadata_=es]",
+   "field": "allocation",
+   "value": "99"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7e}[_metadata_=es]",
+   "field": "first_new_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7e}[_metadata_=es]",
+   "field": "subsequent_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7e}[_metadata_=es]",
+   "field": "parc_ferme_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7e}[_metadata_=es]",
+   "field": "wear_rates.ai_pq_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7e}[_metadata_=es]",
+   "field": "wear_rates.ai_pq_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7e}[_metadata_=es]",
+   "field": "wear_rates.ai_race_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7e}[_metadata_=es]",
+   "field": "wear_rates.ai_race_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7e}[_metadata_=es]",
+   "field": "wear_rates.human_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7e}[_metadata_=es]",
+   "field": "wear_rates.human_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7f}[_metadata_=ce]",
+   "field": "allocation",
+   "value": "99"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7f}[_metadata_=ce]",
+   "field": "first_new_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7f}[_metadata_=ce]",
+   "field": "subsequent_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7f}[_metadata_=ce]",
+   "field": "parc_ferme_grid_drop",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7f}[_metadata_=ce]",
+   "field": "wear_rates.ai_pq_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7f}[_metadata_=ce]",
+   "field": "wear_rates.ai_pq_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7f}[_metadata_=ce]",
+   "field": "wear_rates.ai_race_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7f}[_metadata_=ce]",
+   "field": "wear_rates.ai_race_min",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7f}[_metadata_=ce]",
+   "field": "wear_rates.human_max",
+   "value": "0.0"
+  },
+  {
+   "op": "set",
+   "select": "{f818582c90f40d7f}[_metadata_=ce]",
+   "field": "wear_rates.human_min",
+   "value": "0.0"
+  }
+ ]
+}

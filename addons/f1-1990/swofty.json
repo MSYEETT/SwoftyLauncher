@@ -27,12 +27,26 @@
       "step": 1,
       "default": 2,
       "binds": "db"
+    },
+    {
+      "id": "hud_dial", "type": "choice", "label": "Steering wheel display", "default": "f2",
+      "description": "The dial the 1990 cars show: the F2 dial, with no ERS or override readouts, or the modern F1 dial.",
+      "values": [{ "value": "f2", "label": "F2" }, { "value": "modern", "label": "Modern F1" }], "binds": "db"
+    },
+    {
+      "id": "classic_aero", "type": "toggle", "label": "No active aero", "default": true,
+      "description": "Turns off the 2026 active aero rules on the 2026 cars.", "binds": "db"
+    },
+    {
+      "id": "ers", "type": "choice", "label": "ERS", "default": "removed",
+      "description": "Removed takes the hybrid system out of the cars. Zeroed keeps it with no harvest, deploy or override, for when removal misbehaves.",
+      "values": [{ "value": "removed", "label": "Removed" }, { "value": "zeroed", "label": "Zeroed" }], "binds": "db"
     }
   ],
   "operations": {
     "database": ["db/career.json", "db/grid.json", "db/rules.json", "db/physics.json"],
     "assets": ["db/rules_text.json", "lang/grid.json"],
-    "erp": [],
+    "erp": ["erp/cars/handling.json"],
     "native": [{ "dll": "native/f1_1990.dll" }]
   }
 }
