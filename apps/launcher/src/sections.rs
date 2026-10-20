@@ -20,6 +20,7 @@ use swofty_core::registry::{Host, Registry};
 use swofty_core::store::Store;
 use swofty_core::view::{self, Art, Block, Body, ButtonKind, Control, Effect, Event, Row, Style, Tone, View};
 
+use crate::blocks::{At, search_id};
 use crate::game::Install;
 use crate::library::{SectionItem, plural};
 use crate::pages::{GUTTER, badge, chevron, fact, label, monogram, names, stat, tag};
@@ -77,10 +78,32 @@ pub(crate) fn icon(i: view::Icon) -> IconName {
         I::ShieldCheck => IconName::ShieldCheck,
         I::Trash => IconName::Trash,
         I::Upload => IconName::Upload,
+        I::Calendar => IconName::Calendar,
+        I::Car => IconName::Car,
+        I::Clock => IconName::Clock,
+        I::CloudRain => IconName::CloudRain,
+        I::Flag => IconName::Flag,
+        I::Gauge => IconName::Gauge,
+        I::History => IconName::RotateCcw,
+        I::Info => IconName::Info,
+        I::Refresh => IconName::RefreshCw,
+        I::Save => IconName::Save,
+        I::Search => IconName::Search,
+        I::Timer => IconName::Timer,
+        I::TrendingDown => IconName::TrendingDown,
+        I::TrendingUp => IconName::TrendingUp,
+        I::TriangleAlert => IconName::TriangleAlert,
+        I::Trophy => IconName::Trophy,
+        I::Undo => IconName::Undo2,
+        I::User => IconName::User,
+        I::Users => IconName::Users,
+        I::Wallet => IconName::Wallet,
+        I::Wrench => IconName::Wrench,
+        I::Zap => IconName::Zap,
     }
 }
 
-fn tone(t: Tone, p: Palette) -> Hsla {
+pub(crate) fn tone(t: Tone, p: Palette) -> Hsla {
     match t {
         Tone::Neutral => p.text,
         Tone::Muted => p.text_muted,
@@ -91,12 +114,12 @@ fn tone(t: Tone, p: Palette) -> Hsla {
     }
 }
 
-fn art(a: &Art, p: Palette) -> AnyElement {
+pub(crate) fn art(a: &Art, size: f32, p: Palette) -> AnyElement {
     match a {
-        Art::None => badge(IconName::Package, 32., p).into_any_element(),
-        Art::Monogram(text) => monogram(text, 32., p).into_any_element(),
+        Art::None => badge(IconName::Package, size, p).into_any_element(),
+        Art::Monogram(text) => monogram(text, size, p).into_any_element(),
         Art::Image(path) => div()
-            .size(px(32.))
+            .size(px(size))
             .flex_shrink_0()
             .rounded(px(5.))
             .overflow_hidden()
@@ -173,7 +196,13 @@ impl Shell {
                                 .and_then(|e| {
                                     let host = host(&store, &addon, &profile, game.as_ref())?;
                                     let view = match (&e.plugin, cached) {
-                                        (Some(plugin), true) => plugin.try_view(&host.cx(), &section),
+                                        (Some(plugin), true) => {
+                                            let view = plugin.try_view(&host.cx(), &section);
+                                            if view.is_none() {
+                                                plugin.mark_stale(Some(&section));
+                                            }
+                                            view
+                                        }
                                         _ => Some(e.addon.view(&host.cx(), &section)),
                                     };
                                     Ok(view.map(|v| v.map_err(|e| e.to_string())))
@@ -202,7 +231,92 @@ impl Shell {
         .detach();
     }
 
-    fn send(
+    pub(crate) fn live_poll(&mut self, cx: &mut Context<Self>) {
+        self.live_n += 1;
+        self.refresh_stale(cx);
+        if self.live_n.is_multiple_of(4) {
+            self.tick(cx);
+        }
+    }
+
+    fn refresh_stale(&mut self, cx: &mut Context<Self>) {
+        let open = match self.page {
+            Page::Section(i) => Some(i),
+            _ => None,
+        };
+        let mut due = Vec::new();
+        let mut seen = HashSet::new();
+        for s in &self.library.sections {
+            if !seen.insert(s.addon.clone()) {
+                continue;
+            }
+            let Some(plugin) = self.library.registry.get(&s.addon).and_then(|e| e.plugin.clone()) else {
+                continue;
+            };
+            if plugin.busy() {
+                continue;
+            }
+            let Some(stale) = plugin.take_stale() else {
+                continue;
+            };
+            for (i, t) in self.library.sections.iter().enumerate() {
+                let shown = open == Some(i) || self.views.contains_key(&section_key(t));
+                if t.addon == s.addon && shown && stale.covers(&t.spec.id) {
+                    due.push(i);
+                }
+            }
+        }
+        for i in due {
+            self.fetch_views(Some(i), cx);
+        }
+    }
+
+    fn tick(&mut self, cx: &mut Context<Self>) {
+        let Page::Section(i) = self.page else {
+            return;
+        };
+        let Some(s) = self.library.sections.get(i) else {
+            return;
+        };
+        let ticks = matches!(self.views.get(&section_key(s)), Some(Ok(v)) if v.tick);
+        let Some(plugin) = self.library.registry.get(&s.addon).and_then(|e| e.plugin.clone()) else {
+            return;
+        };
+        if !ticks || self.ticking || !plugin.running() {
+            return;
+        }
+        self.ticking = true;
+        let store = self.store.clone();
+        let profile = self.library.profile.clone();
+        let install = self.install.clone();
+        let (addon, section) = (s.addon.clone(), s.spec.id.clone());
+        cx.spawn(async move |this, cx| {
+            let failed = cx
+                .background_executor()
+                .spawn(async move {
+                    let game = game(&store, install.as_ref());
+                    let Ok(host) = host(&store, &addon, &profile, game.as_ref()) else {
+                        return false;
+                    };
+                    if let Some(Err(e)) = plugin.try_tick(&host.cx(), &section) {
+                        eprintln!("swofty-launcher: {addon} tick: {e}");
+                    }
+                    plugin.failure().is_some()
+                })
+                .await;
+            this.update(cx, |s, cx| {
+                s.ticking = false;
+                if failed {
+                    s.fetch_views(Some(i), cx);
+                }
+                s.refresh_stale(cx);
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    pub(crate) fn send(
         &mut self,
         addon: &str,
         section: &str,
@@ -235,6 +349,7 @@ impl Shell {
                 .await;
             this.update_in(cx, |s, window, cx| {
                 s.busy.remove(&control);
+                s.settled(&control, &effect);
                 s.effect(&id, effect, window, cx);
             })
             .ok();
@@ -394,15 +509,52 @@ impl Shell {
                     .into_any_element()
             })
             .collect();
+        let width = self.content_width;
+        let mut search_bar = None;
         let body = match &view.body {
-            Body::List { rows, reorder } => {
-                let rows: Vec<AnyElement> = rows
+            Body::List {
+                rows,
+                reorder,
+                search,
+            } => {
+                let key = search
+                    .as_ref()
+                    .map(|s| format!("{addon}/{id}/{}", search_id(s, "list")));
+                let query = key
+                    .as_deref()
+                    .filter(|_| search.as_ref().is_some_and(|s| s.filter))
+                    .and_then(|k| self.query(k));
+                search_bar = key.and_then(|k| self.search_box(&k, p));
+                let shown: Vec<(usize, &Row)> = rows
                     .iter()
                     .enumerate()
-                    .map(|(i, r)| self.view_row(&addon, &id, r, i, rows.len(), *reorder, p, cx))
+                    .filter(|(_, r)| {
+                        query.is_none_or(|q| {
+                            let tags = r.tags.iter().map(|t| t.text.as_str());
+                            view::Search::matches(
+                                q,
+                                [r.title.as_str(), r.subtitle.as_str()].into_iter().chain(tags),
+                            )
+                        })
+                    })
                     .collect();
-                self.list(SharedString::from(format!("section-{addon}-{id}")), rows, p)
-                    .into_any_element()
+                let rows: Vec<AnyElement> = shown
+                    .iter()
+                    .enumerate()
+                    .map(|(n, (i, r))| self.view_row(&addon, &id, r, *i, n, rows.len(), *reorder, p, cx))
+                    .collect();
+                if rows.is_empty() && query.is_some() {
+                    div()
+                        .px(px(GUTTER))
+                        .py(px(12.))
+                        .text_size(px(13.))
+                        .text_color(p.text_muted)
+                        .child("No matches")
+                        .into_any_element()
+                } else {
+                    self.list(SharedString::from(format!("section-{addon}-{id}")), rows, p)
+                        .into_any_element()
+                }
             }
             Body::Empty { title, text, action } => {
                 let action = action
@@ -420,7 +572,16 @@ impl Shell {
                 .pt(px(4.))
                 .pb(px(24.))
                 .gap(px(16.))
-                .children(blocks.iter().map(|b| self.block(&addon, &id, b, p, cx)))
+                .children(blocks.iter().map(|b| {
+                    let at = At {
+                        addon: &addon,
+                        section: &id,
+                        width,
+                        nested: false,
+                        fill: false,
+                    };
+                    self.block_at(at, b, p, cx)
+                }))
                 .into_any_element(),
         };
         v_flex()
@@ -432,6 +593,7 @@ impl Shell {
                 p,
             ))
             .children(notices)
+            .children(search_bar.map(|s| h_flex().px(px(GUTTER)).pb(px(12.)).flex_shrink_0().child(s)))
             .child(body)
             .children(view.footer.clone().map(|f| {
                 div()
@@ -469,6 +631,7 @@ impl Shell {
         section: &str,
         r: &Row,
         index: usize,
+        position: usize,
         count: usize,
         reorder: bool,
         p: Palette,
@@ -481,7 +644,7 @@ impl Shell {
         let toggle_key = key.clone();
         let head = self
             .row_head(format!("row-{key}"), open, p)
-            .child(art(&r.art, p))
+            .child(art(&r.art, 32., p))
             .child(
                 v_flex()
                     .flex_1()
@@ -575,7 +738,7 @@ impl Shell {
                     cx,
                 ))
         });
-        self.row(index == 0, open, p)
+        self.row(position == 0, open, p)
             .child(head)
             .when(open, |d| {
                 d.child(
@@ -587,14 +750,27 @@ impl Shell {
                         .pb(px(18.))
                         .border_t_1()
                         .border_color(p.border_variant)
-                        .children(r.detail.iter().map(|b| self.block(addon, section, b, p, cx)))
+                        .children(r.detail.iter().map(|b| {
+                            let at = At {
+                                addon,
+                                section,
+                                width: (self.content_width - 80.).max(240.),
+                                nested: false,
+                                fill: false,
+                            };
+                            self.block_at(at, b, p, cx)
+                        }))
                         .children(moves),
                 )
             })
             .into_any_element()
     }
 
-    fn block(&self, addon: &str, section: &str, b: &Block, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+    pub(crate) fn block_at(&self, at: At, b: &Block, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+        if let Some(rich) = self.rich_block(at, b, p, cx) {
+            return rich;
+        }
+        let (addon, section) = (at.addon, at.section);
         match b {
             Block::Stats(facts) => h_flex()
                 .flex_wrap()
@@ -619,7 +795,13 @@ impl Shell {
                 .child(text.clone())
                 .into_any_element(),
             Block::Names { label, items } => names(label.to_uppercase(), items, p).into_any_element(),
-            Block::Table { columns, rows } => {
+            Block::Table(table) => {
+                let columns: Vec<&str> = table.columns.iter().map(|c| c.title()).collect();
+                let rows: Vec<Vec<String>> = table
+                    .rows
+                    .iter()
+                    .map(|r| r.cells().iter().map(|c| c.text().to_owned()).collect())
+                    .collect();
                 let cell = |text: String, head: bool| {
                     div()
                         .flex_1()
@@ -656,6 +838,7 @@ impl Shell {
                 .gap(px(6.))
                 .children(buttons.iter().map(|b| self.button(addon, section, b, true, cx)))
                 .into_any_element(),
+            _ => div().into_any_element(),
         }
     }
 
@@ -733,7 +916,7 @@ impl Shell {
         }
     }
 
-    fn button(
+    pub(crate) fn button(
         &self,
         addon: &str,
         section: &str,

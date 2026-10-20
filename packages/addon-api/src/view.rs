@@ -19,6 +19,8 @@ pub struct View {
     pub body: Body,
     #[serde(default)]
     pub footer: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub tick: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -27,6 +29,8 @@ pub enum Body {
     List {
         rows: Vec<Row>,
         reorder: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        search: Option<Search>,
     },
     Empty {
         title: String,
@@ -59,19 +63,631 @@ pub enum Block {
     Stats(Vec<Fact>),
     Facts(Vec<Fact>),
     Label(String),
-    Text {
-        text: String,
-        tone: Tone,
-    },
-    Names {
-        label: String,
-        items: Vec<String>,
-    },
-    Table {
-        columns: Vec<String>,
-        rows: Vec<Vec<String>>,
-    },
+    Text { text: String, tone: Tone },
+    Names { label: String, items: Vec<String> },
+    Table(Table),
     Buttons(Vec<Button>),
+    Hero(Hero),
+    Pills(Vec<Pill>),
+    Tiles(Vec<Tile>),
+    Meters(Vec<Meter>),
+    Card(Card),
+    Grid(Grid),
+    Form(Form),
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Hero {
+    pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subtitle: Option<String>,
+    #[serde(default, skip_serializing_if = "Art::is_none")]
+    pub art: Art,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pills: Vec<Pill>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub facts: Vec<Fact>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub buttons: Vec<Button>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Pill {
+    pub text: String,
+    #[serde(default)]
+    pub tone: Tone,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub dot: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<Icon>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Tile {
+    pub label: String,
+    pub value: String,
+    #[serde(default)]
+    pub tone: Tone,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delta: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delta_tone: Option<Tone>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<Icon>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub progress: Option<f32>,
+}
+
+impl Tile {
+    pub fn delta_tone(&self) -> Tone {
+        if let Some(t) = self.delta_tone {
+            return t;
+        }
+        match self.delta.as_deref().and_then(|d| d.trim_start().chars().next()) {
+            Some('+') => Tone::Good,
+            Some('-' | '\u{2212}') => Tone::Bad,
+            _ => Tone::Muted,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Meter {
+    #[serde(default)]
+    pub label: String,
+    pub value: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tone: Option<Tone>,
+}
+
+impl Meter {
+    pub fn fraction(&self) -> f32 {
+        let (min, max) = (self.min.unwrap_or(0.), self.max.unwrap_or(100.));
+        if max <= min || !self.value.is_finite() {
+            return 0.;
+        }
+        ((self.value - min) / (max - min)).clamp(0., 1.) as f32
+    }
+
+    pub fn text(&self) -> String {
+        self.text
+            .clone()
+            .unwrap_or_else(|| format!("{} / {}", number(self.value), number(self.max.unwrap_or(100.))))
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Card {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subtitle: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pills: Vec<Pill>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub buttons: Vec<Button>,
+    #[serde(default)]
+    pub blocks: Vec<Block>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Grid {
+    #[serde(default)]
+    pub columns: Columns,
+    #[serde(default)]
+    pub blocks: Vec<Block>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Columns {
+    Count(usize),
+    Weights(Vec<f32>),
+}
+
+impl Default for Columns {
+    fn default() -> Self {
+        Self::Count(2)
+    }
+}
+
+impl Columns {
+    pub fn weights(&self) -> Vec<f32> {
+        match self {
+            Self::Count(n) => vec![1.; (*n).clamp(1, 4)],
+            Self::Weights(w) if w.is_empty() => vec![1.],
+            Self::Weights(w) => w.iter().map(|w| if *w > 0. { *w } else { 1. }).collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Search {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placeholder: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub event: bool,
+    #[serde(default = "yes")]
+    pub filter: bool,
+}
+
+impl Default for Search {
+    fn default() -> Self {
+        Self {
+            id: None,
+            placeholder: None,
+            event: false,
+            filter: true,
+        }
+    }
+}
+
+impl Search {
+    pub fn matches<'a>(query: &str, texts: impl IntoIterator<Item = &'a str> + Clone) -> bool {
+        query.split_whitespace().all(|word| {
+            let word = word.to_lowercase();
+            texts
+                .clone()
+                .into_iter()
+                .any(|t| t.to_lowercase().contains(&word))
+        })
+    }
+}
+
+fn yes() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Table {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    pub columns: Vec<Column>,
+    pub rows: Vec<TableRow>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sort: Option<Sort>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search: Option<Search>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub compact: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub empty: Option<String>,
+}
+
+impl Table {
+    pub fn plain(columns: Vec<String>, rows: Vec<Vec<String>>) -> Self {
+        Self {
+            id: None,
+            columns: columns.into_iter().map(Column::Name).collect(),
+            rows: rows
+                .into_iter()
+                .map(|r| TableRow::Cells(r.into_iter().map(Cell::Text).collect()))
+                .collect(),
+            sort: None,
+            search: None,
+            compact: false,
+            empty: None,
+        }
+    }
+
+    pub fn id(&self) -> &str {
+        self.id.as_deref().unwrap_or("table")
+    }
+
+    pub fn is_plain(&self) -> bool {
+        self.id.is_none()
+            && self.sort.is_none()
+            && self.search.is_none()
+            && !self.compact
+            && self.columns.iter().all(|c| matches!(c, Column::Name(_)))
+            && self.rows.iter().all(
+                |r| matches!(r, TableRow::Cells(cells) if cells.iter().all(|c| matches!(c, Cell::Text(_)))),
+            )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Column {
+    Name(String),
+    Spec(ColumnSpec),
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ColumnSpec {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub align: Align,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub width: Option<f32>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub sort: bool,
+}
+
+impl Column {
+    pub fn title(&self) -> &str {
+        match self {
+            Self::Name(t) => t,
+            Self::Spec(s) => &s.title,
+        }
+    }
+
+    pub fn key(&self) -> &str {
+        match self {
+            Self::Spec(ColumnSpec { key: Some(k), .. }) => k,
+            _ => self.title(),
+        }
+    }
+
+    pub fn spec(&self) -> ColumnSpec {
+        match self {
+            Self::Name(t) => ColumnSpec {
+                title: t.clone(),
+                ..ColumnSpec::default()
+            },
+            Self::Spec(s) => s.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Align {
+    #[default]
+    Left,
+    Right,
+    Center,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Sort {
+    pub column: String,
+    #[serde(default)]
+    pub desc: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TableRow {
+    Cells(Vec<Cell>),
+    Spec(RowSpec),
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct RowSpec {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub cells: Vec<Cell>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tone: Option<Tone>,
+}
+
+impl TableRow {
+    pub fn cells(&self) -> &[Cell] {
+        match self {
+            Self::Cells(c) => c,
+            Self::Spec(r) => &r.cells,
+        }
+    }
+
+    pub fn id(&self, index: usize) -> String {
+        match self {
+            Self::Spec(RowSpec { id: Some(id), .. }) => id.clone(),
+            _ => index.to_string(),
+        }
+    }
+
+    pub fn tone(&self) -> Option<Tone> {
+        match self {
+            Self::Cells(_) => None,
+            Self::Spec(r) => r.tone,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Cell {
+    Text(String),
+    Spec(Box<CellSpec>),
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct CellSpec {
+    #[serde(default)]
+    pub text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tone: Option<Tone>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sort: Option<SortKey>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub pill: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bar: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edit: Option<Field>,
+}
+
+impl Cell {
+    pub fn text(&self) -> &str {
+        match self {
+            Self::Text(t) => t,
+            Self::Spec(c) => &c.text,
+        }
+    }
+
+    pub fn spec(&self) -> CellSpec {
+        match self {
+            Self::Text(t) => CellSpec {
+                text: t.clone(),
+                ..CellSpec::default()
+            },
+            Self::Spec(c) => (**c).clone(),
+        }
+    }
+
+    pub fn sort_key(&self) -> SortKey {
+        if let Self::Spec(c) = self
+            && let Some(k) = &c.sort
+        {
+            return k.clone();
+        }
+        let text = self.text().trim();
+        match text.replace(',', "").parse::<f64>() {
+            Ok(n) if !text.is_empty() => SortKey::Number(n),
+            _ => SortKey::Text(text.to_lowercase()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SortKey {
+    Number(f64),
+    Text(String),
+}
+
+impl SortKey {
+    pub fn compare(&self, other: &Self) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+        match (self, other) {
+            (Self::Number(a), Self::Number(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
+            (Self::Number(_), Self::Text(_)) => Ordering::Less,
+            (Self::Text(_), Self::Number(_)) => Ordering::Greater,
+            (Self::Text(a), Self::Text(b)) => a.cmp(b),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Form {
+    pub id: String,
+    pub fields: Vec<Field>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub columns: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub apply: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub live: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub disabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Field {
+    Number(NumberField),
+    Slider(NumberField),
+    Text(TextField),
+    Select(SelectField),
+    Toggle(ToggleField),
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct NumberField {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub disabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub step: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unit: Option<String>,
+}
+
+impl NumberField {
+    pub fn step(&self) -> f64 {
+        self.step.filter(|s| *s > 0. && s.is_finite()).unwrap_or(1.)
+    }
+
+    pub fn clamp(&self, value: f64) -> f64 {
+        let step = self.step();
+        let base = self.min.unwrap_or(0.);
+        let mut v = base + ((value - base) / step).round() * step;
+        if let Some(min) = self.min {
+            v = v.max(min);
+        }
+        if let Some(max) = self.max {
+            v = v.min(max);
+        }
+        let digits = decimals(step);
+        let scale = 10f64.powi(digits as i32);
+        (v * scale).round() / scale
+    }
+
+    pub fn json(&self, value: f64) -> serde_json::Value {
+        if value.fract() == 0. && self.step().fract() == 0. && value.abs() < 9.0e15 {
+            serde_json::Value::from(value as i64)
+        } else {
+            serde_json::Number::from_f64(value).map_or(serde_json::Value::Null, serde_json::Value::Number)
+        }
+    }
+
+    pub fn text(&self, value: f64) -> String {
+        format!("{value:.*}", decimals(self.step()))
+    }
+}
+
+fn decimals(step: f64) -> usize {
+    let text = format!("{step}");
+    text.split_once('.').map_or(0, |(_, f)| f.len().min(6))
+}
+
+pub fn number(v: f64) -> String {
+    if v.fract() == 0. && v.abs() < 9.0e15 {
+        format!("{}", v as i64)
+    } else {
+        let t = format!("{v:.2}");
+        t.trim_end_matches('0').trim_end_matches('.').to_owned()
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct TextField {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub disabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placeholder: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_len: Option<usize>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct SelectField {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub disabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+    #[serde(default)]
+    pub options: Vec<Choice>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Choice {
+    Text(String),
+    Spec { value: String, label: String },
+}
+
+impl Choice {
+    pub fn value(&self) -> &str {
+        match self {
+            Self::Text(t) => t,
+            Self::Spec { value, .. } => value,
+        }
+    }
+
+    pub fn label(&self) -> &str {
+        match self {
+            Self::Text(t) => t,
+            Self::Spec { label, .. } => label,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ToggleField {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub disabled: bool,
+    #[serde(default)]
+    pub value: bool,
+}
+
+impl Field {
+    pub fn id(&self) -> &str {
+        match self {
+            Self::Number(f) | Self::Slider(f) => &f.id,
+            Self::Text(f) => &f.id,
+            Self::Select(f) => &f.id,
+            Self::Toggle(f) => &f.id,
+        }
+    }
+
+    pub fn label(&self) -> Option<&str> {
+        match self {
+            Self::Number(f) | Self::Slider(f) => f.label.as_deref(),
+            Self::Text(f) => f.label.as_deref(),
+            Self::Select(f) => f.label.as_deref(),
+            Self::Toggle(f) => f.label.as_deref(),
+        }
+    }
+
+    pub fn help(&self) -> Option<&str> {
+        match self {
+            Self::Number(f) | Self::Slider(f) => f.help.as_deref(),
+            Self::Text(f) => f.help.as_deref(),
+            Self::Select(f) => f.help.as_deref(),
+            Self::Toggle(f) => f.help.as_deref(),
+        }
+    }
+
+    pub fn disabled(&self) -> bool {
+        match self {
+            Self::Number(f) | Self::Slider(f) => f.disabled,
+            Self::Text(f) => f.disabled,
+            Self::Select(f) => f.disabled,
+            Self::Toggle(f) => f.disabled,
+        }
+    }
+
+    pub fn value(&self) -> serde_json::Value {
+        use serde_json::Value;
+        match self {
+            Self::Number(f) => f.value.map_or(Value::Null, |v| f.json(v)),
+            Self::Slider(f) => f.json(f.value.unwrap_or(f.min.unwrap_or(0.))),
+            Self::Text(f) => Value::String(f.value.clone().unwrap_or_default()),
+            Self::Select(f) => f
+                .value
+                .clone()
+                .or_else(|| f.options.first().map(|o| o.value().to_owned()))
+                .map_or(Value::Null, Value::String),
+            Self::Toggle(f) => Value::Bool(f.value),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -134,11 +750,37 @@ pub enum ButtonKind {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Event {
-    Click { id: String },
-    Toggle { id: String, on: bool },
-    Choose { id: String, index: usize },
-    Move { row: String, to: usize },
-    Picked { id: String, paths: Vec<PathBuf> },
+    Click {
+        id: String,
+    },
+    Toggle {
+        id: String,
+        on: bool,
+    },
+    Choose {
+        id: String,
+        index: usize,
+    },
+    Move {
+        row: String,
+        to: usize,
+    },
+    Picked {
+        id: String,
+        paths: Vec<PathBuf>,
+    },
+    Submit {
+        form: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        row: Option<String>,
+        values: serde_json::Map<String, serde_json::Value>,
+        #[serde(default)]
+        changed: Vec<String>,
+    },
+    Search {
+        id: String,
+        query: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -213,6 +855,12 @@ pub enum Art {
     Image(PathBuf),
 }
 
+impl Art {
+    pub fn is_none(&self) -> bool {
+        matches!(self, Self::None)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Icon {
@@ -238,6 +886,28 @@ pub enum Icon {
     ShieldCheck,
     Trash,
     Upload,
+    Calendar,
+    Car,
+    Clock,
+    CloudRain,
+    Flag,
+    Gauge,
+    History,
+    Info,
+    Refresh,
+    Save,
+    Search,
+    Timer,
+    TrendingDown,
+    TrendingUp,
+    TriangleAlert,
+    Trophy,
+    Undo,
+    User,
+    Users,
+    Wallet,
+    Wrench,
+    Zap,
 }
 
 #[cfg(test)]
@@ -298,8 +968,10 @@ mod tests {
                     menu: Vec::new(),
                 }],
                 reorder: true,
+                search: None,
             },
             footer: Some("By Team Simplified.".into()),
+            tick: false,
         };
         let json = serde_json::to_value(&view).unwrap();
         assert_eq!(json["body"]["list"]["rows"][0]["trailing"]["switch"]["on"], true);
@@ -314,5 +986,283 @@ mod tests {
             }
         );
         assert_eq!(serde_json::to_value(Effect::Reload).unwrap(), "reload");
+    }
+
+    #[test]
+    fn dashboard_blocks_parse_from_the_documented_json() {
+        let view: View = serde_json::from_value(serde_json::json!({
+            "subtitle": "s", "tick": true,
+            "body": { "blocks": [
+                { "hero": { "title": "Scuderia Swofty", "subtitle": "My Team",
+                    "art": { "monogram": "S" },
+                    "pills": [ { "text": "LIVE", "tone": "good", "dot": true } ],
+                    "facts": [ { "label": "Next race", "value": "Monaco" } ],
+                    "buttons": [ { "id": "backup", "label": "Back up now", "icon": "save" } ] } },
+                { "tiles": [
+                    { "label": "Cash", "value": "$12.4M", "delta": "+$2.0M", "hint": "since Bahrain" },
+                    { "label": "RP", "value": "340", "progress": 0.68, "tone": "accent" },
+                    { "label": "P", "value": "P4", "delta": "-1" },
+                    { "label": "Q", "value": "1", "delta": "1", "delta_tone": "warn" } ] },
+                { "grid": { "columns": [2, 1], "blocks": [
+                    { "card": { "title": "Facilities", "blocks": [
+                        { "meters": [ { "label": "Wind tunnel", "value": 3, "max": 4, "text": "Phase 3 of 4", "tone": "good" } ] } ] } },
+                    { "card": { "pills": [ { "text": "Offline", "tone": "muted" } ] } } ] } },
+                { "grid": { "blocks": [] } },
+                { "pills": [ { "text": "In Team HQ", "tone": "accent", "icon": "car" } ] }
+            ] }
+        }))
+        .unwrap();
+        assert!(view.tick);
+        let Body::Blocks(blocks) = &view.body else {
+            panic!("blocks body");
+        };
+        let Block::Hero(hero) = &blocks[0] else {
+            panic!("hero");
+        };
+        assert_eq!(hero.art, Art::Monogram("S".into()));
+        assert!(hero.pills[0].dot);
+        assert_eq!(hero.buttons[0].icon, Some(Icon::Save));
+        let Block::Tiles(tiles) = &blocks[1] else {
+            panic!("tiles");
+        };
+        let tones: Vec<Tone> = tiles.iter().map(Tile::delta_tone).collect();
+        assert_eq!(tones, [Tone::Good, Tone::Muted, Tone::Bad, Tone::Warn]);
+        assert_eq!(tiles[1].progress, Some(0.68));
+        let Block::Grid(grid) = &blocks[2] else {
+            panic!("grid");
+        };
+        assert_eq!(grid.columns.weights(), [2., 1.]);
+        let Block::Card(card) = &grid.blocks[0] else {
+            panic!("card");
+        };
+        let Block::Meters(meters) = &card.blocks[0] else {
+            panic!("meters");
+        };
+        assert_eq!(meters[0].fraction(), 0.75);
+        assert_eq!(meters[0].text(), "Phase 3 of 4");
+        let Block::Grid(plain) = &blocks[3] else {
+            panic!("grid");
+        };
+        assert_eq!(plain.columns.weights(), [1., 1.]);
+        assert_eq!(Columns::Count(9).weights().len(), 4);
+        let again: View = serde_json::from_value(serde_json::to_value(&view).unwrap()).unwrap();
+        assert_eq!(again, view);
+        let bare = serde_json::to_value(View { tick: false, ..view }).unwrap();
+        assert!(bare.get("tick").is_none());
+    }
+
+    #[test]
+    fn meters_default_to_a_hundred_and_clamp() {
+        let m: Meter = serde_json::from_str(r#"{"value": 40}"#).unwrap();
+        assert_eq!((m.fraction(), m.text()), (0.4, "40 / 100".to_owned()));
+        let over: Meter = serde_json::from_str(r#"{"value": 12, "min": 2, "max": 7}"#).unwrap();
+        assert_eq!(over.fraction(), 1.0);
+        let flat: Meter = serde_json::from_str(r#"{"value": 1, "min": 5, "max": 5}"#).unwrap();
+        assert_eq!(flat.fraction(), 0.0);
+    }
+
+    #[test]
+    fn forms_parse_every_field_kind() {
+        let form: Form = serde_json::from_value(serde_json::json!({
+            "id": "finance", "columns": 2, "apply": "Apply",
+            "fields": [
+                { "number": { "id": "cash", "label": "Cash", "value": 12400000, "min": 0, "max": 2147483647, "step": 100000, "unit": "$" } },
+                { "slider": { "id": "rp", "value": 340, "min": 0, "max": 500, "step": 10 } },
+                { "text": { "id": "name", "value": "Swofty", "placeholder": "Team", "max_len": 32 } },
+                { "select": { "id": "weather", "value": "dry", "options": [ { "value": "dry", "label": "Dry" }, "Light rain" ] } },
+                { "toggle": { "id": "lock", "value": true, "disabled": true } }
+            ]
+        }))
+        .unwrap();
+        let ids: Vec<&str> = form.fields.iter().map(Field::id).collect();
+        assert_eq!(ids, ["cash", "rp", "name", "weather", "lock"]);
+        let values: Vec<serde_json::Value> = form.fields.iter().map(Field::value).collect();
+        assert_eq!(
+            values,
+            [
+                serde_json::json!(12400000),
+                serde_json::json!(340),
+                serde_json::json!("Swofty"),
+                serde_json::json!("dry"),
+                serde_json::json!(true)
+            ]
+        );
+        assert!(values[0].is_i64());
+        assert!(form.fields[4].disabled() && !form.fields[0].disabled());
+        let Field::Select(select) = &form.fields[3] else {
+            panic!("select");
+        };
+        assert_eq!(select.options[1].value(), "Light rain");
+        assert_eq!(select.options[0].label(), "Dry");
+        assert!(!form.live && !form.disabled);
+        let again: Form = serde_json::from_value(serde_json::to_value(&form).unwrap()).unwrap();
+        assert_eq!(again, form);
+    }
+
+    #[test]
+    fn number_fields_clamp_round_and_send_integers() {
+        let cash = NumberField {
+            min: Some(0.),
+            max: Some(1000.),
+            step: Some(10.),
+            ..NumberField::default()
+        };
+        assert_eq!(cash.clamp(123.), 120.);
+        assert_eq!(cash.clamp(-5.), 0.);
+        assert_eq!(cash.clamp(5000.), 1000.);
+        assert!(cash.json(120.).is_i64());
+        let rate = NumberField {
+            step: Some(0.05),
+            ..NumberField::default()
+        };
+        assert_eq!(rate.clamp(0.333), 0.35);
+        assert_eq!(rate.json(0.35), serde_json::json!(0.35));
+        assert_eq!(rate.text(0.3), "0.30");
+        assert!(NumberField::default().json(3.).is_i64());
+        assert_eq!(NumberField::default().json(2.5), serde_json::json!(2.5));
+    }
+
+    #[test]
+    fn tables_keep_the_old_shape_and_add_sorting_search_and_edits() {
+        let old: Block =
+            serde_json::from_str(r#"{"table":{"columns":["File","Op"],"rows":[["a.erp","patch"]]}}"#)
+                .unwrap();
+        let Block::Table(old_table) = &old else {
+            panic!("table");
+        };
+        assert!(old_table.is_plain());
+        assert_eq!(
+            *old_table,
+            Table::plain(
+                vec!["File".into(), "Op".into()],
+                vec![vec!["a.erp".into(), "patch".into()]]
+            )
+        );
+        assert_eq!(
+            serde_json::to_value(&old).unwrap(),
+            serde_json::json!({"table":{"columns":["File","Op"],"rows":[["a.erp","patch"]]}})
+        );
+        let t: Table = serde_json::from_value(serde_json::json!({
+            "id": "drivers",
+            "columns": [
+                "Driver",
+                { "key": "team", "title": "Team" },
+                { "key": "pace", "title": "Pace", "align": "right", "width": 96, "sort": true }
+            ],
+            "rows": [
+                { "id": "ver", "cells": [
+                    "Max Verstappen",
+                    { "text": "Red Bull", "tone": "muted" },
+                    { "text": "95", "bar": 0.95, "edit": { "number": { "min": 0, "max": 100 } } } ] },
+                ["Lando Norris", "McLaren", "1,093"],
+                ["Oscar Piastri", "McLaren", { "text": "$12.4M", "sort": 12400000 }]
+            ],
+            "sort": { "column": "pace", "desc": true },
+            "search": { "placeholder": "Search drivers", "event": true },
+            "compact": true,
+            "empty": "No drivers match"
+        }))
+        .unwrap();
+        assert!(!t.is_plain());
+        assert_eq!(t.id(), "drivers");
+        let keys: Vec<&str> = t.columns.iter().map(Column::key).collect();
+        assert_eq!(keys, ["Driver", "team", "pace"]);
+        assert_eq!(t.columns[2].spec().align, Align::Right);
+        assert_eq!(t.columns[2].spec().width, Some(96.));
+        assert!(t.columns[2].spec().sort && !t.columns[0].spec().sort);
+        assert_eq!(t.rows[0].id(0), "ver");
+        assert_eq!(t.rows[1].id(1), "1");
+        assert_eq!(t.rows[0].cells()[1].spec().tone, Some(Tone::Muted));
+        assert!(matches!(t.rows[0].cells()[2].spec().edit, Some(Field::Number(_))));
+        assert_eq!(t.rows[1].cells()[2].sort_key(), SortKey::Number(1093.));
+        assert_eq!(t.rows[2].cells()[2].sort_key(), SortKey::Number(12_400_000.));
+        assert_eq!(
+            t.rows[0].cells()[0].sort_key(),
+            SortKey::Text("max verstappen".into())
+        );
+        assert_eq!(
+            SortKey::Number(2.).compare(&SortKey::Number(10.)),
+            std::cmp::Ordering::Less
+        );
+        let search = t.search.clone().unwrap();
+        assert!(search.event && search.filter && search.id.is_none());
+        assert_eq!(
+            t.sort,
+            Some(Sort {
+                column: "pace".into(),
+                desc: true
+            })
+        );
+        let again: Table = serde_json::from_value(serde_json::to_value(&t).unwrap()).unwrap();
+        assert_eq!(again, t);
+    }
+
+    #[test]
+    fn search_matches_every_word_ignoring_case() {
+        let row = ["Max Verstappen", "Red Bull Racing"];
+        assert!(Search::matches("max", row));
+        assert!(Search::matches("RED max", row));
+        assert!(!Search::matches("max ferrari", row));
+        assert!(Search::matches("  ", row));
+        let list: Body =
+            serde_json::from_str(r#"{"list":{"rows":[],"reorder":false,"search":{"filter":false}}}"#)
+                .unwrap();
+        assert!(matches!(
+            list,
+            Body::List {
+                search: Some(Search { filter: false, .. }),
+                ..
+            }
+        ));
+        let plain: Body = serde_json::from_str(r#"{"list":{"rows":[],"reorder":false}}"#).unwrap();
+        assert!(!serde_json::to_string(&plain).unwrap().contains("search"));
+    }
+
+    #[test]
+    fn submit_and_search_events_match_the_documented_json() {
+        let submit: Event = serde_json::from_value(serde_json::json!({ "submit": {
+            "form": "finance", "values": { "cash": 15000000, "lock": false }, "changed": ["cash"] } }))
+        .unwrap();
+        let Event::Submit {
+            form,
+            row,
+            values,
+            changed,
+        } = &submit
+        else {
+            panic!("submit");
+        };
+        assert_eq!(
+            (form.as_str(), row, changed.as_slice()),
+            ("finance", &None, &["cash".to_owned()][..])
+        );
+        assert_eq!(values["cash"], 15000000);
+        assert!(!serde_json::to_string(&submit).unwrap().contains("row"));
+        let cell: Event = serde_json::from_str(
+            r#"{"submit":{"form":"drivers","row":"ver","values":{"pace":96},"changed":["pace"]}}"#,
+        )
+        .unwrap();
+        assert!(matches!(cell, Event::Submit { row: Some(ref r), .. } if r == "ver"));
+        assert_eq!(
+            serde_json::to_value(Event::Search {
+                id: "drivers".into(),
+                query: "ver".into()
+            })
+            .unwrap(),
+            serde_json::json!({ "search": { "id": "drivers", "query": "ver" } })
+        );
+        let icons: Vec<Icon> =
+            serde_json::from_str(r#"["refresh","undo","cloud-rain","trending-up","triangle-alert"]"#)
+                .unwrap();
+        assert_eq!(
+            icons,
+            [
+                Icon::Refresh,
+                Icon::Undo,
+                Icon::CloudRain,
+                Icon::TrendingUp,
+                Icon::TriangleAlert
+            ]
+        );
     }
 }

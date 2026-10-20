@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
@@ -45,6 +45,46 @@ pub struct HelperAddon {
     timeouts: Timeouts,
     run: Mutex<Run>,
     summaries: Mutex<HashMap<String, Option<Summary>>>,
+    stale: Arc<Mutex<Option<Stale>>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Stale {
+    All,
+    Sections(BTreeSet<String>),
+}
+
+impl Stale {
+    pub fn covers(&self, section: &str) -> bool {
+        match self {
+            Self::All => true,
+            Self::Sections(s) => s.contains(section),
+        }
+    }
+
+    fn add(slot: &mut Option<Stale>, section: Option<String>) {
+        *slot = match (slot.take(), section) {
+            (Some(Self::All), _) | (_, None) => Some(Self::All),
+            (Some(Self::Sections(mut s)), Some(section)) => {
+                s.insert(section);
+                Some(Self::Sections(s))
+            }
+            (None, Some(section)) => Some(Self::Sections(BTreeSet::from([section]))),
+        };
+    }
+}
+
+// An invalidate notification may arrive at any time, between calls too, so the
+// reader thread takes it out of the line stream before any exchange sees it.
+fn invalidation(line: &str) -> Option<Option<String>> {
+    if !line.contains("invalidate") {
+        return None;
+    }
+    let message: Value = serde_json::from_str(line).ok()?;
+    if message.get("id").is_some() || message["method"] != "invalidate" {
+        return None;
+    }
+    Some(message["params"]["section"].as_str().map(str::to_owned))
 }
 
 enum Run {
@@ -78,6 +118,7 @@ impl HelperAddon {
             timeouts: Timeouts::default(),
             run: Mutex::new(Run::Idle),
             summaries: Mutex::new(HashMap::new()),
+            stale: Arc::default(),
         })
     }
 
@@ -123,6 +164,39 @@ impl HelperAddon {
             self.call_with(run, cx, call, self.timeouts.quick, None)
                 .or_else(|e| self.failure().map(|e| self.dead_view(e)).ok_or(e)),
         )
+    }
+
+    /// Sends a tick to a running, idle plugin. None when it isn't running or another
+    /// call holds it; a tick never starts the plugin or waits for it.
+    pub fn try_tick(&self, cx: &Cx, section: &str) -> Option<Result<()>> {
+        let run = match self.run.try_lock() {
+            Ok(run) => run,
+            Err(TryLockError::Poisoned(e)) => e.into_inner(),
+            Err(TryLockError::WouldBlock) => return None,
+        };
+        if !matches!(*run, Run::Live(_)) {
+            return None;
+        }
+        let call = Call::Tick {
+            section: section.into(),
+        };
+        Some(
+            self.call_with::<Value>(run, cx, call, self.timeouts.quick, None)
+                .map(drop),
+        )
+    }
+
+    pub fn busy(&self) -> bool {
+        matches!(self.run.try_lock(), Err(TryLockError::WouldBlock))
+    }
+
+    pub fn take_stale(&self) -> Option<Stale> {
+        self.stale.lock().unwrap_or_else(|e| e.into_inner()).take()
+    }
+
+    pub fn mark_stale(&self, section: Option<&str>) {
+        let mut stale = self.stale.lock().unwrap_or_else(|e| e.into_inner());
+        Stale::add(&mut stale, section.map(str::to_owned));
     }
 
     fn lock(&self) -> MutexGuard<'_, Run> {
@@ -242,9 +316,14 @@ impl HelperAddon {
             _ => return Err("has no pipes".into()),
         };
         let (tx, lines) = channel();
+        let stale = self.stale.clone();
         std::thread::spawn(move || {
             for line in BufReader::new(stdout).lines() {
                 let Ok(line) = line else { break };
+                if let Some(section) = invalidation(&line) {
+                    Stale::add(&mut stale.lock().unwrap_or_else(|e| e.into_inner()), section);
+                    continue;
+                }
                 if tx.send(line).is_err() {
                     break;
                 }
@@ -263,6 +342,7 @@ impl HelperAddon {
             data_dir: cx.data_dir.to_path_buf(),
             cache_dir: cx.cache_dir.to_path_buf(),
             profile: cx.profile.clone(),
+            launcher: Some(env!("CARGO_PKG_VERSION").into()),
         });
         let welcome = self
             .exchange(&mut live, cx, hello, self.timeouts.quick, None)?
@@ -330,6 +410,13 @@ impl HelperAddon {
                         p.report(done, &text);
                     }
                 }
+                Incoming::Call(Request {
+                    id: None,
+                    call: HostCall::Invalidate(i),
+                }) => Stale::add(
+                    &mut self.stale.lock().unwrap_or_else(|e| e.into_inner()),
+                    i.section,
+                ),
                 Incoming::Call(Request { id: Some(host), call }) => {
                     let reply = match host_call(cx, call) {
                         Ok(result) => Reply::Ok { id: host, result },
@@ -361,6 +448,7 @@ impl HelperAddon {
                 action: None,
             },
             footer: None,
+            tick: false,
         }
     }
 }
@@ -385,9 +473,27 @@ fn host_call(cx: &Cx, call: HostCall) -> std::result::Result<Value, String> {
         HostCall::GameOriginalLang { code } => game()
             .and_then(|g| g.original_lang(&code))
             .map(|p| Value::String(p.to_string_lossy().into_owned())),
+        HostCall::GameDir => Ok(path_value(cx.game.and_then(|g| g.dir()))),
+        HostCall::AddonGameDir => Ok(path_value(cx.game.and_then(|g| g.dir()).map(|d| {
+            d.join(crate::install::LOADER_DIR)
+                .join(crate::build::ADDONS_DIR)
+                .join(cx.addon)
+        }))),
+        HostCall::GameStatus => {
+            let status = cx
+                .game
+                .map_or_else(|| crate::process::game_status(None), |g| g.status());
+            serde_json::to_value(status).map_err(|e| swofty_addon::Error::Other(e.to_string()))
+        }
+        HostCall::SteamSaveDir => Ok(path_value(cx.game.and_then(|g| g.steam_save_dir()))),
         HostCall::Progress { .. } => Err(swofty_addon::Error::Other("progress takes no id".into())),
+        HostCall::Invalidate(_) => Err(swofty_addon::Error::Other("invalidate takes no id".into())),
     }
     .map_err(|e| e.to_string())
+}
+
+fn path_value(path: Option<PathBuf>) -> Value {
+    path.map_or(Value::Null, |p| Value::String(p.to_string_lossy().into_owned()))
 }
 
 fn send(live: &mut Live, message: &impl Serialize) -> std::result::Result<(), String> {
@@ -569,7 +675,7 @@ mod tests {
     use std::sync::Mutex;
 
     use swofty_addon::asset::{AssetOp, Features};
-    use swofty_addon::launcher::StateStore;
+    use swofty_addon::launcher::{GameFiles, GameStatus, StateStore};
 
     use super::*;
     use crate::import::{Route, route};
@@ -710,6 +816,152 @@ read -r l
         h.stop();
         assert!(!h.running());
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    struct FakeGame(PathBuf);
+
+    impl GameFiles for FakeGame {
+        fn build_key(&self) -> String {
+            "25251167-abc".into()
+        }
+
+        fn exe_version(&self) -> Option<String> {
+            None
+        }
+
+        fn is_stock(&self, _: &str) -> bool {
+            false
+        }
+
+        fn original(&self, rel: &str) -> Result<PathBuf> {
+            Err(swofty_addon::Error::Other(rel.into()))
+        }
+
+        fn original_lang(&self, code: &str) -> Result<PathBuf> {
+            Err(swofty_addon::Error::Other(code.into()))
+        }
+
+        fn dir(&self) -> Option<PathBuf> {
+            Some(self.0.clone())
+        }
+
+        fn status(&self) -> GameStatus {
+            GameStatus {
+                running: true,
+                pid: Some(7),
+                since: Some(100.5),
+                session: Some("s1".into()),
+            }
+        }
+
+        fn steam_save_dir(&self) -> Option<PathBuf> {
+            Some(self.0.join("remote"))
+        }
+    }
+
+    const LIVE: &str = r#"
+answer() { read -r l; echo "$l" >> received; echo "$1"; }
+answer '{"id":0,"result":{"api":1}}'
+answer '{"id":0,"method":"game_dir"}'
+answer '{"id":1,"method":"addon_game_dir"}'
+answer '{"id":2,"method":"game_status"}'
+answer '{"id":3,"method":"steam_save_dir"}'
+read -r l; echo "$l" >> received
+echo '{"method":"invalidate","params":{"section":"items"}}'
+echo '{"id":1,"result":{"subtitle":"s","body":{"blocks":[]},"tick":true}}'
+read -r l; echo "$l" >> received
+echo '{"method":"invalidate","params":{}}'
+echo '{"id":2,"result":null}'
+answer '{"id":3,"error":"nope"}'
+echo '{"method":"invalidate","params":{"section":"late"}}'
+read -r l
+"#;
+
+    #[test]
+    fn ticks_invalidates_and_answers_the_game_host_calls() {
+        let root = tmp("live");
+        let dir = root.join("addon");
+        addon(&dir, LIVE);
+        let h = helper(&dir);
+        let (data, cache) = (root.join("data"), root.join("cache"));
+        std::fs::create_dir_all(&cache).unwrap();
+        let state = Memory::default();
+        let p = profile("default");
+        let game = FakeGame(root.join("F1 25"));
+        let cx = Cx::new("t.helper", &p, &data, &cache, Some(&game), &state);
+        assert!(
+            h.try_tick(&cx, "items").is_none(),
+            "a tick never starts the plugin"
+        );
+        let view = h.view(&cx, "items").unwrap();
+        assert!(view.tick);
+        assert_eq!(
+            h.take_stale(),
+            Some(Stale::Sections(BTreeSet::from(["items".to_owned()])))
+        );
+        assert_eq!(h.take_stale(), None);
+        assert!(!h.busy());
+        h.try_tick(&cx, "items").unwrap().unwrap();
+        assert_eq!(h.take_stale(), Some(Stale::All));
+        let e = h.try_tick(&cx, "items").unwrap().unwrap_err();
+        assert_eq!(e.to_string(), "Helper: nope");
+        assert!(h.running());
+        let late = std::time::Instant::now();
+        while h.take_stale().is_none() {
+            assert!(
+                late.elapsed() < Duration::from_secs(2),
+                "the late invalidate never arrived"
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let received: Vec<Value> = std::fs::read_to_string(dir.join("received"))
+            .unwrap()
+            .lines()
+            .map(|l| serde_json::from_str(l).unwrap())
+            .collect();
+        assert_eq!(received[0]["params"]["launcher"], env!("CARGO_PKG_VERSION"));
+        let game_dir = root.join("F1 25");
+        assert_eq!(received[2]["result"], game_dir.to_string_lossy().as_ref());
+        assert_eq!(
+            received[3]["result"],
+            game_dir.join("swofty/addons/t.helper").to_string_lossy().as_ref()
+        );
+        assert_eq!(
+            received[4]["result"],
+            serde_json::json!({"running": true, "pid": 7, "since": 100.5, "session": "s1"})
+        );
+        assert_eq!(
+            received[5]["result"],
+            game_dir.join("remote").to_string_lossy().as_ref()
+        );
+        assert_eq!(received[6]["method"], "tick");
+        assert_eq!(received[6]["params"]["section"], "items");
+        h.stop();
+        let none = Cx::new("t.helper", &p, &data, &cache, None, &state);
+        assert_eq!(host_call(&none, HostCall::GameDir).unwrap(), Value::Null);
+        assert_eq!(host_call(&none, HostCall::AddonGameDir).unwrap(), Value::Null);
+        assert!(host_call(&none, HostCall::Invalidate(Default::default())).is_err());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn stale_sections_merge_until_taken() {
+        let mut slot = None;
+        Stale::add(&mut slot, Some("a".into()));
+        Stale::add(&mut slot, Some("b".into()));
+        let both = slot.clone().unwrap();
+        assert!(both.covers("a") && both.covers("b") && !both.covers("c"));
+        Stale::add(&mut slot, None);
+        Stale::add(&mut slot, Some("c".into()));
+        assert_eq!(slot, Some(Stale::All));
+        assert_eq!(
+            invalidation(r#"{"method":"invalidate","params":{"section":"x"}}"#),
+            Some(Some("x".into()))
+        );
+        assert_eq!(invalidation(r#"{"method":"invalidate"}"#), Some(None));
+        assert_eq!(invalidation(r#"{"id":4,"method":"invalidate"}"#), None);
+        assert_eq!(invalidation(r#"{"id":4,"result":"invalidate"}"#), None);
+        assert_eq!(invalidation("not json, invalidate"), None);
     }
 
     #[test]

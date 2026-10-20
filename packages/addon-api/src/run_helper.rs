@@ -12,8 +12,8 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::helper::{API_VERSION, Built, Call, HostCall, Reply, Request, Welcome};
-use crate::launcher::{Addon, BuildCx, Claim, Cx, GameFiles, ProfileInfo, Progress, StateStore};
+use crate::helper::{API_VERSION, Built, Call, HostCall, Invalidate, Reply, Request, Welcome};
+use crate::launcher::{Addon, BuildCx, Claim, Cx, GameFiles, GameStatus, ProfileInfo, Progress, StateStore};
 use crate::{Error, Result};
 
 pub fn run_helper(addon: Arc<dyn Addon>) {
@@ -109,6 +109,12 @@ fn dispatch(
         }
         Call::Command { path, args } => addon.command(&cx, &path, &args).map_err(text).and_then(json),
         Call::Summary => json(addon.summary(&cx)),
+        Call::Tick { section } => {
+            if addon.tick(&cx, &section).map_err(text)? {
+                host.invalidate(Some(section));
+            }
+            Ok(Value::Null)
+        }
         Call::Hello(_) | Call::Profile(_) => unreachable!("handled above"),
     }
 }
@@ -188,6 +194,13 @@ impl Host {
         self.lock().write(&reply);
     }
 
+    fn invalidate(&self, section: Option<String>) {
+        self.lock().write(&Request::<HostCall> {
+            id: None,
+            call: HostCall::Invalidate(Invalidate { section }),
+        });
+    }
+
     fn call(&self, call: HostCall) -> std::result::Result<Value, String> {
         let mut io = self.lock();
         let id = io.next;
@@ -254,6 +267,21 @@ impl GameFiles for Host {
 
     fn original_lang(&self, code: &str) -> Result<PathBuf> {
         host_path(self.call(HostCall::GameOriginalLang { code: code.into() }))
+    }
+
+    fn dir(&self) -> Option<PathBuf> {
+        host_path(self.call(HostCall::GameDir)).ok()
+    }
+
+    fn status(&self) -> GameStatus {
+        self.call(HostCall::GameStatus)
+            .ok()
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default()
+    }
+
+    fn steam_save_dir(&self) -> Option<PathBuf> {
+        host_path(self.call(HostCall::SteamSaveDir)).ok()
     }
 }
 

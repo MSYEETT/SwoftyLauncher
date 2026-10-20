@@ -45,6 +45,9 @@ pub enum Call {
         args: Vec<String>,
     },
     Summary,
+    Tick {
+        section: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -54,6 +57,8 @@ pub struct Hello {
     pub data_dir: PathBuf,
     pub cache_dir: PathBuf,
     pub profile: ProfileInfo,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launcher: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -67,6 +72,17 @@ pub enum HostCall {
     GameIsStock { rel: String },
     GameOriginal { rel: String },
     GameOriginalLang { code: String },
+    GameDir,
+    AddonGameDir,
+    GameStatus,
+    SteamSaveDir,
+    Invalidate(#[serde(default)] Invalidate),
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Invalidate {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -138,11 +154,13 @@ mod tests {
                     data_dir: "/d".into(),
                     cache_dir: "/c".into(),
                     profile: profile(),
+                    launcher: Some("1.0.10".into()),
                 }),
             },
             json!({"id": 0, "method": "hello", "params": {"api": 1, "addon": "example.addon",
                 "data_dir": "/d", "cache_dir": "/c",
-                "profile": {"name": "default", "vanilla": false, "enabled": true}}}),
+                "profile": {"name": "default", "vanilla": false, "enabled": true},
+                "launcher": "1.0.10"}}),
         );
         round(
             Request {
@@ -277,6 +295,48 @@ mod tests {
             })
         );
         assert!(serde_json::from_str::<Incoming>(r#"{"result": 1}"#).is_err());
+        round(
+            Request {
+                id: Some(5),
+                call: Call::Tick {
+                    section: "overview".into(),
+                },
+            },
+            json!({"id": 5, "method": "tick", "params": {"section": "overview"}}),
+        );
+        for (method, call) in [
+            ("game_dir", HostCall::GameDir),
+            ("addon_game_dir", HostCall::AddonGameDir),
+            ("game_status", HostCall::GameStatus),
+            ("steam_save_dir", HostCall::SteamSaveDir),
+        ] {
+            round(
+                Incoming::Call(Request { id: Some(11), call }),
+                json!({"id": 11, "method": method}),
+            );
+        }
+        round(
+            Incoming::Call(Request {
+                id: None,
+                call: HostCall::Invalidate(Invalidate {
+                    section: Some("overview".into()),
+                }),
+            }),
+            json!({"method": "invalidate", "params": {"section": "overview"}}),
+        );
+        assert_eq!(
+            serde_json::from_str::<Incoming>(r#"{"method": "invalidate", "params": {}}"#).unwrap(),
+            Incoming::Call(Request {
+                id: None,
+                call: HostCall::Invalidate(Invalidate::default()),
+            })
+        );
+        let status: crate::launcher::GameStatus = serde_json::from_str(
+            r#"{"running": true, "pid": 48211, "since": 1760941234.5, "session": "2026-10-20T14-22-33"}"#,
+        )
+        .unwrap();
+        assert_eq!(status.pid, Some(48211));
+        assert_eq!(status.session.as_deref(), Some("2026-10-20T14-22-33"));
         assert!(serde_json::from_str::<Incoming>(r#"{"id": 1, "method": "launch"}"#).is_err());
     }
 }

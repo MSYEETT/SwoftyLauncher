@@ -1,7 +1,11 @@
+use std::path::Path;
 use std::process::Command;
-use std::time::SystemTime;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use swofty_addon::launcher::GameStatus;
 
 use crate::GAME_EXE;
+use crate::session::SessionRecord;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GameProcess {
@@ -11,6 +15,32 @@ pub struct GameProcess {
 
 pub fn game_running() -> bool {
     !game_processes().is_empty()
+}
+
+/// The running game for a launcher plugin's game_status: its process, and the
+/// latest swofty session under `data` while that session is still live.
+pub fn game_status(data: Option<&Path>) -> GameStatus {
+    status_of(&game_processes(), data)
+}
+
+fn status_of(processes: &[GameProcess], data: Option<&Path>) -> GameStatus {
+    let Some(first) = processes.first() else {
+        return GameStatus::default();
+    };
+    let session = data
+        .and_then(|d| std::fs::read_to_string(d.join("sessions/latest.txt")).ok())
+        .map(|dir| SessionRecord::read(Path::new(dir.trim())))
+        .filter(|s| s.started.is_some() && s.ended.is_none())
+        .and_then(|s| Some(s.dir.file_name()?.to_string_lossy().into_owned()));
+    GameStatus {
+        running: true,
+        pid: Some(first.pid),
+        since: first
+            .started
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map(|d| d.as_secs_f64()),
+        session,
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -117,6 +147,39 @@ pub fn stop_game() -> std::io::Result<()> {
         Command::new("pkill").args(["-TERM", "-x", GAME_EXE]).status()?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod status_tests {
+    use super::*;
+
+    #[test]
+    fn reports_the_live_session_of_a_running_game() {
+        let root = std::env::temp_dir().join(format!("swofty-status-{}", std::process::id()));
+        let dir = root.join("sessions/2026-10-20T14-22-33");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(root.join("sessions/latest.txt"), format!("{}\n", dir.display())).unwrap();
+        std::fs::write(dir.join("game_start"), "100.5\n").unwrap();
+        let game = [GameProcess {
+            pid: 48211,
+            started: Some(UNIX_EPOCH + std::time::Duration::from_secs(100)),
+        }];
+        let status = status_of(&game, Some(&root));
+        assert_eq!(
+            status,
+            GameStatus {
+                running: true,
+                pid: Some(48211),
+                since: Some(100.0),
+                session: Some("2026-10-20T14-22-33".into()),
+            }
+        );
+        std::fs::write(dir.join("game_end"), "200\n").unwrap();
+        assert_eq!(status_of(&game, Some(&root)).session, None);
+        assert_eq!(status_of(&[], Some(&root)), GameStatus::default());
+        assert_eq!(status_of(&game, None).session, None);
+        std::fs::remove_dir_all(&root).ok();
+    }
 }
 
 #[cfg(all(test, target_os = "linux"))]

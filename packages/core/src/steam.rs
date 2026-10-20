@@ -125,6 +125,56 @@ pub fn compat_tool(steam_root: &Path) -> Option<String> {
         .map(str::to_owned)
 }
 
+const STEAMID64_BASE: u64 = 76_561_197_960_265_728;
+
+/// The game's Steam Cloud save folder, `userdata/<steamid3>/<app>/remote`: for the
+/// most recent user in loginusers.vdf, else the user whose folder changed last.
+pub fn save_dir(steam_root: &Path) -> Option<PathBuf> {
+    let remote = |id3: &str| {
+        let dir = steam_root
+            .join("userdata")
+            .join(id3)
+            .join(STEAM_APP_ID.to_string())
+            .join("remote");
+        dir.is_dir().then_some(dir)
+    };
+    let recent = read_vdf(&steam_root.join("config/loginusers.vdf")).and_then(|v| {
+        let users = v.get("users")?;
+        let stamp = |e: &Vdf| {
+            e.get("Timestamp")
+                .and_then(Vdf::str)
+                .and_then(|t| t.parse::<u64>().ok())
+        };
+        let best = users.entries().max_by_key(|(_, e)| {
+            let most_recent = e.get("MostRecent").and_then(Vdf::str) == Some("1");
+            (most_recent, stamp(e).unwrap_or(0))
+        })?;
+        let id64: u64 = best.0.parse().ok()?;
+        remote(&id64.checked_sub(STEAMID64_BASE)?.to_string())
+    });
+    recent.or_else(|| {
+        std::fs::read_dir(steam_root.join("userdata"))
+            .ok()?
+            .flatten()
+            .filter_map(|u| {
+                let dir = remote(u.file_name().to_str()?)?;
+                let changed = std::fs::metadata(&dir).and_then(|m| m.modified()).ok();
+                Some((changed, dir))
+            })
+            .max_by_key(|(changed, _)| *changed)
+            .map(|(_, dir)| dir)
+    })
+}
+
+/// save_dir for the Steam install that holds the game, then for every other one.
+pub fn find_save_dir() -> Option<PathBuf> {
+    let game_root = find_game().map(|g| g.steam_root);
+    game_root
+        .into_iter()
+        .chain(steam_roots())
+        .find_map(|root| save_dir(&root))
+}
+
 pub fn wrapper_installed(launch_options: &str) -> bool {
     launch_options.contains("swofty")
         && launch_options.contains("run")
@@ -164,6 +214,31 @@ mod tests {
         assert_eq!(g.dir, lib.join("steamapps/common/F1 25"));
         assert_eq!(g.build_id, Some(25_251_167));
         assert!(g.prefix().unwrap().ends_with("compatdata/3059520/pfx"));
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn finds_the_most_recent_users_save_folder() {
+        let root = std::env::temp_dir().join(format!("swofty-saves-{}", std::process::id()));
+        for id3 in ["11", "22"] {
+            std::fs::create_dir_all(root.join(format!("userdata/{id3}/3059520/remote"))).unwrap();
+        }
+        std::fs::create_dir_all(root.join("config")).unwrap();
+        std::fs::write(
+            root.join("config/loginusers.vdf"),
+            format!(
+                r#""users" {{ "{}" {{ "AccountName" "a" "MostRecent" "0" "Timestamp" "900" }}
+                   "{}" {{ "AccountName" "b" "MostRecent" "1" "Timestamp" "100" }} }}"#,
+                STEAMID64_BASE + 11,
+                STEAMID64_BASE + 22
+            ),
+        )
+        .unwrap();
+        assert_eq!(save_dir(&root), Some(root.join("userdata/22/3059520/remote")));
+        std::fs::remove_file(root.join("config/loginusers.vdf")).unwrap();
+        assert!(save_dir(&root).is_some_and(|d| d.ends_with("3059520/remote")));
+        std::fs::remove_dir_all(root.join("userdata")).unwrap();
+        assert_eq!(save_dir(&root), None);
         std::fs::remove_dir_all(&root).ok();
     }
 

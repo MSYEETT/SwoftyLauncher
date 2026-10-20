@@ -31,6 +31,11 @@ pub trait Addon: Send + Sync {
         Ok(Effect::None)
     }
 
+    fn tick(&self, cx: &Cx, section: &str) -> Result<bool> {
+        let _ = (cx, section);
+        Ok(false)
+    }
+
     fn importer(&self) -> Option<&dyn Importer> {
         None
     }
@@ -88,6 +93,29 @@ pub trait GameFiles: Send + Sync {
     fn is_stock(&self, rel: &str) -> bool;
     fn original(&self, rel: &str) -> Result<PathBuf>;
     fn original_lang(&self, code: &str) -> Result<PathBuf>;
+
+    fn dir(&self) -> Option<PathBuf> {
+        None
+    }
+
+    fn status(&self) -> GameStatus {
+        GameStatus::default()
+    }
+
+    fn steam_save_dir(&self) -> Option<PathBuf> {
+        None
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct GameStatus {
+    pub running: bool,
+    #[serde(default)]
+    pub pid: Option<u32>,
+    #[serde(default)]
+    pub since: Option<f64>,
+    #[serde(default)]
+    pub session: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

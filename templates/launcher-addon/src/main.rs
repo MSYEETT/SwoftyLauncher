@@ -1,5 +1,6 @@
 use std::io::{BufRead, Lines, StdinLock, StdoutLock, Write};
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 use serde_json::{Value, json};
 
@@ -37,17 +38,215 @@ impl Host {
     fn progress(&mut self, done: f32, text: &str) {
         self.send(&json!({ "method": "progress", "params": { "done": done, "text": text } }));
     }
+
+    fn invalidate(&mut self, section: &str) {
+        self.send(&json!({ "method": "invalidate", "params": { "section": section } }));
+    }
+
+    fn path(&mut self, method: &str) -> Option<String> {
+        self.call(method, Value::Null).ok()?.as_str().map(str::to_owned)
+    }
 }
 
 struct Addon {
     data_dir: PathBuf,
     cache_dir: PathBuf,
     vanilla: bool,
+    seen: Option<SystemTime>,
+    running: bool,
+}
+
+fn default_dashboard() -> Value {
+    let driver = |id: &str, name: &str, team: &str, rating: u32, form: &str| json!({ "id": id, "name": name, "team": team, "rating": rating, "form": form });
+    json!({
+        "budget": 120, "speed": 40, "name": "Example Racing", "mode": "dry", "lock": false,
+        "drivers": [
+            driver("ada", "Ada Lovelace", "Analytical", 91, "good"),
+            driver("alan", "Alan Turing", "Bletchley", 87, "good"),
+            driver("grace", "Grace Hopper", "Cobol", 84, "warn"),
+            driver("linus", "Linus Torvalds", "Kernel", 79, "muted"),
+            driver("margaret", "Margaret Hamilton", "Apollo", 93, "good"),
+            driver("dennis", "Dennis Ritchie", "Bell Labs", 76, "bad")
+        ]
+    })
 }
 
 impl Addon {
     fn items_dir(&self) -> PathBuf {
         self.data_dir.join("items")
+    }
+
+    fn dashboard_file(&self) -> PathBuf {
+        self.data_dir.join("dashboard.json")
+    }
+
+    fn dashboard(&self) -> Value {
+        std::fs::read(self.dashboard_file())
+            .ok()
+            .and_then(|d| serde_json::from_slice(&d).ok())
+            .unwrap_or_else(default_dashboard)
+    }
+
+    fn save_dashboard(&self, d: &Value) -> Result<(), String> {
+        std::fs::create_dir_all(&self.data_dir).map_err(|e| e.to_string())?;
+        std::fs::write(self.dashboard_file(), d.to_string()).map_err(|e| e.to_string())
+    }
+
+    fn modified(&self) -> Option<SystemTime> {
+        std::fs::metadata(self.dashboard_file())
+            .and_then(|m| m.modified())
+            .ok()
+    }
+
+    fn overview(&mut self, host: &mut Host) -> Result<Value, String> {
+        let d = self.dashboard();
+        self.seen = self.modified();
+        let status = host.call("game_status", Value::Null).unwrap_or(Value::Null);
+        self.running = status["running"] == true;
+        let addon_dir = host.path("addon_game_dir");
+        let saves = host.path("steam_save_dir");
+        let items = self.items();
+        let on = self.enabled(host)?;
+        let live = match (self.running, status["session"].as_str()) {
+            (true, Some(_)) => json!({ "text": "LIVE", "tone": "good", "dot": true }),
+            (true, None) => json!({ "text": "Running without Swofty", "tone": "warn", "dot": true }),
+            (false, _) => json!({ "text": "Offline", "tone": "muted", "dot": true }),
+        };
+        let speed = d["speed"].as_f64().unwrap_or(0.0);
+        let drivers = d["drivers"].as_array().cloned().unwrap_or_default();
+        let average =
+            drivers.iter().filter_map(|r| r["rating"].as_f64()).sum::<f64>() / drivers.len().max(1) as f64;
+        let rows: Vec<Value> = drivers
+            .iter()
+            .map(|r| {
+                let rating = r["rating"].as_f64().unwrap_or(0.0);
+                json!({ "id": r["id"], "cells": [
+                    r["name"],
+                    { "text": r["team"], "tone": "muted" },
+                    { "text": format!("{rating}"), "bar": rating / 100.0,
+                      "edit": { "number": { "min": 0, "max": 100, "step": 1 } } },
+                    { "text": match r["form"].as_str() { Some("good") => "Strong", Some("warn") => "Patchy", Some("bad") => "Poor", _ => "Steady" },
+                      "tone": r["form"], "pill": true }
+                ] })
+            })
+            .collect();
+        let path_or = |p: &Option<String>| p.clone().unwrap_or_else(|| "Not found".into());
+        Ok(json!({
+            "subtitle": "Every launcher block, live from dashboard.json",
+            "tick": true,
+            "actions": [ { "id": "open", "label": "Open data folder", "icon": "folder-open" } ],
+            "body": { "blocks": [
+                { "hero": {
+                    "title": d["name"],
+                    "subtitle": format!("Profile {} · {} items, {} on", if self.vanilla { "vanilla" } else { "modded" }, items.len(), on.len()),
+                    "art": { "monogram": d["name"].as_str().unwrap_or("E") },
+                    "pills": [ live, { "text": if d["lock"] == true { "Budget locked" } else { "Budget open" }, "tone": "accent" } ],
+                    "facts": [
+                        { "label": "Addon folder", "value": path_or(&addon_dir) },
+                        { "label": "Saves", "value": path_or(&saves) }
+                    ],
+                    "buttons": [ { "id": "reset", "label": "Reset", "icon": "undo", "style": "ghost",
+                        "kind": { "confirm": { "title": "Reset the dashboard?", "text": "The settings and ratings go back to the defaults." } } } ]
+                } },
+                { "tiles": [
+                    { "label": "Budget", "value": format!("${}k", d["budget"]), "delta": "+$12k", "hint": "since the last race", "icon": "wallet" },
+                    { "label": "Speed", "value": format!("{speed}"), "hint": "of 100", "progress": speed / 100.0, "tone": "accent", "icon": "gauge" },
+                    { "label": "Average rating", "value": format!("{average:.1}"), "delta": "-0.4", "hint": "6 drivers", "icon": "users" },
+                    { "label": "Items on", "value": format!("{} / {}", on.len(), items.len()), "icon": "package" }
+                ] },
+                { "grid": { "columns": [3, 2], "blocks": [
+                    { "card": { "title": "Settings", "subtitle": "Applied together with Apply", "blocks": [
+                        { "form": { "id": "settings", "columns": 2, "fields": [
+                            { "number": { "id": "budget", "label": "Budget", "value": d["budget"], "min": 0, "max": 1000, "step": 10, "unit": "k" } },
+                            { "text": { "id": "name", "label": "Team name", "value": d["name"], "max_len": 32 } },
+                            { "slider": { "id": "speed", "label": "Speed", "value": d["speed"], "min": 0, "max": 100, "step": 5 } },
+                            { "select": { "id": "mode", "label": "Weather", "value": d["mode"], "options": [
+                                { "value": "dry", "label": "Dry" }, { "value": "light", "label": "Light rain" }, { "value": "heavy", "label": "Heavy rain" } ] } },
+                            { "toggle": { "id": "lock", "label": "Lock budget", "value": d["lock"], "help": "Stops the budget from changing." } }
+                        ] } }
+                    ] } },
+                    { "card": { "title": "Facilities", "pills": [ { "text": "3 upgrading", "tone": "warn" } ], "blocks": [
+                        { "meters": [
+                            { "label": "Wind tunnel", "value": 3, "max": 4, "text": "Phase 3 of 4", "tone": "good" },
+                            { "label": "Simulator", "value": 2, "max": 4, "text": "Phase 2 of 4" },
+                            { "label": "Factory", "value": 1, "max": 4, "text": "Phase 1 of 4", "tone": "warn" },
+                            { "label": "Resource points", "value": 340, "max": 500, "text": "340 / 500 RP" }
+                        ] }
+                    ] } }
+                ] } },
+                { "card": { "title": "Drivers", "subtitle": "Click a rating to edit it", "blocks": [
+                    { "table": {
+                        "id": "drivers",
+                        "columns": [
+                            { "key": "name", "title": "Driver", "sort": true },
+                            { "key": "team", "title": "Team", "sort": true },
+                            { "key": "rating", "title": "Rating", "sort": true, "width": 150 },
+                            { "key": "form", "title": "Form", "width": 96 }
+                        ],
+                        "rows": rows,
+                        "sort": { "column": "rating", "desc": true },
+                        "search": { "placeholder": "Search drivers" },
+                        "compact": true
+                    } }
+                ] } }
+            ] },
+            "footer": "Edit dashboard.json in the data folder and this page follows it."
+        }))
+    }
+
+    fn overview_event(&mut self, event: &Value) -> Result<Value, String> {
+        let mut d = self.dashboard();
+        if let Some(submit) = event.get("submit") {
+            let values = &submit["values"];
+            match (submit["form"].as_str(), submit["row"].as_str()) {
+                (Some("settings"), _) => {
+                    for key in ["budget", "speed", "name", "mode", "lock"] {
+                        if let Some(v) = values.get(key) {
+                            d[key] = v.clone();
+                        }
+                    }
+                    self.save_dashboard(&d)?;
+                    return Ok(json!({ "notice": format!("Saved {}", submit["changed"]) }));
+                }
+                (Some("drivers"), Some(row)) => {
+                    let rating = values["rating"]
+                        .as_u64()
+                        .ok_or("the rating is not a whole number")?;
+                    if let Some(r) = d["drivers"]
+                        .as_array_mut()
+                        .into_iter()
+                        .flatten()
+                        .find(|r| r["id"] == row)
+                    {
+                        r["rating"] = json!(rating);
+                    }
+                    self.save_dashboard(&d)?;
+                    return Ok(json!("reload"));
+                }
+                _ => {}
+            }
+        }
+        match event["click"]["id"].as_str() {
+            Some("reset") => {
+                self.save_dashboard(&default_dashboard())?;
+                Ok(json!("reload"))
+            }
+            Some("open") => {
+                std::fs::create_dir_all(&self.data_dir).map_err(|e| e.to_string())?;
+                Ok(json!({ "open": self.data_dir }))
+            }
+            _ => Ok(json!("none")),
+        }
+    }
+
+    fn tick(&mut self, host: &mut Host, section: &str) -> Result<Value, String> {
+        if section == "overview" {
+            let running = host.call("game_status", Value::Null)?["running"] == true;
+            if self.modified() != self.seen || running != self.running {
+                host.invalidate(section);
+            }
+        }
+        Ok(Value::Null)
     }
 
     fn items(&self) -> Vec<String> {
@@ -100,7 +299,7 @@ impl Addon {
         Ok(json!({
             "subtitle": format!("{} items, {} on", items.len(), on.len()),
             "actions": [pick],
-            "body": { "list": { "rows": rows, "reorder": false } }
+            "body": { "list": { "rows": rows, "reorder": false, "search": { "placeholder": "Search items" } } }
         }))
     }
 
@@ -193,6 +392,8 @@ fn main() {
         data_dir: PathBuf::new(),
         cache_dir: PathBuf::new(),
         vanilla: false,
+        seen: None,
+        running: false,
     };
     while let Some(Ok(line)) = host.lines.next() {
         let Ok(message) = serde_json::from_str::<Value>(&line) else {
@@ -214,8 +415,11 @@ fn main() {
                 addon.vanilla = params["profile"]["vanilla"].as_bool().unwrap_or(false);
                 Ok(json!({ "api": API }))
             }
+            "view" if params["section"] == "overview" => addon.overview(&mut host),
             "view" => addon.view(&mut host),
+            "event" if params["section"] == "overview" => addon.overview_event(&params["event"]),
             "event" => addon.event(&mut host, &params["event"]),
+            "tick" => addon.tick(&mut host, params["section"].as_str().unwrap_or_default()),
             "import" => {
                 let paths: Vec<PathBuf> = serde_json::from_value(params["paths"].clone()).unwrap_or_default();
                 addon.import(&mut host, &paths).map(|lines| json!(lines))

@@ -1,5 +1,5 @@
 use gpui_kit::assets::IconName;
-use gpui_kit::component::button::Button;
+use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::spinner::Spinner;
 use gpui_kit::component::tooltip::Tooltip;
@@ -279,16 +279,14 @@ impl Shell {
             })
     }
 
-    fn play_caret(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+    fn play_caret(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let shell = cx.entity().downgrade();
         Button::new("play-menu")
             .h(px(52.))
             .w(px(34.))
             .rounded_l(px(0.))
             .rounded_r(px(9.))
-            .bg(p.accent)
-            .text_color(p.on_accent)
-            .hover(move |s| s.bg(p.accent_hover))
+            .primary()
             .child(Icon::new(IconName::ChevronDown).size(px(16.)))
             .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
                 let shell = shell.clone();
@@ -364,7 +362,7 @@ impl Shell {
         h_flex()
             .flex_shrink_0()
             .child(button)
-            .when(ready, |d| d.child(self.play_caret(p, cx)))
+            .when(ready, |d| d.child(self.play_caret(cx)))
             .into_any_element()
     }
 

@@ -31,6 +31,10 @@ You can write the plugin in any language that reads and writes a line of JSON. T
 | [How the launcher runs the plugin](#how-the-launcher-runs-the-plugin) | When the plugin starts, its working directory and its log |
 | [The protocol](#the-protocol) | Messages, the calls the launcher sends and the host calls the plugin sends back |
 | [Views](#views) | The blocks a sidebar page is built from, and its events and effects |
+| [Dashboard blocks](#dashboard-blocks) | Hero, pills, tiles, meters, cards and grids |
+| [Forms](#forms) | Number, text, slider, select and toggle fields with an Apply button |
+| [Tables](#tables) | Sortable columns, searchable rows and editable cells |
+| [Live pages](#live-pages) | `tick` from the launcher and `invalidate` from the plugin |
 | [The build reply](#the-build-reply) | Asset ops returned at build |
 | [Importers and drag-and-drop](#importers-and-drag-and-drop) | Claiming dropped files and folders |
 | [Commands](#commands) | `swofty` subcommands |
@@ -79,7 +83,7 @@ Tell the launcher where to find your plugin with `launcher.program`. It maps eac
 
 ### 3. Implement the methods
 
-Your plugin answers the launcher's calls — `hello`, `view`, `event`, `import`, `build`, `command`, `summary`. While handling one, it can make host calls back to the launcher. You'll find every message in [The protocol](#the-protocol); for a working implementation, read `templates/launcher-addon/src/main.rs`, which covers all of them in about 230 lines.
+Your plugin answers the launcher's calls — `hello`, `view`, `event`, `import`, `build`, `command`, `summary`. While handling one, it can make host calls back to the launcher. You'll find every message in [The protocol](#the-protocol); for a working implementation, read `templates/launcher-addon/src/main.rs`, which covers all of them. Its **Overview** section uses every [dashboard block](#dashboard-blocks), a [form](#forms), an editable [table](#tables), `tick` and `invalidate`.
 
 ### 4. Build the binary
 
@@ -107,7 +111,7 @@ Your plugin starts when the launcher first needs it: when the launcher starts wi
 - The working directory is the addon folder, `$DATA/addons/<id>/`.
 - stderr is redirected to `$DATA/cache/addons/<id>/helper.log`.
 - On Windows the process gets no console window.
-- The launcher asks for a section's `view` at start, when the section opens, and after a change. It keeps the last view and shows it at once while it asks for a new one. While another call is running, such as an `import` or a `build`, it shows the last view and asks again afterwards.
+- The launcher asks for a section's `view` at start, when the section opens, after a change, and after an [`invalidate`](#live-pages). It keeps the last view and shows it at once while it asks for a new one. While another call is running, such as an `import` or a `build`, it shows the last view and asks again afterwards.
 - It asks for a `summary` only when the plugin is already running and idle; a summary never starts the plugin. While the plugin is busy, the profile card keeps its last summary.
 - The plugin exits when stdin closes.
 
@@ -147,15 +151,19 @@ plugin    {"id":1,"result":{"subtitle":"1 item, 1 on","body":{"list":{"rows":[],
 | `build` | `{ options, features }` | `{ ops, items, lines, warnings }` ([build reply](#the-build-reply)) |
 | `command` | `{ path, args }` | a string to print |
 | `summary` | — | `{ label, items }` or `null` |
+| `tick` | `{ section }` | `null` ([Live pages](#live-pages)) |
 
-From `hello.params`, you get your addon's id, its two directories and the active profile:
+From `hello.params`, you get your addon's id, its two directories, the active profile and the launcher's version:
 
 ```json
 { "api": 1, "addon": "example.launcher-addon",
   "data_dir": "…/addon-data/example.launcher-addon",
   "cache_dir": "…/cache/addons/example.launcher-addon",
-  "profile": { "name": "default", "vanilla": false, "enabled": true } }
+  "profile": { "name": "default", "vanilla": false, "enabled": true },
+  "launcher": "1.0.10" }
 ```
+
+`launcher` is missing before 1.0.10. Everything this page marks *1.0.10* needs that launcher: set `"compat": { "launcher": ">=1.0.10" }` in `swofty.json` when you use it. An older launcher fails a view that holds a block it doesn't know.
 
 - Every profile shares `data_dir`. Use `cache_dir` for anything your plugin caches; it also holds the plugin's `helper.log`.
 - Check `profile.enabled` to see whether your addon is on in the active profile. `profile.vanilla` identifies the untouched profile: it takes no addons and refuses state writes.
@@ -211,6 +219,11 @@ While handling a request, you can call back to the launcher. Include an `id` whe
 | `game_is_stock` | `{ rel }` | `true` or `false` |
 | `game_original` | `{ rel }` | a path to a clean copy of the file |
 | `game_original_lang` | `{ code }` | a path to the stock `language_<code>.lng` |
+| `game_dir` *(1.0.10)* | — | the game folder, or `null` |
+| `addon_game_dir` *(1.0.10)* | — | `<game>/swofty/addons/<id>/` for your addon, or `null` |
+| `game_status` *(1.0.10)* | — | `{ running, pid, since, session }` |
+| `steam_save_dir` *(1.0.10)* | — | `<steam>/userdata/<steamid3>/3059520/remote/`, or `null` |
+| `invalidate` *(notification, 1.0.10)* | `{ section }` | — ([Live pages](#live-pages)) |
 
 ```json
 { "method": "progress", "params": { "done": 0.5, "text": "Importing okayama.exmod" } }
@@ -218,11 +231,28 @@ While handling a request, you can call back to the launcher. Include an `id` whe
 { "id": 3, "method": "set_state", "params": { "on": ["okayama.exmod"] } }
 { "id": 4, "method": "game_build_key" }
 { "id": 5, "method": "game_original", "params": { "rel": "ui/tool_tips.erp" } }
+{ "id": 6, "method": "addon_game_dir" }
+{ "id": 7, "method": "game_status" }
 ```
 
 - Send `progress` to fill a progress card, with `done` from `0.0` to `1.0`. Including an `id` is an error.
 - Use `get_state` to read your addon's entry in the active profile's `state`; you'll get `null` if the profile has none. `set_state` replaces the whole value, whose contents the launcher never reads. Duplicating or renaming a profile copies its state.
 - Use the five `game_*` calls when you need the game's own clean files, rather than the modded folder. If no game is found, `game_build_key`, `game_exe_version` and `game_is_stock` return `null` or `false`. `game_original` and `game_original_lang` return `error: "the game is not available"` instead. A build key looks like `25251167-d873a1c8d204`; an exe version looks like `1.0.141.7865`.
+- `game_dir` is the folder the launcher plays: the Steam install, or the one picked with **Locate F1 25**. It is `null` when no game is found.
+- `addon_game_dir` is your addon's own folder inside the game, the one a native plugin reads and writes with the [storage library](./native-plugins). The launcher doesn't create it; it may not exist until a session has run the addon, so create it yourself before you write to it. Restoring the game folder removes it, so keep anything that must outlast a session in `data_dir`.
+- `steam_save_dir` is the game's Steam Cloud save folder for the most recent Steam user (from Steam's `loginusers.vdf`, else the user folder changed last). It is `null` when that folder doesn't exist. The saves are encrypted per Steam account, so a backup restores only on the same account.
+- `game_status` reports the running game:
+
+```json
+{ "running": true, "pid": 48211, "since": 1760941234.5, "session": "2026-10-20T14-22-33" }
+```
+
+| Field | Value |
+|---|---|
+| `running` | `true` while `F1_25.exe` runs. The launcher's Play button uses the same check. |
+| `pid` | The game's process id, or `null` when it isn't running. |
+| `since` | When the process started, in Unix seconds, or `null` when it isn't running or the OS doesn't say (Windows). |
+| `session` | The Swofty session that started this run: its folder name under `$DATA/sessions/`. A session exists when the game started through Swofty, from **Play** or from Steam with the `swofty run` wrapper. It is `null` when the game isn't running or started without Swofty. |
 
 The template uses state to track which items are on, reading it here and writing it when the selection changes:
 
@@ -256,18 +286,19 @@ Return one page from `view`, describing its header, content and footer:
 | `notices` | Bars under the header, each with an optional button. `tone` colours the bar. |
 | `body` | One of the three bodies below. |
 | `footer` | A muted line under the body. |
+| `tick` *(1.0.10)* | `true` asks for a `tick` about once a second while the page is open ([Live pages](#live-pages)). Default `false`. |
 
 Choose one of these shapes for `body`:
 
 ```json
-{ "list": { "rows": [ … ], "reorder": false } }
+{ "list": { "rows": [ … ], "reorder": false, "search": { "placeholder": "Search mods" } } }
 { "empty": { "title": "No example items", "text": "Drop a .exmod file on the launcher, or import one.", "action": { "id": "pick", "label": "Import…" } } }
 { "blocks": [ … ] }
 ```
 
 | Body | Shows |
 |---|---|
-| `list` | Rows with art, tags, a trailing control and an expandable `detail`. A `reorder` list adds **Move up** / **Move down** to each expanded row, firing a `move` event. |
+| `list` | Rows with art, tags, a trailing control and an expandable `detail`. A `reorder` list adds **Move up** / **Move down** to each expanded row, firing a `move` event. An optional `search` *(1.0.10)* puts a search box above the rows ([Search](#search)). |
 | `empty` | A title, a line and one button. |
 | `blocks` | The blocks below, one after another. |
 
@@ -306,8 +337,15 @@ Use these **blocks** to fill a row's `detail` or a `blocks` body:
 | A section heading | `{ "label": "WHAT IT CHANGES" }` |
 | A line in a tone | `{ "text": { "text": "…", "tone": "warn" } }` |
 | A heading and a name list | `{ "names": { "label": "Mods", "items": ["A", "B"] } }` |
-| A table | `{ "table": { "columns": ["File", "Op"], "rows": [["a.erp", "patch"]] } }` |
+| A table | `{ "table": { "columns": ["File", "Op"], "rows": [["a.erp", "patch"]] } }`, with sorting, search and editable cells from 1.0.10 ([Tables](#tables)) |
 | A row of buttons | `{ "buttons": [ { "id", "label" } ] }` |
+| A page header with status *(1.0.10)* | `{ "hero": { "title", "subtitle", "pills", "facts", "buttons" } }` ([Dashboard blocks](#dashboard-blocks)) |
+| Status pills *(1.0.10)* | `{ "pills": [ { "text": "LIVE", "tone": "good", "dot": true } ] }` |
+| Stat tiles *(1.0.10)* | `{ "tiles": [ { "label", "value", "delta", "hint" } ] }` |
+| Progress bars *(1.0.10)* | `{ "meters": [ { "label", "value", "max", "text" } ] }` |
+| A card holding blocks *(1.0.10)* | `{ "card": { "title", "blocks": [ … ] } }` |
+| Blocks side by side *(1.0.10)* | `{ "grid": { "columns": 2, "blocks": [ … ] } }` |
+| A form *(1.0.10)* | `{ "form": { "id", "fields": [ … ] } }` ([Forms](#forms)) |
 
 Give each **button** an `id` and `label`, with an optional `icon`. Its `style` is `primary`, `outline`, `ghost` or `danger` (default `outline`); its `kind` determines what happens when you click:
 
@@ -321,7 +359,7 @@ Give each **button** an `id` and `label`, with an optional `icon`. Its `style` i
 | `{ "confirm": { "title", "text" } }` | asks in a dialog, then fires `{ "click": { "id" } }` |
 | `{ "pick": { "title", "extensions", "folders", "multiple" } }` | opens the file picker, then fires `{ "picked": { "id", "paths" } }` |
 
-`tone` (`neutral`, `muted`, `accent`, `good`, `warn`, `bad`) colours tags, notices and text. `icon` is one of a fixed set: `activity`, `arrow-right-left`, `chevron-down`, `chevron-up`, `circle-alert`, `circle-check`, `copy`, `eraser`, `folder-open`, `gamepad`, `layers`, `lock`, `map`, `package`, `pencil`, `play`, `plus`, `puzzle`, `settings`, `shield-check`, `trash`, `upload`.
+`tone` (`neutral`, `muted`, `accent`, `good`, `warn`, `bad`) colours tags, notices and text. `icon` is one of a fixed set: `activity`, `arrow-right-left`, `chevron-down`, `chevron-up`, `circle-alert`, `circle-check`, `copy`, `eraser`, `folder-open`, `gamepad`, `layers`, `lock`, `map`, `package`, `pencil`, `play`, `plus`, `puzzle`, `settings`, `shield-check`, `trash`, `upload`. From 1.0.10 it can also be `calendar`, `car`, `clock`, `cloud-rain`, `flag`, `gauge`, `history`, `info`, `refresh`, `save`, `search`, `timer`, `trending-down`, `trending-up`, `triangle-alert`, `trophy`, `undo`, `user`, `users`, `wallet`, `wrench` or `zap`.
 
 ### Events and effects {#events-and-effects}
 
@@ -334,6 +372,8 @@ When you handle `event`, you receive one event and return one effect to tell the
 | A choice pick | `{ "choose": { "id": "livery", "index": 2 } }` |
 | A row reorder | `{ "move": { "row": "okayama.exmod", "to": 0 } }` |
 | A file-picker result | `{ "picked": { "id": "pick", "paths": ["/home/you/okayama.exmod"] } }` |
+| A form's Apply, a live field or an edited table cell *(1.0.10)* | `{ "submit": { "form": "finance", "values": { "cash": 15000000 }, "changed": ["cash"] } }`, plus `"row"` for a table cell ([Forms](#forms), [Tables](#tables)) |
+| A search box, when it asks for events *(1.0.10)* | `{ "search": { "id": "drivers", "query": "ver" } }` ([Search](#search)) |
 
 | Effect | The launcher |
 |---|---|
@@ -355,6 +395,220 @@ if let Some(toggle) = event.get("toggle") {
     return Ok(json!("reload"));
 }
 ```
+
+## Dashboard blocks {#dashboard-blocks}
+
+*Launcher 1.0.10.* These blocks go wherever a block goes: in a `blocks` body, a row's `detail`, a `card` or a `grid`. Every field but the ones marked required can be left out.
+
+```json
+{ "blocks": [
+  { "hero": {
+      "title": "Scuderia Swofty",
+      "subtitle": "My Team · 2026 season · Round 7 of 24",
+      "art": { "monogram": "S" },
+      "pills": [ { "text": "LIVE", "tone": "good", "dot": true }, { "text": "In Team HQ", "tone": "accent" } ],
+      "facts": [ { "label": "Next race", "value": "Monaco" }, { "label": "Last save", "value": "2 min ago" } ],
+      "buttons": [ { "id": "backup", "label": "Back up now", "icon": "save" } ] } },
+  { "tiles": [
+      { "label": "Cash", "value": "$12.4M", "delta": "+$2.0M", "hint": "since Bahrain" },
+      { "label": "Resource points", "value": "340", "hint": "of 500", "progress": 0.68, "tone": "accent" },
+      { "label": "Constructors", "value": "P4", "delta": "-1", "delta_tone": "bad", "icon": "trophy" } ] },
+  { "grid": { "columns": [2, 1], "blocks": [
+      { "card": { "title": "Facilities", "blocks": [
+          { "meters": [ { "label": "Wind tunnel", "value": 3, "max": 4, "text": "Phase 3 of 4", "tone": "good" } ] } ] } },
+      { "card": { "title": "Session", "pills": [ { "text": "Offline", "tone": "muted" } ], "blocks": [
+          { "facts": [ { "label": "Mode", "value": "My Team" } ] } ] } } ] } }
+] }
+```
+
+**`hero`**: a header for the page's subject, on its own surface.
+
+| Field | Shows |
+|---|---|
+| `title` *(required)* | The large name. |
+| `subtitle` | A muted line under the title. |
+| `art` | `"none"` (default), `{ "monogram": "S" }` or `{ "image": "art/team.png" }`, at the left. |
+| `pills` | [Pills](#pills) beside the title. |
+| `facts` | `{ label, value }` pairs in a row along the bottom. |
+| `buttons` | [Buttons](#views) at the right. |
+
+**`pills`** {#pills}: a row of status badges. Each pill is `{ text, tone, dot, icon }`: `text` is required, `tone` colours it (default `neutral`), `dot: true` puts a status dot before the text, and `icon` puts an [icon](#views) there instead.
+
+**`tiles`**: stat tiles in equal columns: up to 4 in one row, 5 or 6 in rows of 3, more in rows of 4. A narrow page uses fewer columns.
+
+| Field | Shows |
+|---|---|
+| `label` *(required)* | A small heading. |
+| `value` *(required)* | The large figure, as text. |
+| `tone` | The figure's colour (default `neutral`). |
+| `delta` | A change beside the figure, such as `+$2.0M`. |
+| `delta_tone` | The delta's colour. Default: `good` when it starts with `+`, `bad` when it starts with `-` or `−`, else `muted`. |
+| `hint` | A muted line under the figure. |
+| `icon` | An [icon](#views) in the corner. |
+| `progress` | `0.0` to `1.0`: a bar along the foot of the tile, in `tone` (`accent` when neutral). |
+
+**`meters`**: labelled progress bars, one under another. Each is `{ label, value, min, max, text, tone }`: `value` is required, `min` defaults to `0` and `max` to `100`, `text` is shown at the right (default `<value> / <max>`), and `tone` colours the bar (default `accent`). The bar is clamped to the range.
+
+**`card`**: a bordered surface that holds blocks under an optional header. `{ title, subtitle, pills, buttons, blocks }`; `blocks` defaults to empty. A table in a card loses its own border.
+
+**`grid`**: blocks side by side. `{ columns, blocks }`: `columns` is a count from 1 to 4 for equal columns (default 2), or a list of relative widths such as `[2, 1]`. The blocks fill the columns left to right, then the next row; blocks in a row share its height. On a page too narrow for about 280 px per column, the grid becomes one column.
+
+## Forms {#forms}
+
+*Launcher 1.0.10.* A `form` block holds input fields and an **Apply** button:
+
+```json
+{ "form": {
+  "id": "finance",
+  "columns": 2,
+  "fields": [
+    { "number": { "id": "cash", "label": "Cash", "value": 12400000, "min": 0, "max": 2147483647, "step": 100000, "unit": "$", "help": "Posted as a bank transaction." } },
+    { "slider": { "id": "rp", "label": "Resource points", "value": 340, "min": 0, "max": 500, "step": 10, "unit": "RP" } },
+    { "text": { "id": "name", "label": "Team name", "value": "Swofty Racing", "placeholder": "Team name", "max_len": 32 } },
+    { "select": { "id": "weather", "label": "Weather", "value": "dry", "options": [ { "value": "dry", "label": "Dry" }, { "value": "wet", "label": "Heavy rain" } ] } },
+    { "toggle": { "id": "lock", "label": "Lock budget", "value": false } }
+  ],
+  "apply": "Apply",
+  "live": false,
+  "disabled": false
+} }
+```
+
+| Form field | Does |
+|---|---|
+| `id` *(required)* | Names the form in its `submit` events. |
+| `fields` *(required)* | The fields, in order. |
+| `columns` | Lays the fields out in 1 to 3 columns (default 1). |
+| `apply` | The Apply button's label (default `Apply`). |
+| `live` | `true` drops the Apply button: each field submits on its own as soon as it's committed. Default `false`. |
+| `disabled` | `true` greys out every field and the button, such as while the game can't take edits. Default `false`. |
+
+Every field takes `id` *(required: its key in `values`)*, `label`, `help` (a muted line under it) and `disabled`, plus its own keys:
+
+| Field | Own keys | Sends |
+|---|---|---|
+| `number` | `value`, `min`, `max`, `step` (default `1`), `unit` (shown after the number) | a number |
+| `slider` | `value`, `min` (default `0`), `max` (default `100`), `step` (default `1`), `unit` | a number |
+| `text` | `value`, `placeholder`, `max_len` | a string |
+| `select` | `value`, `options`: strings, or `{ value, label }` objects | the chosen option's `value` (a string option is its own value) |
+| `toggle` | `value` | `true` or `false` |
+
+A number is clamped to `min`–`max` and rounded to `step` when it's committed, and is sent as an integer when the step and the value are whole. Up and Down step a focused number field.
+
+How a form behaves:
+
+- Edits stay in the form until you press **Apply**. Apply turns on once a field differs from the view; **Reset** beside it puts the view's values back.
+- Apply fires one `submit` event. `values` holds every field; `changed` lists the fields that differ from the view, in field order:
+
+```json
+{ "submit": { "form": "finance", "values": { "cash": 15000000, "rp": 340, "name": "Swofty Racing", "weather": "dry", "lock": false }, "changed": ["cash"] } }
+```
+
+- In a `live` form, a field is committed by Enter or leaving it (number, text), releasing it (slider), picking an option (select) or flipping it (toggle). Its event holds only that field, in both `values` and `changed`.
+- While the event runs, the form shows busy. When the effect comes back, the form drops its edits and shows the values of the next view, so return `"reload"` or a notice to show what the edit did. If the event fails, the edits stay and the error shows as a notification.
+- A new view, such as one after an `invalidate`, updates every field you haven't edited and leaves edited fields alone.
+
+## Tables {#tables}
+
+*Launcher 1.0.10* extends `table`. The old shape, plain column names and rows of strings, still works and looks as before. Any of the keys below turns on the new table, which fills the width it's given:
+
+```json
+{ "table": {
+  "id": "drivers",
+  "columns": [
+    "Driver",
+    { "key": "team", "title": "Team" },
+    { "key": "pace", "title": "Pace", "align": "right", "width": 96, "sort": true }
+  ],
+  "rows": [
+    { "id": "ver", "cells": [
+      "Max Verstappen",
+      { "text": "Red Bull", "tone": "muted" },
+      { "text": "95", "bar": 0.95, "edit": { "number": { "min": 0, "max": 100 } } } ] },
+    ["Lando Norris", "McLaren", "93"]
+  ],
+  "sort": { "column": "pace", "desc": true },
+  "search": { "placeholder": "Search drivers" },
+  "compact": true,
+  "empty": "No drivers match"
+} }
+```
+
+| Table field | Does |
+|---|---|
+| `id` | Names the table in `submit` and `search` events (default `table`). |
+| `columns` *(required)* | Column names, or column objects. |
+| `rows` *(required)* | Rows: a list of cells, or `{ id, cells, tone }`. |
+| `sort` | The starting sort: `{ column, desc }`, with `column` a column's key. |
+| `search` | A search box above the table ([Search](#search)). |
+| `compact` | `true` for shorter rows and smaller text. |
+| `empty` | The line shown when no row is left after a search (default `No matches`). |
+
+A **column** is a name, or `{ key, title, align, width, sort }`: `key` names the column in events and in `sort` (default: the title), `align` is `left` (default), `right` or `center`, `width` fixes its width in pixels (other columns share the rest), and `sort: true` makes the header clickable. A click sorts by that column, a second click reverses it. Sorting is numeric when both cells are numbers (commas allowed) and by text otherwise; give cells a `sort` key for formatted values such as `$12.4M`.
+
+A **row** is a list of cells, or `{ id, cells, tone }`: `id` names the row in events (default: its position in `rows`, from `"0"`), and `tone` colours its text. A **cell** is a string, or:
+
+| Cell field | Does |
+|---|---|
+| `text` | The text shown. |
+| `tone` | Its colour. |
+| `sort` | A number or string to sort by instead of `text`. |
+| `pill` | `true` draws the text as a [pill](#pills) in `tone`. |
+| `bar` | `0.0` to `1.0`: a small bar before the text, in `tone` (`accent` when neutral). |
+| `edit` | Makes the cell editable: `{ "number": { value, min, max, step, unit } }` or `{ "text": { value, placeholder, max_len } }`. `value` defaults to the cell's text. |
+
+Click an editable cell to edit it. Enter or leaving the cell commits it, and Escape cancels. A committed value that differs fires:
+
+```json
+{ "submit": { "form": "drivers", "row": "ver", "values": { "pace": 96 }, "changed": ["pace"] } }
+```
+
+The cell shows busy until the effect comes back, as a form does.
+
+### Search {#search}
+
+A `list` body or a `table` takes `search`, which puts a search box above its rows:
+
+```json
+{ "search": { "id": "drivers", "placeholder": "Search drivers", "event": false, "filter": true } }
+```
+
+| Field | Does |
+|---|---|
+| `id` | Names the box in its events. Default: the table's `id`, or `list`. |
+| `placeholder` | The hint in the empty box (default `Search`). |
+| `filter` | `true` (default): the launcher hides rows that don't match. A row matches when every word of the query appears in it, ignoring case: in a list row's title, subtitle and tags, or in a table row's cells. |
+| `event` | `true` sends `{ "search": { "id", "query" } }` once typing pauses for 300 ms, and when the box is cleared. Default `false`. Set `filter` to `false` when you filter the rows yourself. |
+
+The query stays in the box when the view refreshes, until the page is left.
+
+## Live pages {#live-pages}
+
+*Launcher 1.0.10.* A page can follow something that changes on its own, such as a file the game writes, in two ways: the launcher **ticks** it, and the plugin **invalidates** it.
+
+**`tick`**: return `"tick": true` in a view and, while that page is open, the launcher sends a `tick` request about once a second. Reply `null`; the launcher ignores the result.
+
+```text
+launcher  {"id":12,"method":"tick","params":{"section":"overview"}}
+plugin    {"method":"invalidate","params":{"section":"overview"}}
+plugin    {"id":12,"result":null}
+launcher  {"id":13,"method":"view","params":{"section":"overview"}}
+```
+
+- A tick has the 5-second budget of `view`. Keep it cheap: check a file's modified time and return.
+- A tick is skipped, not queued, while another call runs or the page isn't on screen.
+- A tick may make host calls, such as `game_status`, like any other call.
+
+**`invalidate`**: a notification that tells the launcher a section's view is out of date. Send it whenever you know, whether during a call (in reply to a tick, or after an event) or on your own between calls, such as from a thread that watches a file. Write each message as one whole line.
+
+```json
+{ "method": "invalidate", "params": { "section": "overview" } }
+{ "method": "invalidate", "params": {} }
+```
+
+- With `section`, the launcher asks for that section's view again; without one, for every section of your plugin.
+- It asks only for sections that are open or that it has already loaded, and only once for several invalidations that arrive together. While another call runs, it asks once that call ends.
+- An `invalidate` has no `id` and gets no reply.
 
 ## The build reply {#the-build-reply}
 
@@ -433,13 +687,13 @@ To add a line to the profile card, return `{ "label": "EXAMPLE", "items": ["Okay
 Because your plugin runs in a subprocess, a crash, a hang or malformed output stops the plugin without taking the launcher down. The launcher marks it failed when it:
 
 - does not start, or has no `program` for this OS;
-- does not answer `hello`, `view` or `summary` within 5 seconds, or any other call within 300 seconds;
+- does not answer `hello`, `view`, `tick` or `summary` within 5 seconds, or any other call within 300 seconds;
 - exits or closes stdout (`stopped (exit status: 3)`);
 - writes a line that is not a message, replies to an `id` it was not sent, or returns a result of the wrong shape.
 
 When your plugin fails, its sections show the error in a bad-tone notice with a **Restart** button (id `swofty.restart`). The body is empty and reads `<name> is not running`. Click Restart to clear the failure; the next call starts the plugin again. Reinstalling the addon also stops its plugin.
 
-To fail just one call, reply with `{ "id": …, "error": "…" }`. The launcher shows the error as a notification and keeps your plugin running.
+To fail just one call, reply with `{ "id": …, "error": "…" }`. The launcher shows the error as a notification and keeps your plugin running. A failed `tick` shows nothing; the launcher goes on ticking.
 
 ## The internal Addon trait
 

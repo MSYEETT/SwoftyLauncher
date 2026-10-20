@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use swofty_addon::launcher::{Addon, CommandSpec, Cx, GameFiles, ProfileInfo, StateStore};
+use swofty_addon::launcher::{Addon, CommandSpec, Cx, GameFiles, GameStatus, ProfileInfo, StateStore};
 
 use crate::baseline::{Baseline, FileRecord, Objects};
 use crate::builtin::CORE_ID;
@@ -204,6 +204,18 @@ impl GameFiles for GameDir {
 
     fn original_lang(&self, code: &str) -> swofty_addon::Result<PathBuf> {
         crate::baseline::original_lang(&self.data, &self.game.dir, &self.game.identity, code).map_err(other)
+    }
+
+    fn dir(&self) -> Option<PathBuf> {
+        Some(self.game.dir.clone())
+    }
+
+    fn status(&self) -> GameStatus {
+        crate::process::game_status(Some(&self.data))
+    }
+
+    fn steam_save_dir(&self) -> Option<PathBuf> {
+        crate::steam::find_save_dir()
     }
 }
 
