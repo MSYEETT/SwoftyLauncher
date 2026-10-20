@@ -1,6 +1,6 @@
 # F1 1990 native DLL
 
-`f1_1990.dll` gives the 1990 profile its own profile save and sets the race grid from each driver's best lap in either 1990 qualifying session: Friday (SprintShootout group, 2) and Saturday (Qualifying group, 1). It loads at the early stage, before the game loads its profile.
+`f1_1990.dll` gives the 1990 profile its own profile save, signs the first 1990 Driver Career contract without the negotiation scene, and sets the race grid from each driver's best lap in either 1990 qualifying session: Friday (SprintShootout group, 2) and Saturday (Qualifying group, 1). It loads at the early stage, before the game loads its profile.
 
 ## Save separation
 
@@ -33,7 +33,7 @@ Log lines (swofty log): `[f1-1990] GRID best-of (<why>)` once per pass, then one
 
 `test/run.sh` runs the ranking unit tests on the host.
 
-## Contract skip (not in the default build)
+## Contract skip
 
 `src/contract_skip.cpp` signs the player's first 1990 Driver Career contract and passes the negotiation scene (native request N1). It runs only on a database where a `game_modes.ModeChampionship` row saves to `driver_career_1990` or runs `F1_career_1990`, with one human player.
 
@@ -51,4 +51,4 @@ Log lines (swofty log): `[f1-1990] GRID best-of (<why>)` once per pass, then one
 
 The recommended target is the screen's: rating + the matching rating range's offset, inside the slider and at most 100 (`src/contract_target.hpp`, tested by `test/run.sh`).
 
-None of these bindings except the component descriptor is in the KB yet: they belong to the `career` lane (owner career-re), whose owner has to register them before `CONTRACT_SKIP=1 ./build.sh` compiles.
+The career-lane bindings were raised to L2 with `sitereg.py --force` (lane owner career-re) with the developer's approval on 2026-10-21; they still need an `agree` verify row from another agent.
