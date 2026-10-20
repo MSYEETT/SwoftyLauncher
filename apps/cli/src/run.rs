@@ -989,9 +989,7 @@ fn shell_join(args: &[String]) -> String {
 }
 
 fn write_json(path: &Path, value: &impl serde::Serialize) -> Result<()> {
-    std::fs::create_dir_all(path.parent().expect("has parent"))?;
-    std::fs::write(path, serde_json::to_vec_pretty(value)?)?;
-    Ok(())
+    Ok(swofty_core::write_json(path, value)?)
 }
 
 fn install_ctrl_c() {

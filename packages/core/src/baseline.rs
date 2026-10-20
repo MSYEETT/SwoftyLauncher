@@ -52,14 +52,18 @@ impl Objects {
         self.path(sha).is_file()
     }
 
+    /// Back up `src` under its SHA-256. The copy is flushed to disk before it
+    /// takes its name, since it is the only copy of an original once the game
+    /// file is replaced; an object a crash left damaged is written again.
     pub fn put_file(&self, src: &Path) -> Result<String> {
         let sha = sha256_file(src)?;
         let dst = self.path(&sha);
-        if !dst.is_file() {
+        if !dst.is_file() || sha256_file(&dst)? != sha {
             let dir = dst.parent().expect("has parent");
             std::fs::create_dir_all(dir).map_err(io_err(dir))?;
             let tmp = dst.with_extension("tmp");
             std::fs::copy(src, &tmp).map_err(io_err(&tmp))?;
+            crate::sync_file(&tmp)?;
             if sha256_file(&tmp)? != sha {
                 return Err(Error::Other(format!(
                     "{} changed while it was backed up",
@@ -67,6 +71,7 @@ impl Objects {
                 )));
             }
             std::fs::rename(&tmp, &dst).map_err(io_err(&dst))?;
+            crate::sync_dir(Some(dir));
         }
         Ok(sha)
     }
@@ -87,13 +92,16 @@ impl Objects {
             dst.file_name().unwrap_or_default().to_string_lossy()
         ));
         std::fs::copy(&src, &tmp).map_err(io_err(&tmp))?;
-        std::fs::rename(&tmp, dst).map_err(io_err(dst))?;
-        if sha256_file(dst)? != sha {
+        crate::sync_file(&tmp)?;
+        if sha256_file(&tmp)? != sha {
+            std::fs::remove_file(&tmp).ok();
             return Err(Error::Other(format!(
-                "{} does not match its backup after restore",
+                "the backup of {} is damaged; verify the game files in Steam",
                 dst.display()
             )));
         }
+        std::fs::rename(&tmp, dst).map_err(io_err(dst))?;
+        crate::sync_dir(dst.parent());
         Ok(())
     }
 }

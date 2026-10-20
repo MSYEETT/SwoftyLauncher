@@ -135,23 +135,112 @@ pub(crate) fn read_json<T: serde::de::DeserializeOwned>(path: &std::path::Path) 
     })
 }
 
+/// Flush a file's data to disk. Windows only flushes a handle opened for
+/// writing, so there the file is opened that way (not truncated), lifting a
+/// read-only attribute the copy carried over for as long as the open takes,
+/// and retrying while an antivirus holds the new file.
+pub(crate) fn sync_file(path: &std::path::Path) -> Result<()> {
+    #[cfg(windows)]
+    let file = with_retry(path, || {
+        let open = || std::fs::OpenOptions::new().write(true).open(path);
+        match open() {
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+                let mut perms = std::fs::metadata(path)?.permissions();
+                if !perms.readonly() {
+                    return Err(e);
+                }
+                #[allow(
+                    clippy::permissions_set_readonly_false,
+                    reason = "Windows only: clears the attribute"
+                )]
+                perms.set_readonly(false);
+                std::fs::set_permissions(path, perms.clone())?;
+                let file = open();
+                perms.set_readonly(true);
+                std::fs::set_permissions(path, perms)?;
+                file
+            }
+            r => r,
+        }
+    })?;
+    #[cfg(not(windows))]
+    let file = std::fs::File::open(path).map_err(io_err(path))?;
+    file.sync_all().map_err(io_err(path))
+}
+
+/// Make a rename or a new entry in `dir` durable. Unix needs the directory
+/// itself flushed; NTFS journals the rename, and Windows cannot open a
+/// directory this way. Best effort: some file systems refuse it.
+pub(crate) fn sync_dir(dir: Option<&std::path::Path>) {
+    #[cfg(unix)]
+    if let Some(dir) = dir.filter(|d| !d.as_os_str().is_empty())
+        && let Ok(d) = std::fs::File::open(dir)
+    {
+        d.sync_all().ok();
+    }
+    #[cfg(not(unix))]
+    let _ = dir;
+}
+
 pub(crate) fn move_file(from: &std::path::Path, to: &std::path::Path) -> Result<()> {
     match std::fs::rename(from, to) {
         Err(e) if e.kind() == std::io::ErrorKind::CrossesDevices => {
             std::fs::copy(from, to).map_err(io_err(to))?;
+            sync_file(to)?;
             std::fs::remove_file(from).map_err(io_err(from))
         }
         r => r.map_err(io_err(from)),
     }
 }
 
-pub(crate) fn write_json<T: serde::Serialize>(path: &std::path::Path, value: &T) -> Result<()> {
+/// Write `value` as JSON so that a crash or power loss at any point leaves
+/// either the old file or the new one, never a torn or zero-filled one: the
+/// temporary file's data is flushed before it is renamed over the target,
+/// and on Unix the directory is flushed after.
+pub fn write_json<T: serde::Serialize>(path: &std::path::Path, value: &T) -> Result<()> {
+    use std::io::Write;
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(io_err(dir))?;
     }
     let mut data = serde_json::to_vec_pretty(value).expect("serialisable");
     data.push(b'\n');
     let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, data).map_err(io_err(&tmp))?;
-    std::fs::rename(&tmp, path).map_err(io_err(path))
+    std::fs::File::create(&tmp)
+        .and_then(|mut f| {
+            f.write_all(&data)?;
+            f.sync_all()
+        })
+        .map_err(io_err(&tmp))?;
+    std::fs::rename(&tmp, path).map_err(io_err(path))?;
+    sync_dir(path.parent());
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tmp(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("swofty-lib-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        dir
+    }
+
+    #[test]
+    fn write_json_replaces_the_file_whole_and_leaves_no_temporary() {
+        let dir = tmp("write");
+        let path = dir.join("state/x.json");
+        write_json(&path, &vec![1, 2, 3]).unwrap();
+        assert_eq!(read_json::<Vec<u32>>(&path).unwrap(), [1, 2, 3]);
+        std::fs::write(path.with_extension("json.tmp"), b"half a write from a crash").unwrap();
+        write_json(&path, &vec![4]).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "[\n  4\n]\n");
+        let names: Vec<_> = std::fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name())
+            .collect();
+        assert_eq!(names, ["x.json"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
 }
