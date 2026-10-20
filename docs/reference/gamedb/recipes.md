@@ -12,7 +12,7 @@ These rules come from built and runtime-tested variants of the database (the 24 
 { "op": "set", "select": "tracks.Track[_metadata_=bahrain]", "field": "numberOfCorners", "value": "16" }
 ```
 
-- `select` names a row by path (`tracks.Track_3`), by label (`tracks.Track[_metadata_=bahrain]`) or by hash placeholder (`{446668bc25ba571c}[_metadata_=f1_26]`). Use labels; row numbers can change between game builds.
+- `select` names a row by path (`tracks.Track_3`), by label (`tracks.Track[_metadata_=bahrain]`) or by hash placeholder (`{446668bc25ba571c}[_metadata_=f1_26]`). Any segment can carry a label: `track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=bahrain]`. Use labels; row numbers can change between game builds. See [Selecting rows](/reference/ops/database#selecting-rows).
 - `value_from` copies a value from another key: `"value_from": "{446668bc25ba571c}[_metadata_=myteam_26].worldEri"`.
 - `set` on a key that does not exist stops the build with `no such key`. `"create": true` with `"type": <tag>` adds it.
 - Strings in an operation can hold <span v-pre>`{{option}}`</span> placeholders and a `when` condition, filled from the addon's [settings](/reference/addons/manifest#options) at build time.
@@ -111,7 +111,7 @@ Tables keyed by track that are calendars, challenge rounds, F1 World activities,
 
 The menus read a track's names from its `TrackNameData_0` row in each dataset, not from `tracks.Track_N`. An edit to `tracks.Track_N.title` alone leaves every menu unchanged. The row holds `title`, `country_name`, `circuit`, `city_name`, `city_name_short`, `gp_long_name`, `gp_long_name_multiline`, `gp_long_name_multiline_previous`, `gp_short_name` and `acronym_name`. The values are language keys (`lng_track_aus_title`).
 
-Melbourne's rows, under `track_data.game_setup`:
+Melbourne's rows, under `track_data.game_setup` in the shipping database:
 
 | Dataset | Row | Fields set |
 |---|---|---|
@@ -120,10 +120,10 @@ Melbourne's rows, under `track_data.game_setup`:
 | `classic` | `TrackDataSet_2.TrackData_0.TrackNameData_0` | `gp_long_name`, `gp_short_name`; the rest are empty strings |
 | `f1_2026` | `TrackDataSet_16.TrackData_0.TrackNameData_0` | all ten |
 
-Select the `TrackData` row by its label and name the sub-row in `field`, once per dataset:
+Select the dataset and the `TrackData` row by their labels and name the sub-row in `field`, once per dataset:
 
 ```json
-{ "op": "set", "select": "track_data.game_setup.TrackDataSet_16.TrackData[_metadata_=melbourne]",
+{ "op": "set", "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne]",
   "field": "TrackNameData_0.title", "value": "lng_my_track_title" }
 ```
 
