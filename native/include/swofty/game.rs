@@ -28,6 +28,26 @@ pub struct AiHandlingConfig {
 }
 
 #[repr(C)]
+pub struct BankAccount {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct BankSubAccount {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct BankTransaction {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct BankTransactionMessage {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct CarPerfVehicle {
     _opaque: [u8; 0],
 }
@@ -43,7 +63,102 @@ pub struct CarWheelState {
 }
 
 #[repr(C)]
+pub struct CareerBankComponent {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct CareerDriverContractRenewalComponent {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct CareerEntity {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct CareerSponsorsComponent {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct CareerTimeComponent {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct Championship {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct ChampionshipHolder {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct ChampionshipSeasonEntry {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct ContextStatSet {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct ContractRecord {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct CostCapComponent {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct CostCapSeason {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct CostCapTeam {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct CurvePoint {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct DepartmentData {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct DriverContractsMyTeamComponent {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct DriverMoveRecord {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct DriverStatistic {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct DriverStatisticsComponent {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct DriverStatsEntry {
     _opaque: [u8; 0],
 }
 
@@ -58,7 +173,22 @@ pub struct EntrantSetupMode {
 }
 
 #[repr(C)]
+pub struct EntrantWriteData {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct EntrantsManager {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct EvolutionCurve {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct F1SeasonStandings {
     _opaque: [u8; 0],
 }
 
@@ -68,7 +198,67 @@ pub struct FEHomeViewModel {
 }
 
 #[repr(C)]
+pub struct FacilityNode {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct FacilityPerkTree {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct FacilityTeamData {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct FacilityTeamEntry {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct FlowState {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct GameManager {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct GameMessageBusHolder {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct GameModeContext {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct GameWeatherSystem {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct GdbStringRecord {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct GdbTableCursor {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct MyTeamFacilitiesComponent {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct MyTeamFacility {
     _opaque: [u8; 0],
 }
 
@@ -83,7 +273,37 @@ pub struct NeAllocatorVtbl {
 }
 
 #[repr(C)]
+pub struct NeMessageBus {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct NeOptionalVec {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct NeSharedCtrl {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct NeStr {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct RenownAwardedMessage {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct RenownConfig {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct ResourcePointsComponent {
     _opaque: [u8; 0],
 }
 
@@ -93,12 +313,112 @@ pub struct RnDDepartmentConfig {
 }
 
 #[repr(C)]
+pub struct Season {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct Session {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct SponsorEntry {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct SponsorLoyaltyLevel {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct SponsorLoyaltyXpMessage {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct SponsorTeamRecord {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct StandingsPoints {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct StandingsResult {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct StandingsRound {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct StandingsSession {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct StatInfo {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct TeamRenownData {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct TimeOfDayClock {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct TimeOfDayOwner {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct TimeOfDaySystem {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct UpgradeEffectDef {
     _opaque: [u8; 0],
 }
 
 #[repr(C)]
+pub struct UpgradeInstance {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct UpgradeRecord {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct UpgradeStateEntry {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct UpgradeTree {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct Upgrades {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct UpgradesComponent {
     _opaque: [u8; 0],
 }
 
@@ -109,6 +429,36 @@ pub struct VehicleIdentity {
 
 #[repr(C)]
 pub struct VehiclePackageRow {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct WeatherAndTimeOfDayComponent {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct WeatherDataset {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct WeatherSessionSettings {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct WeatherState {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct WeatherTypeRange {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct Weekend {
     _opaque: [u8; 0],
 }
 
@@ -180,9 +530,13 @@ const _: () = assert!(core::mem::offset_of!(TileList, items_begin) == 0x78);
 const _: () = assert!(core::mem::offset_of!(TileList, items_end) == 0x80);
 
 pub type Car_Reset_LastFittedUpgrade_t = unsafe extern "C" fn(inst: *mut c_void);
+pub type Career_Add_SeasonWeekend_t = unsafe extern "C" fn(season: *mut c_void, weekend: *mut c_void) -> u64;
 pub type Career_Add_TeamModifier_t = unsafe extern "C" fn(list: *mut c_void, key: u32, value: f32);
 pub type Career_Calc_UpgradeCost_t =
     unsafe extern "C" fn(list: *mut c_void, inst: *mut c_void, mods: *mut c_void, option: u32) -> i32;
+pub type Career_Cancel_UpgradeResearch_t =
+    unsafe extern "C" fn(upgrades: *mut c_void, owner: u32, inst: *mut c_void, day: u32);
+pub type Career_Complete_PerkTreeNode_t = unsafe extern "C" fn(node: *mut c_void) -> u8;
 pub type Career_Construct_RnDDeptCard_t = unsafe extern "C" fn(
     card: *mut c_void,
     ctx: *mut c_void,
@@ -192,8 +546,54 @@ pub type Career_Construct_RnDDeptCard_t = unsafe extern "C" fn(
     icon: *const c_char,
     dept: u8,
 ) -> *mut c_void;
+pub type Career_Create_SeasonWeekend_t =
+    unsafe extern "C" fn(season: *mut c_void, index: u64, track: u8, name: *const c_char) -> *mut c_void;
+pub type Career_Get_DriverOverallRating_t =
+    unsafe extern "C" fn(self_: *mut c_void, data: *mut c_void, driver: *const u32, round: bool) -> f32;
+pub type Career_Get_RpWallet_t = unsafe extern "C" fn(wallets: *mut c_void, out: *mut u64, driver_key: u32);
+pub type Career_Get_TeamRenownData_t =
+    unsafe extern "C" fn(rf: *mut c_void, out_weak: *mut c_void, team_key: u32) -> *mut c_void;
+pub type Career_Post_UpgradeFittedRatio_t =
+    unsafe extern "C" fn(upgrades: *mut c_void, inst: *mut c_void, fitted: u8);
+pub type Career_Rebuild_ChampionshipStandings_t =
+    unsafe extern "C" fn(champ_list: *mut c_void, extra_points: *mut c_void, extra_e: *mut c_void);
+pub type Career_Rebuild_SeasonStandings_t = unsafe extern "C" fn(
+    season: *mut c_void,
+    order_a: *mut c_void,
+    order_b: *mut c_void,
+    extra_points: *mut c_void,
+    extra_e: *mut c_void,
+);
+pub type Career_Record_DriverMove_t =
+    unsafe extern "C" fn(renewal: *mut c_void, driver: u32, old_team: u32, new_team: u32, reason: u8);
 pub type Career_Refresh_RnDDeptMode_t = unsafe extern "C" fn(holder: *mut usize, mode: u32);
 pub type Career_Refresh_UpgradeAvailability_t = unsafe extern "C" fn(upgrades: *mut c_void, day: u16);
+pub type Career_Set_UpgradeFacilityLocked_t = unsafe extern "C" fn(inst: *mut c_void, locked: u8, day: u16);
+pub type Career_Set_UpgradesOwner_t = unsafe extern "C" fn(upgrades: *mut c_void, owner: u32);
+pub type Career_Start_UpgradeDevelopment_t = unsafe extern "C" fn(
+    upgrades: *mut c_void,
+    owner: u32,
+    inst: *mut c_void,
+    start_day: u16,
+    end_day: u16,
+    option: u8,
+    dual: u8,
+    roll_failure: u8,
+    rng: *mut c_void,
+    store_duration: u8,
+);
+pub type Career_Start_UpgradeResearch_t = unsafe extern "C" fn(
+    upgrades: *mut c_void,
+    owner: u32,
+    inst: *mut c_void,
+    start_day: u32,
+    end_day: u16,
+    option: u8,
+    roll_failure: u8,
+    rng: *mut c_void,
+    store_duration: u8,
+);
+pub type Career_Teardown_Weekend_t = unsafe extern "C" fn(weekend: *mut c_void);
 pub type FeHome_Add_CareerTile_t = unsafe extern "C" fn(list: *mut TileList, index: u8);
 pub type FeHome_Handle_Command_t =
     unsafe extern "C" fn(vm: *mut FEHomeViewModel, cmd: *mut *mut NeStr) -> u64;
@@ -207,6 +607,7 @@ pub type FeTile_Build_List_t = unsafe extern "C" fn(
     a7: u32,
 );
 pub type FeTile_ItemBase_Populate_t = unsafe extern "C" fn(item: *mut HomeItem, node: *mut c_void, a7: u32);
+pub type Ne_Detach_ChildNode_t = unsafe extern "C" fn(parent: *mut c_void, child: *mut c_void) -> c_int;
 pub type Ne_Format_String_t = unsafe extern "C" fn(out: *mut *mut NeStr, fmt: *const c_char, ...) -> i64;
 pub type Ne_Get_SettingBool_t =
     unsafe extern "C" fn(node: *mut c_void, name: *const c_char, out: *mut u8, def: u8) -> u64;
@@ -215,6 +616,12 @@ pub type Ne_Get_SettingU32_t =
 pub type Ne_Log_Thunk_t = unsafe extern "C" fn(channel: *const c_char, fmt: *const c_char, ...);
 pub type Ne_Make_StrFromCStr_t =
     unsafe extern "C" fn(out: *mut *mut NeStr, s: *const c_char, flags: u32, len: usize) -> u32;
+pub type Ne_Post_BusMessage_t = unsafe extern "C" fn(bus: *mut c_void, msg: *mut c_void) -> u64;
+pub type Sess_GameWeatherSystem_SetupSession_t =
+    unsafe extern "C" fn(ws: *mut c_void, settings: *mut c_void, config: *mut c_void);
+pub type Sess_GameWeatherSystem_UpdateRandomSeed_t =
+    unsafe extern "C" fn(ws: *mut c_void, seed: u32, weekend: u32);
+pub type Sess_WeatherComponent_SetSystemRandomSeed_t = unsafe extern "C" fn(component: *mut c_void);
 pub type Vm_Set_Bool_t = unsafe extern "C" fn(
     registry: *mut c_void,
     parent: *mut c_void,
@@ -238,6 +645,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Career_Add_SeasonWeekend: Binding = Binding {
+        id: "Career_Add_SeasonWeekend",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Career_Add_TeamModifier: Binding = Binding {
         id: "Career_Add_TeamModifier",
         kind: "func",
@@ -248,8 +660,58 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Career_Cancel_UpgradeResearch: Binding = Binding {
+        id: "Career_Cancel_UpgradeResearch",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Complete_PerkTreeNode: Binding = Binding {
+        id: "Career_Complete_PerkTreeNode",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Career_Construct_RnDDeptCard: Binding = Binding {
         id: "Career_Construct_RnDDeptCard",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Create_SeasonWeekend: Binding = Binding {
+        id: "Career_Create_SeasonWeekend",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Get_DriverOverallRating: Binding = Binding {
+        id: "Career_Get_DriverOverallRating",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Get_RpWallet: Binding = Binding {
+        id: "Career_Get_RpWallet",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Get_TeamRenownData: Binding = Binding {
+        id: "Career_Get_TeamRenownData",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Post_UpgradeFittedRatio: Binding = Binding {
+        id: "Career_Post_UpgradeFittedRatio",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Rebuild_ChampionshipStandings: Binding = Binding {
+        id: "Career_Rebuild_ChampionshipStandings",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Rebuild_SeasonStandings: Binding = Binding {
+        id: "Career_Rebuild_SeasonStandings",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Record_DriverMove: Binding = Binding {
+        id: "Career_Record_DriverMove",
         kind: "func",
         status: Status::Experimental,
     };
@@ -260,6 +722,31 @@ pub mod bindings {
     };
     pub const Career_Refresh_UpgradeAvailability: Binding = Binding {
         id: "Career_Refresh_UpgradeAvailability",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Set_UpgradeFacilityLocked: Binding = Binding {
+        id: "Career_Set_UpgradeFacilityLocked",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Set_UpgradesOwner: Binding = Binding {
+        id: "Career_Set_UpgradesOwner",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Start_UpgradeDevelopment: Binding = Binding {
+        id: "Career_Start_UpgradeDevelopment",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Start_UpgradeResearch: Binding = Binding {
+        id: "Career_Start_UpgradeResearch",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Teardown_Weekend: Binding = Binding {
+        id: "Career_Teardown_Weekend",
         kind: "func",
         status: Status::Experimental,
     };
@@ -282,6 +769,11 @@ pub mod bindings {
         id: "FeTile_ItemBase_Populate",
         kind: "func",
         status: Status::Stable,
+    };
+    pub const Ne_Detach_ChildNode: Binding = Binding {
+        id: "Ne_Detach_ChildNode",
+        kind: "func",
+        status: Status::Experimental,
     };
     pub const Ne_Format_String: Binding = Binding {
         id: "Ne_Format_String",
@@ -308,6 +800,26 @@ pub mod bindings {
         kind: "func",
         status: Status::Stable,
     };
+    pub const Ne_Post_BusMessage: Binding = Binding {
+        id: "Ne_Post_BusMessage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_GameWeatherSystem_SetupSession: Binding = Binding {
+        id: "Sess_GameWeatherSystem_SetupSession",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_GameWeatherSystem_UpdateRandomSeed: Binding = Binding {
+        id: "Sess_GameWeatherSystem_UpdateRandomSeed",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_WeatherComponent_SetSystemRandomSeed: Binding = Binding {
+        id: "Sess_WeatherComponent_SetSystemRandomSeed",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Vm_Set_Bool: Binding = Binding {
         id: "Vm_Set_Bool",
         kind: "func",
@@ -328,6 +840,11 @@ pub mod bindings {
         kind: "data",
         status: Status::Experimental,
     };
+    pub const g_Game_Manager: Binding = Binding {
+        id: "g_Game_Manager",
+        kind: "data",
+        status: Status::Experimental,
+    };
     pub const g_Ne_DefaultAllocator: Binding = Binding {
         id: "g_Ne_DefaultAllocator",
         kind: "data",
@@ -342,6 +859,106 @@ pub mod bindings {
         id: "g_Vm_Registry",
         kind: "data",
         status: Status::Stable,
+    };
+    pub const k_Career_CareerBankComponentDesc: Binding = Binding {
+        id: "k_Career_CareerBankComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_CareerComponentDesc: Binding = Binding {
+        id: "k_Career_CareerComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_CareerDriverContractRenewalComponentDesc: Binding = Binding {
+        id: "k_Career_CareerDriverContractRenewalComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_CareerDriverMarketComponentDesc: Binding = Binding {
+        id: "k_Career_CareerDriverMarketComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_CareerFacilitiesComponentDesc: Binding = Binding {
+        id: "k_Career_CareerFacilitiesComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_CareerSetupComponentDesc: Binding = Binding {
+        id: "k_Career_CareerSetupComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_CareerSponsorsComponentDesc: Binding = Binding {
+        id: "k_Career_CareerSponsorsComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_CareerTimeComponentDesc: Binding = Binding {
+        id: "k_Career_CareerTimeComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_CostCapComponentDesc: Binding = Binding {
+        id: "k_Career_CostCapComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_DriverCareerContractsManagerComponentDesc: Binding = Binding {
+        id: "k_Career_DriverCareerContractsManagerComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_DriverCareerPlayerDriverStatisticsComponentDesc: Binding = Binding {
+        id: "k_Career_DriverCareerPlayerDriverStatisticsComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_DriverContractsMyTeamComponentDesc: Binding = Binding {
+        id: "k_Career_DriverContractsMyTeamComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_DriverStatisticsComponentDesc: Binding = Binding {
+        id: "k_Career_DriverStatisticsComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_EngineSuppliersComponentDesc: Binding = Binding {
+        id: "k_Career_EngineSuppliersComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_MyTeamAttributesComponentDesc: Binding = Binding {
+        id: "k_Career_MyTeamAttributesComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_MyTeamFacilitiesComponentDesc: Binding = Binding {
+        id: "k_Career_MyTeamFacilitiesComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_MyTeamRFComponentDesc: Binding = Binding {
+        id: "k_Career_MyTeamRFComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_OwnerPerksComponentDesc: Binding = Binding {
+        id: "k_Career_OwnerPerksComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_OwnerSetupComponentDesc: Binding = Binding {
+        id: "k_Career_OwnerSetupComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_ResourcePointsComponentDesc: Binding = Binding {
+        id: "k_Career_ResourcePointsComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
     };
     pub const k_Career_RnDCardColourTable: Binding = Binding {
         id: "k_Career_RnDCardColourTable",
@@ -358,6 +975,16 @@ pub mod bindings {
         kind: "data",
         status: Status::Experimental,
     };
+    pub const k_Career_ScheduleComponentDesc: Binding = Binding {
+        id: "k_Career_ScheduleComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_TeamHQControllerComponentDesc: Binding = Binding {
+        id: "k_Career_TeamHQControllerComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
     pub const k_Career_UpgradeBlockNameTable: Binding = Binding {
         id: "k_Career_UpgradeBlockNameTable",
         kind: "data",
@@ -365,6 +992,16 @@ pub mod bindings {
     };
     pub const k_Career_UpgradeTypeOrder: Binding = Binding {
         id: "k_Career_UpgradeTypeOrder",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_UpgradesComponentDesc: Binding = Binding {
+        id: "k_Career_UpgradesComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Career_WeatherAndTimeOfDayComponentDesc: Binding = Binding {
+        id: "k_Career_WeatherAndTimeOfDayComponentDesc",
         kind: "data",
         status: Status::Experimental,
     };
@@ -898,6 +1535,11 @@ pub mod bindings {
         kind: "site",
         status: Status::Experimental,
     };
+    pub const site_Career_TeamHqIsMyTeamResult: Binding = Binding {
+        id: "site_Career_TeamHqIsMyTeamResult",
+        kind: "site",
+        status: Status::Experimental,
+    };
     pub const site_Career_TeamHqRnDPopupTypeIcon: Binding = Binding {
         id: "site_Career_TeamHqRnDPopupTypeIcon",
         kind: "site",
@@ -1078,6 +1720,11 @@ pub mod bindings {
         kind: "site",
         status: Status::Experimental,
     };
+    pub const site_FeFlow_SetStateStatus: Binding = Binding {
+        id: "site_FeFlow_SetStateStatus",
+        kind: "site",
+        status: Status::Experimental,
+    };
     pub const site_FeHome_AfterCareerCall: Binding = Binding {
         id: "site_FeHome_AfterCareerCall",
         kind: "site",
@@ -1113,8 +1760,43 @@ pub mod bindings {
         kind: "call",
         status: Status::Experimental,
     };
+    pub const vt_Career_BankTransactionMessage: Binding = Binding {
+        id: "vt_Career_BankTransactionMessage",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Career_Championship: Binding = Binding {
+        id: "vt_Career_Championship",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Career_FacilityNode: Binding = Binding {
+        id: "vt_Career_FacilityNode",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Career_RenownAwardedMessage: Binding = Binding {
+        id: "vt_Career_RenownAwardedMessage",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
     pub const vt_Career_RnDDeptCard: Binding = Binding {
         id: "vt_Career_RnDDeptCard",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Career_Season: Binding = Binding {
+        id: "vt_Career_Season",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Career_SponsorLoyaltyXpMessage: Binding = Binding {
+        id: "vt_Career_SponsorLoyaltyXpMessage",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Career_Weekend: Binding = Binding {
+        id: "vt_Career_Weekend",
         kind: "vtable",
         status: Status::Experimental,
     };

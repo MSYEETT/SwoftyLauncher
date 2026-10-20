@@ -21,8 +21,8 @@ struct EntrantRecord {
     /* 0x064 */ uint32_t vehicle_customisation; // L2 decomp:re/decomp/142452e60.c;xref:0x142453721 packed vehicle_customisation (livery preset; Ent_Pack_VehicleCustomisation 0x1424fc250; 0x3fff0000 if empty)
     /* 0x068 */ uint32_t badge_stat_id; // L2 decomp:re/decomp/142452e60.c;xref:0x142453724 badge_customisation stat id in high word (entrants.badges label lookup; sentinel 0x3fff)
     /* 0x070 */ void **subobj_vtable;   // L2 decomp:re/decomp/142452e60.c;xref:0x142453735 &UNK_145612ed0
-    /* 0x078 */ uint32_t const_ffff0012; // L1 decomp:re/decomp/142452e60.c;xref:0x142453727 constant 0xffff0012 written by the parser
+    /* 0x078 */ uint32_t const_ffff0012; // L2 decomp:re/decomp/142452e60.c;decomp:re/decomp/148618ee0.c;xref:0x142453727,0x148619073 0xffff0012 written by the parser; Career_Set_EntrantData_Thunk copies EntrantWriteData::seat_value here, and Career_Sign_DriverToTeam takes it from the replaced seat (raised by ce-drivers)
     /* 0x080 */ uint16_t team_position; // L2 decomp:re/decomp/142452e60.c;xref:0x142453739 entrant team_position field, packed with a flag bit (value ^ 0x100)
     /* 0x082 */ uint8_t unk_0x82;       // L1 decomp:re/decomp/142452e60.c;xref:0x142453740 constant 0xff
-    /* 0x083 */ uint8_t car_number;     // L2 decomp:re/decomp/142452e60.c;xref:0x14245374b entrant car_number field (racing number)
+    /* 0x083 */ uint8_t car_number;     // L2 decomp:re/decomp/142452e60.c;decomp:re/decomp/148618ee0.c;xref:0x14245374b,0x14861909a entrant car_number field (racing number); Career_Set_EntrantData_Thunk writes its flag argument here and the game's signing passes the incoming driver's own value, so the number stays with the driver
 };

@@ -3,22 +3,78 @@
 
 namespace swofty::game {
 
+using Career_Add_SeasonWeekend_t = uint64_t(void *season, void *weekend);
+inline constexpr fn<"Career_Add_SeasonWeekend", Career_Add_SeasonWeekend_t> Career_Add_SeasonWeekend{}; // L2 experimental
 using Career_Add_TeamModifier_t = void(void *list, uint32_t key, float value);
 inline constexpr fn<"Career_Add_TeamModifier", Career_Add_TeamModifier_t> Career_Add_TeamModifier{}; // L2 experimental
 using Career_Calc_UpgradeCost_t = int32_t(void *list, void *inst, void *mods, uint32_t option);
 inline constexpr fn<"Career_Calc_UpgradeCost", Career_Calc_UpgradeCost_t> Career_Calc_UpgradeCost{}; // L2 experimental
+using Career_Cancel_UpgradeResearch_t = void(void *upgrades, uint32_t owner, void *inst, uint32_t day);
+inline constexpr fn<"Career_Cancel_UpgradeResearch", Career_Cancel_UpgradeResearch_t> Career_Cancel_UpgradeResearch{}; // L2 experimental
+using Career_Complete_PerkTreeNode_t = uint8_t(void *node);
+inline constexpr fn<"Career_Complete_PerkTreeNode", Career_Complete_PerkTreeNode_t> Career_Complete_PerkTreeNode{}; // L2 experimental
 using Career_Construct_RnDDeptCard_t = void *(void *card, void *ctx, void *builder, void *allocator, const char *name, const char *icon, uint8_t dept);
 inline constexpr fn<"Career_Construct_RnDDeptCard", Career_Construct_RnDDeptCard_t> Career_Construct_RnDDeptCard{}; // L2 experimental
+using Career_Create_SeasonWeekend_t = void *(void *season, uint64_t index, uint8_t track, const char *name);
+inline constexpr fn<"Career_Create_SeasonWeekend", Career_Create_SeasonWeekend_t> Career_Create_SeasonWeekend{}; // L2 experimental
+using Career_Get_DriverOverallRating_t = float(void *self, void *data, const uint32_t *driver, bool round);
+inline constexpr fn<"Career_Get_DriverOverallRating", Career_Get_DriverOverallRating_t> Career_Get_DriverOverallRating{}; // L2 experimental, game::championship::DriverStatisticsComponent
+using Career_Get_RpWallet_t = void(void *wallets, uint64_t *out, uint32_t driver_key);
+inline constexpr fn<"Career_Get_RpWallet", Career_Get_RpWallet_t> Career_Get_RpWallet{}; // L2 experimental
+using Career_Get_TeamRenownData_t = void *(void *rf, void *out_weak, uint32_t team_key);
+inline constexpr fn<"Career_Get_TeamRenownData", Career_Get_TeamRenownData_t> Career_Get_TeamRenownData{}; // L2 experimental
+using Career_Post_UpgradeFittedRatio_t = void(void *upgrades, void *inst, uint8_t fitted);
+inline constexpr fn<"Career_Post_UpgradeFittedRatio", Career_Post_UpgradeFittedRatio_t> Career_Post_UpgradeFittedRatio{}; // L2 experimental
+using Career_Rebuild_ChampionshipStandings_t = void(void *champ_list, void *extra_points, void *extra_e);
+inline constexpr fn<"Career_Rebuild_ChampionshipStandings", Career_Rebuild_ChampionshipStandings_t> Career_Rebuild_ChampionshipStandings{}; // L2 experimental
+using Career_Rebuild_SeasonStandings_t = void(void *season, void *order_a, void *order_b, void *extra_points, void *extra_e);
+inline constexpr fn<"Career_Rebuild_SeasonStandings", Career_Rebuild_SeasonStandings_t> Career_Rebuild_SeasonStandings{}; // L2 experimental
+using Career_Record_DriverMove_t = void(void *renewal, uint32_t driver, uint32_t old_team, uint32_t new_team, uint8_t reason);
+inline constexpr fn<"Career_Record_DriverMove", Career_Record_DriverMove_t> Career_Record_DriverMove{}; // L2 experimental
 using Career_Refresh_RnDDeptMode_t = void(uintptr_t *holder, uint32_t mode);
 inline constexpr fn<"Career_Refresh_RnDDeptMode", Career_Refresh_RnDDeptMode_t> Career_Refresh_RnDDeptMode{}; // L2 experimental
 using Career_Refresh_UpgradeAvailability_t = void(void *upgrades, uint16_t day);
 inline constexpr fn<"Career_Refresh_UpgradeAvailability", Career_Refresh_UpgradeAvailability_t> Career_Refresh_UpgradeAvailability{}; // L2 experimental
+using Career_Set_UpgradeFacilityLocked_t = void(void *inst, uint8_t locked, uint16_t day);
+inline constexpr fn<"Career_Set_UpgradeFacilityLocked", Career_Set_UpgradeFacilityLocked_t> Career_Set_UpgradeFacilityLocked{}; // L2 experimental
+using Career_Set_UpgradesOwner_t = void(void *upgrades, uint32_t owner);
+inline constexpr fn<"Career_Set_UpgradesOwner", Career_Set_UpgradesOwner_t> Career_Set_UpgradesOwner{}; // L2 experimental
+using Career_Start_UpgradeDevelopment_t = void(void *upgrades, uint32_t owner, void *inst, uint16_t start_day, uint16_t end_day, uint8_t option, uint8_t dual, uint8_t roll_failure, void *rng, uint8_t store_duration);
+inline constexpr fn<"Career_Start_UpgradeDevelopment", Career_Start_UpgradeDevelopment_t> Career_Start_UpgradeDevelopment{}; // L2 experimental
+using Career_Start_UpgradeResearch_t = void(void *upgrades, uint32_t owner, void *inst, uint32_t start_day, uint16_t end_day, uint8_t option, uint8_t roll_failure, void *rng, uint8_t store_duration);
+inline constexpr fn<"Career_Start_UpgradeResearch", Career_Start_UpgradeResearch_t> Career_Start_UpgradeResearch{}; // L2 experimental
+using Career_Teardown_Weekend_t = void(void *weekend);
+inline constexpr fn<"Career_Teardown_Weekend", Career_Teardown_Weekend_t> Career_Teardown_Weekend{}; // L2 experimental
 inline constexpr data<"g_Career_RnDOverviewSelectedDept", uint8_t> g_Career_RnDOverviewSelectedDept{}; // L2 experimental
+inline constexpr data<"k_Career_CareerBankComponentDesc", void *> k_Career_CareerBankComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_CareerComponentDesc", void *> k_Career_CareerComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_CareerDriverContractRenewalComponentDesc", void *> k_Career_CareerDriverContractRenewalComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_CareerDriverMarketComponentDesc", void *> k_Career_CareerDriverMarketComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_CareerFacilitiesComponentDesc", void *> k_Career_CareerFacilitiesComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_CareerSetupComponentDesc", void *> k_Career_CareerSetupComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_CareerSponsorsComponentDesc", void *> k_Career_CareerSponsorsComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_CareerTimeComponentDesc", void *> k_Career_CareerTimeComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_CostCapComponentDesc", void *> k_Career_CostCapComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_DriverCareerContractsManagerComponentDesc", void *> k_Career_DriverCareerContractsManagerComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_DriverCareerPlayerDriverStatisticsComponentDesc", void *> k_Career_DriverCareerPlayerDriverStatisticsComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_DriverContractsMyTeamComponentDesc", void *> k_Career_DriverContractsMyTeamComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_DriverStatisticsComponentDesc", void *> k_Career_DriverStatisticsComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_EngineSuppliersComponentDesc", void *> k_Career_EngineSuppliersComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_MyTeamAttributesComponentDesc", void *> k_Career_MyTeamAttributesComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_MyTeamFacilitiesComponentDesc", void *> k_Career_MyTeamFacilitiesComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_MyTeamRFComponentDesc", void *> k_Career_MyTeamRFComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_OwnerPerksComponentDesc", void *> k_Career_OwnerPerksComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_OwnerSetupComponentDesc", void *> k_Career_OwnerSetupComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_ResourcePointsComponentDesc", void *> k_Career_ResourcePointsComponentDesc{}; // L2 experimental
 inline constexpr data<"k_Career_RnDCardColourTable", uint32_t[6]> k_Career_RnDCardColourTable{}; // L2 experimental
 inline constexpr data<"k_Career_RnDDeptColourTable", uint32_t[6]> k_Career_RnDDeptColourTable{}; // L2 experimental
 inline constexpr data<"k_Career_RnDErrorDeptName", char[17]> k_Career_RnDErrorDeptName{}; // L2 experimental
+inline constexpr data<"k_Career_ScheduleComponentDesc", void *> k_Career_ScheduleComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_TeamHQControllerComponentDesc", void *> k_Career_TeamHQControllerComponentDesc{}; // L2 experimental
 inline constexpr data<"k_Career_UpgradeBlockNameTable", int32_t[18]> k_Career_UpgradeBlockNameTable{}; // L2 experimental
 inline constexpr data<"k_Career_UpgradeTypeOrder", uint8_t[19]> k_Career_UpgradeTypeOrder{}; // L2 experimental
+inline constexpr data<"k_Career_UpgradesComponentDesc", void *> k_Career_UpgradesComponentDesc{}; // L2 experimental
+inline constexpr data<"k_Career_WeatherAndTimeOfDayComponentDesc", void *> k_Career_WeatherAndTimeOfDayComponentDesc{}; // L2 experimental
 inline constexpr site<"site_Career_ApplyUpgradeBlockNameDefault"> site_Career_ApplyUpgradeBlockNameDefault{}; // L2 experimental
 inline constexpr site<"site_Career_ApplyUpgradeBlockNameJoin"> site_Career_ApplyUpgradeBlockNameJoin{}; // L2 experimental
 inline constexpr site<"site_Career_ApplyUpgradeKeyCall"> site_Career_ApplyUpgradeKeyCall{}; // L2 experimental
@@ -125,6 +181,7 @@ inline constexpr site<"site_Career_RnDUpgradeInfoTypeLabel"> site_Career_RnDUpgr
 inline constexpr site<"site_Career_RnDUpgradeInfoTypeLabelJoin"> site_Career_RnDUpgradeInfoTypeLabelJoin{}; // L2 experimental
 inline constexpr site<"site_Career_RnDUpgradeListDeptIcon"> site_Career_RnDUpgradeListDeptIcon{}; // L2 experimental
 inline constexpr site<"site_Career_TeamDeptEnumStore"> site_Career_TeamDeptEnumStore{}; // L2 experimental
+inline constexpr site<"site_Career_TeamHqIsMyTeamResult"> site_Career_TeamHqIsMyTeamResult{}; // L2 experimental
 inline constexpr site<"site_Career_TeamHqRnDPopupTypeIcon"> site_Career_TeamHqRnDPopupTypeIcon{}; // L2 experimental
 inline constexpr site<"site_Career_TeamHqRnDPopupTypeIconJoin"> site_Career_TeamHqRnDPopupTypeIconJoin{}; // L2 experimental
 inline constexpr site<"site_Career_TeleFailedTypeName"> site_Career_TeleFailedTypeName{}; // L2 experimental
@@ -161,6 +218,13 @@ inline constexpr site<"site_Career_VehicleFillOrderEnd"> site_Career_VehicleFill
 inline constexpr site<"site_Career_VehicleFillOrderStart"> site_Career_VehicleFillOrderStart{}; // L2 experimental
 inline constexpr site<"site_Career_WeekendObjectiveNext"> site_Career_WeekendObjectiveNext{}; // L2 experimental
 inline constexpr site<"site_Career_WeekendObjectiveType"> site_Career_WeekendObjectiveType{}; // L2 experimental
+inline constexpr vtable<"vt_Career_BankTransactionMessage", 2> vt_Career_BankTransactionMessage{}; // L2 experimental
+inline constexpr vtable<"vt_Career_Championship", 12> vt_Career_Championship{}; // L2 experimental
+inline constexpr vtable<"vt_Career_FacilityNode", 11> vt_Career_FacilityNode{}; // L2 experimental
+inline constexpr vtable<"vt_Career_RenownAwardedMessage", 2> vt_Career_RenownAwardedMessage{}; // L2 experimental
 inline constexpr vtable<"vt_Career_RnDDeptCard", 0> vt_Career_RnDDeptCard{}; // L2 experimental
+inline constexpr vtable<"vt_Career_Season", 7> vt_Career_Season{}; // L2 experimental
+inline constexpr vtable<"vt_Career_SponsorLoyaltyXpMessage", 2> vt_Career_SponsorLoyaltyXpMessage{}; // L2 experimental
+inline constexpr vtable<"vt_Career_Weekend", 7> vt_Career_Weekend{}; // L2 experimental
 
 }

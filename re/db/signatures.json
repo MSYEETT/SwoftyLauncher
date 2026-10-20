@@ -3664,34 +3664,6 @@
    ]
   },
   {
-   "id": "core.default_allocator",
-   "section": ".xtls",
-   "pattern": "48 8B 0D ?? ?? ?? ?? 48 85 C9 74 20 48 8B 54 24 50",
-   "match": "0x141c86214",
-   "anchor": "0x3",
-   "resolve": {
-    "kind": "riprel",
-    "insn": "0x0",
-    "len": 7
-   },
-   "target": "0x146ca54a8",
-   "kind": "data",
-   "names": [
-    "g_Ne_DefaultAllocator"
-   ],
-   "verified": [
-    {
-     "build": "d873a1c8d2044cef",
-     "date": "2026-10-20",
-     "by": "tyres-b",
-     "how": "static"
-    }
-   ],
-   "used_by": [
-    "addons/rnd-tyres-thermal/native/src/rnd_departments.cpp"
-   ]
-  },
-  {
    "id": "career.rn_d_purchase_screen_type_label",
    "section": ".xtls",
    "pattern": "49 8B 87 00 03 00 00 0F B6 40 70 48 83 F8 12 77 1C",
@@ -5687,6 +5659,1991 @@
    ],
    "used_by": [
     "addons/rnd-tyres-thermal/native/src/rnd_upgrade_types.cpp"
+   ]
+  },
+  {
+   "id": "fe_flow.set_state_status",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC D8 00 00 00 41 89 D4",
+   "match": "0x144423180",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x144423180",
+   "kind": "func_start",
+   "names": [
+    "FeFlow_Set_StateStatus"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-bridge",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/state.cpp"
+   ]
+  },
+  {
+   "id": "fe_flow.set_state_status_site",
+   "section": ".xtls",
+   "pattern": "48 81 EC D8 00 00 00 41 89 D4 48 89 CE",
+   "match": "0x14442318c",
+   "anchor": "0x7",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x144423193",
+   "kind": "mid",
+   "expect": "41 89 D4 48 89 CE",
+   "names": [
+    "site_FeFlow_SetStateStatus"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-bridge",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/career.cpp"
+   ]
+  },
+  {
+   "id": "career.state_team_hq_on_state_enter",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 28 01 00 00 48 89 CE C6 81 9C 0D 00 00 00",
+   "match": "0x1436ffae0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436ffae0",
+   "kind": "func_start",
+   "names": [
+    "Career_StateTeamHq_OnStateEnter"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-bridge",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/state.cpp"
+   ]
+  },
+  {
+   "id": "career.is_my_team_game_mode_thunk",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 43 14 E3 E9 ?? ?? ?? ?? 5B 5E 30 88 F7 E9 95 99",
+   "match": "0x140778420",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140778420",
+   "kind": "func_start",
+   "names": [
+    "Career_Is_MyTeamGameMode_Thunk"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-bridge",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/state.cpp"
+   ]
+  },
+  {
+   "id": "career.team_hq_is_my_team_result",
+   "section": ".xtls",
+   "pattern": "75 20 48 89 F9 E8 ?? ?? ?? ?? 89 C3 E8",
+   "match": "0x1436ffb63",
+   "anchor": "0xa",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436ffb6d",
+   "kind": "mid",
+   "expect": "89 C3 E8 5C A5 CC FD",
+   "names": [
+    "site_Career_TeamHqIsMyTeamResult"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-bridge",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/career.cpp"
+   ]
+  },
+  {
+   "id": "career.eval_curve",
+   "section": ".xtls",
+   "pattern": "48 83 EC 68 C5 78 29 5C 24 50 C5 78 29 54 24 40 C5 78 29 4C 24 30 C5 78 29 44 24 20 C5 F8 29 7C 24 10 C5 F8 29 34 24 C5 F8 57 C0",
+   "match": "0x1445075d0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1445075d0",
+   "kind": "func_start",
+   "names": [
+    "Career_Eval_Curve"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-drivers",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/drivers.cpp"
+   ]
+  },
+  {
+   "id": "career.get_career_length_days_thunk",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 96 E6 E9 77 0E FC 00 51 8F",
+   "match": "0x14111dd30",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14111dd30",
+   "kind": "func_start",
+   "names": [
+    "Career_Get_CareerLengthDays_Thunk"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-drivers",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/drivers.cpp"
+   ]
+  },
+  {
+   "id": "career.get_overall",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC A8 00 00 00 C5 78 29 8C 24 90 00 00 00 C5 78 29 84 24 80 00 00 00 C5 F8 29 7C 24 70 C5 F8 29 74 24 60 45 89 CC 4C 89 44 24 58",
+   "match": "0x14113d120",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14113d120",
+   "kind": "func_start",
+   "names": [
+    "Career_Get_DriverOverallRating"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-drivers",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/drivers.cpp"
+   ]
+  },
+  {
+   "id": "session.game_weather_system_setup_session",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 0B 00 00 C5 78 29 BC 24 70 0B 00 00",
+   "match": "0x1438b7350",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1438b7350",
+   "kind": "func_start",
+   "names": [
+    "Sess_GameWeatherSystem_SetupSession"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-weather",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/weather.cpp"
+   ]
+  },
+  {
+   "id": "session.tod_build_session_dataset_thunk",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 83 83 78 E9 98 EA 96",
+   "match": "0x14479c710",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14479c710",
+   "kind": "func_start",
+   "names": [
+    "Sess_Tod_BuildSessionDataset_Thunk"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-weather",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/weather.cpp"
+   ]
+  },
+  {
+   "id": "session.game_weather_system_update_random_seed",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 30 89 D7 48 89 CE 44 89 81 18 1F 00 00",
+   "match": "0x1438c80e0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1438c80e0",
+   "kind": "func_start",
+   "names": [
+    "Sess_GameWeatherSystem_UpdateRandomSeed"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-weather",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/weather.cpp"
+   ]
+  },
+  {
+   "id": "career.start_upgrade_research",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC C8 0C 00 00 C5 78 29 84 24 B0 0C 00 00 C5 F8 29 BC 24 A0 0C 00 00 C5 F8 29 B4 24 90 0C 00 00 4D 85 C0",
+   "match": "0x1435168d0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1435168d0",
+   "kind": "func_start",
+   "names": [
+    "Career_Start_UpgradeResearch"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-rnd",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/rnd.cpp"
+   ]
+  },
+  {
+   "id": "career.start_upgrade_development",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 B8 F8 18 00 00 E8 ?? ?? ?? ?? 48 29 C4 C5 78 29 94 24 E0 18 00 00",
+   "match": "0x1435173e0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1435173e0",
+   "kind": "func_start",
+   "names": [
+    "Career_Start_UpgradeDevelopment"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-rnd",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/rnd.cpp"
+   ]
+  },
+  {
+   "id": "career.cancel_upgrade_research",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 58 0C 00 00 4C 89 C7",
+   "match": "0x1435320f0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1435320f0",
+   "kind": "func_start",
+   "names": [
+    "Career_Cancel_UpgradeResearch"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-rnd",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/rnd.cpp"
+   ]
+  },
+  {
+   "id": "career.cancel_upgrade_development",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 58 0C 00 00 89 D5",
+   "match": "0x143532390",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143532390",
+   "kind": "func_start",
+   "names": [
+    "Career_Cancel_UpgradeDevelopment"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-rnd",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/rnd.cpp"
+   ]
+  },
+  {
+   "id": "career.set_upgrade_facility_locked",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 28 80 79 72 03 0F 87 ?? ?? ?? ?? 44 89 C6 89 D3 48 89 CF 48 8B 81 C0 00 00 00 4C 8B A1 C8 00 00 00 4C 39 E0 0F 84 ?? ?? ?? ?? 41 38 5C 24 FD",
+   "match": "0x143523730",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143523730",
+   "kind": "func_start",
+   "names": [
+    "Career_Set_UpgradeFacilityLocked"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-rnd",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/rnd.cpp"
+   ]
+  },
+  {
+   "id": "career.post_upgrade_fitted_ratio",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 B8 78 24 00 00 E8 ?? ?? ?? ?? 48 29 C4 44 88 44 24 27",
+   "match": "0x14352fe00",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14352fe00",
+   "kind": "func_start",
+   "names": [
+    "Career_Post_UpgradeFittedRatio"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-rnd",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/rnd.cpp"
+   ]
+  },
+  {
+   "id": "career.championship",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 48 89 01 48 8D 05 ?? ?? ?? ?? 48 89 81 08 02 00 00 48 8D B9 D0 02 00 00",
+   "match": "0x140ae2308",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x14566aab0",
+   "kind": "data",
+   "names": [
+    "vt_Career_Championship"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-season",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/season.cpp"
+   ]
+  },
+  {
+   "id": "career.season",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 4C 8D B6 08 02 00 00 48 8D 05",
+   "match": "0x140ae4f66",
+   "anchor": "0xf",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xc",
+    "len": 7
+   },
+   "target": "0x14566b0b0",
+   "kind": "data",
+   "names": [
+    "vt_Career_Season"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-season",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/season.cpp"
+   ]
+  },
+  {
+   "id": "career.weekend",
+   "section": ".xtls",
+   "pattern": "4C 8B 44 24 60 E8 ?? ?? ?? ?? 48 8D 05",
+   "match": "0x140aee4cf",
+   "anchor": "0xd",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xa",
+    "len": 7
+   },
+   "target": "0x14566b5d0",
+   "kind": "data",
+   "names": [
+    "vt_Career_Weekend"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-season",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/season.cpp"
+   ]
+  },
+  {
+   "id": "career.career_component_desc",
+   "section": ".xtls",
+   "pattern": "48 8D 15 ?? ?? ?? ?? 41 B8 01 00 00 00 FF 50 10 48 85 C0 74 12 48 89 F9 B2 01 E8 ?? ?? ?? ?? 84 C0 0F 84 ?? ?? ?? ?? 89 6C 24 38",
+   "match": "0x1401b0bc3",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x14605b128",
+   "kind": "data",
+   "names": [
+    "k_Career_CareerComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp",
+    "native/src/core/career.cpp"
+   ]
+  },
+  {
+   "id": "career.career_setup_component_desc",
+   "section": ".xtls",
+   "pattern": "41 80 BC 24 B0 02 00 00 00 0F 85 ?? ?? ?? ?? 48 8B 07 48 8D 15",
+   "match": "0x14025a06b",
+   "anchor": "0x15",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x12",
+    "len": 7
+   },
+   "target": "0x14605b008",
+   "kind": "data",
+   "names": [
+    "k_Career_CareerSetupComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.career_time_component_desc",
+   "section": ".xtls",
+   "pattern": "FF 90 F8 00 00 00 45 31 E4 EB 63 49 8B 06 48 8D 15",
+   "match": "0x1407c498a",
+   "anchor": "0x11",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xe",
+    "len": 7
+   },
+   "target": "0x146061708",
+   "kind": "data",
+   "names": [
+    "k_Career_CareerTimeComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.schedule_component_desc",
+   "section": ".xtls",
+   "pattern": "48 8D 15 ?? ?? ?? ?? 41 B8 01 00 00 00 FF 50 10 40 B6 01 48 85 C0",
+   "match": "0x1407c01b6",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x146063100",
+   "kind": "data",
+   "names": [
+    "k_Career_ScheduleComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.championship_component_desc",
+   "section": ".xtls",
+   "pattern": "FF 50 28 4C 8D 35 ?? ?? ?? ?? 4C 39 F0 0F 84",
+   "match": "0x140aeb9ee",
+   "anchor": "0x6",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x3",
+    "len": 7
+   },
+   "target": "0x1460544f0",
+   "kind": "data",
+   "names": [
+    "k_Career_ChampionshipComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.career_bank_component_desc",
+   "section": ".xtls",
+   "pattern": "48 8D 15 ?? ?? ?? ?? FF 50 10 48 89 86 30 04 00 00 48 8B 8E 70 02 00 00",
+   "match": "0x140c31b15",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x14605b2e8",
+   "kind": "data",
+   "names": [
+    "k_Career_CareerBankComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp",
+    "native/src/core/career.cpp"
+   ]
+  },
+  {
+   "id": "career.cost_cap_component_desc",
+   "section": ".xtls",
+   "pattern": "FF 90 F8 00 00 00 89 C7 48 8B 03 48 8D 15",
+   "match": "0x140a8fc1f",
+   "anchor": "0xe",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xb",
+    "len": 7
+   },
+   "target": "0x14605b268",
+   "kind": "data",
+   "names": [
+    "k_Career_CostCapComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.career_sponsors_component_desc",
+   "section": ".xtls",
+   "pattern": "48 8D 15 ?? ?? ?? ?? 4C 89 F1 41 B8 01 00 00 00 FF 50 10 48 85 C0 0F 84 ?? ?? ?? ?? 48 89 C6 49 8B 06",
+   "match": "0x140a9208c",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x146061728",
+   "kind": "data",
+   "names": [
+    "k_Career_CareerSponsorsComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.my_team_rf_component_desc",
+   "section": ".xtls",
+   "pattern": "48 8D 15 ?? ?? ?? ?? FF 50 10 48 89 87 50 03 00 00 48 8B 8F 70 02 00 00",
+   "match": "0x140cb8649",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x14605d6b0",
+   "kind": "data",
+   "names": [
+    "k_Career_MyTeamRFComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.my_team_facilities_component_desc",
+   "section": ".xtls",
+   "pattern": "0F 84 ?? ?? ?? ?? 48 8D 8F 30 10 00 00 48 8B 87 30 10 00 00 48 8D 15",
+   "match": "0x140258678",
+   "anchor": "0x17",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x14",
+    "len": 7
+   },
+   "target": "0x14605d670",
+   "kind": "data",
+   "names": [
+    "k_Career_MyTeamFacilitiesComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp",
+    "native/src/core/career.cpp"
+   ]
+  },
+  {
+   "id": "career.my_team_stats_component_desc",
+   "section": ".xtls",
+   "pattern": "C7 05 ?? ?? ?? ?? 14 1A 73 92 48 8D 1D ?? ?? ?? ?? 48 89 1D ?? ?? ?? ?? 48 89 35",
+   "match": "0x1410edef7",
+   "anchor": "0x1b",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x18",
+    "len": 7
+   },
+   "target": "0x146060908",
+   "kind": "data",
+   "names": [
+    "k_Career_MyTeamStatsComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.my_team_attributes_component_desc",
+   "section": ".xtls",
+   "pattern": "48 8D 15 ?? ?? ?? ?? FF 50 10 48 89 86 68 04 00 00",
+   "match": "0x140c31c37",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x146063180",
+   "kind": "data",
+   "names": [
+    "k_Career_MyTeamAttributesComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.owner_perks_component_desc",
+   "section": ".xtls",
+   "pattern": "48 8D 15 ?? ?? ?? ?? FF 50 10 48 89 86 78 04 00 00",
+   "match": "0x140c31cab",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x1460609e8",
+   "kind": "data",
+   "names": [
+    "k_Career_OwnerPerksComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.owner_setup_component_desc",
+   "section": ".xtls",
+   "pattern": "C5 F8 29 94 24 D0 00 00 00 48 8B 87 30 10 00 00 48 81 C7 30 10 00 00 48 8D 15",
+   "match": "0x140242fea",
+   "anchor": "0x1a",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x17",
+    "len": 7
+   },
+   "target": "0x146060a08",
+   "kind": "data",
+   "names": [
+    "k_Career_OwnerSetupComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.career_facilities_component_desc",
+   "section": ".xtls",
+   "pattern": "0F 84 ?? ?? ?? ?? 48 8B 86 30 10 00 00 48 81 C6 30 10 00 00 48 8D 15",
+   "match": "0x140a9bca8",
+   "anchor": "0x17",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x14",
+    "len": 7
+   },
+   "target": "0x14605c158",
+   "kind": "data",
+   "names": [
+    "k_Career_CareerFacilitiesComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.resource_points_component_desc",
+   "section": ".xtls",
+   "pattern": "48 8D 15 ?? ?? ?? ?? 41 B8 01 00 00 00 FF 50 10 48 89 86 30 01 00 00 31 C0 48 83 C4 20 5E C3 CC CC CC CC CC CC CC CC CC CC CC 56 48 83 EC 40",
+   "match": "0x140d6c846",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x146062f60",
+   "kind": "data",
+   "names": [
+    "k_Career_ResourcePointsComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.upgrades_component_desc",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 48 8D BB 30 10 00 00 48 8B 83 30 10 00 00 48 8D 15",
+   "match": "0x1409ba210",
+   "anchor": "0x16",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x13",
+    "len": 7
+   },
+   "target": "0x146063160",
+   "kind": "data",
+   "names": [
+    "k_Career_UpgradesComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.engine_suppliers_component_desc",
+   "section": ".xtls",
+   "pattern": "48 8D 15 ?? ?? ?? ?? FF 50 10 48 89 86 38 04 00 00 48 8B 8E 70 02 00 00",
+   "match": "0x140c31adb",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x146063140",
+   "kind": "data",
+   "names": [
+    "k_Career_EngineSuppliersComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.driver_statistics_component_desc",
+   "section": ".xtls",
+   "pattern": "80 7C 24 4C 00 74 49 48 8B 06 48 8D 15",
+   "match": "0x140a8008c",
+   "anchor": "0xd",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xa",
+    "len": 7
+   },
+   "target": "0x146061768",
+   "kind": "data",
+   "names": [
+    "k_Career_DriverStatisticsComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.driver_career_player_driver_statistics_component_desc",
+   "section": ".xtls",
+   "pattern": "48 8D 15 ?? ?? ?? ?? 4C 89 F1 41 B8 01 00 00 00 FF 50 10 48 85 C0 0F 84 ?? ?? ?? ?? 48 89 C7 49 8B 06",
+   "match": "0x140262ae7",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x146061748",
+   "kind": "data",
+   "names": [
+    "k_Career_DriverCareerPlayerDriverStatisticsComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp",
+    "native/src/core/career.cpp"
+   ]
+  },
+  {
+   "id": "career.driver_contracts_my_team_component_desc",
+   "section": ".xtls",
+   "pattern": "83 F8 01 0F 85 ?? ?? ?? ?? 48 8B 87 30 10 00 00 48 81 C7 30 10 00 00 48 8D 15",
+   "match": "0x1402672a9",
+   "anchor": "0x1a",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x17",
+    "len": 7
+   },
+   "target": "0x14605c1d8",
+   "kind": "data",
+   "names": [
+    "k_Career_DriverContractsMyTeamComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.driver_career_contracts_manager_component_desc",
+   "section": ".xtls",
+   "pattern": "48 85 FF 0F 84 ?? ?? ?? ?? 48 8B 03 48 8D 15",
+   "match": "0x14026135b",
+   "anchor": "0xf",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xc",
+    "len": 7
+   },
+   "target": "0x14605c0d8",
+   "kind": "data",
+   "names": [
+    "k_Career_DriverCareerContractsManagerComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.career_driver_market_component_desc",
+   "section": ".xtls",
+   "pattern": "49 8B 8C 24 78 02 00 00 48 8B 81 30 10 00 00 48 81 C1 30 10 00 00 48 8D 15",
+   "match": "0x140c0085e",
+   "anchor": "0x19",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x16",
+    "len": 7
+   },
+   "target": "0x14605c118",
+   "kind": "data",
+   "names": [
+    "k_Career_CareerDriverMarketComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.career_driver_contract_renewal_component_desc",
+   "section": ".xtls",
+   "pattern": "83 B8 3C 02 00 00 02 75 5C 48 8B 06 48 8D 15",
+   "match": "0x1407c1175",
+   "anchor": "0xf",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xc",
+    "len": 7
+   },
+   "target": "0x14605c1b8",
+   "kind": "data",
+   "names": [
+    "k_Career_CareerDriverContractRenewalComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.team_hq_controller_component_desc",
+   "section": ".xtls",
+   "pattern": "FF 90 88 00 00 00 48 85 C0 74 2C 48 8B 06 48 8D 15",
+   "match": "0x140aa5716",
+   "anchor": "0x11",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xe",
+    "len": 7
+   },
+   "target": "0x1460616c8",
+   "kind": "data",
+   "names": [
+    "k_Career_TeamHQControllerComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "career.weather_and_time_of_day_component_desc",
+   "section": ".xtls",
+   "pattern": "48 8D 15 ?? ?? ?? ?? FF 50 10 48 89 83 58 05 00 00",
+   "match": "0x140b9de0f",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x14605afc0",
+   "kind": "data",
+   "names": [
+    "k_Career_WeatherAndTimeOfDayComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "game.manager",
+   "section": ".xtls",
+   "pattern": "48 8B B8 98 01 00 00 48 85 FF 0F 84 ?? ?? ?? ?? 48 8D 4C 24 70 E8 ?? ?? ?? ?? 48 8B 05",
+   "match": "0x1400f9934",
+   "anchor": "0x1d",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x1a",
+    "len": 7
+   },
+   "target": "0x14604c2c8",
+   "kind": "data",
+   "names": [
+    "g_Game_Manager"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp",
+    "native/src/core/career.cpp"
+   ]
+  },
+  {
+   "id": "game.message_bus",
+   "section": ".xtls",
+   "pattern": "41 FF 51 08 48 8B 05 ?? ?? ?? ?? 48 8B 78 08",
+   "match": "0x1401518a3",
+   "anchor": "0x7",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x4",
+    "len": 7
+   },
+   "target": "0x14618b3b8",
+   "kind": "data",
+   "names": [
+    "g_Game_MessageBus"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/economy.cpp",
+    "native/src/core/career.cpp"
+   ]
+  },
+  {
+   "id": "career.bank_transaction_message",
+   "section": ".xtls",
+   "pattern": "4C 8D 2D ?? ?? ?? ?? 4C 89 6C 24 30 66 89 6C 24 40",
+   "match": "0x140c5cf86",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x14568d508",
+   "kind": "data",
+   "names": [
+    "vt_Career_BankTransactionMessage"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/economy.cpp"
+   ]
+  },
+  {
+   "id": "core.post_bus_message",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 53 48 83 EC 30 80 79 68 00 0F 84 ?? ?? ?? ?? 48 89 D7 48 89 CE 48 8B 89 C8 00 00 00",
+   "match": "0x1439876c0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1439876c0",
+   "kind": "func_start",
+   "names": [
+    "Ne_Post_BusMessage"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/economy.cpp",
+    "native/src/core/career.cpp"
+   ]
+  },
+  {
+   "id": "career.adjust_rp_team_wallet",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 55 53 48 83 EC 38 44 89 C6 48 89 C8",
+   "match": "0x143508540",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143508540",
+   "kind": "func_start",
+   "names": [
+    "Career_Adjust_RpTeamWallet"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/economy.cpp"
+   ]
+  },
+  {
+   "id": "career.get_rp_wallet",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 55 53 48 89 D0 48 89 CA 0F B6 49 08",
+   "match": "0x1435086c0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1435086c0",
+   "kind": "func_start",
+   "names": [
+    "Career_Get_RpWallet"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/economy.cpp"
+   ]
+  },
+  {
+   "id": "career.adjust_rp_driver_wallet",
+   "section": ".xtls",
+   "pattern": "48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? CC CC CC CC CC 41 57 41 56 41 54 56 57 55 53 48 81 EC 80 00 00 00",
+   "match": "0x1434fefca",
+   "anchor": "0x16",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1434fefe0",
+   "kind": "func_start",
+   "names": [
+    "Career_Adjust_RpDriverWallet"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/economy.cpp"
+   ]
+  },
+  {
+   "id": "career.rebuild_season_standings",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 08 01 00 00 C5 F8 29 BC 24 F0 00 00 00 C5 F8 29 B4 24 E0 00 00 00 4C 89 CE",
+   "match": "0x140ae8040",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140ae8040",
+   "kind": "func_start",
+   "names": [
+    "Career_Rebuild_SeasonStandings"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-season",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/season.cpp"
+   ]
+  },
+  {
+   "id": "career.rebuild_championship_standings",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 48 01 00 00 C5 F8 29 BC 24 30 01 00 00 C5 F8 29 B4 24 20 01 00 00 4C 89 C6 48 89 D7 4C 8B A9 40 03 00 00",
+   "match": "0x140ae78f0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140ae78f0",
+   "kind": "func_start",
+   "names": [
+    "Career_Rebuild_ChampionshipStandings"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-season",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/season.cpp"
+   ]
+  },
+  {
+   "id": "career.create_season_weekend",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 81 EC 90 00 00 00 44 89 C3 48 89 CE",
+   "match": "0x140ae6050",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140ae6050",
+   "kind": "func_start",
+   "names": [
+    "Career_Create_SeasonWeekend"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-season",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/season.cpp"
+   ]
+  },
+  {
+   "id": "career.add_season_weekend",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 53 48 83 EC 40 48 85 D2 0F 84 ?? ?? ?? ?? 48 89 D7 48 89 CE C5 F8 10 81 70 02 00 00",
+   "match": "0x140ae6160",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140ae6160",
+   "kind": "func_start",
+   "names": [
+    "Career_Add_SeasonWeekend"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-season",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/season.cpp"
+   ]
+  },
+  {
+   "id": "career.teardown_weekend",
+   "section": ".xtls",
+   "pattern": "48 89 D0 48 C7 02 00 00 00 00 C3 CC CC CC CC CC E9",
+   "match": "0x140aecdf0",
+   "anchor": "0x10",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140aece00",
+   "kind": "func_start",
+   "names": [
+    "Career_Teardown_Weekend"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-season",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/season.cpp"
+   ]
+  },
+  {
+   "id": "core.detach_child_node",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? BC E9 FB AA 48 03 E3",
+   "match": "0x1436521b0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436521b0",
+   "kind": "func_start",
+   "names": [
+    "Ne_Detach_ChildNode"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-season",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/season.cpp"
+   ]
+  },
+  {
+   "id": "career.complete_perk_tree_node",
+   "section": ".xtls",
+   "pattern": "56 57 55 53 48 83 EC 28 80 79 08 01",
+   "match": "0x142ea5fe0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142ea5fe0",
+   "kind": "func_start",
+   "names": [
+    "Career_Complete_PerkTreeNode"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-rnd",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/facilities.cpp"
+   ]
+  },
+  {
+   "id": "career.facility_node",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 48 89 01 48 8D 99 C0 00 00 00",
+   "match": "0x140fa5482",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x1456af450",
+   "kind": "data",
+   "names": [
+    "vt_Career_FacilityNode"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-rnd",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/facilities.cpp"
+   ]
+  },
+  {
+   "id": "career.set_entrant_data_thunk",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 0F 8A ?? ?? ?? ?? 0F 85 ?? ?? ?? ?? E9 ?? ?? ?? ?? 74 A5",
+   "match": "0x1407b72e0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1407b72e0",
+   "kind": "func_start",
+   "names": [
+    "Career_Set_EntrantData_Thunk"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-drivers",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/drivers.cpp"
+   ]
+  },
+  {
+   "id": "career.record_driver_move",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 68 44 89 CF 44 89 C3",
+   "match": "0x140d8f1f0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140d8f1f0",
+   "kind": "func_start",
+   "names": [
+    "Career_Record_DriverMove"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-drivers",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/drivers.cpp"
+   ]
+  },
+  {
+   "id": "career.renown_awarded_message",
+   "section": ".xtls",
+   "pattern": "4C 8D 3D ?? ?? ?? ?? 48 8D 7C 24 28 EB 4C 0F 1F 00",
+   "match": "0x140c3b66f",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x14568c150",
+   "kind": "data",
+   "names": [
+    "vt_Career_RenownAwardedMessage"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/economy.cpp"
+   ]
+  },
+  {
+   "id": "career.sponsor_loyalty_xp_message",
+   "section": ".xtls",
+   "pattern": "0F B6 40 5C 4C 8B 05 ?? ?? ?? ?? 48 C7 44 24 28 00 00 00 00 4C 8D 0D",
+   "match": "0x140fc4d40",
+   "anchor": "0x17",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x14",
+    "len": 7
+   },
+   "target": "0x1456bad48",
+   "kind": "data",
+   "names": [
+    "vt_Career_SponsorLoyaltyXpMessage"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/economy.cpp"
+   ]
+  },
+  {
+   "id": "career.get_team_renown_data",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 55 53 48 89 C8 44 89 C1 C1 E9 10 41 C1 E0 0E 41 09 C8 41 0F B7 C8 48 0F AF 88 B8 02 00 00",
+   "match": "0x140f7a510",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140f7a510",
+   "kind": "func_start",
+   "names": [
+    "Career_Get_TeamRenownData"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/economy.cpp"
+   ]
+  },
+  {
+   "id": "session.weather_component_set_system_random_seed",
+   "section": ".xtls",
+   "pattern": "56 57 55 53 48 83 EC 28 48 89 CE 48 8B 89 70 02 00 00",
+   "match": "0x140bde3e0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140bde3e0",
+   "kind": "func_start",
+   "names": [
+    "Sess_WeatherComponent_SetSystemRandomSeed"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-weather",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/weather.cpp"
+   ]
+  },
+  {
+   "id": "core.default_allocator",
+   "section": ".xtls",
+   "pattern": "48 8B 0D ?? ?? ?? ?? 48 85 C9 74 20 48 8B 54 24 50",
+   "match": "0x141c86214",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x146ca54a8",
+   "kind": "data",
+   "names": [
+    "g_Ne_DefaultAllocator"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "tyres-b",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/rnd-tyres-thermal/native/src/rnd_departments.cpp",
+    "addons/career-editor/native/src/season.cpp"
+   ]
+  },
+  {
+   "id": "career.upgrade_lifecycle",
+   "section": ".xtls",
+   "pattern": "0F B6 05 ?? ?? ?? ?? 83 F8 02 73 2A",
+   "match": "0x143523a58",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x1460fc310",
+   "kind": "data",
+   "names": [
+    "g_Career_UpgradeLifecycle"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-rnd",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/rnd.cpp"
+   ]
+  },
+  {
+   "id": "career.set_upgrades_owner",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 53 48 83 EC 28 89 D6 48 89 CF 4C 8B B9 10 0D 00 00",
+   "match": "0x14352e620",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14352e620",
+   "kind": "func_start",
+   "names": [
+    "Career_Set_UpgradesOwner"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-rnd",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/rnd.cpp"
+   ]
+  },
+  {
+   "id": "career.championship_desc",
+   "section": ".xtls",
+   "pattern": "C7 05 ?? ?? ?? ?? 08 FD 5E 71 48 89 3D ?? ?? ?? ?? 4C 89 25",
+   "match": "0x140b76b9e",
+   "anchor": "0x14",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x11",
+    "len": 7
+   },
+   "target": "0x146053700",
+   "kind": "data",
+   "names": [
+    "k_Career_ChampionshipDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-econ",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/components.cpp"
+   ]
+  },
+  {
+   "id": "gamedb.lookup_key",
+   "section": ".xtls",
+   "pattern": "56 57 55 53 49 B8 25 23 22 84 E4 9C F2 CB",
+   "match": "0x1445a22f0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1445a22f0",
+   "kind": "func_start",
+   "names": [
+    "Gdb_Lookup_Key"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-drivers",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "gamedb.string_xor_key",
+   "section": ".xtls",
+   "pattern": "48 8D 3D ?? ?? ?? ?? 48 85 C0 4C 8D 25",
+   "match": "0x14020cd90",
+   "anchor": "0xd",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xa",
+    "len": 7
+   },
+   "target": "0x145890978",
+   "kind": "data",
+   "names": [
+    "k_Gdb_StringXorKey"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-20",
+     "by": "ce-drivers",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/dbread.cpp",
+    "native/src/core/career.cpp"
    ]
   }
  ]
