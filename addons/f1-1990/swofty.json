@@ -55,7 +55,9 @@
       { "source": "files/audio/v12_1990.bdl", "target": "audio/2025/bundles/ferrari_2026.bdl" },
       { "source": "files/audio/v10_1990.bdl", "target": "audio/2025/bundles/renault_2026.bdl" },
       { "source": "files/audio/v8_1990.bdl", "target": "audio/2025/bundles/ford_2026.bdl" },
-      { "source": "files/audio/v8_1990.bdl", "target": "audio/2025/bundles/mercedes_2026.bdl" }
+      { "source": "files/audio/v8_1990.bdl", "target": "audio/2025/bundles/mercedes_2026.bdl" },
+      { "source": "files/speech/en_agent.nfs", "target": "audio/2025/speech/en_agent.nfs" },
+      { "source": "files/speech/en_agent_cutscene.nfs", "target": "audio/2025/speech/en_agent_cutscene.nfs" }
     ]
   }
 }
