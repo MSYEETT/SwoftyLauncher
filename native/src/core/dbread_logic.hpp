@@ -5,6 +5,7 @@
 #include <string>
 
 #include "swofty_api.h"
+#include <swofty/mem.hpp>
 
 namespace dbread {
 
@@ -96,9 +97,32 @@ inline uint8_t read_u8(const void *record)
     return *(static_cast<const uint8_t *>(record) + REC_SCALAR);
 }
 
-inline const char *read_cstr(const void *record)
+constexpr size_t TEXT_MAX = 16384;
+
+// Decode a gamedb string: size bytes of enc including the terminator, plain[i] =
+// key[(i - 1) & 3] ^ enc[i] (the game's inline decode, k_Gdb_StringXorKey). True for printable
+// UTF-8 of at most TEXT_MAX - 1 bytes; an empty string (size 1) is valid.
+inline bool decode_text(const uint8_t *enc, uint64_t size, const uint8_t key[4], std::string &out)
 {
-    return *reinterpret_cast<const char *const *>(static_cast<const uint8_t *>(record) + REC_SCALAR);
+    out.clear();
+    if (!enc || !size || size > TEXT_MAX)
+        return false;
+    out.resize(size_t(size - 1));
+    for (uint64_t i = 0; i + 1 < size; i++)
+        out[size_t(i)] = char(key[(i - 1) & 3] ^ enc[i]);
+    if (out.find('\0') != std::string::npos || !swofty::mem::printable_utf8(out)) {
+        out.clear();
+        return false;
+    }
+    return true;
+}
+
+inline void encode_text(const char *plain, const uint8_t key[4], std::string &out)
+{
+    size_t n = strlen(plain);
+    out.assign(n + 1, '\0');
+    for (size_t i = 0; i < n; i++)
+        out[i] = char(key[(i - 1) & 3] ^ uint8_t(plain[i]));
 }
 
 inline uint32_t read_meta(const void *record)
@@ -131,7 +155,6 @@ inline void decode(const void *record, int tag, SwoftyDbValue *out)
     default:
         out->tag = SWOFTY_DB_STRING;
         out->i = read_meta(record);
-        out->s = read_cstr(record);
         break;
     }
 }

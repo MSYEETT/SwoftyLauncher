@@ -2,13 +2,21 @@
 
 #include <swofty/mixin.hpp>
 
+#include <swofty/mem.hpp>
+
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "dbread_logic.hpp"
+#include "layout.hpp"
 
 namespace {
+
+namespace layout = runtime::layout;
 
 const runtime::Sig S_GLOBAL{"g_Gdb_Database", "56 57 55 53 49 B8 25 23 22 84 E4 9C F2 CB 48 8B 15 ?? ?? ?? ?? 44 0F B6 11",
                             0x6cc4278, runtime::Sig::riprel, 0xe, 0x11, 7};
@@ -103,10 +111,108 @@ int classify(void *rec)
     return -1;
 }
 
-const char *readable_cstr(const void *rec)
+// String records (GdbStringRecord, k_Gdb_StringXorKey). The text is XOR-encoded in the record;
+// the game decodes it into the record's own buffer at each read. The core decodes into its own
+// copy instead and interns it per record, so a returned pointer stays valid for the session. The
+// table is bounded; past the bound a string lives in a per-thread ring until the next db call.
+
+constexpr size_t INTERN_MAX = 32768;
+constexpr size_t INTERN_BYTES = size_t(8) << 20;
+constexpr size_t RING = 8;
+
+struct Interned {
+    uint64_t size;
+    uintptr_t enc;
+    std::unique_ptr<char[]> text;
+};
+
+std::once_flag key_once;
+const uint8_t *xor_key;
+std::mutex text_lock;
+std::unordered_map<uintptr_t, Interned> interned;
+std::vector<std::unique_ptr<char[]>> retired;
+size_t interned_bytes;
+bool intern_full_logged;
+
+const uint8_t *text_key()
 {
-    const char *s = dbread::read_cstr(rec);
-    return runtime::readable(s, 1) ? s : nullptr;
+    std::call_once(key_once, [] {
+        if (!runtime::enabled("db", nullptr))
+            return;
+        uintptr_t k = swofty::api->resolve("k_Gdb_StringXorKey");
+        xor_key = k && swofty::mem::readable(k, 4) ? reinterpret_cast<const uint8_t *>(k) : nullptr;
+        if (!layout::GDB_STRING)
+            swofty::log("[dbread] string reads unavailable: this core was built without the GdbStringRecord layout");
+        else if (!xor_key)
+            swofty::log("[dbread] string reads unavailable: k_Gdb_StringXorKey does not resolve on this build");
+    });
+    return layout::GDB_STRING ? xor_key : nullptr;
+}
+
+template <class R = swofty::game::GdbStringRecord> bool record_text(const void *rec, uint64_t &size, uintptr_t &enc)
+{
+    if constexpr (layout::gdb_string<R>) {
+        auto at = reinterpret_cast<uintptr_t>(rec);
+        return swofty::mem::read(at + offsetof(R, enc_size), size) && swofty::mem::read(at + offsetof(R, enc), enc);
+    } else {
+        (void)rec, (void)size, (void)enc;
+        return false;
+    }
+}
+
+char *keep(std::string_view text)
+{
+    auto p = std::make_unique<char[]>(text.size() + 1);
+    memcpy(p.get(), text.data(), text.size());
+    p[text.size()] = 0;
+    return p.release();
+}
+
+const char *ring(const std::string &text)
+{
+    thread_local std::string slots[RING];
+    thread_local size_t next;
+    std::string &s = slots[next++ % RING];
+    s = text;
+    return s.c_str();
+}
+
+const char *decoded(const void *rec)
+{
+    const uint8_t *key = text_key();
+    uint64_t size = 0;
+    uintptr_t enc = 0;
+    if (!key || !rec || !record_text(rec, size, enc) || !size || size > dbread::TEXT_MAX || !enc ||
+        !swofty::mem::readable(enc, size_t(size)))
+        return nullptr;
+    auto at = reinterpret_cast<uintptr_t>(rec);
+    std::lock_guard<std::mutex> g(text_lock);
+    auto it = interned.find(at);
+    if (it != interned.end() && it->second.size == size && it->second.enc == enc)
+        return it->second.text.get();
+    std::string text;
+    if (!dbread::decode_text(reinterpret_cast<const uint8_t *>(enc), size, key, text))
+        return nullptr;
+    if (it != interned.end() && !strcmp(it->second.text.get(), text.c_str())) {
+        it->second.size = size, it->second.enc = enc;
+        return it->second.text.get();
+    }
+    if (interned.size() >= INTERN_MAX || interned_bytes + text.size() + 1 > INTERN_BYTES) {
+        if (!intern_full_logged)
+            swofty::log("[dbread] string table full (%zu strings, %zu bytes); further strings are valid until the next "
+                        "db call on the calling thread",
+                        interned.size(), interned_bytes),
+                intern_full_logged = true;
+        return ring(text);
+    }
+    std::unique_ptr<char[]> copy(keep(text));
+    interned_bytes += text.size() + 1;
+    if (it != interned.end()) {
+        retired.push_back(std::move(it->second.text));
+        it->second = {size, enc, std::move(copy)};
+        return it->second.text.get();
+    }
+    return interned.emplace(at, Interned{size, enc, std::move(copy)}).first->second.text.get();
 }
 
 int fill(void *rec, SwoftyDbValue *out)
@@ -115,8 +221,8 @@ int fill(void *rec, SwoftyDbValue *out)
     if (tag < 0)
         return SWOFTY_ASSET_UNAVAILABLE;
     dbread::decode(rec, tag, out);
-    if (out->tag == SWOFTY_DB_STRING && out->s)
-        out->s = readable_cstr(rec);
+    if (out->tag == SWOFTY_DB_STRING)
+        out->s = decoded(rec);
     return SWOFTY_ASSET_OK;
 }
 
@@ -185,10 +291,12 @@ int db_string_at(const char *key, const char **out)
         return SWOFTY_ASSET_INVALID;
     if (!db_available())
         return SWOFTY_ASSET_UNAVAILABLE;
+    if (!text_key())
+        return SWOFTY_ASSET_UNAVAILABLE;
     void *rec = scalar(key);
     if (!rec)
         return SWOFTY_ASSET_INVALID;
-    const char *s = readable_cstr(rec);
+    const char *s = decoded(rec);
     if (!s)
         return SWOFTY_ASSET_INVALID;
     *out = s;
@@ -283,9 +391,9 @@ int db_cell(const SwoftyDbCursor *cursor, const char *field, SwoftyDbValue *out)
 
 const char *db_row_name(const SwoftyDbCursor *cursor)
 {
-    if (!cursor || !cursor->row)
+    if (!cursor || !cursor->row || !db_available())
         return nullptr;
-    return readable_cstr(cursor->row);
+    return decoded(cursor->row);
 }
 
 const SwoftyDb table = {db_available, db_get,      db_get_hash, db_int_at, db_float_at, db_string_at,
@@ -340,7 +448,8 @@ void inspect_key(const json::Value &j)
     } else if (as == "string") {
         const char *out = nullptr;
         int t = db_string_at(key.c_str(), &out);
-        swofty::log("[dbread] inspect %s: string_at %s \"%s\"", key.c_str(), t == SWOFTY_ASSET_OK ? "ok" : "invalid",
+        swofty::log("[dbread] inspect %s: string_at %s \"%s\"", key.c_str(),
+                    t == SWOFTY_ASSET_OK ? "ok" : t == SWOFTY_ASSET_UNAVAILABLE ? "unavailable" : "invalid",
                     out ? out : "(null)");
     }
 }

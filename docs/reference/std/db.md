@@ -16,7 +16,13 @@ Once the game database has loaded, you can read a whole typed value or pick out 
 | API version | 5 |
 | Thread | Caller thread |
 
-Check the `swofty::db::Result` returned by every call: `ok`, `late`, `unavailable` or `invalid`. The [result codes](./#result-codes) explain each one. If you need to keep a returned string, copy it: its pointer stays valid only until the next `db` call on the same thread.
+Check the `swofty::db::Result` returned by every call: `ok`, `late`, `unavailable` or `invalid`. The [result codes](./#result-codes) explain each one.
+
+## Strings
+
+The game stores database text XOR-encoded (`GdbStringRecord`, key `k_Gdb_StringXorKey`). From core 0.2.11, `string_at`, the `s` of a string `get` or `cell`, and `row_name` return the decoded text: printable UTF-8 of at most 16 KiB, or no string. A record that does not decode gives `invalid` from `string_at` and a null `s` elsewhere. If the core cannot decode on this build (the key or the record layout is missing), `string_at` returns `unavailable`. Earlier cores returned the encoded bytes.
+
+The core keeps one decoded copy per record, so a returned pointer normally stays valid for the whole session. That table holds at most 32768 strings (8 MiB); past that, a string's pointer stays valid only until the next `db` call on the same thread. Copy a string if you keep it.
 
 ## Calls
 

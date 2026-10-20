@@ -192,6 +192,7 @@ static int read_disk(const char *rel, uint8_t **out, size_t *size)
 }
 
 void *g_fake_gdb;
+uint8_t k_fake_xor_key[4] = {0x17, 0x2d, 0x57, 0x5a};
 static void *vt_gint[4], *vt_gfloat[4], *vt_gstr[4], *vt_gbool[4], *vt_gother[4];
 static int gdb_dtor_calls;
 
@@ -249,10 +250,18 @@ void gdb_insert_impl(uint8_t *db, uint64_t key, uint8_t tag, char *text)
     case 2:
     case 3:
     case 4:
-    case 17:
+    case 17: {
+        size_t n = strlen(text) + 1;
+        uint8_t *enc = malloc(n);
+        for (size_t i = 0; i + 1 < n; i++)
+            enc[i] = (uint8_t)text[i] ^ k_fake_xor_key[(i - 1) & 3];
+        enc[n - 1] = 0x5a;
         *(char **)(v + 8) = _strdup(text);
+        *(uint64_t *)(v + 0x10) = n;
+        *(uint8_t **)(v + 0x18) = enc;
         *(uint32_t *)(v + 0x30) = fnv32(text);
         break;
+    }
     case 5:
         v[8] = _stricmp(text, "true") == 0;
         break;
@@ -838,6 +847,10 @@ __asm__(
     ".byte 0x4C,0x89,0xCE,0x44,0x88,0x44,0x24,0x37\n"
     "call gdb_insert_impl\nvmovaps 0xc0(%rsp), %xmm6\nadd $0xd8, %rsp\n"
     "pop %rbx\npop %rbp\npop %rdi\npop %rsi\npop %r12\npop %r13\npop %r14\npop %r15\nret\n"
+
+    ".globl fake_gdb_xor_key_ref\nfake_gdb_xor_key_ref:\n"
+    ".byte 0x48,0xB8,0x53,0x57,0x46,0x54,0x58,0x4B,0x45,0x59\n"
+    ".byte 0x4C,0x8D,0x25\n.long k_fake_xor_key-(.+4)\nret\n"
 
     ".globl fake_gdb_lookup\nfake_gdb_lookup:\n"
     ".byte 0x56,0x57,0x55,0x53,0x49,0xB8,0x25,0x23,0x22,0x84,0xE4,0x9C,0xF2,0xCB\n"

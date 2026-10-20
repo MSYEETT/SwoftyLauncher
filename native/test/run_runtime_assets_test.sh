@@ -48,6 +48,15 @@ for n in t_early t_window; do
     "${PIN[@]}" zig cc -target x86_64-windows-gnu -O2 -shared -o "$OUT/$n.dll" "$OUT/plain_mod.c"
 done
 cp -r "../$DIST/." "$OUT/game/"
+python3 - "$OUT/game/swofty/addons/core/bindings.json" <<'EOB'
+import json, sys
+doc = json.load(open(sys.argv[1]))
+doc['bindings'] = [b for b in doc['bindings'] if b['id'] != 'k_Gdb_StringXorKey'] + [
+    {'id': 'k_Gdb_StringXorKey', 'kind': 'data', 'status': 'experimental', 'section': '.xtls',
+     'pattern': '48 B8 53 57 46 54 58 4B 45 59 4C 8D 25 ?? ?? ?? ??', 'anchor': 13,
+     'resolve': {'kind': 'riprel', 'insn': 10, 'len': 7}}]
+json.dump(doc, open(sys.argv[1], 'w'), indent=1)
+EOB
 python3 - "$OUT/game" <<'EOF'
 import os, struct, sys
 sys.path.insert(0, '../../tools')
@@ -229,15 +238,21 @@ for mode in none replace gated late early earlywait; do
         check "dbread: get tags an int record" '\[dbread\] inspect fake\.keep as int: get ok tag int i=7 '
         check "dbread: float_at reads a float record (post-edit)" '\[dbread\] inspect ai\.general_ai_settings\.max_test_time: float_at ok 301'
         check "dbread: bool_at reads a bool record (post-edit)" '\[dbread\] inspect fake\.flag: bool_at ok true'
-        check "dbread: string_at reads a string record" '\[dbread\] inspect fake\.name: string_at ok "Lewis"'
-        check "dbread: get tags a string record with its fnv32 label" '\[dbread\] inspect fake\.name as string: get ok tag string s="Lewis" meta=0x[0-9a-f]+'
+        if grep -q 'string reads unavailable: this core was built without the GdbStringRecord layout' "$LOG"; then
+            TEXT_AT='unavailable "\(null\)"' LEWIS='\(null\)' ALPHA='\(null\)' BRAVO='\(null\)' CHARLIE='\(null\)'
+        else
+            TEXT_AT='ok "Lewis"' LEWIS=Lewis ALPHA=alpha BRAVO=bravo CHARLIE=charlie
+            check "dbread: string records decode with k_Gdb_StringXorKey" 'bind k_Gdb_StringXorKey -> '
+        fi
+        check "dbread: string_at reads a string record" "\[dbread\] inspect fake\.name: string_at $TEXT_AT"
+        check "dbread: get tags a string record with its fnv32 label" "\[dbread\] inspect fake\.name as string: get ok tag string s=\"$LEWIS\" meta=0x[0-9a-f]+"
         check "dbread: a missing key is invalid" '\[dbread\] inspect does\.not\.exist as int: get invalid'
         check "dbread: missing key typed accessor is invalid" '\[dbread\] inspect does\.not\.exist: int_at invalid'
         check "dbread: open finds the row count" '\[dbread\] table fake\.items field rank: open ok, 3 row\(s\)'
-        check "dbread: iterate row 0 name and field" '\[dbread\] table fake\.items\[0\] name="alpha" rank ok tag int i=1'
-        check "dbread: iterate row 1 name and field" '\[dbread\] table fake\.items\[1\] name="bravo" rank ok tag int i=2'
-        check "dbread: iterate row 2 name and field" '\[dbread\] table fake\.items\[2\] name="charlie" rank ok tag int i=3'
-        check "dbread: row-by-label resolves the index" '\[dbread\] table fake\.items row "bravo": ok index 1 name="bravo" rank i=2'
+        check "dbread: iterate row 0 name and field" "\[dbread\] table fake\.items\[0\] name=\"$ALPHA\" rank ok tag int i=1"
+        check "dbread: iterate row 1 name and field" "\[dbread\] table fake\.items\[1\] name=\"$BRAVO\" rank ok tag int i=2"
+        check "dbread: iterate row 2 name and field" "\[dbread\] table fake\.items\[2\] name=\"$CHARLIE\" rank ok tag int i=3"
+        check "dbread: row-by-label resolves the index" "\[dbread\] table fake\.items row \"bravo\": ok index 1 name=\"$BRAVO\" rank i=2"
         ;;
     late)
         check "loader: early stage off" 'early stage: off \("early_stage": false in swofty.assets\.json\)'

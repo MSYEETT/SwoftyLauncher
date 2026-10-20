@@ -79,16 +79,53 @@ int main()
     dbread::decode(rec, SWOFTY_DB_BOOL, &v);
     ok(v.tag == SWOFTY_DB_BOOL && v.i == 0, "decode bool false");
 
+    // String records carry XOR-encoded text (GdbStringRecord); decode() leaves s null and the core
+    // fills it from decode_text, so a pointer's own bytes are never handed out as text.
     memset(rec, 0, sizeof rec);
-    const char *text = "Lewis";
-    *reinterpret_cast<const char **>(rec + 8) = text;
     *reinterpret_cast<uint32_t *>(rec + 0x30) = 0xdeadbeefu;
-    ok(dbread::read_cstr(rec) == text && dbread::read_meta(rec) == 0xdeadbeefu, "read_cstr/read_meta");
+    ok(dbread::read_meta(rec) == 0xdeadbeefu, "read_meta");
     dbread::decode(rec, SWOFTY_DB_STRING, &v);
-    ok(v.tag == SWOFTY_DB_STRING && v.s == text && uint32_t(v.i) == 0xdeadbeefu, "decode string");
+    ok(v.tag == SWOFTY_DB_STRING && v.s == nullptr && uint32_t(v.i) == 0xdeadbeefu, "decode string leaves text to the core");
     // ENUM and ID share the string record class; decode reports them as string.
     dbread::decode(rec, SWOFTY_DB_ENUM, &v);
-    ok(v.tag == SWOFTY_DB_STRING && v.s == text, "decode enum as string family");
+    ok(v.tag == SWOFTY_DB_STRING && v.s == nullptr, "decode enum as string family");
+
+    // k_Gdb_StringXorKey (17 2d 57 5a): plain[i] = key[(i - 1) & 3] ^ enc[i], size counts the NUL.
+    const uint8_t key[4] = {0x17, 0x2d, 0x57, 0x5a};
+    std::string enc, out;
+    dbread::encode_text("Lewis Hamilton", key, enc);
+    ok(enc.size() == 15 && uint8_t(enc[0]) == uint8_t('L' ^ 0x5a) && uint8_t(enc[1]) == uint8_t('e' ^ 0x17) &&
+           uint8_t(enc[3]) == uint8_t('i' ^ 0x57) && uint8_t(enc[4]) == uint8_t('s' ^ 0x5a),
+       "encode uses key[(i - 1) & 3]");
+    ok(dbread::decode_text(reinterpret_cast<const uint8_t *>(enc.data()), enc.size(), key, out) && out == "Lewis Hamilton",
+       "decode_text round trip");
+    dbread::encode_text("Pérez", key, enc);
+    ok(dbread::decode_text(reinterpret_cast<const uint8_t *>(enc.data()), enc.size(), key, out) && out == "Pérez",
+       "decode_text keeps UTF-8");
+    ok(dbread::decode_text(reinterpret_cast<const uint8_t *>(""), 1, key, out) && out.empty(), "size 1 is the empty string");
+    const char *plain = "Lewis";
+    ok(!dbread::decode_text(reinterpret_cast<const uint8_t *>(plain), 6, key, out) && out.empty(),
+       "plain (undecoded) bytes are rejected, not returned as garbage");
+    uint64_t ptr = 0x00007ff6a1b2c3d4ull;
+    std::string raw(reinterpret_cast<const char *>(&ptr), 8);
+    raw.push_back('\0');
+    ok(!dbread::decode_text(reinterpret_cast<const uint8_t *>(raw.data()), raw.size(), key, out), "pointer bytes are rejected");
+    ok(!dbread::decode_text(nullptr, 4, key, out) && !dbread::decode_text(reinterpret_cast<const uint8_t *>("x"), 0, key, out),
+       "null or zero-size text rejected");
+    std::string big(dbread::TEXT_MAX + 1, 'a');
+    ok(!dbread::decode_text(reinterpret_cast<const uint8_t *>(big.data()), big.size(), key, out), "over-long text rejected");
+
+    // Printable UTF-8 (swofty/mem.hpp), shared by db strings and c_string().
+    ok(swofty::mem::printable_utf8("StateTeamHQUpdate") && swofty::mem::printable_utf8("Kimi Räikkönen\tline\n"),
+       "printable ASCII and UTF-8");
+    ok(!swofty::mem::printable_utf8("bell\x07"), "C0 control rejected");
+    ok(!swofty::mem::printable_utf8("\x7f"), "DEL rejected");
+    ok(!swofty::mem::printable_utf8("\xc2\x85"), "C1 control rejected");
+    ok(!swofty::mem::printable_utf8("\xc0\xaf"), "overlong rejected");
+    ok(!swofty::mem::printable_utf8("\xed\xa0\x80"), "surrogate rejected");
+    ok(!swofty::mem::printable_utf8("\xe2\x82"), "truncated sequence rejected");
+    ok(!swofty::mem::printable_utf8("\xf4\x90\x80\x80"), "above U+10FFFF rejected");
+    ok(swofty::mem::printable_utf8("\xf0\x9f\x8f\x81"), "4-byte sequence accepted");
 
     printf("%s: %d failure(s)\n", failures ? "FAIL" : "ok  ", failures);
     return failures ? 1 : 0;
