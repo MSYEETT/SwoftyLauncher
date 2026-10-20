@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// F1 1990 - room for a 26-car grid in the replay recorder.
+// F1 1990 - room for a 26-car grid in the replay recorder (its own DLL, so a binding it can't resolve drops only this
+// hook). Setting replay_holder_fix turns it off.
 //
 // The replay/flashback recorder (Ne_Replay_WriteFrames) keeps one state holder per recordable: a heap
 // block of 0x80 header bytes followed by a current and a previous state buffer. The holder's class is
@@ -25,6 +26,8 @@
 #include <swofty/game.hpp>
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
+
+SWOFTY_SETTING(bool, replay_holder_fix, true);
 
 namespace {
 
@@ -109,7 +112,7 @@ uintptr_t &slot(swofty::Context &c, uint32_t off)
 void upgrade(swofty::Context &c)
 {
     uintptr_t pos = slot(c, kStreamPos), base = slot(c, kStreamBase), old = slot(c, kHolder);
-    if (pos <= base || pos - base <= slot(c, kCapSlots[1]) || !::swofty::mem::object_like(old))
+    if (pos <= base || pos - base <= slot(c, kCapSlots[1]) || !replay_holder_fix || !::swofty::mem::object_like(old))
         return;
     uintptr_t size = pos - base;
     int from = class_of(*reinterpret_cast<uintptr_t *>(old));
@@ -170,3 +173,10 @@ SWOFTY_SITE(site_Ne_ReplayAfterRecord, swofty::Context &c)
 {
     upgrade(c);
 }
+
+SWOFTY_ON_LOAD
+{
+    swofty::log("[f1-1990] replay holders loaded: holder growth %s", replay_holder_fix ? "on" : "off (replay_holder_fix)");
+}
+
+SWOFTY_ADDON()
