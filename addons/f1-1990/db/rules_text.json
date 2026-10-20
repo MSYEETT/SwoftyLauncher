@@ -46,6 +46,54 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_sprintshootout_1",
+   "value": "Friday Qualifying"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_sprintshootout_2",
+   "value": "Friday Qualifying"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_sprintshootout_3",
+   "value": "Friday Qualifying"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_sprintshootout_1_short",
+   "value": "FQ"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_sprintshootout_2_short",
+   "value": "FQ"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_sprintshootout_3_short",
+   "value": "FQ"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_qualifying_1",
+   "value": "Saturday Qualifying"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_qualifying_1_short",
+   "value": "Q"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_qualifying_results",
    "value": "Saturday Qualifying Results"
   },
