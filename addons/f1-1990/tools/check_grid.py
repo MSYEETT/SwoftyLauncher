@@ -30,6 +30,9 @@ class Db:
 
 def main(argv):
     db = Db(argv[1])
+    missing = set()
+    if "--lists" in argv:
+        missing = set(json.loads(Path(argv[argv.index("--lists") + 1]).read_text(encoding="utf-8"))["missing"])
     grid = json.loads((ROOT / "db/grid.json").read_text(encoding="utf-8"))
     problems = []
     lists = dict((m, p) for p, m in db.rows("entrants.entrant_lists", "entrant_list"))
@@ -57,6 +60,9 @@ def main(argv):
         if not d or look not in looks:
             problems.append(f"{m}: driver {dlabel} or look {look} unresolved")
             continue
+        kit = [("head", db.get(d + ".head"))] + [
+            (part, db.get(f"{looks[look]}.{part}")) for part in ("helmet", "suit", "gloves")]
+        problems += [f"{dlabel}: {part} {value} has no game asset" for part, value in kit if f"{part}/{value}" in missing]
         num = db.get(p + ".car_number")
         numbers[num] += 1
         drivers_seen[dlabel] += 1
