@@ -891,8 +891,10 @@ void on_session_start(const SwoftyEvent *, void *)
         ce::log("weather: session.start active dataset %u is not a session dataset; nothing locked", d);
         return;
     }
+    uint8_t was = g_locked[g_weekend];
     g_locked[g_weekend] |= static_cast<uint8_t>(1u << d);
-    save_sidecar();
+    if (g_locked[g_weekend] != was)
+        save_sidecar();
     g_last_progress = -1.0f;
     ce::log("weather: session.start dataset=%u (%s) weekend=%d -> locked; %s", d, kKeys[d], g_weekend,
             describe(tod, d).c_str());
@@ -993,6 +995,8 @@ void log_game_forecast(uintptr_t ws, const WeatherSessionSettings *set, bool scr
 
 SWOFTY_WRAP(Sess_GameWeatherSystem_SetupSession, void, void *ws, void *settings, void *config)
 {
+    static const uint32_t probe = ce::perf_probe("wrap Sess_GameWeatherSystem_SetupSession");
+    ce::Timed timed(probe);
     ce::ensure_frame();
     uintptr_t w = reinterpret_cast<uintptr_t>(ws);
     uintptr_t set = reinterpret_cast<uintptr_t>(settings);
@@ -1013,7 +1017,10 @@ SWOFTY_WRAP(Sess_GameWeatherSystem_SetupSession, void, void *ws, void *settings,
         if (career && !scripted && !time_trial && g_pinned)
             push_seed(w, g_pin, "forecast build");
     }
-    orig(ws, settings, config);
+    {
+        ce::GameCall in_game;
+        orig(ws, settings, config);
+    }
     Guard g;
     if (!tod_of(w))
         return;

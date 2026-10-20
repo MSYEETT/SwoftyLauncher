@@ -13,6 +13,8 @@
 // their ops and sections through ce.hpp. Every game address is a KB binding resolved at load; one
 // unresolved binding means the addon registers nothing.
 
+#include <windows.h>
+
 #include <atomic>
 #include <cstring>
 #include <mutex>
@@ -93,6 +95,63 @@ namespace ce {
 void ensure_frame()
 {
     register_frame("a game hook");
+}
+
+namespace {
+
+struct Profiler {
+    uint32_t (*probe)(const char *, const char *) = nullptr;
+    void (*enter)(uint32_t) = nullptr;
+    void (*leave)() = nullptr;
+};
+
+const Profiler &profiler()
+{
+    static const Profiler p = [] {
+        Profiler out;
+        HMODULE core = GetModuleHandleW(L"swofty_core.dll");
+        if (!core)
+            return out;
+        out.probe = reinterpret_cast<uint32_t (*)(const char *, const char *)>(
+            reinterpret_cast<void *>(GetProcAddress(core, "SwoftyPerfProbe")));
+        out.enter = reinterpret_cast<void (*)(uint32_t)>(reinterpret_cast<void *>(GetProcAddress(core, "SwoftyPerfEnter")));
+        out.leave = reinterpret_cast<void (*)()>(reinterpret_cast<void *>(GetProcAddress(core, "SwoftyPerfLeave")));
+        if (!out.probe || !out.enter || !out.leave)
+            out = Profiler{};
+        return out;
+    }();
+    return p;
+}
+
+} // namespace
+
+uint32_t perf_probe(const char *what)
+{
+    return profiler().probe ? profiler().probe("swofty.career-editor", what) : 0;
+}
+
+Timed::Timed(uint32_t probe) : on_(probe && profiler().enter)
+{
+    if (on_)
+        profiler().enter(probe);
+}
+
+Timed::~Timed()
+{
+    if (on_)
+        profiler().leave();
+}
+
+GameCall::GameCall() : on_(profiler().enter != nullptr)
+{
+    if (on_)
+        profiler().enter(0);
+}
+
+GameCall::~GameCall()
+{
+    if (on_)
+        profiler().leave();
 }
 
 } // namespace ce

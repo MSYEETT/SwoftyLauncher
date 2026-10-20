@@ -526,7 +526,6 @@ struct Bridge {
     Clock::time_point next_section{};
     uint64_t viewer_at = 0;
     uint64_t renders = 0;
-    uint64_t skipped = 0;
     uint64_t pass_ms = 0;
     uint64_t pass_max = 0;
     std::string pass_slowest;
@@ -1160,8 +1159,6 @@ std::string snapshot_body(uint64_t now)
     w.boolean(g.viewer_at && wall_ms() - g.viewer_at < kViewerFreshMs);
     w.key("renders");
     w.integer(int64_t(g.renders));
-    w.key("renders_skipped");
-    w.integer(int64_t(g.skipped));
     w.key("ops");
     w.begin_array();
     for (auto &e : op_table()) {
@@ -1313,8 +1310,6 @@ void snapshot(uint64_t now, bool force)
                 g.sections_dirty = true;
             }
     if (!g.sections_live || !viewer_fresh()) {
-        if (g.sections_live)
-            g.skipped++;
         write_snapshot(now);
         return;
     }
@@ -1437,8 +1432,12 @@ void start()
 
 void frame()
 {
-    if (!g.up)
+    static std::atomic_flag busy = ATOMIC_FLAG_INIT;
+    if (!g.up || busy.test_and_set(std::memory_order_acquire))
         return;
+    struct Done {
+        ~Done() { busy.clear(std::memory_order_release); }
+    } done;
     bool perf = perf_on();
     Clock::time_point start = perf ? Clock::now() : Clock::time_point{};
     g_perf.lap = start;

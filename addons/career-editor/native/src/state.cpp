@@ -338,18 +338,24 @@ void write_status(Writer &w, uint64_t)
     w.key("flow");
     w.begin_array();
     uint64_t wall = wall_ms();
+    static career::Status seen_status[SlotCount];
+    static uint64_t seen_since[SlotCount];
     for (int i = 0; i < SlotCount; ++i) {
         career::Status st = career::Status::none;
         uint64_t a = 0;
         if (career::flow_status(kKnown[i].hash, &st, &a) != career::Result::ok || st == career::Status::none)
             continue;
+        uint64_t since = wall >= a ? wall - a : 0;
+        uint64_t drift = since > seen_since[i] ? since - seen_since[i] : seen_since[i] - since;
+        if (st != seen_status[i] || drift > 2000)
+            seen_status[i] = st, seen_since[i] = since;
         w.begin_object();
         w.key("state");
         w.str(kKnown[i].name);
         w.key("status");
         w.str(career::name(st));
         w.key("since");
-        w.integer(int64_t(wall >= a ? wall - a : 0));
+        w.integer(int64_t(seen_since[i]));
         w.end_object();
     }
     w.end_array();

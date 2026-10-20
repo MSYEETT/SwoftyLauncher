@@ -65,6 +65,33 @@ void log(const char *fmt, ...);
 // modules' game hooks call it so a refused registration recovers.
 void ensure_frame();
 
+// The core's profiler (swofty/perf.log), found through the core's exports; both are no-ops on a core
+// without it. Timed counts a game hook's own time; GameCall marks the game's original running inside
+// it, which is not counted.
+uint32_t perf_probe(const char *what);
+
+class Timed {
+  public:
+    explicit Timed(uint32_t probe);
+    ~Timed();
+    Timed(const Timed &) = delete;
+    Timed &operator=(const Timed &) = delete;
+
+  private:
+    bool on_;
+};
+
+class GameCall {
+  public:
+    GameCall();
+    ~GameCall();
+    GameCall(const GameCall &) = delete;
+    GameCall &operator=(const GameCall &) = delete;
+
+  private:
+    bool on_;
+};
+
 } // namespace ce
 
 #define CE_CAT_(a, b) a##b

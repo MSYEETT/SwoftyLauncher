@@ -688,13 +688,17 @@ std::atomic<int> g_inject_log{0};
 SWOFTY_WRAP(Career_Rebuild_SeasonStandings, void, void *season, void *order_a, void *order_b, void *extra_points,
             void *extra_e)
 {
+    static const uint32_t probe = ce::perf_probe("wrap Career_Rebuild_SeasonStandings");
+    ce::Timed timed(probe);
     ce::ensure_frame();
     uintptr_t s = reinterpret_cast<uintptr_t>(season);
     std::vector<Adj> add;
     if (has_vtable(s, vt_Career_Season.get()))
         add = adjustments_for(s);
-    if (add.empty())
+    if (add.empty()) {
+        ce::GameCall in_game;
         return orig(season, order_a, order_b, extra_points, extra_e);
+    }
 
     NeOptionalVec *game = static_cast<NeOptionalVec *>(extra_points);
     std::vector<std::pair<uint32_t, int32_t>> merged;
@@ -727,6 +731,7 @@ SWOFTY_WRAP(Career_Rebuild_SeasonStandings, void, void *season, void *order_a, v
     void *buf = alloc ? alloc_call(alloc, merged.size() * kStPointRec, alignof(StandingsPoints)) : nullptr;
     if (!buf) {
         ce::log("season: standings rebuild: no allocator for %zu adjustment(s); rebuilt without them", add.size());
+        ce::GameCall in_game;
         return orig(season, order_a, order_b, extra_points, extra_e);
     }
     auto *recs = static_cast<StandingsPoints *>(buf);
@@ -740,7 +745,10 @@ SWOFTY_WRAP(Career_Rebuild_SeasonStandings, void, void *season, void *order_a, v
     mine.end = recs + merged.size();
     mine.count = merged.size();
     mine.engaged = 1;
-    orig(season, order_a, order_b, &mine, extra_e);
+    {
+        ce::GameCall in_game;
+        orig(season, order_a, order_b, &mine, extra_e);
+    }
     if (game_engaged) {
         void *b = game->begin;
         game->end = b;
