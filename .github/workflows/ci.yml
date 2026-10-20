@@ -219,6 +219,7 @@ jobs:
         with:
           runtime: node@24
           cache: true
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
           require-lockfile: true
 
       - name: Build
