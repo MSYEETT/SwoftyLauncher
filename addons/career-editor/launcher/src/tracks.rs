@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use crate::host::Host;
 use crate::ui::{title_case, track_name};
 
-pub const MIN_LAUNCHER: (u64, u64, u64) = (1, 0, 11);
+pub const MIN_LAUNCHER: (u64, u64, u64) = (1, 0, 12);
 const MAX_TRACK_ID: u64 = 254;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -344,7 +344,7 @@ mod tests {
 
     #[test]
     fn launcher_versions() {
-        assert!(supported("1.0.11") && supported("1.1.0") && supported("v2.0.0-rc1"));
-        assert!(!supported("1.0.10") && !supported("") && !supported("dev"));
+        assert!(supported("1.0.12") && supported("1.1.0") && supported("v2.0.0-rc1"));
+        assert!(!supported("1.0.11") && !supported("") && !supported("dev"));
     }
 }

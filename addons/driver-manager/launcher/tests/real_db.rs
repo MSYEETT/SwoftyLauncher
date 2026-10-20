@@ -75,7 +75,7 @@ fn helper_build(data_dir: &Path, cache_dir: &Path, db_path: &Path) -> Value {
     let mut send = |v: Value| writeln!(stdin, "{v}").unwrap();
     send(json!({ "id": 0, "method": "hello", "params": {
         "api": 1, "addon": ADDON, "data_dir": data_dir, "cache_dir": cache_dir,
-        "profile": { "name": "default", "vanilla": false, "enabled": true }, "launcher": "1.0.11" } }));
+        "profile": { "name": "default", "vanilla": false, "enabled": true }, "launcher": "1.0.12" } }));
     let hello: Value = serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
     assert_eq!(hello["result"]["api"], 1);
     send(json!({ "id": 1, "method": "build", "params": {

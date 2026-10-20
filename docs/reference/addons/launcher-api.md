@@ -223,7 +223,7 @@ While handling a request, you can call back to the launcher. Include an `id` whe
 | `addon_game_dir` *(1.0.10)* | — | `<game>/swofty/addons/<id>/` for your addon, or `null` |
 | `game_status` *(1.0.10)* | — | `{ running, pid, since, session }` |
 | `steam_save_dir` *(1.0.10)* | — | `<steam>/userdata/<steamid3>/3059520/remote/`, or `null` |
-| `profile_tracks` *(1.0.11)* | — | the tracks in the active profile's last build, or `null` ([Profile tracks](#profile-tracks)) |
+| `profile_tracks` *(1.0.12)* | — | the tracks in the active profile's last build, or `null` ([Profile tracks](#profile-tracks)) |
 | `invalidate` *(notification, 1.0.10)* | `{ section }` | — ([Live pages](#live-pages)) |
 
 ```json
@@ -478,7 +478,7 @@ if let Some(toggle) = event.get("toggle") {
 
 **`grid`**: blocks side by side. `{ columns, blocks }`: `columns` is a count from 1 to 4 for equal columns (default 2), or a list of relative widths such as `[2, 1]`. The blocks fill the columns left to right, then the next row; blocks in a row share its height. On a page too narrow for about 280 px per column, the grid becomes one column.
 
-**`image`** *(1.0.11)*: a picture from your plugin's `cache_dir` or `data_dir`. `{ path, width, height, caption, fit }`: `path` (absolute), `width` and `height` (in pixels) are required. `width` shrinks to the space the block is in. `fit` is `cover` (default), which fills the box and crops, or `contain`, which shows the whole picture inside the box. `caption` is a muted line under it. A path outside those two folders shows an empty box. An older launcher fails the view.
+**`image`** *(1.0.12)*: a picture from your plugin's `cache_dir` or `data_dir`. `{ path, width, height, caption, fit }`: `path` (absolute), `width` and `height` (in pixels) are required. `width` shrinks to the space the block is in. `fit` is `cover` (default), which fills the box and crops, or `contain`, which shows the whole picture inside the box. `caption` is a muted line under it. A path outside those two folders shows an empty box. An older launcher fails the view.
 
 ```json
 { "image": { "path": "/home/you/.local/share/swofty/cache/addons/example.launcher-addon/helmets/helmet_042-91c0.png", "width": 240, "height": 135, "caption": "Carbon stripe", "fit": "contain" } }
@@ -546,16 +546,16 @@ Every field takes `id` *(required: its key in `values`)*, `label`, `help` (a mut
 | `number` | `value`, `min`, `max`, `step` (default `1`), `unit` (shown after the number) | a number |
 | `slider` | `value`, `min` (default `0`), `max` (default `100`), `step` (default `1`), `unit` | a number |
 | `text` | `value`, `placeholder`, `max_len` | a string |
-| `select` | `value`, `options`: strings, `{ value, label }` objects (with an optional `image` *(1.0.11)*), or `{ heading }` group titles *(1.0.11)*; `search` *(1.0.11)* | the chosen option's `value` (a string option is its own value) |
+| `select` | `value`, `options`: strings, `{ value, label }` objects (with an optional `image` *(1.0.12)*), or `{ heading }` group titles *(1.0.12)*; `search` *(1.0.12)* | the chosen option's `value` (a string option is its own value) |
 | `toggle` | `value` | `true` or `false` |
 
-A `{ "heading": "Modded tracks" }` option starts a group in the select's menu: its title shows above the options that follow it, with a line above it unless it's the first group, and it can't be picked. A search that matches a group's title keeps the whole group. An older launcher fails the view, so send it only to 1.0.11 or later.
+A `{ "heading": "Modded tracks" }` option starts a group in the select's menu: its title shows above the options that follow it, with a line above it unless it's the first group, and it can't be picked. A search that matches a group's title keeps the whole group. An older launcher fails the view, so send it only to 1.0.12 or later.
 
-*Launcher 1.0.11.* A `{ value, label }` option can carry `"image"`: the absolute path of a PNG or JPEG under your plugin's `cache_dir` or `data_dir`. The menu shows it as a thumbnail before the label, and the closed field shows the picked option's thumbnail. When some options have an image, the others get an empty square. A path outside those two folders shows no image. The launcher caches an image by its path, so write changed content under a new file name. An older launcher ignores `image`.
+*Launcher 1.0.12.* A `{ value, label }` option can carry `"image"`: the absolute path of a PNG or JPEG under your plugin's `cache_dir` or `data_dir`. The menu shows it as a thumbnail before the label, and the closed field shows the picked option's thumbnail. When some options have an image, the others get an empty square. A path outside those two folders shows no image. The launcher caches an image by its path, so write changed content under a new file name. An older launcher ignores `image`.
 
 A number is clamped to `min`–`max` and rounded to `step` when it's committed, and is sent as an integer when the step and the value are whole. Up and Down step a focused number field.
 
-A select's list opens below it, at most 320 pixels tall, and scrolls when the options don't fit. Up and Down move through the options, Enter picks one and Escape closes the list. *Launcher 1.0.11* adds `"search": true`, which puts a search box at the top of the list: typing filters the options to those whose label contains the text, ignoring case. The field still shows the current value while you search. An older launcher ignores `search` and shows the full list.
+A select's list opens below it, at most 320 pixels tall, and scrolls when the options don't fit. Up and Down move through the options, Enter picks one and Escape closes the list. *Launcher 1.0.12* adds `"search": true`, which puts a search box at the top of the list: typing filters the options to those whose label contains the text, ignoring case. The field still shows the current value while you search. An older launcher ignores `search` and shows the full list.
 
 ```json
 { "select": { "id": "helmet", "label": "Helmet", "value": "helmet_042", "search": true,
@@ -693,7 +693,7 @@ Return your addon's asset ops from `build`, along with lines and warnings:
 }
 ```
 
-*Launcher 1.0.11* adds `fields`, the field names a `db.add-row` copies, in the same shape as an [op file's `fields`](/reference/ops/database): an object keyed by `<table>.<row>`, each holding a list of field names:
+*Launcher 1.0.12* adds `fields`, the field names a `db.add-row` copies, in the same shape as an [op file's `fields`](/reference/ops/database): an object keyed by `<table>.<row>`, each holding a list of field names:
 
 ```json
 {
@@ -710,7 +710,7 @@ Return your addon's asset ops from `build`, along with lines and warnings:
 - If your addon loads several items, such as the mods in a library, you can add `items`: the item each op comes from, by position in `ops`, with `null` for an op that belongs to no item. The launcher adds the item to the op's origin, so each item gets its own runtime overlay archive and conflicts name it. Leave `items` out, or shorter than `ops`, and the remaining ops have no item.
 - Check `features.stable` and `features.experimental` before returning ops. They list the op `kind`s the installed loader supports: `group`, `erp`, `db`, `lang`, `file`. Drop any ops it cannot apply.
 - The build calls `build` for each enabled addon in load order, after that addon's declared ops. It prints `lines` and `warnings` with the addon id as a prefix.
-- `fields` applies to every `db.add-row` of your addon, from the reply and from your op files. An op file's own `fields` takes precedence for the tables it lists. An `add-row` whose table is in neither fails with `field names unknown`. A launcher before 1.0.11 ignores `fields`; set `"compat": { "launcher": ">=1.0.11" }` when you return `add-row` ops.
+- `fields` applies to every `db.add-row` of your addon, from the reply and from your op files. An op file's own `fields` takes precedence for the tables it lists. An `add-row` whose table is in neither fails with `field names unknown`. A launcher before 1.0.12 ignores `fields`; set `"compat": { "launcher": ">=1.0.12" }` when you return `add-row` ops.
 
 ```rust [src/main.rs]
 fn build(&self, host: &mut Host) -> Result<Value, String> {

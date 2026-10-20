@@ -210,7 +210,7 @@ fn the_page_shows_previews() {
         "hello",
         json!({
         "api": 1, "addon": "swofty.driver-manager", "data_dir": data_dir, "cache_dir": cache_dir,
-        "profile": { "name": "default", "vanilla": false, "enabled": true }, "launcher": "1.0.11" }),
+        "profile": { "name": "default", "vanilla": false, "enabled": true }, "launcher": "1.0.12" }),
     );
     let started = Instant::now();
     let mut view = h.call("view", json!({}));

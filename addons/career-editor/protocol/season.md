@@ -146,7 +146,7 @@ placeholder and some readers index the track table with it unchecked, so it is n
   (their names are only hashed in the gamedb), and a name or id that does not resolve would break the
   weekend when it starts, so the launcher must only send what the active profile defines.
 
-How the launcher resolves them (host call `profile_tracks`, launcher 1.0.11; it reads the gamedb in
+How the launcher resolves them (host call `profile_tracks`, launcher 1.0.12; it reads the gamedb in
 the profile's latest build folder, or the stock one before the first build):
 
 | Track | Weekend name | `track_stat_id` |

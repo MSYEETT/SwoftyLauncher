@@ -1,6 +1,6 @@
 # Driver Manager
 
-Creates new F1 25 drivers from the launcher's **Driver Manager** page: name, code, number, nationality, head, helmet, suit, gloves, pose, podium emote, commentary name, ratings, seasons completed and garage slot. Each driver is a free agent in the 2025 and 2026 driver pools of careers started after the driver is added. Needs Swofty Launcher for F1 25 1.0.11 or later.
+Creates new F1 25 drivers from the launcher's **Driver Manager** page: name, code, number, nationality, head, helmet, suit, gloves, pose, podium emote, commentary name, ratings, seasons completed and garage slot. Each driver is a free agent in the 2025 and 2026 driver pools of careers started after the driver is added. Needs Swofty Launcher for F1 25 1.0.12 or later.
 
 User guide: [Driver Manager](https://f1.swofty.net/using/driver-manager).
 

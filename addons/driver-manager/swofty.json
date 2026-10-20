@@ -15,7 +15,7 @@
     "game_builds": [
       ">=25251167"
     ],
-    "launcher": ">=1.0.11"
+    "launcher": ">=1.0.12"
   },
   "saves": {
     "affects": true,

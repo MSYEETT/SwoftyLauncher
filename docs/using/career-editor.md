@@ -29,7 +29,7 @@ Load a career and go to Team HQ. The **Career Editor** page shows the game, the 
 
 ## Calendar
 
-**Season** changes rounds after the current one that haven't started: remove a round, replace its track, add a round or reorder them. With Swofty Launcher 1.0.11 or later, **Add a round** and **Replace track** list every Grand Prix track in your profile's last build, in three groups:
+**Season** changes rounds after the current one that haven't started: remove a round, replace its track, add a round or reorder them. With Swofty Launcher 1.0.12 or later, **Add a round** and **Replace track** list every Grand Prix track in your profile's last build, in three groups:
 
 | Group | Tracks |
 |---|---|

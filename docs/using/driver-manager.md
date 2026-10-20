@@ -5,11 +5,11 @@ description: Create new F1 25 drivers in the launcher and sign them as free agen
 
 # Driver Manager
 
-The Driver Manager addon adds a **Driver Manager** page to the launcher. It creates new drivers, each with its own id and its own rows in the game database. New drivers are free agents in careers started after they are added. It needs Swofty Launcher for F1 25 1.0.11 or later.
+The Driver Manager addon adds a **Driver Manager** page to the launcher. It creates new drivers, each with its own id and its own rows in the game database. New drivers are free agents in careers started after they are added. It needs Swofty Launcher for F1 25 1.0.12 or later.
 
 ## Install
 
-1. Download `swofty.driver-manager.zip` from the [1.0.11 release](https://github.com/Swofty-Developments/SwoftyLauncher/releases/tag/v1.0.11).
+1. Download `swofty.driver-manager.zip` from the [1.0.12 release](https://github.com/Swofty-Developments/SwoftyLauncher/releases/tag/v1.0.12).
 2. Drag it onto the launcher window, or follow [Install an addon](/using/addons#install-an-addon).
 3. Turn it on in your profile.
 
