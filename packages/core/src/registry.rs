@@ -10,6 +10,7 @@ use crate::helper::HelperAddon;
 use crate::install::Game;
 use crate::manifest::AddonManifest;
 use crate::profile::Profile;
+use crate::saves::SavesWarning;
 use crate::store::Store;
 use crate::{Error, Result};
 
@@ -102,6 +103,14 @@ impl Registry {
             )));
         }
         p.set_enabled(id, on)
+    }
+
+    pub fn turn_off_warning(&self, p: &Profile, id: &str) -> Option<SavesWarning> {
+        let e = self.get(id).filter(|e| !e.locked)?;
+        if !p.enabled().any(|on| on == id) {
+            return None;
+        }
+        SavesWarning::of(e.addon.manifest())
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Entry> {
@@ -345,6 +354,30 @@ mod tests {
         reg.set_enabled(&mut p, "t.a", true).unwrap();
         reg.set_enabled(&mut p, "t.b", false).unwrap();
         assert_eq!(p.enabled().collect::<Vec<_>>(), [CORE_ID, "t.a"]);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn warns_before_turning_off_an_addon_that_affects_saves() {
+        let root = tmp("saves");
+        let dir = root.join("addons/t.saves");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join(crate::manifest::MANIFEST_FILE),
+            r#"{"schema_version":1,"id":"t.saves","name":"Saves","version":"1.0.0","author":"t",
+                "compat":{"game":"f1_25"},"saves":{"affects":true,"message":"m"}}"#,
+        )
+        .unwrap();
+        let store = Store::new(&root).with_builtins(vec![fake("t.a", "a", true)]);
+        let reg = Registry::load(&store).unwrap();
+        let mut p = store.profile("default").unwrap();
+        assert_eq!(reg.turn_off_warning(&p, "t.saves"), None);
+        reg.set_enabled(&mut p, "t.saves", true).unwrap();
+        let w = reg.turn_off_warning(&p, "t.saves").unwrap();
+        assert_eq!((w.id.as_str(), w.message.as_deref()), ("t.saves", Some("m")));
+        assert_eq!(reg.turn_off_warning(&p, "t.a"), None);
+        assert_eq!(reg.turn_off_warning(&p, "t.missing"), None);
+        assert_eq!(reg.turn_off_warning(&Profile::vanilla(), "t.saves"), None);
         std::fs::remove_dir_all(&root).ok();
     }
 

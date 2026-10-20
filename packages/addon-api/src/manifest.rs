@@ -42,6 +42,27 @@ pub struct AddonManifest {
     pub operations: Operations,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub launcher: Option<Launcher>,
+    #[serde(default, skip_serializing_if = "Saves::is_unset")]
+    pub saves: Saves,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Saves {
+    #[serde(default)]
+    pub affects: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+impl Saves {
+    fn is_unset(&self) -> bool {
+        *self == Self::default()
+    }
+
+    pub fn message(&self) -> Option<&str> {
+        self.message.as_deref().map(str::trim).filter(|m| !m.is_empty())
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -473,6 +494,51 @@ mod tests {
             r#"{ "name": "a", "file": "ui/a.ui", "anchor": "x.y" }"#,
             r#"{ "name": "a", "file": "ui/a.ui" }, { "name": "a", "file": "ui/b.ui" }"#,
             r#"{ "name": "a", "file": "ui/a.ui", "extra": 1 }"#,
+        ] {
+            assert!(AddonManifest::parse(&with(bad)).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn parses_the_saves_flag() {
+        let with = |saves: &str| {
+            GRID24.replace(
+                r#""author": "swofty","#,
+                &format!(r#""author": "swofty", {saves}"#),
+            )
+        };
+        let m = AddonManifest::parse(GRID24).unwrap();
+        assert_eq!(m.saves, Saves::default());
+        assert!(!m.saves.affects);
+        assert!(serde_json::to_value(&m).unwrap().get("saves").is_none());
+        let m = AddonManifest::parse(&with(r#""saves": { "affects": true },"#)).unwrap();
+        assert!(m.saves.affects);
+        assert_eq!(m.saves.message(), None);
+        let m = AddonManifest::parse(&with(
+            r#""saves": { "affects": true, "message": "Retire drivers instead of removing the addon." },"#,
+        ))
+        .unwrap();
+        assert!(m.saves.affects);
+        assert_eq!(
+            m.saves.message(),
+            Some("Retire drivers instead of removing the addon.")
+        );
+        let json = serde_json::to_value(&m).unwrap();
+        assert_eq!(json["saves"]["affects"], true);
+        assert_eq!(AddonManifest::parse(&json.to_string()).unwrap(), m);
+        let m = AddonManifest::parse(&with(r#""saves": {},"#)).unwrap();
+        assert!(!m.saves.affects);
+        assert_eq!(
+            AddonManifest::parse(&with(r#""saves": { "affects": true, "message": " " },"#))
+                .unwrap()
+                .saves
+                .message(),
+            None
+        );
+        for bad in [
+            r#""saves": { "affects": true, "extra": 1 },"#,
+            r#""saves": { "affects": "yes" },"#,
+            r#""saves": true,"#,
         ] {
             assert!(AddonManifest::parse(&with(bad)).is_err(), "{bad}");
         }

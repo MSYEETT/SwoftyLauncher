@@ -34,6 +34,21 @@ Your addon needs a `swofty.json` at its root. This is where you give it a name, 
 | `icon` | string? | A path inside your addon, shown on the Addons page and your addon's sidebar pages. Use an `.svg` for a one-colour glyph in the launcher's icon style, or a square `.png`, `.jpg` or `.webp` to show the image as it is. |
 | `kind` | string[] | Optional categories: `database`, `erp`, `ui`, `files`, `native`. |
 
+## saves
+
+`saves` marks an addon that changes what careers store, such as one that adds drivers. The launcher warns before such an addon is turned off or removed:
+
+```json
+"saves": { "affects": true, "message": "Retire drivers on the Drivers page instead of removing the addon." }
+```
+
+| Field | Type | Value |
+|---|---|---|
+| `affects` | boolean | `true` makes the launcher ask before the addon is turned off in a profile or removed: "This addon has affected your saves. Careers you played with it may not load without it." Defaults to `false`. |
+| `message` | string? | Shown under the warning, such as what to do instead. |
+
+Leave `saves` out for an addon that doesn't affect saves. The launcher shows the warning in a dialog; `swofty addons disable` and `swofty addons remove` ask on a terminal and need `--yes` otherwise. Turning the addon on is never asked about. A launcher before 1.0.11 rejects the field; set `"compat": { "launcher": ">=1.0.11" }` when you use it.
+
 ## compat
 
 ```json

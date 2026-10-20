@@ -70,7 +70,10 @@ See [Restoring the game](/using/profiles-and-restoring).
 | `swofty addons list` | List installed addons and whether they are enabled |
 | `swofty addons install <path>` | Install an addon folder, a `.swoftyaddon` file or a zip that holds an addon |
 | `swofty addons enable <id>` | Enable an addon |
-| `swofty addons disable <id>` | Disable an addon; SwoftyMod cannot be disabled |
+| `swofty addons disable <id> [--yes]` | Disable an addon; SwoftyMod cannot be disabled |
+| `swofty addons remove <id> [--yes]` | Delete an installed addon and take it out of every profile; built-in addons cannot be removed |
+
+For an addon whose manifest sets [`saves.affects`](/reference/addons/manifest#saves), `disable` (when the addon is on) and `remove` print "Warning: <name> (<id>) has affected your saves. Careers you played with it may not load without it.", then the addon's message, and ask `[y/N]`. `--yes` (`-y`) skips the question. When stdin is not a terminal, the command needs `--yes`; without it, nothing changes and the command exits with status 1.
 
 If you use `swofty mods install <addon folder>` or `swofty mods enable|disable <addon id>`, they still run the `swofty addons` command and print a note.
 

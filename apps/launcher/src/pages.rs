@@ -11,7 +11,7 @@ use gpui_kit::component::{Disableable, Icon, Sizable, WindowExt, h_flex, v_flex}
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::manifest::{AddonManifest, AddonOption, Binds, OptionType};
-use swofty_core::profile::{Profile, VANILLA};
+use swofty_core::profile::VANILLA;
 use swofty_core::store::ProfileDeletion;
 
 use crate::library::{AddonIcon, AddonItem, ProfileItem, kind_label, plural};
@@ -371,16 +371,13 @@ impl Shell {
         id: String,
         on: bool,
         cx: &mut Context<Self>,
-        set: impl Fn(&mut Profile, bool) -> swofty_core::Result<()> + 'static,
+        change: impl Fn(&mut Self, bool, &mut Window, &mut Context<Self>) + 'static,
     ) -> AnyElement {
         let switch = Switch::new(SharedString::from(id.clone()))
             .checked(on)
             .small()
             .disabled(self.vanilla())
-            .on_change(cx.listener(move |this, on: &bool, window, cx| {
-                let on = *on;
-                this.update_profile(window, cx, |p| set(p, on));
-            }));
+            .on_change(cx.listener(move |this, on: &bool, window, cx| change(this, *on, window, cx)));
         div()
             .id(SharedString::from(format!("{id}-hold")))
             .on_click(|_, _, cx| cx.stop_propagation())
@@ -512,9 +509,12 @@ impl Shell {
                 .into_any_element()
         } else {
             let id = id.clone();
-            self.toggle(format!("toggle-{id}"), m.enabled, cx, move |p, on| {
-                p.set_enabled(&id, on)
-            })
+            self.toggle(
+                format!("toggle-{id}"),
+                m.enabled,
+                cx,
+                move |this, on, window, cx| this.set_addon_enabled(&id, on, window, cx),
+            )
         };
         let head = self
             .row_head(format!("addon-{id}"), open, p)
@@ -731,9 +731,14 @@ impl Shell {
         let control = match o.kind {
             OptionType::Toggle => {
                 let (man, id) = (man.clone(), o.id.clone());
-                self.toggle(format!("setting-{key}"), value == true, cx, move |p, on| {
-                    p.set_option(&man, &id, on.into()).map(drop)
-                })
+                self.toggle(
+                    format!("setting-{key}"),
+                    value == true,
+                    cx,
+                    move |this, on, window, cx| {
+                        this.update_profile(window, cx, |p| p.set_option(&man, &id, on.into()).map(drop))
+                    },
+                )
             }
             OptionType::Choice => self.choice(&key, man, o, &value, cx),
             OptionType::Slider => self.slider(&key, o, &value, p, cx),

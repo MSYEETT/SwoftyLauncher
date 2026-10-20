@@ -25,6 +25,8 @@ The launcher copies the addon to `$DATA/addons/<id>/` and lists it on the **Addo
 
 The next time you press **Play**, the launcher builds the profile with the change.
 
+Some addons, such as Driver Manager, change what your careers store. Before you turn one of those off, the launcher asks first: **This addon has affected your saves**. Careers you played with it may not load without it. Select **Turn off anyway** to go ahead, or **Cancel** to leave it on. Removing such an addon asks the same, with **Remove anyway**. Turning an addon on never asks.
+
 If you're using the `vanilla` profile, switch to a modded profile first: on `vanilla`, rows read **Switch away from vanilla to use addons** instead of showing a switch. Addons the launcher needs show **Always on** with a lock.
 
 ## Check an addon
@@ -67,11 +69,12 @@ If an addon adds its own page, you'll find it in the sidebar under a heading wit
 | `swofty addons install <path>` | Install a folder, `.swoftyaddon` or zip |
 | `swofty addons enable <id>` | Turn an addon on |
 | `swofty addons disable <id>` | Turn an addon off |
+| `swofty addons remove <id>` | Remove an addon and take it out of every profile |
 | `swofty settings list [id]` | List addon settings with the profile's values |
 | `swofty settings set <id> <setting> <value>` | Change a setting |
 | `swofty settings reset <id>` | Put an addon's settings back to their defaults |
 
-Add `--profile <name>` to work on a profile other than the active one.
+Add `--profile <name>` to work on a profile other than the active one. For an addon that has affected your saves, `disable` and `remove` print the warning and ask before going ahead; add `--yes` to skip the question, which is required when the command isn't run from a terminal.
 
 ## Next
 

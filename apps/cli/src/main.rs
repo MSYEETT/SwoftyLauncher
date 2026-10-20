@@ -16,6 +16,7 @@ use clap::{Arg, ArgAction, ArgMatches, CommandFactory, FromArgMatches, Parser, S
 use swofty_core::launcher::CommandSpec;
 use swofty_core::manifest::{Binds, MANIFEST_FILE};
 use swofty_core::registry::{Host, Registry};
+use swofty_core::saves::SavesWarning;
 use swofty_core::store::Store;
 
 #[derive(Parser)]
@@ -99,9 +100,23 @@ enum Command {
 #[derive(Subcommand)]
 enum AddonsCommand {
     List,
-    Install { path: PathBuf },
-    Enable { id: String },
-    Disable { id: String },
+    Install {
+        path: PathBuf,
+    },
+    Enable {
+        id: String,
+    },
+    Disable {
+        id: String,
+        #[arg(long, short, help = "Don't ask, even when the addon has affected your saves")]
+        yes: bool,
+    },
+    #[command(about = "Delete an installed addon and take it out of every profile")]
+    Remove {
+        id: String,
+        #[arg(long, short, help = "Don't ask, even when the addon has affected your saves")]
+        yes: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -361,13 +376,49 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
                 .with_context(|| format!("installing {}", path.display()))?;
             println!("installed {} {}", m.id, m.version);
         }
-        AddonsCommand::Enable { id } | AddonsCommand::Disable { id }
+        AddonsCommand::Enable { id }
+        | AddonsCommand::Disable { id, .. }
+        | AddonsCommand::Remove { id, .. }
             if !store.addons()?.contains_key(&id) =>
         {
             bail!("{id} is not installed")
         }
         AddonsCommand::Enable { id } => toggle(store, profile, &id, true)?,
-        AddonsCommand::Disable { id } => toggle(store, profile, &id, false)?,
+        AddonsCommand::Disable { id, yes } => {
+            let p = store.profile(profile)?;
+            if let Some(w) = store.registry()?.turn_off_warning(&p, &id) {
+                confirm_saves(&w, "turn off", yes)?;
+            }
+            toggle(store, profile, &id, false)?
+        }
+        AddonsCommand::Remove { id, yes } => {
+            if let Some(w) = store.addons()?.get(&id).and_then(SavesWarning::of) {
+                confirm_saves(&w, "remove", yes)?;
+            }
+            store.remove_addon(&id)?;
+            println!("removed {id}");
+        }
+    }
+    Ok(())
+}
+
+fn confirm_saves(w: &SavesWarning, verb: &str, yes: bool) -> Result<()> {
+    if yes {
+        return Ok(());
+    }
+    let (id, warning) = (&w.id, w.text());
+    if !std::io::stdin().is_terminal() {
+        bail!("{warning}\nstdin is not a terminal: pass --yes to {verb} {id} anyway");
+    }
+    println!("{warning}");
+    let mut ask = verb.to_owned();
+    ask[..1].make_ascii_uppercase();
+    print!("{ask} {id} anyway? [y/N] ");
+    std::io::stdout().flush().ok();
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line)?;
+    if !matches!(line.trim(), "y" | "Y" | "yes") {
+        bail!("{id} is unchanged");
     }
     Ok(())
 }

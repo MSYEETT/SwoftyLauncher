@@ -5,7 +5,8 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use gpui_kit::assets::IconName;
-use gpui_kit::component::button::Button;
+use gpui_kit::component::button::{Button, ButtonVariant};
+use gpui_kit::component::dialog::AlertDialog;
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::slider::SliderState;
@@ -15,6 +16,7 @@ use gpui_kit::*;
 use swofty_core::crash::StartFailure;
 use swofty_core::process::{GameProcess, stop_game};
 use swofty_core::recovery::{self, Blocked, Notice};
+use swofty_core::saves::{self, SavesWarning};
 use swofty_core::session::{LaunchMode, SessionRecord};
 use swofty_core::store::Store;
 use swofty_core::view::View;
@@ -600,38 +602,80 @@ impl Shell {
         });
     }
 
+    pub(crate) fn set_addon_enabled(
+        &mut self,
+        id: &str,
+        on: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let registry = self.library.registry.clone();
+        let warning = (!on)
+            .then(|| registry.turn_off_warning(&self.library.profile, id))
+            .flatten();
+        let Some(warning) = warning else {
+            self.update_profile(window, cx, |p| registry.set_enabled(p, id, on));
+            return;
+        };
+        let shell = cx.entity().downgrade();
+        let p = palette(cx);
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let (shell, id) = (shell.clone(), warning.id.clone());
+            saves_alert(alert, &warning, None, p)
+                .ok_text("Turn off anyway")
+                .on_ok(move |_, window, cx| {
+                    shell
+                        .update(cx, |s, cx| {
+                            let registry = s.library.registry.clone();
+                            s.update_profile(window, cx, |p| registry.set_enabled(p, &id, false));
+                        })
+                        .ok();
+                    true
+                })
+        });
+        cx.notify();
+    }
+
     pub(crate) fn remove_addon(&mut self, id: &str, name: &str, window: &mut Window, cx: &mut Context<Self>) {
+        const REMOVES: &str = "Its files are deleted and it is taken out of every profile. \
+                               You can install it again later.";
         let shell = cx.entity().downgrade();
         let store = self.store.clone();
         let id = id.to_owned();
         let name = name.to_owned();
+        let warning = self
+            .library
+            .addons
+            .iter()
+            .find(|a| a.manifest.id == id)
+            .and_then(|a| SavesWarning::of(&a.manifest));
+        let p = palette(cx);
         window.open_alert_dialog(cx, move |alert, _, _| {
             let (shell, store, id, name) = (shell.clone(), store.clone(), id.clone(), name.clone());
-            alert
-                .title(format!("Remove {name}?"))
-                .description(
-                    "Its files are deleted and it is taken out of every profile. \
-                     You can install it again later.",
-                )
-                .ok_text("Remove addon")
-                .show_cancel(true)
-                .on_ok(move |_, window, cx| {
-                    match store.remove_addon(&id) {
-                        Ok(()) => {
-                            window.push_notification(Notification::success(format!("Removed {name}")), cx);
-                            shell
-                                .update(cx, |s, cx| {
-                                    s.open_addon = None;
-                                    s.reload(cx);
-                                })
-                                .ok();
-                        }
-                        Err(e) => {
-                            window.push_notification(Notification::error(e.to_string()), cx);
-                        }
+            let alert = match &warning {
+                Some(w) => saves_alert(alert, w, Some(REMOVES), p).ok_text("Remove anyway"),
+                None => alert
+                    .title(format!("Remove {name}?"))
+                    .description(REMOVES)
+                    .ok_text("Remove addon"),
+            };
+            alert.show_cancel(true).on_ok(move |_, window, cx| {
+                match store.remove_addon(&id) {
+                    Ok(()) => {
+                        window.push_notification(Notification::success(format!("Removed {name}")), cx);
+                        shell
+                            .update(cx, |s, cx| {
+                                s.open_addon = None;
+                                s.reload(cx);
+                            })
+                            .ok();
                     }
-                    true
-                })
+                    Err(e) => {
+                        window.push_notification(Notification::error(e.to_string()), cx);
+                    }
+                }
+                true
+            })
         });
     }
 
@@ -1021,4 +1065,50 @@ impl Render for Shell {
             .children(self.progress_card(p))
             .when(self.dropping, |d| d.child(self.drop_overlay(p)))
     }
+}
+
+fn saves_alert(alert: AlertDialog, w: &SavesWarning, then: Option<&'static str>, p: Palette) -> AlertDialog {
+    let note = w.message.clone().map(|m| {
+        h_flex()
+            .gap(px(10.))
+            .items_start()
+            .p(px(12.))
+            .rounded(px(6.))
+            .bg(p.elevated)
+            .border_1()
+            .border_color(p.border)
+            .child(
+                Icon::new(IconName::CircleAlert)
+                    .size(px(15.))
+                    .text_color(p.warning),
+            )
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(2.))
+                    .child(
+                        div()
+                            .text_size(px(13.))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(p.text)
+                            .child(w.name.clone()),
+                    )
+                    .child(div().text_size(px(13.)).text_color(p.text_muted).child(m)),
+            )
+    });
+    alert
+        .width(px(480.))
+        .title(saves::TITLE)
+        .child(
+            v_flex()
+                .gap(px(12.))
+                .child(div().text_size(px(13.)).text_color(p.text).child(saves::BODY))
+                .children(note)
+                .when_some(then, |d, t| {
+                    d.child(div().text_size(px(13.)).text_color(p.text_muted).child(t))
+                }),
+        )
+        .ok_variant(ButtonVariant::Danger)
+        .show_cancel(true)
 }
