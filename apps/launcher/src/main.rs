@@ -2,6 +2,7 @@
 
 mod blocks;
 mod console;
+mod discord;
 mod game;
 mod library;
 mod pages;
@@ -46,6 +47,10 @@ fn main() {
             })
             .detach();
             shell.update(cx, |s, cx| s.restore_console(cx));
+            main.update(cx, |_, window, cx| {
+                shell.update(cx, |s, cx| s.show_news(window, cx))
+            })
+            .ok();
             cx.activate(true);
         });
 }

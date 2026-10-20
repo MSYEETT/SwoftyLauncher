@@ -154,6 +154,10 @@ SOFTWARE.
 
 Python is Copyright (c) 2001 Python Software Foundation; All Rights Reserved.
 
+## Discord logo
+
+`apps/launcher/assets/discord.svg` is the Discord logo from Simple Icons, <https://simpleicons.org/>, released under CC0 1.0. Discord and the Discord logo are trademarks of Discord Inc.
+
 ## Fonts
 
 Swofty UI uses the system's fonts and ships none. Its icon is a raster image and contains no font data.

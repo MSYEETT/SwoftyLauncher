@@ -1003,6 +1003,7 @@ impl Shell {
                     .child(wrap(items))
             }))
             .child(div().flex_1())
+            .child(self.discord_button(p))
             .child(self.send_logs_button(p, cx))
             .child(
                 v_flex()
