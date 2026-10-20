@@ -79,6 +79,20 @@ def main(argv):
         if e and db.get(e + ".driver") in drivers_seen:
             problems.append(f"pool entrant {ref} is also seated")
     print(f"f1_2026_driver_pool: {', '.join(pool)}")
+    holders = db.rows("driver_statistics.driver_statistics", "DriverStatisticsHolder")
+    if len(holders) > 128:
+        problems.append(f"{len(holders)} driver statistics holders; a race start aborts above 128")
+    by_driver = Counter(db.get(p + ".driver") for p, _ in holders)
+    order = ("experience", "racecraft", "awareness", "pace", "focus")
+    for p, _ in holders:
+        if db.get(p + ".driver") in drivers_seen:
+            names = tuple(db.get(f"{p}.StatisticsDataSet_0.Statistic_{i}._metadata_") for i in range(5))
+            if names != order:
+                problems.append(f"{p}: statistics in order {names}")
+    for d in drivers_seen:
+        if by_driver[d] != 1:
+            problems.append(f"driver {d} has {by_driver[d]} statistics holders")
+    print(f"{len(holders)} driver statistics holders")
     for op in grid["ops"]:
         if op["op"] != "add-row":
             continue
