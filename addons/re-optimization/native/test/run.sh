@@ -11,6 +11,6 @@ fi
 export ZIG_GLOBAL_CACHE_DIR=$PWD/../build/zig-cache ZIG_LOCAL_CACHE_DIR=$PWD/../build/zig-cache
 mkdir -p ../build
 
-"${ZIG[@]}" c++ -std=c++23 -O2 -Wall -Wextra -Werror -o ../build/reopt_tests \
+"${ZIG[@]}" c++ -target x86_64-linux-musl -std=c++23 -O2 -Wall -Wextra -Werror -o ../build/reopt_tests \
     tests.cpp ../src/delta.cpp ../src/overrides.cpp ../src/gpu.cpp
 ../build/reopt_tests sample_settings.xml
