@@ -37,6 +37,22 @@ If the wrapper receives a stop signal (Steam's **Stop**, `kill`, a closed termin
 
 To read a finished session's summary, use `swofty logs [<session dir>]`. Leave out the folder to see the latest session.
 
+### `swofty logs send`
+
+```sh
+swofty logs send --name <username> [--message <text>] [--dry-run [<zip>]]
+```
+
+Sends your logs to the developers on Discord, like **Send Logs to Developers** in the launcher. [Send your logs to the developers](/using/send-logs) lists what the zip holds.
+
+| Flag | Purpose |
+|---|---|
+| `--name <username>` | Your Discord username, 2 to 32 characters. Without it, the command uses the last username sent, from `config.json` `"discord_username"` |
+| `--message <text>` | What went wrong, up to 1000 characters |
+| `--dry-run [<zip>]` | Write the zip to `<zip>` (a file or a folder; the current folder when left out), list its files, and send nothing |
+
+The command prints its progress and exits with an error when Discord can't be reached or refuses the upload, naming the HTTP status. A zip over 9 MB goes in several messages, labelled `part 1/3` and so on. Builds from source can't send; there, only `--dry-run` works.
+
 ## `swofty build`
 
 Use `swofty build [--profile <name>]` when you want to prepare your profile's database and track files without starting the game. You'll find the output in `$DATA/cache/overlay/<profile>/<buildhash>/`: `swofty/settings.json` holds the session settings, and `plan.json` lists the game files to replace and add, along with their sources. Track archives, menu archives and car handling files are built in `$DATA/cache/maps`, `$DATA/cache/menus` and `$DATA/cache/ers`. Once the build succeeds, it removes older builds from those folders and your profile's overlay folder, keeping any that another profile's latest build uses.

@@ -149,6 +149,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Driver Manager", link: "/using/driver-manager" },
               { text: "Restoring the game", link: "/using/profiles-and-restoring" },
               { text: "Updating", link: "/using/updating" },
+              { text: "Sending your logs", link: "/using/send-logs" },
               { text: "Uninstalling", link: "/guide/uninstall" },
             ],
           },
