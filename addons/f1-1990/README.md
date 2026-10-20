@@ -40,3 +40,13 @@ python3 addons/f1-1990/tools/build_cars.py --game "<F1 25>" --write  # replace t
 ```
 
 The stock 2026 team archives and game database must be the stock files.
+
+## Driver Career (db/career.json, db/career-lang.json, tools/career.py)
+
+Driver Career 2026 is the 1990 career: one season of the 16 1990 rounds in order (Hockenheim on Shanghai until a
+Hockenheim track is added), no sprints, no transfer window, 9-6-4-3-2-1 points, and the agent is Flavio Briatore.
+Its careers save in their own `driver_career_1990` container, apart from 2026 careers.
+The **Career year** setting starts the career in 1990 (default) or 2026.
+
+`tools/career.py <dir>` writes `db/career.json` and `db/career-lang.json`; `<dir>` holds the stock language tables
+as `language_<code>.tsv` (key, tab, value, with `\n` escaped).
