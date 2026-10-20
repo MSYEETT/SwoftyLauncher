@@ -713,6 +713,10 @@ int main(int argc, char **argv)
         fake_flow();
         fake_flow();
         printf("      drove the flow tick twice\n");
+        expect((probe[39] & 3) == 3, "events: at ON_LOAD, before the events setup, t_events_early saw available() true and "
+                                     "on_frame ok");
+        expect(probe[38] == 2, "events: the frame callback t_events_early queued at ON_LOAD fired on both flow ticks "
+                               "after the setup armed it");
     }
 
     if (argc > 1 && (!strcmp(argv[1], "trigger") || !strcmp(argv[1], "vm") || !strcmp(argv[1], "gamelog_off")))

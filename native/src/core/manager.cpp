@@ -33,6 +33,7 @@ struct CoreMixins {
     std::vector<SwoftyMixin> mixins;
 };
 std::vector<CoreMixins> career_mixins();
+void career_setup();
 void ready();
 void events_drop_module(void *module);
 const std::wstring &swofty_root();
@@ -1220,6 +1221,8 @@ extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
         held.push_back({g.kind, g.addr, g.span});
     }
     mark = {written.size(), stubs.size(), mid_hooks.size(), inline_hooks.size(), sites_used};
+    if (!from)
+        runtime::career_setup();
     for (size_t i = from; i < addons.size(); i++) {
         auto &m = addons[i];
         if (!m.active)

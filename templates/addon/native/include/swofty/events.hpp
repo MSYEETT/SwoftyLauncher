@@ -33,7 +33,11 @@ inline Result result(int r)
 
 }
 
-// The events library is usable (feature on and implemented by this core).
+// The events library takes registrations: this core implements it, the feature is on, and the
+// core's setup has not found the frame tick missing on this build. Registration is accepted at any
+// time from SwoftyAddonInit on: a subscribe or on_frame made before the core's events setup (in
+// SwoftyAddonInit or a SWOFTY_ON_LOAD of the first load) returns ok, is queued, and fires once the
+// setup completes. If the setup then finds no frame tick, the core log names each queued on_frame.
 inline bool available()
 {
     auto t = detail::table();
@@ -51,6 +55,7 @@ inline Result subscribe(std::string_view event, SwoftyEventFn fn, void *user = n
 }
 
 // Run a callback once per rendered frame with the seconds elapsed since the previous frame.
+// unavailable once the core's setup found no frame tick on this build.
 inline Result on_frame(SwoftyFrameFn fn, void *user = nullptr, uint32_t *token = nullptr)
 {
     auto t = detail::table();

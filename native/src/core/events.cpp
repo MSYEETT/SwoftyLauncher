@@ -5,6 +5,11 @@
 
 #include "events_dispatch.hpp"
 
+#include <mutex>
+#include <string>
+#include <utility>
+#include <vector>
+
 std::string settings_addon(const void *from, std::string &dll);
 
 namespace {
@@ -21,7 +26,8 @@ const runtime::Sig S_RACE_STARTED{"Game_ChampionshipFormationLapComponent_OnRace
 
 runtime::ev::Dispatcher disp;
 safetyhook::MidHook h_flow, h_session_enter, h_race_started;
-bool armed;
+std::mutex queued_lock;
+std::vector<std::pair<uint32_t, std::string>> queued_by;
 
 double now_seconds()
 {
@@ -71,7 +77,22 @@ void race_started_mid(safetyhook::Context &)
 
 int ev_available()
 {
-    return armed && runtime::enabled("events", nullptr);
+    return runtime::enabled("events", nullptr) && disp.phase() != runtime::ev::Phase::failed;
+}
+
+std::string outcome(int r, uint32_t token, bool queued)
+{
+    if (r == SWOFTY_ASSET_UNAVAILABLE)
+        return "unavailable: the flow tick did not resolve on this build, so onFrame never fires";
+    if (r != SWOFTY_ASSET_OK)
+        return "invalid";
+    return "ok token " + std::to_string(token) + (queued ? ", queued until the events setup" : "");
+}
+
+void remember(uint32_t token, const std::string &by)
+{
+    std::lock_guard<std::mutex> g(queued_lock);
+    queued_by.push_back({token, by});
 }
 
 int ev_subscribe(const char *event, SwoftyEventFn fn, void *user, uint32_t *token)
@@ -79,10 +100,15 @@ int ev_subscribe(const char *event, SwoftyEventFn fn, void *user, uint32_t *toke
     const void *from = __builtin_return_address(0);
     if (!runtime::enabled("events", nullptr))
         return SWOFTY_ASSET_UNAVAILABLE;
-    int r = disp.subscribe(caller_module(from), event, fn, user, token);
-    swofty::log("[events] subscribe %s by %s -> %s%s", event ? event : "(null)", who(from).c_str(),
-                r == SWOFTY_ASSET_OK ? "ok token " : "invalid",
-                r == SWOFTY_ASSET_OK && token ? std::to_string(*token).c_str() : "");
+    uint32_t t = 0;
+    bool queued = false;
+    int r = disp.subscribe(caller_module(from), event, fn, user, &t, &queued);
+    if (r == SWOFTY_ASSET_OK && token)
+        *token = t;
+    std::string by = who(from);
+    if (r == SWOFTY_ASSET_OK && queued)
+        remember(t, by);
+    swofty::log("[events] subscribe %s by %s -> %s", event ? event : "(null)", by.c_str(), outcome(r, t, queued).c_str());
     return r;
 }
 
@@ -91,9 +117,15 @@ int ev_on_frame(SwoftyFrameFn fn, void *user, uint32_t *token)
     const void *from = __builtin_return_address(0);
     if (!runtime::enabled("events", nullptr))
         return SWOFTY_ASSET_UNAVAILABLE;
-    int r = disp.on_frame(caller_module(from), fn, user, token);
-    swofty::log("[events] on_frame by %s -> %s%s", who(from).c_str(), r == SWOFTY_ASSET_OK ? "ok token " : "invalid",
-                r == SWOFTY_ASSET_OK && token ? std::to_string(*token).c_str() : "");
+    uint32_t t = 0;
+    bool queued = false;
+    int r = disp.on_frame(caller_module(from), fn, user, &t, &queued);
+    if (r == SWOFTY_ASSET_OK && token)
+        *token = t;
+    std::string by = who(from);
+    if (r == SWOFTY_ASSET_OK && queued)
+        remember(t, by);
+    swofty::log("[events] on_frame by %s -> %s", by.c_str(), outcome(r, t, queued).c_str());
     return r;
 }
 
@@ -136,6 +168,46 @@ safetyhook::MidHook mid(const runtime::Sig &s, void (*fn)(safetyhook::Context &)
     return std::move(*h);
 }
 
+void report(const std::vector<runtime::ev::Queued> &held, bool live)
+{
+    std::vector<std::pair<uint32_t, std::string>> by;
+    {
+        std::lock_guard<std::mutex> g(queued_lock);
+        by.swap(queued_by);
+    }
+    auto owner = [&](uint32_t token) {
+        for (auto &[t, name] : by)
+            if (t == token)
+                return name;
+        return std::string("an addon");
+    };
+    if (held.empty())
+        return;
+    if (live) {
+        std::string list;
+        for (auto &q : held)
+            list += (list.empty() ? "" : ", ") + std::string(q.name ? q.name : "on_frame") + " token " +
+                    std::to_string(q.token) + " (" + owner(q.token) + ")";
+        swofty::log("[events] %zu registration(s) queued before setup are armed: %s", held.size(), list.c_str());
+        return;
+    }
+    size_t subscriptions = 0;
+    for (auto &q : held) {
+        if (q.name) {
+            subscriptions++;
+            continue;
+        }
+        swofty::log("[events] on_frame token %u by %s was queued before setup and will not fire: the flow tick did "
+                    "not resolve on this build",
+                    q.token, owner(q.token).c_str());
+    }
+    if (subscriptions)
+        swofty::log("[events] %zu event subscription(s) queued before setup stay registered; each fires only when its "
+                    "source hook is armed (session.start %s, race.start %s; the career and flow events follow the "
+                    "[career] setup line)",
+                    subscriptions, h_session_enter ? "armed" : "off", h_race_started ? "armed" : "off");
+}
+
 void setup()
 {
     if (!runtime::enabled("events", "events")) {
@@ -145,10 +217,10 @@ void setup()
     h_flow = mid(S_FLOW, flow_mid);
     h_session_enter = mid(S_SESSION_ENTER, session_enter_mid);
     h_race_started = mid(S_RACE_STARTED, race_started_mid);
-    armed = bool(h_flow);
     swofty::log("[events] setup: %s; onFrame %s, session.start %s, race.start %s",
-                armed ? "live" : "flow tick did not resolve (onFrame will not fire on this build)",
+                h_flow ? "live" : "flow tick did not resolve (onFrame will not fire on this build)",
                 h_flow ? "armed" : "off", h_session_enter ? "armed" : "off", h_race_started ? "armed" : "off");
+    report(disp.arm(bool(h_flow)), bool(h_flow));
 }
 
 }

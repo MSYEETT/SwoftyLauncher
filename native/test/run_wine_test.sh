@@ -149,7 +149,7 @@ EOF
         fi
         check "career: swofty_core itself still initialises" 'addon swofty_core\.dll: SwoftyAddonInit returned 1 \(ok\)'
         check "addons: a plugin exporting only SwoftyModInit loads" 'addon t_v1\.dll: loaded at .*, API v1 plugin, SwoftyModInit runs after the mixin commit'
-        check "addons: every dll in both folders loads" 'addons: done, 12 addon\(s\) loaded'
+        check "addons: every dll in both folders loads" 'addons: done, 13 addon\(s\) loaded'
         for re in 'scan \.xtls \[.*\] -> 1 hit at' 'registry global base\+0x[0-9a-f]+ \(= [0-9a-f]+ now\)' \
             'hook #1: list\(r14\)=0x[0-9a-f]+ r12=0x2 r15=0x1' 'built mod vtable .* from career vtable .* \(slot 4 populate .* slot 5 getAction' \
             'added button_3 \(items 1 -> 2\)' 'populate #1 .* vm=0*[1-9a-f]' "getAction #1 .* route 'mod_menu'"; do
@@ -162,6 +162,15 @@ EOF
         check "events: setup reports the onFrame tick live" '\[events\] setup: live; onFrame armed'
         once "events: first flow tick fires with dt 0" '\[events\] flow tick 1 observed, dt 0\.0'
         once "events: second flow tick fires" '\[events\] flow tick 2 observed'
+        once "events: a subscribe in SwoftyAddonInit is queued until the setup" '\[events\] subscribe session\.start by t_events_early\.dll -> ok token [0-9]+, queued until the events setup[[:space:]]*$'
+        once "events: an on_frame in SWOFTY_ON_LOAD is queued until the setup" '\[events\] on_frame by t_events_early\.dll -> ok token [0-9]+, queued until the events setup[[:space:]]*$'
+        once "events: available() is true and on_frame ok at ON_LOAD, before the setup" '\[t_events_early\] at load: events available 1, on_frame ok \(token [0-9]+\), career available 0'
+        once "events: the setup arms the queued registrations and names them" '\[events\] [0-9]+ registration\(s\) queued before setup are armed: .*session\.start token [0-9]+ \(t_events_early\.dll\).*on_frame token [0-9]+ \(t_events_early\.dll\)'
+        awk '/\[career\] setup:/ && !a {a = NR} /\[t_events_early\] at load/ && !b {b = NR} /\[events\] setup: live/ && !c {c = NR}
+             /queued before setup are armed/ && !d {d = NR} /\[events\] flow tick 1 observed/ && !e {e = NR}
+             END {exit !(a && a < b && b < c && c < d && d < e)}' "$LOG" &&
+            echo "ok  : events: career setup, then ON_LOAD, then the events setup arms the queue, then the first tick" ||
+            { echo "FAIL: events: career setup, then ON_LOAD, then the events setup arms the queue, then the first tick"; status=1; }
         check "gamelog: on with the defaults" '\[gamelog\] game log to loader\.log: on \(level warn, from defaults\)'
         check "gamelog: overwrite on Ne_Log_Thunk installed" 'wrap Ne_Log_Thunk at .* installed: swofty_gamelog\.dll\(0, overwrite\)'
         check "gamelog: site on Ne_Format_String installed" 'site site_Ne_Format_String_Entry at .* installed: swofty_gamelog\.dll\(0\)'
@@ -229,7 +238,7 @@ EOF
         once "telemetry: an addon opens the shared feed" '\[t_assets\] telemetry: shared_memory ok name=Local.SwoftyTelemetry'
         once "telemetry: the shared feed mapping is created" '\[telemetry\] shared_memory: Local.SwoftyTelemetry mapped, 6920 bytes'
         eapi='\[events\]'
-        once "events: the plugin's session.start subscription is accepted" "$eapi subscribe session\.start by example\.sample-mod -> ok token [0-9]+[[:space:]]*\$"
+        once "events: the plugin's session.start subscription is accepted and queued" "$eapi subscribe session\.start by example\.sample-mod -> ok token [0-9]+, queued until the events setup[[:space:]]*\$"
         once "events: the plugin's on_frame callback is accepted" "$eapi on_frame by example\.sample-mod -> ok token"
         once "events: an unknown event name is rejected" "$eapi subscribe not\.an\.event by example\.sample-mod -> invalid[[:space:]]*\$"
         once "events: unsubscribe of a live token succeeds" "$eapi unsubscribe token [0-9]+ -> ok[[:space:]]*\$"

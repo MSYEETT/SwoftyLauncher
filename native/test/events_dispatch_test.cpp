@@ -8,6 +8,7 @@
 #include <vector>
 
 using runtime::ev::Dispatcher;
+using runtime::ev::Phase;
 
 static int fails;
 
@@ -143,6 +144,59 @@ int main()
         expect(d.count() == 1, "the self-replacing handler left exactly one subscription");
         d.tick(2.0); // the newly added handler runs this time
         expect(g_reentrant_added == 1, "the handler added mid-dispatch fires on the following tick, not the current one");
+    }
+
+    // An addon registers during SwoftyAddonInit or SWOFTY_ON_LOAD, before the core's events setup
+    // (a single window-stage load runs every ON_LOAD before runtime::ready()). The registration is
+    // queued, and the frame callback fires once setup arms the flow tick.
+    {
+        Dispatcher d;
+        int frames = 0, loads = 0;
+        uint32_t tf = 0, tc = 0, td = 0, tl = 0;
+        bool qf = false, qc = false, qd = false, ql = true;
+        expect(d.phase() == Phase::pending, "a new dispatcher waits for the events setup");
+        expect(d.on_frame(7, on_frame, &frames, &tf, &qf) == SWOFTY_ASSET_OK && tf && qf,
+               "on_frame before setup is accepted and reported as queued");
+        expect(d.subscribe(7, SWOFTY_EVENT_CAREER_LOADED, on_event, &loads, &tc, &qc) == SWOFTY_ASSET_OK && tc && qc,
+               "career.loaded before setup is accepted and reported as queued");
+        expect(d.subscribe(8, SWOFTY_EVENT_FLOW_STATE, on_event, nullptr, &td, &qd) == SWOFTY_ASSET_OK && qd,
+               "flow.state from an addon whose init then fails is queued too");
+        expect(d.drop_owner(8) == 1, "the failed addon's queued subscription drops with its module");
+        auto held = d.arm(true);
+        expect(held.size() == 2 && held[0].token == tf && !held[0].name && held[0].owner == 7 && held[1].token == tc &&
+                   held[1].name == runtime::ev::canonical(SWOFTY_EVENT_CAREER_LOADED),
+               "arm returns the queued frame callback and subscription in registration order, not the dropped one");
+        expect(d.phase() == Phase::live, "setup with the flow tick hooked makes the dispatcher live");
+        g_dts.clear();
+        d.tick(50.0);
+        d.tick(50.25);
+        expect(frames == 2 && g_dts.size() == 2 && g_dts[1] == 0.25,
+               "the frame callback queued before setup fires on every flow tick after it");
+        SwoftyCareerState s{};
+        expect(d.fire(SWOFTY_EVENT_CAREER_LOADED, SWOFTY_CAREER_MY_TEAM, 0, &s, 51.0) == 1 && loads == 1,
+               "the career.loaded subscription queued before setup fires");
+        expect(d.on_frame(7, on_frame, nullptr, &tl, &ql) == SWOFTY_ASSET_OK && !ql,
+               "a registration after setup is live, not queued");
+        expect(d.arm(false).empty() && d.phase() == Phase::live, "a second arm changes nothing");
+    }
+
+    // Setup that finds no flow tick: the queued registrations are reported, on_frame from then on is
+    // unavailable, event subscriptions stay accepted (their sources are separate hooks).
+    {
+        Dispatcher d;
+        int frames = 0;
+        uint32_t tf = 0, ts = 0, tl = 0;
+        bool qs = true;
+        d.on_frame(3, on_frame, &frames, &tf);
+        auto held = d.arm(false);
+        expect(held.size() == 1 && held[0].token == tf && !held[0].name, "arm(false) reports the queued frame callback");
+        expect(d.phase() == Phase::failed, "setup without the flow tick leaves the dispatcher failed");
+        expect(d.on_frame(3, on_frame, &frames, &tl) == SWOFTY_ASSET_UNAVAILABLE && !tl,
+               "on_frame after a failed setup is unavailable and leaves the token untouched");
+        expect(d.subscribe(3, SWOFTY_EVENT_SESSION_START, on_event, nullptr, &ts, &qs) == SWOFTY_ASSET_OK && ts && !qs,
+               "subscribe after a failed setup is still accepted");
+        expect(d.unsubscribe(tf) == SWOFTY_ASSET_OK, "the queued frame callback can still be unsubscribed");
+        expect(frames == 0, "nothing fired");
     }
 
     printf("%s\n", fails ? "events dispatcher: FAILED" : "events dispatcher: all checks passed");

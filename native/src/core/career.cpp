@@ -3,6 +3,7 @@
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 
+#include <atomic>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -56,7 +57,8 @@ using Post = uint64_t(void *bus, void *msg);
 
 std::mutex lock;
 Tracker tracker;
-bool armed, flow_live, team_hq_live;
+std::atomic<bool> armed, set_up;
+bool flow_live, team_hq_live;
 uint64_t last_poll;
 std::mutex names_lock;
 std::unordered_map<uint32_t, std::string> names;
@@ -308,7 +310,7 @@ runtime::career::Components poll()
 
 int api_available()
 {
-    return armed && runtime::enabled("career", nullptr);
+    return (set_up ? armed.load() : bool(layout::FLOW)) && runtime::enabled("career", nullptr);
 }
 
 int api_state(SwoftyCareerState *out)
@@ -443,11 +445,12 @@ std::vector<CoreMixins> career_mixins()
 
 void career_setup()
 {
-    if (!enabled("career", nullptr))
+    if (set_up || !enabled("career", nullptr))
         return;
     flow_live = core_mixins_active(FLOW_MIXIN);
     team_hq_live = core_mixins_active(TEAM_HQ_MIXIN);
     armed = flow_live;
+    set_up = true;
     swofty::log("[career] setup: %s; flow states %s, Team HQ answer %s, career layout %s, entrants %s, bus %s, "
                 "string key %s",
                 armed ? "live" : "the flow-state site is not installed, so the career library reports unavailable",

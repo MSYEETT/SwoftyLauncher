@@ -269,7 +269,6 @@ void ready()
     dbread_setup();
     overlay_setup();
     events_setup();
-    career_setup();
     hud_setup();
     telemetry_setup();
 }
