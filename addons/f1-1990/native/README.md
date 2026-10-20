@@ -1,14 +1,19 @@
 # F1 1990 native DLL
 
-`f1_1990.dll` sets the race grid from each driver's best lap in either 1990 qualifying session: Friday (SprintShootout group, 2) and Saturday (Qualifying group, 1). It loads at the early stage, before the game loads its profile.
+`f1_1990.dll` gives the 1990 profile its own profile save and sets the race grid from each driver's best lap in either 1990 qualifying session: Friday (SprintShootout group, 2) and Saturday (Qualifying group, 1). It loads at the early stage, before the game loads its profile.
 
 ## Save separation
 
-Not in the default build: `SAVE_SEPARATION=1 ./build.sh` adds `src/save_separation.cpp`. This version renames only the save job, and in game it wrote a new data file into the stock `profile` container (test 11), so it stays off. The 1990 profile shares the real profile save until a working version lands.
+Every file of a save is named from the save operation's name: Steam remote storage names are `<title dir>@<save name>#<file>` (also `<save name>@...` and `<save name>_backup#...`), and the file names inside come from the save job (profile: index `QKRHMYXE`, data `NXDSMWW.BWW`). The game picks the profile save from the enumerated save list, not by name. So:
 
-`Game_SaveMgr_CreateSaveJob` (0x143659750, the save-job factory thunk) is wrapped: a job for the save named `profile` is created for `f1990` instead, so the profile save and every career slot in it go to `savegame@f1990#*` (Steam remote storage) and the stock `savegame@profile#*` files are never opened. Replay saves (`highlights%03d`) keep their names. The first launch in the profile starts a new game profile.
+| binding | address | use |
+|---|---|---|
+| `Ne_Request_SaveOpKind1` / `Ne_Request_SaveOpKind2` | 0x144138aa0 / 0x1441391a0 | wrap; a save operation named `profile` is queued as `f1990`, so every file of the profile save (index, data, backups) is `savegame@f1990#*` |
+| `Ne_SaveSystem2Win_Start` | 0x14413af70 | wrap; before the device starts, the ISteamRemoteStorage it caches (helper +0x108, used only to list remote files) is replaced by a proxy that hides `savegame@profile*` and `savegame@profile_backup*` from `GetFileCount`/`GetFileNameAndSize` and forwards every other slot unchanged |
 
-Each redirect logs `[f1-1990] save: profile -> f1990 (...)`. If the addon's hooks do not install, `SwoftyAddonInit` logs `[f1-1990] SAVE SEPARATION OFF` three times; the profile then uses the real profile save.
+The first launch in the profile finds no profile save and starts a new game profile; the stock files are never listed, opened or written. Each renamed operation logs `[f1-1990] save: profile -> f1990 (#n)`; the proxy logs `save list enumeration filtered` and, once, how many stock files it hid. A failed init logs `SAVE SEPARATION OFF`, and a device without the Steam helper (local saves) logs `SAVE SEPARATION INCOMPLETE`, three times each.
+
+`cleanup_stray_save` (toggle, default off) deletes `savegame@profile#D1990.UEL`, left in Steam Cloud by the first build, through the real interface's `FileExists`/`FileDelete` at the next start, and logs the result. Turn it off again afterwards.
 
 ## Grid hooks
 

@@ -37,6 +37,23 @@ int main()
         std::printf("FAIL 1990 save name shares a stock prefix\n");
         failures++;
     }
+    struct {
+        const char *name;
+        bool hidden;
+    } remote[] = {
+        {"savegame@profile#QKRHMYXE", true},     {"savegame@profile#NXDSMWW.BWW", true},
+        {"savegame@profile#D1990.UEL", true},    {"savegame@profile@info", true},
+        {"savegame@profile_backup#QKRHMYXE", true}, {"savegame@f1990#QKRHMYXE", false},
+        {"savegame@f1990_backup#NXDSMWW.BWW", false}, {"savegame@highlights001#ABC", false},
+        {"savegame@profile1990#X", false},       {"savegame@profileX#X", false},
+        {"profile#X", false},                    {"savegame@profile", true},
+        {"", false},                             {nullptr, false},
+    };
+    for (auto &r : remote) {
+        bool got = f1990::hidden_remote_name(r.name);
+        std::printf("%s hidden(%s) = %d\n", got == r.hidden ? "ok  " : "FAIL", r.name ? r.name : "(null)", got);
+        failures += got != r.hidden;
+    }
     if (failures)
         std::printf("%d failure(s)\n", failures);
     return failures ? EXIT_FAILURE : EXIT_SUCCESS;
