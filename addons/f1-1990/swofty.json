@@ -17,6 +17,11 @@
     "message": "1990 careers won't load without it."
   },
   "options": [
+    {
+      "id": "cleanup_stray_save", "type": "toggle", "label": "Delete the stray test save", "default": false,
+      "description": "One-off: at the next start, deletes savegame@profile#D1990.UEL (left by the first save-separation build) from Steam Cloud. Turn it off again afterwards.",
+      "binds": "native"
+    },
     { "id": "career_year", "type": "choice", "label": "Career year", "default": "1990",
       "description": "The year the Driver Career starts in.",
       "values": ["1990", "2026"], "binds": "db" },
