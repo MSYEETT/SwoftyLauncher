@@ -15,6 +15,6 @@ gamedb	Gdb	-	open	GVDB game value database: load, key lookup, table cursors, row
 hud	Hud	ui-re	open	in-race HUD: HUD screen VM, dynamic HUD component view-models (tyre/timing/MFD/minimap/...), HUD element base; logic/VM side (render lane owns the draw path)
 protection	Prot	-	open	Denuvo stubs and .data1 bodies, signature/cert checks, VirtualProtect callers
 render	Render	overlay	open	D3D12/DXGI present path, swapchain overlay hooks, in-game immediate-mode HUD rendering
-session	Sess	-	open	entrants, setup modes, participant selection, weekend/session start, garages (grid size work)
+session	Sess	native-1990	open	entrants, setup modes, participant selection, weekend/session start, garages (grid size work)
 ui	Ui	ui-idf	open	authored UI formats (!pkg .ui/UIDF node grammar, .uidb/.uir/scene .idf) + ERP UI packaging + the view-model binding runtime + how to edit/add menus and widgets
 vm	Vm	ui-re	open	UI view-model registry: node properties, setters, routes
