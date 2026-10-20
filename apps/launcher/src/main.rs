@@ -7,6 +7,7 @@ mod library;
 mod pages;
 mod play_bar;
 mod sections;
+mod send_logs;
 mod shell;
 mod theme;
 mod update;
