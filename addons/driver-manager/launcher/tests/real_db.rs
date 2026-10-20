@@ -12,6 +12,38 @@ use swofty_core::planner::Planner;
 use swofty_formats::gvdb::Gvdb;
 
 const ADDON: &str = "swofty.driver-manager";
+const T_DRIVER: &str = "entrants.drivers.driver";
+const T_LOOK: &str = "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations].preloaded_driver_customisation_properties";
+const T_HOLDER: &str = "driver_statistics.driver_statistics.DriverStatisticsHolder";
+const T_ENTRANT: &str = "entrants.entrant_lists.entrants.entrant";
+const T_POOL_2026: &str = "entrants.entrant_lists.entrant_list[_metadata_=f1_2026_driver_pool].entrant";
+const T_POOL_2025: &str = "entrants.entrant_lists.entrant_list[_metadata_=f1_2025_driver_pool].entrant";
+
+fn source_rows() -> &'static BTreeMap<String, Value> {
+    static ROWS: std::sync::OnceLock<BTreeMap<String, Value>> = std::sync::OnceLock::new();
+    ROWS.get_or_init(|| {
+        serde_json::from_str(include_str!("fixtures/source_rows.json")).expect("fixture parses")
+    })
+}
+
+fn row_fields(table: &str) -> Vec<String> {
+    serde_json::from_value(source_rows()[table]["fields"].clone()).unwrap()
+}
+
+fn assert_same_keys(stock: &Rows, after: &Rows, table: &str, new_row: &str) {
+    let source = source_rows()[table]["source"].as_str().unwrap();
+    for f in row_fields(table) {
+        let src = stock
+            .0
+            .get(&format!("{source}.{f}"))
+            .unwrap_or_else(|| panic!("{source}.{f} missing in the stock row"));
+        let new = after
+            .0
+            .get(&format!("{new_row}.{f}"))
+            .unwrap_or_else(|| panic!("{new_row}.{f} missing: the new row lacks a key its source row has"));
+        assert_eq!(new.tag, src.tag, "{new_row}.{f} type");
+    }
+}
 
 fn pristine() -> Option<PathBuf> {
     let path = std::env::var_os("F1_25_DIR")
@@ -142,6 +174,20 @@ fn build_reply_applies_to_the_real_database() {
     assert_eq!(adds, 6 + 6 + 4);
     assert_eq!(lang, 9);
 
+    for table in source_rows().keys() {
+        let want: BTreeSet<String> = row_fields(table).into_iter().collect();
+        let got: BTreeSet<String> = built
+            .fields
+            .get(table)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .collect();
+        assert_eq!(
+            got, want,
+            "fields map for {table} lists every key of its source row"
+        );
+    }
     let features = Features {
         stable: BTreeSet::from([Kind::Group, Kind::Erp, Kind::Db, Kind::Lang, Kind::File]),
         experimental: BTreeSet::new(),
@@ -224,15 +270,42 @@ fn build_reply_applies_to_the_real_database() {
 
     let stock_holders = before.count(HOLDERS, "DriverStatisticsHolder");
     for d in [&a, &b, &c] {
-        report.extend(verify_driver(&after, stock_holders, d));
+        report.extend(verify_driver(&before, &after, stock_holders, d));
     }
     eprintln!("{}", report.join("\n"));
     let added = db.records.len() - stock.records.len();
     eprintln!("records added: {added}");
-    assert_eq!(added, 3 * (29 + 12 + 24 + 10) + 4 * 10);
+    let per_driver: usize = [T_DRIVER, T_LOOK, T_HOLDER, T_ENTRANT]
+        .iter()
+        .map(|t| row_fields(t).len())
+        .sum();
+    let per_pool = row_fields(T_POOL_2026).len() + row_fields(T_POOL_2025).len();
+    assert_eq!(
+        added,
+        3 * per_driver + 2 * per_pool,
+        "no key beyond the source rows' keys"
+    );
+    let row = format!(
+        "entrants.drivers.driver_{}",
+        after.find("entrants.drivers", "driver", "dm_208")[0]
+    );
+    eprintln!(
+        "{row}: {} keys; date_of_birth = {} {} {}; aggression = {}; ai alongside.min_presence_within_buffer = {}",
+        row_fields(T_DRIVER)
+            .iter()
+            .filter(|f| db.get(&format!("{row}.{f}")).is_some())
+            .count(),
+        after.text(&format!("{row}.date_of_birth.day")),
+        after.text(&format!("{row}.date_of_birth.month")),
+        after.text(&format!("{row}.date_of_birth.year")),
+        after.text(&format!("{row}.driver_characteristics.aggression")),
+        after.text(&format!(
+            "{row}.ai_driver_config.alongside.min_presence_within_buffer"
+        )),
+    );
 }
 
-fn verify_driver(after: &Rows, stock_holders: usize, d: &Driver) -> Vec<String> {
+fn verify_driver(stock: &Rows, after: &Rows, stock_holders: usize, d: &Driver) -> Vec<String> {
     let mut report = Vec::new();
     let driver_labels: Vec<String> = (0..after.count("entrants.drivers", "driver"))
         .map(|i| after.text(&format!("entrants.drivers.driver_{i}._metadata_")))
@@ -243,10 +316,12 @@ fn verify_driver(after: &Rows, stock_holders: usize, d: &Driver) -> Vec<String> 
     assert_eq!(after.text(&format!("{row}.stat_id")), d.stat_id.to_string());
     assert_eq!(after.text(&format!("{row}.initials")), d.code);
     assert_eq!(after.text(&format!("{row}.available")), "True");
+    assert_same_keys(stock, after, T_DRIVER, &row);
     let h = after.find(HOLDERS, "DriverStatisticsHolder", &d.label());
     assert_eq!(h.len(), 1);
     assert!(h[0] >= stock_holders, "holder appended after every stock holder");
     let holder = format!("{HOLDERS}.DriverStatisticsHolder_{}", h[0]);
+    assert_same_keys(stock, after, T_HOLDER, &holder);
     let target = after.text(&format!("{holder}.driver"));
     assert!(
         driver_labels.contains(&target),
@@ -265,11 +340,13 @@ fn verify_driver(after: &Rows, stock_holders: usize, d: &Driver) -> Vec<String> 
     let e = after.find("entrants.entrant_lists.entrants", "entrant", &d.label());
     assert_eq!(e.len(), 1);
     let entrant = format!("entrants.entrant_lists.entrants.entrant_{}", e[0]);
+    assert_same_keys(stock, after, T_ENTRANT, &entrant);
     assert_eq!(after.text(&format!("{entrant}.driver")), d.label());
     let look = after.text(&format!("{entrant}.driver_customisation"));
     let l = after.find(LOOKS, "preloaded_driver_customisation_properties", &look);
     assert_eq!(l.len(), 1, "entrant look {look} resolves");
     let preset = format!("{LOOKS}.preloaded_driver_customisation_properties_{}", l[0]);
+    assert_same_keys(stock, after, T_LOOK, &preset);
     assert_eq!(after.text(&format!("{preset}.stat_id")), d.preset_id.to_string());
     assert_eq!(after.text(&format!("{preset}.helmet")), d.helmet);
 
@@ -281,6 +358,16 @@ fn verify_driver(after: &Rows, stock_holders: usize, d: &Driver) -> Vec<String> 
         } else {
             assert_eq!(p.len(), 1);
             let r = format!("{pool}.entrant_{}", p[0]);
+            assert_same_keys(
+                stock,
+                after,
+                if pool == POOL_2026 {
+                    T_POOL_2026
+                } else {
+                    T_POOL_2025
+                },
+                &r,
+            );
             assert_eq!(after.text(&format!("{r}.team_position")), "-1");
             assert_eq!(after.text(&format!("{r}.car_number")), "255");
             report.push(format!("{r}.entrant_reference = {} -> {entrant}", d.label()));
@@ -300,7 +387,28 @@ fn launcher_built_database_has_the_drivers() {
         return;
     };
     let stock = Gvdb::parse(&std::fs::read(db_path).unwrap()).unwrap();
-    let db = Gvdb::parse(&std::fs::read(built).unwrap()).unwrap();
+    let db = if built.extension().is_some_and(|e| e == "json") {
+        let assets: Value = serde_json::from_slice(&std::fs::read(&built).unwrap()).unwrap();
+        let mut db = stock.clone();
+        let edits = assets["db_edits"].as_array().expect("db_edits");
+        for e in edits {
+            let key = u64::from_str_radix(e["hash"].as_str().unwrap(), 16).unwrap();
+            let tag = u8::try_from(e["type"].as_u64().unwrap()).unwrap();
+            let value = e["value"].as_str().unwrap().as_bytes().to_vec();
+            match db.records.iter_mut().find(|r| r.key == key) {
+                Some(r) => r.value = value,
+                None => db.records.push(swofty_formats::gvdb::Record { key, tag, value }),
+            }
+        }
+        eprintln!(
+            "applied {} runtime db edits from {}",
+            edits.len(),
+            built.display()
+        );
+        db
+    } else {
+        Gvdb::parse(&std::fs::read(&built).unwrap()).unwrap()
+    };
     let game = game::extract(&stock, None, "test");
     let roster = Roster::load(&data_dir).unwrap();
     let (before, after) = (Rows(&stock), Rows(&db));
@@ -311,7 +419,7 @@ fn launcher_built_database_has_the_drivers() {
         if driver_manager::check::is_valid(&driver_manager::check::check(d, &roster, Some(&game))) {
             valid += 1;
             active += usize::from(!d.retired);
-            report.extend(verify_driver(&after, stock_holders, d));
+            report.extend(verify_driver(&before, &after, stock_holders, d));
         } else {
             assert!(
                 after.find("entrants.drivers", "driver", &d.label()).is_empty(),

@@ -26,6 +26,8 @@ Open **Driver Manager** and press **Add driver**. Set:
 | Commentary name | The surname the commentators say, or none |
 | Ratings | Experience, racecraft, awareness, pace and focus, each with a start and a peak value from 0 to 100 |
 | F1 seasons completed, garage slot preference | As on the game's own drivers |
+| Birth date | Year, month and day |
+| AI traits | Aggression, car control, mistake avoidance, reaction speed, corner entry speed and corner exit speed, from 0 to 1. Higher is stronger; stock drivers sit between 0.2 and 1. |
 
 Press **Add driver** to save. The page lists every driver with code, number, nationality, status and check result. **Edit**, **Duplicate**, **Retire** and **Restore** act on one driver. Every profile with Driver Manager on gets the same drivers.
 
@@ -33,7 +35,7 @@ The next launch adds the drivers to the game. Start a new career to find them am
 
 ## Checks
 
-A driver with an error is marked **left out** and isn't added to the game. Errors include an empty name, a code that isn't 3 letters or is already used, a number outside 1 to 99, a choice the game doesn't have and a peak below its start. Warnings, such as a number another driver also uses, don't stop the driver being added.
+A driver with an error is marked **left out** and isn't added to the game. Errors include an empty name, a code that isn't 3 letters or is already used, a number outside 1 to 99, a choice the game doesn't have, a date that doesn't exist and a peak below its start. Warnings, such as a number another driver also uses, don't stop the driver being added.
 
 ## Existing careers
 

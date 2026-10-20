@@ -15,7 +15,73 @@ pub const STATS: [(&str, &str); 5] = [
     ("pace", "Pace"),
     ("focus", "Focus"),
 ];
+pub const TRAITS: [(&str, &str); 6] = [
+    ("aggression", "Aggression"),
+    ("control", "Car control"),
+    ("mistakes", "Mistake avoidance"),
+    ("reaction_speed", "Reaction speed"),
+    ("speed_in", "Corner entry speed"),
+    ("speed_out", "Corner exit speed"),
+];
+pub const DEFAULT_TRAITS: [f64; 6] = [0.53, 0.53, 0.51, 0.53, 0.54, 1.0];
+pub const MONTHS: [&str; 12] = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+];
 const SCHEMA: u32 = 1;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Birth {
+    pub year: u32,
+    pub month: u32,
+    pub day: u32,
+}
+
+impl Default for Birth {
+    fn default() -> Self {
+        Birth {
+            year: 2005,
+            month: 3,
+            day: 14,
+        }
+    }
+}
+
+impl Birth {
+    pub fn days_in_month(&self) -> u32 {
+        match self.month {
+            2 if self.year.is_multiple_of(4)
+                && (!self.year.is_multiple_of(100) || self.year.is_multiple_of(400)) =>
+            {
+                29
+            }
+            2 => 28,
+            4 | 6 | 9 | 11 => 30,
+            _ => 31,
+        }
+    }
+
+    pub fn month_name(&self) -> &'static str {
+        MONTHS
+            .get((self.month as usize).wrapping_sub(1))
+            .copied()
+            .unwrap_or("January")
+    }
+}
+
+fn default_traits() -> [f64; 6] {
+    DEFAULT_TRAITS
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Rating {
@@ -43,6 +109,10 @@ pub struct Driver {
     pub ratings: [Rating; 5],
     pub seasons: u32,
     pub garage: u32,
+    #[serde(default)]
+    pub birth: Birth,
+    #[serde(default = "default_traits")]
+    pub traits: [f64; 6],
     #[serde(default)]
     pub retired: bool,
 }
@@ -114,6 +184,8 @@ impl Driver {
             ratings: [Rating { start: 70, peak: 80 }; 5],
             seasons: 0,
             garage: 0,
+            birth: Birth::default(),
+            traits: DEFAULT_TRAITS,
             retired: false,
         }
     }

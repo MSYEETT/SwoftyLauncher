@@ -1,5 +1,6 @@
 pub mod app;
 pub mod check;
+pub mod fields;
 pub mod game;
 pub mod host;
 pub mod loader;

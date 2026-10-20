@@ -1,8 +1,11 @@
 use crate::game::{GameData, List};
-use crate::model::{Driver, FIRST_DRIVER_ID, FIRST_PRESET_ID, LAST_DRIVER_ID, MAX_DRIVERS, Roster, STATS};
+use crate::model::{
+    Driver, FIRST_DRIVER_ID, FIRST_PRESET_ID, LAST_DRIVER_ID, MAX_DRIVERS, Roster, STATS, TRAITS,
+};
 
 pub const NAME_MAX: usize = 24;
 pub const SEASONS_MAX: u32 = 30;
+pub const BIRTH_YEARS: (u32, u32) = (1950, 2012);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Level {
@@ -156,6 +159,27 @@ pub fn check(d: &Driver, roster: &Roster, game: Option<&GameData>) -> Vec<Issue>
             error(&mut out, format!("{what} must be from 0 to 100."));
         } else if r.peak < r.start {
             error(&mut out, format!("{what} peak is below its start."));
+        }
+    }
+
+    let b = d.birth;
+    if !(BIRTH_YEARS.0..=BIRTH_YEARS.1).contains(&b.year) {
+        error(
+            &mut out,
+            format!("Birth year must be from {} to {}.", BIRTH_YEARS.0, BIRTH_YEARS.1),
+        );
+    }
+    if !(1..=12).contains(&b.month) {
+        error(&mut out, "Birth month must be January to December.");
+    } else if !(1..=b.days_in_month()).contains(&b.day) {
+        error(
+            &mut out,
+            format!("{} has no day {} in {}.", b.month_name(), b.day, b.year),
+        );
+    }
+    for ((_, what), v) in TRAITS.iter().zip(d.traits.iter()) {
+        if !(0.0..=1.0).contains(v) {
+            error(&mut out, format!("{what} must be from 0 to 1."));
         }
     }
 

@@ -21,7 +21,7 @@ For each valid driver the build adds, by label:
 
 | Table | Row |
 |---|---|
-| `entrants.drivers` | The driver, copied from `jarno_opmeer` with every field set |
+| `entrants.drivers` | The driver: all 129 keys copied from `jarno_opmeer`, then name, code, number, nationality, head, commentary name, birth date, AI traits, seasons and garage slot set. The AI driver config and rev lights stay Jarno's. |
 | `entrants.driver_customisations.folder[ai_driver_customisations]` | The look: helmet, suit, gloves, pose, podium emote |
 | `driver_statistics.driver_statistics` | The ratings holder: five curves from start to peak |
 | `entrants.entrant_lists.entrants` | The entrant that ties the driver to the look |
@@ -35,4 +35,4 @@ For each valid driver the build adds, by label:
 F1_25_DIR=/path/to/game nix develop -c cargo test --release --manifest-path addons/driver-manager/launcher/Cargo.toml
 ```
 
-`tests/real_db.rs` runs the helper's build over the protocol, applies the reply through the launcher's planner to the game database and reads the rows back. With `DM_BUILT_DB` and `DM_DATA_DIR` set it checks a database built by `swofty build` instead.
+The `fields` map lists every key of each source row. `tests/fixtures/source_rows.json` holds those key lists; `examples/audit.rs` regenerates them by hashing exe identifiers under each source row. `tests/real_db.rs` checks that each new row has exactly its source row's keys and types. It also runs the helper's build over the protocol, applies the reply through the launcher's planner to the game database and reads the rows back. With `DM_BUILT_DB` (a built database, or the overlay's `swofty/assets.json`) and `DM_DATA_DIR` set it checks the output of `swofty build` instead.

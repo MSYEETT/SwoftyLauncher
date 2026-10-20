@@ -4,7 +4,9 @@ use crate::app::{App, Edit};
 use crate::check::{self, Issue, Level};
 use crate::game::{GameData, List};
 use crate::host::Host;
-use crate::model::{Driver, FIRST_DRIVER_ID, LAST_DRIVER_ID, MAX_DRIVERS, Rating, Roster, STATS};
+use crate::model::{
+    Driver, FIRST_DRIVER_ID, LAST_DRIVER_ID, MAX_DRIVERS, MONTHS, Rating, Roster, STATS, TRAITS,
+};
 
 pub const SECTION: &str = "drivers";
 
@@ -180,6 +182,7 @@ fn list_view(app: &App, roster: &Roster) -> Value {
                 fact("Helmet", game.map_or(d.helmet.clone(), |g| g.label(List::Helmet, &d.helmet))),
                 fact("Commentary name", game.map_or(d.voice.clone(), |g| g.label(List::Voice, &d.voice))),
                 fact("Seasons completed", d.seasons.to_string()),
+                fact("Born", format!("{} {} {}", d.birth.day, d.birth.month_name(), d.birth.year)),
             ] })];
             detail.push(json!({ "facts": STATS.iter().zip(d.ratings.iter()).map(|((_, name), r)| fact(name, format!("{} → {}", r.start, r.peak))).collect::<Vec<_>>() }));
             detail.extend(issue_blocks(&issues));
@@ -431,7 +434,38 @@ fn edit_view(app: &App, roster: &Roster) -> Value {
             None,
         ),
         json!({ "text": { "id": "ids", "label": "Ids", "value": ids, "disabled": true } }),
+        number(
+            "birth_year",
+            "Birth year",
+            d.birth.year,
+            check::BIRTH_YEARS.0,
+            check::BIRTH_YEARS.1,
+            None,
+        ),
+        select(
+            "birth_month",
+            "Birth month",
+            &d.birth.month.to_string(),
+            Value::Array(
+                MONTHS
+                    .iter()
+                    .enumerate()
+                    .map(|(i, m)| json!({ "value": (i + 1).to_string(), "label": m }))
+                    .collect(),
+            ),
+            false,
+            None,
+        ),
+        number("birth_day", "Birth day", d.birth.day, 1, 31, None),
+        json!({ "text": { "id": "age", "label": "Age at the start of 2026", "value": format!("{}", 2026i64 - i64::from(d.birth.year) - 1 + i64::from(d.birth.month == 1 && d.birth.day == 1)), "disabled": true } }),
     ];
+    for ((key, name), v) in TRAITS.iter().zip(d.traits.iter()) {
+        fields.push(json!({ "slider": {
+            "id": format!("trait_{key}"), "label": format!("AI {}", name.to_lowercase()), "value": v,
+            "min": 0, "max": 1, "step": 0.01,
+            "help": if *key == "mistakes" { "Higher means fewer mistakes. Stock drivers sit between 0.2 and 1." } else { "Higher is stronger. Stock drivers sit between 0.2 and 1." }
+        } }));
+    }
     for ((key, name), r) in STATS.iter().zip(d.ratings.iter()) {
         fields.push(number(
             &format!("{key}_start"),
@@ -514,6 +548,20 @@ pub fn apply_values(d: &mut Driver, values: &Value) {
     ] {
         if let Some(v) = str_of(values, key) {
             *slot = v;
+        }
+    }
+    if let Some(v) = u32_of(values, "birth_year") {
+        d.birth.year = v;
+    }
+    if let Some(v) = u32_of(values, "birth_month") {
+        d.birth.month = v;
+    }
+    if let Some(v) = u32_of(values, "birth_day") {
+        d.birth.day = v;
+    }
+    for (i, (key, _)) in TRAITS.iter().enumerate() {
+        if let Some(v) = values.get(format!("trait_{key}")).and_then(Value::as_f64) {
+            d.traits[i] = (v * 100.).round() / 100.;
         }
     }
     for (i, (key, _)) in STATS.iter().enumerate() {

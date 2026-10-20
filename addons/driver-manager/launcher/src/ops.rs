@@ -1,8 +1,9 @@
 use serde_json::{Map, Value, json};
 
 use crate::check;
+use crate::fields::DRIVER_FIELDS;
 use crate::game::GameData;
-use crate::model::{Driver, Rating, Roster, STATS};
+use crate::model::{Driver, Rating, Roster, STATS, TRAITS};
 
 pub const DRIVERS: &str = "entrants.drivers";
 pub const DRIVER_FROM: &str = "entrants.drivers.driver[_metadata_=jarno_opmeer]";
@@ -18,38 +19,6 @@ pub const POOLS: [&str; 2] = [
     "entrants.entrant_lists.entrant_list[_metadata_=f1_2025_driver_pool]",
 ];
 const POOL_FROM_ROW: &str = "entrant[_metadata_=opmeer]";
-
-const DRIVER_FIELDS: [&str; 29] = [
-    "_metadata_",
-    "audio_name",
-    "available",
-    "car_number",
-    "chance_to_use_number_1",
-    "driver_characteristics.preferred_tracks",
-    "driver_strategy.fastest_strategy_base_selection_chance",
-    "driver_strategy.fuel_load_max_modifier",
-    "driver_strategy.fuel_load_min_modifier",
-    "driver_strategy.safety_car_pit_max_laps_early",
-    "driver_strategy.safety_car_pit_min_lap",
-    "driver_strategy.safety_car_pit_wear_max",
-    "driver_strategy.safety_car_pit_wear_min",
-    "driver_strategy.slowest_strategy_selection_time_limit",
-    "driver_strategy.weather_change_max_time_percentage",
-    "driver_strategy.weather_change_min_time_percentage",
-    "expression_label",
-    "f1_seasons_completed",
-    "first_name",
-    "full_name",
-    "garage_slot_preference",
-    "head",
-    "initials",
-    "is_name_reversed",
-    "is_using_number_1_in_first_season",
-    "last_name",
-    "last_name_standard",
-    "nationality",
-    "stat_id",
-];
 
 const LOOK_FIELDS: [&str; 12] = [
     "_metadata_",
@@ -104,7 +73,7 @@ fn stats_fields() -> Vec<String> {
 
 pub fn fields() -> Value {
     let mut m = Map::new();
-    m.insert(format!("{DRIVERS}.driver"), json!(DRIVER_FIELDS));
+    m.insert(format!("{DRIVERS}.driver"), json!(DRIVER_FIELDS.as_slice()));
     m.insert(
         format!("{LOOKS}.preloaded_driver_customisation_properties"),
         json!(LOOK_FIELDS),
@@ -169,54 +138,56 @@ fn add_row(table: &str, from: &str, pairs: &[(&str, String)]) -> Value {
     json!({ "op": "db.add-row", "table": table, "from": from, "set": set(pairs) })
 }
 
+pub fn trait_value(v: f64) -> String {
+    let t = format!("{:.2}", v.clamp(0., 1.));
+    let t = t.trim_end_matches('0');
+    if t.ends_with('.') {
+        format!("{t}0")
+    } else {
+        t.to_owned()
+    }
+}
+
+fn driver_set(d: &Driver) -> Vec<(&'static str, String)> {
+    let mut set = vec![
+        ("_metadata_", d.label()),
+        ("audio_name", d.voice.clone()),
+        ("available", b(true)),
+        ("car_number", d.number.to_string()),
+        ("date_of_birth.year", d.birth.year.to_string()),
+        ("date_of_birth.month", d.birth.month_name().to_owned()),
+        ("date_of_birth.day", d.birth.day.to_string()),
+        ("f1_seasons_completed", d.seasons.to_string()),
+        ("first_name", d.lang_key("first")),
+        ("full_name", d.lang_key("full")),
+        ("garage_slot_preference", d.garage.to_string()),
+        ("head", d.head.clone()),
+        ("initials", d.code.clone()),
+        ("is_name_reversed", b(d.reversed)),
+        ("last_name", d.lang_key("last")),
+        ("nationality", d.nationality.clone()),
+        ("stat_id", d.stat_id.to_string()),
+    ];
+    const KEYS: [&str; 6] = [
+        "driver_characteristics.aggression",
+        "driver_characteristics.control",
+        "driver_characteristics.mistakes",
+        "driver_characteristics.reaction_speed",
+        "driver_characteristics.speed_in",
+        "driver_characteristics.speed_out",
+    ];
+    for ((key, (name, _)), v) in KEYS.iter().zip(TRAITS.iter()).zip(d.traits.iter()) {
+        debug_assert!(key.ends_with(name));
+        set.push((key, trait_value(*v)));
+    }
+    set
+}
+
 pub fn driver_ops(d: &Driver) -> Vec<Value> {
     let label = d.label();
     let look = d.look_label();
     let mut ops = vec![
-        add_row(
-            DRIVERS,
-            DRIVER_FROM,
-            &[
-                ("_metadata_", label.clone()),
-                ("audio_name", d.voice.clone()),
-                ("available", b(true)),
-                ("car_number", d.number.to_string()),
-                ("chance_to_use_number_1", "50.0".into()),
-                ("driver_characteristics.preferred_tracks", String::new()),
-                (
-                    "driver_strategy.fastest_strategy_base_selection_chance",
-                    "0.3".into(),
-                ),
-                ("driver_strategy.fuel_load_max_modifier", "0.05".into()),
-                ("driver_strategy.fuel_load_min_modifier", "0".into()),
-                ("driver_strategy.safety_car_pit_max_laps_early", "5".into()),
-                ("driver_strategy.safety_car_pit_min_lap", "1".into()),
-                ("driver_strategy.safety_car_pit_wear_max", "0.25".into()),
-                ("driver_strategy.safety_car_pit_wear_min", "0.25".into()),
-                (
-                    "driver_strategy.slowest_strategy_selection_time_limit",
-                    "10".into(),
-                ),
-                ("driver_strategy.weather_change_max_time_percentage", "1".into()),
-                (
-                    "driver_strategy.weather_change_min_time_percentage",
-                    "-0.25".into(),
-                ),
-                ("expression_label", String::new()),
-                ("f1_seasons_completed", d.seasons.to_string()),
-                ("first_name", d.lang_key("first")),
-                ("full_name", d.lang_key("full")),
-                ("garage_slot_preference", d.garage.to_string()),
-                ("head", d.head.clone()),
-                ("initials", d.code.clone()),
-                ("is_name_reversed", b(d.reversed)),
-                ("is_using_number_1_in_first_season", b(false)),
-                ("last_name", d.lang_key("last")),
-                ("last_name_standard", String::new()),
-                ("nationality", d.nationality.clone()),
-                ("stat_id", d.stat_id.to_string()),
-            ],
-        ),
+        add_row(DRIVERS, DRIVER_FROM, &driver_set(d)),
         add_row(
             LOOKS,
             LOOK_FROM,
