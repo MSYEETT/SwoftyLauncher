@@ -18,6 +18,8 @@ You choose a target by its binding: a named place in `F1_25.exe` that swofty_cor
 
 A target needs exactly one match to resolve. With zero or multiple matches, swofty_core drops your addon and installs none of its mixins. Check `swofty/loader.log` for the binding's name.
 
+swofty_core only knows the bindings in the `bindings.json` its launcher shipped. A binding added to the Game API after that launcher was built is missing from it: swofty_core logs `needs <name>, which bindings.json does not list` and treats the binding as unresolved. Your addon then needs a launcher built with that binding.
+
 ## Wrap a function
 
 Use `SWOFTY_MIXIN_WRAP` to replace a function with your handler. swofty_core writes a trampoline into the `orig` pointer. From your handler, call `orig` to pass control to the next handler in the chain; the game's function sits at the end.
