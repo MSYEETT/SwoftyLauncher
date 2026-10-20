@@ -17,31 +17,27 @@ construction, v0.7.2 tile counts and tile route) are in `HOOKS.md`.
 
 ```cpp
 // native/src/rnd_departments.cpp, in SWOFTY_ON_LOAD
-    g_pie_enabled.store(render_fifth_pie.get());
     install_fifth_pie(base);
-    rnd_fifth_pie::install(base, g_pie_enabled.load());   // right after install_fifth_pie
+    rnd_fifth_pie::install(base);   // right after install_fifth_pie
 ```
-`SWOFTY_SITE` / `SWOFTY_REDIRECT` / `SWOFTY_SETTING` / `SWOFTY_ON_CHANGE` work from a second TU:
-the mixin and binding registries are `inline` lists appended at static init, settings are
-`inline const` objects, and `SWOFTY_NS` lives in an anonymous namespace, so only `SWOFTY_ADDON()`
-must stay single (it stays in rnd_departments.cpp). The handlers are registered with the addon
-whatever the settings say; `install()` reads the settings once and turns each piece on.
+`SWOFTY_SITE` / `SWOFTY_REDIRECT` work from a second TU: the mixin and binding registries are
+`inline` lists appended at static init, and `SWOFTY_NS` lives in an anonymous namespace, so only
+`SWOFTY_ADDON()` must stay single (it stays in rnd_departments.cpp).
 
-## Flags and ordering
+## Pieces
 
-| option (default) | needs | does |
-|---|---|---|
-| `render_fifth_pie` (on) | - | master switch: `install()` returns immediately when it is off, and every handler stays a no-op |
-| `pie_tyres_slice` (on) | render_fifth_pie on | populate: code 4 -> `tyres` name / description key / VM child / `department_name`, colour 0xff0078ff, wheel icon borrows `maintenance` |
-| `pie_tyres_focus` (on) | render_fifth_pie on | `department_focused "tyres"` focuses the `tyres` child and raises `highlight_pie_sector`; `g_Career_RnDOverviewSelectedDept` untouched |
-| `pie_tyres_open` (on) | pie_tyres_focus on | the Tyres focus flag (cleared by a stock focus on either page), read by the box-grid first-tab route in rnd_departments.cpp, and the populate focus restore |
-| `pie_tyres_performance` (on) | render_fifth_pie on | publisher: `department_performance.tyres` per team (orange `dept_colour`, `lng_rnd_dept_tyres`, `rnd_goto_tyres_department`, derived `perf_fraction` / `potential_perf_fraction`, `max_perf_fraction` = 1 like the stock four) |
+The file has no options; all four pieces are always on.
 
-The slice and focus pieces rely on render_fifth_pie's populate changes (code guard relaxed to 4,
-buffer 0xb40 with slot 4), which rnd_departments.cpp applies exactly when render_fifth_pie is on,
-so the flag passed to `install()` is the "patches live" signal. Until `install()` runs every
-handler is a no-op. The bindings resolve all-or-nothing with the rest of the addon. All flags
-are install-time (ON_CHANGE only logs).
+| piece | does |
+|---|---|
+| slice | populate: code 4 -> `tyres` name / description key / VM child / `department_name`, colour 0xff0078ff, wheel icon borrows `maintenance` |
+| focus | `department_focused "tyres"` focuses the `tyres` child and raises `highlight_pie_sector`; `g_Career_RnDOverviewSelectedDept` untouched |
+| open | the Tyres focus flag (cleared by a stock focus on either page), read by the box-grid first-tab route in rnd_departments.cpp, and the populate focus restore |
+| performance | publisher: `department_performance.tyres` per team (orange `dept_colour`, `lng_rnd_dept_tyres`, `rnd_goto_tyres_department`, derived `perf_fraction` / `potential_perf_fraction`, `max_perf_fraction` = 1 like the stock four) |
+
+The slice and focus pieces rely on install_fifth_pie's populate changes (code guard relaxed to 4,
+buffer 0xb40 with slot 4). Until `install()` runs every handler is a no-op. The bindings resolve
+all-or-nothing with the rest of the addon.
 
 ## Sites (only when the department code is 4)
 
@@ -61,7 +57,7 @@ are install-time (ON_CHANGE only logs).
 | `site_Career_RnDPerfGotoName` | r8 -> `tyres` (`rnd_goto_%s_department`) |
 | `k_Career_RnDErrorDeptName` | the `error_department` string every name check compares against |
 
-## The Tyres value (pie_tyres_performance)
+## The Tyres value (performance piece)
 
 Stat entries = `Upgrades+0x1a38..+0x1a40`, 0x20 each (+0 attribute type, +1 department, +0xc
 current, +0x10 max); F = FUN_143518f50 = the field-wide best department max (xmm0 at P1).
@@ -92,17 +88,16 @@ department's attributes gives a smaller wedge than a full department.
 - `dept_colour_anim` = `rnd_goto_tyres_department`; no stock anim with that name was found
   (the `error_department` variant had none either).
 
-## Expected log (render_fifth_pie on)
+## Expected log
 
 ```
-[rnd-tyres] pie5: pie_tyres_slice=on pie_tyres_focus=on pie_tyres_open=on pie_tyres_performance=on
 [rnd-tyres] pie5 perf: hooked department_performance loop bound (rax) @0x1418945b6 (base+0x18945b6)   (x5 sites)
-[rnd-tyres] pie5 perf INSTALLED: department_performance.tyres published per team
 [rnd-tyres] pie5 slice: hooked populate name join (rdi) @0x141f482a0 ...                                (x4 sites)
-[rnd-tyres] pie5 slice INSTALLED: code 4 populates as tyres / 0xff0078ff / icon maintenance
 [rnd-tyres] pie5 focus: hooked focus handler name compare @0x141f4a9e6 ...
-[rnd-tyres] pie5 focus INSTALLED: data "tyres" resumes at 0x141f4aa4f
 [rnd-tyres] pie5 open: hooked R&D > Performance stock focus @0x141f4a9e6 ...                           (x3 sites)
+[rnd-tyres] pie5 perf INSTALLED: department_performance.tyres published per team
+[rnd-tyres] pie5 slice INSTALLED: code 4 populates as tyres / 0xff0078ff / icon maintenance
+[rnd-tyres] pie5 focus INSTALLED: data "tyres" resumes at 0x141f4aa4f
 [rnd-tyres] pie5 open INSTALLED: the Tyres focus is tracked for the departments screen's first tab and restored on the Performance page
 -- on R&D > Performance --
 [rnd-tyres] pie5 slice: code 4 name error_department -> tyres (VM child tyres, lng_rnd_dept_tyres)
@@ -117,10 +112,8 @@ department's attributes gives a smaller wedge than a full department.
 -- focusing the Tyres tile --
 [rnd-tyres] pie5 focus: department_focused "tyres" -> focused_department = tyres, highlight_pie_sector raised (selection index untouched)
 ```
-The `hooked` lines print each binding's resolved address. `render_fifth_pie` off logs `pie5:
-render_fifth_pie off; ... NOT installed (SAFE)`; the other refusal is `pie5 open: needs
-pie_tyres_focus installed; NOT installed (SAFE)`. A binding that does not resolve drops the whole
-addon (`swofty/loader.log`, `[core] ... needs <binding>, which does not resolve`).
+The `hooked` lines print each binding's resolved address. `install()` has no refusal path; a
+binding that does not resolve drops the whole addon (`swofty/loader.log`, `[core] ... needs <binding>, which does not resolve`).
 
 ## Live checks (gdb under Wine: `handle all nostop noprint pass` then `handle SIGTRAP stop noprint nopass`)
 

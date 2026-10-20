@@ -5,9 +5,8 @@ What to look at on each screen, and the `swofty/loader.log` lines (in the game f
 ## Setup
 
 1. Build the DLL: `addons/rnd-tyres-thermal/native/build.sh`.
-2. `swofty addons install addons/rnd-tyres-thermal`, enable `swofty.rnd-tyres-thermal` on a modded profile, leave every setting at its default.
+2. `swofty addons install addons/rnd-tyres-thermal`, enable `swofty.rnd-tyres-thermal` on a modded profile. The addon has no settings.
 3. Press Play. Use a 2026 career save: a new one, or one from 0.8.0 (its three Tyres states land on A1-A3).
-4. To finish upgrades quickly, turn on `tyres_test_price` (every Tyres upgrade costs 5 points). Turn it off again to check the real prices.
 
 ## At launch
 
@@ -16,7 +15,6 @@ What to look at on each screen, and the `swofty/loader.log` lines (in the game f
 | the DLL loaded and the art arrays are installed | `tyres art: part images OWN (2/2 …), part masks OWN (2/2 with 15), category icons OWN (2/2 with 4 …)` |
 | the department icon | `tyres icon LIVE: 6/6 grown R&D icon arrays` |
 | the upgrade types | `upgrade types INSTALLED: 19 radUpgradeTyreThermal, 20 radUpgradeBrakeCooling, 21 radUpgradeTyreLife, 22 radUpgradePUCooling; 22 consumer hooks, 6 order-table leas` |
-| the apply log | `upgrade apply log INSTALLED` |
 | the list icons | `dept tags INSTALLED: 9/9 icon sites` |
 | the pie's Tyres slice, focus, tile route and data | `pie5 slice INSTALLED`, `pie5 focus INSTALLED`, `pie5 open INSTALLED`, `pie5 perf INSTALLED` |
 | Tyres research capacity | `capacity INSTALLED: dept 4 mirrors Durability's team modifiers` |
@@ -100,23 +98,22 @@ Check one card of each branch in each state, and the Develop Upgrade screen's la
 - Back from a Tyres upgrade's Develop Upgrade screen returns to the Tyres page.
 - The vehicle performance comparison on the Develop Upgrade screen fills in (Chassis for Tyre Thermal, Brake Cooling and Tyre Life, Powertrain for Power Unit Cooling).
 
-## The upgrade-apply log
+## A fitted upgrade reaches the car
 
-1. Complete a Tyres upgrade (research and develop it until it is fitted). `tyres_test_price` makes this quick.
+1. Complete a Tyres upgrade (research and develop it until it is fitted).
 2. Start any session (practice is enough). Leaving Team HQ for the session picks the weekend objectives, which leave every Available Tyres upgrade out of the upgrade-discount types (0.9.0 crashed here before the fix):
 
 ```
 [rnd-tyres] upgrade types: weekend objectives 0x14295c0a0 leaves Available type 19 (TyreThermal) out of the discount type bitset
 ```
 
-   The game then builds the car, which logs each type the car's upgrade map holds:
+   The game then builds the car. Each Tyres type the car's upgrade map holds is named to its own block (first 8 lines):
 
 ```
-[rnd-tyres] upgrade apply: type 19 radUpgradeTyreThermal perc 0.1429 (vehicle 0x…)
 [rnd-tyres] upgrade types: apply 0x14fa63050 type 19 names block radUpgradeTyreThermal
 ```
 
-`perc` is the fitted weighting of that type over the type's total: Tyre Thermal, Brake Cooling and Tyre Life total 7 (a Minor gives 0.1429, a Major 0.2857, an Ultimate 0.4286), Power Unit Cooling totals 6 (0.1667, 0.3333, 0.5). Types with nothing fitted log 0.0000 or no line. The stock types log too (`type 6 radUpgradeTyreWear …`); their values must not change when a Tyres upgrade is fitted.
+The addon has no apply log of its own. With the game's `VEHICLE_UPGRADES` log channel on, the game prints `Applying radUpgradeTyreThermal upgrade to vehicle N. (perc0to1: x)`, where x is the fitted weighting of that type over the type's total: Tyre Thermal, Brake Cooling and Tyre Life total 7 (a Minor gives 0.1429, a Major 0.2857, an Ultimate 0.4286), Power Unit Cooling totals 6 (0.1667, 0.3333, 0.5). Otherwise check the effect on track (`native/HOOKS.md`, "Power Unit Cooling" and the Brake note).
 
 ## Only the game can confirm
 

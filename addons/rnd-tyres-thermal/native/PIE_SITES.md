@@ -89,14 +89,14 @@ instructions, then a jump back). Relative instructions inside a relocated window
 jcc rel32, rip-relative disp32) are re-encoded by `create_trampoline` (safetyhook.cpp:560-600)
 into a trampoline allocated within +-2 GB.
 
-## Piece 1 - `Career_Populate_RnDPieSlices` 0x141f48030 (pie_tyres_slice)
+## Piece 1 - `Career_Populate_RnDPieSlices` 0x141f48030 (slice)
 
 r14d = department code for the whole loop body: written only at 0x141f48213, otherwise only
 read (cmp at 0x141f48218/2b/76/559, `cmp [rcx+1],r14b`, `cmp [rax+0x72],r14b`, one spill
 `mov [rsp+0xd0],r14b`), pushed/popped in the prologue/epilogue.
 
 Name jump table @0x14576fc14 (4 entries: aero chassis maintenance engine). The addon's
-render_fifth_pie piece relaxes the code guard `cmp r14d,3` at 0x141f48218 to 4; code 4 then hits
+pie piece (install_fifth_pie) relaxes the code guard `cmp r14d,3` at 0x141f48218 to 4; code 4 then hits
 `cmp r14d,3 ; ja 0x141f48253` (DEFAULT, rdi = `k_Career_RnDErrorDeptName` "error_department") and
 joins at **`site_Career_RnDPieSliceNameJoin` 0x141f482a0** with rdi = name.
 `rdi` is then used for `lng_rnd_dept_%s` (0x141f482b8), the VM child hash + GetOrCreate
@@ -218,7 +218,7 @@ regulation shutdown - no tyres, so code 4 borrows `maintenance`.
  141f48a70: 488b842460010000             mov rax, qword ptr [rsp + 0x160]
 ```
 
-Focus restore (pie_tyres_open): the populate makes the slot whose code equals al the page's
+Focus restore (open piece): the populate makes the slot whose code equals al the page's
 focused department, with al = the selection index when it is < 4 and 0 otherwise (`cmp al,4 ;
 cmovae eax,ecx`, ecx = 0), so an out-of-range index would focus aero.
 **`site_Career_RnDPieFocusRestore` 0x141f48476** sits on the compare; with the Tyres flag set it
@@ -233,7 +233,7 @@ makes al = 4 for code 4 and 0xff for codes 0..3, so the Tyres slot is the only o
  141f4847b: 488b842490000000             mov rax, qword ptr [rsp + 0x90]
 ```
 
-## Piece 2 - 0x141f4a9c0 (pie_tyres_focus)
+## Piece 2 - 0x141f4a9c0 (focus and open)
 
 Reached from the class-B command handler 0x141f4ac40 when cmd == 0x3aae34e1
 (djb2 "department_focused"): it tail-jumps with rdx = data+0x10. Also called from 0x141f4a959.
@@ -328,7 +328,7 @@ same compare chain on data chars from `[r8+0x10]`; the chain is entered only fro
 >141f460a9: 880559db0404                 mov byte ptr [rip + 0x404db59], al
 ```
 
-## Piece 3 - performance publisher 0x1418914f0 (pie_tyres_performance)
+## Piece 3 - performance publisher 0x1418914f0 (performance)
 
 Frame: `sub rsp, 0x1ac8` after `__chkstk`; all slots rsp-relative. Department list built once by
 FUN_143518cc0(ctx=[rsp+0x200], list=[rsp+0xa0]) - bytes at +0xa0, count qword at +0xa8

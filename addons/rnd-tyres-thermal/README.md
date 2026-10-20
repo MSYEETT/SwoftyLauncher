@@ -12,13 +12,13 @@ Version 0.7.2 works in game:
 - R&D > Performance shows five department tiles (3+2) and a five-sector development-potential pie with an orange Tyres sector. The Tyres tile shows its fitted and total upgrades, highlights its sector and opens the Tyres page.
 - The Develop Upgrade screen, the In Progress list, the department category rows, Team HQ popups and upgrade cards show Tyres upgrades in the Tyres orange.
 
-Version 0.8.0 gives Tyres its own tyre icon on the R&D > Performance tile, the department box, the R&D lists and the Develop Upgrade screen, and an orange strip in the In Progress list. With `tyres_icon` off, or without the icon arrays installed, Tyres borrows the Durability icon and strip as 0.7.2 did.
+Version 0.8.0 gives Tyres its own tyre icon on the R&D > Performance tile, the department box, the R&D lists and the Develop Upgrade screen, and an orange strip in the In Progress list. Without the icon arrays installed, Tyres borrows the Durability icon and strip as 0.7.2 did.
 
 Version 0.9.0 adds:
 
 - A full tree of 15 upgrades in four branches: Tyre Thermal, Brake Cooling, Tyre Life and Power Unit Cooling (`DESIGN.md`, "v0.9.0 — the full upgrade tree"). Costs, research and development days and facility levels follow the stock 2026 curve per size.
 - Four new upgrade types, minted natively (ids 19-22), each with its own card label, `upgrade_type_metadata` row and handling block in every career car's VTF. Tyres upgrades never dilute Chassis' stock Tyre Wear or Brakes.
-- Card art for every upgrade in the stock 2026 style (available, in progress, fitted and mask frames) and a category icon for each new type. With `tyres_card_art` off, the cards borrow stock part art and stock category icons.
+- Card art for every upgrade in the stock 2026 style (available, in progress, fitted and mask frames) and a category icon for each new type. Without the art arrays installed, the cards borrow stock part art and stock category icons.
 - An `upgrade apply` log line per Tyres type when a car is built for a session.
 
 Version 0.10.0 moves every engine hook onto the SDK's mixin bindings and needs Swofty Launcher 1.0.9 or later, whose core ships those bindings.
@@ -47,31 +47,7 @@ The engine hooks are mixins on knowledge-base bindings for the Steam build 25251
 
 ## Settings
 
-| setting | default | does |
-|---|---|---|
-| `render_fifth_box` | on | builds a fifth department card in the R&D > Performance box grid |
-| `attach_tyres_tree` | on | logs the Tyres upgrade tree container the save reads |
-| `render_fifth_box_layout` | on | logs the box grid's slot and card vectors |
-| `render_fifth_pie` | on | the fifth pie slot; master switch for the `pie_tyres_*` settings |
-| `pie_tyres_slice` | on | the fifth tile and sector populate as Tyres |
-| `pie_tyres_focus` | on | focusing the Tyres tile highlights the Tyres sector |
-| `pie_tyres_open` | on | the Tyres tile opens the Tyres page |
-| `pie_tyres_performance` | on | publishes the Tyres development potential |
-| `pie_tyres_counts` | on | the Tyres tile's fitted and total upgrades |
-| `tyres_research_capacity` | on | Tyres gets Durability's research slots and R&D modifiers |
-| `diag_tree_rowcount` | on | logs the upgrade-tree row count per department |
-| `select_fifth_dept` | off | v0.5.0 experiment: lets the box grid select index 4 |
-| `instantiate_tyres_upgrades` | on | gives the Tyres upgrades R&D states |
-| `diag_tyres_instances` | on | logs each R&D page's upgrade instances per department |
-| `tyres_upgrade_screen` | on | fixes Back, the card art and the performance comparison on the Develop Upgrade screen |
-| `tyres_dept_tags` | on | Tyres icon, category icons and colour in R&D lists |
-| `tyres_icon` | on | the Tyres icon frames; a rebuild applies a change |
-| `tyres_card_art` | on | the Tyres card art and category icons; a rebuild applies a change |
-| `tyres_test_price` | off | every Tyres upgrade costs 5 research points (testing only) |
-| `tyres_upgrade_types` | on | the four Tyres upgrade types and their car effects |
-| `log_upgrade_apply` | on | logs each Tyres type's progress when a car is built for a session |
-
-Most settings apply at install. Relaunch after changing one.
+The addon has no settings. Turn it on or off per profile on the Addons page.
 
 ## Build the DLL
 

@@ -154,9 +154,15 @@ implementable blind and is scoped as a following iteration.
 ## Mixins in `rnd_departments.cpp` (KB bindings)
 Since the mixin port every hook below is a KB binding resolved by signature at load; the scans, byte
 windows, RVAs and per-site "NOT installed (SAFE)" paths of the sections that follow are gone. One
-unresolved binding drops the addon. Install-time settings are latched in `SWOFTY_ON_LOAD` and checked
-in the handlers; a site that used to be a byte patch reproduces the patched instruction and resumes at
-its own join binding.
+unresolved binding drops the addon. The addon has no settings: every piece below is always on, and the
+former flags' defaults are the behaviour. A site that used to be a byte patch reproduces the patched
+instruction and resumes at its own join binding.
+
+Removed with the settings, together with their hooks: the box-layout probe (`render_fifth_box_layout`),
+the upgrade-tree instrument (`attach_tyres_tree`), the tree-rows probe (`diag_tree_rowcount`), the R&D page
+instance diagnostic (`diag_tyres_instances`), the box-grid selection clamp and its name guard
+(`select_fifth_dept`, default off; with the stock clamp the name read never sees index 4), the test price
+(`tyres_test_price`) and the three Develop Upgrade diagnostics (back_pressed, option rows, purchase request).
 
 | piece | bindings |
 |---|---|
@@ -165,13 +171,11 @@ its own join binding.
 | 5th box | `site_Career_RnDDeptBoxGridInject`, `Career_Construct_RnDDeptCard`, `Ne_Make_StrFromCStr`, `Ne_Format_String`, `g_Ne_DefaultAllocator` |
 | pie 5th slice | `site_Career_RnDPieBufSize`, `site_Career_RnDPieCtorRet`, the four `site_Career_RnDPie*SlotDtor` / `site_Career_RnDPerfViewModelSlotDtor` redirects, `site_Career_RnDPiePopulateDeptGuard` → `site_Career_RnDPiePopulateSlotCap`, `site_Career_RnDPiePopulateGate` → `site_Career_RnDPiePopulateNextCode` |
 | tile counts | `site_Career_RnDTileCountGuards` → `site_Career_RnDTileCountIndexGuard` → `site_Career_RnDTileCountBody` / `site_Career_RnDTileCountExit` |
-| box layout, tree, tree rows | `site_Career_RnDDeptBoxLayoutProbe`, `site_Career_LoadUpgradeRows_DeptPath`, `site_Career_RnDTreeRowCountProbe` |
-| box-grid name guard and clamp | `site_Career_RnDBoxGridNameRead`, `site_Career_RnDBoxGridNameClamp` → `site_Career_RnDBoxGridNameIndex` |
-| instances | `site_Career_UpgradeInitFakeDeptBranch` → `site_Career_UpgradeInitNormal`, the five `site_Career_Upgrade*DeptGate` → `*Body`, `site_Career_UpgradeGraphHubTest` → `site_Career_UpgradeGraphRegularNode`, `Car_Reset_LastFittedUpgrade`, a wrap of `Career_Refresh_UpgradeAvailability`, `site_Career_DeserialiseUpgradesEnd`, `site_Career_RnDDeptPagePreQuery`, `site_Career_RnDDeptPageQueryDone` |
-| Develop Upgrade screen | `site_Career_RnDContainerOpenMaint` → `site_Career_RnDContainerOpenTail`, `Career_Refresh_RnDDeptMode`, `Vm_Set_TabEnabled`, `vt_Career_RnDDeptCard`, `site_Career_RnDBoxGridFirstTab`, `site_Career_RnDCompareDept`, `site_Career_RnDCardArt{Image,Mask}0..2`, `site_Career_RnDCardDeptIcon0..2`, `site_Career_RnDCardColourPick0..4`, `site_Career_RnDPurchaseBackOpen`, `site_Career_RnDPurchaseOptionsEntry`, `site_Career_RnDPurchaseRequestEntry`, a wrap of `Career_Calc_UpgradeCost` |
+| instances | `site_Career_UpgradeInitFakeDeptBranch` → `site_Career_UpgradeInitNormal`, the five `site_Career_Upgrade*DeptGate` → `*Body`, `site_Career_UpgradeGraphHubTest` → `site_Career_UpgradeGraphRegularNode`, `Car_Reset_LastFittedUpgrade`, a wrap of `Career_Refresh_UpgradeAvailability`, `site_Career_DeserialiseUpgradesEnd`, `site_Career_RnDDeptPagePreQuery` |
+| Develop Upgrade screen | `site_Career_RnDContainerOpenMaint` → `site_Career_RnDContainerOpenTail`, `Career_Refresh_RnDDeptMode`, `Vm_Set_TabEnabled`, `vt_Career_RnDDeptCard`, `site_Career_RnDBoxGridFirstTab`, `site_Career_RnDCompareDept`, `site_Career_RnDCardArt{Image,Mask}0..2`, `site_Career_RnDCardDeptIcon0..2`, `site_Career_RnDCardColourPick0..4` |
 
 Install lines name the binding instead of an address, for example
-`[rnd-tyres] 5th-box inject hook installed (site_Career_RnDDeptBoxGridInject); render_fifth_box=on`.
+`[rnd-tyres] 5th-box inject hook installed (site_Career_RnDDeptBoxGridInject)`.
 
 ## v0.3.0 — the LIVE 5th BOX, shipped (box only; pie deferred)
 
@@ -333,7 +337,7 @@ screen builder 0x141c43290) is not in the decompiled corpus and the 5th cell rec
 lives in the un-dumped `frontend_overlay.idf` scene; cloning a slot + fabricating
 a rect blind risks a crash, and the declarative UIDF/ERP pipeline is not built — so
 **no visible-cell lever is safely shippable from the addon this round**.
-**Shipped (flag `render_fifth_box_layout`, default on, scan
+**Shipped until the settings cleanup, which removed it (it was `render_fifth_box_layout`, scan
 `career.rnd_box_layout_probe` @0x141c86d86, read-only):** a one-shot diagnostic
 that dumps the live slot-vector vs card-vector + every authored slot's bound/inner
 node, so the follow-up (an external f1-modding ERP scene patch adding a 5th
@@ -341,6 +345,7 @@ authored cell, or a runtime slot+scene-node clone using the captured pointers) h
 exact ground truth.
 
 ### Piece 2 — the upgrade tree (flag `attach_tyres_tree`)
+The read-only instrument described here was removed with its setting; the data placement stands.
 `Career_Load_UpgradeRows` (0x143539bc0) loops codes 0..4 and opens
 `<team_link>.<deptname>` (`"%s.%s"`, deptname from `k_Career_UpgradeDeptNameTable`;
 [4]="fake"), reading `upgrade_<N>` rows into one vector. Each record stores only
@@ -425,6 +430,8 @@ a relaunch.
 - `career.load_upgrade_rows_deptpath` → `site_Career_LoadUpgradeRows_DeptPath` @0x143539c84
 
 ## v0.5.0 — the 5th department SELECTION (flag `select_fifth_dept`, default on)
+
+> **Removed.** The setting, the clamp relax and the name guard are gone; the box-grid clamp is stock.
 
 > **Superseded in v0.6.0 (dead end).** `DAT_145f93c08` is the R&D > Performance overview
 > box-grid selection; a hardware watchpoint proved it never changes while the department
@@ -617,8 +624,8 @@ so saves written with v0.4/v0.5 carry our sentinel and would overwrite a fixed i
 returned.
 
 ### The fix (flag `instantiate_tyres_upgrades`, default on, install-time)
-Mixin sites on the department compare of each gate (the KB rows the earlier sweep named), latched at
-launch. Each acts only on OUR instances: dept 4, row flag 0xff, and `+0x58` in our node hashes or
+Mixin sites on the department compare of each gate (the KB rows the earlier sweep named), always on.
+Each acts only on OUR instances: dept 4, row flag 0xff, and `+0x58` in our node hashes or
 `upgrade_name` in our rows, and resumes on the branch the stock code takes for a real department.
 Identification is by content, never address (the init runs on a stack temp).
 
@@ -650,7 +657,7 @@ department name/colour lookups in the upgrade panels are bounded (`cmp 3/5 ; ja 
 shows the bounded fallback department label (`error_department`) for Tyres upgrades.
 
 ### Diagnostic (flag `diag_tyres_instances`, default on, read-only)
-Site `site_Career_RnDDeptPageQueryDone` 0x141c7d8d4 (after the query; `rsi` = card, count at
+Removed with its setting. It was site `site_Career_RnDDeptPageQueryDone` 0x141c7d8d4 (after the query; `rsi` = card, count at
 `rsp+0x19f0`). Logs per page build (Tyres page up to 24 times, other pages once):
 `instances: R&D page dept=N team=… query=… by dept 0:… 1:… 2:… 3:… 4:…`, the Tyres-listed names,
 and every dept-4 instance's last state.
@@ -737,6 +744,7 @@ Classified with `capstone` over a full `objdump` of `.xtls`; plus the panel/card
 | 0x143525b60 | upgrade cost | formula (below) | **yes** | test price hook |
 
 ### What v0.6.1 installs (flag `tyres_upgrade_screen`, default on; the Back route is latched at launch)
+All of it is always on.
 - **Back route** — `site_Career_RnDContainerOpenMaint` 0x141c873c2 (`cmp eax,0x5c31ec68`, the last name compare
   of the open case). For name hash `tyres` (0x107666dc) or `error_department` (0x7e5c1342, only produced for
   department >= 4): find the department card (`vt_Career_RnDDeptCard`, `+0x6d8 == 4`) that owns a container slot
@@ -755,22 +763,18 @@ Classified with `capstone` over a full `objdump` of `.xtls`; plus the panel/card
   `error_department` → the Tyres frame).
 - **Card colour** — `site_Career_RnDCardColourPick0..4`, on the instruction after each card binder's
   `k_Career_RnDCardColourTable[dept]` load (0x14180eb3d, 0x14180ff2b, 0x141814baf, 0x1418174e0, 0x1418b0faf): department 4
-  reads Tyres orange 0xff0078ff instead of white. On when `tyres_upgrade_screen` or `render_fifth_pie` +
-  `pie_tyres_performance` were on at launch (the two settings that used to write the shared table); the table itself
-  is no longer written.
-- **Diagnostics** — `site_Career_RnDPurchaseBackOpen` 0x141c8c172, `site_Career_RnDPurchaseOptionsEntry`
-  0x141c8cbb0, `site_Career_RnDPurchaseRequestEntry` 0x1412414c0, state pushes in the v0.6.0 push guard.
+  reads Tyres orange 0xff0078ff instead of white. The table itself is not written.
+- **Diagnostics** — the state pushes in the v0.6.0 push guard. The back_pressed, option-row and
+  purchase-request diagnostics were removed with the settings.
 
 ### Test price (flag `tyres_test_price`, default on) — TEMPORARY
+Removed: the Tyres upgrades always use the database cost. The cost function below is unchanged.
 Cost = `0x143525b60(list, instance, team modifiers, option)`: base `cost` (+0x5c) or `cost_to_develop`
 (+0x60, option & 6), team rows only; × modifier kind 3 (research) / 0x13 (development) cost scale; + kind 10 ×
 upgrades owned; + `(base × instance+0xd8) / 100` (event-driven percent; −60 on the test save, which is why the
 1000-point row showed 400). It is called by the affordability list `0x1435329b0`, the research and
 development cost wrappers `0x14351dde0` / `0x14351df60` (`0x14351df60` is mislabelled
-`Car_Read_VehicleAttribute` in the KB), the card and the panel. A wrap of `Career_Calc_UpgradeCost` returns 5 for ours without calling the game's
-function. Restore: turn
-`tyres_test_price` off (database `cost`/`cost_to_develop` stay 1000). Research/development times were also
-shortened to 5/5 days for testing (database rows; real values 20/25).
+`Car_Read_VehicleAttribute` in the KB), the card and the panel.
 
 ### Names
 Per-upgrade name key = `lng_rnd_<upgrade_name>`, description = `lng_rnd_<upgrade_name>_description` (card
@@ -791,15 +795,15 @@ material/texture). The replacements change size, so both archives take the rewri
 (launcher PR #138; the v1.0.4 CLI drops them). The research overview (`team_hq/research`) keeps the
 stock four-sector pie.
 
-**Native** (`src/rnd_fifth_pie.cpp`, `rnd_fifth_pie::install` right after `install_fifth_pie`; every piece
-needs `render_fifth_pie`, now default on, which is also what applies the populate changes slice and focus
-rely on). Every hook is a mixin on a KB binding (`PIE_SITES.md`, "Bindings"):
+**Native** (`src/rnd_fifth_pie.cpp`, `rnd_fifth_pie::install` right after `install_fifth_pie`, whose populate
+changes slice and focus rely on). The pieces have no options and are always on. Every hook is a mixin on a
+KB binding (`PIE_SITES.md`, "Bindings"):
 
-| option | bindings | for department code 4 |
+| piece | bindings | for department code 4 |
 |---|---|---|
-| `pie_tyres_slice` | `site_Career_RnDPieSliceNameJoin`, `site_Career_RnDPieSliceDescFormat` (redirect), `site_Career_RnDPieSliceDefaultColour`, `site_Career_RnDPieSliceIconArgs` | populate name `tyres`, description key, colour 0xff0078ff, wheel icon `maintenance` |
-| `pie_tyres_focus` | `site_Career_RnDPieFocusNameCmp` (resume `site_Career_RnDPieFocusJoin`) | `department_focused "tyres"` highlights the sector; `g_Career_RnDOverviewSelectedDept` untouched |
-| `pie_tyres_performance` | `site_Career_RnDPerfDeptLoopEnd`, `site_Career_RnDPerfDeptName`, `site_Career_RnDPerfChildName`, `site_Career_RnDPerfDeptColour`, `site_Career_RnDPerfGotoName` | publisher `0x1418914f0` emits `department_performance.tyres` (derived current/potential, orange `dept_colour`) |
+| slice | `site_Career_RnDPieSliceNameJoin`, `site_Career_RnDPieSliceDescFormat` (redirect), `site_Career_RnDPieSliceDefaultColour`, `site_Career_RnDPieSliceIconArgs` | populate name `tyres`, description key, colour 0xff0078ff, wheel icon `maintenance` |
+| focus | `site_Career_RnDPieFocusNameCmp` (resume `site_Career_RnDPieFocusJoin`) | `department_focused "tyres"` highlights the sector; `g_Career_RnDOverviewSelectedDept` untouched |
+| performance | `site_Career_RnDPerfDeptLoopEnd`, `site_Career_RnDPerfDeptName`, `site_Career_RnDPerfChildName`, `site_Career_RnDPerfDeptColour`, `site_Career_RnDPerfGotoName` | publisher `0x1418914f0` emits `department_performance.tyres` (derived current/potential, orange `dept_colour`) |
 
 All sites were checked for in-function branch targets inside the patched bytes (none). The publisher's
 `dept_colour` is set at its read (`site_Career_RnDPerfDeptColour`), so `k_Career_RnDCardColourTable`
@@ -857,7 +861,7 @@ string, exactly like the stock `error_department` literal.
 
 ### The v0.7.1 fix (flag `render_fifth_pie`, default on, latched at launch)
 Mixins in `rnd_departments.cpp`, all resolved from the KB at load (one unresolved binding drops the
-addon). Every handler runs only when `render_fifth_pie` was on at launch; with it off the stock code runs.
+addon). Every handler is always on.
 
 | binding | kind | does |
 |---|---|---|
@@ -872,7 +876,7 @@ handle-release run shared with other functions) and no data pointer, so its 26 E
 only handle on it. The four redirected calls are the first slot destroy of every path that frees a
 class-B pie object; the other groups destroy class-A objects or populate temporaries, which are never
 registered.
-`rnd_fifth_pie.cpp` treats the patches as live when `render_fifth_pie` is on (the flag `install()` gets).
+`rnd_fifth_pie.cpp` relies on these populate changes for its slice and focus pieces.
 
 ### Expected log
 Install:
@@ -930,8 +934,8 @@ TeamModifiers_Add is invisible to it.
 | `site_Career_RnDPageModifierList` 0x141c7dcca | dept page `Career_Build_RnDDeptPage`, rax = list, bl = card dept | mirror for dept 4 (Tyres tab slot count) |
 | `Career_Add_TeamModifier` 0x1434f8a00 | called (`fn` binding) | TeamModifiers_Add(list, key, float value in xmm2) |
 
-The three sites are one all-or-nothing set with the rest of the addon; `tyres_research_capacity` is read
-once in `rnd_capacity::install` and gates every handler. No in-function branch targets inside the hook
+The three sites are one all-or-nothing set with the rest of the addon. The capacity piece has no option
+and is always on; every handler is a no-op until `rnd_capacity::install` runs. No in-function branch targets inside the hook
 windows. The whole-`.xtls` scan flags only non-code bytes (a
 rel8 inside `mov [rsp+0x78],r14` at 0x141c7dcc3, and junk at 0x140f5cac9 outside any `.pdata` function).
 Limits: AI teams' lists get no dept-4 entries (stock); a list re-init (0x1434f9770 from 0x14123b3f0, or
@@ -939,7 +943,6 @@ Limits: AI teams' lists get no dept-4 entries (stock); a list re-init (0x1434f97
 
 Expected log:
 ```
-[rnd-tyres] capacity: tyres_research_capacity=on
 [rnd-tyres] capacity panel: hooked panel modifier list (rax) @0x141c8e2a7 (base+0x1c8e2a7)
 [rnd-tyres] capacity panel: hooked panel research-limit check (ebp/eax) @0x141c8e766 (base+0x1c8e766)
 [rnd-tyres] capacity INSTALLED: dept 4 mirrors Durability's team modifiers (research slots, scales, rush) when the develop-upgrade panel reads them; TeamModifiers_Add @0x1434f8a00
@@ -947,7 +950,6 @@ Expected log:
 -- Tyres tab / upgrade --
 [rnd-tyres] capacity: Tyres page team 0x… list 0x…: dept 4 mirrored from Durability (src 58, inserted 58, updated 0) -> research slots dept4=N durability=N
 [rnd-tyres] capacity check: team 0x… dept 4 slots=N in-progress=0 gate=1 -> research-limit=0 | Durability slots=N in-progress=M
-[rnd-tyres] develop-upgrade options: tyres_thermal_1 "tyres_wear_reduction" … research-limit=0
 ```
 (src is 58 in list modes 1/2, 20 in mode 0.)
 
@@ -993,7 +995,7 @@ different scene chain and a different view-model class (class A, vtable 0x14575e
 0x141f45d30 compares only aero/chassis/maintenance/engine, pie populate gated `< 4`), with four authored
 tiles and no Tyres focus. Its pie binds the same `focused_team_perf_root.department_performance.*` root, so
 a fifth sector there would get data from the publisher, but without a Tyres tile it would be a wedge nobody
-can focus, and with `pie_tyres_performance` off an empty 72° gap. The Performance page has its own chain, so
+can focus, and without the publisher's Tyres entry an empty 72° gap. The Performance page has its own chain, so
 it gets the five sectors and Team HQ keeps the stock pie with no gap.
 
 ### 2. The Tyres tile count (flag `pie_tyres_counts`, default on, install-time)
@@ -1010,12 +1012,12 @@ with `+0x72 == code`, fitted = those whose last state is Completed (3); the four
 | `site_Career_RnDTileCountGuards` (0x141f49c23) | `cmp cl,3 ; ja` (code guard) | site: code 4 resumes at `site_Career_RnDTileCountIndexGuard` (reads as `cmp cl,4`) |
 | `site_Career_RnDTileCountIndexGuard` (0x141f49c28) | `cmp ebx,3 ; ja exit` (slot index guard) | site: index 4 needs a registered pie object with an intact footer and 17 slot-4 vtables; then it resumes at `site_Career_RnDTileCountBody` (0x141f49c31, reads as `cmp ebx,4`), else at `site_Career_RnDTileCountExit` (0x141f49f5b, the function's exit = stock behaviour) |
 
-Both sites act only when `pie_tyres_counts` and `render_fifth_pie` were on at launch.
+Both sites are always on.
 The `.ui` also missed the tile's refresh: `focusable.trigger` (raised by
 `onTabActivated`) sent `Trigger` to the four stock tiles only, and the tile's `Trigger` is what runs
 `progress_value.refreshTextInst` and the ring's `slowRefresh`; it now also targets `focusable.tyres`.
 
-### 3. Tyres icon and colour in the R&D lists (flag `tyres_dept_tags`, default on, install-time)
+### 3. Tyres icon and colour in the R&D lists (always on)
 `src/rnd_dept_tags.cpp`. Every tag falls back to the frame `"error_department"` (0x14587e10d, 51 references)
 when its lookup misses: the lists test the department byte (`dept < 4 ? table[dept]`), the upgrade card the part
 type and the perks title the `return_department_name` hash (both below). Colours read a `< 6` table on the
@@ -1060,7 +1062,7 @@ may not mean Tyres) and the perks title colour (the perks panel maps unknown nam
 Tile press → `focusable.select_pressed` → `raiseEvent goto_rnd_departments` → `laptop_container.ui`
 `raise_command goto_rnd` → the departments flow → `Career_Build_RnDDeptBoxGrid` picks the first tab from
 `DAT_145f93c08` clamped `< 4` (0x141c86c7e) and maps the name to a card (aero/chassis/engine, else
-`cards[3]` = Durability). `pie_tyres_focus` deliberately never writes `DAT_145f93c08` (every pie/box read
+`cards[3]` = Durability). The Tyres focus deliberately never writes `DAT_145f93c08` (every pie/box read
 clamps it), so the screen opened the last stock department focused before Tyres. The v0.7.1 log has
 `box-grid builder reached: … selection=2` right after `department_focused "tyres"`, and the box-layout probe
 right after shows the Tyres card already owns slot[6] (`bound-node=0x32a091068 = card+0x268`), so the
@@ -1074,20 +1076,19 @@ differs, and compare the data string themselves. Fix:
 
 | site | kind | does |
 |---|---|---|
-| `site_Career_RnDPieFocusNameCmp` 0x141f4a9e6 (class B, also the pie_tyres_focus hook) | site | data `tyres` sets "Tyres is the focused tile"; a stock name clears it (a stock focus on the Performance page) |
+| `site_Career_RnDPieFocusNameCmp` 0x141f4a9e6 (class B, also the focus hook) | site | data `tyres` sets "Tyres is the focused tile"; a stock name clears it (a stock focus on the Performance page) |
 | `site_Career_RnDResearchFocusNameCmp` 0x141f46046 (class A) | site | a stock name clears it (a stock focus on the Team HQ research overview) |
 | `site_Career_RnDPieFocusRestore` 0x141f48476 `cmp r14b,al ; jne` (populate focus restore) | site | flag set: al = 4 for code 4, 0xff for codes 0..3, so the rebuilt page focuses the Tyres tile again |
 | `site_Career_RnDBoxGridFirstTab` 0x141c86d03 `mov rax,[rax] ; mov [rsi+0x7b8],rax` (box-grid first-tab join) | site | flag set and the Tyres card (`vt_Career_RnDDeptCard`, `+0x6d8 == 4`) owns a container slot: `rax` = its card-vector element, and the stock tail stores, enables and selects it. No such slot: stock first tab |
 
 All windows pass the in-function branch-target check; the whole-`.xtls` scan finds no branch into them. The
-route site sits next to the Back route (it reuses `find_tyres_tab`) and acts only when `tyres_upgrade_screen` was
-on at launch and the tracking hooks are live. Other ways in already land on the Tyres tab: the departments tab bar, Back
+route site sits next to the Back route (it reuses `find_tyres_tab`) and acts only when the tracking hooks are
+live. Other ways in already land on the Tyres tab: the departments tab bar, Back
 from a Tyres upgrade, the perks back and cross-department jumps (v0.6.1 open dispatch).
 
 ### Expected log (v0.7.2 additions)
 Install:
 ```
-[rnd-tyres] pie5: pie_tyres_slice=on pie_tyres_focus=on pie_tyres_open=on pie_tyres_performance=on
 [rnd-tyres] pie5 open: hooked R&D > Performance stock focus @0x141f4a9e6 (base+0x1f4a9e6)
 [rnd-tyres] pie5 open: hooked Team HQ research overview stock focus @0x141f46046 (base+0x1f46046)
 [rnd-tyres] pie5 open: hooked populate focus restore compare @0x141f48476 (base+0x1f48476)
@@ -1155,7 +1156,7 @@ scenes, `.ui` and databases); the pie's round sectors are BC7 quarter-disc masks
 array gets `replace-resource` on the head (slices + 1), the pixels (stock slices byte for byte + the new slice)
 and the SRV view (slices + 1): 18 operations in `flow_career_hub.erp` and 12 in `flow_team_hq.erp`. One `patch-pkg`
 on `overrides.uidb` appends the six entries with `clone-entry` (`src` = the list's last entry, `as` = the frame,
-`Value` = `…/tyres.tif` or `…/rnd_tyres_strip.tif`). Every operation carries `"when": {"tyres_icon": true}`.
+`Value` = `…/tyres.tif` or `…/rnd_tyres_strip.tif`).
 
 Offline check (stock copies, every operation applied with `tools/erpw.py` and `tools/pkg.py`): 10332 untouched
 resources of `flow_career_hub.erp`, 19716 of `flow_team_hq.erp` and 7 of `databases.erp` decompress byte-identical;
@@ -1174,7 +1175,7 @@ every stock slice of the ten grown arrays is byte-identical; the lists read `[�
 | In Progress colour strip (`TagKind::Strip`) | `rnd_dept_tags.cpp` | `rnd_maintenance_strip` | `rnd_tyres_strip` |
 | Tyres tile wheel icon (`on_slice_icon`, populate H4) | `rnd_fifth_pie.cpp` | `rnd_wheel_icon.maintenance` | `rnd_wheel_icon.tyres` |
 
-Any other probe result (setting off, archives not rewritten, a runtime delivery that left the files stock) keeps
+Any other probe result (archives not rewritten, a runtime delivery that left the files stock) keeps
 the 0.7.2 frames, so no hook ever names a frame the game lacks. No new hook sites.
 
 ### Expected log (v0.8.0)
@@ -1191,8 +1192,9 @@ Fallback: `tyres icon off: 0/6 grown R&D icon arrays … (SAFE)` and the 0.7.2 l
 
 ## v0.9.0 — the Tyres upgrade types (setting `tyres_upgrade_types`, default on, install-time)
 
-`src/rnd_upgrade_types.cpp`. The Tyres department gets its own upgrade types instead of borrowing
-stock ones, so its upgrades never dilute Chassis' Tyre Wear or Brakes:
+`src/rnd_upgrade_types.cpp`. The `tyres_upgrade_types` setting is gone: the types are always on while the addon is
+enabled. The Tyres department gets its own upgrade types instead of borrowing stock ones, so its upgrades never
+dilute Chassis' Tyre Wear or Brakes:
 
 | id | `upgrade_type` | camel-case (telemetry) | UI key suffix | VTF block | full-progress effect |
 |---|---|---|---|---|---|
@@ -1248,15 +1250,13 @@ Without the three telemetry guards a Tyres purchase, failure or fit would read t
 
 Every hook above is a KB binding (subsystem `career`); the mixin system resolves them by signature and installs
 all of them or none, so no per-site byte windows, scans or rollback remain. The `.data1` sites
-(`site_Career_ApplyUpgradeKeyFilter`/`KeyCall`, `site_Career_ApplyUpgradeBlockNameDefault`/`Join`) and
-`k_Career_UpgradeBlockNameTable` carry `.data1` signatures under the
-PROTOCOL §2 exception, so on the EA build (packed `.data1`) the addon does not register at all.
+(`site_Career_ApplyUpgradeKeyFilter`/`KeyCall`, `site_Career_ApplyUpgradeBlockNameDefault`/`Join`) carry `.data1`
+signatures under the PROTOCOL §2 exception, so on the EA build (packed `.data1`) the addon does not register at all.
 
-1. `install()` runs from the addon's `SWOFTY_ON_LOAD`, after every site is live.
-2. `tyres_upgrade_types` off: nothing goes live; every handler returns at once (a Tyres row naming a new type then
-   resolves to Engine Power).
-3. On: the extended order table (0..18 from `k_Career_UpgradeTypeOrder`, then 19..22) is filled, then the module
-   goes live in one store, so every consumer and both resolvers switch together. `live()` is that flag.
+There is no setting: the types are on whenever the addon is enabled. `install()` runs from the addon's
+`SWOFTY_ON_LOAD`, after every site is live. It fills the extended order table (0..18 from `k_Career_UpgradeTypeOrder`,
+then 19..22) and then turns the module live in one store, so every consumer and both resolvers switch together.
+Until then every handler returns at once. `live()` is that flag.
 
 Every hook window was checked against every direct branch target in its function (rel32 `E8/E9/0F 8x`, rel8
 `EB/7x`): none lands inside a window except at its first byte (the resolver joins and the switch defaults are
@@ -1264,17 +1264,12 @@ branch targets at their start). Join and skip destinations are only jump targets
 
 ### Upgrade apply log (setting `log_upgrade_apply`, default on, read-only)
 
-`site_Career_UpgradeBlockReplayEntry` at **0x144742c70** entry (`push r15 ; push r14 ; push r13`, 6-byte window,
-`.xtls` with `.pdata`): the block replay that the per-type apply body 0x14fa63050 tail-jumps to (0x14fa6317b) after it
-has summed and clamped the type's progress and named the block. On entry `rdx` = block name, `xmm3` = `perc`,
-`rcx` = vehicle+0x4a0. `perc` is max(0, Σ progress) for Σ ≤ 1; for Σ > 1 the `.data1` clamp's `vblendvps` (0x14fa630c7)
-reads its 1.0 constant one byte low (0x14538250f, lane 0 = 0x8000003d) and yields ~-0.0. The logged perc reflects this
-stock quirk, and it is the value the game replays with: a type over 100 % logs `perc -0.0000`. The type is recovered from the name pointer (its index in
-`k_Career_UpgradeBlockNameTable`, or one of ours), and the log runs once per (vehicle, type, perc). The body returns
-before the tail jump when the vehicle's map lacks the type, so absent types are not logged, as before. The replay's
-other caller (the `.data1` setup path 0x14f82f2b3) passes setup-level names (`very_low`..`very_high`), which match no
-upgrade block and are skipped. Gated by `log_upgrade_apply` alone, independently of `tyres_upgrade_types`.
-(The earlier `.data1` entry site `site_Career_ApplyUpgradeBlockEntry` 0x14fa63050 is no longer hooked.)
+The read-only apply log and its `log_upgrade_apply` setting are gone; `site_Career_UpgradeBlockReplayEntry`
+(0x144742c70, the block replay the per-type apply body tail-jumps to) and `k_Career_UpgradeBlockNameTable` stay in the KB
+but are no longer used. A Tyres type reaching the car shows as the block-name line below, and with the game's
+`VEHICLE_UPGRADES` channel on as the game's own `Applying <block> upgrade to vehicle N. (perc0to1: x)`. That perc is
+max(0, Σ progress) for Σ ≤ 1; above 1 the `.data1` clamp's `vblendvps` (0x14fa630c7) reads its 1.0 constant one byte
+low (0x14538250f) and yields ~-0.0, a stock quirk.
 
 ### Other native changes
 
@@ -1283,7 +1278,7 @@ upgrade block and are skipped. Gated by `log_upgrade_apply` alone, independently
   legacy names as a fallback. The vehicle performance comparison department comes from the instance type
   (19-21 Chassis, 22 Powertrain), else from the row (13-15 Powertrain, others Chassis).
 - Card art and category icons: see "v0.9.0 — the card art" below.
-- `tyres_test_price` defaults off in the DLL (the tree carries real prices).
+- The test price is gone; the tree carries real prices.
 
 ### Data (`tools/build_vtf.py`)
 
@@ -1317,8 +1312,7 @@ tyre heat update at 0x1446b7f86) but its only static writer is the reset at 0x14
 Install:
 ```
 [rnd-tyres] tyres art: part images OWN (2/2 arrays with the 45 Tyres slices in flow_team_hq.erp), part masks OWN (2/2 with 15), category icons OWN (2/2 with 4 in flow_career_hub.erp); a borrowed piece uses stock frames (SAFE)
-[rnd-tyres] upgrade apply log INSTALLED: read-only hook @0x144742c70 logs each type's perc once per vehicle and value
-[rnd-tyres] upgrade types: tyres_upgrade_types=on, 4 new types (Power Unit Cooling shipped)
+[rnd-tyres] upgrade types: 4 new types (Power Unit Cooling shipped)
 [rnd-tyres] upgrade types INSTALLED: 19 radUpgradeTyreThermal, 20 radUpgradeBrakeCooling, 21 radUpgradeTyreLife, 22 radUpgradePUCooling; 22 consumer hooks, 6 order-table leas -> extended order table 0x… (23 types, 4 sites), 2 resolver hooks
 ```
 Career load:
@@ -1333,10 +1327,8 @@ Team HQ → session (weekend objectives), once per Tyres upgrade that is Availab
 ```
 [rnd-tyres] upgrade types: weekend objectives 0x14295c0a0 leaves Available type 19 (TyreThermal) out of the discount type bitset
 ```
-Session load (vehicle build), one line per type per component and value:
+Session load (vehicle build), for each Tyres type the car's upgrade map holds (first 8 lines):
 ```
-[rnd-tyres] upgrade apply: type 6 radUpgradeTyreWear perc 0.0000 (vehicle 0x…)
-[rnd-tyres] upgrade apply: type 19 radUpgradeTyreThermal perc 0.1429 (vehicle 0x…)
 [rnd-tyres] upgrade types: apply 0x14fa63050 type 19 names block radUpgradeTyreThermal
 ```
 With the game's `VEHICLE_UPGRADES` channel on: `Applying radUpgradeTyreThermal upgrade to vehicle N. (perc0to1: x)`.
@@ -1411,5 +1403,5 @@ Tyres page and Develop Upgrade screen (first 32 rewrites):
 [rnd-tyres] card art: site 2 image "tt_thermal_model_complete" -> own "om_xm_tt_thermal_model_complete"
 [rnd-tyres] dept tag: department category row icon "error_department_tyre_thermal" -> "tyres_tyre_thermal"
 ```
-With `tyres_card_art` off: `part images borrowed (0/2 …)` and `-> borrowed "om_xm_tyre_blankets_progress"`, and
+Without the grown arrays: `part images borrowed (0/2 …)` and `-> borrowed "om_xm_tyre_blankets_progress"`, and
 the category rows fall back to the stock icons.
