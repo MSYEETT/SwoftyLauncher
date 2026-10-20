@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
 
@@ -11,6 +12,7 @@ use crate::update::UpdateConfig;
 pub const DEFAULT_WINEDEBUG: &str = "+timestamp,+pid,+tid,+loaddll,fixme-all";
 pub const LOADER_LOG: &str = "swofty/loader.log";
 pub const LOADER_MARK: &str = "loader_mark.json";
+pub const PERF_LOG: &str = "swofty/perf.log";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Session {
@@ -373,6 +375,12 @@ impl LogMark {
     pub fn replaced(path: &Path, before: Option<&Self>) -> bool {
         Self::read(path).is_some_and(|now| before != Some(&now))
     }
+}
+
+pub fn written_since(path: &Path, since: SystemTime) -> bool {
+    std::fs::metadata(path)
+        .and_then(|m| m.modified())
+        .is_ok_and(|t| t >= since)
 }
 
 pub fn parse_cpu_list(spec: &str) -> Option<Vec<usize>> {

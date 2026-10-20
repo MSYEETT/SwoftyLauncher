@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use std::io::{IsTerminal, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitCode, ExitStatus, Stdio};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::{Context, Result, bail};
 use clap::Args;
@@ -13,8 +13,8 @@ use swofty_core::process::{
 };
 use swofty_core::recovery::{Scope, SessionLock};
 use swofty_core::session::{
-    Config, DEFAULT_WINEDEBUG, LOADER_LOG, LOADER_MARK, LaunchMode, LaunchRequest, LogMark, game_args,
-    parse_cpu_list, parse_steam_command,
+    Config, DEFAULT_WINEDEBUG, LOADER_LOG, LOADER_MARK, LaunchMode, LaunchRequest, LogMark, PERF_LOG,
+    game_args, parse_cpu_list, parse_steam_command, written_since,
 };
 use swofty_core::steam_client::{self, Ready, Report, State, Wait};
 use swofty_core::store::Store;
@@ -561,6 +561,7 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
             .stderr(out);
         Ok(c.spawn()?)
     };
+    let launched = SystemTime::now();
     std::fs::write(dir.join("game_start"), format!("{}\n", now_secs()))?;
     // The offline-play session launcher (staged in place of the EA
     // AntiCheat launcher) creates the game suspended and patches the launch
@@ -579,9 +580,7 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
     let code = status.code().unwrap_or(-1);
     std::fs::write(dir.join("exit_code"), format!("{code}\n"))?;
     std::fs::write(dir.join("game_end"), format!("{}\n", now_secs()))?;
-    if LogMark::replaced(&loader, before.as_ref()) {
-        std::fs::copy(&loader, dir.join("loader.log")).ok();
-    }
+    keep_game_logs(game, &dir, before.as_ref(), launched);
     for g in game_processes()
         .into_iter()
         .filter(|g| descends_from(g.pid, std::process::id()))
@@ -589,6 +588,17 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
         stop_process(g.pid).ok();
     }
     Ok(code)
+}
+
+fn keep_game_logs(game: &Path, dir: &Path, before: Option<&LogMark>, launched: SystemTime) {
+    let loader = game.join(LOADER_LOG);
+    if LogMark::replaced(&loader, before) {
+        std::fs::copy(&loader, dir.join("loader.log")).ok();
+    }
+    let perf = game.join(PERF_LOG);
+    if written_since(&perf, launched) {
+        std::fs::copy(&perf, dir.join("perf.log")).ok();
+    }
 }
 
 /// Wait for the game; a stop signal to the wrapper (Steam's Stop button, a
@@ -1413,6 +1423,46 @@ mod tests {
             "{err}"
         );
         assert!(err.ends_with("Nothing from SwoftyMod ran."), "{err}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn keeps_the_loader_and_perf_logs_this_session_wrote() {
+        let dir = session_dir("keep-logs");
+        let game = dir.join("game");
+        let session = dir.join("session");
+        std::fs::create_dir_all(&session).unwrap();
+        let loader = game.join(LOADER_LOG);
+        let perf = game.join(PERF_LOG);
+        let touch = |path: &Path, at: SystemTime| {
+            std::fs::File::options()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_modified(at)
+                .unwrap();
+        };
+        let launched = SystemTime::now();
+        std::fs::write(&loader, STALE).unwrap();
+        std::fs::write(&perf, "Swofty Launcher performance report\nold\n").unwrap();
+        touch(&perf, launched - Duration::from_secs(600));
+        let before = LogMark::read(&loader);
+        keep_game_logs(&game, &session, before.as_ref(), launched);
+        assert!(!session.join("loader.log").exists());
+        assert!(!session.join("perf.log").exists());
+
+        std::fs::write(&loader, "fresh\n").unwrap();
+        std::fs::write(&perf, "Swofty Launcher performance report\nnew\n").unwrap();
+        touch(&perf, launched + Duration::from_secs(1));
+        keep_game_logs(&game, &session, before.as_ref(), launched);
+        assert_eq!(
+            std::fs::read_to_string(session.join("loader.log")).unwrap(),
+            "fresh\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(session.join("perf.log")).unwrap(),
+            "Swofty Launcher performance report\nnew\n"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 
