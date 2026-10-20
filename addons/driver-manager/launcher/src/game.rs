@@ -7,7 +7,7 @@ use swofty_formats::hash::fnv1a64;
 use swofty_formats::lng::Lng;
 
 pub const DB_REL: &str = "game_package/gamedatabases/gamedatabases.2025.bin";
-const CACHE_SCHEMA: u32 = 1;
+const CACHE_SCHEMA: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Choice {
@@ -22,6 +22,12 @@ pub struct StockDriver {
     pub code: String,
     pub number: u32,
     pub stat_id: u32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Art {
+    pub source: String,
+    pub colours: u32,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -41,6 +47,10 @@ pub struct GameData {
     pub driver_ids: BTreeSet<u32>,
     pub preset_ids: BTreeSet<u32>,
     pub labels: BTreeSet<String>,
+    #[serde(default)]
+    pub art: BTreeMap<String, Art>,
+    #[serde(default)]
+    pub missing: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,7 +65,53 @@ pub enum List {
     Voice,
 }
 
+impl List {
+    pub const LOOKS: [List; 6] = [
+        List::Head,
+        List::Helmet,
+        List::Suit,
+        List::Gloves,
+        List::Pose,
+        List::Emote,
+    ];
+
+    pub fn slug(self) -> &'static str {
+        match self {
+            List::Nationality => "nationality",
+            List::Head => "head",
+            List::Helmet => "helmet",
+            List::Suit => "suit",
+            List::Gloves => "gloves",
+            List::Pose => "pose",
+            List::Emote => "emote",
+            List::Voice => "voice",
+        }
+    }
+
+    pub fn key(self, value: &str) -> String {
+        format!("{}/{value}", self.slug())
+    }
+}
+
 impl GameData {
+    pub fn art(&self, list: List, value: &str) -> Option<&Art> {
+        self.art.get(&list.key(value))
+    }
+
+    pub fn installed(&self, list: List, value: &str) -> bool {
+        !self.missing.contains(&list.key(value))
+    }
+
+    pub fn available(&self, list: List, value: &str) -> bool {
+        self.has(list, value) && self.installed(list, value)
+    }
+
+    pub fn choices(&self, list: List) -> impl Iterator<Item = &Choice> {
+        self.list(list)
+            .iter()
+            .filter(move |c| self.installed(list, &c.value))
+    }
+
     pub fn list(&self, list: List) -> &[Choice] {
         match list {
             List::Nationality => &self.nationalities,
@@ -182,13 +238,31 @@ fn disambiguate(mut list: Vec<Choice>) -> Vec<Choice> {
     list
 }
 
-fn kit(db: &Db, names: &Names, table: &str, row: &str) -> Vec<Choice> {
-    let list = rows(db, table, row)
+fn kit(
+    db: &Db,
+    names: &Names,
+    art: &mut BTreeMap<String, Art>,
+    list: List,
+    table: &str,
+    row: &str,
+) -> Vec<Choice> {
+    let source_field = match list {
+        List::Pose | List::Emote => "texture_name",
+        _ => "asset_group",
+    };
+    let choices = rows(db, table, row)
         .filter_map(|r| {
             let value = field(db, &r, "_metadata_");
             if value.is_empty() {
                 return None;
             }
+            art.insert(
+                list.key(&value),
+                Art {
+                    source: field(db, &r, source_field),
+                    colours: int(db, &r, "nb_colours").unwrap_or(0),
+                },
+            );
             let label = match names.get(&field(db, &r, "name_loc_tag")) {
                 Some(text) if text.chars().count() > 2 => text,
                 Some(text) => format!("{text} ({value})"),
@@ -197,7 +271,7 @@ fn kit(db: &Db, names: &Names, table: &str, row: &str) -> Vec<Choice> {
             Some(Choice { value, label })
         })
         .collect();
-    disambiguate(list)
+    disambiguate(choices)
 }
 
 pub fn extract(db: &Gvdb, lng: Option<&Lng>, key: &str) -> GameData {
@@ -278,15 +352,46 @@ pub fn extract(db: &Gvdb, lng: Option<&Lng>, key: &str) -> GameData {
     let looks = disambiguate(looks);
     data.heads = generic.into_iter().chain(looks).collect();
 
-    data.helmets = kit(db, &names, "customisation.custom_avatar.helmets", "Helmet");
-    data.suits = kit(db, &names, "customisation.custom_avatar.suits", "Suit");
-    data.gloves = kit(db, &names, "customisation.custom_avatar.gloves", "Gloves");
-    let mut poses = kit(db, &names, "customisation.custom_avatar.poses", "Pose");
+    let art = &mut data.art;
+    data.helmets = kit(
+        db,
+        &names,
+        art,
+        List::Helmet,
+        "customisation.custom_avatar.helmets",
+        "Helmet",
+    );
+    data.suits = kit(
+        db,
+        &names,
+        art,
+        List::Suit,
+        "customisation.custom_avatar.suits",
+        "Suit",
+    );
+    data.gloves = kit(
+        db,
+        &names,
+        art,
+        List::Gloves,
+        "customisation.custom_avatar.gloves",
+        "Gloves",
+    );
+    let mut poses = kit(
+        db,
+        &names,
+        art,
+        List::Pose,
+        "customisation.custom_avatar.poses",
+        "Pose",
+    );
     poses.sort_by_key(|c| natural(&c.value));
     data.poses = poses;
     let mut emotes = kit(
         db,
         &names,
+        art,
+        List::Emote,
         "customisation.custom_avatar.podium_emotes",
         "PodiumEmote",
     );

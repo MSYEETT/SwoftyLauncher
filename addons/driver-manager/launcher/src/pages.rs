@@ -9,6 +9,8 @@ use crate::model::{
 };
 
 pub const SECTION: &str = "drivers";
+const FOCUS_HELP: &str =
+    "The game sets the starting focus itself and moves it with form, so this value is only a guide.";
 
 fn notice(text: &str, tone: &str) -> Value {
     json!({ "text": text, "tone": tone })
@@ -100,6 +102,11 @@ fn scope_notices(app: &App) -> Vec<Value> {
             "Reading the game's lists of heads, kit and names…",
             "muted",
         ));
+    } else if app.building.is_some() {
+        n.push(notice(
+            "Making previews of the heads, kit, poses and emotes…",
+            "muted",
+        ));
     }
     if let Some(e) = &app.game_error {
         n.push(json!({ "text": e, "tone": "bad", "action": { "id": "retry", "label": "Try again" } }));
@@ -112,6 +119,7 @@ pub fn view(app: &mut App, host: &mut Host) -> Value {
         app.retry_game();
     }
     app.ensure_game(host);
+    app.ensure_previews(host);
     let roster = match app.roster() {
         Ok(r) => r,
         Err(e) => {
@@ -122,15 +130,53 @@ pub fn view(app: &mut App, host: &mut Host) -> Value {
             });
         }
     };
-    let mut v = if app.edit.is_some() {
-        edit_view(app, &roster)
+    let mut v = if let Some(e) = &app.edit {
+        let (head, helmet) = (e.draft.head.clone(), e.draft.helmet.clone());
+        let large = Looks {
+            head: app.large(List::Head, &head),
+            helmet: app.large(List::Helmet, &helmet),
+        };
+        edit_view(app, &roster, &large)
     } else {
         list_view(app, &roster)
     };
-    if app.loading.is_some() {
+    if app.busy() {
         v["tick"] = json!(true);
     }
     v
+}
+
+fn art(app: &App, d: &Driver, fallback: &str) -> Value {
+    match app.thumb(List::Head, &d.head) {
+        Some(image) => json!({ "image": image }),
+        None => {
+            json!({ "monogram": d.code.chars().next().map(String::from).unwrap_or_else(|| fallback.into()) })
+        }
+    }
+}
+
+pub struct Looks {
+    pub head: Option<String>,
+    pub helmet: Option<String>,
+}
+
+fn looks_card(game: Option<&GameData>, d: &Driver, looks: &Looks) -> Option<Value> {
+    let label = |list: List, value: &str| game.map_or_else(|| value.to_owned(), |g| g.label(list, value));
+    let mut blocks = Vec::new();
+    if let Some(path) = &looks.head {
+        blocks.push(json!({ "image": { "path": path, "width": 144, "height": 144, "caption": label(List::Head, &d.head), "fit": "cover" } }));
+    }
+    if let Some(path) = &looks.helmet {
+        blocks.push(json!({ "image": { "path": path, "width": 288, "height": 144, "caption": label(List::Helmet, &d.helmet), "fit": "contain" } }));
+    }
+    if blocks.is_empty() {
+        return None;
+    }
+    Some(json!({ "card": {
+        "title": "Looks",
+        "subtitle": "The saved head and the helmet's design. Customisable kit is shown in neutral colours.",
+        "blocks": [ { "grid": { "columns": [1, 2], "blocks": blocks } } ]
+    } }))
 }
 
 fn list_view(app: &App, roster: &Roster) -> Value {
@@ -205,7 +251,7 @@ fn list_view(app: &App, roster: &Roster) -> Value {
                 "id": id.to_string(),
                 "title": d.display_name(),
                 "subtitle": format!("{} · #{} · {}", if d.code.is_empty() { "---" } else { &d.code }, d.number, nationality(game, d)),
-                "art": { "monogram": d.code.chars().next().map(String::from).unwrap_or_else(|| "?".into()) },
+                "art": art(app, d, "?"),
                 "tags": [status_tag(d), check_tag(&issues)],
                 "trailing": { "button": button(&format!("edit:{id}"), "Edit", "pencil", "outline") },
                 "detail": detail
@@ -221,20 +267,29 @@ fn list_view(app: &App, roster: &Roster) -> Value {
     })
 }
 
-fn options(game: Option<&GameData>, list: List, current: &str) -> Value {
+fn option(app: &App, list: List, value: &str, label: String) -> Value {
+    let mut o = json!({ "value": value, "label": label });
+    if let Some(image) = app.thumb(list, value) {
+        o["image"] = json!(image);
+    }
+    o
+}
+
+fn options(app: &App, list: List, current: &str) -> Value {
+    let game = app.game.as_ref();
     let mut opts: Vec<Value> = game
         .map(|g| {
-            g.list(list)
-                .iter()
-                .map(|c| json!({ "value": c.value, "label": c.label }))
+            g.choices(list)
+                .map(|c| option(app, list, &c.value, c.label.clone()))
                 .collect()
         })
         .unwrap_or_default();
     if !opts.iter().any(|o| o["value"] == current) {
-        opts.insert(
-            0,
-            json!({ "value": current, "label": format!("{current} (not in the game)") }),
-        );
+        let label = match game {
+            Some(g) if g.has(list, current) => format!("{} (not installed)", g.label(list, current)),
+            _ => format!("{current} (not in the game)"),
+        };
+        opts.insert(0, option(app, list, current, label));
     }
     Value::Array(opts)
 }
@@ -262,7 +317,7 @@ fn text_field(id: &str, label: &str, value: &str, placeholder: &str, max: usize)
     json!({ "text": { "id": id, "label": label, "value": value, "placeholder": placeholder, "max_len": max } })
 }
 
-fn edit_view(app: &App, roster: &Roster) -> Value {
+fn edit_view(app: &App, roster: &Roster, looks: &Looks) -> Value {
     let edit = app.edit.as_ref().expect("edit view");
     let d = &edit.draft;
     let game = app.game.as_ref();
@@ -321,7 +376,7 @@ fn edit_view(app: &App, roster: &Roster) -> Value {
     let mut blocks = vec![json!({ "hero": {
         "title": title,
         "subtitle": subtitle,
-        "art": { "monogram": d.code.chars().next().map(String::from).unwrap_or_else(|| "+".into()) },
+        "art": art(app, d, "+"),
         "pills": pills,
         "buttons": hero_buttons
     } })];
@@ -342,6 +397,7 @@ fn edit_view(app: &App, roster: &Roster) -> Value {
         };
         blocks.push(json!({ "card": { "title": title, "blocks": issue_blocks(&shown) } }));
     }
+    blocks.extend(looks_card(game, d, looks));
     let ids = if d.is_new() {
         "Given when you save".to_owned()
     } else {
@@ -357,7 +413,7 @@ fn edit_view(app: &App, roster: &Roster) -> Value {
             "nationality",
             "Nationality",
             &d.nationality,
-            options(game, List::Nationality, &d.nationality),
+            options(app, List::Nationality, &d.nationality),
             true,
             None,
         ),
@@ -381,7 +437,7 @@ fn edit_view(app: &App, roster: &Roster) -> Value {
             "head",
             "Head",
             &d.head,
-            options(game, List::Head, &d.head),
+            options(app, List::Head, &d.head),
             true,
             Some("A generic head, or one that looks like a real driver."),
         ),
@@ -389,7 +445,7 @@ fn edit_view(app: &App, roster: &Roster) -> Value {
             "voice",
             "Commentary name",
             &d.voice,
-            options(game, List::Voice, &d.voice),
+            options(app, List::Voice, &d.voice),
             true,
             Some("The surname the commentators say."),
         ),
@@ -397,7 +453,7 @@ fn edit_view(app: &App, roster: &Roster) -> Value {
             "helmet",
             "Helmet",
             &d.helmet,
-            options(game, List::Helmet, &d.helmet),
+            options(app, List::Helmet, &d.helmet),
             true,
             None,
         ),
@@ -405,7 +461,7 @@ fn edit_view(app: &App, roster: &Roster) -> Value {
             "suit",
             "Suit",
             &d.suit,
-            options(game, List::Suit, &d.suit),
+            options(app, List::Suit, &d.suit),
             true,
             None,
         ),
@@ -413,7 +469,7 @@ fn edit_view(app: &App, roster: &Roster) -> Value {
             "gloves",
             "Gloves",
             &d.gloves,
-            options(game, List::Gloves, &d.gloves),
+            options(app, List::Gloves, &d.gloves),
             true,
             None,
         ),
@@ -421,7 +477,7 @@ fn edit_view(app: &App, roster: &Roster) -> Value {
             "pose",
             "Pose",
             &d.pose,
-            options(game, List::Pose, &d.pose),
+            options(app, List::Pose, &d.pose),
             true,
             None,
         ),
@@ -429,7 +485,7 @@ fn edit_view(app: &App, roster: &Roster) -> Value {
             "emote",
             "Podium emote",
             &d.emote,
-            options(game, List::Emote, &d.emote),
+            options(app, List::Emote, &d.emote),
             true,
             None,
         ),
@@ -467,13 +523,14 @@ fn edit_view(app: &App, roster: &Roster) -> Value {
         } }));
     }
     for ((key, name), r) in STATS.iter().zip(d.ratings.iter()) {
+        let guide = (*key == "focus").then_some(FOCUS_HELP);
         fields.push(number(
             &format!("{key}_start"),
             &format!("{name} at start"),
             r.start,
             0,
             100,
-            None,
+            guide,
         ));
         fields.push(number(
             &format!("{key}_peak"),
@@ -481,7 +538,7 @@ fn edit_view(app: &App, roster: &Roster) -> Value {
             r.peak,
             0,
             100,
-            None,
+            guide,
         ));
     }
     blocks.push(json!({ "card": {

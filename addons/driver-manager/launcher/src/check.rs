@@ -133,6 +133,14 @@ pub fn check(d: &Driver, roster: &Roster, game: Option<&GameData>) -> Vec<Issue>
             for (list, what, value) in picks {
                 if !g.has(list, value) {
                     error(&mut out, format!("{what} {value:?} isn't in the game."));
+                } else if !g.installed(list, value) {
+                    error(
+                        &mut out,
+                        format!(
+                            "{what} {} isn't installed in this copy of the game.",
+                            g.label(list, value)
+                        ),
+                    );
                 }
             }
             if !d.is_new() && g.driver_ids.contains(&d.stat_id) {

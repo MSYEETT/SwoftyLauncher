@@ -7,3 +7,5 @@ pub mod loader;
 pub mod model;
 pub mod ops;
 pub mod pages;
+pub mod pixels;
+pub mod preview;

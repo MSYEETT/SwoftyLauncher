@@ -160,9 +160,9 @@ impl Driver {
                 return want.first().copied().unwrap_or_default().to_owned();
             };
             want.iter()
-                .find(|w| g.has(list, w))
+                .find(|w| g.available(list, w))
                 .map(|w| (*w).to_owned())
-                .or_else(|| g.list(list).first().map(|c| c.value.clone()))
+                .or_else(|| g.choices(list).next().map(|c| c.value.clone()))
                 .unwrap_or_default()
         };
         Driver {

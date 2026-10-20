@@ -22,9 +22,9 @@ Open **Driver Manager** and press **Add driver**. Set:
 | First and last name | Up to 24 characters each. **Surname first** shows the name as "LAST First". |
 | Code | 3 letters, A to Z, unique among your drivers |
 | Number | 1 to 99 |
-| Nationality, head, helmet, suit, gloves, pose, podium emote | The game's own choices. Heads are generic, or look like a real driver. |
+| Nationality, head, helmet, suit, gloves, pose, podium emote | The game's own choices, with previews made from your copy of the game. Heads are generic, or look like a real driver. Heads and kit that aren't installed aren't offered. |
 | Commentary name | The surname the commentators say, or none |
-| Ratings | Experience, racecraft, awareness, pace and focus, each with a start and a peak value from 0 to 100 |
+| Ratings | Experience, racecraft, awareness, pace and focus, each with a start and a peak value from 0 to 100. The game sets the starting focus itself and moves it with form; the focus values are only a guide. |
 | F1 seasons completed, garage slot preference | As on the game's own drivers |
 | Birth date | Year, month and day |
 | AI traits | Aggression, car control, mistake avoidance, reaction speed, corner entry speed and corner exit speed, from 0 to 1. Higher is stronger; stock drivers sit between 0.2 and 1. |
@@ -35,7 +35,7 @@ The next launch adds the drivers to the game. Start a new career to find them am
 
 ## Checks
 
-A driver with an error is marked **left out** and isn't added to the game. Errors include an empty name, a code that isn't 3 letters or is already used, a number outside 1 to 99, a choice the game doesn't have, a date that doesn't exist and a peak below its start. Warnings, such as a number another driver also uses, don't stop the driver being added.
+A driver with an error is marked **left out** and isn't added to the game. Errors include an empty name, a code that isn't 3 letters or is already used, a number outside 1 to 99, a choice the game doesn't have or hasn't installed, a date that doesn't exist and a peak below its start. Warnings, such as a number another driver also uses, don't stop the driver being added.
 
 ## Existing careers
 

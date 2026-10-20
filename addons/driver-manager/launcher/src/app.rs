@@ -6,6 +6,7 @@ use crate::game::{self, GameData};
 use crate::host::Host;
 use crate::loader::{self, Loading};
 use crate::model::{Driver, Roster};
+use crate::preview::{self, Building, Previews};
 
 pub struct Edit {
     pub draft: Driver,
@@ -23,6 +24,10 @@ pub struct App {
     pub loading: Option<Loading>,
     pub edit: Option<Edit>,
     pub forms: u32,
+    pub game_dir: Option<PathBuf>,
+    pub previews: Option<Previews>,
+    pub building: Option<Building>,
+    pub previews_tried: bool,
 }
 
 impl App {
@@ -38,6 +43,10 @@ impl App {
             loading: None,
             edit: None,
             forms: 0,
+            game_dir: None,
+            previews: None,
+            building: None,
+            previews_tried: false,
         }
     }
 
@@ -95,12 +104,28 @@ impl App {
             .ok()
             .flatten()
             .map(PathBuf::from);
+        self.game_dir.clone_from(&dir);
         self.loading = Some(Loading::start(db, dir, key, cache));
     }
 
     pub fn poll(&mut self) -> bool {
+        let mut changed = false;
+        if let Some(done) = self.building.as_ref().and_then(Building::poll) {
+            self.building = None;
+            if let Some(p) = &done {
+                eprintln!(
+                    "previews: {} built, {} without art, {} ms, {} KiB",
+                    p.index.ready.len(),
+                    p.index.failed.len(),
+                    p.index.millis,
+                    p.index.bytes / 1024
+                );
+            }
+            self.previews = done;
+            changed = true;
+        }
         let Some(result) = self.loading.as_ref().and_then(Loading::poll) else {
-            return false;
+            return changed;
         };
         self.loading = None;
         match result {
@@ -108,6 +133,52 @@ impl App {
             Err(e) => self.game_error = Some(e),
         }
         true
+    }
+
+    pub fn busy(&self) -> bool {
+        self.loading.is_some() || self.building.is_some()
+    }
+
+    pub fn ensure_previews(&mut self, host: &mut Host) {
+        let Some(game) = &self.game else {
+            return;
+        };
+        if self.previews_tried {
+            return;
+        }
+        self.previews_tried = true;
+        if self.game_dir.is_none() {
+            self.game_dir = Self::string(host, "game_dir", Value::Null)
+                .ok()
+                .flatten()
+                .map(PathBuf::from);
+        }
+        let Some(dir) = self.game_dir.clone() else {
+            return;
+        };
+        let root = self.cache_dir.join("previews");
+        if let Some(p) = Previews::load(&root, &game.key) {
+            self.previews = Some(p);
+            return;
+        }
+        self.building = Some(Building::start(dir, root, game.key.clone(), preview::jobs(game)));
+    }
+
+    pub fn thumb(&self, list: game::List, value: &str) -> Option<String> {
+        self.previews
+            .as_ref()?
+            .path(list, value)
+            .map(|p| p.to_string_lossy().into_owned())
+    }
+
+    pub fn large(&mut self, list: game::List, value: &str) -> Option<String> {
+        let (Some(previews), Some(game), Some(dir)) = (self.previews.as_mut(), &self.game, &self.game_dir)
+        else {
+            return None;
+        };
+        previews
+            .large(dir, game, list, value)
+            .map(|p| p.to_string_lossy().into_owned())
     }
 
     pub fn wait_game(&mut self, host: &mut Host) {
@@ -123,6 +194,9 @@ impl App {
     pub fn retry_game(&mut self) {
         if self.loading.is_none() {
             self.game_error = None;
+        }
+        if self.game.is_none() {
+            self.previews_tried = false;
         }
     }
 }
