@@ -1,0 +1,588 @@
+{
+ "schema_version": 1,
+ "fields": {
+  "schedule.track_lists.track_event_list": [
+   "_metadata_",
+   "sort_by_date",
+   "_fixed_event_reference_instancecount_",
+   "fixed_event_reference_0._metadata_",
+   "fixed_event_reference_0.event_name",
+   "fixed_event_reference_1._metadata_",
+   "fixed_event_reference_1.event_name",
+   "fixed_event_reference_2._metadata_",
+   "fixed_event_reference_2.event_name",
+   "fixed_event_reference_3._metadata_",
+   "fixed_event_reference_3.event_name",
+   "fixed_event_reference_4._metadata_",
+   "fixed_event_reference_4.event_name",
+   "fixed_event_reference_5._metadata_",
+   "fixed_event_reference_5.event_name",
+   "fixed_event_reference_6._metadata_",
+   "fixed_event_reference_6.event_name",
+   "fixed_event_reference_7._metadata_",
+   "fixed_event_reference_7.event_name",
+   "fixed_event_reference_8._metadata_",
+   "fixed_event_reference_8.event_name",
+   "fixed_event_reference_9._metadata_",
+   "fixed_event_reference_9.event_name",
+   "fixed_event_reference_10._metadata_",
+   "fixed_event_reference_10.event_name",
+   "fixed_event_reference_11._metadata_",
+   "fixed_event_reference_11.event_name",
+   "fixed_event_reference_12._metadata_",
+   "fixed_event_reference_12.event_name",
+   "fixed_event_reference_13._metadata_",
+   "fixed_event_reference_13.event_name",
+   "fixed_event_reference_14._metadata_",
+   "fixed_event_reference_14.event_name",
+   "fixed_event_reference_15._metadata_",
+   "fixed_event_reference_15.event_name"
+  ],
+  "schedule.event_lists.event_list": [
+   "_metadata_",
+   "_season_instancecount_",
+   "season_0._metadata_",
+   "season_0.track_event_list",
+   "season_0._date_time_instancecount_",
+   "season_0._fixed_event_reference_instancecount_",
+   "season_0.date_time_0._metadata_",
+   "season_0.date_time_0.day",
+   "season_0.date_time_0.daylight_saving",
+   "season_0.date_time_0.hour",
+   "season_0.date_time_0.minute",
+   "season_0.date_time_0.month",
+   "season_0.date_time_0.second",
+   "season_0.date_time_0.year",
+   "season_0.date_time_1._metadata_",
+   "season_0.date_time_1.day",
+   "season_0.date_time_1.daylight_saving",
+   "season_0.date_time_1.hour",
+   "season_0.date_time_1.minute",
+   "season_0.date_time_1.month",
+   "season_0.date_time_1.second",
+   "season_0.date_time_1.year",
+   "season_0.fixed_event_reference_0._metadata_",
+   "season_0.fixed_event_reference_0.event_name",
+   "season_0.fixed_event_reference_1._metadata_",
+   "season_0.fixed_event_reference_1.event_name",
+   "season_0.fixed_event_reference_2._metadata_",
+   "season_0.fixed_event_reference_2.event_name",
+   "season_0.fixed_event_reference_3._metadata_",
+   "season_0.fixed_event_reference_3.event_name",
+   "season_0.fixed_event_reference_4._metadata_",
+   "season_0.fixed_event_reference_4.event_name",
+   "season_0.fixed_event_reference_5._metadata_",
+   "season_0.fixed_event_reference_5.event_name"
+  ]
+ },
+ "ops": [
+  {
+   "op": "add-row",
+   "table": "schedule.track_lists",
+   "from": "schedule.track_lists.track_event_list[_metadata_=F1_2026_16]",
+   "set": {
+    "_metadata_": "F1_1990",
+    "sort_by_date": "False",
+    "fixed_event_reference_0._metadata_": "fixed_event_reference_rw_las_vegas",
+    "fixed_event_reference_0.event_name": "rw_las_vegas_26",
+    "fixed_event_reference_1._metadata_": "fixed_event_reference_rw_brazil",
+    "fixed_event_reference_1.event_name": "rw_brazil_26",
+    "fixed_event_reference_2._metadata_": "fixed_event_reference_rw_imola",
+    "fixed_event_reference_2.event_name": "rw_imola",
+    "fixed_event_reference_3._metadata_": "fixed_event_reference_rw_monaco",
+    "fixed_event_reference_3.event_name": "rw_monaco_26",
+    "fixed_event_reference_4._metadata_": "fixed_event_reference_rw_montreal",
+    "fixed_event_reference_4.event_name": "rw_montreal_26",
+    "fixed_event_reference_5._metadata_": "fixed_event_reference_rw_mexico",
+    "fixed_event_reference_5.event_name": "rw_mexico_26",
+    "fixed_event_reference_6._metadata_": "fixed_event_reference_rw_austria",
+    "fixed_event_reference_6.event_name": "rw_austria_26",
+    "fixed_event_reference_7._metadata_": "fixed_event_reference_rw_silverstone",
+    "fixed_event_reference_7.event_name": "rw_silverstone_26",
+    "fixed_event_reference_8._metadata_": "fixed_event_reference_rw_shanghai",
+    "fixed_event_reference_8.event_name": "rw_shanghai_26",
+    "fixed_event_reference_9._metadata_": "fixed_event_reference_rw_hungaroring",
+    "fixed_event_reference_9.event_name": "rw_hungaroring_26",
+    "fixed_event_reference_10._metadata_": "fixed_event_reference_rw_spa_francorchamps",
+    "fixed_event_reference_10.event_name": "rw_spa_francorchamps_26",
+    "fixed_event_reference_11._metadata_": "fixed_event_reference_rw_monza",
+    "fixed_event_reference_11.event_name": "rw_monza_26",
+    "fixed_event_reference_12._metadata_": "fixed_event_reference_rw_madrid",
+    "fixed_event_reference_12.event_name": "rw_madrid_26",
+    "fixed_event_reference_13._metadata_": "fixed_event_reference_rw_catalunya",
+    "fixed_event_reference_13.event_name": "rw_catalunya_26",
+    "fixed_event_reference_14._metadata_": "fixed_event_reference_rw_suzuka",
+    "fixed_event_reference_14.event_name": "rw_suzuka_26",
+    "fixed_event_reference_15._metadata_": "fixed_event_reference_rw_melbourne",
+    "fixed_event_reference_15.event_name": "rw_melbourne_26"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "schedule.event_lists",
+   "from": "schedule.event_lists.event_list[_metadata_=F1_career_26]",
+   "set": {
+    "_metadata_": "F1_career_1990",
+    "_season_instancecount_": "1",
+    "season_0.date_time_0.year": "{{career_year}}",
+    "season_0.date_time_1.year": "{{career_year}}"
+   }
+  },
+  {
+   "op": "set",
+   "select": "game_modes.ModeChampionship[_metadata_=driver_career_26]",
+   "field": "save_data.name",
+   "value": "driver_career_1990"
+  },
+  {
+   "op": "set",
+   "select": "game_modes.ModeChampionship[_metadata_=driver_career_26]",
+   "field": "event_list",
+   "value": "F1_career_1990"
+  },
+  {
+   "op": "set",
+   "select": "game_modes.ModeChampionship[_metadata_=driver_career_26]",
+   "field": "championship_setups.ChampionshipSetupList_0.ChampionshipSetup_0.event_list",
+   "value": "F1_career_1990"
+  },
+  {
+   "op": "set",
+   "select": "championships.Championship[_metadata_=F1_driver_career_26]",
+   "field": "event_list",
+   "value": "F1_career_1990"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Long]",
+   "field": "max_num_tracks",
+   "value": "16"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Long]",
+   "field": "track_list_name",
+   "value": "F1_1990"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Long]",
+   "field": "weekend_formats",
+   "value": "default"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Long]",
+   "field": "weekend_to_add_transfer_window",
+   "value": "-1"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Long]",
+   "field": "language_string",
+   "value": "lng_f1990_season_length"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Medium]",
+   "field": "game_setup_modes",
+   "value": "f1_beta"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.custom_dynamic_available_track_list_data[_metadata_=F1_2026_Short]",
+   "field": "game_setup_modes",
+   "value": "f1_beta"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.track_selections.tracks_selection[_metadata_=F1_2026]",
+   "field": "default",
+   "value": "F1_1990"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.track_selections.tracks_selection[_metadata_=F1_2026]",
+   "field": "season_0.track_event_list",
+   "value": "F1_1990"
+  },
+  {
+   "op": "set",
+   "select": "schedule.dynamic_event_data.default_ui_track_list_data.track_selections.tracks_selection[_metadata_=F1_2026]",
+   "field": "weekend_formats",
+   "value": "default"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=las_vegas].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "11"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=las_vegas].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "3"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=las_vegas].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=brazil].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "25"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=brazil].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "3"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=brazil].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1].TrackData[_metadata_=imola].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "13"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1].TrackData[_metadata_=imola].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "5"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1].TrackData[_metadata_=imola].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monaco].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "27"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monaco].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "5"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monaco].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "10"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "6"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=mexico].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "24"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=mexico].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "6"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=mexico].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "8"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "7"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "15"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "7"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=shanghai].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "29"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=shanghai].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "7"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=shanghai].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=hungaroring].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "12"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=hungaroring].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "8"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=hungaroring].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "26"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "8"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monza].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "9"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monza].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "9"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monza].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "23"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "9"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "30"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "9"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "21"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "10"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "11"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TrackGeneralData_0",
+   "field": "weekend_year",
+   "value": "{{career_year}}"
+  },
+  {
+   "op": "set",
+   "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race]",
+   "field": "points",
+   "value": "9,6,4,3,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+  },
+  {
+   "op": "set",
+   "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race]",
+   "field": "fastest_lap_bonus",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race]",
+   "field": "fastest_lap_rule",
+   "value": "None"
+  },
+  {
+   "op": "set",
+   "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race].reduced_points_data_0",
+   "field": "points",
+   "value": "4,3,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+  },
+  {
+   "op": "set",
+   "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race].reduced_points_data_0",
+   "field": "fastest_lap_bonus",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race].reduced_points_data_0",
+   "field": "fastest_lap_rule",
+   "value": "None"
+  },
+  {
+   "op": "set",
+   "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race].reduced_points_data_1",
+   "field": "points",
+   "value": "4,3,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+  },
+  {
+   "op": "set",
+   "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race].reduced_points_data_1",
+   "field": "fastest_lap_bonus",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race].reduced_points_data_1",
+   "field": "fastest_lap_rule",
+   "value": "None"
+  },
+  {
+   "op": "set",
+   "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race].reduced_points_data_2",
+   "field": "points",
+   "value": "4,3,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+  },
+  {
+   "op": "set",
+   "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race].reduced_points_data_2",
+   "field": "fastest_lap_bonus",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "game_setup.session_standings.session_standing_preset[_metadata_=standard_race].reduced_points_data_2",
+   "field": "fastest_lap_rule",
+   "value": "None"
+  },
+  {
+   "op": "set",
+   "select": "entrants.characters.character[_metadata_=elena]",
+   "field": "full_name",
+   "value": "lng_f1990_agent_full_name"
+  },
+  {
+   "op": "set",
+   "select": "entrants.characters.character[_metadata_=elena]",
+   "field": "last_name",
+   "value": "lng_f1990_agent_last_name"
+  }
+ ]
+}

@@ -17,6 +17,9 @@
     "message": "1990 careers won't load without it."
   },
   "options": [
+    { "id": "career_year", "type": "choice", "label": "Career year", "default": "1990",
+      "description": "The year the Driver Career starts in.",
+      "values": ["1990", "2026"], "binds": "db" },
     {
       "id": "soft_sets",
       "type": "slider",
