@@ -2,7 +2,7 @@
 
 Adds a fifth career R&D department, Tyres & Thermal Management, alongside Aerodynamics, Chassis, Durability and Powertrain.
 
-This folder is source only. The launcher's builds and releases leave it out.
+`swofty.rnd-tyres-thermal.zip` in this folder is the packaged addon: drop it on the launcher, or install it with `swofty addons install`. The launcher's own releases don't bundle it.
 
 ## State
 
@@ -20,6 +20,8 @@ Version 0.9.0 adds:
 - Four new upgrade types, minted natively (ids 19-22), each with its own card label, `upgrade_type_metadata` row and handling block in every career car's VTF. Tyres upgrades never dilute Chassis' stock Tyre Wear or Brakes.
 - Card art for every upgrade in the stock 2026 style (available, in progress, fitted and mask frames) and a category icon for each new type. With `tyres_card_art` off, the cards borrow stock part art and stock category icons.
 - An `upgrade apply` log line per Tyres type when a car is built for a session.
+
+Version 0.10.0 moves every engine hook onto the SDK's mixin bindings and needs Swofty Launcher 1.0.9 or later, whose core ships those bindings.
 
 `TESTING.md` lists what to check in game.
 
@@ -41,7 +43,7 @@ Version 0.9.0 adds:
 | Cars | `erp/rnd_upgrade_vtf.json`, `vtf/` | the four `radUpgrade*` blocks for the new types in 44 career handling VTFs (94 copies in 65 archives) |
 | Engine | `native/rnd_departments.dll` | reads the fifth department row, gives the Tyres upgrades R&D states, mints the four upgrade types, names, colours, counts and routes the fifth tile and pie sector, and picks the Tyres card art for each card state |
 
-The engine hooks are written for the Steam build 25251167 (`F1_25.exe` d873a1c8…). Each one checks its bytes and installs nothing when they don't match.
+The engine hooks are mixins on knowledge-base bindings for the Steam build 25251167 (`F1_25.exe` d873a1c8…). If any binding doesn't resolve, the addon installs nothing.
 
 ## Settings
 
@@ -77,7 +79,7 @@ Most settings apply at install. Relaunch after changing one.
 addons/rnd-tyres-thermal/native/build.sh
 ```
 
-This writes `native/rnd_departments.dll`. It needs zig 0.16, or Nix to fetch it, and compiles against `packages/sdk/include` and `native/third_party/safetyhook`.
+This writes `native/rnd_departments.dll`. It needs zig 0.16, or Nix to fetch it, and compiles against `packages/sdk/include` and the generated game bindings in `native/include` (`re/tools/bindgen.py`).
 
 ## Regenerate the UI assets
 
@@ -110,16 +112,26 @@ re/tools/py addons/rnd-tyres-thermal/tools/build_card_art.py --game "<F1 25>"
 
 It compares like `build_icons.py`; `--write` replaces the shipped files.
 
-## Install into a profile
+## Package
 
 Build the DLL first, then:
 
 ```sh
-swofty addons install addons/rnd-tyres-thermal
+python3 tools/pack_addon.py --zip addons/rnd-tyres-thermal addons/rnd-tyres-thermal
+```
+
+This writes `swofty.rnd-tyres-thermal.zip` with the manifest, the DLL and every file the operations name.
+
+## Install into a profile
+
+```sh
+swofty addons install addons/rnd-tyres-thermal/swofty.rnd-tyres-thermal.zip
 swofty --profile <profile> addons enable swofty.rnd-tyres-thermal
 ```
 
-Use a modded profile and launcher v1.0.4 or later. The launcher applies the addon when you press Play.
+Use a modded profile and launcher 1.0.9 or later. The launcher applies the addon when you press Play.
+
+The Tyres upgrades' progress lives in the profile's career saves. A save written while the addon is off drops that progress, so play a Tyres career only in a profile that keeps the addon on.
 
 ## Details
 
