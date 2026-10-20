@@ -89,6 +89,8 @@ pub struct Config {
     pub vr_profiles: BTreeSet<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub discord_username: Option<String>,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub news_seen: BTreeSet<String>,
 }
 
 impl Config {
@@ -452,6 +454,15 @@ mod tests {
         assert_eq!(back.launch_mode("Other"), LaunchMode::Normal);
         config.set_launch_mode("Default", LaunchMode::Normal);
         assert!(config.vr_profiles.is_empty());
+    }
+
+    #[test]
+    fn config_remembers_closed_news() {
+        let mut config = Config::default();
+        assert!(!serde_json::to_string(&config).unwrap().contains("news_seen"));
+        config.news_seen.insert("discord".into());
+        let back: Config = serde_json::from_str(&serde_json::to_string(&config).unwrap()).unwrap();
+        assert!(back.news_seen.contains("discord"));
     }
 
     fn strings(args: &[&str]) -> Vec<String> {
