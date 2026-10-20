@@ -13,8 +13,16 @@ pub fn game_running() -> bool {
     !game_processes().is_empty()
 }
 
-#[cfg(target_os = "linux")]
 pub fn game_processes() -> Vec<GameProcess> {
+    named(GAME_EXE)
+}
+
+pub fn steamvr_running() -> bool {
+    !named(if cfg!(windows) { "vrserver.exe" } else { "vrserver" }).is_empty()
+}
+
+#[cfg(target_os = "linux")]
+fn named(name: &str) -> Vec<GameProcess> {
     let Ok(entries) = std::fs::read_dir("/proc") else {
         return Vec::new();
     };
@@ -23,7 +31,7 @@ pub fn game_processes() -> Vec<GameProcess> {
         .filter_map(|e| {
             let pid = e.file_name().to_str()?.parse().ok()?;
             let comm = std::fs::read_to_string(e.path().join("comm")).ok()?;
-            (comm.trim_end() == GAME_EXE).then(|| GameProcess {
+            (comm.trim_end() == name).then(|| GameProcess {
                 pid,
                 started: started(pid),
             })
@@ -71,10 +79,10 @@ fn started(pid: u32) -> Option<SystemTime> {
 }
 
 #[cfg(windows)]
-pub fn game_processes() -> Vec<GameProcess> {
+fn named(name: &str) -> Vec<GameProcess> {
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    let filter = format!("IMAGENAME eq {GAME_EXE}");
+    let filter = format!("IMAGENAME eq {name}");
     let Ok(out) = Command::new("tasklist")
         .args(["/FI", &filter, "/FO", "CSV", "/NH"])
         .creation_flags(CREATE_NO_WINDOW)
@@ -86,7 +94,7 @@ pub fn game_processes() -> Vec<GameProcess> {
         .lines()
         .filter_map(|line| {
             let mut cols = line.split("\",\"").map(|c| c.trim_matches('"'));
-            (cols.next()? == GAME_EXE).then_some(())?;
+            (cols.next()? == name).then_some(())?;
             Some(GameProcess {
                 pid: cols.next()?.parse().ok()?,
                 started: None,
@@ -96,7 +104,7 @@ pub fn game_processes() -> Vec<GameProcess> {
 }
 
 #[cfg(not(any(target_os = "linux", windows)))]
-pub fn game_processes() -> Vec<GameProcess> {
+fn named(_: &str) -> Vec<GameProcess> {
     Vec::new()
 }
 

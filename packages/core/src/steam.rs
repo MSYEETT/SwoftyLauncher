@@ -95,6 +95,15 @@ pub fn find_game_in(steam_root: &Path) -> Option<GameInstall> {
     })
 }
 
+pub const STEAMVR_APP_ID: u32 = 250_820;
+
+pub fn steamvr_installed(steam_root: &Path) -> bool {
+    libraries(steam_root).iter().any(|lib| {
+        lib.join(format!("steamapps/appmanifest_{STEAMVR_APP_ID}.acf"))
+            .is_file()
+    })
+}
+
 pub fn launch_options(steam_root: &Path) -> Vec<(String, String)> {
     let Ok(users) = std::fs::read_dir(steam_root.join("userdata")) else {
         return Vec::new();
@@ -164,6 +173,13 @@ mod tests {
         assert_eq!(g.dir, lib.join("steamapps/common/F1 25"));
         assert_eq!(g.build_id, Some(25_251_167));
         assert!(g.prefix().unwrap().ends_with("compatdata/3059520/pfx"));
+        assert!(!steamvr_installed(&root));
+        std::fs::write(
+            lib.join("steamapps/appmanifest_250820.acf"),
+            r#""AppState" { "appid" "250820" "installdir" "SteamVR" }"#,
+        )
+        .unwrap();
+        assert!(steamvr_installed(&root));
         std::fs::remove_dir_all(&root).ok();
     }
 

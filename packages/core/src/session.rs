@@ -85,6 +85,70 @@ pub struct Config {
     pub updates: UpdateConfig,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub bundled: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub vr_profiles: BTreeSet<String>,
+}
+
+impl Config {
+    pub fn launch_mode(&self, profile: &str) -> LaunchMode {
+        if self.vr_profiles.contains(profile) {
+            LaunchMode::Vr
+        } else {
+            LaunchMode::Normal
+        }
+    }
+
+    pub fn set_launch_mode(&mut self, profile: &str, mode: LaunchMode) {
+        match mode {
+            LaunchMode::Vr => self.vr_profiles.insert(profile.to_owned()),
+            LaunchMode::Normal => self.vr_profiles.remove(profile),
+        };
+    }
+}
+
+/// Steam's own launch options for app 3059520 (`appinfo.vdf`, `config` →
+/// `launch`): option 0 runs `EAAntiCheat.GameServiceLauncher.exe` with no
+/// arguments, and option 1, of type `vr`, runs the same launcher with `-vr`.
+pub const VR_ARG: &str = "-vr";
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LaunchMode {
+    #[default]
+    Normal,
+    Vr,
+}
+
+impl LaunchMode {
+    pub fn of(game_args: &[String]) -> Self {
+        if game_args.iter().any(|a| a.eq_ignore_ascii_case(VR_ARG)) {
+            Self::Vr
+        } else {
+            Self::Normal
+        }
+    }
+
+    pub fn args(self) -> &'static [&'static str] {
+        match self {
+            Self::Normal => &[],
+            Self::Vr => &[VR_ARG],
+        }
+    }
+
+    pub fn is_vr(self) -> bool {
+        self == Self::Vr
+    }
+}
+
+/// The game's arguments for a launch: what Steam passed after the target
+/// (its VR launch option adds `-vr` there), plus `-vr` for a VR launch when
+/// Steam's command lacks it.
+pub fn game_args(steam_args: &[String], mode: LaunchMode) -> Vec<String> {
+    let mut out = steam_args.to_vec();
+    if mode.is_vr() && !LaunchMode::of(steam_args).is_vr() {
+        out.push(VR_ARG.to_owned());
+    }
+    out
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -314,6 +378,14 @@ pub struct SteamCommand {
     pub argv: Vec<String>,
 }
 
+impl SteamCommand {
+    pub fn game_args(&self) -> &[String] {
+        self.target
+            .and_then(|t| self.argv.get(t + 1..))
+            .unwrap_or_default()
+    }
+}
+
 pub fn parse_steam_command(argv: &[String]) -> SteamCommand {
     let proton = argv.iter().position(|a| a.ends_with("/proton"));
     let verb = proton.and_then(|i| argv.get(i + 1)).cloned();
@@ -340,6 +412,65 @@ mod tests {
         config.console = true;
         let json = serde_json::to_string(&config).unwrap();
         assert!(serde_json::from_str::<Config>(&json).unwrap().console);
+    }
+
+    #[test]
+    fn config_remembers_vr_per_profile() {
+        let mut config = Config::default();
+        assert_eq!(config.launch_mode("Default"), LaunchMode::Normal);
+        assert!(!serde_json::to_string(&config).unwrap().contains("vr_profiles"));
+        config.set_launch_mode("Default", LaunchMode::Vr);
+        let back: Config = serde_json::from_str(&serde_json::to_string(&config).unwrap()).unwrap();
+        assert_eq!(back.launch_mode("Default"), LaunchMode::Vr);
+        assert_eq!(back.launch_mode("Other"), LaunchMode::Normal);
+        config.set_launch_mode("Default", LaunchMode::Normal);
+        assert!(config.vr_profiles.is_empty());
+    }
+
+    fn strings(args: &[&str]) -> Vec<String> {
+        args.iter().map(|a| (*a).to_owned()).collect()
+    }
+
+    #[test]
+    fn vr_adds_steams_vr_argument_once() {
+        assert_eq!(game_args(&[], LaunchMode::Normal), Vec::<String>::new());
+        assert_eq!(game_args(&[], LaunchMode::Vr), ["-vr"]);
+        assert_eq!(game_args(&strings(&["-vr"]), LaunchMode::Vr), ["-vr"]);
+        assert_eq!(game_args(&strings(&["-VR"]), LaunchMode::Vr), ["-VR"]);
+        assert_eq!(game_args(&strings(&["-vr"]), LaunchMode::Normal), ["-vr"]);
+        assert_eq!(
+            game_args(&strings(&["-windowed"]), LaunchMode::Vr),
+            ["-windowed", "-vr"]
+        );
+        assert_eq!(LaunchMode::of(&strings(&["-windowed", "-vr"])), LaunchMode::Vr);
+        assert_eq!(LaunchMode::of(&strings(&["-vrmode"])), LaunchMode::Normal);
+        assert_eq!(LaunchMode::Vr.args(), ["-vr"]);
+        assert!(LaunchMode::Normal.args().is_empty());
+    }
+
+    #[test]
+    fn steam_vr_launch_keeps_its_argument() {
+        let vr = parse_steam_command(&strings(&[
+            "/steam/ubuntu12_32/reaper",
+            "SteamLaunch",
+            "AppId=3059520",
+            "--",
+            "/steam/compatibilitytools.d/Proton/proton",
+            "waitforexitandrun",
+            "/games/F1 25/EAAntiCheat.GameServiceLauncher.exe",
+            "-vr",
+        ]));
+        assert_eq!(vr.game_args(), ["-vr"]);
+        assert_eq!(LaunchMode::of(vr.game_args()), LaunchMode::Vr);
+        let direct = parse_steam_command(&strings(&[
+            "/proton/proton",
+            "waitforexitandrun",
+            "/games/F1 25/F1_25.exe",
+        ]));
+        assert!(direct.game_args().is_empty());
+        let windows = parse_steam_command(&strings(&["C:\\F1 25\\F1_25.exe", "-vr"]));
+        assert_eq!(windows.game_args(), ["-vr"]);
+        assert!(parse_steam_command(&[]).game_args().is_empty());
     }
 
     #[test]

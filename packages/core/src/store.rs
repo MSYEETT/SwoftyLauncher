@@ -378,6 +378,11 @@ impl Store {
         if self.config().active_profile.as_deref().unwrap_or(DEFAULT_PROFILE) == from {
             self.set_active_profile(to)?;
         }
+        let mut config = self.config();
+        if config.vr_profiles.remove(from) {
+            config.vr_profiles.insert(to.to_owned());
+            self.save_config(&config)?;
+        }
         Ok(p)
     }
 
@@ -443,6 +448,10 @@ impl Store {
             self.set_active_profile(to)?;
         }
         self.forget_launch_profile(name)?;
+        let mut config = self.config();
+        if config.vr_profiles.remove(name) {
+            self.save_config(&config)?;
+        }
         for path in &plan.paths {
             let removed = if path.is_dir() && !path.is_symlink() {
                 std::fs::remove_dir_all(path)
@@ -953,6 +962,25 @@ mod tests {
         assert_eq!(store.active_profile(), "main");
         let err = store.delete_profile("grid").unwrap_err();
         assert!(err.to_string().contains("no profile named grid"), "{err}");
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn the_vr_choice_follows_its_profile() {
+        use crate::session::LaunchMode;
+        let root = tmp("vr-profile");
+        let store = Store::new(&root);
+        store.create_profile("grid", None).unwrap();
+        store.create_profile("main", None).unwrap();
+        let mut config = store.config();
+        config.set_launch_mode("grid", LaunchMode::Vr);
+        store.save_config(&config).unwrap();
+        store.rename_profile("grid", "vrgrid").unwrap();
+        let config = store.config();
+        assert_eq!(config.launch_mode("vrgrid"), LaunchMode::Vr);
+        assert_eq!(config.launch_mode("grid"), LaunchMode::Normal);
+        store.delete_profile("vrgrid").unwrap();
+        assert!(store.config().vr_profiles.is_empty());
         std::fs::remove_dir_all(&root).ok();
     }
 
