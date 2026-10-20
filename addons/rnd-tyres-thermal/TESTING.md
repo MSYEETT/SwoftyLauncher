@@ -18,6 +18,8 @@ What to look at on each screen, and the `swofty/loader.log` lines (in the game f
 | the upgrade types | `upgrade types INSTALLED: 19 radUpgradeTyreThermal, 20 radUpgradeBrakeCooling, 21 radUpgradeTyreLife, 22 radUpgradePUCooling; 22 consumer hooks, 6 order-table leas` |
 | the apply log | `upgrade apply log INSTALLED` |
 | the list icons | `dept tags INSTALLED: 9/9 icon sites` |
+| the pie's Tyres slice, focus, tile route and data | `pie5 slice INSTALLED`, `pie5 focus INSTALLED`, `pie5 open INSTALLED`, `pie5 perf INSTALLED` |
+| Tyres research capacity | `capacity INSTALLED: dept 4 mirrors Durability's team modifiers` |
 
 Any line ending in `(SAFE)` means that piece kept the stock behaviour. Send the whole log.
 
@@ -31,6 +33,8 @@ Any line ending in `(SAFE)` means that piece kept the stock behaviour. Send the 
 
 - Five tiles (3+2); the Tyres tile has the tyre icon, the orange ring and **0/15** fitted upgrades on a fresh save.
 - The pie has five sectors; focusing the Tyres tile highlights the orange sector. Pressing it opens the Tyres page.
+- Log: `pie5 slice: code 4 name error_department -> tyres` and `pie5 perf: dept 4 published as department_performance.tyres`. Focusing the Tyres tile: `pie5 focus: department_focused "tyres"`; focusing a stock tile afterwards: `pie5 open: R&D > Performance focused stock department index N; Tyres focus cleared`.
+- A Tyres upgrade's Develop Upgrade screen lets you start research while fewer Tyres upgrades are in research than Durability has research slots. Log: `capacity check: team 0x… dept 4 slots=N in-progress=M gate=1 -> research-limit=0`.
 
 ## The Tyres department page
 
@@ -45,7 +49,7 @@ Four category rows, in this order, each with its own icon and label:
 
 That is 15 upgrades. Check:
 
-- The category icons are the Tyres ones above, not the Chassis or Durability icons. Log: `dept tag: department category row 0x141c82470 icon "error_department_tyre_thermal" -> "tyres_tyre_thermal"`.
+- The category icons are the Tyres ones above, not the Chassis or Durability icons. Log: `dept tag: department category row icon "error_department_tyre_thermal" -> "tyres_tyre_thermal"`.
 - The row labels read Tyre Thermal, Brake Cooling, Tyre Life, Power Unit Cooling, never "INVALID UPGRADE". Log: `upgrade types: department category row 0x141c82470 label type 19 -> "tyre_thermal"`.
 - Every card shows its name and its own art (below), and the Tyres orange.
 - The descriptions match `assets/text.json` (Develop Upgrade screen).
@@ -108,7 +112,7 @@ Check one card of each branch in each state, and the Develop Upgrade screen's la
    The game then builds the car, which logs each type the car's upgrade map holds:
 
 ```
-[rnd-tyres] upgrade apply: type 19 radUpgradeTyreThermal perc 0.1429 (vehicle component 0x…)
+[rnd-tyres] upgrade apply: type 19 radUpgradeTyreThermal perc 0.1429 (vehicle 0x…)
 [rnd-tyres] upgrade types: apply 0x14fa63050 type 19 names block radUpgradeTyreThermal
 ```
 

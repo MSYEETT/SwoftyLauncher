@@ -7,11 +7,14 @@ jump-table targets). Regenerate from the repo root:
 
 ## Hook-site safety (all OK)
 
-Every hook overwrites 5 bytes. The check walks whole instructions from the site until >= 5 bytes
-and fails on any in-function branch/jump-table target strictly inside the covered range
-(`tools/sites/fdis.py check`). A whole-`.xtls` rel32/rel8 scan (`tools/sites/xjump.py`) found no branch from
-anywhere into those ranges (its one rel8 candidate, 0x141f4aa26, is a byte inside
-`lea rdi,[rip+0x3725e7b]` at 0x141f4aa21, not an instruction).
+Every hook overwrites at least 5 bytes, rounded up to whole instructions (swofty_core's mixin
+manager, `insn_span`); the description redirect rewrites the 5-byte `call`. The check walks whole
+instructions from the site until >= 5 bytes and fails on any in-function branch target strictly
+inside the covered range (`tools/sites/fdis.py check`). A whole-`.xtls` rel32/rel8 scan
+(`tools/sites/xjump.py`) found no branch from anywhere into those ranges. Its rel8 candidates are
+bytes inside instructions: 0x141f4aa26 inside `lea rdi,[rip+0x3725e7b]` at 0x141f4aa21,
+0x141f4a9e4 and 0x141f46044 inside the `lea rdi,[aero]` displacements just before the two
+name-compare sites.
 ```
 OK  func 141f48030-141f49bb9 site 141f482a0: 5 bytes over 1 insn(s); internal branch targets: none
       141f482a0: 488b5c2440                   mov rbx, qword ptr [rsp + 0x40]
@@ -21,9 +24,15 @@ OK  func 141f48030-141f49bb9 site 141f485b5: 8 bytes over 1 insn(s); internal br
       141f485b5: 488db424b0010000             lea rsi, [rsp + 0x1b0]
 OK  func 141f48030-141f49bb9 site 141f48a64: 7 bytes over 1 insn(s); internal branch targets: none
       141f48a64: 4c8d0d35588103               lea r9, [rip + 0x3815835]
-OK  func 141f4a9c0-141f4ac36 site 141f4aa28: 6 bytes over 2 insn(s); internal branch targets: none
-      141f4aa28: 4889d9                       mov rcx, rbx
-      141f4aa2b: 4889fa                       mov rdx, rdi
+OK  func 141f48030-141f49bb9 site 141f48476: 5 bytes over 2 insn(s); internal branch targets: none
+      141f48476: 4138c6                       cmp r14b, al
+      141f48479: 752f                         jne 0x141f484aa
+OK  func 141f4a9c0-141f4ac36 site 141f4a9e6: 6 bytes over 2 insn(s); internal branch targets: none
+      141f4a9e6: 4889d9                       mov rcx, rbx
+      141f4a9e9: 4889fa                       mov rdx, rdi
+OK  func 141f45d30-141f4629a site 141f46046: 6 bytes over 2 insn(s); internal branch targets: none
+      141f46046: 4889d9                       mov rcx, rbx
+      141f46049: 4889fa                       mov rdx, rdi
 OK  func 1418914f0-141895104 site 1418945b6: 11 bytes over 2 insn(s); internal branch targets: none
       1418945b6: 488d1c04                     lea rbx, [rsp + rax]
       1418945ba: 4881c3a0000000               add rbx, 0xa0
@@ -31,18 +40,44 @@ OK  func 1418914f0-141895104 site 1418946d4: 5 bytes over 1 insn(s); internal br
       1418946d4: 488d4c2440                   lea rcx, [rsp + 0x40]
 OK  func 1418914f0-141895104 site 141894702: 12 bytes over 1 insn(s); internal branch targets: none
       141894702: 48c78424180e000040000000     mov qword ptr [rsp + 0xe18], 0x40
+OK  func 1418914f0-141895104 site 141894cf4: 7 bytes over 1 insn(s); internal branch targets: none
+      141894cf4: 8984249c000000               mov dword ptr [rsp + 0x9c], eax
 OK  func 1418914f0-141895104 site 141894e03: 5 bytes over 1 insn(s); internal branch targets: none
       141894e03: 4c8d7c2448                   lea r15, [rsp + 0x48]
 ```
 
-## Scan gates (exactly one hit in `.xtls`, equal to the expected address)
-```
-1 ['0x141f48253'] 48 C7 44 24 50 00 00 00 00 48 8D 3D AA 5E 93 03 EB 3B 48 C7 44 24 50 00 00 00 00
-1 ['0x141f4aa21'] 48 8D 3D 7B 5E 72 03 48 89 D9 48 89 FA E8 1D 2E 41 03 85 C0 0F 85 F2 01 00 00 B0 03
-1 ['0x1418945a5'] 48 8B 84 24 A8 00 00 00 48 85 C0 0F 84 EA 09 00 00 48 8D 1C 04 48 81 C3 A0 00 00 00 48 8D AC 24 A0 00 00 00
-```
+## Bindings (resolved by signature from the KB, `re/db/signatures.json`)
 
-## safetyhook: a written `ctx.rip` redirects (`native/third_party/safetyhook/safetyhook.cpp` at the repo root, x64 Windows stub)
+All are `career` rows; a binding that does not resolve drops the whole addon. Patterns
+wildcard every rip-relative and rel32 displacement.
+
+| binding | kind | target | signature | pattern starts at |
+|---|---|---|---|---|
+| `site_Career_RnDPieSliceNameJoin` | site | 0x141f482a0 | `career.rnd_pie_slice_name_join` | target |
+| `site_Career_RnDPieSliceDescFormat` | call (redirect) | 0x141f485ab | `career.rnd_pie_slice_desc_format` | target |
+| `site_Career_RnDPieSliceDefaultColour` | site | 0x141f485b5 | `career.rnd_pie_slice_default_colour` | 0x141f485b0 |
+| `site_Career_RnDPieSliceIconArgs` | site | 0x141f48a64 | `career.rnd_pie_slice_icon_args` | target |
+| `site_Career_RnDPieFocusRestore` | site | 0x141f48476 | `career.rnd_pie_focus_restore` | target |
+| `site_Career_RnDPieFocusNameCmp` | site | 0x141f4a9e6 | `career.rnd_pie_focus_name_cmp` | 0x141f4a9ca (class-B data load) |
+| `site_Career_RnDPieFocusJoin` | site (jump target only) | 0x141f4aa4f | `career.rnd_pie_focus_join` | 0x141f4a9ca (class-B data load, anchor 0x85) |
+| `site_Career_RnDResearchFocusNameCmp` | site | 0x141f46046 | `career.rnd_research_focus_name_cmp` | 0x141f46029 (class-A data load) |
+| `site_Career_RnDPerfDeptLoopEnd` | site | 0x1418945b6 | `career.rnd_perf_dept_loop_end` | 0x1418945b0 |
+| `site_Career_RnDPerfDeptName` | site | 0x1418946d4 | `career.rnd_perf_dept_name` | target |
+| `site_Career_RnDPerfChildName` | site | 0x141894702 | `career.rnd_perf_child_name` | 0x1418946fe |
+| `site_Career_RnDPerfDeptColour` | site | 0x141894cf4 | `career.rnd_perf_dept_colour` | 0x141894cea |
+| `site_Career_RnDPerfGotoName` | site | 0x141894e03 | `career.rnd_perf_goto_name` | 0x141894dff |
+| `k_Career_RnDErrorDeptName` | data `char[17]` | 0x14587e10d | `career.rn_d_error_dept_name` | via `lea rdi` 0x141f4825c |
+
+The class-B and class-A focus handlers are byte clones from 0x141f4a9cd/0x141f4602d for 0x116
+bytes (only rip displacements differ), so no signature that starts within 48 bytes of a site in
+that range is unique. The three focus bindings start at the one instruction that differs, the
+data load (`mov rax,[rdx]` in class B, `mov rax,[r8+0x10]` in class A); the join is registered
+with `sitereg.py --match-from 0x141f4a9ca`.
+
+## A written `ctx.rip` redirects (swofty_core installs sites with safetyhook, `native/third_party/safetyhook/safetyhook.cpp` at the repo root, x64 Windows stub)
+
+swofty_core's mixin manager (`native/src/core/manager.cpp`, `install`) puts each site on a
+`safetyhook::MidHook` whose callback runs the site's handler chain with the same context.
 
 `asm_data` starts `FF 35 79 01 00 00` (push the trampoline address = the `rip` slot), `54` push rsp
 (-> `trampoline_rsp` = address of the rip slot), `54` push rsp (-> `rsp`, later `+0x10` = the
@@ -60,12 +95,13 @@ r14d = department code for the whole loop body: written only at 0x141f48213, oth
 read (cmp at 0x141f48218/2b/76/559, `cmp [rcx+1],r14b`, `cmp [rax+0x72],r14b`, one spill
 `mov [rsp+0xd0],r14b`), pushed/popped in the prologue/epilogue.
 
-Name jump table @0x14576fc14 (4 entries: aero chassis maintenance engine). The addon relaxes
-the guard immediate at 0x141f4821b (`03`->`04`); code 4 then hits `cmp r14d,3 ; ja 0x141f48253`
-(DEFAULT, rdi = 0x14587e10d "error_department") and joins at **H1 0x141f482a0** with rdi = name.
+Name jump table @0x14576fc14 (4 entries: aero chassis maintenance engine). The addon's
+render_fifth_pie piece relaxes the code guard `cmp r14d,3` at 0x141f48218 to 4; code 4 then hits
+`cmp r14d,3 ; ja 0x141f48253` (DEFAULT, rdi = `k_Career_RnDErrorDeptName` "error_department") and
+joins at **`site_Career_RnDPieSliceNameJoin` 0x141f482a0** with rdi = name.
 `rdi` is then used for `lng_rnd_dept_%s` (0x141f482b8), the VM child hash + GetOrCreate
 (0x141f482e8..0x141f483f2), `Vm_Holder_SetCStr(slot+0x100, rdi)` = `department_name`
-(0x141f484e0) and the icon path (H4).
+(0x141f484e0) and the icon path (`site_Career_RnDPieSliceIconArgs`).
 ```
 >141f48207: 48ffc5                       inc rbp
  141f4820a: 4839c5                       cmp rbp, rax
@@ -106,9 +142,12 @@ the guard immediate at 0x141f4821b (`03`->`04`); code 4 then hits `cmp r14d,3 ; 
 ```
 
 Colour/description switch (table @0x14576fc24, 4 entries). DEFAULT case 0x141f48598:
-`lea r8,[error_department]` then **H2 0x141f485ab** (the Format call, r8 = name for
-`lng_rnd_dept_%s_overview_description`), `mov eax,0xffffffff`, **H3 0x141f485b5**
-(eax = colour), join `mov [rsp+0x64],eax` (uStack_3d4).
+`lea r8,[error_department]` then **`site_Career_RnDPieSliceDescFormat` 0x141f485ab** (the Format
+call, r8 = name for `lng_rnd_dept_%s_overview_description`; a call binding, so the hook is a
+redirect of its callee and sees the name as its third argument), `mov eax,0xffffffff`,
+**`site_Career_RnDPieSliceDefaultColour` 0x141f485b5** (eax = colour), join `mov [rsp+0x64],eax`
+(uStack_3d4). The DEFAULT case is reached only for codes >= 4, and the relaxed guard admits code 4
+alone, so the redirect needs no r14 check.
 ```
 >141f48550: 48c744243800000000           mov qword ptr [rsp + 0x38], 0
  141f48559: 4183fe03                     cmp r14d, 3
@@ -155,7 +194,10 @@ Colour/description switch (table @0x14576fc24, 4 entries). DEFAULT case 0x141f48
 ```
 
 Icon path: `Format(&[rsp+0x160], "%s.%s.%s", [ctx+0x660], "rnd_wheel_icon", [rsp+0x20]=rdi)`.
-**H4 0x141f48a64** runs after `mov [rsp+0x20],rdi`; the call is at 0x141f48a6b.
+**`site_Career_RnDPieSliceIconArgs` 0x141f48a64** runs after `mov [rsp+0x20],rdi`; the call is
+at 0x141f48a6b. rdi is the department name only on the normal path: the shutdown path
+(`lea rdi,[shutdown]` 0x141f48885) and the regulation path (`lea rdi,[regulation]` 0x141f49b87)
+also jump to 0x141f48a20, so the hook rewrites only its own `tyres` pointer.
 `overrides.uidb` `career.rnd_wheel_icon` frames: aero chassis maintenance(durability.tif) engine
 regulation shutdown - no tyres, so code 4 borrows `maintenance`.
 ```
@@ -174,6 +216,21 @@ regulation shutdown - no tyres, so code 4 borrows `maintenance`.
  141f48a64: 4c8d0d35588103               lea r9, [rip + 0x3815835]
  141f48a6b: e880a62102                   call 0x1441630f0
  141f48a70: 488b842460010000             mov rax, qword ptr [rsp + 0x160]
+```
+
+Focus restore (pie_tyres_open): the populate makes the slot whose code equals al the page's
+focused department, with al = the selection index when it is < 4 and 0 otherwise (`cmp al,4 ;
+cmovae eax,ecx`, ecx = 0), so an out-of-range index would focus aero.
+**`site_Career_RnDPieFocusRestore` 0x141f48476** sits on the compare; with the Tyres flag set it
+makes al = 4 for code 4 and 0xff for codes 0..3, so the Tyres slot is the only one focused.
+```
+ 141f48465: 0fb6059cb70404               movzx eax, byte ptr [rip + 0x404b79c]
+ 141f4846c: 3c04                         cmp al, 4
+ 141f4846e: b900000000                   mov ecx, 0
+ 141f48473: 0f43c1                       cmovae eax, ecx
+ 141f48476: 4138c6                       cmp r14b, al
+ 141f48479: 752f                         jne 0x141f484aa
+ 141f4847b: 488b842490000000             mov rax, qword ptr [rsp + 0x90]
 ```
 
 ## Piece 2 - 0x141f4a9c0 (pie_tyres_focus)
@@ -196,11 +253,16 @@ Reached from the class-B command handler 0x141f4ac40 when cmd == 0x3aae34e1
  141f4ad54: e967fcffff                   jmp 0x141f4a9c0
 ```
 
-rbx = data chars (0x141f4a9db), rsi = this (0x141f4a9c7). **F1 0x141f4aa28** (`mov rcx,rbx ;
-mov rdx,rdi`, 6 bytes) sits before the "engine" strcmp; for data "tyres" the hook sets
-rdi = "tyres" and `rip` = 0x141f4aa4f, skipping the compare and `mov [DAT_145f93c08],al`
-(0x141f4aa49). The common block reads only rsi (this->+0x10 VM node), rdi (name, hashed) and
-the frame; rcx/rdx/r8/r9 are reloaded, rbx is overwritten at 0x141f4aaf1.
+rbx = data chars (0x141f4a9db), rsi = this (0x141f4a9c7).
+**`site_Career_RnDPieFocusNameCmp` 0x141f4a9e6** (`mov rcx,rbx ; mov rdx,rdi`, 6 bytes) sits
+before the first strcmp (aero) and is the only way into the compare chain. For data "tyres" the
+hook sets rdi = "tyres" and `rip` = **`site_Career_RnDPieFocusJoin` 0x141f4aa4f**, skipping the
+four compares and `mov [g_Career_RnDOverviewSelectedDept],al` (0x141f4aa49). For a stock name
+(FUN_14535d850 is the CRT `strcmp`, so an exact match) the hook clears the Tyres flag with that
+name's index, which is exactly the value the store at 0x141f4aa49 writes (aero 0 via
+0x141f4aa3f, chassis 1, maintenance 2, engine 3). The common block reads only rsi
+(this->+0x10 VM node), rdi (name, hashed) and the frame; rcx/rdx/r8/r9 are reloaded, rbx is
+overwritten at 0x141f4aaf1.
 ```
  141f4a9c0: 56                           push rsi
  141f4a9c1: 57                           push rdi
@@ -247,6 +309,25 @@ the frame; rcx/rdx/r8/r9 are reloaded, rbx is overwritten at 0x141f4aaf1.
  141f4aa4f: 488b4610                     mov rax, qword ptr [rsi + 0x10]
 ```
 
+Class A (Team HQ research overview, inside `Career_Build_RnDPieSector` 0x141f45d30) runs the
+same compare chain on data chars from `[r8+0x10]`; the chain is entered only from the
+`je 0x141f46029` at 0x141f45d5c and ends in the second and last writer of
+`g_Career_RnDOverviewSelectedDept` (0x141f460a9). **`site_Career_RnDResearchFocusNameCmp`
+0x141f46046** sits on its first strcmp and clears the Tyres flag on a stock name.
+```
+>141f46029: 498b4010                     mov rax, qword ptr [r8 + 0x10]
+ 141f4602d: 488d4809                     lea rcx, [rax + 9]
+ 141f46031: 4885c0                       test rax, rax
+ 141f46034: 488d1d0df5d504               lea rbx, [rip + 0x4d5f50d]
+ 141f4603b: 480f45d9                     cmovne rbx, rcx
+ 141f4603f: 488d3de76d7c03               lea rdi, [rip + 0x37c6de7]
+ 141f46046: 4889d9                       mov rcx, rbx
+ 141f46049: 4889fa                       mov rdx, rdi
+ 141f4604c: e8ff774103                   call 0x14535d850
+ ...
+>141f460a9: 880559db0404                 mov byte ptr [rip + 0x404db59], al
+```
+
 ## Piece 3 - performance publisher 0x1418914f0 (pie_tyres_performance)
 
 Frame: `sub rsp, 0x1ac8` after `__chkstk`; all slots rsp-relative. Department list built once by
@@ -264,10 +345,10 @@ FUN_143518cc0(ctx=[rsp+0x200], list=[rsp+0xa0]) - bytes at +0xa0, count qword at
  14189189e: 4883783800                   cmp qword ptr [rax + 0x38], 0
 ```
 
-The department_performance loop: count -> rax, **P0 0x1418945b6** (`lea rbx,[rsp+rax] ; add
-rbx,0xa0` = end pointer), rbp = rsp+0xa0 walks the codes. Other per-team loops (the chart's
+The department_performance loop: count -> rax, **`site_Career_RnDPerfDeptLoopEnd` 0x1418945b6**
+(`lea rbx,[rsp+rax] ; add rbx,0xa0` = end pointer), rbp = rsp+0xa0 walks the codes. Other per-team loops (the chart's
 `%s_performance_index_fraction` / `%s_show_progress_pip`) read the stored count at +0xa8, which
-P0 never changes.
+the loop-end hook never changes.
 ```
  1418945a5: 488b8424a8000000             mov rax, qword ptr [rsp + 0xa8]
  1418945ad: 4885c0                       test rax, rax
@@ -288,7 +369,8 @@ P0 never changes.
 
 perf = (sum cur + FUN_143518660(ctx,code,0xffff)) / F -> [rsp+0x158] (0x141894674); potential =
 sum max / F -> [rsp+0x154] (0x1418946b5); F = FUN_143518f50 stays in xmm0. Name #1 for
-`lng_rnd_dept_%s` -> r8, join **P1 0x1418946d4**. Name #2 -> rax, join **P2 0x141894702**
+`lng_rnd_dept_%s` -> r8, join **`site_Career_RnDPerfDeptName` 0x1418946d4**. Name #2 -> rax,
+join **`site_Career_RnDPerfChildName` 0x141894702**
 (copied to [rsp+0xe28], hashed into the `department_performance.<name>` child).
 ```
 >141894640: 488d8c2460010000             lea rcx, [rsp + 0x160]
@@ -332,8 +414,10 @@ sum max / F -> [rsp+0x154] (0x1418946b5); F = FUN_143518f50 stays in xmm0. Name 
  1418946fe: 488b04c8                     mov rax, qword ptr [rax + rcx*8]
 ```
 
-dept_colour: bounded `< 6` read of the table 0x14571bce0 = {ffeead00, ff3ec58d, ff16deff,
-ff7a2aed, ffffffff, ffffffff}; [4] is written to 0xff0078ff (layout-verified).
+dept_colour: bounded `< 6` read of `k_Career_RnDCardColourTable` 0x14571bce0 = {ffeead00,
+ff3ec58d, ff16deff, ff7a2aed, ffffffff, ffffffff}. **`site_Career_RnDPerfDeptColour`
+0x141894cf4** sits on the store and turns a white eax into 0xff0078ff for code 4; the table is
+not written.
 ```
 >141894cda: 480fbe4d00                   movsx rcx, byte ptr [rbp]
  141894cdf: b8ffffffff                   mov eax, 0xffffffff
@@ -344,7 +428,8 @@ ff7a2aed, ffffffff, ffffffff}; [4] is written to 0xff0078ff (layout-verified).
 >141894cf4: 8984249c000000               mov dword ptr [rsp + 0x9c], eax
 ```
 
-Name #3 for `rnd_goto_%s_department` (dept_colour_anim) -> r8, join **P4 0x141894e03**.
+Name #3 for `rnd_goto_%s_department` (dept_colour_anim) -> r8, join
+**`site_Career_RnDPerfGotoName` 0x141894e03**.
 ```
 >141894de6: 480fbe4500                   movsx rax, byte ptr [rbp]
  141894deb: 4c8d051b93fe03               lea r8, [rip + 0x3fe931b]
