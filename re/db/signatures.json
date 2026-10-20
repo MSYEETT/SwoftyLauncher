@@ -8018,6 +8018,320 @@
    "used_by": [
     "addons/f1-1990/native/src/save_separation.cpp"
    ]
+  },
+  {
+   "id": "career.needs_driver_contract",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 53 48 81 EC D8 00 00 00 48 89 CE 48 8B 89 78 02 00 00",
+   "match": "0x140d83090",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140d83090",
+   "kind": "func_start",
+   "names": [
+    "Career_Needs_DriverContract"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.decide_contract_negotiation",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 55 53 48 83 EC 20 48 89 D6 48 8B 81 A0 0C 00 00",
+   "match": "0x142d57d10",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142d57d10",
+   "kind": "func_start",
+   "names": [
+    "Career_Decide_ContractNegotiation"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.build_driver_contract",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 55 53 48 83 EC 30 44 89 CF 44 89 C3 48 89 D6 49 89 CE 44 0F B6 A4 24 90 00 00 00",
+   "match": "0x140d79dd0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140d79dd0",
+   "kind": "func_start",
+   "names": [
+    "Career_Build_DriverContract"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.sign_driver_contract",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC A8 01 00 00 45 89 CF",
+   "match": "0x140d79ff0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140d79ff0",
+   "kind": "func_start",
+   "names": [
+    "Career_Sign_DriverContract"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_intro_on_enter",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 55 53 48 81 EC D0 00 00 00 C5 F8 29 B4 24 C0 00 00 00",
+   "match": "0x1436c2620",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c2620",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractIntro_OnEnter"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_intro_on_update",
+   "section": ".xtls",
+   "pattern": "56 57 48 83 EC 38 48 89 D6 48 89 CF 80 B9 9C 0C 00 00 00",
+   "match": "0x1436c2dc0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c2dc0",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractIntro_OnUpdate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_update_on_enter",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 53 48 81 EC 88 00 00 00 48 89 CE 48 8B 81 80 0C 00 00",
+   "match": "0x1436c1760",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c1760",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractUpdate_OnEnter"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_update_on_update",
+   "section": ".xtls",
+   "pattern": "56 57 55 53 48 83 EC 28 48 89 D6 48 89 CF 80 B9 5A 0D 00 00 00",
+   "match": "0x1436c1e00",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c1e00",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractUpdate_OnUpdate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_update_on_exit",
+   "section": ".xtls",
+   "pattern": "56 57 48 83 EC 28 48 89 CF 48 8B 81 60 0D 00 00",
+   "match": "0x1436c1fc0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c1fc0",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractUpdate_OnExit"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_outro_on_enter",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 40 80 B9 A0 0C 00 00 00",
+   "match": "0x1436c3330",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c3330",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractOutro_OnEnter"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_outro_on_update",
+   "section": ".xtls",
+   "pattern": "56 57 48 83 EC 38 48 89 D6 48 89 CF 80 B9 A3 0C 00 00 00",
+   "match": "0x1436c3750",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c3750",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractOutro_OnUpdate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.flow_link_continue",
+   "section": ".xtls",
+   "pattern": "C3 48 8D 05 ?? ?? ?? ?? EB E9 CC CC",
+   "match": "0x1436c2e70",
+   "anchor": "0x4",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x1",
+    "len": 7
+   },
+   "target": "0x146cb2284",
+   "kind": "data",
+   "names": [
+    "g_Career_FlowLinkContinue"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
   }
  ]
 }
