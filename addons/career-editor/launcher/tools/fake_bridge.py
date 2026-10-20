@@ -114,9 +114,27 @@ TRACKS = ["rw_melbourne_26", "rw_shanghai_26", "rw_suzuka_26", "rw_bahrain_26", 
           "rw_catalunya_26", "rw_austria_26", "rw_silverstone_26", "rw_spa_francorchamps_26", "rw_hungaroring_26", "rw_zandvoort_26",
           "rw_monza_26", "rw_madrid_26", "rw_baku_26", "rw_singapore_26", "rw_texas_26", "rw_mexico_26", "rw_brazil_26", "rw_las_vegas_26",
           "rw_losail_26", "rw_abu_dhabi_26"]
-SEEN = set(TRACKS)
+# statId per gamedb track code (F1 25 stock database)
+STAT = {"melbourne": 0, "shanghai": 2, "suzuka": 13, "bahrain": 3, "jeddah": 29, "miami": 30, "montreal": 6, "monaco": 5, "catalunya": 4,
+        "austria": 17, "silverstone": 7, "spa_francorchamps": 10, "hungaroring": 9, "zandvoort": 26, "monza": 11, "madrid": 42, "baku": 20,
+        "singapore": 12, "texas": 15, "mexico": 19, "brazil": 16, "las_vegas": 31, "losail": 32, "abu_dhabi": 14}
+# FAKE_INDEX_WEEKENDS=1: the game's own index names ("0".."23"), as a Driver Career has them
+INDEX = os.environ.get("FAKE_INDEX_WEEKENDS") == "1"
+TRACK_OF = {}
+for i, w in enumerate(TRACKS):
+    TRACK_OF[str(i) if INDEX else w] = STAT[w[3:-3]]
+SEEN = set(TRACK_OF)
 cur = 8
-order = list(TRACKS)
+order = list(TRACK_OF)
+
+def index_name(w):
+    return 0 < len(w) <= 3 and w.isdigit()
+
+def valid_name(w):
+    return index_name(w) or (3 <= len(w) <= 31 and all(c.islower() or c.isdigit() or c == "_" for c in w))
+
+def rounds_result():
+    return {"rounds": list(order), "tracks": [TRACK_OF.get(w) for w in order]}
 
 def short_u(u):
     o = {"h": u["hash"], "n": u["name"], "d": u["dept"], "s": u["state"], "c": u["research_cost"], "t": u["research_days"], "dc": u["develop_cost"], "dt": u["develop_days"]}
@@ -214,7 +232,7 @@ def snapshot():
                    "weekend": order[cur - 1], "completion": 0, "season_completion": 0, "current_minutes": 96 * 1440, "day": 96},
         "standings": standings(),
         "calendar": {"ready": True, "season_index": 0, "current_round": cur, "editable_from": cur + 1,
-                     "rounds": [{"round": i + 1, "weekend": w, "track": w[3:], "completed": i + 1 < cur, "current": i + 1 == cur, "editable": i + 1 > cur, "state": 0 if i + 1 > cur else 2,
+                     "rounds": [{"round": i + 1, "weekend": w, "track": w[3:], "track_stat_id": TRACK_OF.get(w), "completed": i + 1 < cur, "current": i + 1 == cur, "editable": i + 1 > cur, "state": 0 if i + 1 > cur else 2,
                                  "sprint": (i % 4 == 1) if i + 1 < cur else None, "sessions": []} for i, w in enumerate(order)]},
         "weather": weather(),
     }
@@ -265,8 +283,11 @@ def apply(op, args):
             d["ratings"][k]["value"] = int(v)
         return True, None, b, {"driverStatId": d["driverStatId"], "ratings": {k: {"value": d["ratings"][k]["value"]} for k in args["ratings"]}, "overall": overall(d)}
     if op == "season.calendar.reorder":
-        b = {"rounds": list(order)}; order[cur:] = args["order"]
-        return True, None, b, {"rounds": list(order)}
+        if not isinstance(args.get("order"), list) or sorted(args["order"]) != sorted(order[cur:]):
+            return False, "bad_args: order must be every round after the current one", None, None
+        b = rounds_result(); order[cur:] = args["order"]
+        print(f"{op} {args['order']}", flush=True)
+        return True, None, b, rounds_result()
     if op == "drivers.swap":
         a = next(x for x in drivers if x["driverStatId"] == args["a"]); b = next(x for x in drivers if x["driverStatId"] == args["b"])
         if a["player"] or b["player"]:
@@ -310,24 +331,28 @@ def apply(op, args):
         return True, None, bf, {"adjustments": []}
     if op in ("season.calendar.set_round", "season.calendar.add_round"):
         w = args["weekend"]
+        if not isinstance(w, str) or not valid_name(w):
+            return False, "bad_args: weekend name", None, None
         if w in order:
             return False, "duplicate_weekend: already in this season", None, None
-        if w not in SEEN:
+        if w not in SEEN or index_name(w):
             if args.get("verified") is not True:
                 return False, "unknown_weekend: not in this championship and not verified", None, None
             if not isinstance(args.get("track_stat_id"), int) or not 0 <= args["track_stat_id"] < 255:
                 return False, "unknown_track: no usable track id", None, None
+            TRACK_OF[w] = args["track_stat_id"]
         print(f"{op} {w} track_stat_id={args.get('track_stat_id')} verified={args.get('verified')}", flush=True)
         SEEN.add(w)
-        bf = {"rounds": list(order)}
+        bf = rounds_result()
         if op == "season.calendar.set_round":
             order[args["round"] - 1] = w
         else:
             order.insert(args.get("at", len(order) + 1) - 1, w)
-        return True, None, bf, {"rounds": list(order)}
+        return True, None, bf, rounds_result()
     if op == "season.calendar.remove_round":
-        bf = {"rounds": list(order)}; del order[args["round"] - 1]
-        return True, None, bf, {"rounds": list(order)}
+        bf = rounds_result(); del order[args["round"] - 1]
+        print(f"{op} {args['round']}", flush=True)
+        return True, None, bf, rounds_result()
     if op in ("season.result.set", "season.calendar.toggle_sprint"):
         return False, "unsupported: not available in this build", None, {"detail": "phase 3"}
     if op == "facilities.set_level":

@@ -1,7 +1,7 @@
 use serde_json::{Value, json};
 
 use crate::host::Host;
-use crate::ui::{title_case, track_name};
+use crate::ui::track_name;
 
 pub const MIN_LAUNCHER: (u64, u64, u64) = (1, 0, 11);
 const MAX_TRACK_ID: u64 = 254;
@@ -96,15 +96,11 @@ fn preferred(events: &[String], style_26: bool) -> Option<String> {
 }
 
 fn label_of(t: &Value) -> String {
-    let code = t["code"].as_str().unwrap_or_default();
-    match t["name"].as_str().filter(|n| !n.trim().is_empty()) {
-        Some(n) => n.trim().to_owned(),
-        None if t["modded"] == true => title_case(&code.replace('-', "_")),
-        None => track_name(code),
-    }
+    let track = crate::calendar::from_profile(t);
+    if track.modded { track.name } else { track.label() }
 }
 
-pub fn catalogue(profile: &Value, in_season: &[String], known: &[String]) -> Catalogue {
+pub fn catalogue(profile: &Value, in_season: &[String], season_ids: &[u8], known: &[String]) -> Catalogue {
     let style_26 = in_season.iter().any(|w| w.ends_with("_26"));
     let tracks = profile["tracks"].as_array().cloned().unwrap_or_default();
     let mut out = Catalogue::default();
@@ -132,12 +128,21 @@ pub fn catalogue(profile: &Value, in_season: &[String], known: &[String]) -> Cat
     }
     let lookup = |w: &str| names.iter().find(|(n, _, _)| n == w).map(|&(_, id, i)| (id, i));
     out.resolved = names.iter().map(|(n, id, _)| (n.clone(), *id)).collect();
-    let taken: Vec<usize> = in_season
+    let mut taken: Vec<usize> = in_season
         .iter()
         .filter_map(|w| lookup(w).map(|(_, i)| i))
         .collect();
+    taken.extend(tracks.iter().enumerate().filter_map(|(i, t)| {
+        t["stat_id"]
+            .as_u64()
+            .is_some_and(|id| season_ids.iter().any(|&s| u64::from(s) == id))
+            .then_some(i)
+    }));
     let mut used: Vec<usize> = taken.clone();
-    for w in known.iter().filter(|w| !in_season.contains(w)) {
+    for w in known
+        .iter()
+        .filter(|w| !in_season.contains(w) && !crate::calendar::index_name(w))
+    {
         match lookup(w) {
             Some((id, i)) if tracks[i]["playable"] == true => {
                 if taken.contains(&i) {
@@ -285,7 +290,7 @@ mod tests {
     fn groups_stock_and_modded_tracks_and_skips_the_calendar() {
         let season = s(&["rw_bahrain_26", "rw_suzuka_26"]);
         let known = s(&["rw_bahrain_26", "rw_suzuka_26", "rw_monaco_26", "rw_gone_26"]);
-        let cat = catalogue(&profile(), &season, &known);
+        let cat = catalogue(&profile(), &season, &[], &known);
         let picks: Vec<(&str, u8, Group)> = cat
             .picks
             .iter()
@@ -309,7 +314,7 @@ mod tests {
 
     #[test]
     fn a_2025_calendar_takes_the_plain_event_names() {
-        let cat = catalogue(&profile(), &s(&["rw_bahrain"]), &[]);
+        let cat = catalogue(&profile(), &s(&["rw_bahrain"]), &[], &[]);
         let names: Vec<&str> = cat.picks.iter().map(|p| p.weekend.as_str()).collect();
         assert_eq!(names, ["rw_monaco", "rw_suzuka", "rw_okayama", "rw_bahrain24"]);
         assert!(cat.picks.iter().all(|p| p.group != Group::Championship));
@@ -317,7 +322,7 @@ mod tests {
 
     #[test]
     fn verify_adds_the_track_id_or_refuses() {
-        let cat = catalogue(&profile(), &s(&["rw_bahrain_26"]), &[]);
+        let cat = catalogue(&profile(), &s(&["rw_bahrain_26"]), &[], &[]);
         let mut args = json!({ "weekend": "rw_okayama_26", "at": 3 });
         verify(&mut args, Some(&cat)).unwrap();
         assert_eq!(
@@ -333,13 +338,24 @@ mod tests {
 
     #[test]
     fn options_group_under_headings() {
-        let cat = catalogue(&profile(), &s(&["rw_bahrain_26"]), &s(&["rw_monaco_26"]));
+        let cat = catalogue(&profile(), &s(&["rw_bahrain_26"]), &[], &s(&["rw_monaco_26"]));
         let opts = cat.options("Choose a track…", true);
         let heads: Vec<&str> = opts.iter().filter_map(|o| o["heading"].as_str()).collect();
         assert_eq!(heads, ["In this championship", "Other tracks", "Modded tracks"]);
         let flat = cat.options("Choose a track…", false);
         assert!(flat.iter().all(|o| o.get("heading").is_none()));
         assert_eq!(flat[1]["label"], "Monaco · In this championship");
+    }
+
+    #[test]
+    fn an_index_named_season_is_matched_by_track_id() {
+        let season = s(&["0", "1", "2"]);
+        let known = s(&["0", "1", "2", "3"]);
+        let cat = catalogue(&profile(), &season, &[3, 13, 43], &known);
+        let names: Vec<&str> = cat.picks.iter().map(|p| p.weekend.as_str()).collect();
+        assert_eq!(names, ["rw_monaco", "rw_bahrain24"]);
+        assert!(cat.refused.iter().all(|(l, _)| l != "3"));
+        assert_eq!(cat.picks[0].label, "Monaco");
     }
 
     #[test]

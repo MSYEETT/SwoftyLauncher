@@ -1,3 +1,4 @@
+mod calendar;
 mod host;
 mod live;
 mod pages;
@@ -23,6 +24,7 @@ pub struct App {
     pub launcher: String,
     pub tab: String,
     pub profile_tracks: Option<Result<Value, String>>,
+    pub cal_move: (Option<i64>, Option<i64>),
     last_tick: Option<(Option<bool>, Option<u64>, u64)>,
 }
 
@@ -35,6 +37,7 @@ impl App {
             launcher: String::new(),
             tab: "overview".into(),
             profile_tracks: None,
+            cal_move: (None, None),
             last_tick: None,
         }
     }

@@ -20,6 +20,20 @@ fn set_op(op: &str, value: &Value, expect: &Value) -> Undo {
     Undo::Op(o)
 }
 
+// The game names a Driver Career's rounds by number ("0", "1", ...); such a name only comes back
+// with the track id the plugin recorded beside it.
+fn with_track(args: &mut Value, before: &Value, idx: usize) -> Result<(), &'static str> {
+    if let Some(id) = before["tracks"][idx].as_u64().filter(|&id| id < 255) {
+        args["verified"] = json!(true);
+        args["track_stat_id"] = json!(id);
+        return Ok(());
+    }
+    if args["weekend"].as_str().is_some_and(crate::calendar::index_name) {
+        return Err("this round's track wasn't recorded; add it again from Add a round");
+    }
+    Ok(())
+}
+
 pub fn inverse(e: &Entry) -> Undo {
     if !e.ok {
         return Undo::None("the edit failed");
@@ -155,9 +169,13 @@ pub fn inverse(e: &Entry) -> Undo {
         "season.calendar.set_round" => {
             let r = e.args["round"].as_u64().unwrap_or(0) as usize;
             match b["rounds"].get(r.wrapping_sub(1)) {
-                Some(w) if r > 0 => Undo::Op(
-                    json!({ "op": "season.calendar.set_round", "args": { "round": r, "weekend": w } }),
-                ),
+                Some(w) if r > 0 => {
+                    let mut args = json!({ "round": r, "weekend": w });
+                    match with_track(&mut args, b, r - 1) {
+                        Ok(()) => Undo::Op(json!({ "op": "season.calendar.set_round", "args": args })),
+                        Err(why) => Undo::None(why),
+                    }
+                }
                 _ => Undo::None("the before calendar is missing"),
             }
         }
@@ -173,7 +191,11 @@ pub fn inverse(e: &Entry) -> Undo {
             let r = e.args["round"].as_u64().unwrap_or(0) as usize;
             match b["rounds"].get(r.wrapping_sub(1)) {
                 Some(w) if r > 0 => {
-                    Undo::Op(json!({ "op": "season.calendar.add_round", "args": { "weekend": w, "at": r } }))
+                    let mut args = json!({ "weekend": w, "at": r });
+                    match with_track(&mut args, b, r - 1) {
+                        Ok(()) => Undo::Op(json!({ "op": "season.calendar.add_round", "args": args })),
+                        Err(why) => Undo::None(why),
+                    }
                 }
                 _ => Undo::None("the before calendar is missing"),
             }
@@ -188,5 +210,69 @@ pub fn inverse(e: &Entry) -> Undo {
         | "economy.costcap.refund" => Undo::BackupOnly,
         "bridge.ping" => Undo::None("nothing to undo"),
         _ => Undo::None("no undo is defined for this edit"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entry(op: &str, args: Value, before: Value) -> Entry {
+        Entry {
+            seq: 1,
+            i: 0,
+            t: 0,
+            label: String::new(),
+            op: op.into(),
+            args,
+            ok: true,
+            error: None,
+            before,
+            after: Value::Null,
+            undo_of: None,
+            career: Some("dc-00d00000".into()),
+            mode: "driver_career".into(),
+        }
+    }
+
+    #[test]
+    fn a_numbered_round_comes_back_with_its_track_id() {
+        let before = json!({ "rounds": ["0", "1", "2"], "tracks": [0, 2, 13] });
+        let Undo::Op(op) = inverse(&entry(
+            "season.calendar.remove_round",
+            json!({ "round": 2 }),
+            before.clone(),
+        )) else {
+            panic!("no undo");
+        };
+        assert_eq!(
+            op,
+            json!({ "op": "season.calendar.add_round", "args": { "weekend": "1", "at": 2, "verified": true, "track_stat_id": 2 } })
+        );
+        let Undo::Op(op) = inverse(&entry(
+            "season.calendar.set_round",
+            json!({ "round": 3, "weekend": "rw_monaco" }),
+            before,
+        )) else {
+            panic!("no undo");
+        };
+        assert_eq!(
+            op["args"],
+            json!({ "round": 3, "weekend": "2", "verified": true, "track_stat_id": 13 })
+        );
+        let old = json!({ "rounds": ["0", "1", "2"] });
+        assert!(matches!(
+            inverse(&entry("season.calendar.remove_round", json!({ "round": 2 }), old)),
+            Undo::None(_)
+        ));
+        let named = json!({ "rounds": ["rw_melbourne_26", "rw_suzuka_26"] });
+        let Undo::Op(op) = inverse(&entry(
+            "season.calendar.remove_round",
+            json!({ "round": 2 }),
+            named,
+        )) else {
+            panic!("no undo");
+        };
+        assert_eq!(op["args"], json!({ "weekend": "rw_suzuka_26", "at": 2 }));
     }
 }

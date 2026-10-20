@@ -115,6 +115,7 @@ Driver and team names are not in the section: resolve the stat ids from the game
   "editable_from": 6,         // first round the ops accept, null when none
   "rounds": [{
     "round": 1, "weekend": "rw_bahrain", "track": "bahrain",   // track: weekend name without rw_ and the _26 suffix
+    "track_stat_id": 3,       // weekend+0x278, null when 0xff; the round's real track
     "completed": true, "current": false,
     "state": 0,               // the weekend's own state (+0x23c); 0 = not started
     "editable": false,        // after the current round and state 0
@@ -134,13 +135,21 @@ All ops run on the flow thread while `ce::safe()` (plain `CE_OP`), both modes.
 Calendar ops accept only rounds after the current round whose weekend has not started (`state` 0, the
 check the game's own `RebuildNotStartedWeekends` uses). They change the season's own weekend list,
 which its serialiser saves as `weekend_names[]` in round order and its deserialiser rebuilds by name.
-Results: `before`/`after` = `{ "rounds": [string] }` (every round's weekend name in round order).
+Results: `before`/`after` = `{ "rounds": [string], "tracks": [int|null] }` (every round's weekend name
+and `track_stat_id` in round order).
 
-**Weekend names and tracks** for `set_round` / `add_round`: the name is lower-case `[a-z0-9_]`, 3 to
-31 characters (the serialiser's name buffer), not already in this season (the season's name map refuses
+**Index names.** A season the game builds from a track set (`Career_Add_TrackSetToSeason`, a Driver
+Career) names its weekends by index: `"0"`, `"1"`, ... (`Career_Create_SeasonWeekend`'s `"%I64u"`).
+The name says nothing about the track, so the launcher names each round by `track_stat_id`, and the ops
+accept a 1 to 3 digit name only with `"verified": true` and `"track_stat_id"` (the same digits in
+another season are another track). New rounds the launcher adds there still use `rw_` names.
+
+**Weekend names and tracks** for `set_round` / `add_round`: the name is an index name (above) or
+lower-case `[a-z0-9_]`, 3 to 31 characters (the serialiser's name buffer), not already in this season (the season's name map refuses
 duplicates). A new weekend is built with its real `track_stat_id` (weekend+0x278); 0xff is only a
 placeholder and some readers index the track table with it unchecked, so it is never used:
-- a name that already appears in any season of this championship takes that weekend's track id;
+- a name (not an index name) that already appears in any season of this championship takes that
+  weekend's track id;
 - any other name needs `"verified": true` and `"track_stat_id": 0..254`, meaning the launcher resolved
   both from the active profile's last build. The plugin cannot list the track-event tables itself
   (their names are only hashed in the gamedb), and a name or id that does not resolve would break the

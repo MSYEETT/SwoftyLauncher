@@ -1070,6 +1070,12 @@ void section_calendar(ce::Writer &w)
         w.str(rs[i].name);
         w.key("track");
         w.str(track_of(rs[i].name));
+        uint8_t track = kNoTrack;
+        w.key("track_stat_id");
+        if (rd(rs[i].weekend + kWeekendTrack, track) && track != kNoTrack)
+            w.integer(track);
+        else
+            w.null();
         w.key("completed");
         w.boolean(i < cur);
         w.key("current");
@@ -1124,6 +1130,16 @@ std::string rounds_json(const std::vector<Round> &rs)
     w.begin_array();
     for (auto &r : rs)
         w.str(r.name);
+    w.end_array();
+    w.key("tracks");
+    w.begin_array();
+    for (auto &r : rs) {
+        uint8_t t = kNoTrack;
+        if (rd(r.weekend + kWeekendTrack, t) && t != kNoTrack)
+            w.integer(t);
+        else
+            w.null();
+    }
     w.end_array();
     w.end_object();
     return w.text();
@@ -1209,8 +1225,19 @@ ce::OpResult op_calendar_reorder(const ce::Json &args)
     return r;
 }
 
+// The game names the weekends it builds from a track set by their index ("0", "1", ...,
+// Career_Create_SeasonWeekend's "%I64u"), as in a Driver Career. Such a name says nothing
+// about the track, so it is accepted only with an explicit track id.
+bool index_weekend_name(const std::string &n)
+{
+    return !n.empty() && n.size() <= 3 &&
+           std::all_of(n.begin(), n.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
+}
+
 bool valid_weekend_name(const std::string &n)
 {
+    if (index_weekend_name(n))
+        return true;
     if (n.size() < 3 || n.size() > 31)
         return false;
     for (char c : n)
@@ -1254,7 +1281,7 @@ const char *check_weekend(const ce::Json &args, uintptr_t champ, const std::stri
     for (auto &r : rs)
         if (r.name == name)
             return "duplicate_weekend";
-    if (known_weekend(champ, name, track))
+    if (!index_weekend_name(name) && known_weekend(champ, name, track))
         return nullptr;
     const ce::Json &v = args["verified"];
     if (!(v.type == ce::Json::Bool && v.b))
