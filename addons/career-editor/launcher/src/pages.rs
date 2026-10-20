@@ -1,0 +1,3219 @@
+use std::path::PathBuf;
+
+use serde_json::{Value, json};
+
+use crate::App;
+use crate::host::Host;
+use crate::live::{Bridge, Live};
+use crate::store::{Entry, now_ms};
+use crate::ui::*;
+use crate::undo::{Undo, inverse};
+
+const STATS: [&str; 5] = ["experience", "racecraft", "awareness", "pace", "focus"];
+const DEPTS: [&str; 5] = ["Aero", "Chassis", "Durability", "Powertrain", "Tyres"];
+const W_SESSIONS: [(&str, &str); 8] = [
+    ("p1", "Practice 1"),
+    ("p2", "Practice 2"),
+    ("p3", "Practice 3"),
+    ("q", "Qualifying"),
+    ("ss", "Sprint Shootout"),
+    ("r", "Race"),
+    ("r2", "Race 2"),
+    ("r3", "Race 3"),
+];
+const W_STATES: [(&str, &str); 6] = [
+    ("clear", "Clear"),
+    ("light_cloud", "Light cloud"),
+    ("overcast", "Overcast"),
+    ("light_rain", "Light rain"),
+    ("heavy_rain", "Heavy rain"),
+    ("storm", "Storm"),
+];
+
+fn mode_label(mode: &str) -> &'static str {
+    match mode {
+        "my_team" => "My Team",
+        "driver_career" => "Driver Career",
+        _ => "No career",
+    }
+}
+
+fn phase_label(phase: &str) -> &'static str {
+    match phase {
+        "team_hq" => "Team HQ",
+        "team_hq_busy" => "Team HQ (busy)",
+        "weekend_hub" => "Weekend hub",
+        "session" => "In a session",
+        "loading" => "Loading",
+        "frontend" => "Menus",
+        _ => "Unknown",
+    }
+}
+
+fn opt(v: &Value) -> Option<String> {
+    match v {
+        Value::Null => None,
+        Value::String(s) => Some(s.clone()),
+        Value::Number(n) => Some(n.to_string()),
+        other => Some(other.to_string()),
+    }
+}
+
+// ---- driver names -------------------------------------------------------------------------------
+
+fn driver_names(live: &Live) -> Vec<(i64, String, String, bool)> {
+    live.section("drivers")
+        .and_then(|d| d["drivers"].as_array())
+        .map(|a| {
+            a.iter()
+                .filter_map(|d| {
+                    Some((
+                        d["driverStatId"].as_i64()?,
+                        title_case(d["name"].as_str().unwrap_or("driver")),
+                        d["initials"].as_str().unwrap_or_default().to_owned(),
+                        d["player"].as_bool().unwrap_or(false),
+                    ))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn driver_name(names: &[(i64, String, String, bool)], stat_id: i64) -> String {
+    names
+        .iter()
+        .find(|n| n.0 == stat_id)
+        .map_or_else(|| format!("Driver #{stat_id}"), |n| n.1.clone())
+}
+
+fn pretty_team(raw: &str) -> String {
+    match raw {
+        "redbull" | "red_bull" => "Red Bull Racing".into(),
+        "astonmartin" | "aston_martin" | "forceindia" => "Aston Martin".into(),
+        "racingbulls" | "racing_bulls" | "tororosso" => "Racing Bulls".into(),
+        "renault" => "Alpine".into(),
+        "mclaren" => "McLaren".into(),
+        "user_defined" => "Your team".into(),
+        other => title_case(other),
+    }
+}
+
+fn team_label(live: &Live, id: i64) -> String {
+    live.section("drivers")
+        .and_then(|d| d["drivers"].as_array())
+        .and_then(|a| a.iter().find(|d| d["team"]["teamStatId"].as_i64() == Some(id)))
+        .and_then(|d| d["team"]["name"].as_str())
+        .map_or_else(|| team_name(id), pretty_team)
+}
+
+fn team_name(id: i64) -> String {
+    const TEAMS: [&str; 10] = [
+        "Mercedes",
+        "Ferrari",
+        "Red Bull Racing",
+        "Williams",
+        "Aston Martin",
+        "Alpine",
+        "Racing Bulls",
+        "Haas",
+        "McLaren",
+        "Sauber",
+    ];
+    usize::try_from(id)
+        .ok()
+        .and_then(|i| TEAMS.get(i))
+        .map_or_else(|| format!("Team #{id}"), |n| (*n).to_owned())
+}
+
+// ---- page frame ---------------------------------------------------------------------------------
+
+fn common_notices(app: &App, live: &Live, anytime_page: bool) -> Vec<Value> {
+    let mut n = Vec::new();
+    if !app.enabled {
+        n.push(notice("Career Mode Editor is off in this profile, so the game plugin won't load. Turn it on and restart the game.", "warn"));
+    }
+    if !live.mailbox_known {
+        n.push(notice(
+            "The launcher hasn't found F1 25 yet. Locate the game on the Library page.",
+            "warn",
+        ));
+        return n;
+    }
+    let pending = app.store.pending();
+    if !pending.is_empty() {
+        let blocked = if live.live() {
+            live.snap["bridge"]["blocked"]["why"]
+                .as_str()
+                .map(|w| format!(" ({w})"))
+                .unwrap_or_default()
+        } else {
+            " (they apply once the game is running and ready)".to_owned()
+        };
+        n.push(json!({
+            "text": format!("{} edit{} queued{blocked}.", pending.len(), if pending.len() == 1 { "" } else { "s" }),
+            "tone": "accent",
+            "action": { "id": "withdraw", "label": "Withdraw" }
+        }));
+    }
+    if let Some(e) = app
+        .store
+        .history
+        .last()
+        .filter(|e| !e.ok && now_ms().saturating_sub(e.t) < 120_000)
+    {
+        n.push(notice(
+            &format!(
+                "{} failed: {}",
+                if e.label.is_empty() {
+                    op_label(&e.op)
+                } else {
+                    e.label.clone()
+                },
+                e.error.clone().unwrap_or_default()
+            ),
+            "bad",
+        ));
+    } else if let Some(e) = app
+        .store
+        .history
+        .last()
+        .filter(|e| e.ok && now_ms().saturating_sub(e.t) < 120_000)
+        && let Some(w) = not_applied(e)
+    {
+        n.push(notice(
+            &format!(
+                "{} was stored but not applied yet: {w}",
+                if e.label.is_empty() {
+                    op_label(&e.op)
+                } else {
+                    e.label.clone()
+                }
+            ),
+            "warn",
+        ));
+    }
+    if let Some(err) = &live.snap_error {
+        n.push(notice(
+            &format!("Editor data unreadable ({err}). Showing the last good snapshot."),
+            "bad",
+        ));
+    }
+    if !live.game_running() {
+        n.push(notice("F1 25 isn't running. Start it and load a career to edit. Backups and history work while it's closed.", "muted"));
+        return n;
+    }
+    match live.bridge {
+        Bridge::Missing => n.push(notice(
+            "The game is running but its editor plugin hasn't written a snapshot. Check that this profile has Career Mode Editor on, then restart the game.",
+            "warn",
+        )),
+        Bridge::Stale => n.push(notice(
+            &format!(
+                "The game plugin stopped answering (last snapshot {}). Edits are paused.",
+                ago(live.snap["written"].as_u64().unwrap_or(0))
+            ),
+            "warn",
+        )),
+        Bridge::Live => {
+            if !live.career() {
+                n.push(notice("No career loaded. Load a My Team or Driver Career save in the game.", "accent"));
+            } else if anytime_page {
+                if !live.anytime() {
+                    let why = live.status()["why_anytime"].as_str().unwrap_or("the game is busy");
+                    n.push(notice(&format!("Edits wait: {why}."), "warn"));
+                }
+            } else if !live.safe() {
+                let why = live.why().unwrap_or_else(|| "the game is busy".into());
+                n.push(notice(&format!("Edits wait: {why}. Queued edits apply as soon as Team HQ is idle."), "warn"));
+            }
+        }
+    }
+    n
+}
+
+fn frame(app: &App, live: &Live, subtitle: String, blocks: Vec<Value>, anytime_page: bool) -> Value {
+    let footer = if live.live() {
+        format!(
+            "Game plugin {} · snapshot {}",
+            live.snap["addon"]["version"].as_str().unwrap_or("?"),
+            ago(live.snap["written"].as_u64().unwrap_or(0))
+        )
+    } else {
+        "Edits go through the game's own code paths and only apply in safe states.".to_owned()
+    };
+    json!({
+        "subtitle": subtitle,
+        "tick": true,
+        "notices": common_notices(app, live, anytime_page),
+        "body": { "blocks": blocks },
+        "footer": footer,
+    })
+}
+
+fn status_pills(live: &Live) -> Vec<Value> {
+    let mut p = Vec::new();
+    if live.game_running() {
+        p.push(dot("Game running", "good"));
+    } else {
+        p.push(dot("Game closed", "muted"));
+    }
+    match live.bridge {
+        Bridge::Live => p.push(pill("Editor live", "good")),
+        Bridge::Stale if live.game_running() => p.push(pill("Editor not answering", "warn")),
+        _ => {}
+    }
+    if live.career() {
+        p.push(pill(mode_label(live.mode()), "accent"));
+        if live.safe() {
+            p.push(dot("Team HQ · ready", "good"));
+        } else {
+            let phase = live.status()["phase"].as_str().unwrap_or("unknown");
+            p.push(dot(&format!("{} · edits wait", phase_label(phase)), "warn"));
+        }
+    }
+    p
+}
+
+fn season_line(live: &Live) -> String {
+    let s = live.status();
+    let mut parts = vec![mode_label(live.mode()).to_owned()];
+    if let Some(season) = int(&s["season"]) {
+        match int(&s["year"]) {
+            Some(y) => parts.push(format!("Season {season} ({y})")),
+            None => parts.push(format!("Season {season}")),
+        }
+    }
+    if let (Some(r), Some(n)) = (int(&s["round"]), int(&s["rounds"])) {
+        parts.push(format!("Round {r} of {n}"));
+    }
+    if let Some(w) = s["weekend"].as_str() {
+        parts.push(track_name(w));
+    }
+    parts.join(" · ")
+}
+
+fn disabled_reason(live: &Live, op: &str) -> Option<String> {
+    live.gate(op).err()
+}
+
+fn form_help(live: &Live, op: &str) -> Option<String> {
+    match live.gate(op) {
+        Err(e) => Some(e),
+        Ok(()) if !live.applies_now(op) => Some("Queued edits apply as soon as Team HQ is idle.".into()),
+        Ok(()) => None,
+    }
+}
+
+// ---- views --------------------------------------------------------------------------------------
+
+pub const TABS: [(&str, &str, &str); 7] = [
+    ("overview", "Overview", "gauge"),
+    ("team", "Team", "wallet"),
+    ("drivers", "Drivers", "users"),
+    ("rnd", "R&D", "wrench"),
+    ("season", "Season", "trophy"),
+    ("weather", "Weather", "cloud-rain"),
+    ("history", "History", "history"),
+];
+
+fn tab_disabled(live: &Live, tab: &str) -> bool {
+    let need = match tab {
+        "drivers" => "drivers",
+        "rnd" => "rnd",
+        "season" => "season",
+        "weather" => "weather",
+        _ => return false,
+    };
+    live.career()
+        && live.section(need).is_none()
+        && live.snap["bridge"]["sections"]
+            .as_array()
+            .is_some_and(|a| !a.iter().any(|x| x["name"] == need))
+}
+
+fn tabs_block(app: &App, live: &Live, active: &str) -> Value {
+    let items: Vec<Value> = TABS
+        .iter()
+        .map(|(id, label, icon)| {
+            let mut t = json!({ "id": id, "label": label, "icon": icon });
+            if tab_disabled(live, id) {
+                t["disabled"] = json!(true);
+            }
+            if *id == "history" {
+                let queued = app.store.pending().len();
+                if queued > 0 {
+                    t["badge"] = json!(queued.to_string());
+                }
+            }
+            t
+        })
+        .collect();
+    json!({ "tabs": { "id": "page", "items": items, "active": active } })
+}
+
+pub fn view(app: &mut App, host: &mut Host, _section: &str) -> Value {
+    let live = app.live(host);
+    remember_weekends(app, &live);
+    let tab = if TABS.iter().any(|t| t.0 == app.tab) && !tab_disabled(&live, &app.tab) {
+        app.tab.clone()
+    } else {
+        "overview".to_owned()
+    };
+    let mut v = match tab.as_str() {
+        "team" => team(app, &live),
+        "drivers" => drivers(app, &live),
+        "rnd" => rnd(app, &live),
+        "season" => season(app, &live),
+        "weather" => weather(app, &live),
+        "history" => history(app, &live),
+        _ => overview(app, &live),
+    };
+    let mut blocks = vec![status_hero(app, &live), tabs_block(app, &live, &tab)];
+    if let Some(b) = v["body"]["blocks"].as_array() {
+        blocks.extend(b.iter().cloned());
+    }
+    v["body"] = json!({ "blocks": blocks });
+    v["subtitle"] = json!(if live.career() {
+        format!(
+            "{} · {}",
+            season_line(&live),
+            TABS.iter().find(|t| t.0 == tab).map_or("", |t| t.1)
+        )
+    } else {
+        title_of_status(&live)
+    });
+    v
+}
+
+fn status_hero(app: &App, live: &Live) -> Value {
+    let s = live.status();
+    let title = if !live.game_running() {
+        "F1 25 is closed".to_owned()
+    } else if !live.live() {
+        "Waiting for the game".to_owned()
+    } else if live.career() {
+        if live.my_team() {
+            "My Team career".to_owned()
+        } else {
+            "Driver Career".to_owned()
+        }
+    } else {
+        "No career loaded".to_owned()
+    };
+    let subtitle = if live.career() {
+        season_line(live)
+    } else if live.game_running() {
+        "Load a My Team or Driver Career save to start editing".to_owned()
+    } else {
+        "Start the game and load a career. Everything on these pages updates live.".to_owned()
+    };
+    let mut facts = Vec::new();
+    if live.live() {
+        facts.push(fact(
+            "Phase",
+            phase_label(s["phase"].as_str().unwrap_or("unknown")),
+        ));
+        if let Some(d) = int(&s["day"]) {
+            facts.push(fact("Career day", d.to_string()));
+        }
+        if let Some(st) = s["state"].as_str() {
+            facts.push(fact("Game state", st.to_owned()));
+        }
+        facts.push(fact("Snapshot", ago(live.snap["written"].as_u64().unwrap_or(0))));
+    }
+    let backups = app.store.backups();
+    facts.push(fact(
+        "Last backup",
+        backups
+            .first()
+            .map_or_else(|| "none yet".into(), |b| ago(b.created)),
+    ));
+    let hero = json!({ "hero": {
+        "title": title,
+        "subtitle": subtitle,
+        "art": { "monogram": match live.mode() { "my_team" => "MT", "driver_career" => "DC", _ => "CE" } },
+        "pills": status_pills(live),
+        "facts": facts,
+        "buttons": [ button("backup_now", "Back up saves", "save", "outline"), button("refresh", "Refresh", "refresh", "ghost") ],
+    }});
+    hero
+}
+
+fn overview(app: &App, live: &Live) -> Value {
+    let s = live.status();
+    let mut blocks = Vec::new();
+
+    if live.career() {
+        let mut tiles = Vec::new();
+        let econ = live.section("economy");
+        if live.my_team() {
+            match econ.and_then(|e| int(&e["cash"]["balance"])) {
+                Some(c) => tiles.push(json!({ "label": "Cash", "value": money_short(c), "hint": money(c), "icon": "wallet" })),
+                None => tiles.push(json!({ "label": "Cash", "value": "—", "hint": "not available", "icon": "wallet", "tone": "muted" })),
+            }
+        }
+        match econ.and_then(|e| int(&e["rp"]["wallet"])) {
+            Some(rp) => {
+                let per = econ.and_then(|e| e["rp"]["per"].as_str()).unwrap_or("team");
+                tiles.push(json!({ "label": "Resource points", "value": group(rp), "hint": format!("{per} wallet"), "icon": "zap", "tone": "accent" }));
+            }
+            None => tiles.push(json!({ "label": "Resource points", "value": "—", "hint": "not available", "icon": "zap", "tone": "muted" })),
+        }
+        let names = driver_names(live);
+        if let Some(player) = live
+            .section("drivers")
+            .and_then(|d| d["drivers"].as_array())
+            .and_then(|a| a.iter().find(|d| d["player"] == true))
+        {
+            let ov = int(&player["overall"]).unwrap_or(0);
+            tiles.push(json!({ "label": "Your overall", "value": ov.to_string(), "hint": title_case(player["name"].as_str().unwrap_or("you")),
+                               "icon": "user", "progress": ov as f64 / 100.0 }));
+        }
+        if let Some(st) = live.section("standings") {
+            let player_id = s["player"]["driver"].as_i64();
+            let row = st["drivers"].as_array().and_then(|a| {
+                a.iter()
+                    .find(|d| player_id.is_some() && d["key"].as_i64() == player_id)
+                    .or_else(|| {
+                        let pid = names.iter().find(|n| n.3).map(|n| n.0);
+                        a.iter()
+                            .find(|d| pid.is_some() && d["driver_stat_id"].as_i64() == pid)
+                    })
+            });
+            if let Some(r) = row {
+                tiles.push(json!({ "label": "Championship", "value": format!("P{}", int(&r["position"]).unwrap_or(0)),
+                                   "hint": format!("{} pts", int(&r["points"]).unwrap_or(0)), "icon": "trophy" }));
+            }
+        }
+        if let Some(team) = live
+            .section("rnd")
+            .and_then(|r| r["teams"].as_array())
+            .and_then(|a| a.iter().find(|t| t["player"] == true))
+        {
+            let fitted = int(&team["counts"]["fitted"]).unwrap_or(0);
+            let total = int(&team["counts"]["total"]).unwrap_or(0).max(1);
+            tiles.push(
+                json!({ "label": "R&D fitted", "value": format!("{fitted}/{total}"), "icon": "wrench",
+                               "progress": fitted as f64 / total as f64, "tone": "good" }),
+            );
+        }
+        if let (Some(r), Some(n)) = (int(&s["round"]), int(&s["rounds"])) {
+            tiles.push(
+                json!({ "label": "Season progress", "value": format!("Round {r}"), "hint": format!("of {n}"),
+                               "icon": "flag", "progress": r as f64 / n.max(1) as f64 }),
+            );
+        }
+        if !tiles.is_empty() {
+            blocks.push(json!({ "tiles": tiles }));
+        }
+    }
+
+    let recent: Vec<Value> = app
+        .store
+        .history
+        .iter()
+        .rev()
+        .filter(|e| e.op != "bridge.ping" && e.op != "rnd.team_detail" && in_scope(live, e))
+        .take(8)
+        .map(|e| history_row(app, e, false))
+        .collect();
+    let recent_block = if recent.is_empty() {
+        text(
+            "No edits yet. Changes you make on these pages show up here with their before and after values.",
+            "muted",
+        )
+    } else {
+        json!({ "table": { "id": "recent", "columns": history_columns(false), "rows": recent, "compact": true } })
+    };
+    let pending = app.store.pending();
+    let bridge = &live.snap["bridge"];
+    let mut side = Vec::new();
+    if live.live() {
+        let mut bridge_facts = vec![
+            fact("Queued", pending.len().to_string()),
+            fact(
+                "Applied this game",
+                bridge["applied"].as_u64().map_or("—".into(), |v| v.to_string()),
+            ),
+            fact(
+                "Failed",
+                bridge["failed"].as_u64().map_or("—".into(), |v| v.to_string()),
+            ),
+        ];
+        if let Some(ops) = bridge["ops"].as_array() {
+            bridge_facts.push(fact("Edits offered", ops.len().to_string()));
+        }
+        if let Some(secs) = bridge["sections"].as_array() {
+            bridge_facts.push(fact("Data sections", secs.len().to_string()));
+        }
+        side.push(json!({ "facts": bridge_facts }));
+        if let Some(b) = bridge["blocked"]["why"].as_str() {
+            side.push(text(&format!("Waiting: {b}"), "warn"));
+        }
+        let off: Vec<String> = bridge["ops"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .chain(bridge["sections"].as_array().into_iter().flatten())
+            .filter(|o| !o["off"].is_null())
+            .filter_map(|o| o["name"].as_str().map(str::to_owned))
+            .collect();
+        if !off.is_empty() {
+            side.push(text(
+                &format!("Switched off after a fault: {}", off.join(", ")),
+                "bad",
+            ));
+        }
+    } else {
+        let seen = live.snap["written"].as_u64().map_or_else(|| "never".into(), ago);
+        side.push(json!({ "facts": [
+            fact("Queued", pending.len().to_string()),
+            fact("Game plugin last seen", seen),
+            fact("Edits on record", app.store.history.iter().filter(|e| e.ok && e.op != "bridge.ping").count().to_string()),
+        ] }));
+        side.push(text(
+            "The game plugin writes its status while F1 25 runs with this addon on.",
+            "muted",
+        ));
+    }
+    blocks.push(grid(
+        json!([2, 1]),
+        vec![
+            card_full(
+                "Recent edits",
+                None,
+                vec![],
+                vec![button("go_history", "History", "history", "ghost")],
+                vec![recent_block],
+            ),
+            card("Editor", side),
+        ],
+    ));
+
+    if live.live() {
+        let flow: Vec<Value> = s["flow"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|f| {
+                let st = f["status"].as_str().unwrap_or("?");
+                json!({ "cells": [
+                    f["state"].as_str().unwrap_or("?"),
+                    { "text": st, "pill": true, "tone": if st == "Updating" { "good" } else { "accent" } },
+                    { "text": f["since"].as_u64().map_or_else(|| "—".into(), ago), "sort": f["since"].as_u64().unwrap_or(0) }
+                ] })
+            })
+            .collect();
+        let d = &s["detect"];
+        let mut detect = vec![json!({ "facts": [
+            fact("Career id", opt(&s["career_id"]).unwrap_or_else(|| "—".into())),
+            fact("Components", d["components"].as_str().unwrap_or("—").to_owned()),
+            fact("Mode from components", mode_label(d["component_mode"].as_str().unwrap_or("none"))),
+            fact("Team HQ said", mode_label(d["team_hq_answer"].as_str().unwrap_or("none"))),
+        ] })];
+        if !flow.is_empty() {
+            detect.push(json!({ "table": { "id": "flow", "columns": ["Flow state", "Status", { "key": "for", "title": "Since", "align": "right" }], "rows": flow, "compact": true } }));
+        }
+        blocks.push(card("Game state", detect));
+    }
+    let sub = if live.career() {
+        format!(
+            "Live from F1 25 · {}",
+            opt(&s["career_id"]).map_or_else(|| "career".into(), |id| format!("career {id}"))
+        )
+    } else {
+        title_of_status(live)
+    };
+    frame(app, live, sub, blocks, false)
+}
+
+fn page_sub(live: &Live) -> String {
+    if live.career() {
+        season_line(live)
+    } else {
+        title_of_status(live)
+    }
+}
+
+fn title_of_status(live: &Live) -> String {
+    if !live.game_running() {
+        "Game closed".into()
+    } else if !live.live() {
+        "Waiting for the game plugin".into()
+    } else {
+        "No career loaded".into()
+    }
+}
+
+// ---- team ---------------------------------------------------------------------------------------
+
+fn team(app: &App, live: &Live) -> Value {
+    let mut blocks = Vec::new();
+    let econ = live.section("economy");
+    let cash = econ.and_then(|e| int(&e["cash"]["balance"]));
+    let rp = econ.and_then(|e| int(&e["rp"]["wallet"]));
+    let mut tiles = Vec::new();
+    if live.my_team() || !live.career() {
+        tiles.push(json!({ "label": "Cash", "value": cash.map_or("—".into(), money_short), "hint": cash.map_or("team account".into(), money), "icon": "wallet" }));
+    }
+    tiles.push(json!({ "label": "Resource points", "value": rp.map_or("—".into(), group), "icon": "zap", "tone": "accent",
+                       "hint": econ.and_then(|e| e["rp"]["per"].as_str()).map_or("wallet".into(), |p| format!("{p} wallet")) }));
+    if let Some(f) = live.section("facilities").and_then(|f| f["f"].as_array()) {
+        let lv: i64 = f.iter().filter_map(|x| int(&x["lv"])).sum();
+        tiles.push(json!({ "label": "Facility levels", "value": lv.to_string(), "hint": format!("across {} facilities", f.len()), "icon": "wrench" }));
+    }
+    blocks.push(json!({ "tiles": tiles }));
+
+    let cash_op = "economy.cash.set";
+    let rp_op = "economy.rp.set";
+    let mut fields = Vec::new();
+    if live.my_team() || !live.career() {
+        let mut f = json!({ "id": "cash", "label": "Team cash", "value": cash.unwrap_or(0), "min": 0, "max": 2147483647i64, "step": 1, "unit": "$",
+                            "help": "Posted as a bank transaction, so Finance History shows it." });
+        if let Some(why) = disabled_reason(live, cash_op) {
+            f["disabled"] = json!(true);
+            f["help"] = json!(why);
+        }
+        fields.push(json!({ "number": f }));
+    }
+    let mut f = json!({ "id": "rp", "label": "Resource points", "value": rp.unwrap_or(0), "min": 0, "max": 999999, "step": 1, "unit": "RP",
+                        "help": "Goes through the game's own RP award path." });
+    if let Some(why) = disabled_reason(live, rp_op) {
+        f["disabled"] = json!(true);
+        f["help"] = json!(why);
+    }
+    fields.push(json!({ "number": f }));
+    let any_ok = live.can(rp_op) || (live.my_team() && live.can(cash_op));
+    let mut quick = Vec::new();
+    if live.my_team() && live.can("economy.cash.add") {
+        quick.push(button("cash_add:10000000", "+$10M", "trending-up", "outline"));
+        quick.push(button("cash_add:50000000", "+$50M", "trending-up", "outline"));
+    }
+    if live.can("economy.rp.add") {
+        quick.push(button("rp_add:1000", "+1,000 RP", "zap", "outline"));
+        quick.push(button("rp_add:10000", "+10,000 RP", "zap", "outline"));
+    }
+    let mut finance = vec![
+        json!({ "form": { "id": "finance", "columns": 2, "fields": fields, "apply": "Apply", "disabled": !any_ok } }),
+    ];
+    if !quick.is_empty() {
+        finance.push(json!({ "buttons": quick }));
+    }
+    if let Some(h) = form_help(live, rp_op).filter(|_| any_ok) {
+        finance.push(text(&h, "muted"));
+    }
+    let mut cards = vec![card_full(
+        "Finance",
+        Some("Cash and resource points"),
+        vec![],
+        vec![],
+        finance,
+    )];
+    if live.career() && !live.my_team() {
+        cards.push(unavailable(
+            "Cash",
+            "Driver Career has no team bank, so cash, facilities, sponsors and the cost cap are My Team only. Resource points are your driver's wallet.",
+        ));
+    }
+
+    if let Some(c) = econ.map(|e| &e["cash"]).filter(|c| c.is_object()) {
+        let rows: Vec<Value> = c["history"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .rev()
+            .map(|h| {
+                let amount = int(&h["amount"]).unwrap_or(0);
+                json!({ "cells": [
+                    { "text": int(&h["day"]).map_or("—".into(), |d| format!("Day {d}")), "sort": int(&h["day"]).unwrap_or(0) },
+                    title_case(h["type_name"].as_str().unwrap_or("").trim_start_matches('e')),
+                    { "text": signed_money_short(amount), "tone": if amount >= 0 { "good" } else { "bad" }, "sort": amount }
+                ] })
+            })
+            .collect();
+        let mut b = Vec::new();
+        if let Some(acc) = c["accounts"].as_array().filter(|a| a.len() > 1) {
+            b.push(json!({ "facts": acc.iter().map(|a| fact(&format!("Account {}", int(&a["category"]).unwrap_or(0)), money_short(int(&a["balance"]).unwrap_or(0)))).collect::<Vec<_>>() }));
+        }
+        if rows.is_empty() {
+            b.push(text("No transactions yet.", "muted"));
+        } else {
+            b.push(json!({ "table": { "id": "cash_history", "columns": ["Day", "Type", { "key": "amount", "title": "Amount", "align": "right", "sort": true }], "rows": rows, "compact": true } }));
+        }
+        cards.push(card("Cash history", b));
+    }
+    blocks.push(grid(json!([3, 2]), cards));
+
+    if live.my_team() || !live.career() {
+        blocks.push(facilities_card(live));
+    }
+    if live.my_team() {
+        blocks.push(grid(json!([1, 1]), vec![renown_card(live), costcap_card(live)]));
+        blocks.push(sponsors_card(live));
+    }
+    let sub = if live.career() {
+        season_line(live)
+    } else {
+        title_of_status(live)
+    };
+    frame(app, live, sub, blocks, false)
+}
+
+fn facilities_card(live: &Live) -> Value {
+    let Some(f) = live.section("facilities") else {
+        return unavailable("Facilities", "Not available in this mode or build.");
+    };
+    if f["ready"].as_bool() == Some(false) {
+        return unavailable(
+            "Facilities",
+            &format!(
+                "Not ready: {}",
+                f["reason"].as_str().unwrap_or("the facility data isn't loaded")
+            ),
+        );
+    }
+    let can_level = live.can("facilities.set_level");
+    const NAMES: [&str; 3] = ["Engineering", "Personnel", "Corporate"];
+    let rows: Vec<Value> = f["f"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|x| {
+            let ty = int(&x["ty"]).unwrap_or(0);
+            let level = int(&x["lv"]).unwrap_or(0);
+            let building: Vec<String> = x["bld"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|b| format!("node {} ({} of {} d left)", b["i"], int(&b["dl"]).unwrap_or(0), int(&b["dd"]).unwrap_or(0)))
+                .collect();
+            let mut lvl = json!({ "text": format!("{level} / 4"), "bar": level as f64 / 4.0, "tone": "good", "sort": level });
+            if can_level {
+                lvl["edit"] = json!({ "number": { "value": level, "min": 1, "max": 4, "step": 1 } });
+            }
+            json!({ "id": ty.to_string(), "cells": [
+                NAMES.get(ty as usize).copied().unwrap_or("Facility"),
+                lvl,
+                { "text": format!("{}/{}", int(&x["nb"]).unwrap_or(0), int(&x["nt"]).unwrap_or(0)), "sort": int(&x["nb"]).unwrap_or(0) },
+                { "text": int(&x["wc"]).map_or("—".into(), |w| w.to_string()), "sort": int(&x["wc"]).unwrap_or(0) },
+                if building.is_empty() { json!({ "text": "idle", "tone": "muted" }) } else { json!({ "text": building.join(", "), "tone": "accent" }) }
+            ] })
+        })
+        .collect();
+    let mut buttons = Vec::new();
+    if live.can("facilities.complete") {
+        buttons.push(confirm(
+            button("fac_complete", "Finish all builds", "zap", "primary"),
+            "Finish every facility build now?",
+            "The game's completion function runs for each build and fires its rewards. Undo needs a backup.",
+        ));
+    }
+    let blocks = vec![
+        json!({ "table": { "id": "facilities", "columns": [
+            "Facility", { "key": "level", "title": "Level", "width": 140, "sort": true },
+            { "key": "nodes", "title": "Upgrades built", "align": "right", "width": 130 },
+            { "key": "workforce", "title": "Workforce cap", "align": "right", "width": 130 }, "Building"
+        ], "rows": rows, "compact": true } }),
+        text(
+            if can_level {
+                "Click a level to raise it: every upgrade up to that phase completes through the game, rewards included. Lowering isn't offered."
+            } else {
+                "Levels are read-only until the facility ops are available."
+            },
+            "muted",
+        ),
+    ];
+    card_full(
+        "Facilities",
+        Some("Undo: restore a backup"),
+        vec![pill("Backup-only undo", "warn")],
+        buttons,
+        blocks,
+    )
+}
+
+fn renown_card(live: &Live) -> Value {
+    let Some(r) = live
+        .section("economy")
+        .map(|e| &e["renown"])
+        .filter(|r| r.is_object())
+    else {
+        return unavailable("Renown", "Not available in this mode or build.");
+    };
+    let points = r["points"].as_f64().unwrap_or(0.0);
+    let level = int(&r["level"]).unwrap_or(0);
+    let tiers: Vec<f64> = r["tiers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_f64)
+        .collect();
+    let next = tiers.iter().copied().find(|t| *t > points);
+    let prev = tiers.iter().copied().filter(|t| *t <= points).fold(0.0, f64::max);
+    let mut blocks = vec![json!({ "meters": [ {
+        "label": format!("Tier {level} of {}", tiers.len()),
+        "value": points - prev, "max": next.map_or(1.0, |n| (n - prev).max(1.0)),
+        "text": next.map_or_else(|| format!("{points:.0} · top tier"), |n| format!("{points:.0} / {n:.0}")),
+        "tone": "accent" } ] })];
+    let op = "economy.renown.set";
+    let mut f = json!({ "id": "renown", "label": "Renown points", "value": points.round() as i64, "min": 0, "max": 100000, "step": 1,
+                        "help": "Posted as the game's own renown award, so tier rewards follow." });
+    if let Some(why) = disabled_reason(live, op) {
+        f["disabled"] = json!(true);
+        f["help"] = json!(why);
+    }
+    blocks.push(json!({ "form": { "id": "renown", "fields": [ { "number": f } ], "apply": "Set", "disabled": !live.can(op) } }));
+    if live.can("economy.renown.add") {
+        blocks.push(json!({ "buttons": [ button("renown_add:50", "+50", "trending-up", "outline"), button("renown_add:250", "+250", "trending-up", "outline") ] }));
+    }
+    card_full(
+        "Renown",
+        None,
+        vec![pill("Undo available", "good")],
+        vec![],
+        blocks,
+    )
+}
+
+fn costcap_card(live: &Live) -> Value {
+    let Some(c) = live
+        .section("economy")
+        .map(|e| &e["cost_cap"])
+        .filter(|c| c.is_object())
+    else {
+        return unavailable("Cost cap", "Not available in this mode or build.");
+    };
+    let cur = int(&c["current_season"]).unwrap_or(0);
+    let seasons = c["seasons"].as_array().cloned().unwrap_or_default();
+    let now = seasons
+        .iter()
+        .find(|s| int(&s["season"]) == Some(cur))
+        .or(seasons.last());
+    let mut blocks = Vec::new();
+    let expenses = now.and_then(|s| int(&s["expenses"])).unwrap_or(0);
+    if let Some(s) = now {
+        let cap = int(&s["cost_cap"]).unwrap_or(0).max(1);
+        let ratio = expenses as f64 / cap as f64;
+        blocks.push(json!({ "meters": [ { "label": "This season's spending", "value": expenses, "max": cap,
+            "text": format!("{} of {}", money_short(expenses), money_short(cap)), "tone": if ratio > 0.95 { "bad" } else if ratio > 0.8 { "warn" } else { "good" } } ] }));
+    } else {
+        blocks.push(text("No cost cap data for this season yet.", "muted"));
+    }
+    let op = "economy.costcap.refund";
+    let mut f = json!({ "id": "amount", "label": "Refund", "value": 0, "min": 0, "max": expenses.clamp(0, 100_000_000), "step": 1, "unit": "$",
+                        "help": "A damage refund: cash goes up and this season's spending goes down." });
+    if let Some(why) = disabled_reason(live, op) {
+        f["disabled"] = json!(true);
+        f["help"] = json!(why);
+    }
+    blocks.push(json!({ "form": { "id": "costcap", "fields": [ { "number": f } ], "apply": "Refund", "disabled": !live.can(op) } }));
+    card_full(
+        "Cost cap",
+        None,
+        vec![pill("Backup-only undo", "warn")],
+        vec![],
+        blocks,
+    )
+}
+
+fn sponsors_card(live: &Live) -> Value {
+    let Some(sp) = live
+        .section("economy")
+        .map(|e| &e["sponsors"])
+        .filter(|s| s.is_object())
+    else {
+        return unavailable("Sponsors", "Not available in this mode or build.");
+    };
+    let primary = int(&sp["primary"]).unwrap_or(-1);
+    let rows: Vec<Value> = sp["list"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|x| {
+            let raw = x["name"].as_str().unwrap_or("");
+            let name = if raw.is_empty() { format!("Sponsor #{}", x["id"]) } else { title_case(raw.trim_start_matches("sponsor_")) };
+            let max = int(&x["max_loyalty"]).unwrap_or(0).max(1);
+            let loyalty = int(&x["loyalty"]).unwrap_or(0);
+            json!({ "cells": [
+                name,
+                if int(&x["id"]) == Some(primary) { json!({ "text": "Primary", "pill": true, "tone": "accent" }) }
+                else if x["active"] == true { json!({ "text": "Active", "pill": true, "tone": "good" }) }
+                else { json!({ "text": "Inactive", "pill": true, "tone": "muted" }) },
+                { "text": format!("{loyalty} XP"), "bar": (loyalty as f64 / max as f64).min(1.0), "sort": loyalty },
+                { "text": int(&x["level"]).unwrap_or(0).to_string(), "sort": int(&x["level"]).unwrap_or(0) }
+            ] })
+        })
+        .collect();
+    let mut blocks = vec![json!({ "table": { "id": "sponsors", "columns": [
+        "Sponsor", { "key": "role", "title": "Role", "width": 120 }, { "key": "loyalty", "title": "Loyalty", "width": 220, "sort": true },
+        { "key": "level", "title": "Level", "align": "right", "width": 80 } ], "rows": rows, "compact": true, "empty": "No sponsors" } })];
+    let op = "economy.sponsor.loyalty.add";
+    if primary >= 0 {
+        let reasons = [
+            "Race weekend (primary)",
+            "Race weekend (secondary)",
+            "Seasonal goal",
+            "Facility request",
+            "Department event",
+            "Activity",
+        ];
+        let opts: Vec<Value> = reasons
+            .iter()
+            .enumerate()
+            .map(|(i, l)| json!({ "value": i.to_string(), "label": *l }))
+            .collect();
+        blocks.push(json!({ "form": { "id": "loyalty", "columns": 2, "apply": "Add loyalty", "disabled": !live.can(op), "fields": [
+            { "number": { "id": "amount", "label": "Loyalty XP for the primary sponsor", "value": 0, "min": 0, "max": 100000, "step": 1 } },
+            { "select": { "id": "reason", "label": "Counted as", "value": "0", "options": opts,
+                          "help": "The game scales the amount by your perks for that reason and claims any loyalty rewards it reaches." } }
+        ] } }));
+    } else {
+        blocks.push(text("No primary sponsor, so there's no loyalty to add.", "muted"));
+    }
+    if let Some(h) = form_help(live, op) {
+        blocks.push(text(&h, "muted"));
+    }
+    card_full(
+        "Sponsors",
+        None,
+        vec![pill("Backup-only undo", "warn")],
+        vec![],
+        blocks,
+    )
+}
+
+fn swap_card(live: &Live) -> Value {
+    let op = "drivers.swap";
+    let drivers = live
+        .section("drivers")
+        .and_then(|d| d["drivers"].as_array())
+        .cloned()
+        .unwrap_or_default();
+    let mut opts = vec![json!({ "value": "", "label": "Choose a driver…" })];
+    for d in drivers
+        .iter()
+        .filter(|d| !d["seat"].is_null() && d["player"] != true)
+    {
+        let team = d["team"]["name"]
+            .as_str()
+            .map_or_else(|| "no team".into(), pretty_team);
+        let role = if d["seat"]["hasCar"] == true {
+            "race seat"
+        } else {
+            "reserve"
+        };
+        opts.push(json!({ "value": d["driverStatId"].to_string(),
+                          "label": format!("{} · {team} · {role}", title_case(d["name"].as_str().unwrap_or("driver"))) }));
+    }
+    let blocks = vec![
+        json!({ "form": { "id": "swap", "columns": 2, "apply": "Swap seats", "disabled": !live.can(op), "fields": [
+            { "select": { "id": "a", "label": "Driver", "value": "", "options": opts } },
+            { "select": { "id": "b", "label": "Swaps seats with", "value": "", "options": opts } }
+        ] } }),
+        text(
+            &form_help(live, op).unwrap_or_else(|| {
+                "Applies now, mid-season: each driver takes the other's team, car and seat through the game's own driver-move path. Contracts keep the team they were signed with. Your own seat is locked.".into()
+            }),
+            "muted",
+        ),
+    ];
+    card_full(
+        "Swap seats",
+        None,
+        vec![pill("Undo available", "good"), pill("Experimental", "warn")],
+        vec![],
+        blocks,
+    )
+}
+
+fn contracts_card(live: &Live) -> Value {
+    let Some(c) = live
+        .section("drivers")
+        .map(|d| &d["contracts"])
+        .filter(|c| c.is_object())
+    else {
+        return unavailable(
+            "Contracts",
+            if live.career() && !live.my_team() {
+                "Contract edits are My Team only."
+            } else {
+                "Not available in this mode or build."
+            },
+        );
+    };
+    let names = driver_names(live);
+    let editable = live.can("drivers.contract.set");
+    let money_cell = |v: &Value| {
+        let n = int(v).unwrap_or(0);
+        let mut c = json!({ "text": money_short(n), "sort": n });
+        if editable {
+            c["edit"] =
+                json!({ "number": { "value": n, "min": 0, "max": 1_000_000_000, "step": 1, "unit": "$" } });
+        }
+        c
+    };
+    let mut rows = Vec::new();
+    for (list, label) in [("decided", "Signed"), ("pending", "Pending")] {
+        for r in c[list].as_array().into_iter().flatten() {
+            let id = int(&r["driverStatId"]).unwrap_or(-1);
+            let team = int(&r["newTeamStatId"]).unwrap_or(-1);
+            rows.push(json!({ "id": format!("{list}:{id}:{team}"), "cells": [
+                driver_name(&names, id),
+                team_label(live, team),
+                { "text": label, "pill": true, "tone": if list == "decided" { "good" } else { "accent" } },
+                money_cell(&r["salary"]), money_cell(&r["signingBonus"]), money_cell(&r["teamPerfMoney"]), money_cell(&r["teamPerfRaceValue"])
+            ] }));
+        }
+    }
+    let blocks = vec![
+        json!({ "table": { "id": "contracts", "columns": [
+            { "key": "driver", "title": "Driver", "sort": true }, { "key": "team", "title": "Team", "sort": true }, { "key": "list", "title": "State", "width": 100 },
+            { "key": "salary", "title": "Salary", "align": "right", "sort": true, "width": 110 },
+            { "key": "signingBonus", "title": "Signing bonus", "align": "right", "width": 120 },
+            { "key": "teamPerfMoney", "title": "Team bonus", "align": "right", "width": 110 },
+            { "key": "teamPerfRaceValue", "title": "Race bonus", "align": "right", "width": 110 }
+        ], "rows": rows, "compact": true, "search": { "placeholder": "Search contracts" }, "empty": "No contracts" } }),
+        text(
+            if editable {
+                "Click an amount to edit it. This writes the contract record's money fields directly; the game's payout readers weren't traced."
+            } else {
+                "Contract money can be edited in Team HQ in a My Team career."
+            },
+            "muted",
+        ),
+    ];
+    card_full(
+        "Contracts",
+        Some("Money fields only: teams, days, clauses and length stay as signed"),
+        vec![pill("Unsafe", "bad"), pill("Undo available", "good")],
+        vec![],
+        blocks,
+    )
+}
+
+fn moves_card(live: &Live) -> Value {
+    let names = driver_names(live);
+    let moves = live
+        .section("drivers")
+        .and_then(|d| d["recordedMoves"].as_array())
+        .cloned()
+        .unwrap_or_default();
+    let rows: Vec<Value> = moves
+        .iter()
+        .rev()
+        .map(|m| {
+            let reason = match int(&m["reason"]) {
+                Some(0) => "Signing".to_owned(),
+                Some(3) => "Benched".to_owned(),
+                Some(r) => format!("Reason {r}"),
+                None => "—".to_owned(),
+            };
+            json!({ "cells": [
+                { "text": int(&m["weekendIndex"]).map_or("—".into(), |w| format!("Round {}", w + 1)), "sort": int(&m["weekendIndex"]).unwrap_or(0) },
+                driver_name(&names, int(&m["driverStatId"]).unwrap_or(-1)),
+                team_label(live, int(&m["oldTeamStatId"]).unwrap_or(-1)),
+                team_label(live, int(&m["newTeamStatId"]).unwrap_or(-1)),
+                { "text": reason, "tone": "muted" }
+            ] })
+        })
+        .collect();
+    let body = if rows.is_empty() {
+        text("No driver moves recorded in this career yet.", "muted")
+    } else {
+        json!({ "table": { "id": "moves", "columns": [ { "key": "when", "title": "When", "width": 100, "sort": true }, "Driver", "From", "To", "Why" ], "rows": rows, "compact": true } })
+    };
+    card("Driver moves", vec![body])
+}
+
+fn points_card(live: &Live, names: &[(i64, String, String, bool)]) -> Value {
+    let st = live.section("standings");
+    let op = "season.points.adjust";
+    let mut opts = vec![json!({ "value": "", "label": "Choose a driver…" })];
+    let mut drivers: Vec<Value> = st
+        .and_then(|s| s["drivers"].as_array())
+        .cloned()
+        .unwrap_or_default();
+    drivers.sort_by_key(|d| int(&d["position"]).unwrap_or(99));
+    for d in &drivers {
+        let id = int(&d["driver_stat_id"]).unwrap_or(-1);
+        opts.push(json!({ "value": id.to_string(), "label": format!("P{} {} · {} pts", int(&d["position"]).unwrap_or(0), driver_name(names, id), int(&d["points"]).unwrap_or(0)) }));
+    }
+    let mut blocks = vec![
+        json!({ "form": { "id": "points", "columns": 2, "apply": "Adjust points", "disabled": !live.can(op), "fields": [
+        { "select": { "id": "driver", "label": "Driver", "value": "", "options": opts } },
+        { "number": { "id": "delta", "label": "Points to add (negative to take away)", "value": 0, "min": -500, "max": 500, "step": 1 } }
+    ] } }),
+    ];
+    let adj = st
+        .and_then(|s| s["adjustments"].as_array())
+        .cloned()
+        .unwrap_or_default();
+    if !adj.is_empty() {
+        let rows: Vec<Value> = adj
+            .iter()
+            .map(|a| {
+                let p = int(&a["points"]).unwrap_or(0);
+                json!({ "cells": [
+                    driver_name(names, int(&a["driver_stat_id"]).unwrap_or(-1)),
+                    { "text": if p > 0 { format!("+{p}") } else { p.to_string() }, "tone": if p >= 0 { "good" } else { "bad" }, "sort": p },
+                    if a["pending"] == true { json!({ "text": "Pending", "pill": true, "tone": "warn" }) }
+                    else if a["live"] == true { json!({ "text": "In the standings", "pill": true, "tone": "good" }) }
+                    else { json!({ "text": "Stored", "pill": true, "tone": "muted" }) }
+                ] })
+            })
+            .collect();
+        blocks.push(json!({ "table": { "id": "adjustments", "columns": ["Driver", { "key": "pts", "title": "Adjustment", "align": "right", "width": 120 }, { "key": "state", "title": "State", "width": 160 }], "rows": rows, "compact": true } }));
+    }
+    if st.is_some_and(|s| s["adjustments_pending"] == true) {
+        blocks.push(text("Round 1 has no sessions yet, so the game skips adjustments for now. They apply at the next standings rebuild.", "warn"));
+    }
+    blocks.push(text(
+        &form_help(live, op).unwrap_or_else(|| {
+            "Adjustments are kept by the editor and re-applied every time the game rebuilds the standings; constructors follow their drivers. Without this addon they disappear and nothing in the save changes.".into()
+        }),
+        "muted",
+    ));
+    let mut buttons = Vec::new();
+    if !adj.is_empty() && live.can("season.points.clear") {
+        buttons.push(confirm(
+            button("points_clear", "Clear all", "eraser", "ghost"),
+            "Clear every points adjustment this season?",
+            "The standings go back to what the results give.",
+        ));
+    }
+    card_full(
+        "Points adjustments",
+        None,
+        vec![pill("Undo available", "good")],
+        buttons,
+        blocks,
+    )
+}
+
+fn remember_weekends(app: &mut App, live: &Live) {
+    let (Some(id), Some(cal)) = (live.career_id(), live.section("calendar")) else {
+        return;
+    };
+    let mut known: Vec<String> = app.store.prefs["known_weekends"][&id]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|w| w.as_str().map(str::to_owned))
+        .collect();
+    let before = known.len();
+    for w in cal["rounds"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|r| r["weekend"].as_str())
+    {
+        if !known.iter().any(|k| k == w) {
+            known.push(w.to_owned());
+        }
+    }
+    if known.len() != before {
+        let mut all = app.store.prefs["known_weekends"].clone();
+        if !all.is_object() {
+            all = json!({});
+        }
+        all[&id] = json!(known);
+        app.store.set_pref("known_weekends", all);
+    }
+}
+
+fn known_weekends(app: &App, live: &Live) -> Vec<String> {
+    let id = live.career_id().unwrap_or_default();
+    let mut v: Vec<String> = app.store.prefs["known_weekends"][&id]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|w| w.as_str().map(str::to_owned))
+        .collect();
+    for e in &app.store.history {
+        if e.career.as_deref() == Some(id.as_str()) && e.op.starts_with("season.calendar.") {
+            for side in [&e.before, &e.after] {
+                for w in side["rounds"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                {
+                    v.push(w.to_owned());
+                }
+            }
+        }
+    }
+    v.sort();
+    v.dedup();
+    v
+}
+
+fn calendar_ops_card(app: &App, live: &Live, cal: &Value) -> Value {
+    let rounds = cal["rounds"].as_array().cloned().unwrap_or_default();
+    let in_season: Vec<String> = rounds
+        .iter()
+        .filter_map(|r| r["weekend"].as_str().map(str::to_owned))
+        .collect();
+    let editable: Vec<&Value> = rounds.iter().filter(|r| r["editable"] == true).collect();
+    let spare: Vec<String> = known_weekends(app, live)
+        .into_iter()
+        .filter(|w| !in_season.contains(w))
+        .collect();
+    let mut round_opts = vec![json!({ "value": "", "label": "Choose a round…" })];
+    round_opts.extend(editable.iter().map(|r| json!({ "value": r["round"].to_string(), "label": format!("Round {} · {}", r["round"], track_name(r["weekend"].as_str().unwrap_or(""))) })));
+    let mut spare_opts = vec![
+        json!({ "value": "", "label": if spare.is_empty() { "No other tracks known yet…" } else { "Choose a track…" } }),
+    ];
+    spare_opts.extend(
+        spare
+            .iter()
+            .map(|w| json!({ "value": w, "label": track_name(w) })),
+    );
+    let first = int(&cal["editable_from"]).unwrap_or(1);
+    let last = rounds.len() as i64 + 1;
+    let can_edit = !editable.is_empty();
+    let mut blocks = vec![
+        json!({ "form": { "id": "cal_remove", "columns": 2, "apply": "Remove round", "disabled": !(can_edit && live.can("season.calendar.remove_round")), "fields": [
+            { "select": { "id": "round", "label": "Remove", "value": "", "options": round_opts } } ] } }),
+        json!({ "form": { "id": "cal_set", "columns": 2, "apply": "Replace track", "disabled": !(can_edit && !spare.is_empty() && live.can("season.calendar.set_round")), "fields": [
+            { "select": { "id": "round", "label": "Round", "value": "", "options": round_opts } },
+            { "select": { "id": "weekend", "label": "New track", "value": "", "options": spare_opts } } ] } }),
+        json!({ "form": { "id": "cal_add", "columns": 2, "apply": "Add round", "disabled": spare.is_empty() || !live.can("season.calendar.add_round"), "fields": [
+            { "select": { "id": "weekend", "label": "Track", "value": "", "options": spare_opts } },
+            { "number": { "id": "at", "label": "As round", "value": last, "min": first, "max": last, "step": 1 } } ] } }),
+    ];
+    blocks.push(text(
+        "Only rounds after this weekend that haven't started can change. New rounds can use tracks this championship already has (a removed round, or one from another season); other tracks need the gamedb path, which isn't offered yet. Sprint format can't be changed live.",
+        "muted",
+    ));
+    card_full(
+        "Change rounds",
+        None,
+        vec![pill("Experimental", "warn"), pill("Undo available", "good")],
+        vec![],
+        blocks,
+    )
+}
+
+fn drivers(app: &App, live: &Live) -> Value {
+    let mut blocks = Vec::new();
+    let Some(d) = live.section("drivers") else {
+        blocks.push(unavailable(
+            "Driver ratings",
+            if live.career() {
+                "Not available in this mode or build."
+            } else {
+                "Load a career to see the grid."
+            },
+        ));
+        return frame(app, live, page_sub(live), blocks, false);
+    };
+    if d["available"].as_bool() == Some(false) {
+        blocks.push(unavailable(
+            "Driver ratings",
+            &format!(
+                "Not ready: {}",
+                d["reason"]
+                    .as_str()
+                    .unwrap_or("the ratings component isn't loaded")
+            ),
+        ));
+        return frame(app, live, season_line(live), blocks, false);
+    }
+    let list = d["drivers"].as_array().cloned().unwrap_or_default();
+    let mut stat_names: Vec<String> = d["stats"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|s| s["name"].as_str().map(str::to_owned))
+        .collect();
+    if stat_names.is_empty() {
+        stat_names = STATS.iter().map(|s| (*s).to_owned()).collect();
+    }
+    stat_names.sort_by_key(|n| STATS.iter().position(|s| s == n).unwrap_or(99));
+    let best = list.iter().max_by_key(|x| int(&x["overall"]).unwrap_or(0));
+    let player = list.iter().find(|x| x["player"] == true);
+    let mut tiles = vec![json!({ "label": "Drivers", "value": list.len().to_string(), "icon": "users" })];
+    if let Some(p) = player {
+        tiles.push(json!({ "label": "You", "value": int(&p["overall"]).unwrap_or(0).to_string(), "hint": title_case(p["name"].as_str().unwrap_or("")), "icon": "user", "tone": "accent" }));
+    }
+    if let Some(b) = best {
+        tiles.push(json!({ "label": "Top rated", "value": int(&b["overall"]).unwrap_or(0).to_string(), "hint": title_case(b["name"].as_str().unwrap_or("")), "icon": "trophy" }));
+    }
+    let patched = d["patch"]["usesPatchedCurves"].as_bool().unwrap_or(false);
+    tiles.push(json!({ "label": "Ratings curves", "value": if patched { "Patched" } else { "Base" }, "hint": format!("career progress {:.0}%", d["progress"].as_f64().unwrap_or(0.0) * 100.0), "icon": "trending-up" }));
+    blocks.push(json!({ "tiles": tiles }));
+
+    let op = "drivers.ratings.set";
+    let editable = live.can(op);
+    let mode = app.store.pref_str("rating_mode", "flat");
+    let mut columns = vec![
+        json!({ "key": "driver", "title": "Driver", "sort": true }),
+        json!({ "key": "team", "title": "Team", "sort": true, "width": 150 }),
+        json!({ "key": "num", "title": "#", "align": "right", "width": 48, "sort": true }),
+        json!({ "key": "overall", "title": "Overall", "width": 130, "sort": true }),
+    ];
+    for s in &stat_names {
+        columns
+            .push(json!({ "key": s, "title": title_case(s), "align": "right", "width": 104, "sort": true }));
+    }
+    let rows: Vec<Value> = list
+        .iter()
+        .map(|x| {
+            let ov = int(&x["overall"]).unwrap_or(0);
+            let me = x["player"] == true;
+            let name = title_case(x["name"].as_str().unwrap_or("driver"));
+            let mut cells = vec![
+                json!({ "text": if me { format!("{name} (you)") } else { name } }),
+                json!({ "text": x["team"]["name"].as_str().map_or_else(|| "—".into(), pretty_team),
+                        "tone": if x["seat"]["hasCar"] == true { "neutral" } else { "muted" } }),
+                json!({ "text": opt(&x["number"]).unwrap_or_default(), "sort": int(&x["number"]).unwrap_or(0) }),
+                json!({ "text": ov.to_string(), "bar": ov as f64 / 100.0, "tone": if ov >= 90 { "good" } else if ov >= 80 { "accent" } else { "neutral" }, "sort": ov }),
+            ];
+            for s in &stat_names {
+                let r = &x["ratings"][s];
+                let v = int(&r["value"]);
+                let mut c = json!({ "text": v.map_or("—".into(), |v| v.to_string()), "sort": v.unwrap_or(-1) });
+                if editable && v.is_some() {
+                    c["edit"] = json!({ "number": { "value": v, "min": r["min"].as_f64().unwrap_or(0.0), "max": r["max"].as_f64().unwrap_or(100.0), "step": 1 } });
+                }
+                if r["boost"].as_f64().unwrap_or(0.0) != 0.0 {
+                    c["tone"] = json!("accent");
+                }
+                cells.push(c);
+            }
+            let mut row = json!({ "id": x["driverStatId"].to_string(), "cells": cells });
+            if me {
+                row["tone"] = json!("accent");
+            }
+            row
+        })
+        .collect();
+    let mode_form = json!({ "form": { "id": "rating_mode", "live": true, "disabled": !editable, "fields": [
+        { "select": { "id": "mode", "label": "How an edit changes the rating", "value": mode, "options": [
+            { "value": "flat", "label": "Flat: hold the new value for the rest of the career" },
+            { "value": "shift", "label": "Shift: move the whole curve, keep growth and decline" } ] } }
+    ] } });
+    let mut rb = vec![mode_form];
+    rb.push(json!({ "table": { "id": "ratings", "columns": columns, "rows": rows, "sort": { "column": "overall", "desc": true },
+                               "search": { "placeholder": "Search drivers" }, "compact": true, "empty": "No drivers match" } }));
+    rb.push(text(
+        &match form_help(live, op) {
+            Some(h) => h,
+            None => "Click a rating to edit it. The game's own rating getter reads the result back, and History can undo it.".into(),
+        },
+        "muted",
+    ));
+    blocks.push(card_full(
+        "Ratings",
+        Some("Every driver on the grid, AI and you"),
+        vec![pill("Undo available", "good")],
+        vec![],
+        rb,
+    ));
+    blocks.push(grid(json!([1, 1]), vec![swap_card(live), moves_card(live)]));
+    blocks.push(contracts_card(live));
+    frame(app, live, season_line(live), blocks, false)
+}
+
+fn state_tone(state: i64) -> &'static str {
+    match state {
+        3 => "good",
+        2 | 7 => "accent",
+        1 | 6 | 8 => "neutral",
+        4 | 5 => "bad",
+        _ => "muted",
+    }
+}
+
+fn state_label(state: i64) -> &'static str {
+    match state {
+        0 => "Locked",
+        1 => "Available",
+        2 => "Researching",
+        3 => "Fitted",
+        4 => "Failed",
+        5 => "Invalid",
+        6 => "Researched",
+        7 => "Developing",
+        8 => "Ready to fit",
+        _ => "?",
+    }
+}
+
+fn rnd_team_data(app: &App, live: &Live) -> (Value, bool) {
+    let Some(r) = live.section("rnd") else {
+        return (Value::Null, false);
+    };
+    let chosen = app.store.prefs["rnd_team"].as_i64();
+    let player = &r["player"];
+    if (chosen.is_none() || chosen == player["team"].as_i64()) && player.is_object() {
+        return (player.clone(), true);
+    }
+    let summary = r["teams"]
+        .as_array()
+        .and_then(|a| a.iter().find(|t| t["team"].as_i64() == chosen))
+        .cloned();
+    let detail = app
+        .store
+        .history
+        .iter()
+        .rev()
+        .find(|e| {
+            e.ok && e.op == "rnd.team_detail" && e.after["team"].as_i64() == chosen && in_scope(live, e)
+        })
+        .map(|e| e.after.clone());
+    match (detail, summary) {
+        (Some(d), _) => (d, true),
+        (None, Some(s)) => (s, false),
+        (None, None) if player.is_object() => (player.clone(), true),
+        _ => (Value::Null, false),
+    }
+}
+
+fn rnd(app: &App, live: &Live) -> Value {
+    let mut blocks = Vec::new();
+    let Some(r) = live
+        .section("rnd")
+        .filter(|r| r["ready"].as_bool() != Some(false))
+    else {
+        let why = live
+            .section("rnd")
+            .and_then(|r| r["reason"].as_str())
+            .map(|w| format!("Not ready: {w}"))
+            .unwrap_or_else(|| {
+                if live.career() {
+                    "Not available in this mode or build.".into()
+                } else {
+                    "Load a career to see R&D.".into()
+                }
+            });
+        blocks.push(unavailable("Research & development", &why));
+        return frame(app, live, page_sub(live), blocks, false);
+    };
+    let teams = r["teams"].as_array().cloned().unwrap_or_default();
+    let (team, full) = rnd_team_data(app, live);
+    let team_key = team["team"].as_i64().unwrap_or(0);
+    let is_player = team["player"] == true;
+    let mut options: Vec<Value> = teams
+        .iter()
+        .map(|t| {
+            let id = t["team"].as_i64().unwrap_or(0);
+            let label = if t["player"] == true {
+                "Your team".to_owned()
+            } else {
+                format!(
+                    "{} · {:.0}% fitted",
+                    team_label(live, t["team_stat_id"].as_i64().unwrap_or(id >> 16)),
+                    t["fitted_ratio"].as_f64().unwrap_or(0.0) * 100.0
+                )
+            };
+            json!({ "value": id.to_string(), "label": label })
+        })
+        .collect();
+    if options.is_empty() && r["player"].is_object() {
+        options.push(json!({ "value": r["player"]["team"].to_string(), "label": "Your team" }));
+    }
+    let c = &team["counts"];
+    let n = |k: &str| int(&c[k]).unwrap_or(0);
+    let total = n("total").max(1);
+    blocks.push(json!({ "tiles": [
+        { "label": "Fitted", "value": n("fitted").to_string(), "hint": format!("of {total}"), "progress": n("fitted") as f64 / total as f64, "tone": "good", "icon": "circle-check" },
+        { "label": "In progress", "value": (n("researching") + n("developing")).to_string(), "hint": format!("{} researching · {} developing", n("researching"), n("developing")), "icon": "timer", "tone": "accent" },
+        { "label": "Ready", "value": (n("available") + n("researched") + n("pending_fitting")).to_string(), "hint": "available, researched or ready to fit", "icon": "zap" },
+        { "label": "Locked", "value": (n("unavailable") + n("locked")).to_string(), "hint": format!("{} facility-locked", n("locked")), "icon": "lock", "tone": "muted" },
+    ] }));
+    let meters: Vec<Value> = team["depts"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|d| {
+            let t = int(&d["t"]).unwrap_or(0).max(1);
+            let f = int(&d["f"]).unwrap_or(0);
+            let name = DEPTS.get(int(&d["d"]).unwrap_or(0) as usize).copied().unwrap_or("?");
+            json!({ "label": name, "value": f, "max": t,
+                    "text": format!("{f}/{t} fitted · {} in progress · {} available", int(&d["p"]).unwrap_or(0), int(&d["a"]).unwrap_or(0)), "tone": "good" })
+        })
+        .collect();
+    let has_tyres = team["depts"]
+        .as_array()
+        .is_some_and(|a| a.iter().any(|d| int(&d["d"]) == Some(4)));
+    let mut dept_opts = vec![json!({ "value": "-1", "label": "Every department" })];
+    for (i, name) in DEPTS.iter().enumerate() {
+        if i < 4 || has_tyres {
+            dept_opts.push(json!({ "value": i.to_string(), "label": *name }));
+        }
+    }
+    let can_bulk = live.can("rnd.complete");
+    let bulk = json!({ "form": { "id": "rnd_bulk", "columns": 3, "apply": "Run", "disabled": !can_bulk, "fields": [
+        { "select": { "id": "dept", "label": "Department", "value": "-1", "options": dept_opts } },
+        { "select": { "id": "action", "label": "Action", "value": "", "options": [
+            { "value": "", "label": "Choose an action…" },
+            { "value": "complete", "label": "Complete instantly (free)" },
+            { "value": "unlock", "label": "Unlock facility locks" },
+            { "value": "reset", "label": "Reset to the start" } ] } },
+        { "select": { "id": "stage", "label": "Complete up to", "value": "full", "options": [
+            { "value": "full", "label": "Fitted" }, { "value": "develop", "label": "Developed" }, { "value": "research", "label": "Researched" } ] } }
+    ] } });
+    let team_form = json!({ "form": { "id": "rnd_team", "live": true, "fields": [
+        { "select": { "id": "team", "label": "Team", "value": team_key.to_string(), "options": options } } ] } });
+    let mut left = vec![team_form, bulk];
+    if let Some(h) = form_help(live, "rnd.complete") {
+        left.push(text(&h, "muted"));
+    }
+    left.push(text(
+        "Complete, unlock and reset can only be undone by restoring a backup.",
+        "muted",
+    ));
+    let lifecycle = if r["lifecycle"] == "research_only" {
+        "Research only"
+    } else {
+        "Research, develop, fit"
+    };
+    blocks.push(grid(
+        json!([3, 2]),
+        vec![
+            card_full(
+                "Bulk actions",
+                Some(&format!("{total} upgrades · {lifecycle}")),
+                vec![pill("Backup-only undo", "warn")],
+                vec![],
+                left,
+            ),
+            card(
+                "Departments",
+                if meters.is_empty() {
+                    vec![text("No departments listed.", "muted")]
+                } else {
+                    vec![json!({ "meters": meters })]
+                },
+            ),
+        ],
+    ));
+
+    if !full {
+        let mut b = vec![text(
+            "The snapshot carries only a summary for AI teams. Load the full tree to see and edit single upgrades.",
+            "muted",
+        )];
+        let mut buttons = Vec::new();
+        if live.can("rnd.team_detail") {
+            buttons.push(button(
+                &format!("rnd_detail:{team_key}"),
+                "Load full tree",
+                "refresh",
+                "primary",
+            ));
+        }
+        if buttons.is_empty() {
+            b.push(text(
+                "Loading an AI team's tree isn't available in this build.",
+                "muted",
+            ));
+        }
+        blocks.push(card_full("Upgrades", None, vec![], buttons, b));
+        return frame(app, live, page_sub(live), blocks, false);
+    }
+    let day = r["day"].as_f64().unwrap_or(0.0);
+    let ups = team["u"].as_array().cloned().unwrap_or_default();
+    let rows: Vec<Value> = ups
+        .iter()
+        .map(|u| {
+            let st = int(&u["s"]).unwrap_or(0);
+            let locked = int(&u["l"]) == Some(1);
+            let mut label = if locked { "Facility locked".to_owned() } else { state_label(st).to_owned() };
+            if let (Some(b), Some(e)) = (u["b"].as_f64(), u["e"].as_f64())
+                && e > b {
+                    label = format!("{label} {:.0}%", ((day - b) / (e - b) * 100.0).clamp(0.0, 100.0));
+                }
+            let why = match u["r"].as_str() {
+                Some("prerequisites") => "needs earlier upgrades".to_owned(),
+                Some("facility_locked") => format!("facility level {}", int(&u["ul"]).unwrap_or(0)),
+                Some("adaptation_pending") => "adaptation pending".to_owned(),
+                Some(other) => other.to_owned(),
+                None => String::new(),
+            };
+            let dept = int(&u["d"]).unwrap_or(0) as usize;
+            json!({ "id": u["h"].to_string(), "cells": [
+                title_case(u["n"].as_str().unwrap_or("upgrade")),
+                DEPTS.get(dept).copied().unwrap_or("?"),
+                { "text": label, "pill": true, "tone": if locked { "muted" } else { state_tone(st) }, "sort": st },
+                { "text": why, "tone": "muted" },
+                { "text": group(int(&u["c"]).unwrap_or(0)), "sort": int(&u["c"]).unwrap_or(0) },
+                { "text": int(&u["dc"]).map_or("—".into(), group), "sort": int(&u["dc"]).unwrap_or(0) },
+                { "text": match int(&u["dt"]) { Some(dt) => format!("{} + {dt} d", int(&u["t"]).unwrap_or(0)), None => format!("{} d", int(&u["t"]).unwrap_or(0)) }, "sort": int(&u["t"]).unwrap_or(0) }
+            ] })
+        })
+        .collect();
+    let mut up_opts = vec![json!({ "value": "", "label": "Choose an upgrade…" })];
+    up_opts.extend(ups.iter().map(|u| json!({ "value": u["h"].to_string(),
+        "label": format!("{} · {}", title_case(u["n"].as_str().unwrap_or("upgrade")), state_label(int(&u["s"]).unwrap_or(0))) })));
+    let mut one = Vec::new();
+    if up_opts.len() > 1 {
+        one.push(json!({ "form": { "id": "rnd_one", "columns": 2, "apply": "Run", "disabled": !can_bulk, "fields": [
+            { "select": { "id": "upgrade", "label": "Upgrade", "value": "", "options": up_opts } },
+            { "select": { "id": "action", "label": "Action", "value": "complete", "options": [
+                { "value": "complete", "label": "Complete instantly" },
+                { "value": "unlock", "label": "Unlock" },
+                { "value": "refund", "label": "Cancel and refund RP" },
+                { "value": "fit", "label": "Fit to the car" },
+                { "value": "unfit", "label": "Take off the car" },
+                { "value": "reset", "label": "Reset" } ] } }
+        ] } }));
+    }
+    one.push(json!({ "table": { "id": "upgrades", "columns": [
+        { "key": "name", "title": "Upgrade", "sort": true }, { "key": "dept", "title": "Department", "sort": true, "width": 120 },
+        { "key": "state", "title": "State", "sort": true, "width": 150 }, { "key": "why", "title": "Blocked by", "width": 170 },
+        { "key": "rc", "title": "Research RP", "align": "right", "sort": true, "width": 110 },
+        { "key": "dc", "title": "Develop RP", "align": "right", "sort": true, "width": 110 },
+        { "key": "days", "title": "Days", "align": "right", "width": 90 }
+    ], "rows": rows, "search": { "placeholder": "Search upgrades" }, "compact": true, "empty": "No upgrades match" } }));
+    let title = if is_player {
+        "Your upgrades".to_owned()
+    } else {
+        format!(
+            "{} upgrades",
+            team_label(live, team["team_stat_id"].as_i64().unwrap_or(0))
+        )
+    };
+    blocks.push(card_full(
+        &title,
+        Some("Costs and days are the gamedb base before team modifiers"),
+        vec![],
+        vec![],
+        one,
+    ));
+    frame(app, live, season_line(live), blocks, false)
+}
+
+// ---- season -------------------------------------------------------------------------------------
+
+fn season(app: &App, live: &Live) -> Value {
+    let mut blocks = Vec::new();
+    let names = driver_names(live);
+    let s = live
+        .section("season")
+        .filter(|s| s["ready"].as_bool() != Some(false));
+    let st = live
+        .section("standings")
+        .filter(|s| s["ready"].as_bool() != Some(false));
+    let cal = live
+        .section("calendar")
+        .filter(|s| s["ready"].as_bool() != Some(false));
+    if s.is_none() && st.is_none() && cal.is_none() {
+        blocks.push(unavailable(
+            "Season",
+            if live.career() {
+                "Not available in this mode or build."
+            } else {
+                "Load a career to see the season."
+            },
+        ));
+        return frame(app, live, page_sub(live), blocks, false);
+    }
+    let mut tiles = Vec::new();
+    if let Some(s) = s {
+        let r = int(&s["round"]).unwrap_or(0);
+        let n = int(&s["rounds"]).unwrap_or(0).max(1);
+        tiles.push(json!({ "label": "Round", "value": format!("{r} of {n}"), "hint": s["weekend"].as_str().map(track_name).unwrap_or_default(), "progress": r as f64 / n as f64, "icon": "flag" }));
+        tiles.push(json!({ "label": "Season", "value": int(&s["season_number"]).unwrap_or(1).to_string(),
+                           "hint": int(&s["year"]).map_or_else(|| s["name"].as_str().unwrap_or("").to_owned(), |y| y.to_string()), "icon": "calendar" }));
+    }
+    let drivers_rows = st
+        .and_then(|x| x["drivers"].as_array())
+        .cloned()
+        .unwrap_or_default();
+    let mut sorted = drivers_rows.clone();
+    sorted.sort_by_key(|d| int(&d["position"]).unwrap_or(99));
+    if let Some(l) = sorted.first() {
+        tiles.push(json!({ "label": "Leader", "value": driver_name(&names, int(&l["driver_stat_id"]).unwrap_or(-1)), "hint": format!("{} pts", int(&l["points"]).unwrap_or(0)), "icon": "trophy" }));
+    }
+    let player_id = names.iter().find(|n| n.3).map(|n| n.0);
+    if let Some(p) = sorted
+        .iter()
+        .find(|d| player_id.is_some() && int(&d["driver_stat_id"]) == player_id)
+    {
+        tiles.push(json!({ "label": "You", "value": format!("P{}", int(&p["position"]).unwrap_or(0)), "hint": format!("{} pts · {} wins", int(&p["points"]).unwrap_or(0), int(&p["wins"]).unwrap_or(0)), "icon": "user", "tone": "accent" }));
+    }
+    if !tiles.is_empty() {
+        blocks.push(json!({ "tiles": tiles }));
+    }
+
+    if let Some(st) = st {
+        let drows: Vec<Value> = sorted
+            .iter()
+            .map(|d| {
+                let id = int(&d["driver_stat_id"]).unwrap_or(-1);
+                let me = Some(id) == player_id;
+                let mut row = json!({ "id": id.to_string(), "cells": [
+                    { "text": format!("P{}", int(&d["position"]).unwrap_or(0)), "sort": int(&d["position"]).unwrap_or(99) },
+                    driver_name(&names, id),
+                    { "text": int(&d["team_stat_id"]).map(|t| team_label(live, t)).unwrap_or_else(|| "—".into()), "tone": "muted" },
+                    { "text": int(&d["points"]).unwrap_or(0).to_string(), "sort": int(&d["points"]).unwrap_or(0) },
+                    { "text": int(&d["wins"]).unwrap_or(0).to_string(), "sort": int(&d["wins"]).unwrap_or(0) },
+                    { "text": int(&d["podiums"]).unwrap_or(0).to_string(), "sort": int(&d["podiums"]).unwrap_or(0) }
+                ] });
+                if me {
+                    row["tone"] = json!("accent");
+                }
+                row
+            })
+            .collect();
+        let mut teams = st["teams"].as_array().cloned().unwrap_or_default();
+        teams.sort_by_key(|t| int(&t["position"]).unwrap_or(99));
+        let trows: Vec<Value> = teams
+            .iter()
+            .map(|t| json!({ "cells": [
+                { "text": format!("P{}", int(&t["position"]).unwrap_or(0)), "sort": int(&t["position"]).unwrap_or(99) },
+                team_label(live, int(&t["team_stat_id"]).unwrap_or(0)),
+                { "text": int(&t["points"]).unwrap_or(0).to_string(), "sort": int(&t["points"]).unwrap_or(0) },
+                { "text": int(&t["wins"]).unwrap_or(0).to_string(), "sort": int(&t["wins"]).unwrap_or(0) }
+            ] }))
+            .collect();
+        let num =
+            |k: &str, t: &str| json!({ "key": k, "title": t, "align": "right", "sort": true, "width": 70 });
+        blocks.push(grid(json!([3, 2]), vec![
+            card("Drivers' championship", vec![json!({ "table": { "id": "standings", "columns": [
+                { "key": "pos", "title": "Pos", "sort": true, "width": 60 }, { "key": "driver", "title": "Driver", "sort": true }, "Team",
+                num("pts", "Pts"), num("wins", "Wins"), num("pod", "Podiums") ], "rows": drows, "search": { "placeholder": "Search drivers" }, "compact": true } })]),
+            card("Constructors", vec![json!({ "table": { "id": "teams", "columns": [
+                { "key": "pos", "title": "Pos", "sort": true, "width": 60 }, "Team", num("pts", "Pts"), num("wins", "Wins") ], "rows": trows, "compact": true } })]),
+        ]));
+    }
+
+    if let Some(cal) = cal {
+        let rounds = cal["rounds"].as_array().cloned().unwrap_or_default();
+        let rows: Vec<Value> = rounds
+            .iter()
+            .map(|r| {
+                let (txt, tone) = if r["current"] == true {
+                    ("This weekend", "accent")
+                } else if r["completed"] == true {
+                    ("Done", "muted")
+                } else {
+                    ("Upcoming", "neutral")
+                };
+                json!({ "cells": [
+                    { "text": int(&r["round"]).unwrap_or(0).to_string(), "sort": int(&r["round"]).unwrap_or(0) },
+                    track_name(r["weekend"].as_str().unwrap_or("")),
+                    { "text": txt, "pill": true, "tone": tone },
+                    match r["sprint"].as_bool() { Some(true) => json!({ "text": "Sprint", "tone": "accent" }), Some(false) => json!("—"), None => json!({ "text": "—", "tone": "muted" }) }
+                ] })
+            })
+            .collect();
+        let mut b = vec![json!({ "table": { "id": "calendar", "columns": [
+            { "key": "rd", "title": "Rd", "width": 56, "sort": true }, "Track", { "key": "status", "title": "Status", "width": 140 }, "Format" ],
+            "rows": rows, "compact": true } })];
+        let from = int(&cal["editable_from"]);
+        let future: Vec<String> = rounds
+            .iter()
+            .filter(|r| from.is_some_and(|f| int(&r["round"]).unwrap_or(0) >= f))
+            .filter_map(|r| r["weekend"].as_str().map(str::to_owned))
+            .collect();
+        let op = "season.calendar.reorder";
+        let mut buttons = Vec::new();
+        if future.len() >= 2 {
+            let opts: Vec<Value> = future
+                .iter()
+                .map(|w| json!({ "value": w, "label": track_name(w) }))
+                .collect();
+            let fields: Vec<Value> = future
+                .iter()
+                .enumerate()
+                .map(|(i, w)| json!({ "select": { "id": format!("slot{i}"), "label": format!("Round {}", from.unwrap_or(0) + i as i64), "value": w, "options": opts } }))
+                .collect();
+            let reorder = json!({ "form": { "id": "calendar_order", "columns": 3, "apply": "Reorder", "disabled": !live.can(op), "fields": fields } });
+            let mut rb = vec![reorder];
+            rb.push(text(
+                &form_help(live, op).unwrap_or_else(|| "Pick a track for each upcoming round; every track must appear once. Past and current rounds never move.".into()),
+                "muted",
+            ));
+            b.push(card_full(
+                "Reorder upcoming rounds",
+                None,
+                vec![pill("Experimental", "warn")],
+                vec![],
+                rb,
+            ));
+        } else {
+            buttons.push(button("noop", "Nothing to reorder", "", "ghost"));
+        }
+        blocks.push(card("Calendar", b));
+        blocks.push(calendar_ops_card(app, live, cal));
+    }
+    if st.is_some() {
+        blocks.push(points_card(live, &names));
+    }
+    blocks.push(card_full(
+        "Race results and sprint format",
+        None,
+        vec![pill("Not in this build", "muted")],
+        vec![],
+        vec![text("Editing a session result and switching a round's sprint format aren't available live yet; points adjustments above change the standings instead.", "muted")],
+    ));
+    frame(app, live, season_line(live), blocks, false)
+}
+
+// ---- weather ------------------------------------------------------------------------------------
+
+fn wstate_label(s: &str) -> String {
+    W_STATES
+        .iter()
+        .find(|x| x.0 == s)
+        .map_or_else(|| title_case(s), |x| x.1.to_owned())
+}
+
+fn weather(app: &App, live: &Live) -> Value {
+    let mut blocks = Vec::new();
+    let Some(w) = live
+        .section("weather")
+        .filter(|w| w["available"].as_bool() != Some(false))
+    else {
+        blocks.push(unavailable(
+            "Weather",
+            if live.career() {
+                "Not available in this mode or build."
+            } else {
+                "Load a career to plan the weather."
+            },
+        ));
+        return frame(app, live, page_sub(live), blocks, true);
+    };
+    let weekend = opt(&w["default_weekend"]).or_else(|| opt(&w["weekend"]));
+    let seed = &w["seed"];
+    let locked = seed["locked"].as_bool().unwrap_or(false);
+    let plans = w["plans"].as_array().map_or(0, Vec::len);
+    let active = int(&w["active_dataset"]);
+    let active_name = active
+        .and_then(|a| W_SESSIONS.get(a as usize))
+        .map_or("none".into(), |s| s.1.to_owned());
+    blocks.push(json!({ "tiles": [
+        { "label": "Weekend", "value": weekend.clone().unwrap_or_else(|| "—".into()), "hint": "weather weekend index", "icon": "calendar" },
+        { "label": "Live session", "value": active_name, "icon": "timer" },
+        { "label": "Seed", "value": if locked { "Pinned" } else { "Game's" }, "hint": opt(&seed["base"]).unwrap_or_default(), "icon": "refresh", "tone": if locked { "accent" } else { "neutral" } },
+        { "label": "Plans stored", "value": plans.to_string(), "hint": "weekends with a plan", "icon": "cloud-rain" },
+    ] }));
+
+    let rows: Vec<Value> = W_SESSIONS
+        .iter()
+        .map(|(key, label)| {
+            let s = &w["sessions"][key];
+            let states: Vec<String> = s["states"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .take(6)
+                .map(|x| format!("{} → {:.0}%", wstate_label(x["state"].as_str().unwrap_or("?")), x["end"].as_f64().unwrap_or(0.0) * 100.0))
+                .collect();
+            let not_applied = s["not_applied"].as_str().map(str::to_owned);
+            let (txt, tone) = if s["locked"] == true {
+                ("Locked", "muted")
+            } else if not_applied.is_some() {
+                ("Planned · not applied", "warn")
+            } else if s["rebuilt"] == true {
+                ("Planned · live", "good")
+            } else if s["planned"] == true {
+                ("Planned", "accent")
+            } else if s["active"] == true {
+                ("Game forecast", "neutral")
+            } else {
+                ("Not built", "muted")
+            };
+            json!({ "id": *key, "cells": [
+                *label,
+                { "text": txt, "pill": true, "tone": tone },
+                { "text": s["length_s"].as_f64().map_or("—".into(), |l| format!("{:.0} min", l / 60.0)), "sort": s["length_s"].as_f64().unwrap_or(0.0) },
+                match &not_applied {
+                    Some(why) => json!({ "text": why, "tone": "warn" }),
+                    None => json!({ "text": if states.is_empty() { "—".into() } else { states.join(" · ") }, "tone": if s["planned"] == true { "accent" } else { "neutral" } }),
+                }
+            ] })
+        })
+        .collect();
+    blocks.push(card("This weekend's forecast", vec![json!({ "table": { "id": "wsessions", "columns": [
+        { "key": "session", "title": "Session", "width": 150 }, { "key": "status", "title": "Status", "width": 150 },
+        { "key": "len", "title": "Length", "align": "right", "width": 90 }, "Forecast (state → until)" ], "rows": rows, "compact": true } })]));
+
+    let op = "weather.plan.set";
+    let can = live.can(op);
+    let state_opts: Vec<Value> = W_STATES
+        .iter()
+        .map(|(k, l)| json!({ "value": k, "label": l }))
+        .collect();
+    let mut start_opts = vec![json!({ "value": "", "label": "Game's own" })];
+    start_opts.extend(state_opts.iter().cloned());
+    let mut session_opts = vec![json!({ "value": "", "label": "Choose a session…" })];
+    session_opts.extend(W_SESSIONS.iter().map(|(k, l)| json!({ "value": k, "label": l })));
+    let mut fields = vec![
+        json!({ "select": { "id": "session", "label": "Session", "value": "", "options": session_opts } }),
+        json!({ "select": { "id": "start", "label": "Starts", "value": "", "options": start_opts } }),
+        json!({ "number": { "id": "laps", "label": "Race laps", "value": 0, "min": 0, "max": 200, "step": 1, "help": "Needed for lap-based changes" } }),
+    ];
+    let defaults = [
+        (15, "light_rain", 50),
+        (25, "heavy_rain", 85),
+        (40, "overcast", 30),
+    ];
+    let kinds = [
+        json!({ "value": "off", "label": "Not used" }),
+        json!({ "value": "lap", "label": "At lap" }),
+        json!({ "value": "minute", "label": "At minute" }),
+        json!({ "value": "percent", "label": "At % of the session" }),
+    ];
+    for (i, (at, state, _)) in defaults.iter().enumerate() {
+        let n = i + 1;
+        fields.push(json!({ "select": { "id": format!("p{n}_kind"), "label": format!("Change {n}"), "value": if n == 1 { "lap" } else { "off" }, "options": kinds } }));
+        fields.push(json!({ "number": { "id": format!("p{n}_at"), "label": "When", "value": at, "min": 0, "max": 240, "step": 1 } }));
+        fields.push(json!({ "select": { "id": format!("p{n}_state"), "label": "Weather", "value": state, "options": state_opts } }));
+    }
+    for (i, (_, _, intensity)) in defaults.iter().enumerate() {
+        let n = i + 1;
+        fields.push(json!({ "slider": { "id": format!("p{n}_int"), "label": format!("Change {n} intensity"), "value": intensity, "min": 0, "max": 100, "step": 5, "unit": "%" } }));
+    }
+    fields.push(
+        json!({ "toggle": { "id": "replace", "label": "Replace the weekend's whole plan", "value": false } }),
+    );
+    let mut pb = vec![
+        json!({ "form": { "id": "weather_plan", "columns": 3, "apply": "Save plan", "disabled": !can, "fields": fields } }),
+    ];
+    pb.push(text(
+        &form_help(live, op).unwrap_or_else(|| "Plans apply the next time the weekend hub builds the forecast, or at once for the live weekend. Sessions that have started are locked.".into()),
+        "muted",
+    ));
+    let mut buttons = Vec::new();
+    if live.can("weather.plan.clear") {
+        buttons.push(confirm(
+            button("weather_clear", "Clear plan", "eraser", "outline"),
+            "Clear the weekend's weather plan?",
+            "Unlocked sessions go back to the game's own forecast at the next rebuild.",
+        ));
+    }
+    blocks.push(card_full(
+        "Script a session",
+        Some(&format!(
+            "Weekend {}",
+            weekend.clone().unwrap_or_else(|| "next".into())
+        )),
+        vec![pill("Works in the weekend hub", "good")],
+        buttons,
+        pb,
+    ));
+
+    let mut seed_buttons = Vec::new();
+    if live.can("weather.seed.lock") {
+        seed_buttons.push(button("seed_lock", "Pin this seed", "lock", "outline"));
+    }
+    if live.can("weather.seed.reroll") {
+        seed_buttons.push(button("seed_reroll", "Reroll", "refresh", "outline"));
+    }
+    if live.can("weather.seed.unlock") && locked {
+        seed_buttons.push(button("seed_unlock", "Use the game's seed", "undo", "ghost"));
+    }
+    blocks.push(card_full(
+        "Realistic weather seed",
+        None,
+        vec![pill("Experimental", "warn")],
+        seed_buttons,
+        vec![
+            json!({ "facts": [ fact("Base", opt(&seed["base"]).unwrap_or_else(|| "—".into())), fact("Forced", opt(&seed["forced"]).unwrap_or_else(|| "—".into())),
+                               fact("Pinned", opt(&seed["pinned"]).unwrap_or_else(|| "no".into())) ] }),
+            text("A pinned or rerolled seed changes the game's own realistic forecast from the next forecast build. Planned sessions keep their plan.", "muted"),
+        ],
+    ));
+    frame(app, live, season_line(live), blocks, true)
+}
+
+// ---- history ------------------------------------------------------------------------------------
+
+fn history_columns(full: bool) -> Value {
+    let mut c = vec![
+        json!({ "key": "time", "title": "When", "width": 96, "sort": true }),
+        json!({ "key": "edit", "title": "Edit" }),
+        json!({ "key": "change", "title": "Before → after" }),
+        json!({ "key": "result", "title": "Result", "width": 110 }),
+    ];
+    if full {
+        c.push(json!({ "key": "undo", "title": "Undo", "width": 120 }));
+    }
+    json!(c)
+}
+
+fn summarize(e: &Entry) -> String {
+    let pick = |v: &Value| -> String {
+        if let Some(x) = v["expenses"].as_i64() {
+            return format!("{} spent", money_short(x));
+        }
+        if let Some(m) = v["sessions"].as_object() {
+            if m.is_empty() {
+                return "no sessions".into();
+            }
+            return m
+                .iter()
+                .map(|(k, x)| {
+                    let n = x["timeline"].as_array().map_or(0, Vec::len);
+                    if x.is_null() {
+                        format!("{k}: game forecast")
+                    } else {
+                        format!("{k}: {n} change(s)")
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+        }
+        if let Some(l) = v["locked"].as_bool() {
+            return if l {
+                format!("seed {} pinned", v["seed"])
+            } else {
+                "game's seed".into()
+            };
+        }
+        if let Some(c) = v["cash"].as_i64() {
+            return money(c);
+        }
+        if let Some(r) = v["rp"].as_i64() {
+            return format!("{} RP", group(r));
+        }
+        if let Some(r) = v["ratings"].as_object() {
+            return r
+                .iter()
+                .map(|(k, x)| format!("{} {}", title_case(k), x["value"]))
+                .collect::<Vec<_>>()
+                .join(", ");
+        }
+        if let Some(u) = v["upgrades"].as_array() {
+            return format!("{} upgrade(s)", u.len());
+        }
+        if let Some(r) = v["renown"].as_f64() {
+            return format!("{r:.0} renown");
+        }
+        if let Some(l) = v["loyalty"].as_i64() {
+            return format!("{l} loyalty XP");
+        }
+        if let Some(x) = v["expenses"].as_i64() {
+            return format!("{} spent", money_short(x));
+        }
+        if v["a"].is_object() && v["b"].is_object() {
+            return format!(
+                "#{} team {} · #{} team {}",
+                v["a"]["driverStatId"], v["a"]["teamStatId"], v["b"]["driverStatId"], v["b"]["teamStatId"]
+            );
+        }
+        if let Some(sal) = v["salary"].as_i64() {
+            return format!("salary {}", money_short(sal));
+        }
+        if let Some(a) = v["adjustment"].as_i64() {
+            return format!(
+                "{a:+} pts{}",
+                if v["pending"] == true { " (pending)" } else { "" }
+            );
+        }
+        if let Some(a) = v["adjustments"].as_array() {
+            return format!("{} adjustment(s)", a.len());
+        }
+        if let Some(r) = v["rounds"].as_array() {
+            return format!("{} rounds", r.len());
+        }
+        short_json(v)
+    };
+    if e.before.is_null() && e.after.is_null() {
+        return "—".into();
+    }
+    format!("{} → {}", pick(&e.before), pick(&e.after))
+}
+
+fn op_label(op: &str) -> String {
+    match op {
+        "economy.cash.set" => "Set cash".into(),
+        "economy.cash.add" => "Add cash".into(),
+        "economy.rp.set" => "Set resource points".into(),
+        "economy.rp.add" => "Add resource points".into(),
+        "drivers.ratings.set" => "Driver ratings".into(),
+        "rnd.complete" => "Complete R&D".into(),
+        "rnd.unlock" => "Unlock R&D".into(),
+        "rnd.reset" => "Reset R&D".into(),
+        "rnd.refund" => "Refund R&D".into(),
+        "rnd.fit" => "Fit upgrade".into(),
+        "facilities.complete" => "Finish facility builds".into(),
+        "facilities.set_level" => "Facility level".into(),
+        "season.calendar.reorder" => "Reorder calendar".into(),
+        "weather.plan.set" => "Weather plan".into(),
+        "weather.plan.clear" => "Clear weather plan".into(),
+        "weather.seed.lock" => "Pin weather seed".into(),
+        "weather.seed.reroll" => "Reroll weather seed".into(),
+        "weather.seed.unlock" => "Unpin weather seed".into(),
+        "bridge.ping" => "Ping".into(),
+        "drivers.swap" => "Swap seats".into(),
+        "drivers.contract.set" => "Contract".into(),
+        "economy.renown.set" => "Set renown".into(),
+        "economy.renown.add" => "Add renown".into(),
+        "economy.sponsor.loyalty.add" => "Sponsor loyalty".into(),
+        "economy.costcap.refund" => "Cost cap refund".into(),
+        "season.points.adjust" => "Points adjustment".into(),
+        "season.points.clear" => "Clear points adjustments".into(),
+        "season.result.set" => "Race result".into(),
+        "season.calendar.set_round" => "Replace a round".into(),
+        "season.calendar.add_round" => "Add a round".into(),
+        "season.calendar.remove_round" => "Remove a round".into(),
+        "season.calendar.toggle_sprint" => "Sprint format".into(),
+        "batch" => "Batch".into(),
+        other => other.to_owned(),
+    }
+}
+
+fn error_code(e: &Entry) -> String {
+    let err = e.error.clone().unwrap_or_else(|| "failed".into());
+    err.split_once(':')
+        .map_or(err.clone(), |(c, _)| c.trim().to_owned())
+}
+
+fn error_detail(e: &Entry) -> String {
+    let err = e.error.clone().unwrap_or_else(|| "failed".into());
+    match err.split_once(':') {
+        Some((_, d)) if !d.trim().is_empty() => d.trim().to_owned(),
+        _ => err,
+    }
+}
+
+fn not_applied(e: &Entry) -> Option<String> {
+    match &e.after["not_applied"] {
+        Value::Null => None,
+        Value::String(s) => Some(s.clone()),
+        Value::Object(m) if m.is_empty() => None,
+        Value::Object(m) => Some(
+            m.iter()
+                .map(|(k, v)| format!("{k}: {}", v.as_str().unwrap_or("not applied")))
+                .collect::<Vec<_>>()
+                .join("; "),
+        ),
+        other => Some(other.to_string()),
+    }
+}
+
+fn history_row(app: &App, e: &Entry, full: bool) -> Value {
+    let undone = app.store.undone(e.seq, e.i);
+    let not_applied = not_applied(e);
+    let (rt, rtone) = if !e.ok {
+        (error_code(e), "bad")
+    } else if not_applied.is_some() {
+        ("Stored, not applied".into(), "warn")
+    } else if e.undo_of.is_some() {
+        ("Undo applied".into(), "accent")
+    } else if undone {
+        ("Undone".into(), "muted")
+    } else {
+        ("Applied".into(), "good")
+    };
+    let mut cells = vec![
+        json!({ "text": clock(e.t), "sort": e.t }),
+        json!(if e.label.is_empty() {
+            op_label(&e.op)
+        } else {
+            e.label.clone()
+        }),
+        json!({ "text": if e.ok { not_applied.map_or_else(|| summarize(e), |w| format!("{} ({w})", summarize(e))) } else { error_detail(e) },
+                "tone": if e.ok { "neutral" } else { "bad" } }),
+        json!({ "text": rt, "pill": true, "tone": rtone }),
+    ];
+    if full {
+        let u = match inverse(e) {
+            _ if undone => json!({ "text": "undone", "tone": "muted" }),
+            _ if e.undo_of.is_some() => json!({ "text": "—", "tone": "muted" }),
+            Undo::Op(_) | Undo::Ops(_) => json!({ "text": "available", "tone": "good" }),
+            Undo::BackupOnly => json!({ "text": "backup only", "tone": "warn" }),
+            Undo::None(_) => json!({ "text": "—", "tone": "muted" }),
+        };
+        cells.push(u);
+    }
+    json!({ "id": format!("{}:{}", e.seq, e.i), "cells": cells })
+}
+
+fn in_scope(live: &Live, e: &Entry) -> bool {
+    match (live.career_id(), &e.career) {
+        (Some(now), Some(then)) => &now == then,
+        _ => true,
+    }
+}
+
+fn undoable<'a>(app: &'a App, live: &Live) -> Vec<&'a Entry> {
+    app.store
+        .history
+        .iter()
+        .rev()
+        .filter(|e| {
+            e.ok && in_scope(live, e)
+                && e.undo_of.is_none()
+                && !app.store.undone(e.seq, e.i)
+                && matches!(inverse(e), Undo::Op(_) | Undo::Ops(_))
+        })
+        .take(40)
+        .collect()
+}
+
+fn history(app: &App, live: &Live) -> Value {
+    let mut blocks = Vec::new();
+    let ok = app
+        .store
+        .history
+        .iter()
+        .filter(|e| e.ok && e.op != "bridge.ping" && e.op != "rnd.team_detail" && in_scope(live, e))
+        .count();
+    let failed = app
+        .store
+        .history
+        .iter()
+        .filter(|e| !e.ok && in_scope(live, e))
+        .count();
+    let pending = app.store.pending();
+    let backups = app.store.backups();
+    blocks.push(json!({ "tiles": [
+        { "label": "Edits applied", "value": ok.to_string(), "icon": "circle-check", "tone": "good" },
+        { "label": "Failed", "value": failed.to_string(), "icon": "triangle-alert", "tone": if failed > 0 { "bad" } else { "neutral" } },
+        { "label": "Queued", "value": pending.len().to_string(), "icon": "clock", "tone": if pending.is_empty() { "neutral" } else { "accent" } },
+        { "label": "Backups", "value": backups.len().to_string(), "hint": backups.first().map(|b| format!("last {}", ago(b.created))).unwrap_or_else(|| "none yet".into()), "icon": "save" },
+    ] }));
+
+    if !pending.is_empty() {
+        let why = if live.live() {
+            live.snap["bridge"]["blocked"]["why"]
+                .as_str()
+                .unwrap_or("its turn")
+        } else {
+            "the game to start"
+        };
+        let rows: Vec<Value> = pending
+            .iter()
+            .map(|p| json!({ "cells": [ clock(p.seq), p.label.clone(), { "text": format!("{} op(s)", p.ops), "tone": "muted" }, { "text": why, "tone": "warn" } ] }))
+            .collect();
+        blocks.push(card_full("Queued edits", None, vec![], vec![button("withdraw", "Withdraw all", "trash", "danger")], vec![
+            json!({ "table": { "id": "pending", "columns": ["Sent", "Edit", "Ops", "Waiting for"], "rows": rows, "compact": true } }),
+        ]));
+    }
+
+    let rows: Vec<Value> = app
+        .store
+        .history
+        .iter()
+        .rev()
+        .filter(|e| e.op != "bridge.ping" && e.op != "rnd.team_detail" && in_scope(live, e))
+        .take(200)
+        .map(|e| history_row(app, e, true))
+        .collect();
+    let undo_list = undoable(app, live);
+    let mut hb = Vec::new();
+    if !undo_list.is_empty() {
+        let mut opts = vec![json!({ "value": "", "label": "Choose an edit…" })];
+        opts.extend(undo_list
+            .iter()
+            .map(|e| json!({ "value": format!("{}:{}", e.seq, e.i), "label": format!("{} · {} · {}", clock(e.t), op_label(&e.op), summarize(e)) })));
+        let can = live.career() && live.live();
+        hb.push(json!({ "form": { "id": "undo_pick", "apply": "Undo", "disabled": !can, "fields": [
+            { "select": { "id": "entry", "label": "Undo an edit", "value": "", "options": opts,
+                          "help": "Undo re-applies the value from before the edit, through the same game path." } } ] } }));
+    }
+    if rows.is_empty() {
+        hb.push(text("No edits yet.", "muted"));
+    } else {
+        hb.push(json!({ "table": { "id": "history", "columns": history_columns(true), "rows": rows,
+                                   "search": { "placeholder": "Search history" }, "compact": true, "sort": { "column": "time", "desc": true } } }));
+    }
+    let undo_btn = if undo_list.is_empty() || !live.career() {
+        vec![]
+    } else {
+        vec![button("undo_last", "Undo last edit", "undo", "outline")]
+    };
+    blocks.push(card_full(
+        "Edit history",
+        Some("Every edit with the values the game read back"),
+        vec![],
+        undo_btn,
+        hb,
+    ));
+
+    let running = live.game_running();
+    let brows: Vec<Value> = backups
+        .iter()
+        .map(|b| {
+            json!({ "id": b.name, "cells": [
+            { "text": clock(b.created), "sort": b.created },
+            b.reason.clone(),
+            { "text": b.files.to_string(), "sort": b.files },
+            { "text": bytes(b.bytes), "sort": b.bytes },
+            { "text": b.career.clone().unwrap_or_else(|| "—".into()), "tone": "muted" }
+        ] })
+        })
+        .collect();
+    let mut bb = Vec::new();
+    if brows.is_empty() {
+        bb.push(text(
+            "No backups yet. One is taken automatically before the first edit of every game session.",
+            "muted",
+        ));
+    } else {
+        bb.push(json!({ "table": { "id": "backups", "columns": [
+            { "key": "when", "title": "When", "sort": true, "width": 120 }, "Why", { "key": "files", "title": "Files", "align": "right", "width": 70 },
+            { "key": "size", "title": "Size", "align": "right", "width": 90 }, "Career" ], "rows": brows, "compact": true, "sort": { "column": "when", "desc": true } } }));
+        let mut opts = vec![json!({ "value": "", "label": "Choose a backup…" })];
+        opts.extend(
+            backups
+                .iter()
+                .map(|b| json!({ "value": b.name, "label": format!("{} · {}", clock(b.created), b.reason) })),
+        );
+        bb.push(json!({ "form": { "id": "restore", "columns": 2, "apply": "Restore", "disabled": running, "fields": [
+            { "select": { "id": "backup", "label": "Backup", "value": "", "options": opts } },
+            { "toggle": { "id": "sure", "label": "Overwrite the game's saves with this backup", "value": false,
+                          "help": if running { "Close F1 25 first." } else { "Pause Steam Cloud for F1 25, or let it upload afterwards." } } } ] } }));
+    }
+    let mut buttons = vec![
+        button("backup_now", "Back up now", "save", "primary"),
+        button("open_backups", "Open folder", "folder-open", "ghost"),
+    ];
+    if !backups.is_empty() {
+        buttons.push(button("delete_oldest", "Delete oldest", "trash", "ghost"));
+    }
+    blocks.push(card_full(
+        "Save backups",
+        Some("Steam Cloud save folder copies, restorable on the same Steam account"),
+        vec![],
+        buttons,
+        bb,
+    ));
+    frame(
+        app,
+        live,
+        format!(
+            "{ok} edit(s){} · {} backup(s)",
+            if live.career_id().is_some() {
+                " in this career"
+            } else {
+                ""
+            },
+            backups.len()
+        ),
+        blocks,
+        false,
+    )
+}
+
+// ---- events -------------------------------------------------------------------------------------
+
+fn send(
+    app: &mut App,
+    host: &mut Host,
+    live: &Live,
+    label: &str,
+    ops: Vec<Value>,
+    undo_of: Option<(u64, usize)>,
+) -> Result<Value, String> {
+    for o in &ops {
+        live.gate(o["op"].as_str().unwrap_or_default())?;
+    }
+    let mut warning = String::new();
+    let boot = live.snap["boot"].as_u64().unwrap_or(0);
+    let key = live
+        .game_session
+        .clone()
+        .or_else(|| live.pid.map(|p| format!("pid-{p}-boot-{boot}")))
+        .or_else(|| (boot > 0).then(|| format!("boot-{boot}")));
+    if let Some(key) = key
+        && app.store.session_marker().as_deref() != Some(key.as_str())
+    {
+        match host
+            .call("steam_save_dir", Value::Null)
+            .ok()
+            .and_then(|v| v.as_str().map(PathBuf::from))
+        {
+            Some(dir) => {
+                app.store
+                    .backup(
+                        &dir,
+                        "Before the first edit of this game session",
+                        live.career_id().as_deref(),
+                        live.game_session.as_deref(),
+                    )
+                    .map_err(|e| format!("The automatic save backup failed, so the edit wasn't sent: {e}"))?;
+                app.store.set_session_marker(&key);
+            }
+            None => {
+                warning = " No Steam save folder was found, so no backup was taken.".into();
+                app.store.set_session_marker(&key);
+            }
+        }
+    }
+    app.store.send(label, ops.clone(), undo_of, live.career_id())?;
+    let first = ops.first().and_then(|o| o["op"].as_str()).unwrap_or_default();
+    let when = if live.applies_now(first) {
+        "Sent to the game.".to_owned()
+    } else {
+        let why = if live.op_anytime(first) {
+            live.status()["why_anytime"].as_str().map(str::to_owned)
+        } else {
+            live.why()
+        };
+        format!(
+            "Queued: it applies when the game is ready ({}).",
+            why.unwrap_or_else(|| "waiting".into())
+        )
+    };
+    Ok(json!({ "notice": format!("{label}: {when}{warning}") }))
+}
+
+fn values(ev: &Value) -> &Value {
+    &ev["submit"]["values"]
+}
+
+fn changed(ev: &Value) -> Vec<String> {
+    ev["submit"]["changed"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|c| c.as_str().map(str::to_owned))
+        .collect()
+}
+
+pub fn event(app: &mut App, host: &mut Host, section: &str, ev: &Value) -> Result<Value, String> {
+    let live = app.live(host);
+    if let Some(tab) = ev["tab"]["tab"].as_str() {
+        app.tab = tab.to_owned();
+        return Ok(json!("reload"));
+    }
+    if let Some(id) = ev["click"]["id"].as_str() {
+        return click(app, host, &live, section, id);
+    }
+    if ev.get("submit").is_some() {
+        let form = ev["submit"]["form"].as_str().unwrap_or_default().to_owned();
+        return submit(app, host, &live, &form, ev);
+    }
+    Ok(json!("none"))
+}
+
+fn click(app: &mut App, host: &mut Host, live: &Live, _section: &str, id: &str) -> Result<Value, String> {
+    if let Some(n) = id.strip_prefix("cash_add:") {
+        let amount: i64 = n.parse().map_err(|_| "bad amount")?;
+        return send(
+            app,
+            host,
+            live,
+            &format!("Add {}", money_short(amount)),
+            vec![json!({ "op": "economy.cash.add", "args": { "amount": amount } })],
+            None,
+        );
+    }
+    if let Some(n) = id.strip_prefix("renown_add:") {
+        let amount: i64 = n.parse().map_err(|_| "bad amount")?;
+        return send(
+            app,
+            host,
+            live,
+            &format!("Add {amount} renown"),
+            vec![json!({ "op": "economy.renown.add", "args": { "amount": amount } })],
+            None,
+        );
+    }
+    if let Some(t) = id.strip_prefix("rnd_detail:") {
+        let team: i64 = t.parse().map_err(|_| "bad team")?;
+        return send(
+            app,
+            host,
+            live,
+            "Load an AI team's R&D tree",
+            vec![json!({ "op": "rnd.team_detail", "args": { "team": team } })],
+            None,
+        );
+    }
+    if id == "points_clear" {
+        return send(
+            app,
+            host,
+            live,
+            "Clear points adjustments",
+            vec![json!({ "op": "season.points.clear", "args": {} })],
+            None,
+        );
+    }
+    if let Some(n) = id.strip_prefix("rp_add:") {
+        let amount: i64 = n.parse().map_err(|_| "bad amount")?;
+        return send(
+            app,
+            host,
+            live,
+            &format!("Add {} RP", group(amount)),
+            vec![json!({ "op": "economy.rp.add", "args": { "amount": amount } })],
+            None,
+        );
+    }
+    match id {
+        "refresh" | "noop" => Ok(json!("reload")),
+        "go_history" => {
+            app.tab = "history".into();
+            Ok(json!("reload"))
+        }
+        "withdraw" => {
+            let n = app.store.withdraw_all();
+            Ok(json!({ "notice": format!("Withdrew {n} queued edit(s).") }))
+        }
+        "backup_now" => {
+            let dir = host
+                .call("steam_save_dir", Value::Null)?
+                .as_str()
+                .map(PathBuf::from)
+                .ok_or("No Steam save folder was found for F1 25.")?;
+            let b = app.store.backup(
+                &dir,
+                "Manual backup",
+                live.career_id().as_deref(),
+                live.game_session.as_deref(),
+            )?;
+            Ok(json!({ "notice": format!("Backed up {} file(s), {}.", b.files, bytes(b.bytes)) }))
+        }
+        "open_backups" => {
+            std::fs::create_dir_all(app.store.backups_dir()).ok();
+            Ok(json!({ "open": app.store.backups_dir() }))
+        }
+        "delete_oldest" => {
+            let Some(b) = app.store.backups().last().cloned() else {
+                return Ok(json!("reload"));
+            };
+            app.store.delete_backup(&b.name)?;
+            Ok(json!({ "notice": format!("Deleted the backup from {}.", clock(b.created)) }))
+        }
+        "fac_complete" => send(
+            app,
+            host,
+            live,
+            "Finish facility builds",
+            vec![json!({ "op": "facilities.complete", "args": {} })],
+            None,
+        ),
+        "seed_lock" => send(
+            app,
+            host,
+            live,
+            "Pin the weather seed",
+            vec![json!({ "op": "weather.seed.lock", "args": {} })],
+            None,
+        ),
+        "seed_reroll" => send(
+            app,
+            host,
+            live,
+            "Reroll the weather seed",
+            vec![json!({ "op": "weather.seed.reroll", "args": {} })],
+            None,
+        ),
+        "seed_unlock" => send(
+            app,
+            host,
+            live,
+            "Use the game's weather seed",
+            vec![json!({ "op": "weather.seed.unlock", "args": {} })],
+            None,
+        ),
+        "weather_clear" => {
+            let mut args = json!({});
+            if let Some(w) = live
+                .section("weather")
+                .and_then(|w| w["default_weekend"].as_i64())
+            {
+                args["weekend"] = json!(w);
+            }
+            send(
+                app,
+                host,
+                live,
+                "Clear the weather plan",
+                vec![json!({ "op": "weather.plan.clear", "args": args })],
+                None,
+            )
+        }
+        "undo_last" => {
+            let e = undoable(app, live)
+                .first()
+                .map(|e| (*e).clone())
+                .ok_or("Nothing to undo.")?;
+            undo(app, host, live, &e)
+        }
+        other => Err(format!("unknown button {other}")),
+    }
+}
+
+fn undo(app: &mut App, host: &mut Host, live: &Live, e: &Entry) -> Result<Value, String> {
+    match inverse(e) {
+        Undo::Op(op) => send(
+            app,
+            host,
+            live,
+            &format!("Undo {}", op_label(&e.op).to_lowercase()),
+            vec![op],
+            Some((e.seq, e.i)),
+        ),
+        Undo::Ops(ops) => send(
+            app,
+            host,
+            live,
+            &format!("Undo {}", op_label(&e.op).to_lowercase()),
+            ops,
+            Some((e.seq, e.i)),
+        ),
+        Undo::BackupOnly => Err("This edit can only be undone by restoring a backup.".into()),
+        Undo::None(why) => Err(format!("This edit can't be undone: {why}.")),
+    }
+}
+
+fn rnd_team_arg(app: &App, live: &Live) -> Value {
+    let (team, _) = rnd_team_data(app, live);
+    if team["player"] == true || team.is_null() {
+        json!("player")
+    } else {
+        team["team"].clone()
+    }
+}
+
+fn submit(app: &mut App, host: &mut Host, live: &Live, form: &str, ev: &Value) -> Result<Value, String> {
+    let v = values(ev);
+    let ch = changed(ev);
+    match form {
+        "finance" => {
+            let econ = live.section("economy").cloned().unwrap_or(Value::Null);
+            let mut ops = Vec::new();
+            let mut parts = Vec::new();
+            if ch.iter().any(|c| c == "cash") {
+                let value = int(&v["cash"]).ok_or("cash must be a number")?;
+                let mut o = json!({ "op": "economy.cash.set", "args": { "value": value } });
+                if let Some(e) = int(&econ["cash"]["balance"]) {
+                    o["expect"] = json!(e);
+                }
+                ops.push(o);
+                parts.push(format!("cash {}", money(value)));
+            }
+            if ch.iter().any(|c| c == "rp") {
+                let value = int(&v["rp"]).ok_or("RP must be a number")?;
+                let mut o = json!({ "op": "economy.rp.set", "args": { "value": value } });
+                if let Some(e) = int(&econ["rp"]["wallet"]) {
+                    o["expect"] = json!(e);
+                }
+                ops.push(o);
+                parts.push(format!("{} RP", group(value)));
+            }
+            if ops.is_empty() {
+                return Ok(json!("reload"));
+            }
+            send(
+                app,
+                host,
+                live,
+                &format!("Set {}", parts.join(" and ")),
+                ops,
+                None,
+            )
+        }
+        "rating_mode" => {
+            let m = v["mode"].as_str().unwrap_or("flat").to_owned();
+            app.store.set_pref("rating_mode", json!(m));
+            Ok(json!("reload"))
+        }
+        "ratings" => {
+            let row = ev["submit"]["row"].as_str().ok_or("no row")?;
+            let id: i64 = row.parse().map_err(|_| "bad driver id")?;
+            let drivers = live
+                .section("drivers")
+                .and_then(|d| d["drivers"].as_array())
+                .cloned()
+                .unwrap_or_default();
+            let d = drivers
+                .iter()
+                .find(|d| d["driverStatId"].as_i64() == Some(id))
+                .ok_or("that driver isn't in the snapshot any more")?;
+            let mut ratings = serde_json::Map::new();
+            let mut expect = serde_json::Map::new();
+            for c in &ch {
+                let val = v[c].as_f64().ok_or("ratings must be numbers")?;
+                ratings.insert(c.clone(), json!(val));
+                if let Some(now) = d["ratings"][c]["value"].as_f64() {
+                    expect.insert(c.clone(), json!(now));
+                }
+            }
+            if ratings.is_empty() {
+                return Ok(json!("reload"));
+            }
+            let name = title_case(d["name"].as_str().unwrap_or("driver"));
+            let what = ratings
+                .iter()
+                .map(|(k, x)| {
+                    format!(
+                        "{} {}",
+                        title_case(k),
+                        x.as_f64().map_or_else(|| x.to_string(), |f| format!("{f:.0}"))
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            let mode = app.store.pref_str("rating_mode", "flat");
+            send(
+                app,
+                host,
+                live,
+                &format!("{name}: {what}"),
+                vec![
+                    json!({ "op": "drivers.ratings.set", "args": { "driverStatId": id, "ratings": ratings, "mode": mode, "expect": expect } }),
+                ],
+                None,
+            )
+        }
+        "facilities" => {
+            let row = ev["submit"]["row"].as_str().ok_or("no row")?;
+            let fac: i64 = row.parse().map_err(|_| "bad facility id")?;
+            let fname = ["Engineering", "Personnel", "Corporate"]
+                .get(fac as usize)
+                .map_or_else(|| format!("Facility {fac}"), |n| (*n).to_owned());
+            let level = int(&v["level"]).ok_or("level must be a number")?;
+            send(
+                app,
+                host,
+                live,
+                &format!("{fname} to level {level}"),
+                vec![json!({ "op": "facilities.set_level", "args": { "facility": fac, "level": level } })],
+                None,
+            )
+        }
+        "rnd_team" => {
+            let t: i64 = v["team"]
+                .as_str()
+                .and_then(|s| s.parse().ok())
+                .ok_or("bad team")?;
+            app.store.set_pref("rnd_team", json!(t));
+            Ok(json!("reload"))
+        }
+        "rnd_bulk" => {
+            let dept: i64 = v["dept"].as_str().and_then(|s| s.parse().ok()).unwrap_or(-1);
+            let action = v["action"]
+                .as_str()
+                .filter(|a| !a.is_empty())
+                .ok_or("Choose an action.")?;
+            let mut args = json!({ "team": rnd_team_arg(app, live), "dept": dept, "all": true });
+            let op = match action {
+                "unlock" => "rnd.unlock",
+                "reset" => "rnd.reset",
+                _ => {
+                    args["stage"] = json!(v["stage"].as_str().unwrap_or("full"));
+                    "rnd.complete"
+                }
+            };
+            let dname = if dept < 0 {
+                "every department".to_owned()
+            } else {
+                DEPTS.get(dept as usize).copied().unwrap_or("?").to_owned()
+            };
+            send(
+                app,
+                host,
+                live,
+                &format!("{} {dname}", op_label(op)),
+                vec![json!({ "op": op, "args": args })],
+                None,
+            )
+        }
+        "rnd_one" => {
+            let hash: i64 = v["upgrade"]
+                .as_str()
+                .and_then(|s| s.parse().ok())
+                .ok_or("Choose an upgrade.")?;
+            let action = v["action"].as_str().unwrap_or("complete");
+            let mut args = json!({ "team": rnd_team_arg(app, live), "upgrade": hash });
+            let op = match action {
+                "unlock" => "rnd.unlock",
+                "refund" => "rnd.refund",
+                "reset" => "rnd.reset",
+                "fit" => {
+                    args["fitted"] = json!(true);
+                    "rnd.fit"
+                }
+                "unfit" => {
+                    args["fitted"] = json!(false);
+                    "rnd.fit"
+                }
+                _ => "rnd.complete",
+            };
+            let (team, _) = rnd_team_data(app, live);
+            let name = team["u"]
+                .as_array()
+                .and_then(|a| a.iter().find(|u| u["h"].as_i64() == Some(hash)))
+                .and_then(|u| u["n"].as_str().map(title_case))
+                .unwrap_or_else(|| format!("upgrade {hash}"));
+            send(
+                app,
+                host,
+                live,
+                &format!("{}: {name}", op_label(op)),
+                vec![json!({ "op": op, "args": args })],
+                None,
+            )
+        }
+        "calendar_order" => {
+            let cal = live.section("calendar").cloned().unwrap_or(Value::Null);
+            let from = int(&cal["editable_from"]).ok_or("no round can be moved now")?;
+            let future: Vec<String> = cal["rounds"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|r| int(&r["round"]).unwrap_or(0) >= from)
+                .filter_map(|r| r["weekend"].as_str().map(str::to_owned))
+                .collect();
+            let order: Vec<String> = (0..future.len())
+                .filter_map(|i| v[format!("slot{i}")].as_str().map(str::to_owned))
+                .collect();
+            let mut a = order.clone();
+            let mut b = future.clone();
+            a.sort();
+            b.sort();
+            if a != b {
+                return Err("Every upcoming track must appear exactly once.".into());
+            }
+            if order == future {
+                return Ok(json!("reload"));
+            }
+            send(
+                app,
+                host,
+                live,
+                "Reorder the calendar",
+                vec![json!({ "op": "season.calendar.reorder", "args": { "order": order } })],
+                None,
+            )
+        }
+        "weather_plan" => {
+            let key = v["session"]
+                .as_str()
+                .filter(|k| !k.is_empty())
+                .ok_or("Choose a session.")?
+                .to_owned();
+            let laps = int(&v["laps"]).unwrap_or(0);
+            let mut timeline = Vec::new();
+            for n in 1..=3 {
+                let kind = v[format!("p{n}_kind")].as_str().unwrap_or("off");
+                if kind == "off" {
+                    continue;
+                }
+                let at = v[format!("p{n}_at")].as_f64().unwrap_or(0.0);
+                let state = v[format!("p{n}_state")].as_str().unwrap_or("clear");
+                let intensity = v[format!("p{n}_int")].as_f64().unwrap_or(50.0) / 100.0;
+                let mut p = json!({ "state": state, "intensity": intensity });
+                match kind {
+                    "lap" => {
+                        if laps <= 0 {
+                            return Err("Set the race laps to plan by lap.".into());
+                        }
+                        p["at_lap"] = json!(at.max(1.0) as i64);
+                    }
+                    "minute" => p["at_minute"] = json!(at),
+                    _ => p["at_fraction"] = json!((at / 100.0).clamp(0.0, 1.0)),
+                }
+                timeline.push(p);
+            }
+            if timeline.is_empty() {
+                return Err("Add at least one weather change.".into());
+            }
+            let mut session = json!({ "timeline": timeline });
+            if laps > 0 {
+                session["laps"] = json!(laps);
+            }
+            if let Some(s) = v["start"].as_str().filter(|s| !s.is_empty()) {
+                session["start"] = json!(s);
+            }
+            let mut sessions = serde_json::Map::new();
+            sessions.insert(key.clone(), session);
+            let mut args =
+                json!({ "sessions": sessions, "replace": v["replace"].as_bool().unwrap_or(false) });
+            if let Some(w) = live
+                .section("weather")
+                .and_then(|w| w["default_weekend"].as_i64())
+            {
+                args["weekend"] = json!(w);
+            }
+            let label = W_SESSIONS
+                .iter()
+                .find(|s| s.0 == key)
+                .map_or(key.clone(), |s| s.1.to_owned());
+            send(
+                app,
+                host,
+                live,
+                &format!("Weather plan for {label}"),
+                vec![json!({ "op": "weather.plan.set", "args": args })],
+                None,
+            )
+        }
+        "renown" => {
+            let value = v["renown"].as_f64().ok_or("renown must be a number")?;
+            let mut o = json!({ "op": "economy.renown.set", "args": { "value": value } });
+            if let Some(now) = live
+                .section("economy")
+                .and_then(|e| e["renown"]["points"].as_f64())
+            {
+                o["expect"] = json!(now);
+            }
+            send(
+                app,
+                host,
+                live,
+                &format!("Set renown to {value:.0}"),
+                vec![o],
+                None,
+            )
+        }
+        "costcap" => {
+            let amount = int(&v["amount"])
+                .filter(|a| *a > 0)
+                .ok_or("Enter an amount above 0.")?;
+            let mut o = json!({ "op": "economy.costcap.refund", "args": { "amount": amount } });
+            let c = live
+                .section("economy")
+                .map(|e| e["cost_cap"].clone())
+                .unwrap_or(Value::Null);
+            let cur = int(&c["current_season"]).unwrap_or(0);
+            if let Some(x) = c["seasons"]
+                .as_array()
+                .and_then(|a| a.iter().find(|s| int(&s["season"]) == Some(cur)))
+                .and_then(|s| int(&s["expenses"]))
+            {
+                o["expect"] = json!(x);
+            }
+            send(
+                app,
+                host,
+                live,
+                &format!("Cost cap refund {}", money_short(amount)),
+                vec![o],
+                None,
+            )
+        }
+        "loyalty" => {
+            let amount = int(&v["amount"])
+                .filter(|a| *a > 0)
+                .ok_or("Enter loyalty XP above 0.")?;
+            let reason: i64 = v["reason"].as_str().and_then(|r| r.parse().ok()).unwrap_or(0);
+            send(
+                app,
+                host,
+                live,
+                &format!("Add {amount} sponsor loyalty"),
+                vec![
+                    json!({ "op": "economy.sponsor.loyalty.add", "args": { "amount": amount, "reason": reason } }),
+                ],
+                None,
+            )
+        }
+        "swap" => {
+            let a: i64 = v["a"]
+                .as_str()
+                .and_then(|x| x.parse().ok())
+                .ok_or("Choose the first driver.")?;
+            let b: i64 = v["b"]
+                .as_str()
+                .and_then(|x| x.parse().ok())
+                .ok_or("Choose the second driver.")?;
+            if a == b {
+                return Err("Choose two different drivers.".into());
+            }
+            let drivers = live
+                .section("drivers")
+                .and_then(|d| d["drivers"].as_array())
+                .cloned()
+                .unwrap_or_default();
+            let find = |id: i64| {
+                drivers
+                    .iter()
+                    .find(|d| d["driverStatId"].as_i64() == Some(id))
+                    .cloned()
+                    .unwrap_or(Value::Null)
+            };
+            let (da, db) = (find(a), find(b));
+            let name = |d: &Value| title_case(d["name"].as_str().unwrap_or("driver"));
+            send(
+                app,
+                host,
+                live,
+                &format!("Swap {} and {}", name(&da), name(&db)),
+                vec![json!({ "op": "drivers.swap", "args": { "a": a, "b": b,
+                     "expect": { "aTeamStatId": da["team"]["teamStatId"], "bTeamStatId": db["team"]["teamStatId"] } } })],
+                None,
+            )
+        }
+        "contracts" => {
+            let row = ev["submit"]["row"].as_str().ok_or("no row")?;
+            let mut parts = row.splitn(3, ':');
+            let (list, id, team) = (
+                parts.next().unwrap_or("decided"),
+                parts
+                    .next()
+                    .and_then(|x| x.parse::<i64>().ok())
+                    .ok_or("bad row")?,
+                parts.next().and_then(|x| x.parse::<i64>().ok()),
+            );
+            let rec = live
+                .section("drivers")
+                .and_then(|d| d["contracts"][list].as_array())
+                .and_then(|a| {
+                    a.iter()
+                        .find(|r| {
+                            r["driverStatId"].as_i64() == Some(id)
+                                && (team.is_none() || r["newTeamStatId"].as_i64() == team)
+                        })
+                        .cloned()
+                })
+                .ok_or("that contract isn't in the snapshot any more")?;
+            let mut args = json!({ "driverStatId": id, "list": list });
+            if let Some(t) = team {
+                args["newTeamStatId"] = json!(t);
+            }
+            let mut expect = serde_json::Map::new();
+            for c in &ch {
+                let val = int(&v[c]).ok_or("amounts must be whole numbers")?;
+                args[c.as_str()] = json!(val);
+                expect.insert(c.clone(), rec[c.as_str()].clone());
+            }
+            if ch.is_empty() {
+                return Ok(json!("reload"));
+            }
+            args["expect"] = Value::Object(expect);
+            let names = driver_names(live);
+            send(
+                app,
+                host,
+                live,
+                &format!("{} contract", driver_name(&names, id)),
+                vec![json!({ "op": "drivers.contract.set", "args": args })],
+                None,
+            )
+        }
+        "points" => {
+            let d: i64 = v["driver"]
+                .as_str()
+                .and_then(|x| x.parse().ok())
+                .ok_or("Choose a driver.")?;
+            let delta = int(&v["delta"])
+                .filter(|x| *x != 0)
+                .ok_or("Enter a points change other than 0.")?;
+            let names = driver_names(live);
+            send(
+                app,
+                host,
+                live,
+                &format!("{} {delta:+} pts", driver_name(&names, d)),
+                vec![json!({ "op": "season.points.adjust", "args": { "driver": d, "delta": delta } })],
+                None,
+            )
+        }
+        "cal_remove" => {
+            let r: i64 = v["round"]
+                .as_str()
+                .and_then(|x| x.parse().ok())
+                .ok_or("Choose a round.")?;
+            send(
+                app,
+                host,
+                live,
+                &format!("Remove round {r}"),
+                vec![json!({ "op": "season.calendar.remove_round", "args": { "round": r } })],
+                None,
+            )
+        }
+        "cal_set" => {
+            let r: i64 = v["round"]
+                .as_str()
+                .and_then(|x| x.parse().ok())
+                .ok_or("Choose a round.")?;
+            let w = v["weekend"]
+                .as_str()
+                .filter(|w| !w.is_empty())
+                .ok_or("Choose a track.")?;
+            send(
+                app,
+                host,
+                live,
+                &format!("Round {r} becomes {}", track_name(w)),
+                vec![json!({ "op": "season.calendar.set_round", "args": { "round": r, "weekend": w } })],
+                None,
+            )
+        }
+        "cal_add" => {
+            let w = v["weekend"]
+                .as_str()
+                .filter(|w| !w.is_empty())
+                .ok_or("Choose a track.")?;
+            let at = int(&v["at"]).ok_or("Choose where the round goes.")?;
+            send(
+                app,
+                host,
+                live,
+                &format!("Add {} as round {at}", track_name(w)),
+                vec![json!({ "op": "season.calendar.add_round", "args": { "weekend": w, "at": at } })],
+                None,
+            )
+        }
+        "undo_pick" => {
+            let pick = v["entry"]
+                .as_str()
+                .filter(|p| !p.is_empty())
+                .ok_or("Choose an edit to undo.")?;
+            let (s, i) = pick.split_once(':').ok_or("bad entry")?;
+            let (s, i): (u64, usize) = (
+                s.parse().map_err(|_| "bad entry")?,
+                i.parse().map_err(|_| "bad entry")?,
+            );
+            let e = app
+                .store
+                .history
+                .iter()
+                .find(|e| e.seq == s && e.i == i)
+                .cloned()
+                .ok_or("that edit isn't in the history")?;
+            if !in_scope(live, &e) {
+                return Err("That edit belongs to another career.".into());
+            }
+            undo(app, host, live, &e)
+        }
+        "restore" => {
+            if live.game_running() {
+                return Err("Close F1 25 before restoring a backup.".into());
+            }
+            if v["sure"].as_bool() != Some(true) {
+                return Err("Turn on the overwrite switch to confirm the restore.".into());
+            }
+            let name = v["backup"]
+                .as_str()
+                .filter(|p| !p.is_empty())
+                .ok_or("Choose a backup.")?
+                .to_owned();
+            let dir = host
+                .call("steam_save_dir", Value::Null)?
+                .as_str()
+                .map(PathBuf::from)
+                .ok_or("No Steam save folder was found for F1 25.")?;
+            let safety = app
+                .store
+                .backup(&dir, &format!("Before restoring {name}"), None, None)?;
+            let n = app.store.restore(&name, &dir)?;
+            Ok(
+                json!({ "notice": format!("Restored {n} file(s) from {name}. The saves from before the restore are in backup {}.", safety.name) }),
+            )
+        }
+        other => Err(format!("unknown form {other}")),
+    }
+}
+
+pub fn summary(app: &mut App) -> Value {
+    let snap = app.store.snapshot().clone();
+    let written = snap["written"].as_u64().unwrap_or(0);
+    if written == 0
+        || now_ms().saturating_sub(written) > crate::live::STALE_MS
+        || snap["status"]["career"] != true
+    {
+        return Value::Null;
+    }
+    let mode = mode_label(snap["status"]["mode"].as_str().unwrap_or("none"));
+    let mut items = vec![mode.to_owned()];
+    if let (Some(r), Some(n)) = (int(&snap["status"]["round"]), int(&snap["status"]["rounds"])) {
+        items.push(format!("Round {r}/{n}"));
+    }
+    json!({ "label": "CAREER", "items": items })
+}
