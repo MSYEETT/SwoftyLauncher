@@ -19,3 +19,23 @@ Log lines (swofty log): `[f1-1990] GRID best-of (<why>)` once per pass, then one
 `./build.sh` generates dev bindings (`re/tools/bindgen.py --dev`) into `build/dev` and builds `f1_1990.dll` with zig. The bindings are L2 without a verify row, so the core only resolves them with `build/dev/bindings.json` installed as the game's `swofty/bindings.json`.
 
 `test/run.sh` runs the ranking unit tests on the host.
+
+## Contract skip (not in the default build)
+
+`src/contract_skip.cpp` signs the player's first 1990 Driver Career contract and passes the negotiation scene (native request N1). It runs only on a database where a `game_modes.ModeChampionship` row saves to `driver_career_1990` or runs `F1_career_1990`, with one human player.
+
+| binding | address | use |
+|---|---|---|
+| `Career_Decide_ContractNegotiation` | 0x142d57d10 | wrap; on link 0x5e3c3c2d with `Career_Needs_DriverContract`, build the contract (current team, type 0, 1 season), rebuild it at the recommended target and sign it |
+| `Career_Build_DriverContract` | 0x140d79dd0 | call |
+| `Career_Sign_DriverContract` | 0x140d79ff0 | call (`replaced_key` 0x3fff0000, notify 1) |
+| `Career_Needs_DriverContract` | 0x140d83090 | call |
+| `Career_ContractIntro_OnEnter` / `_OnUpdate` | 0x1436c2620 / 0x1436c2dc0 | wrap; enter skipped, update returns the continue link |
+| `Career_ContractUpdate_OnEnter` / `_OnUpdate` / `_OnExit` | 0x1436c1760 / 0x1436c1e00 / 0x1436c1fc0 | wrap; enter idles without the screen, update continues, exit returns 1 without closing a screen that never opened |
+| `Career_ContractOutro_OnEnter` / `_OnUpdate` | 0x1436c3330 / 0x1436c3750 | wrap; enter skipped, update returns the continue link |
+| `g_Career_FlowLinkContinue` | 0x146cb2284 | data (continue link, 0x7c9b1ec4 in logs) |
+| `k_Career_DriverCareerContractsManagerComponentDesc` | 0x14605c0d8 | data (existing binding) |
+
+The recommended target is the screen's: rating + the matching rating range's offset, inside the slider and at most 100 (`src/contract_target.hpp`, tested by `test/run.sh`).
+
+None of these bindings except the component descriptor is in the KB yet: they belong to the `career` lane (owner career-re), whose owner has to register them before `CONTRACT_SKIP=1 ./build.sh` compiles.
