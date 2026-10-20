@@ -42,10 +42,12 @@ jobs:
           chmod +x "$RUNNER_TEMP/bin/taskset"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
+      # A fixed install path, so the objects in CI's Zig cache match (see ci.yml).
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.16.0
           use-cache: false
+          use-tool-cache: true
 
       # CI on main saves this cache; a tag can read main's caches but its own are of no use to the next tag.
       - name: Zig cache period

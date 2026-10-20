@@ -263,10 +263,13 @@ jobs:
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       # The scripts below keep their own Zig cache under native/build, which the restore step covers.
+      # The tool cache installs Zig at the same path every run; the MinGW and libc++ objects are keyed
+      # on compiler arguments that include that path, so the default random temp folder missed them all.
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.16.0
           use-cache: false
+          use-tool-cache: true
 
       # The key starts over each month so the content-addressed cache cannot grow without bound.
       - name: Zig cache period
