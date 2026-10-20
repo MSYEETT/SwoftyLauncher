@@ -21,14 +21,17 @@
 #include <swofty/mixin.hpp>
 
 #include "grid_rank.hpp"
+#include "weekend.hpp"
 
 namespace {
 
+using f1990::at;
+using f1990::is_1990_weekend;
+
 constexpr const char *kVersion = "0.1.0";
 
-constexpr uint8_t kQualifying = 1;
-constexpr uint8_t kShootout = 2;
-constexpr uint32_t kRace2 = 16;
+constexpr uint8_t kQualifying = f1990::kQualifyingGroup;
+constexpr uint8_t kShootout = f1990::kShootoutGroup;
 
 struct MapNode {
     MapNode *left;
@@ -47,13 +50,6 @@ struct TimeRecord {
     float time;
 };
 
-template <class T> T at(const void *p, size_t off)
-{
-    T v;
-    std::memcpy(&v, static_cast<const uint8_t *>(p) + off, sizeof v);
-    return v;
-}
-
 uint8_t *group_result(void *weekend, uint8_t group)
 {
     auto *head = at<MapNode *>(weekend, 0x488);
@@ -66,23 +62,6 @@ uint8_t *group_result(void *weekend, uint8_t group)
         n = group < n->key ? n->left : n->right;
     }
     return nullptr;
-}
-
-bool is_1990_weekend(const void *weekend)
-{
-    auto *s = at<const uint8_t *>(weekend, 0x220), *e = at<const uint8_t *>(weekend, 0x228);
-    if (!s || e < s)
-        return false;
-    bool shootout = false, qualifying = false;
-    for (; s < e; s += 0xa0) {
-        uint32_t id = at<uint32_t>(s, 0x08);
-        uint8_t group = at<uint8_t>(s, 0x98);
-        if (id == kRace2)
-            return false;
-        shootout |= group == kShootout;
-        qualifying |= group == kQualifying;
-    }
-    return shootout && qualifying;
 }
 
 float time_of(const uint8_t *result, uint32_t key)

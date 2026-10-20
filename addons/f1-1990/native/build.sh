@@ -28,5 +28,8 @@ SRC=(src/plugin.cpp src/grid_best_of.cpp src/save_separation.cpp src/contract_sk
 "${CXX[@]}" -O2 -Wall -Wextra -I"$GAME" -I$SDK -D__USE_MINGW_ANSI_STDIO=1 -shared -s \
     -o f1_1990.dll "${SRC[@]}"
 
-rm -f f1_1990.lib
-echo "built $(pwd)/f1_1990.dll"
+"${CXX[@]}" -O2 -Wall -Wextra -I"$GAME" -I$SDK -D__USE_MINGW_ANSI_STDIO=1 -shared -s \
+    -o f1_1990_tyres.dll src/fq_tyres.cpp
+
+rm -f f1_1990.lib f1_1990_tyres.lib
+echo "built $(pwd)/f1_1990.dll $(pwd)/f1_1990_tyres.dll"

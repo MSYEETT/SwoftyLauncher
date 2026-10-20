@@ -17,6 +17,11 @@
     "message": "1990 careers won't load without it."
   },
   "options": [
+    {
+      "id": "fq_tyre_fix", "type": "toggle", "label": "Dry tyres in Friday qualifying", "default": true,
+      "description": "At the start of Friday qualifying, makes every unused dry set usable (the game hands them back and only allows inters and wets there). Not needed when no_tyre_allocation turns the allocation off.",
+      "binds": "native"
+    },
     { "id": "cars", "type": "slider", "label": "Cars", "min": 22, "max": 26, "step": 4, "default": 22,
       "description": "22 runs the 11 strongest 1990 teams on the 11 stock 2026 team rows. 26 adds Larrousse and Dallara on Custom Grid Size's two extra teams and needs Custom Grid Size enabled with Cars at 26.",
       "binds": "db" },
@@ -91,7 +96,7 @@
     "database": ["db/career.json", "db/grid.json", "db/rules.json", "db/physics.json"],
     "assets": ["db/rules_text.json", "lang/grid.json", "db/career-lang.json"],
     "erp": ["erp/cars/handling.json"],
-    "native": [{ "dll": "native/f1_1990.dll", "early": true }],
+    "native": [{ "dll": "native/f1_1990.dll", "early": true }, { "dll": "native/f1_1990_tyres.dll" }],
     "files": [
       { "source": "files/audio/v12_1990.bdl", "target": "audio/2025/bundles/ferrari_2026.bdl" },
       { "source": "files/audio/v10_1990.bdl", "target": "audio/2025/bundles/renault_2026.bdl" },
