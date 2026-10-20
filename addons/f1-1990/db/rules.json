@@ -1510,488 +1510,52 @@
   {
    "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=las_vegas].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=las_vegas].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=las_vegas].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=las_vegas].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=brazil].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=brazil].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=brazil].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=brazil].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=imola].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=imola].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=imola].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=imola].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monaco].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monaco].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monaco].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monaco].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=mexico].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=mexico].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=mexico].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=mexico].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=hungaroring].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=hungaroring].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=hungaroring].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=hungaroring].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monza].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monza].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monza].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monza].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TyreData_0",
-   "field": "_MandatoryPitstopsOverride_instancecount_",
-   "value": "1",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "_metadata_",
-   "value": "MandatoryPitstopsOverride",
-   "create": true,
-   "type": 2
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "required_pitstops",
-   "value": "0",
-   "create": true,
-   "type": 0
-  },
-  {
-   "op": "set",
-   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TyreData_0.MandatoryPitstopsOverride_0",
-   "field": "session",
-   "value": "race",
-   "create": true,
-   "type": 4
+   "field": "compound_softer",
+   "value": "C4"
   },
   {
    "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=las_vegas].TyreData_0",
-   "field": "compound_softer",
+   "field": "compound_medium",
    "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=las_vegas].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=las_vegas].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=las_vegas].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=las_vegas].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=las_vegas].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
   },
   {
    "op": "set",
@@ -2001,9 +1565,97 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=brazil].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=brazil].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=brazil].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=brazil].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=brazil].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=brazil].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=imola].TyreData_0",
    "field": "compound_softer",
    "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=imola].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=imola].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=imola].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=imola].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=imola].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=imola].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
   },
   {
    "op": "set",
@@ -2013,9 +1665,97 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monaco].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monaco].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monaco].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monaco].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monaco].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monaco].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TyreData_0",
    "field": "compound_softer",
    "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=montreal].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
   },
   {
    "op": "set",
@@ -2025,9 +1765,97 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=mexico].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=mexico].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=mexico].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=mexico].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=mexico].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=mexico].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TyreData_0",
    "field": "compound_softer",
    "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
   },
   {
    "op": "set",
@@ -2037,9 +1865,97 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TyreData_0",
    "field": "compound_softer",
    "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=catalunya].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
   },
   {
    "op": "set",
@@ -2049,9 +1965,97 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=hungaroring].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=hungaroring].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=hungaroring].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=hungaroring].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=hungaroring].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=hungaroring].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TyreData_0",
    "field": "compound_softer",
    "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=spa_francorchamps].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
   },
   {
    "op": "set",
@@ -2061,9 +2065,97 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monza].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monza].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monza].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monza].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monza].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=monza].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TyreData_0",
    "field": "compound_softer",
    "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=madrid].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
   },
   {
    "op": "set",
@@ -2073,9 +2165,797 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=suzuka].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TyreData_0",
    "field": "compound_softer",
    "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=melbourne].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=shanghai].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=shanghai].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=shanghai].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=shanghai].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=shanghai].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=shanghai].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=shanghai].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=bahrain].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=bahrain].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=bahrain].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=bahrain].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=bahrain].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=bahrain].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=bahrain].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=jeddah].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=jeddah].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=jeddah].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=jeddah].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=jeddah].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=jeddah].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=jeddah].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=miami].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=miami].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=miami].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=miami].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=miami].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=miami].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=miami].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=baku].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=baku].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=baku].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=baku].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=baku].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=baku].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=baku].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=singapore].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=singapore].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=singapore].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=singapore].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=singapore].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=singapore].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=singapore].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=texas].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=texas].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=texas].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=texas].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=texas].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=texas].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=texas].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=losail].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=losail].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=losail].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=losail].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=losail].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=losail].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=losail].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=abu_dhabi].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=abu_dhabi].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=abu_dhabi].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=abu_dhabi].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=abu_dhabi].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=abu_dhabi].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=abu_dhabi].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone_reverse].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone_reverse].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone_reverse].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone_reverse].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone_reverse].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone_reverse].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=silverstone_reverse].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria_reverse].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria_reverse].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria_reverse].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria_reverse].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria_reverse].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria_reverse].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=austria_reverse].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort_reverse].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort_reverse].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort_reverse].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort_reverse].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort_reverse].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort_reverse].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=zandvoort_reverse].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=portimao].TyreData_0",
+   "field": "compound_softer",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=portimao].TyreData_0",
+   "field": "compound_medium",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=portimao].TyreData_0",
+   "field": "compound_harder",
+   "value": "C4"
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=portimao].TyreData_0",
+   "field": "_MandatoryPitstopsOverride_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=portimao].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "_metadata_",
+   "value": "MandatoryPitstopsOverride",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=portimao].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "required_pitstops",
+   "value": "0",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_2026].TrackData[_metadata_=portimao].TyreData_0.MandatoryPitstopsOverride_0",
+   "field": "session",
+   "value": "race",
+   "create": true,
+   "type": 4
   },
   {
    "op": "set",
@@ -2104,6 +2984,18 @@
   {
    "op": "set",
    "select": "tyres.visual_compounds.VisualCompound[_metadata_=Soft_f1_26]",
+   "field": "colour",
+   "value": "-1762525"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Soft_f1_26]",
+   "field": "texture_name",
+   "value": "Soft_f1_26"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Soft_f1_26]",
    "field": "display_name",
    "value": "lng_tyre_compound_supersoft"
   },
@@ -2116,6 +3008,114 @@
   {
    "op": "set",
    "select": "tyres.visual_compounds.VisualCompound[_metadata_=Soft_f1_26]",
+   "field": "desc",
+   "value": "lng_tyre_compound_supersoft_desc"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Medium_f1_26]",
+   "field": "material_context",
+   "value": "SuperSoft"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Medium_f1_26]",
+   "field": "material_anim",
+   "value": "tyre_compound_key_super_soft"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Medium_f1_26]",
+   "field": "audio_id",
+   "value": "SuperSoft"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Medium_f1_26]",
+   "field": "icon_code",
+   "value": ":"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Medium_f1_26]",
+   "field": "colour",
+   "value": "-1762525"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Medium_f1_26]",
+   "field": "texture_name",
+   "value": "Soft_f1_26"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Medium_f1_26]",
+   "field": "display_name",
+   "value": "lng_tyre_compound_supersoft"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Medium_f1_26]",
+   "field": "title",
+   "value": "lng_tyre_compound_supersoft_title"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Medium_f1_26]",
+   "field": "desc",
+   "value": "lng_tyre_compound_supersoft_desc"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Hard_f1_26]",
+   "field": "material_context",
+   "value": "SuperSoft"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Hard_f1_26]",
+   "field": "material_anim",
+   "value": "tyre_compound_key_super_soft"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Hard_f1_26]",
+   "field": "audio_id",
+   "value": "SuperSoft"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Hard_f1_26]",
+   "field": "icon_code",
+   "value": ":"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Hard_f1_26]",
+   "field": "colour",
+   "value": "-1762525"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Hard_f1_26]",
+   "field": "texture_name",
+   "value": "Soft_f1_26"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Hard_f1_26]",
+   "field": "display_name",
+   "value": "lng_tyre_compound_supersoft"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Hard_f1_26]",
+   "field": "title",
+   "value": "lng_tyre_compound_supersoft_title"
+  },
+  {
+   "op": "set",
+   "select": "tyres.visual_compounds.VisualCompound[_metadata_=Hard_f1_26]",
    "field": "desc",
    "value": "lng_tyre_compound_supersoft_desc"
   },

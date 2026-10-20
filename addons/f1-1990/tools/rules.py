@@ -20,6 +20,10 @@ CALENDAR = [
     "las_vegas", "brazil", "imola", "monaco", "montreal", "mexico", "austria", "silverstone",
     "catalunya", "hungaroring", "spa_francorchamps", "monza", "madrid", "suzuka", "melbourne",
 ]
+TRACKS = CALENDAR + [
+    "shanghai", "bahrain", "jeddah", "miami", "zandvoort", "baku", "singapore", "texas", "losail",
+    "abu_dhabi", "silverstone_reverse", "austria_reverse", "zandvoort_reverse", "portimao",
+]
 SPRINT_ROWS = ["montreal", "silverstone", "zandvoort", "singapore"]
 INHERITED_SPRINT_ROWS = ["shanghai", "miami"]
 
@@ -125,27 +129,29 @@ def tyres():
     for preset in ["TyresPerSessionPreset", "TyresPerSessionSprintPreset"]:
         row = f"tyres.mandatory_tyre_presets.TyresPerSessionPreset[_metadata_={preset}]"
         ops += [set_(row, session, NONE) for session in ALLOCATION_SESSIONS]
-    for track in CALENDAR:
+    for track in TRACKS:
         tyre = f"{DATASET}.TrackData[_metadata_={track}].TyreData_0"
+        ops += [set_(tyre, f"compound_{c}", "C4") for c in ("softer", "medium", "harder")]
         ops += [
             set_(tyre, "_MandatoryPitstopsOverride_instancecount_", "1", INT),
             set_(f"{tyre}.MandatoryPitstopsOverride_0", "_metadata_", "MandatoryPitstopsOverride", STRING),
             set_(f"{tyre}.MandatoryPitstopsOverride_0", "required_pitstops", "0", INT),
             set_(f"{tyre}.MandatoryPitstopsOverride_0", "session", "race", ID),
         ]
-    for track in CALENDAR:
-        ops.append(set_(f"{DATASET}.TrackData[_metadata_={track}].TyreData_0", "compound_softer", "C4"))
-    visual = "tyres.visual_compounds.VisualCompound[_metadata_=Soft_f1_26]"
-    for field, value in [
-        ("material_context", "SuperSoft"),
-        ("material_anim", "tyre_compound_key_super_soft"),
-        ("audio_id", "SuperSoft"),
-        ("icon_code", ":"),
-        ("display_name", "lng_tyre_compound_supersoft"),
-        ("title", "lng_tyre_compound_supersoft_title"),
-        ("desc", "lng_tyre_compound_supersoft_desc"),
-    ]:
-        ops.append(set_(visual, field, value))
+    for name in ("Soft_f1_26", "Medium_f1_26", "Hard_f1_26"):
+        visual = f"tyres.visual_compounds.VisualCompound[_metadata_={name}]"
+        for field, value in [
+            ("material_context", "SuperSoft"),
+            ("material_anim", "tyre_compound_key_super_soft"),
+            ("audio_id", "SuperSoft"),
+            ("icon_code", ":"),
+            ("colour", "-1762525"),
+            ("texture_name", "Soft_f1_26"),
+            ("display_name", "lng_tyre_compound_supersoft"),
+            ("title", "lng_tyre_compound_supersoft_title"),
+            ("desc", "lng_tyre_compound_supersoft_desc"),
+        ]:
+            ops.append(set_(visual, field, value))
     ops.append(set_(MODE, "has_tyre_warmers", "False"))
     return ops
 
