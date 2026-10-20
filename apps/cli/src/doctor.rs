@@ -75,6 +75,24 @@ pub fn report(store: &Store, session: Option<&Game>) -> (Vec<String>, bool) {
             Err(e) => row("baseline", format!("not checked: {e:#}")),
         }
     }
+    if cfg!(windows) {
+        let dir = session.map_or(&game.dir, |g| &g.dir);
+        let found = swofty_core::compat::session_admin_layers(dir);
+        if found.is_empty() {
+            row("run as admin", "not set".into());
+        }
+        for l in &found {
+            row(
+                "run as admin",
+                format!(
+                    "{} is set to run as administrator {}: modded sessions start only when the launcher \
+                     runs as administrator; untick it on the exe's Properties > Compatibility tab",
+                    l.name,
+                    l.scope()
+                ),
+            );
+        }
+    }
     if !cfg!(windows) {
         row(
             "compat tool",
