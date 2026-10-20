@@ -53,13 +53,19 @@
    "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=team12_2026]",
    "field": "hud_dial",
-   "value": "{{hud_dial}}"
+   "value": "{{hud_dial}}",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=team12_2026]",
    "field": "drs_capable",
-   "value": "False"
+   "value": "False",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
@@ -203,13 +209,19 @@
    "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=team13_2026]",
    "field": "hud_dial",
-   "value": "{{hud_dial}}"
+   "value": "{{hud_dial}}",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
    "select": "entrants.vehicles.vehicle[_metadata_=team13_2026]",
    "field": "drs_capable",
-   "value": "False"
+   "value": "False",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",
@@ -239,7 +251,10 @@
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "audio_id",
-   "value_from": "entrants.teams.team[_metadata_=redbull_26].audio_id"
+   "value_from": "entrants.teams.team[_metadata_=redbull_26].audio_id",
+   "when": {
+    "cars": 26
+   }
   },
   {
    "op": "set",

@@ -67,6 +67,8 @@ python3 addons/f1-1990/tools/grid.py -v
 
 What it writes:
 
+Every op on Custom Grid Size's rows (`team12_*`, `team13_*`, their seats and the two boss rows `andreas_seidl`, `franz_tost`) carries `"when": {"cars": 26}`. At the default `cars` = 22 the grid is the 11 teams on the stock 2026 team rows (no Larrousse, no Dallara) and the addon builds without Custom Grid Size; at 26 Custom Grid Size must be enabled with Cars at 26. `build_cars.py` gates its five ops on those rows the same way.
+
 | Part | Ops |
 |---|---|
 | 13 teams | `set` on each slot's team row: names (`lng_f1990_team_<team>`, `_short`), code, the seven colours, base, nationality, and a 1990 description and hashtag on the 11 rows that carry `story_info`. `set` on its vehicle row: `display_name`, `chassis_name`, `engine_name_override`. Team principal: the boss's `entrants.characters` row gets `lng_f1990_boss_<team>_full/_first/_last`; Larrousse and Dallara get their own boss rows (`andreas_seidl`, `franz_tost`) instead of sharing Williams' and Haas'. `lang.set` on the stock `lng_<team>_boss` keys, which the career's email senders use |
