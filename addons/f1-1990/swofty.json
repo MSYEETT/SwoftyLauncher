@@ -32,6 +32,14 @@
       "binds": "db"
     },
     {
+      "id": "grid_cutscene",
+      "type": "toggle",
+      "label": "Pre-race grid cutscene",
+      "description": "Plays the grid cutscene before the start, which brings the safety car onto the grid.",
+      "default": false,
+      "binds": "db"
+    },
+    {
       "id": "hud_dial", "type": "choice", "label": "Steering wheel display", "default": "f2",
       "description": "The dial the 1990 cars show: the F2 dial, with no ERS or override readouts, or the modern F1 dial.",
       "values": [{ "value": "f2", "label": "F2" }, { "value": "modern", "label": "Modern F1" }], "binds": "db"

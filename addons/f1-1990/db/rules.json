@@ -3224,6 +3224,15 @@
    "value": "red_flag_frequency"
   },
   {
+   "op": "set",
+   "select": "game_setup.game_setup_modes.game_setup_mode[_metadata_=f1_26]",
+   "field": "show_grid_cutscene",
+   "value": "False",
+   "when": {
+    "grid_cutscene": false
+   }
+  },
+  {
    "op": "add-row",
    "table": "drs.drs_allowed_lap",
    "from": "drs.drs_allowed_lap.drs_allowed_lap_group[_metadata_=f1_2024]",

@@ -181,6 +181,9 @@ def race_control():
         set_("options_system.restrictions.inter_value_restriction[_metadata_=rules_and_flags]"
              ".restrictions.value_subset[_metadata_=red_flag_frequency]", "values", "red_flag_frequency"),
     ]
+    grid_cutscene = set_(MODE, "show_grid_cutscene", "False")
+    grid_cutscene["when"] = {"grid_cutscene": False}
+    ops.append(grid_cutscene)
 
     group = "drs.drs_allowed_lap.drs_allowed_lap_group"
     ops.append({
