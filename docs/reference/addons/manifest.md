@@ -49,7 +49,7 @@ Your addon needs a `swofty.json` at its root. This is where you give it a name, 
 |---|---|---|
 | `game` | string | `f1_25`. Any other value is rejected. |
 | `game_builds` | string[] | Semver ranges matched against the build id as `<id>.0.0`. Leave empty to accept every build. |
-| `launcher` | string? | A semver range the launcher must satisfy. |
+| `launcher` | string? | A semver range the launcher must satisfy. On a launcher outside it, installing the addon fails, and so does building a profile that enables it. |
 | `seasons` | string[] | Season tags, such as `f1_2026`. |
 
 ## requires, conflicts, load_after

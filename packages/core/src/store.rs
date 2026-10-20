@@ -248,6 +248,9 @@ impl Store {
         if self.is_builtin(&m.id) {
             return Err(Error::Other(format!("{} is built in", m.id)));
         }
+        if let Some(why) = crate::resolver::launcher_refusal(&m, &crate::update::current_version()) {
+            return Err(Error::Other(why));
+        }
         let dest = self.addons_dir().join(&m.id);
         self.helpers.forget(&m.id);
         if dest.exists() {

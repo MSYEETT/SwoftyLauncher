@@ -37,6 +37,7 @@ pub fn resolve(profile: &Profile, installed: &BTreeMap<String, AddonManifest>) -
     if !addons.contains_key(CORE_ID) {
         return Err(Error::Resolve(format!("{CORE_ID} is missing")));
     }
+    check_launcher(addons.values().copied(), &crate::update::current_version())?;
     for m in addons.values() {
         for r in &m.requires {
             match addons.get(r.id.as_str()) {
@@ -98,6 +99,26 @@ pub fn resolve(profile: &Profile, installed: &BTreeMap<String, AddonManifest>) -
     Ok(Plan { order, warnings })
 }
 
+pub fn launcher_refusal(m: &AddonManifest, launcher: &semver::Version) -> Option<String> {
+    let req = m.compat.launcher.as_ref().filter(|r| !r.matches(launcher))?;
+    Some(format!(
+        "{} needs Swofty Launcher {req}; this is {launcher}. Update the launcher, or turn the addon off",
+        m.id
+    ))
+}
+
+fn check_launcher<'a>(
+    addons: impl Iterator<Item = &'a AddonManifest>,
+    launcher: &semver::Version,
+) -> Result<()> {
+    for m in addons {
+        if let Some(why) = launcher_refusal(m, launcher) {
+            return Err(Error::Resolve(why));
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -138,6 +159,26 @@ mod tests {
         ]);
         assert!(resolve(&profile(&["a.x"]), &installed).is_err());
         assert!(resolve(&profile(&["a.x", "a.y"]), &installed).is_ok());
+    }
+
+    #[test]
+    fn launcher_range_is_enforced() {
+        let newer = AddonManifest::parse(
+            r#"{"schema_version":1,"id":"a.newer","name":"a.newer","version":"1.0.0","author":"t",
+            "compat":{"game":"f1_25","launcher":">=1.0.9"}}"#,
+        )
+        .unwrap();
+        let (_, any) = m("a.any", "");
+        let old = semver::Version::new(1, 0, 8);
+        let new = semver::Version::new(1, 0, 9);
+        assert!(check_launcher([&newer, &any].into_iter(), &new).is_ok());
+        let err = check_launcher([&any, &newer].into_iter(), &old)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("a.newer needs Swofty Launcher >=1.0.9; this is 1.0.8"),
+            "{err}"
+        );
     }
 
     #[test]

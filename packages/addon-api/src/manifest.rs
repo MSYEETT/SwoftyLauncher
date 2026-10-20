@@ -95,6 +95,10 @@ impl Compat {
         let v = Version::new(build_id, 0, 0);
         self.game_builds.is_empty() || self.game_builds.iter().any(|r| r.matches(&v))
     }
+
+    pub fn accepts_launcher(&self, version: &Version) -> bool {
+        self.launcher.as_ref().is_none_or(|r| r.matches(version))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -393,6 +397,13 @@ mod tests {
         assert_eq!(m.version, Version::new(1, 0, 0));
         assert!(m.compat.accepts_build(25_251_167));
         assert!(!m.compat.accepts_build(25_000_000));
+        assert!(m.compat.accepts_launcher(&Version::new(1, 0, 9)));
+        let newer = Compat {
+            launcher: Some(VersionReq::parse(">=1.0.9").unwrap()),
+            ..m.compat.clone()
+        };
+        assert!(newer.accepts_launcher(&Version::new(1, 0, 9)));
+        assert!(!newer.accepts_launcher(&Version::new(1, 0, 8)));
         assert_eq!(m.options[0].binds, Binds::Db);
     }
 
