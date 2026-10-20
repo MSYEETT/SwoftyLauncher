@@ -47,6 +47,7 @@ Driver Career 2026 is the 1990 career: one season of the 16 1990 rounds in order
 Hockenheim track is added), no sprints, no transfer window, 9-6-4-3-2-1 points, and the agent is Flavio Briatore.
 Its careers save in their own `driver_career_1990` container, apart from 2026 careers.
 The **Career year** setting starts the career in 1990 (default) or 2026.
+The season has no New Season Grid Reveal event; the reveal crashes the game with 13 teams.
 
 The agent's English speech banks are replaced with silent copies of the same length (`files/speech/`), so her lines
 show subtitles with no voice; `tools/mute_agent.py <F1 25> <out> [language ...]` writes them for any language. The

@@ -70,9 +70,7 @@
    "season_0.fixed_event_reference_3._metadata_",
    "season_0.fixed_event_reference_3.event_name",
    "season_0.fixed_event_reference_4._metadata_",
-   "season_0.fixed_event_reference_4.event_name",
-   "season_0.fixed_event_reference_5._metadata_",
-   "season_0.fixed_event_reference_5.event_name"
+   "season_0.fixed_event_reference_4.event_name"
   ]
  },
  "ops": [
@@ -124,8 +122,19 @@
    "set": {
     "_metadata_": "F1_career_1990",
     "_season_instancecount_": "1",
+    "season_0._fixed_event_reference_instancecount_": "5",
     "season_0.date_time_0.year": "{{career_year}}",
-    "season_0.date_time_1.year": "{{career_year}}"
+    "season_0.date_time_1.year": "{{career_year}}",
+    "season_0.fixed_event_reference_0._metadata_": "start_season_ref",
+    "season_0.fixed_event_reference_0.event_name": "start_season_2026",
+    "season_0.fixed_event_reference_1._metadata_": "end_season_ref",
+    "season_0.fixed_event_reference_1.event_name": "end_season_2026",
+    "season_0.fixed_event_reference_2._metadata_": "season_break_ref",
+    "season_0.fixed_event_reference_2.event_name": "season_break_2026",
+    "season_0.fixed_event_reference_3._metadata_": "car_reveal_ref",
+    "season_0.fixed_event_reference_3.event_name": "car_reveal_2026",
+    "season_0.fixed_event_reference_4._metadata_": "sliding_scale_refresh_ref",
+    "season_0.fixed_event_reference_4.event_name": "sliding_scale_refresh_26"
    }
   },
   {

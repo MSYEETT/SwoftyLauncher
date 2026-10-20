@@ -46,6 +46,14 @@ TRACK_LIST = "F1_1990"
 EVENT_LIST = "F1_career_1990"
 SAVE_NAME = "driver_career_1990"
 
+SEASON_EVENTS = [
+    ("start_season_ref", "start_season_2026"),
+    ("end_season_ref", "end_season_2026"),
+    ("season_break_ref", "season_break_2026"),
+    ("car_reveal_ref", "car_reveal_2026"),
+    ("sliding_scale_refresh_ref", "sliding_scale_refresh_26"),
+]
+
 AGENT_NAME = {"jap": "フラビオ", "zhs": "弗拉维奥"}
 AGENT_FULL_NAME = {"jap": "フラビオ・ブリアトーレ", "zhs": "弗拉维奥·布里亚托雷"}
 STOCK_NAME = {"jap": "エレナ", "zhs": "埃琳娜"}
@@ -86,14 +94,18 @@ def event_list_ops():
     for d in range(2):
         fields += [f"{s}.date_time_{d}.{f}" for f in
                    ("_metadata_", "day", "daylight_saving", "hour", "minute", "month", "second", "year")]
-    for k in range(6):
+    for k in range(len(SEASON_EVENTS)):
         fields += [f"{s}.fixed_event_reference_{k}._metadata_", f"{s}.fixed_event_reference_{k}.event_name"]
     row = {
         "_metadata_": EVENT_LIST,
         "_season_instancecount_": "1",
+        f"{s}._fixed_event_reference_instancecount_": str(len(SEASON_EVENTS)),
         f"{s}.date_time_0.year": "{{career_year}}",
         f"{s}.date_time_1.year": "{{career_year}}",
     }
+    for k, (ref, event) in enumerate(SEASON_EVENTS):
+        row[f"{s}.fixed_event_reference_{k}._metadata_"] = ref
+        row[f"{s}.fixed_event_reference_{k}.event_name"] = event
     op = {
         "op": "add-row",
         "table": "schedule.event_lists",
