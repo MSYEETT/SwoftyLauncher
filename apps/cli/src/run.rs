@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::io::{IsTerminal, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitCode, ExitStatus, Stdio};
@@ -7,11 +8,13 @@ use anyhow::{Context, Result, bail};
 use clap::Args;
 use swofty_core::crash::{Event, LogScan, Symbols, fatal_name};
 use swofty_core::install::{Game, Installer};
-use swofty_core::process::{descends_from, game_processes, game_running, stop_game, stop_process};
+use swofty_core::process::{
+    descends_from, game_processes, game_running, steamvr_running, stop_game, stop_process,
+};
 use swofty_core::recovery::{Scope, SessionLock};
 use swofty_core::session::{
-    Config, DEFAULT_WINEDEBUG, LOADER_LOG, LOADER_MARK, LaunchRequest, LogMark, parse_cpu_list,
-    parse_steam_command,
+    Config, DEFAULT_WINEDEBUG, LOADER_LOG, LOADER_MARK, LaunchMode, LaunchRequest, LogMark, game_args,
+    parse_cpu_list, parse_steam_command,
 };
 use swofty_core::store::Store;
 use swofty_core::{GAME_EXE, STEAM_APP_ID, steam};
@@ -28,6 +31,11 @@ pub struct RunArgs {
     restart: bool,
     #[arg(long, help = "Launch through Proton directly instead of asking Steam")]
     direct: bool,
+    #[arg(
+        long,
+        help = "Start F1 25 in VR, like Steam's VR launch option (passes -vr; on Linux, starts SteamVR first)"
+    )]
+    vr: bool,
     #[arg(
         long,
         help = "Build and install the profile (database, tracks) before the game starts, and roll it back when it exits"
@@ -86,9 +94,17 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
         apply: args.apply,
     };
     write_json(&store.root.join("state/launch.json"), &request)?;
+    let mode = if args.vr {
+        LaunchMode::Vr
+    } else {
+        LaunchMode::Normal
+    };
+    if mode.is_vr() && !cfg!(windows) {
+        ensure_steamvr();
+    }
     let loader = game.join(LOADER_LOG);
     let before = LogMark::read(&loader);
-    let mut wrapper = launch(store, &game, args.direct)?;
+    let mut wrapper = launch(store, &game, args.direct, mode)?;
     let started = Instant::now();
     let dir = loop {
         if let Some(d) = store
@@ -450,6 +466,12 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
     env.sort();
     std::fs::write(dir.join("env.txt"), env.join("\n") + "\n")?;
     let cmd = parse_steam_command(&args.steam_command);
+    let mode = if args.vr {
+        LaunchMode::Vr
+    } else {
+        LaunchMode::of(cmd.game_args())
+    };
+    let extra = game_args(cmd.game_args(), mode);
     let proton = cmd.proton.map(PathBuf::from).or_else(|| {
         let tools = std::env::var("STEAM_COMPAT_TOOL_PATHS").ok()?;
         Some(PathBuf::from(tools.split(':').next()?).join("proton"))
@@ -516,7 +538,8 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
             }
             None => Command::new(game.join(exe)),
         };
-        c.current_dir(game)
+        c.args(&extra)
+            .current_dir(game)
             .env_clear()
             .envs(&game_env)
             .env("PROTON_LOG", "1")
@@ -539,6 +562,9 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
     } else {
         GAME_EXE
     };
+    if mode.is_vr() {
+        say("info", &format!("starting F1 25 in VR ({})", extra.join(" ")));
+    }
     let status = wait_game(&mut spawn(target, "game_stdout.log")?)?;
     let code = status.code().unwrap_or(-1);
     std::fs::write(dir.join("exit_code"), format!("{code}\n"))?;
@@ -641,7 +667,71 @@ fn spawn_logged(c: &mut Command, log: &Path) -> Result<Child> {
         .spawn()?)
 }
 
-fn launch(store: &Store, game: &Path, direct: bool) -> Result<Wrapper> {
+const STEAMVR_START_TIMEOUT: Duration = Duration::from_secs(90);
+
+/// Steam starts SteamVR before a `vr` launch option. Proton reads the VR
+/// runtime when the game process starts, so a direct launch does the same.
+fn ensure_steamvr() {
+    if steamvr_running() {
+        say("info", "VR: SteamVR is running");
+        return;
+    }
+    if !steam::find_game().is_some_and(|g| steam::steamvr_installed(&g.steam_root)) {
+        say(
+            "info",
+            "VR: SteamVR is not installed; F1 25 needs it to start in VR (install SteamVR from Steam)",
+        );
+        return;
+    }
+    say(
+        "info",
+        "VR: starting SteamVR first, as Steam does for its VR launch",
+    );
+    let asked = Command::new("steam")
+        .args(["-applaunch", &steam::STEAMVR_APP_ID.to_string()])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+    if let Err(e) = asked {
+        say("info", &format!("VR: could not ask Steam to start SteamVR: {e}"));
+        return;
+    }
+    let started = Instant::now();
+    while !steamvr_running() {
+        if started.elapsed() > STEAMVR_START_TIMEOUT {
+            say(
+                "info",
+                &format!(
+                    "VR: SteamVR did not start within {} s; launching F1 25 anyway",
+                    STEAMVR_START_TIMEOUT.as_secs()
+                ),
+            );
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    say("info", "VR: SteamVR is running");
+}
+
+fn steam_launch_args(mode: LaunchMode) -> Vec<String> {
+    ["-applaunch".to_owned(), STEAM_APP_ID.to_string()]
+        .into_iter()
+        .chain(mode.args().iter().map(|a| (*a).to_owned()))
+        .collect()
+}
+
+fn wrapper_command(proton: Option<&Path>, game: &Path, mode: LaunchMode) -> Vec<OsString> {
+    let mut out: Vec<OsString> = vec!["--".into()];
+    if let Some(p) = proton {
+        out.push(p.join("proton").into());
+        out.push("waitforexitandrun".into());
+    }
+    out.push(game.join(GAME_EXE).into());
+    out.extend(mode.args().iter().map(OsString::from));
+    out
+}
+
+fn launch(store: &Store, game: &Path, direct: bool, mode: LaunchMode) -> Result<Wrapper> {
     let install = steam::find_game();
     let wrapped = install
         .as_ref()
@@ -682,12 +772,9 @@ fn launch(store: &Store, game: &Path, direct: bool) -> Result<Wrapper> {
             .env("STEAM_COMPAT_APP_ID", STEAM_APP_ID.to_string())
             .env("SteamAppId", STEAM_APP_ID.to_string())
             .env("SteamGameId", STEAM_APP_ID.to_string());
-            c.arg("--")
-                .arg(proton.join("proton"))
-                .arg("waitforexitandrun")
-                .arg(game.join(GAME_EXE));
+            c.args(wrapper_command(Some(&proton), game, mode));
         } else {
-            c.arg("--").arg(game.join(GAME_EXE));
+            c.args(wrapper_command(None, game, mode));
         }
         if which("steam-run") {
             let mut fhs = Command::new("steam-run");
@@ -717,11 +804,18 @@ fn launch(store: &Store, game: &Path, direct: bool) -> Result<Wrapper> {
         })
     } else {
         Command::new("steam")
-            .args(["-applaunch", &STEAM_APP_ID.to_string()])
+            .args(steam_launch_args(mode))
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()?;
-        say("info", "asked Steam to launch F1 25; waiting for the wrapper");
+        say(
+            "info",
+            if mode.is_vr() {
+                "asked Steam to launch F1 25 in VR; waiting for the wrapper"
+            } else {
+                "asked Steam to launch F1 25; waiting for the wrapper"
+            },
+        );
         Ok(Wrapper {
             child: None,
             log: PathBuf::new(),
@@ -1175,6 +1269,44 @@ mod tests {
         );
         assert!(err.ends_with("Nothing from SwoftyMod ran."), "{err}");
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    fn strings(args: &[OsString]) -> Vec<String> {
+        args.iter().map(|a| a.to_string_lossy().into_owned()).collect()
+    }
+
+    #[test]
+    fn a_vr_launch_reaches_the_game_on_every_path() {
+        let game = Path::new("/games/F1 25");
+        let proton = Path::new("/steam/compatibilitytools.d/GE");
+        let direct = strings(&wrapper_command(Some(proton), game, LaunchMode::Vr));
+        assert_eq!(
+            direct,
+            [
+                "--",
+                "/steam/compatibilitytools.d/GE/proton",
+                "waitforexitandrun",
+                "/games/F1 25/F1_25.exe",
+                "-vr"
+            ]
+        );
+        let seen = parse_steam_command(&direct[1..]);
+        assert_eq!(seen.game_args(), ["-vr"]);
+        assert_eq!(LaunchMode::of(seen.game_args()), LaunchMode::Vr);
+        assert_eq!(game_args(seen.game_args(), LaunchMode::Vr), ["-vr"]);
+
+        let flat = strings(&wrapper_command(Some(proton), game, LaunchMode::Normal));
+        assert!(parse_steam_command(&flat[1..]).game_args().is_empty());
+
+        let native = strings(&wrapper_command(None, game, LaunchMode::Vr));
+        assert_eq!(native, ["--", "/games/F1 25/F1_25.exe", "-vr"]);
+        assert_eq!(parse_steam_command(&native[1..]).game_args(), ["-vr"]);
+
+        assert_eq!(steam_launch_args(LaunchMode::Normal), ["-applaunch", "3059520"]);
+        assert_eq!(
+            steam_launch_args(LaunchMode::Vr),
+            ["-applaunch", "3059520", "-vr"]
+        );
     }
 
     #[test]
