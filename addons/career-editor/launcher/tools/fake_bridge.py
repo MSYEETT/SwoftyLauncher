@@ -110,9 +110,11 @@ rp = 3_420
 history = [{"type": 27, "type_name": "eMyTeamReward", "amount": 2_000_000, "day": 70}, {"type": 3, "type_name": "eSponsorIncome", "amount": 6_500_000, "day": 77},
            {"type": 5, "type_name": "eFacilityUpkeep", "amount": -1_250_000, "day": 84}, {"type": 9, "type_name": "eDriverSalary", "amount": -3_400_000, "day": 84},
            {"type": 3, "type_name": "eSponsorIncome", "amount": 6_500_000, "day": 91}]
-TRACKS = ["rw_australia", "rw_china", "rw_japan", "rw_bahrain", "rw_saudi_arabia", "rw_miami", "rw_imola", "rw_monaco", "rw_spain", "rw_canada",
-          "rw_austria", "rw_great_britain", "rw_belgium", "rw_hungary", "rw_netherlands", "rw_italy", "rw_azerbaijan", "rw_singapore",
-          "rw_usa", "rw_mexico", "rw_brazil", "rw_las_vegas", "rw_qatar", "rw_abu_dhabi"]
+TRACKS = ["rw_melbourne_26", "rw_shanghai_26", "rw_suzuka_26", "rw_bahrain_26", "rw_jeddah_26", "rw_miami_26", "rw_montreal_26", "rw_monaco_26",
+          "rw_catalunya_26", "rw_austria_26", "rw_silverstone_26", "rw_spa_francorchamps_26", "rw_hungaroring_26", "rw_zandvoort_26",
+          "rw_monza_26", "rw_madrid_26", "rw_baku_26", "rw_singapore_26", "rw_texas_26", "rw_mexico_26", "rw_brazil_26", "rw_las_vegas_26",
+          "rw_losail_26", "rw_abu_dhabi_26"]
+SEEN = set(TRACKS)
 cur = 8
 order = list(TRACKS)
 
@@ -306,13 +308,22 @@ def apply(op, args):
         bf = {"adjustments": [dict(a) for a in adjustments if "driver" not in args or a["driver_stat_id"] == args["driver"]]}
         adjustments[:] = [a for a in adjustments if "driver" in args and a["driver_stat_id"] != args["driver"]]
         return True, None, bf, {"adjustments": []}
-    if op == "season.calendar.set_round":
-        bf = {"rounds": list(order)}; order[args["round"] - 1] = args["weekend"]
-        return True, None, bf, {"rounds": list(order)}
-    if op == "season.calendar.add_round":
-        if args["weekend"] in order:
+    if op in ("season.calendar.set_round", "season.calendar.add_round"):
+        w = args["weekend"]
+        if w in order:
             return False, "duplicate_weekend: already in this season", None, None
-        bf = {"rounds": list(order)}; order.insert(args.get("at", len(order) + 1) - 1, args["weekend"])
+        if w not in SEEN:
+            if args.get("verified") is not True:
+                return False, "unknown_weekend: not in this championship and not verified", None, None
+            if not isinstance(args.get("track_stat_id"), int) or not 0 <= args["track_stat_id"] < 255:
+                return False, "unknown_track: no usable track id", None, None
+        print(f"{op} {w} track_stat_id={args.get('track_stat_id')} verified={args.get('verified')}", flush=True)
+        SEEN.add(w)
+        bf = {"rounds": list(order)}
+        if op == "season.calendar.set_round":
+            order[args["round"] - 1] = w
+        else:
+            order.insert(args.get("at", len(order) + 1) - 1, w)
         return True, None, bf, {"rounds": list(order)}
     if op == "season.calendar.remove_round":
         bf = {"rounds": list(order)}; del order[args["round"] - 1]

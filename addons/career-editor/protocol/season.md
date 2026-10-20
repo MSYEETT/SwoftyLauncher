@@ -35,9 +35,11 @@ Every op logs one line: `[career-editor] season.<op> … <before> -> <after>`, o
 - **Rounds** are 1-based (`round`). The current round is `season.round`. Only rounds strictly after
   the current round are editable (`calendar.editable_from`).
 - **Weekends** are named by the gamedb track event they were built from (`rw_bahrain`,
-  `rw_monaco_26`, …). The save stores these names, never numeric track ids, so the 2026 track-id
-  renumbering does not apply. Community tracks from the Mods page appear under the event name their
-  slot uses (Sepang in the `bahrain24` slot, Okayama in its copied slot).
+  `rw_monaco_26`, …). The season saves the names in round order (`weekend_names[]`); each weekend
+  also saves its own `track_stat_id` (u8, the Weekend deserialiser 0x140afbef0 reads the field
+  `track_stat_id` into weekend+0x278), and the game indexes its runtime track table with that id
+  (0x14309e220). Community tracks have no event of their own: the launcher names their weekends `rw_<code>` or
+  `rw_<code>_26` and sends the track id (see below).
 - **Drivers** in the standings are the game's entrant key (`key`, u32): the low byte is the session
   participant id, the high 16 bits the driver stat id (`driver_stat_id`). Teams use `team_stat_id`.
 - **Sessions** use the game's session id (`session`, u32). Within a round the last points-scoring
@@ -140,10 +142,24 @@ duplicates). A new weekend is built with its real `track_stat_id` (weekend+0x278
 placeholder and some readers index the track table with it unchecked, so it is never used:
 - a name that already appears in any season of this championship takes that weekend's track id;
 - any other name needs `"verified": true` and `"track_stat_id": 0..254`, meaning the launcher resolved
-  both from the active profile's gamedb (community tracks included: Sepang under the `bahrain24` slot's
-  event, Okayama under its copied slot's event). The plugin cannot list the track-event tables itself
+  both from the active profile's last build. The plugin cannot list the track-event tables itself
   (their names are only hashed in the gamedb), and a name or id that does not resolve would break the
   weekend when it starts, so the launcher must only send what the active profile defines.
+
+How the launcher resolves them (host call `profile_tracks`, launcher 1.0.11; it reads the gamedb in
+the profile's latest build folder, or the stock one before the first build):
+
+| Track | Weekend name | `track_stat_id` |
+|---|---|---|
+| Stock | its event: `schedule.all_track_events.fixed_event_N._metadata_` whose `activity` names `schedule.activities.activity_race_weekend_N`, whose `track` names the `tracks.Track_N` row; the `_26` event when this season's names end in `_26`, never a `_beta` event | that row's `statId` (suzuka 13, monaco 5) |
+| Community, new code (Okayama, `copy_slot`) | `rw_<code>` / `rw_<code>_26` (no event exists; activation adds none) | the cloned row's `statId` (the next free id, 43 on a stock database) |
+| Community, filling a slot (Sepang in `bahrain24`) | `rw_bahrain24` / `rw_bahrain24_26` (the slot has no event) | the slot row's `statId` (35) |
+
+A track is offered only when its code is in the `2025` or `2026` content set's `available_tracks` (the
+Grand Prix list; activation adds community tracks wherever their base track is listed) and, for a
+stock track, when it has an event. Tracks already on this season's calendar are not offered again, and
+a weekend name this championship knows whose track the build no longer has is listed as not offered.
+Undo of `set_round` / `remove_round` sends `verified` and the track id when the old name resolves.
 
 Errors: `unknown_weekend` (new name without `verified`), `unknown_track` (no usable track id),
 `duplicate_weekend`.

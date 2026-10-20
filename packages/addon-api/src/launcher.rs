@@ -105,6 +105,36 @@ pub trait GameFiles: Send + Sync {
     fn steam_save_dir(&self) -> Option<PathBuf> {
         None
     }
+
+    fn profile_tracks(&self, profile: &str) -> Result<Option<ProfileTracks>> {
+        let _ = profile;
+        Ok(None)
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ProfileTracks {
+    pub built: bool,
+    #[serde(default)]
+    pub buildhash: Option<String>,
+    #[serde(default)]
+    pub tracks: Vec<ProfileTrack>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ProfileTrack {
+    pub code: String,
+    pub stat_id: u32,
+    #[serde(default)]
+    pub events: Vec<String>,
+    #[serde(default)]
+    pub playable: bool,
+    #[serde(default)]
+    pub modded: bool,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub addon: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

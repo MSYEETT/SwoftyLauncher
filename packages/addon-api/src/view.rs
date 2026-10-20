@@ -75,6 +75,26 @@ pub enum Block {
     Grid(Grid),
     Form(Form),
     Tabs(Tabs),
+    Image(Image),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Image {
+    pub path: PathBuf,
+    pub width: f32,
+    pub height: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub caption: Option<String>,
+    #[serde(default)]
+    pub fit: Fit,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Fit {
+    #[default]
+    Cover,
+    Contain,
 }
 
 /// A row of tabs. Clicking an enabled tab that isn't active sends `Event::Tab`.
@@ -628,7 +648,15 @@ pub struct SelectField {
 #[serde(untagged)]
 pub enum Choice {
     Text(String),
-    Spec { value: String, label: String },
+    Spec {
+        value: String,
+        label: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        image: Option<PathBuf>,
+    },
+    Heading {
+        heading: String,
+    },
 }
 
 impl Choice {
@@ -636,6 +664,7 @@ impl Choice {
         match self {
             Self::Text(t) => t,
             Self::Spec { value, .. } => value,
+            Self::Heading { .. } => "",
         }
     }
 
@@ -643,6 +672,18 @@ impl Choice {
         match self {
             Self::Text(t) => t,
             Self::Spec { label, .. } => label,
+            Self::Heading { heading } => heading,
+        }
+    }
+
+    pub fn is_heading(&self) -> bool {
+        matches!(self, Self::Heading { .. })
+    }
+
+    pub fn image(&self) -> Option<&std::path::Path> {
+        match self {
+            Self::Spec { image, .. } => image.as_deref(),
+            _ => None,
         }
     }
 }
@@ -1017,6 +1058,36 @@ mod tests {
     }
 
     #[test]
+    fn image_blocks_parse_inside_cards_and_default_to_cover() {
+        let card: Block = serde_json::from_value(serde_json::json!({ "card": { "blocks": [
+            { "image": { "path": "/c/helmet-ab12.png", "width": 240, "height": 135, "caption": "Helmet" } },
+            { "image": { "path": "/d/suit.png", "width": 96, "height": 96, "fit": "contain" } }
+        ] } }))
+        .unwrap();
+        let Block::Card(card) = &card else { panic!("card") };
+        let Block::Image(helmet) = &card.blocks[0] else {
+            panic!("image")
+        };
+        assert_eq!(
+            (
+                helmet.path.to_str(),
+                helmet.width,
+                helmet.height,
+                helmet.caption.as_deref(),
+                helmet.fit
+            ),
+            (Some("/c/helmet-ab12.png"), 240., 135., Some("Helmet"), Fit::Cover)
+        );
+        let Block::Image(suit) = &card.blocks[1] else {
+            panic!("image")
+        };
+        assert_eq!((suit.fit, suit.caption.is_none()), (Fit::Contain, true));
+        let json = serde_json::to_value(Block::Card(card.clone())).unwrap();
+        assert_eq!(json["card"]["blocks"][1]["image"]["fit"], "contain");
+        assert!(json["card"]["blocks"][1]["image"].get("caption").is_none());
+    }
+
+    #[test]
     fn dashboard_blocks_parse_from_the_documented_json() {
         let view: View = serde_json::from_value(serde_json::json!({
             "subtitle": "s", "tick": true,
@@ -1097,7 +1168,7 @@ mod tests {
                 { "number": { "id": "cash", "label": "Cash", "value": 12400000, "min": 0, "max": 2147483647, "step": 100000, "unit": "$" } },
                 { "slider": { "id": "rp", "value": 340, "min": 0, "max": 500, "step": 10 } },
                 { "text": { "id": "name", "value": "Swofty", "placeholder": "Team", "max_len": 32 } },
-                { "select": { "id": "weather", "value": "dry", "options": [ { "value": "dry", "label": "Dry" }, "Light rain" ] } },
+                { "select": { "id": "weather", "value": "dry", "options": [ { "value": "dry", "label": "Dry" }, "Light rain", { "heading": "Wet" }, { "value": "storm", "label": "Storm", "image": "/c/storm-1.png" } ] } },
                 { "toggle": { "id": "lock", "value": true, "disabled": true } }
             ]
         }))
@@ -1122,6 +1193,16 @@ mod tests {
         };
         assert_eq!(select.options[1].value(), "Light rain");
         assert_eq!(select.options[0].label(), "Dry");
+        assert!(select.options[2].is_heading() && !select.options[0].is_heading());
+        assert_eq!(
+            (select.options[2].label(), select.options[2].value()),
+            ("Wet", "")
+        );
+        assert_eq!(
+            select.options[3].image(),
+            Some(std::path::Path::new("/c/storm-1.png"))
+        );
+        assert!(select.options[0].image().is_none() && select.options[2].image().is_none());
         assert!(!form.live && !form.disabled);
         let again: Form = serde_json::from_value(serde_json::to_value(&form).unwrap()).unwrap();
         assert_eq!(again, form);

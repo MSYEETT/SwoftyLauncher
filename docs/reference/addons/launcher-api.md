@@ -223,6 +223,7 @@ While handling a request, you can call back to the launcher. Include an `id` whe
 | `addon_game_dir` *(1.0.10)* | — | `<game>/swofty/addons/<id>/` for your addon, or `null` |
 | `game_status` *(1.0.10)* | — | `{ running, pid, since, session }` |
 | `steam_save_dir` *(1.0.10)* | — | `<steam>/userdata/<steamid3>/3059520/remote/`, or `null` |
+| `profile_tracks` *(1.0.11)* | — | the tracks in the active profile's last build, or `null` ([Profile tracks](#profile-tracks)) |
 | `invalidate` *(notification, 1.0.10)* | `{ section }` | — ([Live pages](#live-pages)) |
 
 ```json
@@ -253,6 +254,28 @@ While handling a request, you can call back to the launcher. Include an `id` whe
 | `pid` | The game's process id, or `null` when it isn't running. |
 | `since` | When the process started, in Unix seconds, or `null` when it isn't running or the OS doesn't say (Windows). |
 | `session` | The Swofty session that started this run: its folder name under `$DATA/sessions/`. A session exists when the game started through Swofty, from **Play** or from Steam with the `swofty run` wrapper. It is `null` when the game isn't running or started without Swofty. |
+
+#### Profile tracks {#profile-tracks}
+
+`profile_tracks` reads the game database in the active profile's last build, or the game's own database before the profile's first build. It is `null` when no game is found.
+
+```json
+{ "built": true, "buildhash": "5d5224af722f2bfc", "tracks": [
+  { "code": "suzuka", "stat_id": 13, "events": ["rw_suzuka", "rw_suzuka_26"], "playable": true, "modded": false, "name": null, "addon": null },
+  { "code": "okayama", "stat_id": 43, "events": [], "playable": true, "modded": true, "name": "Okayama", "addon": "teamsimplified.mods" }
+] }
+```
+
+| Field | Value |
+|---|---|
+| `built` | `false` before the profile's first build: the tracks are the stock ones. |
+| `buildhash` | The build the tracks come from, or `null`. |
+| `code` | The `tracks.Track` row's label. |
+| `stat_id` | Its `statId`, the track id the game stores. |
+| `events` | Career events (`schedule.all_track_events`) whose race-weekend activity names this track. |
+| `playable` | `true` when the `2025` or `2026` content set lists the track for Grand Prix. |
+| `modded` | `true` when a track package in this build added or filled the row. |
+| `name`, `addon` | The package's `track_name` and the addon that added it, for a modded track. |
 
 The template uses state to track which items are on, reading it here and writing it when the selection changes:
 
@@ -455,6 +478,12 @@ if let Some(toggle) = event.get("toggle") {
 
 **`grid`**: blocks side by side. `{ columns, blocks }`: `columns` is a count from 1 to 4 for equal columns (default 2), or a list of relative widths such as `[2, 1]`. The blocks fill the columns left to right, then the next row; blocks in a row share its height. On a page too narrow for about 280 px per column, the grid becomes one column.
 
+**`image`** *(1.0.11)*: a picture from your plugin's `cache_dir` or `data_dir`. `{ path, width, height, caption, fit }`: `path` (absolute), `width` and `height` (in pixels) are required. `width` shrinks to the space the block is in. `fit` is `cover` (default), which fills the box and crops, or `contain`, which shows the whole picture inside the box. `caption` is a muted line under it. A path outside those two folders shows an empty box. An older launcher fails the view.
+
+```json
+{ "image": { "path": "/home/you/.local/share/swofty/cache/addons/example.launcher-addon/helmets/helmet_042-91c0.png", "width": 240, "height": 135, "caption": "Carbon stripe", "fit": "contain" } }
+```
+
 ## Tabs {#tabs}
 
 *Launcher 1.0.10.* A `tabs` block draws a row of tabs, so one sidebar page can hold several views:
@@ -517,8 +546,12 @@ Every field takes `id` *(required: its key in `values`)*, `label`, `help` (a mut
 | `number` | `value`, `min`, `max`, `step` (default `1`), `unit` (shown after the number) | a number |
 | `slider` | `value`, `min` (default `0`), `max` (default `100`), `step` (default `1`), `unit` | a number |
 | `text` | `value`, `placeholder`, `max_len` | a string |
-| `select` | `value`, `options`: strings, or `{ value, label }` objects; `search` *(1.0.11)* | the chosen option's `value` (a string option is its own value) |
+| `select` | `value`, `options`: strings, `{ value, label }` objects (with an optional `image` *(1.0.11)*), or `{ heading }` group titles *(1.0.11)*; `search` *(1.0.11)* | the chosen option's `value` (a string option is its own value) |
 | `toggle` | `value` | `true` or `false` |
+
+A `{ "heading": "Modded tracks" }` option starts a group in the select's menu: its title shows above the options that follow it, with a line above it unless it's the first group, and it can't be picked. A search that matches a group's title keeps the whole group. An older launcher fails the view, so send it only to 1.0.11 or later.
+
+*Launcher 1.0.11.* A `{ value, label }` option can carry `"image"`: the absolute path of a PNG or JPEG under your plugin's `cache_dir` or `data_dir`. The menu shows it as a thumbnail before the label, and the closed field shows the picked option's thumbnail. When some options have an image, the others get an empty square. A path outside those two folders shows no image. The launcher caches an image by its path, so write changed content under a new file name. An older launcher ignores `image`.
 
 A number is clamped to `min`–`max` and rounded to `step` when it's committed, and is sent as an integer when the step and the value are whole. Up and Down step a focused number field.
 
@@ -526,7 +559,11 @@ A select's list opens below it, at most 320 pixels tall, and scrolls when the op
 
 ```json
 { "select": { "id": "helmet", "label": "Helmet", "value": "helmet_042", "search": true,
-  "options": [ { "value": "helmet_001", "label": "Classic red" }, { "value": "helmet_042", "label": "Carbon stripe" } ] } }
+  "options": [
+    { "heading": "Team" },
+    { "value": "helmet_001", "label": "Classic red", "image": "/home/you/.local/share/swofty/cache/addons/example.launcher-addon/helmets/helmet_001-3fa2.png" },
+    { "heading": "Custom" },
+    { "value": "helmet_042", "label": "Carbon stripe", "image": "/home/you/.local/share/swofty/cache/addons/example.launcher-addon/helmets/helmet_042-91c0.png" } ] } }
 ```
 
 How a form behaves:
