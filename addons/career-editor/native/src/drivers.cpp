@@ -1279,12 +1279,6 @@ EntrantWriteData entrant_data(const Row &driver_row, const Row &seat_row)
     return d;
 }
 
-bool same_seat(const EntrantRecord &x, const EntrantRecord &y)
-{
-    return x.vehicle_ref == y.vehicle_ref && x.driver_reg_value == y.driver_reg_value &&
-           x.vehicle_customisation == y.vehicle_customisation && x.badge_stat_id == y.badge_stat_id;
-}
-
 bool same_identity(const EntrantRecord &x, const EntrantRecord &y)
 {
     return std::memcmp(reinterpret_cast<const uint8_t *>(&x) + sizeof(void *),
@@ -1417,6 +1411,114 @@ bool apply_row(uintptr_t entity, const MoveSink &sink, const Row &id_row, uint32
     return true;
 }
 
+bool teamless(const EntrantRecord &r)
+{
+    return (r.team_stat_id & 0xffff0000u) == kNoKey;
+}
+
+// Driver Career: release the outgoing driver's contract the way its signing does (state 3, the
+// day, and the value the entity's component registry returns from vtable slot +0x108).
+constexpr uintptr_t kVtRegistryValue = 0x108; // component registry vtable slot (not a field)
+constexpr uint8_t kContractReleased = 3;     // Career_Set_DriverContractState state the replace path writes
+constexpr uint8_t kReasonReleased = 1;       // MessageDriverMoveConfirmed reason for a driver taken off the grid
+constexpr uint32_t kNoSeatValue = 0xffff0012u; // EntrantRecord::const_ffff0012 of a row without a seat
+constexpr size_t kContractSlot = 16;          // DriverCareerContractOwner slots {?, DriverContract *}
+
+using RegistryValueFn = uint32_t (*)(void *registry);
+using WeekendFn2 = uintptr_t (*)(void *self);
+
+bool release_contract(uintptr_t entity, const MoveSink &sink, uint32_t driver, bool &found)
+{
+    found = false;
+    using M = DriverCareerContractsManagerComponent;
+    uintptr_t owner = rdv<uintptr_t>(sink.manager + offsetof(M, contract_owner));
+    uintptr_t time = rdv<uintptr_t>(sink.manager + offsetof(M, career_time));
+    uintptr_t b;
+    size_t n;
+    if (!owner || !time || !vec(owner + offsetof(DriverCareerContractOwner, contracts_begin), kContractSlot, 4096, b, n))
+        return false;
+    uintptr_t contract = 0;
+    for (size_t i = 0; i < n && !contract; ++i) {
+        uintptr_t c = rdv<uintptr_t>(b + i * kContractSlot + sizeof(void *));
+        if (c && rdv<uint32_t>(c + offsetof(DriverContract, driver)) == driver)
+            contract = c;
+    }
+    if (!contract)
+        return true;
+    uintptr_t registry = entity + offsetof(CareerEntity, component_registry);
+    uintptr_t vt = rdv<uintptr_t>(registry);
+    uintptr_t fn = vt ? rdv<uintptr_t>(vt + kVtRegistryValue) : 0;
+    if (!swofty::mem::in_image(fn))
+        return false;
+    uint32_t value = reinterpret_cast<RegistryValueFn>(fn)(reinterpret_cast<void *>(registry));
+    uint16_t day = static_cast<uint16_t>(rdv<uint32_t>(time + offsetof(CareerTimeComponent, current_minutes)) /
+                                         kMinutesPerDay);
+    Career_Set_DriverContractState(reinterpret_cast<void *>(contract), day, kContractReleased, value);
+    found = true;
+    return true;
+}
+
+// The end of every Driver Career signing batch: the changed drivers between the current line-up and
+// the weekend's line-up (Career_Build_LineupChanges), posted as MessageDriverMovesFinalised_upgrades,
+// _recognition, then MessageDriverMovesFinalised. The _upgrades handler creates the team modifiers a
+// newly seated driver needs (the null-modifier crash of a bare swap) and moves the per-driver state.
+constexpr uintptr_t kVtCurrentWeekend = 0xa0; // weekend source vtable slot returning the current weekend
+constexpr uintptr_t kWeekendEntrants = 0x18;  // TODO(struct): season lane Weekend: its start-of-weekend entrant vector object
+
+bool finalise_moves(uintptr_t entity, const MoveSink &sink, uint64_t &changes)
+{
+    changes = 0;
+    using M = DriverCareerContractsManagerComponent;
+    uintptr_t src = rdv<uintptr_t>(sink.manager + offsetof(M, weekend_source));
+    uintptr_t vt = src ? rdv<uintptr_t>(src) : 0;
+    uintptr_t fn = vt ? rdv<uintptr_t>(vt + kVtCurrentWeekend) : 0;
+    if (!swofty::mem::in_image(fn) || !Career_Build_LineupChanges.address())
+        return false;
+    uintptr_t weekend = reinterpret_cast<WeekendFn2>(fn)(reinterpret_cast<void *>(src));
+    if (!weekend || !swofty::mem::readable(weekend + kWeekendEntrants, 3 * sizeof(void *)))
+        return false;
+    // The entrant vector object {allocator, begin, end} starts one pointer before entrants_begin.
+    uintptr_t current = entity + offsetof(CareerEntity, entrants_begin) - sizeof(void *);
+    DriverMovesFinalisedMessage m{};
+    Career_Build_LineupChanges(&m.changes, reinterpret_cast<void *>(current),
+                               reinterpret_cast<void *>(weekend + kWeekendEntrants));
+    if (m.count > 40)
+        return false;
+    changes = m.count;
+    void **vts[] = {vt_Career_MessageDriverMovesFinalisedUpgrades.get(),
+                    vt_Career_MessageDriverMovesFinalisedRecognition.get(),
+                    vt_Career_MessageDriverMovesFinalised.get()};
+    for (void **v : vts) {
+        DriverMovesFinalisedMessage copy = m;
+        copy.vtable = v;
+        copy.reserved = 0;
+        if (swofty::career::post(&copy) != swofty::career::Result::ok)
+            return false;
+    }
+    return true;
+}
+
+EntrantWriteData released_data(const Row &r)
+{
+    EntrantWriteData d{};
+    d.driver = entrant_driver(r.rec);
+    d.driver_customisation = r.rec.driver_customisation;
+    d.team_stat_id = kNoKey;
+    d.vehicle_ref = kNoKey;
+    d.driver_reg_value = kNoKey;
+    d.vehicle_customisation = kNoKey;
+    d.badge_stat_id = kNoKey;
+    d.seat_value = kNoSeatValue;
+    return d;
+}
+
+bool row_matches(const EntrantRecord &now, const EntrantRecord &was, const EntrantWriteData &d)
+{
+    return now.team_stat_id == d.team_stat_id && now.vehicle_ref == d.vehicle_ref &&
+           now.driver_reg_value == d.driver_reg_value && now.vehicle_customisation == d.vehicle_customisation &&
+           now.badge_stat_id == d.badge_stat_id && entrant_driver(now) == d.driver && same_identity(now, was);
+}
+
 ce::OpResult op_swap(const ce::Json &args)
 {
     const char *op = "drivers.swap";
@@ -1461,10 +1563,26 @@ ce::OpResult op_swap(const ce::Json &args)
         return op_fail(op, "player_locked", "the player's own seat cannot be swapped");
     uint32_t ta = ra.rec.team_stat_id, tb = rb.rec.team_stat_id;
     bool car_a = has_car(ra.rec), car_b = has_car(rb.rec);
+    bool free_a = teamless(ra.rec), free_b = teamless(rb.rec);
     if (!car_a && !car_b)
         return op_fail(op, "no_seat", "neither driver has a race seat");
     if (ta == tb && car_a == car_b)
         return op_fail(op, "same_team", "both drivers race for the same team; nothing to swap");
+    bool replace = false; // Driver Career: a teamless driver takes a race seat, the seat's driver is released
+    if (sink.renewal) {
+        if (free_a || free_b)
+            return op_fail(op, "no_team",
+                           std::string("driver ") + std::to_string(save_id(free_a ? a : b)) +
+                               " has no team seat in this championship; in My Team swap two drivers who both "
+                               "have seats");
+    } else {
+        if ((free_a && car_a) || (free_b && car_b) || (!free_a && !car_a) || (!free_b && !car_b))
+            return op_fail(op, "reserve_dc",
+                           std::string("driver ") + std::to_string(save_id((!car_a && !free_a) || (free_a && car_a) ? a : b)) +
+                               " is a reserve (a team but no car); in Driver Career only race drivers and "
+                               "free agents can be swapped, because R&D there is per race driver");
+        replace = free_a || free_b;
+    }
     const ce::Json &ex = args["expect"];
     if (ex.type == ce::Json::Obj) {
         const ce::Json &ea = ex["aTeamStatId"], &eb = ex["bTeamStatId"];
@@ -1473,48 +1591,80 @@ ce::OpResult op_swap(const ce::Json &args)
             return op_fail(op, "stale", "a driver's team changed since the launcher read it");
     }
 
+    // In a Driver Career replace the incoming (teamless) driver goes first, then the seat's driver
+    // is released, as the game's signing orders it.
+    if (replace && free_b) {
+        std::swap(ra, rb);
+        std::swap(a, b);
+        std::swap(ta, tb);
+        std::swap(car_a, car_b);
+    }
     ce::OpResult r;
     r.before = swap_json(rows, a, b);
     char sa[96], sb[96];
     seat_text(sa, sizeof sa, ra);
     seat_text(sb, sizeof sb, rb);
 
-    EntrantWriteData da = entrant_data(ra, rb), db = entrant_data(rb, ra);
+    EntrantWriteData da = entrant_data(ra, rb);
+    EntrantWriteData db = replace ? released_data(rb) : entrant_data(rb, ra);
     uint16_t pos_a = ra.rec.team_position, pos_b = rb.rec.team_position;
-    uint8_t reason_a = car_b ? kReasonSigned : kReasonBenched, reason_b = car_a ? kReasonSigned : kReasonBenched;
+    uint8_t reason_a = car_b ? kReasonSigned : kReasonBenched;
+    uint8_t reason_b = replace ? kReasonReleased : car_a ? kReasonSigned : kReasonBenched;
+    uint32_t new_b = replace ? kNoKey : ta;
     if (!unique_identity(entity, ra) || !unique_identity(entity, rb))
         return op_fail(op, "refused", "an entrant row's identity is not unique in the line-up; nothing written");
     bool wrote_a = apply_row(entity, sink, ra, ta, tb, reason_a, da, pos_b);
-    bool wrote_b = wrote_a && apply_row(entity, sink, rb, tb, ta, reason_b, db, pos_a);
+    bool contract_released = false;
+    if (wrote_a && replace && !release_contract(entity, sink, entrant_driver(rb.rec), contract_released))
+        ce::log("drivers.swap WARNING the outgoing driver's contract could not be released");
+    bool wrote_b = wrote_a && apply_row(entity, sink, rb, tb, new_b, reason_b, db, replace ? 0 : pos_a);
 
     std::vector<Row> now;
     bool ok = wrote_a && wrote_b && entrant_rows(entity, now) && now.size() == rows.size();
     const Row *na = ok ? row_of(now, a) : nullptr, *nb = ok ? row_of(now, b) : nullptr;
     ok = ok && na && nb && na->at == ra.at && nb->at == rb.at;
     if (ok) {
-        ok = na->rec.team_stat_id == tb && nb->rec.team_stat_id == ta && same_seat(na->rec, rb.rec) &&
-             same_seat(nb->rec, ra.rec) && same_identity(na->rec, ra.rec) && same_identity(nb->rec, rb.rec);
+        ok = row_matches(na->rec, ra.rec, da) && row_matches(nb->rec, rb.rec, db);
         for (size_t i = 0; ok && i < rows.size(); ++i)
             if (rows[i].at != ra.at && rows[i].at != rb.at && !same_row(rows[i]))
                 ok = false;
     }
+    uint64_t finalised = 0;
+    bool finalise_ok = true;
     if (!ok) {
         EntrantWriteData ua = entrant_data(ra, ra), ub = entrant_data(rb, rb);
         bool back_a = !wrote_a || apply_row(entity, sink, ra, tb, ta, car_a ? kReasonSigned : kReasonBenched, ua, pos_a);
-        bool back_b = !wrote_b || apply_row(entity, sink, rb, ta, tb, car_b ? kReasonSigned : kReasonBenched, ub, pos_b);
+        bool back_b = !wrote_b || apply_row(entity, sink, rb, new_b, tb, car_b ? kReasonSigned : kReasonBenched, ub, pos_b);
+        if (!sink.renewal)
+            finalise_moves(entity, sink, finalised);
         return op_fail(op, "write_failed",
                        std::string("the entrant rows did not read back as swapped; ") +
-                           (back_a && back_b ? "restored both rows" : "COULD NOT restore every row, reload the save"));
+                           (back_a && back_b ? "restored both rows" : "COULD NOT restore every row, reload the save") +
+                           (contract_released ? " (the released contract stays released)" : ""));
     }
+    if (!sink.renewal)
+        finalise_ok = finalise_moves(entity, sink, finalised);
+    if (!finalise_ok)
+        ce::log("drivers.swap WARNING the MessageDriverMovesFinalised messages could not be posted");
     r.after = swap_json(now, a, b);
     r.ok = true;
     char na_t[96], nb_t[96];
     seat_text(na_t, sizeof na_t, *na);
     seat_text(nb_t, sizeof nb_t, *nb);
     ce::log("drivers.swap driver %u [%s] <-> driver %u [%s] -> driver %u [%s], driver %u [%s] "
-            "(2 moves %s, %zu other entrants unchanged, applied now)",
+            "(%s; %zu other entrants unchanged, applied now)",
             save_id(a), sa, save_id(b), sb, save_id(a), na_t, save_id(b), nb_t,
-            sink.renewal ? "recorded" : "announced (Driver Career, no move log)", rows.size() - 2);
+            sink.renewal ? "2 moves recorded"
+            : replace    ? (contract_released ? "Driver Career replace: incoming announced, outgoing contract released "
+                                                "and announced to no team, moves finalised"
+                                              : "Driver Career replace: incoming announced, outgoing announced to no "
+                                                "team (no contract found), moves finalised")
+                         : "Driver Career: 2 moves announced, moves finalised",
+            rows.size() - 2);
+    if (!sink.renewal)
+        ce::log("drivers.swap finalised %llu line-up change(s) (MessageDriverMovesFinalised_upgrades, _recognition, "
+                "MessageDriverMovesFinalised)%s",
+                static_cast<unsigned long long>(finalised), finalise_ok ? "" : " FAILED");
     return r;
 }
 

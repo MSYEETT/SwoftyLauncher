@@ -206,21 +206,36 @@ Status: implemented; needs in-game proof (log line `[career-editor] drivers.cont
 
 ## Op `drivers.swap`
 
-Swaps two drivers' seats **now**, mid-season, through the same game primitives the game's own
-mid-season signing uses, in the same order: announce the move, then rewrite the entrant row.
+Swaps seats **now**, mid-season, with the game's own driver-move primitives in the game's own order.
 
-- **My Team:** `Career_Record_DriverMove(renewal, driver, oldTeam, newTeam, reason)` on
-  `CareerDriverContractRenewalComponent` appends to the game's move log (`driverMoveData`) and posts
-  `MessageDriverMoveConfirmed`; then `Career_Set_EntrantData_Thunk` rewrites the row.
-- **Driver Career:** there is no renewal component and no move log. The game's Driver Career signing
-  (`DriverCareerContractsManagerComponent`, 0x140d766b0) posts `MessageDriverMoveConfirmed` itself
-  (built from the manager's weekend source and career clock) right before each entrant write, and the
-  op does the same: it posts that message (`vt_Career_MessageDriverMoveConfirmed`,
-  `DriverMoveConfirmedMessage`), then calls `Career_Set_EntrantData_Thunk`. The message matters: the
-  Upgrades component listens to it to reassign per-driver upgrade state.
-
-For each driver: announce (a moves to b's team), write a's row with b's team, car and position; then
-the same for b with a's.
+- **My Team:** for each driver `Career_Record_DriverMove(renewal, driver, oldTeam, newTeam, reason)`
+  (move log `driverMoveData` + `MessageDriverMoveConfirmed`), then `Career_Set_EntrantData_Thunk`.
+  Both drivers must have a team (race seat or reserve); a teamless driver is refused (`no_team`).
+- **Driver Career** has no move log. The op follows the Driver Career signing
+  (`DriverCareerContractsManagerComponent`, 0x140d766b0):
+  - **Race driver ↔ race driver:** for each driver post `MessageDriverMoveConfirmed`
+    (`DriverMoveConfirmedMessage`, reason 0) then `Career_Set_EntrantData_Thunk`; then finalise.
+  - **Free agent (teamless entrant row) → race seat**, the game's "replace old driver" sequence:
+    1. the free agent: `MessageDriverMoveConfirmed` {driver, old team none, new team = the seat's
+       team, reason 0}, then `Career_Set_EntrantData_Thunk` with the seat's team, car, seat value and
+       position;
+    2. the seat's driver: `Career_Set_DriverContractState(contract, day, 3, registry value)` on his
+       contract (found in `DriverCareerContractOwner` by `DriverContract.driver`), then
+       `MessageDriverMoveConfirmed` {driver, old team, new team none (0x3fff), reason 1}, then
+       `Career_Set_EntrantData_Thunk` with team, car, driver registry value, livery and badge all
+       0x3fff0000, seat value 0xffff0012, position 0. He is now a free agent exactly as the game makes
+       one.
+  - **Finalise** (what every Driver Career signing batch ends with): `Career_Build_LineupChanges`
+    (current line-up vs the weekend's), then post `MessageDriverMovesFinalised_upgrades`,
+    `MessageDriverMovesFinalised_recognition` and `MessageDriverMovesFinalised`
+    (`DriverMovesFinalisedMessage`). The `_upgrades` handler (UpgradesComponent 0x14123b3f0) creates
+    the team modifiers a driver new to a race seat lacks (`Career_Init_TeamModifiers`) and re-assigns
+    per-driver R&D. Without it the free agent's R&D is costed with no modifier list: the
+    `Career_Calc_UpgradeCost` access violation of 2026-10-20 18:32 (`mods` = 0, read at +0x62).
+  - **Refused in Driver Career:** reserves (a team but no car), `reserve_dc`. Driver Career R&D is
+    per race driver (0x14351ccb0 costs only drivers in race positions; the modifier list is created
+    only through the finalise path for race-seat changes), and no game path was found that moves a
+    reserve this way.
 
 What follows the seat: team, car (vehicle keys, so livery and car), seat value, seat position. What
 stays with the driver: the row identity (driver appearance, helmet, suit), driver data, ratings,
@@ -233,12 +248,13 @@ Args:
 ```
 
 - `a`, `b` (int, required): `driverStatId`s. Both need an entrant row (`seat` not null in the
-  snapshot). Allowed: race seat ↔ race seat on two teams, reserve ↔ race seat (any team, including
-  promoting a reserve inside his own team), and a row with no team (a driver the line-up holds
-  without a team) ↔ race seat.
+  snapshot). My Team: race seat ↔ race seat on two teams, reserve ↔ race seat (including promoting
+  a reserve inside his own team). Driver Career: race seat ↔ race seat, and free agent (no team) ↔
+  race seat.
 - `expect` (optional): the teams the launcher showed; a mismatch fails with `stale`.
 
-Refused: `player_locked` (either row is the human entrant), `same_team` (two race drivers of one
+Refused: `no_team` (My Team: a driver has no team), `reserve_dc` (Driver Career: a reserve),
+`player_locked` (either row is the human entrant), `same_team` (two race drivers of one
 team, or two reserves of one team), `no_seat` (neither has a car), `no_entrant` (a driver who is not
 in the line-up: listed under `otherDrivers`, with no entrant row and so no seat; the error text says
 so and points to the `drivers` list. The game's entrant writer only
@@ -274,10 +290,11 @@ Undo: `drivers.swap` with the same `a` and `b` (the swap is symmetric; it record
 
 Modes: My Team (move log + message) and Driver Career (message only). Runs only while `ce::safe()`.
 
-Log line, Driver Career: `[career-editor] drivers.swap driver <A> [team <X> car 0x<cx> pos <p>] <->
-driver <B> [team <Y> car 0x<cy> pos <q>] -> driver <A> [team <Y> car 0x<cy> pos <q>], driver <B>
-[team <X> car 0x<cx> pos <p>] (2 moves announced (Driver Career, no move log), <N> other entrants
-unchanged, applied now)`; My Team says `2 moves recorded`. A teamless row shows `team 16383`.
+Log lines, Driver Career:
+`[career-editor] drivers.swap driver <A> [team <X> car 0x<cx> pos <p>] <-> driver <B> [...] -> driver <A> [team <Y> ...], driver <B> [team <X> ...] (Driver Career: 2 moves announced, moves finalised; <N> other entrants unchanged, applied now)`
+and for a free agent: `... (Driver Career replace: incoming announced, outgoing contract released and announced to no team, moves finalised; ...)` (the free agent is printed first; a teamless row shows `team 16383 car 0x3fff0000 pos -1`), each followed by
+`[career-editor] drivers.swap finalised <n> line-up change(s) (MessageDriverMovesFinalised_upgrades, _recognition, MessageDriverMovesFinalised)`.
+My Team says `2 moves recorded` and posts no finalise.
 
 Status: implemented; needs in-game proof. Test: swap two AI drivers on different teams in Team HQ,
 check the Team HQ grid / standings driver list, save, reload the career, advance to the next weekend
@@ -296,6 +313,9 @@ and load into a session.
 | `Career_Serialise_DriverContractList` | 0x140da5610 | L2, no sig | evidence for the contract record layout |
 | `Career_Set_EntrantData_Thunk` | 0x1407b72e0 | L2, sig `career.set_entrant_data_thunk` | `drivers.swap`: rewrites one entrant row |
 | `Career_Record_DriverMove` | 0x140d8f1f0 | L2, sig `career.record_driver_move` | `drivers.swap` (My Team): move log + driver-move message |
+| `vt_Career_MessageDriverMovesFinalised`, `…FinalisedUpgrades`, `…FinalisedRecognition` | 0x145696d10 / d20 / d30 | L2, sigs `career.message_driver_moves_finalised*` | Driver Career finalise |
+| `Career_Build_LineupChanges` | 0x142457a90 | L2, sig `career.build_lineup_changes` | Driver Career finalise payload |
+| `Career_Set_DriverContractState` | 0x140d9de30 | L2, sig `career.set_driver_contract_state` | Driver Career replace: release the outgoing contract |
 | `vt_Career_MessageDriverMoveConfirmed` | 0x145696d40 | L2, sig `career.message_driver_move_confirmed` | `drivers.swap` (Driver Career): the move message, posted with `swofty::career::post` |
 | `Career_Sign_DriverToTeam` | 0x140d8fcb0 | L1 (DISPUTE V0294), no sig | evidence for the call order only; not called. Its `offer` is a 0x2c-byte contract record it also writes into the driver's contract, and it first backfills the incoming driver's old seat with that team's reserve (no reserve: it signs nothing) |
 | `Career_Process_PendingDriverMoves` | 0x140db18e0 | L1, no sig | evidence (season-change processor, not called) |
@@ -305,7 +325,8 @@ KB structs (re/db/structs, all fields L2, raised by ce-drivers): `DriverStatisti
 `DriverStatsEntry`, `ContextStatSet`, `DriverStatistic`, `EvolutionCurve`, `CurvePoint`, `StatInfo`,
 `DriverContractsMyTeamComponent`, `ContractRecord`, `CareerDriverContractRenewalComponent`,
 `DriverMoveRecord`, `EntrantWriteData`, `DriverCareerContractsManagerComponent`,
-`DriverMoveConfirmedMessage`, and `EntrantRecord` (extended). Read from other lanes:
+`DriverMoveConfirmedMessage`, `DriverMovesFinalisedMessage`, `LineupChange`,
+`DriverCareerContractOwner`, `DriverContract`, and `EntrantRecord` (extended). Read from other lanes:
 `CareerEntity` (economy), `CareerTimeComponent` (economy).
 
 Snapshot status: implemented; needs in-game proof (no log line; check `snapshot.json`).

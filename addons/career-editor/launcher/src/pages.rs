@@ -989,33 +989,49 @@ fn swap_card(live: &Live) -> Value {
         .and_then(|d| d["drivers"].as_array())
         .cloned()
         .unwrap_or_default();
+    let my_team = live.my_team();
     let mut opts = vec![json!({ "value": "", "label": "Choose a driver…" })];
     for d in drivers
         .iter()
         .filter(|d| !d["seat"].is_null() && d["player"] != true)
     {
+        let has_team = !d["team"].is_null();
+        let has_car = d["seat"]["hasCar"] == true;
+        // My Team: drivers with a team (race seat or reserve). Driver Career: race drivers and
+        // free agents only (R&D there is per race driver, so reserves can't be swapped).
+        let (ok, role) = match (my_team, has_team, has_car) {
+            (true, true, true) | (false, true, true) => (true, "race seat"),
+            (true, true, false) => (true, "reserve"),
+            (false, false, false) => (true, "Free agent"),
+            _ => (false, ""),
+        };
+        if !ok {
+            continue;
+        }
         let team = d["team"]["name"]
             .as_str()
             .map_or_else(|| "no team".into(), pretty_team);
-        let role = if d["seat"]["hasCar"] == true {
-            "race seat"
+        let label = if has_team {
+            format!(
+                "{} · {team} · {role}",
+                title_case(d["name"].as_str().unwrap_or("driver"))
+            )
         } else {
-            "reserve"
+            format!("{} · {role}", title_case(d["name"].as_str().unwrap_or("driver")))
         };
-        opts.push(json!({ "value": d["driverStatId"].to_string(),
-                          "label": format!("{} · {team} · {role}", title_case(d["name"].as_str().unwrap_or("driver"))) }));
+        opts.push(json!({ "value": d["driverStatId"].to_string(), "label": label }));
     }
+    let help = if my_team {
+        "Applies now, mid-season: each driver takes the other's team, car and seat through the game's own driver-move path. Contracts keep the team they were signed with. Your own seat is locked."
+    } else {
+        "Applies now, mid-season, through the game's own Driver Career signing path. Two race drivers trade seats. A free agent takes a race seat the way the game signs one: the seat's driver is released (contract ended) and becomes a free agent, and the game re-assigns the team's R&D. Your own seat is locked."
+    };
     let blocks = vec![
         json!({ "form": { "id": "swap", "columns": 2, "apply": "Swap seats", "disabled": !live.can(op), "fields": [
             { "select": { "id": "a", "label": "Driver", "value": "", "options": opts } },
             { "select": { "id": "b", "label": "Swaps seats with", "value": "", "options": opts } }
         ] } }),
-        text(
-            &form_help(live, op).unwrap_or_else(|| {
-                "Applies now, mid-season: each driver takes the other's team, car and seat through the game's own driver-move path. Contracts keep the team they were signed with. Your own seat is locked.".into()
-            }),
-            "muted",
-        ),
+        text(&form_help(live, op).unwrap_or_else(|| help.into()), "muted"),
     ];
     card_full(
         "Swap seats",
@@ -3027,6 +3043,9 @@ fn submit(app: &mut App, host: &mut Host, live: &Live, form: &str, ev: &Value) -
                     .unwrap_or(Value::Null)
             };
             let (da, db) = (find(a), find(b));
+            if da["team"].is_null() && db["team"].is_null() {
+                return Err("Two free agents have no seat to trade; pick at least one race driver.".into());
+            }
             let name = |d: &Value| title_case(d["name"].as_str().unwrap_or("driver"));
             send(
                 app,
