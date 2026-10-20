@@ -89,6 +89,7 @@ jobs:
       # Only a run on main saves (a dry run dispatched from main warms the next tag); tag caches stay unread.
       - uses: Swatinem/rust-cache@v2
         with:
+          add-rust-environment-hash-key: false
           shared-key: release
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -179,6 +180,7 @@ jobs:
       # Only a run on main saves (a dry run dispatched from main warms the next tag); tag caches stay unread.
       - uses: Swatinem/rust-cache@v2
         with:
+          add-rust-environment-hash-key: false
           shared-key: release
           save-if: ${{ github.ref == 'refs/heads/main' }}
 

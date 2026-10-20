@@ -107,8 +107,11 @@ jobs:
           cache: false
 
       # Only main saves, so pull requests restore main's caches instead of evicting them with their own.
+      # The environment hash would fold in every installed rustc, and runner images differ in the stable
+      # one they preinstall; the key keeps the lockfile and rust-toolchain.toml hash, which is what matters.
       - uses: Swatinem/rust-cache@v2
         with:
+          add-rust-environment-hash-key: false
           shared-key: workspace-debug
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -192,6 +195,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
+          add-rust-environment-hash-key: false
           shared-key: installer-release
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
