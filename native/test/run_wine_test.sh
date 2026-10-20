@@ -72,7 +72,7 @@ json.dump(doc, open(core + 'bindings.wine-test.json', 'w'), indent=1)
 json.dump({'schema': 1, 'profile': 'wine-test', 'addons': [], 'early_plugins': ['t_stage_early.dll']},
           open(root + '/settings.json', 'w'))
 EOF
-export WINEPREFIX="$OUT/prefix" WINEDLLOVERRIDES="version=n,b;mscoree,mshtml=;winemenubuilder.exe=d" WINEDEBUG=-all
+export WINEPREFIX="$OUT/prefix" WINEDLLOVERRIDES="version=n,b;mscoree,mshtml=;winemenubuilder.exe,winedbg.exe=d" WINEDEBUG=-all
 status=0
 LOG=$OUT/game/swofty/loader.log
 check() {

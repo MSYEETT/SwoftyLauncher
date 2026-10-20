@@ -164,7 +164,7 @@ else:
 json.dump(doc, open(sys.argv[1], 'w'), indent=1)
 EOF
 }
-export WINEPREFIX="$OUT/prefix" WINEDLLOVERRIDES="version=n,b;mscoree,mshtml=;winemenubuilder.exe=d" WINEDEBUG=-all
+export WINEPREFIX="$OUT/prefix" WINEDLLOVERRIDES="version=n,b;mscoree,mshtml=;winemenubuilder.exe,winedbg.exe=d" WINEDEBUG=-all
 status=0
 LOG=$OUT/game/swofty/loader.log
 check() {
