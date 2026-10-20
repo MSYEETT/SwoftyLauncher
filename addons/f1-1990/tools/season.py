@@ -216,6 +216,29 @@ class Season:
             out[tid] = seats
         return out
 
+    def regulars(self, teams=None):
+        out = {}
+        for tid in teams or self.teams:
+            starts = [{} for _ in self.teams[tid].seats]
+            for race in self.races:
+                for i, seat in enumerate(self.lineup(race.round, [tid])[tid]):
+                    starts[i][seat.driver] = starts[i].get(seat.driver, 0) + 1
+            out[tid] = [
+                Seat(max(c, key=lambda d: (c[d], d == seat.driver)), seat.number, max(c.values()))
+                for c, seat in zip(starts, self.teams[tid].seats)
+            ]
+        return out
+
+    def stand_ins(self, teams=None):
+        regular = {s.driver for seats in self.regulars(teams).values() for s in seats}
+        out = []
+        for race in self.races:
+            for tid, seats in self.lineup(race.round, teams).items():
+                for seat in seats:
+                    if seat.driver not in regular and all(d != seat.driver for d, _ in out):
+                        out.append((seat.driver, tid))
+        return out
+
     def substitutions(self, teams=None):
         keep = set(teams or self.teams)
         return [a for a in self.absences if a.team in keep]
@@ -237,9 +260,10 @@ def slot(team):
     return next(s for s in slots() if s.team == team or s.team_row == team)
 
 
-def grid_lineup(season=None, round=1):
+def grid_lineup(season=None, round=None):
     season = season or Season.load()
-    lineup = season.lineup(round, [s.team for s in slots()])
+    teams = [s.team for s in slots()]
+    lineup = season.regulars(teams) if round is None else season.lineup(round, teams)
     return [(s, lineup[s.team]) for s in slots()]
 
 

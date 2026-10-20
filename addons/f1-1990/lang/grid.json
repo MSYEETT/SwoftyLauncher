@@ -40,6 +40,24 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_boss_mclaren_full",
+   "value": "Ron Dennis"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_mclaren_first",
+   "value": "Ron"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_mclaren_last",
+   "value": "Dennis"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_team_ferrari",
    "value": "Ferrari"
   },
@@ -72,6 +90,24 @@
    "language": "*",
    "key": "lng_ferrari_boss",
    "value": "Cesare Fiorio"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_ferrari_full",
+   "value": "Cesare Fiorio"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_ferrari_first",
+   "value": "Cesare"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_ferrari_last",
+   "value": "Fiorio"
   },
   {
    "op": "lang.set",
@@ -124,6 +160,24 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_boss_williams_full",
+   "value": "Frank Williams"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_williams_first",
+   "value": "Frank"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_williams_last",
+   "value": "Williams"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_desc_williams",
    "value": "Renault V10 power and the FW13B for Boutsen and Patrese."
   },
@@ -172,6 +226,24 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_boss_benetton_full",
+   "value": "Flavio Briatore"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_benetton_first",
+   "value": "Flavio"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_benetton_last",
+   "value": "Briatore"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_team_tyrrell",
    "value": "Tyrrell Ford"
   },
@@ -204,6 +276,24 @@
    "language": "*",
    "key": "lng_mercedes_boss",
    "value": "Ken Tyrrell"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_tyrrell_full",
+   "value": "Ken Tyrrell"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_tyrrell_first",
+   "value": "Ken"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_tyrrell_last",
+   "value": "Tyrrell"
   },
   {
    "op": "lang.set",
@@ -256,6 +346,24 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_boss_lotus_full",
+   "value": "Tony Rudd"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_lotus_first",
+   "value": "Tony"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_lotus_last",
+   "value": "Rudd"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_desc_lotus",
    "value": "Lamborghini V12 power for Warwick and Donnelly in the 102."
   },
@@ -304,6 +412,24 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_boss_march_full",
+   "value": "Ian Phillips"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_march_first",
+   "value": "Ian"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_march_last",
+   "value": "Phillips"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_desc_march",
    "value": "Adrian Newey's CG901 with Judd power for Gugelmin and Capelli."
   },
@@ -342,6 +468,24 @@
    "language": "*",
    "key": "lng_f1990_engine_larrousse",
    "value": "Lamborghini V12"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_larrousse_full",
+   "value": "Gérard Larrousse"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_larrousse_first",
+   "value": "Gérard"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_larrousse_last",
+   "value": "Larrousse"
   },
   {
    "op": "lang.set",
@@ -394,6 +538,24 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_boss_ligier_prost_full",
+   "value": "Guy Ligier"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_ligier_prost_first",
+   "value": "Guy"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_ligier_prost_last",
+   "value": "Ligier"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_desc_ligier_prost",
    "value": "The JS33B with Ford power for Larini and Alliot."
   },
@@ -438,6 +600,24 @@
    "language": "*",
    "key": "lng_toro_rosso_boss",
    "value": "Giancarlo Minardi"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_minardi_full",
+   "value": "Giancarlo Minardi"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_minardi_first",
+   "value": "Giancarlo"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_minardi_last",
+   "value": "Minardi"
   },
   {
    "op": "lang.set",
@@ -490,6 +670,24 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_boss_brabham_full",
+   "value": "Herbie Blash"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_brabham_first",
+   "value": "Herbie"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_brabham_last",
+   "value": "Blash"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_desc_brabham",
    "value": "The BT59 with Judd power for Modena and David Brabham."
   },
@@ -528,6 +726,24 @@
    "language": "*",
    "key": "lng_f1990_engine_dallara",
    "value": "Ford V8"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_dallara_full",
+   "value": "Giuseppe Lucchini"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_dallara_first",
+   "value": "Giuseppe"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_dallara_last",
+   "value": "Lucchini"
   },
   {
    "op": "lang.set",
@@ -576,6 +792,24 @@
    "language": "*",
    "key": "lng_haas_boss",
    "value": "Jackie Oliver"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_arrows_full",
+   "value": "Jackie Oliver"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_arrows_first",
+   "value": "Jackie"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_boss_arrows_last",
+   "value": "Oliver"
   },
   {
    "op": "lang.set",
@@ -898,20 +1132,20 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_f1990_gregor_foitek_first",
-   "value": "Gregor"
+   "key": "lng_f1990_david_brabham_first",
+   "value": "David"
   },
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_f1990_gregor_foitek_last",
-   "value": "FOITEK"
+   "key": "lng_f1990_david_brabham_last",
+   "value": "BRABHAM"
   },
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_f1990_gregor_foitek_full",
-   "value": "Gregor FOITEK"
+   "key": "lng_f1990_david_brabham_full",
+   "value": "David BRABHAM"
   },
   {
    "op": "lang.set",
@@ -934,20 +1168,20 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_f1990_gianni_morbidelli_first",
-   "value": "Gianni"
+   "key": "lng_f1990_emanuele_pirro_first",
+   "value": "Emanuele"
   },
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_f1990_gianni_morbidelli_last",
-   "value": "MORBIDELLI"
+   "key": "lng_f1990_emanuele_pirro_last",
+   "value": "PIRRO"
   },
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_f1990_gianni_morbidelli_full",
-   "value": "Gianni MORBIDELLI"
+   "key": "lng_f1990_emanuele_pirro_full",
+   "value": "Emanuele PIRRO"
   },
   {
    "op": "lang.set",
@@ -988,60 +1222,6 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_f1990_bernd_schneider_first",
-   "value": "Bernd"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_bernd_schneider_last",
-   "value": "SCHNEIDER"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_bernd_schneider_full",
-   "value": "Bernd SCHNEIDER"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_david_brabham_first",
-   "value": "David"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_david_brabham_last",
-   "value": "BRABHAM"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_david_brabham_full",
-   "value": "David BRABHAM"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_emanuele_pirro_first",
-   "value": "Emanuele"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_emanuele_pirro_last",
-   "value": "PIRRO"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_emanuele_pirro_full",
-   "value": "Emanuele PIRRO"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
    "key": "lng_f1990_alex_caffi_first",
    "value": "Alex"
   },
@@ -1056,6 +1236,60 @@
    "language": "*",
    "key": "lng_f1990_alex_caffi_full",
    "value": "Alex CAFFI"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_gregor_foitek_first",
+   "value": "Gregor"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_gregor_foitek_last",
+   "value": "FOITEK"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_gregor_foitek_full",
+   "value": "Gregor FOITEK"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_gianni_morbidelli_first",
+   "value": "Gianni"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_gianni_morbidelli_last",
+   "value": "MORBIDELLI"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_gianni_morbidelli_full",
+   "value": "Gianni MORBIDELLI"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_bernd_schneider_first",
+   "value": "Bernd"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_bernd_schneider_last",
+   "value": "SCHNEIDER"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_bernd_schneider_full",
+   "value": "Bernd SCHNEIDER"
   },
   {
    "op": "lang.set",

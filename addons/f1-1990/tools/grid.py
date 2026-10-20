@@ -40,7 +40,6 @@ NEW_STATS_HOLDER = {"ayrton_senna"}
 DRIVER_IDS = [18, 37, 60, 61, 104, 105, 106, 107, 108, 119, 120, 124] + list(range(253, 236, -1))
 FIRST_PRESET = 1990
 
-SUBSTITUTES = ["david_brabham", "emanuele_pirro", "alex_caffi", "roberto_moreno", "johnny_herbert"]
 
 DRIVER_INFO = {
     "ayrton_senna": ("SEN", 1984, (1960, 3, 21), None, None),
@@ -76,8 +75,6 @@ DRIVER_INFO = {
     "johnny_herbert": ("HER", 1989, (1964, 6, 25), "male_ls355", "tier04_livery99"),
 }
 VOICES = {"johnny_herbert": "Name175"}
-SUB_SUITS = {"david_brabham": "brabham", "emanuele_pirro": "dallara", "alex_caffi": "arrows",
-             "roberto_moreno": "benetton", "johnny_herbert": "lotus"}
 
 TEAM_INFO = {
     "mclaren": ("McLaren Honda", "McLaren", "MCL", ("#E2001A", "#FFFFFF", "#1A1A1A"), "Woking, UK", "britain",
@@ -103,7 +100,7 @@ TEAM_INFO = {
     "brabham": ("Brabham Judd", "Brabham", "BRA", ("#2A3052", "#FFFFFF", "#C8102E"), "Chessington, UK", "britain",
                 "BT59", "Judd V8", "gm_cadillac", "Herbie Blash"),
     "dallara": ("Dallara Ford", "Dallara", "DAL", ("#960D04", "#FFFFFF", "#1A1A1A"), "Lumezzane, Italy", "italy",
-                "F190", "Ford V8", None, "Giampaolo Dallara"),
+                "F190", "Ford V8", None, "Giuseppe Lucchini"),
     "arrows": ("Arrows Ford", "Arrows", "ARR", ("#FFFFFF", "#C8102E", "#1A3C8C"), "Milton Keynes, UK", "britain",
                "A11B", "Ford V8", "haas", "Jackie Oliver"),
 }
@@ -141,6 +138,12 @@ STOCK_SEATS = {
     "team12_26": ("team12_driver_01", "team12_driver_02"),
     "team13_26": ("team13_driver_01", "team13_driver_02"),
 }
+BOSS_ROWS = {"mclaren_26": "andrea_stella", "mercedes_26": "toto_wollf", "redbull_26": "laurent_mekies",
+             "ferrari_26": "frederic_vasseur", "williams_26": "james_vowles", "tororosso_26": "alan_permane",
+             "forceindia_26": "adrian_newey", "haas_26": "ayao_komatsu", "sauber_26": "mattia_binotto",
+             "renault_26": "steve_nielsen", "gm_cadillac_26": "graeme_lowdon", "team12_26": "andreas_seidl",
+             "team13_26": "franz_tost"}
+OWN_BOSS = {"team12_26", "team13_26"}
 STANDINGS_1989 = ["mclaren", "williams", "ferrari", "benetton", "tyrrell", "lotus", "arrows", "brabham", "minardi",
                   "march", "ligier_prost"]
 DRIVERS_1989 = ["alain_prost", "ayrton_senna", "riccardo_patrese", "nigel_mansell", "thierry_boutsen",
@@ -213,28 +216,30 @@ def driver_label(did):
 
 
 def build(season):
+    teams = [s.team for s in slots()]
+    regulars = season.regulars(teams)
+    stand_ins = season.stand_ins(teams)
+    free = [d for d, _ in stand_ins]
     lineup = []
     for s in slots():
-        seats = season.lineup(1)[s.team]
-        for pos, seat in enumerate(seats):
+        for pos, seat in enumerate(regulars[s.team]):
             lineup.append((s, pos, seat))
     seated = [seat.driver for _, _, seat in lineup]
-    new = [d for d in seated if d not in STOCK] + SUBSTITUTES
+    new = [d for d in seated if d not in STOCK] + free
     ids = dict(zip(new, DRIVER_IDS))
     if len(ids) != len(new):
         raise SystemExit("not enough driver ids")
     team_of = {seat.driver: s for s, _, seat in lineup}
     team_by_id = {s.team: s for s in slots()}
-    for sub, team in SUB_SUITS.items():
-        team_of.setdefault(sub, team_by_id[team])
+    for d, tid in stand_ins:
+        team_of[d] = team_by_id[tid]
     number_of = {seat.driver: seat.number for _, _, seat in lineup}
-    for a in season.substitutions([s.team for s in slots()]):
-        for seat in season.teams[a.team].seats:
-            if seat.driver == a.out:
-                number_of.setdefault(a.into, seat.number)
-    for d in SUBSTITUTES:
-        if d not in number_of:
-            number_of[d] = next(x.number for x in season.teams[SUB_SUITS[d]].seats if x.driver == d)
+    for d, tid in stand_ins:
+        for r in season.races:
+            seats = season.lineup(r.round, [tid])[tid]
+            hit = next((x.number for x in seats if x.driver == d), None)
+            if hit is not None:
+                number_of.setdefault(d, hit)
 
     ops, lang = [], []
 
@@ -258,6 +263,14 @@ def build(season):
         L(f"lng_f1990_engine_{s.team}", engine)
         if boss_key:
             L(f"lng_{boss_key}_boss", boss)
+        boss_first, _, boss_last = boss.partition(" ")
+        boss_row = BOSS_ROWS[s.team_row]
+        if s.team_row in OWN_BOSS:
+            setop(team, "team_boss", boss_row)
+        for part, value in (("full", boss), ("first", boss_first), ("last", boss_last)):
+            L(f"lng_f1990_boss_{s.team}_{part}", value)
+            setop(f"entrants.characters.character[_metadata_={boss_row}]", f"{part}_name",
+                  f"lng_f1990_boss_{s.team}_{part}")
         p, sec, ter = (argb(c) for c in colours)
         for fld, value in [
             ("display_name", key), ("display_name_short", key + "_short"), ("display_name_super_short", key + "_short"),
@@ -278,7 +291,7 @@ def build(season):
         setop(vehicle, "engine_name_override", f"lng_f1990_engine_{s.team}")
 
     preset = FIRST_PRESET
-    for did in seated + SUBSTITUTES:
+    for did in seated + free:
         d = season.drivers[did]
         code, debut, (by, bm, bd), head, helmet = DRIVER_INFO[did]
         label = driver_label(did)
@@ -349,8 +362,8 @@ def build(season):
         setop(row, "car_number", str(seat.number))
         setop(row, "team_position", str(pos))
 
-    setop(f"{POOL}.entrant[_metadata_=senna]", "entrant_reference", f"f1990-{SUBSTITUTES[0]}")
-    for did in SUBSTITUTES[1:]:
+    setop(f"{POOL}.entrant[_metadata_=senna]", "entrant_reference", f"f1990-{free[0]}")
+    for did in free[1:]:
         add(POOL, f"{POOL}.entrant[_metadata_=opmeer]", {
             "_metadata_": f"f1990_{did}", "badge_customisation": "", "car_number": "255", "driver": "",
             "driver_customisation": "", "entrant_reference": f"f1990-{did}", "team": "", "team_position": "-1",
@@ -370,8 +383,8 @@ def build(season):
         f"{ENTRANTS}.entrant": ENTRANT_FIELDS,
         f"{POOL}.entrant": ENTRANT_FIELDS,
     }
-    report = {"ids": ids, "presets": {d: FIRST_PRESET + i for i, d in enumerate(seated + SUBSTITUTES)},
-              "ratings": {d: ratings(season, d) for d in seated + SUBSTITUTES}}
+    report = {"ids": ids, "presets": {d: FIRST_PRESET + i for i, d in enumerate(seated + free)},
+              "ratings": {d: ratings(season, d) for d in seated + free}}
     return {"schema_version": 1, "fields": fields, "ops": ops}, {"schema_version": 1, "ops": lang}, report
 
 
