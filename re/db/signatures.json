@@ -7913,6 +7913,33 @@
    "used_by": [
     "addons/f1-1990/native/src/save_separation.cpp"
    ]
+  },
+  {
+   "id": "session.wheel_map_insert_call",
+   "section": ".xtls",
+   "pattern": "48 8B 4C 24 38 48 8D 54 24 40 4C 8D 44 24 33 E8",
+   "match": "0x142e909df",
+   "anchor": "0xa",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e909e9",
+   "kind": "mid",
+   "expect": "4C 8D 44 24 33",
+   "names": [
+    "site_Sess_WheelMapInsertCall"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "heap-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "re/tests/heap-1990.trace.json"
+   ]
   }
  ]
 }

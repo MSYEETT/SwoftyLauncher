@@ -1,0 +1,21 @@
+{
+ "log": {"max_mb": 64, "on_full": "stop", "summary_every_s": 30},
+ "limits": {"max_events_total": 20000, "max_read": 64},
+ "hooks": [
+  {
+   "id": "t007.wheel_map_insert",
+   "test": "T007",
+   "sig": "session.wheel_map_insert_call",
+   "when": ["[rcx+0x30] == 31", "[rcx+0x28] >= 24"],
+   "fields": [
+    "map=ptr:rcx", "key=u8:[rsp+0x33]", "size=u64:[rcx+0x28]", "mask=u64:[rcx+0x30]", "maxok=u64:[rcx+0x38]",
+    "keyvals=ptr:[rcx+0x18]", "info=ptr:[rcx+0x20]", "heap=ptr:[rcx+8]",
+    "heap_lo=ptr:[[rcx+8]+0x98]", "heap_len=u64:[[rcx+8]+0xa0]", "guard=u64:[[rcx+8]+0x108]",
+    "sub=ptr:[[rcx+8]+0x130]", "sub_lo=ptr:[[[rcx+8]+0x130]+0x98]", "sub_len=u64:[[[rcx+8]+0x130]+0xa0]",
+    "front=hex[64]:[rcx+0x18]-0x40", "end=hex[32]:[rcx+0x18]+0x200"
+   ],
+   "max_per_sec": 2,
+   "max_events": 1500
+  }
+ ]
+}
