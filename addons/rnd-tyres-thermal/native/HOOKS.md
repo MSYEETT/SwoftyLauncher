@@ -1187,6 +1187,9 @@ Found by RIP-xref of the order table 0x14566fd16 / its end 0x14566fd29 (9 functi
 type→department table 0x14584f848 (2), the camel-case table 0x14564a0d0 (3), the string "INVALID
 UPGRADE" 0x14587df9f (16 inlined switches), and a byte sweep for `movzx r,byte [x+0x70]` followed by a
 rip-relative table `lea` (26 tables, the two camel-case reads are the only type-indexed one).
+The 0.9.0 in-game test crashed on session entry at a site none of these find: the `std::bitset` throw
+thunks (13 of them, each loading "invalid bitset position" 0x14561370e) have 229 callers, and a sweep of the
+bound compare before each branch to them finds `0x13` only twice, both in 0x14295c0a0.
 
 | site | what it does with the type | v0.9.0 |
 |---|---|---|
@@ -1204,6 +1207,7 @@ rip-relative table `lea` (26 tables, the two camel-case reads are the only type-
 | 0x14071e470 telemetry "research purchased", **0x14071e6fa** `lea rcx,[0x14564a0d0] ; mov rdx,[rcx+rax*8]` | camel-case name, **no bound** | MidHook on the lea: type ≥ 19 → `rdx` = camel name (or `"unknown"`), `rcx = rbx`, `rip = 0x14071e708` |
 | 0x14071e810 telemetry "upgrade failed", **0x14071e98d** `mov rdx,[rbp+rax*8]` | same, no bound | type ≥ 19 → `rdx` = camel name, `rip = 0x14071e992` |
 | 0x140777d50 telemetry upgrade record, **0x140777eff** `lea rdx,[0x14564a0d0] ; mov rdx,[rdx+rax*8]` | same, no bound | type ≥ 19 → `rdx` = camel name, `rip = 0x140777f0a` |
+| 0x14295c0a0 weekend objectives (Team HQ → session), **0x14295c6b3** `movzx edx,byte [rdx+0x70] ; cmp edx,0x13 ; jb 0x14295c690` | `std::bitset<19>` of the types with an Available upgrade (`bts r15d,edx`), the filter for the upgrade-discount rewards; type ≥ 19 → `jmp 0x14295cf89` → throw "invalid bitset position" | MidHook (7-byte window, no relative operand): instance type 19..22 → `rip = 0x14295c694` (next instance, bit not set). The rewards name stock types only (camel-case resolver 0x1409ea830), so the second bitset at 0x14295cf42 never sees ours |
 | 0x14353d4f0 regulation-change loader (type→department 0x14584f848, `< 0x13` else 5) | picks stock types of an affected department | none: regulation changes never pick a Tyres type (department 4 is never "affected") |
 | 0x143527a70 regulation-change save reader (default `types_affected` = all 19) | same | none |
 | 0x14275f620 entrants lane, 0x1409b9aa0 (attribute-set / car lane) | uniform values per stock type | none: not on the career path |
@@ -1220,7 +1224,7 @@ Without the three telemetry guards a Tyres purchase, failure or fit would read t
    loop bodies, the apply filter, the block-name bound and default, the three telemetry windows, all 16
    switch heads and defaults, and each of the six `lea`s must address 0x14566fd16 / 0x14566fd29.
 4. The 64-byte extended order table is allocated near the image and filled.
-5. The 21 consumer MidHooks are created all-or-nothing (any failure: nothing is kept, no id is minted).
+5. The 22 consumer MidHooks are created all-or-nothing (any failure: nothing is kept, no id is minted).
 6. The six rel32s are patched (rollback on any failure).
 7. The two resolver hooks are created last; on failure the six rel32s are restored.
 
@@ -1279,11 +1283,11 @@ Install:
 [rnd-tyres] tyres art: part images OWN (2/2 arrays with the 45 Tyres slices in flow_team_hq.erp), part masks OWN (2/2 with 15), category icons OWN (2/2 with 4 in flow_career_hub.erp); a borrowed piece uses stock frames (SAFE)
 [rnd-tyres] upgrade apply log INSTALLED: read-only hook @0x14fa63050 logs each type's perc once per vehicle component and value
 [rnd-tyres] upgrade types: tyres_upgrade_types=on, 4 new types (Power Unit Cooling shipped)
-[rnd-tyres] upgrade types: hooked <site> @0x… (base+0x…)                                   (x21)
+[rnd-tyres] upgrade types: hooked <site> @0x… (base+0x…)                                   (x22)
 [rnd-tyres] upgrade types: <loop lea> @0x… -> extended order table 0x…                     (x6)
 [rnd-tyres] upgrade types: hooked rows resolver join (Career_Load_UpgradeRows) @0x14353a408 (base+0x353a408)
 [rnd-tyres] upgrade types: hooked upgrade_type_metadata resolver join (0x14353c4f0) @0x14353c8c1 (base+0x353c8c1)
-[rnd-tyres] upgrade types INSTALLED: 19 radUpgradeTyreThermal, 20 radUpgradeBrakeCooling, 21 radUpgradeTyreLife, 22 radUpgradePUCooling; 21 consumer hooks, 6 order-table leas -> 0x… (23 types), resolvers last
+[rnd-tyres] upgrade types INSTALLED: 19 radUpgradeTyreThermal, 20 radUpgradeBrakeCooling, 21 radUpgradeTyreLife, 22 radUpgradePUCooling; 22 consumer hooks, 6 order-table leas -> 0x… (23 types), resolvers last
 ```
 Career load:
 ```
@@ -1293,6 +1297,10 @@ Career load:
 Tyres page / In Progress / cards: `[rnd-tyres] upgrade types: department category row 0x141c82470 label type 19 -> "tyre_thermal"`
 and `dept tag: department category row 0x141c82470 icon "error_department_tyre_thermal" -> "tyres_tyre_thermal"`
 (`chassis_tyre_wear` with `tyres_card_art` off).
+Team HQ → session (weekend objectives), once per Tyres upgrade that is Available:
+```
+[rnd-tyres] upgrade types: weekend objectives 0x14295c0a0 leaves Available type 19 (TyreThermal) out of the discount type bitset
+```
 Session load (vehicle build), one line per type per component and value:
 ```
 [rnd-tyres] upgrade apply: type 6 radUpgradeTyreWear perc 0.0000 (vehicle component 0x…)

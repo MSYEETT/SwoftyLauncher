@@ -15,7 +15,7 @@ What to look at on each screen, and the `swofty/loader.log` lines (in the game f
 |---|---|
 | the DLL loaded and the art arrays are installed | `tyres art: part images OWN (2/2 …), part masks OWN (2/2 with 15), category icons OWN (2/2 with 4 …)` |
 | the department icon | `tyres icon LIVE: 6/6 grown R&D icon arrays` |
-| the upgrade types | `upgrade types INSTALLED: 19 radUpgradeTyreThermal, 20 radUpgradeBrakeCooling, 21 radUpgradeTyreLife, 22 radUpgradePUCooling; 21 consumer hooks, 6 order-table leas` |
+| the upgrade types | `upgrade types INSTALLED: 19 radUpgradeTyreThermal, 20 radUpgradeBrakeCooling, 21 radUpgradeTyreLife, 22 radUpgradePUCooling; 22 consumer hooks, 6 order-table leas` |
 | the apply log | `upgrade apply log INSTALLED` |
 | the list icons | `dept tags INSTALLED: 9/9 icon sites` |
 
@@ -99,7 +99,13 @@ Check one card of each branch in each state, and the Develop Upgrade screen's la
 ## The upgrade-apply log
 
 1. Complete a Tyres upgrade (research and develop it until it is fitted). `tyres_test_price` makes this quick.
-2. Start any session (practice is enough). The game builds the car, which logs each type the car's upgrade map holds:
+2. Start any session (practice is enough). Leaving Team HQ for the session picks the weekend objectives, which leave every Available Tyres upgrade out of the upgrade-discount types (0.9.0 crashed here before the fix):
+
+```
+[rnd-tyres] upgrade types: weekend objectives 0x14295c0a0 leaves Available type 19 (TyreThermal) out of the discount type bitset
+```
+
+   The game then builds the car, which logs each type the car's upgrade map holds:
 
 ```
 [rnd-tyres] upgrade apply: type 19 radUpgradeTyreThermal perc 0.1429 (vehicle component 0x…)
