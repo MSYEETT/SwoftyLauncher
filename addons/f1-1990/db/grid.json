@@ -146,32 +146,6 @@
    "suit",
    "victory_vo"
   ],
-  "driver_statistics.driver_statistics.DriverStatisticsHolder": [
-   "_metadata_",
-   "driver",
-   "_StatisticsDataSet_instancecount_",
-   "StatisticsDataSet_0._metadata_",
-   "StatisticsDataSet_0.game_setup_modes",
-   "StatisticsDataSet_0.is_invalid",
-   "StatisticsDataSet_0.seasons",
-   "StatisticsDataSet_0.weekend_formats",
-   "StatisticsDataSet_0._Statistic_instancecount_",
-   "StatisticsDataSet_0.Statistic_0._metadata_",
-   "StatisticsDataSet_0.Statistic_0.info",
-   "StatisticsDataSet_0.Statistic_0.evolution",
-   "StatisticsDataSet_0.Statistic_1._metadata_",
-   "StatisticsDataSet_0.Statistic_1.info",
-   "StatisticsDataSet_0.Statistic_1.evolution",
-   "StatisticsDataSet_0.Statistic_2._metadata_",
-   "StatisticsDataSet_0.Statistic_2.info",
-   "StatisticsDataSet_0.Statistic_2.evolution",
-   "StatisticsDataSet_0.Statistic_3._metadata_",
-   "StatisticsDataSet_0.Statistic_3.info",
-   "StatisticsDataSet_0.Statistic_3.evolution",
-   "StatisticsDataSet_0.Statistic_4._metadata_",
-   "StatisticsDataSet_0.Statistic_4.info",
-   "StatisticsDataSet_0.Statistic_4.evolution"
-  ],
   "entrants.entrant_lists.entrants.entrant": [
    "_metadata_",
    "badge_customisation",
@@ -1892,35 +1866,34 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "ayrton_senna",
-    "driver": "ayrton_senna",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.925,0.25:0.925,0.5:0.925,1:0.925",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.932,0.25:0.932,0.5:0.932,1:0.932",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.943,0.25:0.943,0.5:0.943,1:0.943",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.921,0.25:0.921,0.5:0.921,1:0.921"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=aryton_senna]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=aryton_senna]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.925,0.25:0.925,0.5:0.925,1:0.925"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=aryton_senna]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.932,0.25:0.932,0.5:0.932,1:0.932"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=aryton_senna]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.943,0.25:0.943,0.5:0.943,1:0.943"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=aryton_senna]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.921,0.25:0.921,0.5:0.921,1:0.921"
   },
   {
    "op": "add-row",
@@ -1989,35 +1962,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_gerhard_berger",
-    "driver": "f1990_gerhard_berger",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.861,0.25:0.861,0.5:0.861,1:0.861",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.822,0.25:0.822,0.5:0.822,1:0.822",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.876,0.25:0.876,0.5:0.876,1:0.876",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.851,0.25:0.851,0.5:0.851,1:0.851"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "field": "driver",
+   "value": "f1990_gerhard_berger"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.861,0.25:0.861,0.5:0.861,1:0.861"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.822,0.25:0.822,0.5:0.822,1:0.822"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.876,0.25:0.876,0.5:0.876,1:0.876"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.851,0.25:0.851,0.5:0.851,1:0.851"
   },
   {
    "op": "add-row",
@@ -2314,35 +2292,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_thierry_boutsen",
-    "driver": "f1990_thierry_boutsen",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.851,0.25:0.851,0.5:0.851,1:0.851",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.865,0.25:0.865,0.5:0.865,1:0.865",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.822,0.25:0.822,0.5:0.822,1:0.822",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.885,0.25:0.885,0.5:0.885,1:0.885",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.868,0.25:0.868,0.5:0.868,1:0.868"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=marino_sato]",
+   "field": "driver",
+   "value": "f1990_thierry_boutsen"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=marino_sato]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.851,0.25:0.851,0.5:0.851,1:0.851"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=marino_sato]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.865,0.25:0.865,0.5:0.865,1:0.865"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=marino_sato]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.822,0.25:0.822,0.5:0.822,1:0.822"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=marino_sato]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.885,0.25:0.885,0.5:0.885,1:0.885"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=marino_sato]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.868,0.25:0.868,0.5:0.868,1:0.868"
   },
   {
    "op": "add-row",
@@ -2411,35 +2394,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_riccardo_patrese",
-    "driver": "f1990_riccardo_patrese",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.95,0.25:0.95,0.5:0.95,1:0.95",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.816,0.25:0.816,0.5:0.816,1:0.816",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.84,0.25:0.84,0.5:0.84,1:0.84",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.852,0.25:0.852,0.5:0.852,1:0.852",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.817,0.25:0.817,0.5:0.817,1:0.817"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=marcus_armstrong]",
+   "field": "driver",
+   "value": "f1990_riccardo_patrese"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=marcus_armstrong]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.95,0.25:0.95,0.5:0.95,1:0.95"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=marcus_armstrong]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.816,0.25:0.816,0.5:0.816,1:0.816"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=marcus_armstrong]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.84,0.25:0.84,0.5:0.84,1:0.84"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=marcus_armstrong]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.852,0.25:0.852,0.5:0.852,1:0.852"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=marcus_armstrong]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.817,0.25:0.817,0.5:0.817,1:0.817"
   },
   {
    "op": "add-row",
@@ -2508,35 +2496,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_alessandro_nannini",
-    "driver": "f1990_alessandro_nannini",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.752,0.25:0.752,0.5:0.752,1:0.752",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.848,0.25:0.848,0.5:0.848,1:0.848",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.845,0.25:0.845,0.5:0.845,1:0.845",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.865,0.25:0.865,0.5:0.865,1:0.865",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.87,0.25:0.87,0.5:0.87,1:0.87"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=juri_vips]",
+   "field": "driver",
+   "value": "f1990_alessandro_nannini"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=juri_vips]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.752,0.25:0.752,0.5:0.752,1:0.752"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=juri_vips]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.848,0.25:0.848,0.5:0.848,1:0.848"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=juri_vips]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.845,0.25:0.845,0.5:0.845,1:0.845"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=juri_vips]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.865,0.25:0.865,0.5:0.865,1:0.865"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=juri_vips]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.87,0.25:0.87,0.5:0.87,1:0.87"
   },
   {
    "op": "add-row",
@@ -2605,35 +2598,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_nelson_piquet",
-    "driver": "f1990_nelson_piquet",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.95,0.25:0.95,0.5:0.95,1:0.95",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.87,0.25:0.87,0.5:0.87,1:0.87",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.862,0.25:0.862,0.5:0.862,1:0.862",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.897,0.25:0.897,0.5:0.897,1:0.897",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.894,0.25:0.894,0.5:0.894,1:0.894"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=felipe_drugovich]",
+   "field": "driver",
+   "value": "f1990_nelson_piquet"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=felipe_drugovich]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.95,0.25:0.95,0.5:0.95,1:0.95"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=felipe_drugovich]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.87,0.25:0.87,0.5:0.87,1:0.87"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=felipe_drugovich]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.862,0.25:0.862,0.5:0.862,1:0.862"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=felipe_drugovich]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.897,0.25:0.897,0.5:0.897,1:0.897"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=felipe_drugovich]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.894,0.25:0.894,0.5:0.894,1:0.894"
   },
   {
    "op": "add-row",
@@ -2702,35 +2700,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_satoru_nakajima",
-    "driver": "f1990_satoru_nakajima",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.719,0.25:0.719,0.5:0.719,1:0.719",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.827,0.25:0.827,0.5:0.827,1:0.827",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.773,0.25:0.773,0.5:0.773,1:0.773",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.824,0.25:0.824,0.5:0.824,1:0.824",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.783,0.25:0.783,0.5:0.783,1:0.783"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=olli_caldwell]",
+   "field": "driver",
+   "value": "f1990_satoru_nakajima"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=olli_caldwell]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.719,0.25:0.719,0.5:0.719,1:0.719"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=olli_caldwell]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.827,0.25:0.827,0.5:0.827,1:0.827"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=olli_caldwell]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.773,0.25:0.773,0.5:0.773,1:0.773"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=olli_caldwell]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.824,0.25:0.824,0.5:0.824,1:0.824"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=olli_caldwell]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.783,0.25:0.783,0.5:0.783,1:0.783"
   },
   {
    "op": "add-row",
@@ -2799,35 +2802,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_jean_alesi",
-    "driver": "f1990_jean_alesi",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.849,0.25:0.849,0.5:0.849,1:0.849",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.887,0.25:0.887,0.5:0.887,1:0.887",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.884,0.25:0.884,0.5:0.884,1:0.884",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.876,0.25:0.876,0.5:0.876,1:0.876"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=calan_williams]",
+   "field": "driver",
+   "value": "f1990_jean_alesi"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=calan_williams]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=calan_williams]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.849,0.25:0.849,0.5:0.849,1:0.849"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=calan_williams]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.887,0.25:0.887,0.5:0.887,1:0.887"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=calan_williams]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.884,0.25:0.884,0.5:0.884,1:0.884"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=calan_williams]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.876,0.25:0.876,0.5:0.876,1:0.876"
   },
   {
    "op": "add-row",
@@ -2896,35 +2904,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_derek_warwick",
-    "driver": "f1990_derek_warwick",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.917,0.25:0.917,0.5:0.917,1:0.917",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.805,0.25:0.805,0.5:0.805,1:0.805",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.799,0.25:0.799,0.5:0.799,1:0.799",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.842,0.25:0.842,0.5:0.842,1:0.842",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.79,0.25:0.79,0.5:0.79,1:0.79"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=tatiana_calderon]",
+   "field": "driver",
+   "value": "f1990_derek_warwick"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=tatiana_calderon]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.917,0.25:0.917,0.5:0.917,1:0.917"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=tatiana_calderon]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.805,0.25:0.805,0.5:0.805,1:0.805"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=tatiana_calderon]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.799,0.25:0.799,0.5:0.799,1:0.799"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=tatiana_calderon]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.842,0.25:0.842,0.5:0.842,1:0.842"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=tatiana_calderon]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.79,0.25:0.79,0.5:0.79,1:0.79"
   },
   {
    "op": "add-row",
@@ -2993,35 +3006,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_martin_donnelly",
-    "driver": "f1990_martin_donnelly",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.832,0.25:0.832,0.5:0.832,1:0.832",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.812,0.25:0.812,0.5:0.812,1:0.812",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.831,0.25:0.831,0.5:0.831,1:0.831",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.824,0.25:0.824,0.5:0.824,1:0.824"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jake_hughes]",
+   "field": "driver",
+   "value": "f1990_martin_donnelly"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jake_hughes]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jake_hughes]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.832,0.25:0.832,0.5:0.832,1:0.832"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jake_hughes]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.812,0.25:0.812,0.5:0.812,1:0.812"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jake_hughes]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.831,0.25:0.831,0.5:0.831,1:0.831"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jake_hughes]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.824,0.25:0.824,0.5:0.824,1:0.824"
   },
   {
    "op": "add-row",
@@ -3090,35 +3108,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_mauricio_gugelmin",
-    "driver": "f1990_mauricio_gugelmin",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.686,0.25:0.686,0.5:0.686,1:0.686",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.837,0.25:0.837,0.5:0.837,1:0.837",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.825,0.25:0.825,0.5:0.825,1:0.825",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.824,0.25:0.824,0.5:0.824,1:0.824",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.813,0.25:0.813,0.5:0.813,1:0.813"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=sebastian_vettel]",
+   "field": "driver",
+   "value": "f1990_mauricio_gugelmin"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=sebastian_vettel]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.686,0.25:0.686,0.5:0.686,1:0.686"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=sebastian_vettel]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.837,0.25:0.837,0.5:0.837,1:0.837"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=sebastian_vettel]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.825,0.25:0.825,0.5:0.825,1:0.825"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=sebastian_vettel]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.824,0.25:0.824,0.5:0.824,1:0.824"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=sebastian_vettel]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.813,0.25:0.813,0.5:0.813,1:0.813"
   },
   {
    "op": "add-row",
@@ -3187,35 +3210,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_ivan_capelli",
-    "driver": "f1990_ivan_capelli",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.785,0.25:0.785,0.5:0.785,1:0.785",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.86,0.25:0.86,0.5:0.86,1:0.86",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.857,0.25:0.857,0.5:0.857,1:0.857",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.881,0.25:0.881,0.5:0.881,1:0.881",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.893,0.25:0.893,0.5:0.893,1:0.893"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=kimi_raikkonen]",
+   "field": "driver",
+   "value": "f1990_ivan_capelli"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=kimi_raikkonen]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.785,0.25:0.785,0.5:0.785,1:0.785"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=kimi_raikkonen]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.86,0.25:0.86,0.5:0.86,1:0.86"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=kimi_raikkonen]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.857,0.25:0.857,0.5:0.857,1:0.857"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=kimi_raikkonen]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.881,0.25:0.881,0.5:0.881,1:0.881"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=kimi_raikkonen]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.893,0.25:0.893,0.5:0.893,1:0.893"
   },
   {
    "op": "add-row",
@@ -3284,35 +3312,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_eric_bernard",
-    "driver": "f1990_eric_bernard",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.78,0.25:0.78,0.5:0.78,1:0.78",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.756,0.25:0.756,0.5:0.756,1:0.756",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.758,0.25:0.758,0.5:0.758,1:0.758",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.782,0.25:0.782,0.5:0.782,1:0.782"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=zak_osullivan]",
+   "field": "driver",
+   "value": "f1990_eric_bernard"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=zak_osullivan]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=zak_osullivan]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.78,0.25:0.78,0.5:0.78,1:0.78"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=zak_osullivan]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.756,0.25:0.756,0.5:0.756,1:0.756"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=zak_osullivan]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.758,0.25:0.758,0.5:0.758,1:0.758"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=zak_osullivan]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.782,0.25:0.782,0.5:0.782,1:0.782"
   },
   {
    "op": "add-row",
@@ -3381,35 +3414,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_aguri_suzuki",
-    "driver": "f1990_aguri_suzuki",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.686,0.25:0.686,0.5:0.686,1:0.686",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.747,0.25:0.747,0.5:0.747,1:0.747",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.751,0.25:0.751,0.5:0.751,1:0.751",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.713,0.25:0.713,0.5:0.713,1:0.713",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.762,0.25:0.762,0.5:0.762,1:0.762"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=zane_maloney]",
+   "field": "driver",
+   "value": "f1990_aguri_suzuki"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=zane_maloney]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.686,0.25:0.686,0.5:0.686,1:0.686"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=zane_maloney]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.747,0.25:0.747,0.5:0.747,1:0.747"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=zane_maloney]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.751,0.25:0.751,0.5:0.751,1:0.751"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=zane_maloney]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.713,0.25:0.713,0.5:0.713,1:0.713"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=zane_maloney]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.762,0.25:0.762,0.5:0.762,1:0.762"
   },
   {
    "op": "add-row",
@@ -3478,35 +3516,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_nicola_larini",
-    "driver": "f1990_nicola_larini",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.719,0.25:0.719,0.5:0.719,1:0.719",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.837,0.25:0.837,0.5:0.837,1:0.837",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.867,0.25:0.867,0.5:0.867,1:0.867",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.877,0.25:0.877,0.5:0.877,1:0.877",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.885,0.25:0.885,0.5:0.885,1:0.885"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=juan-manuel_correa]",
+   "field": "driver",
+   "value": "f1990_nicola_larini"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=juan-manuel_correa]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.719,0.25:0.719,0.5:0.719,1:0.719"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=juan-manuel_correa]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.837,0.25:0.837,0.5:0.837,1:0.837"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=juan-manuel_correa]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.867,0.25:0.867,0.5:0.867,1:0.867"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=juan-manuel_correa]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.877,0.25:0.877,0.5:0.877,1:0.877"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=juan-manuel_correa]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.885,0.25:0.885,0.5:0.885,1:0.885"
   },
   {
    "op": "add-row",
@@ -3575,35 +3618,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_philippe_alliot",
-    "driver": "f1990_philippe_alliot",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.793,0.25:0.793,0.5:0.793,1:0.793",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.764,0.25:0.764,0.5:0.764,1:0.764",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.796,0.25:0.796,0.5:0.796,1:0.796",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.807,0.25:0.807,0.5:0.807,1:0.807"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=dennis_hauger]",
+   "field": "driver",
+   "value": "f1990_philippe_alliot"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=dennis_hauger]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=dennis_hauger]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.793,0.25:0.793,0.5:0.793,1:0.793"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=dennis_hauger]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.764,0.25:0.764,0.5:0.764,1:0.764"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=dennis_hauger]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.796,0.25:0.796,0.5:0.796,1:0.796"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=dennis_hauger]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.807,0.25:0.807,0.5:0.807,1:0.807"
   },
   {
    "op": "add-row",
@@ -3672,35 +3720,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_pierluigi_martini",
-    "driver": "f1990_pierluigi_martini",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.811,0.25:0.811,0.5:0.811,1:0.811",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.804,0.25:0.804,0.5:0.804,1:0.804",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.837,0.25:0.837,0.5:0.837,1:0.837",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.8,0.25:0.8,0.5:0.8,1:0.8"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=enzo_fittipaldi]",
+   "field": "driver",
+   "value": "f1990_pierluigi_martini"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=enzo_fittipaldi]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=enzo_fittipaldi]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.811,0.25:0.811,0.5:0.811,1:0.811"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=enzo_fittipaldi]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.804,0.25:0.804,0.5:0.804,1:0.804"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=enzo_fittipaldi]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.837,0.25:0.837,0.5:0.837,1:0.837"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=enzo_fittipaldi]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.8,0.25:0.8,0.5:0.8,1:0.8"
   },
   {
    "op": "add-row",
@@ -3769,35 +3822,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_paolo_barilla",
-    "driver": "f1990_paolo_barilla",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.774,0.25:0.774,0.5:0.774,1:0.774",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.741,0.25:0.741,0.5:0.741,1:0.741",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.761,0.25:0.761,0.5:0.761,1:0.761",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.736,0.25:0.736,0.5:0.736,1:0.736"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=paul_aron]",
+   "field": "driver",
+   "value": "f1990_paolo_barilla"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=paul_aron]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=paul_aron]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.774,0.25:0.774,0.5:0.774,1:0.774"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=paul_aron]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.741,0.25:0.741,0.5:0.741,1:0.741"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=paul_aron]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.761,0.25:0.761,0.5:0.761,1:0.761"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=paul_aron]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.736,0.25:0.736,0.5:0.736,1:0.736"
   },
   {
    "op": "add-row",
@@ -3866,35 +3924,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_david_brabham",
-    "driver": "f1990_david_brabham",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.62,0.25:0.62,0.5:0.62,1:0.62",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.788,0.25:0.788,0.5:0.788,1:0.788",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.746,0.25:0.746,0.5:0.746,1:0.746",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.784,0.25:0.784,0.5:0.784,1:0.784",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.754,0.25:0.754,0.5:0.754,1:0.754"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=taylor_barnard]",
+   "field": "driver",
+   "value": "f1990_david_brabham"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=taylor_barnard]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.62,0.25:0.62,0.5:0.62,1:0.62"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=taylor_barnard]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.788,0.25:0.788,0.5:0.788,1:0.788"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=taylor_barnard]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.746,0.25:0.746,0.5:0.746,1:0.746"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=taylor_barnard]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.784,0.25:0.784,0.5:0.784,1:0.784"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=taylor_barnard]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.754,0.25:0.754,0.5:0.754,1:0.754"
   },
   {
    "op": "add-row",
@@ -3963,35 +4026,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_stefano_modena",
-    "driver": "f1990_stefano_modena",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.719,0.25:0.719,0.5:0.719,1:0.719",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.816,0.25:0.816,0.5:0.816,1:0.816",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.813,0.25:0.813,0.5:0.813,1:0.813",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.795,0.25:0.795,0.5:0.795,1:0.795"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=guanyu_zhou]",
+   "field": "driver",
+   "value": "f1990_stefano_modena"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=guanyu_zhou]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.719,0.25:0.719,0.5:0.719,1:0.719"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=guanyu_zhou]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.818,0.25:0.818,0.5:0.818,1:0.818"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=guanyu_zhou]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.816,0.25:0.816,0.5:0.816,1:0.816"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=guanyu_zhou]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.813,0.25:0.813,0.5:0.813,1:0.813"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=guanyu_zhou]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.795,0.25:0.795,0.5:0.795,1:0.795"
   },
   {
    "op": "add-row",
@@ -4060,35 +4128,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_emanuele_pirro",
-    "driver": "f1990_emanuele_pirro",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.77,0.25:0.77,0.5:0.77,1:0.77",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.751,0.25:0.751,0.5:0.751,1:0.751",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.777,0.25:0.777,0.5:0.777,1:0.777",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.781,0.25:0.781,0.5:0.781,1:0.781"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=kevin_magnussen]",
+   "field": "driver",
+   "value": "f1990_emanuele_pirro"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=kevin_magnussen]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=kevin_magnussen]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.77,0.25:0.77,0.5:0.77,1:0.77"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=kevin_magnussen]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.751,0.25:0.751,0.5:0.751,1:0.751"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=kevin_magnussen]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.777,0.25:0.777,0.5:0.777,1:0.777"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=kevin_magnussen]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.781,0.25:0.781,0.5:0.781,1:0.781"
   },
   {
    "op": "add-row",
@@ -4157,35 +4230,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_andrea_de_cesaris",
-    "driver": "f1990_andrea_de_cesaris",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.95,0.25:0.95,0.5:0.95,1:0.95",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.78,0.25:0.78,0.5:0.78,1:0.78",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.796,0.25:0.796,0.5:0.796,1:0.796",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.781,0.25:0.781,0.5:0.781,1:0.781",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.815,0.25:0.815,0.5:0.815,1:0.815"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=logan_sargeant]",
+   "field": "driver",
+   "value": "f1990_andrea_de_cesaris"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=logan_sargeant]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.95,0.25:0.95,0.5:0.95,1:0.95"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=logan_sargeant]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.78,0.25:0.78,0.5:0.78,1:0.78"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=logan_sargeant]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.796,0.25:0.796,0.5:0.796,1:0.796"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=logan_sargeant]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.781,0.25:0.781,0.5:0.781,1:0.781"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=logan_sargeant]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.815,0.25:0.815,0.5:0.815,1:0.815"
   },
   {
    "op": "add-row",
@@ -4254,35 +4332,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_michele_alboreto",
-    "driver": "f1990_michele_alboreto",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.917,0.25:0.917,0.5:0.917,1:0.917",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.848,0.25:0.848,0.5:0.848,1:0.848",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.837,0.25:0.837,0.5:0.837,1:0.837",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.891,0.25:0.891,0.5:0.891,1:0.891",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.861,0.25:0.861,0.5:0.861,1:0.861"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jehan_daruvala]",
+   "field": "driver",
+   "value": "f1990_michele_alboreto"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jehan_daruvala]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.917,0.25:0.917,0.5:0.917,1:0.917"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jehan_daruvala]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.848,0.25:0.848,0.5:0.848,1:0.848"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jehan_daruvala]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.837,0.25:0.837,0.5:0.837,1:0.837"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jehan_daruvala]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.891,0.25:0.891,0.5:0.891,1:0.891"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jehan_daruvala]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.861,0.25:0.861,0.5:0.861,1:0.861"
   },
   {
    "op": "add-row",
@@ -4351,35 +4434,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_alex_caffi",
-    "driver": "f1990_alex_caffi",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.752,0.25:0.752,0.5:0.752,1:0.752",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.839,0.25:0.839,0.5:0.839,1:0.839",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.82,0.25:0.82,0.5:0.82,1:0.82",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.831,0.25:0.831,0.5:0.831,1:0.831",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.839,0.25:0.839,0.5:0.839,1:0.839"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=frederik_vesti]",
+   "field": "driver",
+   "value": "f1990_alex_caffi"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=frederik_vesti]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.752,0.25:0.752,0.5:0.752,1:0.752"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=frederik_vesti]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.839,0.25:0.839,0.5:0.839,1:0.839"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=frederik_vesti]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.82,0.25:0.82,0.5:0.82,1:0.82"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=frederik_vesti]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.831,0.25:0.831,0.5:0.831,1:0.831"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=frederik_vesti]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.839,0.25:0.839,0.5:0.839,1:0.839"
   },
   {
    "op": "add-row",
@@ -4448,35 +4536,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_gregor_foitek",
-    "driver": "f1990_gregor_foitek",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.736,0.25:0.736,0.5:0.736,1:0.736",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.727,0.25:0.727,0.5:0.727,1:0.727",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.736,0.25:0.736,0.5:0.736,1:0.736",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.756,0.25:0.756,0.5:0.756,1:0.756"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=theo_pourchaire]",
+   "field": "driver",
+   "value": "f1990_gregor_foitek"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=theo_pourchaire]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=theo_pourchaire]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.736,0.25:0.736,0.5:0.736,1:0.736"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=theo_pourchaire]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.727,0.25:0.727,0.5:0.727,1:0.727"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=theo_pourchaire]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.736,0.25:0.736,0.5:0.736,1:0.736"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=theo_pourchaire]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.756,0.25:0.756,0.5:0.756,1:0.756"
   },
   {
    "op": "add-row",
@@ -4545,35 +4638,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_gianni_morbidelli",
-    "driver": "f1990_gianni_morbidelli",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.796,0.25:0.796,0.5:0.796,1:0.796",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.774,0.25:0.774,0.5:0.774,1:0.774",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.77,0.25:0.77,0.5:0.77,1:0.77",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.764,0.25:0.764,0.5:0.764,1:0.764"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=clement_novalak]",
+   "field": "driver",
+   "value": "f1990_gianni_morbidelli"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=clement_novalak]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=clement_novalak]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.796,0.25:0.796,0.5:0.796,1:0.796"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=clement_novalak]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.774,0.25:0.774,0.5:0.774,1:0.774"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=clement_novalak]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.77,0.25:0.77,0.5:0.77,1:0.77"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=clement_novalak]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.764,0.25:0.764,0.5:0.764,1:0.764"
   },
   {
    "op": "add-row",
@@ -4642,35 +4740,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_bernd_schneider",
-    "driver": "f1990_bernd_schneider",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.686,0.25:0.686,0.5:0.686,1:0.686",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.744,0.25:0.744,0.5:0.744,1:0.744",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.714,0.25:0.714,0.5:0.714,1:0.714",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.7,0.25:0.7,0.5:0.7,1:0.7",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.734,0.25:0.734,0.5:0.734,1:0.734"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=ralph_boschung]",
+   "field": "driver",
+   "value": "f1990_bernd_schneider"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=ralph_boschung]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.686,0.25:0.686,0.5:0.686,1:0.686"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=ralph_boschung]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.744,0.25:0.744,0.5:0.744,1:0.744"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=ralph_boschung]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.714,0.25:0.714,0.5:0.714,1:0.714"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=ralph_boschung]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.7,0.25:0.7,0.5:0.7,1:0.7"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=ralph_boschung]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.734,0.25:0.734,0.5:0.734,1:0.734"
   },
   {
    "op": "add-row",
@@ -4739,35 +4842,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_roberto_moreno",
-    "driver": "f1990_roberto_moreno",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.884,0.25:0.884,0.5:0.884,1:0.884",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.803,0.25:0.803,0.5:0.803,1:0.803",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.786,0.25:0.786,0.5:0.786,1:0.786",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.82,0.25:0.82,0.5:0.82,1:0.82",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.794,0.25:0.794,0.5:0.794,1:0.794"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=roy_nissany]",
+   "field": "driver",
+   "value": "f1990_roberto_moreno"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=roy_nissany]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.884,0.25:0.884,0.5:0.884,1:0.884"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=roy_nissany]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.803,0.25:0.803,0.5:0.803,1:0.803"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=roy_nissany]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.786,0.25:0.786,0.5:0.786,1:0.786"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=roy_nissany]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.82,0.25:0.82,0.5:0.82,1:0.82"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=roy_nissany]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.794,0.25:0.794,0.5:0.794,1:0.794"
   },
   {
    "op": "add-row",
@@ -4836,35 +4944,40 @@
    }
   },
   {
-   "op": "add-row",
-   "table": "driver_statistics.driver_statistics",
-   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=jarno_opmeer]",
-   "set": {
-    "_metadata_": "f1990_johnny_herbert",
-    "driver": "f1990_johnny_herbert",
-    "_StatisticsDataSet_instancecount_": "1",
-    "StatisticsDataSet_0._metadata_": "default",
-    "StatisticsDataSet_0.game_setup_modes": "",
-    "StatisticsDataSet_0.is_invalid": "False",
-    "StatisticsDataSet_0.seasons": "",
-    "StatisticsDataSet_0.weekend_formats": "",
-    "StatisticsDataSet_0._Statistic_instancecount_": "5",
-    "StatisticsDataSet_0.Statistic_0._metadata_": "experience",
-    "StatisticsDataSet_0.Statistic_0.info": "experience",
-    "StatisticsDataSet_0.Statistic_1._metadata_": "racecraft",
-    "StatisticsDataSet_0.Statistic_1.info": "racecraft",
-    "StatisticsDataSet_0.Statistic_2._metadata_": "awareness",
-    "StatisticsDataSet_0.Statistic_2.info": "awareness",
-    "StatisticsDataSet_0.Statistic_3._metadata_": "pace",
-    "StatisticsDataSet_0.Statistic_3.info": "pace",
-    "StatisticsDataSet_0.Statistic_4._metadata_": "focus",
-    "StatisticsDataSet_0.Statistic_4.info": "focus",
-    "StatisticsDataSet_0.Statistic_0.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653",
-    "StatisticsDataSet_0.Statistic_1.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.806,0.25:0.806,0.5:0.806,1:0.806",
-    "StatisticsDataSet_0.Statistic_2.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.792,0.25:0.792,0.5:0.792,1:0.792",
-    "StatisticsDataSet_0.Statistic_3.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.813,0.25:0.813,0.5:0.813,1:0.813",
-    "StatisticsDataSet_0.Statistic_4.evolution": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.797,0.25:0.797,0.5:0.797,1:0.797"
-   }
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=ayumu_iwasa]",
+   "field": "driver",
+   "value": "f1990_johnny_herbert"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=ayumu_iwasa]",
+   "field": "StatisticsDataSet_0.Statistic_0.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.653,0.25:0.653,0.5:0.653,1:0.653"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=ayumu_iwasa]",
+   "field": "StatisticsDataSet_0.Statistic_1.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.806,0.25:0.806,0.5:0.806,1:0.806"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=ayumu_iwasa]",
+   "field": "StatisticsDataSet_0.Statistic_2.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.792,0.25:0.792,0.5:0.792,1:0.792"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=ayumu_iwasa]",
+   "field": "StatisticsDataSet_0.Statistic_3.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.813,0.25:0.813,0.5:0.813,1:0.813"
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=ayumu_iwasa]",
+   "field": "StatisticsDataSet_0.Statistic_4.evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.797,0.25:0.797,0.5:0.797,1:0.797"
   },
   {
    "op": "add-row",

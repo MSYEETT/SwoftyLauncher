@@ -17,7 +17,6 @@ DRIVER_FROM = "entrants.drivers.driver[_metadata_=jarno_opmeer]"
 LOOKS = "entrants.driver_customisations.folder[_metadata_=ai_driver_customisations]"
 LOOK_FROM = LOOKS + ".preloaded_driver_customisation_properties[_metadata_=official_driver_customisation_for_driver_pool]"
 STATS_TABLE = "driver_statistics.driver_statistics"
-STATS_FROM = STATS_TABLE + ".DriverStatisticsHolder[_metadata_=jarno_opmeer]"
 ENTRANTS = "entrants.entrant_lists.entrants"
 ENTRANT_FROM = ENTRANTS + ".entrant[_metadata_=jarno_opmeer]"
 TEAM_STANDINGS = "entrants.standings.standings[_metadata_=f1_teams_2025]"
@@ -35,7 +34,14 @@ STOCK = {
     "alain_prost": ("alain_prost", "classic-prost01_alain_prost"),
     "nigel_mansell": ("nigel_mansell", "classic-mansell01_nigel_mansell"),
 }
-NEW_STATS_HOLDER = {"ayrton_senna"}
+SPARE_HOLDERS = [
+    "nyck_de-vries", "marino_sato", "marcus_armstrong", "juri_vips", "felipe_drugovich", "olli_caldwell",
+    "calan_williams", "tatiana_calderon", "jake_hughes", "sebastian_vettel", "kimi_raikkonen", "zak_osullivan",
+    "zane_maloney", "juan-manuel_correa", "dennis_hauger", "enzo_fittipaldi", "paul_aron", "taylor_barnard",
+    "guanyu_zhou", "kevin_magnussen", "logan_sargeant", "jehan_daruvala", "frederik_vesti", "theo_pourchaire",
+    "clement_novalak", "ralph_boschung", "roy_nissany", "ayumu_iwasa", "arthur_leclerc",
+]
+OWN_HOLDERS = {"ayrton_senna": "aryton_senna", "alain_prost": "alain_prost", "nigel_mansell": "nigel_mansell"}
 
 DRIVER_IDS = [18, 37, 60, 61, 104, 105, 106, 107, 108, 119, 120, 124] + list(range(253, 236, -1))
 FIRST_PRESET = 1990
@@ -164,16 +170,6 @@ def rust_list(path, name):
     return re.findall(r'"([^"]+)"', body)
 
 
-def stats_fields():
-    f = ["_metadata_", "driver", "_StatisticsDataSet_instancecount_", "StatisticsDataSet_0._metadata_",
-         "StatisticsDataSet_0.game_setup_modes", "StatisticsDataSet_0.is_invalid", "StatisticsDataSet_0.seasons",
-         "StatisticsDataSet_0.weekend_formats", "StatisticsDataSet_0._Statistic_instancecount_"]
-    for i in range(len(STATS)):
-        for part in ("_metadata_", "info", "evolution"):
-            f.append(f"StatisticsDataSet_0.Statistic_{i}.{part}")
-    return f
-
-
 def num(v, places=3):
     t = f"{max(0.0, min(1.0, v)):.{places}f}".rstrip("0").rstrip(".")
     return t or "0"
@@ -291,6 +287,7 @@ def build(season):
         setop(vehicle, "engine_name_override", f"lng_f1990_engine_{s.team}")
 
     preset = FIRST_PRESET
+    spare = iter(SPARE_HOLDERS)
     for did in seated + free:
         d = season.drivers[did]
         code, debut, (by, bm, bd), head, helmet = DRIVER_INFO[did]
@@ -333,23 +330,12 @@ def build(season):
             "suit": suit, "victory_vo": "",
         })
         preset += 1
-        curves = {f"StatisticsDataSet_0.Statistic_{i}.evolution": curve(stats[k]) for i, k in enumerate(STATS)}
-        if did in STOCK and did not in NEW_STATS_HOLDER:
-            holder = f"{STATS_TABLE}.DriverStatisticsHolder[_metadata_={label}]"
-            for fld, value in curves.items():
-                setop(holder, fld, value)
-        else:
-            values = {
-                "_metadata_": label, "driver": label, "_StatisticsDataSet_instancecount_": "1",
-                "StatisticsDataSet_0._metadata_": "default", "StatisticsDataSet_0.game_setup_modes": "",
-                "StatisticsDataSet_0.is_invalid": "False", "StatisticsDataSet_0.seasons": "",
-                "StatisticsDataSet_0.weekend_formats": "", "StatisticsDataSet_0._Statistic_instancecount_": str(len(STATS)),
-            }
-            for i, k in enumerate(STATS):
-                values[f"StatisticsDataSet_0.Statistic_{i}._metadata_"] = k
-                values[f"StatisticsDataSet_0.Statistic_{i}.info"] = k
-            values.update(curves)
-            add(STATS_TABLE, STATS_FROM, values)
+        holder_label = OWN_HOLDERS.get(did) or next(spare)
+        holder = f"{STATS_TABLE}.DriverStatisticsHolder[_metadata_={holder_label}]"
+        if did not in OWN_HOLDERS:
+            setop(holder, "driver", label)
+        for i, k in enumerate(STATS):
+            setop(holder, f"StatisticsDataSet_0.Statistic_{i}.evolution", curve(stats[k]))
         add(ENTRANTS, ENTRANT_FROM, {
             "_metadata_": entrant, "badge_customisation": "", "car_number": str(number), "driver": label,
             "driver_customisation": look, "entrant_reference": "", "team": "", "team_position": "-1",
@@ -379,7 +365,6 @@ def build(season):
     fields = {
         f"{DRIVERS}.driver": rust_list(DM_SRC / "fields.rs", "DRIVER_FIELDS"),
         f"{LOOKS}.preloaded_driver_customisation_properties": LOOK_FIELDS,
-        f"{STATS_TABLE}.DriverStatisticsHolder": stats_fields(),
         f"{ENTRANTS}.entrant": ENTRANT_FIELDS,
         f"{POOL}.entrant": ENTRANT_FIELDS,
     }

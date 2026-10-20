@@ -72,7 +72,7 @@ What it writes:
 | 13 teams | `set` on each slot's team row: names (`lng_f1990_team_<team>`, `_short`), code, the seven colours, base, nationality, and a 1990 description and hashtag on the 11 rows that carry `story_info`. `set` on its vehicle row: `display_name`, `chassis_name`, `engine_name_override`. Team principal: the boss's `entrants.characters` row gets `lng_f1990_boss_<team>_full/_first/_last`; Larrousse and Dallara get their own boss rows (`andreas_seidl`, `franz_tost`) instead of sharing Williams' and Haas'. `lang.set` on the stock `lng_<team>_boss` keys, which the career's email senders use |
 | 28 drivers | Senna, Prost and Mansell keep their stock rows (`set` car number, seasons, AI traits). 25 new drivers (the other 23 season regulars, plus the stand-ins Foitek, Morbidelli, Schneider, Moreno and Herbert) get a full `entrants.drivers` row copied from `jarno_opmeer`, as Driver Manager builds them |
 | Looks | One `ai_driver_customisations` row per driver (`f1990_<driver>_look`): the team's 2026 suit and gloves, a stock helmet (the classic helmets for Senna, Prost and Mansell) |
-| Ratings | One `driver_statistics` holder per new driver and for Senna; `set` on Prost's and Mansell's |
+| Ratings | No new `driver_statistics` holders: a race start aborts once the table holds more than 128 (stock 117). Each new driver takes a spare stock holder (`SPARE_HOLDERS`: drivers no 2026 list uses) by `set` on its `driver` field and curves; Senna, Prost and Mansell get `set` on their own holders (`aryton_senna`, `alain_prost`, `nigel_mansell`) |
 | Entrants | One `entrants.entrant_lists.entrants` row per driver (`f1990-<driver>`): driver, look, car number |
 | Grid | The 26 rows of `f1_2026` (22 stock, 4 from Custom Grid Size at 26 cars) point at the season regulars (each seat's driver with the most starts), with 1990 numbers and `team_position` 0/1 |
 | Free agents | `f1_2026_driver_pool`: Senna's row becomes Foitek; Morbidelli, Schneider, Moreno and Herbert are added |
@@ -110,7 +110,7 @@ Each rating curve is flat at its value. `consistency` is not used.
 
 ## check_grid.py
 
-Checks a built database against `db/grid.json`: the 26 `f1_2026` seats resolve to a team, a car, an entrant, a driver and a look; car numbers, driver stat ids, look stat ids and driver labels are unique; no free agent is also seated; every added row has every listed field its source row has, and no more.
+Checks a built database against `db/grid.json`: the 26 `f1_2026` seats resolve to a team, a car, an entrant, a driver and a look; car numbers, driver stat ids, look stat ids and driver labels are unique; no free agent is also seated; the statistics table holds at most 128 holders and each seated driver exactly one; every added row has every listed field its source row has, and no more.
 
 ```sh
 python3 addons/f1-1990/tools/check_grid.py <overlay>/game_package/gamedatabases/gamedatabases.2025.bin
