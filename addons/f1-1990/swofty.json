@@ -48,7 +48,7 @@
   ],
   "operations": {
     "database": ["db/career.json", "db/grid.json", "db/rules.json", "db/physics.json"],
-    "assets": ["db/rules_text.json", "lang/grid.json"],
+    "assets": ["db/rules_text.json", "lang/grid.json", "db/career-lang.json"],
     "erp": ["erp/cars/handling.json"],
     "native": [{ "dll": "native/f1_1990.dll" }],
     "files": [
