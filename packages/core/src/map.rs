@@ -47,9 +47,20 @@ pub struct Activation {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Override {
     pub path: String,
+    #[serde(deserialize_with = "string_or_number")]
     pub value: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub datasets: Vec<String>,
+}
+
+fn string_or_number<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<String, D::Error> {
+    match serde_json::Value::deserialize(d)? {
+        serde_json::Value::String(s) => Ok(s),
+        serde_json::Value::Number(n) => Ok(n.to_string()),
+        v => Err(serde::de::Error::custom(format!(
+            "expected a string or a number, found {v}"
+        ))),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -285,6 +296,18 @@ pub(crate) mod tests {
         assert_eq!(p.display_name(), "Test Ring");
         assert_eq!(p.activation.overrides[0].datasets, ["f1_2025"]);
         assert_eq!(p.db_ops().len(), 1);
+    }
+
+    #[test]
+    fn override_values_take_numbers() {
+        let json = OKAYAMA_LIKE
+            .replace(r#""value": "C3""#, r#""value": 1.55"#)
+            .replace(r#""value": "False""#, r#""value": 64"#);
+        let p = TrackPackage::parse(json.as_bytes()).unwrap();
+        assert_eq!(p.activation.overrides[0].value, "1.55");
+        assert_eq!(p.activation.track_overrides[0].value, "64");
+        let bad = OKAYAMA_LIKE.replace(r#""value": "C3""#, r#""value": [1]"#);
+        assert!(TrackPackage::parse(bad.as_bytes()).is_err());
     }
 
     #[test]

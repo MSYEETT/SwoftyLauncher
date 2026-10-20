@@ -71,6 +71,8 @@ The importer recognises a track package by a `manifest.json` with a `track_code`
 
 An override `path` is relative to the row. A segment of it can name a sub-row by number (`TyreData_0`), every sub-row (`TyreData_*`) or the one sub-row whose field matches (`Name[field=value]`, as in [Selecting rows](/reference/ops/database#selecting-rows)). A selector that matches more than one sub-row fails the build.
 
+An override `value` is a string, such as `"1.55"` or `"64,64,64"`. A JSON number is also accepted and written as its text: `1.55` sets `"1.55"`.
+
 Keep every path in the package inside the package. For every table, archive and menu change made during activation, see [How tracks are installed](/reference/installing-tracks).
 
 ## The track's name
