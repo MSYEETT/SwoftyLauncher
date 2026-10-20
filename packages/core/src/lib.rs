@@ -6,6 +6,7 @@ pub mod build;
 pub mod builtin;
 pub mod bundled;
 pub mod cache;
+pub mod compat;
 pub mod crash;
 pub mod erpbuild;
 pub mod exe_version;

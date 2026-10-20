@@ -271,6 +271,9 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
     let lock = crate::recover::lock(store, &info)?;
     crate::recover::stale(store, &lock, g, Scope::All, &info)?;
     crate::offline::gate(store, false)?;
+    if let Some(reason) = swofty_core::compat::elevation_blocker(&g.dir) {
+        bail!("{reason}");
+    }
     end_on_signals();
     let config: Config = std::fs::read(store.config_path())
         .ok()
