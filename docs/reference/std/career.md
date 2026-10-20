@@ -22,7 +22,7 @@ Every call that returns a `swofty::career::Result` uses the shared [result codes
 
 | Call | Returns |
 |---|---|
-| `available()` | `true` when the core tracks the flow states on this build |
+| `available()` | `true` when the core tracks the flow states on this build; settled before any `SWOFTY_ON_LOAD` runs (in `SwoftyAddonInit` it is `true` when this core can track them) |
 | `state(State *out)` | `ok` with the current `SwoftyCareerState` (also when no career is loaded) |
 | `flow(Flow *out)` | `ok` with the last flow transition; `late` before the first |
 | `flow_status(hash or name, Status *status, uint64_t *age_ms = nullptr)` | `ok` with a state's status and how long it has held it; `invalid` for a state the core has not seen |

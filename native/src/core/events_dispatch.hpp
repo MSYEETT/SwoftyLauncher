@@ -24,6 +24,16 @@ inline const char *canonical(const char *name)
     return nullptr;
 }
 
+// pending until the core's events setup runs, then live when the flow tick is hooked or failed
+// when it is not. Registrations are accepted in every phase except on_frame once failed.
+enum class Phase { pending, live, failed };
+
+struct Queued {
+    uint32_t token;
+    uint64_t owner;
+    const char *name;
+};
+
 struct Sub {
     uint32_t token;
     uint64_t owner;
@@ -37,10 +47,12 @@ struct Sub {
 // monotonic seconds value supplied by the caller (the engine hooks read it; the tests inject it),
 // so the dt and the "seconds since attach" time are reproducible without the game. Every entry
 // point is thread-safe; callbacks run outside the lock so a handler may subscribe or unsubscribe
-// from inside another callback without deadlocking.
+// from inside another callback without deadlocking. A registration made while pending is held like
+// any other and delivered as soon as the hooks call tick() or fire(); queued reports that case.
 class Dispatcher {
 public:
-    int subscribe(uint64_t owner, const char *name, SwoftyEventFn fn, void *user, uint32_t *token)
+    int subscribe(uint64_t owner, const char *name, SwoftyEventFn fn, void *user, uint32_t *token,
+                  bool *queued = nullptr)
     {
         const char *canon = canonical(name);
         if (!canon || !fn)
@@ -50,19 +62,46 @@ public:
         subs_.push_back({t, owner, canon, fn, nullptr, user});
         if (token)
             *token = t;
+        if (queued)
+            *queued = phase_ == Phase::pending;
         return SWOFTY_ASSET_OK;
     }
 
-    int on_frame(uint64_t owner, SwoftyFrameFn fn, void *user, uint32_t *token)
+    int on_frame(uint64_t owner, SwoftyFrameFn fn, void *user, uint32_t *token, bool *queued = nullptr)
     {
         if (!fn)
             return SWOFTY_ASSET_INVALID;
         std::lock_guard<std::mutex> g(lock_);
+        if (phase_ == Phase::failed)
+            return SWOFTY_ASSET_UNAVAILABLE;
         uint32_t t = ++next_;
         subs_.push_back({t, owner, nullptr, nullptr, fn, user});
         if (token)
             *token = t;
+        if (queued)
+            *queued = phase_ == Phase::pending;
         return SWOFTY_ASSET_OK;
+    }
+
+    // Ends the pending phase: live when the flow tick is hooked, failed when it is not. Returns the
+    // registrations made while pending that are still held, in registration order, so the caller
+    // can report them. A second call changes nothing and returns nothing.
+    std::vector<Queued> arm(bool frame_tick)
+    {
+        std::lock_guard<std::mutex> g(lock_);
+        std::vector<Queued> out;
+        if (phase_ != Phase::pending)
+            return out;
+        phase_ = frame_tick ? Phase::live : Phase::failed;
+        for (auto &s : subs_)
+            out.push_back({s.token, s.owner, s.name});
+        return out;
+    }
+
+    Phase phase()
+    {
+        std::lock_guard<std::mutex> g(lock_);
+        return phase_;
     }
 
     int unsubscribe(uint32_t token)
@@ -159,6 +198,7 @@ public:
 private:
     std::mutex lock_;
     std::vector<Sub> subs_;
+    Phase phase_ = Phase::pending;
     uint32_t next_ = 0;
     uint64_t frame_ = 0;
     double last_ = -1;

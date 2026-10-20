@@ -22,12 +22,14 @@ Every call returns `swofty::events::Result` (`ok`, `late`, `unavailable`, `inval
 
 | Call | Returns |
 |---|---|
-| `available()` | `true` once the core implements events |
+| `available()` | `true` when the core implements events and its setup has not found the frame tick missing on this build; `true` from `SwoftyAddonInit` on, also before the setup runs |
 | `subscribe(event, fn, user = nullptr, token = nullptr)` | `ok` and fills `token`; `invalid` for an unknown event name or a null `fn` |
-| `on_frame(fn, user = nullptr, token = nullptr)` | `ok` and fills `token` |
+| `on_frame(fn, user = nullptr, token = nullptr)` | `ok` and fills `token`; `unavailable` once the setup found no frame tick on this build |
 | `unsubscribe(token)` | `ok`, or `invalid` for an unknown token |
 
 Give `fn` for `subscribe` the signature `void(const SwoftyEvent *ev, void *user)`. For `fn` with `on_frame`, use `void(double dt, void *user)`: `dt` tells you how many seconds have passed since the previous frame.
+
+Registration is accepted at any time from `SWOFTY_ON_LOAD` on, and already in `SwoftyAddonInit`. When the addons load in one batch (no early stage), every `SWOFTY_ON_LOAD` runs before the core's events setup: a `subscribe` or `on_frame` made then returns `ok`, the core logs it as `queued until the events setup` and arms it when the setup completes (`[events] N registration(s) queued before setup are armed`). If the setup finds no frame tick, the core logs each queued `on_frame` that will not fire.
 
 Your subscription lasts until you call `unsubscribe`. If your addon's `SwoftyAddonInit` returns failure, the core drops its subscriptions. Callbacks run on the flow thread, so yours must return at once and never block.
 

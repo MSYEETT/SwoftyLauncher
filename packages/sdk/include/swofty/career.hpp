@@ -54,7 +54,9 @@ constexpr uint32_t state_hash(std::string_view name)
     return h;
 }
 
-// The career library is usable: the core tracks the flow states on this build.
+// The career library is usable: the core tracks the flow states on this build. Before the core's
+// career setup (SwoftyAddonInit, a SWOFTY_ON_LOAD of the first load) it is true when this core can
+// track them, and the setup settles it.
 inline bool available()
 {
     auto t = detail::table();
