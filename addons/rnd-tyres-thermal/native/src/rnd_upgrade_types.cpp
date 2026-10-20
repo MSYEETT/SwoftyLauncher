@@ -27,6 +27,8 @@
 //   telemetry   three ElasticSearch reporters index the camel-case type table
 //               0x14564a0d0 with no bound (a read past it is a wild pointer); they get
 //               our camel-case name.
+//   objectives  the weekend objectives 0x14295c0a0 keep a std::bitset<19> of Available
+//               types and throw past 18; our types are left out of it.
 //
 // The metadata vector (U+0x1a38), the progress function 0x143526260 and the type
 // map are dynamic and keyed by type, so they need nothing. Every site is
@@ -632,6 +634,39 @@ void on_tele_writer(safetyhook::Context &c)
 }
 
 // ---------------------------------------------------------------------------
+// Weekend objectives 0x14295c0a0 (run on the Team HQ -> session flow) put the types of
+// the team's Available upgrades into a std::bitset<19> that filters the upgrade-discount
+// rewards; a type past 18 reaches the bitset's throw ("invalid bitset position"):
+//   0x14295c6ac cmp byte [r8-8],1 ; jne 0x14295c694      (last state != Available)
+//   0x14295c6b3 movzx edx,byte [rdx+0x70] ; cmp edx,0x13 ; jb 0x14295c690 (bts r15d,edx)
+//   0x14295c6bc jmp 0x14295cf89                          (-> throw)
+// The rewards name stock types only (camel-case resolver 0x1409ea830), so our types are
+// left out of the set, as if those upgrades were not Available.
+
+constexpr uintptr_t kVaObjWin = 0x14295c690ull;
+constexpr uintptr_t kVaObjType = 0x14295c6b3ull;
+constexpr uintptr_t kVaObjNext = 0x14295c694ull;
+
+const uint8_t kObjBytes[] = {0x41, 0x0f, 0xab, 0xd7, 0x48, 0x83, 0xc1, 0x08, 0x48, 0x39, 0xc8, 0x74, 0x2f,
+                             0x48, 0x8b, 0x94, 0x0c, 0xd0, 0x00, 0x00, 0x00, 0x4c, 0x8b, 0x82, 0xc8, 0x00,
+                             0x00, 0x00, 0x41, 0x80, 0x78, 0xf8, 0x01, 0x75, 0xe1, 0x0f, 0xb6, 0x52, 0x70,
+                             0x83, 0xfa, 0x13, 0x72, 0xd4, 0xe9, 0xc8, 0x08, 0x00, 0x00};
+
+std::atomic<int> g_obj_log{0};
+
+void on_objective_type(safetyhook::Context &c)
+{
+    const NewType *t = find_id(rd<uint8_t>(c.rdx + 0x70));
+    if (!t)
+        return;
+    c.rip = g_base + rva(kVaObjNext);
+    if (g_obj_log.fetch_add(1) < 8)
+        swofty::log("[rnd-tyres] upgrade types: weekend objectives 0x14295c0a0 leaves Available type %u (%s) out "
+                    "of the discount type bitset",
+                    (unsigned)t->id, t->camel);
+}
+
+// ---------------------------------------------------------------------------
 
 struct HookSpec {
     uintptr_t va;
@@ -678,6 +713,7 @@ bool verify_all(uintptr_t base)
         {0x14071e6f2ull, kTeleResearch, sizeof kTeleResearch, "telemetry research purchased"},
         {0x140777ef8ull, kTeleWriter, sizeof kTeleWriter, "telemetry upgrade record"},
         {0x14071e986ull, kTeleFailed, sizeof kTeleFailed, "telemetry upgrade failed"},
+        {kVaObjWin, kObjBytes, sizeof kObjBytes, "weekend objectives type bitset"},
     };
     for (const auto &w : wins)
         if (!bytes_are(base + rva(w.va), w.b, w.n)) {
@@ -790,6 +826,7 @@ void install(uintptr_t base)
         {0x14071e6faull, &on_tele_research, "telemetry research purchased camel type name (0x14071e470)"},
         {0x14071e98dull, &on_tele_failed, "telemetry upgrade failed camel type name (0x14071e810)"},
         {0x140777effull, &on_tele_writer, "telemetry upgrade record camel type name (0x140777d50)"},
+        {kVaObjType, &on_objective_type, "weekend objectives 0x14295c0a0 Available type bitset<19>"},
         {kVaFilter, &on_apply_filter, "apply 0x14fa4deb0 key filter 11..17 (+ new types)"},
         {kVaNameQ, &on_block_name, "apply 0x14fa63050 block name past 0x11"},
     };
