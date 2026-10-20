@@ -1350,4 +1350,34 @@ mod tests {
         assert!(done.is_empty());
         std::fs::remove_dir_all(&d).ok();
     }
+
+    #[test]
+    fn restore_follows_non_ascii_paths() {
+        // The extension writes paths as raw UTF-8, as for a data folder under
+        // a Windows user name such as Naël.
+        let d = temp("unicode");
+        let base = d.join("Naël Müller 测试");
+        let game = base.join("game");
+        std::fs::create_dir_all(&game).unwrap();
+        let launcher = game.join("EAAntiCheat.GameServiceLauncher.exe");
+        let parked = game.join("EAAntiCheat.GameServiceLauncher.exe.bak");
+        std::fs::write(&parked, "original").unwrap();
+        std::fs::write(&launcher, "stub").unwrap();
+        let stub_digest = sha256_file(&launcher).unwrap();
+        let journal = journal_path(&base);
+        std::fs::create_dir_all(journal.parent().unwrap()).unwrap();
+        let lines = [
+            serde_json::json!({"op": "meta", "game_dir": game.display().to_string(), "created_utc": "", "schema_version": "1"}),
+            serde_json::json!({"op": "rename", "from": launcher.display().to_string(), "to": parked.display().to_string(), "source": "", "sha256": ""}),
+            serde_json::json!({"op": "copy", "from": "", "to": launcher.display().to_string(), "source": base.join("stub.exe").display().to_string(), "sha256": stub_digest}),
+        ];
+        let text = lines.iter().map(|l| l.to_string() + "\n").collect::<String>();
+        assert!(text.contains("Naël Müller 测试"), "{text}");
+        std::fs::write(&journal, text).unwrap();
+
+        restore(&journal, false).unwrap();
+        assert_eq!(std::fs::read_to_string(&launcher).unwrap(), "original");
+        assert!(!parked.exists());
+        std::fs::remove_dir_all(&d).ok();
+    }
 }

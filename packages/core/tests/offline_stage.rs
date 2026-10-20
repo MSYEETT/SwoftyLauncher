@@ -52,3 +52,47 @@ fn stage_creates_the_journal_directory() {
     assert!(!game.join("swofty/mods/core/f1op_hook.dll").exists());
     std::fs::remove_dir_all(&tmp).ok();
 }
+
+#[test]
+fn stage_and_restore_under_a_non_ascii_data_folder() {
+    let Some(a) = artifacts() else {
+        eprintln!("skipping: set SWOFTY_OFFLINE_TEST_DIR to an installed extension");
+        return;
+    };
+    // A data folder under a Windows user name such as Naël: the extension,
+    // the journal and the game all sit below it.
+    let tmp = std::env::temp_dir().join(format!("swofty-stage-unicode-{}", std::process::id()));
+    std::fs::remove_dir_all(&tmp).ok();
+    let data = tmp.join("Naël Müller 测试");
+    let ext = offline::extension_dir(&data);
+    std::fs::create_dir_all(&ext).unwrap();
+    let copy = |from: &PathBuf| {
+        let to = ext.join(from.file_name().unwrap());
+        std::fs::copy(from, &to).unwrap();
+        to
+    };
+    let a = Artifacts {
+        hook: copy(&a.hook),
+        stub: copy(&a.stub),
+        prelaunch: copy(&a.prelaunch),
+        probe: copy(&a.probe),
+        dir: ext.clone(),
+    };
+    let game = data.join("game");
+    std::fs::create_dir_all(&game).unwrap();
+    std::fs::write(game.join("EAAntiCheat.GameServiceLauncher.exe"), "original").unwrap();
+
+    let journal = offline::journal_path(&data);
+    offline::stage(&game, &a, &journal).expect("staging under a non-ASCII data folder");
+    let text = std::fs::read_to_string(&journal).expect("the journal is UTF-8");
+    assert!(text.contains("Naël Müller 测试"), "{text}");
+
+    offline::restore(&journal, false).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(game.join("EAAntiCheat.GameServiceLauncher.exe")).unwrap(),
+        "original"
+    );
+    assert!(!game.join("EAAntiCheat.GameServiceLauncher.exe.bak").exists());
+    assert!(!game.join("swofty/mods/core/f1op_hook.dll").exists());
+    std::fs::remove_dir_all(&tmp).ok();
+}
