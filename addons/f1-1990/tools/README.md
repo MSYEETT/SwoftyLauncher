@@ -66,7 +66,7 @@ What it writes:
 
 | Part | Ops |
 |---|---|
-| 13 teams | `set` on each slot's team row: names (`lng_f1990_team_<team>`, `_short`), code, the seven colours, base, nationality. `set` on its vehicle row: `display_name`, `chassis_name`, `engine_name_override`. `lang.set` on the stock `lng_<team>_boss` keys for the 1990 team principals |
+| 13 teams | `set` on each slot's team row: names (`lng_f1990_team_<team>`, `_short`), code, the seven colours, base, nationality, and a 1990 description and hashtag on the 11 rows that carry `story_info`. `set` on its vehicle row: `display_name`, `chassis_name`, `engine_name_override`. `lang.set` on the stock `lng_<team>_boss` keys for the 1990 team principals |
 | 28 drivers | Senna, Prost and Mansell keep their stock rows (`set` car number, seasons, AI traits). 25 new drivers (the other 23 seated at round 1, plus David Brabham, Pirro, Caffi, Moreno and Herbert) get a full `entrants.drivers` row copied from `jarno_opmeer`, as Driver Manager builds them |
 | Looks | One `ai_driver_customisations` row per driver (`f1990_<driver>_look`): the team's 2026 suit and gloves, a stock helmet (the classic helmets for Senna, Prost and Mansell) |
 | Ratings | One `driver_statistics` holder per new driver and for Senna; `set` on Prost's and Mansell's |
