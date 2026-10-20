@@ -627,6 +627,7 @@ pub struct SelectField {
 pub enum Choice {
     Text(String),
     Spec { value: String, label: String },
+    Heading { heading: String },
 }
 
 impl Choice {
@@ -634,6 +635,7 @@ impl Choice {
         match self {
             Self::Text(t) => t,
             Self::Spec { value, .. } => value,
+            Self::Heading { .. } => "",
         }
     }
 
@@ -641,7 +643,12 @@ impl Choice {
         match self {
             Self::Text(t) => t,
             Self::Spec { label, .. } => label,
+            Self::Heading { heading } => heading,
         }
+    }
+
+    pub fn is_heading(&self) -> bool {
+        matches!(self, Self::Heading { .. })
     }
 }
 
@@ -1095,7 +1102,7 @@ mod tests {
                 { "number": { "id": "cash", "label": "Cash", "value": 12400000, "min": 0, "max": 2147483647, "step": 100000, "unit": "$" } },
                 { "slider": { "id": "rp", "value": 340, "min": 0, "max": 500, "step": 10 } },
                 { "text": { "id": "name", "value": "Swofty", "placeholder": "Team", "max_len": 32 } },
-                { "select": { "id": "weather", "value": "dry", "options": [ { "value": "dry", "label": "Dry" }, "Light rain" ] } },
+                { "select": { "id": "weather", "value": "dry", "options": [ { "value": "dry", "label": "Dry" }, "Light rain", { "heading": "Wet" } ] } },
                 { "toggle": { "id": "lock", "value": true, "disabled": true } }
             ]
         }))
@@ -1120,6 +1127,11 @@ mod tests {
         };
         assert_eq!(select.options[1].value(), "Light rain");
         assert_eq!(select.options[0].label(), "Dry");
+        assert!(select.options[2].is_heading() && !select.options[0].is_heading());
+        assert_eq!(
+            (select.options[2].label(), select.options[2].value()),
+            ("Wet", "")
+        );
         assert!(!form.live && !form.disabled);
         let again: Form = serde_json::from_value(serde_json::to_value(&form).unwrap()).unwrap();
         assert_eq!(again, form);

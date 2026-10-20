@@ -1131,7 +1131,7 @@ impl Shell {
                 let label_text = sf
                     .options
                     .iter()
-                    .find(|o| o.value() == current)
+                    .find(|o| !o.is_heading() && o.value() == current)
                     .map_or(current.clone(), |o| o.label().to_owned());
                 let shell = cx.entity().downgrade();
                 let (options, key, id) = (sf.options.clone(), key.to_owned(), id.clone());
@@ -1143,7 +1143,14 @@ impl Shell {
                     .dropdown_caret(true)
                     .disabled(disabled)
                     .dropdown_menu_with_anchor(Anchor::TopLeft, move |mut menu, _, _| {
-                        for o in &options {
+                        for (i, o) in options.iter().enumerate() {
+                            if o.is_heading() {
+                                if i > 0 {
+                                    menu = menu.separator();
+                                }
+                                menu = menu.label(o.label().to_owned());
+                                continue;
+                            }
                             let (shell, key, id, live) =
                                 (shell.clone(), key.clone(), id.clone(), live.clone());
                             let value = Value::String(o.value().to_owned());

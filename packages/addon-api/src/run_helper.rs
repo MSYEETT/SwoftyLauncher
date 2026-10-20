@@ -13,7 +13,9 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::helper::{API_VERSION, Built, Call, HostCall, Invalidate, Reply, Request, Welcome};
-use crate::launcher::{Addon, BuildCx, Claim, Cx, GameFiles, GameStatus, ProfileInfo, Progress, StateStore};
+use crate::launcher::{
+    Addon, BuildCx, Claim, Cx, GameFiles, GameStatus, ProfileInfo, ProfileTracks, Progress, StateStore,
+};
 use crate::{Error, Result};
 
 pub fn run_helper(addon: Arc<dyn Addon>) {
@@ -282,6 +284,15 @@ impl GameFiles for Host {
 
     fn steam_save_dir(&self) -> Option<PathBuf> {
         host_path(self.call(HostCall::SteamSaveDir)).ok()
+    }
+
+    fn profile_tracks(&self, _profile: &str) -> Result<Option<ProfileTracks>> {
+        match self.call(HostCall::ProfileTracks).map_err(Error::Other)? {
+            Value::Null => Ok(None),
+            v => serde_json::from_value(v)
+                .map(Some)
+                .map_err(|e| Error::Other(format!("the host sent bad tracks: {e}"))),
+        }
     }
 }
 

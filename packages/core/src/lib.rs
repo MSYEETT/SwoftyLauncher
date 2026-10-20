@@ -32,6 +32,7 @@ pub mod session;
 pub mod settings;
 pub mod steam;
 pub mod store;
+pub mod tracks;
 pub mod ui;
 pub mod update;
 pub mod updater;

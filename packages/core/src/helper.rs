@@ -486,6 +486,12 @@ fn host_call(cx: &Cx, call: HostCall) -> std::result::Result<Value, String> {
             serde_json::to_value(status).map_err(|e| swofty_addon::Error::Other(e.to_string()))
         }
         HostCall::SteamSaveDir => Ok(path_value(cx.game.and_then(|g| g.steam_save_dir()))),
+        HostCall::ProfileTracks => match cx.game {
+            Some(g) => g
+                .profile_tracks(&cx.profile.name)
+                .and_then(|t| serde_json::to_value(t).map_err(|e| swofty_addon::Error::Other(e.to_string()))),
+            None => Ok(Value::Null),
+        },
         HostCall::Progress { .. } => Err(swofty_addon::Error::Other("progress takes no id".into())),
         HostCall::Invalidate(_) => Err(swofty_addon::Error::Other("invalidate takes no id".into())),
     }
@@ -940,6 +946,7 @@ read -r l
         let none = Cx::new("t.helper", &p, &data, &cache, None, &state);
         assert_eq!(host_call(&none, HostCall::GameDir).unwrap(), Value::Null);
         assert_eq!(host_call(&none, HostCall::AddonGameDir).unwrap(), Value::Null);
+        assert_eq!(host_call(&none, HostCall::ProfileTracks).unwrap(), Value::Null);
         assert!(host_call(&none, HostCall::Invalidate(Default::default())).is_err());
         std::fs::remove_dir_all(&root).ok();
     }

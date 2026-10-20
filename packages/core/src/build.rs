@@ -686,9 +686,18 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     built.conflicts = planned.conflicts;
     built.waiting = planned.waiting;
     if !built.plan.is_vanilla() {
+        let plan_tracks: Vec<crate::tracks::PlanTrack> = tracks
+            .iter()
+            .map(|(_, pkg, origin)| crate::tracks::PlanTrack {
+                code: pkg.track_code.clone(),
+                name: pkg.track_name.clone().filter(|n| !n.trim().is_empty()),
+                addon: Some(origin.addon.clone()),
+            })
+            .collect();
         let listing = serde_json::json!({
             "profile": profile,
             "buildhash": built.buildhash,
+            "tracks": plan_tracks,
             "replace": built.plan.data,
             "add": built.plan.added,
             "loader": built.plan.loader,

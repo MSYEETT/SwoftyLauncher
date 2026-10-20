@@ -76,6 +76,7 @@ pub enum HostCall {
     AddonGameDir,
     GameStatus,
     SteamSaveDir,
+    ProfileTracks,
     Invalidate(#[serde(default)] Invalidate),
 }
 
@@ -309,6 +310,7 @@ mod tests {
             ("addon_game_dir", HostCall::AddonGameDir),
             ("game_status", HostCall::GameStatus),
             ("steam_save_dir", HostCall::SteamSaveDir),
+            ("profile_tracks", HostCall::ProfileTracks),
         ] {
             round(
                 Incoming::Call(Request { id: Some(11), call }),

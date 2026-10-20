@@ -24,7 +24,7 @@ fn planned_sources(plan: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-fn latest_plan(profile_dir: &Path) -> Option<PathBuf> {
+pub fn latest_plan(profile_dir: &Path) -> Option<PathBuf> {
     children(profile_dir)
         .into_iter()
         .filter_map(|b| {

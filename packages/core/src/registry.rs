@@ -217,6 +217,15 @@ impl GameFiles for GameDir {
     fn steam_save_dir(&self) -> Option<PathBuf> {
         crate::steam::find_save_dir()
     }
+
+    fn profile_tracks(
+        &self,
+        profile: &str,
+    ) -> swofty_addon::Result<Option<swofty_addon::launcher::ProfileTracks>> {
+        crate::tracks::for_profile(&self.data, &self.game, profile)
+            .map(Some)
+            .map_err(other)
+    }
 }
 
 pub struct Host {
