@@ -109,6 +109,11 @@
         { "value": "13in", "label": "13-inch" }, { "value": "13in_raised", "label": "13-inch, raised" }
       ],
       "binds": "db"
+    },
+    {
+      "id": "bspec_cars", "type": "toggle", "label": "B-spec cars", "default": true,
+      "description": "In 1990 careers, a team whose B-spec R&D milestone is complete races its B-spec car from the next session on (AI teams too).",
+      "binds": "native"
     }
   ],
   "operations": {
@@ -117,7 +122,8 @@
     "erp": ["erp/portrait.json", "erp/tracks.json", "erp/frontend.json", "erp/badges.json"],
     "native": [
       { "dll": "native/f1_1990.dll", "early": true }, { "dll": "native/f1_1990_tyres.dll" },
-      { "dll": "native/f1_1990_replay.dll" }, { "dll": "native/f1_1990_ui.dll" }, { "dll": "native/f1_1990_voice.dll" }
+      { "dll": "native/f1_1990_replay.dll" }, { "dll": "native/f1_1990_ui.dll" }, { "dll": "native/f1_1990_voice.dll" },
+      { "dll": "native/f1_1990_bspec.dll" }
     ]
   }
 }
