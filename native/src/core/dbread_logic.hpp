@@ -82,6 +82,22 @@ inline uint64_t cell_key(uint64_t row_prefix, uint64_t index, const char *field)
     return fnv_cont(fnv_cont(row_key(row_prefix, index), "."), field);
 }
 
+inline uint32_t fnv32(const char *s)
+{
+    uint32_t h = 0x811c9dc5u;
+    for (; *s; s++)
+        h = (h ^ uint8_t(*s)) * 0x01000193u;
+    return h;
+}
+
+// A row's label is its _metadata_ field, a string record whose +0x30 holds the FNV-1a-32 of the
+// text. The row path itself (<table>.<row>_<i>) has no record. Gdb_Find_RowByLabel (0x1445a2bd0)
+// scans rows 0.._instancecount_-1 the same way.
+inline uint64_t label_key(uint64_t row_prefix, uint64_t index)
+{
+    return cell_key(row_prefix, index, "_metadata_");
+}
+
 inline int32_t read_i32(const void *record)
 {
     return *reinterpret_cast<const int32_t *>(static_cast<const uint8_t *>(record) + REC_SCALAR);
@@ -128,6 +144,17 @@ inline void encode_text(const char *plain, const uint8_t key[4], std::string &ou
 inline uint32_t read_meta(const void *record)
 {
     return *reinterpret_cast<const uint32_t *>(static_cast<const uint8_t *>(record) + REC_META);
+}
+
+template <class Record> int64_t find_row(Record &&record, uint64_t row_prefix, uint64_t count, const char *label)
+{
+    uint32_t want = fnv32(label);
+    for (uint64_t i = 0; i < count; i++) {
+        const void *rec = record(label_key(row_prefix, i));
+        if (rec && read_meta(rec) == want)
+            return int64_t(i);
+    }
+    return -1;
 }
 
 inline void decode(const void *record, int tag, SwoftyDbValue *out)

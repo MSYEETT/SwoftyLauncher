@@ -334,7 +334,7 @@ int db_open(const char *table, SwoftyDbCursor *cursor)
     cursor->table = keys.row_prefix;
     cursor->index = 0;
     cursor->count = row_count(keys);
-    cursor->row = cursor->count ? record(dbread::row_key(keys.row_prefix, 0)) : nullptr;
+    cursor->row = cursor->count ? record(dbread::label_key(keys.row_prefix, 0)) : nullptr;
     return cursor->count ? SWOFTY_ASSET_OK : SWOFTY_ASSET_LATE;
 }
 
@@ -348,18 +348,14 @@ int db_row(const char *table, const char *label, SwoftyDbCursor *cursor)
     if (!keys.ok)
         return SWOFTY_ASSET_INVALID;
     uint64_t count = row_count(keys);
-    uint32_t want = runtime::fnv32(label);
-    for (uint64_t i = 0; i < count; i++) {
-        void *rec = record(dbread::row_key(keys.row_prefix, i));
-        if (rec && dbread::read_meta(rec) == want) {
-            cursor->table = keys.row_prefix;
-            cursor->index = i;
-            cursor->count = count;
-            cursor->row = rec;
-            return SWOFTY_ASSET_OK;
-        }
-    }
-    return SWOFTY_ASSET_INVALID;
+    int64_t i = dbread::find_row([](uint64_t key) { return record(key); }, keys.row_prefix, count, label);
+    if (i < 0)
+        return SWOFTY_ASSET_INVALID;
+    cursor->table = keys.row_prefix;
+    cursor->index = uint64_t(i);
+    cursor->count = count;
+    cursor->row = record(dbread::label_key(keys.row_prefix, uint64_t(i)));
+    return SWOFTY_ASSET_OK;
 }
 
 int db_step(SwoftyDbCursor *cursor)
@@ -371,7 +367,7 @@ int db_step(SwoftyDbCursor *cursor)
     if (cursor->index + 1 >= cursor->count)
         return SWOFTY_ASSET_LATE;
     cursor->index++;
-    cursor->row = record(dbread::row_key(cursor->table, cursor->index));
+    cursor->row = record(dbread::label_key(cursor->table, cursor->index));
     return SWOFTY_ASSET_OK;
 }
 
