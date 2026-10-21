@@ -4,6 +4,9 @@ use std::sync::Mutex;
 use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
+use swofty_addon::asset::{AssetOp, FileKind, LangOp, OpFile, TrackOp};
+use swofty_addon::manifest::AddonManifest;
+use swofty_addon::ops::DbOp;
 use swofty_formats::gvdb::{Gvdb, Record};
 use swofty_formats::hash::fnv1a64;
 
@@ -163,6 +166,45 @@ pub fn for_profile(data: &Path, game: &crate::install::Game, profile: &str) -> R
     };
     *CACHE.lock().unwrap_or_else(|e| e.into_inner()) = Some((db_path, modified, len, tracks.clone()));
     Ok(tracks)
+}
+
+/// A data addon that is only tracks: its ops add one or more tracks and give
+/// them names (`lang.set`, `db.set` on a `TrackNameData` field), and it has no
+/// code, screens, files, settings, launcher pages or other edits. The launcher
+/// lists these on the Tracks page instead of the Addons page. An op file that
+/// doesn't read makes the addon an ordinary one.
+pub fn is_track_addon(dir: &Path, m: &AddonManifest) -> bool {
+    let o = &m.operations;
+    let other = !o.database.is_empty()
+        || !o.erp.is_empty()
+        || !o.ui.is_empty()
+        || !o.files.is_empty()
+        || !o.native.is_empty()
+        || !o.screens.is_empty();
+    if other || o.assets.is_empty() || m.launcher.is_some() || !m.options.is_empty() || m.saves.affects {
+        return false;
+    }
+    let mut tracks = 0;
+    for rel in &o.assets {
+        let Some(doc) = std::fs::read(dir.join(rel))
+            .ok()
+            .and_then(|d| serde_json::from_slice(&d).ok())
+        else {
+            return false;
+        };
+        let Ok(file) = OpFile::from_value(doc, FileKind::Assets) else {
+            return false;
+        };
+        for op in file.ops {
+            match op {
+                AssetOp::Track(TrackOp::Add { .. }) => tracks += 1,
+                AssetOp::Lang(LangOp::Set { .. }) | AssetOp::Warn { .. } => {}
+                AssetOp::Db(DbOp::Set { field, .. }) if field.starts_with("TrackNameData") => {}
+                _ => return false,
+            }
+        }
+    }
+    tracks > 0
 }
 
 #[cfg(test)]
