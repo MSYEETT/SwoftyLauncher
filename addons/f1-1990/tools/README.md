@@ -57,6 +57,20 @@ Each 1990 team takes one 2026 team row. `asset` is the car folder the vehicle ro
 | Dallara | `team13_26` | `team13_2026` | `haas` |
 | Arrows | `haas_26` | `haas_2026` | `haas` |
 
+## check_fields.py
+
+Checks that every row the addon copies carries every key of its stock source row, probing with every identifier string
+in the exe as well as the known names (a name no list knows is a key the generators drop). Run it with the
+pinned Python (numpy):
+
+```sh
+re/tools/py addons/f1-1990/tools/check_fields.py <stock gamedatabases.2025.bin> <F1_25.exe> --built <built .bin>
+```
+
+`--built` takes a database built with the addon (for example the runtime edits of `swofty build` applied to the stock
+file) and adds the rows `set` ops create (R&D trees, the `f1_1990` data set, setup mode and option tag). `--names <file>`
+writes the names to add to `tools/gamedb/names.txt`.
+
 ## grid.py
 
 Writes `db/grid.json`, `db/grid_standings.json` (the driver standings) and `lang/grid.json` from the season pack and the stock database. Every op adds a row or sets a field of an added row; no stock row changes, only the row counts of the tables it adds to.
