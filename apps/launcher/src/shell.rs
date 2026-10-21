@@ -14,6 +14,7 @@ use gpui_kit::component::{Icon, TitleBar, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::crash::StartFailure;
+use swofty_core::launch;
 use swofty_core::process::{GameProcess, stop_game};
 use swofty_core::quarantine;
 use swofty_core::recovery::{self, Blocked, Notice};
@@ -81,6 +82,7 @@ pub struct Shell {
     pub(crate) recovered_seen: f64,
     pub(crate) mods_blocked_seen: f64,
     pub(crate) not_stock_seen: f64,
+    pub(crate) launch_failed_seen: f64,
     pub(crate) restoring: bool,
     pub(crate) sliders: HashMap<String, SliderSlot>,
     pub(crate) requests: Option<SystemTime>,
@@ -181,6 +183,19 @@ fn show_mods_blocked(r: &quarantine::Report, window: &mut Window, cx: &mut App) 
     });
 }
 
+/// A launch that failed without a crash: F1 25 was already running, or the
+/// game closed itself as it started. The dialog says why and what to do.
+fn show_launch_failed(f: &launch::Failure, window: &mut Window, cx: &mut App) {
+    let (title, text) = (f.title(), f.text());
+    window.open_alert_dialog(cx, move |alert, _, _| {
+        alert
+            .width(px(560.))
+            .title(title)
+            .description(text.clone())
+            .ok_text("OK")
+    });
+}
+
 /// Game files that aren't Steam's copy stopped the launch before anything
 /// was built; the launcher can't continue until the player verifies the game
 /// files in Steam.
@@ -235,6 +250,7 @@ impl Shell {
         let recovered_seen = Notice::read(&store.root).map_or(0.0, |n| n.at);
         let mods_blocked_seen = quarantine::Report::read(&store.root).map_or(0.0, |r| r.at);
         let not_stock_seen = stock::Report::read(&store.root).map_or(0.0, |r| r.at);
+        let launch_failed_seen = launch::Failure::read(&store.root).map_or(0.0, |f| f.at);
         let stale = store.clone();
         cx.background_executor()
             .spawn(async move {
@@ -313,6 +329,7 @@ impl Shell {
             recovered_seen,
             mods_blocked_seen,
             not_stock_seen,
+            launch_failed_seen,
             restoring: false,
             sliders: HashMap::new(),
             requests: None,
@@ -410,6 +427,15 @@ impl Shell {
             self.not_stock_seen = r.at;
             show_not_stock(r, window, cx);
         }
+        if let Some(f) = probe
+            .launch_failed
+            .as_ref()
+            .filter(|f| f.at > self.launch_failed_seen)
+        {
+            self.launch_failed_seen = f.at;
+            self.notice = Some(f.headline().to_owned());
+            show_launch_failed(f, window, cx);
+        }
         if let Some(install) = probe.install {
             let changed = !self.detected || self.install != install;
             self.install = install;
@@ -432,6 +458,11 @@ impl Shell {
                         .as_ref()
                         .is_some_and(|r| r.stage == quarantine::Stage::BeforeLaunch && r.at >= launch.at);
                     let not_stock = probe.not_stock.as_ref().is_some_and(|r| r.at >= launch.at);
+                    let failed = probe
+                        .launch_failed
+                        .as_ref()
+                        .filter(|f| f.at >= launch.at)
+                        .map(|f| f.headline().to_owned());
                     self.notice = Some(match &self.blocked {
                         _ if refused => "an antivirus removed mod files, so F1 25 was not started".to_owned(),
                         _ if not_stock => {
@@ -444,7 +475,7 @@ impl Shell {
                             "{} files Swofty did not put in the game folder are in the way",
                             b.files.len()
                         ),
-                        None => launch.failure(),
+                        None => failed.unwrap_or_else(|| launch.failure()),
                     });
                 }
                 self.launch = None;

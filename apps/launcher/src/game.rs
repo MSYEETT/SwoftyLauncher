@@ -6,6 +6,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use swofty_core::crash::{LogScan, StartFailure, Symbols, fatal_name};
 use swofty_core::install::Game;
+use swofty_core::launch;
 use swofty_core::process::{GameProcess, game_processes};
 use swofty_core::quarantine;
 use swofty_core::recovery::{self, Notice, Scope, SessionLock};
@@ -36,6 +37,7 @@ pub struct Probe {
     pub launch_stage: Option<String>,
     pub mods_blocked: Option<quarantine::Report>,
     pub not_stock: Option<stock::Report>,
+    pub launch_failed: Option<launch::Failure>,
 }
 
 pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>) -> Probe {
@@ -50,6 +52,7 @@ pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>) -> Probe
         recovered: Notice::read(&store.root),
         mods_blocked: quarantine::Report::read(&store.root),
         not_stock: stock::Report::read(&store.root),
+        launch_failed: launch::Failure::read(&store.root),
         launch_stage: std::fs::read_to_string(store.root.join(steam_client::STAGE_FILE))
             .ok()
             .map(|s| s.trim().to_owned())
