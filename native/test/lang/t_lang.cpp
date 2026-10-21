@@ -26,6 +26,10 @@ extern "C" __declspec(dllexport) int t_lang_step(int n)
         return int(lg::clear_all());
     case 5:
         return int(lg::set("", "x"));
+    case 6:
+        return int(lg::set("lng_mode_career", "SAME TEXT"));
+    case 7:
+        return int(lg::clear("lng_mode_career")) + int(lg::set("lng_mode_career", "SAME TEXT"));
     }
     return -1;
 }

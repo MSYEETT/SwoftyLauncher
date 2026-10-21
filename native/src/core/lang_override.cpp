@@ -4,11 +4,11 @@
 #include <swofty/mixin.hpp>
 
 #include <atomic>
-#include <deque>
 #include <mutex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // Runtime string overrides (SwoftyLang, API v7). Every lng_* lookup reaches Loc_LangSet_Find, the
@@ -17,8 +17,8 @@
 // returns the override text, otherwise the game's own lookup runs; with no override set the
 // function is not hooked at all. Overrides apply to every language ("*") or to one language code,
 // which wins while it is the game's current language (Loc_LocaleModule_Init's module +0x160 into
-// g_Loc_LanguageInfo +0x60). Texts are copied into storage that is never freed, because the game
-// may keep a returned pointer after the override is cleared. refresh() sends the current language
+// g_Loc_LanguageInfo +0x60). Each distinct text is copied once into storage that is never freed,
+// because the game may keep a returned pointer after the override is cleared. refresh() sends the current language
 // to the module's listeners (+0x170), the notification the game sends after it loads a language.
 
 namespace {
@@ -61,7 +61,7 @@ bool g_find_failed;
 SRWLOCK g_lock = SRWLOCK_INIT;
 std::atomic<size_t> g_count{0};
 std::unordered_map<std::string, Entry, Hash, Eq> g_map;
-std::deque<std::string> g_texts;
+std::unordered_set<std::string, Hash, Eq> g_texts;
 std::atomic<uint8_t *> g_module{nullptr};
 uint8_t *g_info;
 
@@ -164,7 +164,7 @@ int lang_override_set(const char *language, const char *key, const char *text)
     if (!ensure_find_hook())
         return SWOFTY_ASSET_UNAVAILABLE;
     AcquireSRWLockExclusive(&g_lock);
-    const char *copy = g_texts.emplace_back(text).c_str();
+    const char *copy = g_texts.emplace(text).first->c_str();
     Entry &e = g_map[key];
     if (all_languages(language))
         e.all = copy;
