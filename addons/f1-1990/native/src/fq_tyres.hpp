@@ -72,13 +72,27 @@ inline bool fresh_set(const uint8_t *set)
     return !(set[9] & (kUsed | kHandedBack | kUsedOutsideGarage));
 }
 
+// A set the lookup rejects on wear: a wheel's wear is NaN or not below 1 (the lookup's limit is at
+// least 1).
+inline bool worn_set(const uint8_t *set)
+{
+    for (size_t off : kWear) {
+        float w;
+        std::memcpy(&w, set + off, sizeof w);
+        if (!(w < 1.f))
+            return true;
+    }
+    return false;
+}
+
 struct Census {
-    size_t total = 0, fresh = 0, tagged = 0;
+    size_t total = 0, fresh = 0, tagged = 0, worn = 0;
     size_t sets[kCompounds] = {}, fresh_sets[kCompounds] = {};
+    uint32_t tags = 0;
 };
 
-// Sets per compound slot, how many are fresh (not used, not handed back) and how many fresh ones carry
-// a session tag.
+// Sets per compound slot, how many are fresh (not used, not handed back), how many fresh ones carry a
+// session tag (tags: bit per tag below 32) and how many fresh ones the lookup rejects on wear.
 inline Census census(const uint8_t *alloc)
 {
     Census c;
@@ -95,9 +109,46 @@ inline Census census(const uint8_t *alloc)
             c.fresh_sets[i]++;
             c.fresh++;
             c.tagged += tag != 0;
+            c.tags |= tag < 32 ? 1u << tag : 0;
+            c.worn += worn_set(s);
         }
     }
     return c;
+}
+
+// Fresh sets the lookup rejects on wear get zero wear. Returns the sets changed.
+inline int clear_fresh_wear(uint8_t *alloc)
+{
+    int changed = 0;
+    for (uint64_t i = 0; i < compound_count(alloc); i++) {
+        uint8_t *blk = block(alloc, i), *b;
+        std::memcpy(&b, blk + 0x10, sizeof b);
+        for (size_t k = 0, n = set_count(blk); k < n; k++, b += kSetSize) {
+            if (!fresh_set(b) || !worn_set(b))
+                continue;
+            for (size_t off : kWear)
+                std::memset(b + off, 0, sizeof(float));
+            changed++;
+        }
+    }
+    if (changed)
+        alloc[0xe8] = 1;
+    return changed;
+}
+
+// The first slot in preference order (five entries) holding a fresh set, else -1.
+inline int fresh_slot(const uint8_t *alloc, const uint32_t *preference)
+{
+    for (int k = 0; k < 5; k++) {
+        uint32_t slot = preference[k];
+        if (slot >= compound_count(alloc))
+            continue;
+        const uint8_t *blk = block(alloc, slot), *s = sets_begin(blk);
+        for (size_t i = 0, n = set_count(blk); i < n; i++, s += kSetSize)
+            if (fresh_set(s))
+                return int(slot);
+    }
+    return -1;
 }
 
 struct Heap {

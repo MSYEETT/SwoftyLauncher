@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <vector>
 
 #include "fq_tyres.hpp"
@@ -132,6 +133,26 @@ int main()
     check("untagged allocation marked dirty", tagged.mem[0xe8] == 1);
     for (void *b : blocks)
         std::free(b);
+
+    float nan = std::numeric_limits<float>::quiet_NaN();
+    Alloc wearing({{{0, 0, nan}, {0, kUsed, 2.f}}, {{5, 0, 1.f}, {0, 0, 0.5f}}, {}, {{0, 0}}});
+    Census wc = census(wearing.mem.data());
+    check("census counts worn fresh sets (NaN and 1.0)", wc.worn == 2 && wc.fresh == 4);
+    check("census collects fresh tags", wc.tags == ((1u << 0) | (1u << 5)));
+    check("clear wear on worn fresh sets only", clear_fresh_wear(wearing.mem.data()) == 2);
+    float w;
+    std::memcpy(&w, wearing.sets[0].data() + 0x18, sizeof w);
+    check("NaN wear cleared", w == 0.f);
+    std::memcpy(&w, wearing.sets[0].data() + kSetSize + 0x18, sizeof w);
+    check("used set keeps its wear", w == 2.f);
+    std::memcpy(&w, wearing.sets[1].data() + kSetSize + 0x18, sizeof w);
+    check("usable wear kept", w == 0.5f);
+    check("wear clear marks dirty", wearing.mem[0xe8] == 1 && census(wearing.mem.data()).worn == 0);
+
+    Alloc slots({{{0, kUsed}}, {}, {{0, kHandedBack}}, {{0, 0}}, {{0, 0}}});
+    uint32_t pref_hard[5] = {2, 1, 0, 4, 3}, pref_bad[5] = {7, 9, 0, 2, 1};
+    check("fresh slot follows the preference", fresh_slot(slots.mem.data(), pref_hard) == 4);
+    check("fresh slot skips out-of-range slots and finds none", fresh_slot(slots.mem.data(), pref_bad) == -1);
 
     std::vector<uint8_t> weekend(0x300), sessions(0xa0 * 5);
     auto session = [&](size_t i, uint32_t id, uint8_t group) {
