@@ -186,6 +186,8 @@ EOF
         count "scan cache: nothing is cached yet on the first run" 0 'the address cached for this exe'
         ;;
     fallback)
+        once "loader: a dialog before the window is logged with its text" 'dialog shown: Error: Game launch error\. Error code: 0x00000004[[:space:]]*$'
+        count "loader: a dialog is not taken as the main window" 0 "main window visible.*class '#32770'"
         check "scan cache: the second run reads the saved addresses" '\[core\] scan cache: [1-9][0-9]* address\(es\) for this exe \(key [0-9a-f]{16}\), each checked'
         check "scan cache: a cached address is checked against the pattern and used without a scan" 'scan \.xtls \[.*\] -> 1 hit at 0x[0-9a-f]+ \(base\+0x[0-9a-f]+\), the address cached for this exe'
         count "scan cache: with every address cached, no pattern needs a full scan" 0 'scan \.xtls \[.*\] -> 1 hit at 0x[0-9a-f]+ \(base\+0x[0-9a-f]+\)[[:space:]]*$'

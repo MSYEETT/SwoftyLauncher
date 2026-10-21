@@ -408,12 +408,62 @@ static void load_dir(const wchar_t *sub, int core_dir, int pick)
         free(dlls[i].name);
 }
 
+typedef struct {
+    char text[1024];
+    size_t len;
+} DialogText;
+
+static void append_utf8(DialogText *t, const wchar_t *w)
+{
+    if (!w[0] || t->len + 4 >= sizeof t->text)
+        return;
+    if (t->len)
+        t->text[t->len++] = ' ';
+    int n = WideCharToMultiByte(CP_UTF8, 0, w, -1, t->text + t->len, (int)(sizeof t->text - t->len), NULL, NULL);
+    t->len = n > 0 ? t->len + (size_t)n - 1 : t->len;
+    t->text[t->len] = 0;
+}
+
+static BOOL CALLBACK dialog_static(HWND h, LPARAM out)
+{
+    wchar_t cls[16] = {0}, text[512] = {0};
+    GetClassNameW(h, cls, 16);
+    if (!_wcsicmp(cls, L"Static") && GetWindowTextW(h, text, 512))
+        append_utf8((DialogText *)out, text);
+    return TRUE;
+}
+
+/* The EA App build shows its activation and launch errors as dialogs before any game window exists; their text
+   is the clue a report needs, and a dialog is not the game reaching its window. */
+static void note_dialog(HWND h)
+{
+    static HWND logged;
+    if (h == logged)
+        return;
+    logged = h;
+    wchar_t title[256] = {0};
+    GetWindowTextW(h, title, 256);
+    DialogText t = {{0}, 0}, body = {{0}, 0};
+    append_utf8(&t, title);
+    EnumChildWindows(h, dialog_static, (LPARAM)&body);
+    if (ea_diag)
+        ediag("dialog shown: %s: %s", t.text, body.text);
+    else
+        slog("dialog shown: %s: %s", t.text, body.text);
+}
+
 static BOOL CALLBACK find_window(HWND h, LPARAM out)
 {
     DWORD pid = 0;
     GetWindowThreadProcessId(h, &pid);
     if (pid != GetCurrentProcessId() || !IsWindowVisible(h) || GetWindow(h, GW_OWNER))
         return TRUE;
+    wchar_t cls[16] = {0};
+    GetClassNameW(h, cls, 16);
+    if (!wcscmp(cls, L"#32770")) {
+        note_dialog(h);
+        return TRUE;
+    }
     *(HWND *)out = h;
     return FALSE;
 }

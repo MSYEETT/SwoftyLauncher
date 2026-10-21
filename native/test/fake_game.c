@@ -684,6 +684,29 @@ static int stage_window(HWND w)
     return fails != 0;
 }
 
+static DWORD WINAPI launch_error_box(LPVOID unused)
+{
+    (void)unused;
+    MessageBoxW(NULL, L"Game launch error. Error code: 0x00000004", L"Error", MB_OK);
+    return 0;
+}
+
+/* The EA App build's launch errors come up as a dialog before any game window: the loader must log it and keep
+   waiting instead of loading addons on it. */
+static void show_launch_error(void)
+{
+    HANDLE t = CreateThread(NULL, 0, launch_error_box, NULL, 0, NULL);
+    HWND box = NULL;
+    for (DWORD t0 = GetTickCount(); !box && GetTickCount() - t0 < 5000; Sleep(20))
+        box = FindWindowW(L"#32770", L"Error");
+    Sleep(600);
+    if (box)
+        PostMessageW(box, WM_COMMAND, IDOK, 0);
+    WaitForSingleObject(t, 5000);
+    CloseHandle(t);
+    expect(box != NULL, "fallback mode: a launch error dialog came up before the window");
+}
+
 int main(int argc, char **argv)
 {
     int fallback = argc > 1 && !strcmp(argv[1], "fallback"), vm = argc > 1 && !strcmp(argv[1], "vm");
@@ -743,6 +766,11 @@ int main(int argc, char **argv)
     run_build(1, 1);
     if (fallback)
         expect(ncalls == 3, "fallback mode: first build before the window is visible is vanilla");
+    if (fallback) {
+        show_launch_error();
+        run_build(1, 1);
+        expect(ncalls == 3, "fallback mode: a dialog before the window does not load addons");
+    }
     else
         expect(ncalls == 4 && calls[1].index == 3,
                "first home build right after window creation already has the mod tile (career=2, mod=3)");
