@@ -11,8 +11,8 @@
 // rnd-tyres addon does). Only 1990 R&D trees carry f1990_ names, so this needs no career check.
 //
 // Department names: data/rnd-strings.json ("strings" per language) is set through the core's
-// runtime string overrides (API v7) while a 1990 career is loaded and cleared when it unloads.
-// Built against an SDK below v7 that part is compiled out.
+// runtime string overrides (API v8) while a 1990 career is loaded and cleared when it unloads.
+// Built against an SDK below v8 that part is compiled out.
 
 #include <atomic>
 #include <cstring>
@@ -179,7 +179,7 @@ SWOFTY_SITE(site_Career_RnDCardArtMask2, swofty::Context &c) { part_art(c, 5, tr
 
 SWOFTY_ON_LOAD
 {
-#if SWOFTY_API_VERSION < 7
+#if SWOFTY_API_VERSION < 8
     swofty::log("[f1-1990] rnd: built against SDK API v%d, without runtime string overrides; the department names stay "
                 "stock",
                 SWOFTY_API_VERSION);
