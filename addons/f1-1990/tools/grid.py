@@ -367,6 +367,25 @@ def donors(lineup, free):
     return out
 
 
+def free_list_ids(stock, n):
+    """n entrant list stat ids above the stock ones. The game indexes entrant lists by stat id (a career
+    setup's data group is the stat id of the entrant list its entrant_list names, 0x1424286e0, kept in a byte),
+    so a clone that keeps its template's id resolves to the template."""
+    top = max(int(stock.get(f"{LISTS}.entrant_list_{i}.stat_id")) for i in range(stock.count(LISTS, "entrant_list")))
+    ids = stock.free_ids(LISTS, "entrant_list", top + 1, 256)[:n]
+    if len(ids) < n:
+        sys.exit("no free entrant list stat ids below 256")
+    return ids
+
+
+def free_setup_mode_id(stock):
+    """A stat id above the stock entrant setup modes: the game keeps them indexed by stat id
+    (Sess_Register_EntrantSetupMode), and the f1_26 template's id would collide."""
+    top = max(int(stock.get(f"{SETUP_MODES}.entrant_setup_mode_{i}.stat_id"))
+              for i in range(stock.count(SETUP_MODES, "entrant_setup_mode")))
+    return stock.free_ids(SETUP_MODES, "entrant_setup_mode", top + 1, 256)[0]
+
+
 def build(stock, season):
     o = Ops(stock, PARTS)
     lang = []
@@ -469,11 +488,12 @@ def build(stock, season):
 
     list_row = stock.row(LISTS, "entrant_list", LIST_TEMPLATE)
     list_from = f"{LISTS}.entrant_list[_metadata_={LIST_TEMPLATE}]"
+    grid_id, pool_id, career_id = free_list_ids(stock, 3)
     grid = f"{LISTS}.entrant_list[_metadata_={GRID_LIST}]"
     pool = f"{LISTS}.entrant_list[_metadata_={POOL_LIST}]"
     template_seats = stock.count(list_row, "entrant")
     o.add(LISTS, "entrant_list", list_row, list_from, {
-        "_metadata_": GRID_LIST, "previous_season_team_standings": TEAM_STANDINGS,
+        "_metadata_": GRID_LIST, "stat_id": grid_id, "previous_season_team_standings": TEAM_STANDINGS,
         "previous_season_driver_standings": DRIVER_STANDINGS,
     })
     for n, (s, pos, seat) in enumerate(lineup):
@@ -490,7 +510,7 @@ def build(stock, season):
     o.set(grid, "_entrant_instancecount_", sum(1 for s, _, _ in lineup if s.team not in EXTRA_TEAMS))
     o.set(grid, "_entrant_instancecount_", len(lineup), {"cars": 26})
 
-    o.add(LISTS, "entrant_list", list_row, list_from, {"_metadata_": POOL_LIST})
+    o.add(LISTS, "entrant_list", list_row, list_from, {"_metadata_": POOL_LIST, "stat_id": pool_id})
     for n, did in enumerate(free):
         for f, v in {"_metadata_": f"f1990_pool_{did}", "entrant_reference": f"f1990-{did}", "team": "",
                      "vehicle": "", "team_position": -1, "car_number": 255, "driver": "",
@@ -499,7 +519,7 @@ def build(stock, season):
     o.set(pool, "_entrant_instancecount_", len(free))
 
     o.add(LISTS, "entrant_list", list_row, list_from, {
-        "_metadata_": CAREER_LIST, "entrant_list_references": f"{GRID_LIST},{POOL_LIST}",
+        "_metadata_": CAREER_LIST, "stat_id": career_id, "entrant_list_references": f"{GRID_LIST},{POOL_LIST}",
         "previous_season_team_standings": TEAM_STANDINGS, "previous_season_driver_standings": DRIVER_STANDINGS,
         "_entrant_instancecount_": 0,
     })
@@ -513,8 +533,8 @@ def build(stock, season):
 
     mode_row = stock.row(SETUP_MODES, "entrant_setup_mode", MODE_TEMPLATE)
     o.add(SETUP_MODES, "entrant_setup_mode", mode_row, f"{SETUP_MODES}.entrant_setup_mode[_metadata_={MODE_TEMPLATE}]", {
-        "_metadata_": SETUP_MODE, "entrant_lists": GRID_LIST, "selectable_entrant_lists": GRID_LIST,
-        "max_entrants": "{{cars}}",
+        "_metadata_": SETUP_MODE, "stat_id": free_setup_mode_id(stock), "entrant_lists": GRID_LIST,
+        "selectable_entrant_lists": GRID_LIST, "max_entrants": "{{cars}}",
     })
 
     team_std = stock.row(STANDINGS, "standings", TEAM_STANDINGS_TEMPLATE)

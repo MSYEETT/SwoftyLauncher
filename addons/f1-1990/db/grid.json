@@ -7064,6 +7064,7 @@
    "from": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026]",
    "set": {
     "_metadata_": "f1_1990",
+    "stat_id": "105",
     "previous_season_team_standings": "f1_teams_1989",
     "previous_season_driver_standings": "f1_drivers_1989"
    }
@@ -8488,7 +8489,8 @@
    "table": "entrants.entrant_lists",
    "from": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026]",
    "set": {
-    "_metadata_": "f1_1990_driver_pool"
+    "_metadata_": "f1_1990_driver_pool",
+    "stat_id": "106"
    }
   },
   {
@@ -8743,6 +8745,7 @@
    "from": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026]",
    "set": {
     "_metadata_": "f1_career_1990",
+    "stat_id": "107",
     "entrant_list_references": "f1_1990,f1_1990_driver_pool",
     "previous_season_team_standings": "f1_teams_1989",
     "previous_season_driver_standings": "f1_drivers_1989",
@@ -8767,6 +8770,7 @@
    "from": "entrants.entrant_setup_modes.entrant_setup_mode[_metadata_=f1_26]",
    "set": {
     "_metadata_": "f1_1990",
+    "stat_id": "13",
     "entrant_lists": "f1_1990",
     "selectable_entrant_lists": "f1_1990",
     "max_entrants": "{{cars}}"
