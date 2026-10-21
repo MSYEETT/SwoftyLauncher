@@ -56,7 +56,7 @@ POD_CAMERA = {
     'arrows': (0.652, 0.123),
 }
 POD_ATTACHMENTS = ('pod', 'podoffset', 'pod_left', 'pod_right')
-POD_FOV = 88.0
+POD_FOV = 100.0
 TYRE_SET = f'eaid://{C.SOURCE_PACKAGE}/shared/tyres/'
 COMPOUNDS = (b'F1_2026_', b'F1_1990_')
 COMPOUND_FILE = (b'/tyrecompounds/f1_2026_compounds.vcmpd', b'/tyrecompounds/f1_1990_compounds.vcmpd')
