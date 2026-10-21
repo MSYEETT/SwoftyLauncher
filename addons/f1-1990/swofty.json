@@ -50,6 +50,11 @@
       "description": "One-off: at the next start, deletes savegame@profile#D1990.UEL (left by the first save-separation build) from Steam Cloud. Turn it off again afterwards.",
       "binds": "native"
     },
+    {
+      "id": "reset_1990_profile", "type": "toggle", "label": "Reset the separate profile save", "default": false,
+      "description": "One-off: at the next start, deletes the separate profile save (savegame@f1990) and its backup from Steam Cloud, so the game creates a new one. Turn it off again afterwards.",
+      "binds": "native"
+    },
     { "id": "career_year", "type": "choice", "label": "Career year", "default": "1990",
       "description": "The year the Driver Career starts in.",
       "values": ["1990", "2026"], "binds": "db" },

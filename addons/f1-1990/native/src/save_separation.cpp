@@ -28,6 +28,7 @@
 
 SWOFTY_SETTING(bool, dedicated_profile_saves, false);
 SWOFTY_SETTING(bool, cleanup_stray_save, false);
+SWOFTY_SETTING(bool, reset_1990_profile, false);
 
 namespace {
 
@@ -37,6 +38,8 @@ constexpr int kFileExists = 13;
 constexpr int kGetFileCount = 18;
 constexpr int kGetFileNameAndSize = 19;
 constexpr char kStrayFile[] = "savegame@profile#D1990.UEL";
+constexpr const char *kProfile1990Files[] = {"savegame@f1990#QKRHMYXE", "savegame@f1990#NXDSMWW.BWW",
+                                             "savegame@f1990_backup#QKRHMYXE", "savegame@f1990_backup#NXDSMWW.BWW"};
 
 struct RemoteProxy {
     void **vtable;
@@ -125,18 +128,25 @@ void *g_vtable[kSlots] = {F1990_REF(0), F1990_REF(1), F1990_REF(2), F1990_REF(3)
                           F1990_REF10(1), F1990_REF10(2), F1990_REF10(3), F1990_REF10(4), F1990_REF10(5),
                           F1990_REF(60), F1990_REF(61), F1990_REF(62), F1990_REF(63)};
 
-void cleanup_stray(void *real)
+void delete_remote(void *real, const char *file)
 {
-    if (!cleanup_stray_save)
-        return;
     void **vt = *static_cast<void ***>(real);
-    bool exists = reinterpret_cast<bool (*)(void *, const char *)>(vt[kFileExists])(real, kStrayFile);
+    bool exists = reinterpret_cast<bool (*)(void *, const char *)>(vt[kFileExists])(real, file);
     if (!exists) {
-        swofty::log("[f1-1990] save cleanup: %s is not in remote storage; nothing to delete", kStrayFile);
+        swofty::log("[f1-1990] save cleanup: %s is not in remote storage; nothing to delete", file);
         return;
     }
-    bool ok = reinterpret_cast<bool (*)(void *, const char *)>(vt[kFileDelete])(real, kStrayFile);
-    swofty::log("[f1-1990] save cleanup: FileDelete(%s) %s", kStrayFile, ok ? "ok" : "FAILED");
+    bool ok = reinterpret_cast<bool (*)(void *, const char *)>(vt[kFileDelete])(real, file);
+    swofty::log("[f1-1990] save cleanup: FileDelete(%s) %s", file, ok ? "ok" : "FAILED");
+}
+
+void cleanup_stray(void *real)
+{
+    if (cleanup_stray_save)
+        delete_remote(real, kStrayFile);
+    if (reset_1990_profile)
+        for (const char *file : kProfile1990Files)
+            delete_remote(real, file);
 }
 
 void install_proxy(void *device)
