@@ -15,54 +15,6 @@
   },
   {
    "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/common_front_end.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/common_front_end.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_boot.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_boot.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_career_season_setup.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_career_season_setup.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/screens/ftue_stay_in_touch.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/screens/ftue_stay_in_touch.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
    "erp": "2025_asset_groups/ui_package/flow_frontend.erp",
    "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.mp_team_select_logos.texarray.image",
    "source": "erp/badges/badges.erpk"
@@ -71,186 +23,6 @@
    "op": "put-resource",
    "erp": "2025_asset_groups/ui_package/flow_frontend.erp",
    "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.mp_team_select_logos.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/common_front_end.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/common_front_end.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_post_race.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_post_race.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_press_interview.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_press_interview.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_r_and_d.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_r_and_d.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/screens/laptop_fit_upgrades.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/screens/laptop_fit_upgrades.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/screens/multiplayer_driver_of_the_day.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/screens/multiplayer_driver_of_the_day.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/screens/press_interview.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/screens/press_interview.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_race_intro.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.broadcast_ui_generic.grid_team_logos.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_race_intro.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.broadcast_ui_generic.grid_team_logos.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_race.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.broadcast_ui_generic.team.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_race.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.broadcast_ui_generic.team.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_race_intro.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.broadcast_ui_generic.team.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_race_intro.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.broadcast_ui_generic.team.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_persistent.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_persistent.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_f1_world.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions_large.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_f1_world.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions_large.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_frontend.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions_large.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_frontend.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions_large.texarray",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_playercard_menu.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions_large.texarray.image",
-   "source": "erp/badges/badges.erpk"
-  },
-  {
-   "op": "put-resource",
-   "erp": "2025_asset_groups/ui_package/flow_playercard_menu.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions_large.texarray",
    "source": "erp/badges/badges.erpk"
   },
   {
@@ -291,6 +63,102 @@
   },
   {
    "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/common_front_end.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/common_front_end.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_boot.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_boot.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_career_season_setup.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_career_season_setup.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/screens/ftue_stay_in_touch.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/screens/ftue_stay_in_touch.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_logos.driver_career_2024_team_select.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_race_intro.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.broadcast_ui_generic.grid_team_logos.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_race_intro.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.broadcast_ui_generic.grid_team_logos.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_f1_world.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions_large.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_f1_world.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions_large.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_frontend.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions_large.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_frontend.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions_large.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_playercard_menu.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions_large.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_playercard_menu.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions_large.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
    "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
    "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.driver_select_team_logos.texarray.image",
    "source": "erp/badges/badges.erpk"
@@ -568,25 +436,109 @@
   {
    "op": "put-resource",
    "erp": "2025_asset_groups/ui_package/common_front_end.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.career_team_select_logo_small.texarray.image",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
    "source": "erp/badges/badges.erpk"
   },
   {
    "op": "put-resource",
    "erp": "2025_asset_groups/ui_package/common_front_end.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.career_team_select_logo_small.texarray",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
    "source": "erp/badges/badges.erpk"
   },
   {
    "op": "put-resource",
    "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.career_team_select_logo_small.texarray.image",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
    "source": "erp/badges/badges.erpk"
   },
   {
    "op": "put-resource",
    "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
-   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.career_team_select_logo_small.texarray",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_post_race.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_post_race.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_press_interview.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_press_interview.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_r_and_d.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_r_and_d.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/screens/laptop_fit_upgrades.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/screens/laptop_fit_upgrades.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/screens/multiplayer_driver_of_the_day.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/screens/multiplayer_driver_of_the_day.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/screens/press_interview.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/screens/press_interview.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.badges_broadcast.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_persistent.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_persistent.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.fanzone_expressions.texarray",
    "source": "erp/badges/badges.erpk"
   },
   {
@@ -611,6 +563,162 @@
    "op": "put-resource",
    "erp": "2025_asset_groups/ui_package/flow_race.erp",
    "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.osd.timing_tower.team_badges_broadcast.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_career_rewards.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.driver_career_rewards.recognition.team_icons.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_career_rewards.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.driver_career_rewards.recognition.team_icons.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.team_contract_logo.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.team_contract_logo.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_team_hq.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_hq.contract_negotiation_logos.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_team_hq.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_hq.contract_negotiation_logos.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_team_hq.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_hq.contract_logos_mid.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_team_hq.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_hq.contract_logos_mid.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_team_hq.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_hq.contract_logos_large.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_team_hq.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_hq.contract_logos_large.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_team_hq.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_hq.contract_holding_screen_bgs.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_team_hq.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.team_hq.contract_holding_screen_bgs.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_press_interview.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.press_interviews.pill_bg.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_press_interview.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.press_interviews.pill_bg.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_car_monitor.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.career_laptop_header.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_car_monitor.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.career_laptop_header.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.career_laptop_header.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.career_laptop_header.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_race.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.broadcast_ui_generic.team.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_race.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.broadcast_ui_generic.team.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_race_intro.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.broadcast_ui_generic.team.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_race_intro.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.broadcast_ui_generic.team.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/common_front_end.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.career_team_select_logo_small.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/common_front_end.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.career_team_select_logo_small.texarray",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.career_team_select_logo_small.texarray.image",
+   "source": "erp/badges/badges.erpk"
+  },
+  {
+   "op": "put-resource",
+   "erp": "2025_asset_groups/ui_package/flow_career_hub.erp",
+   "resource": "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.career_team_select_logo_small.texarray",
    "source": "erp/badges/badges.erpk"
   },
   {
@@ -738,123 +846,6 @@
     },
     {
      "op": "clone-entry",
-     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "mclaren_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "ferrari_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "williams_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "benetton_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "tyrrell_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "lotus_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "leytonhouse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "larrousse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "ligier_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "minardi_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "brabham_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "dallara_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "arrows_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
      "at": "overrides.Contents.teams.Contents.mp_team_select_logos.Contents",
      "src": "[Name=vanamersfoort_26]",
      "as": "mclaren_1990",
@@ -965,591 +956,6 @@
      "op": "clone-entry",
      "at": "overrides.Contents.teams.Contents.mp_team_select_logos.Contents",
      "src": "[Name=vanamersfoort_26]",
-     "as": "arrows_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "mclaren_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "ferrari_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "williams_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "benetton_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "tyrrell_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "lotus_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "leytonhouse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "larrousse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "ligier_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "minardi_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "brabham_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "dallara_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "arrows_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "mclaren_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "ferrari_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "williams_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "benetton_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "tyrrell_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "lotus_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "leytonhouse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "larrousse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "ligier_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "minardi_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "brabham_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "dallara_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "arrows_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "mclaren_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "ferrari_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "williams_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "benetton_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "tyrrell_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "lotus_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "leytonhouse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "larrousse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "ligier_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "minardi_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "brabham_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "dallara_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "arrows_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "mclaren_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "ferrari_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "williams_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "benetton_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "tyrrell_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "lotus_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "leytonhouse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "larrousse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "ligier_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "minardi_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "brabham_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "dallara_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "arrows_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "mclaren_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "ferrari_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "williams_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "benetton_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "tyrrell_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "lotus_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "leytonhouse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "larrousse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "ligier_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "minardi_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "brabham_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
-     "src": "[Name=gm_cadillac_26]",
-     "as": "dallara_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
-     "src": "[Name=gm_cadillac_26]",
      "as": "arrows_1990",
      "set": {
       "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
@@ -1791,6 +1197,357 @@
     },
     {
      "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions_large.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
      "at": "overrides.Contents.teams.Contents.driver_select_team_logos.Contents",
      "src": "[Name=zenith_25]",
      "as": "mclaren_1990",
@@ -1901,6 +1658,1527 @@
      "op": "clone-entry",
      "at": "overrides.Contents.teams.Contents.driver_select_team_logos.Contents",
      "src": "[Name=zenith_25]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.fanzone_expressions.Contents",
+     "src": "[Name=gm_cadillac_26]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.driver_career_rewards.Contents.recognition.Contents.team_icons.Contents",
+     "src": "[Name=williams]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.driver_career_rewards.Contents.recognition.Contents.team_icons.Contents",
+     "src": "[Name=williams]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.driver_career_rewards.Contents.recognition.Contents.team_icons.Contents",
+     "src": "[Name=williams]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.driver_career_rewards.Contents.recognition.Contents.team_icons.Contents",
+     "src": "[Name=williams]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.driver_career_rewards.Contents.recognition.Contents.team_icons.Contents",
+     "src": "[Name=williams]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.driver_career_rewards.Contents.recognition.Contents.team_icons.Contents",
+     "src": "[Name=williams]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.driver_career_rewards.Contents.recognition.Contents.team_icons.Contents",
+     "src": "[Name=williams]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.driver_career_rewards.Contents.recognition.Contents.team_icons.Contents",
+     "src": "[Name=williams]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.driver_career_rewards.Contents.recognition.Contents.team_icons.Contents",
+     "src": "[Name=williams]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.driver_career_rewards.Contents.recognition.Contents.team_icons.Contents",
+     "src": "[Name=williams]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.driver_career_rewards.Contents.recognition.Contents.team_icons.Contents",
+     "src": "[Name=williams]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.driver_career_rewards.Contents.recognition.Contents.team_icons.Contents",
+     "src": "[Name=williams]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.driver_career_rewards.Contents.recognition.Contents.team_icons.Contents",
+     "src": "[Name=williams]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.team_contract_logo.Contents",
+     "src": "[Name=williams]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.team_contract_logo.Contents",
+     "src": "[Name=williams]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.team_contract_logo.Contents",
+     "src": "[Name=williams]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.team_contract_logo.Contents",
+     "src": "[Name=williams]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.team_contract_logo.Contents",
+     "src": "[Name=williams]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.team_contract_logo.Contents",
+     "src": "[Name=williams]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.team_contract_logo.Contents",
+     "src": "[Name=williams]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.team_contract_logo.Contents",
+     "src": "[Name=williams]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.team_contract_logo.Contents",
+     "src": "[Name=williams]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.team_contract_logo.Contents",
+     "src": "[Name=williams]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.team_contract_logo.Contents",
+     "src": "[Name=williams]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.team_contract_logo.Contents",
+     "src": "[Name=williams]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.team_contract_logo.Contents",
+     "src": "[Name=williams]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_negotiation_logos.Contents",
+     "src": "[Name=williams]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_negotiation_logos.Contents",
+     "src": "[Name=williams]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_negotiation_logos.Contents",
+     "src": "[Name=williams]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_negotiation_logos.Contents",
+     "src": "[Name=williams]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_negotiation_logos.Contents",
+     "src": "[Name=williams]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_negotiation_logos.Contents",
+     "src": "[Name=williams]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_negotiation_logos.Contents",
+     "src": "[Name=williams]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_negotiation_logos.Contents",
+     "src": "[Name=williams]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_negotiation_logos.Contents",
+     "src": "[Name=williams]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_negotiation_logos.Contents",
+     "src": "[Name=williams]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_negotiation_logos.Contents",
+     "src": "[Name=williams]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_negotiation_logos.Contents",
+     "src": "[Name=williams]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_negotiation_logos.Contents",
+     "src": "[Name=williams]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_mid.Contents",
+     "src": "[Name=player]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_mid.Contents",
+     "src": "[Name=player]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_mid.Contents",
+     "src": "[Name=player]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_mid.Contents",
+     "src": "[Name=player]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_mid.Contents",
+     "src": "[Name=player]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_mid.Contents",
+     "src": "[Name=player]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_mid.Contents",
+     "src": "[Name=player]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_mid.Contents",
+     "src": "[Name=player]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_mid.Contents",
+     "src": "[Name=player]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_mid.Contents",
+     "src": "[Name=player]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_mid.Contents",
+     "src": "[Name=player]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_mid.Contents",
+     "src": "[Name=player]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_mid.Contents",
+     "src": "[Name=player]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_large.Contents",
+     "src": "[Name=player]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_large.Contents",
+     "src": "[Name=player]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_large.Contents",
+     "src": "[Name=player]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_large.Contents",
+     "src": "[Name=player]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_large.Contents",
+     "src": "[Name=player]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_large.Contents",
+     "src": "[Name=player]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_large.Contents",
+     "src": "[Name=player]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_large.Contents",
+     "src": "[Name=player]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_large.Contents",
+     "src": "[Name=player]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_large.Contents",
+     "src": "[Name=player]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_large.Contents",
+     "src": "[Name=player]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_large.Contents",
+     "src": "[Name=player]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_logos_large.Contents",
+     "src": "[Name=player]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_holding_screen_bgs.Contents",
+     "src": "[Name=zenith_25]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_holding_screen_bgs.Contents",
+     "src": "[Name=zenith_25]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_holding_screen_bgs.Contents",
+     "src": "[Name=zenith_25]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_holding_screen_bgs.Contents",
+     "src": "[Name=zenith_25]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_holding_screen_bgs.Contents",
+     "src": "[Name=zenith_25]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_holding_screen_bgs.Contents",
+     "src": "[Name=zenith_25]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_holding_screen_bgs.Contents",
+     "src": "[Name=zenith_25]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_holding_screen_bgs.Contents",
+     "src": "[Name=zenith_25]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_holding_screen_bgs.Contents",
+     "src": "[Name=zenith_25]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_holding_screen_bgs.Contents",
+     "src": "[Name=zenith_25]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_holding_screen_bgs.Contents",
+     "src": "[Name=zenith_25]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_holding_screen_bgs.Contents",
+     "src": "[Name=zenith_25]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_hq.Contents.contract_holding_screen_bgs.Contents",
+     "src": "[Name=zenith_25]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.press_interviews.Contents.pill_bg.Contents",
+     "src": "[Name=blank]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.press_interviews.Contents.pill_bg.Contents",
+     "src": "[Name=blank]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.press_interviews.Contents.pill_bg.Contents",
+     "src": "[Name=blank]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.press_interviews.Contents.pill_bg.Contents",
+     "src": "[Name=blank]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.press_interviews.Contents.pill_bg.Contents",
+     "src": "[Name=blank]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.press_interviews.Contents.pill_bg.Contents",
+     "src": "[Name=blank]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.press_interviews.Contents.pill_bg.Contents",
+     "src": "[Name=blank]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.press_interviews.Contents.pill_bg.Contents",
+     "src": "[Name=blank]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.press_interviews.Contents.pill_bg.Contents",
+     "src": "[Name=blank]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.press_interviews.Contents.pill_bg.Contents",
+     "src": "[Name=blank]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.press_interviews.Contents.pill_bg.Contents",
+     "src": "[Name=blank]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.press_interviews.Contents.pill_bg.Contents",
+     "src": "[Name=blank]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.press_interviews.Contents.pill_bg.Contents",
+     "src": "[Name=blank]",
+     "as": "arrows_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.career_laptop_header.Contents",
+     "src": "[Name=laptop_williams_logo]",
+     "as": "laptop_mclaren_1990_logo",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/laptop_mclaren_1990_logo.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.career_laptop_header.Contents",
+     "src": "[Name=laptop_williams_logo]",
+     "as": "laptop_ferrari_1990_logo",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/laptop_ferrari_1990_logo.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.career_laptop_header.Contents",
+     "src": "[Name=laptop_williams_logo]",
+     "as": "laptop_williams_1990_logo",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/laptop_williams_1990_logo.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.career_laptop_header.Contents",
+     "src": "[Name=laptop_williams_logo]",
+     "as": "laptop_benetton_1990_logo",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/laptop_benetton_1990_logo.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.career_laptop_header.Contents",
+     "src": "[Name=laptop_williams_logo]",
+     "as": "laptop_tyrrell_1990_logo",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/laptop_tyrrell_1990_logo.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.career_laptop_header.Contents",
+     "src": "[Name=laptop_williams_logo]",
+     "as": "laptop_lotus_1990_logo",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/laptop_lotus_1990_logo.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.career_laptop_header.Contents",
+     "src": "[Name=laptop_williams_logo]",
+     "as": "laptop_leytonhouse_1990_logo",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/laptop_leytonhouse_1990_logo.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.career_laptop_header.Contents",
+     "src": "[Name=laptop_williams_logo]",
+     "as": "laptop_larrousse_1990_logo",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/laptop_larrousse_1990_logo.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.career_laptop_header.Contents",
+     "src": "[Name=laptop_williams_logo]",
+     "as": "laptop_ligier_1990_logo",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/laptop_ligier_1990_logo.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.career_laptop_header.Contents",
+     "src": "[Name=laptop_williams_logo]",
+     "as": "laptop_minardi_1990_logo",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/laptop_minardi_1990_logo.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.career_laptop_header.Contents",
+     "src": "[Name=laptop_williams_logo]",
+     "as": "laptop_brabham_1990_logo",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/laptop_brabham_1990_logo.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.career_laptop_header.Contents",
+     "src": "[Name=laptop_williams_logo]",
+     "as": "laptop_dallara_1990_logo",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/laptop_dallara_1990_logo.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.career_laptop_header.Contents",
+     "src": "[Name=laptop_williams_logo]",
+     "as": "laptop_arrows_1990_logo",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/laptop_arrows_1990_logo.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "mclaren_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "ferrari_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "williams_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "benetton_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "tyrrell_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "lotus_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "leytonhouse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "larrousse_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "ligier_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "minardi_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "brabham_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "dallara_1990",
+     "set": {
+      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.team.Contents",
+     "src": "[Name=vanamersfoort_26]",
      "as": "arrows_1990",
      "set": {
       "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
@@ -2021,240 +3299,6 @@
      "as": "team_select_arrows_1990",
      "set": {
       "Value": "ui_package/art/textures/f1990/badges/team_select_arrows_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "mclaren_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "ferrari_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "williams_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "benetton_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "tyrrell_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "lotus_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "leytonhouse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "larrousse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "ligier_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "minardi_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "brabham_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "dallara_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "arrows_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "mclaren_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/mclaren_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "ferrari_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ferrari_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "williams_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/williams_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "benetton_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/benetton_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "tyrrell_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/tyrrell_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "lotus_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/lotus_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "leytonhouse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/leytonhouse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "larrousse_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/larrousse_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "ligier_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/ligier_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "minardi_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/minardi_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "brabham_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/brabham_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "dallara_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/dallara_1990.tif"
-     }
-    },
-    {
-     "op": "clone-entry",
-     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
-     "src": "[Name=vanamersfoort_26]",
-     "as": "arrows_1990",
-     "set": {
-      "Value": "ui_package/art/textures/f1990/badges/arrows_1990.tif"
      }
     }
    ]
