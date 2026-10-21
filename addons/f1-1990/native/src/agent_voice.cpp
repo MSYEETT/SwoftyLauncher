@@ -27,7 +27,7 @@
 #include <swofty/game.hpp>
 #include <swofty/mixin.hpp>
 
-#include "career_group.hpp"
+#include "career_1990.hpp"
 #include "speech_line.hpp"
 
 #if SWOFTY_API_VERSION >= 7
@@ -50,26 +50,6 @@ std::atomic<int> g_1990{-1};
 std::atomic<uint32_t> g_muted_lines, g_logged;
 std::mutex g_lock;
 std::set<void *> g_muted_emitters;
-
-void *registry_get(void *registry, uintptr_t desc)
-{
-    auto **vt = *static_cast<void ***>(registry);
-    if (!vt || !vt[2])
-        return nullptr;
-    return reinterpret_cast<void *(*)(void *, const void *, int)>(vt[2])(registry, reinterpret_cast<const void *>(desc), 1);
-}
-
-void *setup_component(void *championship)
-{
-    return registry_get(static_cast<uint8_t *>(championship) + 0x208,
-                        swofty::game::k_Career_CareerSetupComponentDesc.address());
-}
-
-uint8_t group_index(void *component)
-{
-    auto **vt = *static_cast<void ***>(component);
-    return reinterpret_cast<uint8_t (*)(void *)>(vt[0x268 / 8])(component);
-}
 
 #if SWOFTY_API_VERSION >= 7
 constexpr char kStringsFile[] = "data/flavio-strings.json";
@@ -136,7 +116,7 @@ void on_career(const SwoftyEvent *ev, void *)
         return;
     }
     void *career = swofty::career::entity();
-    bool yes = career && f1990::career_data_group_is(career, f1990::kCareerGroup1990, {setup_component, group_index});
+    bool yes = career && f1990::is_1990_career(career);
     g_1990 = yes ? 1 : 0;
     agent_strings(yes);
     swofty::log("[f1-1990] voice: career loaded (%s); agent voice %s", yes ? "data group f1_career_1990" : "not a 1990 career",
