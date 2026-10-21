@@ -21,6 +21,7 @@ for m in addons/t_*.cpp; do
     case $name in
     t_chain_b) dest=$OUT/game/swofty/mods ;;
     t_stage_*) dest=$OUT/stages ;;
+    t_ntpage) dest=$OUT ;;
     *) dest=$OUT/game/swofty/addons ;;
     esac
     "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -I../../packages/sdk/include -I../include -shared -s \
@@ -446,6 +447,24 @@ for mode in crash exit heap abort; do
         [[ $code != 0 ]] && echo "ok  : abort: the process aborted ($code)" || { echo "FAIL: abort: process exited 0"; status=1; }
     fi
 done
+echo "==== ntpage"
+cp "$OUT/t_ntpage.dll" "$SW/mods/core/ntpage_hook.dll"
+rm -f "$SW"/crash-*.txt "$SW"/crash-*.dmp
+code=0
+timeout 120 "${PIN[@]}" xvfb-run -a wine "$OUT/game/F1_25.exe" exit >"$OUT/ntpage.out" 2>&1 || code=$?
+rm -f "$SW/mods/core/ntpage_hook.dll"
+grep -F '[ntpage]' "$OUT/ntpage.out" || true
+grep -F '[crash]' "$LOG"
+if grep -q '^\[ntpage\] ntdll!NtTerminateProcess now exports' "$OUT/ntpage.out"; then
+    echo "ok  : ntpage: the export points at a stub on the page of NtProtectVirtualMemory"
+else
+    echo "FAIL: ntpage: the injected hook did not move the export"
+    status=1
+fi
+check "ntpage: hooking a function on that ntdll page finishes the crash init" '\[crash\] crash log armed: .*ExitProcess hooked, TerminateProcess hooked'
+check "ntpage: NtTerminateProcess is hooked there" '\[crash\] crash reports: .*NtTerminateProcess hooked'
+check "ntpage: the exit still gets a report" '\[crash\] crash report .*crash-.*: ExitProcess\(255'
+[[ $code == 255 ]] && echo "ok  : ntpage: process ended with 255" || { echo "FAIL: ntpage: process ended with $code"; status=1; }
 echo "==== stages"
 LOG=$SG/swofty/loader.log
 SWOFTY_EARLY_STAGE=1 "${PIN[@]}" xvfb-run -a wine "$SG/F1_25.exe" stages || status=1
