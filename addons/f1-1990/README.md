@@ -6,10 +6,6 @@ Turns the F1 2026 season into the 1990 season in a profile of its own.
 
 The **Cars** setting (`cars`) is 22 (default) or 26. At 22 the grid is the 11 teams on the stock 2026 team rows and the addon needs no other addon. At 26 Larrousse and Dallara join on Custom Grid Size's two extra teams: enable Custom Grid Size with Cars at 26. The grid ops are in `db/grid.json`, written by `tools/grid.py` (see `tools/README.md`).
 
-## Front end (erp/frontend.json, erp/badges.json, tools/frontend.py, tools/badges.py)
-
-The Driver Select and Team Select backdrops show the 1990 driver and team names, from textures `tools/frontend.py` renders over the stock ones in `main_front_end.erp`. The team logo arrays (team select tiles, driver picker, timing tower, broadcast graphics, F1 World) carry placeholder 1990 badges from `tools/badges.py` (`erp/badges.json`, `erp/badges/`). **Hide the F2 and Icons tabs** (`hide_f2_icon_tabs`, default on) removes those two tabs from the Choose Driver screen by replacing `screen_groups.uicontentgroup` in `persistent.erp`, which the game loads at boot; turn it off if the game stops at boot.
-
 ## Rules (db/rules.json, db/rules_text.json, tools/rules.py)
 
 `tools/rules.py [stock gamedatabases.2025.bin]` writes both op files from `tools/rules_fields.json` (the field lists of the cloned rows) and the stock database (the option tag lists it extends). The 1990 rules live in their own rows; 2025 and 2026 rows keep their stock values, and stock rows only gain the `f1_1990` name in lists and higher row counts.
