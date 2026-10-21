@@ -8,7 +8,7 @@
   "license": "AGPL-3.0-or-later",
   "kind": ["database", "erp", "native"],
   "compat": { "game": "f1_25", "game_builds": [">=25251167"], "launcher": ">=1.0.9", "seasons": ["f1_2026"] },
-  "requires": [{ "id": "swofty.core", "version": ">=0.1.0" }],
+  "requires": [{ "id": "swofty.core", "version": ">=0.2.12" }],
 "operations": {
     "database": ["db/departments.json", "db/upgrade_types.json", "db/tyres_tree.json"],
     "erp": ["erp/rnd_fifth_pie.json", "erp/rnd_tyres_icon.json", "erp/rnd_tyres_card_art.json", "erp/rnd_upgrade_vtf.json"],
