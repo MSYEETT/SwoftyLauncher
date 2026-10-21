@@ -1083,6 +1083,15 @@
   {
    "op": "set",
    "select": "entrants.teams.team[_metadata_=team12_26]",
+   "field": "timing_tower_texture_path",
+   "value": "larrousse_90",
+   "when": {
+    "cars": 26
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team12_26]",
    "field": "story_info_0.description",
    "value": "lng_f1990_desc_larrousse",
    "when": {
@@ -1679,6 +1688,15 @@
    "select": "entrants.teams.team[_metadata_=team13_26]",
    "field": "nationality",
    "value": "italy",
+   "when": {
+    "cars": 26
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.teams.team[_metadata_=team13_26]",
+   "field": "timing_tower_texture_path",
+   "value": "dallara_90",
    "when": {
     "cars": 26
    }

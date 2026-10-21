@@ -156,6 +156,7 @@ BOSS_ROWS = {"mclaren_26": "andrea_stella", "mercedes_26": "toto_wollf", "redbul
              "renault_26": "steve_nielsen", "gm_cadillac_26": "graeme_lowdon", "team12_26": "andreas_seidl",
              "team13_26": "franz_tost"}
 OWN_BOSS = {"team12_26", "team13_26"}
+OWN_TOWER_BADGE = {"team12_26": "larrousse_90", "team13_26": "dallara_90"}
 CGS_MARKERS = ("team12_", "team13_", "=andreas_seidl]", "=franz_tost]")
 STANDINGS_1989 = ["mclaren", "williams", "ferrari", "benetton", "tyrrell", "lotus", "arrows", "brabham", "minardi",
                   "march", "ligier_prost"]
@@ -273,6 +274,8 @@ def build(season):
             ("team_base", f"lng_f1990_base_{s.team}"), ("nationality", nat),
         ]:
             setop(team, fld, value)
+        if s.team_row in OWN_TOWER_BADGE:
+            setop(team, "timing_tower_texture_path", OWN_TOWER_BADGE[s.team_row])
         if s.team in STORY:
             L(f"lng_f1990_desc_{s.team}", STORY[s.team][0])
             L(f"lng_f1990_tag_{s.team}", STORY[s.team][1])
