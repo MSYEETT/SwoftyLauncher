@@ -48,6 +48,7 @@ constexpr char kTitle[] = "lng_f1990_career_content";
 constexpr char kDescription[] = "lng_f1990_career_content_description";
 
 void **g_vtable;
+TileList *g_list;
 std::atomic<uint32_t> g_builds, g_presses;
 std::atomic<bool> g_wizard_1990{false};
 
@@ -71,6 +72,26 @@ void populate(HomeItem *item, void *node, uint32_t a7)
     reinterpret_cast<void (*)(HomeItem *, int)>(vt[kNotificationSlot])(item, 0);
 }
 
+bool is_dlc_item(const HomeItem *item);
+
+bool adopt_systems(HomeItem *item)
+{
+    auto *raw = reinterpret_cast<uint8_t *>(item);
+    if (at<void *>(raw, 0x158))
+        return true;
+    TileList *list = g_list;
+    if (!list || !list->items_begin || list->items_end - list->items_begin < 2 || !list->items_end[-1].tile ||
+        list->items_end[-1].tile->item != item || !list->items_end[-2].tile)
+        return false;
+    HomeItem *dlc = list->items_end[-2].tile->item;
+    auto *src = reinterpret_cast<const uint8_t *>(dlc);
+    if (!is_dlc_item(dlc) || !at<void *>(src, 0x158))
+        return false;
+    std::memcpy(raw + 0x150, src + 0x150, 0x28);
+    swofty::log("[f1-1990] career menu: 1990 item took the 2026 tile's menu systems");
+    return true;
+}
+
 Action *press(HomeItem *item, Action *out)
 {
     auto *system = static_cast<const uint8_t *>(*swofty::game::g_FeTile_CustomisationSystem);
@@ -83,6 +104,12 @@ Action *press(HomeItem *item, Action *out)
                     pick.kind == f1990::ContentPick::exact ? "1990 car group"
                     : pick.kind == f1990::ContentPick::dlc ? "no 1990 car group, the 2026 one"
                                                            : "no content entry");
+    if (!adopt_systems(item)) {
+        out->type = 1;
+        *reinterpret_cast<void **>(reinterpret_cast<uint8_t *>(out) + 8) = nullptr;
+        swofty::log("[f1-1990] career menu: the 1990 item has no menu systems and the 2026 tile has none to copy; press ignored");
+        return out;
+    }
     return swofty::game::FeTile_Route_CareerItem(item, out);
 }
 
@@ -155,6 +182,7 @@ void add_tile(TileList *list)
     tile->allocator = alloc;
     reinterpret_cast<void (*)(HomeItem *, int)>(old->vtable->destroy)(old, 0);
     reinterpret_cast<void (*)(NeAllocator *, void *)>(old_alloc->vtable->free)(old_alloc, old);
+    g_list = list;
     if (g_builds++ < 4)
         swofty::log("[f1-1990] career menu: 1990 Career tile added as button_%u (items %zu -> %zu)", kIndex, before,
                     after);
