@@ -9021,6 +9021,58 @@
    "used_by": [
     "addons/f1-1990/native/src/career_wizard.cpp"
    ]
+  },
+  {
+   "id": "game.driver_contracts_build_offers",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC A8 0A 00 00 4C 8B A9 C8 03 00 00",
+   "match": "0x140d80ef0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140d80ef0",
+   "kind": "func_start",
+   "names": [
+    "Game_DriverContracts_BuildOffers"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/driver_select_probe.cpp"
+   ]
+  },
+  {
+   "id": "game.driver_contracts_rank_team",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? E9 ?? ?? ?? ?? E9 ?? ?? ?? ?? B0 38",
+   "match": "0x1407c45d0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1407c45d0",
+   "kind": "func_start",
+   "names": [
+    "Game_DriverContracts_RankTeam"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/driver_select_probe.cpp"
+   ]
   }
  ]
 }
