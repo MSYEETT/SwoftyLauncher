@@ -34,8 +34,14 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_mclaren_boss",
-   "value": "Ron Dennis"
+   "key": "lng_f1990_desc_mclaren",
+   "value": "Senna and Berger drive the Honda V10 MP4/5B for the reigning champions."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_mclaren",
+   "value": "#McLaren"
   },
   {
    "op": "lang.set",
@@ -88,8 +94,14 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_ferrari_boss",
-   "value": "Cesare Fiorio"
+   "key": "lng_f1990_desc_ferrari",
+   "value": "Prost joins Mansell at Maranello, with the 641 and its semi-automatic gearbox."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_ferrari",
+   "value": "#Ferrari"
   },
   {
    "op": "lang.set",
@@ -108,18 +120,6 @@
    "language": "*",
    "key": "lng_f1990_boss_ferrari_last",
    "value": "Fiorio"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_desc_ferrari",
-   "value": "Prost joins Mansell at Maranello, with the 641 and its semi-automatic gearbox."
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_tag_ferrari",
-   "value": "#Ferrari"
   },
   {
    "op": "lang.set",
@@ -154,8 +154,14 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_williams_boss",
-   "value": "Frank Williams"
+   "key": "lng_f1990_desc_williams",
+   "value": "Renault V10 power and the FW13B for Boutsen and Patrese."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_williams",
+   "value": "#Williams"
   },
   {
    "op": "lang.set",
@@ -174,18 +180,6 @@
    "language": "*",
    "key": "lng_f1990_boss_williams_last",
    "value": "Williams"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_desc_williams",
-   "value": "Renault V10 power and the FW13B for Boutsen and Patrese."
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_tag_williams",
-   "value": "#Williams"
   },
   {
    "op": "lang.set",
@@ -220,8 +214,14 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_renault_boss",
-   "value": "Flavio Briatore"
+   "key": "lng_f1990_desc_benetton",
+   "value": "John Barnard's B190 with Ford power for Nannini and Piquet."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_benetton",
+   "value": "#Benetton"
   },
   {
    "op": "lang.set",
@@ -274,8 +274,14 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_mercedes_boss",
-   "value": "Ken Tyrrell"
+   "key": "lng_f1990_desc_tyrrell",
+   "value": "Alesi and Nakajima drive; Harvey Postlethwaite's raised-nose 019 arrives at Imola."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_tyrrell",
+   "value": "#Tyrrell"
   },
   {
    "op": "lang.set",
@@ -294,18 +300,6 @@
    "language": "*",
    "key": "lng_f1990_boss_tyrrell_last",
    "value": "Tyrrell"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_desc_tyrrell",
-   "value": "Alesi and Nakajima drive; Harvey Postlethwaite's raised-nose 019 arrives at Imola."
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_tag_tyrrell",
-   "value": "#Tyrrell"
   },
   {
    "op": "lang.set",
@@ -340,8 +334,14 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_red_bull_boss",
-   "value": "Tony Rudd"
+   "key": "lng_f1990_desc_lotus",
+   "value": "Lamborghini V12 power for Warwick and Donnelly in the 102."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_lotus",
+   "value": "#Lotus"
   },
   {
    "op": "lang.set",
@@ -360,18 +360,6 @@
    "language": "*",
    "key": "lng_f1990_boss_lotus_last",
    "value": "Rudd"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_desc_lotus",
-   "value": "Lamborghini V12 power for Warwick and Donnelly in the 102."
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_tag_lotus",
-   "value": "#Lotus"
   },
   {
    "op": "lang.set",
@@ -406,8 +394,14 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_racing_point_boss",
-   "value": "Ian Phillips"
+   "key": "lng_f1990_desc_march",
+   "value": "Adrian Newey's CG901 with Judd power for Gugelmin and Capelli."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_march",
+   "value": "#LeytonHouse"
   },
   {
    "op": "lang.set",
@@ -426,18 +420,6 @@
    "language": "*",
    "key": "lng_f1990_boss_march_last",
    "value": "Phillips"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_desc_march",
-   "value": "Adrian Newey's CG901 with Judd power for Gugelmin and Capelli."
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_tag_march",
-   "value": "#LeytonHouse"
   },
   {
    "op": "lang.set",
@@ -472,6 +454,18 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_desc_larrousse",
+   "value": "The Lola-built LC90 with the Lamborghini V12 for Bernard and Suzuki."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_larrousse",
+   "value": "#Larrousse"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_boss_larrousse_full",
    "value": "Gérard Larrousse"
   },
@@ -486,18 +480,6 @@
    "language": "*",
    "key": "lng_f1990_boss_larrousse_last",
    "value": "Larrousse"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_desc_larrousse",
-   "value": "The Lola-built LC90 with the Lamborghini V12 for Bernard and Suzuki."
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_tag_larrousse",
-   "value": "#Larrousse"
   },
   {
    "op": "lang.set",
@@ -532,8 +514,14 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_sauber_boss",
-   "value": "Guy Ligier"
+   "key": "lng_f1990_desc_ligier_prost",
+   "value": "The JS33B with Ford power for Larini and Alliot."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_ligier_prost",
+   "value": "#Ligier"
   },
   {
    "op": "lang.set",
@@ -552,18 +540,6 @@
    "language": "*",
    "key": "lng_f1990_boss_ligier_prost_last",
    "value": "Ligier"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_desc_ligier_prost",
-   "value": "The JS33B with Ford power for Larini and Alliot."
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_tag_ligier_prost",
-   "value": "#Ligier"
   },
   {
    "op": "lang.set",
@@ -598,8 +574,14 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_toro_rosso_boss",
-   "value": "Giancarlo Minardi"
+   "key": "lng_f1990_desc_minardi",
+   "value": "The Faenza team runs the M190 with Ford power for Martini and Barilla."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_minardi",
+   "value": "#Minardi"
   },
   {
    "op": "lang.set",
@@ -618,18 +600,6 @@
    "language": "*",
    "key": "lng_f1990_boss_minardi_last",
    "value": "Minardi"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_desc_minardi",
-   "value": "The Faenza team runs the M190 with Ford power for Martini and Barilla."
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_tag_minardi",
-   "value": "#Minardi"
   },
   {
    "op": "lang.set",
@@ -664,8 +634,14 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_gm_cadillac_boss",
-   "value": "Herbie Blash"
+   "key": "lng_f1990_desc_brabham",
+   "value": "The BT59 with Judd power for Modena and David Brabham."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_brabham",
+   "value": "#Brabham"
   },
   {
    "op": "lang.set",
@@ -684,18 +660,6 @@
    "language": "*",
    "key": "lng_f1990_boss_brabham_last",
    "value": "Blash"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_desc_brabham",
-   "value": "The BT59 with Judd power for Modena and David Brabham."
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_tag_brabham",
-   "value": "#Brabham"
   },
   {
    "op": "lang.set",
@@ -730,6 +694,18 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_f1990_desc_dallara",
+   "value": "BMS Scuderia Italia runs the Dallara F190 for de Cesaris and Pirro."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_dallara",
+   "value": "#ScuderiaItalia"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_f1990_boss_dallara_full",
    "value": "Giuseppe Lucchini"
   },
@@ -744,18 +720,6 @@
    "language": "*",
    "key": "lng_f1990_boss_dallara_last",
    "value": "Lucchini"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_desc_dallara",
-   "value": "BMS Scuderia Italia runs the Dallara F190 for de Cesaris and Pirro."
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_tag_dallara",
-   "value": "#ScuderiaItalia"
   },
   {
    "op": "lang.set",
@@ -790,8 +754,14 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_haas_boss",
-   "value": "Jackie Oliver"
+   "key": "lng_f1990_desc_arrows",
+   "value": "Arrows runs the A11B with Ford power for Alboreto and Caffi."
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_tag_arrows",
+   "value": "#Arrows"
   },
   {
    "op": "lang.set",
@@ -814,14 +784,20 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_f1990_desc_arrows",
-   "value": "Arrows runs the A11B with Ford power for Alboreto and Caffi."
+   "key": "lng_f1990_ayrton_senna_first",
+   "value": "Ayrton"
   },
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_f1990_tag_arrows",
-   "value": "#Arrows"
+   "key": "lng_f1990_ayrton_senna_last",
+   "value": "SENNA"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_ayrton_senna_full",
+   "value": "Ayrton SENNA"
   },
   {
    "op": "lang.set",
@@ -840,6 +816,42 @@
    "language": "*",
    "key": "lng_f1990_gerhard_berger_full",
    "value": "Gerhard BERGER"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_alain_prost_first",
+   "value": "Alain"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_alain_prost_last",
+   "value": "PROST"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_alain_prost_full",
+   "value": "Alain PROST"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_nigel_mansell_first",
+   "value": "Nigel"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_nigel_mansell_last",
+   "value": "MANSELL"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_nigel_mansell_full",
+   "value": "Nigel MANSELL"
   },
   {
    "op": "lang.set",
@@ -1024,42 +1036,6 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_f1990_eric_bernard_first",
-   "value": "Eric"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_eric_bernard_last",
-   "value": "BERNARD"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_eric_bernard_full",
-   "value": "Eric BERNARD"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_aguri_suzuki_first",
-   "value": "Aguri"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_aguri_suzuki_last",
-   "value": "SUZUKI"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_aguri_suzuki_full",
-   "value": "Aguri SUZUKI"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
    "key": "lng_f1990_nicola_larini_first",
    "value": "Nicola"
   },
@@ -1168,42 +1144,6 @@
   {
    "op": "lang.set",
    "language": "*",
-   "key": "lng_f1990_emanuele_pirro_first",
-   "value": "Emanuele"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_emanuele_pirro_last",
-   "value": "PIRRO"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_emanuele_pirro_full",
-   "value": "Emanuele PIRRO"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_andrea_de_cesaris_first",
-   "value": "Andrea"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_andrea_de_cesaris_last",
-   "value": "DE CESARIS"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
-   "key": "lng_f1990_andrea_de_cesaris_full",
-   "value": "Andrea DE CESARIS"
-  },
-  {
-   "op": "lang.set",
-   "language": "*",
    "key": "lng_f1990_michele_alboreto_first",
    "value": "Michele"
   },
@@ -1236,6 +1176,78 @@
    "language": "*",
    "key": "lng_f1990_alex_caffi_full",
    "value": "Alex CAFFI"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_eric_bernard_first",
+   "value": "Eric"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_eric_bernard_last",
+   "value": "BERNARD"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_eric_bernard_full",
+   "value": "Eric BERNARD"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_aguri_suzuki_first",
+   "value": "Aguri"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_aguri_suzuki_last",
+   "value": "SUZUKI"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_aguri_suzuki_full",
+   "value": "Aguri SUZUKI"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_emanuele_pirro_first",
+   "value": "Emanuele"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_emanuele_pirro_last",
+   "value": "PIRRO"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_emanuele_pirro_full",
+   "value": "Emanuele PIRRO"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_andrea_de_cesaris_first",
+   "value": "Andrea"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_andrea_de_cesaris_last",
+   "value": "DE CESARIS"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_andrea_de_cesaris_full",
+   "value": "Andrea DE CESARIS"
   },
   {
    "op": "lang.set",
