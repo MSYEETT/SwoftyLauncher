@@ -4,8 +4,9 @@ Each source archive is a porter output patched onto a stock 2026 team archive, s
 `eaid://f1_2026_vehicle_package/teams/<donor>/...`. The build renames them byte for byte to
 `eaid://f1_1990_vehicle_package/teams/<stem>/...` (same length, so no offset in any payload moves) and leaves the
 bare `.mipmaps` sidecar paths on the stock 2026 files. It drops the car's own handling file, which the f1-1990 addon
-ships per option in `<folder>_handling.erp`, and keeps every carmodel layer's AudioF1Car `switchName` on the
-donor's stock label (`f1_m_<name>_26`), so a 1990 car plays its donor's 2026 engine. A car
+ships per option in `<folder>_handling.erp`, and gives every carmodel layer's AudioF1Car `switchName` the car's
+1990 engine audio label (addons/f1-1990/tools/audio.py: the donor's label in other letter case, the same Wwise
+switch state) so it plays the 1990 sound rows of the f1-1990 addon. A car
 whose folder differs from its stem also gets its World, event graph and layers under the folder name.
 
 Outputs (relative to the addon folder, not committed): erp/teams/<folder>/wep/<folder>.erp, erp/teams/common.erp,
@@ -185,9 +186,10 @@ def set_audio(e, c):
     labels = set()
     for r in layers:
         d = e.frag_data(r, 0)
-        label = audio.switch_name(d)
-        audio.label_1990(c, label)
-        labels.add(label)
+        old = audio.switch_name(d)
+        new = audio.label_1990(c, old)
+        e.set_frag(r, 0, audio.rewrite_switch(d, old, new))
+        labels.add(new)
     if len(labels) != 1:
         raise ValueError(f'{c.team}: carmodel layers disagree on the audio label: {labels}')
     return labels.pop()
