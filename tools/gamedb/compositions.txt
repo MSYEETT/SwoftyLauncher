@@ -1,0 +1,12 @@
+# Relative row keys the exe builds at run time from format strings, so no single identifier string in F1_25.exe
+# holds them. `cargo run -p swofty-core --example row_keys` probes them under every row with the exe's identifiers.
+# A {a,b} group expands to each choice: {a,b}.c is a.c and b.c.
+
+# '%s.%s.%s' on entrant setup modes: entrants.entrant_setup_modes.entrant_setup_mode_N
+{player,second_player,ai}.{driver,team,vehicle}.{preloaded,userDefined,networkReplicated}
+
+# 'driver_%s_override' on game modes: game_modes.Mode*_N
+{driver,team,vehicle}_{ePreLoaded,eUserDefined,eNetworkReplicated}_override
+
+# ai_vehicle_package_config.driver_parameter_maps.%s.%s on vehicle packages: entrants.vehicles.vehicle_packages.vehicle_package_N
+ai_vehicle_package_config.driver_parameter_maps.{alongside_awareness,alongside_space_factor,braking_distance_factor,brake_off_time,corner_curvature_factor,follow_speed_factor,slide_confidence,throttle_confidence,throttle_exit_fallibility,throttle_on_time,wet_weather_ability}.{characteristic,high_difficulty_high_characteristic_mapping,high_difficulty_low_characteristic_mapping,low_difficulty_high_characteristic_mapping,low_difficulty_low_characteristic_mapping}
