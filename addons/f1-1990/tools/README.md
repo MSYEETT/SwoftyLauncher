@@ -151,4 +151,8 @@ Put the database on the build route (`"build_assets": ["db"]` in `$DATA/config.j
 
 ## build_cars.py
 
-Writes `erp/cars/vtf{,_ers_zeroed}{,_13in,_13in_raised}/` (fragment 0 = BXML, 1 = TSMD stats of each 2026 team handling file), `erp/cars/handling.json` (`replace-resource` ops for every archive that carries each file, keyed by the `ers` and `tyre_size` options, and by `cars` for the Williams and Haas folders, whose 26-car files are `<car>.26.vtf.*`) and `db/physics.json`. Reads the car slots and scalars through `season.py`, and the stock VTFs and game database from `--game`. Without `--write` it builds into `build/` and exits 1 when that differs from the shipped files. Tuning constants: `BASE_HP`, `BASE_MASS`, `SPREAD` (scales every scalar's distance from 1), `FAMILIES` (rev limit, peak-power rpm, torque peak per engine), `ENGINES`, `AUDIO`, `TYRES_13`, `BEAD_13`, `ALLOY_13`.
+Writes `cars/handling/<ers>_<tyre_size>/<folder>_handling.erp` (one archive per 1990 car and option pair, holding its handling file under `eaid://f1_1990_vehicle_package/teams/<stem>/handling/<stem>.vtf`, and also under the folder name when the stem differs), `cars/handling.json` (the `file.put` ops keyed by `ers` and `tyre_size`), `db/cars.json` (the `f1_1990` package row and the 13 vehicle rows) and `lang/cars.json`. Reads the car table from `cars.py`, the team scalars through `season.py`, the vehicle field list from Custom Grid Size's `db/grid.json`, and the stock 2026 handling files from `--game`. Without `--write` it builds into `build/` and exits 1 when that differs from the shipped files. Tuning constants: `BASE_HP`, `BASE_MASS`, `SPREAD`, `FAMILIES`, `TYRES_13`, `BEAD_13`, `ALLOY_13`.
+
+## cars.py
+
+The 1990 car table: team, vehicle row, car folder (asset_filename and AI data), donor 2026 folder, resource stem, stat_id, chassis, engine. Shared by `build_cars.py` and the car pack's `build_pack.py`.
