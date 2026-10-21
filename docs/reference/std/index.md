@@ -21,6 +21,7 @@ When your [engine plugin](/reference/addons/native-plugins) initializes, it rece
 | [Storage](./storage) | `swofty/storage.hpp` | `storage` (stable) | 5 | Caller thread |
 | [Career](./career) | `swofty/career.hpp` | `career` (stable) | 6, `block` 7 | Flow thread |
 | [Popup](./popup) | `swofty/popup.hpp` | `popup` (stable) | 7 | Any; shown on the flow thread |
+| [Strings](./strings) | `swofty/lang.hpp` | `lang` (stable) | 8 | Any; `refresh` on the game thread |
 | [Memory](./memory) | `swofty/mem.hpp` | none (header only) | any | Any |
 
 For screens and home tiles, use an addon operation rather than a `SwoftyApi` table; see [UI](./ui). You can find the merged engine-side contract for the version-5 tables in [the native-libraries design](/design/native-libraries).
@@ -71,7 +72,7 @@ You can use subscriptions, paint callbacks, and `db` and `storage` calls from an
 
 ## API versions
 
-To see which version the running loader offers, read `SwoftyApi::version`. The header constant, `SWOFTY_API_VERSION` in `swofty_api.h`, is 7.
+To see which version the running loader offers, read `SwoftyApi::version`. The header constant, `SWOFTY_API_VERSION` in `swofty_api.h`, is 8.
 
 | Members | Offered by |
 |---|---|
@@ -80,5 +81,6 @@ To see which version the running loader offers, read `SwoftyApi::version`. The h
 | `events`, `overlay`, `telemetry`, `db`, `storage` | `swofty_core.dll`, as version 5 |
 | `career` | `swofty_core.dll` 0.2.11, as version 6 |
 | `popup`, `career->block`, `career->unblock` | `swofty_core.dll` 0.2.12, as version 7 |
+| `lang` | `swofty_core.dll`, as version 8 |
 
-The helpers you use determine which version you need: the mixin helpers in `mixin.hpp` need version 2, the settings helpers version 3, `assets.hpp` version 4, the five table headers version 5, `career.hpp` version 6 (its `block` and `unblock` version 7), and `popup.hpp` version 7. `mem.hpp` needs no table.
+The helpers you use determine which version you need: the mixin helpers in `mixin.hpp` need version 2, the settings helpers version 3, `assets.hpp` version 4, the five table headers version 5, `career.hpp` version 6 (its `block` and `unblock` version 7), `popup.hpp` version 7, and `lang.hpp` version 8. `mem.hpp` needs no table.

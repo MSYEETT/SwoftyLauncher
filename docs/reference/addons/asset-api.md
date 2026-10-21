@@ -223,6 +223,7 @@ Result overlay_file(std::string_view game_path, std::string_view file);
 - Plugin init includes every plugin's `SwoftyAddonInit` and `SWOFTY_ON_LOAD`. The core waits until the last of them finishes before reading the lists.
 - After plugin init, `register_group`, `db_set`, `lang_set`, `lang_table` and `overlay_file` join the core's lists directly, provided their cutoff hasn't passed and that kind already has something to apply. Otherwise they return `late`. `put_resource` returns `late`.
 - At the window stage the game database is already built, so `db_set` returns `late`.
+- To change strings after the language file loads, use [string overrides](/reference/std/strings) instead of `lang_set`.
 - `available(feature)` takes `group`, `erp`, `db`, `lang` or `file`.
 - `db_set` takes a key path, or `0x` and 16 hex digits. `type` is a `db_edits` type name (`int`, `float`, `string`, `enum`, `id`, `bool`, ...) or a tag number. The raw form takes the hash and the tag, and its value bytes are the record's text.
 - `put_resource` fragments are files with `fourcc` and `flags` as in a `resources` entry; empty and 0 take the stock resource's values. Use `erps` to name the target archives, or leave it out for the core to find the archives that hold the uri.
