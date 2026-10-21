@@ -1,0 +1,161 @@
+{
+ "schema_version": 1,
+ "ops": [
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_chassis_mclaren",
+   "value": "McLaren MP4/5B"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_engine_mclaren",
+   "value": "Honda RA100E"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_chassis_ferrari",
+   "value": "Ferrari 641"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_engine_ferrari",
+   "value": "Ferrari 036"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_chassis_williams",
+   "value": "Williams FW13B"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_engine_williams",
+   "value": "Renault RS2"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_chassis_benetton",
+   "value": "Benetton B190"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_engine_benetton",
+   "value": "Ford HBA4"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_chassis_tyrrell",
+   "value": "Tyrrell 019"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_engine_tyrrell",
+   "value": "Ford DFR"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_chassis_lotus",
+   "value": "Lotus 102"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_engine_lotus",
+   "value": "Lamborghini 3512"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_chassis_march",
+   "value": "Leyton House CG901"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_engine_march",
+   "value": "Judd EV"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_chassis_larrousse",
+   "value": "Lola LC90"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_engine_larrousse",
+   "value": "Lamborghini 3512"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_chassis_ligier_prost",
+   "value": "Ligier JS33B"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_engine_ligier_prost",
+   "value": "Ford DFR"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_chassis_minardi",
+   "value": "Minardi M190"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_engine_minardi",
+   "value": "Ford DFR"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_chassis_brabham",
+   "value": "Brabham BT59"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_engine_brabham",
+   "value": "Judd EV"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_chassis_dallara",
+   "value": "Dallara F190"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_engine_dallara",
+   "value": "Ford DFR"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_chassis_arrows",
+   "value": "Arrows A11B"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_f1990_engine_arrows",
+   "value": "Ford DFR"
+  }
+ ]
+}

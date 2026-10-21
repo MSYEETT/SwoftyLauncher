@@ -19,37 +19,37 @@ The 1990 teams (`<team>_1990`), drivers (`f1990_<driver>`), their looks, holders
 
 Not scoped to 1990 (global rows, left stock): the safety-car and parc-fermé option defaults, the short-race restriction (very short races grey out red flags, formation lap and safety car) and the session-name strings (Friday qualifying shows the stock sprint-qualifying names).
 
-## Cars (db/physics.json, erp/cars/, files/audio/, tools/build_cars.py)
+## Cars (db/cars.json, lang/cars.json, cars/, tools/build_cars.py, tools/cars.py)
 
-`tools/build_cars.py` writes the handling files and both op files from the stock 2026 team archives and the season pack.
+The 1990 cars live in their own vehicle package, `f1_1990` (stat_id 59). Its `resource_path` is `f1_1990_vehicle_package/teams/[FILENAME]/wep/[FILENAME]` and its `ai_package_folder` stays `f1_2026_vehicle_package`, so the per-track AI data of the 2026 car folders serves the 1990 cars. No 2026 archive, row or file changes. The models, the package's `teams/common.erp` (13-inch tyres) and its tyre compounds come from the private car pack `swofty.f1-1990-cars`, which registers one asset group per car at runtime. Without the car pack, a session with a 1990 vehicle hangs on load.
 
-| Car folder | 1990 team(s) | Engine | Power | Mass |
-|---|---|---|---|---|
-| ferrari | Ferrari | V12, 13,500 rpm | 702 hp | 529 kg |
-| mclaren | McLaren | V10, 13,300 rpm | 669 hp | 558 kg |
-| williams | Williams; at 26 cars also Larrousse (T12) | V10, 13,300 rpm | 655 hp (26 cars: 658) | 571 kg (568) |
-| lotus | Benetton | V8, 12,500 rpm | 657 hp | 569 kg |
-| redbull | Lotus | V12, 13,500 rpm | 653 hp | 572 kg |
-| mercedes | Tyrrell | V8, 12,500 rpm | 635 hp | 588 kg |
-| toro_rosso | Minardi | V8, 12,500 rpm | 629 hp | 593 kg |
-| force_india | Leyton House | V8, 12,500 rpm | 627 hp | 595 kg |
-| sauber | Ligier | V8, 12,500 rpm | 627 hp | 595 kg |
-| gm_cadillac | Brabham | V8, 12,500 rpm | 619 hp | 603 kg |
-| haas | Arrows; at 26 cars also Dallara (T13) | V8, 12,500 rpm | 621 hp (26 cars: 618) | 601 kg (604) |
+| Vehicle | Car folder (AI data) | Chassis | Engine | Power | Mass |
+|---|---|---|---|---|---|
+| mclaren_1990 | mclaren | McLaren MP4/5B | Honda V10, 13,300 rpm | 669 hp | 558 kg |
+| ferrari_1990 | ferrari | Ferrari 641 | V12, 13,500 rpm | 702 hp | 529 kg |
+| williams_1990 | williams | Williams FW13B | Renault V10 | 655 hp | 571 kg |
+| benetton_1990 | lotus | Benetton B190 | Ford V8, 12,500 rpm | 657 hp | 569 kg |
+| tyrrell_1990 | mercedes | Tyrrell 019 | Ford V8 | 635 hp | 588 kg |
+| lotus_1990 | redbull | Lotus 102 | Lamborghini V12 | 653 hp | 572 kg |
+| march_1990 | force_india | Leyton House CG901 | Judd V8 | 627 hp | 595 kg |
+| larrousse_1990 | myteam_ferrari | Lola LC90 | Lamborghini V12 | 661 hp | 565 kg |
+| ligier_prost_1990 | sauber | Ligier JS33B | Ford V8 | 627 hp | 595 kg |
+| minardi_1990 | toro_rosso | Minardi M190 | Ford V8 | 629 hp | 593 kg |
+| brabham_1990 | gm_cadillac | Brabham BT59 | Judd V8 | 619 hp | 603 kg |
+| dallara_1990 | myteam_honda | Dallara F190 | Ford V8 | 615 hp | 606 kg |
+| arrows_1990 | haas | Arrows A11B | Ford V8 | 621 hp | 601 kg |
 
-- Handling: no `EnergyRecoverySystem` section and no ERS parts in the R&D upgrade blocks; naturally aspirated engine (`TurboMode Off`); power = 650 hp × the team's power scalar, mass = 575 kg × its weight scalar, drag = the stock car's drag × its drag scalar; at 26 cars, teams sharing a car folder get the mean of their scalars (the `cars` option picks the handling file). Downforce, tyres, suspension and brakes stay stock. The final drive keeps the stock top-gear speed at the rev limit; fuel use per second at full power stays stock. No moving front wing. No DRS hardware: the four DRS failure and joint keys are removed and the rear-wing flap angle, open/close speed and DRS-open wing factors are set to the safety car's values (0, 1 and 1.0), and `radUpgradeDRS` is empty.
-- Database: `hud_dial` (option, default `f2`) and `drs_capable False` on the 13 vehicle rows and the 11 team rows of `f1_2026_equal_performance`; `is_26_aero_regulations False` on the `f1_2026` package (option `classic_aero`); every power-unit component in both component sets gets allocation 99, no grid drops and no wear.
-- Option `ers`: `removed` (default) or `zeroed`, which keeps the ERS section with no harvest, deploy, MGU-K braking or override.
-- Option `tyre_size`: `stock` (default), `13in` or `13in_raised`. `13in` matches the MP4/5B 13-inch shared tyre mesh: TyreRadius 0.323 m front and 0.330 m rear (stock 0.351 / 0.354), AlloyRadius 0.182 m at its 0.175 m bead, the tyre damage node graphs remapped onto the new bead, tread and width, and the final drive scaled by the rear radius so road speed per engine rev is unchanged. TyreWidth, tyre mass, inertia and compression stay stock. `13in_raised` also adds the radius drop (0.028 m front, 0.024 m rear) to each axle's RideHeight and setup ride-height range.
-- Engine sounds: the V12, V10 and V8 bundles of the F1 25 Engine Sound Pack replace `ferrari_2026.bdl`, `renault_2026.bdl` and `ford_2026.bdl` (V8 also `mercedes_2026.bdl`), and each 2026 team's `f1_m_<team>_26.bundle_name` points at its 1990 engine. T12 takes the Lotus row's `audio_id`, so Larrousse plays the V12.
-- Grand Prix with equal performance on uses the `f1_2026_equal_performance` cars, whose handling files keep ERS and DRS.
+- Vehicle rows: full copies (246 keys) of the donor folder's 2026 row, stat_id 513–525 (Custom Grid Size uses 509–512), `vehicle_package f1_1990`, `hud_dial` from the option (default `f2`), `drs_capable False`, `equal_performance_vehicle` empty, chassis and engine names as `lng_f1990_chassis_<team>` / `lng_f1990_engine_<team>` (`lang/cars.json`). The engine id stays the donor's.
+- Package row: a copy of `f1_2026` with the fields above, `has_cockpit_halo False`, the 2026 animation, crew, garage, pit-stop and pit-wall groups, and `is_26_aero_regulations False` when `classic_aero` is on.
+- Handling: each car's handling file is built from its donor's stock 2026 handling file and shipped as `cars/handling/<ers>_<tyre_size>/<folder>_handling.erp`; `cars/handling.json` puts the one matching the options at `f1_1990_vehicle_package/teams/<folder>/wep/<folder>_handling.erp`, which the car's asset group lists. No EnergyRecoverySystem section (or zeroed, option `ers`), naturally aspirated engine, power = 650 hp × the team's power scalar, mass = 575 kg × its weight scalar, drag × its drag scalar, no moving front wing, no DRS hardware, 13-inch tyres (TyreRadius 0.323/0.330, AlloyRadius 0.182, damage graphs remapped, final drive scaled); `13in_raised` adds the radius drop to the ride heights.
+- Engine sounds stay stock. The engine sound comes from a team's audio row (`f1_m_<team>_26.bundle_name`) in a table whose path is unknown (hashed), so a 1990-only sound needs new audio rows the build can't add yet (see `/mnt/work/.f1-1990/v2/cars-package.md`). The V12/V10/V8 bundles stay in `files/audio/` for that.
 
 ```sh
-python3 addons/f1-1990/tools/build_cars.py --game "<F1 25>"          # compare with the shipped files
-python3 addons/f1-1990/tools/build_cars.py --game "<F1 25>" --write  # replace them
+python3 addons/f1-1990/tools/build_cars.py --game "<pristine F1 25 copy>"          # compare with the shipped files
+python3 addons/f1-1990/tools/build_cars.py --game "<pristine F1 25 copy>" --write  # replace them
 ```
 
-The stock 2026 team archives and game database must be the stock files.
+`--game` must hold stock 2026 team archives: a game folder with a test build installed carries modified handling files. `/mnt/work/.f1-1990/data-physics/fakegame-full` is a pristine copy.
 
 ## Driver Career (db/career.json, db/career-lang.json, tools/career.py, tools/check_career.py)
 

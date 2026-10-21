@@ -1,0 +1,86 @@
+"""The 1990 car table shared by build_cars.py, the vehicle rows and the car pack.
+
+Each 1990 team drives one vehicle row `<team>_1990` in the `f1_1990` vehicle package. Its `asset_filename` is a
+2026 car folder, so the per-track AI data under `ai/f1_2026_vehicle_package/<folder>/` serves it, while the model
+loads from `f1_1990_vehicle_package/teams/<folder>/wep/<folder>.erp`.
+
+`stem` is the name the car's resources carry inside its archive. It equals the folder, except for the two cars built
+on a team donor whose folder is a My Team folder: their resources keep a stem of the donor's length (the archive is
+renamed byte for byte), and the archive carries the World, event graph and layers under the folder name as well.
+"""
+from dataclasses import dataclass
+
+PACKAGE = 'f1_1990'
+PACKAGE_FOLDER = 'f1_1990_vehicle_package'
+PACKAGE_STAT_ID = '59'
+AI_FOLDER = 'f1_2026_vehicle_package'
+SOURCE_PACKAGE = 'f1_2026_vehicle_package'
+SOURCE_PACKAGE_ROW = 'f1_2026'
+
+
+@dataclass(frozen=True)
+class Car:
+    team: str
+    folder: str
+    donor: str
+    stem: str
+    stat_id: int
+    chassis: str
+    engine: str
+    family: str
+
+    @property
+    def vehicle(self):
+        return f'{self.team}_1990'
+
+    @property
+    def donor_vehicle(self):
+        return f'{self.donor}_2026'
+
+
+CARS = (
+    Car('mclaren', 'mclaren', 'mclaren', 'mclaren', 513, 'McLaren MP4/5B', 'Honda RA100E', 'V10'),
+    Car('ferrari', 'ferrari', 'ferrari', 'ferrari', 514, 'Ferrari 641', 'Ferrari 036', 'V12'),
+    Car('williams', 'williams', 'williams', 'williams', 515, 'Williams FW13B', 'Renault RS2', 'V10'),
+    Car('benetton', 'lotus', 'lotus', 'lotus', 516, 'Benetton B190', 'Ford HBA4', 'V8'),
+    Car('tyrrell', 'mercedes', 'mercedes', 'mercedes', 517, 'Tyrrell 019', 'Ford DFR', 'V8'),
+    Car('lotus', 'redbull', 'redbull', 'redbull', 518, 'Lotus 102', 'Lamborghini 3512', 'V12'),
+    Car('march', 'force_india', 'force_india', 'force_india', 519, 'Leyton House CG901', 'Judd EV', 'V8'),
+    Car('larrousse', 'myteam_ferrari', 'williams', 'larrouss', 520, 'Lola LC90', 'Lamborghini 3512', 'V12'),
+    Car('ligier_prost', 'sauber', 'sauber', 'sauber', 521, 'Ligier JS33B', 'Ford DFR', 'V8'),
+    Car('minardi', 'toro_rosso', 'toro_rosso', 'toro_rosso', 522, 'Minardi M190', 'Ford DFR', 'V8'),
+    Car('brabham', 'gm_cadillac', 'gm_cadillac', 'gm_cadillac', 523, 'Brabham BT59', 'Judd EV', 'V8'),
+    Car('dallara', 'myteam_honda', 'haas', 'dall', 524, 'Dallara F190', 'Ford DFR', 'V8'),
+    Car('arrows', 'haas', 'haas', 'haas', 525, 'Arrows A11B', 'Ford DFR', 'V8'),
+)
+
+for _c in CARS:
+    assert len(_c.stem) == len(_c.donor), _c
+
+
+def car(team):
+    return next(c for c in CARS if c.team == team)
+
+
+def group(c):
+    return f'asset_groups/{PACKAGE_FOLDER}/teams/{c.folder}/wep/{c.folder}.assetgroup'
+
+
+def archive(c):
+    return f'2025_asset_groups/{PACKAGE_FOLDER}/teams/{c.folder}/wep/{c.folder}.erp'
+
+
+def handling_archive(c):
+    return f'2025_asset_groups/{PACKAGE_FOLDER}/teams/{c.folder}/wep/{c.folder}_handling.erp'
+
+
+def handling_names(c):
+    names = [f'eaid://{PACKAGE_FOLDER}/teams/{c.stem}/handling/{c.stem}.vtf']
+    if c.stem != c.folder:
+        names.append(f'eaid://{PACKAGE_FOLDER}/teams/{c.folder}/handling/{c.folder}.vtf')
+    return names
+
+
+COMMON_ARCHIVE = f'2025_asset_groups/{PACKAGE_FOLDER}/teams/common.erp'
+TYRE_GROUP = f'asset_groups/{PACKAGE_FOLDER}/tyrecompounds/tyrecompounds.assetgroup'
+TYRE_ARCHIVE = f'2025_asset_groups/{PACKAGE_FOLDER}/tyrecompounds/tyrecompounds.erp'

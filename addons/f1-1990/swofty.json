@@ -95,7 +95,7 @@
     },
     {
       "id": "classic_aero", "type": "toggle", "label": "No active aero", "default": true,
-      "description": "Turns off the 2026 active aero rules on the 2026 cars.", "binds": "db"
+      "description": "Turns off the 2026 active aero rules on the 1990 cars (the f1_1990 vehicle package).", "binds": "db"
     },
     {
       "id": "ers", "type": "choice", "label": "ERS", "default": "removed",
@@ -103,28 +103,21 @@
       "values": [{ "value": "removed", "label": "Removed" }, { "value": "zeroed", "label": "Zeroed" }], "binds": "db"
     },
     {
-      "id": "tyre_size", "type": "choice", "label": "Tyre size", "default": "stock",
-      "description": "The tyre radius the 1990 handling files use. 13-inch matches the MP4/5B 13-inch tyre set; Raised also lifts the ride height by the smaller radius.",
+      "id": "tyre_size", "type": "choice", "label": "Tyre size", "default": "13in",
+      "description": "The tyre radius the 1990 handling files use, matching the 13-inch tyre set of the 1990 car pack. Raised also lifts the ride height by the smaller radius.",
       "values": [
-        { "value": "stock", "label": "Stock" }, { "value": "13in", "label": "13-inch" },
-        { "value": "13in_raised", "label": "13-inch, raised" }
+        { "value": "13in", "label": "13-inch" }, { "value": "13in_raised", "label": "13-inch, raised" }
       ],
       "binds": "db"
     }
   ],
   "operations": {
-    "database": ["db/career.json", "db/grid.json", "db/grid_standings.json", "db/rules.json", "db/physics.json"],
-    "assets": ["db/rules_text.json", "lang/grid.json", "db/career-lang.json"],
-    "erp": ["erp/cars/handling.json", "erp/portrait.json"],
+    "database": ["db/career.json", "db/grid.json", "db/grid_standings.json", "db/rules.json", "db/cars.json"],
+    "assets": ["db/rules_text.json", "lang/grid.json", "db/career-lang.json", "lang/cars.json", "cars/handling.json"],
+    "erp": ["erp/portrait.json"],
     "native": [
       { "dll": "native/f1_1990.dll", "early": true }, { "dll": "native/f1_1990_tyres.dll" },
       { "dll": "native/f1_1990_replay.dll" }, { "dll": "native/f1_1990_ui.dll" }, { "dll": "native/f1_1990_voice.dll" }
-    ],
-    "files": [
-      { "source": "files/audio/v12_1990.bdl", "target": "audio/2025/bundles/ferrari_2026.bdl" },
-      { "source": "files/audio/v10_1990.bdl", "target": "audio/2025/bundles/renault_2026.bdl" },
-      { "source": "files/audio/v8_1990.bdl", "target": "audio/2025/bundles/ford_2026.bdl" },
-      { "source": "files/audio/v8_1990.bdl", "target": "audio/2025/bundles/mercedes_2026.bdl" }
     ]
   }
 }

@@ -971,6 +971,18 @@ void apply(uint8_t *m, const char *when, const runtime::Overlay *ov)
             if (!e.tmpl.empty() && p.tmpl != norm(e.tmpl))
                 swofty::log("[assets] %s: template %s is not in the manifest; %s", e.group.c_str(), e.tmpl.c_str(),
                             p.tmpl.empty() ? "flags left 0" : ("using " + p.tmpl).c_str());
+            if (Slot *t = p.tmpl.empty() ? nullptr : mf.groups.find(fnv(p.tmpl))) {
+                uint32_t start = uint32_t(t->value), count = uint32_t(t->value >> 32) & 0xffffff;
+                uint32_t total = mf.array_count(M_ERPS);
+                const uint64_t *arr = mf.array<uint64_t>(M_ERPS);
+                std::string list;
+                for (uint32_t i = 0; i < count && start + i < total; i++) {
+                    std::string n = mf.name_of(arr[start + i]);
+                    list += (list.empty() ? "" : ", ") + (n.empty() ? hex(arr[start + i]) : n);
+                }
+                swofty::log("[assets] %s: template %s lists %u ERP(s): %s", e.group.c_str(), p.tmpl.c_str(), count,
+                            list.c_str());
+            }
         }
         for (size_t i = 0; p.ok && i < e.erps.size(); i++) {
             ErpPlan ep;
