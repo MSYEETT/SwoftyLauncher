@@ -135,6 +135,12 @@ struct JsonReader {
         return false;
     }
 
+    bool peek(char c)
+    {
+        space();
+        return i < s.size() && s[i] == c;
+    }
+
     template <class Member> bool object(Member &&member)
     {
         if (!eat('{'))
@@ -168,6 +174,52 @@ inline bool parse_agent_strings(std::string_view json, std::vector<AgentStrings>
             return true;
         });
     });
+    r.space();
+    if (ok && r.i == json.size())
+        return true;
+    if (error_at)
+        *error_at = r.i;
+    out.clear();
+    return false;
+}
+
+// One string of a nested JSON object, with the keys that lead to it.
+struct StringLeaf {
+    std::vector<std::string> path;
+    std::string text;
+};
+
+namespace detail {
+
+inline bool leaves(JsonReader &r, std::vector<std::string> &path, std::vector<StringLeaf> &out, int depth)
+{
+    return depth < 8 && r.object([&](std::string key) {
+        path.push_back(std::move(key));
+        bool ok;
+        if (r.peek('{'))
+            ok = leaves(r, path, out, depth + 1);
+        else {
+            std::string text;
+            ok = r.string(text);
+            if (ok)
+                out.push_back({path, std::move(text)});
+        }
+        path.pop_back();
+        return ok;
+    });
+}
+
+}
+
+// Parses an object whose values are strings or such objects, as data/rnd-art.json and
+// data/rnd-strings.json are. Returns false, with the byte offset of the first error in *error_at,
+// on anything else.
+inline bool parse_string_leaves(std::string_view json, std::vector<StringLeaf> &out, size_t *error_at = nullptr)
+{
+    detail::JsonReader r{json};
+    std::vector<std::string> path;
+    out.clear();
+    bool ok = detail::leaves(r, path, out, 0);
     r.space();
     if (ok && r.i == json.size())
         return true;

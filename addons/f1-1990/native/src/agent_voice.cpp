@@ -34,7 +34,7 @@
 #include <swofty/lang.hpp>
 #include <swofty/storage.hpp>
 
-#include "agent_strings.hpp"
+#include "json_strings.hpp"
 #endif
 
 SWOFTY_SETTING(bool, agent_voice_mute, true);

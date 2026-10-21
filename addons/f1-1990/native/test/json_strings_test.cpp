@@ -5,7 +5,7 @@
 #include <sstream>
 #include <string>
 
-#include "agent_strings.hpp"
+#include "json_strings.hpp"
 
 static int failures;
 
@@ -45,6 +45,32 @@ int main(int argc, char **argv)
     check("rejects a trailing comma", !f1990::parse_agent_strings(R"({"eng": {"a": "b",}})", langs));
     check("rejects trailing data", !f1990::parse_agent_strings(R"({} x)", langs, &at) && at == 3);
     check("rejects an unterminated string", !f1990::parse_agent_strings(R"({"eng": {"a": "b)", langs));
+
+    std::vector<f1990::StringLeaf> leaves;
+    check("parses nested string leaves",
+          f1990::parse_string_leaves(R"({"scope": "f1_career_1990", "strings": {"*": {"a": "A", "b": "B"}}, "x": {}})", leaves) &&
+              leaves.size() == 3 && leaves[0].path.size() == 1 && leaves[0].path[0] == "scope" &&
+              leaves[0].text == "f1_career_1990" && leaves[2].path.size() == 3 && leaves[2].path[1] == "*" &&
+              leaves[2].path[2] == "b" && leaves[2].text == "B");
+    check("rejects a number leaf", !f1990::parse_string_leaves(R"({"a": {"b": 2}})", leaves) && leaves.empty());
+
+    if (argc > 2) {
+        std::ifstream f(argv[2], std::ios::binary);
+        std::stringstream ss;
+        ss << f.rdbuf();
+        bool ok = f1990::parse_string_leaves(ss.str(), leaves, &at);
+        size_t frames = 0;
+        for (auto &l : leaves)
+            frames += l.path.size() == 2 && l.path[0] == "frames";
+        check("parses data/rnd-art.json with its frame map", ok && frames > 0);
+    }
+    if (argc > 3) {
+        std::ifstream f(argv[3], std::ios::binary);
+        std::stringstream ss;
+        ss << f.rdbuf();
+        bool ok = f1990::parse_string_leaves(ss.str(), leaves, &at);
+        check("parses data/rnd-strings.json", ok && !leaves.empty() && leaves[0].path[0] == "scope");
+    }
 
     if (argc > 1) {
         std::ifstream f(argv[1], std::ios::binary);
