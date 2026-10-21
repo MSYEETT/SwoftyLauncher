@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 import aiohttp
 import discord
+from discord import app_commands
 
 from . import releases, render, report
 from .agent import Declined
@@ -47,6 +48,7 @@ class TriageBot(discord.Client):
         self.queue: asyncio.Queue[Job] = asyncio.Queue()
         self.pending: set[int] = set()
         self.ready_once = asyncio.Event()
+        self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self) -> None:
         self.tasks = [
@@ -55,6 +57,50 @@ class TriageBot(discord.Client):
             asyncio.create_task(self.release_watcher()),
             asyncio.create_task(self.stats_channel()),
         ]
+        try:
+            await self.register_commands()
+        except discord.HTTPException as e:
+            log.warning("registering commands failed: %s", e)
+
+    async def register_commands(self) -> None:
+        guild = discord.Object(id=(await self.fetch_channel(self.cfg.channel_id)).guild.id)
+
+        @app_commands.command(name="logs", description="Ask someone to send their launcher logs")
+        @app_commands.describe(user="Who to ask")
+        @app_commands.default_permissions(manage_messages=True)
+        async def logs(interaction: discord.Interaction, user: discord.User | None = None) -> None:
+            await interaction.response.send_message(
+                render.logs_request(user.mention if user else None),
+                allowed_mentions=discord.AllowedMentions(
+                    everyone=False, roles=False, users=[user] if user else False
+                ),
+                suppress_embeds=True,
+            )
+
+        @app_commands.context_menu(name="Ask for logs")
+        @app_commands.default_permissions(manage_messages=True)
+        async def ask(interaction: discord.Interaction, message: discord.Message) -> None:
+            try:
+                await message.reply(
+                    render.logs_request(message.author.mention),
+                    allowed_mentions=discord.AllowedMentions(
+                        everyone=False, roles=False, users=[message.author], replied_user=True
+                    ),
+                    suppress_embeds=True,
+                )
+            except discord.HTTPException as e:
+                await interaction.response.send_message(
+                    f"Couldn't reply there: {e.text or e}", ephemeral=True
+                )
+                return
+            await interaction.response.send_message(
+                f"Asked {message.author.mention} for their logs.", ephemeral=True
+            )
+
+        self.tree.add_command(logs, guild=guild)
+        self.tree.add_command(ask, guild=guild)
+        synced = await self.tree.sync(guild=guild)
+        log.info("registered %s", ", ".join(c.name for c in synced))
 
     async def channel(self) -> discord.TextChannel:
         channel = self.get_channel(self.cfg.channel_id) or await self.fetch_channel(self.cfg.channel_id)

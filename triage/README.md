@@ -15,6 +15,8 @@
 4. Claude (`TRIAGE_MODEL`, adaptive thinking at `TRIAGE_EFFORT`) investigates with read-only tools: list, read and search the log bundle; list, read and search a repository at any ref; `git log` and `git show`; earlier diagnoses. It ends by calling `submit_diagnosis`. The tools cannot reach anything outside the bundle and the git object stores, and the process environment is not passed to git.
 5. The bot posts the diagnosis in the thread and reacts on the report: 🔍 working, ✅ done, ⚠️ failed, ⏭️ skipped by a limit.
 
+Members with Manage Messages can ask a player for their logs: `/logs` (optionally naming the user), or **Apps → Ask for logs** on the player's message, which replies to it. The bot posts how to use Send Logs to Developers.
+
 React 🔁 on a report to diagnose it again. State is in `$TRIAGE_DATA_DIR/triage.db`; each case's logs, zips and `diagnosis.json` are in `$TRIAGE_DATA_DIR/cases/<message id>/`. Logs and zips are deleted after 30 days.
 
 ## Release announcements

@@ -3,6 +3,7 @@ from typing import Any
 from .report import Header
 
 LIMIT = 1900
+LOGS_DOCS = "https://f1.swofty.net/using/send-logs"
 FIXED = {
     "yes": "fixed on main",
     "partly": "partly fixed on main",
@@ -14,6 +15,16 @@ FIXED = {
 def cut(text: str, limit: int) -> str:
     text = text.strip()
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+
+
+def logs_request(mention: str | None) -> str:
+    greeting = f"Hey {mention}!" if mention else "Hey!"
+    return (
+        f"{greeting} Please press **Send Logs to Developers** at the bottom of the launcher's sidebar, "
+        "enter your Discord username and what went wrong, then press **Send**. That sends us your logs "
+        "so we can fix your issue as soon as possible. Don't see the button? Update the launcher first. "
+        f"<{LOGS_DOCS}>"
+    )
 
 
 def thread_name(diagnosis: dict[str, Any] | None, header: Header) -> str:

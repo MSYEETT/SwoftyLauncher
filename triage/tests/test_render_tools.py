@@ -126,3 +126,12 @@ def test_source_tools(toolbox):
     assert toolbox.run("read_source", {"repo": "nope", "ref": "HEAD", "path": "x"}).is_error
     assert "no commits" in toolbox.run("git_log", {"repo": "launcher", "base": "v1.0.0", "head": "HEAD"}).text
     assert toolbox.run("submit_diagnosis", dict(DIAGNOSIS)).diagnosis is not None
+
+
+def test_logs_request():
+    text = render.logs_request("<@123>")
+    assert text.startswith("Hey <@123>!")
+    assert "**Send Logs to Developers**" in text
+    assert "<https://f1.swofty.net/using/send-logs>" in text
+    assert len(text) <= 2000
+    assert render.logs_request(None).startswith("Hey! Please press")
