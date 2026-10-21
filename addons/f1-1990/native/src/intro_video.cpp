@@ -20,13 +20,14 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <iterator>
 #include <string>
 
-#include <swofty/career.hpp>
 #include <swofty/game.hpp>
+#include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 
 #include "intro_video.hpp"
@@ -99,12 +100,32 @@ void *const kAllowVideoSkipVt[] = {
     reinterpret_cast<void *>(&noop),
 };
 
+// AllowVideoSkip has no message class in the exe (UI data posts it by name), so the message's vtable
+// lives in this DLL. The core's swofty::career::post only takes messages whose vtable is in the exe
+// image and answers invalid for this one, so it goes to Ne_Post_BusMessage on the live bus directly,
+// as the game's own flow states post theirs.
+swofty::game::NeMessageBus *active_bus()
+{
+    namespace g = swofty::game;
+    uintptr_t holder = 0, bus = 0;
+    uint8_t active = 0;
+    if (!swofty::mem::read(g::g_Game_MessageBus.address(), holder) || !holder ||
+        !swofty::mem::read(holder + offsetof(g::GameMessageBusHolder, bus), bus) || !swofty::mem::object_like(bus) ||
+        !swofty::mem::read(bus + offsetof(g::NeMessageBus, active), active) || !active)
+        return nullptr;
+    return reinterpret_cast<g::NeMessageBus *>(bus);
+}
+
 void allow_skip(bool on)
 {
+    auto *bus = active_bus();
+    if (!bus) {
+        swofty::log("[f1-1990] intro: AllowVideoSkip %s not posted: the game's message bus is not active", on ? "on" : "off");
+        return;
+    }
     BusMessage msg{kAllowVideoSkipVt, 0, uint8_t(on ? 1 : 0), {}};
-    auto r = swofty::career::post(&msg);
-    if (r != swofty::career::Result::ok)
-        swofty::log("[f1-1990] intro: AllowVideoSkip %s not posted (%d)", on ? "on" : "off", int(r));
+    swofty::game::Ne_Post_BusMessage(bus, &msg);
+    swofty::log("[f1-1990] intro: AllowVideoSkip %s posted on bus %p", on ? "on" : "off", static_cast<void *>(bus));
 }
 
 bool contract_scene_skipped()

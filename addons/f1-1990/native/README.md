@@ -191,17 +191,21 @@ Bink 1.
 | `g_Game_Root` | 0x14601db08 | data: the feature system is `(module+0x10)->vt[0xf0]`, module `*(*(root+0xa0)+0x28)` (FePopup_Dispatch_FeatureCmd's path); its player is at +0x108 |
 | `g_Game_FlowLinkStay` | 0x146cb2280 | data: the stay link |
 | `Ne_Make_StrFromCStr` | 0x1441974e0 | call: the path NeStr |
+| `Ne_Post_BusMessage`, `g_Game_MessageBus` | 0x1439876c0, 0x14618b3b8 | call / data: `AllowVideoSkip` on the live bus (holder +0x08, active byte +0x68) |
 
 The DLL reads the file's header from the game folder (`videos/`, or `swofty/overlay/videos/` when the runtime file
 feature serves it, passed as `videos/../swofty/overlay/videos/f1_1990_intro.bik`) and plays it only when it is a Bink 1
 file of at most 600 s. It posts `AllowVideoSkip` on (the stock skip prompt; the game's persistent flow view model stops
-the video on its skip input after 2 s) and off at the end, through the core's `swofty::career::post`. The state stays
+the video on its skip input after 2 s) and off at the end, with `Ne_Post_BusMessage` on the live bus, not the core's
+`swofty::career::post`, which refuses a message whose vtable is outside the exe image. The message's vtable is in the
+DLL; its slot 1 returns the name the subscriber matches. The state stays
 until the player's end callback runs (the video ended or was skipped), or the video's length plus 15 s has passed.
 Without the file, the option, the player or the contract skip, the Intro state behaves as before. `src/intro_video.hpp`
 (header parse, checks, stay/continue) is tested by `test/intro_video_test.cpp`.
 
 It logs `[f1-1990] intro: new 1990 career; playing videos/f1_1990_intro.bik (Bink 1 rev i, 1280x720, 1099 frames at
-29.97 fps, 36.7 s) on layer 4 (feature system ..., player ...)`, then `intro: video ended|skipped|no end callback;
+29.97 fps, 36.7 s) on layer 4 (feature system ..., player ...)`, `intro: AllowVideoSkip on|off posted on bus ...` (or
+`not posted: the game's message bus is not active`), then `intro: video ended|skipped|no end callback;
 timed out after N s; the career continues`, or once why it plays nothing (`no videos/f1_1990_intro.bik (the private
 F1 1990 Cars pack installs it)`, `is a Bink 2 file`, `no fullscreen video player`).
 
