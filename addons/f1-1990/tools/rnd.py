@@ -279,11 +279,15 @@ def team_mass(team):
     return 575 * s.teams[PACK_TEAM.get(team, team)].weight
 
 
+def weight_target(team):
+    return max(-40.0, min(-10.0, -0.5 * (team_mass(team) - 505)))
+
+
 def metadata(token, stock):
     teams, supplier, works, _ = TOKENS[token]
     out = {}
     bhp = SUPPLIER_BHP[supplier]
-    mass = max(-40.0, min(-10.0, -0.5 * (team_mass(teams[0]) - 505)))
+    mass = weight_target(teams[0])
     for name, row in stock.items():
         r = dict(row)
         if name == "engine_power":

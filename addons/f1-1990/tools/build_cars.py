@@ -17,6 +17,9 @@ common.erp. No 2026 archive, row or file is touched.
   F1Aero                 drag scaled by the season pack, no moving front wing; downforce stays stock; no DRS
                          hardware: the DRS failure/joint keys removed, flap angle, open/close speed and
                          DRS-open wing factors as on the safety car (0, 1, 1.0), radUpgradeDRS emptied
+  R&D ceilings (rnd.py)  radUpgradeEngine power deltas x supplier bhp x 745.7 / 53988; radUpgradeFuelConsumption
+                         multipliers at 12/15 (works) or 8/15 (customer) of their stock distance from 1;
+                         radUpgradeWeightReduction Mass = the team's weight target
 
 Option tyre_size: the f1_1990 package carries the MP4/5B 13-inch tyre set, so both values use TyreRadius 0.323 front /
 0.330 rear, AlloyRadius at its 0.175 m bead, the tyre damage node graphs remapped radially from the stock bead and
@@ -47,6 +50,7 @@ for _p in (os.path.join(REPO, 'tools', 'swofty-ui'), os.path.join(REPO, 'tools')
 import cars as C
 import erpw
 import gamedir
+import rnd
 import season
 import vtf
 
@@ -96,6 +100,17 @@ ALLOY_13 = 0.182
 TYRE_GRAPHS = {b'x0_tyre_fl': 'Front', b'x0_tyre_fr': 'Front', b'x0_tyre_bl': 'Rear', b'x0_tyre_br': 'Rear'}
 
 
+RND_ENGINE_PEAK = 53988
+RND_FUEL_WORKS = 12 / 15
+RND_FUEL_CUSTOMER = 8 / 15
+RND_EXPECTED = {
+    'mclaren': (1.036, 26.4), 'ferrari': (0.994, 12.0), 'williams': (0.912, 33.0), 'benetton': (0.746, 31.8),
+    'lotus': (0.58, 33.6), 'larrousse': (0.58, 33.6), 'march': (0.456, 40.0), 'brabham': (0.456, 40.0),
+    'tyrrell': (0.331, 40.0), 'ligier_prost': (0.331, 40.0), 'minardi': (0.331, 40.0), 'dallara': (0.331, 40.0),
+    'arrows': (0.331, 40.0),
+}
+
+
 def game_root(game):
     if game and os.path.isdir(os.path.join(game, GROUPS, PACKAGE)) and os.path.isfile(os.path.join(game, GAMEDB)):
         return game
@@ -106,14 +121,60 @@ def game_root(game):
     return os.path.dirname(os.path.dirname(ui))
 
 
+def rnd_targets(c):
+    token = next(k for k, v in rnd.TOKENS.items() if c.token in v[0])
+    teams, supplier, works, _ = rnd.TOKENS[token]
+    k = rnd.SUPPLIER_BHP[supplier] * HP_W / RND_ENGINE_PEAK
+    got = (round(k, 3), round(-rnd.weight_target(teams[0]), 1))
+    if got != RND_EXPECTED[c.team]:
+        raise ValueError(f'{c.team}: R&D targets {got}, expected {RND_EXPECTED[c.team]}')
+    return {'engine_scale': k, 'fuel_share': RND_FUEL_WORKS if works else RND_FUEL_CUSTOMER,
+            'weight': -rnd.weight_target(teams[0])}
+
+
 def cars():
     pack = season.Season.load()
     rows = []
     for c in C.CARS:
         t = pack.teams[c.team]
         rows.append({'car': c, 'name': t.name, 'engine': c.family, 'power': t.power, 'weight': t.weight,
-                     'drag': t.drag})
+                     'drag': t.drag, 'rnd': rnd_targets(c)})
     return rows
+
+
+def upgrade(root, name):
+    hits = [c for c in root.children if c.kind == 0 and c.name == b'Upgrade' and c.attr(b'name') == name]
+    if len(hits) != 1:
+        raise KeyError(f'{name.decode()}: {len(hits)} Upgrade blocks')
+    return hits[0]
+
+
+def leaves(node):
+    for c in node.children:
+        if c.kind != 0:
+            continue
+        if c.attr(b'value') is not None:
+            yield c
+        else:
+            yield from leaves(c)
+
+
+def rnd_upgrades(root, targets):
+    curve = child(child(upgrade(root, b'radUpgradeEngine'), b'Engine'), b'RevsPowerSpline')
+    points = [e for e in curve.children if e.kind == 0]
+    if max(float(e.attr(b'y')) for e in points) != RND_ENGINE_PEAK:
+        raise ValueError('radUpgradeEngine peak is not the stock 53988 W')
+    for e in points:
+        e.set_attr(b'y', fmt(round(float(e.attr(b'y')) * targets['engine_scale'])))
+    for leaf in leaves(upgrade(root, b'radUpgradeFuelConsumption')):
+        if leaf.attr(b'op') != b'*':
+            raise ValueError(f'radUpgradeFuelConsumption {leaf.name.decode()} is not a multiplier')
+        v = float(leaf.attr(b'value'))
+        leaf.set_attr(b'value', fmt(round(1 + (v - 1) * targets['fuel_share'], 6)))
+    mass = child(child(upgrade(root, b'radUpgradeWeightReduction'), b'Chassis'), b'Mass')
+    if mass.attr(b'op') != b'-':
+        raise ValueError('radUpgradeWeightReduction Mass is not a subtraction')
+    mass.set_attr(b'value', fmt(round(targets['weight'], 1)))
 
 
 def spread(s):
@@ -287,6 +348,7 @@ def convert(root, row, ers, size):
         set_value(aero, k, value(aero, k) * drag)
     set_value(aero, b'FrontWingRotationAngleRadians', 0)
     remove_drs(root, aero)
+    rnd_upgrades(root, row['rnd'])
 
     return {'team': row['name'], 'engine': row['engine'], 'hp': round(real_peak / HP_W),
             'limiter_rpm': fam['limiter_rpm'], 'mass': round(mass, 1), 'drag': round(drag, 3),
