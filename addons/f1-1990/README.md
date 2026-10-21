@@ -1,6 +1,6 @@
 # F1 1990
 
-Turns the F1 2026 season into the 1990 season in a profile of its own.
+Adds a 1990 Driver Career next to the 2025 and 2026 ones. 1990 careers live in the normal profile save, in their own slot list (data group `f1_career_1990`).
 
 ## Grid (db/grid.json, db/grid_standings.json, lang/grid.json, tools/grid.py)
 
