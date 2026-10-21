@@ -100,7 +100,7 @@ To see the chain, look in `swofty/loader.log`, which prints each one as `swofty_
 | A binding that does not resolve | The plugin registers no mixins |
 | A mixin not declared in `swofty/session.json`, when that file exists | The registration is refused |
 
-A conflict drops every addon involved, so you lose all of their mixins, not just the conflicting ones.
+A conflict drops every addon involved, so you lose all of their mixins, not just the conflicting ones. In a conflict in one mixin commit between an addon and one of swofty_core's own hook sets (`swofty_core.dll (...)` in the log), only the core's set is dropped.
 
 ## Init
 

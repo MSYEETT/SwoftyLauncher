@@ -61,12 +61,12 @@ SWOFTY_ADDON(init)
 
 ## What the core does for a content
 
-The core installs four hooks as one core mixin set, at the first mixin commit after a content is registered. A game where no addon registers a content runs none of them.
+The core installs the tile, gate and slot predicate hooks as one core mixin set, and the router as a core mixin set of its own that the [career wizard](./career-wizard) library shares, at the first mixin commit after a content is registered. A game where no addon registers a content runs none of them.
 
 | Hook | Binding | What it does for a content |
 |---|---|---|
 | Tile | `site_FeTile_CareerContentEnd` (site, end of `FeTile_Build_List` case 6) | appends `button_N` with `FeHome_Add_CareerTile`, then replaces its home item with a career content item built by `FeTile_Construct_CareerItem`: the model's route (`+0x178`, `driver_career`), your data group (`+0x180`) and suffix (`+0x188`), and a copy of the model's vtable whose populate sets your title and description and whose press selects your car group and calls the router |
-| Router | `FeTile_Route_CareerItem` (wrap) | records the pressed tile's data group and fires `career.content.pressed` |
+| Router | `FeTile_Route_CareerItem` (wrap, `swofty_core.dll (career tile route)`) | records the pressed tile's data group and fires `career.content.pressed` |
 | Gate | `Game_Career_IsDriverCareerMode` (wrap) | passes the mode championship whose `statId` (`+0x2a8`) is your mode's; the stock gate accepts only the 2025 and 2026 driver careers, so without this the new-career path reads through a null slot |
 | Slot predicate | `vt_Game_DriverCareerSlotPredicate` slot 2 | asked for your data group, a stock "no" for your mode's career becomes the predicate's own data-group check. Questions for other data groups keep the game's answer |
 

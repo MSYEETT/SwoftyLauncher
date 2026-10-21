@@ -132,7 +132,7 @@ swofty_core groups every addon's mixins by target. When other addons hook your t
 | Handlers below an overwrite | Warning |
 | A binding that does not resolve | The addon is dropped |
 
-If there's a conflict, every addon involved is dropped and none of their mixins are installed. You'll find each addon's name in `swofty/loader.log`.
+If there's a conflict, every addon involved is dropped and none of their mixins are installed. You'll find each addon's name in `swofty/loader.log`. When a conflict in one mixin commit is between your addon and one of swofty_core's own hook sets (`swofty_core.dll (...)` in the log), only the core's set is dropped.
 
 ## Rules
 

@@ -15,19 +15,23 @@ Use the career wizard library to shape the new-career wizard for careers of one 
 | API version | 8 (the table member), feature-detected: the table is null on cores without it |
 | Compile-time check | `#ifdef SWOFTY_API_CAREER_WIZARD` |
 | Feature | `career` — stable |
-| Thread | any thread |
+| Thread | registration: addon init or `SWOFTY_ON_LOAD`, then any thread |
 
 Every call returns a `swofty::career::wizard::Result` with the [result codes](./#result-codes). A core without the table returns `unavailable` from every call; a call whose hook is not installed on this build registers and returns `unavailable`.
 
+## When to register
+
+The core installs a control's hook only once an addon registers an entry for it. A registration from the check function you pass to `SWOFTY_ADDON` is installed with that commit's addon mixins: an addon's own wrap of the same function chains with the core's. A registration from `SWOFTY_ON_LOAD` is installed right after that commit's `SWOFTY_ON_LOAD` handlers. Until then a registration returns `ok`; after the last mixin commit, one whose hook was never installed returns `unavailable` and logs `registered after the last mixin commit`. A game where no addon registers runs none of the wizard hooks, and an addon that wraps the same functions itself keeps its wraps.
+
 ## Data groups
 
-The wizard state carries the data group of the career content tile it was opened from (`f1_career_2025`, `f1_career_2026`, an addon tile's group). Every entry applies only to wizards of its group. `group()` returns the data group of the last career tile the player pressed.
+The wizard state carries the data group of the career content tile it was opened from (`f1_career_2025`, `f1_career_2026`, an addon tile's group). Every entry applies only to wizards of its group. `group()` returns the data group of the last career tile the player pressed, once the tile route hook is installed (with a [career content](./career-content), a `tile_route` or a `hide_driver_tab` entry).
 
 ## Calls
 
 | Call | Does |
 |---|---|
-| `available()` | `true` when the core has the table and installed at least one wizard hook |
+| `available()` | `true` when the core has the table, the `career` feature is on, and at least one wizard hook is installed or none was needed yet |
 | `group()` | the data group of the last career tile pressed, or `""` |
 | `start_in_f1(group, on = true)` | `Game_CareerWizard_StartsInF1` answers yes: no Skip to F1 / Start in F2 step, no team-icons step (My Team / Konnersport), and the driver select takes the F1 path |
 | `tile_route(group, to, from = route_season_length)` | the tile opens route `to` where it would open `from` (`""` for any route) |
@@ -64,12 +68,12 @@ then call `tile_route(group, "career_wizard_driver_career_1990")`. A wizard that
 | Hook | Binding | Does |
 |---|---|---|
 | start in F1 | `Game_CareerWizard_StartsInF1` (wrap) | its third argument is the wizard's data group |
-| tile route | `FeTile_Route_CareerItem` (wrap) | every career tile press; records the tile's data group (item `+0x180`) and rewrites a type-1 route |
+| tile route | `FeTile_Route_CareerItem` (wrap, `swofty_core.dll (career tile route)`, shared with [career contents](./career-content)) | every career tile press; records the tile's data group (item `+0x180`) and rewrites a type-1 route after the game's router. `hide_driver_tab` needs it too, for the last tile's group |
 | steps and options | `Game_CareerWizard_PushNextStep` (wrap) | runs after the player's option byte is pushed on wizard `+0x100..+0x108`; a forced option rewrites it before the step machine runs, a replaced step rewrites the step byte it pushed on `+0xe0..+0xe8` |
 | confirm route | `site_Game_CareerWizardConfirm_NextRoute` (site) | `rdx` is the route the confirm step picked, `rsi` the view model (`+0x270` the wizard) |
 | driver tabs | `site_Game_DriverSelectHeader_BuildTabs` (redirect), `Game_DriverSelectHeader_SetTabState` (wrap) | the tab builder gets a copy of the header's content group without the hidden tabs, for the last tile's group while no career of another group is loaded; a tab state index past the header's tabs is skipped |
 
-Each hook is a core mixin set of its own, so a binding that does not resolve turns off only that control. With no entry registered every hook passes straight through, except that a tab state index past the header's tabs is always skipped.
+Each hook is a core mixin set of its own, so a binding that does not resolve turns off only that control. Once the driver tabs hook is installed, a tab state index past the header's tabs is always skipped.
 
 ## Example
 
@@ -94,4 +98,4 @@ To build one plugin against cores with and without the library, guard the calls 
 
 ## Log
 
-`[wizard] setup: start in F1 armed|off, tile route ..., steps and options ..., confirm route ..., driver tabs ...` once, then up to six lines per control: `[wizard] <group> starts in F1`, `<group> tile opens <to> instead of <from>`, `<group>: option <a> recorded as <b>`, `<group>: step <a> replaced by step <b>`, `<group>: confirm opens <to> instead of <from>`, `<group>: Choose Driver header tabs <n> of <m>`.
+`[wizard] setup: start in F1 armed|off|not used, tile route ..., steps and options ..., confirm route ..., driver tabs ...` after each commit that installs a control, then up to six lines per control: `[wizard] <group> starts in F1`, `<group> tile opens <to> instead of <from>`, `<group>: option <a> recorded as <b>`, `<group>: step <a> replaced by step <b>`, `<group>: confirm opens <to> instead of <from>`, `<group>: Choose Driver header tabs <n> of <m>`.
