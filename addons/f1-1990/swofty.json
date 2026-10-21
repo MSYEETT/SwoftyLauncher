@@ -18,6 +18,16 @@
   },
   "options": [
     {
+      "id": "dedicated_profile_saves", "type": "toggle", "label": "Separate profile save", "default": false,
+      "description": "Keeps this profile's whole game profile and every career in its own save (savegame@f1990), apart from other profiles. Off: 1990 careers sit in their own slots next to the stock careers.",
+      "binds": "native"
+    },
+    {
+      "id": "career_menu_ui", "type": "toggle", "label": "1990 Career tile", "default": true,
+      "description": "Adds a 1990 Career tile next to the 2025 and 2026 Career tiles.",
+      "binds": "native"
+    },
+    {
       "id": "fq_tyre_fix", "type": "toggle", "label": "Dry tyres in Friday qualifying", "default": true,
       "description": "At the start of Friday qualifying, makes every unused dry set usable (the game hands them back and only allows inters and wets there). Not needed when no_tyre_allocation turns the allocation off.",
       "binds": "native"
@@ -106,7 +116,7 @@
     "erp": ["erp/cars/handling.json", "erp/frontend.json"],
     "native": [
       { "dll": "native/f1_1990.dll", "early": true }, { "dll": "native/f1_1990_tyres.dll" },
-      { "dll": "native/f1_1990_replay.dll" }
+      { "dll": "native/f1_1990_replay.dll" }, { "dll": "native/f1_1990_ui.dll" }
     ],
     "files": [
       { "source": "files/audio/v12_1990.bdl", "target": "audio/2025/bundles/ferrari_2026.bdl" },
