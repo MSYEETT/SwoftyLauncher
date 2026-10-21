@@ -38,9 +38,6 @@
 
 SWOFTY_SETTING(bool, career_wizard_1990, true);
 
-void f1990_probe_entrants(const char *when, const void *career);
-void f1990_probe_season(const char *when, const void *season);
-
 namespace {
 
 using f1990::at;
@@ -126,9 +123,7 @@ void apply_full_season(void *wizard)
             swofty::log("[f1-1990] wizard: no season length component on the career (%p); calendar left as it is", career);
         return;
     }
-    f1990_probe_season("before preset 0", season);
     swofty::game::Game_SeasonLength_ApplyPreset(season, kPresetFullSeason);
-    f1990_probe_season("after preset 0", season);
     if (g_season_logged++ < 4)
         swofty::log("[f1-1990] wizard: season length preset %u (Full Season) applied to the 1990 career", kPresetFullSeason);
 }
@@ -172,7 +167,6 @@ SWOFTY_WRAP(Game_CareerWizard_PushNextStep, void, void *wizard)
         if ((option == kOptionRecommended || option == kOptionCustomSettings) && !has_option(wizard, kOptionFullSeason) &&
             !has_option(wizard, kOptionCustomSeason))
             apply_full_season(wizard);
-        f1990_probe_entrants("step push", career_of(wizard));
     }
     orig(wizard);
     if (!career_wizard_1990 || !is_1990_wizard(wizard) || steps(wizard) != before + 1)

@@ -175,16 +175,6 @@ It logs `[f1-1990] wizard: f1_career_1990 starts in F1, no F2 choice and no team
 `wizard: Choose Driver back goes to the settings step (screen_group_back_1990; confirm step dropped, settings choice dropped)`
 and `wizard: settings back goes to the Career tiles (back_1990)` (first few of each).
 
-`src/driver_select_probe.cpp` is a temporary read-only probe of the Choose Driver populate
-(`vt_Game_DriverCareerDriverSelectViewModel` slot 13): for the first 6 populates of any wizard it logs the wizard suffix,
-options, the official entrant list map (name, stat id, entrant count), the slot's game mode type chain and components,
-and how many driver cards the populate made (`[f1-1990] probe: ...`). For the Team Select work it also logs the UpgradesComponent's
-team models and each entrant's team and car at Choose Driver, the entrants registry lists 67, 97 and 105-107 (records
-with a team or a car), the career's entrants at each 1990 wizard step,
-the championship's game setup modes, their entrant setup modes and those modes' entrant lists at Choose Driver, and
-the season length component (presets, the setup mode / season / format the career asks for, the calendar, the
-dynamic event data's track lists) before and after the 1990 wizard applies preset 0 and at Choose Driver.
-
 ## Intro video (`f1_1990_intro.dll`)
 
 A separate DLL; option `intro_video_1990` (default on). A new 1990 Driver Career opens with `videos/f1_1990_intro.bik`

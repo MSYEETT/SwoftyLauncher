@@ -9036,9 +9036,7 @@
      "how": "static"
     }
    ],
-   "used_by": [
-    "addons/f1-1990/native/src/driver_select_probe.cpp"
-   ]
+   "used_by": []
   },
   {
    "id": "game.driver_contracts_rank_team",
@@ -9062,9 +9060,7 @@
      "how": "static"
     }
    ],
-   "used_by": [
-    "addons/f1-1990/native/src/driver_select_probe.cpp"
-   ]
+   "used_by": []
   },
   {
    "id": "game.driver_select_back_route",
@@ -9225,9 +9221,7 @@
      "how": "static"
     }
    ],
-   "used_by": [
-    "addons/f1-1990/native/src/driver_select_probe.cpp"
-   ]
+   "used_by": []
   },
   {
    "id": "game.championship_has_team",

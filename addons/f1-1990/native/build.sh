@@ -62,7 +62,7 @@ SRC=(src/plugin.cpp src/grid_best_of.cpp src/contract_skip.cpp)
     -o f1_1990_rndlook.dll src/rnd_look.cpp
 
 "${CXX[@]}" -O2 -Wall -Wextra -I"$GAME" -I$SDK -D__USE_MINGW_ANSI_STDIO=1 -shared -s \
-    -o f1_1990_wizard.dll src/career_wizard.cpp src/driver_select_probe.cpp
+    -o f1_1990_wizard.dll src/career_wizard.cpp
 
 "${CXX[@]}" -O2 -Wall -Wextra -I"$GAME" -I$SDK -D__USE_MINGW_ANSI_STDIO=1 -shared -s \
     -o f1_1990_intro.dll src/intro_video.cpp
