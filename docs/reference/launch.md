@@ -48,6 +48,8 @@ Set Steam's launch option to `swofty run -- %command%` so its Play button starts
 
 To go back to Steam's normal launch, clear the option.
 
+Without the wrapper in the launch option, the launcher's **Play** and `swofty run --direct` start Proton themselves. Proton reads wheels and controllers through SDL2. When the system has no 64-bit SDL2, as under NixOS `steam-run`, the launcher links the copy from Steam's runtime into `$DATA/state/runtime-libs` and adds it to the game's library path. `swofty run` then prints `controllers: this system has no SDL2`.
+
 ## Windows
 
 Select **Play** in the launcher or run `swofty run`. If Steam is closed, it [starts first](#steam). To follow the logs in the launcher, select the arrow next to **Play** and choose **Play with console**.
