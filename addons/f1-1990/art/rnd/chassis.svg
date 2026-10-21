@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <title>Chassis and Suspension 1990: carbon tub and pushrod coil-over</title>
+  <path fill="#ffffff" fill-opacity="0.502" fill-rule="evenodd"
+        d="M17.5,1.5 L30.5,1.5 L34.5,28 L36.5,46.5 L11.5,46.5 L13.5,28 Z M19.5,27 L28.5,27 L28.5,36 Q24,39.5 19.5,36 Z"/>
+  <g transform="rotate(45 24 24)">
+    <g fill="#ffffff">
+      <path fill-rule="evenodd" d="M19.6,4.6a4.4,4.4 0 1,0 8.8,0a4.4,4.4 0 1,0 -8.8,0Z M22.2,4.6a1.8,1.8 0 1,0 3.6,0a1.8,1.8 0 1,0 -3.6,0Z"/>
+      <path fill-rule="evenodd" d="M19.6,43.4a4.4,4.4 0 1,0 8.8,0a4.4,4.4 0 1,0 -8.8,0Z M22.2,43.4a1.8,1.8 0 1,0 3.6,0a1.8,1.8 0 1,0 -3.6,0Z"/>
+      <rect x="22.4" y="8.5" width="3.2" height="22"/>
+      <rect x="14.5" y="10" width="19" height="3" rx="1"/>
+      <rect x="14.5" y="27.2" width="19" height="3" rx="1"/>
+      <rect x="19" y="30" width="10" height="10.5" rx="2"/>
+    </g>
+    <path fill="none" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"
+          d="M17,14.2 L31,16.6 L17,19 L31,21.4 L17,23.8 L31,26.2"/>
+  </g>
+</svg>
