@@ -270,6 +270,7 @@ void ready()
     gamedb_setup();
     dbread_setup();
     overlay_setup();
+    lang_override_setup();
     events_setup();
     hud_setup();
     telemetry_setup();

@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define SWOFTY_API_VERSION 7
+#define SWOFTY_API_VERSION 8
 
 enum {
     SWOFTY_MIXIN_WRAP = 1,
@@ -334,6 +334,19 @@ typedef struct SwoftyPopup {
     int (*show)(const char *title, const char *body);
 } SwoftyPopup;
 
+/* Runtime string overrides (API v8): the localised text a lng_* key resolves to, changed while the
+   game runs. language NULL or "*" means every language; otherwise a language code (eng, fre, ...)
+   that applies while it is the game's current language and wins over "*". The text is UTF-8 and is
+   copied. A change shows wherever the game looks the key up next; refresh() re-sends the current
+   language to the game's language listeners so bound labels read their text again (game thread). */
+typedef struct SwoftyLang {
+    int (*available)(void);
+    int (*override_set)(const char *language, const char *key, const char *text);
+    int (*override_clear)(const char *language, const char *key);
+    int (*override_clear_all)(void);
+    int (*refresh)(void);
+} SwoftyLang;
+
 typedef struct SwoftyApi {
     uint32_t version;
     void (*log)(const char *fmt, ...);
@@ -352,6 +365,7 @@ typedef struct SwoftyApi {
     const SwoftyStorage *storage;
     const SwoftyCareer *career;
     const SwoftyPopup *popup;
+    const SwoftyLang *lang;
 } SwoftyApi;
 
 typedef int (*SwoftyAddonInitFn)(const SwoftyApi *api);

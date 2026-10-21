@@ -31,6 +31,7 @@ const SwoftyDb *db_table();
 const SwoftyStorage *storage_table();
 const SwoftyCareer *career_table();
 const SwoftyPopup *popup_table();
+const SwoftyLang *lang_table();
 struct CoreMixins {
     const char *name;
     std::vector<SwoftyMixin> mixins;
@@ -1321,6 +1322,7 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     a->storage = runtime::storage_table();
     a->career = runtime::career_table();
     a->popup = runtime::popup_table();
+    a->lang = runtime::lang_table();
     a->version = SWOFTY_API_VERSION;
     for (auto &c : runtime::career_mixins()) {
         Addon own{c.name, {}, true};
