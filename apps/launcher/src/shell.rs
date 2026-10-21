@@ -165,8 +165,9 @@ fn terms_box(p: Palette) -> impl IntoElement {
         ))
 }
 
-/// The loader files an antivirus took this session: the game keeps running
-/// without mods, and the dialog says which files and how to get them back.
+/// The loader files an antivirus took: before the launch they stopped the
+/// game from starting, in game it runs without mods. The dialog says which
+/// files and how to get them back.
 fn show_mods_blocked(r: &quarantine::Report, window: &mut Window, cx: &mut App) {
     let (title, text) = (r.title(), r.text());
     window.open_alert_dialog(cx, move |alert, _, _| {
@@ -379,9 +380,13 @@ impl Shell {
             }
             window.push_notification(Notification::info(text.join("\n")).title(recovery::HEADLINE), cx);
         }
-        if let Some(r) = probe.mods_blocked.filter(|r| r.at > self.mods_blocked_seen) {
+        if let Some(r) = probe
+            .mods_blocked
+            .as_ref()
+            .filter(|r| r.at > self.mods_blocked_seen)
+        {
             self.mods_blocked_seen = r.at;
-            show_mods_blocked(&r, window, cx);
+            show_mods_blocked(r, window, cx);
         }
         if let Some(install) = probe.install {
             let changed = !self.detected || self.install != install;
@@ -400,7 +405,12 @@ impl Shell {
             if let Some(ok) = launch.finished() {
                 if !ok && !launch.saw_game {
                     self.blocked = Blocked::read(&self.store.root);
+                    let refused = probe
+                        .mods_blocked
+                        .as_ref()
+                        .is_some_and(|r| r.stage == quarantine::Stage::BeforeLaunch && r.at >= launch.at);
                     self.notice = Some(match &self.blocked {
+                        _ if refused => "an antivirus removed mod files, so F1 25 was not started".to_owned(),
                         Some(b) if b.files.len() == 1 => {
                             "a file Swofty did not put in the game folder is in the way".to_owned()
                         }

@@ -151,6 +151,7 @@ pub fn discover(store: &Store) -> Option<Install> {
 pub struct Launch {
     child: Child,
     pub since: Instant,
+    pub at: f64,
     pub log: PathBuf,
     pub saw_game: bool,
     pub stage: Option<String>,
@@ -159,6 +160,7 @@ pub struct Launch {
 impl Launch {
     pub fn start(store: &Store, profile: &str, install: &Install, mode: LaunchMode) -> Result<Self, String> {
         let cli = cli_path(store).ok_or("the swofty command was not found next to the launcher")?;
+        let at = now_secs();
         let log = store.root.join("state/launcher-run.log");
         let out = std::fs::create_dir_all(store.root.join("state"))
             .and_then(|_| File::create(&log))
@@ -189,6 +191,7 @@ impl Launch {
         Ok(Self {
             child,
             since: Instant::now(),
+            at,
             log,
             saw_game: false,
             stage: None,
