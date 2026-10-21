@@ -16,13 +16,19 @@
 
 std::string core_code_owner(uintptr_t addr);
 
+namespace runtime {
+std::string load_stage();
+void on_stage(void (*fn)(int));
+}
+
 // Crash log and crash reports. The crash log writes each fatal-class exception, the top-level filter
 // and calls to ExitProcess and TerminateProcess to loader.log. A crash report (swofty\crash-<time>.txt
 // and a minidump beside it) is written once per process: for an exception that reaches the top-level
 // filter, for the game's own fatal paths (a fatal Ne heap error, Ne_FatalAbort, a heap corruption or
 // fail-fast exception, a stack overflow), and for an exit with a non-zero code or one that follows a
 // fatal-class exception within EXIT_AFTER_FATAL_MS. A thread started at attach writes it while the
-// reporting thread waits, so a stack overflow or a corrupt stack still gets one.
+// reporting thread waits, so a stack overflow or a corrupt stack still gets one. An exit before the
+// window stage logs its caller stack whatever its code; a clean one there still gets no report.
 
 namespace {
 
@@ -145,7 +151,7 @@ bool symbols_match, kb_build;
 LPTOP_LEVEL_EXCEPTION_FILTER previous;
 safetyhook::InlineHook exit_hook, terminate_hook, nt_terminate_hook, heap_error_hook;
 uintptr_t seen[MAX_SEEN];
-volatile LONG seen_count, reports, busy, exited, claimed, writing, snapshot_lock, fatal_count;
+volatile LONG seen_count, reports, busy, exited, claimed, writing, snapshot_lock, fatal_count, window_reached;
 bool ea_build;
 std::wstring diag_path, swofty_dir;
 std::string addon_text;
@@ -714,17 +720,24 @@ LONG WINAPI unhandled(EXCEPTION_POINTERS *e)
     return previous ? previous(e) : EXCEPTION_CONTINUE_SEARCH;
 }
 
+void window_stage(int)
+{
+    InterlockedExchange(&window_reached, 1);
+}
+
 void on_exit(const char *fn, UINT code)
 {
     perf::flush(fn);
     if (InterlockedExchange(&exited, 1) || !enter())
         return;
-    cl("[crash] %s(%u) on thread %lu, %lu s after load%s", fn, code, GetCurrentThreadId(),
-             (GetTickCount() - start_tick) / 1000, code ? "; caller stack:" : "");
+    bool early = !window_reached, stack = code || early;
+    cl("[crash] %s(%u) on thread %lu, %lu s after load%s%s", fn, code, GetCurrentThreadId(),
+             (GetTickCount() - start_tick) / 1000, early ? ", before the game's window" : "",
+             stack ? "; caller stack:" : "");
     blackbox::note("exit", fmt("%s(%u)", fn, code).c_str());
     alignas(16) CONTEXT ctx;
     RtlCaptureContext(&ctx);
-    if (code)
+    if (stack)
         backtrace(ctx, true);
     leave();
     ULONGLONG now = GetTickCount64(), since = last_fatal.ms ? now - last_fatal.ms : ~0ull;
@@ -1824,6 +1837,8 @@ void crash_attach(SwoftyApi *a, const std::wstring &dir)
 {
     api = a;
     start_tick = GetTickCount();
+    window_reached = runtime::load_stage() != "early";
+    runtime::on_stage(window_stage);
     start_ms = GetTickCount64();
     exe = GetModuleHandleW(nullptr);
     GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,

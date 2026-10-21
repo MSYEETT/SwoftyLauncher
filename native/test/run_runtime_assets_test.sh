@@ -164,7 +164,7 @@ full = {
 replace = {'lang': {'eng': {'replace': 'lang/language_eng.lng'}}}
 if mode in ('early', 'late'):
     doc = full
-elif mode == 'earlywait':
+elif mode in ('earlywait', 'secondcopy'):
     doc = {'early_stage': True}
 elif mode == 'gated':
     doc = dict(full, features=[], lang=dict(full['lang'], eng=dict(full['lang']['eng'], **replace['lang']['eng'])))
@@ -182,10 +182,10 @@ check() {
 absent() {
     if grep -qE "$2" "$LOG"; then echo "FAIL: $1"; status=1; else echo "ok  : $1"; fi
 }
-for mode in none replace gated late early earlywait; do
+for mode in none replace gated late early earlywait secondcopy; do
     echo "==== $mode"
     rm -rf "$OUT/game/swofty/assets.json" "$OUT/game/swofty/settings.json" "$OUT/game/swofty/addons/"t_*.dll "$OUT/game/swofty/addons/"t.*
-    rm -rf "$OUT/game/swofty/cache"
+    rm -rf "$OUT/game/swofty/cache" "$OUT/game/swofty/"crash-*
     [[ $mode == earlywait ]] && cp "$OUT/t_slow.dll" "$OUT/game/swofty/addons/t_slow.dll"
     if [[ $mode == early ]]; then
         for n in early window; do
@@ -207,6 +207,8 @@ for mode in none replace gated late early earlywait; do
         check "loader: early trigger fired from plain code" "trigger: KERNEL32!CreateMutexW from .* \(\.xtls\) name 'Codemasters F1 25' on thread .*loading addons now \(early stage\)"
         check "loader: early slot disarmed" 'trigger disarmed: KERNEL32!CreateMutexW slot restored'
         check "loader: window stage after the early load" 'stage: window \(USER32!RegisterClassExW .*\), addons were loaded at the early stage'
+        absent "loader: the game's own mutex call is not a second copy" 'single instance:'
+        absent "crash: the exit after the window stage logs no early-exit stack" "before the game's window"
         check "loader: early plugin list read from settings.json" 'early stage: plugin t_early\.dll has "early": true'
         check "loader: a plugin without \"early\" waits for the window" 'addon t_window\.dll: loads at the window stage'
         check "loader: plugin paths read from settings.json" 'addons: settings\.json lists 2 plugin\(s\) in addon folders'
@@ -268,6 +270,18 @@ for mode in none replace gated late early earlywait; do
         check "earlywait: the watcher thread loaded addons" 'trigger: main window visible \(fallback, IAT trigger never fired\)'
         check "earlywait: CreateMutexW waited for the load on the other thread" 'early trigger: waited [0-9]+ ms for the addon load running on another thread \(done\)'
         check "earlywait: the slow mod finished inside the wait" 'addon t_slow\.dll: SwoftyAddonInit returned 1'
+        ;;
+    secondcopy)
+        check "secondcopy: the loader says another copy holds the mutex" "single instance: the game's mutex 'Codemasters F1 25' already exists, so another copy of F1 25 is running"
+        check "secondcopy: the clean exit before the window logs its caller stack" '\[crash\] ExitProcess\(0\) on thread [0-9]+, [0-9]+ s after load, before the game.s window; caller stack:'
+        check "secondcopy: the stack names the exe frame" '\[crash\]   #0 .*F1_25\.exe\+0x'
+        absent "secondcopy: no crash report for a clean exit" '\[crash\] crash report '
+        if compgen -G "$OUT/game/swofty/crash-*.txt" >/dev/null; then
+            echo "FAIL: secondcopy: a crash-*.txt was written"
+            status=1
+        else
+            echo "ok  : secondcopy: no crash-*.txt"
+        fi
         ;;
     replace)
         check "lang: whole-file replacement registered" "\[assets\] lang: 'eng' language file -> /game/swofty/lang/language_eng\.lng"

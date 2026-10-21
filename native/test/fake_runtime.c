@@ -827,6 +827,23 @@ void *fake_gdb_load(void *db, void *cfg);
 void **fake_gdb_lookup(const char *path);
 int32_t fake_loc_load(void *module, uint32_t lang, void *path);
 HANDLE fake_create_mutex(const wchar_t *name);
+
+static void second_copy_mode(void)
+{
+    HANDLE(WINAPI * real)(LPSECURITY_ATTRIBUTES, BOOL, LPCWSTR) =
+        (void *)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "CreateMutexW");
+    HANDLE held = real(NULL, FALSE, L"Codemasters F1 25");
+    expect(held && GetLastError() == 0, "secondcopy: another copy holds the game's single-instance mutex");
+    SetLastError(12345);
+    HANDLE mx = fake_create_mutex(L"Codemasters F1 25");
+    DWORD e = GetLastError();
+    expect(GetModuleHandleW(L"swofty_core.dll") != NULL, "secondcopy: mods loaded inside CreateMutexW('Codemasters F1 25')");
+    expect(mx && e == ERROR_ALREADY_EXISTS,
+           "secondcopy: the game still sees the real call's ERROR_ALREADY_EXISTS (0xb7) after the loader logs it");
+    printf("%s (%d failure(s)); closing before the window, as F1 25 does when another copy runs\n",
+           fails ? "FAILED" : "ALL PASSED", fails);
+    ExitProcess(fails != 0);
+}
 void fake_expand(void *loader, uint64_t *h, void *out);
 void fake_release(void *loader, uint64_t *h, void *out);
 void *fake_alias_ref(uint64_t hash);
@@ -961,6 +978,8 @@ int main(int argc, char **argv)
 
     if (!strcmp(mode, "earlywait"))
         early_wait_mode();
+    if (!strcmp(mode, "secondcopy"))
+        second_copy_mode();
     HMODULE k32 = GetModuleHandleW(L"kernel32.dll");
     void *real_mutex = (void *)GetProcAddress(k32, "CreateMutexW");
     extern void *__imp_CreateMutexW;

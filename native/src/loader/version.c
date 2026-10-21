@@ -430,6 +430,7 @@ static HANDLE WINAPI trigger_CreateMutexW(LPSECURITY_ATTRIBUTES sa, BOOL owner, 
 #define STAGE_EARLY 1
 #define STAGE_LATE 2
 #define EARLY_MUTEX L"Codemasters F1 25"
+#define SECOND_COPY "single instance:"
 
 static struct {
     const char *dll, *mod, *name;
@@ -992,6 +993,7 @@ static HANDLE WINAPI trigger_CreateMutexW(LPSECURITY_ATTRIBUTES sa, BOOL owner, 
 {
     static volatile LONG skips;
     void *ret = __builtin_return_address(0);
+    int game_mutex = 0;
     if (load_state != 2) {
         const Section *sec = section_of((uintptr_t)ret);
         int named = name && !wcscmp(name, EARLY_MUTEX);
@@ -1000,12 +1002,22 @@ static HANDLE WINAPI trigger_CreateMutexW(LPSECURITY_ATTRIBUTES sa, BOOL owner, 
             snprintf(why, sizeof why, "KERNEL32!CreateMutexW from %p (%s)", ret, sec->name);
             load_addons_once(why, name, STAGE_EARLY);
             wait_loaded("early trigger");
+            game_mutex = 1;
         } else if (InterlockedIncrement(&skips) <= 8)
             slog("early trigger skipped: KERNEL32!CreateMutexW from %p (%s) name '%ls' is not the game's single-instance "
                  "mutex from plain game code",
                  ret, sec ? sec->name : "outside the exe", name ? name : L"(none)");
     }
-    return ((CreateMutexWFn)iat[IAT_MUTEX].orig)(sa, owner, name);
+    HANDLE h = ((CreateMutexWFn)iat[IAT_MUTEX].orig)(sa, owner, name);
+    if (game_mutex) {
+        DWORD err = GetLastError();
+        if (h && err == ERROR_ALREADY_EXISTS)
+            slog(SECOND_COPY " the game's mutex '%ls' already exists, so another copy of F1 25 is running; F1 25 "
+                             "closes a second copy",
+                 name);
+        SetLastError(err);
+    }
+    return h;
 }
 
 static int early_flag(void)
