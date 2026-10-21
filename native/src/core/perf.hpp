@@ -70,5 +70,7 @@ void mark(const char *kind, const std::string &what);
 void attach();
 void start();
 void flush(const char *why);
+int open_probes(uint32_t *out, int max);
+size_t crash_text(char *out, size_t cap, const uint32_t *open, int depth);
 
 }

@@ -1,5 +1,6 @@
 #include "perf.hpp"
 
+#include "blackbox.hpp"
 #include "runtime.hpp"
 
 #include <swofty/mixin.hpp>
@@ -818,6 +819,7 @@ void frame_release()
 
 void mark(const char *kind, const std::string &what)
 {
+    blackbox::note(kind, what.c_str());
     if (!live())
         return;
     uint64_t now = tsc();
@@ -908,6 +910,62 @@ void flush(const char *why)
     write_report(why);
     if (wake)
         SetEvent(wake);
+}
+
+int open_probes(uint32_t *out, int max)
+{
+    int n = std::min(std::min(depth_, DEPTH), max);
+    for (int i = 0; i < n; i++)
+        out[i] = open_[i].id;
+    return n;
+}
+
+size_t crash_text(char *out, size_t cap, const uint32_t *open, int depth)
+{
+    size_t at = 0;
+    auto put = [&](const char *fmt, ...) {
+        if (at + 1 >= cap)
+            return;
+        va_list ap;
+        va_start(ap, fmt);
+        int n = vsnprintf(out + at, cap - at, fmt, ap);
+        va_end(ap);
+        at = n < 0 ? at : std::min(cap - 1, at + size_t(n));
+    };
+    uint32_t count = std::min(probes.load(), MAX_PROBES);
+    auto name = [&](uint32_t id, const char *&owner, const char *&what) {
+        owner = id && id <= count ? names[id - 1].owner.c_str() : "?";
+        what = id && id <= count ? names[id - 1].what.c_str() : (id ? "?" : "game code (paused)");
+    };
+    if (!live()) {
+        put("profiler off (SWOFTY_PROFILE=0): no probe counters\n");
+        return at;
+    }
+    put("open on the reporting thread (outermost first):%s\n", depth ? "" : " none");
+    for (int i = 0; i < depth; i++) {
+        const char *o, *w;
+        name(open[i], o, w);
+        put("  %d. %s %s\n", i + 1, o, w);
+    }
+    uint64_t calls[MAX_PROBES] = {}, ticks[MAX_PROBES] = {};
+    each_local([&](Local &l) {
+        for (uint32_t i = 0; i < count; i++) {
+            calls[i] += l.calls[i].load(rlx);
+            ticks[i] += l.ticks[i].load(rlx);
+        }
+    });
+    uint32_t order[MAX_PROBES], used = 0;
+    for (uint32_t i = 0; i < count; i++)
+        if (calls[i])
+            order[used++] = i;
+    std::sort(order, order + used, [&](uint32_t a, uint32_t b) { return calls[a] > calls[b]; });
+    put("calls since the profiler started (%u of %u probe(s) called, busiest first):\n", used, count);
+    for (uint32_t k = 0; k < used && k < 40; k++) {
+        uint32_t i = order[k];
+        put("  %12llu calls %10.1f ms  %s %s\n", (unsigned long long)calls[i], ms_of(ticks[i]), names[i].owner.c_str(),
+            names[i].what.c_str());
+    }
+    return at;
 }
 
 }
