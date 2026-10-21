@@ -10,7 +10,8 @@
 // Intro and Outro skip their enter and return the continue link, Update enters as an idle state and
 // leaves without the screen. A failed sign leaves the stock scene in place. A career is a 1990 one
 // when its data group (the save-slot partition key) is f1_career_1990; 2025 and 2026 careers in the
-// same profile are left alone.
+// same profile are left alone. F1990_ContractSceneSkipped tells f1_1990_intro.dll that the scene is
+// being skipped, so it can play the intro video in the Intro state.
 
 #include <cstdio>
 #include <cstring>
@@ -194,4 +195,9 @@ SWOFTY_WRAP(Career_ContractOutro_OnUpdate, uint32_t *, void *state, uint32_t *li
     g_skip = false;
     swofty::log("[f1-1990] contract: negotiation scene skipped");
     return link;
+}
+
+extern "C" __declspec(dllexport) int F1990_ContractSceneSkipped()
+{
+    return g_skip ? 1 : 0;
 }

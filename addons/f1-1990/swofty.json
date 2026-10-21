@@ -48,6 +48,11 @@
       "binds": "native"
     },
     {
+      "id": "intro_video_1990", "type": "toggle", "label": "1990 intro video", "default": true,
+      "description": "A new 1990 Driver Career opens with the intro video in place of the agent's intro cutscene, skippable like the stock videos. The video comes from the private F1 1990 Cars pack; without it the career starts as before.",
+      "binds": "native"
+    },
+    {
       "id": "fq_tyre_fix", "type": "toggle", "label": "Dry tyres in Friday qualifying", "default": true,
       "description": "At the start of Friday qualifying, makes every unused dry set usable (the game hands them back and only allows inters and wets there). Not needed when no_tyre_allocation turns the allocation off.",
       "binds": "native"
@@ -139,7 +144,7 @@
       { "dll": "native/f1_1990_pu.dll" }, { "dll": "native/f1_1990_quali.dll" },
       { "dll": "native/f1_1990_rnd.dll", "files": ["data/rnd-art.json", "data/rnd-strings.json"] },
       { "dll": "native/f1_1990_rndlook.dll", "files": ["data/rnd-look.json"] },
-      { "dll": "native/f1_1990_wizard.dll" }
+      { "dll": "native/f1_1990_wizard.dll" }, { "dll": "native/f1_1990_intro.dll" }
     ],
     "files": [
       { "source": "files/audio/v12_1990.bdl", "target": "audio/2025/bundles/v12_1990.bdl" },

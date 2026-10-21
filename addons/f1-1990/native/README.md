@@ -40,6 +40,8 @@ The recommended target is the screen's: rating + the matching rating range's off
 
 The career-lane bindings were raised to L2 with `sitereg.py --force` (lane owner career-re) with the developer's approval on 2026-10-21; they still need an `agree` verify row from another agent.
 
+`F1990_ContractSceneSkipped` (exported) returns 1 from the decision wrap's sign until the Outro passes, for `f1_1990_intro.dll`.
+
 ## Friday qualifying tyres (`f1_1990_tyres.dll`)
 
 A separate DLL, so a binding it can't resolve drops only this hook and never the save separation. `Sess_TyreAllocation_OnSessionStart` (0x140bcc190, the tyre allocation component's session-start virtual) is wrapped: after it runs for a sprint-shootout session (ids 10..14) on a 1990 weekend, every unused, undamaged dry set (softer, medium, harder; no wear, not used) of every car gets its handed-back flag (set +0x09 bit 3) cleared and its session tag (+0x00) set to 0, and the allocation is marked dirty (+0xe8). A tag-0 set passes the game's "usable now" check (0x142e88630/0x142e88730) in every session, which otherwise has no case for shootout sessions and leaves only inters and wets. Friday and Saturday qualifying then share the unused dry sets. It logs `[f1-1990] FQ tyres: session <id>: <n> unused dry set(s) made usable on <cars> car allocation(s)`.
@@ -182,3 +184,33 @@ with a team or a car), the career's entrants at each 1990 wizard step,
 the championship's game setup modes, their entrant setup modes and those modes' entrant lists at Choose Driver, and
 the season length component (presets, the setup mode / season / format the career asks for, the calendar, the
 dynamic event data's track lists) before and after the 1990 wizard applies preset 0 and at Choose Driver.
+
+## Intro video (`f1_1990_intro.dll`)
+
+A separate DLL; option `intro_video_1990` (default on). A new 1990 Driver Career opens with `videos/f1_1990_intro.bik`
+in the slot of the agent's intro cutscene (the DriverCareerContractNegotiations Intro state, which the contract skip
+passes in a 1990 career). Then the Driver HQ intro cutscene and the hub follow as before. The video is not in this
+addon: the private car pack `swofty.f1-1990-cars` installs it (`video/f1_1990_intro.bik`, git-ignored, encoded by its
+`tools/intro_video.sh`). The game plays a `.bik` as Bink 1 and a `.bk2` as Bink 2; the free RAD Video Tools encode
+Bink 1.
+
+| binding | address | use |
+|---|---|---|
+| `Career_ContractIntro_OnEnter` / `_OnUpdate` | 0x1436c2620 / 0x1436c2dc0 | wrap at priority 1, outside the contract skip's wraps: armed on enter when `F1990_ContractSceneSkipped` (f1_1990.dll) is 1; the first update plays the video, later updates return the stay link until it ends, then the contract skip continues |
+| `Ne_Play_FullscreenVideo` | 0x14416de50 | call: `neon::NeUIGenericFeatureSystem::playFullscreenVideo(path, {fn, ctx} end callback, null, layer 4)`, as the session intro videos |
+| `g_Game_Root` | 0x14601db08 | data: the feature system is `(module+0x10)->vt[0xf0]`, module `*(*(root+0xa0)+0x28)` (FePopup_Dispatch_FeatureCmd's path); its player is at +0x108 |
+| `g_Game_FlowLinkStay` | 0x146cb2280 | data: the stay link |
+| `Ne_Make_StrFromCStr` | 0x1441974e0 | call: the path NeStr |
+
+The DLL reads the file's header from the game folder (`videos/`, or `swofty/overlay/videos/` when the runtime file
+feature serves it, passed as `videos/../swofty/overlay/videos/f1_1990_intro.bik`) and plays it only when it is a Bink 1
+file of at most 600 s. It posts `AllowVideoSkip` on (the stock skip prompt; the game's persistent flow view model stops
+the video on its skip input after 2 s) and off at the end, through the core's `swofty::career::post`. The state stays
+until the player's end callback runs (the video ended or was skipped), or the video's length plus 15 s has passed.
+Without the file, the option, the player or the contract skip, the Intro state behaves as before. `src/intro_video.hpp`
+(header parse, checks, stay/continue) is tested by `test/intro_video_test.cpp`.
+
+It logs `[f1-1990] intro: new 1990 career; playing videos/f1_1990_intro.bik (Bink 1 rev i, 1280x720, 1099 frames at
+29.97 fps, 36.7 s) on layer 4 (feature system ..., player ...)`, then `intro: video ended|skipped|no end callback;
+timed out after N s; the career continues`, or once why it plays nothing (`no videos/f1_1990_intro.bik (the private
+F1 1990 Cars pack installs it)`, `is a Bink 2 file`, `no fullscreen video player`).
