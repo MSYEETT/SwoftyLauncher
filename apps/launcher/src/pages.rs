@@ -426,7 +426,14 @@ impl Shell {
     }
 
     pub(crate) fn addons_page(&mut self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
-        let installed = plural(self.library.addons.len(), "addon installed", "addons installed");
+        let tracks_page = self.library.tracks_page;
+        let listed = |m: &&AddonItem| !(m.track && tracks_page.is_some());
+        let hidden = self.library.addons.iter().filter(|m| !listed(m)).count();
+        let installed = plural(
+            self.library.addons.iter().filter(listed).count(),
+            "addon installed",
+            "addons installed",
+        );
         let subtitle = if self.vanilla() {
             format!("{installed} · {VANILLA} plays the game without them")
         } else {
@@ -445,6 +452,7 @@ impl Shell {
             .library
             .addons
             .iter()
+            .filter(listed)
             .enumerate()
             .map(|(i, m)| {
                 let open = self.open_addon.as_ref() == Some(&m.manifest.id);
@@ -474,10 +482,34 @@ impl Shell {
                     self.library.profile.name
                 ))
         });
+        let tracks = tracks_page.filter(|_| hidden > 0).map(|i| {
+            h_flex()
+                .px(px(GUTTER))
+                .pb(px(12.))
+                .gap(px(8.))
+                .flex_shrink_0()
+                .items_center()
+                .text_size(px(13.))
+                .text_color(p.text_muted)
+                .child(Icon::new(IconName::Map).size(px(14.)))
+                .child(format!(
+                    "{} {} on the Tracks page",
+                    plural(hidden, "track addon", "track addons"),
+                    if hidden == 1 { "is" } else { "are" }
+                ))
+                .child(
+                    Button::new("open-tracks")
+                        .ghost()
+                        .small()
+                        .label("Open Tracks")
+                        .on_click(cx.listener(move |this, _, _, cx| this.go(Page::Section(i), cx))),
+                )
+        });
         v_flex()
             .size_full()
             .child(self.header(Page::Addons.label(), subtitle, actions, p))
             .children(pending)
+            .children(tracks)
             .child(self.list("addons", rows, p))
             .into_any_element()
     }

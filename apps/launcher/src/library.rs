@@ -13,6 +13,9 @@ pub struct AddonItem {
     pub enabled: bool,
     pub locked: bool,
     pub icon: Option<AddonIcon>,
+    /// Only tracks (see [`swofty_core::tracks::is_track_addon`]): listed on the
+    /// Tracks page while one is open in the profile.
+    pub track: bool,
 }
 
 #[derive(Clone)]
@@ -42,6 +45,8 @@ fn addon_icon(store: &Store, registry: &Registry, m: &AddonManifest) -> Option<A
         _ => AddonIcon::Image(Arc::new(Image::from_bytes(format, bytes))),
     })
 }
+
+pub const TRACKS_SECTION: &str = "tracks";
 
 pub struct SectionItem {
     pub addon: String,
@@ -74,6 +79,9 @@ pub struct Library {
     pub profiles: Vec<ProfileItem>,
     pub sections: Vec<SectionItem>,
     pub registry: Registry,
+    /// The section an enabled addon offers with id `tracks`, which lists
+    /// track packages and track addons together.
+    pub tracks_page: Option<usize>,
     pub error: Option<String>,
 }
 
@@ -100,6 +108,8 @@ impl Library {
                 enabled: enabled.contains(&m.id.as_str()),
                 locked: registry.get(&m.id).is_some_and(|e| e.locked),
                 icon: addon_icon(store, &registry, m),
+                track: !m.is_builtin()
+                    && swofty_core::tracks::is_track_addon(&store.addons_dir().join(&m.id), m),
                 manifest: m.clone(),
             })
             .collect();
@@ -124,7 +134,7 @@ impl Library {
                 }
             })
             .collect();
-        let sections = registry
+        let sections: Vec<SectionItem> = registry
             .iter()
             .filter(|e| !e.declared && enabled.contains(&e.id()))
             .flat_map(|e| {
@@ -134,7 +144,9 @@ impl Library {
                 })
             })
             .collect();
+        let tracks_page = sections.iter().position(|s| s.spec.id == TRACKS_SECTION);
         Self {
+            tracks_page,
             rebuild: profile.rebuild_pending(&manifests),
             profile,
             addons,
