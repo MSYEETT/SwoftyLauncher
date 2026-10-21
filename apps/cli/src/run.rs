@@ -8,6 +8,7 @@ use anyhow::{Context, Result, bail};
 use clap::Args;
 use swofty_core::crash::{Event, LogScan, Symbols, fatal_name};
 use swofty_core::install::{Game, Installer, PROXY};
+use swofty_core::launch;
 use swofty_core::process::{
     descends_from, game_processes, game_running, steamvr_running, stop_game, stop_process,
 };
@@ -76,10 +77,11 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     let game = g.dir.clone();
     if let Some(running) = game_processes().first() {
         if !args.restart {
-            bail!(
-                "F1 25 is already running (pid {}); close it first, or pass --restart to close it",
-                running.pid
-            );
+            return Err(already_running(
+                store,
+                running.pid,
+                "close it first, or pass --restart to close it",
+            ));
         }
         stop_game().ok();
         while game_running() {
@@ -193,6 +195,13 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     let summary = follow.summary();
     settle(store, &g, &mut wrapper, relay.as_mut(), true);
     summary?;
+    if let Some(failure) = launch::Failure::read(&store.root).filter(|f| f.at >= asked) {
+        if relay.is_none() {
+            say("warning", &format!("{}: {}", failure.title(), failure.text()));
+        }
+        say("info", &format!("launch failed: {}", failure.headline()));
+        return Ok(ExitCode::FAILURE);
+    }
     Ok(ExitCode::SUCCESS)
 }
 
@@ -311,10 +320,11 @@ pub fn logs(store: &Store, dir: Option<PathBuf>, exe: Option<PathBuf>) -> Result
 
 fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<ExitCode> {
     if let Some(running) = game_processes().first() {
-        bail!(
-            "F1 25 is already running (pid {}); close it before launching it again",
-            running.pid
-        );
+        return Err(already_running(
+            store,
+            running.pid,
+            "close it before launching it again",
+        ));
     }
     let lock = crate::recover::lock(store, &info)?;
     crate::recover::stale(store, &lock, g, Scope::All, &info)?;
@@ -338,6 +348,7 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
     let game = g.dir.clone();
     let apply = request.apply || args.apply;
     quarantine::Report::clear(&store.root).ok();
+    launch::Failure::clear(&store.root).ok();
     let session = Session {
         store,
         game: g,
@@ -467,12 +478,13 @@ fn run_loop(
 ) -> Result<ExitCode> {
     let profile = profile.to_owned();
     let game = g.dir.clone();
+    let mut restarted = false;
     loop {
         if ending() {
             return Ok(ExitCode::FAILURE);
         }
         rebuild_if_needed(store, &profile, &game);
-        let code = play(store, args, config, request, &game, installed)?;
+        let code = play(store, args, config, request, &game, installed, restarted)?;
         let relaunch = match store.merge_requests(&profile, true) {
             Ok(Some(m)) => {
                 for c in &m.changed {
@@ -493,6 +505,7 @@ fn run_loop(
             return Ok(ExitCode::from(code.clamp(0, 255) as u8));
         }
         say("info", "Apply & restart: starting F1 25 again");
+        restarted = true;
         if installed.is_some() {
             say("info", &format!("reinstalling profile {profile}"));
             crate::build::install(store, &profile, g, true, &info)?;
@@ -525,8 +538,15 @@ fn play(
     request: &LaunchRequest,
     game: &Path,
     installed: Option<Instant>,
+    restarted: bool,
 ) -> Result<i32> {
     let placed_loader = check_loader(store, game, installed).map_err(Refused)?;
+    // The profile build and the offline play download before the first
+    // start can take minutes, time enough for F1 25 to be started from
+    // Steam. On Apply & restart the previous copy is still on its way out.
+    if let Some(pid) = running_copy(if restarted { RESTART_WAIT } else { Duration::ZERO }) {
+        return Err(already_running(store, pid, "close it before launching it again"));
+    }
     let dir = store.sessions_dir().join(stamp());
     std::fs::create_dir_all(&dir)?;
     let loader = game.join(LOADER_LOG);
@@ -678,7 +698,69 @@ fn play(
     {
         stop_process(g.pid).ok();
     }
+    note_failed_launch(store, &dir, code, launched.elapsed().unwrap_or_default());
     Ok(code)
+}
+
+const RESTART_WAIT: Duration = Duration::from_secs(15);
+const OTHERS_SETTLE: Duration = Duration::from_secs(3);
+
+/// A copy of F1 25 still running after `wait`.
+fn running_copy(wait: Duration) -> Option<u32> {
+    let until = Instant::now() + wait;
+    loop {
+        match game_processes().first() {
+            None => return None,
+            Some(g) if Instant::now() >= until => return Some(g.pid),
+            Some(_) => std::thread::sleep(Duration::from_millis(500)),
+        }
+    }
+}
+
+/// Refuse a launch over a running copy, and record why for the launcher.
+fn already_running(store: &Store, pid: u32, then: &str) -> anyhow::Error {
+    let failure = launch::Failure::new(launch::Cause::AlreadyRunning { pid });
+    if let Err(e) = failure.write(&store.root) {
+        info(&format!("could not record it for the launcher: {e}"));
+    }
+    anyhow::anyhow!("F1 25 is already running (pid {pid}); {then}")
+}
+
+/// After the game exits: a clean exit before its window is a launch that
+/// failed, which the session says and records instead of passing it off as
+/// a normal quit.
+fn note_failed_launch(store: &Store, dir: &Path, code: i32, ran: Duration) {
+    let loader = std::fs::read(dir.join("loader.log"))
+        .ok()
+        .map(|b| launch::LoaderSeen::scan(&String::from_utf8_lossy(&b)));
+    let ours = loader.and_then(|l| l.pid).filter(|_| cfg!(windows));
+    let Some(cause) = launch::classify(code, ran, loader.as_ref(), || other_copies(ours)) else {
+        return;
+    };
+    let failure = launch::Failure::new(cause);
+    say("warning", &format!("{}: {}", failure.title(), failure.text()));
+    if let Err(e) = failure.write(&store.root) {
+        info(&format!("could not record it for the launcher: {e}"));
+    }
+}
+
+/// The copies of F1 25 this session did not start. Ours has exited by now,
+/// though its process can take a moment to leave the list; under Proton the
+/// session's own processes are its descendants, on Windows the loader names
+/// the game's pid.
+fn other_copies(ours: Option<u32>) -> Vec<u32> {
+    let until = Instant::now() + OTHERS_SETTLE;
+    loop {
+        let others: Vec<u32> = game_processes()
+            .into_iter()
+            .filter(|g| Some(g.pid) != ours && !descends_from(g.pid, std::process::id()))
+            .map(|g| g.pid)
+            .collect();
+        if others.is_empty() || Instant::now() >= until {
+            return others;
+        }
+        std::thread::sleep(Duration::from_millis(250));
+    }
 }
 
 /// Before the game starts: the DLLs the session placed are still there with
