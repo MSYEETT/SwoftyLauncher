@@ -321,7 +321,9 @@
    "ai_vehicle_config.yielding.distance_to_pick_side",
    "ai_vehicle_config.yielding.pit_slow_down_distance",
    "ai_vehicle_config.yielding.pit_start_yield_speed",
-   "ai_vehicle_config.yielding.pit_yield_speed"
+   "ai_vehicle_config.yielding.pit_yield_speed",
+   "ai_vehicle_config.ers_use.xmode_enabled.push_on_in_or_out_lap_battery_level",
+   "ai_vehicle_config.ers_use.xmode_passive.push_on_in_or_out_lap_battery_level"
   ]
  },
  "ops": [
