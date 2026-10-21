@@ -7910,9 +7910,7 @@
      "how": "static"
     }
    ],
-   "used_by": [
-    "addons/f1-1990/native/src/save_separation.cpp"
-   ]
+   "used_by": []
   },
   {
    "id": "session.wheel_map_insert_call",
@@ -7963,9 +7961,7 @@
      "how": "static"
     }
    ],
-   "used_by": [
-    "addons/f1-1990/native/src/save_separation.cpp"
-   ]
+   "used_by": []
   },
   {
    "id": "core.request_save_op_kind2",
@@ -7989,9 +7985,7 @@
      "how": "static"
     }
    ],
-   "used_by": [
-    "addons/f1-1990/native/src/save_separation.cpp"
-   ]
+   "used_by": []
   },
   {
    "id": "core.request_save_op_kind1",
@@ -8015,9 +8009,7 @@
      "how": "static"
     }
    ],
-   "used_by": [
-    "addons/f1-1990/native/src/save_separation.cpp"
-   ]
+   "used_by": []
   },
   {
    "id": "career.needs_driver_contract",
