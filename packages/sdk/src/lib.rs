@@ -16,6 +16,8 @@ pub const CAREER_CONTENT_HEADER: &str = include_str!("../include/swofty/career_c
 pub const MEM_HEADER: &str = include_str!("../include/swofty/mem.hpp");
 pub const POPUP_HEADER: &str = include_str!("../include/swofty/popup.hpp");
 pub const LANG_HEADER: &str = include_str!("../include/swofty/lang.hpp");
+pub const CHARACTERS_HEADER: &str = include_str!("../include/swofty/characters.hpp");
+pub const CAREER_WIZARD_HEADER: &str = include_str!("../include/swofty/career_wizard.hpp");
 
 pub const CAREER_START_PICK: u32 = 0;
 pub const CAREER_START_NEW: u32 = 1;
@@ -497,6 +499,50 @@ pub struct SwoftyCareerContent {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct SwoftyCharacters {
+    pub available: Option<unsafe extern "C" fn() -> c_int>,
+    pub career_group: Option<unsafe extern "C" fn(out: *mut c_char, cap: usize) -> c_int>,
+    pub swap: Option<
+        unsafe extern "C" fn(
+            group: *const c_char,
+            character: *const c_char,
+            replacement: *const c_char,
+        ) -> c_int,
+    >,
+    pub mute: Option<unsafe extern "C" fn(group: *const c_char, speaker: *const c_char, on: c_int) -> c_int>,
+    pub string_set: Option<
+        unsafe extern "C" fn(
+            group: *const c_char,
+            language: *const c_char,
+            key: *const c_char,
+            text: *const c_char,
+        ) -> c_int,
+    >,
+    pub strings_json:
+        Option<unsafe extern "C" fn(group: *const c_char, json: *const c_char, len: usize) -> c_int>,
+    pub clear: Option<unsafe extern "C" fn(group: *const c_char) -> c_int>,
+    pub refresh: Option<unsafe extern "C" fn() -> c_int>,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SwoftyCareerWizard {
+    pub available: Option<unsafe extern "C" fn() -> c_int>,
+    pub group: Option<unsafe extern "C" fn(out: *mut c_char, cap: usize) -> c_int>,
+    pub starts_in_f1: Option<unsafe extern "C" fn(group: *const c_char, on: c_int) -> c_int>,
+    pub tile_route:
+        Option<unsafe extern "C" fn(group: *const c_char, from: *const c_char, to: *const c_char) -> c_int>,
+    pub replace_step: Option<unsafe extern "C" fn(group: *const c_char, step: u32, with: u32) -> c_int>,
+    pub force_option: Option<unsafe extern "C" fn(group: *const c_char, option: u32, with: u32) -> c_int>,
+    pub confirm_route:
+        Option<unsafe extern "C" fn(group: *const c_char, from: *const c_char, to: *const c_char) -> c_int>,
+    pub hide_driver_tab:
+        Option<unsafe extern "C" fn(group: *const c_char, tab: *const c_char, on: c_int) -> c_int>,
+    pub clear: Option<unsafe extern "C" fn(group: *const c_char) -> c_int>,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct SwoftyApi {
     pub version: u32,
     pub log: Option<LogFn>,
@@ -517,6 +563,8 @@ pub struct SwoftyApi {
     pub popup: *const SwoftyPopup,
     pub lang: *const SwoftyLang,
     pub career_content: *const SwoftyCareerContent,
+    pub characters: *const SwoftyCharacters,
+    pub career_wizard: *const SwoftyCareerWizard,
 }
 
 pub type SwoftyAddonInitFn = unsafe extern "C" fn(api: *const SwoftyApi) -> c_int;
@@ -603,7 +651,11 @@ mod tests {
 
     #[test]
     fn layout_matches_header() {
-        assert_eq!(std::mem::size_of::<SwoftyApi>(), 152);
+        assert_eq!(std::mem::size_of::<SwoftyApi>(), 168);
+        assert_eq!(std::mem::offset_of!(SwoftyApi, characters), 152);
+        assert_eq!(std::mem::offset_of!(SwoftyApi, career_wizard), 160);
+        assert_eq!(std::mem::size_of::<SwoftyCharacters>(), 64);
+        assert_eq!(std::mem::size_of::<SwoftyCareerWizard>(), 72);
         assert_eq!(std::mem::offset_of!(SwoftyApi, career), 120);
         assert_eq!(std::mem::offset_of!(SwoftyApi, popup), 128);
         assert_eq!(std::mem::offset_of!(SwoftyApi, lang), 136);
@@ -681,6 +733,10 @@ mod tests {
             "const SwoftyCareerContent *career_content;",
             "#define SWOFTY_EVENT_CAREER_CONTENT_PRESSED \"career.content.pressed\"",
             "} SwoftyCareerContentInfo;",
+            "const SwoftyCharacters *characters;",
+            "const SwoftyCareerWizard *career_wizard;",
+            "#define SWOFTY_API_CHARACTERS 1",
+            "#define SWOFTY_API_CAREER_WIZARD 1",
             "#define SWOFTY_EVENT_CAREER_HUB \"career.hub\"",
             "} SwoftyCareerState;",
             "#define SWOFTY_EVENT_SESSION_START \"session.start\"",
@@ -756,6 +812,14 @@ mod tests {
             CAREER_CONTENT_HEADER
         );
         assert!(CAREER_CONTENT_HEADER.contains(CAREER_CONTENT_EXPORT));
+        assert_eq!(
+            include_str!("../../../templates/addon/native/include/swofty/characters.hpp"),
+            CHARACTERS_HEADER
+        );
+        assert_eq!(
+            include_str!("../../../templates/addon/native/include/swofty/career_wizard.hpp"),
+            CAREER_WIZARD_HEADER
+        );
     }
 
     #[test]
