@@ -66,27 +66,26 @@ Write values as strings, whatever the field's type. For a bool, use `True` or `F
 
 ## 3. Add a row
 
-To add a row, use `add-row`: it copies a stock row, changes some fields and raises the table's row count. List the fields to copy in the file's `fields` map, keyed by table and row name:
+To add a row, use `add-row`: it copies a stock row with every key, nested ones included, changes some fields and raises the table's row count:
 
 ```json [db/grid.json]
 {
   "schema_version": 1,
-  "fields": {
-    "entrants.teams.team": ["_metadata_", "stat_id", "display_name_code"]
-  },
   "ops": [
     {
       "op": "add-row",
       "table": "entrants.teams",
       "from": "entrants.teams.team[_metadata_=williams_26]",
-      "set": { "_metadata_": "team12_26", "stat_id": "500", "display_name_code": "T12" }
+      "set": { "_metadata_": "team12_26", "display_name_code": "T12" }
     }
   ]
 }
 ```
 
-::: danger List every field
-Include every field the row has, even nested ones such as `ai_vehicle_config.*` on vehicles: the game reads them all and crashes if one is missing. Give your new row a new `_metadata_` label. For teams and vehicles, you also need a `stat_id` above the stock maximum (team 499, vehicle 508). Pass the table's real path to `add-row`, not a `{hash}`.
+Give your new row a new `_metadata_` label. In a table indexed by `stat_id`, such as teams, vehicles and entrant lists, the copy gets the next free id; the build prints it. Pass the table's real path to `add-row`, not a `{hash}`.
+
+::: warning Read the build's add-row lines
+The database keeps no key names, so the build names the source row's keys from the launcher's key catalogue. It warns when a row shape isn't in the catalogue, because a key the game only builds at run time may then be missing; see [Key names](/reference/ops/database#key-names). A missing key crashes the game.
 :::
 
 You'll find the full field sets in [Adding a row](/reference/gamedb/recipes#adding-a-row).

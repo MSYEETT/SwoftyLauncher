@@ -34,7 +34,8 @@ List the file under the field for its kind:
 |---|---|
 | `schema_version` | `1` |
 | `ops` | The ops, applied in order |
-| `fields` | Optional. For `add-row`: the fields to copy, keyed by `<table>.<row name>` ([Add a row](./database#_3-add-a-row)) |
+| `fields` | Optional. For `add-row`: extra key names to copy, keyed by `<table>.<row name>`, or the only ones with `copy: listed` ([Key names](/reference/ops/database#key-names)) |
+| `strict` | Optional. `true` fails the build on an `add-row` completeness warning ([The completeness check](/reference/ops/database#the-completeness-check)) |
 
 Every op takes two extras from your addon's [`db` settings](/reference/addons/settings#_3-read-a-db-setting): <span v-pre>`{{id}}`</span> in any string is replaced with the setting's value, and `"when": { "id": value }` keeps the op only when each listed setting has that value.
 

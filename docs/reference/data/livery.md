@@ -91,7 +91,7 @@ Give your special livery a row in `customisation.custom_se_liveries.se_liveries`
 
 The first op copies the stock Miami 2026 livery row, giving your livery a new label, id and archive. The second copies Miami's unlock row and points it at your livery. Choose a `statId` that no other unlock row uses.
 
-Because `add-row` copies every field of the source row, you need to list them all in the file's `fields` map. See [Add a row](./database#_3-add-a-row).
+`add-row` copies every key of the source row, so the copies need no `fields` list. See [Add a row](./database#_3-add-a-row).
 
 ## 3. The car
 

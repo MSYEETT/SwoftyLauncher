@@ -27,7 +27,7 @@ Values are strings. Write arrays as comma-separated values, such as `"0,-0.6,0"`
 | Operation | Required fields | Purpose |
 |---|---|---|
 | `set` | `select`, `field`, `value` or `value_from` | Change a field |
-| `add-row` | `table`, `from`, `set` | Copy a row, then change its fields |
+| `add-row` | `table`, `from`, `set`; optional `copy`, `stat_id` | Copy a row with every key, then change its fields |
 | `remove-row` | `select` | Remove a row. Not built yet: a build with it fails |
 | `list-append` | `select`, `field`, `value` | Add a value to a list if missing. Not built yet |
 | `list-remove` | `select`, `field`, `value` | Remove a value from a list. Not built yet |
@@ -36,20 +36,66 @@ Values are strings. Write arrays as comma-separated values, such as `"0,-0.6,0"`
 
 For `set`, use `create: true` and a `type` tag to add a missing field. `value_from` copies a value from another database path. A `set` whose `select` matches no row, or whose field doesn't exist, fails the build.
 
-`add-row` copies the fields listed for the table in the file's `fields` map, keyed by table and row name. The key is `table` as written or its resolved path (`track_data.game_setup.TrackDataSet_16.TrackData`). Every listed field must exist on the source row:
+`add-row` copies every key of the source row: its fields, its sub-object keys such as `ai_vehicle_config.*` on vehicles, and its nested tables with their `_instancecount_` keys and rows, at any depth. `set` then changes keys of the copy. Every `set` key must be a key the copy has:
 
 ```json
 {
   "schema_version": 1,
-  "fields": { "entrants.teams.team": ["_metadata_", "stat_id", "display_name_code"] },
   "ops": [
     { "op": "add-row", "table": "entrants.teams", "from": "entrants.teams.team[_metadata_=williams_26]",
-      "set": { "_metadata_": "team12_26", "stat_id": "500", "display_name_code": "T12" } }
+      "set": { "_metadata_": "team12_26", "display_name_code": "T12" } }
   ]
 }
 ```
 
-List every field of the row, including nested ones such as `ai_vehicle_config.*` on vehicles. A row missing a field the game reads crashes the game.
+| Field | Values | Default |
+|---|---|---|
+| `copy` | `all`: every key of the source row and every key in the file's `fields` list. `listed`: only the keys in the `fields` list | `all` |
+| `stat_id` | `fresh`: the next free id above the table's highest `stat_id`. `keep`: the source row's id | `fresh` in a top-level table whose rows all have different ids, `keep` elsewhere |
+
+### Key names
+
+The database stores a hash of each key's path, not the path, so the build can't list a row's keys. It probes the source row with the launcher's key catalogue, `row_keys.txt.gz`: every key path found under each row shape of the stock database, generated from the identifier strings in `F1_25.exe`, `tools/gamedb/names.txt`, the key catalogue and the run-time compositions in `tools/gamedb/compositions.txt`, such as `player.driver.preloaded` on entrant setup modes. A row shape is a row path with its row numbers written `_N`: `entrants.entrant_setup_modes.entrant_setup_mode_N`.
+
+The file's `fields` map, keyed by `table` as written or its resolved path and the row name, adds names the catalogue lacks. Every listed field must exist on the source row:
+
+```json
+"fields": { "entrants.teams.team": ["_metadata_", "stat_id", "display_name_code"] }
+```
+
+`copy: listed` keeps the behaviour of launcher 1.2.1 and earlier: the copy has only the listed fields, and the `fields` list is required.
+
+### The completeness check
+
+The build prints how many keys each `add-row` copied, and checks the copy against the catalogue:
+
+| Finding | Default | `copy` |
+|---|---|---|
+| A key of the source row that the `fields` list doesn't name | Line: `copied 9 key(s) the fields list for … doesn't name: …` | `all` |
+| A key of the source row that the `fields` list doesn't name, so the copy lacks it | Warning: `the fields list for … misses 9 key(s) of the source row, not copied: …` | `listed` |
+| A row shape, of the row or a nested row, that has no catalogue entry | Warning: `the key catalogue has no entry for …` | both |
+
+Rows past a row count that `set` lowers don't count as missing. With `"strict": true` at the top of the op file, each warning fails the build.
+
+The build can't count the keys it can't name. An FNV-1a key gives no sign of the path it hashes, and the file holds records in hash order, so a key under the source row and a key elsewhere look alike. A key that only the game's code builds at run time, from names the exe holds in pieces, is missing from the catalogue until `tools/gamedb/compositions.txt` lists it. Regenerate the catalogue after changing that file:
+
+```sh
+cargo run --release -p swofty-core --example row_keys -- --game <F1 25 folder>
+```
+
+`cargo run -p swofty-core --example check_add_rows -- --game <F1 25 folder> --addon <addon folder>` applies an addon's database files to the stock database and prints the check. `--listed` checks the files as launcher 1.2.1 copied them; `--strict` stops at the first finding.
+
+### Stat ids
+
+Tables indexed by `stat_id` find a row by its id, so a copy that keeps its source's id hides the source or another copy. Every stock top-level table with a `stat_id` on each row gives each row its own id, except `f1_world.map.markers.TrackMapMarker_N`, `schedule.events.fixed_event_N` and `track_data.game_setup.TrackDataSet_N`. Among them: `entrants.entrant_lists.entrant_list_N`, `entrants.entrant_setup_modes.entrant_setup_mode_N`, `entrants.vehicles.vehicle_packages.vehicle_package_N`, `entrants.teams.team_N`, `entrants.drivers.driver_N`, `entrants.vehicles.vehicle_N` and `game_setup.game_setup_modes.game_setup_mode_N`.
+
+A copy into such a table gets the next free id above the table's highest, and the build prints it:
+
+```text
+f1-1990: add-row entrants.entrant_lists.entrant_list_68 (from entrants.entrant_lists.entrant_list[_metadata_=f1_2026]): stat_id 105 (the source's is 67)
+```
+
+A `stat_id` in `set` wins. A copy into a nested table, such as an entrant of an entrant list, keeps its source's id; the build prints a line when the nested table's ids were all different.
 
 An `unlockable_se_livery` row added to an `unlockable_content.unlockable_items.unlockable_item_list_<n>.folder_<m>` table, by `add-row` or by `put-record`, unlocks the new special livery. The build writes the row's ownership key, the djb2 hash of `eSELivery` and the row's `_metadata_`, to the `owned_items` block of `swofty/settings.json`, and `swofty_core.dll` reports that key as owned to the livery picker. A key that any stock database value also gives is left out with a warning.
 
@@ -79,7 +125,7 @@ Use labels where possible. Row numbers can change between game builds. The datas
 
 ## The row-count rule
 
-Adding a row also updates the table's `_instancecount_`. The game ignores rows beyond this count. A new row needs every key a stock row of the table has; see [Adding a row](/reference/gamedb/recipes#adding-a-row).
+Adding a row also updates the table's `_instancecount_`. The game ignores rows beyond this count. A new row needs every key a stock row of the table has, which `add-row` copies; see [Key names](#key-names) and [Adding a row](/reference/gamedb/recipes#adding-a-row).
 
 `add-row` raises the count of the table `table` resolves to. Adding to `track_data.game_setup.TrackDataSet[_metadata_=f1_2026]` raises `track_data.game_setup.TrackDataSet_16._TrackData_instancecount_`.
 

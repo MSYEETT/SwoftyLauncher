@@ -44,14 +44,14 @@ Both halves are required:
 
 New labels have no rows in side tables keyed by team or vehicle label (kits, showroom, stings, academies, career ratings, DLC unlocks, special liveries, equal-performance entrants). Cars and teams still load without them; no reader of those tables has been audited.
 
-`add-row` copies the listed fields of a source row and raises the count:
+`add-row` copies every key of a source row, gives the copy a new `stat_id` in a table indexed by it, and raises the count:
 
 ```json
 { "op": "add-row", "table": "entrants.teams", "from": "entrants.teams.team[_metadata_=williams_26]",
-  "set": { "_metadata_": "team12_26", "stat_id": "500" } }
+  "set": { "_metadata_": "team12_26" } }
 ```
 
-It needs the table's real path (`entrants.teams`, not a `{hash}`) and the row's field list in the file's [`fields` map](/reference/ops/database#operations). Every listed field must exist on the source row. `addons/custom-grid-size/db/grid.json` lists every field of team, vehicle and entrant rows.
+It needs the table's real path (`entrants.teams`, not a `{hash}`). The build names the source row's keys from the launcher's key catalogue and warns when it can't vouch for a copy; see [Key names](/reference/ops/database#key-names).
 
 ## Grid size
 
