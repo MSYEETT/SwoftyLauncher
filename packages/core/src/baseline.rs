@@ -283,6 +283,10 @@ pub struct Baseline {
     pub files: BTreeMap<String, FileRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rebuild: Option<Rebuild>,
+    /// Every file Steam installed had its size when this build was last
+    /// checked against Steam's manifests (see [`crate::stock`]).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub stock_checked: bool,
 }
 
 /// Set on a baseline started over because the previous one was damaged.
@@ -305,13 +309,16 @@ impl Rebuild {
 
 pub const DAMAGED: &str = "the launcher's record of your original game files is damaged; verify the game files in Steam, then press Play again";
 
+/// Steam's record of the game's files: `Some(true)` when the file at `path`
+/// is Steam's copy of `rel`, `Some(false)` when it differs, `None` when
+/// Steam's list is unknown or doesn't hold `rel`.
 pub trait DepotHashes {
-    fn sha256(&self, rel: &str) -> Option<String>;
+    fn stock(&self, rel: &str, path: &Path) -> Result<Option<bool>>;
 }
 
 impl DepotHashes for () {
-    fn sha256(&self, _: &str) -> Option<String> {
-        None
+    fn stock(&self, _: &str, _: &Path) -> Result<Option<bool>> {
+        Ok(None)
     }
 }
 
@@ -323,6 +330,7 @@ impl Baseline {
             exe_sha256: id.exe_sha256.clone(),
             files: BTreeMap::new(),
             rebuild: None,
+            stock_checked: false,
         }
     }
 
@@ -396,16 +404,12 @@ impl Baseline {
         if !self.files.contains_key(rel) {
             let path = game.join(rel);
             let size = std::fs::metadata(&path).map_err(io_err(&path))?.len();
-            let sha = objects.put_file(&path)?;
-            let source = match depot.sha256(rel) {
-                Some(d) if d == sha => Source::Depot,
-                Some(d) => {
-                    return Err(Error::Other(format!(
-                        "{rel} does not match Steam's depot hash ({d}); verify the game files"
-                    )));
-                }
+            let source = match depot.stock(rel, &path)? {
+                Some(true) => Source::Depot,
+                Some(false) => return Err(Error::NotStock(vec![rel.to_owned()])),
                 None => Source::FirstSight,
             };
+            let sha = objects.put_file(&path)?;
             self.files.insert(
                 rel.to_owned(),
                 FileRecord {
