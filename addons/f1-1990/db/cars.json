@@ -335,7 +335,6 @@
     "ai_package_folder": "f1_2026_vehicle_package",
     "tyre_compounds_asset_group": "f1_1990_vehicle_package/tyrecompounds/tyrecompounds",
     "blob_shadow_decal": "eaid://f1_1990_vehicle_package/shared/ao/materials/blobshadowdecal.material",
-    "has_cockpit_halo": "False",
     "_metadata_": "f1_1990",
     "stat_id": "59",
     "resource_path": "f1_1990_vehicle_package/teams/[FILENAME]/wep/[FILENAME]"
@@ -358,7 +357,6 @@
     "ai_package_folder": "f1_2026_vehicle_package",
     "tyre_compounds_asset_group": "f1_1990_vehicle_package/tyrecompounds/tyrecompounds",
     "blob_shadow_decal": "eaid://f1_1990_vehicle_package/shared/ao/materials/blobshadowdecal.material",
-    "has_cockpit_halo": "False",
     "_metadata_": "f1_1990b",
     "stat_id": "60",
     "resource_path": "f1_1990_vehicle_b_specs/teams/[FILENAME]/wep/[FILENAME]",
