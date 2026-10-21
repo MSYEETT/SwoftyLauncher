@@ -42,6 +42,17 @@
    "timing_tower_texture_path",
    "ui_team_colour"
   ],
+  "animation.team_data.teamData": [
+   "_metadata_",
+   "team.team",
+   "team_boss"
+  ],
+  "animation.team_data.principal_characters.character": [
+   "_metadata_",
+   "assetgroup",
+   "is_male",
+   "scene"
+  ],
   "entrants.drivers.driver": [
    "_metadata_",
    "ai_driver_config.alongside.min_presence_within_buffer",
@@ -1290,6 +1301,252 @@
     "tertiary_colour": "-15057780",
     "timing_tower_texture_path": "arrows_1990",
     "ui_team_colour": "-3665874"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data.principal_characters",
+   "from": "animation.team_data.principal_characters.character[_metadata_=andrea_stella]",
+   "set": {
+    "_metadata_": "f1990_boss_mclaren"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data",
+   "from": "animation.team_data.teamData[_metadata_=mclaren_2026]",
+   "set": {
+    "_metadata_": "mclaren_1990",
+    "team.team": "mclaren_1990",
+    "team_boss": "f1990_boss_mclaren"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data.principal_characters",
+   "from": "animation.team_data.principal_characters.character[_metadata_=fred_vasseur]",
+   "set": {
+    "_metadata_": "f1990_boss_ferrari"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data",
+   "from": "animation.team_data.teamData[_metadata_=ferrari_2026]",
+   "set": {
+    "_metadata_": "ferrari_1990",
+    "team.team": "ferrari_1990",
+    "team_boss": "f1990_boss_ferrari"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data.principal_characters",
+   "from": "animation.team_data.principal_characters.character[_metadata_=james_vowles]",
+   "set": {
+    "_metadata_": "f1990_boss_williams"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data",
+   "from": "animation.team_data.teamData[_metadata_=williams_2026]",
+   "set": {
+    "_metadata_": "williams_1990",
+    "team.team": "williams_1990",
+    "team_boss": "f1990_boss_williams"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data.principal_characters",
+   "from": "animation.team_data.principal_characters.character[_metadata_=steve_nielsen]",
+   "set": {
+    "_metadata_": "f1990_boss_benetton"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data",
+   "from": "animation.team_data.teamData[_metadata_=renault_2026]",
+   "set": {
+    "_metadata_": "benetton_1990",
+    "team.team": "benetton_1990",
+    "team_boss": "f1990_boss_benetton"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data.principal_characters",
+   "from": "animation.team_data.principal_characters.character[_metadata_=toto_wolff]",
+   "set": {
+    "_metadata_": "f1990_boss_tyrrell"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data",
+   "from": "animation.team_data.teamData[_metadata_=mercedes_2026]",
+   "set": {
+    "_metadata_": "tyrrell_1990",
+    "team.team": "tyrrell_1990",
+    "team_boss": "f1990_boss_tyrrell"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data.principal_characters",
+   "from": "animation.team_data.principal_characters.character[_metadata_=laurent_mekies]",
+   "set": {
+    "_metadata_": "f1990_boss_lotus"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data",
+   "from": "animation.team_data.teamData[_metadata_=redbull_2026]",
+   "set": {
+    "_metadata_": "lotus_1990",
+    "team.team": "lotus_1990",
+    "team_boss": "f1990_boss_lotus"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data.principal_characters",
+   "from": "animation.team_data.principal_characters.character[_metadata_=adrian_newey]",
+   "set": {
+    "_metadata_": "f1990_boss_leytonhouse"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data",
+   "from": "animation.team_data.teamData[_metadata_=forceindia_2026]",
+   "set": {
+    "_metadata_": "leytonhouse_1990",
+    "team.team": "leytonhouse_1990",
+    "team_boss": "f1990_boss_leytonhouse"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data.principal_characters",
+   "from": "animation.team_data.principal_characters.character[_metadata_=james_vowles]",
+   "set": {
+    "_metadata_": "f1990_boss_larrousse"
+   },
+   "when": {
+    "cars": 26
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data",
+   "from": "animation.team_data.teamData[_metadata_=williams_2026]",
+   "set": {
+    "_metadata_": "larrousse_1990",
+    "team.team": "larrousse_1990",
+    "team_boss": "f1990_boss_larrousse"
+   },
+   "when": {
+    "cars": 26
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data.principal_characters",
+   "from": "animation.team_data.principal_characters.character[_metadata_=mattia_binotto]",
+   "set": {
+    "_metadata_": "f1990_boss_ligier"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data",
+   "from": "animation.team_data.teamData[_metadata_=sauber_2026]",
+   "set": {
+    "_metadata_": "ligier_1990",
+    "team.team": "ligier_1990",
+    "team_boss": "f1990_boss_ligier"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data.principal_characters",
+   "from": "animation.team_data.principal_characters.character[_metadata_=alan_permane]",
+   "set": {
+    "_metadata_": "f1990_boss_minardi"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data",
+   "from": "animation.team_data.teamData[_metadata_=tororosso_2026]",
+   "set": {
+    "_metadata_": "minardi_1990",
+    "team.team": "minardi_1990",
+    "team_boss": "f1990_boss_minardi"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data.principal_characters",
+   "from": "animation.team_data.principal_characters.character[_metadata_=male_187]",
+   "set": {
+    "_metadata_": "f1990_boss_brabham"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data",
+   "from": "animation.team_data.teamData[_metadata_=cadillac_2026]",
+   "set": {
+    "_metadata_": "brabham_1990",
+    "team.team": "brabham_1990",
+    "team_boss": "f1990_boss_brabham"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data.principal_characters",
+   "from": "animation.team_data.principal_characters.character[_metadata_=ayao_komatsu]",
+   "set": {
+    "_metadata_": "f1990_boss_dallara"
+   },
+   "when": {
+    "cars": 26
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data",
+   "from": "animation.team_data.teamData[_metadata_=haas_2026]",
+   "set": {
+    "_metadata_": "dallara_1990",
+    "team.team": "dallara_1990",
+    "team_boss": "f1990_boss_dallara"
+   },
+   "when": {
+    "cars": 26
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data.principal_characters",
+   "from": "animation.team_data.principal_characters.character[_metadata_=ayao_komatsu]",
+   "set": {
+    "_metadata_": "f1990_boss_arrows"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "animation.team_data",
+   "from": "animation.team_data.teamData[_metadata_=haas_2026]",
+   "set": {
+    "_metadata_": "arrows_1990",
+    "team.team": "arrows_1990",
+    "team_boss": "f1990_boss_arrows"
    }
   },
   {
