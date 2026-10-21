@@ -12,11 +12,29 @@
   },
   {
    "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mclaren_driver_01]",
+   "field": "vehicle",
+   "value": "mclaren_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
+   }
+  },
+  {
+   "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mclaren_driver_02]",
    "field": "vehicle",
    "value": "mclaren_1990",
    "when": {
     "test_grand_prix": "all"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mclaren_driver_02]",
+   "field": "vehicle",
+   "value": "mclaren_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
    }
   },
   {
@@ -30,11 +48,29 @@
   },
   {
    "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mercedes_driver_01]",
+   "field": "vehicle",
+   "value": "tyrrell_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
+   }
+  },
+  {
+   "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mercedes_driver_02]",
    "field": "vehicle",
    "value": "tyrrell_1990",
    "when": {
     "test_grand_prix": "all"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=mercedes_driver_02]",
+   "field": "vehicle",
+   "value": "tyrrell_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
    }
   },
   {
@@ -48,6 +84,15 @@
   },
   {
    "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=redbull_driver_01]",
+   "field": "vehicle",
+   "value": "lotus_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
+   }
+  },
+  {
+   "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=redbull_driver_02]",
    "field": "vehicle",
    "value": "lotus_1990",
@@ -57,6 +102,15 @@
   },
   {
    "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=redbull_driver_02]",
+   "field": "vehicle",
+   "value": "lotus_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
+   }
+  },
+  {
+   "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=ferrari_driver_01]",
    "field": "vehicle",
    "value": "ferrari_1990",
@@ -75,6 +129,15 @@
   },
   {
    "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=ferrari_driver_01]",
+   "field": "vehicle",
+   "value": "ferrari_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
+   }
+  },
+  {
+   "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=ferrari_driver_02]",
    "field": "vehicle",
    "value": "ferrari_1990",
@@ -89,6 +152,15 @@
    "value": "ferrari_1990",
    "when": {
     "test_grand_prix": "all"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=ferrari_driver_02]",
+   "field": "vehicle",
+   "value": "ferrari_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
    }
   },
   {
@@ -98,6 +170,15 @@
    "value": "williams_1990",
    "when": {
     "test_grand_prix": "all"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=williams_driver_01]",
+   "field": "vehicle",
+   "value": "williams_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
    }
   },
   {
@@ -116,6 +197,15 @@
    "value": "williams_1990",
    "when": {
     "test_grand_prix": "all"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=williams_driver_02]",
+   "field": "vehicle",
+   "value": "williams_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
    }
   },
   {
@@ -138,11 +228,29 @@
   },
   {
    "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=vcarb_driver_01]",
+   "field": "vehicle",
+   "value": "minardi_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
+   }
+  },
+  {
+   "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=vcarb_driver_02]",
    "field": "vehicle",
    "value": "minardi_1990",
    "when": {
     "test_grand_prix": "all"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=vcarb_driver_02]",
+   "field": "vehicle",
+   "value": "minardi_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
    }
   },
   {
@@ -156,6 +264,15 @@
   },
   {
    "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=astonmartin_driver_01]",
+   "field": "vehicle",
+   "value": "leytonhouse_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
+   }
+  },
+  {
+   "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=astonmartin_driver_02]",
    "field": "vehicle",
    "value": "leytonhouse_1990",
@@ -165,11 +282,29 @@
   },
   {
    "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=astonmartin_driver_02]",
+   "field": "vehicle",
+   "value": "leytonhouse_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
+   }
+  },
+  {
+   "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=haas_driver_01]",
    "field": "vehicle",
    "value": "arrows_1990",
    "when": {
     "test_grand_prix": "all"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=haas_driver_01]",
+   "field": "vehicle",
+   "value": "arrows_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
    }
   },
   {
@@ -188,6 +323,15 @@
    "value": "arrows_1990",
    "when": {
     "test_grand_prix": "all"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=haas_driver_02]",
+   "field": "vehicle",
+   "value": "arrows_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
    }
   },
   {
@@ -210,11 +354,29 @@
   },
   {
    "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=kick_driver_01]",
+   "field": "vehicle",
+   "value": "ligier_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
+   }
+  },
+  {
+   "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=kick_driver_02]",
    "field": "vehicle",
    "value": "ligier_1990",
    "when": {
     "test_grand_prix": "all"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=kick_driver_02]",
+   "field": "vehicle",
+   "value": "ligier_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
    }
   },
   {
@@ -228,11 +390,29 @@
   },
   {
    "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=alpine_driver_01]",
+   "field": "vehicle",
+   "value": "benetton_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
+   }
+  },
+  {
+   "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=alpine_driver_02]",
    "field": "vehicle",
    "value": "benetton_1990",
    "when": {
     "test_grand_prix": "all"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=alpine_driver_02]",
+   "field": "vehicle",
+   "value": "benetton_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
    }
   },
   {
@@ -246,11 +426,29 @@
   },
   {
    "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=gm_cadillac_01]",
+   "field": "vehicle",
+   "value": "brabham_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
+   }
+  },
+  {
+   "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=gm_cadillac_02]",
    "field": "vehicle",
    "value": "brabham_1990",
    "when": {
     "test_grand_prix": "all"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=gm_cadillac_02]",
+   "field": "vehicle",
+   "value": "brabham_1990b",
+   "when": {
+    "test_grand_prix": "bspec"
    }
   }
  ]

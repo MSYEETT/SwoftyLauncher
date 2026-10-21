@@ -35,11 +35,19 @@ SOURCES = {
     'minardi': 'gridn13_toro_rosso', 'brabham': 'gridn13_gm_cadillac', 'dallara': 'gridn13_dallara',
     'arrows': 'gridn13_haas',
 }
+SOURCES_B = {
+    'mclaren': 'gridn13_mclaren_late', 'ferrari': 'gridc13b_ferrari', 'williams': 'gridc13b_williams',
+    'benetton': 'gridc13b_lotus', 'tyrrell': 'gridc13b_mercedes', 'lotus': 'gridc13b_redbull',
+    'march': 'gridn13b_force_india', 'larrousse': 'gridn13b_larrousse', 'ligier_prost': 'gridn13b_sauber',
+    'minardi': 'gridn13b_toro_rosso', 'brabham': 'gridn13b_gm_cadillac', 'dallara': 'gridn13b_dallara',
+    'arrows': 'gridn13b_haas',
+}
 COMMON = '/mnt/work/.mp45b/porter_a/tries/tyres13/common.erp'
 TYRES = '2025_asset_groups/f1_2026_vehicle_package/tyrecompounds/tyrecompounds.erp'
 
 OLD = f'eaid://{C.SOURCE_PACKAGE}/'.encode()
 NEW = f'eaid://{C.PACKAGE_FOLDER}/'.encode()
+NEW_B = f'eaid://{C.PACKAGE_B_FOLDER}/'.encode()
 EAID = re.compile(re.escape(OLD) + rb'[^\x00]*')
 FOLDER_COPIES = ('World', 'EventGraph', 'WOInstances')
 
@@ -48,9 +56,30 @@ def kind(r):
     return r.type.rstrip(b'\0').decode()
 
 
-def rename_bytes(data, donor=None, stem=None):
+def local_shared(e):
+    keys = set()
+    for r in e.res:
+        n = r.name.encode()
+        if not n.startswith(OLD + b'shared/'):
+            continue
+        n = n[len(OLD):].split(b'?')[0]
+        keys.add(n)
+        for ext in (b'.image', b'.sampler'):
+            if n.endswith(ext):
+                keys.add(n[:-len(ext)])
+    return keys
+
+
+def rename_bytes(data, donor=None, stem=None, bspec=False, shared=frozenset()):
+    vtf = f'teams/{donor}/handling/{donor}.vtf'.encode() if donor else None
+
     def sub(m):
-        s = NEW + m.group(0)[len(OLD):]
+        rest = m.group(0)[len(OLD):]
+        if rest.startswith(b'teams/'):
+            to_b = bspec and not (vtf and rest.startswith(vtf))
+        else:
+            to_b = bspec and rest.split(b'?')[0] in shared
+        s = (NEW_B if to_b else NEW) + rest
         if donor and donor != stem:
             s = s.replace(donor.encode(), stem.encode())
         assert len(s) == len(m.group(0))
@@ -58,16 +87,17 @@ def rename_bytes(data, donor=None, stem=None):
     return EAID.sub(sub, data)
 
 
-def rename_archive(e, donor=None, stem=None):
+def rename_archive(e, donor=None, stem=None, bspec=False):
+    shared = local_shared(e) if bspec else frozenset()
     renamed = rewritten = 0
     for r in e.res:
-        n = rename_bytes(r.name.encode(), donor, stem).decode()
+        n = rename_bytes(r.name.encode(), donor, stem, bspec, shared).decode()
         if n != r.name:
             r.name = n
             renamed += 1
         for i in range(len(r.frags)):
             d = e.frag_data(r, i)
-            nd = rename_bytes(d, donor, stem)
+            nd = rename_bytes(d, donor, stem, bspec, shared)
             if nd != d:
                 e.set_frag(r, i, nd)
                 rewritten += 1
@@ -95,9 +125,10 @@ def leftovers(e, needle):
     return n
 
 
-def build_car(c, src, out):
+def build_car(c, src, out, bspec=False):
     e = erpw.Erp(src)
-    renamed, rewritten = rename_archive(e, c.donor, c.stem)
+    renamed, rewritten = rename_archive(e, c.donor, c.stem, bspec)
+    folder_pkg = C.PACKAGE_B_FOLDER if bspec else C.PACKAGE_FOLDER
     vtf = [f'eaid://{C.PACKAGE_FOLDER}/teams/{c.stem}/handling/{c.stem}.vtf']
     before = len(e.res)
     e.res = [r for r in e.res if r.name not in vtf]
@@ -111,15 +142,18 @@ def build_car(c, src, out):
                 e.res.append(copy_res(e, r, r.name.replace(old, new)))
                 extra += 1
     world = [r.name for r in e.res if kind(r) == 'World']
-    want = f'eaid://{C.PACKAGE_FOLDER}/teams/{c.folder}/wep/{c.folder}.wep'
+    want = f'eaid://{folder_pkg}/teams/{c.folder}/wep/{c.folder}.wep'
     if want not in world:
         raise ValueError(f'{c.team}: no World {want} (have {world})')
     left = leftovers(e, OLD)
     if left:
         raise ValueError(f'{c.team}: {left} eaid reference(s) still name {OLD.decode()}')
+    other = [r.name for r in e.res if bspec and r.name.startswith(NEW.decode())]
+    if other:
+        raise ValueError(f'{c.team}: the B-spec archive carries A-package resources {other[:3]}')
     os.makedirs(os.path.dirname(out), exist_ok=True)
     e.to_file(out)
-    return {'team': c.team, 'folder': c.folder, 'stem': c.stem, 'source': os.path.relpath(src, TRIES),
+    return {'team': c.team, 'folder': c.folder, 'stem': c.stem, 'bspec': bspec, 'source': os.path.relpath(src, TRIES),
             'resources': len(e.res), 'renamed': renamed, 'rewritten': rewritten, 'handling_dropped': dropped,
             'folder_copies': extra, 'bytes': os.path.getsize(out)}
 
@@ -144,8 +178,14 @@ def ops():
     for c in C.CARS:
         out.append({'op': 'file.put', 'source': f'erp/teams/{c.folder}/wep/{c.folder}.erp', 'target': C.archive(c)})
     for c in C.CARS:
+        out.append({'op': 'file.put', 'source': f'erp/teams_b/{c.folder}/wep/{c.folder}.erp', 'target': C.archive_b(c)})
+    for c in C.CARS:
         out.append({'op': 'group.register', 'group': C.group(c),
                     'erps': [C.COMMON_ARCHIVE, C.archive(c), C.handling_archive(c)],
+                    'template': f'asset_groups/{C.SOURCE_PACKAGE}/teams/{c.folder}/wep/{c.folder}.assetgroup'})
+    for c in C.CARS:
+        out.append({'op': 'group.register', 'group': C.group_b(c),
+                    'erps': [C.COMMON_ARCHIVE, C.archive_b(c), C.handling_archive(c)],
                     'template': f'asset_groups/{C.SOURCE_PACKAGE}/teams/{c.folder}/wep/{c.folder}.assetgroup'})
     return {'schema_version': 1, 'ops': out}
 
@@ -168,6 +208,8 @@ def test_ops():
                             'when': {'test_grand_prix': 'ferrari'}})
             out.append({'op': 'set', 'select': sel, 'field': 'vehicle', 'value': by_folder[folder].vehicle,
                         'when': {'test_grand_prix': 'all'}})
+            out.append({'op': 'set', 'select': sel, 'field': 'vehicle', 'value': by_folder[folder].vehicle_b,
+                        'when': {'test_grand_prix': 'bspec'}})
             if folder in MYTEAM_SEATS:
                 out.append({'op': 'set', 'select': sel, 'field': 'vehicle',
                             'value': by_folder[MYTEAM_SEATS[folder]].vehicle, 'when': {'test_grand_prix': 'myteam'}})
@@ -182,6 +224,7 @@ def main():
     ap.add_argument('--common', default=COMMON, help='the 13-inch common.erp (f1_2026 names)')
     ap.add_argument('--only', help='comma-separated teams to build')
     ap.add_argument('--ops-only', action='store_true', help='write assets/cars.json and db/test.json and stop')
+    ap.add_argument('--bspec-only', action='store_true', help='build only the B-spec archives')
     args = ap.parse_args()
     with open(os.path.join(ADDON, 'assets', 'cars.json'), 'w') as f:
         f.write(json.dumps(ops(), indent=1) + '\n')
@@ -195,18 +238,23 @@ def main():
         if only and c.team not in only:
             continue
         src = os.path.join(args.tries, SOURCES[c.team], TEAM_ERP.format(d=c.donor))
-        r = build_car(c, src, os.path.join(ADDON, 'erp', 'teams', c.folder, 'wep', f'{c.folder}.erp'))
-        report['cars'].append(r)
-        print(f'{c.team:13} {c.folder:15} stem {c.stem:12} {r["resources"]:5} res, {r["renamed"]} renamed, '
-              f'{r["rewritten"]} fragments, handling -{r["handling_dropped"]}, +{r["folder_copies"]} folder copies, '
-              f'{r["bytes"] / 1e6:.1f} MB')
-    if not only:
+        rs = []
+        if not args.bspec_only:
+            rs.append(build_car(c, src, os.path.join(ADDON, 'erp', 'teams', c.folder, 'wep', f'{c.folder}.erp')))
+        rs.append(build_car(c, os.path.join(args.tries, SOURCES_B[c.team], TEAM_ERP.format(d=c.donor)),
+                            os.path.join(ADDON, 'erp', 'teams_b', c.folder, 'wep', f'{c.folder}.erp'), bspec=True))
+        report['cars'] += rs
+        for x in rs:
+            print(f'{c.team:13} {"B" if x["bspec"] else "A"} {c.folder:15} stem {c.stem:12} {x["resources"]:5} res, '
+                  f'{x["renamed"]} renamed, {x["rewritten"]} fragments, handling -{x["handling_dropped"]}, '
+                  f'+{x["folder_copies"]} folder copies, {x["bytes"] / 1e6:.1f} MB')
+    if not only and not args.bspec_only:
         report['common'] = build_plain(args.common, os.path.join(ADDON, 'erp', 'teams', 'common.erp'))
         report['tyres'] = build_plain(os.path.join(args.game, TYRES),
                                       os.path.join(ADDON, 'erp', 'tyrecompounds', 'tyrecompounds.erp'))
         print('common', report['common'])
         print('tyres', report['tyres'])
-    with open(os.path.join(ADDON, 'erp', 'build_report.json'), 'w') as f:
+    with open(os.path.join(ADDON, 'erp', 'build_report_b.json' if args.bspec_only else 'build_report.json'), 'w') as f:
         json.dump(report, f, indent=1)
     return 0
 
