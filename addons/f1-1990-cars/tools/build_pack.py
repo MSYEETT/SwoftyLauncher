@@ -13,6 +13,7 @@ erp/tyrecompounds/tyrecompounds.erp, assets/cars.json (the file.put and group.re
 test_grand_prix option's seat swaps); the last two are committed.
 """
 import argparse
+import copy
 import json
 import os
 import re
@@ -46,6 +47,7 @@ SOURCES_B = {
 }
 COMMON = '/mnt/work/.mp45b/porter_a/tries/tyres13cm/common.erp'
 TYRES = '2025_asset_groups/f1_2026_vehicle_package/tyrecompounds/tyrecompounds.erp'
+ALIASES = (f'eaid://{C.SOURCE_PACKAGE}/shared/tyres/', f'eaid://{C.SOURCE_PACKAGE}/tyrecompounds/')
 
 OLD = f'eaid://{C.SOURCE_PACKAGE}/'.encode()
 NEW = f'eaid://{C.PACKAGE_FOLDER}/'.encode()
@@ -180,14 +182,16 @@ def build_car(c, src, out, bspec=False):
 
 def build_plain(src, out):
     e = erpw.Erp(src)
+    alias = [copy.deepcopy(r) for r in e.res if r.name.startswith(ALIASES)]
     renamed, rewritten = rename_archive(e)
     left = leftovers(e, OLD)
     if left:
         raise ValueError(f'{src}: {left} eaid reference(s) still name {OLD.decode()}')
+    e.res += alias
     os.makedirs(os.path.dirname(out), exist_ok=True)
     e.to_file(out)
     return {'source': src, 'resources': len(e.res), 'renamed': renamed, 'rewritten': rewritten,
-            'bytes': os.path.getsize(out)}
+            'aliases': len(alias), 'bytes': os.path.getsize(out)}
 
 
 def ops():
@@ -245,6 +249,7 @@ def main():
     ap.add_argument('--only', help='comma-separated teams to build')
     ap.add_argument('--ops-only', action='store_true', help='write assets/cars.json and db/test.json and stop')
     ap.add_argument('--bspec-only', action='store_true', help='build only the B-spec archives')
+    ap.add_argument('--common-only', action='store_true', help='build only common.erp and the tyre compounds')
     args = ap.parse_args()
     with open(os.path.join(ADDON, 'assets', 'cars.json'), 'w') as f:
         f.write(json.dumps(ops(), indent=1) + '\n')
@@ -255,7 +260,7 @@ def main():
     report = {'cars': []}
     only = set(args.only.split(',')) if args.only else None
     for c in C.CARS:
-        if only and c.team not in only:
+        if (only and c.team not in only) or args.common_only:
             continue
         src = os.path.join(args.tries, SOURCES[c.team], TEAM_ERP.format(d=c.donor))
         rs = []
@@ -274,6 +279,8 @@ def main():
                                       os.path.join(ADDON, 'erp', 'tyrecompounds', 'tyrecompounds.erp'))
         print('common', report['common'])
         print('tyres', report['tyres'])
+    if args.common_only:
+        return 0
     with open(os.path.join(ADDON, 'erp', 'build_report_b.json' if args.bspec_only else 'build_report.json'), 'w') as f:
         json.dump(report, f, indent=1)
     return 0
