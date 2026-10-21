@@ -42,7 +42,9 @@ Import it on the **Mods** page, then choose its place in the list and turn it on
 
 ## Track
 
-A community track, such as Sepang or Okayama, is a kind of mod: a zip made for the EGO GameDatabases Editor. Import it on the **Mods** page without unpacking it, turn it on, and you'll find it in Grand Prix track selection. There's no separate tracks page.
+A community track, such as Sepang or Okayama, comes as a track package, a zip made for the EGO GameDatabases Editor, or as a data addon that adds a track. Import either on the **Tracks** page without unpacking it, turn it on, and you'll find it in Grand Prix track selection.
+
+An addon that only adds tracks and their names is listed on the **Tracks** page instead of the **Addons** page. An addon that adds a track and changes other things too is listed on both. Without a Tracks page in the profile, every addon is on the **Addons** page.
 
 ## Profiles and in-game settings
 
