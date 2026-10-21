@@ -93,11 +93,11 @@ So the grid adds no driver, look or statistics rows and needs no new stat ids. R
 
 ### Front-end art still on 2026
 
-Database and lang ops don't reach these. `frontend.py` covers the backdrop names and the tabs.
+`frontend.py` (backdrop names, tabs) and `badges.py` (team badges) cover the rest of the front end; these remain.
 
 | What | Where it comes from |
 |---|---|
-| Team icons | Name-keyed lists in `databases.erp: overrides.uidb`, baked into `ui_package/art/texture_arrays/overrides.uidb/overrides.<path>.texarray`. Keyed by team row (`mclaren_26` ...): `team_logos.f1_2026`, `team_logos.driver_career_2024_team_select`, `teams.mp_team_select_logos`, `teams.badges_broadcast`, `teams.fanzone_*`, `teams.teams_f1_2024_gp_voting`, `broadcast_ui_generic.grid_team_logos`, `broadcast_ui_generic.team`. Keyed by other names: `teams.driver_select_team_logos` (`mclaren`, `redbull`, ...), `teams.career_team_select_logo_small` (`team_select_<team>`), `osd.timing_tower.team_badges_hud`/`_broadcast` (`mclaren_26`, `red_bull_26`, `alpine_26`, ...). `team12_26` and `team13_26` have no entry in any of them |
+| Driver picker tiles with no 1990 badge | `teams.driver_select_team_logos` and `teams.career_team_select_logo_small` are keyed by the team row's `livery_name`: Brabham's row (`cadillac`) has no entry, and at 26 cars Larrousse and Dallara share Williams' and Arrows' keys. `livery_name` also picks the car livery |
 | Suit colours | Generic suits are colour-customisable (`nb_colours` 3 or 4); their diffuse is composed at run time (`charname_livery_v2_d`), so the colour an AI driver gets isn't in the data. 1990 kits need new `character_package/team_livery/1990-<team>` packages |
 
 ### Ratings
@@ -134,6 +134,24 @@ python3 addons/f1-1990/tools/frontend.py --game <game folder> [--preview <dir>]
 | Team Select names | The same with `mfe_2025_main_menu_vehicle_select_name.emb?context=<team row>` and `f1_teamname_<team>.tif` (2048x256, outlined): the 13 slots' rows show the team's short name; `team12_26` and `team13_26` get contexts copied from F2 teams |
 | Textures | `replace-resource` fragment 1 (the mips in the archive, same size) and fragment 2 (the mip-file descriptor, same length, pointing at `names/f1990_drv_names~...` or `names/f1990_tmnames~...`); `add-mipmaps` installs the LZ4 mip files |
 | Tabs | `persistent.erp: screen_groups.uicontentgroup` without `header_f2` and `header_icon` in the `driver_career_driver_select_header` group (the Driver Career Choose Driver screen), behind `hide_f2_icon_tabs` (default on). The tool checks the stock resource round-trips byte-exact through `tools/pkg.py` and that the edit differs only by the two entries. The resource shrinks, so the build writes `persistent.erp` into the game files on both routes |
+
+## badges.py
+
+Writes `erp/badges.json` and two archives under `erp/badges/` (`.erpk`; the repo ignores `*.erp`) with placeholder 1990 team badges: the short name (the three-letter code at 64 px and below) in DejaVu Sans Condensed Bold on the team's primary colour, a secondary-colour stripe along the bottom.
+
+```sh
+python3 addons/f1-1990/tools/badges.py --game <game folder> [--baseline <launcher baseline>/<build>] [--sheet badges.png]
+```
+
+Each team badge list is a name-keyed list in `databases.erp: overrides.uidb` whose entry at index i names slice i of a single-mip BC7 texture array (`ui_package/art/texture_arrays/overrides.uidb/overrides.<list>.texarray` and `.texarray.image`). The tool checks every UI archive that carries an array holds the same stock array, encodes the badge for each slice it replaces (rnd-tyres-thermal's `bc7enc.encode_rgba`) and writes the arrays into `erp/badges/badges.erpk`; `put-resource` copies them into every carrier. `--baseline` reads stock archives from the launcher's baseline store when the game folder holds installed ones.
+
+| List | Key | Size |
+|---|---|---|
+| `team_logos.f1_2026`, `team_logos.driver_career_2024_team_select`, `teams.mp_team_select_logos`, `teams.badges_broadcast`, `broadcast_ui_generic.grid_team_logos`, `broadcast_ui_generic.team`, `teams.fanzone_expressions`, `teams.fanzone_expressions_large`, `teams.fanzone_room`, `teams.teams_f1_2024_gp_voting` | team row | 272x156, 148x148, 700x640, 24x24, 180x180, 220x132, 28x28, 180x180, 560x484, 560x296 |
+| `teams.driver_select_team_logos`, `teams.career_team_select_logo_small` | `livery_name`, `team_select_<livery_name>` | 64x64, 268x136 |
+| `osd.timing_tower.team_badges_hud`, `_broadcast` | `timing_tower_texture_path` | 24x24 |
+
+At 26 cars the arrays keyed by team row, and the timing tower ones, grow by Larrousse and Dallara (`erp/badges/badges26.erpk`, `put-resource` with `"when": {"cars": 26}`), and a `patch-pkg` appends `team12_26`/`team13_26` (and `larrousse_90`/`dallara_90`, which `grid.py` sets as those rows' `timing_tower_texture_path`) to the lists. A grown array changes its archive's layout, so at 26 cars the build writes those archives into the game files.
 
 ## check_grid.py
 
