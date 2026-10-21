@@ -4,6 +4,9 @@
 #include <cstdint>
 
 #include <swofty/game.hpp>
+#if __has_include(<swofty/career_content.hpp>)
+#include <swofty/career_content.hpp>
+#endif
 
 #include "career_group.hpp"
 
@@ -29,9 +32,18 @@ inline uint8_t group_index(void *component)
     return reinterpret_cast<uint8_t (*)(void *)>(vt[0x268 / 8])(component);
 }
 
+#if __has_include(<swofty/career_content.hpp>)
+inline bool is_1990_career(const void *career)
+{
+    if (swofty::career::content::available())
+        return career && swofty::career::is(kCareerGroup1990, career);
+    return career_data_group_is(career, kCareerGroup1990, {setup_component, group_index});
+}
+#else
 inline bool is_1990_career(const void *career)
 {
     return career_data_group_is(career, kCareerGroup1990, {setup_component, group_index});
 }
+#endif
 
 }

@@ -16,6 +16,12 @@
 // The wrap of FeTile_Route_CareerItem, which every career tile press ends in, records whether the
 // last press was the 1990 tile; F1990_CareerWizard1990 exports that for the other 1990 DLLs.
 //
+// Built against an SDK with swofty/career_content.hpp, all of the above is the core's: this DLL
+// registers the 1990 content (data group f1_career_1990, suffix 90, mode driver_career_1990, car
+// group 2, 2026 model) and the tile, press, route, gate pass and slot predicate below compile out.
+// F1990_CareerWizard1990 then answers from the core's last pressed content tile. Against an older
+// SDK the private hooks below are built as before.
+//
 // The router finds the career's save slot with a predicate functor (vt_Game_DriverCareerSlotPredicate
 // slot 2) over the registered mode championships. Its first gate (0x14077cd40, VM-obfuscated) is 1
 // only for the 2025 and 2026 driver-career modes, so the 1990 mode never matched and the new-career
@@ -30,12 +36,53 @@
 #include <swofty/game.hpp>
 #include <swofty/mixin.hpp>
 
+#if __has_include(<swofty/career_content.hpp>)
+#include <swofty/career_content.hpp>
+#define F1990_CONTENT_API 1
+#else
+#define F1990_CONTENT_API 0
+#endif
+
 #include "career_1990.hpp"
 #include "content_entry.hpp"
 #include "profile.hpp"
 #include "weekend.hpp"
 
 SWOFTY_SETTING(bool, career_menu_ui, true);
+
+#if F1990_CONTENT_API
+
+namespace {
+
+namespace content = swofty::career::content;
+
+bool register_content()
+{
+    if (!career_menu_ui) {
+        swofty::log("[f1-1990] career menu UI: 1990 Career tile off (career_menu_ui)");
+        return true;
+    }
+    content::Result r = content::add({.id = "f1-1990",
+                                      .title = "lng_f1990_career_content",
+                                      .description = "lng_f1990_career_content_description",
+                                      .data_group = f1990::kCareerGroup1990,
+                                      .suffix = "90",
+                                      .mode = "driver_career_1990",
+                                      .car_group = f1990::kCarGroup1990});
+    swofty::log("[f1-1990] career menu UI: 1990 Career content registered with the core: %s", swofty::career::name(r));
+    return true;
+}
+
+}
+
+extern "C" __declspec(dllexport) int F1990_CareerWizard1990()
+{
+    return swofty::career::content::pressed_is(f1990::kCareerGroup1990) ? 1 : 0;
+}
+
+SWOFTY_ADDON(register_content)
+
+#else
 
 namespace {
 
@@ -281,3 +328,5 @@ SWOFTY_ON_LOAD
 }
 
 SWOFTY_ADDON()
+
+#endif

@@ -82,7 +82,9 @@ A separate DLL, loaded at the window stage after the others; option `career_menu
 | `FeTile_Route_CareerItem` | 0x141725620 | called by our press after it writes the selected content; wrapped to record whether the last career tile pressed was the 1990 one (exported as `F1990_CareerWizard1990` for `f1_1990_tabs.dll`) |
 | `g_FeTile_CustomisationSystem` / `g_FeTile_SelectedCareerContent` | 0x146064df0 / 0x146066c42 | the press selects the car group with stat id 2 (`1990`), else the first dlc group (2026) |
 
-The item carries data group `f1_career_1990` (+0x180), suffix `90` (+0x188), is_dlc 0 (+0x190) and the 2026 entitlement string (+0x1c0); its vtable is a copy of the 2026 tile's with populate and press replaced. The router and the wizard's use of the data group are not traced yet (see `/mnt/work/.f1-1990/v2/third-tile.md`).
+The item carries data group `f1_career_1990` (+0x180), suffix `90` (+0x188), is_dlc 0 (+0x190) and the 2026 entitlement string (+0x1c0); its vtable is a copy of the 2026 tile's with populate and press replaced.
+
+Built against an SDK with `swofty/career_content.hpp` (the core's career content library), none of the hooks in this section are built: the DLL registers the content with the core from its init (`id f1-1990`, data group `f1_career_1990`, suffix `90`, mode `driver_career_1990`, car group 2, 2026 model) and the core owns the tile, the press, the route, the driver-career gate pass and the slot predicate. `F1990_CareerWizard1990` answers from the core's last pressed content tile, and `is_1990_career` (`src/career_1990.hpp`) asks the core for the career's data group when the library is available. It logs `[f1-1990] career menu UI: 1990 Career content registered with the core: ok`; the core logs `[career] content 'f1-1990' ready: ...` once the database has loaded, or why it is off. Against an older SDK the private hooks are built as before. The router and the wizard's use of the data group are not traced yet (see `/mnt/work/.f1-1990/v2/third-tile.md`).
 
 ## Flavio in 1990 careers (`f1_1990_voice.dll`)
 
