@@ -8807,6 +8807,58 @@
    "used_by": [
     "addons/f1-1990/native/src/pu_rules.cpp"
    ]
+  },
+  {
+   "id": "game.rnd_calc_upgrade_type_progress",
+   "section": ".xtls",
+   "pattern": "56 57 53 B8 20 18 00 00 E8 ?? ?? ?? ?? 48 29 C4",
+   "match": "0x143526260",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143526260",
+   "kind": "func_start",
+   "names": [
+    "Game_Rnd_CalcUpgradeTypeProgress"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/quali_engine.cpp"
+   ]
+  },
+  {
+   "id": "game.rnd_fill_vehicle_upgrades",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 98 0C 00 00 C5 78 29 84 24 80 0C 00 00 C5 F8 29 BC 24 70 0C 00 00 C5 F8 29 B4 24 60 0C 00 00 44 89 CB",
+   "match": "0x141238cb0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141238cb0",
+   "kind": "func_start",
+   "names": [
+    "Game_Rnd_FillVehicleUpgrades"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/quali_engine.cpp"
+   ]
   }
  ]
 }
