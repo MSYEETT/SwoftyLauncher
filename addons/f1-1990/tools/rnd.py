@@ -201,6 +201,20 @@ TWEAK_FIELDS = ["_metadata_", "cancelling_adaptation.refund_percentage", "cancel
                 "recommended_upgrade.percentage_chance_of_picking_durability_upgrade",
                 "recommended_upgrade.percentage_chance_of_picking_vehicle_upgrade",
                 "target_mass_adjustment_at_max_upgrade"]
+MODES = ["per_driver_mode", "per_team_mode", "per_driver_unique_mode"]
+MODE_FIELDS = ["research_delay_days_min", "research_delay_days_max", "minor_upgrade_cost", "minor_upgrade_cost_to_develop",
+               "minor_upgrade_num_days_to_research", "minor_upgrade_num_days_to_develop", "major_upgrade_cost",
+               "major_upgrade_cost_to_develop", "major_upgrade_num_days_to_research", "major_upgrade_num_days_to_develop",
+               "ultimate_upgrade_cost", "ultimate_upgrade_cost_to_develop", "ultimate_upgrade_num_days_to_research",
+               "ultimate_upgrade_num_days_to_develop", "cost_increase_per_upgrade", "research_time_percentage",
+               "development_failure_chance_percentage", "research_delay_chance_percentage", "rush_enabled",
+               "rush_chance_percentage", "rush_development_time_percentage",
+               "rush_development_failure_chance_percentage", "development_time_percentage",
+               "max_simultaneous_developments", "upgrade_cost_percentage", "secret_upgrades_viewable_level",
+               "practice_programme_points_percentage", "high_inflation", "max_simultaneous_research",
+               "development_cost_percentage", "adapting_cost_percentage", "development_speed_penalty_for_repair",
+               "dual_development_cost_percentage", "research_cost_percentage", "dual_development_enabled",
+               "research_delay_scale", "development_failure_time_percentage"]
 WAYPOINT_FIELDS = ["_metadata_", "destination_upgrade_name", "path_length", "path_x_coords", "path_y_coords",
                    "start_upgrade_name"]
 SHARED_SET = {"_metadata_": SHARED_1990, "ComAccolades_0.data_group": career.DATA_GROUP,
@@ -243,6 +257,25 @@ def shared_fields(db):
     if missing or len(counts) != 4:
         sys.exit(f"{SHARED_SOURCE}: fields {missing} missing or {len(counts)} component counts, not 4")
     return fields
+
+
+def mode_ops(db, token, base):
+    ops = []
+    src = f"{STOCK}.trees.{token}.department_tweakables_modes_0"
+    for mode in MODES:
+        for f in MODE_FIELDS:
+            v = db.d.get(gamedb.fnv1a64(f"{src}.{mode}.{f}".encode()))
+            if v is None:
+                continue
+            tag, value = v
+            size = f.split("_upgrade_")[0].capitalize() if "_upgrade_" in f else None
+            if mode == "per_driver_mode" and size in SIZES:
+                if f.endswith("_upgrade_cost"):
+                    value = SIZES[size]["cost"]
+                elif f.endswith("_num_days_to_research"):
+                    value = SIZES[size]["research"] + SIZES[size]["develop"]
+            ops.append(setop(f"{base}.department_tweakables_modes_0.{mode}", f, value, tag))
+    return ops
 
 
 def djb2(text):
@@ -389,6 +422,7 @@ def build(db):
         ops.append(setop(f"{base}.teams_linked_to_0", "links", ",".join(vehicles), LIST))
         ops.append(setop(base, "_department_tweakables_modes_instancecount_", 1, INT))
         ops.append(setop(f"{base}.department_tweakables_modes_0", "_metadata_", "_department_tweakables_modes", STR))
+        ops += mode_ops(db, token, base)
         ops.append(setop(base, "_tweakables_instancecount_", 1, INT))
         for f, (tag, value) in tweaks.items():
             if f == "target_mass_adjustment_at_max_upgrade":

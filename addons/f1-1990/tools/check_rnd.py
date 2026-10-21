@@ -120,6 +120,11 @@ def main():
         total = sum(int(get(f"{tree}.{d}._upgrade_instancecount_") or 0) for d in rnd.DEPARTMENT_FILES.values())
         if total != len(rows):
             bad.append(f"{tree}: {total} upgrade rows, want {len(rows)}")
+        src = f"upgrades.2026.trees.{token}.department_tweakables_modes_0"
+        for mode in rnd.MODES:
+            for f in rnd.MODE_FIELDS:
+                if stock.get(f"{src}.{mode}.{f}") is not None and get(f"{tree}.department_tweakables_modes_0.{mode}.{f}") is None:
+                    bad.append(f"{tree}.department_tweakables_modes_0.{mode}.{f} missing")
         names = [get(f"{tree}.chassis.upgrade_{i}.upgrade_name") for i in range(6)]
         if not any(n and n.startswith("f1990_bspec") for n in names):
             bad.append(f"{tree}: no f1990_bspec upgrade")
