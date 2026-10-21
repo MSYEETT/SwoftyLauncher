@@ -34,6 +34,14 @@ AeroReferencePlaneHeight - (height + RideHeightOffset) (0x1446cb000), so RideHei
 maps read the 2026 values. 13in_raised moves the frame by twice the drop, lifting the car by the drop over the 2026 ride
 height, and adds that lift to RideHeight and the setup ride-height range.
 
+Option ers: removed and zeroed take the 2026 hybrid out (the section, or every harvest, deploy and override limit at 0);
+neither changes mass, ICE power or the battery's weight. stock keeps the donor's EnergyRecoverySystem as it is, with
+every other edit above.
+
+Option tyre_size stock (an A/B test value, `ers` ignored): the donor's stock 2026 handling file byte for byte, renamed
+into the 1990 package and nothing else: 2026 tyres, suspension, engine, ERS, mass, aero and DRS, shipped as
+cars/handling/stock/<folder>_handling.erp.
+
 Team power, mass and drag come from the season pack's per-team scalars (season.py), applied around a common base.
 
 Outputs (relative to the addon folder): cars/handling/<ers>_<tyre_size>/<folder>_handling.erp, cars/handling.json
@@ -110,7 +118,7 @@ DRS_SET = {b'DRSRotationAngleRadians': '0.0', b'DRSOpenCloseSpeed': '1', b'm_aer
 ERS_ZERO = {b'MaxDeployPower': 0, b'MaxDeratePower': 0, b'MinInitialDeployPower': 0, b'HarvestLimitMGUK': 0,
             b'HarvestOverrideBonusMGUK': 0, b'HarvestLimitQualifyingMGUK': 0, b'DeployLimitMGUK': 0,
             b'MaxBrakeTorqueMGUK': 0, b'OverrideModeAvailable': 'false'}
-ERS_VALUES = ('removed', 'zeroed')
+ERS_VALUES = ('removed', 'zeroed', 'stock')
 TYRE_SIZES = ('13in', '13in_raised')
 TYRES_13 = {'Front': {'radius': 0.323, 'width': 0.311}, 'Rear': {'radius': 0.330, 'width': 0.454}}
 STOCK_MESH_WIDTH = {'Front': 0.339, 'Rear': 0.418}
@@ -273,7 +281,11 @@ def zero_ers(root):
         set_value(common, k, v)
 
 
-ERS_MODES = {'removed': remove_ers, 'zeroed': zero_ers}
+def keep_ers(root):
+    pass
+
+
+ERS_MODES = {'removed': remove_ers, 'zeroed': zero_ers, 'stock': keep_ers}
 
 
 def remove_drs(root, aero):
@@ -446,6 +458,9 @@ def build(game, out):
                 files[rel] = handling_archive(e, r, C.handling_names(c), n0, n1)
                 ops.append({'op': 'file.put', 'when': {'ers': ers, 'tyre_size': tyre_size}, 'source': rel,
                             'target': C.handling_archive(c)})
+        rel = f'cars/handling/stock/{c.folder}_handling.erp'
+        files[rel] = handling_archive(e, r, C.handling_names(c), f0, f1)
+        ops.append({'op': 'file.put', 'when': {'tyre_size': 'stock'}, 'source': rel, 'target': C.handling_archive(c)})
         info['car'] = f'{c.team}@{c.folder}'
         info['bytes'] = (len(f0), size)
         report.append(info)

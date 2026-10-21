@@ -132,14 +132,19 @@
     },
     {
       "id": "ers", "type": "choice", "label": "ERS", "default": "removed",
-      "description": "Removed takes the hybrid system out of the cars. Zeroed keeps it with no harvest, deploy or override, for when removal misbehaves.",
-      "values": [{ "value": "removed", "label": "Removed" }, { "value": "zeroed", "label": "Zeroed" }], "binds": "db"
+      "description": "Removed takes the hybrid system out of the cars. Zeroed keeps it with no harvest, deploy or override, for when removal misbehaves. Stock keeps the 2026 hybrid system as it is. None of them changes mass or engine power.",
+      "values": [
+        { "value": "removed", "label": "Removed" }, { "value": "zeroed", "label": "Zeroed" },
+        { "value": "stock", "label": "Stock 2026" }
+      ],
+      "binds": "db"
     },
     {
       "id": "tyre_size", "type": "choice", "label": "Tyre size", "default": "13in",
-      "description": "The tyre radius the 1990 handling files use, matching the 13-inch tyre set of the 1990 car pack. Both keep the 2026 ride height; Raised lifts the car a further 2.4 to 2.8 cm.",
+      "description": "The tyre radius the 1990 handling files use, matching the 13-inch tyre set of the 1990 car pack. Both keep the 2026 ride height; Raised lifts the car a further 2.4 to 2.8 cm. Stock 2026 handling (a test value) ships each car's 2026 donor handling file unchanged: 2026 tyres, suspension, engine, hybrid, mass and aero, whatever the ERS setting.",
       "values": [
-        { "value": "13in", "label": "13-inch" }, { "value": "13in_raised", "label": "13-inch, raised" }
+        { "value": "13in", "label": "13-inch" }, { "value": "13in_raised", "label": "13-inch, raised" },
+        { "value": "stock", "label": "Stock 2026 handling (test)" }
       ],
       "binds": "db"
     },
