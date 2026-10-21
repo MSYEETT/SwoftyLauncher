@@ -1354,15 +1354,21 @@ bool entity_busy(uintptr_t entity)
     return rdv<uint8_t>(entity + offsetof(CareerEntity, entrant_update_busy)) != 0;
 }
 
-// How the game announces a move. My Team: Career_Record_DriverMove on the renewal component (it
+// How the game announces a move. With a renewal component: Career_Record_DriverMove on it (it
 // appends driverMoveData and posts MessageDriverMoveConfirmed). Driver Career has no renewal
 // component and no move log: its signing (0x140d766b0, DriverCareerContractsManagerComponent) posts
 // MessageDriverMoveConfirmed itself, built from its weekend source and career clock, right before
 // each Career_Set_EntrantData_Thunk. The Upgrades component listens to it to reassign per-driver
-// upgrade state.
+// upgrade state. My Team careers have shown no renewal component either (every lookup in the
+// registry the game's own renewal lookups use returned null, in both modes): there the moves
+// follow My Team's processor, DriverContractsMyTeamComponent vtable slot +0x188
+// (Career_Process_PendingDriverMoves 0x140db18e0, the slot the Driver Career signing fills in its
+// own component). It posts no per-move message; its moves reach the listeners through the finalise
+// messages alone, built against the line-up it copied before its first write.
 struct MoveSink {
-    uintptr_t renewal = 0; // CareerDriverContractRenewalComponent (My Team)
+    uintptr_t renewal = 0; // CareerDriverContractRenewalComponent (My Team, when the career has one)
     uintptr_t manager = 0; // DriverCareerContractsManagerComponent (Driver Career)
+    uintptr_t my_team = 0; // DriverContractsMyTeamComponent (My Team without a renewal component)
 };
 
 constexpr uintptr_t kVtWeekendIndex = 0x108; // vtable slot of the weekend source returning the weekend index
@@ -1376,6 +1382,8 @@ bool announce(const MoveSink &sink, uint32_t driver, uint32_t old_team, uint32_t
         Career_Record_DriverMove(reinterpret_cast<void *>(sink.renewal), driver, old_team, new_team, reason);
         return true;
     }
+    if (sink.my_team)
+        return true;
     using M = DriverCareerContractsManagerComponent;
     uintptr_t src = rdv<uintptr_t>(sink.manager + offsetof(M, weekend_source));
     uintptr_t time = rdv<uintptr_t>(sink.manager + offsetof(M, career_time));
@@ -1458,30 +1466,46 @@ bool release_contract(uintptr_t entity, const MoveSink &sink, uint32_t driver, b
     return true;
 }
 
-// The end of every Driver Career signing batch: the changed drivers between the current line-up and
-// the weekend's line-up (Career_Build_LineupChanges), posted as MessageDriverMovesFinalised_upgrades,
-// _recognition, then MessageDriverMovesFinalised. The _upgrades handler creates the team modifiers a
-// newly seated driver needs (the null-modifier crash of a bare swap) and moves the per-driver state.
+// The end of every signing batch: the changed drivers between the current line-up and a baseline
+// (Career_Build_LineupChanges), posted as MessageDriverMovesFinalised_upgrades, _recognition, then
+// MessageDriverMovesFinalised. The _upgrades handler creates the team modifiers a newly seated
+// driver needs (the null-modifier crash of a bare swap) and moves the per-driver state. The Driver
+// Career signing compares with the weekend's line-up; My Team's processor with its own copy of the
+// line-up from before its writes (0x140db2f40, compared at 0x140db4e1d).
 constexpr uintptr_t kVtCurrentWeekend = 0xa0; // weekend source vtable slot returning the current weekend
 constexpr uintptr_t kWeekendEntrants = 0x18;  // TODO(struct): season lane Weekend: its start-of-weekend entrant vector object
 
-bool finalise_moves(uintptr_t entity, const MoveSink &sink, uint64_t &changes)
+// An entrant vector object as Career_Build_LineupChanges reads it (begin at +8, end at +0x10).
+struct EntrantVector {
+    void *allocator = nullptr;
+    const EntrantRecord *begin = nullptr;
+    const EntrantRecord *end = nullptr;
+    const EntrantRecord *capacity = nullptr;
+};
+
+uintptr_t weekend_lineup(const MoveSink &sink)
 {
-    changes = 0;
     using M = DriverCareerContractsManagerComponent;
     uintptr_t src = rdv<uintptr_t>(sink.manager + offsetof(M, weekend_source));
     uintptr_t vt = src ? rdv<uintptr_t>(src) : 0;
     uintptr_t fn = vt ? rdv<uintptr_t>(vt + kVtCurrentWeekend) : 0;
-    if (!swofty::mem::in_image(fn) || !Career_Build_LineupChanges.address())
-        return false;
+    if (!swofty::mem::in_image(fn))
+        return 0;
     uintptr_t weekend = reinterpret_cast<WeekendFn2>(fn)(reinterpret_cast<void *>(src));
     if (!weekend || !swofty::mem::readable(weekend + kWeekendEntrants, 3 * sizeof(void *)))
+        return 0;
+    return weekend + kWeekendEntrants;
+}
+
+bool finalise_moves(uintptr_t entity, uintptr_t baseline, uint64_t &changes)
+{
+    changes = 0;
+    if (!baseline || !Career_Build_LineupChanges.address())
         return false;
     // The entrant vector object {allocator, begin, end} starts one pointer before entrants_begin.
     uintptr_t current = entity + offsetof(CareerEntity, entrants_begin) - sizeof(void *);
     DriverMovesFinalisedMessage m{};
-    Career_Build_LineupChanges(&m.changes, reinterpret_cast<void *>(current),
-                               reinterpret_cast<void *>(weekend + kWeekendEntrants));
+    Career_Build_LineupChanges(&m.changes, reinterpret_cast<void *>(current), reinterpret_cast<void *>(baseline));
     if (m.count > 40)
         return false;
     changes = m.count;
@@ -1533,16 +1557,21 @@ ce::OpResult op_swap(const ce::Json &args)
         return op_fail(op, "bad_args", "a and b are the same driver");
 
     uintptr_t entity = ce::comp::entity();
-    MoveSink sink;
-    sink.renewal = ce::comp::get(ce::comp::Id::CareerDriverContractRenewal);
-    if (!sink.renewal)
-        sink.manager = ce::comp::get(ce::comp::Id::DriverCareerContractsManager);
     if (!entity)
         return op_fail(op, "no_component", "no championship entity");
-    if (!sink.renewal && !sink.manager)
+    bool my_team = ce::mode() == ce::Mode::MyTeam;
+    MoveSink sink;
+    sink.renewal = ce::comp::get(ce::comp::Id::CareerDriverContractRenewal);
+    if (!sink.renewal && !my_team)
+        sink.manager = ce::comp::get(ce::comp::Id::DriverCareerContractsManager);
+    if (!sink.renewal && my_team)
+        sink.my_team = ce::comp::get(ce::comp::Id::DriverContractsMyTeam);
+    if (!sink.renewal && !sink.manager && !sink.my_team)
         return op_fail(op, "no_component",
-                       "neither CareerDriverContractRenewalComponent (My Team) nor DriverCareerContractsManagerComponent "
-                       "(Driver Career) is on the championship entity");
+                       my_team ? "My Team: neither CareerDriverContractRenewalComponent nor "
+                                 "DriverContractsMyTeamComponent is on the championship entity"
+                               : "Driver Career: neither CareerDriverContractRenewalComponent nor "
+                                 "DriverCareerContractsManagerComponent is on the championship entity");
     if (entity_busy(entity))
         return op_fail(op, "busy", "the game is in the middle of an entrant update");
     if (sink.renewal &&
@@ -1569,7 +1598,7 @@ ce::OpResult op_swap(const ce::Json &args)
     if (ta == tb && car_a == car_b)
         return op_fail(op, "same_team", "both drivers race for the same team; nothing to swap");
     bool replace = false; // Driver Career: a teamless driver takes a race seat, the seat's driver is released
-    if (sink.renewal) {
+    if (!sink.manager) {
         if (free_a || free_b)
             return op_fail(op, "no_team",
                            std::string("driver ") + std::to_string(save_id(free_a ? a : b)) +
@@ -1613,6 +1642,11 @@ ce::OpResult op_swap(const ce::Json &args)
     uint32_t new_b = replace ? kNoKey : ta;
     if (!unique_identity(entity, ra) || !unique_identity(entity, rb))
         return op_fail(op, "refused", "an entrant row's identity is not unique in the line-up; nothing written");
+    std::vector<EntrantRecord> before;
+    for (auto &row : rows)
+        before.push_back(row.rec);
+    EntrantVector before_lineup{nullptr, before.data(), before.data() + before.size(), before.data() + before.size()};
+    auto baseline = [&] { return sink.manager ? weekend_lineup(sink) : reinterpret_cast<uintptr_t>(&before_lineup); };
     bool wrote_a = apply_row(entity, sink, ra, ta, tb, reason_a, da, pos_b);
     bool contract_released = false;
     if (wrote_a && replace && !release_contract(entity, sink, entrant_driver(rb.rec), contract_released))
@@ -1636,14 +1670,14 @@ ce::OpResult op_swap(const ce::Json &args)
         bool back_a = !wrote_a || apply_row(entity, sink, ra, tb, ta, car_a ? kReasonSigned : kReasonBenched, ua, pos_a);
         bool back_b = !wrote_b || apply_row(entity, sink, rb, new_b, tb, car_b ? kReasonSigned : kReasonBenched, ub, pos_b);
         if (!sink.renewal)
-            finalise_moves(entity, sink, finalised);
+            finalise_moves(entity, baseline(), finalised);
         return op_fail(op, "write_failed",
                        std::string("the entrant rows did not read back as swapped; ") +
                            (back_a && back_b ? "restored both rows" : "COULD NOT restore every row, reload the save") +
                            (contract_released ? " (the released contract stays released)" : ""));
     }
     if (!sink.renewal)
-        finalise_ok = finalise_moves(entity, sink, finalised);
+        finalise_ok = finalise_moves(entity, baseline(), finalised);
     if (!finalise_ok)
         ce::log("drivers.swap WARNING the MessageDriverMovesFinalised messages could not be posted");
     r.after = swap_json(now, a, b);
@@ -1654,12 +1688,13 @@ ce::OpResult op_swap(const ce::Json &args)
     ce::log("drivers.swap driver %u [%s] <-> driver %u [%s] -> driver %u [%s], driver %u [%s] "
             "(%s; %zu other entrants unchanged, applied now)",
             save_id(a), sa, save_id(b), sb, save_id(a), na_t, save_id(b), nb_t,
-            sink.renewal ? "2 moves recorded"
-            : replace    ? (contract_released ? "Driver Career replace: incoming announced, outgoing contract released "
-                                                "and announced to no team, moves finalised"
-                                              : "Driver Career replace: incoming announced, outgoing announced to no "
-                                                "team (no contract found), moves finalised")
-                         : "Driver Career: 2 moves announced, moves finalised",
+            sink.renewal   ? "2 moves recorded"
+            : sink.my_team ? "My Team: 2 rows written, moves finalised against the line-up before the swap"
+            : replace      ? (contract_released ? "Driver Career replace: incoming announced, outgoing contract released "
+                                                  "and announced to no team, moves finalised"
+                                                : "Driver Career replace: incoming announced, outgoing announced to no "
+                                                  "team (no contract found), moves finalised")
+                           : "Driver Career: 2 moves announced, moves finalised",
             rows.size() - 2);
     if (!sink.renewal)
         ce::log("drivers.swap finalised %llu line-up change(s) (MessageDriverMovesFinalised_upgrades, _recognition, "

@@ -119,8 +119,8 @@ ratings patch replaces it only if the player accepts that patch.
   the record has no performance clause. The contract length is not part of these records; it is not
   read yet.
 - `recordedMoves` is the last 20 entries of the game's own move log (`driverMoveData` in
-  `CareerDriverContractRenewalComponent`, saved with the career). It is `null` in Driver Career, where
-  the game keeps no move log. `reason` 0 is a signing, 3 a driver
+  `CareerDriverContractRenewalComponent`, saved with the career). It is `null` when the career has no
+  renewal component: Driver Career, and every My Team career reported so far. `reason` 0 is a signing, 3 a driver
   benched in his team (the values the game's own signing code writes). `drivers.swap` adds two.
 - `pendingSwaps` is always empty: a swap applies immediately.
 
@@ -208,9 +208,17 @@ Status: implemented; needs in-game proof (log line `[career-editor] drivers.cont
 
 Swaps seats **now**, mid-season, with the game's own driver-move primitives in the game's own order.
 
-- **My Team:** for each driver `Career_Record_DriverMove(renewal, driver, oldTeam, newTeam, reason)`
-  (move log `driverMoveData` + `MessageDriverMoveConfirmed`), then `Career_Set_EntrantData_Thunk`.
-  Both drivers must have a team (race seat or reserve); a teamless driver is refused (`no_team`).
+- **My Team** depends on whether the career has a `CareerDriverContractRenewalComponent`:
+  - **With one:** for each driver `Career_Record_DriverMove(renewal, driver, oldTeam, newTeam, reason)`
+    (move log `driverMoveData` + `MessageDriverMoveConfirmed`), then `Career_Set_EntrantData_Thunk`.
+  - **Without one** (every My Team career reported so far; the registry get the game's own renewal
+    lookups use returns null): the op follows My Team's own processor, `DriverContractsMyTeamComponent`
+    vtable slot +0x188 (`Career_Process_PendingDriverMoves`, 0x140db18e0). That is the slot the
+    Driver Career signing fills in its component. The processor posts no per-move message. The op
+    copies the line-up, runs `Career_Set_EntrantData_Thunk` for each driver, then finalises against
+    that copy, as the processor does (copy at 0x140db2f40, compare at 0x140db4e1d).
+  - Either way, both drivers must have a team (race seat or reserve); a teamless driver is refused
+    (`no_team`).
 - **Driver Career** has no move log. The op follows the Driver Career signing
   (`DriverCareerContractsManagerComponent`, 0x140d766b0):
   - **Race driver ↔ race driver:** for each driver post `MessageDriverMoveConfirmed`
@@ -225,8 +233,9 @@ Swaps seats **now**, mid-season, with the game's own driver-move primitives in t
        `Career_Set_EntrantData_Thunk` with team, car, driver registry value, livery and badge all
        0x3fff0000, seat value 0xffff0012, position 0. He is now a free agent exactly as the game makes
        one.
-  - **Finalise** (what every Driver Career signing batch ends with): `Career_Build_LineupChanges`
-    (current line-up vs the weekend's), then post `MessageDriverMovesFinalised_upgrades`,
+  - **Finalise** (what every signing batch ends with): `Career_Build_LineupChanges`
+    (current line-up vs the weekend's in Driver Career, vs the line-up before the swap in My Team
+    without a renewal component), then post `MessageDriverMovesFinalised_upgrades`,
     `MessageDriverMovesFinalised_recognition` and `MessageDriverMovesFinalised`
     (`DriverMovesFinalisedMessage`). The `_upgrades` handler (UpgradesComponent 0x14123b3f0) creates
     the team modifiers a driver new to a race seat lacks (`Career_Init_TeamModifiers`) and re-assigns
@@ -260,7 +269,8 @@ in the line-up: listed under `otherDrivers`, with no entrant row and so no seat;
 so and points to the `drivers` list. The game's entrant writer only
 rewrites existing rows and never adds one; no row-creating path was found in the game's signing
 code), `refused` (the game has `disableDriverMoves` set), `busy` (the game is mid entrant
-update), `no_component`, `bad_args`, `stale`.
+update), `no_component` (no championship entity, or no component to move drivers with; the detail
+names the mode and the components it looked for), `bad_args`, `stale`.
 
 Checks: before writing, each row must be the only row the game's entrant compare would match (same
 human bit and, for AI rows, the same identity word at +0x48); otherwise the op is refused with
@@ -288,13 +298,15 @@ re-derives its seat cache from them is what the in-game test has to show (see th
 
 Undo: `drivers.swap` with the same `a` and `b` (the swap is symmetric; it records two more moves).
 
-Modes: My Team (move log + message) and Driver Career (message only). Runs only while `ce::safe()`.
+Modes: My Team with a renewal component (move log + message), My Team without one (finalise only)
+and Driver Career (message + finalise). Runs only while `ce::safe()`.
 
 Log lines, Driver Career:
 `[career-editor] drivers.swap driver <A> [team <X> car 0x<cx> pos <p>] <-> driver <B> [...] -> driver <A> [team <Y> ...], driver <B> [team <X> ...] (Driver Career: 2 moves announced, moves finalised; <N> other entrants unchanged, applied now)`
 and for a free agent: `... (Driver Career replace: incoming announced, outgoing contract released and announced to no team, moves finalised; ...)` (the free agent is printed first; a teamless row shows `team 16383 car 0x3fff0000 pos -1`), each followed by
 `[career-editor] drivers.swap finalised <n> line-up change(s) (MessageDriverMovesFinalised_upgrades, _recognition, MessageDriverMovesFinalised)`.
-My Team says `2 moves recorded` and posts no finalise.
+My Team without a renewal component says `My Team: 2 rows written, moves finalised against the line-up before the swap`, followed by the same finalised line.
+My Team with one says `2 moves recorded` and posts no finalise.
 
 Status: implemented; needs in-game proof. Test: swap two AI drivers on different teams in Team HQ,
 check the Team HQ grid / standings driver list, save, reload the career, advance to the next weekend
@@ -313,12 +325,12 @@ and load into a session.
 | `Career_Serialise_DriverContractList` | 0x140da5610 | L2, no sig | evidence for the contract record layout |
 | `Career_Set_EntrantData_Thunk` | 0x1407b72e0 | L2, sig `career.set_entrant_data_thunk` | `drivers.swap`: rewrites one entrant row |
 | `Career_Record_DriverMove` | 0x140d8f1f0 | L2, sig `career.record_driver_move` | `drivers.swap` (My Team): move log + driver-move message |
-| `vt_Career_MessageDriverMovesFinalised`, `…FinalisedUpgrades`, `…FinalisedRecognition` | 0x145696d10 / d20 / d30 | L2, sigs `career.message_driver_moves_finalised*` | Driver Career finalise |
-| `Career_Build_LineupChanges` | 0x142457a90 | L2, sig `career.build_lineup_changes` | Driver Career finalise payload |
+| `vt_Career_MessageDriverMovesFinalised`, `…FinalisedUpgrades`, `…FinalisedRecognition` | 0x145696d10 / d20 / d30 | L2, sigs `career.message_driver_moves_finalised*` | finalise (Driver Career, My Team without a renewal component) |
+| `Career_Build_LineupChanges` | 0x142457a90 | L2, sig `career.build_lineup_changes` | finalise payload; reads only begin (+8) and end (+0x10) of both vector objects |
 | `Career_Set_DriverContractState` | 0x140d9de30 | L2, sig `career.set_driver_contract_state` | Driver Career replace: release the outgoing contract |
 | `vt_Career_MessageDriverMoveConfirmed` | 0x145696d40 | L2, sig `career.message_driver_move_confirmed` | `drivers.swap` (Driver Career): the move message, posted with `swofty::career::post` |
 | `Career_Sign_DriverToTeam` | 0x140d8fcb0 | L1 (DISPUTE V0294), no sig | evidence for the call order only; not called. Its `offer` is a 0x2c-byte contract record it also writes into the driver's contract, and it first backfills the incoming driver's old seat with that team's reserve (no reserve: it signs nothing) |
-| `Career_Process_PendingDriverMoves` | 0x140db18e0 | L1, no sig | evidence (season-change processor, not called) |
+| `Career_Process_PendingDriverMoves` | 0x140db18e0 | L1, no sig | evidence, not called: `DriverContractsMyTeamComponent` vtable slot +0x188; the My Team swap without a renewal component follows its order (no per-move message, finalise against its pre-write copy) |
 | `Career_Assign_EntrantTeamSlot` | 0x140db70a0 | L2, no sig | evidence (only valid inside the processor: it works on the processor's local seat map) |
 
 KB structs (re/db/structs, all fields L2, raised by ce-drivers): `DriverStatisticsComponent`,
