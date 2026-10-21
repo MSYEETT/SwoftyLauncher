@@ -58,6 +58,13 @@ VCMPD asset fills by compound name. Activation (0x144747c60) skips a name alread
 erases by name, so two assets sharing names lose them both when either unloads, and a wheel whose name is missing gets
 no compound at all. The car pack's compound file names its compounds F1_1990_*, which no stock package uses.
 
+Option handling: modern scales MOIX/Y/Z with the mass. 1990 (the default) keeps the donor's MOI, so the light car
+turns in less sharply, and adds the period cuts: every lift curve (F1Aero Front/RearCoeffLiftVsRideHeight and
+VsChassisRake) and wing lift coefficient (Front/RearWingCoL0-2) x AERO_1990 (0.5), so the balance stays the donor's;
+Tyre GripMultiplier GRIP_1990 (0.83 front, 0.85 rear; the tyre force multiplies it in and clamps to Min/MaxGripMultiplier
+at 0x1446b7950); BrakeECU torques x the mass ratio x BRAKE_1990 (0.9); Chassis FFBScale x FFB_1990 (1.3), a heavier
+wheel for an unassisted rack. Archives: cars/handling/<ers>_<tyre_size>_1990/ (modern keeps <ers>_<tyre_size>/).
+
 Team power, mass and drag come from the season pack's per-team scalars (season.py), applied around a common base.
 
 Outputs (relative to the addon folder): cars/handling/<ers>_<tyre_size>/<folder>_handling.erp, cars/handling.json
@@ -68,6 +75,7 @@ lane's lang ops). The game loads a vehicle at startup (0x142505f30, the stat-id 
 their packages; no entrant list names a B-spec car, so the B rows and the f1_1990b package carry `available True`. The build compares with the shipped files and exits 1 on any difference; --write replaces them.
 """
 import argparse
+import itertools
 import json
 import math
 import os
@@ -142,6 +150,16 @@ BEAD_13 = 0.175
 ALLOY_13 = 0.182
 TYRE_GROUP = 'F1_1990'
 MOMENTS = (b'MOIX', b'MOIY', b'MOIZ')
+HANDLING_VALUES = ('1990', 'modern')
+AERO_1990 = 0.5
+GRIP_1990 = {'Front': 0.83, 'Rear': 0.85}
+BRAKE_1990 = 0.9
+FFB_1990 = 1.3
+LIFT_CURVES = (b'FrontCoeffLiftVsRideHeight', b'RearCoeffLiftVsRideHeight', b'FrontCoeffLiftVsChassisRake',
+               b'RearCoeffLiftVsChassisRake')
+LIFT_WINGS = (b'FrontWingCoL0', b'FrontWingCoL1', b'FrontWingCoL2', b'RearWingCoL0', b'RearWingCoL1', b'RearWingCoL2')
+BRAKES = (b'BrakeFront', b'BrakeRear', b'BrakeFrontBackwards', b'BrakeRearBackwards', b'BrakeFrontForwards',
+          b'BrakeRearForwards')
 TYRE_GRAPHS = {b'x0_tyre_fl': 'Front', b'x0_tyre_fr': 'Front', b'x0_tyre_bl': 'Rear', b'x0_tyre_br': 'Rear'}
 SUSPENSION_HEIGHTS = (b'MinHeight', b'MaxHeight', b'BumpStopHeight')
 RAISE_HEIGHTS = (b'MinHeight', b'BumpStopHeight')
@@ -383,7 +401,24 @@ def tyre_group(root):
     set_value(section(root, b'Chassis'), b'TyrePhysicsGroup', TYRE_GROUP)
 
 
-def convert(root, row, ers, size):
+def period(root, ratio):
+    aero = section(root, b'F1Aero')
+    for name in LIFT_CURVES:
+        for e in child(aero, name).children:
+            if e.kind == 0:
+                e.set_attr(b'y', fmt(round(float(e.attr(b'y')) * AERO_1990, 6)))
+    for k in LIFT_WINGS:
+        set_value(aero, k, value(aero, k) * AERO_1990)
+    for end, t in named(section(root, b'SuspensionSystem'), b'Tyre').items():
+        set_value(t, b'GripMultiplier', GRIP_1990[end])
+    brakes = section(root, b'BrakeECU')
+    for k in BRAKES:
+        set_value(brakes, k, round(value(brakes, k) * ratio * BRAKE_1990))
+    chassis = section(root, b'Chassis')
+    set_value(chassis, b'FFBScale', value(chassis, b'FFBScale') * FFB_1990)
+
+
+def convert(root, row, ers, size, handling):
     fam = FAMILIES[row['engine']]
     tyre_group(root)
     ERS_MODES[ers](root)
@@ -418,10 +453,13 @@ def convert(root, row, ers, size):
 
     chassis = section(root, b'Chassis')
     mass = BASE_MASS * spread(row['weight'])
-    inertia = mass / value(chassis, b'Mass')
+    ratio = mass / value(chassis, b'Mass')
     set_value(chassis, b'Mass', round(mass, 1))
-    for k in MOMENTS:
-        set_value(chassis, k, round(value(chassis, k) * inertia, 1))
+    if handling == 'modern':
+        for k in MOMENTS:
+            set_value(chassis, k, round(value(chassis, k) * ratio, 1))
+    else:
+        period(root, ratio)
 
     aero = section(root, b'F1Aero')
     drag = spread(row['drag'])
@@ -483,18 +521,18 @@ def build(game, out):
         version = int.from_bytes(f1[4:8], 'little')
         if vtf.write(stock) != f0 or vtf.tsmd(stock, version) != f1:
             raise ValueError(f'{c.team}: stock VTF of {c.donor} does not round-trip')
-        for ers in ERS_VALUES:
-            for tyre_size in TYRE_SIZES:
-                root = vtf.parse(f0)
-                got = convert(root, row, ers, tyre_size)
-                n0 = vtf.write(root)
-                n1 = vtf.tsmd(root, version)
-                if ers == 'removed' and tyre_size == '2026':
-                    info, size = got, len(n0)
-                rel = f'cars/handling/{ers}_{tyre_size}/{c.folder}_handling.erp'
-                files[rel] = handling_archive(e, r, C.handling_names(c), n0, n1)
-                ops.append({'op': 'file.put', 'when': {'ers': ers, 'tyre_size': tyre_size}, 'source': rel,
-                            'target': C.handling_archive(c)})
+        for ers, tyre_size, handling in itertools.product(ERS_VALUES, TYRE_SIZES, HANDLING_VALUES):
+            root = vtf.parse(f0)
+            got = convert(root, row, ers, tyre_size, handling)
+            n0 = vtf.write(root)
+            n1 = vtf.tsmd(root, version)
+            if (ers, tyre_size, handling) == ('removed', '2026', '1990'):
+                info, size = got, len(n0)
+            suffix = '' if handling == 'modern' else f'_{handling}'
+            rel = f'cars/handling/{ers}_{tyre_size}{suffix}/{c.folder}_handling.erp'
+            files[rel] = handling_archive(e, r, C.handling_names(c), n0, n1)
+            ops.append({'op': 'file.put', 'when': {'ers': ers, 'tyre_size': tyre_size, 'handling': handling},
+                        'source': rel, 'target': C.handling_archive(c)})
         root = vtf.parse(f0)
         tyre_group(root)
         rel = f'cars/handling/stock/{c.folder}_handling.erp'
