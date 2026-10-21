@@ -14,6 +14,12 @@
 // which ranks the driver's team (Game_DriverContracts_RankTeam) and offers nothing when the rank is not
 // valid. The probe logs the offer list size, the game mode's championships and UpgradesComponent teams,
 // and each rank asked for while the offers are built.
+//
+// Team Select's carousel (0x141890e60) lists the UpgradesComponent's per-team R&D models. They are
+// made (0x14a6d4570) for each entrant of the game mode (+0x2e0, 0x88 each, team +0x58, car +0x5c)
+// whose team the championship (component +0x270, vt +0x1c0) holds and whose car the vehicle table
+// (component +0x318, +0x328 per kind, indexed by stat id) has. At Choose Driver the probe logs the
+// model count and those three inputs per entrant.
 
 #include <windows.h>
 
@@ -84,6 +90,53 @@ void walk_map(uintptr_t node, uintptr_t mgr, std::string &out, int depth)
     walk_map(rd<uintptr_t>(node + 0x10), mgr, out, depth + 1);
 }
 
+uintptr_t component(uintptr_t owner, uintptr_t desc)
+{
+    uintptr_t reg = owner ? owner + 0x1030 : 0;
+    auto **rvt = reinterpret_cast<void **>(rd<uintptr_t>(reg));
+    return rvt ? reinterpret_cast<uintptr_t (*)(uintptr_t, uintptr_t, int)>(rvt[2])(reg, desc, 1) : 0;
+}
+
+void probe_team_models(uintptr_t gm)
+{
+    uintptr_t up = component(gm, swofty::game::k_Career_UpgradesComponentDesc.address());
+    if (!up) {
+        swofty::log("[f1-1990] probe: R&D teams: the game mode has no UpgradesComponent");
+        return;
+    }
+    uintptr_t champ = rd<uintptr_t>(up + 0x270), owner = rd<uintptr_t>(up + 0x278), ctx = rd<uintptr_t>(up + 0x318);
+    long models = long((rd<uintptr_t>(up + 0x2a0) - rd<uintptr_t>(up + 0x298)) / 8);
+    uintptr_t eb = rd<uintptr_t>(owner + 0x2e0), ee = rd<uintptr_t>(owner + 0x2e8);
+    long entrants = eb && ee >= eb ? long((ee - eb) / 0x88) : -1;
+    swofty::log("[f1-1990] probe: R&D teams: UpgradesComponent 0x%llx has %ld team model(s); championship 0x%llx, "
+                "game mode 0x%llx (%s), vehicle ctx 0x%llx, %ld entrant(s)",
+                (unsigned long long)up, models, (unsigned long long)champ, (unsigned long long)owner,
+                owner == gm ? "this one" : "another", (unsigned long long)ctx, entrants);
+    auto **cvt = swofty::mem::object_like(champ) ? reinterpret_cast<void **>(rd<uintptr_t>(champ)) : nullptr;
+    std::string line;
+    int shown = 0;
+    for (uintptr_t e = eb; e && e < ee && shown < 30; e += 0x88, shown++) {
+        uint32_t team = rd<uint32_t>(e + 0x58), vehicle = rd<uint32_t>(e + 0x5c);
+        bool in = cvt && swofty::mem::in_image(reinterpret_cast<uintptr_t>(cvt[0x1c0 / 8])) &&
+                  reinterpret_cast<bool (*)(uintptr_t, uint32_t)>(cvt[0x1c0 / 8])(champ, team);
+        uint8_t kind = uint8_t(vehicle);
+        uint16_t id = uint16_t(vehicle >> 16);
+        uintptr_t table = kind < 3 && ctx ? rd<uintptr_t>(ctx + 0x328 + kind * 0x10) : 0;
+        long size = table ? long((rd<uintptr_t>(table + 0x10) - rd<uintptr_t>(table + 8)) / 0x10) : -1;
+        uintptr_t car = table && id < size ? rd<uintptr_t>(rd<uintptr_t>(table + 8) + 8 + id * 0x10) : 0;
+        char b[96];
+        std::snprintf(b, sizeof b, " [team %08x %s, car %u/%u of %ld %s]", team, in ? "in" : "NOT in", kind, id, size,
+                      car ? "found" : "MISSING");
+        line += b;
+        if (line.size() > 900) {
+            swofty::log("[f1-1990] probe: R&D teams:%s", line.c_str());
+            line.clear();
+        }
+    }
+    if (!line.empty())
+        swofty::log("[f1-1990] probe: R&D teams:%s", line.c_str());
+}
+
 void probe_before(uintptr_t vm)
 {
     uintptr_t wizard = rd<uintptr_t>(vm + 0x438), mgr = rd<uintptr_t>(vm + 0x440);
@@ -134,6 +187,7 @@ void probe_before(uintptr_t vm)
                 (unsigned long long)gm, (unsigned long long)unbase(reinterpret_cast<uintptr_t>(vt)),
                 (unsigned long long)unbase(type), chain.c_str(), driver ? "driver career type" : "NOT the driver career type",
                 (unsigned long long)rd<uintptr_t>(gm + 0xe18), comps.c_str());
+    probe_team_models(gm);
 }
 
 std::string upgrade_teams(uintptr_t gm, size_t &count)
