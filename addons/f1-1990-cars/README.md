@@ -9,6 +9,7 @@ What it adds, all under new paths, nothing replacing a game file:
 - `2025_asset_groups/f1_1990_vehicle_package/tyrecompounds/tyrecompounds.erp`: a copy of the 2026 compound file.
 - `2025_asset_groups/f1_1990_vehicle_b_specs/teams/<folder>/wep/<folder>.erp`: the 13 B-spec cars (McLaren: ASR's late-1990 MP4/5B, `gridn13_mclaren_late`; the others: the A body with gold rims, `grid*13b_*`). Their own resources carry the B package path; references to the shared resources and to the car's handling file point at the A package, so a B group lists the A common.erp and the A handling archive.
 - Runtime asset groups (`assets/cars.json`): `asset_groups/f1_1990_vehicle_package/teams/<folder>/wep/<folder>.assetgroup` listing common.erp, the car archive and `<folder>_handling.erp` (shipped by `swofty.f1-1990`), and the tyre-compound group. Each takes its flags from the matching 2026 group.
+- `videos/f1_1990_intro.bik`: the intro video that opens a new 1990 Driver Career (`native/f1_1990_intro.dll` in `swofty.f1-1990`, option `intro_video_1990`), from `video/f1_1990_intro.bik` (ignored, like `erp/`). Bring your own video: the build fails without that file.
 
 | Team | Folder | Model | Source build |
 |---|---|---|---|
@@ -35,6 +36,15 @@ python3 addons/f1-1990-cars/tools/build_pack.py --bspec-only # only the B-spec a
 ```
 
 `build_pack.py` renames each porter output from `eaid://f1_2026_vehicle_package/` to `eaid://f1_1990_vehicle_package/` byte for byte (same length), leaves the bare `.mipmaps` sidecar paths on the stock 2026 files, drops the car's own handling file (the f1-1990 addon ships it per option), and sets the AudioF1Car `switchName` in each carmodel layer to the car's 1990 engine audio label (`addons/f1-1990/tools/audio.py`, same length as the donor's). Larrousse and Dallara sit on My Team folders for their AI data but were built on team donors: their resources carry a stem of the donor's length, and their World, event graph and layers are also stored under the folder name. The build fails if any `eaid://f1_2026_vehicle_package/` reference survives. Sources default to `/mnt/work/.mp45b/porter_a/tries` (`--tries`, `--common`, `--game`).
+
+The intro video:
+
+```sh
+nix shell nixpkgs#ffmpeg nixpkgs#wine64 nixpkgs#xvfb-run nixpkgs#p7zip -c \
+    addons/f1-1990-cars/tools/intro_video.sh <input video>   # writes video/f1_1990_intro.bik
+```
+
+`intro_video.sh` scales the input to 1280x720 (letterboxed; `WIDTH`, `HEIGHT`), resamples it to 29.97 fps and 48 kHz stereo, and encodes it as Bink 1 at `RATE` bytes per second (1500000) with `radvideo64.exe binkc` and `binkmix` under Wine. The game plays a `.bik` as Bink 1; Bink 2 encoding needs a licence. `RADVIDEO` points at an installed `radvideo64.exe`; otherwise the script downloads the free RAD Video Tools from radgametools.com into `~/.cache/f1-1990-intro`. RAD Video Tools are for non-commercial use only.
 
 ## Test option
 

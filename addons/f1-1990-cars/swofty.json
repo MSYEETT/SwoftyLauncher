@@ -35,6 +35,12 @@
     ],
     "assets": [
       "assets/cars.json"
+    ],
+    "files": [
+      {
+        "source": "video/f1_1990_intro.bik",
+        "target": "videos/f1_1990_intro.bik"
+      }
     ]
   },
   "load_after": [
