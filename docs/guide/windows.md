@@ -34,6 +34,17 @@ You'll see **Launching…** on the button, then **Stop** while the game runs. If
 
 To follow the logs as you play, select the arrow next to **Play** and choose **Play with console**, or run `swofty run` from a terminal.
 
+## If the mods don't load
+
+An antivirus such as Windows Defender can delete, quarantine or block the launcher's `version.dll` and its other DLLs. F1 25 then starts without mods. The launcher checks for this before the game starts and again once it is running, and shows a **Your antivirus removed mod files** or **Mods did not load** dialog that names the files. The game keeps running without mods.
+
+To fix it:
+
+1. Close F1 25.
+2. Open **Windows Security** > **Virus & threat protection** > **Protection history** and restore the files the dialog names.
+3. Add exclusions for the game folder and the launcher folder (`%LOCALAPPDATA%\Programs\SwoftyLauncher`).
+4. Press **Play** again.
+
 ## If the game crashes
 
 The session puts the game folder back to vanilla when the game exits, crash or not. If the launcher was closed first, it puts the folder back the next time it starts. See [Restoring the game](/using/profiles-and-restoring).
