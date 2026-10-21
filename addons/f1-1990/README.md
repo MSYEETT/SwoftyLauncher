@@ -59,6 +59,8 @@ The mode row's save container is `driver_career_1990`, but that container sits i
 separate save file needs the native save hook (N2: the profile save named `f1990`); until it lands, back up saves before
 playing a career in this profile.
 The **Career year** setting starts the career in 1990 (default) or 2026.
+The Career menu's 2026 tile reads "1990 Career" (`lng_career_dlc_content` and its description). The 2025 tile and the
+26 badge stay; hiding them needs the native request N6.
 The season has no New Season Grid Reveal event; the reveal crashes the game with 13 teams.
 The season-length screen lists three "1990 Season" entries, the `f1_26` Long, Medium and Short rows, all with the same
 16 rounds. The game needs all three rows: the career activity report (0x143867ff0) reads the Short and Medium lengths
