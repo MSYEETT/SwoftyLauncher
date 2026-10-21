@@ -183,6 +183,26 @@ python3 addons/f1-1990/tools/rnd_look.py --game <F1 25> [--baseline <launcher ba
 It needs Pillow, numpy, resvg (or nix), zstd and node. rnd_look.json must run before rnd-tyres-thermal's uidb edits,
 which its `load_after` on this addon gives.
 
+## Tyre icons (erp/tyre_icons.json, erp/tyre_icons/tyre_icons.erpk, tools/tyre_icons.py)
+
+The 1990 compounds show 2018 Pirelli lettering: red SS (Supersoft), purple US (Ultrasoft), yellow S (Soft). A compound's icons come from two fields of its visual compound row: `icon_code`, a glyph of the HUD icon font (`art/fonts/icons.font` in `fonts_standard_icons.erp`: an embedded TrueType font for the code points, 306 glyph records with UVs, and a 2048x1024 BC3 colour page), and `texture_name`, a slice name in the compound texture arrays of `overrides.uidb`. `osd.car_settings_icons` also holds `<texture_name>_worn` (the game builds the name with `%s_worn`).
+
+| resource | carried by | size | new entries |
+|---|---|---|---|
+| `icons.font` glyphs (text in the icon font) | `fonts_standard_icons` | 44x44 | U+E190 SS, U+E191 US, U+E192 S (records, TrueType glyphs `uniE190`..`uniE192`, cells at y 940 of the page) |
+| `tyres.tyres_small` | `flow_pause`, `flow_garage`, `flow_post_race` | 28x28 | `SuperSoft_f1_1990`, `UltraSoft_f1_1990`, `Soft_f1_1990` |
+| `tyre_allocation.compound_icons` | `flow_loading`, `flow_car_monitor`, `flow_options`, `flow_team_hq` | 44x44 | the same three |
+| `tyre_allocation.key_icons` | `flow_st_hub`, `flow_loading`, `flow_post_race`, `flow_car_monitor`, `flow_options` | 28x28 | the same three |
+| `tyre_allocation.tyre_icons` | `flow_loading`, `flow_options`, `flow_team_hq` | 144x144 | copies of the stock red `Soft_f1_26`, purple `SuperSoft_f2` and yellow `Medium_f1_26` tyres |
+| `osd.car_settings_icons` (MFD) | `flow_post_race`, `flow_race` | 24x24 | the three, plus `_worn` (filled disc) |
+
+The badges and glyphs start from the stock `Soft_f1_26` art (and `Soft_worn_f1_26`, the `~` glyph): the ring is recoloured to the accent of the stock `Soft_f1_26` (red), `Medium_f1_26` (yellow) or `SuperSoft_f2` (purple) badge, and the letter is replaced by the text in Formula 1 TV Bold (`formula1-tv-600_bold_web.font`), at the stock letter's height, or 86% of it for two letters. Slices are BC7 and glyph cells BC3, encoded with NVIDIA Texture Tools (`nvcompress`). The arrays grow in every archive that carries them, as `erp/badges.json` grows the team arrays; the existing slices and glyphs keep their bytes. `tools/tyre_icons.py` rebuilds the archive and the ops:
+
+```sh
+nix-shell -p nodejs zstd nvidia-texture-tools "python3.withPackages (ps: [ ps.numpy ps.pillow ps.fonttools ])" \
+  --run "python3 addons/f1-1990/tools/tyre_icons.py --game <F1 25> --baseline <launcher baseline>/<build> --sheet <png>"
+```
+
 ## 13-team lists (erp/ui26.json, ui/, tools/ui26.py)
 
 At 26 cars (`when: cars 26`) the team lists get rows for 13 teams, in place in every archive that carries each resource.
