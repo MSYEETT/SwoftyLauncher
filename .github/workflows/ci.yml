@@ -365,6 +365,9 @@ jobs:
       - name: String override Wine test
         run: native/test/run_lang_override_test.sh
 
+      - name: Career UI Wine test
+        run: native/test/run_career_ui_test.sh
+
       # Saved after the Wine tests, which compile their fixtures into the same cache.
       - name: Save the Zig cache
         if: github.ref == 'refs/heads/main' && steps.zig-cache.outputs.cache-hit != 'true'
