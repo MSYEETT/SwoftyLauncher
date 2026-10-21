@@ -204,3 +204,14 @@ It logs `[f1-1990] intro: new 1990 career; playing videos/f1_1990_intro.bik (Bin
 29.97 fps, 36.7 s) on layer 4 (feature system ..., player ...)`, then `intro: video ended|skipped|no end callback;
 timed out after N s; the career continues`, or once why it plays nothing (`no videos/f1_1990_intro.bik (the private
 F1 1990 Cars pack installs it)`, `is a Bink 2 file`, `no fullscreen video player`).
+
+## Session names (`f1_1990_sessions.dll`)
+
+A separate DLL; option `session_names_1990` (default on); ships `data/session-strings.json` through its entry's `files`.
+The game names a session by its type (long names 0x145736910, short names 0x14576e538 and the timing tower's
+`race_data.uidb`; the 1990 weekend runs types 13/14 on Friday and 8/9 on Saturday) and a session group by its id
+(`lng_sprintshootout`, `lng_qualifying`; also the weekend settings' weather and time-of-day rows). `strings.<language>.<key>`
+are set through the core's runtime string overrides (API v8) on a 1990 `career.loaded` and cleared on `career.unloaded`
+or another career's load; below SDK v8 the DLL only logs that the names stay stock.
+
+It logs `[f1-1990] sessions: set|cleared N session name string(s) (M failed)`.

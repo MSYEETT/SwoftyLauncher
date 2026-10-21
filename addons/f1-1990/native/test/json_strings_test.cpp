@@ -72,6 +72,31 @@ int main(int argc, char **argv)
         check("parses data/rnd-strings.json", ok && !leaves.empty() && leaves[0].path[0] == "scope");
     }
 
+    if (argc > 5) {
+        std::ifstream f(argv[5], std::ios::binary);
+        std::stringstream ss;
+        ss << f.rdbuf();
+        bool ok = f1990::parse_string_leaves(ss.str(), leaves, &at);
+        size_t n = 0;
+        const std::string *q1 = nullptr, *q2 = nullptr, *results = nullptr;
+        for (auto &l : leaves) {
+            if (l.path.size() != 3 || l.path[0] != "strings")
+                continue;
+            n++;
+            if (l.path[1] == "eng" && l.path[2] == "lng_sprintshootout_single")
+                q1 = &l.text;
+            if (l.path[1] == "eng" && l.path[2] == "lng_qualifying")
+                q2 = &l.text;
+            if (l.path[1] == "jap" && l.path[2] == "lng_qualifying_results")
+                results = &l.text;
+        }
+        check("parses data/session-strings.json", ok && leaves[0].path[0] == "scope" && leaves[0].text == "f1_career_1990");
+        check("has 12 session strings in each of the eleven languages", n == 132);
+        check("names the Friday session Qualifying 1", q1 && *q1 == "Qualifying 1");
+        check("names the Saturday session Qualifying 2", q2 && *q2 == "Qualifying 2");
+        check("gives the results headers English text", results && *results == "Qualifying 2 Results");
+    }
+
     if (argc > 1) {
         std::ifstream f(argv[1], std::ios::binary);
         std::stringstream ss;

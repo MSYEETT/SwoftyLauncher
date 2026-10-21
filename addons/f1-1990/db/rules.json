@@ -1428,6 +1428,28 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "1",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "11",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne]",
    "field": "_TrackNameData_instancecount_",
    "value": "1",
@@ -1692,6 +1714,28 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "26",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "7",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai]",
    "field": "_TrackNameData_instancecount_",
    "value": "1",
@@ -1953,6 +1997,28 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "18",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "10",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
   },
   {
    "op": "set",
@@ -2388,6 +2454,28 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "7",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "6",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal]",
    "field": "_TrackNameData_instancecount_",
    "value": "1",
@@ -2649,6 +2737,28 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "24",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "5",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
   },
   {
    "op": "set",
@@ -2916,6 +3026,28 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "27",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "9",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya]",
    "field": "_TrackNameData_instancecount_",
    "value": "1",
@@ -3177,6 +3309,28 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "5",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "7",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
   },
   {
    "op": "set",
@@ -3444,6 +3598,28 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "12",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "7",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone]",
    "field": "_TrackNameData_instancecount_",
    "value": "1",
@@ -3708,6 +3884,28 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "23",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "8",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps]",
    "field": "_TrackNameData_instancecount_",
    "value": "1",
@@ -3969,6 +4167,28 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "9",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "8",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
   },
   {
    "op": "set",
@@ -4292,6 +4512,28 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "6",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "9",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza]",
    "field": "_TrackNameData_instancecount_",
    "value": "1",
@@ -4553,6 +4795,28 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "20",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "9",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
   },
   {
    "op": "set",
@@ -4988,6 +5252,28 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "21",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "6",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico]",
    "field": "_TrackNameData_instancecount_",
    "value": "1",
@@ -5252,6 +5538,28 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "22",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "3",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil]",
    "field": "_TrackNameData_instancecount_",
    "value": "1",
@@ -5513,6 +5821,28 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "8",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "3",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
   },
   {
    "op": "set",
@@ -6057,6 +6387,28 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackGeneralData_0",
+   "field": "weekend_day",
+   "value": "10",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackGeneralData_0",
+   "field": "weekend_month",
+   "value": "5",
+   "create": true,
+   "type": 0,
+   "when": {
+    "career_year": "2026"
+   }
   },
   {
    "op": "set",

@@ -123,6 +123,7 @@ def gp_keys(code):
 
 TRACK_NAMES = {track: gp_keys(code) for _, track, _, _, _, code, _ in ROUNDS}
 TRACK_DATES = {track: (day, month) for _, track, _, day, month, _, _ in ROUNDS}
+CAREER_YEARS = [2026]
 
 
 class Db:
