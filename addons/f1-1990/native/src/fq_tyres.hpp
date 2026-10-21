@@ -222,6 +222,45 @@ inline int untag_fresh_sets(uint8_t *alloc)
     return changed;
 }
 
+// Compound classes (tyres.compound_classes) sit 0x1f0 apart, indexed by stat id, with the setup-mode,
+// season and weekend-format masks at +0x158 and the physical compound list {begin, end} at +0x170.
+constexpr size_t kClassSize = 0x1f0;
+constexpr size_t kClassMasks = 0x158;
+constexpr size_t kClassPhysical = 0x170;
+
+// What the career reports through its vtable +200: each bit with a flag saying it applies.
+struct Championship {
+    uint8_t setup, has_setup, season, has_season, format, has_format;
+};
+
+// setPresetChoice (0x140bcb9a0) takes the first class whose masks hold every bit that applies; a bit
+// past its mask matches nothing here (the game stops there).
+inline bool class_matches(const uint8_t *cls, const Championship &c)
+{
+    uint32_t m[3];
+    std::memcpy(m, cls + kClassMasks, sizeof m);
+    auto holds = [](uint32_t mask, uint8_t bit, uint8_t bits) { return bit < bits && (mask >> bit & 1); };
+    return (!c.has_setup || holds(m[0], c.setup, 32)) && (!c.has_season || holds(m[1], c.season, 32)) &&
+           (!c.has_format || holds(m[2], c.format, 2));
+}
+
+// Both classes list the same physical compounds in the same order (entries 0x10 apart, compared on
+// their first pointer).
+inline bool same_physical(const uint8_t *a, const uint8_t *b)
+{
+    const uint8_t *ab, *ae, *bb, *be;
+    std::memcpy(&ab, a + kClassPhysical, sizeof ab);
+    std::memcpy(&ae, a + kClassPhysical + 8, sizeof ae);
+    std::memcpy(&bb, b + kClassPhysical, sizeof bb);
+    std::memcpy(&be, b + kClassPhysical + 8, sizeof be);
+    if (!ab || !bb || ae < ab || be < bb || ae - ab != be - bb || (ae - ab) % 0x10)
+        return false;
+    for (; ab < ae; ab += 0x10, bb += 0x10)
+        if (std::memcmp(ab, bb, 8))
+            return false;
+    return true;
+}
+
 // Every unused dry set (softer, medium, harder) of one car's allocation becomes usable in any
 // session: the handed-back flag is cleared and the session tag set to 0 ("any"). Returns how many
 // sets changed; a change marks the allocation dirty (+0xe8).

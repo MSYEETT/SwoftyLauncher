@@ -20,6 +20,13 @@
 // still finds nothing for a car of a 1990 session, the car's allocation is repaired (reassigned,
 // refilled, worn fresh sets cleared, tags of fresh sets dropped) and the lookup runs again; if it
 // still fails, the first preferred slot with a fresh set is returned. Each step is logged.
+//
+// Tyre class (setting tyre_class_fix): a car's tyre component takes its compound class (+0x9bc0)
+// from the car's "compound class" attribute, f1_26 for the 1990 cars built from the 2026 ones, and
+// the garage tyre picker, the HUD, the MFD and the timing tower map each set to a badge through that
+// class, so 1990 sets showed the 2026 badges.
+// At every 1990 session start every car's tyre component takes the class the game picked for the
+// session's allocations, when both classes list the same physical compounds.
 
 #include <atomic>
 #include <bitset>
@@ -38,6 +45,7 @@
 
 SWOFTY_SETTING(bool, fq_tyre_fix, true);
 SWOFTY_SETTING(bool, tyre_fallback, true);
+SWOFTY_SETTING(bool, tyre_class_fix, true);
 
 namespace {
 
@@ -290,6 +298,86 @@ void audit(void *component, uint32_t session)
                 session, count, with_car, count ? lo : 0, hi, empties, missing, unreachable, moved);
 }
 
+// The class setPresetChoice (0x140bcb9a0) gives the session's allocations: the first compound class
+// (component+0x2e8, +0xf0..+0xf8) whose masks match the championship. Null when the game takes each
+// car's own class there instead (career+0x2b0, +0x284 set).
+const uint8_t *session_class(void *component, const uint8_t **base)
+{
+    auto *c = static_cast<uint8_t *>(component);
+    if (!swofty::mem::readable(c + 0x278, 8) || !swofty::mem::readable(c + 0x2e8, 8))
+        return nullptr;
+    auto *career = at<uint8_t *>(c, 0x278), *classes = at<uint8_t *>(c, 0x2e8);
+    if (!career || !classes || !swofty::mem::readable(career, 0x2b8) || !swofty::mem::readable(classes + 0xf0, 0x10))
+        return nullptr;
+    auto *rules = at<uint8_t *>(career, 0x2b0);
+    if (rules && swofty::mem::readable(rules + 0x284, 1) && rules[0x284])
+        return nullptr;
+    auto **vt = at<void **>(career, 0);
+    if (!vt || !swofty::mem::readable(vt + 200 / 8, 8) || !vt[200 / 8])
+        return nullptr;
+    alignas(8) uint8_t raw[16] = {};
+    reinterpret_cast<void (*)(void *, uint8_t *)>(vt[200 / 8])(career, raw);
+    t::Championship champ;
+    std::memcpy(&champ, raw, sizeof champ);
+    auto *b = at<uint8_t *>(classes, 0xf0), *e = at<uint8_t *>(classes, 0xf8);
+    if (!b || e < b || size_t(e - b) % t::kClassSize || !swofty::mem::readable(b, size_t(e - b)))
+        return nullptr;
+    *base = b;
+    for (; b < e; b += t::kClassSize)
+        if (t::class_matches(b, champ))
+            return b;
+    return nullptr;
+}
+
+bool physical_readable(const uint8_t *cls)
+{
+    if (!swofty::mem::readable(cls + t::kClassPhysical, 0x10))
+        return false;
+    auto *b = at<const uint8_t *>(cls, t::kClassPhysical), *e = at<const uint8_t *>(cls, t::kClassPhysical + 8);
+    return b && e >= b && swofty::mem::readable(b, size_t(e - b));
+}
+
+void align_classes(void *component, uint32_t session)
+{
+    const uint8_t *base = nullptr, *cls = session_class(component, &base);
+    if (!cls || !physical_readable(cls)) {
+        swofty::log("[f1-1990] tyres: session %u: no session compound class; tyre badges follow each car's own class",
+                    session);
+        return;
+    }
+    Entrants entrants(component);
+    void *car_list = swofty::mem::readable(static_cast<uint8_t *>(component) + 0x2d8, 8) ? at<void *>(component, 0x2d8)
+                                                                                          : nullptr;
+    size_t set = 0, had = 0, kept = 0, unreachable = 0;
+    long own_index = -1;
+    for (const uint8_t *r = entrants.b; r < entrants.e; r += kEntrantSize) {
+        uint8_t v = at<uint8_t>(r, 0x82);
+        if (v == 0xff)
+            continue;
+        uint8_t *tyres = tyre_component(car_list, v);
+        if (!tyres) {
+            unreachable++;
+            continue;
+        }
+        auto *own = at<const uint8_t *>(tyres, 0x9bc0);
+        if (own == cls) {
+            had++;
+            continue;
+        }
+        if (!own || !physical_readable(own) || !t::same_physical(own, cls)) {
+            kept++;
+            continue;
+        }
+        if (own >= base && size_t(own - base) % t::kClassSize == 0)
+            own_index = long((own - base) / t::kClassSize);
+        std::memcpy(tyres + 0x9bc0, &cls, sizeof cls);
+        set++;
+    }
+    swofty::log("[f1-1990] tyres: session %u: compound class %ld set on %zu car(s) (was class %ld), %zu had it, %zu kept "
+                "their own (other physical compounds), %zu tyre component(s) not found",
+                session, long((cls - base) / t::kClassSize), set, own_index, had, kept, unreachable);
+}
+
 }
 
 SWOFTY_WRAP(Sess_TyreAllocation_OnSessionStart, void, void *component)
@@ -309,6 +397,8 @@ SWOFTY_WRAP(Sess_TyreAllocation_OnSessionStart, void, void *component)
         g_reported.reset();
         if (is_1990 && tyre_fallback)
             audit(component, g_session);
+        if (is_1990 && tyre_class_fix)
+            align_classes(component, g_session);
     }
     if (!is_1990 || !fq_tyre_fix || !f1990::tyres::is_shootout_session(at<uint32_t>(session, 0x08)))
         return;
@@ -414,8 +504,9 @@ void on_unloaded(const SwoftyEvent *, void *)
 
 SWOFTY_ON_LOAD
 {
-    swofty::log("[f1-1990] FQ tyres loaded: Friday qualifying dry sets %s, tyre fallback %s",
-                fq_tyre_fix ? "on" : "off (fq_tyre_fix)", tyre_fallback ? "on" : "off (tyre_fallback)");
+    swofty::log("[f1-1990] FQ tyres loaded: Friday qualifying dry sets %s, tyre fallback %s, tyre class %s",
+                fq_tyre_fix ? "on" : "off (fq_tyre_fix)", tyre_fallback ? "on" : "off (tyre_fallback)",
+                tyre_class_fix ? "on" : "off (tyre_class_fix)");
     uint32_t token = 0;
     if (swofty::events::subscribe(SWOFTY_EVENT_CAREER_UNLOADED, on_unloaded, nullptr, &token) != swofty::events::Result::ok)
         swofty::log("[f1-1990] tyres: no career.unloaded event; the fallback keeps the last weekend's allocations");

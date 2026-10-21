@@ -203,6 +203,8 @@ nix-shell -p nodejs zstd nvidia-texture-tools "python3.withPackages (ps: [ ps.nu
   --run "python3 addons/f1-1990/tools/tyre_icons.py --game <F1 25> --baseline <launcher baseline>/<build> --sheet <png>"
 ```
 
+The garage tyre picker and the HUD, MFD, pause and timing tower tyre widgets reach a set's visual compound through the car's compound class, which the 1990 cars take from the 2026 cars; `f1_1990_tyres.dll` gives every car the session's class at each 1990 session start (option `tyre_class_fix`, native/README.md#tyre-class).
+
 ## 13-team lists (erp/ui26.json, ui/, tools/ui26.py)
 
 At 26 cars (`when: cars 26`) the team lists get rows for 13 teams, in place in every archive that carries each resource.
