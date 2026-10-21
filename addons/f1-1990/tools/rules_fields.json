@@ -540,5 +540,20 @@
   "options_system.options.multiplayer.options_folder_2.option_4.additional_tags_2.tags",
   "options_system.options.multiplayer.options_folder_2.option_5.additional_tags_4.tags",
   "options_system.options.multiplayer.options_folder_2.option_6.additional_tags_3.tags"
+ ],
+ "name_data": [
+  "_metadata_",
+  "acronym_name",
+  "circuit",
+  "city_name",
+  "city_name_short",
+  "country_name",
+  "file_name",
+  "gp_long_name",
+  "gp_long_name_multiline",
+  "gp_long_name_multiline_previous",
+  "gp_short_name",
+  "reverse_track_trophy_name",
+  "title"
  ]
 }

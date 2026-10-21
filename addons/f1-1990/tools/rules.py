@@ -14,7 +14,7 @@ sys.path.insert(0, str(ADDON.parent.parent / "tools"))
 sys.path.insert(0, str(HERE))
 
 import gamedb  # noqa: E402
-from career import ROUNDS  # noqa: E402
+from career import TRACK_DATES, TRACK_NAMES  # noqa: E402
 
 STOCK_DB = "/mnt/work/.f1-1990/data-c26/fakegame/game_package/gamedatabases/gamedatabases.2025.bin"
 FIELDS = json.loads((HERE / "rules_fields.json").read_text())
@@ -183,7 +183,6 @@ def dataset(fields, stock):
 
     stock_2026 = stock.row(f"{DATASETS}.TrackDataSet", "f1_2026")
     stock_base = stock.row(f"{DATASETS}.TrackDataSet", "f1")
-    dates = {track: (day, month) for _, track, _, day, month in ROUNDS}
     for i, track in enumerate(tracks):
         row = f"{DATASET}.TrackData[_metadata_={track}]"
         tyre = f"{row}.TyreData_0"
@@ -196,17 +195,25 @@ def dataset(fields, stock):
             set_(f"{row}.TrackAuthenticWeekendData_0", "_metadata_", "TrackAuthenticWeekendData", STRING),
             set_(f"{row}.TrackAuthenticWeekendData_0", "weekend_format", "default", ID),
         ]
-        if track not in dates:
-            continue
-        source = f"{stock_2026}.TrackData_{i}"
-        if stock.get(f"{source}._TrackGeneralData_instancecount_") is None:
-            source = stock.row(f"{stock_base}.TrackData", track)
-        day, month = dates[track]
-        general = {"weekend_day": day, "weekend_month": month, "weekend_year": YEAR}
-        ops.append(set_(row, "_TrackGeneralData_instancecount_", 1, INT))
-        for field in FIELDS["general_data"]:
-            type_, value = stock.get(f"{source}.TrackGeneralData_0.{field}")
-            ops.append(set_(f"{row}.TrackGeneralData_0", field, general.get(field, value), type_))
+        sources = [f"{stock_2026}.TrackData_{i}", stock.row(f"{stock_base}.TrackData", track)]
+        if track in TRACK_DATES:
+            day, month = TRACK_DATES[track]
+            ops += subtable(stock, row, sources, "TrackGeneralData", FIELDS["general_data"],
+                            {"weekend_day": day, "weekend_month": month, "weekend_year": YEAR})
+        if track in TRACK_NAMES:
+            long_name, short_name = TRACK_NAMES[track]
+            ops += subtable(stock, row, sources, "TrackNameData", FIELDS["name_data"],
+                            {"gp_long_name": long_name, "gp_long_name_multiline": long_name,
+                             "gp_short_name": short_name})
+    return ops
+
+
+def subtable(stock, row, sources, name, fields, values):
+    source = next(s for s in sources if stock.get(f"{s}._{name}_instancecount_") is not None)
+    ops = [set_(row, f"_{name}_instancecount_", 1, INT)]
+    for field in fields:
+        type_, value = stock.get(f"{source}.{name}_0.{field}")
+        ops.append(set_(f"{row}.{name}_0", field, values.get(field, value), type_))
     return ops
 
 

@@ -1424,6 +1424,118 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_aus_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_aus_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_aus_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_aus_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_aus_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackNameData_0",
+   "field": "file_name",
+   "value": "melbourne",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_aus",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_aus",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_aus_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_aus_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=melbourne].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_aus_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TyreData_0",
    "field": "_MandatoryPitstopsOverride_instancecount_",
    "value": "1",
@@ -1576,6 +1688,118 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_chn_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_chn_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_chn_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_chn_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_chn_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackNameData_0",
+   "field": "file_name",
+   "value": "shanghai",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_chn",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_chn",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_chn_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_chn_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=shanghai].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_chn_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TyreData_0",
    "field": "_MandatoryPitstopsOverride_instancecount_",
    "value": "1",
@@ -1725,6 +1949,118 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_jpn_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_jpn_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_jpn_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_jpn_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_jpn_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackNameData_0",
+   "field": "file_name",
+   "value": "suzuka",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_jpn",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_jpn",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_jpn_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_jpn_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=suzuka].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_jpn_title",
+   "create": true,
+   "type": 2
   },
   {
    "op": "set",
@@ -2048,6 +2384,118 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_can_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_can_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_can_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_can_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_can_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackNameData_0",
+   "field": "file_name",
+   "value": "montreal",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_can",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_can",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_can_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_can_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=montreal].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_can_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TyreData_0",
    "field": "_MandatoryPitstopsOverride_instancecount_",
    "value": "1",
@@ -2197,6 +2645,118 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_mco_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_mco_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_mco_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_mco_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_mco_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackNameData_0",
+   "field": "file_name",
+   "value": "monaco",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_mco",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_mco",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_mco_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_mco_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monaco].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_mco_title",
+   "create": true,
+   "type": 2
   },
   {
    "op": "set",
@@ -2352,6 +2912,118 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_cat_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_esp_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_esp_city_name2",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_esp_city_name2",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_esp_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackNameData_0",
+   "field": "file_name",
+   "value": "catalunya",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_cat",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_cat",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_esp_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_cat_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=catalunya].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_cat_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TyreData_0",
    "field": "_MandatoryPitstopsOverride_instancecount_",
    "value": "1",
@@ -2501,6 +3173,118 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_aut_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_aut_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_aut_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_aut_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_aut_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackNameData_0",
+   "field": "file_name",
+   "value": "austria",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_aut",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_aut",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_aut_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_aut_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=austria].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_aut_title",
+   "create": true,
+   "type": 2
   },
   {
    "op": "set",
@@ -2656,6 +3440,118 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_gbr_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_gbr_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_gbr_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_gbr_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_gbr_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackNameData_0",
+   "field": "file_name",
+   "value": "silverstone",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_gbr",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_gbr",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_gbr_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_gbr_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=silverstone].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_gbr_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TyreData_0",
    "field": "_MandatoryPitstopsOverride_instancecount_",
    "value": "1",
@@ -2808,6 +3704,118 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_bel_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_bel_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_bel_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_bel_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_bel_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackNameData_0",
+   "field": "file_name",
+   "value": "spa_francorchamps",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_bel",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_bel",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_bel_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_bel_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=spa_francorchamps].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_bel_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TyreData_0",
    "field": "_MandatoryPitstopsOverride_instancecount_",
    "value": "1",
@@ -2957,6 +3965,118 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_hun_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_hun_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_hun_city_name2",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_hun_city_name2",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_hun_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackNameData_0",
+   "field": "file_name",
+   "value": "hungaroring",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_hun",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_hun",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_hun_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_hun_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=hungaroring].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_hun_title",
+   "create": true,
+   "type": 2
   },
   {
    "op": "set",
@@ -3168,6 +4288,118 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_ita_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_ita_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_ita_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_ita_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_ita_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackNameData_0",
+   "field": "file_name",
+   "value": "monza",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_ita",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_ita",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_ita_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_ita_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=monza].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_ita_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TyreData_0",
    "field": "_MandatoryPitstopsOverride_instancecount_",
    "value": "1",
@@ -3317,6 +4549,118 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_esp_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_mad_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_mad_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_mad_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_esp_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackNameData_0",
+   "field": "file_name",
+   "value": "madrid",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_mad",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_mad",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_mad_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=madrid].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_mad_title",
+   "create": true,
+   "type": 2
   },
   {
    "op": "set",
@@ -3640,6 +4984,118 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_mex_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_mex_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_mex_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_mex_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_mex_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackNameData_0",
+   "field": "file_name",
+   "value": "mexico",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_mex",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_mex",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_mex_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_mex_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=mexico].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_mex_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TyreData_0",
    "field": "_MandatoryPitstopsOverride_instancecount_",
    "value": "1",
@@ -3792,6 +5248,118 @@
   },
   {
    "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_bra_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_bra_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_bra_city_name2",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_bra_city_name2",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_bra_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackNameData_0",
+   "field": "file_name",
+   "value": "brazil",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_bra",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_bra",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_bra_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_bra_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=brazil].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_bra_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
    "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TyreData_0",
    "field": "_MandatoryPitstopsOverride_instancecount_",
    "value": "1",
@@ -3941,6 +5509,118 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_las_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_las_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_las_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_las_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_usa_country_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackNameData_0",
+   "field": "file_name",
+   "value": "las_vegas",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_las",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_las",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_las_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_las_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=las_vegas].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_las_title",
+   "create": true,
+   "type": 2
   },
   {
    "op": "set",
@@ -4373,6 +6053,118 @@
    "value": "1990",
    "create": true,
    "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola]",
+   "field": "_TrackNameData_instancecount_",
+   "value": "1",
+   "create": true,
+   "type": 0
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackNameData_0",
+   "field": "_metadata_",
+   "value": "TrackNameData",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackNameData_0",
+   "field": "acronym_name",
+   "value": "lng_track_imo_tla",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackNameData_0",
+   "field": "circuit",
+   "value": "lng_track_imo_subtitle",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackNameData_0",
+   "field": "city_name",
+   "value": "lng_track_imo_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackNameData_0",
+   "field": "city_name_short",
+   "value": "lng_track_imo_city_name",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackNameData_0",
+   "field": "country_name",
+   "value": "lng_track_ita_country_title",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackNameData_0",
+   "field": "file_name",
+   "value": "imola",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackNameData_0",
+   "field": "gp_long_name",
+   "value": "lng_f1990_gp_imo",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackNameData_0",
+   "field": "gp_long_name_multiline",
+   "value": "lng_f1990_gp_imo",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackNameData_0",
+   "field": "gp_long_name_multiline_previous",
+   "value": "lng_track_imo_gp_title_multiline",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackNameData_0",
+   "field": "gp_short_name",
+   "value": "lng_f1990_gp_imo_short",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackNameData_0",
+   "field": "reverse_track_trophy_name",
+   "value": "",
+   "create": true,
+   "type": 2
+  },
+  {
+   "op": "set",
+   "select": "track_data.game_setup.TrackDataSet[_metadata_=f1_1990].TrackData[_metadata_=imola].TrackNameData_0",
+   "field": "title",
+   "value": "lng_track_imo_title",
+   "create": true,
+   "type": 2
   },
   {
    "op": "set",
