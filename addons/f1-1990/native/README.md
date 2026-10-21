@@ -175,6 +175,39 @@ It logs `[f1-1990] wizard: f1_career_1990 starts in F1, no F2 choice and no team
 `wizard: Choose Driver back goes to the settings step (screen_group_back_1990; confirm step dropped, settings choice dropped)`
 and `wizard: settings back goes to the Career tiles (back_1990)` (first few of each).
 
+### 1990 calendar
+
+The season length component's begin (`vt_Game_SeasonLengthComponent` slot 77, 0x140bc9360) prepares the calendar
+(+0x2a8 vector, 0x28-byte entries: event stat id +8, minute offset u32 +0x18, date time_t +0x20) before it hands it to
+the career. When the default track list (+0x298, or, when that is null, the season length data's default at +0x290
++0xf8: `F1_2025_full_plus` / `F1_2026_full_plus`, both `sort_by_date`) sorts by date, it sets each entry's minute offset
+from its date and the event list's season start and sorts by it (0x140bc9700). The date comes from the event's own
+`schedule.all_track_events` row (`date_time`, the Thursday of its stock weekend: 2026 for the `_26` events, 2025 for
+Imola), through the career's dynamic event data. The 1990 rounds therefore ran in stock 2026 order, Australia first.
+
+For a 1990 career (data group `f1_career_1990`, or setup mode `f1_1990`, stat id 16), at the settings step and before
+each begin, the DLL:
+- refills a calendar that lacks an `F1_1990` event from the `F1_1990` list of the dynamic event data (career +0xf58,
+  entries +0xb8..+0xc0, `{name, allocator, begin, end, capacity}`) with `Game_SeasonLength_PushCalendarEntry`
+  (0x140bc9d80);
+- moves each round's date by whole days from its stock day to its 1990 day in the career year
+  (`data/calendar-1990.json` from `tools/career.py`: the Thursday before the Sunday on or before the 1990 race date), only
+  while the date still falls on the stock day, so a second pass changes nothing.
+
+The begin then sorts the rounds Phoenix first: 134 Phoenix 5 March, 133 Interlagos, 27 Imola, 117 Monaco, 116 Montreal,
+132 Mexico City, 119 Paul Ricard, 121 Silverstone, 111 Hockenheim, 124 Hungaroring, 123 Spa, 127 Monza (stock day),
+128 Estoril, 118 Jerez, 112 Suzuka, 110 Adelaide 29 October. `src/calendar_1990.hpp` (list lookup, date shifts, the
+day arithmetic) is tested by `test/calendar_test.cpp`, which also checks the shipped file.
+
+It logs:
+- once, `[f1-1990] calendar: 16 1990 round date(s) from data/calendar-1990.json`;
+- `calendar: 1990 career at the settings step|season begin (setup mode M, default track list "D"); calendar N event(s)
+  [ids]; F1_1990 has 16 event(s); calendar kept|calendar refilled from F1_1990; K date(s) moved to the 1990 days
+  [id@YYYY-MM-DD,...]`;
+- after begin, `calendar: season built: 16 event(s) [134@2026-03-05,...,110@2026-10-29]`;
+- on load, `calendar: 1990 career loaded; season has N weekend(s) [names]; calendar N event(s) [ids]`;
+- for other careers, `calendar: season begin of a non-1990 career (...)` (first 4).
+
 ## Intro video (`f1_1990_intro.dll`)
 
 A separate DLL; option `intro_video_1990` (default on). A new 1990 Driver Career opens with `videos/f1_1990_intro.bik`

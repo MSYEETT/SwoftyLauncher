@@ -31,3 +31,5 @@ ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/rnd_look_test rnd_
 ../build/rnd_look_test ../../data/rnd-look.json
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/intro_video_test intro_video_test.cpp
 ../build/intro_video_test
+${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/calendar_test calendar_test.cpp
+../build/calendar_test ../../data/calendar-1990.json

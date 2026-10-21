@@ -154,7 +154,7 @@
       { "dll": "native/f1_1990_pu.dll" }, { "dll": "native/f1_1990_quali.dll" },
       { "dll": "native/f1_1990_rnd.dll", "files": ["data/rnd-art.json", "data/rnd-strings.json"] },
       { "dll": "native/f1_1990_rndlook.dll", "files": ["data/rnd-look.json"] },
-      { "dll": "native/f1_1990_wizard.dll" }, { "dll": "native/f1_1990_intro.dll" },
+      { "dll": "native/f1_1990_wizard.dll", "files": ["data/calendar-1990.json"] }, { "dll": "native/f1_1990_intro.dll" },
       { "dll": "native/f1_1990_sessions.dll", "files": ["data/session-strings.json"] }
     ],
     "files": [
