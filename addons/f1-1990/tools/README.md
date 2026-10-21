@@ -140,3 +140,23 @@ The 1990 car table: team, vehicle row (`<token>_1990`, the grid lane's tokens), 
 ## build_audio.py, audio.py
 
 `build_audio.py --game <F1 25> [--write]` writes `db/audio.json`: four `audio.audio_bundle_settings` rows for the 1990 bundles and one `audio.audio_car_data.<label>` row per 1990 car, every field copied from its donor's stock row except `_metadata_` and `bundle_name`. It reads the donor labels from the stock 2026 carmodel layers and fails if any key it writes is already in the stock database. Without `--write` it builds into `build/` and exits 1 when that differs from the shipped file. `audio.py` holds the label rule (`label_1990`), the `switchName` reader and rewriter the car pack's `build_pack.py` uses, and the engine-to-bundle table.
+
+## rnd.py
+
+Writes `db/rnd.json`, `db/rnd-lang.json`, `data/rnd-strings.json` and `data/rnd-art.json` from the stock database, the
+season pack and the tables at the top of the file (`TOKENS`, `UPGRADES`, `SIZES`, `SUPPLIER_BHP`, `BUDGET`). `--check`
+exits 1 when a shipped file differs from a fresh build.
+
+```sh
+python3 addons/f1-1990/tools/rnd.py <stock gamedatabases.2025.bin> [--check]
+```
+
+## check_rnd.py
+
+```sh
+python3 addons/f1-1990/tools/check_rnd.py <stock db> <db built without rnd.json> <db built with it>
+```
+
+Fails when `rnd.json` changes a stock key other than the shared component row count, when a stock R&D key of the
+2026, 2022 and My Team prefixes, the stock shared component sets or the 2025/2026 resource-point groups differs from
+stock in the full build, or when a 1990 tree, its vehicle list or its B-spec upgrade is missing.
