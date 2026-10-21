@@ -54,6 +54,8 @@ def fnv(data, h=career.gamedb.FNV_BASIS):
 def exe_names(exe):
     data = Path(exe).read_bytes()
     names = set(m.decode() for m in re.findall(rb"[A-Za-z_][A-Za-z0-9_]{1,%d}" % (MAX_NAME - 1), data))
+    numbered = set(m.decode() for m in re.findall(rb"[A-Za-z_][A-Za-z0-9_]*%d[A-Za-z0-9_]*", data))
+    names |= {n.replace("%d", str(k)) for n in numbered if n.count("%d") == 1 for k in range(16)}
     return {n for n in names if re.search(r"[a-z]", n)}
 
 
@@ -100,8 +102,26 @@ class Probe:
         out = set()
         sh = re.sub(r"_\d+(?=\.|$)", "_N", path)
         self._walk(path, "", out, sh)
+        self._descend(path, out, sh)
         self._transplant(path, out, sh)
         return out
+
+    def _descend(self, row, out, shape):
+        done = set()
+        while True:
+            parents = {k.rpartition(".")[0] for k in out if "." in k} - done
+            parents = {p for p in parents if not re.search(r"_\d+$", p)}
+            if not parents:
+                return
+            for parent in sorted(parents):
+                done.add(parent)
+                seen = self.shapes.setdefault(f"{shape}/{re.sub(r'_[0-9]+(?=[.]|$)', '_N', parent)}#object",
+                                              {"rows": 0, "names": set()})
+                subset = None if seen["rows"] < FULL_ROWS else sorted(seen["names"])
+                seen["rows"] += 1
+                leaves = self._bulk(f"{row}.{parent}.".encode(), b"", subset)
+                seen["names"].update(leaves)
+                out.update(f"{parent}.{self.names[i]}" for i in leaves)
 
     def _transplant(self, row, out, shape):
         seen = self.shapes.setdefault(shape + "#transplant", {"rows": 0, "names": set()})
@@ -281,6 +301,9 @@ def main():
     db = career.Db(a.stock)
     known = {n.decode() for n in db.vocabulary()[0]}
     vocab = exe_names(a.exe) | known
+    for op_file in a.ops or [ROOT / f for f in OPS]:
+        for listed in json.loads(Path(op_file).read_text()).get("fields", {}).values():
+            vocab.update(listed)
     probe = Probe(db, vocab)
     built = career.Db(a.built) if a.built else None
     built_probe = Probe(built, vocab) if built else None
