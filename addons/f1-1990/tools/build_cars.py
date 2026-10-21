@@ -21,8 +21,17 @@ common.erp. No 2026 archive, row or file is touched.
                          multipliers at 12/15 (works) or 8/15 (customer) of their stock distance from 1;
                          radUpgradeWeightReduction Mass = the team's weight target
 
-Option tyre_size: 2026 (the default) keeps the donor's tyres and suspension as they are (TyreRadius 0.351 front /
-0.354 rear); the car pack draws the 13-inch rim with a tyre of that outer radius. 13in and 13in_raised use TyreRadius
+Option tyre_size: 2026 (the default) keeps the donor's tyres (TyreRadius 0.351 front / 0.354 rear; the car pack draws
+the 13-inch rim with a tyre of that outer radius) and raises the car by RAISE_2026 (18 mm). The wheel's rest position is
+the model's (a vector the suspension data never writes) and the body sits at ground + TyreRadius - tyre deflection -
+rest Y - height, height being the suspension compression that 0x1446b5f60 solves as MaxHeight - RestLength + load over
+the spring rates (the spawn placement 0x144632740 uses the same sum). So each axle's RestLength and the setup's
+RestLength range grow by the raise, which lowers the static compression and lifts the body by the raise with the
+tyres' load and deflection unchanged; MinHeight, BumpStopHeight and the HeightTo* spline x move down by it so the droop,
+the bump-stop margin, the kinematics and the rising-rate third spring keep their place relative to the static car,
+MaxHeight stays as it is, and RideHeightOffset, RideHeight and the setup's ride-height range carry the raise, so the
+aero ride height (AeroReferencePlaneHeight - (height + RideHeightOffset)) and the downforce stay the donor's. 13in and
+13in_raised use TyreRadius
 0.323 front / 0.330 rear, AlloyRadius at its 0.175 m bead, the tyre damage node graphs remapped radially from the stock bead and
 tread onto the new ones and widened to the new mesh, and the final drive scaled by the rear radius so road speed per
 engine rev stays the same. TyreWidth, tyre mass, inertia and compression stay stock. The wheel nodes stay at the 2026
@@ -135,6 +144,8 @@ TYRE_GROUP = 'F1_1990'
 MOMENTS = (b'MOIX', b'MOIY', b'MOIZ')
 TYRE_GRAPHS = {b'x0_tyre_fl': 'Front', b'x0_tyre_fr': 'Front', b'x0_tyre_bl': 'Rear', b'x0_tyre_br': 'Rear'}
 SUSPENSION_HEIGHTS = (b'MinHeight', b'MaxHeight', b'BumpStopHeight')
+RAISE_HEIGHTS = (b'MinHeight', b'BumpStopHeight')
+RAISE_2026 = 0.018
 
 
 RND_ENGINE_PEAK = 53988
@@ -323,8 +334,8 @@ def remap_graph(graph, end, stock_radius):
         n.set_attr(b'z', fmt(float(n.attr(b'z')) * k))
 
 
-def shift_heights(node, d):
-    for k in SUSPENSION_HEIGHTS:
+def shift_heights(node, d, keys=SUSPENSION_HEIGHTS):
+    for k in keys:
         set_value(node, k, round(value(node, k) - d, 4))
     for c in node.children:
         if c.kind == 0 and c.name.startswith(b'HeightTo'):
@@ -334,9 +345,18 @@ def shift_heights(node, d):
 
 
 def tyres(root, size):
-    if size == '2026':
-        return 1.0
     susp = section(root, b'SuspensionSystem')
+    if size == '2026':
+        tuning = section(root, b'F1Tuning')
+        for end, node in named(susp, b'Suspension').items():
+            set_value(node, b'RestLength', round(value(node, b'RestLength') + RAISE_2026, 4))
+            shift_heights(node, RAISE_2026, RAISE_HEIGHTS)
+            for k in (b'RideHeightOffset', b'RideHeight'):
+                set_value(node, k, round(value(node, k) + RAISE_2026, 4))
+            for k in (f'{end}SuspensionRestLengthMin', f'{end}SuspensionRestLengthMax', f'{end}RideHeightMin',
+                      f'{end}RideHeightMax'):
+                set_value(tuning, k.encode(), round(value(tuning, k.encode()) + RAISE_2026, 4))
+        return 1.0
     tyre = named(susp, b'Tyre')
     stock = {end: value(tyre[end], b'TyreRadius') for end in TYRES_13}
     for end, t in TYRES_13.items():
