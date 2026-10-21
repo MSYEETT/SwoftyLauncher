@@ -305,12 +305,23 @@ int main(void)
 
     DWORD dummy;
     expect(GetFileVersionInfoSizeW(L"C:\\windows\\system32\\kernel32.dll", &dummy) != 0, "version.dll forwarding works");
+    HANDLE early = getenv("T_EARLY") ? CreateMutexW(NULL, FALSE, L"Codemasters F1 25") : NULL;
+    expect(!getenv("T_EARLY") || (early && GetModuleHandleW(L"swofty_core.dll")),
+           "with the early stage on, CreateMutexW('Codemasters F1 25') loaded the core");
     WNDCLASSEXW wc = {.cbSize = sizeof wc, .lpfnWndProc = DefWindowProcW, .hInstance = GetModuleHandleW(NULL),
                       .lpszClassName = L"EGO_WindowClass"};
     extern void *__imp_RegisterClassExW;
     ATOM(WINAPI * rc)(const WNDCLASSEXW *) = (void *)__imp_RegisterClassExW;
     rc(&wc);
     expect(GetModuleHandleW(L"swofty_core.dll") != NULL, "the window trigger loaded the core");
+    if (getenv("T_ONLY")) {
+        const char *only = getenv("T_ONLY");
+        expect(GetModuleHandleA(only) != NULL, "the window stage loaded the test addon");
+        expect(fake_starts(NULL, NULL, "f1_career_2026") == 0, "start in F1 for f1_career_2026: the game's answer");
+        printf("%s (%d failure(s))\n", fails ? "SOME FAILED" : "ALL PASSED", fails);
+        fflush(stdout);
+        ExitProcess(fails ? 1 : 0);
+    }
     HMODULE t = GetModuleHandleW(L"t_career_ui.dll");
     int (*step)(int) = t ? (int (*)(int))(void *)GetProcAddress(t, "t_ui_step") : NULL;
     expect(step != NULL, "t_career_ui.dll loaded with t_ui_step");
@@ -319,7 +330,7 @@ int main(void)
 
     fake_list_loaded(NULL, message);
     expect(node_at == 3 && ref_is(0, 28, "elena"), "the game's first character list build is stock");
-    expect(step(0) == 3, "characters and wizard report available");
+    expect(step(0) == 3, "characters and wizard report available, and the registrations at init and at load were ok");
     expect(step(1) == 0, "every registration for f1_career_1990 returns ok");
     expect(step(7) == 33, "an empty group and a step past a byte are invalid");
     expect(step(8) == 3, "strings_json refuses a document that is not an object of language objects");
