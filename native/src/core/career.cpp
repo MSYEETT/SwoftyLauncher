@@ -444,8 +444,18 @@ int api_post_msg(void *msg)
     return api_post(msg);
 }
 
-const SwoftyCareer table = {api_available, api_state,  api_flow,          api_flow_status,
-                            api_entity,    api_component, api_component_by_desc, api_post_msg};
+int api_block(uint32_t mode, const char *title, const char *body)
+{
+    return runtime::career_block(__builtin_return_address(0), mode, title, body);
+}
+
+int api_unblock(uint32_t mode)
+{
+    return runtime::career_unblock(__builtin_return_address(0), mode);
+}
+
+const SwoftyCareer table = {api_available, api_state,     api_flow,              api_flow_status, api_entity,
+                            api_component, api_component_by_desc, api_post_msg, api_block,      api_unblock};
 
 void flow_entry(SwoftyContext *c)
 {
@@ -491,6 +501,7 @@ void career_setup()
     team_hq_live = core_mixins_active(TEAM_HQ_MIXIN);
     armed = flow_live;
     set_up = true;
+    career_start_setup();
     swofty::log("[career] setup: %s; flow states %s, Team HQ answer %s, career layout %s, entrants %s, bus %s, "
                 "string key %s",
                 armed ? "live" : "the flow-state site is not installed, so the career library reports unavailable",

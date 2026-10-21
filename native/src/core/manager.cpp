@@ -40,6 +40,7 @@ void career_setup();
 void popup_setup();
 void ready();
 void events_drop_module(void *module);
+void career_start_drop_module(void *module);
 const std::wstring &swofty_root();
 void on_stage(void (*fn)(int));
 }
@@ -1351,6 +1352,7 @@ extern "C" __declspec(dllexport) int SwoftyCoreInit(const wchar_t *name, SwoftyA
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                            reinterpret_cast<LPCWSTR>(init), &m);
         runtime::events_drop_module(m);
+        runtime::career_start_drop_module(m);
     }
     current = nullptr;
     return r;
