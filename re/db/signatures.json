@@ -8940,6 +8940,87 @@
    "used_by": [
     "addons/f1-1990/native/src/career_wizard.cpp"
    ]
+  },
+  {
+   "id": "game.career_wizard_confirm_next_route",
+   "section": ".xtls",
+   "pattern": "74 12 48 C7 44 24 20 00 00 00 00 48 8D 15 ?? ?? ?? ?? EB 10 48 C7 44 24 20 00 00 00 00 48 8D 15 ?? ?? ?? ?? 48 8D 7C 24 20 48 89 F9",
+   "match": "0x141a23c6d",
+   "anchor": "0x24",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a23c91",
+   "kind": "mid",
+   "expect": "48 8D 7C 24 20",
+   "names": [
+    "site_Game_CareerWizardConfirm_NextRoute"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
+  },
+  {
+   "id": "game.driver_career_driver_select_view_model",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 49 89 06 48 8D 05 ?? ?? ?? ?? 49 89 86 60 02 00 00 4D 89 BE 68 02 00 00 4D 89 BE 70 02 00 00",
+   "match": "0x1415df79a",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x1457298a0",
+   "kind": "data",
+   "names": [
+    "vt_Game_DriverCareerDriverSelectViewModel"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
+  },
+  {
+   "id": "game.career_wizard_push_next_step",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 28 48 89 CE E8 ?? ?? ?? ?? 4C 8B 30 4C 8B 86 28 01 00 00",
+   "match": "0x14386d890",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14386d890",
+   "kind": "func_start",
+   "names": [
+    "Game_CareerWizard_PushNextStep"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
   }
  ]
 }
