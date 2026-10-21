@@ -81,8 +81,8 @@
     {
       "id": "soft_sets",
       "type": "slider",
-      "label": "Soft sets per session",
-      "description": "New supersoft tyre sets handed out in practice 1, practice 2 and the race of a 1990 weekend. No medium or hard sets are given.",
+      "label": "Supersoft and soft sets per session",
+      "description": "New supersoft sets, and as many soft sets, handed out in practice 1, practice 2 and the race of a 1990 weekend.",
       "min": 1,
       "max": 8,
       "step": 1,
