@@ -397,6 +397,7 @@ def build(stock, season):
         lang.append({"op": "lang.set", "language": "*", "key": key, "value": value})
 
     team_ids = iter(TEAM_STAT_IDS)
+    boss_ids = iter(stock.free_ids(CHARACTERS, "character", career.AGENT_1990_STAT_ID + 1, 256))
     for s in slots():
         donor = DONOR_ROW.get(s.team_row, s.team_row)
         name, short, code, colours, base, nat, chassis, engine, boss = TEAM_INFO[s.team]
@@ -413,7 +414,7 @@ def build(stock, season):
         for part, value in (("full", boss), ("first", first), ("last", last)):
             L(f"lng_f1990_boss_{s.team}_{part}", value)
         o.clone(CHARACTERS, "character", BOSS_ROWS["mclaren_26"], BOSS_ROWS[donor], {
-            "_metadata_": boss_row, "full_name": f"lng_f1990_boss_{s.team}_full",
+            "_metadata_": boss_row, "stat_id": next(boss_ids), "full_name": f"lng_f1990_boss_{s.team}_full",
             "first_name": f"lng_f1990_boss_{s.team}_first", "last_name": f"lng_f1990_boss_{s.team}_last",
         })
         p, sec, ter = (argb(c) for c in colours)
