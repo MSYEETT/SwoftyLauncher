@@ -6,6 +6,10 @@ Turns the F1 2026 season into the 1990 season in a profile of its own.
 
 The 1990 teams (`<team>_1990`), drivers (`f1990_<driver>`), their looks, holders and entrants, and the entrant lists `f1_1990`, `f1_1990_driver_pool` and `f1_career_1990` are new rows; no 2025 or 2026 row changes. The **Cars** setting (`cars`) is 22 (default: the 11 strongest teams) or 26 (adds Larrousse and Dallara; needs 26-car track layers). See `tools/README.md`.
 
+## Front end and tracks (erp/frontend.json, erp/badges.json, erp/tracks.json, tools/frontend.py, tools/badges.py, tools/tracks.py)
+
+The 1990 rows get their own Driver Select and Team Select backdrop names and placeholder team badges, added next to the stock art, and the `f1_1990` setup mode loads its own track worlds (26-car garages and grid slots when `cars` is 26). See `tools/README.md`.
+
 ## Rules (db/rules.json, db/rules_text.json, tools/rules.py)
 
 `tools/rules.py [stock gamedatabases.2025.bin]` writes both op files from `tools/rules_fields.json` (the field lists of the cloned rows) and the stock database (the option tag lists it extends). The 1990 rules live in their own rows; 2025 and 2026 rows keep their stock values, and stock rows only gain the `f1_1990` name in lists and higher row counts.

@@ -472,6 +472,16 @@
    "vehicle",
    "vehicle_customisation"
   ],
+  "track_data.track_layers.TrackLayer": [
+   "_metadata_",
+   "game_setup_modes",
+   "is_invalid",
+   "seasons",
+   "statId",
+   "weekend_formats",
+   "worldAssetGroup",
+   "worldEri"
+  ],
   "entrants.entrant_setup_modes.entrant_setup_mode": [
    "_metadata_",
    "available",
@@ -8710,6 +8720,18 @@
     "previous_season_team_standings": "f1_teams_1989",
     "previous_season_driver_standings": "f1_drivers_1989",
     "_entrant_instancecount_": "0"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "track_data.track_layers",
+   "from": "track_data.track_layers.TrackLayer[_metadata_=f1_26]",
+   "set": {
+    "_metadata_": "f1_1990",
+    "game_setup_modes": "f1_1990",
+    "statId": "14",
+    "worldAssetGroup": "asset_groups/environment_package/tracks/[FILENAME]/wep/[FILENAME]_f1_26_myteam.assetgroup",
+    "worldEri": "eaid://environment_package/tracks/[FILENAME]/wep/[FILENAME]_f1_1990.wep"
    }
   },
   {

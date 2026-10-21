@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 import career
+import tracks
 from season import Season, slots
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +28,8 @@ LISTS = "entrants.entrant_lists"
 SETUP_MODES = "entrants.entrant_setup_modes"
 STANDINGS = "entrants.standings"
 KIT_YEARS = "entrants.team_customisation"
+TRACK_LAYERS = "track_data.track_layers"
+TRACK_LAYER_STAT_ID = 14
 KITS = f"{KIT_YEARS}.team_customisation_for_year[_metadata_=2026]"
 
 SETUP_MODE = "f1_1990"
@@ -34,7 +37,8 @@ GRID_LIST = "f1_1990"
 POOL_LIST = "f1_1990_driver_pool"
 CAREER_LIST = career.ENTRANT_LIST
 DATA_GROUP = career.DATA_GROUP
-PARTS = ("grid", "grid_standings")
+PARTS = ("grid", "grid_standings", "grid_links")
+GAME_SETUP_MODES = "game_setup.game_setup_modes.game_setup_mode"
 TEAM_STANDINGS = "f1_teams_1989"
 DRIVER_STANDINGS = "f1_drivers_1989"
 
@@ -498,6 +502,13 @@ def build(stock, season):
         "_entrant_instancecount_": 0,
     })
 
+    layer_row = stock.row(TRACK_LAYERS, "TrackLayer", MODE_TEMPLATE)
+    o.add(TRACK_LAYERS, "TrackLayer", layer_row, f"{TRACK_LAYERS}.TrackLayer[_metadata_={MODE_TEMPLATE}]", {
+        "_metadata_": SETUP_MODE, "game_setup_modes": SETUP_MODE, "statId": TRACK_LAYER_STAT_ID,
+        "worldAssetGroup": stock.get(f"{stock.row(TRACK_LAYERS, 'TrackLayer', 'myteam_26')}.worldAssetGroup"),
+        "worldEri": tracks.TRACK_LAYER,
+    })
+
     mode_row = stock.row(SETUP_MODES, "entrant_setup_mode", MODE_TEMPLATE)
     o.add(SETUP_MODES, "entrant_setup_mode", mode_row, f"{SETUP_MODES}.entrant_setup_mode[_metadata_={MODE_TEMPLATE}]", {
         "_metadata_": SETUP_MODE, "entrant_lists": GRID_LIST, "selectable_entrant_lists": GRID_LIST,
@@ -528,6 +539,10 @@ def build(stock, season):
     for n, did in enumerate(DRIVERS_1989):
         for f, v in {"_metadata_": did, "driver": driver_row(did)}.items():
             o.set(f"{dstd}.driver_reference_{n}", f, v)
+    o.use("grid")
+
+    o.use("grid_links")
+    o.set(f"{GAME_SETUP_MODES}[_metadata_={SETUP_MODE}]", "entrant_setup_modes", SETUP_MODE)
     o.use("grid")
 
     kit_year = stock.row(KIT_YEARS, "team_customisation_for_year", "2026")
