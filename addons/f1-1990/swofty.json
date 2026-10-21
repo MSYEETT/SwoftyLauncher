@@ -45,7 +45,7 @@
       "id": "soft_sets",
       "type": "slider",
       "label": "Soft sets per session",
-      "description": "New soft tyre sets handed out in each of practice 1, practice 2, Friday qualifying, Saturday qualifying and the race. No medium or hard sets are given.",
+      "description": "New supersoft tyre sets handed out in each 1990 session: practice 1, practice 2, Friday qualifying, Saturday qualifying and the race. No medium or hard sets are given.",
       "min": 1,
       "max": 8,
       "step": 1,
@@ -56,7 +56,7 @@
       "id": "no_tyre_allocation",
       "type": "toggle",
       "label": "No weekend tyre allocation",
-      "description": "Turns off the weekend tyre allocation screen for the 2026 compound class, as the classic class does. Test switch for the Friday qualifying tyre problem.",
+      "description": "Turns off the weekend tyre allocation screen for the 1990 compound class, as the classic class does. Test switch for the Friday qualifying tyre problem.",
       "default": false,
       "binds": "db"
     },
@@ -64,7 +64,7 @@
       "id": "grid_cutscene",
       "type": "toggle",
       "label": "Pre-race grid cutscene",
-      "description": "Plays the grid cutscene before the start, which brings the safety car onto the grid.",
+      "description": "Plays the grid cutscene before a 1990 race start, which brings the safety car onto the grid.",
       "default": false,
       "binds": "db"
     },
@@ -72,7 +72,7 @@
       "id": "grid_rundown",
       "type": "toggle",
       "label": "Pre-race grid rundown",
-      "description": "Plays the camera run down the grid before the start, which ends on the safety car.",
+      "description": "Plays the camera run down the grid before a 1990 race start, which ends on the safety car.",
       "default": false,
       "binds": "db"
     },
