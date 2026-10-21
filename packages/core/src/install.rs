@@ -595,7 +595,7 @@ impl<'a> Installer<'a> {
                 Some(after[rel.as_str()].clone()),
             )?;
             self.step(&mut n)?;
-            std::fs::copy(src, &path).map_err(io_err(&path))?;
+            std::fs::copy(src, &path).map_err(|e| crate::quarantine::copy_error(rel, &path, e))?;
             hashes.wrote(&path, &after[rel.as_str()]);
             j.done(i)?;
         }
@@ -612,7 +612,13 @@ impl<'a> Installer<'a> {
             let path = self.path(rel);
             let i = j.begin(Op::CreateFile, rel, None, Some(after[rel.as_str()].clone()))?;
             self.step(&mut n)?;
-            std::fs::copy(src, &path).map_err(io_err(&path))?;
+            // Windows refused the file as a threat. The entry stays pending, so
+            // the rollback clears whatever was left, and the check before the
+            // game starts reports the file as missing instead of failing here.
+            match std::fs::copy(src, &path) {
+                Err(e) if crate::quarantine::is_virus_error(&e) => continue,
+                r => r.map_err(io_err(&path))?,
+            };
             hashes.wrote(&path, &after[rel.as_str()]);
             j.done(i)?;
         }

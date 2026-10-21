@@ -24,6 +24,7 @@ pub mod placed;
 pub mod planner;
 pub mod process;
 pub mod profile;
+pub mod quarantine;
 pub mod recovery;
 pub mod registry;
 pub mod resolver;
