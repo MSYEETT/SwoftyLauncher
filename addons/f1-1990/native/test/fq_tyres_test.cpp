@@ -174,6 +174,44 @@ int main()
     session(2, 3, 0);
     check("weekend without a shootout group rejected", !f1990::is_1990_weekend(weekend.data()));
 
+    std::vector<uint8_t> classes(kClassSize * 3);
+    auto masks = [&](size_t i, uint32_t setup, uint32_t season, uint32_t format) {
+        uint32_t m[3] = {setup, season, format};
+        std::memcpy(classes.data() + i * kClassSize + kClassMasks, m, sizeof m);
+    };
+    masks(0, 1u << 3, ~0u, 1);
+    masks(1, 1u << 16, ~0u, 1);
+    masks(2, 1u << 16, ~0u, 2);
+    Championship f1990{16, 1, 7, 1, 0, 1}, stock{3, 1, 7, 1, 0, 1}, sprint{16, 1, 7, 1, 1, 1};
+    auto first = [&](const Championship &c) {
+        for (size_t i = 0; i < 3; i++)
+            if (class_matches(classes.data() + i * kClassSize, c))
+                return int(i);
+        return -1;
+    };
+    check("class matches the 1990 setup mode", first(f1990) == 1);
+    check("class matches the stock setup mode", first(stock) == 0);
+    check("class matches the weekend format", first(sprint) == 2);
+    check("class ignores masks that do not apply", first(Championship{40, 0, 40, 0, 1, 0}) == 0);
+    check("class bit past its mask matches nothing", first(Championship{40, 1, 7, 1, 0, 1}) == -1);
+
+    std::vector<uint64_t> phys_a = {0x10, 0, 0x20, 0, 0x30, 0}, phys_b = phys_a, phys_c = {0x10, 0, 0x30, 0, 0x20, 0};
+    phys_b[1] = 0x99;
+    auto list = [&](size_t i, std::vector<uint64_t> &v) {
+        uint64_t *b = v.data(), *e = v.data() + v.size();
+        std::memcpy(classes.data() + i * kClassSize + kClassPhysical, &b, sizeof b);
+        std::memcpy(classes.data() + i * kClassSize + kClassPhysical + 8, &e, sizeof e);
+    };
+    list(0, phys_a);
+    list(1, phys_b);
+    list(2, phys_c);
+    check("same physical compounds", same_physical(classes.data(), classes.data() + kClassSize));
+    check("physical compounds in another order differ", !same_physical(classes.data(), classes.data() + 2 * kClassSize));
+    phys_c.pop_back();
+    phys_c.pop_back();
+    list(2, phys_c);
+    check("fewer physical compounds differ", !same_physical(classes.data(), classes.data() + 2 * kClassSize));
+
     if (failures)
         std::printf("%d failure(s)\n", failures);
     return failures ? EXIT_FAILURE : EXIT_SUCCESS;

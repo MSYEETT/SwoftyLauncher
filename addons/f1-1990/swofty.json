@@ -68,6 +68,11 @@
       "binds": "native"
     },
     {
+      "id": "tyre_class_fix", "type": "toggle", "label": "1990 tyre badges in the garage and HUD", "default": true,
+      "description": "In 1990 sessions the garage tyre picker, the HUD, the MFD and the timing tower show the SS / US / S badges: every car's tyres take the session's compound class. Logs the change.",
+      "binds": "native"
+    },
+    {
       "id": "replay_holder_fix", "type": "toggle", "label": "Replay room for 26 cars", "default": true,
       "description": "Moves a replay recorder state that outgrows its buffer (per-car systems at the 26-car race start) to a larger buffer. Does nothing while every state fits, as on a 22-car grid.",
       "binds": "native"
