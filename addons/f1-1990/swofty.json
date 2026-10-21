@@ -154,6 +154,11 @@
       "binds": "db"
     },
     {
+      "id": "handling", "type": "choice", "label": "Handling", "default": "1990",
+      "description": "1990 halves the downforce, trims tyre grip (0.83 front, 0.85 rear), keeps the 2026 car's inertia and gives lighter brakes and a heavier wheel. Modern is the 2026-grip handling of earlier builds.",
+      "values": [{ "value": "1990", "label": "1990" }, { "value": "modern", "label": "Modern" }], "binds": "db"
+    },
+    {
       "id": "bspec_cars", "type": "toggle", "label": "B-spec cars", "default": true,
       "description": "In 1990 careers, a team whose B-spec R&D milestone is complete races its B-spec car from the next session on (AI teams too).",
       "binds": "native"

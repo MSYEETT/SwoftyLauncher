@@ -5,7 +5,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_2026_1990/mclaren_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_2026/mclaren_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
@@ -14,7 +25,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_1990/mclaren_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in/mclaren_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
@@ -23,7 +45,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_raised_1990/mclaren_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in_raised/mclaren_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
@@ -32,7 +65,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_2026_1990/mclaren_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_2026/mclaren_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
@@ -41,7 +85,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_1990/mclaren_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in/mclaren_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
@@ -50,7 +105,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_raised_1990/mclaren_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in_raised/mclaren_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
@@ -59,7 +125,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_2026_1990/mclaren_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_2026/mclaren_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
@@ -68,7 +145,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_1990/mclaren_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in/mclaren_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
@@ -77,7 +165,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_raised_1990/mclaren_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in_raised/mclaren_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mclaren/wep/mclaren_handling.erp"
@@ -94,7 +193,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_2026_1990/ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_2026/ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
@@ -103,7 +213,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_1990/ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in/ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
@@ -112,7 +233,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_raised_1990/ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in_raised/ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
@@ -121,7 +253,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_2026_1990/ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_2026/ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
@@ -130,7 +273,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_1990/ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in/ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
@@ -139,7 +293,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_raised_1990/ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in_raised/ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
@@ -148,7 +313,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_2026_1990/ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_2026/ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
@@ -157,7 +333,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_1990/ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in/ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
@@ -166,7 +353,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_raised_1990/ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in_raised/ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/ferrari/wep/ferrari_handling.erp"
@@ -183,7 +381,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_2026_1990/williams_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_2026/williams_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
@@ -192,7 +401,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_1990/williams_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in/williams_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
@@ -201,7 +421,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_raised_1990/williams_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in_raised/williams_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
@@ -210,7 +441,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_2026_1990/williams_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_2026/williams_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
@@ -219,7 +461,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_1990/williams_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in/williams_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
@@ -228,7 +481,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_raised_1990/williams_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in_raised/williams_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
@@ -237,7 +501,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_2026_1990/williams_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_2026/williams_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
@@ -246,7 +521,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_1990/williams_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in/williams_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
@@ -255,7 +541,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_raised_1990/williams_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in_raised/williams_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/williams/wep/williams_handling.erp"
@@ -272,7 +569,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_2026_1990/lotus_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_2026/lotus_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
@@ -281,7 +589,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_1990/lotus_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in/lotus_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
@@ -290,7 +609,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_raised_1990/lotus_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in_raised/lotus_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
@@ -299,7 +629,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_2026_1990/lotus_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_2026/lotus_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
@@ -308,7 +649,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_1990/lotus_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in/lotus_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
@@ -317,7 +669,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_raised_1990/lotus_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in_raised/lotus_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
@@ -326,7 +689,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_2026_1990/lotus_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_2026/lotus_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
@@ -335,7 +709,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_1990/lotus_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in/lotus_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
@@ -344,7 +729,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_raised_1990/lotus_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in_raised/lotus_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/lotus/wep/lotus_handling.erp"
@@ -361,7 +757,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_2026_1990/mercedes_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_2026/mercedes_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
@@ -370,7 +777,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_1990/mercedes_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in/mercedes_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
@@ -379,7 +797,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_raised_1990/mercedes_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in_raised/mercedes_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
@@ -388,7 +817,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_2026_1990/mercedes_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_2026/mercedes_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
@@ -397,7 +837,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_1990/mercedes_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in/mercedes_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
@@ -406,7 +857,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_raised_1990/mercedes_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in_raised/mercedes_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
@@ -415,7 +877,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_2026_1990/mercedes_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_2026/mercedes_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
@@ -424,7 +897,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_1990/mercedes_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in/mercedes_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
@@ -433,7 +917,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_raised_1990/mercedes_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in_raised/mercedes_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/mercedes/wep/mercedes_handling.erp"
@@ -450,7 +945,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_2026_1990/redbull_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_2026/redbull_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
@@ -459,7 +965,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_1990/redbull_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in/redbull_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
@@ -468,7 +985,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_raised_1990/redbull_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in_raised/redbull_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
@@ -477,7 +1005,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_2026_1990/redbull_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_2026/redbull_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
@@ -486,7 +1025,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_1990/redbull_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in/redbull_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
@@ -495,7 +1045,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_raised_1990/redbull_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in_raised/redbull_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
@@ -504,7 +1065,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_2026_1990/redbull_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_2026/redbull_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
@@ -513,7 +1085,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_1990/redbull_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in/redbull_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
@@ -522,7 +1105,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_raised_1990/redbull_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in_raised/redbull_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/redbull/wep/redbull_handling.erp"
@@ -539,7 +1133,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_2026_1990/force_india_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_2026/force_india_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
@@ -548,7 +1153,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_1990/force_india_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in/force_india_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
@@ -557,7 +1173,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_raised_1990/force_india_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in_raised/force_india_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
@@ -566,7 +1193,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_2026_1990/force_india_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_2026/force_india_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
@@ -575,7 +1213,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_1990/force_india_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in/force_india_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
@@ -584,7 +1233,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_raised_1990/force_india_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in_raised/force_india_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
@@ -593,7 +1253,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_2026_1990/force_india_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_2026/force_india_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
@@ -602,7 +1273,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_1990/force_india_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in/force_india_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
@@ -611,7 +1293,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_raised_1990/force_india_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in_raised/force_india_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/force_india/wep/force_india_handling.erp"
@@ -628,7 +1321,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_2026_1990/myteam_ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_2026/myteam_ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
@@ -637,7 +1341,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_1990/myteam_ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in/myteam_ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
@@ -646,7 +1361,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_raised_1990/myteam_ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in_raised/myteam_ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
@@ -655,7 +1381,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_2026_1990/myteam_ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_2026/myteam_ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
@@ -664,7 +1401,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_1990/myteam_ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in/myteam_ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
@@ -673,7 +1421,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_raised_1990/myteam_ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in_raised/myteam_ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
@@ -682,7 +1441,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_2026_1990/myteam_ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_2026/myteam_ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
@@ -691,7 +1461,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_1990/myteam_ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in/myteam_ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
@@ -700,7 +1481,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_raised_1990/myteam_ferrari_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in_raised/myteam_ferrari_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_ferrari/wep/myteam_ferrari_handling.erp"
@@ -717,7 +1509,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_2026_1990/sauber_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_2026/sauber_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
@@ -726,7 +1529,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_1990/sauber_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in/sauber_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
@@ -735,7 +1549,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_raised_1990/sauber_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in_raised/sauber_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
@@ -744,7 +1569,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_2026_1990/sauber_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_2026/sauber_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
@@ -753,7 +1589,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_1990/sauber_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in/sauber_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
@@ -762,7 +1609,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_raised_1990/sauber_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in_raised/sauber_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
@@ -771,7 +1629,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_2026_1990/sauber_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_2026/sauber_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
@@ -780,7 +1649,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_1990/sauber_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in/sauber_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
@@ -789,7 +1669,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_raised_1990/sauber_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in_raised/sauber_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/sauber/wep/sauber_handling.erp"
@@ -806,7 +1697,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_2026_1990/toro_rosso_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_2026/toro_rosso_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
@@ -815,7 +1717,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_1990/toro_rosso_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in/toro_rosso_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
@@ -824,7 +1737,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_raised_1990/toro_rosso_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in_raised/toro_rosso_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
@@ -833,7 +1757,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_2026_1990/toro_rosso_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_2026/toro_rosso_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
@@ -842,7 +1777,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_1990/toro_rosso_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in/toro_rosso_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
@@ -851,7 +1797,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_raised_1990/toro_rosso_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in_raised/toro_rosso_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
@@ -860,7 +1817,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_2026_1990/toro_rosso_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_2026/toro_rosso_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
@@ -869,7 +1837,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_1990/toro_rosso_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in/toro_rosso_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
@@ -878,7 +1857,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_raised_1990/toro_rosso_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in_raised/toro_rosso_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/toro_rosso/wep/toro_rosso_handling.erp"
@@ -895,7 +1885,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_2026_1990/gm_cadillac_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_2026/gm_cadillac_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
@@ -904,7 +1905,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_1990/gm_cadillac_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in/gm_cadillac_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
@@ -913,7 +1925,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_raised_1990/gm_cadillac_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in_raised/gm_cadillac_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
@@ -922,7 +1945,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_2026_1990/gm_cadillac_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_2026/gm_cadillac_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
@@ -931,7 +1965,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_1990/gm_cadillac_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in/gm_cadillac_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
@@ -940,7 +1985,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_raised_1990/gm_cadillac_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in_raised/gm_cadillac_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
@@ -949,7 +2005,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_2026_1990/gm_cadillac_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_2026/gm_cadillac_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
@@ -958,7 +2025,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_1990/gm_cadillac_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in/gm_cadillac_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
@@ -967,7 +2045,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_raised_1990/gm_cadillac_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in_raised/gm_cadillac_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/gm_cadillac/wep/gm_cadillac_handling.erp"
@@ -984,7 +2073,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_2026_1990/myteam_honda_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_2026/myteam_honda_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
@@ -993,7 +2093,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_1990/myteam_honda_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in/myteam_honda_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
@@ -1002,7 +2113,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_raised_1990/myteam_honda_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in_raised/myteam_honda_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
@@ -1011,7 +2133,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_2026_1990/myteam_honda_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_2026/myteam_honda_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
@@ -1020,7 +2153,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_1990/myteam_honda_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in/myteam_honda_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
@@ -1029,7 +2173,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_raised_1990/myteam_honda_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in_raised/myteam_honda_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
@@ -1038,7 +2193,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_2026_1990/myteam_honda_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_2026/myteam_honda_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
@@ -1047,7 +2213,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_1990/myteam_honda_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in/myteam_honda_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
@@ -1056,7 +2233,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_raised_1990/myteam_honda_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in_raised/myteam_honda_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/myteam_honda/wep/myteam_honda_handling.erp"
@@ -1073,7 +2261,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_2026_1990/haas_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_2026/haas_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
@@ -1082,7 +2281,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_1990/haas_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in/haas_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
@@ -1091,7 +2301,18 @@
    "op": "file.put",
    "when": {
     "ers": "removed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/removed_13in_raised_1990/haas_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "removed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/removed_13in_raised/haas_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
@@ -1100,7 +2321,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_2026_1990/haas_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_2026/haas_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
@@ -1109,7 +2341,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_1990/haas_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in/haas_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
@@ -1118,7 +2361,18 @@
    "op": "file.put",
    "when": {
     "ers": "zeroed",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/zeroed_13in_raised_1990/haas_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "zeroed",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/zeroed_13in_raised/haas_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
@@ -1127,7 +2381,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "2026"
+    "tyre_size": "2026",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_2026_1990/haas_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "2026",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_2026/haas_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
@@ -1136,7 +2401,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in"
+    "tyre_size": "13in",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_1990/haas_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in/haas_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
@@ -1145,7 +2421,18 @@
    "op": "file.put",
    "when": {
     "ers": "stock",
-    "tyre_size": "13in_raised"
+    "tyre_size": "13in_raised",
+    "handling": "1990"
+   },
+   "source": "cars/handling/stock_13in_raised_1990/haas_handling.erp",
+   "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
+  },
+  {
+   "op": "file.put",
+   "when": {
+    "ers": "stock",
+    "tyre_size": "13in_raised",
+    "handling": "modern"
    },
    "source": "cars/handling/stock_13in_raised/haas_handling.erp",
    "target": "2025_asset_groups/f1_1990_vehicle_package/teams/haas/wep/haas_handling.erp"
