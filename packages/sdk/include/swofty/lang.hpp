@@ -6,7 +6,7 @@
 
 // Runtime string overrides: change the text a lng_* key shows while the game runs, for every
 // language or one language code (eng, fre, ...). The core copies the text; a change applies the
-// next time the game looks the key up, and refresh() makes bound labels read their text again.
+// next time the game looks the key up.
 // Needs a core with API v8; older cores report unavailable.
 
 namespace swofty::lang {
@@ -64,8 +64,8 @@ inline Result clear_all()
     return detail::result(t->override_clear_all());
 }
 
-// Send the current language to the game's language listeners, as after a language change, so
-// labels already on screen read their text again. Call it on the game thread, once per batch.
+// Send the current language to the game's language listeners, the notification the game sends
+// after it loads a language. Call it on the flow thread, at most once per batch.
 inline Result refresh()
 {
     auto t = detail::table();

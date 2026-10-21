@@ -14,7 +14,7 @@ Use string overrides to change what a `lng_*` key shows while the game runs: a n
 | Table | `SwoftyApi::lang` (`SwoftyLang`) |
 | Feature | `lang` — stable |
 | API version | 8 |
-| Thread | `set`, `clear`, `clear_all`: any thread. `refresh`: the game thread |
+| Thread | `set`, `clear`, `clear_all`: any thread. `refresh`: the flow thread |
 
 Check the `swofty::lang::Result` each call returns: `ok`, `unavailable` or `invalid`. The [result codes](./#result-codes) explain what each means. A core older than API v8 returns `unavailable` from every call.
 
@@ -26,7 +26,7 @@ Check the `swofty::lang::Result` each call returns: `ok`, `unavailable` or `inva
 | `set(key, text, language = "*")` | makes `key` show `text`; `"*"` applies to every language, a language code (`eng`, `fre`, ...) only while it is the game's language and wins over `"*"` |
 | `clear(key, language = "*")` | drops the override for that language, or every override of `key` with `"*"` |
 | `clear_all()` | drops every override, of every addon |
-| `refresh()` | sends the current language to the game's language listeners, the notification a language change sends, so labels already on screen read their text again |
+| `refresh()` | sends the current language to the game's language listeners, the notification the game sends after it loads a language |
 
 `text` is UTF-8 and is copied. An override also works for a key the game's tables lack.
 
@@ -34,7 +34,7 @@ Check the `swofty::lang::Result` each call returns: `ok`, `unavailable` or `inva
 
 Every `lng_*` lookup goes through the language set's find (`Loc_LangSet_Find`). The core hooks it when an addon sets its first override; until then the game's lookup runs untouched. While overrides exist, a key with an override returns the override text and every other key reads the game's tables.
 
-A change applies the next time the game looks the key up. Screens and labels opened afterwards show it; text already on screen keeps its old value until it is looked up again, which `refresh()` triggers. Call `refresh()` once after a batch of changes, on the game thread (for example from a core [event](./events) handler).
+A change applies the next time the game looks the key up. Screens and labels opened afterwards show it; text already on screen keeps its old value until the game looks it up again. `refresh()` sends the language notification to the listeners registered with the game's locale module; call it at most once after a batch of changes, on the flow thread (for example from a core [event](./events) handler). In the game's unprotected code only the locale module's start-up sends that notification, so which labels re-read their text on `refresh()` is not yet known.
 
 The core stores each distinct text once and keeps it until the game exits, so a string the game got from an override stays valid after the override is cleared.
 
@@ -60,7 +60,6 @@ void on_career(const SwoftyEvent *ev, void *)
     } else {
         lg::clear("lng_elena_name");
     }
-    lg::refresh();
 }
 
 SWOFTY_ON_LOAD
