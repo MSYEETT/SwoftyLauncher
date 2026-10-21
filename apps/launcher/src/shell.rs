@@ -1057,7 +1057,7 @@ impl Shell {
             )
             .child(wrap(vec![
                 self.core_nav(Page::Profiles, self.library.profiles.len(), p, cx),
-                self.core_nav(Page::Addons, self.library.addons.len(), p, cx),
+                self.core_nav(Page::Addons, self.library.listed().count(), p, cx),
             ]))
             .children(groups.into_iter().map(|(name, items)| {
                 v_flex()

@@ -427,13 +427,9 @@ impl Shell {
 
     pub(crate) fn addons_page(&mut self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
         let tracks_page = self.library.tracks_page;
-        let listed = |m: &&AddonItem| !(m.track && tracks_page.is_some());
-        let hidden = self.library.addons.iter().filter(|m| !listed(m)).count();
-        let installed = plural(
-            self.library.addons.iter().filter(listed).count(),
-            "addon installed",
-            "addons installed",
-        );
+        let listed = self.library.listed().count();
+        let hidden = self.library.addons.len() - listed;
+        let installed = plural(listed, "addon installed", "addons installed");
         let subtitle = if self.vanilla() {
             format!("{installed} · {VANILLA} plays the game without them")
         } else {
@@ -450,9 +446,7 @@ impl Shell {
             .on_click(cx.listener(|this, _, window, cx| this.install_addon(window, cx)));
         let rows: Vec<AnyElement> = self
             .library
-            .addons
-            .iter()
-            .filter(listed)
+            .listed()
             .enumerate()
             .map(|(i, m)| {
                 let open = self.open_addon.as_ref() == Some(&m.manifest.id);

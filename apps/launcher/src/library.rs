@@ -157,8 +157,15 @@ impl Library {
         }
     }
 
+    /// The addons the Addons page lists: track addons are on the Tracks page
+    /// while one is open in the profile.
+    pub fn listed(&self) -> impl Iterator<Item = &AddonItem> {
+        let tracks = self.tracks_page.is_some();
+        self.addons.iter().filter(move |m| !(m.track && tracks))
+    }
+
     pub fn enabled_addons(&self) -> usize {
-        self.addons.iter().filter(|m| m.enabled).count()
+        self.listed().filter(|m| m.enabled).count()
     }
 
     pub fn active(&self) -> Option<&ProfileItem> {
