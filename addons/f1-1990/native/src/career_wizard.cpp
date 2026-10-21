@@ -26,14 +26,13 @@
 // - Back on the settings step (site_Game_CareerWizard_BackRoute, the wizard base handler, after its own
 //   pop) fires back_1990, a copy of the settings step's back to the home screen that returns to the
 //   Career tiles (fe_career) like the season length step's back does.
-// - The season length component's begin (vt_Game_SeasonLengthComponent slot 77) sorts the calendar
-//   by its events' dates (each fixed event's date_time: the stock 2026 weekend, 2025 for Imola) when
-//   the default track list (+0x298, or the season length data's F1_2025 / F1_2026 full list) is
-//   sort_by_date, so a 1990 career ran its rounds in stock order, Australia first. For a 1990 career
-//   (data group f1_career_1990, or setup mode f1_1990) the DLL refills a calendar that lacks F1_1990
-//   events from the career's dynamic event data, and moves each round's date to its 1990 day in the
-//   career year (data/calendar-1990.json), at the settings step and before each begin, so the season
-//   runs Phoenix first.
+// - The 1990 calendar: a career runs its rounds from the season length component's calendar, each
+//   dated by its event's own date_time (the stock 2026 weekend), which GameModeChampionship::begin
+//   reads after the component's vt+0xd0 (slot 26). For a 1990 career (data group f1_career_1990, or
+//   setup mode f1_1990) whose season has no started weekend, at each 1990 wizard step, at career load,
+//   before and after slot 26 and before slot 77, the DLL refills the calendar from the career's
+//   F1_1990 dynamic event list, moves each round to its 1990 day in the career year and sets its
+//   minute offset from the season start (data/calendar-1990.json), so the season runs Phoenix first.
 
 
 #include <atomic>
@@ -83,7 +82,7 @@ constexpr uint8_t kSetupMode1990 = 16;
 constexpr char kDatesFile[] = "data/calendar-1990.json";
 
 std::atomic<uint32_t> g_starts_logged, g_route_logged, g_step_logged, g_confirm_logged, g_season_logged, g_back_logged,
-    g_calendar_logged, g_other_logged, g_loaded_logged;
+    g_calendar_logged, g_other_logged, g_loaded_logged, g_started_logged, g_begin_logged;
 
 bool is_1990_group(const char *group)
 {
@@ -161,10 +160,16 @@ bool is_1990_season(const void *career, uint8_t &setup_mode)
     return f1990::is_1990_career(career) || setup_mode == kSetupMode1990;
 }
 
-const std::vector<f1990::EventShift> &round_dates()
+struct RoundDates {
+    std::vector<f1990::EventShift> shifts;
+    int64_t season_start = 0;
+    bool has_start = false;
+};
+
+const RoundDates &round_dates()
 {
     static std::once_flag once;
-    static std::vector<f1990::EventShift> shifts;
+    static RoundDates dates;
     std::call_once(once, [] {
         std::string json;
         size_t error_at = 0;
@@ -174,12 +179,17 @@ const std::vector<f1990::EventShift> &round_dates()
                         swofty::storage::name(r));
         else if (!f1990::parse_string_leaves(json, leaves, &error_at))
             swofty::log("[f1-1990] calendar: %s is not an object of strings (byte %zu)", kDatesFile, error_at);
-        else
-            shifts = f1990::read_shifts(leaves);
-        swofty::log("[f1-1990] calendar: %zu 1990 round date(s) from %s", shifts.size(), kDatesFile);
+        else {
+            dates.shifts = f1990::read_shifts(leaves);
+            dates.has_start = f1990::read_season_start(leaves, dates.season_start);
+        }
+        swofty::log("[f1-1990] calendar: %zu 1990 round date(s) from %s, season start %s", dates.shifts.size(), kDatesFile,
+                    dates.has_start ? f1990::civil_day(dates.season_start).c_str() : "missing");
     });
-    return shifts;
+    return dates;
 }
+
+std::string season_weekends(const void *career, size_t &count, size_t &started);
 
 bool force_1990_calendar(void *component, const char *when, bool wizard_1990)
 {
@@ -187,29 +197,42 @@ bool force_1990_calendar(void *component, const char *when, bool wizard_1990)
     uint8_t setup_mode = 0xff;
     if (!career_wizard_1990 || !career || (!is_1990_season(career, setup_mode) && !wizard_1990))
         return false;
+    size_t weekends = 0, started = 0;
+    season_weekends(career, weekends, started);
+    if (started) {
+        if (g_started_logged++ < 4)
+            swofty::log("[f1-1990] calendar: 1990 career at %s has %zu of %zu weekend(s) started; calendar left as it is",
+                        when, started, weekends);
+        return true;
+    }
     const char *key = at<const char *>(component, 0x298);
     auto *data = at<const uint8_t *>(component, 0x290);
     const char *fallback = data ? at<const char *>(data, 0xf8) : nullptr;
     Events before = f1990::calendar_events(component), list = f1990::track_list_events(career, kTrackList1990);
-    size_t missing = f1990::missing_events(before, list);
+    bool same = f1990::same_events(before, list);
     std::string before_ids = event_ids(before);
-    if (missing && list.size())
+    if (!same && list.size())
         refill(component, list);
     auto *c = static_cast<uint8_t *>(component);
-    size_t moved = f1990::shift_dates(at<uint8_t *>(c, 0x2b0), at<uint8_t *>(c, 0x2b8), round_dates());
-    if (g_calendar_logged++ < 12)
-        swofty::log("[f1-1990] calendar: 1990 career at %s (setup mode %u, default track list \"%s\"); calendar %zu "
-                    "event(s) [%s]; %s has %zu event(s); %s; %zu date(s) moved to the 1990 days [%s]",
-                    when, setup_mode, key && *key ? key : fallback ? fallback : "(null)", before.size(), before_ids.c_str(),
-                    kTrackList1990, list.size(),
+    const RoundDates &dates = round_dates();
+    size_t moved = f1990::shift_dates(at<uint8_t *>(c, 0x2b0), at<uint8_t *>(c, 0x2b8), dates.shifts);
+    size_t offsets = dates.has_start ? f1990::set_offsets(at<uint8_t *>(c, 0x2b0), at<uint8_t *>(c, 0x2b8), dates.shifts,
+                                                          dates.season_start)
+                                     : 0;
+    if (g_calendar_logged++ < 32)
+        swofty::log("[f1-1990] calendar: 1990 career at %s (setup mode %u, default track list \"%s\", %zu weekend(s)); "
+                    "calendar %zu event(s) [%s]; %s has %zu event(s); %s; %zu date(s) moved to the 1990 days, %zu offset(s) "
+                    "set [%s]",
+                    when, setup_mode, key && *key ? key : fallback ? fallback : "(null)", weekends, before.size(),
+                    before_ids.c_str(), kTrackList1990, list.size(),
                     !list.size() ? "no F1_1990 list in the dynamic event data"
-                    : missing    ? "calendar refilled from F1_1990"
-                                 : "calendar kept",
-                    moved, f1990::event_days(f1990::calendar_events(component)).c_str());
+                    : same       ? "calendar kept"
+                                 : "calendar refilled from F1_1990",
+                    moved, offsets, f1990::event_days(f1990::calendar_events(component)).c_str());
     return true;
 }
 
-std::string season_weekends(const void *career, size_t &count)
+std::string season_weekends(const void *career, size_t &count, size_t &started)
 {
     auto *champ = at<const uint8_t *>(career, 0x1058);
     auto *sb = champ ? at<const uint8_t *>(champ, 0x548) : nullptr, *se = champ ? at<const uint8_t *>(champ, 0x550) : nullptr;
@@ -218,7 +241,10 @@ std::string season_weekends(const void *career, size_t &count)
     auto *wb = season ? at<const uint8_t *const *>(season, 0x288) : nullptr;
     auto *we = season ? at<const uint8_t *const *>(season, 0x290) : nullptr;
     count = wb && we > wb ? size_t(we - wb) : 0;
+    started = 0;
     std::string out;
+    for (auto *w = wb; w && w < we; w++)
+        started += *w && at<uint32_t>(*w, 0x23c) != 0;
     for (auto *w = wb; w && w < we && out.size() < 600; w++) {
         const char *name = *w ? at<const char *>(*w, 0x28) : nullptr;
         out += out.empty() ? "" : ",";
@@ -233,14 +259,17 @@ void on_career(const SwoftyEvent *ev, void *)
         return;
     void *career = swofty::career::entity();
     uint8_t setup_mode = 0xff;
-    if (!career || !is_1990_season(career, setup_mode) || g_loaded_logged++ >= 4)
+    if (!career || !is_1990_season(career, setup_mode) || g_loaded_logged++ >= 8)
         return;
-    size_t count = 0;
-    std::string names = season_weekends(career, count);
+    size_t count = 0, started = 0;
+    std::string names = season_weekends(career, count, started);
     void *component = season_component(career);
-    swofty::log("[f1-1990] calendar: 1990 career loaded; season has %zu weekend(s) [%s]; calendar %zu event(s) [%s]", count,
-                names.c_str(), component ? f1990::calendar_events(component).size() : 0,
+    swofty::log("[f1-1990] calendar: 1990 career loaded; season has %zu weekend(s) (%zu started) [%s]; calendar %zu event(s) "
+                "[%s]",
+                count, started, names.c_str(), component ? f1990::calendar_events(component).size() : 0,
                 component ? event_ids(f1990::calendar_events(component)).c_str() : "");
+    if (component)
+        force_1990_calendar(component, "career load", false);
 }
 
 void apply_full_season(void *wizard)
@@ -297,6 +326,8 @@ SWOFTY_WRAP(Game_CareerWizard_PushNextStep, void, void *wizard)
         if ((option == kOptionRecommended || option == kOptionCustomSettings) && !has_option(wizard, kOptionFullSeason) &&
             !has_option(wizard, kOptionCustomSeason))
             apply_full_season(wizard);
+        else if (void *component = season_component(career_of(wizard)))
+            force_1990_calendar(component, "a wizard step", true);
     }
     orig(wizard);
     if (!career_wizard_1990 || !is_1990_wizard(wizard) || steps(wizard) != before + 1)
@@ -356,6 +387,24 @@ SWOFTY_SITE(site_Game_CareerWizard_BackRoute, swofty::Context &c)
     c.rdx = reinterpret_cast<uintptr_t>(kSettingsBack1990);
     if (g_back_logged++ < 8)
         swofty::log("[f1-1990] wizard: settings back goes to the Career tiles (%s)", kSettingsBack1990);
+}
+
+SWOFTY_VTABLE(vt_Game_SeasonLengthComponent, 26, uintptr_t, void *component, uintptr_t a, uintptr_t b, uintptr_t c)
+{
+    bool mine = force_1990_calendar(component, "career begin", false);
+    uintptr_t r = orig(component, a, b, c);
+    if (!mine)
+        return r;
+    void *career = at<void *>(component, 0x278);
+    Events list = f1990::track_list_events(career, kTrackList1990);
+    bool same = f1990::same_events(f1990::calendar_events(component), list);
+    if (g_begin_logged++ < 8)
+        swofty::log("[f1-1990] calendar: career begin left the calendar %s: %zu event(s) [%s]",
+                    same ? "as F1_1990" : "changed", f1990::calendar_events(component).size(),
+                    event_ids(f1990::calendar_events(component)).c_str());
+    if (!same)
+        force_1990_calendar(component, "after career begin", false);
+    return r;
 }
 
 SWOFTY_VTABLE(vt_Game_SeasonLengthComponent, 77, void, void *component, uintptr_t index, uintptr_t keep)

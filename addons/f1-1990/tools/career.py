@@ -413,7 +413,10 @@ def calendar_dates(db):
                               int(db.get(f"{row}.date_time.day")))
         start = race_sunday(year, month, day) - datetime.timedelta(days=EVENT_LEAD_DAYS)
         events[db.get(f"{row}.stat_id")] = {"event": event, "stock": stock.isoformat(), "date": start.isoformat()}
-    return {"scope": DATA_GROUP, "year": str(year), "events": events}
+    season = f"schedule.event_lists.event_list_{db.row_index('schedule.event_lists', 'event_list', 'F1_career_26')}.season_0"
+    start = datetime.date(year, MONTH_NAMES.index(db.get(f"{season}.date_time_0.month")) + 1,
+                          int(db.get(f"{season}.date_time_0.day")))
+    return {"scope": DATA_GROUP, "year": str(year), "season_start": start.isoformat(), "events": events}
 
 
 def write_json(path, doc):
