@@ -4,8 +4,9 @@ Each source archive is a porter output patched onto a stock 2026 team archive, s
 `eaid://f1_2026_vehicle_package/teams/<donor>/...`. The build renames them byte for byte to
 `eaid://f1_1990_vehicle_package/teams/<stem>/...` (same length, so no offset in any payload moves) and leaves the
 bare `.mipmaps` sidecar paths on the stock 2026 files. It drops the car's own handling file, which the f1-1990 addon
-ships per option in `<folder>_handling.erp`. A car whose folder differs from its stem also gets its World, event graph
-and layers under the folder name.
+ships per option in `<folder>_handling.erp`, and gives every carmodel layer the car's 1990 engine audio label
+(`f1_m_<name>_90`, addons/f1-1990/tools/audio.py) so it plays the 1990 sound rows of the f1-1990 addon. A car
+whose folder differs from its stem also gets its World, event graph and layers under the folder name.
 
 Outputs (relative to the addon folder, not committed): erp/teams/<folder>/wep/<folder>.erp, erp/teams/common.erp,
 erp/tyrecompounds/tyrecompounds.erp, and assets/cars.json (the file.put and group.register ops, committed).
@@ -23,6 +24,7 @@ sys.path.insert(0, os.path.join(REPO, 'tools'))
 sys.path.insert(0, os.path.join(REPO, 'addons', 'f1-1990', 'tools'))
 
 import erpw
+import audio
 import cars as C
 
 TRIES = '/mnt/work/.mp45b/porter_a/tries'
@@ -94,6 +96,22 @@ def leftovers(e, needle):
     return n
 
 
+def set_audio(e, c):
+    layers = [r for r in e.res if kind(r) == 'WOInstances' and r.name.endswith('-carmodel.layer')]
+    if not layers:
+        raise ValueError(f'{c.team}: no carmodel layer')
+    labels = set()
+    for r in layers:
+        d = e.frag_data(r, 0)
+        old = audio.switch_name(d)
+        new = audio.label_1990(c, old)
+        e.set_frag(r, 0, audio.rewrite_switch(d, old, new))
+        labels.add(new)
+    if len(labels) != 1:
+        raise ValueError(f'{c.team}: carmodel layers disagree on the audio label: {labels}')
+    return labels.pop()
+
+
 def build_car(c, src, out):
     e = erpw.Erp(src)
     renamed, rewritten = rename_archive(e, c.donor, c.stem)
@@ -116,9 +134,10 @@ def build_car(c, src, out):
     left = leftovers(e, OLD)
     if left:
         raise ValueError(f'{c.team}: {left} eaid reference(s) still name {OLD.decode()}')
+    sound = set_audio(e, c)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     e.to_file(out)
-    return {'team': c.team, 'folder': c.folder, 'stem': c.stem, 'source': os.path.relpath(src, TRIES),
+    return {'team': c.team, 'folder': c.folder, 'stem': c.stem, 'source': os.path.relpath(src, TRIES), 'audio': sound,
             'resources': len(e.res), 'renamed': renamed, 'rewritten': rewritten, 'handling_dropped': dropped,
             'folder_copies': extra, 'bytes': os.path.getsize(out)}
 
@@ -172,6 +191,7 @@ def main():
         report['cars'].append(r)
         print(f'{c.team:13} {c.folder:15} stem {c.stem:12} {r["resources"]:5} res, {r["renamed"]} renamed, '
               f'{r["rewritten"]} fragments, handling -{r["handling_dropped"]}, +{r["folder_copies"]} folder copies, '
+              f'audio {r["audio"]}, '
               f'{r["bytes"] / 1e6:.1f} MB')
     if not only:
         report['common'] = build_plain(args.common, os.path.join(ADDON, 'erp', 'teams', 'common.erp'))

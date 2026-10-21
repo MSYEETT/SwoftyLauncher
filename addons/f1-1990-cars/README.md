@@ -32,7 +32,7 @@ python3 addons/f1-1990-cars/tools/build_pack.py            # all cars, common.er
 python3 addons/f1-1990-cars/tools/build_pack.py --ops-only # only assets/cars.json
 ```
 
-`build_pack.py` renames each porter output from `eaid://f1_2026_vehicle_package/` to `eaid://f1_1990_vehicle_package/` byte for byte (same length), leaves the bare `.mipmaps` sidecar paths on the stock 2026 files, and drops the car's own handling file (the f1-1990 addon ships it per option). Larrousse and Dallara sit on My Team folders for their AI data but were built on team donors: their resources carry a stem of the donor's length, and their World, event graph and layers are also stored under the folder name. The build fails if any `eaid://f1_2026_vehicle_package/` reference survives. Sources default to `/mnt/work/.mp45b/porter_a/tries` (`--tries`, `--common`, `--game`).
+`build_pack.py` renames each porter output from `eaid://f1_2026_vehicle_package/` to `eaid://f1_1990_vehicle_package/` byte for byte (same length), leaves the bare `.mipmaps` sidecar paths on the stock 2026 files, drops the car's own handling file (the f1-1990 addon ships it per option), and sets the AudioF1Car `switchName` in each carmodel layer to the car's 1990 engine audio label (`addons/f1-1990/tools/audio.py`, same length as the donor's). Larrousse and Dallara sit on My Team folders for their AI data but were built on team donors: their resources carry a stem of the donor's length, and their World, event graph and layers are also stored under the folder name. The build fails if any `eaid://f1_2026_vehicle_package/` reference survives. Sources default to `/mnt/work/.mp45b/porter_a/tries` (`--tries`, `--common`, `--game`).
 
 ## Test option
 
