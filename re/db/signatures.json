@@ -9200,6 +9200,32 @@
    ]
   },
   {
+   "id": "game.season_length_push_calendar_entry",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 3F 6E 19 C4 96 BE 5A",
+   "match": "0x140bc9d80",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140bc9d80",
+   "kind": "func_start",
+   "names": [
+    "Game_SeasonLength_PushCalendarEntry"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
+  },
+  {
    "id": "game.career_setup_reset_entrants",
    "section": ".xtls",
    "pattern": "41 56 56 57 53 48 83 EC 48 48 89 CE 48 8B 99 78 02 00 00",
@@ -9329,6 +9355,34 @@
    ],
    "used_by": [
     "addons/f1-1990/native/src/intro_video.cpp"
+   ]
+  },
+  {
+   "id": "game.season_length_component",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 48 89 06 C5 F8 57 C0 C5 F8 11 86 90 02 00 00",
+   "match": "0x140d01505",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x14568c1e0",
+   "kind": "data",
+   "names": [
+    "vt_Game_SeasonLengthComponent"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
    ]
   }
  ]
