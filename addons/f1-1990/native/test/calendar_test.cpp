@@ -108,6 +108,27 @@ int main(int argc, char **argv)
     check("keeps the time of day", f1990::at<int64_t>(cal.data(), 0x20) == f1990::days_from_civil(2026, 3, 5) * 86400 + tz);
     check("a second pass moves nothing", f1990::shift_dates(cal.data(), cal.data() + cal.size(), shifts) == 0 &&
                                              f1990::event_days(ev) == "134@2026-03-05,27@2026-05-07,127@2026-09-03,110@2026-03-05");
+    int64_t start = 0;
+    std::vector<f1990::StringLeaf> with_start;
+    f1990::parse_string_leaves(R"({"season_start": "2026-02-11", "events": {}})", with_start);
+    check("reads the season start", f1990::read_season_start(with_start, start) && f1990::civil_day(start) == "2026-02-11");
+    check("no season start without the key", !f1990::read_season_start(leaves, start));
+    f1990::read_season_start(with_start, start);
+    size_t written = f1990::set_offsets(cal.data(), cal.data() + cal.size(), shifts, start);
+    check("sets minute offsets from the season start in the entries' zone",
+          written == 4 && f1990::at<uint32_t>(cal.data(), 0x18) == uint32_t((f1990::days_from_civil(2026, 3, 5) - start) * 1440) &&
+              f1990::at<uint32_t>(cal.data() + 2 * f1990::kCalendarEntry, 0x18) ==
+                  uint32_t((f1990::days_from_civil(2026, 9, 3) - start) * 1440));
+    auto unanchored = entries({200});
+    put(unanchored.data(), 0x20, int64_t(f1990::days_from_civil(2026, 3, 5) * 86400));
+    check("sets no offsets without an anchor", f1990::set_offsets(unanchored.data(), unanchored.data() + unanchored.size(),
+                                                                   shifts, start) == 0);
+    auto same_a = entries({134, 133}), same_b = entries({134, 133}), swapped = entries({133, 134}), shorter = entries({134});
+    f1990::Events ea{same_a.data(), same_a.data() + same_a.size()}, eb{same_b.data(), same_b.data() + same_b.size()},
+        es{swapped.data(), swapped.data() + swapped.size()}, eh{shorter.data(), shorter.data() + shorter.size()};
+    check("same events in the same order match", f1990::same_events(ea, eb));
+    check("another order or length does not", !f1990::same_events(es, eb) && !f1990::same_events(eh, eb));
+
     auto undated = entries({134});
     check("leaves an undated event alone", f1990::shift_dates(undated.data(), undated.data() + undated.size(), shifts) == 0);
 
@@ -131,6 +152,10 @@ int main(int argc, char **argv)
                                                                          rounds.back().id == 110);
         check("its 1990 days ascend round by round", ascending);
         check("each 1990 day is a Thursday, 3 days before the race Sunday", thursdays);
+        int64_t shipped_start = 0;
+        check("its season starts on 2026-02-11, before Phoenix",
+              f1990::read_season_start(shipped, shipped_start) && f1990::civil_day(shipped_start) == "2026-02-11" &&
+                  rounds.size() && rounds[0].date > shipped_start);
         check("Phoenix moves to 2026-03-05, Adelaide to 2026-10-29",
               f1990::civil_day(rounds[0].date) == "2026-03-05" && f1990::civil_day(rounds.back().date) == "2026-10-29");
     }

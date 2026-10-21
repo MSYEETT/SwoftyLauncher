@@ -1,6 +1,7 @@
 {
  "scope": "f1_career_1990",
  "year": "2026",
+ "season_start": "2026-02-11",
  "events": {
   "134": {
    "event": "rw_las_vegas_26",
