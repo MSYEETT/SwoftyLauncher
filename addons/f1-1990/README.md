@@ -111,7 +111,9 @@ A 1990 career reads its R&D from `upgrades.1990`; 2025 and 2026 careers keep `up
 The path is the `upgrades_path` of the career's ComUpgrades component, so the 1990 championship lists its own shared
 component set, `shared_driver_career_1990_components`: ComUpgrades on `upgrades.1990`, ComResourcePoints and
 ComAccolades on `f1_career_1990`, ComSchedule on `F1_career_1990`. Under `upgrades.1990` the engine supplier trees,
-delivery schedules, regulation change schedules and R&D challenges are copies of the 2026 tables.
+delivery schedules, regulation change schedules, R&D challenges and `general` are copies of the 2026 tables.
+`general.ui_data_0.texture_array_dictionary_path` is the R&D UI package every card, icon and strip path starts with
+(`#overrides.career.rnd_om_xm`); without it no R&D art shows in a 1990 career.
 
 | Part | Rows |
 |---|---|
