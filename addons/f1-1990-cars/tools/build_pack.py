@@ -50,10 +50,10 @@ SOURCES_B = {
 COMMON = '/mnt/work/.mp45b/porter_a/tries/tyres13cm2/common.erp'
 TYRES = '2025_asset_groups/f1_2026_vehicle_package/tyrecompounds/tyrecompounds.erp'
 POD_CAMERA = {
-    'mclaren': (0.658, 0.184), 'ferrari': (0.652, 0.188), 'williams': (0.626, -0.043), 'benetton': (0.630, 0.231),
-    'tyrrell': (0.634, 0.328), 'lotus': (0.602, -0.030), 'march': (0.634, 0.328), 'larrousse': (0.652, 0.188),
-    'ligier_prost': (0.658, 0.184), 'minardi': (0.634, 0.328), 'brabham': (0.602, -0.030), 'dallara': (0.626, -0.043),
-    'arrows': (0.652, 0.188),
+    'mclaren': (0.658, 0.119), 'ferrari': (0.652, 0.123), 'williams': (0.626, -0.109), 'benetton': (0.630, 0.166),
+    'tyrrell': (0.634, 0.256), 'lotus': (0.602, -0.095), 'march': (0.634, 0.256), 'larrousse': (0.652, 0.123),
+    'ligier_prost': (0.658, 0.119), 'minardi': (0.634, 0.256), 'brabham': (0.602, -0.095), 'dallara': (0.626, -0.109),
+    'arrows': (0.652, 0.123),
 }
 POD_ATTACHMENTS = ('pod', 'podoffset', 'pod_left', 'pod_right')
 TYRE_SET = f'eaid://{C.SOURCE_PACKAGE}/shared/tyres/'
