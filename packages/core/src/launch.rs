@@ -305,7 +305,10 @@ mod tests {
     fn round_trips_through_the_state_file() {
         let root = std::env::temp_dir().join(format!("swofty-launch-failed-{}", std::process::id()));
         std::fs::create_dir_all(root.join("state")).unwrap();
-        let f = Failure::new(Cause::SecondCopy { pid: Some(7) });
+        let f = Failure {
+            at: 1_792_594_036.5,
+            cause: Cause::SecondCopy { pid: Some(7) },
+        };
         f.write(&root).unwrap();
         assert_eq!(Failure::read(&root), Some(f));
         let text = std::fs::read_to_string(Failure::path(&root)).unwrap();
