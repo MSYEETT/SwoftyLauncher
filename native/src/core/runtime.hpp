@@ -41,7 +41,7 @@ bool enabled(const char *feature, const char *what);
 std::string load_stage();
 bool same_build();
 
-uintptr_t find(const Sig &s, const char *tag);
+uintptr_t find(const Sig &s, const char *tag, const char *channel = "assets");
 bool readable(const void *p, size_t n);
 std::string read_file(const std::wstring &path, size_t limit = size_t(512) << 20);
 bool write_file(const std::wstring &path, const std::string &data);

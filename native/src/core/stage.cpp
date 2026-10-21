@@ -162,19 +162,19 @@ bool same_build()
     return nt->FileHeader.TimeDateStamp == 1789118616u && nt->OptionalHeader.SizeOfImage > 0x6000000;
 }
 
-uintptr_t find(const Sig &s, const char *tag)
+uintptr_t find(const Sig &s, const char *tag, const char *channel)
 {
     uintptr_t at = 0, base = swofty::api->module_base();
     int hits = swofty::api->scan(".xtls", s.pattern, &at);
     if (hits != 1 || !at) {
-        swofty::log("[assets] %s: %s signature matched %d time(s)", tag, s.what, hits);
+        swofty::log("[%s] %s: %s signature matched %d time(s)", channel, tag, s.what, hits);
         return 0;
     }
     uintptr_t out = at + s.anchor;
     if (s.kind == Sig::rel32 || s.kind == Sig::riprel)
         out = at + s.insn + s.len + *reinterpret_cast<const int32_t *>(at + s.anchor);
     if (out - base != s.rva)
-        swofty::log("[assets] %s: %s resolved to base+0x%llx, KB build has base+0x%llx", tag, s.what,
+        swofty::log("[%s] %s: %s resolved to base+0x%llx, KB build has base+0x%llx", channel, tag, s.what,
                     (unsigned long long)(out - base), (unsigned long long)s.rva);
     return out;
 }

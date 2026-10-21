@@ -176,7 +176,7 @@ void career_start_setup()
 {
     if (!enabled("career", nullptr))
         return;
-    uintptr_t at = find(S_RUN_ROUTE, "career");
+    uintptr_t at = find(S_RUN_ROUTE, "start gate", "career");
     if (!at) {
         swofty::log("[career] start gate: Vm_Run_Route did not resolve; career.starting never fires and blocks cannot "
                     "cancel a route");

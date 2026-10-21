@@ -220,8 +220,8 @@ void popup_setup()
         return;
     }
     uintptr_t base = swofty::api->module_base();
-    uintptr_t motd = find(S_MOTD, "popup");
-    a_release = find(S_RELEASE, "popup");
+    uintptr_t motd = find(S_MOTD, "message system", "popup");
+    a_release = find(S_RELEASE, "message system", "popup");
     if (motd) {
         id_vt = reinterpret_cast<const void *>(motd + MOTD_VT_END + *reinterpret_cast<const int32_t *>(motd + MOTD_VT_DISP));
         a_construct = rel32(motd + MOTD_CONSTRUCT);
