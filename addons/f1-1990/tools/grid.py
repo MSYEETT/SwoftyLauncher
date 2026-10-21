@@ -34,6 +34,8 @@ KITS = f"{KIT_YEARS}.team_customisation_for_year[_metadata_=2026]"
 
 SETUP_MODE = "f1_1990"
 GRID_LIST = "f1_1990"
+CONTENT_SETS = "content_sets"
+CONTENT_SET = "2026"
 POOL_LIST = "f1_1990_driver_pool"
 CAREER_LIST = career.ENTRANT_LIST
 DATA_GROUP = career.DATA_GROUP
@@ -543,6 +545,11 @@ def build(stock, season):
 
     o.use("grid_links")
     o.set(f"{GAME_SETUP_MODES}[_metadata_={SETUP_MODE}]", "entrant_setup_modes", SETUP_MODE)
+    content = stock.row(CONTENT_SETS, "content_set", CONTENT_SET)
+    lists = stock.get(f"{content}.available_entrant_lists_0.entrant_lists").split(",")
+    lists += [x for x in (GRID_LIST, CAREER_LIST) if x not in lists]
+    o.set(f"{CONTENT_SETS}.content_set[_metadata_={CONTENT_SET}]", "available_entrant_lists_0.entrant_lists",
+          ",".join(lists))
     o.use("grid")
 
     kit_year = stock.row(KIT_YEARS, "team_customisation_for_year", "2026")
