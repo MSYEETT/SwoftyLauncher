@@ -21,7 +21,7 @@ echo "swofty-triage source: $(git -C "$PREFIX/src" log -1 --format='%h %s')"
 
 [ -x "$PREFIX/uv/bin/uv" ] || { python3 -m venv "$PREFIX/uv" && "$PREFIX/uv/bin/pip" install --quiet uv; }
 UV_PROJECT_ENVIRONMENT="$PREFIX/venv" "$PREFIX/uv/bin/uv" sync --quiet --frozen --no-dev --no-editable \
-    --project "$PREFIX/src/triage"
+    --reinstall-package swofty-triage --project "$PREFIX/src/triage"
 
 install -m 0644 "$PREFIX/src/triage/deploy/swofty-triage.service" /etc/systemd/system/swofty-triage.service
 install -m 0644 "$PREFIX/src/triage/deploy/swofty-usage.service" /etc/systemd/system/swofty-usage.service
