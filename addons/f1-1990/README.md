@@ -83,7 +83,8 @@ F2 list; the 1990 wizard has no F2 start) and `ICONS_90` (`f1_1990_driver_pool`)
 The 1990 wizard has no F2 start, team, season length, driver icons or driver type choice (`native/f1_1990_wizard.dll`,
 see `native/README.md`). `tools/wizard.py --game <F1 25>` writes `erp/wizard.json`: the route
 `career_wizard_driver_career_1990`, a copy of the content select's `career_wizard_driver_career_to_f1` that opens the
-settings step instead of the season length step. Only the 1990 tile fires it; stock routes stay as they are.
+settings step instead of the season length step, and the copies that take Choose Driver's back to the settings step
+and the settings step's back to the Career tiles. Only the 1990 wizard fires them; stock routes stay as they are.
 
 Strings are new keys: `lng_f1990_career_content(_description)` for the third Career tile, `lng_f1990_season`,
 `lng_f1990_championship_season(_loading_screen)`, `lng_f1990_trophy_drivers_champion`, `lng_f1990_season_length`, and

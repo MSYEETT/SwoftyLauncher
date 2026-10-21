@@ -20,6 +20,14 @@
 // whose team the championship (component +0x270, vt +0x1c0) holds and whose car the vehicle table
 // (component +0x318, +0x328 per kind, indexed by stat id) has. At Choose Driver the probe logs the
 // model count and those three inputs per entrant.
+//
+// The game mode's entrants are a copy of one parsed entrant list: Game_CareerSetup_ResetEntrants takes
+// the list whose stat id the CareerSetupComponent holds (+0x2b8) from the entrants registry (+0x560)
+// and copies its records. In a 1990 career every copied entrant reads team 0x3fff0000 and car 16383
+// although f1_1990's rows name the 1990 teams and cars. The probe logs, for the 1990 lists (105-107)
+// and the 2026 ones (67, 97), how many registry records carry a team; the entrants right after each
+// reset and at each 1990 wizard step; and every Career_Set_EntrantData_Thunk call that writes an
+// entrant's team, so a run shows whether the list parse or a later write leaves the teams empty.
 
 #include <windows.h>
 
@@ -45,7 +53,9 @@ constexpr struct {
     {0x146060948, "recognition"}, {0x14605b008, "career-setup"},  {0x1460609c8, "option-0x17"},
 };
 
-std::atomic<uint32_t> g_probes, g_offer_probes, g_rank_probes;
+constexpr uint8_t kRegistryLists[] = {67, 97, 105, 106, 107};
+
+std::atomic<uint32_t> g_probes, g_offer_probes, g_rank_probes, g_reset_probes, g_set_probes, g_step_probes;
 thread_local bool t_in_offers;
 
 uintptr_t rebase(uintptr_t va)
@@ -95,6 +105,42 @@ uintptr_t component(uintptr_t owner, uintptr_t desc)
     uintptr_t reg = owner ? owner + 0x1030 : 0;
     auto **rvt = reinterpret_cast<void **>(rd<uintptr_t>(reg));
     return rvt ? reinterpret_cast<uintptr_t (*)(uintptr_t, uintptr_t, int)>(rvt[2])(reg, desc, 1) : 0;
+}
+
+std::string records(uintptr_t b, uintptr_t e)
+{
+    long n = 0, teamed = 0, carred = 0;
+    std::string first;
+    for (uintptr_t p = b; p && p < e; p += 0x88, n++) {
+        uint32_t team = rd<uint32_t>(p + 0x58), car = rd<uint32_t>(p + 0x5c);
+        teamed += (team >> 16) != 0x3fff;
+        carred += (car >> 16) != 0x3fff;
+        if (n < 3) {
+            char x[64];
+            std::snprintf(x, sizeof x, " [driver %08x team %08x car %08x]", rd<uint32_t>(p + 0x50), team, car);
+            first += x;
+        }
+    }
+    char head[96];
+    std::snprintf(head, sizeof head, "%ld record(s), %ld with a team, %ld with a car;", n, teamed, carred);
+    return head + first;
+}
+
+std::string registry_lists(uintptr_t mgr)
+{
+    uintptr_t lb = rd<uintptr_t>(mgr + 0x560), le = rd<uintptr_t>(mgr + 0x568);
+    size_t count = lb && le > lb ? (le - lb) / 0x10 : 0;
+    std::string out;
+    for (uint8_t stat : kRegistryLists) {
+        uintptr_t list = stat < count ? rd<uintptr_t>(lb + stat * 0x10 + 8) : 0;
+        uintptr_t named = list ? rd<uintptr_t>(list + 0x28) : 0;
+        char b[96];
+        std::snprintf(b, sizeof b, " | %u \"%s\" at 0x%llx: ", stat, named ? str_at(rd<uintptr_t>(named + 0x10)).c_str() : "?",
+                      (unsigned long long)list);
+        out += b;
+        out += list ? records(rd<uintptr_t>(list + 0x10), rd<uintptr_t>(list + 0x18)) : std::string("none");
+    }
+    return out;
 }
 
 void probe_team_models(uintptr_t gm)
@@ -154,6 +200,7 @@ void probe_before(uintptr_t vm)
     walk_map(head ? rd<uintptr_t>(head + 8) : 0, mgr, map, 0);
     swofty::log("[f1-1990] probe: entrant lists %ld; official map (name=stat(entrants)):%s", lb && le > lb ? long((le - lb) / 0x10) : -1L,
                 map.c_str());
+    swofty::log("[f1-1990] probe: registry lists%s", registry_lists(mgr).c_str());
     uintptr_t slot = rd<uintptr_t>(rd<uintptr_t>(vm + 0x448) + 0x88);
     uintptr_t gm = slot ? rd<uintptr_t>(slot + 0x260) : 0;
     if (!gm || !swofty::mem::object_like(gm)) {
@@ -209,6 +256,43 @@ std::string upgrade_teams(uintptr_t gm, size_t &count)
     return keys;
 }
 
+}
+
+void f1990_probe_entrants(const char *when, const void *career)
+{
+    uintptr_t c = reinterpret_cast<uintptr_t>(career);
+    if (!c || g_step_probes++ >= 24)
+        return;
+    swofty::log("[f1-1990] probe: entrants at %s: career 0x%llx, +0xe18 0x%llx, %s", when, (unsigned long long)c,
+                (unsigned long long)rd<uintptr_t>(c + 0xe18), records(rd<uintptr_t>(c + 0x2e0), rd<uintptr_t>(c + 0x2e8)).c_str());
+}
+
+SWOFTY_WRAP(Game_CareerSetup_ResetEntrants, void, void *setup)
+{
+    orig(setup);
+    if (g_reset_probes++ >= 12)
+        return;
+    uintptr_t s = reinterpret_cast<uintptr_t>(setup), career = rd<uintptr_t>(s + 0x278), mgr = rd<uintptr_t>(s + 0x290);
+    uint8_t stat = rd<uint8_t>(s + 0x2b8);
+    uintptr_t lb = rd<uintptr_t>(mgr + 0x560), le = rd<uintptr_t>(mgr + 0x568);
+    uintptr_t list = lb && stat < (le - lb) / 0x10 ? rd<uintptr_t>(lb + stat * 0x10 + 8) : 0;
+    uintptr_t named = list ? rd<uintptr_t>(list + 0x28) : 0;
+    swofty::log("[f1-1990] probe: entrants reset from list %u \"%s\" (0x%llx, %s) into career 0x%llx: %s", stat,
+                named ? str_at(rd<uintptr_t>(named + 0x10)).c_str() : "?", (unsigned long long)list,
+                list ? records(rd<uintptr_t>(list + 0x10), rd<uintptr_t>(list + 0x18)).c_str() : "none",
+                (unsigned long long)career, records(rd<uintptr_t>(career + 0x2e0), rd<uintptr_t>(career + 0x2e8)).c_str());
+}
+
+SWOFTY_WRAP(Career_Set_EntrantData_Thunk, void, void *entity, const void *entrant_id, const uint32_t *data, uint16_t position,
+            uint8_t flag)
+{
+    uintptr_t e = reinterpret_cast<uintptr_t>(entity);
+    long before = e ? long((rd<uintptr_t>(e + 0x2e8) - rd<uintptr_t>(e + 0x2e0)) / 0x88) : -1;
+    orig(entity, entrant_id, data, position, flag);
+    if (!data || g_set_probes++ >= 48)
+        return;
+    swofty::log("[f1-1990] probe: entrant data set on 0x%llx (%ld entrant(s)): driver %08x team %08x car %08x, position %u",
+                (unsigned long long)e, before, data[0], data[2], data[3], unsigned(position));
 }
 
 SWOFTY_WRAP(Game_DriverContracts_BuildOffers, void, void *contracts, uint32_t driver)
