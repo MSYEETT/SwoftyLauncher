@@ -32,7 +32,9 @@ Team power, mass and drag come from the season pack's per-team scalars (season.p
 Outputs (relative to the addon folder): cars/handling/<ers>_<tyre_size>/<folder>_handling.erp, cars/handling.json
 (file.put ops keyed by the options) and db/cars.json (the f1_1990 and f1_1990b package rows, the 13 vehicle rows
 labelled with the grid lane's tokens and their 13 B-spec copies `<token>_1990b`; the name strings come from the grid
-lane's lang ops). The build compares with the shipped files and exits 1 on any difference; --write replaces them.
+lane's lang ops). The game loads a vehicle at startup (0x142505f30, the stat-id indexed vehicle table) only when its
+`available` is True, and the content pass 0x1413e4cf0 sets that only for vehicles an entrant list names and for
+their packages; no entrant list names a B-spec car, so the B rows and the f1_1990b package carry `available True`. The build compares with the shipped files and exits 1 on any difference; --write replaces them.
 """
 import argparse
 import json
@@ -445,9 +447,9 @@ def engine_key(c):
     return f'lng_f1990_engine_{c.team}'
 
 
-def package_ops(name, stat_id, folder):
+def package_ops(name, stat_id, folder, **extra):
     values = dict(PACKAGE_SET, _metadata_=name, stat_id=stat_id,
-                  resource_path=f'{folder}/teams/[FILENAME]/wep/[FILENAME]')
+                  resource_path=f'{folder}/teams/[FILENAME]/wep/[FILENAME]', **extra)
     return [{'op': 'add-row', 'table': 'entrants.vehicles.vehicle_packages',
              'from': f'entrants.vehicles.vehicle_packages.vehicle_package[_metadata_={C.SOURCE_PACKAGE_ROW}]',
              'set': values},
@@ -460,7 +462,7 @@ def db_ops():
         vehicle_fields = json.load(f)['fields']['entrants.vehicles.vehicle']
     vehicle_fields = vehicle_fields + [k for k in VEHICLE_EXTRA_FIELDS if k not in vehicle_fields]
     ops = package_ops(C.PACKAGE, C.PACKAGE_STAT_ID, C.PACKAGE_FOLDER)
-    ops += package_ops(C.PACKAGE_B, C.PACKAGE_B_STAT_ID, C.PACKAGE_B_FOLDER)
+    ops += package_ops(C.PACKAGE_B, C.PACKAGE_B_STAT_ID, C.PACKAGE_B_FOLDER, available='True')
     for c in C.CARS:
         ops.append({'op': 'add-row', 'table': 'entrants.vehicles',
                     'from': f'entrants.vehicles.vehicle[_metadata_={c.donor_vehicle}]',
@@ -472,7 +474,8 @@ def db_ops():
     for c in C.CARS:
         ops.append({'op': 'add-row', 'table': 'entrants.vehicles',
                     'from': f'entrants.vehicles.vehicle[_metadata_={c.vehicle}]',
-                    'set': {'_metadata_': c.vehicle_b, 'stat_id': str(c.stat_id_b), 'vehicle_package': C.PACKAGE_B}})
+                    'set': {'_metadata_': c.vehicle_b, 'stat_id': str(c.stat_id_b), 'vehicle_package': C.PACKAGE_B,
+                            'available': 'True'}})
     return {'schema_version': 1,
             'fields': {'entrants.vehicles.vehicle_packages.vehicle_package': PACKAGE_FIELDS,
                        'entrants.vehicles.vehicle': vehicle_fields},
