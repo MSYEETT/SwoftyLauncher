@@ -22,11 +22,13 @@ pub const PART_LIMIT: usize = 9 << 20;
 pub const SESSIONS: usize = 3;
 pub const SNAPSHOT: &str = "swofty/addons/swofty.career-editor/snapshot.json";
 pub const PERF_LINES: usize = 60;
+pub const LOADER_DIR: &str = "swofty";
 
 const REDACTED: &str = "[redacted]";
 const SESSION_DEPTH: usize = 3;
 const MIN_TAIL: u64 = 64 << 10;
 const PERF_READ: u64 = 1 << 20;
+const DUMP_CAP: u64 = 24 << 20;
 
 /// Where the logs go: the webhook baked in at build time, if any.
 pub fn destination() -> Option<Webhook> {
@@ -168,6 +170,27 @@ impl Collector {
         self.entries.push(Entry { path, data, note });
     }
 
+    /// A whole binary file (the minidump), up to `cap` and the remaining
+    /// budget; too big to fit means it is left out with a note, never cut.
+    fn binary(&mut self, path: String, from: &Path, cap: u64) {
+        let len = match std::fs::metadata(from) {
+            Ok(m) => m.len(),
+            Err(e) => return self.skipped.push(format!("{path}: {e}")),
+        };
+        let room = cap.min(self.budget());
+        if len > room {
+            return self.skipped.push(format!(
+                "{path} ({}): too big to send (limit {}), left out",
+                size(len),
+                size(room)
+            ));
+        }
+        match std::fs::read(from) {
+            Ok(data) => self.push(path, data, Some(size(len))),
+            Err(e) => self.skipped.push(format!("{path}: {e}")),
+        }
+    }
+
     fn file(&mut self, path: String, from: &Path, redact: Option<fn(&str) -> String>) {
         let cap = self.limits.file.min(self.budget());
         let len = match std::fs::metadata(from) {
@@ -272,9 +295,24 @@ impl Bundle {
         for dir in &sessions {
             let session = file_name(dir);
             for (rel, file) in files_under(dir, SESSION_DEPTH) {
+                // The crash report and its minidump are collected whole below, the dump as binary;
+                // the generic walk reads files as redacted text tails, which would corrupt the dump.
+                if is_crash_file(&file) {
+                    continue;
+                }
                 let redact = (rel == "env.txt").then_some(redact_env as fn(&str) -> String);
                 c.file(format!("sessions/{session}/{rel}"), &file, redact);
             }
+        }
+        let crash = newest_crash(store, report.game.dir.as_deref(), &sessions);
+        let mut crash_report = None;
+        if let Some(c0) = &crash {
+            let name = file_name(&c0.report);
+            c.file(format!("crash/{name}"), &c0.report, None);
+            if let Some(dump) = &c0.dump {
+                c.binary(format!("crash/{}", file_name(dump)), dump, DUMP_CAP);
+            }
+            crash_report = std::fs::read_to_string(&c0.report).ok();
         }
         let os = os_description();
         let mut bundle = Self {
@@ -288,7 +326,7 @@ impl Bundle {
             skipped: c.skipped,
         };
         let perf = newest_perf(live_perf, &sessions);
-        let summary = bundle.summary(store, report, stamp, perf);
+        let summary = bundle.summary(store, report, stamp, perf, crash_report.as_deref());
         bundle.entries.insert(
             0,
             Entry {
@@ -306,6 +344,7 @@ impl Bundle {
         report: &Report,
         stamp: &str,
         perf: Option<(String, PathBuf)>,
+        crash: Option<&str>,
     ) -> String {
         let mut s = String::new();
         let mut line = |k: &str, v: &str| s.push_str(&format!("{k:16} {v}\n"));
@@ -325,7 +364,17 @@ impl Bundle {
         } else {
             &self.message
         });
-        s.push_str("\n\nPerformance\n");
+        s.push_str("\n\nCrash\n");
+        match crash {
+            Some(text) => {
+                for l in crash_excerpt(text) {
+                    s.push_str(&l);
+                    s.push('\n');
+                }
+            }
+            None => s.push_str("No crash report was found (the game did not write one this session)\n"),
+        }
+        s.push_str("\nPerformance\n");
         match perf {
             Some((label, path)) => {
                 let text = read_head(&path, PERF_READ).map(|d| String::from_utf8_lossy(&d).into_owned());
@@ -496,6 +545,105 @@ fn session_label(file: &Path) -> String {
 fn file_name(path: &Path) -> String {
     path.file_name()
         .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
+}
+
+/// A crash report the core wrote (`crash-<time>.txt`) or its minidump
+/// (`crash-<time>.dmp`).
+fn is_crash_file(path: &Path) -> bool {
+    let name = file_name(path);
+    name.starts_with("crash-") && (name.ends_with(".txt") || name.ends_with(".dmp"))
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Crash {
+    pub report: PathBuf,
+    pub dump: Option<PathBuf>,
+}
+
+/// The newest crash report across the running game's loader folder and the
+/// kept sessions, with its minidump beside it when one exists.
+pub fn newest_crash(store: &Store, game: Option<&Path>, sessions: &[PathBuf]) -> Option<Crash> {
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    if let Some(game) = game {
+        dirs.push(game.join(LOADER_DIR));
+    }
+    for s in sessions {
+        dirs.push(s.clone());
+        dirs.push(s.join("game-logs"));
+    }
+    let _ = store;
+    let mut reports: Vec<PathBuf> = dirs
+        .iter()
+        .flat_map(|d| std::fs::read_dir(d).into_iter().flatten().flatten())
+        .map(|e| e.path())
+        .filter(|p| {
+            let n = file_name(p);
+            n.starts_with("crash-") && n.ends_with(".txt") && p.is_file()
+        })
+        .collect();
+    // The names carry a sortable UTC-ish stamp, so the last by name is the newest; modified time
+    // breaks ties and covers a clock change.
+    reports.sort_by(|a, b| {
+        modified(a)
+            .cmp(&modified(b))
+            .then_with(|| file_name(a).cmp(&file_name(b)))
+    });
+    let report = reports.pop()?;
+    let dump = report.with_extension("dmp");
+    Some(Crash {
+        dump: dump.is_file().then_some(dump),
+        report,
+    })
+}
+
+/// A short summary of the crash report at `path`, for `swofty logs`.
+pub fn summarise_crash(path: &Path) -> std::io::Result<Vec<String>> {
+    Ok(crash_excerpt(&String::from_utf8_lossy(&read_head(
+        path, PERF_READ,
+    )?)))
+}
+
+/// The head of a crash report, cut to its most useful lines: the header
+/// fields, the exception and the first stack frames.
+fn crash_excerpt(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut section = "";
+    let mut stack = 0;
+    let kept = |s: &str| {
+        s == "Exception"
+            || s == "Ne heap"
+            || s == "Game state (from the black box)"
+            || s.starts_with("Stack (")
+    };
+    for line in text.lines() {
+        if let Some(name) = line.strip_prefix("== ") {
+            section = name;
+            if kept(section) {
+                out.push(String::new());
+                out.push(line.to_owned());
+            }
+            continue;
+        }
+        if out.len() > 400 {
+            break;
+        }
+        if section.is_empty() {
+            // The header block, up to the blank line before the first section.
+            if line.is_empty() {
+                continue;
+            }
+            out.push(line.to_owned());
+        } else if section == "Exception"
+            || section == "Ne heap"
+            || section == "Game state (from the black box)"
+        {
+            out.push(line.to_owned());
+        } else if section.starts_with("Stack (") && stack < 12 {
+            out.push(line.to_owned());
+            stack += 1;
+        }
+    }
+    out
 }
 
 fn state_logs(store: &Store) -> Vec<PathBuf> {

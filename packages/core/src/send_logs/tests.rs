@@ -878,3 +878,151 @@ fn says_when_there_is_no_performance_report() {
     );
     std::fs::remove_dir_all(&root).ok();
 }
+
+const CRASH: &str = "Swofty crash report
+
+written      2026-10-21 12:26:16.158 local time
+reason       unhandled ACCESS_VIOLATION (0xc0000005) writing 0x10 at F1_25.exe+0x3962704 in Ne_Heap_FreeTreeRemove+0x1c4
+thread       36
+process      pid 32, 2.7 s after the core loaded
+
+== Exception
+  ACCESS_VIOLATION (0xc0000005), flags 0x0, at F1_25.exe+0x3962704
+  writing 0x10: free (unallocated) region
+
+== Registers
+  rax=0000000000000000 rbx=0000000000000000
+
+== Stack (unwound with the modules' exception data)
+  #0  0000000143962704  F1_25.exe+0x3962704 in Ne_Heap_FreeTreeRemove+0x1c4
+  #1  0000000143963f5f  F1_25.exe+0x3963f5f in Ne_Heap_DeallocateNonSmall+0xfdf
+  #2  0000000140809502  F1_25.exe+0x809502
+
+== Ne heap
+  heap object 0x140034300 'MainHeap': range 0x1000 +0x10000, guard 32 bytes
+
+== Game state (from the black box)
+  last flow      race load (1.2 s before this report)
+  track and car count: core does not read them
+
+== Minidump
+  crash-20261021-122616.dmp, 0.1 MB, thread stacks and registers
+";
+
+#[test]
+fn includes_the_newest_crash_report_and_minidump() {
+    let root = tmp("crash");
+    let (store, game) = fake_data(&root);
+    let loader = game.join("swofty");
+    put(
+        &loader.join("crash-20261021-090000.txt"),
+        "Swofty crash report\n\nreason older\n",
+    );
+    put(&loader.join("crash-20261021-122616.txt"), CRASH);
+    put(&loader.join("crash-20261021-122616.dmp"), noise(200_000, 7));
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261021-130000");
+    let names: Vec<_> = bundle.entries.iter().map(|e| e.path.clone()).collect();
+    assert!(
+        names.contains(&"crash/crash-20261021-122616.txt".to_string()),
+        "{names:?}"
+    );
+    assert!(
+        names.contains(&"crash/crash-20261021-122616.dmp".to_string()),
+        "{names:?}"
+    );
+    assert!(
+        !names.iter().any(|n| n.contains("crash-20261021-090000")),
+        "only the newest report: {names:?}"
+    );
+    let zip = bundle.zip().unwrap();
+    assert_eq!(entry(&zip, "crash/crash-20261021-122616.txt"), CRASH);
+    let mut dump = Vec::new();
+    zip::ZipArchive::new(std::io::Cursor::new(&zip))
+        .unwrap()
+        .by_name("crash/crash-20261021-122616.dmp")
+        .unwrap()
+        .read_to_end(&mut dump)
+        .unwrap();
+    assert_eq!(
+        dump,
+        noise(200_000, 7),
+        "the minidump is sent byte for byte, not redacted"
+    );
+    let summary = summary_of(&bundle);
+    assert!(summary.contains("\nCrash\n"), "{summary}");
+    assert!(
+        summary.contains("reason       unhandled ACCESS_VIOLATION"),
+        "{summary}"
+    );
+    assert!(summary.contains("Ne_Heap_DeallocateNonSmall"), "{summary}");
+    assert!(summary.contains("last flow      race load"), "{summary}");
+    assert!(summary.find("\nCrash\n") < summary.find("\nPerformance\n"));
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn skips_a_minidump_too_big_for_the_bundle() {
+    let root = tmp("crashbig");
+    let (store, game) = fake_data(&root);
+    let loader = game.join("swofty");
+    put(&loader.join("crash-20261021-122616.txt"), CRASH);
+    put(&loader.join("crash-20261021-122616.dmp"), noise(2 << 20, 3));
+    let limits = Limits {
+        file: FILE_CAP,
+        total: 1 << 20,
+    };
+    let bundle = Bundle::collect_with(&store, &report(&game), limits, "x");
+    assert!(
+        bundle
+            .entries
+            .iter()
+            .any(|e| e.path == "crash/crash-20261021-122616.txt"),
+        "the report still goes"
+    );
+    assert!(
+        !bundle.entries.iter().any(|e| e.path.ends_with(".dmp")),
+        "the dump is not included"
+    );
+    assert!(
+        bundle
+            .skipped
+            .iter()
+            .any(|s| s.contains("crash-20261021-122616.dmp") && s.contains("too big")),
+        "{:?}",
+        bundle.skipped
+    );
+    assert!(
+        summary_of(&bundle).contains("crash-20261021-122616.dmp"),
+        "the skip is noted in the summary"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn finds_a_crash_report_kept_in_a_session_folder() {
+    let root = tmp("crashsess");
+    let (store, game) = fake_data(&root);
+    let newest = store.sessions_dir().join("20261020-090000");
+    put(&newest.join("game-logs/crash-20261020-093000.txt"), CRASH);
+    put(
+        &newest.join("game-logs/crash-20261020-093000.dmp"),
+        noise(50_000, 9),
+    );
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "x");
+    let names: Vec<_> = bundle.entries.iter().map(|e| e.path.clone()).collect();
+    assert!(
+        names.contains(&"crash/crash-20261020-093000.txt".to_string()),
+        "{names:?}"
+    );
+    assert!(
+        names.contains(&"crash/crash-20261020-093000.dmp".to_string()),
+        "{names:?}"
+    );
+    assert!(
+        !names
+            .iter()
+            .any(|n| n.starts_with("sessions/") && n.contains("crash-")),
+        "the crash files are not also added as redacted session text: {names:?}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}

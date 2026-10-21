@@ -404,9 +404,10 @@ impl<'a> Installer<'a> {
         Ok(())
     }
 
-    /// Move what the session left in the loader folder (its logs and
-    /// diagnostic dumps) to `logs`, and remove the folders it leaves empty,
-    /// once no journal is open. Returns how many files moved.
+    /// Move what the session left in the loader folder (its logs, diagnostic
+    /// dumps and crash reports with their minidumps) to `logs`, and remove the
+    /// folders it leaves empty, once no journal is open. Returns how many files
+    /// moved.
     pub fn tidy(&self, logs: &Path) -> Result<usize> {
         let loader = self.path(LOADER_DIR);
         let prefix = format!("{LOADER_DIR}/");
@@ -419,9 +420,13 @@ impl<'a> Installer<'a> {
         let mut moved = 0;
         for e in std::fs::read_dir(&loader).map_err(io_err(&loader))?.flatten() {
             let path = e.path();
-            let output = path
-                .extension()
-                .is_some_and(|x| x.eq_ignore_ascii_case("log") || x.eq_ignore_ascii_case("dump"));
+            let name = e.file_name();
+            let name = name.to_string_lossy();
+            let crash = name.starts_with("crash-") && (name.ends_with(".txt") || name.ends_with(".dmp"));
+            let output = crash
+                || path
+                    .extension()
+                    .is_some_and(|x| x.eq_ignore_ascii_case("log") || x.eq_ignore_ascii_case("dump"));
             if output && path.is_file() {
                 std::fs::create_dir_all(logs).map_err(io_err(logs))?;
                 crate::move_file(&path, &logs.join(e.file_name()))?;

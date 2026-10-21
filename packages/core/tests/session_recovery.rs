@@ -102,12 +102,17 @@ impl Fixture {
     }
 
     /// What the game and the offline play extension leave while a session
-    /// runs: the loader's logs, a diagnostic dump, and the staged anti-cheat
-    /// launcher with its journal.
+    /// runs: the loader's logs, a diagnostic dump, a crash report with its
+    /// minidump, and the staged anti-cheat launcher with its journal.
     fn play(&self) {
         write(&self.game.join("swofty/loader.log"), "loader attached\n");
         write(&self.game.join("swofty/offline.log"), "[offline] launched\n");
         write(&self.game.join("swofty/ea-rdata.dump"), "dump");
+        write(
+            &self.game.join("swofty/crash-20261021-120000.txt"),
+            "Swofty crash report\n",
+        );
+        write(&self.game.join("swofty/crash-20261021-120000.dmp"), "MDMP");
         std::fs::create_dir_all(self.game.join("swofty/mods/core")).unwrap();
         let launcher = self.game.join(LAUNCHER);
         let parked = self.game.join(format!("{LAUNCHER}.bak"));
@@ -210,7 +215,7 @@ fn a_session_that_crashed_is_rolled_back_at_the_next_start() {
         )),
         "{lines:?}"
     );
-    assert_eq!(r.logs, 3);
+    assert_eq!(r.logs, 5);
 
     assert_eq!(f.snapshot(), original);
     assert_eq!(Installer::new(&f.data, &game).verify().unwrap(), []);
@@ -241,7 +246,10 @@ fn a_session_rolled_back_when_the_game_exits_leaves_the_folder_byte_identical() 
         let done = inst.roll_back(false).unwrap();
         assert_eq!(done.len(), 1);
         assert!(done[0].drift.is_empty());
-        assert_eq!(inst.tidy(&f.data.join("sessions/one/game-logs")).unwrap(), 3);
+        let logs = f.data.join("sessions/one/game-logs");
+        assert_eq!(inst.tidy(&logs).unwrap(), 5);
+        assert!(logs.join("crash-20261021-120000.txt").is_file());
+        assert!(logs.join("crash-20261021-120000.dmp").is_file());
         assert_eq!(f.snapshot(), original);
         assert_eq!(inst.verify().unwrap(), []);
     }
