@@ -381,6 +381,9 @@ impl Bundle {
                 r.files.join(", ")
             ));
         }
+        if let Some(f) = crate::launch::Failure::read(&store.root) {
+            s.push_str(&format!("  last launch: {} ({})\n", f.title(), f.headline()));
+        }
         if loader.is_empty() {
             s.push_str("  No loader log was found\n");
         }
