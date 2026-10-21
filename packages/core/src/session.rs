@@ -288,6 +288,91 @@ pub fn game_env(
     env
 }
 
+pub const SDL2_SONAME: &str = "libSDL2-2.0.so.0";
+pub const RUNTIME_LIBS_DIR: &str = "state/runtime-libs";
+
+const HOST_LIB_DIRS: &[&str] = &[
+    "/usr/lib/x86_64-linux-gnu",
+    "/lib/x86_64-linux-gnu",
+    "/usr/lib64",
+    "/lib64",
+    "/usr/lib",
+    "/lib",
+    "/usr/local/lib",
+];
+
+const STEAM_RUNTIME_LIB_DIRS: &[&str] = &[
+    "ubuntu12_32/steam-runtime/usr/lib/x86_64-linux-gnu",
+    "ubuntu12_32/steam-runtime/amd64/usr/lib/x86_64-linux-gnu",
+];
+
+/// Proton's HID bus reads wheels and pads through SDL2, which it loads by
+/// soname. Under Steam it comes from Steam's runtime; a direct launch (from
+/// `steam-run` on NixOS, or a host without SDL2) has none, and every
+/// joystick Proton does not drive over hidraw (a G920, most wheels) is then
+/// left unclaimed: the evdev side defers it to an SDL side that never
+/// started, so the game sees no wheel. When the host has no 64-bit SDL2,
+/// this links Steam's runtime copy, alone, into `link_dir` and returns
+/// `library_path` with that directory appended; `None` leaves the launch as
+/// it was.
+pub fn sdl_library_path(library_path: Option<&str>, steam_root: &Path, link_dir: &Path) -> Option<String> {
+    sdl_library_path_in(library_path, HOST_LIB_DIRS, steam_root, link_dir)
+}
+
+fn sdl_library_path_in(
+    library_path: Option<&str>,
+    host: &[&str],
+    steam_root: &Path,
+    link_dir: &Path,
+) -> Option<String> {
+    let current = library_path.unwrap_or_default();
+    let mut searched = current
+        .split(':')
+        .filter(|d| !d.is_empty())
+        .chain(host.iter().copied());
+    if searched.any(|d| is_elf64(&Path::new(d).join(SDL2_SONAME))) {
+        return None;
+    }
+    let source = STEAM_RUNTIME_LIB_DIRS
+        .iter()
+        .map(|d| steam_root.join(d).join(SDL2_SONAME))
+        .find(|p| is_elf64(p))?;
+    link_library(&source, link_dir).ok()?;
+    let dir = link_dir.display().to_string();
+    Some(if current.is_empty() {
+        dir
+    } else {
+        format!("{current}:{dir}")
+    })
+}
+
+fn is_elf64(path: &Path) -> bool {
+    let mut head = [0u8; 5];
+    std::fs::File::open(path)
+        .and_then(|mut f| f.read_exact(&mut head))
+        .is_ok()
+        && head == *b"\x7fELF\x02"
+}
+
+#[cfg(unix)]
+fn link_library(source: &Path, dir: &Path) -> std::io::Result<()> {
+    let link = dir.join(source.file_name().unwrap_or_default());
+    if std::fs::read_link(&link).ok().as_deref() == Some(source) {
+        return Ok(());
+    }
+    std::fs::create_dir_all(dir)?;
+    match std::fs::remove_file(&link) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e),
+        _ => {}
+    }
+    std::os::unix::fs::symlink(source, &link)
+}
+
+#[cfg(not(unix))]
+fn link_library(_: &Path, _: &Path) -> std::io::Result<()> {
+    Err(std::io::ErrorKind::Unsupported.into())
+}
+
 fn default_winedebug() -> String {
     DEFAULT_WINEDEBUG.into()
 }
@@ -546,6 +631,50 @@ mod tests {
         let size: usize = env.iter().map(|(k, v)| k.len() + v.len() + 2).sum();
         assert!(size <= 30_000, "{size}");
         assert_eq!(env.get("WINEDEBUG").map(String::as_str), Some("+all"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn sdl_comes_from_steam_only_when_the_host_has_none() {
+        let root = std::env::temp_dir().join(format!("swofty-sdl-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let steam = root.join("steam");
+        let runtime = steam.join("ubuntu12_32/steam-runtime/usr/lib/x86_64-linux-gnu");
+        let host = root.join("host");
+        let host32 = root.join("host32");
+        let links = root.join("data").join(RUNTIME_LIBS_DIR);
+        for d in [&runtime, &host, &host32] {
+            std::fs::create_dir_all(d).unwrap();
+        }
+        let elf64 = b"\x7fELF\x02\x01\x01\0".as_slice();
+        std::fs::write(runtime.join(SDL2_SONAME), elf64).unwrap();
+        std::fs::write(host32.join(SDL2_SONAME), b"\x7fELF\x01\x01\x01\0").unwrap();
+        let host32 = host32.to_str().unwrap();
+        let links_s = links.display().to_string();
+
+        let path = sdl_library_path_in(None, &[host32], &steam, &links);
+        assert_eq!(path.as_deref(), Some(links_s.as_str()));
+        assert_eq!(
+            std::fs::read_link(links.join(SDL2_SONAME)).unwrap(),
+            runtime.join(SDL2_SONAME)
+        );
+        let path = sdl_library_path_in(Some("/proton/lib"), &[host32], &steam, &links);
+        assert_eq!(path, Some(format!("/proton/lib:{links_s}")));
+
+        std::fs::write(host.join(SDL2_SONAME), elf64).unwrap();
+        assert_eq!(
+            sdl_library_path_in(None, &[host.to_str().unwrap()], &steam, &links),
+            None
+        );
+        assert_eq!(
+            sdl_library_path_in(Some(host.to_str().unwrap()), &[], &steam, &links),
+            None
+        );
+        assert_eq!(
+            sdl_library_path_in(None, &[], &root.join("no-steam"), &links),
+            None
+        );
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]

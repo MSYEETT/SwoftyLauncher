@@ -16,7 +16,7 @@ use swofty_core::quarantine::{self, Attach, AttachWatch, Stage};
 use swofty_core::recovery::{Scope, SessionLock};
 use swofty_core::session::{
     Config, DEFAULT_WINEDEBUG, LOADER_LOG, LOADER_MARK, LaunchMode, LaunchRequest, LogMark, PERF_LOG,
-    game_args, parse_cpu_list, parse_steam_command, written_since,
+    RUNTIME_LIBS_DIR, game_args, parse_cpu_list, parse_steam_command, written_since,
 };
 use swofty_core::steam_client::{self, Ready, Report, State, Wait};
 use swofty_core::store::Store;
@@ -624,6 +624,22 @@ fn play(
             ),
         );
     }
+    let library_path = proton.as_ref().and_then(|_| {
+        let steam_root = std::env::var_os("STEAM_COMPAT_CLIENT_INSTALL_PATH")
+            .map(PathBuf::from)
+            .or_else(|| steam::find_game().map(|g| g.steam_root))?;
+        swofty_core::session::sdl_library_path(
+            game_env.get("LD_LIBRARY_PATH").map(String::as_str),
+            &steam_root,
+            &store.root.join(RUNTIME_LIBS_DIR),
+        )
+    });
+    if library_path.is_some() {
+        say(
+            "info",
+            "controllers: this system has no SDL2, so Proton reads wheels and pads through Steam's runtime copy",
+        );
+    }
     let spawn = |exe: &str, log: &str| -> Result<std::process::Child> {
         let out = std::fs::File::create(dir.join(log))?;
         let mut c = match &proton {
@@ -645,6 +661,9 @@ fn play(
             .env("SteamGameId", STEAM_APP_ID.to_string())
             .stdout(out.try_clone()?)
             .stderr(out);
+        if let Some(path) = &library_path {
+            c.env("LD_LIBRARY_PATH", path);
+        }
         Ok(c.spawn()?)
     };
     let launched = SystemTime::now();
