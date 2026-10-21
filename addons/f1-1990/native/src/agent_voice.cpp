@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// F1 1990 - the agent (Flavio) is silent in 1990 careers only. Its own DLL, so a binding it can't
-// resolve drops only this hook.
+// F1 1990 - the agent is Flavio, and silent, in 1990 careers only. Its own DLL, so a binding it
+// can't resolve drops only this hook.
 //
 // Game_SpeechSystem_PostLine posts each speech line as play_speech_<speaker>_<type> on the line's
 // emitter, with the speech system's callback object, whose end-of-event and duration handlers move
@@ -11,6 +11,11 @@
 // the emitter's own RTPC setter (vtable +0x60, the call the post makes for random_number_generator),
 // so the line plays silently with its subtitles and callbacks. The 1990 state is worked out on the
 // core's career.loaded event and cleared on career.unloaded. Option agent_voice_mute turns it off.
+//
+// The stock strings that name the agent are rewritten for Flavio per language in
+// data/flavio-strings.json. With a core that has runtime string overrides (API v7), each text is
+// set for its own language when a 1990 career loads and cleared again when it unloads, so every
+// other career and mode keeps Elena's strings. The file is read on the first 1990 career load.
 
 #include <atomic>
 #include <cstring>
@@ -24,6 +29,13 @@
 
 #include "career_group.hpp"
 #include "speech_line.hpp"
+
+#if SWOFTY_API_VERSION >= 7
+#include <swofty/lang.hpp>
+#include <swofty/storage.hpp>
+
+#include "agent_strings.hpp"
+#endif
 
 SWOFTY_SETTING(bool, agent_voice_mute, true);
 
@@ -59,11 +71,66 @@ uint8_t group_index(void *component)
     return reinterpret_cast<uint8_t (*)(void *)>(vt[0x268 / 8])(component);
 }
 
+#if SWOFTY_API_VERSION >= 7
+constexpr char kStringsFile[] = "data/flavio-strings.json";
+
+std::vector<f1990::AgentStrings> g_strings;
+bool g_strings_read, g_strings_set, g_strings_off_logged;
+
+bool read_strings()
+{
+    if (g_strings_read)
+        return !g_strings.empty();
+    g_strings_read = true;
+    std::string json;
+    size_t error_at = 0;
+    if (auto r = swofty::storage::read(kStringsFile, json); r != swofty::storage::Result::ok)
+        swofty::log("[f1-1990] strings: read %s: %s; the 1990 agent keeps Elena's strings", kStringsFile,
+                    swofty::storage::name(r));
+    else if (!f1990::parse_agent_strings(json, g_strings, &error_at))
+        swofty::log("[f1-1990] strings: %s is not an object of language objects of strings (byte %zu); the 1990 "
+                    "agent keeps Elena's strings",
+                    kStringsFile, error_at);
+    return !g_strings.empty();
+}
+
+void agent_strings(bool on)
+{
+    namespace lg = swofty::lang;
+    if (on == g_strings_set)
+        return;
+    if (!lg::available()) {
+        if (!g_strings_off_logged)
+            swofty::log("[f1-1990] strings: the core has no runtime string overrides; the 1990 agent keeps Elena's "
+                        "strings");
+        g_strings_off_logged = true;
+        return;
+    }
+    if (on && !read_strings())
+        return;
+    size_t calls = 0, failed = 0;
+    for (auto &lang : g_strings)
+        for (auto &[key, text] : lang.texts) {
+            lg::Result r = on ? lg::set(key, text, lang.code) : lg::clear(key, lang.code);
+            calls++;
+            failed += r != lg::Result::ok;
+        }
+    g_strings_set = on;
+    swofty::log("[f1-1990] strings: %s %zu agent string(s) in %zu language(s) (%zu failed)", on ? "set" : "cleared",
+                calls, g_strings.size(), failed);
+}
+#else
+void agent_strings(bool)
+{
+}
+#endif
+
 void on_career(const SwoftyEvent *ev, void *)
 {
     if (!std::strcmp(ev->name, SWOFTY_EVENT_CAREER_UNLOADED)) {
         if (g_1990.exchange(0) == 1)
             swofty::log("[f1-1990] voice: 1990 career unloaded; the agent speaks again");
+        agent_strings(false);
         std::lock_guard<std::mutex> g(g_lock);
         g_muted_emitters.clear();
         return;
@@ -71,6 +138,7 @@ void on_career(const SwoftyEvent *ev, void *)
     void *career = swofty::career::entity();
     bool yes = career && f1990::career_data_group_is(career, f1990::kCareerGroup1990, {setup_component, group_index});
     g_1990 = yes ? 1 : 0;
+    agent_strings(yes);
     swofty::log("[f1-1990] voice: career loaded (%s); agent voice %s", yes ? "data group f1_career_1990" : "not a 1990 career",
                 yes && agent_voice_mute ? "muted" : "stock");
 }
@@ -125,6 +193,11 @@ SWOFTY_WRAP(Game_SpeechSystem_PostLine, void, void *speech, void *line, uint8_t 
 SWOFTY_ON_LOAD
 {
     swofty::log("[f1-1990] voice: agent mute in 1990 careers %s", agent_voice_mute ? "on" : "off (agent_voice_mute)");
+#if SWOFTY_API_VERSION < 7
+    swofty::log("[f1-1990] strings: built against SDK API v%d, without runtime string overrides; the 1990 agent keeps "
+                "Elena's strings",
+                SWOFTY_API_VERSION);
+#endif
     subscribe(SWOFTY_EVENT_CAREER_LOADED);
     subscribe(SWOFTY_EVENT_CAREER_UNLOADED);
 }
