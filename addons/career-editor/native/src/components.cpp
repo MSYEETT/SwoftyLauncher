@@ -10,7 +10,10 @@
 // Components (k_Career_<Class>Desc): swofty::career::component_by_desc() with the descriptor's KB
 // binding, which calls the entity's own registry get (CareerEntity.component_registry, vtable slot
 // +0x10), the call the game's components use to resolve their siblings (CareerBank's resolve slot
-// 0x140c5d2c0, ResourcePoints' 0x1412256e0, the player card 0x1414c5f80).
+// 0x140c5d2c0, ResourcePoints' 0x1412256e0, the player card 0x1414c5f80). A component that is not
+// found is logged once per entity with what the registry get itself returned before the object
+// check, that pointer's vtable and the descriptor its GetType slot (+0x28) names, so a report tells
+// an absent component from one the checks rejected.
 //
 // Entrants. CareerEntity.entrants_begin..entrants_end are EntrantRecords: ordinal_flags bit
 // 0x10000000 marks a human player; the packed driver key is the dword at id_lo (u8 kind, u16 stat
@@ -137,6 +140,41 @@ uintptr_t registry_get(uintptr_t desc)
     return c && object_like(c) ? c : 0;
 }
 
+constexpr uintptr_t kVtRegistryGet = 0x10; // CareerEntity.component_registry vtable slot get(registry, &desc, search)
+constexpr uint32_t kSearchParents = 1;     // its search argument: this registry, then the parent's (the game's own lookups)
+constexpr uintptr_t kVtGetType = 0x28;     // component vtable slot whose body is `lea rax, [k_Career_<Class>Desc]; ret`
+
+using RegistryGetFn = void *(*)(void *registry, const void *desc, uint32_t search);
+
+uintptr_t type_desc(uintptr_t obj)
+{
+    uintptr_t vt = 0, fn = 0;
+    uint64_t code = 0;
+    if (!object_like(obj) || !read(obj, vt) || !read(vt + kVtGetType, fn) || !in_image(fn) || !read(fn, code) ||
+        (code & 0xffffff) != 0x058d48 || (code >> 56) != 0xc3)
+        return 0;
+    auto rel = static_cast<int32_t>(static_cast<uint32_t>(code >> 24));
+    return fn + 7 + static_cast<intptr_t>(rel);
+}
+
+void log_missing(Id id, uintptr_t e, uintptr_t desc)
+{
+    static uintptr_t logged[static_cast<size_t>(Id::Count)];
+    auto i = static_cast<size_t>(id);
+    if (logged[i] == e)
+        return;
+    logged[i] = e;
+    uintptr_t reg = e + offsetof(CareerEntity, component_registry), vt = 0, fn = 0, raw = 0, raw_vt = 0;
+    if (desc && read(reg, vt) && in_image(vt) && read(vt + kVtRegistryGet, fn) && in_image(fn))
+        raw = reinterpret_cast<uintptr_t>(reinterpret_cast<RegistryGetFn>(fn)(
+            reinterpret_cast<void *>(reg), reinterpret_cast<const void *>(desc), kSearchParents));
+    read(raw, raw_vt);
+    ce::log("components: %s not found (entity 0x%llx, desc 0x%llx; registry get returned 0x%llx, vtable 0x%llx, "
+            "type desc 0x%llx); logged once per entity",
+            kTable[i].name, (unsigned long long)e, (unsigned long long)desc, (unsigned long long)raw,
+            (unsigned long long)raw_vt, (unsigned long long)type_desc(raw));
+}
+
 uintptr_t championship(uintptr_t e)
 {
     static int logged = 0;
@@ -180,7 +218,11 @@ uintptr_t get(Id id)
         return 0;
     if (id == Id::Championship)
         return championship(e);
-    return registry_get(kTable[i].desc());
+    uintptr_t desc = kTable[i].desc();
+    uintptr_t c = registry_get(desc);
+    if (!c)
+        log_missing(id, e, desc);
+    return c;
 }
 
 std::vector<Entrant> entrants()

@@ -220,7 +220,12 @@ My Team only. Call it on the flow thread (from an op or a section).
 
 KB bindings it needs (all resolve at addon init): the 25 `k_Career_<Class>ComponentDesc` data rows
 and `k_Career_ChampionshipDesc` (one per `Id`), plus `vt_Career_Championship`. `get` returns 0 when the entity has no such
-component (for example `CareerBank` in Driver Career).
+component (for example `CareerBank` in Driver Career). Each miss is logged once per entity:
+`components: <name> not found (entity …, desc …; registry get returned …, vtable …, type desc …)`.
+It shows what the registry get itself returned, before the object check, plus that pointer's vtable
+and the descriptor its GetType slot (`+0x28`, a `lea rax, [desc]; ret` in every component) names.
+A returned value of 0 means the component is not on the entity. A non-zero value means the checks
+rejected what the game returned.
 
 `Id::Championship` is special: no game code looks the championship up by key (the registry indexes
 components by their type chain and stops at the `ChampionshipComponent` base). `get(Id::Championship)`
