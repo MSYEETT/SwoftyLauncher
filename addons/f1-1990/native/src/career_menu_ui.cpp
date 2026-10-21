@@ -7,7 +7,7 @@
 // (site_FeTile_CareerContentEnd, r14 = the TileList) FeHome_Add_CareerTile appends a third tile
 // (button_3, template fe_tile_button_default, its own VM node and list entry). Its 0x148-byte home
 // item is replaced, the way case 6 replaces items, by a career content item built like the 2026 one
-// (FeTile_Construct_CareerItem, 0x1c8 bytes) with the 2026 tile's route id, data group
+// (FeTile_Construct_CareerItem, 0x1c8 bytes) with the 2026 tile's route (+0x178, driver_career), data group
 // f1_career_1990, suffix 90 and a copy of the 2026 vtable whose populate shows the 1990 labels with
 // no badge and whose press selects the 1990 car group (or the 2026 one) before the router. The
 // populate loop after the site then initialises and populates all three tiles. Only when the 1990
@@ -37,7 +37,7 @@ using swofty::game::TileList;
 
 constexpr uint8_t kIndex = 3;
 constexpr size_t kItemSize = 0x1c8;
-constexpr size_t kSlots = 19;
+constexpr size_t kSlots = 22;
 constexpr size_t kPopulateSlot = 4;
 constexpr size_t kPressSlot = 5;
 constexpr size_t kNotificationSlot = 0x78 / 8;
@@ -97,6 +97,8 @@ HomeItem *build_item(NeAllocator *alloc, HomeItem *dlc)
     const char *id = dlc->id ? dlc->id->chars : "career_dlc_content";
     swofty::game::FeTile_Construct_CareerItem(item, alloc, id);
     auto *raw = reinterpret_cast<uint8_t *>(item);
+    auto *route = at<const uint8_t *>(dlc, 0x178);
+    set_string(raw + 0x178, route && route[9] ? reinterpret_cast<const char *>(route + 9) : "driver_career");
     std::memset(raw + 0x1b8, 0, 0x10);
     set_string(raw + 0x1c0, "f1_2026");
     set_string(raw + 0x180, "f1_career_1990");
