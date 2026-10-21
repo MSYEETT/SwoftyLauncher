@@ -79,13 +79,29 @@ Strings are new keys: `lng_f1990_career_content(_description)` for the third Car
 per round `lng_f1990_gp_<code>` (long Grand Prix name) and `lng_f1990_gp_<code>_short`. `career.TRACK_NAMES` and
 `career.TRACK_DATES` give the keys and the 1990 dates per track for the `f1_1990` track dataset.
 
-The agent is Flavio Briatore in every career: her strings and her character row are shared by all careers, and no data
-names the agent per career. Her English speech banks are replaced with silent copies (`files/speech/`,
-`tools/mute_agent.py`), which also mutes her in 2025 and 2026 careers.
+The agent stays Elena in data: her character row, contact and strings are shared by all careers, and no data names the
+agent per career. `data/flavio-strings.json` holds, per language, every stock string that names her rewritten for
+Flavio Briatore (sign-offs say Flavio, the intro subtitles Flavio Briatore); the native side applies them, and mutes
+her voice, only while a 1990 career is loaded. The character row `flavio` (stat_id 105, names `lng_f1990_agent_*`) is
+the 1990 agent for that switch; its message avatar is `message_flavio` (`tools/portrait.py`).
 
 ```sh
 python3 addons/f1-1990/tools/career.py <stock gamedatabases.2025.bin> <dir of language_<code>.tsv>
 python3 addons/f1-1990/tools/check_career.py <stock gamedatabases.2025.bin> <built gamedatabases.2025.bin>
+```
+
+## Agent portrait (erp/portrait.json, erp/portrait/portrait.erpk, tools/portrait.py)
+
+`tools/portrait.py` cuts Flavio Briatore's head and shoulders out of a photo (GrabCut for the body, a fitted background
+plate for the hair), frames it like the stock portraits and encodes it as a 256x256 single-mip BC7 slice. The slice is
+appended as `message_flavio` to the character message-avatar array
+(`overrides.characters.message_avatars.texarray`, 87 stock slices), and a `patch-pkg` clones the list entry in
+`databases.erp: overrides.uidb`. The four archives that carry the array (`flow_career_hub`, `flow_customisation`,
+`flow_st_hub`, `flow_team_hq`) get the grown array by `put-resource`; a grown array changes the archives' layout, so
+the build writes them into the game files. Stock slices, Elena's included, are unchanged.
+
+```sh
+python3 addons/f1-1990/tools/portrait.py --game <F1 25> --source <photo> [--baseline <launcher baseline>/<build>] [--preview <png>]
 ```
 
 `check_career.py` fails when a key of a stock 2025/2026 career row, points preset, track dataset, content set or car
