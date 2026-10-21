@@ -122,11 +122,12 @@ The `const SwoftyApi *` you receive in `SwoftyAddonInit` gives you these members
 | `telemetry` | `swofty_core.dll` (v5) | Live car and session reads. See [Telemetry](/reference/std/telemetry) |
 | `db` | `swofty_core.dll` (v5) | Game-database reads. See [Database read](/reference/std/db) |
 | `storage` | `swofty_core.dll` (v5) | Addon storage. See [Storage](/reference/std/storage) |
-| `career` | `swofty_core.dll` (v6) | Flow states, the running career, its components and the game bus. See [Career](/reference/std/career) |
+| `career` | `swofty_core.dll` (v6) | Flow states, the running career, its components and the game bus; career-mode blocks (v7). See [Career](/reference/std/career) |
+| `popup` | `swofty_core.dll` (v7) | The game's message popup with your text. See [Popup](/reference/std/popup) |
 
 For guarded reads of game memory (`read`, `in_image`, `object_like`, `c_string`), include the header-only [`swofty/mem.hpp`](/reference/std/memory); it needs no table.
 
-The API version depends on what's loaded: `version.dll` alone offers version 1; `swofty_core.dll` raises it to 6 (5 before core 0.2.11). Your plugin declares the version it was built against through `SwoftyAddonApi`, which `SWOFTY_ADDON()` also exports with the value of `SWOFTY_API_VERSION` (6). For the engine functions and structs you can call and hook, see the [Game API](/reference/game/).
+The API version depends on what's loaded: `version.dll` alone offers version 1; `swofty_core.dll` raises it to 7 (6 before core 0.2.12, 5 before core 0.2.11). Your plugin declares the version it was built against through `SwoftyAddonApi`, which `SWOFTY_ADDON()` also exports with the value of `SWOFTY_API_VERSION` (7). For the engine functions and structs you can call and hook, see the [Game API](/reference/game/).
 
 ## Settings
 

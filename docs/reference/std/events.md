@@ -55,6 +55,7 @@ Choose the event you want to subscribe to with a `SWOFTY_EVENT_*` constant:
 | `SWOFTY_EVENT_CAREER_LOADED` | `career.loaded` |
 | `SWOFTY_EVENT_CAREER_UNLOADED` | `career.unloaded` |
 | `SWOFTY_EVENT_CAREER_HUB` | `career.hub` |
+| `SWOFTY_EVENT_CAREER_STARTING` | `career.starting` |
 
 Your callback receives the event details in a `SwoftyEvent`:
 
@@ -70,7 +71,7 @@ typedef struct SwoftyEvent {
 
 ## Flow and career events
 
-These four come from the [career library](./career) (API version 6, feature `career`). The payload pointer is valid only during the callback; copy what you keep. To ask for the current state instead of waiting for an event, use `swofty::career::state()` and `swofty::career::flow()`.
+These five come from the [career library](./career) (API version 6, feature `career`; `career.starting` API version 7). The payload pointer is valid only during the callback; copy what you keep. To ask for the current state instead of waiting for an event, use `swofty::career::state()` and `swofty::career::flow()`.
 
 | Event | `a` | `b` | `data` | When |
 |---|---|---|---|---|
@@ -78,6 +79,7 @@ These four come from the [career library](./career) (API version 6, feature `car
 | `career.loaded` | mode | 0 | `const SwoftyCareerState *` | A career is loaded and its mode is known. Mode is `SWOFTY_CAREER_MY_TEAM` (1) or `SWOFTY_CAREER_DRIVER` (2); `data->key` is the career key once the player's entrant is known |
 | `career.unloaded` | the mode it had | 0 | `const SwoftyCareerState *` | The career is gone, or another career replaced it (then `career.loaded` follows) |
 | `career.hub` | 1 entered, 0 left | mode | `const SwoftyCareerState *` | Team HQ is idle for the mode: `StateTeamHQUpdate` is updating with no time advance, session, end of season or season break running. Fires in My Team and Driver Career alike |
+| `career.starting` | mode | `SWOFTY_CAREER_START_*` | `const SwoftyCareerStart *` | The player chose to start or load a career in that mode on the Career menu, before the game builds it. `data->blocked` is 1 when a [block](./career#blocking-a-career-mode) cancelled it |
 
 `career.hub` left always comes before `career.unloaded`. `flow.state` runs on the thread that changes the state, which is the flow thread.
 
@@ -119,4 +121,4 @@ Name your plugin in `operations.native`:
 
 ## Availability
 
-The core implements `on_frame`, `session.start`, `race.start` and, from core 0.2.11 (API version 6), the four flow and career events above. The other names are accepted but do not fire yet. A build where a hook does not resolve leaves only that event silent; the core log says which (`[events] setup:` and `[career] setup:` lines). You can check the engine status in [the native-libraries design](/design/native-libraries#_1-events-frame-scheduler).
+The core implements `on_frame`, `session.start`, `race.start` and, from core 0.2.11 (API version 6), the four flow and career events above, and from core 0.2.12 (API version 7) `career.starting`. The other names are accepted but do not fire yet. A build where a hook does not resolve leaves only that event silent; the core log says which (`[events] setup:` and `[career] setup:` lines). You can check the engine status in [the native-libraries design](/design/native-libraries#_1-events-frame-scheduler).
