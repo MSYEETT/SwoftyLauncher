@@ -122,8 +122,10 @@
     "erp": ["erp/portrait.json", "erp/tracks.json", "erp/frontend.json", "erp/badges.json"],
     "native": [
       { "dll": "native/f1_1990.dll", "early": true }, { "dll": "native/f1_1990_tyres.dll" },
-      { "dll": "native/f1_1990_replay.dll" }, { "dll": "native/f1_1990_ui.dll" }, { "dll": "native/f1_1990_voice.dll" },
-      { "dll": "native/f1_1990_bspec.dll" }
+      { "dll": "native/f1_1990_replay.dll" }, { "dll": "native/f1_1990_ui.dll" },
+      { "dll": "native/f1_1990_voice.dll", "files": ["data/flavio-strings.json"] },
+      { "dll": "native/f1_1990_bspec.dll" },
+      { "dll": "native/f1_1990_agent.dll", "early": true }, { "dll": "native/f1_1990_tabs.dll" }
     ],
     "files": [
       { "source": "files/audio/v12_1990.bdl", "target": "audio/2025/bundles/v12_1990.bdl" },

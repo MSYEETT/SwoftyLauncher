@@ -21,7 +21,7 @@
 #include <swofty/mixin.hpp>
 
 #include "contract_target.hpp"
-#include "career_group.hpp"
+#include "career_1990.hpp"
 
 namespace {
 
@@ -46,37 +46,11 @@ uint8_t *career_of(void *state)
     return holder ? at<uint8_t *>(holder, 0x260) : nullptr;
 }
 
-void *registry_get(void *registry, uintptr_t desc)
-{
-    auto **vt = *static_cast<void ***>(registry);
-    if (!vt || !vt[2])
-        return nullptr;
-    auto get = reinterpret_cast<void *(*)(void *, const void *, int)>(vt[2]);
-    return get(registry, reinterpret_cast<const void *>(desc), 1);
-}
-
 void *contracts_component(uint8_t *career)
 {
-    return career ? registry_get(career + 0x1030,
-                                 swofty::game::k_Career_DriverCareerContractsManagerComponentDesc.address())
+    return career ? f1990::registry_get(career + 0x1030,
+                                        swofty::game::k_Career_DriverCareerContractsManagerComponentDesc.address())
                   : nullptr;
-}
-
-void *setup_component(void *championship)
-{
-    return registry_get(static_cast<uint8_t *>(championship) + 0x208,
-                        swofty::game::k_Career_CareerSetupComponentDesc.address());
-}
-
-uint8_t group_index(void *component)
-{
-    auto **vt = *static_cast<void ***>(component);
-    return reinterpret_cast<uint8_t (*)(void *)>(vt[0x268 / 8])(component);
-}
-
-bool is_1990_career(uint8_t *career)
-{
-    return f1990::career_data_group_is(career, f1990::kCareerGroup1990, {setup_component, group_index});
 }
 
 bool same_key(uint32_t a, uint32_t b)
@@ -149,7 +123,7 @@ SWOFTY_WRAP(Career_Decide_ContractNegotiation, uint32_t *, void *state, uint32_t
     if (!link || *link != kLinkNegotiate)
         return r;
     uint8_t *career = career_of(state);
-    if (!is_1990_career(career))
+    if (!f1990::is_1990_career(career))
         return r;
     swofty::career::State cs{};
     if (swofty::career::state(&cs) == swofty::career::Result::ok && cs.humans > 1) {

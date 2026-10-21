@@ -16,3 +16,9 @@ ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/tile_logic_test ti
 ../build/tile_logic_test
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/speech_line_test speech_line_test.cpp
 ../build/speech_line_test
+${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/agent_strings_test agent_strings_test.cpp
+../build/agent_strings_test ../../data/flavio-strings.json
+${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/character_ref_test character_ref_test.cpp
+../build/character_ref_test
+${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/content_tabs_test content_tabs_test.cpp
+../build/content_tabs_test

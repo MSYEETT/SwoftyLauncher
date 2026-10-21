@@ -8,6 +8,7 @@ namespace f1990 {
 
 constexpr size_t kContentEntrySize = 0x60;
 constexpr uint32_t kNoContent = 0x3fff0000;
+constexpr uint16_t kCarGroup1990 = 2;
 
 struct ContentPick {
     enum Kind { none, exact, dlc } kind;
