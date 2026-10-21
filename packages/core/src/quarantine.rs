@@ -3,7 +3,8 @@
 //! after they are written, and F1 25 then runs with no mods at all. The
 //! session checks the placed DLLs before the game starts and watches the
 //! game folder's loader.log after it starts; what it finds is recorded here
-//! for the launcher to show and for Send Logs.
+//! for the launcher to show and for Send Logs. Missing files before the game
+//! starts refuse the launch: the session rolls back and the game never runs.
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -19,6 +20,9 @@ use crate::{Result, io_err, read_json, write_json};
 
 pub const ERROR_VIRUS_INFECTED: i32 = 225;
 pub const ERROR_VIRUS_DELETED: i32 = 226;
+/// The exit code of a session that refused to start the game over missing
+/// loader files: clear of the 0/1 the CLI uses and of the game's own codes.
+pub const REFUSED_EXIT: u8 = 225;
 /// The loader's first line once version.dll is running in the game.
 pub const ATTACHED: &str = "(version.dll proxy) attached";
 /// The offline play stub's line when it has the game image and resumes it.
@@ -113,9 +117,9 @@ impl Report {
         let one = self.files.len() <= 1;
         let it = if one { "it" } else { "them" };
         let what = match self.stage {
-            Stage::BeforeLaunch => format!(
-                "An antivirus most likely deleted or quarantined {names}, so F1 25 starts without mods."
-            ),
+            Stage::BeforeLaunch => {
+                format!("F1 25 was not started: an antivirus most likely deleted or quarantined {names}.")
+            }
             Stage::InGame if self.removed => format!(
                 "F1 25 is running without mods: {names} {} removed from the game folder. An antivirus most likely deleted or quarantined {it}.",
                 if one { "was" } else { "were" }
@@ -124,10 +128,10 @@ impl Report {
                 format!("F1 25 is running without mods. An antivirus most likely blocked {names}.")
             }
         };
-        format!("{what} {}", self.fix(true))
+        format!("{what} {}", self.fix())
     }
 
-    fn fix(&self, running: bool) -> String {
+    fn fix(&self) -> String {
         let it = if self.files.len() <= 1 { "it" } else { "them" };
         let folders = match &self.launcher {
             Some(l) => format!(
@@ -142,8 +146,15 @@ impl Report {
         };
         format!(
             "To fix it, {}restore {it} in Windows Security > Virus & threat protection > \
-             Protection history, add exclusions for {folders}, then launch again.",
-            if running { "close F1 25, " } else { "" }
+             Protection history, add exclusions for {folders}, then {}.",
+            match self.stage {
+                Stage::BeforeLaunch => "",
+                Stage::InGame => "close F1 25, ",
+            },
+            match self.stage {
+                Stage::BeforeLaunch => "press Play again",
+                Stage::InGame => "launch again",
+            }
         )
     }
 }
@@ -184,7 +195,7 @@ pub(crate) fn copy_error(rel: &str, path: &Path, e: std::io::Error) -> crate::Er
     crate::Error::Other(format!(
         "Windows blocked {} as a threat ({e}). {}",
         names(&[rel.to_owned()]),
-        Report::new(Stage::BeforeLaunch, vec![rel.to_owned()], game).fix(false)
+        Report::new(Stage::BeforeLaunch, vec![rel.to_owned()], game).fix()
     ))
 }
 
@@ -476,11 +487,10 @@ mod tests {
         };
         assert_eq!(
             r.text(),
-            "An antivirus most likely deleted or quarantined version.dll and swofty_core.dll, so F1 25 \
-             starts without mods. To fix it, close F1 25, restore them in Windows Security > Virus & \
-             threat protection > Protection history, add exclusions for the game folder \
-             (C:\\Steam\\steamapps\\common\\F1 25) and the launcher folder (C:\\Programs\\SwoftyLauncher), \
-             then launch again."
+            "F1 25 was not started: an antivirus most likely deleted or quarantined version.dll and \
+             swofty_core.dll. To fix it, restore them in Windows Security > Virus & threat protection > \
+             Protection history, add exclusions for the game folder (C:\\Steam\\steamapps\\common\\F1 25) \
+             and the launcher folder (C:\\Programs\\SwoftyLauncher), then press Play again."
         );
         r.stage = Stage::InGame;
         r.files = vec!["version.dll".into()];

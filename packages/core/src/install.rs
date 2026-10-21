@@ -614,7 +614,8 @@ impl<'a> Installer<'a> {
             self.step(&mut n)?;
             // Windows refused the file as a threat. The entry stays pending, so
             // the rollback clears whatever was left, and the check before the
-            // game starts reports the file as missing instead of failing here.
+            // game starts finds the file missing and refuses the launch with
+            // the antivirus report instead of a bare copy error here.
             match std::fs::copy(src, &path) {
                 Err(e) if crate::quarantine::is_virus_error(&e) => continue,
                 r => r.map_err(io_err(&path))?,
