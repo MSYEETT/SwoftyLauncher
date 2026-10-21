@@ -84,10 +84,12 @@ A separate DLL, loaded at the window stage after the others; option `career_menu
 
 The item carries data group `f1_career_1990` (+0x180), suffix `90` (+0x188), is_dlc 0 (+0x190) and the 2026 entitlement string (+0x1c0); its vtable is a copy of the 2026 tile's with populate and press replaced. The router and the wizard's use of the data group are not traced yet (see `/mnt/work/.f1-1990/v2/third-tile.md`).
 
-## Silent agent in 1990 careers (`f1_1990_voice.dll`)
+## Flavio in 1990 careers (`f1_1990_voice.dll`)
 
 A separate DLL; option `agent_voice_mute` (default on). `Game_SpeechSystem_PostLine` (0x140a30b60) is wrapped: while the loaded career's data group is `f1_career_1990` (worked out on the core's `career.loaded` event, cleared on `career.unloaded`), a line whose speaker is `agent` or `agent_cutscene` gets its emitter's `vol_speech` RTPC set to 0 (emitter vtable +0x60, the setter the post uses for `random_number_generator`) before it is posted as usual. The line still plays, so its subtitles and the end-of-event callbacks that finish it (0x140ac1160/0x140ac11a0) run; a line that was not posted would never finish. 2025 and 2026 careers keep the agent's voice, and the addon no longer replaces `en_agent*.nfs`.
 
 It logs `[f1-1990] voice: career loaded (data group f1_career_1990); agent voice muted`, `... agent line muted (emitter ...)` and, if a muted emitter also speaks for another speaker, `... that line is silent too`.
 
-The agent's strings stay stock: the core's `lang` API applies only until the game loads its first language file (later calls return `late`), so it can't switch strings per career.
+The same DLL switches the agent's strings. `data/flavio-strings.json` (the career lane's `tools/career.py`; shipped next to the DLL through the manifest entry's `files`) holds, per game language, every stock string that names Elena rewritten for Flavio. On the first 1990 career load the DLL reads it through the core's storage API, then sets each text for its own language with the core's runtime string overrides (`swofty/lang.hpp`, API v7); `career.unloaded`, or a non-1990 `career.loaded`, clears exactly those overrides, so other careers and modes read the stock tables. It does not call `refresh()`. Built against an SDK below v7 the code is compiled out, and with a core below v7 `swofty::lang::available()` is false; either way the agent keeps Elena's strings.
+
+It logs `[f1-1990] strings: set 1858 agent string(s) in 11 language(s) (0 failed)` on a 1990 career load, `... cleared ...` on unload, and otherwise why the strings stay stock (`built against SDK API v6`, `the core has no runtime string overrides`, or a read or parse error).
