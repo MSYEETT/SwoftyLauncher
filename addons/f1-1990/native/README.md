@@ -140,3 +140,19 @@ A separate DLL; ships `data/rnd-art.json` and `data/rnd-strings.json` through it
 - **Department names:** `rnd-strings.json` `strings.<language>.<key>` are set through the core's runtime string overrides (API v7) on a 1990 `career.loaded` and cleared on `career.unloaded`; compiled out below SDK v7.
 
 It logs `[f1-1990] rnd: N card art donor(s)`, `card art site S image "f1990_x_in_progress" -> "om_xm_y_progress"` (first 24), `no donor for "..."` and `set|cleared N department string(s)`.
+
+## 1990 career setup (`f1_1990_wizard.dll`)
+
+A separate DLL; option `career_wizard_1990` (default on). The career wizard keeps its selections and steps in a state
+object; every caller of `Game_CareerWizard_StartsInF1` (0x14078ddd0) passes its +0x40, +0x70 and +0x128, the data group
+of the Career tile that opened the wizard (`f1_career_2025`, `f1_career_2026`, `f1_career_1990`). The wrap answers yes
+for `f1_career_1990` and gives every other wizard the game's answer. Yes means a career that starts in F1:
+
+| caller | effect of yes |
+|---|---|
+| content-select router 0x141725620 | fires `career_wizard_driver_career_to_f1` (to the season length step) instead of `career_wizard_driver_career` (the Skip to F1 / Start in F2 step) |
+| step machine 0x14386d890 | after Recommended settings (option 0xb), no team-icons step (My Team / Konnersport) |
+| driver select confirm 0x141a5df70 | the F1 path, as with option 6 (Skip to F1) |
+
+It logs `[f1-1990] wizard: f1_career_1990 starts in F1, no F2 choice and no team-icons step (game said yes|no)` (first 8).
+
