@@ -2,10 +2,12 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Context, Result, bail};
+use swofty_core::baseline::DepotHashes;
 use swofty_core::build::GVDB;
 use swofty_core::install::{Game, Installer};
 use swofty_core::recovery::{Blocked, Scope, SessionLock};
 use swofty_core::settings::SETTINGS_FILE;
+use swofty_core::stock::{self, Depots};
 use swofty_core::store::Store;
 use swofty_core::{GAME_EXE, steam};
 use swofty_formats::erp::Erp;
@@ -99,15 +101,18 @@ fn common_root<'a>(paths: impl Iterator<Item = &'a String>) -> String {
 /// more; anything else stops it untouched, with what a restore would do.
 pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn Fn(&str)) -> Result<()> {
     Blocked::clear(&store.root).ok();
+    stock::Report::clear(&store.root).ok();
+    let depots = check_stock(store, g, out)?;
     let inst = Installer {
         session,
+        depot: depots.as_ref().map_or(&() as &dyn DepotHashes, |d| d),
         ..Installer::new(&store.root, g)
     };
     let built = build_profile(store, profile, g)?;
     report(profile, &built);
     let found = match inst.apply(&built.plan) {
         Err(swofty_core::Error::Leftovers(found)) => found,
-        r => return Ok(r?),
+        r => return Ok(not_stock(store, g, r)?),
     };
     if found.iter().any(|c| !c.owned) {
         return Err(crate::recover::blocked(store, g, &found));
@@ -119,8 +124,56 @@ pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn 
     report(profile, &built);
     match inst.apply(&built.plan) {
         Err(swofty_core::Error::Leftovers(found)) => Err(crate::recover::blocked(store, g, &found)),
-        r => Ok(r?),
+        r => Ok(not_stock(store, g, r)?),
     }
+}
+
+/// Check the game against Steam's manifests before anything is built from
+/// it. Steam's list stays with the install, which checks every original it
+/// backs up for the first time. A game folder outside Steam is not checked;
+/// a Steam install whose list can't be read says why.
+fn check_stock(store: &Store, g: &Game, out: &dyn Fn(&str)) -> Result<Option<Depots>> {
+    let Some(found) = steam::find_game().filter(|i| i.dir == g.dir) else {
+        return Ok(None);
+    };
+    let depots = match Depots::load(&found) {
+        Ok(d) => d,
+        Err(why) => {
+            out(&format!(
+                "[stock] {why}; the game files are not checked against Steam"
+            ));
+            return Ok(None);
+        }
+    };
+    let checked = stock::check(&store.root, g, &depots)?;
+    if checked.proven > 0 {
+        out(&format!(
+            "[stock] {} original(s) on record match Steam's copy",
+            checked.proven
+        ));
+    }
+    for rel in &checked.rerecorded {
+        out(&format!(
+            "[stock] {rel} matches Steam's copy again; backed up as the original"
+        ));
+    }
+    if let Some(n) = checked.swept {
+        out(&format!("[stock] {n} game file(s) checked against Steam's list"));
+    }
+    if !checked.foreign.is_empty() {
+        stock::Report::new(checked.foreign.clone(), &g.dir).write(&store.root)?;
+        return Err(swofty_core::Error::NotStock(checked.foreign).into());
+    }
+    Ok(Some(depots))
+}
+
+/// An original that turned out not to be Steam's while the install backed it
+/// up stops the launch the same way as the check before the build.
+fn not_stock(store: &Store, g: &Game, r: swofty_core::Result<()>) -> swofty_core::Result<()> {
+    if let Err(swofty_core::Error::NotStock(files)) = &r {
+        stock::Report::new(files.clone(), &g.dir).write(&store.root).ok();
+    }
+    r
 }
 
 pub fn apply(store: &Store, profile: &str, game: Option<PathBuf>) -> Result<ExitCode> {
