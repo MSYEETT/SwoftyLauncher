@@ -7,10 +7,11 @@ use std::time::{Duration, Instant, SystemTime};
 use anyhow::{Context, Result, bail};
 use clap::Args;
 use swofty_core::crash::{Event, LogScan, Symbols, fatal_name};
-use swofty_core::install::{Game, Installer};
+use swofty_core::install::{Game, Installer, PROXY};
 use swofty_core::process::{
     descends_from, game_processes, game_running, steamvr_running, stop_game, stop_process,
 };
+use swofty_core::quarantine::{self, Attach, AttachWatch, Stage};
 use swofty_core::recovery::{Scope, SessionLock};
 use swofty_core::session::{
     Config, DEFAULT_WINEDEBUG, LOADER_LOG, LOADER_MARK, LaunchMode, LaunchRequest, LogMark, PERF_LOG,
@@ -330,6 +331,7 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
     }
     let game = g.dir.clone();
     let apply = request.apply || args.apply;
+    quarantine::Report::clear(&store.root).ok();
     let session = Session {
         store,
         game: g,
@@ -340,6 +342,7 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
         say("info", &format!("installing profile {profile}"));
         crate::build::install(store, &profile, g, true, &info)?;
     }
+    let installed = apply.then(Instant::now);
     become_subreaper();
     let artifacts = crate::offline::ensure_extension(store)?;
     if let Some(note) = crate::offline::loader_note(&artifacts) {
@@ -362,7 +365,7 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
         "info",
         "staged offline play: EA AntiCheat is not started this session; multiplayer is unavailable",
     );
-    let result = run_loop(store, args, &config, &request, &profile, g, apply);
+    let result = run_loop(store, args, &config, &request, &profile, g, installed);
     drop(session);
     result
 }
@@ -424,7 +427,7 @@ fn run_loop(
     request: &LaunchRequest,
     profile: &str,
     g: &Game,
-    apply: bool,
+    mut installed: Option<Instant>,
 ) -> Result<ExitCode> {
     let profile = profile.to_owned();
     let game = g.dir.clone();
@@ -433,7 +436,7 @@ fn run_loop(
             return Ok(ExitCode::FAILURE);
         }
         rebuild_if_needed(store, &profile, &game);
-        let code = play(store, args, config, request, &game)?;
+        let code = play(store, args, config, request, &game, installed)?;
         let relaunch = match store.merge_requests(&profile, true) {
             Ok(Some(m)) => {
                 for c in &m.changed {
@@ -454,9 +457,10 @@ fn run_loop(
             return Ok(ExitCode::from(code.clamp(0, 255) as u8));
         }
         say("info", "Apply & restart: starting F1 25 again");
-        if apply {
+        if installed.is_some() {
             say("info", &format!("reinstalling profile {profile}"));
             crate::build::install(store, &profile, g, true, &info)?;
+            installed = Some(Instant::now());
         }
     }
 }
@@ -478,7 +482,14 @@ fn rebuild_if_needed(store: &Store, profile: &str, game: &Path) {
     }
 }
 
-fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest, game: &Path) -> Result<i32> {
+fn play(
+    store: &Store,
+    args: &RunArgs,
+    config: &Config,
+    request: &LaunchRequest,
+    game: &Path,
+    installed: Option<Instant>,
+) -> Result<i32> {
     let dir = store.sessions_dir().join(stamp());
     std::fs::create_dir_all(&dir)?;
     let loader = game.join(LOADER_LOG);
@@ -594,8 +605,31 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
     if mode.is_vr() {
         say("info", &format!("starting F1 25 in VR ({})", extra.join(" ")));
     }
+    let check = check_loader(store, game, installed);
     let usage = swofty_core::usage::Session::start(&store.root);
-    let status = wait_game(&mut spawn(target, "game_stdout.log")?)?;
+    let mut watch = (check.loader && !check.reported)
+        .then(|| AttachWatch::new(loader.clone(), before.clone(), Instant::now()));
+    // The antivirus explanation is a Windows one; under Proton a loader
+    // that does not attach is a prefix or override problem instead.
+    let missed = || {
+        if cfg!(windows) {
+            loader_missed(store, game);
+        }
+    };
+    let status = wait_game(&mut spawn(target, "game_stdout.log")?, || {
+        if let Some(w) = watch.as_mut()
+            && w.state() == Attach::Waiting
+            && w.poll(Instant::now()) == Attach::Missed
+        {
+            missed();
+        }
+    })?;
+    if let Some(w) = watch.as_mut()
+        && w.state() == Attach::Waiting
+        && w.ended(Instant::now()) == Attach::Missed
+    {
+        missed();
+    }
     let code = status.code().unwrap_or(-1);
     if let Some(usage) = usage {
         usage.end(code);
@@ -612,6 +646,51 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
     Ok(code)
 }
 
+struct LoaderCheck {
+    /// The session placed version.dll, so the loader should attach.
+    loader: bool,
+    reported: bool,
+}
+
+/// Before the game starts: the DLLs the session placed are still there with
+/// the bytes written, on a first look and again a moment later, since a
+/// scanner often takes a file only once it is closed. Missing ones are
+/// reported for the launcher to show; the game still starts, without them.
+fn check_loader(store: &Store, game: &Path, installed: Option<Instant>) -> LoaderCheck {
+    let dlls = quarantine::placed_dlls(&store.root).unwrap_or_default();
+    let loader = dlls.iter().any(|(rel, _)| rel.eq_ignore_ascii_case(PROXY));
+    let mut files = quarantine::damaged_install();
+    let first = quarantine::missing(game, &dlls);
+    if let Some(at) = installed.filter(|_| !dlls.is_empty()) {
+        std::thread::sleep(quarantine::RECHECK_AFTER.saturating_sub(at.elapsed()));
+    }
+    for rel in first.into_iter().chain(quarantine::missing(game, &dlls)) {
+        if !files.contains(&rel) {
+            files.push(rel);
+        }
+    }
+    let reported = !files.is_empty();
+    if reported {
+        report_blocked(store, quarantine::Report::new(Stage::BeforeLaunch, files, game));
+    }
+    LoaderCheck { loader, reported }
+}
+
+/// The game is running but the loader never attached: say so, and whether
+/// version.dll is gone from the game folder by now.
+fn loader_missed(store: &Store, game: &Path) {
+    let mut report = quarantine::Report::new(Stage::InGame, vec![PROXY.to_owned()], game);
+    report.removed = !game.join(PROXY).is_file();
+    report_blocked(store, report);
+}
+
+fn report_blocked(store: &Store, report: quarantine::Report) {
+    say("warning", &format!("{}: {}", report.title(), report.text()));
+    if let Err(e) = report.write(&store.root) {
+        info(&format!("could not record it for the launcher: {e}"));
+    }
+}
+
 fn keep_game_logs(game: &Path, dir: &Path, before: Option<&LogMark>, launched: SystemTime) {
     let loader = game.join(LOADER_LOG);
     if LogMark::replaced(&loader, before) {
@@ -626,12 +705,13 @@ fn keep_game_logs(game: &Path, dir: &Path, before: Option<&LogMark>, launched: S
 /// Wait for the game; a stop signal to the wrapper (Steam's Stop button, a
 /// kill, a closed terminal) closes the game it started instead of leaving
 /// the session's files in the game folder.
-fn wait_game(child: &mut Child) -> Result<ExitStatus> {
+fn wait_game(child: &mut Child, mut tick: impl FnMut()) -> Result<ExitStatus> {
     let mut asked = false;
     loop {
         if let Some(status) = child.try_wait()? {
             return Ok(status);
         }
+        tick();
         if !asked && ending() {
             asked = true;
             info("asked to stop: closing F1 25, then rolling its game files back");
@@ -1332,6 +1412,43 @@ fn link(_: &Path, _: &Path) {}
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reports_a_placed_dll_an_antivirus_took_before_the_game_starts() {
+        let root = std::env::temp_dir().join(format!("swofty-run-{}-quarantine", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let (data, game) = (root.join("data"), root.join("game"));
+        let core = game.join("swofty/addons/core/swofty_core.dll");
+        std::fs::create_dir_all(core.parent().unwrap()).unwrap();
+        std::fs::write(game.join(PROXY), b"proxy").unwrap();
+        std::fs::write(&core, b"core").unwrap();
+        let mut placed = swofty_core::placed::Placed::load(&data).unwrap();
+        for (rel, path) in [
+            (PROXY, game.join(PROXY)),
+            ("swofty/addons/core/swofty_core.dll", core),
+        ] {
+            placed.insert(rel, swofty_core::baseline::sha256_file(&path).unwrap(), false);
+        }
+        placed.save(&data).unwrap();
+        let store = Store::new(&data);
+        let written = Some(Instant::now() - quarantine::RECHECK_AFTER);
+        let check = check_loader(&store, &game, written);
+        assert!(check.loader && !check.reported);
+        assert_eq!(quarantine::Report::read(&data), None);
+        std::fs::remove_file(game.join(PROXY)).unwrap();
+        let check = check_loader(&store, &game, written);
+        assert!(check.loader && check.reported);
+        let report = quarantine::Report::read(&data).unwrap();
+        assert_eq!(
+            (report.stage, report.files.as_slice()),
+            (Stage::BeforeLaunch, [PROXY.to_owned()].as_slice())
+        );
+        assert_eq!(report.game, game);
+        loader_missed(&store, &game);
+        let report = quarantine::Report::read(&data).unwrap();
+        assert!(report.stage == Stage::InGame && report.removed);
+        std::fs::remove_dir_all(&root).ok();
+    }
 
     fn temp_log(name: &str) -> PathBuf {
         std::env::temp_dir()
