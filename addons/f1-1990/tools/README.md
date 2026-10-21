@@ -138,6 +138,14 @@ Writes `art/logos/<team>/lockup_light.png`, `lockup_dark.png` and `mark.png` fro
 python3 addons/f1-1990/tools/logo_art.py [--check]
 ```
 
+## hq_logos.py
+
+Writes `erp/hq_logos.json` and `erp/hq_logos/`: per 1990 team and per HQ prop (`raceday_r_n_d_folder_a`, `raceday_r_n_d_notebook_a`), a diffuse texture (BC1, the stock unbranded texture's size and mip layout, top mips in `mipmaps/` for `add-mipmaps`), its SRV, a copy of the unbranded material pointing at it, and a copy of the `default` material context named `2026-<team>_1990`, all new resources in `f1_driver_hq.erp`. The texture is the unbranded one, recoloured in the team's primary colour where the stock Williams texture differs from it, with the team logo at the Williams logo (mirrored on the notebook). Needs Pillow, numpy and lz4.
+
+```sh
+python3 addons/f1-1990/tools/hq_logos.py --game <game folder> [--baseline <launcher baseline>/<build>] [--preview hq.png]
+```
+
 ## tracks.py
 
 Writes `erp/tracks.json` and `erp/tracks/`: a 1990 world `<track>_f1_1990.wep` in each track's `<track>_f1_26_myteam.erp`, which `grid.py`'s track layer `f1_1990` loads with the stock My Team asset group. The world is the My Team world listing its own copies of the layers Custom Grid Size widens (`…_f1990.layer`); with `cars` at 26 the copies get Custom Grid Size's 26-car edits. The stock worlds and layers stay as they are.

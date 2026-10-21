@@ -6,7 +6,7 @@ Adds a 1990 Driver Career next to the 2025 and 2026 ones. 1990 careers live in t
 
 The 1990 teams (`<team>_1990`), drivers (`f1990_<driver>`), their looks, holders and entrants, and the entrant lists `f1_1990`, `f1_1990_driver_pool` and `f1_career_1990` are new rows; no 2025 or 2026 row changes. The **Cars** setting (`cars`) is 22 (default: the 11 strongest teams) or 26 (adds Larrousse and Dallara; needs 26-car track layers). See `tools/README.md`.
 
-## Front end and tracks (erp/frontend.json, erp/badges.json, erp/tracks.json, art/logos/, tools/frontend.py, tools/badges.py, tools/logo_art.py, tools/tracks.py)
+## Front end and tracks (erp/frontend.json, erp/badges.json, erp/hq_logos.json, erp/tracks.json, art/logos/, tools/frontend.py, tools/badges.py, tools/logo_art.py, tools/hq_logos.py, tools/tracks.py)
 
 The 1990 rows get their own Driver Select and Team Select backdrop names and their period team logos, added next to the stock art, and the `f1_1990` setup mode loads its own track worlds (26-car garages and grid slots when `cars` is 26). See `tools/README.md`.
 
@@ -18,6 +18,8 @@ The logos (`art/logos/`, sources and licences in `art/logos/SOURCES.md`) fill a 
 | contracts: career hub offers, negotiation, Team HQ cards and backdrop, holding screen banner; press interview pill | `teams.team_contract_logo`, `team_hq.contract_negotiation_logos`, `team_hq.contract_logos_mid`, `team_hq.contract_logos_large`, `team_hq.contract_holding_screen_bgs`, `press_interviews.pill_bg` |
 | F1 World fan zone | `teams.fanzone_room`, `teams.teams_f1_2024_gp_voting`, `teams.fanzone_expressions(_large)` |
 | blank, as for the stock F1 teams | `teams.career_laptop_header` (the career laptop header; the garage monitor shows its logo only when this key exists), `broadcast_ui_generic.team`, `teams.career_team_select_logo_small` |
+
+In the Driver Career HQ (`erp/hq_logos.json`, `tools/hq_logos.py`), the R&D folder and notebook ask for the material context `2026-<livery_name>`; each 1990 team gets that context in `f1_driver_hq.erp`, with its own material and diffuse texture: the stock unbranded prop in the team colour, with the team logo where the stock Williams prop has its logo. The team cap and helmet props have no 2026 team contexts in stock, so every team gets their default.
 
 Not covered: the garage boards and pit perches of the 1990 track worlds still show the 2026 team of each garage slot (`garage_board_f1.emb?context=2026-<team>` and `pit_perch_<team>` are placed per slot in each track's layers).
 
