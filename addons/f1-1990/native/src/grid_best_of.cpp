@@ -9,7 +9,8 @@
 // simulated (Sess_Record_GroupTimes), and builds the group rows when the group's last session ends or
 // a save loads (Sess_Build_GroupResult). After either call this rewrites the group-1 row positions
 // so they rank min(Friday best, Saturday best); drivers without a time follow in Saturday order.
-// Weekends without a Friday shootout group, or with a sprint race (race_2), are left alone.
+// Weekends without a Friday shootout group, or with a sprint race (race_2), are left alone: that
+// weekend structure exists only in the f1_1990 setup mode, so 2025/2026 sessions are untouched.
 
 #include <algorithm>
 #include <cstddef>

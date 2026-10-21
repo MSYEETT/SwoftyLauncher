@@ -8,18 +8,20 @@
 // would offer by default (the player's current team, type 0, one season, the recommended target)
 // with the game's own BuildContract/SignContract, then lets the three states pass straight through:
 // Intro and Outro skip their enter and return the continue link, Update enters as an idle state and
-// leaves without the screen. A failed sign leaves the stock scene in place.
+// leaves without the screen. A failed sign leaves the stock scene in place. A career is a 1990 one
+// when its data group (the save-slot partition key) is f1_career_1990; 2025 and 2026 careers in the
+// same profile are left alone.
 
 #include <cstdio>
 #include <cstring>
 #include <string>
 
 #include <swofty/career.hpp>
-#include <swofty/db.hpp>
 #include <swofty/game.hpp>
 #include <swofty/mixin.hpp>
 
 #include "contract_target.hpp"
+#include "career_group.hpp"
 
 namespace {
 
@@ -28,14 +30,8 @@ constexpr uint32_t kLinkContinueFallback = 0x7c9b1ec4;
 
 bool g_skip;
 bool g_update_skipped;
-int g_profile = -1;
 
-template <class T> T at(const void *p, size_t off)
-{
-    T v;
-    std::memcpy(&v, static_cast<const uint8_t *>(p) + off, sizeof v);
-    return v;
-}
+using f1990::at;
 
 uint32_t continue_link()
 {
@@ -43,51 +39,44 @@ uint32_t continue_link()
     return v ? v : kLinkContinueFallback;
 }
 
-bool db_text_is(const std::string &key, const char *want)
-{
-    swofty::db::Value v{};
-    if (swofty::db::get(key, &v) != swofty::db::Result::ok || !v.s)
-        return false;
-    return !std::strcmp(v.s, want);
-}
-
-// 1 = the 1990 profile's database (Driver Career 2026 saves to driver_career_1990 or runs the
-// F1_career_1990 event list), 0 = another database, -1 = not readable yet.
-int is_1990_profile()
-{
-    if (g_profile >= 0)
-        return g_profile;
-    if (!swofty::db::available())
-        return -1;
-    int64_t count = 0;
-    if (swofty::db::int_at("game_modes._ModeChampionship_instancecount_", &count) != swofty::db::Result::ok ||
-        count <= 0 || count > 256)
-        return -1;
-    for (int64_t i = 0; i < count; i++) {
-        std::string row = "game_modes.ModeChampionship_" + std::to_string(i);
-        if (db_text_is(row + ".save_data.name", "driver_career_1990") ||
-            db_text_is(row + ".save_data_0.name", "driver_career_1990") || db_text_is(row + ".event_list", "F1_career_1990")) {
-            swofty::log("[f1-1990] contract: 1990 career database found (%s)", row.c_str());
-            return g_profile = 1;
-        }
-    }
-    swofty::log("[f1-1990] contract: no ModeChampionship row saves to driver_career_1990; the contract scene stays");
-    return g_profile = 0;
-}
-
-void *contracts_component(void *state)
+uint8_t *career_of(void *state)
 {
     auto *ctx = at<uint8_t *>(state, 0xca0);
     auto *holder = ctx ? at<uint8_t *>(ctx, 0x88) : nullptr;
-    auto *career = holder ? at<uint8_t *>(holder, 0x260) : nullptr;
-    if (!career)
-        return nullptr;
-    void *registry = career + 0x1030;
+    return holder ? at<uint8_t *>(holder, 0x260) : nullptr;
+}
+
+void *registry_get(void *registry, uintptr_t desc)
+{
     auto **vt = *static_cast<void ***>(registry);
     if (!vt || !vt[2])
         return nullptr;
     auto get = reinterpret_cast<void *(*)(void *, const void *, int)>(vt[2]);
-    return get(registry, reinterpret_cast<const void *>(swofty::game::k_Career_DriverCareerContractsManagerComponentDesc.address()), 1);
+    return get(registry, reinterpret_cast<const void *>(desc), 1);
+}
+
+void *contracts_component(uint8_t *career)
+{
+    return career ? registry_get(career + 0x1030,
+                                 swofty::game::k_Career_DriverCareerContractsManagerComponentDesc.address())
+                  : nullptr;
+}
+
+void *setup_component(void *championship)
+{
+    return registry_get(static_cast<uint8_t *>(championship) + 0x208,
+                        swofty::game::k_Career_CareerSetupComponentDesc.address());
+}
+
+uint8_t group_index(void *component)
+{
+    auto **vt = *static_cast<void ***>(component);
+    return reinterpret_cast<uint8_t (*)(void *)>(vt[0x268 / 8])(component);
+}
+
+bool is_1990_career(uint8_t *career)
+{
+    return f1990::career_data_group_is(career, f1990::kCareerGroup1990, {setup_component, group_index});
 }
 
 bool same_key(uint32_t a, uint32_t b)
@@ -157,14 +146,17 @@ SWOFTY_WRAP(Career_Decide_ContractNegotiation, uint32_t *, void *state, uint32_t
 {
     uint32_t *r = orig(state, link);
     g_skip = false;
-    if (!link || *link != kLinkNegotiate || is_1990_profile() != 1)
+    if (!link || *link != kLinkNegotiate)
+        return r;
+    uint8_t *career = career_of(state);
+    if (!is_1990_career(career))
         return r;
     swofty::career::State cs{};
     if (swofty::career::state(&cs) == swofty::career::Result::ok && cs.humans > 1) {
         swofty::log("[f1-1990] contract: %u human players; the contract scene stays", cs.humans);
         return r;
     }
-    auto *contracts = static_cast<uint8_t *>(contracts_component(state));
+    auto *contracts = static_cast<uint8_t *>(contracts_component(career));
     if (!contracts || !swofty::game::Career_Needs_DriverContract(contracts))
         return r;
     g_skip = sign_recommended(contracts);
