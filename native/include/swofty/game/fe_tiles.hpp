@@ -52,7 +52,16 @@ static_assert(offsetof(TileList, items_end) == 0x80);
 
 using FeTile_Build_List_t = void(TileList *self, void *ctx, void *a3, void *a4, uint8_t menu_kind, uint8_t sub_kind, uint32_t a7);
 inline constexpr fn<"FeTile_Build_List", FeTile_Build_List_t> FeTile_Build_List{}; // L3 stable
+using FeTile_CareerDlcItem_Populate_t = void(HomeItem *item, void *node, uint32_t a7);
+inline constexpr fn<"FeTile_CareerDlcItem_Populate", FeTile_CareerDlcItem_Populate_t> FeTile_CareerDlcItem_Populate{}; // L2 experimental
+using FeTile_Construct_CareerItem_t = HomeItem *(HomeItem *item, NeAllocator *alloc, const char *id);
+inline constexpr fn<"FeTile_Construct_CareerItem", FeTile_Construct_CareerItem_t> FeTile_Construct_CareerItem{}; // L2 experimental
 using FeTile_ItemBase_Populate_t = void(HomeItem *item, void *node, uint32_t a7);
 inline constexpr fn<"FeTile_ItemBase_Populate", FeTile_ItemBase_Populate_t> FeTile_ItemBase_Populate{}; // L3 stable
+using FeTile_Route_CareerItem_t = Action *(HomeItem *item, Action *out);
+inline constexpr fn<"FeTile_Route_CareerItem", FeTile_Route_CareerItem_t> FeTile_Route_CareerItem{}; // L2 experimental
+inline constexpr data<"g_FeTile_CustomisationSystem", void *> g_FeTile_CustomisationSystem{}; // L2 experimental
+inline constexpr data<"g_FeTile_SelectedCareerContent", uint32_t> g_FeTile_SelectedCareerContent{}; // L2 experimental
+inline constexpr site<"site_FeTile_CareerContentEnd"> site_FeTile_CareerContentEnd{}; // L2 experimental
 
 }
