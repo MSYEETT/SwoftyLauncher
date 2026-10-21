@@ -54,6 +54,7 @@ constexpr struct {
 };
 
 constexpr uint8_t kRegistryLists[] = {67, 97, 105, 106, 107};
+constexpr uintptr_t kGameSetupRegistry = 0x146079b28;
 
 std::atomic<uint32_t> g_probes, g_offer_probes, g_rank_probes, g_reset_probes, g_set_probes, g_step_probes;
 thread_local bool t_in_offers;
@@ -141,6 +142,57 @@ std::string registry_lists(uintptr_t mgr)
         out += list ? records(rd<uintptr_t>(list + 0x10), rd<uintptr_t>(list + 0x18)) : std::string("none");
     }
     return out;
+}
+
+std::string name_at(uintptr_t obj, size_t off)
+{
+    uintptr_t named = obj ? rd<uintptr_t>(obj + off) : 0;
+    return named ? str_at(rd<uintptr_t>(named + 0x10)) : std::string("?");
+}
+
+void probe_championship(const char *when, uintptr_t career)
+{
+    uintptr_t champ = rd<uintptr_t>(career + 0x1058);
+    uintptr_t xb = rd<uintptr_t>(champ + 0x520), xe = rd<uintptr_t>(champ + 0x528);
+    std::string out;
+    char b[160];
+    for (uintptr_t xp = xb; xp && xp < xe && out.size() < 1400; xp += 8) {
+        uintptr_t x = rd<uintptr_t>(xp);
+        long ys = long(rd<uint64_t>(x + 0x70));
+        std::snprintf(b, sizeof b, " | setup mode \"%s\" 0x%llx, %ld entrant setup mode(s):", name_at(x, 0xd8).c_str(),
+                      (unsigned long long)x, ys);
+        out += b;
+        for (long i = 0; i < ys && i < 8; i++) {
+            uintptr_t y = rd<uintptr_t>(x + 0x10 + i * 8);
+            long lists = long(rd<uint64_t>(y + 0x120));
+            uintptr_t domain = rd<uintptr_t>(y + 0x18);
+            long domain_teams = domain ? long((rd<uintptr_t>(domain + 0x68) - rd<uintptr_t>(domain + 0x60)) / 4) : -1;
+            std::snprintf(b, sizeof b, " [0x%llx team kinds %x/%x/%x, %ld list(s), domain teams %ld:", (unsigned long long)y,
+                          rd<uint32_t>(y + 0x24c), rd<uint32_t>(y + 0x250), rd<uint32_t>(y + 0x254), lists, domain_teams);
+            out += b;
+            for (long l = 0; l < lists && l < 4; l++) {
+                uintptr_t list = rd<uintptr_t>(y + 0x20 + l * 8);
+                std::snprintf(b, sizeof b, " \"%s\" ", name_at(list, 0x28).c_str());
+                out += b;
+                out += list ? records(rd<uintptr_t>(list + 0x10), rd<uintptr_t>(list + 0x18)) : std::string("none");
+            }
+            out += "]";
+        }
+    }
+    uintptr_t reg = rd<uintptr_t>(rebase(kGameSetupRegistry));
+    std::string modes;
+    long count = 0;
+    for (uintptr_t p = rd<uintptr_t>(reg + 0x48), e = rd<uintptr_t>(reg + 0x50); p && p < e && count < 64; p += 0x10) {
+        uintptr_t mode = rd<uintptr_t>(p + 8);
+        if (!mode)
+            continue;
+        count++;
+        modes += " " + name_at(mode, 0xd8);
+    }
+    swofty::log("[f1-1990] probe: championship at %s: career 0x%llx flag %u, championship 0x%llx with %ld game setup mode(s)%s; "
+                "game setup registry %ld:%s",
+                when, (unsigned long long)career, unsigned(rd<uint8_t>(career + 0x10c8)), (unsigned long long)champ,
+                xb && xe >= xb ? long((xe - xb) / 8) : -1L, out.c_str(), count, modes.c_str());
 }
 
 void probe_team_models(uintptr_t gm)
@@ -235,6 +287,7 @@ void probe_before(uintptr_t vm)
                 (unsigned long long)unbase(type), chain.c_str(), driver ? "driver career type" : "NOT the driver career type",
                 (unsigned long long)rd<uintptr_t>(gm + 0xe18), comps.c_str());
     probe_team_models(gm);
+    probe_championship("choose driver", gm);
 }
 
 std::string upgrade_teams(uintptr_t gm, size_t &count)
@@ -281,6 +334,7 @@ SWOFTY_WRAP(Game_CareerSetup_ResetEntrants, void, void *setup)
                 named ? str_at(rd<uintptr_t>(named + 0x10)).c_str() : "?", (unsigned long long)list,
                 list ? records(rd<uintptr_t>(list + 0x10), rd<uintptr_t>(list + 0x18)).c_str() : "none",
                 (unsigned long long)career, records(rd<uintptr_t>(career + 0x2e0), rd<uintptr_t>(career + 0x2e8)).c_str());
+    probe_championship("entrants reset", career);
 }
 
 SWOFTY_WRAP(Career_Set_EntrantData_Thunk, void, void *entity, const void *entrant_id, const uint32_t *data, uint16_t position,
