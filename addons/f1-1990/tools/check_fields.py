@@ -12,7 +12,8 @@ object), which finds keys the exe composes at run time, and prints per op the ke
 does not list. Rows past an instance count
 the op sets are left out on purpose, and a child data set (parent_data_set) is checked as a tree. With --built (a
 database built with the addon) it also compares the rows that set-create ops build (TREES, and the subtrees of COPIES)
-with the stock rows of the same shape: a field every stock row of a shape has must be on the built row. With --names
+with the stock rows of the same shape: a field every stock row of a shape has must be on the built row, and it lists
+every stat_id / statId an added row shares with another row of its table. With --names
 it writes the names it needed that tools/gamedb/names.txt lacks. Exit code 1 when a row misses a key.
 """
 import argparse
@@ -53,6 +54,8 @@ def fnv(data, h=career.gamedb.FNV_BASIS):
 def exe_names(exe):
     data = Path(exe).read_bytes()
     names = set(m.decode() for m in re.findall(rb"[A-Za-z_][A-Za-z0-9_]{1,%d}" % (MAX_NAME - 1), data))
+    numbered = set(m.decode() for m in re.findall(rb"[A-Za-z_][A-Za-z0-9_]*%d[A-Za-z0-9_]*", data))
+    names |= {n.replace("%d", str(k)) for n in numbered if n.count("%d") == 1 for k in range(16)}
     return {n for n in names if re.search(r"[a-z]", n)}
 
 
@@ -99,8 +102,26 @@ class Probe:
         out = set()
         sh = re.sub(r"_\d+(?=\.|$)", "_N", path)
         self._walk(path, "", out, sh)
+        self._descend(path, out, sh)
         self._transplant(path, out, sh)
         return out
+
+    def _descend(self, row, out, shape):
+        done = set()
+        while True:
+            parents = {k.rpartition(".")[0] for k in out if "." in k} - done
+            parents = {p for p in parents if not re.search(r"_\d+$", p)}
+            if not parents:
+                return
+            for parent in sorted(parents):
+                done.add(parent)
+                seen = self.shapes.setdefault(f"{shape}/{re.sub(r'_[0-9]+(?=[.]|$)', '_N', parent)}#object",
+                                              {"rows": 0, "names": set()})
+                subset = None if seen["rows"] < FULL_ROWS else sorted(seen["names"])
+                seen["rows"] += 1
+                leaves = self._bulk(f"{row}.{parent}.".encode(), b"", subset)
+                seen["names"].update(leaves)
+                out.update(f"{parent}.{self.names[i]}" for i in leaves)
 
     def _transplant(self, row, out, shape):
         seen = self.shapes.setdefault(shape + "#transplant", {"rows": 0, "names": set()})
@@ -248,6 +269,27 @@ def check_tree(stock_probe, built_probe, built_root, stock_root, sparse):
     return len(built_rows), gaps
 
 
+def shared_ids(stock, built, op_files):
+    tables = {}
+    for op_file in op_files:
+        for op in json.loads(Path(op_file).read_text()).get("ops", []):
+            m = re.search(r"\.([A-Za-z_]\w*)\[[^\]]*\]$", op.get("from", "")) if op.get("op") == "add-row" else None
+            if m and "[" not in op["table"]:
+                tables[op["table"]] = m.group(1)
+    out = []
+    for table, word in sorted(tables.items()):
+        stock_rows = {stock.get(f"{table}.{word}_{i}._metadata_") for i in range(stock.count(table, word) or 0)}
+        for field in ("stat_id", "statId"):
+            rows = {}
+            for i in range(built.count(table, word) or 0):
+                value = built.get(f"{table}.{word}_{i}.{field}")
+                if value not in (None, ""):
+                    rows.setdefault(value, []).append(built.get(f"{table}.{word}_{i}._metadata_"))
+            out += [(table, field, v, names) for v, names in sorted(rows.items())
+                    if len(names) > 1 and any(n not in stock_rows for n in names)]
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("stock")
@@ -259,6 +301,9 @@ def main():
     db = career.Db(a.stock)
     known = {n.decode() for n in db.vocabulary()[0]}
     vocab = exe_names(a.exe) | known
+    for op_file in a.ops or [ROOT / f for f in OPS]:
+        for listed in json.loads(Path(op_file).read_text()).get("fields", {}).values():
+            vocab.update(listed)
     probe = Probe(db, vocab)
     built = career.Db(a.built) if a.built else None
     built_probe = Probe(built, vocab) if built else None
@@ -302,6 +347,12 @@ def main():
             for row, missing in gaps[:30]:
                 print(f"  MISSING {row}: {', '.join(missing[:12])}{' ...' if len(missing) > 12 else ''}")
             bad += bool(gaps)
+    if built:
+        clashes = shared_ids(db, built, a.ops or [ROOT / f for f in OPS])
+        print(f"== stat ids: {len(clashes)} id(s) an addon row shares with another row")
+        for table, field, value, names in clashes[:40]:
+            print(f"  SHARED {table} {field} {value}: {', '.join(names)}")
+        bad += bool(clashes)
     if a.names:
         names_txt = REPO / "tools/gamedb/names.txt"
         have = {line.strip() for line in open(names_txt, encoding="utf-8")}
