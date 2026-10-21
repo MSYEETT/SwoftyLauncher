@@ -320,9 +320,8 @@ void f1990_probe_entrants(const char *when, const void *career)
                 (unsigned long long)rd<uintptr_t>(c + 0xe18), records(rd<uintptr_t>(c + 0x2e0), rd<uintptr_t>(c + 0x2e8)).c_str());
 }
 
-SWOFTY_WRAP(Game_CareerSetup_ResetEntrants, void, void *setup)
+void f1990_probe_reset(const void *setup)
 {
-    orig(setup);
     if (g_reset_probes++ >= 12)
         return;
     uintptr_t s = reinterpret_cast<uintptr_t>(setup), career = rd<uintptr_t>(s + 0x278), mgr = rd<uintptr_t>(s + 0x290);
