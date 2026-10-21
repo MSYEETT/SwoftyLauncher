@@ -162,6 +162,10 @@ uintptr_t heap_error_fn, report_memory_error;
 HANDLE go_event, text_event, done_event;
 DWORD writer_tid;
 uintptr_t writer_stack_top;
+HANDLE volatile suspended, dump_file = INVALID_HANDLE_VALUE;
+volatile LONG step_at, writer_faults;
+DWORD fault_code;
+uintptr_t fault_ip;
 Request req;
 Snapshot last_fatal;
 HeapError heap_error;
@@ -280,6 +284,7 @@ const char *code_name(DWORD c)
     case EXCEPTION_DATATYPE_MISALIGNMENT: return "DATATYPE_MISALIGNMENT";
     case 0xC0000374: return "HEAP_CORRUPTION";
     case 0xC0000409: return "STACK_BUFFER_OVERRUN";
+    case EXCEPTION_BREAKPOINT: return "BREAKPOINT";
     case 0xE06D7363: return "C++ exception";
     case CODE_EXIT: return "swofty exit report";
     case CODE_GAME_FATAL: return "swofty game fatal error";
@@ -647,12 +652,12 @@ void already(const char *what)
         cl("[crash] %s; swofty\\%s already has this process's crash report", what, report_name);
 }
 
-bool writer_fault(EXCEPTION_POINTERS *e);
+bool writer_fault(EXCEPTION_POINTERS *e, bool breakpoint);
 
 LONG CALLBACK veh(EXCEPTION_POINTERS *e)
 {
     DWORD code = e->ExceptionRecord->ExceptionCode;
-    if (writer_fault(e))
+    if (writer_fault(e, false))
         return EXCEPTION_CONTINUE_EXECUTION;
     if (!fatal(code))
         return EXCEPTION_CONTINUE_SEARCH;
@@ -1310,6 +1315,7 @@ void section_threads(const Request &r)
         alignas(16) CONTEXT ctx{};
         ctx.ContextFlags = CONTEXT_FULL;
         if (SuspendThread(h) != DWORD(-1)) {
+            suspended = h;
             if (GetThreadContext(h, &ctx)) {
                 uintptr_t lo = 0, hi = 0;
                 struct {
@@ -1330,6 +1336,7 @@ void section_threads(const Request &r)
                     return true;
                 });
             }
+            suspended = nullptr;
             ResumeThread(h);
         }
         CloseHandle(h);
@@ -1415,6 +1422,7 @@ void minidump(Request &r)
     }
     HANDLE f = CreateFileW(dump_path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
                            FILE_ATTRIBUTE_NORMAL, nullptr);
+    dump_file = f;
     if (f == INVALID_HANDLE_VALUE) {
         snprintf(dump_note, sizeof dump_note, "not written: cannot create the file (error %lu)", GetLastError());
         return;
@@ -1450,6 +1458,7 @@ void minidump(Request &r)
     LARGE_INTEGER size{};
     GetFileSizeEx(f, &size);
     CloseHandle(f);
+    dump_file = INVALID_HANDLE_VALUE;
     if (!ok) {
         DeleteFileW(dump_path);
         snprintf(dump_note, sizeof dump_note, "MiniDumpWriteDump failed (error %lu)", err);
@@ -1503,6 +1512,107 @@ void summary_line(const Request &r)
        prior ? "earlier exception's " : "", frames.c_str(), dump_note);
 }
 
+void step_header(Request &r)
+{
+    char now[32];
+    local_stamp(now, sizeof now, false);
+    out.put("Swofty crash report\n\n");
+    out.put("written      %s local time\n", now);
+    out.put("reason       %s\n", r.reason);
+    out.put("thread       %lu%s\n", r.tid, r.kind == K_EXIT ? " (the exiting thread)" : "");
+    out.put("process      pid %lu, %.1f s after the core loaded\n", GetCurrentProcessId(),
+            double(r.ms - start_ms) / 1000);
+    wchar_t path[MAX_PATH] = L"?";
+    GetModuleFileNameW(nullptr, path, MAX_PATH);
+    WIN32_FILE_ATTRIBUTE_DATA fa{};
+    unsigned long long size = 0;
+    if (GetFileAttributesExW(path, GetFileExInfoStandard, &fa))
+        size = ((unsigned long long)fa.nFileSizeHigh << 32) | fa.nFileSizeLow;
+    auto nt = reinterpret_cast<const IMAGE_NT_HEADERS *>(
+        exe_base + reinterpret_cast<const IMAGE_DOS_HEADER *>(exe_base)->e_lfanew);
+    out.put("exe          %ls, %llu bytes, PE timestamp %lu, image base 0x%llx\n", path, size,
+            (unsigned long)nt->FileHeader.TimeDateStamp, (unsigned long long)exe_base);
+    out.put("symbols      %zu KB function name(s)%s\n", symbols.size(),
+            symbols_match ? "" : " (symbols.tsv is for another build or missing)");
+    out.put("runtime      %s\n", wine_version ? fmt("Wine %s", wine_version()).c_str() : "Windows");
+    out.put("first-chance fatal-class exceptions before this report: %ld\n", fatal_count);
+}
+
+void step_prior(Request &r)
+{
+    if (!r.has_prior)
+        return;
+    const Snapshot &p = r.prior;
+    char w[512];
+    where_into(w, sizeof w, p.ctx.Rip, true);
+    out.put("\n== Earlier fatal-class exception: %s (0x%08lx) on thread %lu, %.1f s before this report, at %s\n",
+            code_name(p.rec.ExceptionCode), p.rec.ExceptionCode, p.tid, double(r.ms - p.ms) / 1000, w);
+    for (DWORD i = 0; i < p.rec.NumberParameters && i < 4; i++)
+        out.put("  parameter %lu: 0x%llx\n", i, (unsigned long long)p.rec.ExceptionInformation[i]);
+    static Request pr;
+    pr = r;
+    pr.ctx = p.ctx;
+    pr.lo = p.lo;
+    pr.hi = p.hi;
+    pr.tid = p.tid;
+    section_registers(pr);
+    section_stack(p.ctx, p.lo, p.hi, "Stack of the earlier exception");
+}
+
+void step_close(Request &)
+{
+    CloseHandle(out.file);
+    out.file = INVALID_HANDLE_VALUE;
+}
+
+struct Step {
+    const char *name;
+    void (*run)(Request &);
+};
+
+/* The report is written one step at a time, so a fault in one step costs that step only: the writer
+   notes it and goes on with the next (writer_resume). */
+const Step STEPS[] = {
+    {"the header", step_header},
+    {"the Exception section", [](Request &r) { section_exception(r); }},
+    {"the Registers section", [](Request &r) { section_registers(r); }},
+    {"the Stack section",
+     [](Request &r) { section_stack(r.ctx, r.lo, r.hi, "Stack (unwound with the modules' exception data)"); }},
+    {"the Earlier fatal-class exception section", step_prior},
+    {"the Code around rip and Memory sections", [](Request &r) { section_memory(r); }},
+    {"the Ne heap section", [](Request &r) { section_heap(r); }},
+    {"the Game state section", [](Request &r) { section_state(r); }},
+    {"the Black box sections", [](Request &r) { section_blackbox(r); }},
+    {"the Swofty probes section", [](Request &r) { section_probes(r); }},
+    {"the Addons and Loaded modules sections", [](Request &) { section_modules(); }},
+    {"the Threads section",
+     [](Request &r) {
+         if (r.loader_lock)
+             out.put("\n== Threads\n  not listed: the reporting thread holds the loader lock\n");
+         else
+             section_threads(r);
+     }},
+    {"the loader.log section", [](Request &) { section_log(); }},
+    {"the Minidump section",
+     [](Request &r) {
+         SetEvent(text_event);
+         minidump(r);
+         out.put("\n== Minidump\n  %s\n", dump_note);
+     }},
+    {"closing the report", step_close},
+    {"the summary line", [](Request &r) { summary_line(r); }},
+};
+constexpr LONG NSTEPS = LONG(sizeof STEPS / sizeof *STEPS), CLOSE_STEP = NSTEPS - 2, MAX_WRITER_FAULTS = 8;
+
+void run_steps()
+{
+    while (step_at < NSTEPS) {
+        STEPS[step_at].run(req);
+        out.flush();
+        step_at = step_at + 1;
+    }
+}
+
 void write_report()
 {
     Request &r = req;
@@ -1510,119 +1620,84 @@ void write_report()
     cl("[crash] writing a crash report: %s", r.reason);
     snapshot_modules();
     report_names();
-    char now[32];
-    local_stamp(now, sizeof now, false);
     out.n = out.written = 0;
     out.kept = true;
-    out.put("Swofty crash report\n\n");
-    out.put("written      %s local time\n", now);
-    out.put("reason       %s\n", r.reason);
-    out.put("thread       %lu%s\n", r.tid, r.kind == K_EXIT ? " (the exiting thread)" : "");
-    out.put("process      pid %lu, %.1f s after the core loaded\n", GetCurrentProcessId(),
-            double(r.ms - start_ms) / 1000);
-    {
-        wchar_t path[MAX_PATH] = L"?";
-        GetModuleFileNameW(nullptr, path, MAX_PATH);
-        WIN32_FILE_ATTRIBUTE_DATA fa{};
-        unsigned long long size = 0;
-        if (GetFileAttributesExW(path, GetFileExInfoStandard, &fa))
-            size = ((unsigned long long)fa.nFileSizeHigh << 32) | fa.nFileSizeLow;
-        auto nt = reinterpret_cast<const IMAGE_NT_HEADERS *>(
-            exe_base + reinterpret_cast<const IMAGE_DOS_HEADER *>(exe_base)->e_lfanew);
-        out.put("exe          %ls, %llu bytes, PE timestamp %lu, image base 0x%llx\n", path, size,
-                (unsigned long)nt->FileHeader.TimeDateStamp, (unsigned long long)exe_base);
-    }
-    out.put("symbols      %zu KB function name(s)%s\n", symbols.size(),
-            symbols_match ? "" : " (symbols.tsv is for another build or missing)");
-    out.put("runtime      %s\n", wine_version ? fmt("Wine %s", wine_version()).c_str() : "Windows");
-    out.put("first-chance fatal-class exceptions before this report: %ld\n", fatal_count);
-    out.flush();
-    section_exception(r);
-    section_registers(r);
-    section_stack(r.ctx, r.lo, r.hi, "Stack (unwound with the modules' exception data)");
-    if (r.has_prior) {
-        const Snapshot &p = r.prior;
-        char w[512];
-        where_into(w, sizeof w, p.ctx.Rip, true);
-        out.put("\n== Earlier fatal-class exception: %s (0x%08lx) on thread %lu, %.1f s before this report, at %s\n",
-                code_name(p.rec.ExceptionCode), p.rec.ExceptionCode, p.tid, double(r.ms - p.ms) / 1000, w);
-        for (DWORD i = 0; i < p.rec.NumberParameters && i < 4; i++)
-            out.put("  parameter %lu: 0x%llx\n", i, (unsigned long long)p.rec.ExceptionInformation[i]);
-        static Request pr;
-        pr = r;
-        pr.ctx = p.ctx;
-        pr.lo = p.lo;
-        pr.hi = p.hi;
-        pr.tid = p.tid;
-        section_registers(pr);
-        section_stack(p.ctx, p.lo, p.hi, "Stack of the earlier exception");
-    }
-    out.flush();
-    section_memory(r);
-    out.flush();
-    section_heap(r);
-    out.flush();
-    section_state(r);
-    section_blackbox(r);
-    section_probes(r);
-    out.flush();
-    section_modules();
-    out.flush();
-    if (r.loader_lock)
-        out.put("\n== Threads\n  not listed: the reporting thread holds the loader lock\n");
-    else
-        section_threads(r);
-    out.flush();
-    section_log();
-    out.flush();
-    SetEvent(text_event);
-    minidump(r);
-    out.put("\n== Minidump\n  %s\n", dump_note);
-    out.flush();
-    CloseHandle(out.file);
-    out.file = INVALID_HANDLE_VALUE;
-    summary_line(r);
+    step_at = 0;
+    run_steps();
     InterlockedExchange(&writing, 0);
 }
 
-[[noreturn]] void writer_bail()
+[[noreturn]] void writer_loop()
 {
-    out.put("\n[the report is cut short: the writer faulted while writing it]\n");
-    out.flush();
-    if (out.file != INVALID_HANDLE_VALUE)
-        CloseHandle(out.file);
-    out.file = INVALID_HANDLE_VALUE;
-    InterlockedExchange(&writing, 0);
-    cl("[crash] the crash report writer faulted; swofty\\%s is cut short", report_name);
-    SetEvent(text_event);
-    SetEvent(done_event);
-    ExitThread(1);
+    for (;;) {
+        InterlockedExchange(&writing, 0);
+        SetEvent(text_event);
+        SetEvent(done_event);
+        WaitForSingleObject(go_event, INFINITE);
+        write_report();
+    }
 }
 
-/* A fault on the writer thread while it writes ends the report there instead of the process: the
-   writer resumes in writer_bail on a clean part of its own stack. */
-bool writer_fault(EXCEPTION_POINTERS *e)
+/* Entered in place of the faulting instruction, on a clean part of the writer's own stack. A thread
+   the Threads section had suspended is resumed and a half-written minidump is dropped; the report
+   notes what faulted where and goes on with the next step. */
+[[noreturn]] void writer_resume()
+{
+    if (HANDLE h = suspended) {
+        suspended = nullptr;
+        ResumeThread(h);
+        CloseHandle(h);
+    }
+    LONG step = step_at, n = InterlockedIncrement(&writer_faults);
+    if (step == CLOSE_STEP - 1 && dump_file != INVALID_HANDLE_VALUE) {
+        CloseHandle(dump_file);
+        dump_file = INVALID_HANDLE_VALUE;
+        DeleteFileW(dump_path);
+        out.put("\n== Minidump\n  not written: the writer faulted while writing it\n");
+    }
+    char w[512];
+    where_into(w, sizeof w, fault_ip, false);
+    out.put("\n[%s is cut short: the writer hit %s (0x%08lx) at %s]\n", STEPS[step].name, code_name(fault_code),
+            fault_code, w);
+    out.flush();
+    cl("[crash] the crash report writer hit %s (0x%08lx) at %s in %s of swofty\\%s; %s", code_name(fault_code),
+       fault_code, w, STEPS[step].name, report_name,
+       n >= MAX_WRITER_FAULTS ? "too many faults, the report ends here" : "it goes on with the next step");
+    step_at = n >= MAX_WRITER_FAULTS ? std::max(step + 1, CLOSE_STEP) : step + 1;
+    run_steps();
+    writer_loop();
+}
+
+/* A fatal-class fault on the writer thread while it writes moves it to writer_resume instead of
+   ending the process. veh checks it first, before any other handler; a breakpoint is checked last
+   (last_chance), since other code plants int3 hooks in APIs the writer calls (the offline hook does in
+   GetModuleFileNameW) and its own handler takes those. */
+bool writer_fault(EXCEPTION_POINTERS *e, bool breakpoint)
 {
     if (!writing || GetCurrentThreadId() != writer_tid || !writer_stack_top)
         return false;
     DWORD code = e->ExceptionRecord->ExceptionCode;
-    if (!fatal(code) && code != EXCEPTION_BREAKPOINT)
+    if (breakpoint ? code != EXCEPTION_BREAKPOINT : !fatal(code))
         return false;
-    e->ContextRecord->Rip = reinterpret_cast<DWORD64>(&writer_bail);
+    fault_code = code;
+    fault_ip = reinterpret_cast<uintptr_t>(e->ExceptionRecord->ExceptionAddress);
+    e->ContextRecord->Rip = reinterpret_cast<DWORD64>(&writer_resume);
     e->ContextRecord->Rsp = ((writer_stack_top - 0x4000) & ~0xfull) - 8;
     return true;
+}
+
+LONG CALLBACK last_chance(EXCEPTION_POINTERS *e)
+{
+    return writer_fault(e, true) ? EXCEPTION_CONTINUE_EXECUTION : EXCEPTION_CONTINUE_SEARCH;
 }
 
 DWORD WINAPI writer(void *)
 {
     uintptr_t lo;
     stack_bounds(lo, writer_stack_top);
-    for (;;) {
-        WaitForSingleObject(go_event, INFINITE);
-        write_report();
-        SetEvent(text_event);
-        SetEvent(done_event);
-    }
+    WaitForSingleObject(go_event, INFINITE);
+    write_report();
+    writer_loop();
 }
 
 void read_addons(const std::wstring &path)
@@ -1806,6 +1881,7 @@ void crash_attach(SwoftyApi *a, const std::wstring &dir)
     prune(L"crash-*.txt", KEEP_REPORTS);
     prune(L"crash-*.dmp", KEEP_DUMPS);
     AddVectoredExceptionHandler(1, veh);
+    AddVectoredExceptionHandler(0, last_chance);
     previous = SetUnhandledExceptionFilter(unhandled);
     auto e = safetyhook::InlineHook::create(reinterpret_cast<void *>(GetProcAddress(k32, "ExitProcess")), hooked_exit);
     auto tp = safetyhook::InlineHook::create(reinterpret_cast<void *>(GetProcAddress(k32, "TerminateProcess")), hooked_terminate);
