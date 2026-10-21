@@ -74,7 +74,7 @@ At the press, a content tile whose menu systems (`+0x150..+0x178`) are unset tak
 
 ## Data your addon must provide
 
-The core checks the first four rows once the database has loaded and logs the result for each content: `[career] content '<id>' ready: mode ... statId ..., data group ... (entrant list stat_id ...)`, or `[career] content '<id>' (<addon>) is off: <reason>`. A content that is off gets no tile and its mode keeps the stock gate.
+The core checks the first four rows once the database has loaded and logs the result for each content: `[career] content '<id>' ready: mode ... statId ..., data group ... (entrant list stat_id ...)`, or `[career] content '<id>' (<addon>) not ready: <reason>`. A content that is not ready is checked again every second and each time the career tiles are built, and the reason is logged again only when it changes. Until it is ready it gets no tile and its mode keeps the stock gate; `info()` reports it `live` with the reason in `why`.
 
 | Requirement | Checked | Why |
 |---|---|---|
@@ -97,7 +97,7 @@ The F1 1990 addon's `tools/career.py` and `tools/grid.py` write a complete set o
 | `is(data_group, career = nullptr)` | the career is filed under that data group |
 | `content::pressed(std::string *out)` | `ok` with the data group of the last career content tile pressed, stock ones included; `late` before the first press |
 | `content::pressed_is(data_group)` | the last pressed tile has that data group |
-| `content::info(id, Info *out)` | a content's state (`queued`, `live`, `off` with `why`), its `mode_stat_id`, `data_group_index`, and its tile and press counts |
+| `content::info(id, Info *out)` | a content's state (`queued`, `live`, `off` with `why`; `live` with `why` while its data is not ready), its `mode_stat_id`, `data_group_index`, and its tile and press counts |
 | `content::available()` | the core implements contents and the `career` feature is on |
 
 `data_group` reads the career the way the save-slot predicate does: each championship's `CareerSetupComponent` data-group index into its entrant-list names. Use `is()` to gate behaviour on one career, for example on the [`career.loaded`](./events#flow-and-career-events) event:

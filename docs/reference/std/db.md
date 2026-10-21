@@ -35,10 +35,10 @@ The core keeps one decoded copy per record, so a returned pointer normally stays
 | `string_at(key, out)` | one `const char *` field |
 | `bool_at(key, out)` | one `int32_t` field |
 | `open(table, cursor)` | positions a cursor at the first row |
-| `row(table, label, cursor)` | positions a cursor at a labelled row |
+| `row(table, label, cursor)` | positions a cursor at the row whose `_metadata_` is `label`, among rows 0 to `_<row>_instancecount_` - 1 |
 | `step(cursor)` | advances; `late` when the table is exhausted |
 | `cell(cursor, field, out)` | one field of the cursor's current row |
-| `row_name(cursor)` | the current row's label, or `nullptr` |
+| `row_name(cursor)` | the current row's label (its `_metadata_`), or `nullptr` |
 
 When you read a whole `SwoftyDbValue`, its `tag` tells you which of `i`, `f` or `s` holds the value. The tag is a `swofty::db::Tag`: `integer`, `real`, `string`, `enumeration`, `id` or `boolean`. You own the `SwoftyDbCursor`, so zero-initialise it before calling `open` or `row`.
 
