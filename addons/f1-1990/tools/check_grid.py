@@ -6,7 +6,9 @@ usage: check_grid.py <stock db> <db built without the grid ops> <db built with t
 1. Stock: the grid ops change no stock record except the row counts of the tables they add rows to.
 2. Rows: every seat of f1_1990 resolves to a 1990 team, an entrant, a 1990 driver with a statistics holder and a look;
    labels, stat ids and car numbers are unique; the career list, pool, setup mode, standings and the per-team rows
-   of the f1_career_1990 data group exist. Missing <team>_1990 vehicle rows are reported, not failed (cars lane).
+   of the f1_career_1990 data group exist; the f1_1990 track layer loads the 1990 worlds and no other layer lists
+   f1_1990; the f1_1990 game setup mode uses the f1_1990 entrant setup mode. Missing <team>_1990 vehicle rows are
+   reported, not failed (cars lane).
 """
 import argparse
 import json
@@ -20,6 +22,7 @@ import gamedb as g  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import grid  # noqa: E402
+import tracks  # noqa: E402
 from season import slots  # noqa: E402
 
 
@@ -109,6 +112,15 @@ def rows_check(db, cars, lists, fail):
     mode = db.find(grid.SETUP_MODES, "entrant_setup_mode", grid.SETUP_MODE)
     if not mode or db.get(f"{mode}.max_entrants") != str(cars):
         fail(f"entrant setup mode {grid.SETUP_MODE} missing or max_entrants != {cars}")
+    layer = db.find(grid.TRACK_LAYERS, "TrackLayer", grid.SETUP_MODE)
+    if not layer or db.get(f"{layer}.worldEri") != tracks.TRACK_LAYER:
+        fail(f"track layer {grid.SETUP_MODE} missing or not on the 1990 worlds")
+    for p, label in db.rows(grid.TRACK_LAYERS, "TrackLayer"):
+        if label != grid.SETUP_MODE and grid.SETUP_MODE in (db.get(f"{p}.game_setup_modes") or "").split(","):
+            fail(f"track layer {label} also lists {grid.SETUP_MODE}")
+    setup = db.find(grid.GAME_SETUP_MODES.rsplit(".", 1)[0], "game_setup_mode", grid.SETUP_MODE)
+    if setup and db.get(f"{setup}.entrant_setup_modes") != grid.SETUP_MODE:
+        fail(f"game setup mode {grid.SETUP_MODE} does not use entrant setup mode {grid.SETUP_MODE}")
     std = db.find(grid.STANDINGS, "standings", grid.TEAM_STANDINGS)
     if not std or {db.get(f"{p}.team") for p, _ in db.rows(std, "team_reference")} != team_rows:
         fail(f"{grid.TEAM_STANDINGS} does not list the {len(team_rows)} teams")

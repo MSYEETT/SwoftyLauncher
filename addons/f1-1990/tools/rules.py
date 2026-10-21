@@ -44,7 +44,6 @@ DATASETS = "track_data.game_setup"
 DATASET = f"{DATASETS}.TrackDataSet[_metadata_={NAME}]"
 TAG_FOLDER = "options_system.context.tag_folder[_metadata_=game_setup_mode]"
 TAG = f"{TAG_FOLDER}.game_setup_mode_tag[_metadata_={TAG_NAME}].restrictions_0"
-LAYERS = "track_data.track_layers.TrackLayer"
 PROBES = "tracks.ibl_probes.IblProbes_0"
 
 SESSION_ROWS = [
@@ -305,9 +304,7 @@ def mode(fields):
 
 
 def appends(stock):
-    layer = stock.row(LAYERS, "f1_26")
     return [
-        set_(f"{LAYERS}[_metadata_=f1_26]", "game_setup_modes", f"{stock.text(f'{layer}.game_setup_modes')},{NAME}"),
         set_(PROBES, "game_setup_modes", f"{stock.text(f'{PROBES}.game_setup_modes')},{NAME}"),
     ]
 

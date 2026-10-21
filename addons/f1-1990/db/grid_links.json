@@ -1,0 +1,12 @@
+{
+ "schema_version": 1,
+ "fields": {},
+ "ops": [
+  {
+   "op": "set",
+   "select": "game_setup.game_setup_modes.game_setup_mode[_metadata_=f1_1990]",
+   "field": "entrant_setup_modes",
+   "value": "f1_1990"
+  }
+ ]
+}
