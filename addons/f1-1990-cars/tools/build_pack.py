@@ -13,7 +13,6 @@ erp/tyrecompounds/tyrecompounds.erp, assets/cars.json (the file.put and group.re
 test_grand_prix option's seat swaps); the last two are committed.
 """
 import argparse
-import copy
 import json
 import os
 import re
@@ -27,6 +26,7 @@ sys.path.insert(0, os.path.join(REPO, 'tools'))
 sys.path.insert(0, os.path.join(REPO, 'addons', 'f1-1990', 'tools'))
 
 import erpw
+import vtf
 import audio
 import cars as C
 from pkg import Pkg, Val, to_py
@@ -58,7 +58,9 @@ POD_CAMERA = {
 POD_ATTACHMENTS = ('pod', 'podoffset', 'pod_left', 'pod_right')
 POD_FOV = 88.0
 TYRE_SET = f'eaid://{C.SOURCE_PACKAGE}/shared/tyres/'
-ALIASES = (f'eaid://{C.SOURCE_PACKAGE}/tyrecompounds/',)
+COMPOUNDS = (b'F1_2026_', b'F1_1990_')
+COMPOUND_FILE = (b'/tyrecompounds/f1_2026_compounds.vcmpd', b'/tyrecompounds/f1_1990_compounds.vcmpd')
+TYRE_GROUP = (b'F1_2026', b'F1_1990')
 
 OLD = f'eaid://{C.SOURCE_PACKAGE}/'.encode()
 NEW = f'eaid://{C.PACKAGE_FOLDER}/'.encode()
@@ -220,30 +222,65 @@ def build_car(c, src, out, bspec=False):
         raise ValueError(f'{c.team}: the B-spec archive carries A-package resources {other[:3]}')
     sound = set_audio(e, c)
     cams = move_pod_cameras(e, c)
+    groups = set_tyre_group(e)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     e.to_file(out)
     return {'team': c.team, 'folder': c.folder, 'stem': c.stem, 'bspec': bspec, 'source': os.path.relpath(src, TRIES),
-            'audio': sound, 'pod_cameras': len(cams),
+            'audio': sound, 'pod_cameras': len(cams), 'tyre_groups': groups,
             'resources': len(e.res), 'renamed': renamed, 'rewritten': rewritten, 'handling_dropped': dropped,
             'folder_copies': extra, 'bytes': os.path.getsize(out)}
+
+
+def set_tyre_group(e):
+    done = 0
+    for r in e.res:
+        if kind(r) != 'VTF':
+            continue
+        f1 = e.frag_data(r, 1)
+        root = vtf.parse(e.frag_data(r, 0))
+        nodes = [n for n, _ in vtf.walk(root) if n.name == b'TyrePhysicsGroup']
+        if len(nodes) != 1 or nodes[0].attr(b'value') != TYRE_GROUP[0]:
+            raise ValueError(f'{r.name}: TyrePhysicsGroup {[n.attr(b"value") for n in nodes]}')
+        nodes[0].set_attr(b'value', TYRE_GROUP[1])
+        e.set_frag(r, 0, vtf.write(root))
+        e.set_frag(r, 1, vtf.tsmd(root, int.from_bytes(f1[4:8], 'little')))
+        done += 1
+    return done
+
+
+def rename_compounds(e):
+    vcmpd = [r for r in e.res if kind(r) == 'VCMPD']
+    if len(vcmpd) != 1:
+        raise ValueError(f'{len(vcmpd)} VCMPD resources')
+    r = vcmpd[0]
+    data = e.frag_data(r, 0)
+    if data.count(COMPOUNDS[0]) != 16 or COMPOUNDS[1] in data:
+        raise ValueError(f'{r.name}: {data.count(COMPOUNDS[0])} {COMPOUNDS[0].decode()} compounds')
+    e.set_frag(r, 0, data.replace(COMPOUNDS[0], COMPOUNDS[1]))
+    name = r.name.encode()
+    if not name.endswith(COMPOUND_FILE[0]):
+        raise ValueError(f'{r.name}: not the 2026 compound file')
+    r.name = (name[:-len(COMPOUND_FILE[0])] + COMPOUND_FILE[1]).decode()
+    return r.name
 
 
 def build_plain(src, out):
     e = erpw.Erp(src)
     tyres = [r for r in e.res if r.name.startswith(TYRE_SET)]
     e.res = [r for r in e.res if not r.name.startswith(TYRE_SET)]
-    alias = [copy.deepcopy(r) for r in e.res if r.name.startswith(ALIASES)]
     renamed, rewritten = rename_archive(e)
     left = leftovers(e, OLD)
     if left:
         raise ValueError(f'{src}: {left} eaid reference(s) still name {OLD.decode()}')
     if leftovers(e, NEW + b'shared/tyres/'):
         raise ValueError(f'{src}: a resource references the tyre set under {NEW.decode()}')
-    e.res += alias + tyres
+    groups = set_tyre_group(e)
+    compounds = rename_compounds(e) if any(kind(r) == 'VCMPD' for r in e.res) else None
+    e.res += tyres
     os.makedirs(os.path.dirname(out), exist_ok=True)
     e.to_file(out)
     return {'source': src, 'resources': len(e.res), 'renamed': renamed, 'rewritten': rewritten,
-            'aliases': len(alias), 'tyre_set': len(tyres), 'bytes': os.path.getsize(out)}
+            'tyre_set': len(tyres), 'tyre_groups': groups, 'compounds': compounds, 'bytes': os.path.getsize(out)}
 
 
 def ops():
