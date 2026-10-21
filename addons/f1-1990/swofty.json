@@ -6,7 +6,7 @@
   "author": "Swofty",
   "description": "Turns the F1 2026 season into the 1990 season: 1990 teams, drivers, calendar, rules and cars, in Driver Career and Grand Prix.",
   "license": "AGPL-3.0-or-later",
-  "kind": ["database", "erp", "native"],
+  "kind": ["database", "erp", "native", "files"],
   "compat": { "game": "f1_25", "game_builds": [">=25251167"], "seasons": ["f1_2026"], "launcher": ">=1.1.0" },
   "requires": [
     { "id": "swofty.core", "version": ">=0.2.11" }
@@ -112,12 +112,18 @@
     }
   ],
   "operations": {
-    "database": ["db/career.json", "db/grid.json", "db/grid_standings.json", "db/rules.json", "db/cars.json"],
+    "database": ["db/career.json", "db/grid.json", "db/grid_standings.json", "db/rules.json", "db/cars.json", "db/audio.json"],
     "assets": ["db/rules_text.json", "lang/grid.json", "db/career-lang.json", "lang/cars.json", "cars/handling.json"],
     "erp": ["erp/portrait.json"],
     "native": [
       { "dll": "native/f1_1990.dll", "early": true }, { "dll": "native/f1_1990_tyres.dll" },
       { "dll": "native/f1_1990_replay.dll" }, { "dll": "native/f1_1990_ui.dll" }, { "dll": "native/f1_1990_voice.dll" }
+    ],
+    "files": [
+      { "source": "files/audio/v12_1990.bdl", "target": "audio/2025/bundles/v12_1990.bdl" },
+      { "source": "files/audio/v10_1990.bdl", "target": "audio/2025/bundles/v10_1990.bdl" },
+      { "source": "files/audio/v8_1990.bdl", "target": "audio/2025/bundles/v8_1990.bdl" },
+      { "source": "files/audio/v8j_1990.bdl", "target": "audio/2025/bundles/v8j_1990.bdl" }
     ]
   }
 }

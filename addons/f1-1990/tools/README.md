@@ -149,3 +149,7 @@ Writes `cars/handling/<ers>_<tyre_size>/<folder>_handling.erp` (one archive per 
 ## cars.py
 
 The 1990 car table: team, vehicle row, car folder (asset_filename and AI data), donor 2026 folder, resource stem, stat_id, chassis, engine. Shared by `build_cars.py` and the car pack's `build_pack.py`.
+
+## build_audio.py, audio.py
+
+`build_audio.py --game <F1 25> [--write]` writes `db/audio.json`: four `audio.audio_bundle_settings` rows for the 1990 bundles and one `audio.audio_car_data.<label>` row per 1990 car, every field copied from its donor's stock row except `_metadata_` and `bundle_name`. It reads the donor labels from the stock 2026 carmodel layers and fails if any key it writes is already in the stock database. Without `--write` it builds into `build/` and exits 1 when that differs from the shipped file. `audio.py` holds the label rule (`label_1990`), the `switchName` reader and rewriter the car pack's `build_pack.py` uses, and the engine-to-bundle table.
