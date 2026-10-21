@@ -17,6 +17,7 @@ import copy
 import json
 import os
 import re
+import struct
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -28,6 +29,7 @@ sys.path.insert(0, os.path.join(REPO, 'addons', 'f1-1990', 'tools'))
 import erpw
 import audio
 import cars as C
+from pkg import Pkg, to_py
 
 TRIES = '/mnt/work/.mp45b/porter_a/tries'
 TEAM_ERP = 'F1 25/2025_asset_groups/f1_2026_vehicle_package/teams/{d}/wep/{d}.erp'
@@ -47,6 +49,13 @@ SOURCES_B = {
 }
 COMMON = '/mnt/work/.mp45b/porter_a/tries/tyres13cm2/common.erp'
 TYRES = '2025_asset_groups/f1_2026_vehicle_package/tyrecompounds/tyrecompounds.erp'
+POD_CAMERA = {
+    'mclaren': (0.658, 0.184), 'ferrari': (0.652, 0.188), 'williams': (0.626, -0.043), 'benetton': (0.630, 0.231),
+    'tyrrell': (0.634, 0.328), 'lotus': (0.602, -0.030), 'march': (0.634, 0.328), 'larrousse': (0.652, 0.188),
+    'ligier_prost': (0.658, 0.184), 'minardi': (0.634, 0.328), 'brabham': (0.602, -0.030), 'dallara': (0.626, -0.043),
+    'arrows': (0.652, 0.188),
+}
+POD_ATTACHMENTS = ('pod', 'podoffset', 'pod_left', 'pod_right')
 TYRE_SET = f'eaid://{C.SOURCE_PACKAGE}/shared/tyres/'
 ALIASES = (f'eaid://{C.SOURCE_PACKAGE}/tyrecompounds/',)
 
@@ -130,6 +139,34 @@ def leftovers(e, needle):
     return n
 
 
+def move_pod_cameras(e, c):
+    y, z = POD_CAMERA[c.team]
+    moved = []
+    for r in e.res:
+        if kind(r) != 'WOInstances' or not re.search(r'-camscargame(_ss)?\.layer$', r.name):
+            continue
+        suffix = '_ss' if r.name.endswith('_ss.layer') else ''
+        data = bytearray(e.frag_data(r, 0))
+        offsets = {}
+        for inst in to_py(Pkg(bytes(data)).root)['instances']:
+            ap = inst.get('overrides', {}).get('AttachmentPoint') or {}
+            if ap.get('Attachment name') in {a + suffix for a in POD_ATTACHMENTS} and 'Offset' in ap:
+                offsets[ap['Attachment name']] = ap['Offset']
+        pod = offsets.get('pod' + suffix)
+        if pod is None:
+            raise ValueError(f'{c.team}: {r.name} has no pod attachment')
+        dy, dz = y - pod[1], z - pod[2]
+        for name, off in offsets.items():
+            hits = [i for i in range(len(data) - 15)
+                    if all(abs(a - b) < 2e-6 for a, b in zip(struct.unpack_from('<4f', data, i), off))]
+            if len(hits) != 1:
+                raise ValueError(f'{c.team}: {r.name} {name} offset {off} found {len(hits)} times')
+            struct.pack_into('<2f', data, hits[0] + 4, off[1] + dy, off[2] + dz)
+            moved.append(name)
+        e.set_frag(r, 0, bytes(data))
+    return moved
+
+
 def set_audio(e, c):
     layers = [r for r in e.res if kind(r) == 'WOInstances' and r.name.endswith('-carmodel.layer')]
     if not layers:
@@ -173,10 +210,11 @@ def build_car(c, src, out, bspec=False):
     if other:
         raise ValueError(f'{c.team}: the B-spec archive carries A-package resources {other[:3]}')
     sound = set_audio(e, c)
+    cams = move_pod_cameras(e, c)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     e.to_file(out)
     return {'team': c.team, 'folder': c.folder, 'stem': c.stem, 'bspec': bspec, 'source': os.path.relpath(src, TRIES),
-            'audio': sound,
+            'audio': sound, 'pod_cameras': len(cams),
             'resources': len(e.res), 'renamed': renamed, 'rewritten': rewritten, 'handling_dropped': dropped,
             'folder_copies': extra, 'bytes': os.path.getsize(out)}
 
