@@ -21,7 +21,7 @@ for m in addons/t_*.cpp; do
     case $name in
     t_chain_b) dest=$OUT/game/swofty/mods ;;
     t_stage_*) dest=$OUT/stages ;;
-    t_ntpage) dest=$OUT ;;
+    t_ntpage | t_int3hook) dest=$OUT ;;
     *) dest=$OUT/game/swofty/addons ;;
     esac
     "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -I../../packages/sdk/include -I../include -shared -s \
@@ -465,6 +465,36 @@ check "ntpage: hooking a function on that ntdll page finishes the crash init" '\
 check "ntpage: NtTerminateProcess is hooked there" '\[crash\] crash reports: .*NtTerminateProcess hooked'
 check "ntpage: the exit still gets a report" '\[crash\] crash report .*crash-.*: ExitProcess\(255'
 [[ $code == 255 ]] && echo "ok  : ntpage: process ended with 255" || { echo "FAIL: ntpage: process ended with $code"; status=1; }
+for skip in 0 1; do
+    echo "==== int3$([[ $skip == 1 ]] && echo ', unowned on the writer')"
+    cp "$OUT/t_int3hook.dll" "$SW/mods/core/int3_hook.dll"
+    rm -f "$SW"/crash-*.txt "$SW"/crash-*.dmp
+    code=0
+    T_INT3_SKIP_WRITER=$skip timeout 120 "${PIN[@]}" xvfb-run -a wine "$OUT/game/F1_25.exe" crash >"$OUT/int3.out" 2>&1 || code=$?
+    rm -f "$SW/mods/core/int3_hook.dll"
+    grep -F '[int3]' "$OUT/int3.out" || true
+    grep -F '[crash]' "$LOG"
+    if grep -q '^\[int3\] breakpoints planted on 2 GetModuleFileName' "$OUT/int3.out"; then
+        echo "ok  : int3: an injected hook serves int3 breakpoints on GetModuleFileNameW and GetModuleFileNameA"
+    else
+        echo "FAIL: int3: the injected hook planted no breakpoints"
+        status=1
+    fi
+    check "int3: a report with a minidump is written" '\[crash\] crash report .*crash-.*\.txt: unhandled ACCESS_VIOLATION.*minidump crash-.*\.dmp'
+    if [[ $skip == 0 ]]; then
+        if grep -qE 'crash report writer (faulted|hit)' "$LOG" || grep -q 'cut short' "$SW"/crash-*.txt; then
+            echo "FAIL: int3: the writer took the hook's breakpoint for a fault of its own"
+            status=1
+        else
+            echo "ok  : int3: the writer leaves the hook's breakpoints to the hook"
+        fi
+        parse_report "Fake_Crash_Here" "Fake_Crash_Here,writing 0x10,exe          Z:" || status=1
+    else
+        check "int3: the writer logs the unowned breakpoint and goes on" '\[crash\] the crash report writer hit BREAKPOINT \(0x80000003\) at .* in the header of swofty.crash-.*; it goes on with the next step'
+        parse_report "Fake_Crash_Here" "[the header is cut short: the writer hit BREAKPOINT (0x80000003) at ,Fake_Crash_Here,writing 0x10" || status=1
+    fi
+    [[ $code != 0 ]] && echo "ok  : int3: process ended with $code" || { echo "FAIL: int3: process exited 0"; status=1; }
+done
 echo "==== stages"
 LOG=$SG/swofty/loader.log
 SWOFTY_EARLY_STAGE=1 "${PIN[@]}" xvfb-run -a wine "$SG/F1_25.exe" stages || status=1
