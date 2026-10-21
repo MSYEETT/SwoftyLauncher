@@ -53,6 +53,15 @@ To fix it:
 
 The next launch checks the game again and continues once it matches Steam's copy.
 
+## If the game closes as it starts
+
+F1 25 runs one copy at a time. A copy started while another runs closes itself before its window opens.
+
+- If F1 25 is already running when you press **Play**, the modded copy is not started and an **F1 25 is already running** dialog appears.
+- If the modded copy closes itself as it starts, an **F1 25 was opened twice** dialog appears when another copy was running, and **F1 25 closed as it started** when none was.
+
+To fix it, close F1 25, check that no `F1_25.exe` process is left (`pgrep -l F1_25`), then press **Play** once.
+
 ## If the game crashes
 
 The session puts the game folder back to vanilla when the game exits, crash or not. If the launcher was closed first, it puts the folder back the next time it starts. See [Restoring the game](/using/profiles-and-restoring).
