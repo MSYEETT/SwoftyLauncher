@@ -17,7 +17,6 @@ import copy
 import json
 import os
 import re
-import struct
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -46,11 +45,10 @@ SOURCES_B = {
     'minardi': 'gridc13b_minardi', 'brabham': 'gridc13b_brabham', 'dallara': 'gridc13b_dallara',
     'arrows': 'gridc13b_arrows',
 }
-COMMON = '/mnt/work/.mp45b/porter_a/tries/tyres13cm/common.erp'
+COMMON = '/mnt/work/.mp45b/porter_a/tries/tyres13cm2/common.erp'
 TYRES = '2025_asset_groups/f1_2026_vehicle_package/tyrecompounds/tyrecompounds.erp'
-SIDEWALL_STRIPE = 908
-SIDEWALLS = {'sidewall_super_soft': ((0.9816, 0.8503, 0.8827), (0.9484085, 0.3511192, 0.3955915))}
-ALIASES = (f'eaid://{C.SOURCE_PACKAGE}/shared/tyres/', f'eaid://{C.SOURCE_PACKAGE}/tyrecompounds/')
+TYRE_SET = f'eaid://{C.SOURCE_PACKAGE}/shared/tyres/'
+ALIASES = (f'eaid://{C.SOURCE_PACKAGE}/tyrecompounds/',)
 
 OLD = f'eaid://{C.SOURCE_PACKAGE}/'.encode()
 NEW = f'eaid://{C.PACKAGE_FOLDER}/'.encode()
@@ -185,26 +183,20 @@ def build_car(c, src, out, bspec=False):
 
 def build_plain(src, out):
     e = erpw.Erp(src)
+    tyres = [r for r in e.res if r.name.startswith(TYRE_SET)]
+    e.res = [r for r in e.res if not r.name.startswith(TYRE_SET)]
     alias = [copy.deepcopy(r) for r in e.res if r.name.startswith(ALIASES)]
     renamed, rewritten = rename_archive(e)
     left = leftovers(e, OLD)
     if left:
         raise ValueError(f'{src}: {left} eaid reference(s) still name {OLD.decode()}')
-    e.res += alias
-    for r in e.res:
-        stem = r.name.rsplit('/', 1)[-1].removesuffix('.material')
-        if '/shared/tyres/materials/' in r.name and stem in SIDEWALLS:
-            data = bytearray(e.frag_data(r, 0))
-            was, rgb = SIDEWALLS[stem]
-            have = struct.unpack_from('<3f', data, SIDEWALL_STRIPE)
-            if any(abs(a - b) > 1e-3 for a, b in zip(have, was)):
-                raise ValueError(f'{r.name}: stripe colour {have}, expected {was}')
-            struct.pack_into('<3f', data, SIDEWALL_STRIPE, *rgb)
-            e.set_frag(r, 0, bytes(data))
+    if leftovers(e, NEW + b'shared/tyres/'):
+        raise ValueError(f'{src}: a resource references the tyre set under {NEW.decode()}')
+    e.res += alias + tyres
     os.makedirs(os.path.dirname(out), exist_ok=True)
     e.to_file(out)
     return {'source': src, 'resources': len(e.res), 'renamed': renamed, 'rewritten': rewritten,
-            'aliases': len(alias), 'bytes': os.path.getsize(out)}
+            'aliases': len(alias), 'tyre_set': len(tyres), 'bytes': os.path.getsize(out)}
 
 
 def ops():
