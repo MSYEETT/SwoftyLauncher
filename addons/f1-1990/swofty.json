@@ -23,6 +23,11 @@
       "binds": "native"
     },
     {
+      "id": "pu_rules_1990", "type": "toggle", "label": "1990 power-unit rules", "default": true,
+      "description": "No power-unit wear and no power-unit grid penalties for the 1990 cars (f1_1990 and f1_1990b packages); every other car keeps the stock rules.",
+      "binds": "native"
+    },
+    {
       "id": "dedicated_profile_saves", "type": "toggle", "label": "Separate profile save", "default": false,
       "description": "Keeps this profile's whole game profile and every career in its own save (savegame@f1990), apart from other profiles. Off: 1990 careers sit in their own slots next to the stock careers.",
       "binds": "native"
@@ -130,7 +135,8 @@
       { "dll": "native/f1_1990_replay.dll" }, { "dll": "native/f1_1990_ui.dll" },
       { "dll": "native/f1_1990_voice.dll", "files": ["data/flavio-strings.json"] },
       { "dll": "native/f1_1990_bspec.dll" },
-      { "dll": "native/f1_1990_agent.dll", "early": true }, { "dll": "native/f1_1990_tabs.dll" }
+      { "dll": "native/f1_1990_agent.dll", "early": true }, { "dll": "native/f1_1990_tabs.dll" },
+      { "dll": "native/f1_1990_pu.dll" }
     ],
     "files": [
       { "source": "files/audio/v12_1990.bdl", "target": "audio/2025/bundles/v12_1990.bdl" },

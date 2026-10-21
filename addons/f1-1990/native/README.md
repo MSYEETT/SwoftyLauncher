@@ -107,3 +107,16 @@ It logs `[f1-1990] agent: character list built from 0x... (N rows, 1990 career .
 A separate DLL. The `driver_career_driver_select_header` view model builds its tabs with the shared tab builder 0x144251f40 from the content group `driver_career_driver_select_header` (`header_f1`, `header_selected_team_icon`, `header_f2`, `header_icon`; 0x30-byte entries, tab name at +0x08). `site_Game_DriverSelectHeader_BuildTabs` (the call at 0x141a591f2) is redirected: in a 1990 wizard the builder gets a copy of the group without `header_f2` and `header_icon`. `Game_DriverSelectHeader_SetTabState` (0x141a59fe0, `content_visible` and `enabled` of tab N, called with fixed indices such as 0, 1 and 3) is wrapped to skip an index past the header's tabs. A wizard is a 1990 one when `F1990_CareerWizard1990` (from `f1_1990_ui.dll`) is 1 and no other career is loaded. Other careers keep all four tabs.
 
 It logs `[f1-1990] driver select: 1990 wizard; header tabs 2 of 4 (F2 and Icons hidden)` and `driver select: tab 3 state skipped, the header has 2 tab(s)`.
+
+## Power-unit rules (`f1_1990_pu.dll`)
+
+A separate DLL; option `pu_rules_1990` (default on). The career's `EngineManagementComponent` keeps a 0xa60-byte record per driver with seven component slots (record +0x18, 0x10 apart; each holder: fitted components at +0x08, 0x10 each with wear at +0x04, fitted index +0x30, session wear range +0x3c/+0x40). Component configs are 0x250-byte sets per season (`engine_management.components`, read by 0x1411cb150): threshold +0x04, `first_new_grid_drop` +0x18, `subsequent_grid_drop` +0x1c, `parc_ferme_grid_drop` +0x20, `allocation` +0x24, wear ranges +0x28..+0x3c.
+
+| binding | address | use |
+|---|---|---|
+| `Game_EngineMgmt_ApplySessionWear` | 0x1411d1560 | wrapped: amount 0 for a 1990 car (pending components are still fitted, the wear copied to the car unchanged) |
+| `Game_EngineMgmt_AddGridPenalty` | 0x1411d0740 | wrapped: nothing filed for a 1990 car; its only callers are the new-component fit 0x1411d00e0 and the component switch 0x1411cf930 (parc fermé) |
+
+A car is a 1990 car when the driver's career entrant row (driver key low byte = `id_lo` +0x50, high word = `id_hi` +0x52) has a vehicle (+0x5c, stat id in the high word) whose `entrants.vehicles` row has `vehicle_package` `f1_1990` or `f1_1990b`; that list is read on `career.loaded`. Other packages, and every mode without a career, keep the stock rules.
+
+It logs `[f1-1990] power unit: N vehicle(s) of the f1_1990 and f1_1990b packages run without power-unit wear or grid penalties`, then per driver `session wear X skipped` and `N-place grid penalty (reason R) dropped` (first 8 and 16).
