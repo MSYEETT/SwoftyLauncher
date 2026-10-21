@@ -75,7 +75,14 @@ PACKAGE_FIELDS = ['_metadata_', 'ai_package_folder', 'available', 'blob_shadow_d
                   'driver_animation_set', 'garage_asset_group', 'has_cockpit_halo', 'is_26_aero_regulations',
                   'is_equal_performance_vehicle_package', 'is_story_vehicle_package', 'pit_stop_asset_group',
                   'pit_wall_asset_group', 'resource_path', 'resource_path_specialisation', 'stat_id',
-                  'tyre_compounds_asset_group']
+                  'tyre_compounds_asset_group'] + [
+    f'ai_vehicle_package_config.driver_parameter_maps.{name}.{field}'
+    for name in ('alongside_awareness', 'alongside_space_factor', 'braking_distance_factor', 'brake_off_time',
+                 'corner_curvature_factor', 'follow_speed_factor', 'slide_confidence', 'throttle_confidence',
+                 'throttle_exit_fallibility', 'throttle_on_time', 'wet_weather_ability')
+    for field in ('characteristic', 'high_difficulty_high_characteristic_mapping',
+                  'high_difficulty_low_characteristic_mapping', 'low_difficulty_high_characteristic_mapping',
+                  'low_difficulty_low_characteristic_mapping')]
 PACKAGE_SET = {
     'ai_package_folder': C.AI_FOLDER,
     'tyre_compounds_asset_group': f'{C.PACKAGE_FOLDER}/tyrecompounds/tyrecompounds',
