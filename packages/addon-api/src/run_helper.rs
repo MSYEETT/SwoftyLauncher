@@ -12,9 +12,10 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::helper::{API_VERSION, Built, Call, HostCall, Invalidate, Reply, Request, Welcome};
+use crate::helper::{ADDON_CALLS, API_VERSION, Built, Call, HostCall, Invalidate, Reply, Request, Welcome};
 use crate::launcher::{
-    Addon, BuildCx, Claim, Cx, GameFiles, GameStatus, ProfileInfo, ProfileTracks, Progress, StateStore,
+    Addon, AddonInfo, AddonStore, BuildCx, Claim, Cx, GameFiles, GameStatus, ProfileInfo, ProfileTracks,
+    Progress, StateStore,
 };
 use crate::{Error, Result};
 
@@ -50,6 +51,7 @@ struct Session {
     data_dir: PathBuf,
     cache_dir: PathBuf,
     profile: ProfileInfo,
+    manages_addons: bool,
 }
 
 fn dispatch(
@@ -64,6 +66,9 @@ fn dispatch(
             data_dir: hello.data_dir,
             cache_dir: hello.cache_dir,
             profile: hello.profile,
+            manages_addons: ADDON_CALLS
+                .iter()
+                .all(|c| hello.host_calls.iter().any(|h| h == c)),
         });
         return json(Welcome { api: API_VERSION });
     }
@@ -81,6 +86,11 @@ fn dispatch(
         game,
         host as &dyn StateStore,
     );
+    // An older launcher stops a plugin that sends a host call it doesn't know.
+    let cx = match session.manages_addons {
+        true => cx.with_addons(host as &dyn AddonStore),
+        false => cx,
+    };
     match call {
         Call::View { section } => addon.view(&cx, &section).map_err(text).and_then(json),
         Call::Event { section, event } => addon.event(&cx, &section, event).map_err(text).and_then(json),
@@ -294,6 +304,32 @@ impl GameFiles for Host {
                 .map(Some)
                 .map_err(|e| Error::Other(format!("the host sent bad tracks: {e}"))),
         }
+    }
+}
+
+impl AddonStore for Host {
+    fn list(&self) -> Result<Vec<AddonInfo>> {
+        let v = self.call(HostCall::Addons).map_err(Error::Other)?;
+        serde_json::from_value(v).map_err(|e| Error::Other(format!("the host sent bad addons: {e}")))
+    }
+
+    fn install(&self, path: &std::path::Path) -> Result<AddonInfo> {
+        let v = self
+            .call(HostCall::InstallAddon { path: path.into() })
+            .map_err(Error::Other)?;
+        serde_json::from_value(v).map_err(|e| Error::Other(format!("the host sent a bad addon: {e}")))
+    }
+
+    fn set_enabled(&self, id: &str, on: bool) -> Result<()> {
+        self.call(HostCall::SetAddonEnabled { id: id.into(), on })
+            .map_err(Error::Other)?;
+        Ok(())
+    }
+
+    fn remove(&self, id: &str) -> Result<()> {
+        self.call(HostCall::RemoveAddon { id: id.into() })
+            .map_err(Error::Other)?;
+        Ok(())
     }
 }
 

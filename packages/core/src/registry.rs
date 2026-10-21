@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use swofty_addon::launcher::{Addon, CommandSpec, Cx, GameFiles, GameStatus, ProfileInfo, StateStore};
+use swofty_addon::launcher::{
+    Addon, AddonInfo, AddonStore, CommandSpec, Cx, GameFiles, GameStatus, ProfileInfo, StateStore,
+};
 
 use crate::baseline::{Baseline, FileRecord, Objects};
 use crate::builtin::CORE_ID;
@@ -159,6 +161,66 @@ impl StateStore for ProfileState {
     }
 }
 
+impl ProfileState {
+    fn info(&self, m: &AddonManifest, p: &Profile) -> AddonInfo {
+        AddonInfo {
+            id: m.id.clone(),
+            name: m.name.clone(),
+            version: m.version.to_string(),
+            author: m.author.clone(),
+            dir: self.store.addons_dir().join(&m.id),
+            enabled: p.enabled().any(|on| on == m.id),
+        }
+    }
+}
+
+impl AddonStore for ProfileState {
+    fn list(&self) -> swofty_addon::Result<Vec<AddonInfo>> {
+        let p = self.store.profile(&self.profile).map_err(other)?;
+        let addons = self.store.addons().map_err(other)?;
+        Ok(addons.values().map(|m| self.info(m, &p)).collect())
+    }
+
+    fn install(&self, path: &Path) -> swofty_addon::Result<AddonInfo> {
+        let m = self.store.install_addon(path).map_err(other)?;
+        let p = self.store.profile(&self.profile).map_err(other)?;
+        Ok(self.info(&m, &p))
+    }
+
+    // As the Addons page does, except that turning off or removing an addon that
+    // keeps data in the saves is refused here, since only that page warns about it.
+    fn set_enabled(&self, id: &str, on: bool) -> swofty_addon::Result<()> {
+        let registry = self.store.registry().map_err(other)?;
+        let Some(entry) = registry.get(id) else {
+            return Err(swofty_addon::Error::Other(format!(
+                "no addon named {id} is installed"
+            )));
+        };
+        let p = self.store.profile(&self.profile).map_err(other)?;
+        if !on && registry.turn_off_warning(&p, id).is_some() {
+            return Err(swofty_addon::Error::Other(format!(
+                "{} keeps data in your saves: turn it off on the Addons page",
+                entry.addon.manifest().name
+            )));
+        }
+        self.store
+            .update_profile(&self.profile, |p| registry.set_enabled(p, id, on))
+            .map_err(other)
+    }
+
+    fn remove(&self, id: &str) -> swofty_addon::Result<()> {
+        if let Some(m) = self.store.addons().map_err(other)?.get(id)
+            && SavesWarning::of(m).is_some()
+        {
+            return Err(swofty_addon::Error::Other(format!(
+                "{} keeps data in your saves: remove it on the Addons page",
+                m.name
+            )));
+        }
+        self.store.remove_addon(id).map_err(other)
+    }
+}
+
 fn other(e: Error) -> swofty_addon::Error {
     match e {
         Error::Addon(e) => e,
@@ -279,6 +341,7 @@ impl Host {
             self.game.as_ref().map(|g| g as &dyn GameFiles),
             &self.state,
         )
+        .with_addons(&self.state)
     }
 }
 
@@ -411,6 +474,68 @@ mod tests {
         );
         let vanilla = Host::new(&store, "t.a", &Profile::vanilla(), None).unwrap();
         assert!(vanilla.cx().set_state(&["y"]).is_err());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_plugin_lists_installs_switches_and_removes_addons() {
+        let root = tmp("manage");
+        let src = root.join("src/okayama");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(
+            src.join(crate::manifest::MANIFEST_FILE),
+            r#"{"schema_version":1,"id":"t.okayama","name":"Okayama","version":"1.2.0","author":"k",
+                "compat":{"game":"f1_25"}}"#,
+        )
+        .unwrap();
+        let saves = root.join("data/addons/t.saves");
+        std::fs::create_dir_all(&saves).unwrap();
+        std::fs::write(
+            saves.join(crate::manifest::MANIFEST_FILE),
+            r#"{"schema_version":1,"id":"t.saves","name":"Saves","version":"1.0.0","author":"t",
+                "compat":{"game":"f1_25"},"saves":{"affects":true}}"#,
+        )
+        .unwrap();
+        let store = Store::new(root.join("data")).with_builtins(vec![fake("t.a", "a", true)]);
+        let p = store.profile("default").unwrap();
+        let host = Host::new(&store, "t.a", &p, None).unwrap();
+        let cx = host.cx();
+        let addons = cx.addons().unwrap();
+        let info = addons.install(&src).unwrap();
+        assert_eq!(
+            (info.id.as_str(), info.version.as_str(), info.enabled),
+            ("t.okayama", "1.2.0", false)
+        );
+        assert_eq!(info.dir, store.addons_dir().join("t.okayama"));
+        addons.set_enabled("t.okayama", true).unwrap();
+        let listed = addons.list().unwrap();
+        let okayama = listed.iter().find(|a| a.id == "t.okayama").unwrap();
+        assert!(okayama.enabled && okayama.dir.join(crate::manifest::MANIFEST_FILE).is_file());
+        assert!(listed.iter().any(|a| a.id == CORE_ID && a.enabled));
+        assert!(addons.set_enabled("t.missing", true).is_err());
+        addons.set_enabled("t.saves", true).unwrap();
+        let e = addons.set_enabled("t.saves", false).unwrap_err();
+        assert!(e.to_string().contains("Addons page"), "{e}");
+        assert!(addons.remove("t.saves").is_err());
+        addons.remove("t.okayama").unwrap();
+        assert!(!store.addons_dir().join("t.okayama").exists());
+        assert!(
+            !store
+                .profile("default")
+                .unwrap()
+                .enabled()
+                .any(|id| id == "t.okayama")
+        );
+        assert!(addons.remove(CORE_ID).is_err());
+        let vanilla = Host::new(&store, "t.a", &Profile::vanilla(), None).unwrap();
+        assert!(
+            vanilla
+                .cx()
+                .addons()
+                .unwrap()
+                .set_enabled("t.saves", true)
+                .is_err()
+        );
         std::fs::remove_dir_all(&root).ok();
     }
 }

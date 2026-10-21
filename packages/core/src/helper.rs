@@ -11,7 +11,7 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 use swofty_addon::asset::{AssetBatch, Op, Origin};
 use swofty_addon::helper::{
-    API_VERSION, Built, Call, Hello, HostCall, Incoming, RESTART, Reply, Request, Welcome,
+    ADDON_CALLS, API_VERSION, Built, Call, Hello, HostCall, Incoming, RESTART, Reply, Request, Welcome,
 };
 use swofty_addon::launcher::{
     Addon, BuildCx, Claim, CommandSpec, Cx, Importer, ProfileInfo, Progress, Summary,
@@ -343,6 +343,10 @@ impl HelperAddon {
             cache_dir: cx.cache_dir.to_path_buf(),
             profile: cx.profile.clone(),
             launcher: Some(env!("CARGO_PKG_VERSION").into()),
+            host_calls: match cx.addons() {
+                Some(_) => ADDON_CALLS.map(String::from).to_vec(),
+                None => Vec::new(),
+            },
         });
         let welcome = self
             .exchange(&mut live, cx, hello, self.timeouts.quick, None)?
@@ -453,10 +457,18 @@ impl HelperAddon {
     }
 }
 
+fn to_value(v: impl Serialize) -> Result<Value> {
+    serde_json::to_value(v).map_err(|e| swofty_addon::Error::Other(e.to_string()))
+}
+
 fn host_call(cx: &Cx, call: HostCall) -> std::result::Result<Value, String> {
     let game = || {
         cx.game
             .ok_or_else(|| swofty_addon::Error::Other("the game is not available".into()))
+    };
+    let addons = || {
+        cx.addons()
+            .ok_or_else(|| swofty_addon::Error::Other("addons can't be managed from here".into()))
     };
     match call {
         HostCall::GetState => cx.state::<Option<Value>>().map(|v| v.unwrap_or(Value::Null)),
@@ -492,6 +504,15 @@ fn host_call(cx: &Cx, call: HostCall) -> std::result::Result<Value, String> {
                 .and_then(|t| serde_json::to_value(t).map_err(|e| swofty_addon::Error::Other(e.to_string()))),
             None => Ok(Value::Null),
         },
+        HostCall::Addons => addons().and_then(|a| a.list()).and_then(to_value),
+        HostCall::InstallAddon { path } => addons().and_then(|a| a.install(&path)).and_then(to_value),
+        HostCall::SetAddonEnabled { id, on } => addons()
+            .and_then(|a| a.set_enabled(&id, on))
+            .map(|()| Value::Null),
+        HostCall::RemoveAddon { id } if id == cx.addon => {
+            Err(swofty_addon::Error::Other(format!("{id} can't remove itself")))
+        }
+        HostCall::RemoveAddon { id } => addons().and_then(|a| a.remove(&id)).map(|()| Value::Null),
         HostCall::Progress { .. } => Err(swofty_addon::Error::Other("progress takes no id".into())),
         HostCall::Invalidate(_) => Err(swofty_addon::Error::Other("invalidate takes no id".into())),
     }
@@ -928,6 +949,7 @@ read -r l
             .map(|l| serde_json::from_str(l).unwrap())
             .collect();
         assert_eq!(received[0]["params"]["launcher"], env!("CARGO_PKG_VERSION"));
+        assert!(received[0]["params"].get("host_calls").is_none());
         let game_dir = root.join("F1 25");
         assert_eq!(received[2]["result"], game_dir.to_string_lossy().as_ref());
         assert_eq!(
@@ -950,6 +972,16 @@ read -r l
         assert_eq!(host_call(&none, HostCall::AddonGameDir).unwrap(), Value::Null);
         assert_eq!(host_call(&none, HostCall::ProfileTracks).unwrap(), Value::Null);
         assert!(host_call(&none, HostCall::Invalidate(Default::default())).is_err());
+        let e = host_call(&none, HostCall::Addons).unwrap_err();
+        assert!(e.contains("can't be managed"), "{e}");
+        let e = host_call(
+            &none,
+            HostCall::RemoveAddon {
+                id: "t.helper".into(),
+            },
+        )
+        .unwrap_err();
+        assert!(e.contains("itself"), "{e}");
         std::fs::remove_dir_all(&root).ok();
     }
 

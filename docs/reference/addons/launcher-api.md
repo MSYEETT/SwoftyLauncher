@@ -165,6 +165,8 @@ From `hello.params`, you get your addon's id, its two directories, the active pr
 
 `launcher` is missing before 1.0.10. Everything this page marks *1.0.10* needs that launcher: set `"compat": { "launcher": ">=1.0.10" }` in `swofty.json` when you use it. An older launcher fails a view that holds a block it doesn't know.
 
+A launcher that answers the [addon host calls](#managing-addons) also lists them in `host_calls`: `["addons", "install_addon", "set_addon_enabled", "remove_addon"]`. An older launcher leaves `host_calls` out.
+
 - Every profile shares `data_dir`. Use `cache_dir` for anything your plugin caches; it also holds the plugin's `helper.log`.
 - Check `profile.enabled` to see whether your addon is on in the active profile. `profile.vanilla` identifies the untouched profile: it takes no addons and refuses state writes.
 - If the active profile has changed since the last call, you'll receive a `profile` notification before the next request:
@@ -224,6 +226,10 @@ While handling a request, you can call back to the launcher. Include an `id` whe
 | `game_status` *(1.0.10)* | — | `{ running, pid, since, session }` |
 | `steam_save_dir` *(1.0.10)* | — | `<steam>/userdata/<steamid3>/3059520/remote/`, or `null` |
 | `profile_tracks` *(1.0.12)* | — | the tracks in the active profile's last build, or `null` ([Profile tracks](#profile-tracks)) |
+| `addons` | — | the installed addons ([Managing addons](#managing-addons)) |
+| `install_addon` | `{ path }` | the addon it installed |
+| `set_addon_enabled` | `{ id, on }` | `null`, or an error on the vanilla profile |
+| `remove_addon` | `{ id }` | `null` |
 | `invalidate` *(notification, 1.0.10)* | `{ section }` | — ([Live pages](#live-pages)) |
 
 ```json
@@ -276,6 +282,21 @@ While handling a request, you can call back to the launcher. Include an `id` whe
 | `playable` | `true` when the `2025` or `2026` content set lists the track for Grand Prix. |
 | `modded` | `true` when a track package in this build added or filled the row. |
 | `name`, `addon` | The package's `track_name` and the addon that added it, for a modded track. |
+
+#### Managing addons {#managing-addons}
+
+The four addon calls let a plugin install, list, turn on and off, and remove other addons, such as a page that gathers the data addons that add a track. Send them only when `hello.params.host_calls` lists them: a launcher that doesn't know a host call stops the plugin. A Rust helper gets them from `Cx::addons()`, which is `None` on such a launcher.
+
+`addons` lists every installed addon, with its folder and whether it is on in the active profile:
+
+```json
+[ { "id": "yourname.okayama-named", "name": "Okayama with its own name", "version": "1.0.0", "author": "Your Name",
+    "dir": "/home/you/.local/share/swofty/addons/yourname.okayama-named", "enabled": true } ]
+```
+
+- `install_addon` installs the addon at `path` as a drop on the window does: a `.swoftyaddon`, a zip that holds an addon, or a folder with `swofty.json`. It replaces an installed copy with the same id and returns the addon in the shape above. It doesn't turn the addon on.
+- `set_addon_enabled` turns an addon on or off in the active profile. It refuses to turn off an addon that is always on, or one that [keeps data in the saves](./manifest#saves), since only the **Addons** page warns about that.
+- `remove_addon` deletes the addon and takes it out of every profile, as **Remove** on the **Addons** page does. A plugin can't remove its own addon, a built-in one, one the launcher manages or one that keeps data in the saves.
 
 The template uses state to track which items are on, reading it here and writing it when the selection changes:
 

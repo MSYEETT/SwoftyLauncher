@@ -149,6 +149,25 @@ pub struct GameStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AddonInfo {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub author: String,
+    pub dir: PathBuf,
+    pub enabled: bool,
+}
+
+// Installed addons and their switch in the active profile, for a plugin that
+// manages other addons, such as one that lists the data addons adding a track.
+pub trait AddonStore: Send + Sync {
+    fn list(&self) -> Result<Vec<AddonInfo>>;
+    fn install(&self, path: &Path) -> Result<AddonInfo>;
+    fn set_enabled(&self, id: &str, on: bool) -> Result<()>;
+    fn remove(&self, id: &str) -> Result<()>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProfileInfo {
     pub name: String,
     pub vanilla: bool,
@@ -162,6 +181,7 @@ pub struct Cx<'a> {
     pub cache_dir: &'a Path,
     pub game: Option<&'a dyn GameFiles>,
     state: &'a dyn StateStore,
+    addons: Option<&'a dyn AddonStore>,
 }
 
 impl<'a> Cx<'a> {
@@ -180,7 +200,18 @@ impl<'a> Cx<'a> {
             cache_dir,
             game,
             state,
+            addons: None,
         }
+    }
+
+    pub fn with_addons(mut self, addons: &'a dyn AddonStore) -> Self {
+        self.addons = Some(addons);
+        self
+    }
+
+    // None when the launcher doesn't answer the addon host calls (ADDON_CALLS).
+    pub fn addons(&self) -> Option<&'a dyn AddonStore> {
+        self.addons
     }
 
     pub fn state<T: DeserializeOwned + Default>(&self) -> Result<T> {

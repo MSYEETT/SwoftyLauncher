@@ -12,6 +12,8 @@ pub use crate::run_helper::{claim_word, run_helper};
 
 pub const API_VERSION: u32 = 1;
 pub const RESTART: &str = "swofty.restart";
+// The host calls a launcher lists in hello's host_calls when it answers them.
+pub const ADDON_CALLS: [&str; 4] = ["addons", "install_addon", "set_addon_enabled", "remove_addon"];
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Request<C> {
@@ -59,6 +61,8 @@ pub struct Hello {
     pub profile: ProfileInfo,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub launcher: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub host_calls: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -77,6 +81,10 @@ pub enum HostCall {
     GameStatus,
     SteamSaveDir,
     ProfileTracks,
+    Addons,
+    InstallAddon { path: PathBuf },
+    SetAddonEnabled { id: String, on: bool },
+    RemoveAddon { id: String },
     Invalidate(#[serde(default)] Invalidate),
 }
 
@@ -159,6 +167,7 @@ mod tests {
                     cache_dir: "/c".into(),
                     profile: profile(),
                     launcher: Some("1.0.10".into()),
+                    host_calls: Vec::new(),
                 }),
             },
             json!({"id": 0, "method": "hello", "params": {"api": 1, "addon": "example.addon",
@@ -166,6 +175,11 @@ mod tests {
                 "profile": {"name": "default", "vanilla": false, "enabled": true},
                 "launcher": "1.0.10"}}),
         );
+        let hello: Hello = serde_json::from_value(json!({"api": 1, "addon": "a.b", "data_dir": "/d",
+            "cache_dir": "/c", "profile": {"name": "default", "vanilla": false, "enabled": true},
+            "host_calls": ADDON_CALLS}))
+        .unwrap();
+        assert_eq!(hello.host_calls, ADDON_CALLS);
         round(
             Request {
                 id: None,
@@ -326,10 +340,39 @@ mod tests {
             ("game_status", HostCall::GameStatus),
             ("steam_save_dir", HostCall::SteamSaveDir),
             ("profile_tracks", HostCall::ProfileTracks),
+            ("addons", HostCall::Addons),
         ] {
             round(
                 Incoming::Call(Request { id: Some(11), call }),
                 json!({"id": 11, "method": method}),
+            );
+        }
+        for (call, params) in [
+            (
+                HostCall::InstallAddon {
+                    path: "/home/you/okayama.swoftyaddon".into(),
+                },
+                json!({"path": "/home/you/okayama.swoftyaddon"}),
+            ),
+            (
+                HostCall::SetAddonEnabled {
+                    id: "you.okayama".into(),
+                    on: true,
+                },
+                json!({"id": "you.okayama", "on": true}),
+            ),
+            (
+                HostCall::RemoveAddon {
+                    id: "you.okayama".into(),
+                },
+                json!({"id": "you.okayama"}),
+            ),
+        ] {
+            let method = serde_json::to_value(&call).unwrap()["method"].clone();
+            assert!(ADDON_CALLS.contains(&method.as_str().unwrap()));
+            round(
+                Incoming::Call(Request { id: Some(12), call }),
+                json!({"id": 12, "method": method, "params": params}),
             );
         }
         round(
