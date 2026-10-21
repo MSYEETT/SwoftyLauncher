@@ -9,6 +9,11 @@
 // from +0x560. Before that it gives up (no drivers) unless the save slot's game mode
 // ([[vm +0x448] +0x88] +0x260) has type 0x14604ec60 in its chain and a non-null +0xe18; with the
 // component 0x14605bed8 it collects the three lists' drivers, without it a default list.
+//
+// Team Select asks the contracts manager for the picked driver's offers (Game_DriverContracts_BuildOffers),
+// which ranks the driver's team (Game_DriverContracts_RankTeam) and offers nothing when the rank is not
+// valid. The probe logs the offer list size, the game mode's championships and UpgradesComponent teams,
+// and each rank asked for while the offers are built.
 
 #include <windows.h>
 
@@ -34,7 +39,8 @@ constexpr struct {
     {0x146060948, "recognition"}, {0x14605b008, "career-setup"},  {0x1460609c8, "option-0x17"},
 };
 
-std::atomic<uint32_t> g_probes;
+std::atomic<uint32_t> g_probes, g_offer_probes, g_rank_probes;
+thread_local bool t_in_offers;
 
 uintptr_t rebase(uintptr_t va)
 {
@@ -130,6 +136,54 @@ void probe_before(uintptr_t vm)
                 (unsigned long long)rd<uintptr_t>(gm + 0xe18), comps.c_str());
 }
 
+std::string upgrade_teams(uintptr_t gm, size_t &count)
+{
+    count = 0;
+    uintptr_t reg = gm ? gm + 0x1030 : 0;
+    auto **rvt = reinterpret_cast<void **>(rd<uintptr_t>(reg));
+    uintptr_t comp = rvt ? reinterpret_cast<uintptr_t (*)(uintptr_t, uintptr_t, int)>(rvt[2])(
+                               reg, swofty::game::k_Career_UpgradesComponentDesc.address(), 1)
+                         : 0;
+    if (!comp)
+        return " (no UpgradesComponent)";
+    std::string keys;
+    for (uintptr_t p = rd<uintptr_t>(comp + 0x298), e = rd<uintptr_t>(comp + 0x2a0); p && p < e && count < 64; p += 8, count++) {
+        char b[16];
+        std::snprintf(b, sizeof b, " %08x", rd<uint32_t>(rd<uintptr_t>(p) + 0xc));
+        keys += b;
+    }
+    return keys;
+}
+
+}
+
+SWOFTY_WRAP(Game_DriverContracts_BuildOffers, void, void *contracts, uint32_t driver)
+{
+    uintptr_t c = reinterpret_cast<uintptr_t>(contracts);
+    long before = long(rd<uintptr_t>(c + 0x3d0) - rd<uintptr_t>(c + 0x3c8));
+    t_in_offers = true;
+    orig(contracts, driver);
+    t_in_offers = false;
+    if (g_offer_probes++ >= 8)
+        return;
+    long after = long(rd<uintptr_t>(c + 0x3d0) - rd<uintptr_t>(c + 0x3c8));
+    uintptr_t gm = rd<uintptr_t>(c + 0x278);
+    size_t teams = 0;
+    std::string keys = upgrade_teams(gm, teams);
+    long champs = long((rd<uintptr_t>(gm + 0x1070) - rd<uintptr_t>(gm + 0x1068)) / 8);
+    swofty::log("[f1-1990] probe: contract offers for driver %08x: offer list %ld -> %ld byte(s); game mode 0x%llx, "
+                "%ld championship(s), UpgradesComponent teams %zu:%s",
+                driver, before, after, (unsigned long long)gm, champs, teams, keys.c_str());
+}
+
+SWOFTY_WRAP(Game_DriverContracts_RankTeam, int *, int *out, void *standings, void *game_mode, uint32_t team, uint64_t season,
+            void *alloc)
+{
+    int *r = orig(out, standings, game_mode, team, season, alloc);
+    if (t_in_offers && g_rank_probes++ < 8)
+        swofty::log("[f1-1990] probe: team %08x rank %d valid %u", team, out ? out[0] : -1,
+                    out ? unsigned(reinterpret_cast<const uint8_t *>(out)[4]) : 0u);
+    return r;
 }
 
 SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 13, void *, void *vm)
