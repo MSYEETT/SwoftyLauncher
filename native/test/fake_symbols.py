@@ -7,7 +7,11 @@ secs = [struct.unpack_from('<8xIIII', d, pe + 24 + opt + 40 * i) for i in range(
 off = lambda r: next(r - va + rp for vs, va, rs, rp in secs if va <= r < va + max(vs, rs))
 e = off(struct.unpack_from('<I', d, pe + 24 + 112)[0])
 count, funcs, names, ords = struct.unpack_from('<IIII', d, e + 24)
+want = {b'fake_crash': 'Fake_Crash_Here', b'fake_heap_free': 'Fake_Heap_Free'}
+rows = []
 for i in range(count):
-    if d[off(struct.unpack_from('<I', d, off(names) + 4 * i)[0]):].split(b'\0')[0] == b'fake_crash':
+    name = d[off(struct.unpack_from('<I', d, off(names) + 4 * i)[0]):].split(b'\0')[0]
+    if name in want:
         rva = struct.unpack_from('<I', d, off(funcs) + 4 * struct.unpack_from('<H', d, off(ords) + 2 * i)[0])[0]
-open(sys.argv[2], 'w').write(f'# F1_25.exe fake {stamp}\n{rva:x}\tFake_Crash_Here\tL0\n')
+        rows.append(f'{rva:x}\t{want[name]}\tL0\n')
+open(sys.argv[2], 'w').write(f'# F1_25.exe fake {stamp}\n' + ''.join(sorted(rows)))

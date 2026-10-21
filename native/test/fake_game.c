@@ -497,6 +497,100 @@ __declspec(dllexport) __attribute__((noinline)) void fake_crash(volatile int *p)
 
 static uintptr_t slot8(void) { return ((uintptr_t (*)(void))OTHER_VT[8])(); }
 
+// A stand-in NeMemoryHeap for the crash report's heap decoding: Ne_ReportMemoryError with the game's
+// prologue (the core hooks it by that pattern), Ne_FatalAbort's write to address 1, and the start
+// of the heap error method that the heap's vtable carries at +0x118, by which the core recognises a
+// heap object. The heap object and its blocks have the field offsets of Ne_Heap_DeallocateNonSmall.
+int fake_report_memory_error(int code, const char *msg, char fatal, char brk, uint64_t a5, void *heap);
+void fake_fatal_abort(void);
+void fake_heap_error_method(void);
+__asm__(
+    ".section .xtls,\"xr\"\n"
+    ".globl fake_report_memory_error\nfake_report_memory_error:\n"
+    ".byte 0x41,0x57,0x41,0x56,0x41,0x55,0x41,0x54,0x56,0x57,0x55,0x53\n"
+    ".byte 0x48,0x81,0xEC,0xB8,0x02,0x00,0x00\n"
+    ".byte 0xC5,0x78,0x29,0x8C,0x24,0xA0,0x02,0x00,0x00\n"
+    ".byte 0xC5,0x79,0x29,0x84,0x24,0x90,0x02,0x00,0x00\n"
+    ".byte 0xC5,0xF9,0x29,0xBC,0x24,0x80,0x02,0x00,0x00\n"
+    "mov 0x320(%rsp), %rax\nmov %rax, 0x20(%rsp)\nmov 0x328(%rsp), %rax\nmov %rax, 0x28(%rsp)\n"
+    "call report_memory_error_impl\nadd $0x2b8, %rsp\n"
+    "pop %rbx\npop %rbp\npop %rdi\npop %rsi\npop %r12\npop %r13\npop %r14\npop %r15\nret\n"
+    ".globl fake_fatal_abort\nfake_fatal_abort:\n"
+    ".byte 0x48,0x83,0xEC,0x28,0xC7,0x04,0x25,0x01,0x00,0x00,0x00,0xAD,0xDE,0xAD,0xDE\nint3\n"
+    ".globl fake_heap_error_method\nfake_heap_error_method:\n"
+    ".byte 0x55,0x41,0x57,0x41,0x56,0x41,0x55,0x41,0x54,0x56,0x57,0x53,0x48,0x83,0xEC,0x18\n"
+    ".byte 0x48,0x8D,0x6C,0x24,0x10,0x89,0xD6,0x48,0x89,0xCF,0x48,0x8B,0x5D,0x78\nint3\n"
+    ".text\n");
+
+#define HEAP_GUARD 32
+static uint64_t fake_heap_obj[0x120 / 8];
+static void *fake_heap_vt[0x130 / 8];
+static const char fake_heap_name[] = "FakeHeap";
+static uint64_t heap_capacity(void *h) { (void)h; return 0x10000; }
+static uint64_t heap_free_bytes(void *h) { (void)h; return 0xfe00; }
+static uint64_t heap_used(void *h) { (void)h; return 0x200; }
+static uint64_t heap_largest(void *h, int a) { (void)h, (void)a; return 0xfc00; }
+static const char *heap_name(void *h) { (void)h; return fake_heap_name; }
+
+int report_memory_error_impl(int code, const char *msg, char fatal, char brk, uint64_t a5, void *heap)
+{
+    printf("      fake Ne_ReportMemoryError(0x%x, \"%s\", fatal %d, heap %p)\n", code, msg, fatal, heap);
+    (void)brk, (void)a5;
+    if (fatal)
+        fake_fatal_abort();
+    return code;
+}
+
+static uint32_t heap_block_size(uint32_t user) { return ((user + 15) & ~15u) + 2 * HEAP_GUARD + 0x10; }
+
+static uint8_t *heap_block(uint8_t *at, uint32_t user, uint8_t fill)
+{
+    *(int32_t *)at = 0;
+    *(int32_t *)(at + 4) = 0;
+    *(uint32_t *)(at + 8) = heap_block_size(user);
+    *(uint32_t *)(at + 12) = user;
+    memcpy(at + 0x10, "[BLOCKSTART] Bound checked mem.", HEAP_GUARD);
+    memset(at + 0x10 + HEAP_GUARD, fill, user);
+    memcpy(at + 0x10 + HEAP_GUARD + user, "[BLOCKEND] Bound checked mem.  ", HEAP_GUARD);
+    return at + 0x10 + HEAP_GUARD;
+}
+
+__declspec(dllexport) __attribute__((noinline)) void fake_heap_free(uint8_t *user)
+{
+    uint8_t *header = user - HEAP_GUARD - 0x10;
+    if (*(uint32_t *)(header + 8) != heap_block_size(*(uint32_t *)(header + 12))) {
+        char msg[96];
+        snprintf(msg, sizeof msg, "Failed to find address %p in the allocated list", (void *)user);
+        fake_report_memory_error(0x16, msg, 1, 0, 0, fake_heap_obj);
+    }
+}
+
+static void heap_error(void)
+{
+    uint8_t *base = VirtualAlloc(NULL, 0x10000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    fake_heap_vt[0x60 / 8] = (void *)heap_capacity;
+    fake_heap_vt[0x68 / 8] = (void *)heap_free_bytes;
+    fake_heap_vt[0x70 / 8] = (void *)heap_used;
+    fake_heap_vt[0x80 / 8] = (void *)heap_largest;
+    fake_heap_vt[0xa0 / 8] = (void *)heap_name;
+    fake_heap_vt[0x118 / 8] = (void *)fake_heap_error_method;
+    fake_heap_obj[0] = (uint64_t)(uintptr_t)fake_heap_vt;
+    fake_heap_obj[0x58 / 8] = (uint64_t)(uintptr_t)fake_heap_name;
+    fake_heap_obj[0x98 / 8] = (uint64_t)(uintptr_t)base;
+    fake_heap_obj[0xa0 / 8] = 0x10000;
+    fake_heap_obj[0x100 / 8] = (uint64_t)(uintptr_t)base;
+    fake_heap_obj[0x108 / 8] = HEAP_GUARD;
+    fake_heap_obj[0x110 / 8] = 0x200;
+    uint8_t *a = heap_block(base, 40, 0xaa);
+    uint8_t *b = heap_block(base + heap_block_size(40), 64, 0xbb);
+    heap_block(base + heap_block_size(40) + heap_block_size(64), 16, 0xcc);
+    fake_report_memory_error(0x50, "Start bounding check buffer corrupt", 0, 0, 0, fake_heap_obj);
+    static const char record[0x80] = "serialized replay record that is longer than its holder";
+    memcpy(a, record, sizeof record - 0x18);
+    printf("      copied 0x%x bytes into a 40-byte block; freeing the block after it\n", (unsigned)(sizeof record - 0x18));
+    fake_heap_free(b);
+}
+
 
 static int gate_has(uint32_t h)
 {
@@ -731,6 +825,16 @@ int main(int argc, char **argv)
     }
     if (argc > 1 && !strcmp(argv[1], "exit"))
         ExitProcess(255);
+    if (argc > 1 && !strcmp(argv[1], "heap")) {
+        SetErrorMode(SEM_NOGPFAULTERRORBOX);
+        for (int i = 0; i < 3; i++)
+            fake_log_site_a();
+        heap_error();
+    }
+    if (argc > 1 && !strcmp(argv[1], "abort")) {
+        SetErrorMode(SEM_NOGPFAULTERRORBOX);
+        fake_fatal_abort();
+    }
     DestroyWindow(w);
     return fails != 0;
 }

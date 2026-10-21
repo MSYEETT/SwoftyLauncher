@@ -374,10 +374,50 @@ EOF
 done
 check "crash log armed at attach" '\[crash\] crash log armed'
 check "clean exit logged" '\[crash\] ExitProcess\(0\)'
+check "crash reports armed with a minidump" '\[crash\] crash reports: .*crash-<time>\.txt with a stacks-only minidump'
+check "Ne heap error reporting hooked by the pattern" '\[crash\] Ne_ReportMemoryError at base\+0x[0-9a-f]+ hooked'
 python3 fake_symbols.py "$OUT/game/F1_25.exe" "$OUT/game/swofty/addons/core/symbols.tsv"
-for mode in crash exit; do
+SW=$OUT/game/swofty
+# A report parser shared by the crash modes: it checks the newest report parses as the expected
+# sections and that the minidump beside it is a real MDMP with streams.
+parse_report() {
+    python3 - "$SW" "$1" "$2" <<'PY'
+import glob, os, struct, sys
+root, want_reason, checks = sys.argv[1], sys.argv[2], sys.argv[3].split(',')
+reports = sorted(glob.glob(os.path.join(root, 'crash-*.txt')), key=os.path.getmtime)
+if not reports:
+    print('FAIL: parse: no crash-*.txt was written'); sys.exit(1)
+path = reports[-1]
+text = open(path, encoding='utf-8', errors='replace').read()
+bad = 0
+def ok(cond, what):
+    global bad
+    print(f'{"ok  " if cond else "FAIL"}: {what}')
+    bad += not cond
+ok(text.startswith('Swofty crash report'), 'parse: report has the header')
+ok(want_reason in text, f'parse: reason mentions {want_reason!r}')
+sections = {l[3:].strip() for l in text.splitlines() if l.startswith('== ')}
+for s in ('Registers', "Stack (unwound with the modules' exception data)", 'Code around rip',
+          'Memory at the registers', 'Game state (from the black box)', 'Black box: last events',
+          'Swofty probes (hook and callback activity)', 'Loaded modules', 'Threads',
+          'loader.log (last 200 lines)', 'Minidump'):
+    ok(any(name == s or name.startswith(s + ' (') for name in sections), f'parse: has the {s!r} section')
+for c in checks:
+    if c:
+        ok(c in text, f'parse: contains {c!r}')
+dump = path[:-4] + '.dmp'
+raw = open(dump, 'rb').read() if os.path.exists(dump) else b''
+ok(raw[:4] == b'MDMP', 'parse: a minidump beside it starts with MDMP')
+ok(len(raw) > 4096, f'parse: the minidump is non-trivial ({len(raw)} bytes)')
+nstreams = struct.unpack_from('<I', raw, 8)[0] if len(raw) >= 12 else 0
+ok(0 < nstreams < 64, f'parse: the minidump has {nstreams} stream(s)')
+sys.exit(bad != 0)
+PY
+}
+for mode in crash exit heap abort; do
     echo "==== $mode"
     code=0
+    rm -f "$SW"/crash-*.txt "$SW"/crash-*.dmp
     timeout 120 "${PIN[@]}" xvfb-run -a wine "$OUT/game/F1_25.exe" $mode >/dev/null 2>&1 || code=$?
     grep -F '[crash]' "$LOG"
     if [[ $mode == crash ]]; then
@@ -385,11 +425,25 @@ for mode in crash exit; do
         check "crash: faulting access" '\[crash\]   writing 0x10'
         check "crash: unhandled line" '\[crash\] unhandled ACCESS_VIOLATION .*Fake_Crash_Here'
         check "crash: stack walks past the faulting frame" '\[crash\]   #1 .*F1_25\.exe\+0x'
+        check "crash: a report with a minidump is written" '\[crash\] crash report .*crash-.*\.txt: unhandled ACCESS_VIOLATION.*minidump crash-.*\.dmp'
+        parse_report "Fake_Crash_Here" "Fake_Crash_Here,writing 0x10" || status=1
         [[ $code != 0 ]] && echo "ok  : crash: process ended with $code" || { echo "FAIL: crash: process exited 0"; status=1; }
-    else
+    elif [[ $mode == exit ]]; then
         check "exit: ExitProcess(255) with the caller's stack" '\[crash\] ExitProcess\(255\) .*caller stack'
         check "exit: caller frame in the exe" '\[crash\]   #0 .*F1_25\.exe\+0x'
+        check "exit: a report is written for the non-zero exit" '\[crash\] crash report .*crash-.*: ExitProcess\(255'
+        parse_report "ExitProcess(255" "" || status=1
         [[ $code == 255 ]] && echo "ok  : exit: process ended with 255" || { echo "FAIL: exit: process ended with $code"; status=1; }
+    elif [[ $mode == heap ]]; then
+        check "heap: the not-fatal heap error is logged with its stats" '\[crash\] Ne heap error 0x50 \(not fatal\).*capacity 65536, used 512, free 65024, largest free 64512'
+        check "heap: the fatal heap error 0x16 is logged" '\[crash\] Ne heap error 0x16 \(fatal\).*Failed to find address'
+        check "heap: a report is written before the abort" '\[crash\] crash report .*crash-.*: fatal Ne heap error 0x16'
+        parse_report "fatal Ne heap error 0x16" "Ne heap,FakeHeap,Failed to find address,capacity 65536,guard 32 bytes,CORRUPT" || status=1
+        [[ $code != 0 ]] && echo "ok  : heap: the process aborted ($code)" || { echo "FAIL: heap: process exited 0"; status=1; }
+    else
+        check "abort: Ne_FatalAbort is recognised" '\[crash\] crash report .*crash-.*: the game aborted itself'
+        parse_report "the game aborted itself" "Ne_FatalAbort" || status=1
+        [[ $code != 0 ]] && echo "ok  : abort: the process aborted ($code)" || { echo "FAIL: abort: process exited 0"; status=1; }
     fi
 done
 echo "==== stages"
