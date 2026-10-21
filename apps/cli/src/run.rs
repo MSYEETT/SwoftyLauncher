@@ -412,6 +412,18 @@ fn finish(session: Session, result: Result<ExitCode>) -> Result<ExitCode> {
     }
 }
 
+/// Why a rollback could not touch the game files, when a copy of F1 25 is
+/// still running and holds them.
+fn still_running() -> String {
+    match game_processes().first() {
+        Some(g) => format!(
+            " because F1 25 ({GAME_EXE}, pid {}) is still running and holds the game files",
+            g.pid
+        ),
+        None => String::new(),
+    }
+}
+
 /// The wrapper's refusal of this launch (asked at `since`), once written.
 fn refused(store: &Store, since: f64) -> Option<quarantine::Report> {
     quarantine::Report::read(&store.root).filter(|r| r.stage == Stage::BeforeLaunch && r.at >= since)
@@ -432,7 +444,10 @@ impl Drop for Session<'_> {
         match swofty_core::offline::restore_pending(&self.store.root) {
             Ok(true) => info("offline play: the game folder is back to vanilla"),
             Ok(false) => {}
-            Err(e) => info(&format!("offline play restore failed, run swofty restore: {e:#}")),
+            Err(e) => info(&format!(
+                "offline play restore failed{}, run swofty restore: {e:#}",
+                still_running()
+            )),
         }
         let inst = Installer::new(&self.store.root, self.game);
         match inst.roll_back(false) {
@@ -445,7 +460,8 @@ impl Drop for Session<'_> {
                 }
             }
             Err(e) => info(&format!(
-                "rollback failed; the next swofty run or launcher start retries it, or run swofty restore: {e:#}"
+                "rollback failed{}; the next swofty run or launcher start retries it, or run swofty restore: {e:#}",
+                still_running()
             )),
         }
         let logs = self
