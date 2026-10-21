@@ -23,6 +23,7 @@ CARD = {
     "arrows": ("#F2F2F2", "light"),
 }
 KEEP_LIGHT = {"ferrari", "lotus", "leytonhouse", "minardi"}
+SMALL = {"larrousse": (130, 0, 470, 208), "ligier": (320, 0, 600, 174), "dallara": (195, 5, 395, 82)}
 
 
 def rgb(h):
@@ -191,8 +192,11 @@ class Surface:
 
     def render_mark(self, token, primary, w, h):
         side = max(self.template)
-        return place(Image.new("RGBA", (w, h), (0, 0, 0, 0)),
-                     fit(art(token, "mark"), min(w * 0.96, side), min(h * 0.96, side)), w / 2, h / 2)
+        logo = art(token, "mark")
+        if max(w, h) <= 32 and token in SMALL:
+            logo = logo.crop(SMALL[token])
+        return place(Image.new("RGBA", (w, h), (0, 0, 0, 0)), fit(logo, min(w * 0.96, side), min(h * 0.96, side)),
+                     w / 2, h / 2)
 
     def render_lockup(self, token, primary, w, h):
         bw, bh = self.template
