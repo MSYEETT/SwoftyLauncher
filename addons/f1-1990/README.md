@@ -33,8 +33,17 @@ Not covered: the garage boards and pit perches of the 1990 track worlds still sh
 - Track dataset `f1_1990` (parent `f1_2026`, stat_id 20, default format only): on every 2026 track C4 for all three dry compounds, presets `f1_1990` and `f1_1990_mandatory`, no required pit stop and the default weekend format; the 16 calendar tracks also carry the 1990 dates, or with `career_year` 2026 the Sunday on or before each (TrackGeneralData), and grand prix names (TrackNameData) from `tools/career.py`.
 - Compound class `f1_1990` (stat_id 12) with the dry options shown as Supersoft (`Supersoft_f1_1990` and two twins for the medium and harder slots). Allocation `f1_1990`: `soft_sets` new sets in P1, P2, Friday qualifying, Saturday qualifying and the race. Mandatory `f1_1990_mandatory`: one softer set in the shootout sessions. `no_tyre_allocation` turns the allocation screen off for this class.
 - The track lighting probes also list `f1_1990`.
+- Session names (`data/session-strings.json`, `tools/sessions.py <dir of language_<code>.tsv>`): the Friday session
+  reads Qualifying 1 and the Saturday session Qualifying 2. The game names a session by its type and a group by its id,
+  from stock keys every mode shares, so `native/f1_1990_sessions.dll` sets these keys only while a 1990 career is loaded
+  (core API v8): `lng_sprintshootout_single`, `lng_sprintshootout_oneshot`, `lng_sprintshootout`, `lng_sprint_shootout`
+  take each language's `lng_qualifying_1`, `lng_sprintshootout_single_short` and `lng_sprintshootout_oneshot_short` its
+  `lng_qualifying_1_short`, `lng_qualifying_length_short`, `lng_qualifying_length_one_shot` and `lng_qualifying` its
+  `lng_qualifying_2`, `lng_qualifying_short_short` its `lng_qualifying_2_short`; `lng_sprintshootout_results` and
+  `lng_qualifying_results` read Qualifying 1 Results and Qualifying 2 Results in every language.
+  `lng_qualifying_one_shot_short` stays stock: it is also the concise label of the One-Shot qualifying length.
 
-Not scoped to 1990 (global rows, left stock): the safety-car and parc-fermé option defaults, the short-race restriction (very short races grey out red flags, formation lap and safety car), the session-name strings (Friday qualifying shows the stock sprint-qualifying names) and the power-unit component sets (`engine_management.components`), which the game picks by season only: `f1_1990` runs on `season_2026`, so 1990 has the 2026 allocation, wear and grid drops.
+Not scoped to 1990 (global rows, left stock): the safety-car and parc-fermé option defaults, the short-race restriction (very short races grey out red flags, formation lap and safety car) and the power-unit component sets (`engine_management.components`), which the game picks by season only: `f1_1990` runs on `season_2026`, so 1990 has the 2026 allocation, wear and grid drops.
 
 ## Cars (db/cars.json, cars/, tools/build_cars.py, tools/cars.py)
 
