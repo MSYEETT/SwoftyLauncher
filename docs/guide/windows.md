@@ -48,6 +48,17 @@ To fix it:
 3. Add exclusions for the game folder and the launcher folder (`%LOCALAPPDATA%\Programs\SwoftyLauncher`).
 4. Press **Play** again.
 
+## If your game files aren't the ones Steam installed
+
+Before a modded session builds anything, the launcher checks the game against Steam's record of the files it installed. If a file was changed outside the launcher, for example by another mod tool or a manual install, F1 25 is not started and a **Your game files aren't the ones Steam installed** dialog names the files.
+
+To fix it:
+
+1. In Steam, right-click F1 25 → **Properties** → **Installed Files** → **Verify integrity of game files**.
+2. Press **Play** again.
+
+The next launch checks the game again and continues once it matches Steam's copy.
+
 ## If the game crashes
 
 The session puts the game folder back to vanilla when the game exits, crash or not. If the launcher was closed first, it puts the folder back the next time it starts. See [Restoring the game](/using/profiles-and-restoring).
