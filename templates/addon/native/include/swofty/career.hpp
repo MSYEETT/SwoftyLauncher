@@ -7,8 +7,9 @@
 
 // The running career, as the core sees it: front-end flow states, whether a career is loaded and
 // in which mode, whether Team HQ is idle, the championship entity and its components, and the
-// game's message bus. The core publishes the same facts as events (flow.state, career.loaded,
-// career.unloaded, career.hub; see swofty/events.hpp); the getters here answer a late subscriber.
+// game's message bus. The core publishes the same facts as events (flow.state, career.starting,
+// career.loaded, career.unloaded, career.hub; see swofty/events.hpp); the getters here answer a late
+// subscriber. block() keeps the player out of one career mode.
 // entity(), component() and post() call into the game: use them on the game's flow thread (an
 // events or on_frame callback), never from a thread of your own.
 
@@ -25,14 +26,26 @@ enum class Status : uint32_t {
     exiting = SWOFTY_FLOW_EXITING,
 };
 
+enum class Start : uint32_t {
+    pick = SWOFTY_CAREER_START_PICK,
+    new_career = SWOFTY_CAREER_START_NEW,
+    continue_career = SWOFTY_CAREER_START_CONTINUE,
+};
+
 using State = SwoftyCareerState;
 using Flow = SwoftyFlowState;
+using Starting = SwoftyCareerStart;
 
 namespace detail {
 
 inline const SwoftyCareer *table()
 {
     return api && api->version >= 6 ? api->career : nullptr;
+}
+
+inline const SwoftyCareer *table7()
+{
+    return api && api->version >= 7 ? api->career : nullptr;
 }
 
 inline Result result(int r)
@@ -136,6 +149,27 @@ inline Result post(void *msg)
     return detail::result(t->post(msg));
 }
 
+// Keep the player out of a career mode for this session. The core cancels the front-end route that
+// would start or load a career in that mode (the player stays on the menu) and shows the game's
+// popup with title and body; an empty title and body cancel without a popup. Another call from the
+// same addon replaces its text. unavailable on a core older than API 7, invalid for Mode::none.
+inline Result block(Mode m, std::string_view title = {}, std::string_view body = {})
+{
+    auto t = detail::table7();
+    if (!t || !t->block)
+        return Result::unavailable;
+    return detail::result(t->block(static_cast<uint32_t>(m), std::string(title).c_str(), std::string(body).c_str()));
+}
+
+// Lift this addon's block on a mode. invalid when it held none.
+inline Result unblock(Mode m)
+{
+    auto t = detail::table7();
+    if (!t || !t->unblock)
+        return Result::unavailable;
+    return detail::result(t->unblock(static_cast<uint32_t>(m)));
+}
+
 inline const char *name(Mode m)
 {
     return m == Mode::my_team ? "my_team" : m == Mode::driver_career ? "driver_career" : "none";
@@ -144,6 +178,11 @@ inline const char *name(Mode m)
 inline const char *name(Status s)
 {
     return s == Status::entering ? "Entering" : s == Status::updating ? "Updating" : s == Status::exiting ? "Exiting" : "None";
+}
+
+inline const char *name(Start k)
+{
+    return k == Start::new_career ? "new" : k == Start::continue_career ? "continue" : "pick";
 }
 
 inline const char *name(Result r)

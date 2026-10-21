@@ -159,8 +159,8 @@ EOF
         once "addons: a dll in both folders loads from addons only" 'addon t_drop\.dll: also in .*[\]swofty[\]mods, skipped'
         once "mixins: a binding bindings.json does not list is named as missing" 'addon t_want\.dll needs wine-test:Fake_Unlisted, which bindings\.json does not list'
         once "mixins: a listed binding that does not match stays unresolved" 'addon t_want\.dll needs wine-test:Fake_Missing, which does not resolve on this build'
-        check "addons: SwoftyAddonInit is called" 'addon t_chain_a\.dll: loaded at .*, calling SwoftyAddonInit \(API v6\)'
-        check "addons: SWOFTY_MOD exports SwoftyAddonInit" 'addon t_conflict_y\.dll: loaded at .*, calling SwoftyAddonInit \(API v6\)'
+        check "addons: SwoftyAddonInit is called" 'addon t_chain_a\.dll: loaded at .*, calling SwoftyAddonInit \(API v7\)'
+        check "addons: SWOFTY_MOD exports SwoftyAddonInit" 'addon t_conflict_y\.dll: loaded at .*, calling SwoftyAddonInit \(API v7\)'
         if grep -q "core mixin set 'swofty_core.dll (flow states)'" "$LOG"; then
             once "career: the flow-state site is a core mixin set of its own" "core mixin set 'swofty_core\.dll \(flow states\)': 1 mixin"
             once "career: a missing flow-state site drops only its own set" 'addon swofty_core\.dll \(flow states\) dropped: needs site_FeFlow_SetStateStatus'

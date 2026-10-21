@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define SWOFTY_API_VERSION 6
+#define SWOFTY_API_VERSION 7
 
 enum {
     SWOFTY_MIXIN_WRAP = 1,
@@ -102,6 +102,7 @@ typedef struct SwoftyAssets {
 #define SWOFTY_EVENT_CAREER_LOADED "career.loaded"
 #define SWOFTY_EVENT_CAREER_UNLOADED "career.unloaded"
 #define SWOFTY_EVENT_CAREER_HUB "career.hub"
+#define SWOFTY_EVENT_CAREER_STARTING "career.starting"
 
 typedef struct SwoftyEvent {
     const char *name;
@@ -301,6 +302,20 @@ typedef struct SwoftyCareerState {
     char key[32];
 } SwoftyCareerState;
 
+enum {
+    SWOFTY_CAREER_START_PICK = 0,
+    SWOFTY_CAREER_START_NEW = 1,
+    SWOFTY_CAREER_START_CONTINUE = 2,
+};
+
+typedef struct SwoftyCareerStart {
+    uint32_t mode;
+    uint32_t kind;
+    uint32_t blocked;
+    uint32_t reserved;
+    char route[64];
+} SwoftyCareerStart;
+
 typedef struct SwoftyCareer {
     int (*available)(void);
     int (*state)(SwoftyCareerState *out);
@@ -310,7 +325,14 @@ typedef struct SwoftyCareer {
     void *(*component)(const char *type);
     void *(*component_by_desc)(const void *desc);
     int (*post)(void *msg);
+    int (*block)(uint32_t mode, const char *title, const char *body);
+    int (*unblock)(uint32_t mode);
 } SwoftyCareer;
+
+typedef struct SwoftyPopup {
+    int (*available)(void);
+    int (*show)(const char *title, const char *body);
+} SwoftyPopup;
 
 typedef struct SwoftyApi {
     uint32_t version;
@@ -329,6 +351,7 @@ typedef struct SwoftyApi {
     const SwoftyDb *db;
     const SwoftyStorage *storage;
     const SwoftyCareer *career;
+    const SwoftyPopup *popup;
 } SwoftyApi;
 
 typedef int (*SwoftyAddonInitFn)(const SwoftyApi *api);
