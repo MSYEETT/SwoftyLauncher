@@ -1,6 +1,6 @@
 use std::ffi::{c_char, c_int, c_void};
 
-pub const SWOFTY_API_VERSION: u32 = 7;
+pub const SWOFTY_API_VERSION: u32 = 8;
 pub const INIT_SYMBOLS: [&str; 2] = ["SwoftyAddonInit", "SwoftyModInit"];
 pub const API_SYMBOLS: [&str; 2] = ["SwoftyAddonApi", "SwoftyModApi"];
 pub const HEADER: &str = include_str!("../include/swofty_api.h");
@@ -14,6 +14,7 @@ pub const STORAGE_HEADER: &str = include_str!("../include/swofty/storage.hpp");
 pub const CAREER_HEADER: &str = include_str!("../include/swofty/career.hpp");
 pub const MEM_HEADER: &str = include_str!("../include/swofty/mem.hpp");
 pub const POPUP_HEADER: &str = include_str!("../include/swofty/popup.hpp");
+pub const LANG_HEADER: &str = include_str!("../include/swofty/lang.hpp");
 
 pub const CAREER_START_PICK: u32 = 0;
 pub const CAREER_START_NEW: u32 = 1;
@@ -434,6 +435,18 @@ pub struct SwoftyPopup {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct SwoftyLang {
+    pub available: Option<unsafe extern "C" fn() -> c_int>,
+    pub override_set: Option<
+        unsafe extern "C" fn(language: *const c_char, key: *const c_char, text: *const c_char) -> c_int,
+    >,
+    pub override_clear: Option<unsafe extern "C" fn(language: *const c_char, key: *const c_char) -> c_int>,
+    pub override_clear_all: Option<unsafe extern "C" fn() -> c_int>,
+    pub refresh: Option<unsafe extern "C" fn() -> c_int>,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct SwoftyApi {
     pub version: u32,
     pub log: Option<LogFn>,
@@ -452,6 +465,7 @@ pub struct SwoftyApi {
     pub storage: *const SwoftyStorage,
     pub career: *const SwoftyCareer,
     pub popup: *const SwoftyPopup,
+    pub lang: *const SwoftyLang,
 }
 
 pub type SwoftyAddonInitFn = unsafe extern "C" fn(api: *const SwoftyApi) -> c_int;
@@ -472,10 +486,11 @@ pub enum Capability {
     Storage,
     Career,
     Popup,
+    Lang,
 }
 
 impl Capability {
-    pub const ALL: [Capability; 13] = [
+    pub const ALL: [Capability; 14] = [
         Self::Log,
         Self::Scan,
         Self::Hook,
@@ -489,6 +504,7 @@ impl Capability {
         Self::Storage,
         Self::Career,
         Self::Popup,
+        Self::Lang,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -506,6 +522,7 @@ impl Capability {
             Self::Storage => "storage",
             Self::Career => "career",
             Self::Popup => "popup",
+            Self::Lang => "lang",
         }
     }
 
@@ -524,6 +541,7 @@ impl Capability {
             }
             Self::Career => api_version >= 6,
             Self::Popup => api_version >= 7,
+            Self::Lang => api_version >= 8,
         }
     }
 }
@@ -534,9 +552,11 @@ mod tests {
 
     #[test]
     fn layout_matches_header() {
-        assert_eq!(std::mem::size_of::<SwoftyApi>(), 136);
+        assert_eq!(std::mem::size_of::<SwoftyApi>(), 144);
         assert_eq!(std::mem::offset_of!(SwoftyApi, career), 120);
         assert_eq!(std::mem::offset_of!(SwoftyApi, popup), 128);
+        assert_eq!(std::mem::offset_of!(SwoftyApi, lang), 136);
+        assert_eq!(std::mem::size_of::<SwoftyLang>(), 40);
         assert_eq!(std::mem::size_of::<SwoftyCareer>(), 80);
         assert_eq!(std::mem::offset_of!(SwoftyCareer, block), 64);
         assert_eq!(std::mem::size_of::<SwoftyCareerStart>(), 80);
@@ -596,6 +616,8 @@ mod tests {
             "const SwoftyStorage *storage;",
             "const SwoftyCareer *career;",
             "const SwoftyPopup *popup;",
+            "const SwoftyLang *lang;",
+            "} SwoftyLang;",
             "#define SWOFTY_EVENT_CAREER_STARTING \"career.starting\"",
             "SWOFTY_CAREER_START_CONTINUE = 2",
             "} SwoftyCareerStart;",
@@ -665,6 +687,10 @@ mod tests {
             include_str!("../../../templates/addon/native/include/swofty/popup.hpp"),
             POPUP_HEADER
         );
+        assert_eq!(
+            include_str!("../../../templates/addon/native/include/swofty/lang.hpp"),
+            LANG_HEADER
+        );
     }
 
     #[test]
@@ -689,6 +715,8 @@ mod tests {
         assert!(!Capability::Career.available_in(5));
         assert!(Capability::Popup.available_in(7));
         assert!(!Capability::Popup.available_in(6));
+        assert!(Capability::Lang.available_in(8));
+        assert!(!Capability::Lang.available_in(7));
     }
 
     #[test]
