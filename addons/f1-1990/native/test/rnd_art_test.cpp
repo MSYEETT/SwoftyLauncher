@@ -29,6 +29,13 @@ int main()
     check("plain mask", f1990::donor_frame(donor, "", false, true) == "monocoque_structure");
     check("bare donor", f1990::donor_frame("calipers", "_complete", true, false) == "om_xm_calipers_complete");
 
+    check("2026 R&D package", f1990::is_rnd_package(f1990::kRnDPackage) && f1990::package_is_omxm(f1990::kRnDPackage));
+    check("pre-2026 R&D package", f1990::is_rnd_package("#overrides.career") &&
+                                      !f1990::package_is_omxm("#overrides.career"));
+    check("an empty package is not one", !f1990::is_rnd_package(""));
+    check("a career-prefixed list is not one", !f1990::is_rnd_package("#overrides.career_end_icons"));
+    check("another package is not one", !f1990::is_rnd_package("#overrides.team_hq"));
+
     std::printf("%s (%d failure(s))\n", failures ? "FAILED" : "ALL PASSED", failures);
     return failures != 0;
 }
