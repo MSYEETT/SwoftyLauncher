@@ -1,19 +1,19 @@
 # F1 1990 Cars (private)
 
-The car models for F1 1990's `f1_1990` vehicle package. Private test content, not for release: the Codemasters classics (F1 2019/2020, from Jefry) and the ASR McLaren MP4/5B, ported with Jefry's F1modding3dtoolV1. The archives are built locally and never committed (`erp/` is ignored).
+The car models for F1 1990's `f1_1990` vehicle package. Private test content, not for release: the Codemasters classics (F1 2019/2020, from Jefry) and the ASR McLaren MP4/5B body for seven teams, ported with Jefry's F1modding3dtoolV1. The archives are built locally and never committed (`erp/` is ignored).
 
 What it adds, all under new paths, nothing replacing a game file:
 
 - `2025_asset_groups/f1_1990_vehicle_package/teams/<folder>/wep/<folder>.erp`: the 13 cars, 13-inch rims, per-driver number plates.
 - `2025_asset_groups/f1_1990_vehicle_package/teams/common.erp`: the package's shared resources, with the MP4/5B 13-inch tyre set (dry and wet, Pirelli 2018 textures, no deformation data).
 - `2025_asset_groups/f1_1990_vehicle_package/tyrecompounds/tyrecompounds.erp`: a copy of the 2026 compound file.
-- `2025_asset_groups/f1_1990_vehicle_b_specs/teams/<folder>/wep/<folder>.erp`: the 13 B-spec cars (McLaren: ASR's late-1990 MP4/5B, `gridn13_mclaren_late`; the others: the A body with gold rims, `grid*13b_*`). Their own resources carry the B package path; references to the shared resources and to the car's handling file point at the A package, so a B group lists the A common.erp and the A handling archive.
+- `2025_asset_groups/f1_1990_vehicle_b_specs/teams/<folder>/wep/<folder>.erp`: the 13 B-spec cars (the A body with gold rims, `grid*13b_*`). Their own resources carry the B package path; references to the shared resources and to the car's handling file point at the A package, so a B group lists the A common.erp and the A handling archive.
 - Runtime asset groups (`assets/cars.json`): `asset_groups/f1_1990_vehicle_package/teams/<folder>/wep/<folder>.assetgroup` listing common.erp, the car archive and `<folder>_handling.erp` (shipped by `swofty.f1-1990`), and the tyre-compound group. Each takes its flags from the matching 2026 group.
 - `videos/f1_1990_intro.bik`: the intro video that opens a new 1990 Driver Career (`native/f1_1990_intro.dll` in `swofty.f1-1990`, option `intro_video_1990`), from `video/f1_1990_intro.bik` (ignored, like `erp/`). Bring your own video: the build fails without that file.
 
 | Team | Folder | Model | Source build |
 |---|---|---|---|
-| McLaren | mclaren | ASR MP4/5B | gridn13_mclaren |
+| McLaren | mclaren | CM c_mclaren_90 | gridc13_mclaren |
 | Ferrari | ferrari | CM c_ferrari_90 | gridc13_ferrari |
 | Williams | williams | CM c_williams_92 | gridc13_williams |
 | Benetton | lotus | CM c_benetton_94 | gridc13_lotus |
