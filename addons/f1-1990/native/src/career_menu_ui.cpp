@@ -12,6 +12,9 @@
 // no badge and whose press selects the 1990 car group (or the 2026 one) before the router. The
 // populate loop after the site then initialises and populates all three tiles. Only when the 1990
 // career content is in the database; option career_menu_ui turns it off.
+//
+// The wrap of FeTile_Route_CareerItem, which every career tile press ends in, records whether the
+// last press was the 1990 tile; F1990_CareerWizard1990 exports that for the other 1990 DLLs.
 
 #include <atomic>
 #include <cstring>
@@ -41,12 +44,12 @@ constexpr size_t kSlots = 19;
 constexpr size_t kPopulateSlot = 4;
 constexpr size_t kPressSlot = 5;
 constexpr size_t kNotificationSlot = 0x78 / 8;
-constexpr uint16_t kCarGroup1990 = 2;
 constexpr char kTitle[] = "lng_f1990_career_content";
 constexpr char kDescription[] = "lng_f1990_career_content_description";
 
 void **g_vtable;
 std::atomic<uint32_t> g_builds, g_presses;
+std::atomic<bool> g_wizard_1990{false};
 
 void set_text(void *node, const char *name, const char *text)
 {
@@ -73,7 +76,7 @@ Action *press(HomeItem *item, Action *out)
     auto *system = static_cast<const uint8_t *>(*swofty::game::g_FeTile_CustomisationSystem);
     auto *b = system ? at<const uint8_t *>(system, 0x230) : nullptr;
     auto *e = system ? at<const uint8_t *>(system, 0x238) : nullptr;
-    f1990::ContentPick pick = f1990::pick_content(b, e, kCarGroup1990);
+    f1990::ContentPick pick = f1990::pick_content(b, e, f1990::kCarGroup1990);
     *swofty::game::g_FeTile_SelectedCareerContent = pick.id;
     if (g_presses++ < 4)
         swofty::log("[f1-1990] career menu: 1990 Career pressed; content 0x%08x (%s)", pick.id,
@@ -155,6 +158,17 @@ void add_tile(TileList *list)
                     after);
 }
 
+}
+
+SWOFTY_WRAP(FeTile_Route_CareerItem, Action *, HomeItem *item, Action *out)
+{
+    g_wizard_1990 = g_vtable && item && *reinterpret_cast<void ***>(item) == g_vtable;
+    return orig(item, out);
+}
+
+extern "C" __declspec(dllexport) int F1990_CareerWizard1990()
+{
+    return g_wizard_1990.load() ? 1 : 0;
 }
 
 SWOFTY_SITE(site_FeTile_CareerContentEnd, swofty::Context &c)

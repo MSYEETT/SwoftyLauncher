@@ -79,7 +79,7 @@ A separate DLL, loaded at the window stage after the others; option `career_menu
 | `site_FeTile_CareerContentEnd` | 0x141741831 | site at the end of `FeTile_Build_List` case 6 (r14 = the list): `FeHome_Add_CareerTile(list, 3)` appends `button_3`, then its home item is replaced by a content item |
 | `FeTile_Construct_CareerItem` | 0x141725380 | call; builds the 0x1c8 content item with the 2026 tile's route id |
 | `FeTile_CareerDlcItem_Populate` | 0x141726680 | called by our populate; then title `lng_f1990_career_content`, description `lng_f1990_career_content_description`, notification 0 (no badge) |
-| `FeTile_Route_CareerItem` | 0x141725620 | called by our press after it writes the selected content |
+| `FeTile_Route_CareerItem` | 0x141725620 | called by our press after it writes the selected content; wrapped to record whether the last career tile pressed was the 1990 one (exported as `F1990_CareerWizard1990` for `f1_1990_tabs.dll`) |
 | `g_FeTile_CustomisationSystem` / `g_FeTile_SelectedCareerContent` | 0x146064df0 / 0x146066c42 | the press selects the car group with stat id 2 (`1990`), else the first dlc group (2026) |
 
 The item carries data group `f1_career_1990` (+0x180), suffix `90` (+0x188), is_dlc 0 (+0x190) and the 2026 entitlement string (+0x1c0); its vtable is a copy of the 2026 tile's with populate and press replaced. The router and the wizard's use of the data group are not traced yet (see `/mnt/work/.f1-1990/v2/third-tile.md`).
@@ -101,3 +101,9 @@ A separate DLL, loaded at the early stage. The UI keeps one VM node per `entrant
 While the loaded career's data group is `f1_career_1990`, the builder gets a stand-in record for the `elena` row: the `flavio` row (stat_id 105, `lng_f1990_agent_*`, texture `message_flavio`) with Elena's stat_id. The handler wrap keeps the character vector; when `career.loaded` or `career.unloaded` changes the 1990 state, the DLL calls the handler with it again, so the `elena` node is rebuilt from the stand-in or from her own row. The `message_avatar_race` array has no `message_flavio` slice.
 
 It logs `[f1-1990] agent: character list built from 0x... (N rows, 1990 career ...)` per build (first 8), `agent: 1990 career loaded; character list rebuilt, the elena ref shows flavio` and `agent: 1990 career left; ... shows elena`, and `no flavio row in the character list` when the data side is missing.
+
+## Choose Driver tabs (`f1_1990_tabs.dll`)
+
+A separate DLL. The `driver_career_driver_select_header` view model builds its tabs with the shared tab builder 0x144251f40 from the content group `driver_career_driver_select_header` (`header_f1`, `header_selected_team_icon`, `header_f2`, `header_icon`; 0x30-byte entries, tab name at +0x08). `site_Game_DriverSelectHeader_BuildTabs` (the call at 0x141a591f2) is redirected: in a 1990 wizard the builder gets a copy of the group without `header_f2` and `header_icon`. `Game_DriverSelectHeader_SetTabState` (0x141a59fe0, `content_visible` and `enabled` of tab N, called with fixed indices such as 0, 1 and 3) is wrapped to skip an index past the header's tabs. A wizard is a 1990 one when `F1990_CareerWizard1990` (from `f1_1990_ui.dll`) is 1 and no other career is loaded. Other careers keep all four tabs.
+
+It logs `[f1-1990] driver select: 1990 wizard; header tabs 2 of 4 (F2 and Icons hidden)` and `driver select: tab 3 state skipped, the header has 2 tab(s)`.
