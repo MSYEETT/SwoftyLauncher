@@ -72,6 +72,8 @@ const SwoftyStorage *storage_table();
 const SwoftyCareer *career_table();
 const SwoftyPopup *popup_table();
 const SwoftyLang *lang_table();
+const SwoftyCharacters *characters_table();
+const SwoftyCareerWizard *wizard_table();
 void lang_override_setup();
 const json::Value &sdk();
 void ready();
@@ -90,6 +92,10 @@ struct CoreMixins {
 };
 
 std::vector<CoreMixins> career_mixins();
+std::vector<CoreMixins> characters_mixins();
+std::vector<CoreMixins> wizard_mixins();
+void characters_setup();
+void wizard_setup();
 bool core_mixins_active(const char *name);
 void career_setup();
 void career_tick();

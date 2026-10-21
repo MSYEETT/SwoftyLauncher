@@ -32,6 +32,8 @@ const SwoftyStorage *storage_table();
 const SwoftyCareer *career_table();
 const SwoftyPopup *popup_table();
 const SwoftyLang *lang_table();
+const SwoftyCharacters *characters_table();
+const SwoftyCareerWizard *wizard_table();
 struct CoreMixins {
     const char *name;
     std::vector<SwoftyMixin> mixins;
@@ -40,6 +42,10 @@ std::vector<CoreMixins> career_mixins();
 const SwoftyCareerContent *career_content_table();
 std::vector<CoreMixins> career_content_mixins();
 void career_content_commit();
+std::vector<CoreMixins> characters_mixins();
+std::vector<CoreMixins> wizard_mixins();
+void characters_setup();
+void wizard_setup();
 void career_setup();
 void popup_setup();
 void ready();
@@ -1327,8 +1333,14 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     a->popup = runtime::popup_table();
     a->lang = runtime::lang_table();
     a->career_content = runtime::career_content_table();
+    a->characters = runtime::characters_table();
+    a->career_wizard = runtime::wizard_table();
     a->version = SWOFTY_API_VERSION;
-    for (auto &c : runtime::career_mixins()) {
+    std::vector<runtime::CoreMixins> sets = runtime::career_mixins();
+    for (auto *more : {runtime::characters_mixins, runtime::wizard_mixins})
+        for (auto &c : more())
+            sets.push_back(std::move(c));
+    for (auto &c : sets) {
         Addon own{c.name, {}, true};
         for (auto &m : c.mixins)
             own.mixins.push_back({m.target, m.kind, m.priority, m.handler, m.orig});
@@ -1392,6 +1404,8 @@ extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
     if (!from) {
         runtime::career_setup();
         runtime::popup_setup();
+        runtime::characters_setup();
+        runtime::wizard_setup();
     }
     runtime::career_content_commit();
     for (size_t i = from; i < addons.size(); i++) {
