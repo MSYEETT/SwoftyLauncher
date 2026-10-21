@@ -83,6 +83,56 @@ int main()
     Alloc c({{{0, kUsedOutsideGarage}}});
     check("set used outside the garage left alone", free_unused_dry_sets(c.mem.data()) == 0);
 
+    Alloc donor({{{1, 0}, {2, kUsed, 0.4f}, {15, kHandedBack}}, {{10, 0}}, {}, {{0, 0}}, {{0, kUsedOutsideGarage}}});
+    Census dc = census(donor.mem.data());
+    check("census counts sets per slot", dc.total == 6 && dc.sets[0] == 3 && dc.sets[1] == 1 && dc.sets[2] == 0 &&
+                                             dc.sets[3] == 1 && dc.sets[4] == 1);
+    check("census counts fresh and tagged sets", dc.fresh == 3 && dc.tagged == 2 && dc.fresh_sets[0] == 1);
+
+    Alloc empty({{}, {}, {}, {}, {}});
+    check("empty allocation has no sets", census(empty.mem.data()).total == 0);
+    static std::vector<void *> blocks;
+    static int frees;
+    Heap heap{[](void *, size_t n) -> void * { blocks.push_back(std::calloc(1, n)); return blocks.back(); },
+              [](void *, void *) { frees++; }};
+    int marker = 0;
+    for (size_t i = 0; i < 5; i++) {
+        void *allocator = &marker;
+        std::memcpy(empty.mem.data() + 0x10 + i * 0x28 + 0x08, &allocator, sizeof allocator);
+    }
+    int copied = copy_sets(empty.mem.data(), donor.mem.data(), heap);
+    Census ec = census(empty.mem.data());
+    check("refill copies every donor set", copied == 6 && ec.total == 6 && ec.sets[0] == 3 && ec.sets[4] == 1);
+    check("refill allocates one buffer per filled slot and frees none", blocks.size() == 4 && frees == 0);
+    const uint8_t *s0 = sets_begin(block(empty.mem.data(), 0));
+    float wear;
+    std::memcpy(&wear, s0 + kSetSize + 0x18, sizeof wear);
+    check("copied used set is new and unworn", !(s0[kSetSize + 9] & kUsed) && wear == 0.f);
+    uint32_t tag;
+    std::memcpy(&tag, s0 + 2 * kSetSize, sizeof tag);
+    check("copied set keeps its tag and handed-back flag", tag == 15 && (s0[2 * kSetSize + 9] & kHandedBack));
+    check("set used outside the garage copies as new", !(sets_begin(block(empty.mem.data(), 4))[9] & kUsedOutsideGarage));
+    check("refilled allocation marked dirty", empty.mem[0xe8] == 1);
+    uint64_t cap;
+    std::memcpy(&cap, block(empty.mem.data(), 0) + 0x20, sizeof cap);
+    check("refill records the capacity", cap == 3);
+    check("donor untouched", census(donor.mem.data()).fresh == 3 && donor.flags(0, 1) == kUsed);
+    size_t before = blocks.size();
+    check("second refill reuses the buffers", copy_sets(empty.mem.data(), donor.mem.data(), heap) == 6 &&
+                                                   blocks.size() == before && frees == 0);
+
+    Alloc orphan({{}, {}, {}, {}, {}});
+    check("refill without an allocator fails", copy_sets(orphan.mem.data(), donor.mem.data(), heap) == -1 &&
+                                                   census(orphan.mem.data()).total == 0 && orphan.mem[0xe8] == 0);
+
+    Alloc tagged({{{1, 0}, {2, kUsed}, {16, kHandedBack}}, {{5, 0}}, {}, {{0, 0}}});
+    check("untag changes fresh tagged sets only", untag_fresh_sets(tagged.mem.data()) == 2);
+    check("untagged fresh sets", tagged.tag(0, 0) == 0 && tagged.tag(1, 0) == 0);
+    check("used and handed-back sets keep their tag", tagged.tag(0, 1) == 2 && tagged.tag(0, 2) == 16);
+    check("untagged allocation marked dirty", tagged.mem[0xe8] == 1);
+    for (void *b : blocks)
+        std::free(b);
+
     std::vector<uint8_t> weekend(0x300), sessions(0xa0 * 5);
     auto session = [&](size_t i, uint32_t id, uint8_t group) {
         std::memcpy(sessions.data() + i * 0xa0 + 8, &id, 4);

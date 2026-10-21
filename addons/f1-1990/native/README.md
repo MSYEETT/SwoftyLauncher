@@ -48,6 +48,15 @@ A separate DLL, so a binding it can't resolve drops only this hook and never the
 
 Option `fq_tyre_fix` (toggle, default on) turns it off. With `no_tyre_allocation` the allocation is off and the usable check passes anyway; the hook then changes nothing that matters.
 
+### Tyre fallback
+
+Same DLL. In a 26-car 1990 session some cars, the player's included, found no compound to fit and ran without tyres: the game logged `Unable to get Closest Available Compound for vehicle <n>.` from `Sess_Tyres_ClosestAvailableCompound` (0x14368fb40, a jmp thunk into the .data1 body 0x150dc4ad0, bound through its call at 0x142a3ba4c). That function tries the five compound slots of the car's weekend allocation in preference order and fails only when no slot has a set that is usable in this session and below the wear limit, so the car's allocation had no usable set at all (inters and wets carry tag 0 and pass in every session).
+
+- After `Sess_TyreAllocation_OnSessionStart` on a 1990 weekend, every car allocation is counted, and every session entrant with a car is matched to one by driver key. An allocation with no sets gets a copy of every set of the fullest allocation, through its own blocks' allocator, as new sets (used and used-outside-garage flags cleared, wear 0, session tag and handed-back flag kept), and is marked dirty.
+- When `Sess_Tyres_ClosestAvailableCompound` returns 0xffffffff in a 1990 session, the car's allocation (by the entrant whose vehicle index matches) is refilled the same way when it is empty; when its fresh sets all carry a session tag, they get tag 0. The lookup then runs again and its result is returned.
+
+Lines: `[f1-1990] tyres: session <id>: <n> car allocation(s) for <n> car(s), <n> set(s) per car at least, <n> at most; <n> empty, <n> car(s) without one`, `... allocation <key> (preset <n>, <why>) had no sets: <n> set(s) copied from <key> (<n> set(s))`, `... V<nn> (driver <key>) has no weekend allocation`, and once per car and session `... V<nn> (driver <key>) found no compound: <counts per slot> (same|other car list); refilled|fresh sets untagged|nothing to change; lookup again: <slot or -1>`. Keys print as the game's `%04x` driver key. Option `tyre_fallback` (toggle, default on) turns both off.
+
 ## Replay state holders (`f1_1990_replay.dll`)
 
 A separate DLL, so a binding it can't resolve drops only this hook and never the save separation. The replay/flashback recorder (`Ne_Replay_WriteFrames`, 0x1445d0e70) keeps a state holder per recordable: a heap block with a 0x80-byte header, a current and a previous state buffer. Its class (one of 20, capacity 0x20 to 0xffff) is fixed at registration. Each frame the recordable serializes into a static scratch buffer and the recorder copies the state into the holder with no capacity check. At 26 cars, at the race start, a per-car recordable outgrows its holder; the copy then overwrites the next heap block (seen: the tyre system's wheel map table, which aborts the race start with heap error 0x16 when the table is freed).
