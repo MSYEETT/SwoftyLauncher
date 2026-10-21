@@ -323,9 +323,10 @@ void probe_hub(const char *when, uintptr_t career)
     }
     uintptr_t time = component(career, swofty::game::k_Career_CareerTimeComponentDesc.address());
     std::string dates;
-    for (int i = 0; i < 8; i++) {
-        char b[16];
-        std::snprintf(b, sizeof b, " %08x", rd<uint32_t>(time + 0x290 + i * 4));
+    for (uintptr_t d = rd<uintptr_t>(time + 0x298), de = rd<uintptr_t>(time + 0x2a0); d && d < de && dates.size() < 300; d += 0x10) {
+        char b[48];
+        std::snprintf(b, sizeof b, " [%08x %08x %08x %08x]", rd<uint32_t>(d), rd<uint32_t>(d + 4), rd<uint32_t>(d + 8),
+                      rd<uint32_t>(d + 12));
         dates += b;
     }
     swofty::log("[f1-1990] probe: hub at %s: career 0x%llx, championship 0x%llx with %ld season(s), season %u \"%s\" with %ld "
