@@ -293,6 +293,8 @@ def build(db):
         "game_setup_modes": SETUP_MODE,
         "ComCareerSetup_0.entrant_list": ENTRANT_LIST,
         "ComCareerSetup_0.setup_data": DATA_GROUP,
+        "ComInfluence_0.data_group": DATA_GROUP,
+        "ComSpecialists_0.specialist_data": DATA_GROUP,
     })
     setup = "championship_setups.ChampionshipSetupList_0.ChampionshipSetup_0"
     clone("game_modes", "ModeChampionship", "driver_career_26", {

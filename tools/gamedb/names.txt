@@ -3469,3 +3469,11 @@ create_team_schedules
 adaptation_mode
 boost_mode
 upgrades_path
+ComCareer
+ComDriverAcademies
+ComDynamicObjectives
+ComInfluence
+ComNCSDriverMarket
+ComSpecialists
+specialist_data
+specialist_objectives
