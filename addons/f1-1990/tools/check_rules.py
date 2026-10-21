@@ -6,7 +6,7 @@ usage: check_rules.py <stock gamedatabases.2025.bin> <built gamedatabases.2025.b
 Protected: every stock row of the setup modes, the game-setup-mode option tags, the compound classes, the visual
 compounds, the allocation and mandatory tyre presets, the DRS lap groups, the points presets, the track layers and
 the light probes. Allowed changes: the row counts of the tables that gain a 1990 row, the option tag lists (stock
-value plus gamesetup_f1_1990), and the f1_26 track layer and light probe lists (stock value plus f1_1990). Exit code 1
+value plus gamesetup_f1_1990) and the light probe list (stock value plus f1_1990). Exit code 1
 when a protected key changed or went missing, or a 1990 row is missing.
 """
 import os
@@ -52,9 +52,8 @@ def allowed(stock):
     ok = {h(f"{c}._{w}_instancecount_"): None for c, w, _ in NEW_ROWS}
     for key in rules.FIELDS["tag_lists"]:
         ok[h(key)] = f"{stock.get(key)},{rules.TAG_NAME}"
-    layer = stock.row_index("track_data.track_layers", "TrackLayer", "f1_26")
-    for key in (f"track_data.track_layers.TrackLayer_{layer}.game_setup_modes", f"{rules.PROBES}.game_setup_modes"):
-        ok[h(key)] = f"{stock.get(key)},{rules.NAME}"
+    key = f"{rules.PROBES}.game_setup_modes"
+    ok[h(key)] = f"{stock.get(key)},{rules.NAME}"
     return ok
 
 
