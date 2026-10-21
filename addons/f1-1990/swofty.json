@@ -72,11 +72,16 @@
       "id": "soft_sets",
       "type": "slider",
       "label": "Soft sets per session",
-      "description": "New supersoft tyre sets handed out in each 1990 session: practice 1, practice 2, Friday qualifying, Saturday qualifying and the race. No medium or hard sets are given.",
+      "description": "New supersoft tyre sets handed out in practice 1, practice 2 and the race of a 1990 weekend. No medium or hard sets are given.",
       "min": 1,
       "max": 8,
       "step": 1,
       "default": 2,
+      "binds": "db"
+    },
+    {
+      "id": "quali_sets", "type": "slider", "label": "Qualifying sets per session", "min": 1, "max": 8, "step": 1, "default": 5,
+      "description": "New ultrasoft qualifying tyre sets handed out in Friday and Saturday qualifying of a 1990 weekend. Unused sets carry over between the two sessions.",
       "binds": "db"
     },
     {

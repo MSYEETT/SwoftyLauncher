@@ -955,13 +955,13 @@
     "Practice1": "{{soft_sets}},0,0,0,0",
     "Practice2": "{{soft_sets}},0,0,0,0",
     "Practice3": "0,0,0,0,0",
-    "Qualifying1": "{{soft_sets}},0,0,0,0",
+    "Qualifying1": "0,{{quali_sets}},0,0,0",
     "Qualifying2": "0,0,0,0,0",
     "Qualifying3": "0,0,0,0,0",
     "Race": "{{soft_sets}},0,0,0,0",
     "Race2": "0,0,0,0,0",
     "Race3": "0,0,0,0,0",
-    "SprintShootout1": "{{soft_sets}},0,0,0,0",
+    "SprintShootout1": "0,{{quali_sets}},0,0,0",
     "SprintShootout2": "0,0,0,0,0",
     "SprintShootout3": "0,0,0,0,0"
    }
@@ -982,9 +982,9 @@
     "Race": "0,0,0,0,0",
     "Race2": "0,0,0,0,0",
     "Race3": "0,0,0,0,0",
-    "SprintShootout1": "1,0,0,0,0",
-    "SprintShootout2": "1,0,0,0,0",
-    "SprintShootout3": "1,0,0,0,0"
+    "SprintShootout1": "0,1,0,0,0",
+    "SprintShootout2": "0,1,0,0,0",
+    "SprintShootout3": "0,1,0,0,0"
    }
   },
   {
@@ -1008,15 +1008,16 @@
    "table": "tyres.visual_compounds",
    "from": "tyres.visual_compounds.VisualCompound[_metadata_=Soft_f1_26]",
    "set": {
-    "_metadata_": "Supersoft_f1_1990_medium",
+    "_metadata_": "Ultrasoft_f1_1990",
     "stat_id": "29",
-    "material_context": "SuperSoft",
-    "material_anim": "tyre_compound_key_super_soft",
-    "audio_id": "SuperSoft",
-    "icon_code": ":",
-    "display_name": "lng_tyre_compound_supersoft",
-    "title": "lng_tyre_compound_supersoft_title",
-    "desc": "lng_tyre_compound_supersoft_desc"
+    "material_context": "UltraSoft",
+    "material_anim": "tyre_compound_key_ultra_soft",
+    "audio_id": "UltraSoft",
+    "icon_code": "?",
+    "colour": "-6860657",
+    "display_name": "lng_tyre_compound_ultrasoft",
+    "title": "lng_tyre_compound_ultrasoft_title",
+    "desc": "lng_tyre_compound_ultrasoft_desc"
    }
   },
   {
@@ -1045,7 +1046,7 @@
     "weekend_formats": "default",
     "stat_id": "12",
     "CompoundOptions_0.visual_compounds": "Supersoft_f1_1990",
-    "CompoundOptions_1.visual_compounds": "Supersoft_f1_1990_medium",
+    "CompoundOptions_1.visual_compounds": "Ultrasoft_f1_1990",
     "CompoundOptions_2.visual_compounds": "Supersoft_f1_1990_harder"
    }
   },
