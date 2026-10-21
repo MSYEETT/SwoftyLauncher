@@ -10,6 +10,7 @@ value plus gamesetup_f1_1990) and the light probe list (stock value plus f1_1990
 when a protected key changed or went missing, or a 1990 row is missing.
 """
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -37,14 +38,38 @@ def h(path):
     return career.gamedb.fnv1a64(path.encode())
 
 
+def under(db, row, rest):
+    segs = rest.split(".")
+    i = next((k for k, seg in enumerate(segs) if seg.endswith("_N")), None)
+    if i is None:
+        return [rest] if db.get(f"{row}.{rest}") is not None else []
+    pre, word, tail = ".".join(segs[:i]), segs[i][:-2], ".".join(segs[i + 1:])
+    parent = f"{row}.{pre}" if pre else row
+    n = db.count(parent, word)
+    found = []
+    k = 0
+    while k < n if n is not None else db.get(f"{parent}.{word}_{k}._metadata_") is not None:
+        node = f"{pre}.{word}_{k}" if pre else f"{word}_{k}"
+        if not tail:
+            if db.get(f"{row}.{node}") is not None:
+                found.append(node)
+        else:
+            found += [f"{node}.{sub}" for sub in under(db, f"{row}.{node}", tail)]
+        k += 1
+    return found
+
+
 def protected(db):
     out = {}
     for container, word in dict.fromkeys(PROTECTED):
+        template = f"{re.sub(r'_[0-9]+', '_N', container)}.{word}_N."
+        rests = sorted({k[len(template):] for k in db.cat if k.startswith(template)})
         for i in range(db.count(container, word) or 0):
             row = f"{container}.{word}_{i}"
             label = db.get(f"{row}._metadata_")
-            for field in db.fields(container, word, label):
-                out[h(f"{row}.{field}")] = f"{row}.{field} ({label})"
+            for rest in rests:
+                for field in under(db, row, rest):
+                    out[h(f"{row}.{field}")] = f"{row}.{field} ({label})"
     return out
 
 
