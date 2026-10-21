@@ -8140,6 +8140,216 @@
     "native/src/core/career_content.cpp",
     "addons/f1-1990/native/src/career_menu_ui.cpp"
    ]
+  },
+  {
+   "id": "game.speech_system_post_line",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 53 48 81 EC 30 01 00 00 C5 F9 29 B4 24 20 01 00 00",
+   "match": "0x140a30b60",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140a30b60",
+   "kind": "func_start",
+   "names": [
+    "Game_SpeechSystem_PostLine"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/agent_voice.cpp"
+   ]
+  },
+  {
+   "id": "game.entrants_ui_build_character_ref",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 78 04 00 00 C5 F8 29 B4 24 60 04 00 00 4C 89 C7 48 89 D3 48 89 CE 0F B6 02",
+   "match": "0x1424f1d70",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1424f1d70",
+   "kind": "func_start",
+   "names": [
+    "Game_EntrantsUi_BuildCharacterRef"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/agent_character.cpp"
+   ]
+  },
+  {
+   "id": "game.entrants_ui_on_character_list_loaded",
+   "section": ".xtls",
+   "pattern": "56 57 48 83 EC 68 48 89 D6 48 8B 0D ?? ?? ?? ?? 48 8B 41 08 48 8D 50 08 48 85 C0 48 8D 05 ?? ?? ?? ?? 48 0F 44 D0 4C 8D 05 ?? ?? ?? ?? 49 B9 01 08 00 00 00 00 00 05 66 0F 1F 84 00 00 00 00 00 45 0F B6 10 45 8D 5A DD 41 83 FB 3A 77 06 4D 0F A3 D9 72 1C 45 85 D2 74 05 49 FF C0 EB E2 C7 44 24 24 8D 8D E6 35",
+   "match": "0x1424bacc0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1424bacc0",
+   "kind": "func_start",
+   "names": [
+    "Game_EntrantsUi_OnCharacterListLoaded"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/agent_character.cpp"
+   ]
+  },
+  {
+   "id": "game.driver_select_header_build_tabs",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? C6 86 10 03 00 00 01 48 8B 86 C0 02 00 00",
+   "match": "0x141a591f2",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a591f2",
+   "kind": "mid",
+   "expect": "E8 49 8D 7F 02",
+   "names": [
+    "site_Game_DriverSelectHeader_BuildTabs"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/driver_select_tabs.cpp"
+   ]
+  },
+  {
+   "id": "game.driver_select_header_set_tab_state",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 53 48 83 EC 28 48 89 CE 44 88 4C 24 27",
+   "match": "0x141a59fe0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a59fe0",
+   "kind": "func_start",
+   "names": [
+    "Game_DriverSelectHeader_SetTabState"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/driver_select_tabs.cpp"
+   ]
+  },
+  {
+   "id": "game.career_wizard_starts_in_f1",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 38 48 85 C9 0F 84 ?? ?? ?? ?? 48 89 D6",
+   "match": "0x14078ddd0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14078ddd0",
+   "kind": "func_start",
+   "names": [
+    "Game_CareerWizard_StartsInF1"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
+  },
+  {
+   "id": "game.career_wizard_confirm_next_route",
+   "section": ".xtls",
+   "pattern": "74 12 48 C7 44 24 20 00 00 00 00 48 8D 15 ?? ?? ?? ?? EB 10 48 C7 44 24 20 00 00 00 00 48 8D 15 ?? ?? ?? ?? 48 8D 7C 24 20 48 89 F9",
+   "match": "0x141a23c6d",
+   "anchor": "0x24",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a23c91",
+   "kind": "mid",
+   "expect": "48 8D 7C 24 20",
+   "names": [
+    "site_Game_CareerWizardConfirm_NextRoute"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
+  },
+  {
+   "id": "game.career_wizard_push_next_step",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 28 48 89 CE E8 ?? ?? ?? ?? 4C 8B 30 4C 8B 86 28 01 00 00",
+   "match": "0x14386d890",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14386d890",
+   "kind": "func_start",
+   "names": [
+    "Game_CareerWizard_PushNextStep"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
   }
  ]
 }
