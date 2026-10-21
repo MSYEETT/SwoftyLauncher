@@ -1,6 +1,8 @@
 # R&D: Tyres & Thermal Management
 
-Adds a fifth career R&D department, Tyres & Thermal Management, alongside Aerodynamics, Chassis, Durability and Powertrain.
+Adds a fifth Driver Career R&D department, Tyres & Thermal Management, alongside Aerodynamics, Chassis, Durability and Powertrain.
+
+The addon is for Driver Career only. While it is on, the game won't start or load a My Team career: choosing My Team on the Career menu shows a "My Team not available" message and leaves you on the menu. To play My Team, turn the addon off in the launcher, or use a profile without it, and relaunch.
 
 `swofty.rnd-tyres-thermal.zip` in this folder is the packaged addon: drop it on the launcher, or install it with `swofty addons install`. The launcher's own releases don't bundle it.
 
@@ -25,6 +27,8 @@ Version 0.10.0 moves every engine hook onto the SDK's mixin bindings and needs S
 
 Version 0.10.1 checks game memory through the SDK's region cache. It still runs on Swofty Launcher 1.0.9 or later.
 
+Version 0.11.0 blocks My Team. In My Team the addon's hooks made career creation and loading freeze at the season select until the game's hang watchdog closed the game. The addon now holds the core's career block on My Team (`swofty::career::block`, SDK API 7): the core cancels the Career menu route that starts or loads a My Team career and shows the game's own message popup. On a core older than API 7 the addon logs that My Team is not blocked and keeps working in Driver Career.
+
 `TESTING.md` lists what to check in game.
 
 ![Stock department icons and the Tyres icon](preview/tyres_icon_compare.png)
@@ -43,7 +47,7 @@ Version 0.10.1 checks game memory through the SDK's region cache. It still runs 
 | Icons | `erp/rnd_tyres_icon.json`, `icons/` | a `tyres` frame in `rnd_dept_icons_small` and `rnd_wheel_icon` and a `rnd_tyres_strip` frame in `rnd_department_strips`: one more slice in each texture array (`flow_career_hub.erp`, `flow_team_hq.erp`, `flow_r_and_d.erp`) and one more `overrides.uidb` entry (`databases.erp`) |
 | Card art | `erp/rnd_tyres_card_art.json`, `art/arrays/` | 45 slices in `rnd_part_image`, 15 in `rnd_part_mask` and 4 in `rnd_category_icons`, plain and `rnd_om_xm`, in every UI archive that carries them (`common_flow_misc.erp`, `flow_career_hub.erp`, `flow_r_and_d.erp`, `flow_team_hq.erp`), and the matching `overrides.uidb` entries |
 | Cars | `erp/rnd_upgrade_vtf.json`, `vtf/` | the four `radUpgrade*` blocks for the new types in 44 career handling VTFs (94 copies in 65 archives) |
-| Engine | `native/rnd_departments.dll` | reads the fifth department row, gives the Tyres upgrades R&D states, mints the four upgrade types, names, colours, counts and routes the fifth tile and pie sector, and picks the Tyres card art for each card state |
+| Engine | `native/rnd_departments.dll` | reads the fifth department row, gives the Tyres upgrades R&D states, mints the four upgrade types, names, colours, counts and routes the fifth tile and pie sector, picks the Tyres card art for each card state, and blocks My Team careers |
 
 The engine hooks are mixins on knowledge-base bindings for the Steam build 25251167 (`F1_25.exe` d873a1c8…). If any binding doesn't resolve, the addon installs nothing.
 

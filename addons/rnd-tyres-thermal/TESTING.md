@@ -121,3 +121,16 @@ The addon has no apply log of its own. With the game's `VEHICLE_UPGRADES` log ch
 - How close the BC7 encoding of the fitted renders looks to the stock cards next to them (mode 6 only: fine detail such as radiator fins loses some contrast).
 - Whether the Ultimates unlock at facility level 3.
 - Whether Brake Cooling and Power Unit Cooling change anything on track (`native/HOOKS.md`, "Power Unit Cooling" and the Brake note).
+
+## My Team is blocked (0.11.0)
+
+1. Career > My Team, new or continue: a "My Team not available" popup with one OK button shows, and the Career menu stays open and usable after OK.
+2. The core log has the block and each cancelled route:
+
+```
+[career] swofty.rnd-tyres-thermal blocks my_team careers; the start gate is live
+[career] career.starting: my_team (pick, route 'career_dlc_select_my_team'); blocked by swofty.rnd-tyres-thermal
+[popup] shown for swofty.rnd-tyres-thermal as 'swofty_message': "My Team not available"
+```
+
+3. Career > Driver Career, new and continue, opens as before and the Tyres department page shows in R&D.
