@@ -4,10 +4,12 @@
 
 usage: career.py <stock gamedatabases.2025.bin> <dir of language_<code>.tsv dumps (key<TAB>value, \\n escaped)>
 
-Every new row is a full-key clone of its 2026 source row, with the field list read from the stock database through
-the key catalogue (tools/gamedb/catalog/keys.tsv.gz). No 2025 or 2026 row changes; content set 11 gains the 1990
-names in two lists. data/flavio-strings.json holds, per language, the stock strings that name the agent rewritten for
-Flavio Briatore; the native side applies them only while a 1990 career is loaded.
+Every new row is a full-key clone of its 2026 source row. The field list comes from the key catalogue
+(tools/gamedb/catalog/keys.tsv.gz) plus every known field name (catalogue fields, tools/gamedb/names.txt, the exe's
+reader names, Driver Manager's field list) found on the source row and its nested rows in the stock database. No 2025
+or 2026 row changes; content set 11 gains the 1990 names in two lists. data/flavio-strings.json holds, per language,
+the stock strings that name the agent rewritten for Flavio Briatore; the native side applies them only while a 1990
+career is loaded.
 """
 import gzip
 import json
@@ -22,6 +24,10 @@ sys.path.insert(0, os.path.join(REPO, "tools"))
 import gamedb  # noqa: E402
 
 CATALOG = os.path.join(REPO, "tools", "gamedb", "catalog", "keys.tsv.gz")
+NAME_SOURCES = [os.path.join(REPO, "tools", "gamedb", "names.txt"),
+                os.path.join(REPO, "tools", "gamedb", "catalog", "exe_names.tsv")]
+QUOTED_NAME_SOURCES = [os.path.join(REPO, "addons", "driver-manager", "launcher", "src", "fields.rs")]
+FNV_PRIME = 0x100000001b3
 
 ROUNDS = [
     ("Phoenix", "las_vegas", "rw_las_vegas_26", 11, 3, "las", "UNITED STATES GRAND PRIX"),
@@ -132,14 +138,66 @@ class Db:
                 return i
         raise KeyError(f"{container}.{word}[_metadata_={label}]")
 
-    def fields(self, container, word, label):
+    def fields(self, container, word, label, probe=True):
         row = f"{container}.{word}_{self.row_index(container, word, label)}"
         template = f"{container}.{word}_N."
         out = set()
         for key in self.cat:
             if key.startswith(template):
                 out.update(self.under(row, key[len(template):]))
+        if probe:
+            out |= self.probe(row, out)
         return sorted(out)
+
+    def vocabulary(self):
+        if not hasattr(self, "_vocab"):
+            names = set()
+            for key in self.cat:
+                parts = key.split(".")
+                names.update(".".join(parts[i + 1:]) for i, p in enumerate(parts) if p.endswith("_N"))
+            for path in NAME_SOURCES:
+                with open(path, encoding="utf-8") as f:
+                    for line in f:
+                        name = line.rstrip("\n").split("\t")[0]
+                        names.add(name)
+                        names.update(name.split("."))
+            for path in QUOTED_NAME_SOURCES:
+                with open(path, encoding="utf-8") as f:
+                    for name in re.findall(r'"([A-Za-z0-9_.]+)"', f.read()):
+                        names.add(name)
+                        names.update(name.split("."))
+            names = sorted(n for n in names if n and "_N" not in n and re.fullmatch(r"[A-Za-z0-9_.]+", n))
+            self._vocab = [n.encode() for n in names]
+            self._tables = [(n, f"_{n}_instancecount_".encode()) for n in names if "." not in n]
+        return self._vocab, self._tables
+
+    def probe(self, row, known):
+        vocab, tables = self.vocabulary()
+        found = set()
+        todo = [""] + sorted({".".join(f.split(".")[:i + 1]) for f in known
+                              for i, seg in enumerate(f.split(".")) if re.search(r"_\d+$", seg)})
+        seen = set()
+        while todo:
+            p = todo.pop()
+            if p in seen:
+                continue
+            seen.add(p)
+            pre = f"{p}." if p else ""
+            h0 = gamedb.fnv1a64(f"{row}.{pre}".encode())
+            for name in vocab:
+                if self._cont(h0, name) in self.d:
+                    found.add(pre + name.decode())
+            for word, count_key in tables:
+                if self._cont(h0, count_key) in self.d:
+                    found.add(pre + count_key.decode())
+                    todo += [f"{pre}{word}_{i}" for i in range(int(self.get(f"{row}.{pre}{count_key.decode()}")))]
+        return found
+
+    @staticmethod
+    def _cont(h, data):
+        for c in data:
+            h = ((h ^ c) * FNV_PRIME) & 0xFFFFFFFFFFFFFFFF
+        return h
 
     def under(self, row, rest):
         segs = rest.split(".")
