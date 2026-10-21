@@ -39,11 +39,15 @@ def hashed(db, path):
     return out
 
 
+def copied(db, path, sub):
+    return hashed(db, path) | {f"{path}.{k}" for p in rnd.UNCATALOGUED.get(sub, []) for k in db.under(path, p)}
+
+
 def protected(db):
     keys = set()
     for prefix in STOCK_PREFIXES:
         for sub in rnd.COPIED + ["attribute_modifiers"]:
-            keys |= hashed(db, f"{prefix}.{sub}")
+            keys |= copied(db, f"{prefix}.{sub}", sub)
         for token in STOCK_TOKENS:
             tree = f"{prefix}.trees.{token}"
             for table in TREE_TABLES:
@@ -129,6 +133,17 @@ def main():
         if not any(n and n.startswith("f1990_bspec") for n in names):
             bad.append(f"{tree}: no f1990_bspec upgrade")
     print(f"1990 trees: {len(rnd.TOKENS)} tokens checked")
+    for sub in rnd.COPIED:
+        src = f"{rnd.STOCK}.{sub}"
+        keys = sorted(copied(stock, src, sub))
+        miss = [k for k in keys if built.get(h(rnd.PREFIX + k[len(rnd.STOCK):])) != stock_raw.get(h(k))]
+        bad += [f"{rnd.PREFIX + k[len(rnd.STOCK):]} is not a copy of {k}" for k in miss[:20]]
+        print(f"{rnd.PREFIX}.{sub}: {len(keys) - len(miss)}/{len(keys)} keys copied from {src}")
+    package = get(f"{rnd.PREFIX}.general.ui_data_0.texture_array_dictionary_path")
+    if not package:
+        bad.append(f"{rnd.PREFIX}.general.ui_data_0.texture_array_dictionary_path is missing: no R&D art in 1990")
+    else:
+        print(f"1990 R&D UI package: {package}")
 
     for p in bad:
         print("FAIL", p)

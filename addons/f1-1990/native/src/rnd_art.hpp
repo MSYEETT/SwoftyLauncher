@@ -8,6 +8,23 @@ namespace f1990 {
 
 constexpr std::string_view kUpgradePrefix = "f1990_";
 
+// The 2026 R&D UI package, upgrades.2026.general.ui_data_0.texture_array_dictionary_path; the 1990 career copies it
+// into upgrades.1990.general (tools/rnd.py).
+inline constexpr char kRnDPackage[] = "#overrides.career.rnd_om_xm";
+
+// A career R&D UI package: #overrides.career (the pre-2026 lists) or #overrides.career.<package>. A career whose
+// upgrades path has no general table gets an empty one, and then no R&D frame resolves.
+inline bool is_rnd_package(std::string_view pkg)
+{
+    constexpr std::string_view career = "#overrides.career";
+    return pkg.substr(0, career.size()) == career && (pkg.size() == career.size() || pkg[career.size()] == '.');
+}
+
+inline bool package_is_omxm(std::string_view pkg)
+{
+    return pkg.find("om_xm") != std::string_view::npos;
+}
+
 // The R&D card binders name a card's frame <upgrade_name>, <upgrade_name>_in_progress or
 // <upgrade_name>_complete (state <= 1, 2, other); masks are <upgrade_name>. Splits off that suffix.
 inline std::string_view state_suffix(std::string_view name, std::string_view &base)

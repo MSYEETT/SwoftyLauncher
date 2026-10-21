@@ -8,7 +8,8 @@ The 1990 career reads its upgrades from `upgrades.1990` instead of `upgrades.202
 component set `shared_driver_career_26_components`. The 1990 championship gets its own set,
 `shared_driver_career_1990_components`, whose ComUpgrades, ComResourcePoints, ComAccolades and ComSchedule
 point at the 1990 rows. Under `upgrades.1990` the engine supplier trees, delivery schedules, regulation
-change schedules and R&D challenges are copies of the 2026 ones; `trees.<token>` holds the 1990 trees.
+change schedules, R&D challenges and `general` (the R&D UI package and the dual-development scalars) are copies
+of the 2026 ones; `trees.<token>` holds the 1990 trees.
 
 A team finds its tree through `trees.<token>.teams_linked_to_0.links`, a list of vehicle labels
 (Career_Read_TeamLinks 0x1435396e0 walks 12 tokens compiled into the exe and keeps the first whose list
@@ -42,9 +43,19 @@ SHARED_SOURCE = "shared_driver_career_26_components"
 SHARED_1990 = "shared_driver_career_1990_components"
 SHARED_LIST = f"shared_driver_career_components,shared_driver_career_offline_components,{SHARED_1990}"
 COPIED = ["engine_suppliers.trees", "engine_suppliers.delivery_schedules", "regulation_changes_schedules",
-          "rnd_challenges"]
-# Keys of the copied subtrees that every stock row has but the key catalogue does not name.
-UNCATALOGUED = {"engine_suppliers.trees": ["engine_supplier_upgrades_N.engine.unused"]}
+          "rnd_challenges", "general"]
+# Keys of the copied subtrees that every stock row has but the key catalogue does not name. `general` is read by
+# the upgrades loader's vt+0x58 (0x143540790, `%s.general` table `ui_data`): texture_array_dictionary_path is the
+# R&D UI package every card, icon and strip path starts with (#overrides.career.rnd_om_xm), term_x_mode the X-mode
+# wording flag; global_tweakables holds the dual-development scalars. Without it the 1990 package is empty and no
+# R&D art resolves.
+UNCATALOGUED = {
+    "engine_suppliers.trees": ["engine_supplier_upgrades_N.engine.unused"],
+    "general": ["_global_tweakables_instancecount_", "global_tweakables_N._metadata_",
+                "global_tweakables_N.dual_development_cost_scalar", "global_tweakables_N.dual_development_time_scalar",
+                "_ui_data_instancecount_", "ui_data_N._metadata_", "ui_data_N.term_x_mode",
+                "ui_data_N.texture_array_dictionary_path"],
+}
 
 STR, INT, LIST = 2, 0, 13
 
@@ -140,7 +151,7 @@ UPGRADES = [
     U("camshaft_profiles", EP, "Minor", (-4, 0), ["valve_train"], art="om_xm_valve_timing",
       title="Camshaft Profiles", text="New cam profiles for more power at the top of the rev range."),
     U("valve_train", EP, "Major", (-5, 0), ["fuel_mapping", "quali_rev_limit", "evolution_spec"],
-      art="om_xm_cylinder_head", title="High-Rev Valve Train",
+      art="om_xm_crankshaft", title="High-Rev Valve Train",
       text="A lighter valve train that lets the engine rev higher."),
     U("fuel_mapping", FC, "Minor", (-5, -1), ["fuel_package"], art="om_xm_fuel_flow_regulator",
       title="Lean Fuel Mapping",
@@ -154,7 +165,7 @@ UPGRADES = [
     U("quali_rev_limit", EP, "Minor", (-5, 1), ["quali_engine"], quali=True, art="om_xm_ignition_system",
       title="Qualifying Engine Mode",
       text="A higher rev limit and a richer mixture, used only in qualifying."),
-    U("quali_engine", EP, "Major", (-6, 1), only="works", quali=True, cost=900, art="om_xm_exhaust_power",
+    U("quali_engine", EP, "Major", (-6, 1), only="works", quali=True, cost=900, art="om_xm_lightweight_pistons",
       title="Qualifying Engine",
       text="A short-life engine built for one qualifying session. Qualifying only."),
 

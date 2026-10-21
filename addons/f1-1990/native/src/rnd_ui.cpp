@@ -9,6 +9,10 @@
 // those sites the frame of an f1990_ upgrade becomes its stock donor's frame for the same state
 // (data/rnd-art.json "frames"), named the way the list in pkg names it (rnd_om_xm or plain, as the
 // rnd-tyres addon does). Only 1990 R&D trees carry f1990_ names, so this needs no career check.
+// pkg is the career's R&D UI package (upgrades.<path>.general.ui_data_0.texture_array_dictionary_path,
+// read by the upgrades loader 0x143540790); a build without upgrades.1990.general leaves it empty, so for
+// an f1990_ card with no R&D package r8 becomes #overrides.career.rnd_om_xm. Each card is logged once per
+// site.
 //
 // Department names: data/rnd-strings.json ("strings" per language) is set through the core's
 // runtime string overrides (API v8) while a 1990 career is loaded and cleared when it unloads.
@@ -19,6 +23,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <swofty/career.hpp>
@@ -42,7 +47,10 @@ constexpr char kArtFile[] = "data/rnd-art.json";
 
 std::once_flag g_art_once;
 std::unordered_map<std::string, std::string> g_frames;
-std::atomic<uint32_t> g_art_logged, g_missing_logged;
+std::atomic<uint32_t> g_missing_logged;
+std::atomic<bool> g_package_logged;
+std::mutex g_log_mu;
+std::unordered_set<std::string> g_logged_cards;
 
 bool read_leaves(const char *file, std::vector<f1990::StringLeaf> &out)
 {
@@ -69,14 +77,10 @@ void read_art()
     swofty::log("[f1-1990] rnd: %zu card art donor(s) from %s", g_frames.size(), kArtFile);
 }
 
-bool pkg_is_omxm(const char *pkg)
+bool first_log(unsigned site, const char *name)
 {
-    if (!pkg || !swofty::mem::readable(pkg, 1))
-        return false;
-    for (size_t i = 0; i < 160 && pkg[i]; ++i)
-        if (!std::strncmp(pkg + i, "om_xm", 5))
-            return true;
-    return false;
+    std::lock_guard<std::mutex> lock(g_log_mu);
+    return g_logged_cards.size() < 256 && g_logged_cards.insert(std::to_string(site) + ':' + name).second;
 }
 
 char *next_buf()
@@ -105,11 +109,20 @@ void part_art(swofty::Context &c, unsigned site, bool mask)
                         name);
         return;
     }
-    std::string frame = f1990::donor_frame(it->second, suffix, pkg_is_omxm(reinterpret_cast<const char *>(c.r8)), mask);
+    std::string pkg;
+    bool career = swofty::mem::c_string(c.r8, pkg, 128) && f1990::is_rnd_package(pkg);
+    if (!g_package_logged.exchange(true))
+        swofty::log("[f1-1990] rnd: card art: the career's R&D package is \"%s\"%s", pkg.c_str(),
+                    career ? "" : "; not an R&D package (upgrades.1990.general missing from the build?), so 1990 "
+                                  "cards use #overrides.career.rnd_om_xm");
+    if (!career)
+        c.r8 = reinterpret_cast<uintptr_t>(f1990::kRnDPackage);
+    bool omxm = !career || f1990::package_is_omxm(pkg);
+    std::string frame = f1990::donor_frame(it->second, suffix, omxm, mask);
     char *buf = next_buf();
     std::snprintf(buf, 128, "%s", frame.c_str());
     *arg = buf;
-    if (g_art_logged++ < 24)
+    if (first_log(site, name))
         swofty::log("[f1-1990] rnd: card art site %u %s \"%s\" -> \"%s\"", site, mask ? "mask" : "image", name, buf);
 }
 
