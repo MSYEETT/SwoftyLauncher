@@ -8,7 +8,8 @@ ships per option in `<folder>_handling.erp`. A car whose folder differs from its
 and layers under the folder name.
 
 Outputs (relative to the addon folder, not committed): erp/teams/<folder>/wep/<folder>.erp, erp/teams/common.erp,
-erp/tyrecompounds/tyrecompounds.erp, and assets/cars.json (the file.put and group.register ops, committed).
+erp/tyrecompounds/tyrecompounds.erp, assets/cars.json (the file.put and group.register ops) and db/test.json (the
+test_grand_prix option's seat swaps); the last two are committed.
 """
 import argparse
 import json
@@ -149,6 +150,30 @@ def ops():
     return {'schema_version': 1, 'ops': out}
 
 
+GP_SEATS = {'mclaren_driver': 'mclaren', 'mercedes_driver': 'mercedes', 'redbull_driver': 'redbull',
+            'ferrari_driver': 'ferrari', 'williams_driver': 'williams', 'vcarb_driver': 'toro_rosso',
+            'astonmartin_driver': 'force_india', 'haas_driver': 'haas', 'kick_driver': 'sauber',
+            'alpine_driver': 'lotus', 'gm_cadillac': 'gm_cadillac'}
+MYTEAM_SEATS = {'williams': 'myteam_ferrari', 'haas': 'myteam_honda'}
+
+
+def test_ops():
+    by_folder = {c.folder: c for c in C.CARS}
+    out = []
+    for prefix, folder in GP_SEATS.items():
+        for n in ('01', '02'):
+            sel = f'entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_={prefix}_{n}]'
+            if folder == 'ferrari':
+                out.append({'op': 'set', 'select': sel, 'field': 'vehicle', 'value': by_folder[folder].vehicle,
+                            'when': {'test_grand_prix': 'ferrari'}})
+            out.append({'op': 'set', 'select': sel, 'field': 'vehicle', 'value': by_folder[folder].vehicle,
+                        'when': {'test_grand_prix': 'all'}})
+            if folder in MYTEAM_SEATS:
+                out.append({'op': 'set', 'select': sel, 'field': 'vehicle',
+                            'value': by_folder[MYTEAM_SEATS[folder]].vehicle, 'when': {'test_grand_prix': 'myteam'}})
+    return {'schema_version': 1, 'ops': out}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n', 1)[0])
     ap.add_argument('--game', default='/mnt/gaming/SteamLibrary/steamapps/common/F1 25',
@@ -156,10 +181,12 @@ def main():
     ap.add_argument('--tries', default=TRIES, help='folder with the porter tries named in SOURCES')
     ap.add_argument('--common', default=COMMON, help='the 13-inch common.erp (f1_2026 names)')
     ap.add_argument('--only', help='comma-separated teams to build')
-    ap.add_argument('--ops-only', action='store_true', help='write assets/cars.json and stop')
+    ap.add_argument('--ops-only', action='store_true', help='write assets/cars.json and db/test.json and stop')
     args = ap.parse_args()
     with open(os.path.join(ADDON, 'assets', 'cars.json'), 'w') as f:
         f.write(json.dumps(ops(), indent=1) + '\n')
+    with open(os.path.join(ADDON, 'db', 'test.json'), 'w') as f:
+        f.write(json.dumps(test_ops(), indent=1) + '\n')
     if args.ops_only:
         return 0
     report = {'cars': []}

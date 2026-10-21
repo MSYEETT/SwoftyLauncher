@@ -27,8 +27,8 @@ drop to each axle's RideHeight and setup ride-height range.
 Team power, mass and drag come from the season pack's per-team scalars (season.py), applied around a common base.
 
 Outputs (relative to the addon folder): cars/handling/<ers>_<tyre_size>/<folder>_handling.erp, cars/handling.json
-(file.put ops keyed by the options) and db/cars.json (the package row, the 13 vehicle rows and the 1990 strings'
-keys). The build compares with the shipped files and exits 1 on any difference; --write replaces them.
+(file.put ops keyed by the options) and db/cars.json (the package row and the 13 vehicle rows, labelled with the grid
+lane's tokens; their name strings come from the grid lane's lang ops). The build compares with the shipped files and exits 1 on any difference; --write replaces them.
 """
 import argparse
 import json
@@ -358,7 +358,6 @@ def build(game, out):
         report.append(info)
     files['cars/handling.json'] = (json.dumps({'schema_version': 1, 'ops': ops}, indent=1) + '\n').encode()
     files['db/cars.json'] = (json.dumps(db_ops(), indent=1) + '\n').encode()
-    files['lang/cars.json'] = (json.dumps(lang_ops(), indent=1) + '\n').encode()
     for rel, blob in files.items():
         dst = os.path.join(out, rel)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
@@ -388,20 +387,13 @@ def db_ops():
                     'from': f'entrants.vehicles.vehicle[_metadata_={c.donor_vehicle}]',
                     'set': {'_metadata_': c.vehicle, 'stat_id': str(c.stat_id), 'asset_filename': c.folder,
                             'vehicle_package': C.PACKAGE, 'hud_dial': '{{hud_dial}}', 'drs_capable': 'False',
-                            'display_name': chassis_key(c), 'chassis_name': chassis_key(c),
-                            'engine_name_override': engine_key(c), 'equal_performance_vehicle': ''}})
+                            'display_name': f'lng_f1990_team_{c.team}', 'chassis_name': chassis_key(c),
+                            'engine_name_override': engine_key(c), 'equal_performance_vehicle': '',
+                            'performance_tier': str(c.tier)}})
     return {'schema_version': 1,
             'fields': {'entrants.vehicles.vehicle_packages.vehicle_package': PACKAGE_FIELDS,
                        'entrants.vehicles.vehicle': vehicle_fields},
             'ops': ops}
-
-
-def lang_ops():
-    ops = []
-    for c in C.CARS:
-        ops.append({'op': 'lang.set', 'language': '*', 'key': chassis_key(c), 'value': c.chassis})
-        ops.append({'op': 'lang.set', 'language': '*', 'key': engine_key(c), 'value': c.engine})
-    return {'schema_version': 1, 'ops': ops}
 
 
 def main():

@@ -304,10 +304,11 @@
     "vehicle_package": "f1_1990",
     "hud_dial": "{{hud_dial}}",
     "drs_capable": "False",
-    "display_name": "lng_f1990_chassis_mclaren",
+    "display_name": "lng_f1990_team_mclaren",
     "chassis_name": "lng_f1990_chassis_mclaren",
     "engine_name_override": "lng_f1990_engine_mclaren",
-    "equal_performance_vehicle": ""
+    "equal_performance_vehicle": "",
+    "performance_tier": "0"
    }
   },
   {
@@ -321,10 +322,11 @@
     "vehicle_package": "f1_1990",
     "hud_dial": "{{hud_dial}}",
     "drs_capable": "False",
-    "display_name": "lng_f1990_chassis_ferrari",
+    "display_name": "lng_f1990_team_ferrari",
     "chassis_name": "lng_f1990_chassis_ferrari",
     "engine_name_override": "lng_f1990_engine_ferrari",
-    "equal_performance_vehicle": ""
+    "equal_performance_vehicle": "",
+    "performance_tier": "0"
    }
   },
   {
@@ -338,10 +340,11 @@
     "vehicle_package": "f1_1990",
     "hud_dial": "{{hud_dial}}",
     "drs_capable": "False",
-    "display_name": "lng_f1990_chassis_williams",
+    "display_name": "lng_f1990_team_williams",
     "chassis_name": "lng_f1990_chassis_williams",
     "engine_name_override": "lng_f1990_engine_williams",
-    "equal_performance_vehicle": ""
+    "equal_performance_vehicle": "",
+    "performance_tier": "0"
    }
   },
   {
@@ -355,10 +358,11 @@
     "vehicle_package": "f1_1990",
     "hud_dial": "{{hud_dial}}",
     "drs_capable": "False",
-    "display_name": "lng_f1990_chassis_benetton",
+    "display_name": "lng_f1990_team_benetton",
     "chassis_name": "lng_f1990_chassis_benetton",
     "engine_name_override": "lng_f1990_engine_benetton",
-    "equal_performance_vehicle": ""
+    "equal_performance_vehicle": "",
+    "performance_tier": "0"
    }
   },
   {
@@ -372,10 +376,11 @@
     "vehicle_package": "f1_1990",
     "hud_dial": "{{hud_dial}}",
     "drs_capable": "False",
-    "display_name": "lng_f1990_chassis_tyrrell",
+    "display_name": "lng_f1990_team_tyrrell",
     "chassis_name": "lng_f1990_chassis_tyrrell",
     "engine_name_override": "lng_f1990_engine_tyrrell",
-    "equal_performance_vehicle": ""
+    "equal_performance_vehicle": "",
+    "performance_tier": "1"
    }
   },
   {
@@ -389,10 +394,11 @@
     "vehicle_package": "f1_1990",
     "hud_dial": "{{hud_dial}}",
     "drs_capable": "False",
-    "display_name": "lng_f1990_chassis_lotus",
+    "display_name": "lng_f1990_team_lotus",
     "chassis_name": "lng_f1990_chassis_lotus",
     "engine_name_override": "lng_f1990_engine_lotus",
-    "equal_performance_vehicle": ""
+    "equal_performance_vehicle": "",
+    "performance_tier": "1"
    }
   },
   {
@@ -400,16 +406,17 @@
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=force_india_2026]",
    "set": {
-    "_metadata_": "march_1990",
+    "_metadata_": "leytonhouse_1990",
     "stat_id": "519",
     "asset_filename": "force_india",
     "vehicle_package": "f1_1990",
     "hud_dial": "{{hud_dial}}",
     "drs_capable": "False",
-    "display_name": "lng_f1990_chassis_march",
+    "display_name": "lng_f1990_team_march",
     "chassis_name": "lng_f1990_chassis_march",
     "engine_name_override": "lng_f1990_engine_march",
-    "equal_performance_vehicle": ""
+    "equal_performance_vehicle": "",
+    "performance_tier": "1"
    }
   },
   {
@@ -423,10 +430,11 @@
     "vehicle_package": "f1_1990",
     "hud_dial": "{{hud_dial}}",
     "drs_capable": "False",
-    "display_name": "lng_f1990_chassis_larrousse",
+    "display_name": "lng_f1990_team_larrousse",
     "chassis_name": "lng_f1990_chassis_larrousse",
     "engine_name_override": "lng_f1990_engine_larrousse",
-    "equal_performance_vehicle": ""
+    "equal_performance_vehicle": "",
+    "performance_tier": "2"
    }
   },
   {
@@ -434,16 +442,17 @@
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=sauber_2026]",
    "set": {
-    "_metadata_": "ligier_prost_1990",
+    "_metadata_": "ligier_1990",
     "stat_id": "521",
     "asset_filename": "sauber",
     "vehicle_package": "f1_1990",
     "hud_dial": "{{hud_dial}}",
     "drs_capable": "False",
-    "display_name": "lng_f1990_chassis_ligier_prost",
+    "display_name": "lng_f1990_team_ligier_prost",
     "chassis_name": "lng_f1990_chassis_ligier_prost",
     "engine_name_override": "lng_f1990_engine_ligier_prost",
-    "equal_performance_vehicle": ""
+    "equal_performance_vehicle": "",
+    "performance_tier": "2"
    }
   },
   {
@@ -457,10 +466,11 @@
     "vehicle_package": "f1_1990",
     "hud_dial": "{{hud_dial}}",
     "drs_capable": "False",
-    "display_name": "lng_f1990_chassis_minardi",
+    "display_name": "lng_f1990_team_minardi",
     "chassis_name": "lng_f1990_chassis_minardi",
     "engine_name_override": "lng_f1990_engine_minardi",
-    "equal_performance_vehicle": ""
+    "equal_performance_vehicle": "",
+    "performance_tier": "1"
    }
   },
   {
@@ -474,10 +484,11 @@
     "vehicle_package": "f1_1990",
     "hud_dial": "{{hud_dial}}",
     "drs_capable": "False",
-    "display_name": "lng_f1990_chassis_brabham",
+    "display_name": "lng_f1990_team_brabham",
     "chassis_name": "lng_f1990_chassis_brabham",
     "engine_name_override": "lng_f1990_engine_brabham",
-    "equal_performance_vehicle": ""
+    "equal_performance_vehicle": "",
+    "performance_tier": "1"
    }
   },
   {
@@ -491,10 +502,11 @@
     "vehicle_package": "f1_1990",
     "hud_dial": "{{hud_dial}}",
     "drs_capable": "False",
-    "display_name": "lng_f1990_chassis_dallara",
+    "display_name": "lng_f1990_team_dallara",
     "chassis_name": "lng_f1990_chassis_dallara",
     "engine_name_override": "lng_f1990_engine_dallara",
-    "equal_performance_vehicle": ""
+    "equal_performance_vehicle": "",
+    "performance_tier": "1"
    }
   },
   {
@@ -508,10 +520,11 @@
     "vehicle_package": "f1_1990",
     "hud_dial": "{{hud_dial}}",
     "drs_capable": "False",
-    "display_name": "lng_f1990_chassis_arrows",
+    "display_name": "lng_f1990_team_arrows",
     "chassis_name": "lng_f1990_chassis_arrows",
     "engine_name_override": "lng_f1990_engine_arrows",
-    "equal_performance_vehicle": ""
+    "equal_performance_vehicle": "",
+    "performance_tier": "1"
    }
   }
  ]

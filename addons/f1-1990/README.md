@@ -19,7 +19,7 @@ The 1990 teams (`<team>_1990`), drivers (`f1990_<driver>`), their looks, holders
 
 Not scoped to 1990 (global rows, left stock): the safety-car and parc-fermé option defaults, the short-race restriction (very short races grey out red flags, formation lap and safety car) and the session-name strings (Friday qualifying shows the stock sprint-qualifying names).
 
-## Cars (db/cars.json, lang/cars.json, cars/, tools/build_cars.py, tools/cars.py)
+## Cars (db/cars.json, cars/, tools/build_cars.py, tools/cars.py)
 
 The 1990 cars live in their own vehicle package, `f1_1990` (stat_id 59). Its `resource_path` is `f1_1990_vehicle_package/teams/[FILENAME]/wep/[FILENAME]` and its `ai_package_folder` stays `f1_2026_vehicle_package`, so the per-track AI data of the 2026 car folders serves the 1990 cars. No 2026 archive, row or file changes. The models, the package's `teams/common.erp` (13-inch tyres) and its tyre compounds come from the private car pack `swofty.f1-1990-cars`, which registers one asset group per car at runtime. Without the car pack, a session with a 1990 vehicle hangs on load.
 
@@ -31,15 +31,15 @@ The 1990 cars live in their own vehicle package, `f1_1990` (stat_id 59). Its `re
 | benetton_1990 | lotus | Benetton B190 | Ford V8, 12,500 rpm | 657 hp | 569 kg |
 | tyrrell_1990 | mercedes | Tyrrell 019 | Ford V8 | 635 hp | 588 kg |
 | lotus_1990 | redbull | Lotus 102 | Lamborghini V12 | 653 hp | 572 kg |
-| march_1990 | force_india | Leyton House CG901 | Judd V8 | 627 hp | 595 kg |
+| leytonhouse_1990 | force_india | Leyton House CG901 | Judd V8 | 627 hp | 595 kg |
 | larrousse_1990 | myteam_ferrari | Lola LC90 | Lamborghini V12 | 661 hp | 565 kg |
-| ligier_prost_1990 | sauber | Ligier JS33B | Ford V8 | 627 hp | 595 kg |
+| ligier_1990 | sauber | Ligier JS33B | Ford V8 | 627 hp | 595 kg |
 | minardi_1990 | toro_rosso | Minardi M190 | Ford V8 | 629 hp | 593 kg |
 | brabham_1990 | gm_cadillac | Brabham BT59 | Judd V8 | 619 hp | 603 kg |
 | dallara_1990 | myteam_honda | Dallara F190 | Ford V8 | 615 hp | 606 kg |
 | arrows_1990 | haas | Arrows A11B | Ford V8 | 621 hp | 601 kg |
 
-- Vehicle rows: full copies (246 keys) of the donor folder's 2026 row, stat_id 513–525 (Custom Grid Size uses 509–512), `vehicle_package f1_1990`, `hud_dial` from the option (default `f2`), `drs_capable False`, `equal_performance_vehicle` empty, chassis and engine names as `lng_f1990_chassis_<team>` / `lng_f1990_engine_<team>` (`lang/cars.json`). The engine id stays the donor's.
+- Vehicle rows: full copies (246 keys) of the donor folder's 2026 row, stat_id 513–525 (Custom Grid Size uses 509–512), `vehicle_package f1_1990`, `hud_dial` from the option (default `f2`), `drs_capable False`, `equal_performance_vehicle` empty, `performance_tier` 0 (McLaren, Ferrari, Williams, Benetton), 1 (Tyrrell, Lotus, Leyton House, Minardi, Brabham, Arrows, Dallara) or 2 (Ligier, Larrousse), and the grid lane's strings `lng_f1990_team_<team>`, `lng_f1990_chassis_<team>`, `lng_f1990_engine_<team>`. The labels use the grid lane's tokens (`leytonhouse_1990`, `ligier_1990`). The engine id stays the donor's.
 - Package row: a copy of `f1_2026` with the fields above, `has_cockpit_halo False`, the 2026 animation, crew, garage, pit-stop and pit-wall groups, and `is_26_aero_regulations False` when `classic_aero` is on.
 - Handling: each car's handling file is built from its donor's stock 2026 handling file and shipped as `cars/handling/<ers>_<tyre_size>/<folder>_handling.erp`; `cars/handling.json` puts the one matching the options at `f1_1990_vehicle_package/teams/<folder>/wep/<folder>_handling.erp`, which the car's asset group lists. No EnergyRecoverySystem section (or zeroed, option `ers`), naturally aspirated engine, power = 650 hp × the team's power scalar, mass = 575 kg × its weight scalar, drag × its drag scalar, no moving front wing, no DRS hardware, 13-inch tyres (TyreRadius 0.323/0.330, AlloyRadius 0.182, damage graphs remapped, final drive scaled); `13in_raised` adds the radius drop to the ride heights.
 - Engine sounds stay stock. The engine sound comes from a team's audio row (`f1_m_<team>_26.bundle_name`) in a table whose path is unknown (hashed), so a 1990-only sound needs new audio rows the build can't add yet (see `/mnt/work/.f1-1990/v2/cars-package.md`). The V12/V10/V8 bundles stay in `files/audio/` for that.

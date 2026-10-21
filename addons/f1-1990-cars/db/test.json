@@ -149,7 +149,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=astonmartin_driver_01]",
    "field": "vehicle",
-   "value": "march_1990",
+   "value": "leytonhouse_1990",
    "when": {
     "test_grand_prix": "all"
    }
@@ -158,7 +158,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=astonmartin_driver_02]",
    "field": "vehicle",
-   "value": "march_1990",
+   "value": "leytonhouse_1990",
    "when": {
     "test_grand_prix": "all"
    }
@@ -203,7 +203,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=kick_driver_01]",
    "field": "vehicle",
-   "value": "ligier_prost_1990",
+   "value": "ligier_1990",
    "when": {
     "test_grand_prix": "all"
    }
@@ -212,7 +212,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026].entrant[_metadata_=kick_driver_02]",
    "field": "vehicle",
-   "value": "ligier_prost_1990",
+   "value": "ligier_1990",
    "when": {
     "test_grand_prix": "all"
    }
