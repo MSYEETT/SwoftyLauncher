@@ -15,6 +15,7 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::crash::StartFailure;
 use swofty_core::process::{GameProcess, stop_game};
+use swofty_core::quarantine;
 use swofty_core::recovery::{self, Blocked, Notice};
 use swofty_core::saves::{self, SavesWarning};
 use swofty_core::session::{LaunchMode, SessionRecord};
@@ -77,6 +78,7 @@ pub struct Shell {
     pub(crate) notice: Option<String>,
     pub(crate) blocked: Option<Blocked>,
     pub(crate) recovered_seen: f64,
+    pub(crate) mods_blocked_seen: f64,
     pub(crate) restoring: bool,
     pub(crate) sliders: HashMap<String, SliderSlot>,
     pub(crate) requests: Option<SystemTime>,
@@ -163,6 +165,19 @@ fn terms_box(p: Palette) -> impl IntoElement {
         ))
 }
 
+/// The loader files an antivirus took this session: the game keeps running
+/// without mods, and the dialog says which files and how to get them back.
+fn show_mods_blocked(r: &quarantine::Report, window: &mut Window, cx: &mut App) {
+    let (title, text) = (r.title(), r.text());
+    window.open_alert_dialog(cx, move |alert, _, _| {
+        alert
+            .width(px(560.))
+            .title(title)
+            .description(text.clone())
+            .ok_text("OK")
+    });
+}
+
 fn offline_terms(p: Palette) -> impl IntoElement {
     v_flex()
         .gap(px(14.))
@@ -201,6 +216,7 @@ impl Shell {
         }
         swofty_core::usage::launcher_heartbeats(store.root.clone());
         let recovered_seen = Notice::read(&store.root).map_or(0.0, |n| n.at);
+        let mods_blocked_seen = quarantine::Report::read(&store.root).map_or(0.0, |r| r.at);
         let stale = store.clone();
         cx.background_executor()
             .spawn(async move {
@@ -277,6 +293,7 @@ impl Shell {
             notice: None,
             blocked: None,
             recovered_seen,
+            mods_blocked_seen,
             restoring: false,
             sliders: HashMap::new(),
             requests: None,
@@ -361,6 +378,10 @@ impl Shell {
                 ));
             }
             window.push_notification(Notification::info(text.join("\n")).title(recovery::HEADLINE), cx);
+        }
+        if let Some(r) = probe.mods_blocked.filter(|r| r.at > self.mods_blocked_seen) {
+            self.mods_blocked_seen = r.at;
+            show_mods_blocked(&r, window, cx);
         }
         if let Some(install) = probe.install {
             let changed = !self.detected || self.install != install;
