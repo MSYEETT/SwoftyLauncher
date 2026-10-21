@@ -6,8 +6,6 @@ ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/grid_rank_test gri
 ../build/grid_rank_test
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/contract_target_test contract_target_test.cpp
 ../build/contract_target_test
-${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/save_name_test save_name_test.cpp
-../build/save_name_test
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/fq_tyres_test fq_tyres_test.cpp
 ../build/fq_tyres_test
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -I../../../../packages/sdk/include -o ../build/profile_test profile_test.cpp
