@@ -11,18 +11,22 @@
 // the f1_1990 setup mode, so 2025/2026 sessions are untouched. Setting fq_tyre_fix turns it off.
 //
 // Tyre fallback (setting tyre_fallback): some cars of a 26-car 1990 session found no compound to fit
-// ("Unable to get Closest Available Compound for vehicle %u") and ran without tyres. At every 1990
-// session start, after the game's own session start, a car allocation with no sets at all gets a
-// copy of the sets of the fullest allocation, as new sets. When Sess_Tyres_ClosestAvailableCompound
-// still finds nothing for a car of a 1990 session, the same refill runs, or, for a car whose fresh
-// sets are all tagged for other sessions, those sets lose the tag; then the lookup runs again. Every
-// step is logged with the allocation's set counts.
+// ("Unable to get Closest Available Compound for vehicle %u") and ran without tyres, although their
+// weekend allocations were full. Sess_Tyres_ClosestAvailableCompound reads the allocation from the
+// car's tyre component (+0x9c68), which the game sets only while it is empty, so a car can keep an
+// allocation other than the one the weekend list holds for its driver. At every 1990 session start,
+// after the game's own session start, every car's tyre component is pointed at its driver's list
+// allocation, and an allocation with no sets gets a copy of the fullest one's sets. When the lookup
+// still finds nothing for a car of a 1990 session, the car's allocation is repaired (reassigned,
+// refilled, worn fresh sets cleared, tags of fresh sets dropped) and the lookup runs again; if it
+// still fails, the first preferred slot with a fresh set is returned. Each step is logged.
 
 #include <atomic>
 #include <bitset>
 #include <cstdio>
 #include <iterator>
 #include <mutex>
+#include <string>
 
 #include <swofty/events.hpp>
 #include <swofty/game.hpp>
@@ -113,6 +117,13 @@ struct Cars {
         return found;
     }
 
+    bool contains(const uint8_t *alloc) const
+    {
+        bool found = false;
+        each([&](uint8_t *a) { found |= a == alloc; });
+        return found;
+    }
+
     uint8_t *donor(size_t *sets) const
     {
         uint8_t *best = nullptr;
@@ -125,6 +136,36 @@ struct Cars {
         return best;
     }
 };
+
+// The tyre component of vehicle slot v of a car list (car list +0x28 slots, entity +0x10), found the
+// way Sess_Tyres_ClosestAvailableCompound finds it.
+uint8_t *tyre_component(void *car_list, uint8_t v)
+{
+    namespace g = swofty::game;
+    if (!car_list || !swofty::mem::readable(static_cast<uint8_t *>(car_list) + 0x28, 0x10))
+        return nullptr;
+    auto **b = at<uint8_t **>(car_list, 0x28), **e = at<uint8_t **>(car_list, 0x30);
+    if (!b || e <= b || size_t(e - b) <= v || !swofty::mem::readable(b + v, sizeof *b))
+        return nullptr;
+    uint8_t *slot = b[v];
+    if (!slot || !swofty::mem::readable(slot + 0x10, 8))
+        return nullptr;
+    void *obj = at<void *>(slot, 0x10);
+    auto type = reinterpret_cast<const uint8_t *>(g::k_Sess_TyreComponentType.address());
+    auto base = reinterpret_cast<const uint8_t *>(g::k_Ne_ComponentBaseType.address());
+    auto end = reinterpret_cast<const uint8_t *>(g::k_Ne_TypeChainEnd.address());
+    bool component = type == base || type == end;
+    for (const uint8_t *n = type + 8; !component && n && swofty::mem::readable(n + 0x10, 8);) {
+        n = at<const uint8_t *>(n, 0x10);
+        component = n == base + 8;
+        if (n == end + 8)
+            break;
+    }
+    if (component)
+        obj = obj ? g::Ne_Entity_FindComponent(obj, type) : nullptr;
+    return obj && swofty::mem::readable(static_cast<uint8_t *>(obj) + 0x9c68, 8) ? static_cast<uint8_t *>(obj)
+                                                                               : nullptr;
+}
 
 struct Entrants {
     const uint8_t *b = nullptr, *e = nullptr;
@@ -155,9 +196,38 @@ struct Entrants {
 
 void describe(const t::Census &c, char *out, size_t n)
 {
-    std::snprintf(out, n, "%zu set(s), %zu fresh, %zu fresh tagged; per slot S %zu/%zu M %zu/%zu H %zu/%zu I %zu/%zu W %zu/%zu",
-                  c.total, c.fresh, c.tagged, c.fresh_sets[0], c.sets[0], c.fresh_sets[1], c.sets[1], c.fresh_sets[2],
-                  c.sets[2], c.fresh_sets[3], c.sets[3], c.fresh_sets[4], c.sets[4]);
+    std::snprintf(out, n,
+                  "%zu set(s), %zu fresh, %zu fresh tagged (tags 0x%x), %zu fresh worn; per slot S %zu/%zu M %zu/%zu "
+                  "H %zu/%zu I %zu/%zu W %zu/%zu",
+                  c.total, c.fresh, c.tagged, c.tags, c.worn, c.fresh_sets[0], c.sets[0], c.fresh_sets[1], c.sets[1],
+                  c.fresh_sets[2], c.sets[2], c.fresh_sets[3], c.sets[3], c.fresh_sets[4], c.sets[4]);
+}
+
+// The allocation a tyre component holds, described for the log: its key when it is in the weekend
+// list, else its address.
+void holder(const Cars &cars, const uint8_t *alloc, char *out, size_t n)
+{
+    bool listed = cars.contains(alloc);
+    if (!alloc)
+        std::snprintf(out, n, "none");
+    else if (listed)
+        std::snprintf(out, n, "%04x", key(at<uint32_t>(alloc, 0)));
+    else
+        std::snprintf(out, n, "unlisted %p", static_cast<const void *>(alloc));
+}
+
+// Points the car's tyre component at its driver's list allocation. Returns 1 when it changed it.
+int reassign(const Cars &cars, uint8_t *tyres, uint8_t *alloc, uint32_t session, uint8_t v, uint32_t driver)
+{
+    auto *held = at<uint8_t *>(tyres, 0x9c68);
+    if (!alloc || held == alloc)
+        return 0;
+    char was[48];
+    holder(cars, held, was, sizeof was);
+    std::memcpy(tyres + 0x9c68, &alloc, sizeof alloc);
+    swofty::log("[f1-1990] tyres: session %u: V%02u (driver %04x) held allocation %s; now %04x", session, v, key(driver),
+                was, key(at<uint32_t>(alloc, 0)));
+    return 1;
 }
 
 int refill(const Cars &cars, uint8_t *alloc, const char *why)
@@ -191,20 +261,33 @@ void audit(void *component, uint32_t session)
         if (!n && empties < std::size(empty))
             empty[empties++] = alloc;
     });
-    size_t with_car = 0, missing = 0;
-    for (const uint8_t *r = entrants.b; r < entrants.e; r += kEntrantSize) {
-        if (at<uint8_t>(r, 0x82) == 0xff)
-            continue;
-        with_car++;
-        if (!cars.find(entrants.id(r)) && missing++ < 8)
-            swofty::log("[f1-1990] tyres: session %u: V%02u (driver %04x) has no weekend allocation", session,
-                        at<uint8_t>(r, 0x82), key(entrants.id(r)));
-    }
-    swofty::log("[f1-1990] tyres: session %u: %zu car allocation(s) for %zu car(s), %zu set(s) per car at least, %zu at "
-                "most; %zu empty, %zu car(s) without one",
-                session, count, with_car, count ? lo : 0, hi, empties, missing);
     for (size_t i = 0; i < empties; i++)
         refill(cars, empty[i], "session start");
+    size_t with_car = 0, missing = 0, unreachable = 0, moved = 0;
+    void *car_list = swofty::mem::readable(static_cast<uint8_t *>(component) + 0x2d8, 8) ? at<void *>(component, 0x2d8)
+                                                                                          : nullptr;
+    for (const uint8_t *r = entrants.b; r < entrants.e; r += kEntrantSize) {
+        uint8_t v = at<uint8_t>(r, 0x82);
+        if (v == 0xff)
+            continue;
+        with_car++;
+        uint8_t *alloc = cars.find(entrants.id(r));
+        if (!alloc) {
+            if (missing++ < 8)
+                swofty::log("[f1-1990] tyres: session %u: V%02u (driver %04x) has no weekend allocation", session, v,
+                            key(entrants.id(r)));
+            continue;
+        }
+        uint8_t *tyres = tyre_component(car_list, v);
+        if (!tyres) {
+            unreachable++;
+            continue;
+        }
+        moved += reassign(cars, tyres, alloc, session, v, entrants.id(r));
+    }
+    swofty::log("[f1-1990] tyres: session %u: %zu car allocation(s) for %zu car(s), %zu set(s) per car at least, %zu at "
+                "most; %zu empty, %zu car(s) without one, %zu tyre component(s) not found, %zu reassigned",
+                session, count, with_car, count ? lo : 0, hi, empties, missing, unreachable, moved);
 }
 
 }
@@ -245,6 +328,7 @@ SWOFTY_WRAP(Sess_TyreAllocation_OnSessionStart, void, void *component)
 SWOFTY_WRAP(Sess_Tyres_ClosestAvailableCompound, uint32_t, void *tyre_rules, uint8_t vehicle, const uint32_t *preference,
             float wear_scale)
 {
+    namespace g = swofty::game;
     uint32_t slot = orig(tyre_rules, vehicle, preference, wear_scale);
     if (slot != kNoCompound || !tyre_fallback)
         return slot;
@@ -254,37 +338,66 @@ SWOFTY_WRAP(Sess_Tyres_ClosestAvailableCompound, uint32_t, void *tyre_rules, uin
     Cars cars(g_component);
     Entrants entrants(g_component);
     const uint8_t *entrant = entrants.vehicle(vehicle);
-    uint8_t *alloc = entrant ? cars.find(entrants.id(entrant)) : nullptr;
+    uint32_t driver = entrant ? entrants.id(entrant) : 0xffffffff;
+    uint8_t *listed = entrant ? cars.find(driver) : nullptr;
+    void *car_list = swofty::mem::readable(static_cast<uint8_t *>(tyre_rules) + 0xd8, 8) ? at<void *>(tyre_rules, 0xd8)
+                                                                                        : nullptr;
+    uint8_t *tyres = tyre_component(car_list, vehicle);
+    uint8_t *held = tyres ? at<uint8_t *>(tyres, 0x9c68) : nullptr;
     bool report = !g_reported.test(vehicle) && g_lines < 64;
     g_reported.set(vehicle);
     g_lines += report;
-    bool same_cars = swofty::mem::readable(static_cast<uint8_t *>(g_component) + 0x2d8, 0x08) &&
-                     at<void *>(tyre_rules, 0xd8) == at<void *>(g_component, 0x2d8);
-    if (!alloc) {
-        if (report)
-            swofty::log("[f1-1990] tyres: session %u: V%02u (driver %04x) found no compound and has no weekend "
-                        "allocation (%s car list)",
-                        g_session, vehicle, entrant ? key(entrants.id(entrant)) : 0xffff, same_cars ? "same" : "other");
-        return slot;
-    }
-    t::Census before = t::census(alloc);
-    char text[200];
+
+    char used[48], text[240], why[200];
+    holder(cars, held, used, sizeof used);
+    bool held_listed = held && cars.contains(held);
+    t::Census before = held_listed ? t::census(held) : t::Census{};
     describe(before, text, sizeof text);
-    const char *action = "nothing to change";
-    bool changed = false;
-    if (!before.total) {
-        changed = refill(cars, alloc, "no compound found") > 0;
-        action = changed ? "refilled" : "refill failed";
-    } else if (before.fresh && before.tagged) {
-        changed = t::untag_fresh_sets(alloc) > 0;
-        action = changed ? "fresh sets untagged" : "nothing to change";
+    float limit = 0.f;
+    auto *rules_limit = swofty::mem::readable(static_cast<uint8_t *>(tyre_rules) + 0x108, 8)
+                            ? at<uint8_t *>(tyre_rules, 0x108) : nullptr;
+    if (rules_limit && swofty::mem::readable(rules_limit + 8, 8) && (rules_limit = at<uint8_t *>(rules_limit, 8)) &&
+        swofty::mem::readable(rules_limit, 8) && (rules_limit = at<uint8_t *>(rules_limit, 0)) &&
+        swofty::mem::readable(rules_limit + 8, 4))
+        limit = at<float>(rules_limit, 8);
+    std::snprintf(why, sizeof why,
+                  "%s, flags +0x48 %02x +0x4b %02x, vehicle id %u; preference %u %u %u %u %u, wear scale %.2f, limit "
+                  "%.2f; rules on %u mode %u session %u",
+                  entrant && (at<uint8_t>(entrant, 0x4b) & 0x10) ? "human" : "AI", entrant ? at<uint8_t>(entrant, 0x48) : 0,
+                  entrant ? at<uint8_t>(entrant, 0x4b) : 0, entrant ? at<uint32_t>(entrant, 0x5c) >> 16 : 0xffff,
+                  preference[0], preference[1], preference[2], preference[3], preference[4], double(wear_scale),
+                  double(limit), *g::g_Sess_TyreRulesActive, *g::g_Sess_TyreRulesMode, *g::g_Sess_TyreRulesSessionType);
+
+    std::string done;
+    uint32_t again = slot;
+    auto retry = [&](const char *step) {
+        done += done.empty() ? step : std::string(", ") + step;
+        again = orig(tyre_rules, vehicle, preference, wear_scale);
+        return again != kNoCompound;
+    };
+    if (tyres && listed && held != listed) {
+        reassign(cars, tyres, listed, g_session, vehicle, driver);
+        held = listed;
+        held_listed = true;
+        retry("reassigned");
     }
-    uint32_t again = changed ? orig(tyre_rules, vehicle, preference, wear_scale) : slot;
+    if (again == kNoCompound && held_listed && !t::census(held).total && refill(cars, held, "no compound found") > 0)
+        retry("refilled");
+    if (again == kNoCompound && held_listed && t::clear_fresh_wear(held) > 0)
+        retry("fresh wear cleared");
+    if (again == kNoCompound && held_listed && t::untag_fresh_sets(held) > 0)
+        retry("fresh sets untagged");
+    int forced = -1;
+    if (again == kNoCompound && held_listed && (forced = t::fresh_slot(held, preference)) >= 0) {
+        again = uint32_t(forced);
+        done += done.empty() ? "forced" : ", forced";
+    }
     if (report)
-        swofty::log("[f1-1990] tyres: session %u: V%02u (driver %04x) found no compound: %s (%s car list); %s; "
-                    "lookup again: %d",
-                    g_session, vehicle, key(entrants.id(entrant)), text, same_cars ? "same" : "other", action,
-                    again == kNoCompound ? -1 : int(again));
+        swofty::log("[f1-1990] tyres: session %u: V%02u (driver %04x, %s) found no compound in allocation %s (weekend "
+                    "list %04x): %s; %s; %s; result: %s%d",
+                    g_session, vehicle, key(driver), entrant ? "entrant" : "no entrant", used,
+                    listed ? key(at<uint32_t>(listed, 0)) : 0xffff, text, why, done.empty() ? "nothing to change" : done.c_str(),
+                    forced >= 0 ? "forced slot " : "", again == kNoCompound ? -1 : int(again));
     return again;
 }
 
