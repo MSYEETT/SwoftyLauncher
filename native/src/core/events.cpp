@@ -63,6 +63,7 @@ void flow_mid(safetyhook::Context &)
     perf::flow_tick();
     perf::Scope p(probe);
     runtime::career_tick();
+    runtime::popup_tick();
     if (!perf::frame_claim())
         return;
     double dt = disp.tick(now_seconds());
