@@ -9384,6 +9384,33 @@
    "used_by": [
     "addons/f1-1990/native/src/career_wizard.cpp"
    ]
+  },
+  {
+   "id": "session.tyres_closest_available_compound",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 83 F8 04 77 18 C7 44 24 20 FF FF FF FF",
+   "match": "0x142a3ba4c",
+   "anchor": "0x1",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x0"
+   },
+   "target": "0x14368fb40",
+   "kind": "call",
+   "names": [
+    "Sess_Tyres_ClosestAvailableCompound"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/fq_tyres.cpp"
+   ]
   }
  ]
 }
