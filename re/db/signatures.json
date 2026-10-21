@@ -9254,6 +9254,88 @@
    "used_by": [
     "addons/f1-1990/native/src/career_wizard.cpp"
    ]
+  },
+  {
+   "id": "core.play_fullscreen_video",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 53 48 83 EC 40 4C 89 CE 4C 89 C7 49 89 D7",
+   "match": "0x14416de50",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14416de50",
+   "kind": "func_start",
+   "names": [
+    "Ne_Play_FullscreenVideo"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "intro-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/intro_video.cpp"
+   ]
+  },
+  {
+   "id": "game.flow_link_stay",
+   "section": ".xtls",
+   "pattern": "74 15 48 8D 05 ?? ?? ?? ?? 8B 00 89 06",
+   "match": "0x1436c2e5a",
+   "anchor": "0x5",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x2",
+    "len": 7
+   },
+   "target": "0x146cb2280",
+   "kind": "data",
+   "names": [
+    "g_Game_FlowLinkStay"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "intro-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/intro_video.cpp"
+   ]
+  },
+  {
+   "id": "game.root",
+   "section": ".xtls",
+   "pattern": "48 89 F1 E8 ?? ?? ?? ?? 85 C0 0F 85 ?? ?? ?? ?? 48 8B 05",
+   "match": "0x140266ae0",
+   "anchor": "0x13",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x10",
+    "len": 7
+   },
+   "target": "0x14601db08",
+   "kind": "data",
+   "names": [
+    "g_Game_Root"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "intro-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/intro_video.cpp"
+   ]
   }
  ]
 }

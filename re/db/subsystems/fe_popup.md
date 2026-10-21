@@ -19,3 +19,4 @@ Owner: see `subsystems.tsv`. Rows: `kb.py find '\tfe_popup\t'`. The "on top of e
 - Popup message boxes (`CheckPrivilegeTask::showPopupMessageGeneratedFromTask` 0x143371320, game lane) and award ceremonies (`AwardCeremonyViewModel` 0x1419ee670) are candidates to pull in next.
 
 ## Inbox
+- 2026-10-21 20:16 intro-1990: Fullscreen video player documented in core.md (Ne_Play_FullscreenVideo 0x14416de50, L2 dev): feature system path, on_end callback, videos/ prefix, Bink 1 .bik support, AllowVideoSkip skip path. Used by addons/f1-1990/native/src/intro_video.cpp.
