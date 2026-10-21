@@ -8702,6 +8702,59 @@
    "used_by": [
     "addons/f1-1990/native/src/agent_character.cpp"
    ]
+  },
+  {
+   "id": "game.driver_select_header_build_tabs",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? C6 86 10 03 00 00 01 48 8B 86 C0 02 00 00",
+   "match": "0x141a591f2",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a591f2",
+   "kind": "mid",
+   "expect": "E8 49 8D 7F 02",
+   "names": [
+    "site_Game_DriverSelectHeader_BuildTabs"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/driver_select_tabs.cpp"
+   ]
+  },
+  {
+   "id": "game.driver_select_header_set_tab_state",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 53 48 83 EC 28 48 89 CE 44 88 4C 24 27",
+   "match": "0x141a59fe0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a59fe0",
+   "kind": "func_start",
+   "names": [
+    "Game_DriverSelectHeader_SetTabState"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/driver_select_tabs.cpp"
+   ]
   }
  ]
 }
