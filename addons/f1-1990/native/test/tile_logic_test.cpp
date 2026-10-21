@@ -84,9 +84,14 @@ int main()
     check("a career on data group 2 is the 1990 career", f1990::career_data_group_is(career.data(), "f1_career_1990", access));
     g_index[comp.data()] = 1;
     check("a 2026 career is not", !f1990::career_data_group_is(career.data(), "f1_career_1990", access));
+    f1990::CareerGroupSeen seen = f1990::career_data_group_seen(career.data(), access);
+    check("the walk reports index, count and name", seen.index == 1 && seen.count == 3 && seen.name &&
+                                                       !std::strcmp(seen.name, "f1_career_2026"));
     g_index[comp.data()] = 7;
     check("an index past the group list is not (stock list without the 1990 row)",
           !f1990::career_data_group_is(career.data(), "f1_career_1990", access));
+    seen = f1990::career_data_group_seen(career.data(), access);
+    check("the walk reports an index past the list without a name", seen.index == 7 && seen.count == 3 && !seen.name);
     g_components.clear();
     check("a championship without a setup component is not", !f1990::career_data_group_is(career.data(), "f1_career_1990", access));
     check("no career is not", !f1990::career_data_group_is(nullptr, "f1_career_1990", access));

@@ -19,6 +19,39 @@ struct CareerGroupAccess {
 // championship of the career (career +0x1040..+0x1048, 16-byte entries, championship at +8), its
 // CareerSetupComponent's data-group index into the group list at (component +0x290) +0x560..+0x568
 // (16-byte entries, group at +8, name at *(group +0x28) +0x10).
+// What the walk below sees for the first championship with a CareerSetupComponent: its data group
+// index, the group list's length and the name at that index (nullptr when out of range).
+struct CareerGroupSeen {
+    int index = -1;
+    size_t count = 0;
+    const char *name = nullptr;
+};
+
+inline CareerGroupSeen career_data_group_seen(const void *career, const CareerGroupAccess &a)
+{
+    CareerGroupSeen seen;
+    if (!career)
+        return seen;
+    auto *b = at<const uint8_t *>(career, 0x1040), *e = at<const uint8_t *>(career, 0x1048);
+    for (; b && b < e; b += 0x10) {
+        void *champ = at<void *>(b, 0x08);
+        void *comp = champ ? a.setup_component(champ) : nullptr;
+        auto *src = comp ? at<const uint8_t *>(comp, 0x290) : nullptr;
+        if (!src)
+            continue;
+        seen.index = a.group_index(comp);
+        auto *lb = at<const uint8_t *>(src, 0x560), *le = at<const uint8_t *>(src, 0x568);
+        seen.count = lb && le >= lb ? size_t(le - lb) / 0x10 : 0;
+        if (size_t(seen.index) < seen.count) {
+            auto *group = at<const uint8_t *>(lb + size_t(seen.index) * 0x10, 0x08);
+            auto *named = group ? at<const uint8_t *>(group, 0x28) : nullptr;
+            seen.name = named ? at<const char *>(named, 0x10) : nullptr;
+        }
+        return seen;
+    }
+    return seen;
+}
+
 inline bool career_data_group_is(const void *career, const char *want, const CareerGroupAccess &a)
 {
     if (!career || !want)

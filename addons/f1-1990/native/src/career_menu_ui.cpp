@@ -15,6 +15,13 @@
 //
 // The wrap of FeTile_Route_CareerItem, which every career tile press ends in, records whether the
 // last press was the 1990 tile; F1990_CareerWizard1990 exports that for the other 1990 DLLs.
+//
+// The router finds the career's save slot with a predicate functor (vt_Game_DriverCareerSlotPredicate
+// slot 2) over the registered mode championships. Its first gate (0x14077cd40, VM-obfuscated) is 1
+// only for the 2025 and 2026 driver-career modes, so the 1990 mode never matched and the new-career
+// path read through a null slot. When the predicate says no for the mode championship whose statId
+// (+0x2a8) is the driver_career_1990 mode's (read from game_modes), the wrap runs the predicate's
+// own data group check (career_group.hpp) on it instead.
 
 #include <atomic>
 #include <cstring>
@@ -22,6 +29,7 @@
 #include <swofty/game.hpp>
 #include <swofty/mixin.hpp>
 
+#include "career_1990.hpp"
 #include "content_entry.hpp"
 #include "profile.hpp"
 #include "weekend.hpp"
@@ -51,6 +59,10 @@ void **g_vtable;
 TileList *g_list;
 std::atomic<uint32_t> g_builds, g_presses;
 std::atomic<bool> g_wizard_1990{false};
+std::atomic<int64_t> g_mode_1990{-2};
+std::atomic<uint32_t> g_slot_logged;
+
+constexpr char kMode1990Save[] = "driver_career_1990";
 
 void set_text(void *node, const char *name, const char *text)
 {
@@ -194,6 +206,33 @@ SWOFTY_WRAP(FeTile_Route_CareerItem, Action *, HomeItem *item, Action *out)
 {
     g_wizard_1990 = g_vtable && item && *reinterpret_cast<void ***>(item) == g_vtable;
     return orig(item, out);
+}
+
+SWOFTY_VTABLE(vt_Game_DriverCareerSlotPredicate, 2, bool, void *self, void *championship)
+{
+    bool stock = orig(self, championship);
+    if (stock || !championship)
+        return stock;
+    int64_t mode = g_mode_1990.load();
+    if (mode == -2) {
+        mode = f1990::mode_stat_id(kMode1990Save);
+        g_mode_1990 = mode;
+        swofty::log("[f1-1990] career slot: driver_career_1990 mode statId %lld", (long long)mode);
+    }
+    if (mode < 0 || at<uint32_t>(championship, 0x2a8) != uint32_t(mode))
+        return false;
+    auto *holder = at<const uint8_t *>(self, 0x08);
+    const char *want = holder ? at<const char *>(holder, 0x00) : nullptr;
+    f1990::CareerGroupAccess access{f1990::setup_component, f1990::group_index};
+    bool ok = want && f1990::career_data_group_is(championship, want, access);
+    if (g_slot_logged++ < 8) {
+        f1990::CareerGroupSeen seen = f1990::career_data_group_seen(championship, access);
+        swofty::log("[f1-1990] career slot: the 1990 mode (statId %lld) failed the driver-career gate; data group %d of "
+                    "%zu is \"%s\", wanted \"%s\": %s",
+                    (long long)mode, seen.index, seen.count, seen.name ? seen.name : "(none)", want ? want : "(none)",
+                    ok ? "match" : "no match");
+    }
+    return ok;
 }
 
 extern "C" __declspec(dllexport) int F1990_CareerWizard1990()
