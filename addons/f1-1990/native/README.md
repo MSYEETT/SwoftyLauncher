@@ -155,13 +155,29 @@ it (`f1_career_2025`, `f1_career_2026`, `f1_career_1990`); every hook acts only 
 | `FeTile_Route_CareerItem` | 0x141725620 | wrap: the 1990 tile's `career_wizard_driver_career_to_f1` (season length step) becomes `career_wizard_driver_career_1990`, which `erp/wizard.json` adds to the content select's route grouping (`tools/wizard.py`) and which opens the settings step: no Full Season / Custom Season choice, the career keeps its full 1990 calendar |
 | `Game_CareerWizard_PushNextStep` | 0x14386d890 | wrap: a classic drivers step (14, Add Driver Icons To Market) pushed after the settings becomes the confirm step (6) |
 | `site_Game_CareerWizardConfirm_NextRoute` | 0x141a23c91 | site in the confirm step's continue (rdx = route name, rsi = view model, +0x270 the wizard): `driver_career_driver_type_select` (Official Driver / Custom Driver) becomes `driver_career_driver_select`, the route the game takes for a team-icon career |
+| `Game_SeasonLength_ApplyPreset`, `k_Game_SeasonLengthComponentDesc` | 0x140bc9fc0, 0x14605b368 | called from the `Game_CareerWizard_PushNextStep` wrap when the settings choice (option 0xb or 0xc) is pushed and the wizard has no season length option: preset 0 on the career's season length component, what the skipped step's Full Season does, so the career gets the 1990 calendar (all three 1990 presets hold its 16 rounds) |
+| `site_Game_DriverSelect_BackRoute` | 0x141a5e8eb | site in Choose Driver's back (rdx = route name, rsi = view model, +0x438 the wizard): `screen_group_back` becomes `screen_group_back_1990`, and the confirm step and the settings choice come off the wizard state |
+| `site_Game_CareerWizard_BackRoute`, `vt_Game_CareerWizardSettingsViewModel` | 0x14bc7ab4d (.data1), 0x145727970 | site in the wizard view models' base handler after its back pop (rdx = route name, rsi = view model, +0x270 the wizard): for the settings view model `back` becomes `back_1990` |
+
+`erp/wizard.json` (`tools/wizard.py`) adds the routes: `screen_group_back_1990` runs the header's `back_1990`, which
+closes the driver select screen group and opens the settings step again; the settings step's `back_1990` returns to the
+Career tiles (`fe_career`) with the steps of the season length step's `back_4`. Back on Choose Driver goes to the
+settings step, back on the settings step to the Career tiles.
 
 It logs `[f1-1990] wizard: f1_career_1990 starts in F1, no F2 choice and no team-icons step (game said yes|no)`,
 `wizard: 1990 tile opens the settings step (career_wizard_driver_career_to_f1 -> career_wizard_driver_career_1990)`,
 `wizard: classic drivers step (14) replaced by the confirm step (6)` and
-`wizard: confirm goes to driver_career_driver_select, no driver type step` (first few of each).
+`wizard: confirm goes to driver_career_driver_select, no driver type step`,
+`wizard: season length preset 0 (Full Season) applied to the 1990 career`,
+`wizard: Choose Driver back goes to the settings step (screen_group_back_1990; confirm step dropped, settings choice dropped)`
+and `wizard: settings back goes to the Career tiles (back_1990)` (first few of each).
 
 `src/driver_select_probe.cpp` is a temporary read-only probe of the Choose Driver populate
 (`vt_Game_DriverCareerDriverSelectViewModel` slot 13): for the first 6 populates of any wizard it logs the wizard suffix,
 options, the official entrant list map (name, stat id, entrant count), the slot's game mode type chain and components,
-and how many driver cards the populate made (`[f1-1990] probe: ...`).
+and how many driver cards the populate made (`[f1-1990] probe: ...`). For the Team Select work it also logs the contract
+offers and team ranks (`Game_DriverContracts_BuildOffers`, `Game_DriverContracts_RankTeam`), the UpgradesComponent's
+team models and each entrant's team and car at Choose Driver, the entrants registry lists 67, 97 and 105-107 (records
+with a team or a car), the career's entrants after each `Game_CareerSetup_ResetEntrants` (0x140c34960, which copies
+the entrant list the CareerSetupComponent names) and at each 1990 wizard step, and every `Career_Set_EntrantData_Thunk`
+call (driver, team, car).
