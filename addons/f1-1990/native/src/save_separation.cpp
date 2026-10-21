@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// F1 1990 - its own profile save.
+// F1 1990 - its own profile save, only for a dedicated 1990 profile (option dedicated_profile_saves,
+// off by default; v2 keeps 1990 careers in their own data group next to the stock ones instead).
 //
 // NeSaveSystem2 names every file of a save from the operation's save name: Steam remote storage names
 // are <title dir>@<save name>#<file> (plus <save name>_backup), with the file names inside derived
@@ -25,6 +26,7 @@
 
 #include "save_name.hpp"
 
+SWOFTY_SETTING(bool, dedicated_profile_saves, false);
 SWOFTY_SETTING(bool, cleanup_stray_save, false);
 
 namespace {
@@ -140,6 +142,11 @@ void cleanup_stray(void *real)
 void install_proxy(void *device)
 {
     auto *helper = device ? *reinterpret_cast<uint8_t **>(static_cast<uint8_t *>(device) + 0x30) : nullptr;
+    void *real = helper ? *reinterpret_cast<void **>(helper + 0x108) : nullptr;
+    if (real && real != &g_proxy)
+        cleanup_stray(real);
+    if (!dedicated_profile_saves)
+        return;
     if (!helper) {
         for (int i = 0; i < 3; i++)
             swofty::log("[f1-1990] SAVE SEPARATION INCOMPLETE: the save device has no Steam remote storage helper "
@@ -154,13 +161,14 @@ void install_proxy(void *device)
     g_vtable[kGetFileNameAndSize] = reinterpret_cast<void *>(&proxy_name);
     g_proxy.vtable = g_vtable;
     g_proxy.real = *slot;
-    cleanup_stray(g_proxy.real);
     *slot = &g_proxy;
     swofty::log("[f1-1990] save: save list enumeration filtered (stock savegame@profile* hidden)");
 }
 
 void rename_request(const char *&name)
 {
+    if (!dedicated_profile_saves)
+        return;
     const char *mapped = f1990::save_name_for(name);
     if (mapped != name)
         swofty::log("[f1-1990] save: profile -> %s (#%u)", mapped, ++g_redirects);
@@ -191,7 +199,12 @@ SWOFTY_WRAP(Ne_Request_SaveOpKind2, void *, void *save_system, void *out, void *
 
 SWOFTY_ON_LOAD
 {
-    swofty::log("[f1-1990] save separation on: the profile save is \"%s\" (savegame@%s#*) in this profile%s",
-                f1990::kProfileSave1990, f1990::kProfileSave1990,
-                cleanup_stray_save ? "; cleanup_stray_save is ON" : "");
+    if (dedicated_profile_saves)
+        swofty::log("[f1-1990] save separation on (dedicated_profile_saves): the profile save is \"%s\" (savegame@%s#*) "
+                    "in this profile%s",
+                    f1990::kProfileSave1990, f1990::kProfileSave1990, cleanup_stray_save ? "; cleanup_stray_save is ON" : "");
+    else
+        swofty::log("[f1-1990] save separation off: the profile save is shared; 1990 careers keep their own slots by "
+                    "data group%s",
+                    cleanup_stray_save ? "; cleanup_stray_save is ON" : "");
 }

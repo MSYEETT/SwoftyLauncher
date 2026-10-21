@@ -1,8 +1,11 @@
 # F1 1990 native DLL
 
-`f1_1990.dll` gives the 1990 profile its own profile save, signs the first 1990 Driver Career contract without the negotiation scene, and sets the race grid from each driver's best lap in either 1990 qualifying session: Friday (SprintShootout group, 2) and Saturday (Qualifying group, 1). It loads at the early stage, before the game loads its profile.
+`f1_1990.dll` signs the first 1990 Driver Career contract without the negotiation scene, sets the race grid from each driver's best lap in either 1990 qualifying session (Friday: SprintShootout group, 2; Saturday: Qualifying group, 1) and, with `dedicated_profile_saves` on, gives the profile its own profile save. It loads at the early stage, before the game loads its profile. Every hook acts on 1990 content only: the grid and tyre hooks on the 1990 weekend structure (shootout and qualifying groups, no `race_2`), which only the `f1_1990` setup mode has, and the contract skip on a career whose data group is `f1_career_1990`, so 2025 and 2026 careers and sessions in the same profile stay stock.
 
-## Save separation
+## Save separation (`dedicated_profile_saves`, off by default)
+
+Only for a profile that should keep its whole game profile apart. Without it, 1990 careers live in the shared profile save in their own slots (data group `f1_career_1990`).
+
 
 Every file of a save is named from the save operation's name: Steam remote storage names are `<title dir>@<save name>#<file>` (also `<save name>@...` and `<save name>_backup#...`), and the file names inside come from the save job (profile: index `QKRHMYXE`, data `NXDSMWW.BWW`). The game picks the profile save from the enumerated save list, not by name. So:
 
@@ -35,7 +38,7 @@ Log lines (swofty log): `[f1-1990] GRID best-of (<why>)` once per pass, then one
 
 ## Contract skip
 
-`src/contract_skip.cpp` signs the player's first 1990 Driver Career contract and passes the negotiation scene (native request N1). It runs only on a database where a `game_modes.ModeChampionship` row saves to `driver_career_1990` or runs `F1_career_1990`, with one human player.
+`src/contract_skip.cpp` signs the player's first 1990 Driver Career contract and passes the negotiation scene (native request N1). It runs only for a career whose data group is `f1_career_1990` (read like the save-slot predicates 0x1438fb390/0x1438fb5d0: each championship's CareerSetupComponent data-group index into its group list), with one human player.
 
 | binding | address | use |
 |---|---|---|
@@ -66,3 +69,17 @@ A separate DLL, so a binding it can't resolve drops only this hook and never the
 `site_Ne_ReplayAfterRecord` (0x1445d1712, after the recordable serialized, before both copies) is a site hook. When the state is larger than the holder's capacity, the holder is replaced by one of the smallest class that fits. The new holder comes from the registry's allocator; the header and both buffers are copied; the registry slot and the recorder's cached pointers move to it. The old holder stays allocated. The class table is checked against the exe's code once; a mismatch turns the hook off. It logs `[f1-1990] replay holders: <recordable> state <n> bytes > capacity <c>; holder <old> -> <new> (capacity <c>)`. A state that fits returns at the first compare, so a 22-car grid is untouched.
 
 Option `replay_holder_fix` (toggle, default on) turns it off.
+
+## 1990 Career tile (`f1_1990_ui.dll`)
+
+A separate DLL, loaded at the window stage after the others; option `career_menu_ui` (default on), and only when the 1990 career content is in the database (`src/profile.hpp`). The 2025 and 2026 tiles stay stock.
+
+| binding | address | use |
+|---|---|---|
+| `site_FeTile_CareerContentEnd` | 0x141741831 | site at the end of `FeTile_Build_List` case 6 (r14 = the list): `FeHome_Add_CareerTile(list, 3)` appends `button_3`, then its home item is replaced by a content item |
+| `FeTile_Construct_CareerItem` | 0x141725380 | call; builds the 0x1c8 content item with the 2026 tile's route id |
+| `FeTile_CareerDlcItem_Populate` | 0x141726680 | called by our populate; then title `lng_f1990_career_content`, description `lng_f1990_career_content_description`, notification 0 (no badge) |
+| `FeTile_Route_CareerItem` | 0x141725620 | called by our press after it writes the selected content |
+| `g_FeTile_CustomisationSystem` / `g_FeTile_SelectedCareerContent` | 0x146064df0 / 0x146066c42 | the press selects the car group with stat id 2 (`1990`), else the first dlc group (2026) |
+
+The item carries data group `f1_career_1990` (+0x180), suffix `90` (+0x188), is_dlc 0 (+0x190) and the 2026 entitlement string (+0x1c0); its vtable is a copy of the 2026 tile's with populate and press replaced. The router and the wizard's use of the data group are not traced yet (see `/mnt/work/.f1-1990/v2/third-tile.md`).

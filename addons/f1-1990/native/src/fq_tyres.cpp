@@ -7,7 +7,8 @@
 // (inters and wets) can be fitted, and the session start (Sess_TyreAllocation_OnSessionStart) hands
 // sets back. After that session start, on a 1990 weekend, every unused and undamaged dry set of
 // every car loses its handed-back flag and its session tag (tag 0 is usable in any session), so
-// Friday and Saturday qualifying share the unused dry sets. Setting fq_tyre_fix turns it off.
+// Friday and Saturday qualifying share the unused dry sets. The 1990 weekend structure exists only in
+// the f1_1990 setup mode, so 2025/2026 sessions are untouched. Setting fq_tyre_fix turns it off.
 
 #include <swofty/game.hpp>
 #include <swofty/mixin.hpp>
