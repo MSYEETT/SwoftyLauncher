@@ -7809,6 +7809,86 @@
    "used_by": [
     "addons/career-editor/native/src/drivers.cpp"
    ]
+  },
+  {
+   "id": "loc.lang_set_find",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 53 48 83 EC 28 44 89 C7 49 89 D6 48 89 CB",
+   "match": "0x143acf800",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143acf800",
+   "kind": "func_start",
+   "names": [
+    "Loc_LangSet_Find"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/lang_override.cpp"
+   ]
+  },
+  {
+   "id": "loc.locale_module_init",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 53 48 81 EC A0 03 00 00",
+   "match": "0x144435970",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x144435970",
+   "kind": "func_start",
+   "names": [
+    "Loc_LocaleModule_Init"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/lang_override.cpp"
+   ]
+  },
+  {
+   "id": "loc.language_info",
+   "section": ".xtls",
+   "pattern": "48 8D 0D ?? ?? ?? ?? 48 8B 5C 08 60",
+   "match": "0x144436147",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x1462925e8",
+   "kind": "data",
+   "names": [
+    "g_Loc_LanguageInfo"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/lang_override.cpp"
+   ]
   }
  ]
 }
