@@ -27,8 +27,9 @@ drop to each axle's RideHeight and setup ride-height range.
 Team power, mass and drag come from the season pack's per-team scalars (season.py), applied around a common base.
 
 Outputs (relative to the addon folder): cars/handling/<ers>_<tyre_size>/<folder>_handling.erp, cars/handling.json
-(file.put ops keyed by the options) and db/cars.json (the package row and the 13 vehicle rows, labelled with the grid
-lane's tokens; their name strings come from the grid lane's lang ops). The build compares with the shipped files and exits 1 on any difference; --write replaces them.
+(file.put ops keyed by the options) and db/cars.json (the f1_1990 and f1_1990b package rows, the 13 vehicle rows
+labelled with the grid lane's tokens and their 13 B-spec copies `<token>_1990b`; the name strings come from the grid
+lane's lang ops). The build compares with the shipped files and exits 1 on any difference; --write replaces them.
 """
 import argparse
 import json
@@ -72,10 +73,7 @@ PACKAGE_FIELDS = ['_metadata_', 'ai_package_folder', 'available', 'blob_shadow_d
                   'pit_wall_asset_group', 'resource_path', 'resource_path_specialisation', 'stat_id',
                   'tyre_compounds_asset_group']
 PACKAGE_SET = {
-    '_metadata_': C.PACKAGE,
-    'stat_id': C.PACKAGE_STAT_ID,
     'ai_package_folder': C.AI_FOLDER,
-    'resource_path': f'{C.PACKAGE_FOLDER}/teams/[FILENAME]/wep/[FILENAME]',
     'tyre_compounds_asset_group': f'{C.PACKAGE_FOLDER}/tyrecompounds/tyrecompounds',
     'blob_shadow_decal': f'eaid://{C.PACKAGE_FOLDER}/shared/ao/materials/blobshadowdecal.material',
     'has_cockpit_halo': 'False',
@@ -374,14 +372,21 @@ def engine_key(c):
     return f'lng_f1990_engine_{c.team}'
 
 
+def package_ops(name, stat_id, folder):
+    values = dict(PACKAGE_SET, _metadata_=name, stat_id=stat_id,
+                  resource_path=f'{folder}/teams/[FILENAME]/wep/[FILENAME]')
+    return [{'op': 'add-row', 'table': 'entrants.vehicles.vehicle_packages',
+             'from': f'entrants.vehicles.vehicle_packages.vehicle_package[_metadata_={C.SOURCE_PACKAGE_ROW}]',
+             'set': values},
+            {'op': 'set', 'select': f'entrants.vehicles.vehicle_packages.vehicle_package[_metadata_={name}]',
+             'field': 'is_26_aero_regulations', 'value': 'False', 'when': {'classic_aero': True}}]
+
+
 def db_ops():
     with open(VEHICLE_FIELDS) as f:
         vehicle_fields = json.load(f)['fields']['entrants.vehicles.vehicle']
-    ops = [{'op': 'add-row', 'table': 'entrants.vehicles.vehicle_packages',
-            'from': f'entrants.vehicles.vehicle_packages.vehicle_package[_metadata_={C.SOURCE_PACKAGE_ROW}]',
-            'set': dict(PACKAGE_SET)},
-           {'op': 'set', 'select': f'entrants.vehicles.vehicle_packages.vehicle_package[_metadata_={C.PACKAGE}]',
-            'field': 'is_26_aero_regulations', 'value': 'False', 'when': {'classic_aero': True}}]
+    ops = package_ops(C.PACKAGE, C.PACKAGE_STAT_ID, C.PACKAGE_FOLDER)
+    ops += package_ops(C.PACKAGE_B, C.PACKAGE_B_STAT_ID, C.PACKAGE_B_FOLDER)
     for c in C.CARS:
         ops.append({'op': 'add-row', 'table': 'entrants.vehicles',
                     'from': f'entrants.vehicles.vehicle[_metadata_={c.donor_vehicle}]',
@@ -390,6 +395,10 @@ def db_ops():
                             'display_name': f'lng_f1990_team_{c.team}', 'chassis_name': chassis_key(c),
                             'engine_name_override': engine_key(c), 'equal_performance_vehicle': '',
                             'performance_tier': str(c.tier)}})
+    for c in C.CARS:
+        ops.append({'op': 'add-row', 'table': 'entrants.vehicles',
+                    'from': f'entrants.vehicles.vehicle[_metadata_={c.vehicle}]',
+                    'set': {'_metadata_': c.vehicle_b, 'stat_id': str(c.stat_id_b), 'vehicle_package': C.PACKAGE_B}})
     return {'schema_version': 1,
             'fields': {'entrants.vehicles.vehicle_packages.vehicle_package': PACKAGE_FIELDS,
                        'entrants.vehicles.vehicle': vehicle_fields},

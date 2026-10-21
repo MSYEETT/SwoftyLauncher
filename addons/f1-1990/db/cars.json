@@ -275,18 +275,41 @@
    "table": "entrants.vehicles.vehicle_packages",
    "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2026]",
    "set": {
-    "_metadata_": "f1_1990",
-    "stat_id": "59",
     "ai_package_folder": "f1_2026_vehicle_package",
-    "resource_path": "f1_1990_vehicle_package/teams/[FILENAME]/wep/[FILENAME]",
     "tyre_compounds_asset_group": "f1_1990_vehicle_package/tyrecompounds/tyrecompounds",
     "blob_shadow_decal": "eaid://f1_1990_vehicle_package/shared/ao/materials/blobshadowdecal.material",
-    "has_cockpit_halo": "False"
+    "has_cockpit_halo": "False",
+    "_metadata_": "f1_1990",
+    "stat_id": "59",
+    "resource_path": "f1_1990_vehicle_package/teams/[FILENAME]/wep/[FILENAME]"
    }
   },
   {
    "op": "set",
    "select": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_1990]",
+   "field": "is_26_aero_regulations",
+   "value": "False",
+   "when": {
+    "classic_aero": true
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles.vehicle_packages",
+   "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2026]",
+   "set": {
+    "ai_package_folder": "f1_2026_vehicle_package",
+    "tyre_compounds_asset_group": "f1_1990_vehicle_package/tyrecompounds/tyrecompounds",
+    "blob_shadow_decal": "eaid://f1_1990_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+    "has_cockpit_halo": "False",
+    "_metadata_": "f1_1990b",
+    "stat_id": "60",
+    "resource_path": "f1_1990_vehicle_b_specs/teams/[FILENAME]/wep/[FILENAME]"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_1990b]",
    "field": "is_26_aero_regulations",
    "value": "False",
    "when": {
@@ -525,6 +548,136 @@
     "engine_name_override": "lng_f1990_engine_arrows",
     "equal_performance_vehicle": "",
     "performance_tier": "1"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=mclaren_1990]",
+   "set": {
+    "_metadata_": "mclaren_1990b",
+    "stat_id": "526",
+    "vehicle_package": "f1_1990b"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=ferrari_1990]",
+   "set": {
+    "_metadata_": "ferrari_1990b",
+    "stat_id": "527",
+    "vehicle_package": "f1_1990b"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=williams_1990]",
+   "set": {
+    "_metadata_": "williams_1990b",
+    "stat_id": "528",
+    "vehicle_package": "f1_1990b"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=benetton_1990]",
+   "set": {
+    "_metadata_": "benetton_1990b",
+    "stat_id": "529",
+    "vehicle_package": "f1_1990b"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=tyrrell_1990]",
+   "set": {
+    "_metadata_": "tyrrell_1990b",
+    "stat_id": "530",
+    "vehicle_package": "f1_1990b"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=lotus_1990]",
+   "set": {
+    "_metadata_": "lotus_1990b",
+    "stat_id": "531",
+    "vehicle_package": "f1_1990b"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=leytonhouse_1990]",
+   "set": {
+    "_metadata_": "leytonhouse_1990b",
+    "stat_id": "532",
+    "vehicle_package": "f1_1990b"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=larrousse_1990]",
+   "set": {
+    "_metadata_": "larrousse_1990b",
+    "stat_id": "533",
+    "vehicle_package": "f1_1990b"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=ligier_1990]",
+   "set": {
+    "_metadata_": "ligier_1990b",
+    "stat_id": "534",
+    "vehicle_package": "f1_1990b"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=minardi_1990]",
+   "set": {
+    "_metadata_": "minardi_1990b",
+    "stat_id": "535",
+    "vehicle_package": "f1_1990b"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=brabham_1990]",
+   "set": {
+    "_metadata_": "brabham_1990b",
+    "stat_id": "536",
+    "vehicle_package": "f1_1990b"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=dallara_1990]",
+   "set": {
+    "_metadata_": "dallara_1990b",
+    "stat_id": "537",
+    "vehicle_package": "f1_1990b"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=arrows_1990]",
+   "set": {
+    "_metadata_": "arrows_1990b",
+    "stat_id": "538",
+    "vehicle_package": "f1_1990b"
    }
   }
  ]
