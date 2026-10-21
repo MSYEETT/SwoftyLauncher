@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+import aiohttp
 import discord
 
 from . import releases, render, report
@@ -21,6 +22,8 @@ FAILED = "⚠️"
 SKIPPED = "⏭️"
 RETRY = "🔁"
 CASE_DAYS = 30
+STATS_NAME = "🏎️ F1 Online: {:,}"
+STATS_EVERY_S = 600
 
 
 @dataclass(frozen=True)
@@ -50,6 +53,7 @@ class TriageBot(discord.Client):
             asyncio.create_task(self.worker()),
             asyncio.create_task(self.sweeper()),
             asyncio.create_task(self.release_watcher()),
+            asyncio.create_task(self.stats_channel()),
         ]
 
     async def channel(self) -> discord.TextChannel:
@@ -281,6 +285,26 @@ class TriageBot(discord.Client):
             seen.add(release.tag)
             store.set_meta("releases_seen", json.dumps(sorted(seen)))
             log.info("announced %s in %s", release.tag, self.cfg.releases_channel_id)
+
+    async def stats_channel(self) -> None:
+        await self.ready_once.wait()
+        if not self.cfg.stats_channel_id:
+            return
+        url = f"{self.cfg.usage_url}/v1/stats?range=24h"
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as http:
+            while True:
+                try:
+                    async with http.get(url) as r:
+                        online = (await r.json())["online"]["total"]
+                    channel = self.get_channel(self.cfg.stats_channel_id) or await self.fetch_channel(
+                        self.cfg.stats_channel_id
+                    )
+                    name = STATS_NAME.format(online)
+                    if channel.name != name:
+                        await channel.edit(name=name, reason="F1 players online")
+                except Exception as e:
+                    log.warning("stats channel update failed: %s", e)
+                await asyncio.sleep(STATS_EVERY_S)
 
 
 def since_time(raw: str) -> datetime:

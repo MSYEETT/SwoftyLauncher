@@ -1319,6 +1319,7 @@ name = "swofty-triage"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "aiohttp" },
     { name = "anthropic" },
     { name = "certifi" },
     { name = "discord-py" },
@@ -1332,6 +1333,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiohttp", specifier = ">=3.9,<4" },
     { name = "anthropic", specifier = ">=1.17,<2" },
     { name = "certifi", specifier = ">=2024.2.2" },
     { name = "discord-py", specifier = ">=2.7,<3" },

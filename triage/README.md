@@ -32,6 +32,16 @@ On the first start, releases published before `TRIAGE_RELEASES_SINCE` are marked
 uv run swofty-triage release-preview v1.1.0
 ```
 
+## Usage stats
+
+`swofty-triage usage` serves the launcher's anonymised usage reports on `127.0.0.1:8471` as `swofty-usage.service`, with its database at `/var/lib/swofty-usage/usage.db`:
+
+- `POST /v1/events` takes one report: `kind` (`launcher`, `session_start`, `session`, `session_end`), a random 32-hex `install` id, the launcher `version`, the `os`, and for sessions a random `session` id, plus `exit_code` and `seconds` at the end.
+- `GET /v1/stats?range=24h|7d|30d|90d` returns launchers online now by version, a 5-minute series of launchers online by version, daily active installs, and the share of sessions per version that ended with a non-zero exit code.
+- `/` on a `stats.` host is the stats page.
+
+Caddy (`deploy/Caddyfile`) serves `api.f1.swofty.net` and `stats.f1.swofty.net` with Let's Encrypt certificates. With `TRIAGE_STATS_CHANNEL_ID` set, the bot renames that channel to the number of launchers online every 10 minutes.
+
 ## Configuration
 
 Environment variables, read from `/etc/swofty-triage.env` by the service:
@@ -58,6 +68,8 @@ Environment variables, read from `/etc/swofty-triage.env` by the service:
 | `TRIAGE_RELEASES_POLL_S` | `300` | Seconds between release checks |
 | `TRIAGE_RELEASES_SINCE` | | On a first start, announce releases published after this ISO 8601 time |
 | `GITHUB_TOKEN` | | Optional token for a higher GitHub API rate limit |
+| `TRIAGE_STATS_CHANNEL_ID` | | Channel renamed to the number of launchers online; unset turns it off |
+| `TRIAGE_USAGE_URL` | `http://127.0.0.1:8471` | Where the bot reads the usage stats |
 
 ## Deploy
 

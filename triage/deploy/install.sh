@@ -24,7 +24,10 @@ UV_PROJECT_ENVIRONMENT="$PREFIX/venv" "$PREFIX/uv/bin/uv" sync --quiet --frozen 
     --project "$PREFIX/src/triage"
 
 install -m 0644 "$PREFIX/src/triage/deploy/swofty-triage.service" /etc/systemd/system/swofty-triage.service
+install -m 0644 "$PREFIX/src/triage/deploy/swofty-usage.service" /etc/systemd/system/swofty-usage.service
 systemctl daemon-reload
+systemctl enable --quiet swofty-usage
+systemctl restart swofty-usage
 if [ ! -f /etc/swofty-triage.env ]; then
     install -m 0640 -g triage "$PREFIX/src/triage/deploy/swofty-triage.env.example" /etc/swofty-triage.env
     echo "Fill in /etc/swofty-triage.env, then run: systemctl enable --now swofty-triage"

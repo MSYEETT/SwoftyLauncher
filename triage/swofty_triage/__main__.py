@@ -57,6 +57,13 @@ def release_preview(args: argparse.Namespace) -> int:
     return 0
 
 
+def usage(args: argparse.Namespace) -> int:
+    from .usage import serve
+
+    serve(Path(args.db), args.host, args.port)
+    return 0
+
+
 def run(_: argparse.Namespace) -> int:
     from .bot import TriageBot
     from .pipeline import Triage
@@ -83,6 +90,11 @@ def main() -> int:
     p = sub.add_parser("release-preview", help="print the announcement for a release without posting it")
     p.add_argument("tag")
     p.set_defaults(func=release_preview)
+    p = sub.add_parser("usage", help="serve the usage API and the stats page")
+    p.add_argument("--db", default="/var/lib/swofty-usage/usage.db")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8471)
+    p.set_defaults(func=usage)
     sub.add_parser("update-sources", help="clone or fetch the source mirrors").set_defaults(
         func=update_sources
     )

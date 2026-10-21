@@ -33,6 +33,8 @@ class Config:
     releases_poll_s: int = 300
     releases_since: str = ""
     github_token: str = ""
+    stats_channel_id: int = 0
+    usage_url: str = "http://127.0.0.1:8471"
 
     @property
     def cases_dir(self) -> Path:
@@ -94,4 +96,6 @@ def from_env(env: dict[str, str] | None = None, need_discord: bool = True) -> Co
         releases_poll_s=int(env.get("TRIAGE_RELEASES_POLL_S", "300")),
         releases_since=env.get("TRIAGE_RELEASES_SINCE", ""),
         github_token=env.get("GITHUB_TOKEN", ""),
+        stats_channel_id=int(env.get("TRIAGE_STATS_CHANNEL_ID") or 0),
+        usage_url=env.get("TRIAGE_USAGE_URL", "http://127.0.0.1:8471").rstrip("/"),
     )
