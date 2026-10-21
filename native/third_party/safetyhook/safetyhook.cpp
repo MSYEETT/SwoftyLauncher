@@ -1424,6 +1424,19 @@ void trap_threads(uint8_t* from, uint8_t* to, size_t len, const std::function<vo
         new_protect = PAGE_EXECUTE_READWRITE;
     }
 
+    // Swofty: an ntdll page stays executable, whether it holds the hook target (from on install, to on
+    // removal). ntdll holds the exception dispatcher (KiUserExceptionDispatcher, NtContinue) and the
+    // NtProtectVirtualMemory stub that the VirtualProtect calls below return through. With the page
+    // non-executable, this thread faults on its way back from NtProtectVirtualMemory and other threads
+    // fault in the syscall stubs there; trap_handler resumes each through NtContinue, which faults again
+    // when it shares the page, so the threads recurse until their stacks overflow, or else spin on the
+    // fault. Windows and Proton keep NtTerminateProcess, NtContinue and NtProtectVirtualMemory on one
+    // page.
+    if (auto* ntdll = reinterpret_cast<void*>(GetModuleHandleW(L"ntdll.dll"));
+        ntdll != nullptr && (from_mbi.AllocationBase == ntdll || to_mbi.AllocationBase == ntdll)) {
+        new_protect = PAGE_EXECUTE_READWRITE;
+    }
+
     if (!TrapManager::is_destructed) {
         std::scoped_lock lock{TrapManager::mutex};
 
