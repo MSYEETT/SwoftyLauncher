@@ -40,7 +40,9 @@ can work. Everything is undone when the game exits.
 - Everything is scoped to the session: the game folder is restored to
   vanilla when the game exits, by `swofty restore`, and at the next start.
 - The extension is downloaded from Swofty's site and verified against
-  pinned SHA-256 digests before it is used. Source: Swofty-Developments/F1-OfflinePlay.";
+  pinned SHA-256 digests before it is used. Source: Swofty-Developments/F1-OfflinePlay.
+
+We may collect anonymised usage data from your use of the launcher.";
 
 /// The extension release this manager pins.
 pub const EXTENSION_VERSION: &str = "0.3.10";

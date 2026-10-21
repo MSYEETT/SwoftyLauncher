@@ -102,10 +102,12 @@ jobs:
             libxkbcommon-dev libxkbcommon-x11-dev libx11-xcb-dev libxcb1-dev libvulkan-dev
 
       # The webhook that "Send Logs to Developers" posts to; without it the button is disabled.
+      # The usage address is where anonymised usage reports go; builds without it send none.
       - name: Build
         run: cargo build --release --workspace
         env:
           SWOFTY_LOG_WEBHOOK: ${{ secrets.SWOFTY_LOG_WEBHOOK }}
+          SWOFTY_USAGE_URL: https://api.f1.swofty.net
 
       - uses: actions/setup-python@v7
         with:
@@ -191,10 +193,12 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       # The webhook that "Send Logs to Developers" posts to; without it the button is disabled.
+      # The usage address is where anonymised usage reports go; builds without it send none.
       - name: Build
         run: cargo build --release --workspace
         env:
           SWOFTY_LOG_WEBHOOK: ${{ secrets.SWOFTY_LOG_WEBHOOK }}
+          SWOFTY_USAGE_URL: https://api.f1.swofty.net
 
       - uses: actions/setup-python@v7
         with:

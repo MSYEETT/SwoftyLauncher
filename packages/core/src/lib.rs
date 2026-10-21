@@ -39,6 +39,7 @@ pub mod tracks;
 pub mod ui;
 pub mod update;
 pub mod updater;
+pub mod usage;
 pub mod vdf;
 
 pub const STEAM_APP_ID: u32 = 3_059_520;

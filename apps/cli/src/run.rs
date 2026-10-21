@@ -576,8 +576,12 @@ fn play(store: &Store, args: &RunArgs, config: &Config, request: &LaunchRequest,
     if mode.is_vr() {
         say("info", &format!("starting F1 25 in VR ({})", extra.join(" ")));
     }
+    let usage = swofty_core::usage::Session::start(&store.root);
     let status = wait_game(&mut spawn(target, "game_stdout.log")?)?;
     let code = status.code().unwrap_or(-1);
+    if let Some(usage) = usage {
+        usage.end(code);
+    }
     std::fs::write(dir.join("exit_code"), format!("{code}\n"))?;
     std::fs::write(dir.join("game_end"), format!("{}\n", now_secs()))?;
     keep_game_logs(game, &dir, before.as_ref(), launched);

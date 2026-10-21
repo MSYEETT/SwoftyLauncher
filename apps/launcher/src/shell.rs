@@ -180,6 +180,12 @@ fn offline_terms(p: Palette) -> impl IntoElement {
                          downloaded automatically and verified against pinned SHA-256 digests.",
                 )),
         )
+        .child(
+            div()
+                .text_size(px(12.))
+                .text_color(p.text_muted)
+                .child("We may collect anonymised usage data from your use of the launcher."),
+        )
 }
 
 // Times shown as "5 min ago" stay current without a repaint every probe.
@@ -193,6 +199,7 @@ impl Shell {
             Ok(notes) => notes.iter().for_each(|n| eprintln!("swofty-launcher: {n}")),
             Err(e) => eprintln!("swofty-launcher: could not install the bundled addons: {e}"),
         }
+        swofty_core::usage::launcher_heartbeats(store.root.clone());
         let recovered_seen = Notice::read(&store.root).map_or(0.0, |n| n.at);
         let stale = store.clone();
         cx.background_executor()
