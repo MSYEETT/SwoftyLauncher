@@ -270,6 +270,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
                   { text: "Career", link: "/reference/std/career", icon: "file" },
                   { text: "Popup", link: "/reference/std/popup", icon: "file" },
                   { text: "Strings", link: "/reference/std/strings", icon: "file" },
+                  { text: "Career contents", link: "/reference/std/career-content", icon: "file" },
                   { text: "Memory", link: "/reference/std/memory", icon: "file" },
                   { text: "Logging", link: "/reference/std/logging", icon: "file" },
                   { text: "Mixin API", link: "/reference/std/mixin", icon: "file" },

@@ -16,7 +16,7 @@ The core watches the game's front-end flow states and the championship entity, s
 | API version | 6 (core 0.2.11); `block`, `unblock` and `career.starting` 7 (core 0.2.12) |
 | Thread | Getters, `block`, `unblock`: any. `entity`, `component`, `post`: flow thread |
 
-Every call that returns a `swofty::career::Result` uses the shared [result codes](./#result-codes).
+Every call that returns a `swofty::career::Result` uses the shared [result codes](./#result-codes). To add a career of your own, with its own tile and save slots, or to tell which career is loaded by its data group, see [Career contents](./career-content).
 
 ## Calls
 

@@ -22,6 +22,7 @@ When your [engine plugin](/reference/addons/native-plugins) initializes, it rece
 | [Career](./career) | `swofty/career.hpp` | `career` (stable) | 6, `block` 7 | Flow thread |
 | [Popup](./popup) | `swofty/popup.hpp` | `popup` (stable) | 7 | Any; shown on the flow thread |
 | [Strings](./strings) | `swofty/lang.hpp` | `lang` (stable) | 8 | Any; `refresh` on the game thread |
+| [Career contents](./career-content) | `swofty/career_content.hpp` | `career` (experimental) | 8, feature-detected | Addon init, flow thread |
 | [Memory](./memory) | `swofty/mem.hpp` | none (header only) | any | Any |
 
 For screens and home tiles, use an addon operation rather than a `SwoftyApi` table; see [UI](./ui). You can find the merged engine-side contract for the version-5 tables in [the native-libraries design](/design/native-libraries).
@@ -41,6 +42,7 @@ Include the header for the library you need. The [addon template](/reference/add
 | `swofty/storage.hpp` | `packages/sdk/include/swofty/` | Addon storage |
 | `swofty/career.hpp` | `packages/sdk/include/swofty/` | Flow states, the running career, its components, the game bus and career-mode blocks |
 | `swofty/popup.hpp` | `packages/sdk/include/swofty/` | The game's message popup with your text |
+| `swofty/career_content.hpp` | `packages/sdk/include/swofty/` | Extra career content tiles with their own save slots, and the per-career check |
 | `swofty/mem.hpp` | `packages/sdk/include/swofty/` | Guarded memory reads: `read`, `in_image`, `object_like`, `c_string` |
 | `swofty/assets.hpp` | `packages/sdk/include/swofty/` | Runtime asset loading; see [Asset API](/reference/addons/asset-api) |
 | `swofty/game.hpp`, `swofty/game/*.hpp` | `native/include/swofty/` | The [Game API](/reference/game/): the engine's functions, structs and sites |
