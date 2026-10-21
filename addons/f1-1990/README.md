@@ -171,23 +171,31 @@ python3 addons/f1-1990/tools/rnd_look.py --game <F1 25> [--baseline <launcher ba
 It needs Pillow, numpy, resvg (or nix), zstd and node. rnd_look.json must run before rnd-tyres-thermal's uidb edits,
 which its `load_after` on this addon gives.
 
-## 13-team laptop lists (erp/ui26.json, ui/, tools/ui26.py)
+## 13-team lists (erp/ui26.json, ui/, tools/ui26.py)
 
-At 26 cars (`when: cars 26`) the laptop lists get rows for 13 teams. The rows are added below the stock ones in place, in `flow_career_hub.erp` and `flow_team_hq.erp`; the stock rows keep their positions.
+At 26 cars (`when: cars 26`) the team lists get rows for 13 teams, in place in every archive that carries each resource.
+Each new row is a clone of the last stock row, takes the list's per-row signals (`initialise`, `animate_in`,
+`hide_selection_pip`) and binds a new scene row. The charts fit their rows into the height the stock layout gives 11
+rows: their stacker gets a smaller `gap` and, where that is not enough, a vertical scale. Rows sit in name order.
 
-| list | screen node | scene |
-|---|---|---|
-| Constructor standings | `laptop_standings.ui` `constructor_list`: UILE `12` (clone of `11`) | `sl_constructor_stack.idf`: row `12` 0.4 below `11`, inside the stock panel |
-| Vehicle Performance Comparison (email) | `laptop_overview.ui` `performance_list`: `entry_12` bound to `pill_12`, `viewHeight` 13 | `r_and_d_performance_compare_stack_attach.idf`: `pill_11`, `pill_12` in the stacker |
-| R&D comparison charts | stock `laptop_r_and_d.ui` (rnd-tyres-thermal replaces it), whose `entry_11` already binds `pill_11` | `r_and_d_performance_compare_stack.idf`: `pill_11`, `pill_12`, so 12 rows |
+| list | screen node | scene | fit |
+|---|---|---|---|
+| Constructor standings | `laptop_standings.ui` `constructor_list`: UILE `12` | `sl_constructor_stack.idf`: row `12` 0.4 below `11`, inside the stock panel | none |
+| Vehicle Performance Comparison (email) | `laptop_overview.ui` `performance_list`: `entry_12`, `viewHeight` 13 | `r_and_d_performance_compare_stack_attach.idf`: `pill_11`, `pill_12` | gap 0.05 → 0.02, scale y 0.9007 |
+| R&D charts (upgrades in progress, overview, research) | `laptop_r_and_d.ui`, replaced by rnd-tyres-thermal, which adds `entry_12` | `team_hq/research/perf_stack.idf`, `rnd_tree/rnd_perf_stack.idf`: `pill_12` | gap 0.1 → 0.05, scale y 0.9785 |
+| Part fitting chart | `laptop_fit_upgrades.ui` `performance_chart`: `entry_12`, `viewHeight` 13 | `team_hq/research/perf_stack.idf` | as above |
+| Team select chart (new career, HQ) | `driver_career_team_select.ui`, `team_hq_driver_career_team_select.ui` `performance_chart`: `entry_11`, `entry_12`, `viewHeight` 13 | `dc_ts_perf_panel.idf`: `pill_11`, `pill_12` | gap 0.16 → 0.066 |
+| Team select carousel | | `dc_team_select.idf`: `carousel` → `1x1_sqr_carousel_team13.idf`, added to the four archives that carry `dc_team_select.idf` | `item_spawner` gap 0.205 → 0.12, scale 0.8932 |
+
+The stock carousel scene, which `common_front_end.erp` also carries and the fan zone screen uses, is unchanged.
 
 Driver standings already scroll 26 drivers through 13 rows. `tools/ui26.py` rebuilds `ui/` and the ops from the stock archives:
 
 ```sh
-python3 addons/f1-1990/tools/ui26.py --baseline <launcher baseline>/<build> [--game <F1 25>]
+python3 addons/f1-1990/tools/ui26.py --game <F1 25> [--baseline <launcher baseline>/<build>]
 ```
 
-It checks that each edited scene round-trips with valid element ids and node lookups, that each screen round-trips, and that only the added rows and the lists' `viewHeight` differ from stock.
+It checks that each edited scene round-trips with valid element ids, node lookups and scene ids, that each screen round-trips, and that only the added rows, the lists' signals and their `viewHeight` differ from stock.
 
 ## Agent portrait (erp/portrait.json, erp/portrait/portrait.erpk, tools/portrait.py)
 
