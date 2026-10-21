@@ -8859,6 +8859,34 @@
    "used_by": [
     "addons/f1-1990/native/src/quali_engine.cpp"
    ]
+  },
+  {
+   "id": "game.driver_career_slot_predicate",
+   "section": ".xtls",
+   "pattern": "0F 85 ?? ?? ?? ?? 48 8B 87 80 01 00 00 48 8D 50 09 48 85 C0 49 0F 44 D4 48 8B 8F 58 01 00 00 48 89 54 24 60 48 8D 05",
+   "match": "0x14172569b",
+   "anchor": "0x27",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x24",
+    "len": 7
+   },
+   "target": "0x14588ab80",
+   "kind": "data",
+   "names": [
+    "vt_Game_DriverCareerSlotPredicate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_menu_ui.cpp"
+   ]
   }
  ]
 }
