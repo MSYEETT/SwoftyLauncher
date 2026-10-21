@@ -141,7 +141,8 @@
       { "dll": "native/f1_1990_voice.dll", "files": ["data/flavio-strings.json"] },
       { "dll": "native/f1_1990_bspec.dll" },
       { "dll": "native/f1_1990_agent.dll", "early": true }, { "dll": "native/f1_1990_tabs.dll" },
-      { "dll": "native/f1_1990_pu.dll" }, { "dll": "native/f1_1990_quali.dll" }
+      { "dll": "native/f1_1990_pu.dll" }, { "dll": "native/f1_1990_quali.dll" },
+      { "dll": "native/f1_1990_rnd.dll", "files": ["data/rnd-art.json", "data/rnd-strings.json"] }
     ],
     "files": [
       { "source": "files/audio/v12_1990.bdl", "target": "audio/2025/bundles/v12_1990.bdl" },

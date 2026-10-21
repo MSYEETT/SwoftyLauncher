@@ -131,3 +131,12 @@ A separate DLL; option `quali_engine_1990` (default on). The rnd lane's `f1990_q
 | `Game_Rnd_CalcUpgradeTypeProgress` | 0x143526260 | wrapped: inside a marked fill, type 0 is recomputed (`src/rnd_progress.hpp`) with the two upgrades (node hash 0x1305fa1e / 0x4e03ba09 or name `f1990_quali*`) left out of the completed weighting only |
 
 Every other caller of the progress function (UI, the power-unit wear range) and every other career get the game's value. It logs `[f1-1990] quali engine: car N set up for a session of group G; qualifying engine lines counted|left out` (first 8) and `Engine Power progress X -> Y outside qualifying` (first 8 changes).
+
+## R&D card art and department names (`f1_1990_rnd.dll`)
+
+A separate DLL; ships `data/rnd-art.json` and `data/rnd-strings.json` through its entry's `files`.
+
+- **Card art:** the three card binders (0x14180fc60, 0x141814320, 0x1418169f0) name a frame `<upgrade_name>`, `_in_progress` or `_complete` and format it right after the six `site_Career_RnDCardArt{Image,Mask}N` sites (the rnd-tyres addon's bindings; handlers chain). At those sites a frame of an `f1990_*` upgrade becomes its donor's frame for the same state (`rnd-art.json` `frames`), named the way the list in pkg names it: `om_xm_<part>`, `_progress`, `_complete`, mask `om_xm_<part>_m` in `rnd_om_xm`; `<part>`, `_in_progress`, `_complete`, mask `<part>` in the plain lists (`src/rnd_art.hpp`). Only 1990 trees carry `f1990_` names, so there is no career check.
+- **Department names:** `rnd-strings.json` `strings.<language>.<key>` are set through the core's runtime string overrides (API v7) on a 1990 `career.loaded` and cleared on `career.unloaded`; compiled out below SDK v7.
+
+It logs `[f1-1990] rnd: N card art donor(s)`, `card art site S image "f1990_x_in_progress" -> "om_xm_y_progress"` (first 24), `no donor for "..."` and `set|cleared N department string(s)`.
