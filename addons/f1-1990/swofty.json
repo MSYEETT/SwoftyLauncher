@@ -38,7 +38,7 @@
       "binds": "native"
     },
     { "id": "cars", "type": "slider", "label": "Cars", "min": 22, "max": 26, "step": 4, "default": 22,
-      "description": "22 runs the 11 strongest 1990 teams on the 11 stock 2026 team rows. 26 adds Larrousse and Dallara on Custom Grid Size's two extra teams and needs Custom Grid Size enabled with Cars at 26.",
+      "description": "Cars on the 1990 grid. 22 runs the 11 strongest teams; 26 adds Larrousse and Dallara and needs 26-car track layers.",
       "binds": "db" },
     {
       "id": "cleanup_stray_save", "type": "toggle", "label": "Delete the stray test save", "default": false,
@@ -108,7 +108,7 @@
     }
   ],
   "operations": {
-    "database": ["db/career.json", "db/grid.json", "db/rules.json", "db/physics.json"],
+    "database": ["db/career.json", "db/grid.json", "db/grid_standings.json", "db/rules.json", "db/physics.json"],
     "assets": ["db/rules_text.json", "lang/grid.json", "db/career-lang.json"],
     "erp": ["erp/cars/handling.json"],
     "native": [

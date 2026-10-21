@@ -2,9 +2,9 @@
 
 Turns the F1 2026 season into the 1990 season in a profile of its own.
 
-## Grid size
+## Grid (db/grid.json, db/grid_standings.json, lang/grid.json, tools/grid.py)
 
-The **Cars** setting (`cars`) is 22 (default) or 26. At 22 the grid is the 11 teams on the stock 2026 team rows and the addon needs no other addon. At 26 Larrousse and Dallara join on Custom Grid Size's two extra teams: enable Custom Grid Size with Cars at 26. The grid ops are in `db/grid.json`, written by `tools/grid.py` (see `tools/README.md`).
+The 1990 teams (`<team>_1990`), drivers (`f1990_<driver>`), their looks, holders and entrants, and the entrant lists `f1_1990`, `f1_1990_driver_pool` and `f1_career_1990` are new rows; no 2025 or 2026 row changes. The **Cars** setting (`cars`) is 22 (default: the 11 strongest teams) or 26 (adds Larrousse and Dallara; needs 26-car track layers). See `tools/README.md`.
 
 ## Rules (db/rules.json, db/rules_text.json, tools/rules.py)
 

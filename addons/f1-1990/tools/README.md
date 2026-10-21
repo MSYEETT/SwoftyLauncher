@@ -59,46 +59,23 @@ Each 1990 team takes one 2026 team row. `asset` is the car folder the vehicle ro
 
 ## grid.py
 
-Writes `db/grid.json` (database ops) and `lang/grid.json` (`lang.set` strings) from the season pack. Run it after changing the pack or the tables in it; `-v` prints the driver ids and ratings.
+Writes `db/grid.json`, `db/grid_standings.json` (the driver standings) and `lang/grid.json` from the season pack and the stock database. Every op adds a row or sets a field of an added row; no stock row changes, only the row counts of the tables it adds to.
 
 ```sh
-python3 addons/f1-1990/tools/grid.py -v
+python3 addons/f1-1990/tools/grid.py <stock gamedatabases.2025.bin> -v
 ```
 
-What it writes:
-
-Every op on Custom Grid Size's rows (`team12_*`, `team13_*`, their seats and the two boss rows `andreas_seidl`, `franz_tost`) carries `"when": {"cars": 26}`. At the default `cars` = 22 the grid is the 11 teams on the stock 2026 team rows (no Larrousse, no Dallara) and the addon builds without Custom Grid Size; at 26 Custom Grid Size must be enabled with Cars at 26. `build_cars.py` gates its five ops on those rows the same way.
-
-| Part | Ops |
+| Part | Rows |
 |---|---|
-| 13 teams | `set` on each slot's team row: names (`lng_f1990_team_<team>`, `_short`), code, the seven colours, base, nationality, and a 1990 description and hashtag on the 11 rows that carry `story_info`. `set` on its vehicle row: `display_name`, `chassis_name`, `engine_name_override`. Team principal: the boss's `entrants.characters` row gets `lng_f1990_boss_<team>_full/_first/_last`; Larrousse and Dallara get their own boss rows (`andreas_seidl`, `franz_tost`) instead of sharing Williams' and Haas'. `lang.set` on the stock `lng_<team>_boss` keys, which the career's email senders use |
-| 31 drivers | No new driver, look or statistics rows (see [Why rows are reused](#why-rows-are-reused)). Senna, Prost and Mansell keep their stock rows (`set` car number, seasons, AI traits). The other 28 (23 season regulars plus the stand-ins Foitek, Morbidelli, Schneider, Moreno and Herbert) each take a stock driver row no list in the 1990 profile uses, by `set` on its names, code, number, nationality, head, birth date, seasons, voice and AI traits: a 2026 F1 driver of the same team row where one is free (`PACKAGES`), otherwise one of six old F2 drivers (`OTHER_ROWS`) |
-| Performance tier | `performance_tier` on each slot's vehicle row from the pack's team reputation: TOP_TEAM and MIDFIELD_HIGH 0 (McLaren, Ferrari, Williams, Benetton), MIDFIELD 1, MINNOW and SUPER_MINNOW 2 (Ligier, Larrousse) |
-| Heads and helmets | Every head and helmet is one the game ships an asset for: the `alain_prost`, `nigel_mansell`, `pedro_piquet` and `giuliano_alesi` heads and the `classic-prost01`/`classic-mansell01` helmets have database rows but no assets (the driver renders headless), so Prost, Mansell, Piquet and Alesi get generic heads and Prost and Mansell stock helmets |
-| Looks | A reused 2026 F1 driver keeps his `2026-<team>_<driver>` look; Senna, Prost, Mansell and the `OTHER_ROWS` drivers take a 2026 F2 look (`SPARE_LOOKS`). Each look gets `set` on helmet, suit and gloves (`SUIT`, the plain customisable `tier01_livery76`, so no 2026 sponsors) and `linked_driver_stat_id` |
-| Ratings | `set` on the curves of the reused driver's own `driver_statistics` holder, in every data set (2 for the 2026 F1 drivers) |
-| Entrants | A reused 2026 F1 driver keeps his `f1_2026-<driver>` entrant (`set` car number and look); the other 9 drivers get a new `entrants.entrant_lists.entrants` row (`f1990-<driver>`) |
-| Grid | The 26 rows of `f1_2026` (22 stock, 4 from Custom Grid Size at 26 cars) point at the season regulars (each seat's driver with the most starts), with 1990 numbers and `team_position` 0/1 |
-| Free agents | `f1_2026_driver_pool`: Senna's row becomes Foitek; Morbidelli, Schneider, Moreno and Herbert are added |
-| Standings | `f1_teams_2025` lists the stock team rows in 1989 constructors' order; `f1_drivers_2025` lists 22 of the drivers in 1989 order |
+| 13 teams | `<team>_1990` (`mclaren`, `ferrari`, `williams`, `benetton`, `tyrrell`, `lotus`, `leytonhouse`, `larrousse`, `ligier`, `minardi`, `brabham`, `dallara`, `arrows`), stat_id 502–514: every field of the 2026 donor (Larrousse from Williams, Dallara from Haas) plus names, code, colours, base, nationality, story text, `livery_name` and `timing_tower_texture_path` = the row label, and a boss row `f1990_boss_<team>` |
+| 31 drivers | `f1990_<driver>`, stat ids from the free low block and 235–253 (Driver Manager keeps 208–234): every field of a donor row (Senna, Prost and Mansell from their stock rows, the rest from 2026 and old F2 drivers) plus names, code, number, nationality, head, birth date, seasons, voice and AI traits; a statistics holder (one `default` data set), a look `f1990-<team>_<driver>` in the official folder (era-neutral suit), and an entrant `f1990-<driver>` |
+| Lists | `f1_1990` (the grid: 22 seats, 26 with `cars` = 26, `team`/`vehicle` = `<team>_1990`), `f1_1990_driver_pool` (the five stand-ins), `f1_career_1990` (references both); entrant setup mode `f1_1990` (`max_entrants` = `cars`); standings `f1_teams_1989` and `f1_drivers_1989` |
+| Kits | `2026-f1990_<team>` in the 2026 team-customisation year, `linked_team` the 1990 row, the team's looks |
+| Career data group | In the `f1_career_1990` rows the career lane clones: the team rows of accolades, primary sponsors, recognition and resource points move from `<team>_26` to `<team>_1990`, plus Larrousse and Dallara |
 
-### Why rows are reused
+Field lists: the gamedb catalog plus every known field name present on the row (names.txt, the catalog, Driver Manager's driver fields). The catalog alone has 29 of a driver row's 129 fields.
 
-A 26-car race start aborts (heap error 0x16 in `Ne_RobinHoodU8_IncreaseSize` from `Sess_Veh_UpdateWheelMap`) when the profile adds too much to the database, independent of which drivers race:
-
-- with only the new driver rows and 11 new statistics holders (128 holders) the race starts; with 12 (129 holders) it aborts;
-- with the holders kept at 117 but the new driver, look and entrant rows added, it still aborts.
-
-So the grid adds no driver, look or statistics rows and needs no new stat ids. Results: `/mnt/work/.f1-1990/addon/results/10-grid-race-crash.md`.
-
-### Front-end art still on 2026
-
-`frontend.py` (backdrop names, tabs) and `badges.py` (team badges) cover the rest of the front end; these remain.
-
-| What | Where it comes from |
-|---|---|
-| Driver picker tiles with no 1990 badge | `teams.driver_select_team_logos` and `teams.career_team_select_logo_small` are keyed by the team row's `livery_name`: Brabham's row (`cadillac`) has no entry, and at 26 cars Larrousse and Dallara share Williams' and Arrows' keys. `livery_name` also picks the car livery |
-| Suit colours | Generic suits are colour-customisable (`nb_colours` 3 or 4); their diffuse is composed at run time (`charname_livery_v2_d`), so the colour an AI driver gets isn't in the data. 1990 kits need new `character_package/team_livery/1990-<team>` packages |
+`check_grid.py` checks a build against stock and a build without the grid ops.
 
 ### Ratings
 
@@ -122,6 +99,8 @@ Each rating curve is flat at its value. `consistency` is not used.
 
 ## frontend.py
 
+Not in the v2 manifest: it replaces stock 2026 textures. The v2 plan (new contexts and textures for the 1990 rows) is in `/mnt/work/.f1-1990/v2/teams-career.md` §6.
+
 Writes `erp/frontend.json` and its sources under `erp/frontend/` (about 3 MB) from the season pack, `grid.py`'s row choices and the stock archives in `--game`. Needs Pillow and lz4 (`nix-shell -p "python3.withPackages (ps: [ ps.pillow ps.lz4 ])"`), `fc-match` and rnd-tyres-thermal's `bc7enc.py` (mode-6 encoder, white on alpha). `JOBS` sets the encoder processes (default 8).
 
 ```sh
@@ -136,6 +115,8 @@ python3 addons/f1-1990/tools/frontend.py --game <game folder> [--preview <dir>]
 | Tabs | `persistent.erp: screen_groups.uicontentgroup` without `header_f2` and `header_icon` in the `driver_career_driver_select_header` group (the Driver Career Choose Driver screen), behind `hide_f2_icon_tabs` (default on). The tool checks the stock resource round-trips byte-exact through `tools/pkg.py` and that the edit differs only by the two entries. The resource shrinks, so the build writes `persistent.erp` into the game files on both routes |
 
 ## badges.py
+
+Not in the v2 manifest: it replaces stock 2026 slices. v2 appends slices for the 1990 rows instead (teams-career.md §6).
 
 Writes `erp/badges.json` and two archives under `erp/badges/` (`.erpk`; the repo ignores `*.erp`) with placeholder 1990 team badges: the short name (the three-letter code at 64 px and below) in DejaVu Sans Condensed Bold on the team's primary colour, a secondary-colour stripe along the bottom.
 
@@ -155,17 +136,11 @@ At 26 cars the arrays keyed by team row, and the timing tower ones, grow by Larr
 
 ## check_grid.py
 
-Checks a built database against `db/grid.json`: the 26 `f1_2026` seats resolve to a team, a car, an entrant, a driver and a look; car numbers, driver stat ids, look stat ids and driver labels are unique; no free agent is also seated; the statistics table holds at most 128 holders and each seated driver exactly one; every added row has every listed field its source row has, and no more.
-
 ```sh
-python3 addons/f1-1990/tools/check_grid.py <overlay>/game_package/gamedatabases/gamedatabases.2025.bin [--lists <driver-manager cache>/game-lists.json]
+python3 addons/f1-1990/tools/check_grid.py <stock db> <db built without grid.json> <db built with it> --cars 22|26 [--lists <driver-manager cache>/game-lists.json]
 ```
 
-With `--lists` (Driver Manager's `game-lists.json`, whose `missing` list names the heads and kit the game has no asset for) it also checks each seated driver's head, helmet, suit and gloves.
-
-`swofty build` reads the database in the game folder. While a test build is installed there, build with `--game` pointing at a folder holding a copy of `F1_25.exe` and the stock `game_package/gamedatabases/gamedatabases.2025.bin`, and a copy of Custom Grid Size without its `erp` ops.
-
-Put the database on the build route (`"build_assets": ["db"]` in `$DATA/config.json`, or build without the in-game loader) to get the file.
+Fails when a grid op changes a stock record other than a row count, or when a seat, entrant, driver, holder, look, list, setup mode, standings or data-group team row is missing or doubled. Lists the `<team>_1990` vehicle rows the build lacks (cars lane).
 
 ## build_cars.py
 

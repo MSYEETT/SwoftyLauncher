@@ -1,4 +1,14 @@
 #!/usr/bin/env python3
+"""Checks the 1990 grid in a built database.
+
+usage: check_grid.py <stock db> <db built without the grid ops> <db built with them> [--cars 22|26] [--lists game-lists.json]
+
+1. Stock: the grid ops change no stock record except the row counts of the tables they add rows to.
+2. Rows: every seat of f1_1990 resolves to a 1990 team, an entrant, a 1990 driver with a statistics holder and a look;
+   labels, stat ids and car numbers are unique; the career list, pool, setup mode, standings and the per-team rows
+   of the f1_career_1990 data group exist. Missing <team>_1990 vehicle rows are reported, not failed (cars lane).
+"""
+import argparse
 import json
 import sys
 from collections import Counter
@@ -6,126 +16,142 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT.parents[1] / "tools"))
-import gamedb as g
+import gamedb as g  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import grid  # noqa: E402
+from season import slots  # noqa: E402
 
 
 class Db:
     def __init__(self, path):
-        self.v = {r.key: r.value.decode("utf-8", "replace") for r in g.read(Path(path).read_bytes())}
+        self.recs = {r.key: r.value for r in g.read(Path(path).read_bytes())}
 
     def get(self, path):
-        return self.v.get(g.fnv1a64(path))
-
-    def has(self, path):
-        return g.fnv1a64(path) in self.v
+        v = self.recs.get(g.fnv1a64(path))
+        return v.decode("utf-8", "replace") if v is not None else None
 
     def rows(self, table, word):
         n = int(self.get(f"{table}._{word}_instancecount_") or 0)
         return [(f"{table}.{word}_{i}", self.get(f"{table}.{word}_{i}._metadata_")) for i in range(n)]
 
-    def find(self, table, word, label):
-        hits = [p for p, m in self.rows(table, word) if m == label]
+    def find(self, table, word, label, field="_metadata_"):
+        hits = [p for p, _ in self.rows(table, word) if self.get(f"{p}.{field}") == label]
         return hits[0] if len(hits) == 1 else None
 
 
-def main(argv):
-    db = Db(argv[1])
-    missing = set()
-    if "--lists" in argv:
-        missing = set(json.loads(Path(argv[argv.index("--lists") + 1]).read_text(encoding="utf-8"))["missing"])
-    grid = json.loads((ROOT / "db/grid.json").read_text(encoding="utf-8"))
-    problems = []
-    lists = dict((m, p) for p, m in db.rows("entrants.entrant_lists", "entrant_list"))
-    entrants = "entrants.entrant_lists.entrants"
-    folders = dict((m, p) for p, m in db.rows("entrants.driver_customisations", "folder"))
-    looks = {}
-    for f in folders.values():
-        for p, m in db.rows(f, "preloaded_driver_customisation_properties"):
-            looks[m] = p
-    seats = db.rows(lists["f1_2026"], "entrant")
-    print(f"f1_2026: {len(seats)} entrants")
-    numbers = Counter()
-    drivers_seen = Counter()
-    for p, m in seats:
-        ref = db.get(p + ".entrant_reference")
-        team = db.find("entrants.teams", "team", db.get(p + ".team"))
-        vehicle = db.find("entrants.vehicles", "vehicle", db.get(p + ".vehicle"))
-        e = db.find(entrants, "entrant", ref)
-        if not (team and vehicle and e):
-            problems.append(f"{m}: team/vehicle/entrant unresolved ({ref})")
+def stock_check(stock, base, built, fail):
+    counts = 0
+    for key in stock.recs:
+        before, after = base.recs.get(key), built.recs.get(key)
+        if before == after:
             continue
-        dlabel = db.get(e + ".driver")
-        d = db.find("entrants.drivers", "driver", dlabel)
-        look = db.get(e + ".driver_customisation")
-        if not d or look not in looks:
-            problems.append(f"{m}: driver {dlabel} or look {look} unresolved")
+        counts += 1
+        if before is None or after is None or not (before.isdigit() and after.isdigit()):
+            fail(f"stock record {key:016x} changed: {before!r} -> {after!r}")
+    return counts
+
+
+def rows_check(db, cars, lists, fail):
+    teams = [s.team for s in slots() if cars == 26 or s.team not in grid.EXTRA_TEAMS]
+    team_rows = {grid.team_row(t) for t in teams}
+    missing_vehicles = [r for r in sorted(team_rows) if not db.find("entrants.vehicles", "vehicle", r)]
+    for row in sorted(team_rows):
+        if not db.find("entrants.teams", "team", row):
+            fail(f"team row {row} missing")
+    lst = db.find("entrants.entrant_lists", "entrant_list", grid.GRID_LIST)
+    if not lst:
+        fail(f"entrant list {grid.GRID_LIST} missing")
+        return missing_vehicles, 0
+    seats = db.rows(lst, "entrant")
+    if len(seats) != 2 * len(teams):
+        fail(f"{grid.GRID_LIST}: {len(seats)} seats for {len(teams)} teams")
+    numbers, drivers = Counter(), Counter()
+    for p, label in seats:
+        team, ref = db.get(f"{p}.team"), db.get(f"{p}.entrant_reference")
+        if team not in team_rows:
+            fail(f"{label}: team {team}")
+        ent = db.find(grid.ENTRANTS, "entrant", ref)
+        if not ent:
+            fail(f"{label}: entrant {ref} missing")
             continue
-        kit = [("head", db.get(d + ".head"))] + [
-            (part, db.get(f"{looks[look]}.{part}")) for part in ("helmet", "suit", "gloves")]
-        problems += [f"{dlabel}: {part} {value} has no game asset" for part, value in kit if f"{part}/{value}" in missing]
-        num = db.get(p + ".car_number")
-        numbers[num] += 1
-        drivers_seen[dlabel] += 1
-        print(f"  {m:22} #{num:>3} pos {db.get(p + '.team_position')}  {db.get(team + '.display_name_code')} "
-              f"{dlabel:28} stat {db.get(d + '.stat_id'):>3} {db.get(d + '.initials')} {db.get(d + '.nationality')} "
-              f"head {db.get(d + '.head')}")
-    problems += [f"car number {n} used {c} times" for n, c in numbers.items() if c > 1]
-    problems += [f"driver {d} seated {c} times" for d, c in drivers_seen.items() if c > 1]
-    ids = Counter(db.get(p + ".stat_id") for p, _ in db.rows("entrants.drivers", "driver"))
-    problems += [f"driver stat_id {i} used {c} times" for i, c in ids.items() if c > 1]
-    if any(int(i) > 253 for i in ids if i and i != "254"):
-        problems.append("driver stat_id above 253")
-    presets = Counter(db.get(p + ".stat_id") for p in looks.values())
-    problems += [f"look stat_id {i} used {c} times" for i, c in presets.items() if c > 1]
-    labels = Counter(m for _, m in db.rows("entrants.drivers", "driver"))
-    problems += [f"driver label {l} used {c} times" for l, c in labels.items() if c > 1]
-    pool = [db.get(p + ".entrant_reference") for p, _ in db.rows(lists["f1_2026_driver_pool"], "entrant")]
-    for ref in pool:
-        e = db.find(entrants, "entrant", ref)
-        if e and db.get(e + ".driver") in drivers_seen:
-            problems.append(f"pool entrant {ref} is also seated")
-    print(f"f1_2026_driver_pool: {', '.join(pool)}")
-    holders = db.rows("driver_statistics.driver_statistics", "DriverStatisticsHolder")
-    if len(holders) > 128:
-        problems.append(f"{len(holders)} driver statistics holders; a race start aborts above 128")
-    by_driver = Counter(db.get(p + ".driver") for p, _ in holders)
-    order = ("experience", "racecraft", "awareness", "pace", "focus")
-    for p, _ in holders:
-        if db.get(p + ".driver") in drivers_seen:
-            names = tuple(db.get(f"{p}.StatisticsDataSet_0.Statistic_{i}._metadata_") for i in range(5))
-            if names != order:
-                problems.append(f"{p}: statistics in order {names}")
-    for d in drivers_seen:
-        if by_driver[d] != 1:
-            problems.append(f"driver {d} has {by_driver[d]} statistics holders")
-    print(f"{len(holders)} driver statistics holders")
-    for op in grid["ops"]:
-        if op["op"] != "add-row":
+        drv, look = db.get(f"{ent}.driver"), db.get(f"{ent}.driver_customisation")
+        drivers[drv] += 1
+        numbers[db.get(f"{p}.car_number")] += 1
+        if not drv.startswith("f1990_") or not db.find(grid.DRIVERS, "driver", drv):
+            fail(f"{label}: driver {drv}")
+        if not db.find(grid.STATS_TABLE, "DriverStatisticsHolder", drv, "driver"):
+            fail(f"{label}: no statistics holder for {drv}")
+        lrow = db.find(grid.LOOK_FOLDER, grid.LOOK_WORD, look)
+        if not lrow:
+            fail(f"{label}: look {look} missing")
+        elif lists:
+            for part in ("helmet", "suit", "gloves"):
+                if f"{part}/{db.get(f'{lrow}.{part}')}" in lists:
+                    fail(f"{label}: {part} {db.get(f'{lrow}.{part}')} has no game asset")
+    for what, c in (("car number", numbers), ("driver", drivers)):
+        for k, n in c.items():
+            if n > 1:
+                fail(f"{grid.GRID_LIST}: {what} {k} on {n} seats")
+    for table, word, field in ((grid.DRIVERS, "driver", "stat_id"), (grid.TEAMS, "team", "stat_id"),
+                               (grid.LOOK_FOLDER, grid.LOOK_WORD, "stat_id"), (grid.DRIVERS, "driver", "_metadata_"),
+                               (grid.TEAMS, "team", "_metadata_")):
+        for k, n in Counter(db.get(f"{p}.{field}") for p, _ in db.rows(table, word)).items():
+            if n > 1 and k not in (None, ""):
+                fail(f"{table}.{word}.{field} {k} used {n} times")
+    career = db.find(grid.LISTS, "entrant_list", grid.CAREER_LIST)
+    if not career or db.get(f"{career}.entrant_list_references") != f"{grid.GRID_LIST},{grid.POOL_LIST}":
+        fail(f"{grid.CAREER_LIST} missing or not pointing at {grid.GRID_LIST},{grid.POOL_LIST}")
+    pool = db.find(grid.LISTS, "entrant_list", grid.POOL_LIST)
+    for p, label in db.rows(pool, "entrant") if pool else []:
+        if not db.find(grid.ENTRANTS, "entrant", db.get(f"{p}.entrant_reference")):
+            fail(f"{grid.POOL_LIST}.{label}: entrant missing")
+    mode = db.find(grid.SETUP_MODES, "entrant_setup_mode", grid.SETUP_MODE)
+    if not mode or db.get(f"{mode}.max_entrants") != str(cars):
+        fail(f"entrant setup mode {grid.SETUP_MODE} missing or max_entrants != {cars}")
+    std = db.find(grid.STANDINGS, "standings", grid.TEAM_STANDINGS)
+    if not std or {db.get(f"{p}.team") for p, _ in db.rows(std, "team_reference")} != team_rows:
+        fail(f"{grid.TEAM_STANDINGS} does not list the {len(team_rows)} teams")
+    std = db.find(grid.STANDINGS, "standings", grid.DRIVER_STANDINGS)
+    if not std or any(not db.find(grid.DRIVERS, "driver", db.get(f"{p}.driver"))
+                      for p, _ in db.rows(std, "driver_reference")):
+        fail(f"{grid.DRIVER_STANDINGS} missing or names a missing driver")
+    for container, word, sub, child, field in grid.GROUP_TEAM_TABLES:
+        group = db.find(container, word, grid.DATA_GROUP)
+        if not group:
+            fail(f"{container}: no {grid.DATA_GROUP} data group")
             continue
-        table = op["table"]
-        word = op["from"].rsplit(".", 1)[1].split("[")[0]
-        fields = grid["fields"][f"{table}.{word}"]
-        parent = table
-        if "[" in table:
-            name, label = table.rsplit("[_metadata_=", 1)
-            base, w = name.rsplit(".", 1)
-            parent = db.find(base, w, label.rstrip("]"))
-        src_label = op["from"].rsplit("[_metadata_=", 1)[1].rstrip("]")
-        src = db.find(parent, word, src_label)
-        new = db.find(parent, word, op["set"]["_metadata_"])
-        if not (src and new):
-            problems.append(f"{op['set']['_metadata_']}: row not found in {parent}")
-            continue
-        missing = [f for f in fields if db.has(f"{src}.{f}") and not db.has(f"{new}.{f}")]
-        extra = [f for f in fields if db.has(f"{new}.{f}") and not db.has(f"{src}.{f}")]
-        if missing or extra:
-            problems.append(f"{op['set']['_metadata_']}: missing {missing} extra {extra}")
-    print(f"{sum(1 for o in grid['ops'] if o['op'] == 'add-row')} added rows checked")
-    for p in problems:
-        print("PROBLEM:", p)
-    print("ok" if not problems else f"{len(problems)} problem(s)")
-    return 1 if problems else 0
+        have = {db.get(f"{p}.{field}") for p, _ in db.rows(f"{group}.{sub}", child)}
+        if team_rows - have:
+            fail(f"{container} {grid.DATA_GROUP}: no rows for {sorted(team_rows - have)}")
+        left = sorted(v for v in have if v and v.endswith("_26"))
+        if left:
+            fail(f"{container} {grid.DATA_GROUP}: still lists {left}")
+    return missing_vehicles, len(db.rows(grid.STATS_TABLE, "DriverStatisticsHolder"))
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("stock")
+    ap.add_argument("base")
+    ap.add_argument("built")
+    ap.add_argument("--cars", type=int, default=22)
+    ap.add_argument("--lists")
+    a = ap.parse_args()
+    errors = []
+    stock, base, built = Db(a.stock), Db(a.base), Db(a.built)
+    counts = stock_check(stock, base, built, errors.append)
+    lists = set(json.load(open(a.lists))["missing"]) if a.lists else None
+    missing_vehicles, holders = rows_check(built, a.cars, lists, errors.append)
+    print(f"{counts} stock row count(s) changed, no other stock record")
+    print(f"{holders} driver statistics holders")
+    if missing_vehicles:
+        print(f"vehicle rows not in this build (cars lane): {', '.join(missing_vehicles)}")
+    for e in errors:
+        print("FAIL", e)
+    print("ok" if not errors else f"{len(errors)} problem(s)")
+    sys.exit(1 if errors else 0)
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    main()
