@@ -7,7 +7,9 @@ An add-row op copies only the fields its op file lists for the table; a stock ke
 from the new row. The generators find a row's keys by probing the stock database with known names (the key
 catalogue, tools/gamedb/names.txt, ...), so a component or field whose name no list knows is missed. This tool probes
 each source row with every identifier string in the exe as well (hashed in bulk), recursing into nested tables and
-counted rows, and prints per op the keys the stock row has that the op file does not list. Rows past an instance count
+counted rows, then tries each found leaf under the row's other objects of the same branch (a sibling or a nested
+object), which finds keys the exe composes at run time, and prints per op the keys the stock row has that the op file
+does not list. Rows past an instance count
 the op sets are left out on purpose, and a child data set (parent_data_set) is checked as a tree. With --built (a
 database built with the addon) it also compares the rows that set-create ops build (TREES, and the subtrees of COPIES)
 with the stock rows of the same shape: a field every stock row of a shape has must be on the built row. With --names
@@ -38,7 +40,7 @@ TREES = [
 OPS = ["db/career.json", "db/grid.json", "db/grid_standings.json", "db/grid_links.json", "db/rules.json",
        "db/cars.json", "db/rnd.json", "db/audio.json"]
 PRIME = np.uint64(0x100000001b3)
-MAX_NAME = 64
+MAX_NAME = 128
 FULL_ROWS = 8
 
 
@@ -95,8 +97,30 @@ class Probe:
 
     def row(self, path):
         out = set()
-        self._walk(path, "", out, re.sub(r"_\d+(?=\.|$)", "_N", path))
+        sh = re.sub(r"_\d+(?=\.|$)", "_N", path)
+        self._walk(path, "", out, sh)
+        self._transplant(path, out, sh)
         return out
+
+    def _transplant(self, row, out, shape):
+        seen = self.shapes.setdefault(shape + "#transplant", {"rows": 0, "names": set()})
+        if seen["rows"] < FULL_ROWS:
+            by = {}
+            for k in out:
+                parent, _, leaf = k.rpartition(".")
+                if not leaf.startswith("_"):
+                    by.setdefault(parent, set()).add(leaf)
+            cands = set()
+            for p, leaves in by.items():
+                for q in by:
+                    if q != p and (q.startswith(p + ".") or not p or q.rpartition(".")[0] == p.rpartition(".")[0]):
+                        cands.update(f"{q}.{leaf}" for leaf in leaves - by[q])
+        else:
+            cands = seen["names"] - out
+        seen["rows"] += 1
+        found = {c for c in cands - out if fnv(f"{row}.{c}".encode()) in self.db.d}
+        seen["names"].update(found)
+        out.update(found)
 
     def _walk(self, row, rel, out, shape):
         seen = self.shapes.setdefault(shape, {"rows": 0, "names": set()})

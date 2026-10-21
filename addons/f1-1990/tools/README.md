@@ -60,8 +60,9 @@ Each 1990 team takes one 2026 team row. `asset` is the car folder the vehicle ro
 ## check_fields.py
 
 Checks that every row the addon copies carries every key of its stock source row, probing with every identifier string
-in the exe as well as the known names (a name no list knows is a key the generators drop). Run it with the
-pinned Python (numpy):
+in the exe as well as the known names (a name no list knows is a key the generators drop), then each found leaf under
+the row's other objects of the same branch (keys the exe composes, such as the in-or-out-lap ERS level under both ERS
+modes). Run it with the pinned Python (numpy):
 
 ```sh
 re/tools/py addons/f1-1990/tools/check_fields.py <stock gamedatabases.2025.bin> <F1_25.exe> --built <built .bin>
