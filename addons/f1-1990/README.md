@@ -88,8 +88,10 @@ Content set `2026` lists `driver_career_1990` and `f1_1990`. The game registers 
 content set lists it and an available mode row names it in `game_setup_modes`; no stock mode row names `f1_1990`, so the
 1990 mode row does. Without it the 1990 championship has no setup mode, every 1990 team fails the championship's team
 check and starting the career crashes. The career data group is the key the career slot list filters on, so 1990
-careers have their own slots. The **Career year** setting starts the career in 1990 (default) or
-2026.
+careers have their own slots. The **Career year** setting runs the career in 2026 (default) or 1990. The game dates
+each race weekend from the dataset's `weekend_day` and `weekend_month` in 2026 whatever the career year, so a career
+clock started in 1990 never reaches a race. In 2026 the rounds keep their 1990 days and months, the weekday
+names follow 2026, and `db/grid.json` moves each 1990 driver's birth year 36 years on, so ages match 1990.
 
 The Choose Driver screen finds its F1, F2 and Icons drivers through the content set's official entrant lists named
 `F1CAREER_<suffix>`, `F2CAREER_<suffix>` and `ICONS_<suffix>`, with the suffix of the Career tile that opened the wizard

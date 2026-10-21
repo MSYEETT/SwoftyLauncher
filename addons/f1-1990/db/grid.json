@@ -1686,6 +1686,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_ayrton_senna].date_of_birth",
+   "field": "year",
+   "value": "1996",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -1869,6 +1878,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "1028",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "37"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_gerhard_berger].date_of_birth",
+   "field": "year",
+   "value": "1995",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -2058,6 +2076,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_alain_prost].date_of_birth",
+   "field": "year",
+   "value": "1991",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -2241,6 +2268,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "2",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "61"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_nigel_mansell].date_of_birth",
+   "field": "year",
+   "value": "1989",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -2430,6 +2466,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_thierry_boutsen].date_of_birth",
+   "field": "year",
+   "value": "1993",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -2613,6 +2658,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "4",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "105"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_riccardo_patrese].date_of_birth",
+   "field": "year",
+   "value": "1990",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -2802,6 +2856,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_alessandro_nannini].date_of_birth",
+   "field": "year",
+   "value": "1995",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -2985,6 +3048,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "4",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "107"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_nelson_piquet].date_of_birth",
+   "field": "year",
+   "value": "1988",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -3174,6 +3246,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_satoru_nakajima].date_of_birth",
+   "field": "year",
+   "value": "1989",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -3357,6 +3438,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "4",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "119"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_jean_alesi].date_of_birth",
+   "field": "year",
+   "value": "2000",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -3546,6 +3636,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_derek_warwick].date_of_birth",
+   "field": "year",
+   "value": "1990",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -3729,6 +3828,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "4",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "124"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_martin_donnelly].date_of_birth",
+   "field": "year",
+   "value": "2000",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -3918,6 +4026,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_mauricio_gugelmin].date_of_birth",
+   "field": "year",
+   "value": "1999",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -4101,6 +4218,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "2",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "252"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_ivan_capelli].date_of_birth",
+   "field": "year",
+   "value": "1999",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -4290,6 +4416,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_nicola_larini].date_of_birth",
+   "field": "year",
+   "value": "2000",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -4473,6 +4608,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "4",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "250"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_philippe_alliot].date_of_birth",
+   "field": "year",
+   "value": "1990",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -4662,6 +4806,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_pierluigi_martini].date_of_birth",
+   "field": "year",
+   "value": "1997",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -4845,6 +4998,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "4",
     "rev_lights_configuration.red_rev_lights_configuration": "4",
     "stat_id": "248"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_paolo_barilla].date_of_birth",
+   "field": "year",
+   "value": "1997",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -5034,6 +5196,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_david_brabham].date_of_birth",
+   "field": "year",
+   "value": "2001",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -5217,6 +5388,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "4",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "246"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_stefano_modena].date_of_birth",
+   "field": "year",
+   "value": "1999",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -5406,6 +5586,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_michele_alboreto].date_of_birth",
+   "field": "year",
+   "value": "1992",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -5589,6 +5778,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "4",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "244"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_alex_caffi].date_of_birth",
+   "field": "year",
+   "value": "2000",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -5778,6 +5976,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_eric_bernard].date_of_birth",
+   "field": "year",
+   "value": "2000",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -5961,6 +6168,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "2",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "242"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_aguri_suzuki].date_of_birth",
+   "field": "year",
+   "value": "1996",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -6150,6 +6366,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_emanuele_pirro].date_of_birth",
+   "field": "year",
+   "value": "1998",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -6333,6 +6558,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "2",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "240"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_andrea_de_cesaris].date_of_birth",
+   "field": "year",
+   "value": "1995",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -6522,6 +6756,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_gregor_foitek].date_of_birth",
+   "field": "year",
+   "value": "2001",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -6705,6 +6948,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "2",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "238"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_gianni_morbidelli].date_of_birth",
+   "field": "year",
+   "value": "2004",
+   "when": {
+    "career_year": "2026"
    }
   },
   {
@@ -6894,6 +7146,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_bernd_schneider].date_of_birth",
+   "field": "year",
+   "value": "2000",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -7080,6 +7341,15 @@
    }
   },
   {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_roberto_moreno].date_of_birth",
+   "field": "year",
+   "value": "1995",
+   "when": {
+    "career_year": "2026"
+   }
+  },
+  {
    "op": "add-row",
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
@@ -7263,6 +7533,15 @@
     "rev_lights_configuration.purple_rev_lights_configuration": "2",
     "rev_lights_configuration.red_rev_lights_configuration": "2",
     "stat_id": "235"
+   }
+  },
+  {
+   "op": "set",
+   "select": "entrants.drivers.driver[_metadata_=f1990_johnny_herbert].date_of_birth",
+   "field": "year",
+   "value": "2000",
+   "when": {
+    "career_year": "2026"
    }
   },
   {

@@ -88,6 +88,7 @@ STOCK = {
     "alain_prost": ("alain_prost", "tier01_livery85"),
     "nigel_mansell": ("nigel_mansell", "tier04_livery86"),
 }
+CAREER_YEARS = [2026]
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
           "November", "December"]
 STATS = ("experience", "racecraft", "awareness", "pace", "focus")
@@ -496,6 +497,9 @@ def build(stock, season):
         for t in TRAITS:
             values[f"driver_characteristics.{t}"] = num(traits[t], 2)
         o.clone(DRIVERS, "driver", DRIVER_TEMPLATE, donor_of[did], values)
+        for year in CAREER_YEARS:
+            o.set(f"{DRIVERS}.driver[_metadata_={label}].date_of_birth", "year", by + year - 1990,
+                  when={"career_year": str(year)})
 
         holder = {"_metadata_": label, "driver": label}
         for k, stat in enumerate(STATS):
