@@ -12,11 +12,16 @@ The Driver Select and Team Select backdrops show the 1990 driver and team names,
 
 ## Rules (db/rules.json, db/rules_text.json, tools/rules.py)
 
-`tools/rules.py` writes both op files. In the `f1_26` setup mode:
+`tools/rules.py [stock gamedatabases.2025.bin]` writes both op files from `tools/rules_fields.json` (the field lists of the cloned rows) and the stock database (the option tag lists it extends). The 1990 rules live in their own rows; 2025 and 2026 rows keep their stock values, and stock rows only gain the `f1_1990` name in lists and higher row counts.
 
-- Weekend (default structure): P1, P2, Friday qualifying (a single sprint-shootout session), Saturday qualifying (a single qualifying session), race. Full qualifying runs the single sessions; the race grid comes from Saturday qualifying. Every 2026 track runs the default format, and Grand Prix only offers the standard weekend.
-- Tyres: every allocation preset hands out `soft_sets` softer-compound sets in P1, P2, Friday qualifying, Saturday qualifying and the race, and no medium or hard sets. On every 2026 track the softer, medium and harder compounds are all C4 (`sup`), and the three 2026 dry visuals show as Supersoft (`SuperSoft` sidewall context, red icon), so the track card lists one Supersoft C4. The mandatory-tyre presets only ask for a softer set in the shootout sessions (Friday qualifying), every track requires 0 pit stops, and there are no tyre warmers.
-- Race control: safety car off and parc fermé off, as defaults and as the only values the `gamesetup_f1` tag allows. Red flags stay selectable, also in short races and with the safety car off. The grid cutscene and the grid rundown, which show the safety car, are off unless `grid_cutscene` or `grid_rundown` is on. DRS uses the `f1_1990` lap group, which opens on lap 200.
+- Setup mode `f1_1990` (stat_id 16), a clone of `f1_26` with option tag `gamesetup_f1_1990`, no tyre warmers, DRS lap group `f1_1990` (opens on lap 200), `tyre_regulations.allow_strategy_mandatory_stop_check` False, and the grid cutscene and grid rundown off unless `grid_cutscene` or `grid_rundown` is on. Its entrant setup mode stays `f1_26` until the grid lane points it at its own.
+- Weekend (default structure): P1, P2, Friday qualifying (a single sprint-shootout session), Saturday qualifying (a single qualifying session), race. Full qualifying runs the single sessions; the race grid comes from Saturday qualifying; the race scores with `f1_1990_race` (9-6-4-3-2-1, no fastest-lap point).
+- Option tag `gamesetup_f1_1990`: the `gamesetup_f1` restrictions plus safety car Off only, parc fermé Off only, standard weekend only and no full qualifying. The 38 options shown for `gamesetup_f1` are also shown for it.
+- Track dataset `f1_1990` (parent `f1_2026`, stat_id 20, default format only): on every 2026 track C4 for all three dry compounds, presets `f1_1990` and `f1_1990_mandatory`, no required pit stop and the default weekend format; the 16 calendar tracks also carry the 1990 dates from `tools/career.py`.
+- Compound class `f1_1990` (stat_id 12) with the dry options shown as Supersoft (`Supersoft_f1_1990` and two twins for the medium and harder slots). Allocation `f1_1990`: `soft_sets` new sets in P1, P2, Friday qualifying, Saturday qualifying and the race. Mandatory `f1_1990_mandatory`: one softer set in the shootout sessions. `no_tyre_allocation` turns the allocation screen off for this class.
+- The 2026 track layer and the track lighting probes also list `f1_1990`.
+
+Not scoped to 1990 (global rows, left stock): the safety-car and parc-fermé option defaults, the short-race restriction (very short races grey out red flags, formation lap and safety car) and the session-name strings (Friday qualifying shows the stock sprint-qualifying names).
 
 ## Cars (db/physics.json, erp/cars/, files/audio/, tools/build_cars.py)
 
