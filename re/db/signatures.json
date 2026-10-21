@@ -8385,6 +8385,110 @@
    "used_by": [
     "addons/f1-1990/native/src/replay_holders.cpp"
    ]
+  },
+  {
+   "id": "fe_tiles.career_default_item_get_action",
+   "section": ".xtls",
+   "pattern": "56 48 83 EC 20 48 89 D6 48 8B 05 ?? ?? ?? ?? 48 8B 90 30 02 00 00",
+   "match": "0x141726620",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141726620",
+   "kind": "func_start",
+   "names": [
+    "FeTile_CareerDefaultItem_GetAction"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_menu_ui.cpp"
+   ]
+  },
+  {
+   "id": "fe_tiles.item_base_get_action",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 30 48 89 D6 48 C7 44 24 28 00 00 00 00 48 8D 15 ?? ?? ?? ?? 48 8D 7C 24 28 48 89 F9 45 31 C0 45 31 C9 E8 ?? ?? ?? ?? 48 8D 5E 08 48 C7 46 08 00 00 00 00 C7 06 00 00 00 00",
+   "match": "0x141698450",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141698450",
+   "kind": "func_start",
+   "names": [
+    "FeTile_ItemBase_GetAction"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_menu_ui.cpp"
+   ]
+  },
+  {
+   "id": "fe_tiles.career_default_item_populate",
+   "section": ".xtls",
+   "pattern": "48 89 F1 48 83 C4 20 5E 48 FF A0 98 00 00 00 CC 56 57 53 48 83 EC 50",
+   "match": "0x1417264b0",
+   "anchor": "0x10",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1417264c0",
+   "kind": "func_start",
+   "names": [
+    "FeTile_CareerDefaultItem_Populate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_menu_ui.cpp"
+   ]
+  },
+  {
+   "id": "fe_tiles.career_dlc_item_populate",
+   "section": ".xtls",
+   "pattern": "03 8B 42 04 89 05 D8 05 ?? ?? ?? ?? F2 E8 ?? ?? ?? ?? 48 89 F0 48 83 C4 20 5E C3 CC CC CC CC CC 56 57 53 48 83 EC 50",
+   "match": "0x141726660",
+   "anchor": "0x20",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141726680",
+   "kind": "func_start",
+   "names": [
+    "FeTile_CareerDlcItem_Populate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_menu_ui.cpp"
+   ]
   }
  ]
 }
