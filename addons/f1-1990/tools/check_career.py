@@ -6,8 +6,9 @@ usage: check_career.py <stock gamedatabases.2025.bin> <built gamedatabases.2025.
 Protected: every stock row of the tables the 1990 career clones from (mode rows, championships, event lists, track
 lists, season lengths, track selections, the eight career data-group tables), the points presets, the 2025/2026 track
 datasets, the content sets, the customisation car groups and the characters. Allowed changes: the row counts of the
-tables that gain a 1990 row and content set 11's two lists (stock value plus the 1990 name). Exit code 1
-when a protected key changed or went missing, or a 1990 row is missing.
+tables that gain a 1990 row, content set 11's two lists (stock value plus the 1990 name) and its official entrant list
+count (stock plus the three _90 lists). Exit code 1 when a protected key changed or went missing, or a 1990 row is
+missing.
 """
 import os
 import sys
@@ -71,6 +72,8 @@ def allowed(stock):
                         ("available_game_setup_modes_0.setup_modes", career.SETUP_MODE)):
         path = f"content_sets.content_set_{ci}.{field}"
         ok[h(path)] = f"{stock.get(path)},{name}"
+    path = f"content_sets.content_set_{ci}._{career.OFFICIAL}_instancecount_"
+    ok[h(path)] = str(int(stock.get(path)) + len(career.OFFICIAL_LISTS))
     return ok
 
 
@@ -98,6 +101,17 @@ def main():
             built.row_index(container, word, label)
         except KeyError:
             bad.append(f"missing 1990 row {container}.{word}[_metadata_={label}]")
+    cs = f"content_sets.content_set_{stock.row_index('content_sets', 'content_set', career.CONTENT_SET)}"
+    for source, name, entrant_list in career.OFFICIAL_LISTS:
+        try:
+            i = built.row_index(cs, career.OFFICIAL, name, by="name")
+        except KeyError:
+            bad.append(f"missing 1990 row {cs}.{career.OFFICIAL}[name={name}]")
+            continue
+        src = stock.row_index(cs, career.OFFICIAL, source, by="name")
+        want = entrant_list or stock.get(f"{cs}.{career.OFFICIAL}_{src}.entrant_list")
+        if built.get(f"{cs}.{career.OFFICIAL}_{i}.entrant_list") != want:
+            bad.append(f"{cs}.{career.OFFICIAL}[name={name}].entrant_list: want {want!r}")
     added = sum(1 for k in built.d if k not in stock.d)
     print(f"protected keys: {len(guard)}, added keys: {added}, other changed stock keys (other lanes): {other}")
     if bad:

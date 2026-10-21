@@ -7943,6 +7943,11 @@
    "usesAlternateSafetyRating",
    "usesChampionships"
   ],
+  "content_sets.content_set[_metadata_=2026].official_entrant_list": [
+   "_metadata_",
+   "entrant_list",
+   "name"
+  ],
   "entrants.characters.character": [
    "_metadata_",
    "first_name",
@@ -8170,6 +8175,32 @@
    "select": "content_sets.content_set[_metadata_=2026]",
    "field": "available_game_setup_modes_0.setup_modes",
    "value": "f1,f1_26,f1_generic_26,f2,f1_generic,f1_esports,f1_world,f1_elimination,f1_1990"
+  },
+  {
+   "op": "add-row",
+   "table": "content_sets.content_set[_metadata_=2026]",
+   "from": "content_sets.content_set[_metadata_=2026].official_entrant_list[name=F1CAREER_26]",
+   "set": {
+    "name": "F1CAREER_90",
+    "entrant_list": "f1_1990"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "content_sets.content_set[_metadata_=2026]",
+   "from": "content_sets.content_set[_metadata_=2026].official_entrant_list[name=F2CAREER_26]",
+   "set": {
+    "name": "F2CAREER_90"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "content_sets.content_set[_metadata_=2026]",
+   "from": "content_sets.content_set[_metadata_=2026].official_entrant_list[name=ICONS_26]",
+   "set": {
+    "name": "ICONS_90",
+    "entrant_list": "f1_1990_driver_pool"
+   }
   },
   {
    "op": "add-row",

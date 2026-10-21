@@ -75,6 +75,11 @@ Content set `2026` lists `driver_career_1990` and `f1_1990`. The career data gro
 filters on, so 1990 careers have their own slots. The **Career year** setting starts the career in 1990 (default) or
 2026.
 
+The Choose Driver screen finds its F1, F2 and Icons drivers through the content set's official entrant lists named
+`F1CAREER_<suffix>`, `F2CAREER_<suffix>` and `ICONS_<suffix>`, with the suffix of the Career tile that opened the wizard
+(`25`, `26`, and `90` for the 1990 tile). Content set `2026` gains `F1CAREER_90` (`f1_1990`), `F2CAREER_90` (the 2026
+F2 list; the 1990 wizard has no F2 start) and `ICONS_90` (`f1_1990_driver_pool`); the stock rows stay as they are.
+
 Strings are new keys: `lng_f1990_career_content(_description)` for the third Career tile, `lng_f1990_season`,
 `lng_f1990_championship_season(_loading_screen)`, `lng_f1990_trophy_drivers_champion`, `lng_f1990_season_length`, and
 per round `lng_f1990_gp_<code>` (long Grand Prix name) and `lng_f1990_gp_<code>_short`. `career.TRACK_NAMES` and

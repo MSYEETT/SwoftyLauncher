@@ -2,14 +2,16 @@
 """Writes db/career.json, db/career-lang.json and data/flavio-strings.json: the 1990 career content, next to stock
 2025 and 2026.
 
-usage: career.py <stock gamedatabases.2025.bin> <dir of language_<code>.tsv dumps (key<TAB>value, \\n escaped)>
+usage: career.py <stock gamedatabases.2025.bin> [<dir of language_<code>.tsv dumps (key<TAB>value, \\n escaped)>]
+Without the language dir it writes db/career.json only.
 
 Every new row is a full-key clone of its 2026 source row. The field list comes from the key catalogue
 (tools/gamedb/catalog/keys.tsv.gz) plus every known field name (catalogue fields, tools/gamedb/names.txt, the exe's
 reader names, Driver Manager's field list) found on the source row and its nested rows in the stock database. No 2025
-or 2026 row changes; content set 11 gains the 1990 names in two lists. data/flavio-strings.json holds, per language,
-the stock strings that name the agent rewritten for Flavio Briatore; the native side applies them only while a 1990
-career is loaded.
+or 2026 row changes; content set 11 gains the 1990 names in two lists and the official entrant lists F1CAREER_90,
+F2CAREER_90 and ICONS_90, which the driver select looks up with the 1990 tile's suffix. data/flavio-strings.json
+holds, per language, the stock strings that name the agent rewritten for Flavio Briatore; the native side applies them
+only while a 1990 career is loaded.
 """
 import gzip
 import json
@@ -78,6 +80,12 @@ EVENT_LIST = "F1_career_1990"
 TRACK_SELECTION = "F1_1990"
 CONTENT_SET = "2026"
 LENGTHS = "schedule.dynamic_event_data.default_ui_track_list_data"
+OFFICIAL = "official_entrant_list"
+OFFICIAL_LISTS = [
+    ("F1CAREER_26", "F1CAREER_90", "f1_1990"),
+    ("F2CAREER_26", "F2CAREER_90", None),
+    ("ICONS_26", "ICONS_90", "f1_1990_driver_pool"),
+]
 
 SEASON_EVENTS = [
     ("start_season_ref", "start_season_2026"),
@@ -132,14 +140,14 @@ class Db:
         v = self.get(f"{container}._{word}_instancecount_")
         return int(v) if v is not None else None
 
-    def row_index(self, container, word, label):
+    def row_index(self, container, word, label, by="_metadata_"):
         for i in range(self.count(container, word) or 0):
-            if self.get(f"{container}.{word}_{i}._metadata_") == label:
+            if self.get(f"{container}.{word}_{i}.{by}") == label:
                 return i
-        raise KeyError(f"{container}.{word}[_metadata_={label}]")
+        raise KeyError(f"{container}.{word}[{by}={label}]")
 
-    def fields(self, container, word, label, probe=True):
-        row = f"{container}.{word}_{self.row_index(container, word, label)}"
+    def fields(self, container, word, label, probe=True, by="_metadata_"):
+        row = f"{container}.{word}_{self.row_index(container, word, label, by)}"
         template = f"{container}.{word}_N."
         out = set()
         for key in self.cat:
@@ -302,6 +310,10 @@ def build(db):
     for field, name in (("available_game_modes_0.game_mode_championships", MODE),
                         ("available_game_setup_modes_0.setup_modes", SETUP_MODE)):
         ops.append(setop(cs, field, f"{db.get(f'content_sets.content_set_{ci}.{field}')},{name}"))
+    fields[f"{cs}.{OFFICIAL}"] = db.fields(f"content_sets.content_set_{ci}", OFFICIAL, OFFICIAL_LISTS[0][0], by="name")
+    for source, name, entrant_list in OFFICIAL_LISTS:
+        row = {"name": name} | ({"entrant_list": entrant_list} if entrant_list else {})
+        ops.append({"op": "add-row", "table": cs, "from": f"{cs}.{OFFICIAL}[name={source}]", "set": row})
 
     clone("entrants.characters", "character", AGENT_SOURCE, {
         "_metadata_": AGENT_1990,
@@ -383,10 +395,12 @@ def write_json(path, doc):
 
 
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (2, 3):
         sys.exit(__doc__)
     db = Db(sys.argv[1])
     write_json(os.path.join(ADDON, "db", "career.json"), build(db))
+    if len(sys.argv) == 2:
+        return
     write_json(os.path.join(ADDON, "db", "career-lang.json"), {"schema_version": 1, "ops": lang_ops(sys.argv[2])})
     os.makedirs(os.path.join(ADDON, "data"), exist_ok=True)
     write_json(os.path.join(ADDON, "data", "flavio-strings.json"), flavio_strings(sys.argv[2]))
