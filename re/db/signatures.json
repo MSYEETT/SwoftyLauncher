@@ -8887,6 +8887,33 @@
    "used_by": [
     "addons/f1-1990/native/src/career_menu_ui.cpp"
    ]
+  },
+  {
+   "id": "game.career_is_driver_career_mode",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 48 85 F6 74 12 84 C0",
+   "match": "0x140a90513",
+   "anchor": "0x1",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x0"
+   },
+   "target": "0x14077cd40",
+   "kind": "call",
+   "names": [
+    "Game_Career_IsDriverCareerMode"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_menu_ui.cpp"
+   ]
   }
  ]
 }
