@@ -61,7 +61,7 @@ TileList *g_list;
 std::atomic<uint32_t> g_builds, g_presses;
 std::atomic<bool> g_wizard_1990{false};
 std::atomic<int64_t> g_mode_1990{-2};
-std::atomic<uint32_t> g_slot_logged;
+std::atomic<uint32_t> g_slot_logged, g_gate_logged;
 
 constexpr char kMode1990Save[] = "driver_career_1990";
 
@@ -201,6 +201,23 @@ void add_tile(TileList *list)
                     after);
 }
 
+int64_t mode_1990()
+{
+    int64_t mode = g_mode_1990.load();
+    if (mode != -2 || !swofty::db::available())
+        return mode == -2 ? -1 : mode;
+    mode = f1990::mode_stat_id(kMode1990Save);
+    g_mode_1990 = mode;
+    swofty::log("[f1-1990] career slot: driver_career_1990 mode statId %lld", (long long)mode);
+    return mode;
+}
+
+bool is_1990_mode(const void *championship)
+{
+    int64_t mode = championship ? mode_1990() : -1;
+    return mode >= 0 && at<uint32_t>(championship, 0x2a8) == uint32_t(mode);
+}
+
 }
 
 SWOFTY_WRAP(FeTile_Route_CareerItem, Action *, HomeItem *item, Action *out)
@@ -209,18 +226,26 @@ SWOFTY_WRAP(FeTile_Route_CareerItem, Action *, HomeItem *item, Action *out)
     return orig(item, out);
 }
 
+SWOFTY_WRAP(Game_Career_IsDriverCareerMode, bool, const void *championship)
+{
+    if (!is_1990_mode(championship))
+        return orig(championship);
+    if (g_gate_logged++ < 8) {
+        f1990::CareerGroupSeen seen =
+            f1990::career_data_group_seen(championship, {f1990::setup_component, f1990::group_index});
+        swofty::log("[f1-1990] career slot: the 1990 mode passes the driver-career gate; data group %d of %zu is \"%s\"",
+                    seen.index, seen.count, seen.name ? seen.name : "(none)");
+    }
+    return true;
+}
+
 SWOFTY_VTABLE(vt_Game_DriverCareerSlotPredicate, 2, bool, void *self, void *championship)
 {
     bool stock = orig(self, championship);
     if (stock || !championship)
         return stock;
-    int64_t mode = g_mode_1990.load();
-    if (mode == -2) {
-        mode = f1990::mode_stat_id(kMode1990Save);
-        g_mode_1990 = mode;
-        swofty::log("[f1-1990] career slot: driver_career_1990 mode statId %lld", (long long)mode);
-    }
-    if (mode < 0 || at<uint32_t>(championship, 0x2a8) != uint32_t(mode))
+    int64_t mode = mode_1990();
+    if (!is_1990_mode(championship))
         return false;
     auto *holder = at<const uint8_t *>(self, 0x08);
     const char *want = holder ? at<const char *>(holder, 0x00) : nullptr;
