@@ -58,6 +58,10 @@ GROUPS = '2025_asset_groups'
 GAMEDB = 'game_package/gamedatabases/gamedatabases.2025.bin'
 PACKAGE = C.SOURCE_PACKAGE
 VEHICLE_FIELDS = os.path.join(REPO, 'addons', 'custom-grid-size', 'db', 'grid.json')
+# Vehicle keys the custom grid list lacks: every stock 2026 vehicle row has them, and no identifier string in the
+# exe names them in full.
+VEHICLE_EXTRA_FIELDS = [f'ai_vehicle_config.ers_use.{mode}.push_on_in_or_out_lap_battery_level'
+                        for mode in ('xmode_enabled', 'xmode_passive')]
 
 BASE_HP = 650.0
 BASE_MASS = 575.0
@@ -454,6 +458,7 @@ def package_ops(name, stat_id, folder):
 def db_ops():
     with open(VEHICLE_FIELDS) as f:
         vehicle_fields = json.load(f)['fields']['entrants.vehicles.vehicle']
+    vehicle_fields = vehicle_fields + [k for k in VEHICLE_EXTRA_FIELDS if k not in vehicle_fields]
     ops = package_ops(C.PACKAGE, C.PACKAGE_STAT_ID, C.PACKAGE_FOLDER)
     ops += package_ops(C.PACKAGE_B, C.PACKAGE_B_STAT_ID, C.PACKAGE_B_FOLDER)
     for c in C.CARS:
