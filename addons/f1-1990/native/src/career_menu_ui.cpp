@@ -19,9 +19,10 @@
 // The router finds the career's save slot with a predicate functor (vt_Game_DriverCareerSlotPredicate
 // slot 2) over the registered mode championships. Its first gate (0x14077cd40, VM-obfuscated) is 1
 // only for the 2025 and 2026 driver-career modes, so the 1990 mode never matched and the new-career
-// path read through a null slot. When the predicate says no for the mode championship whose statId
-// (+0x2a8) is the driver_career_1990 mode's (read from game_modes), the wrap runs the predicate's
-// own data group check (career_group.hpp) on it instead.
+// path read through a null slot. When the predicate, asked for f1_career_1990, says no for the mode
+// championship whose statId (+0x2a8) is the driver_career_1990 mode's (read from game_modes), the
+// wrap runs the predicate's own data group check (career_group.hpp) on it instead. Questions for
+// any other data group keep the game's answer.
 
 #include <atomic>
 #include <cstring>
@@ -223,6 +224,8 @@ SWOFTY_VTABLE(vt_Game_DriverCareerSlotPredicate, 2, bool, void *self, void *cham
         return false;
     auto *holder = at<const uint8_t *>(self, 0x08);
     const char *want = holder ? at<const char *>(holder, 0x00) : nullptr;
+    if (!want || std::strcmp(want, f1990::kCareerGroup1990))
+        return false;
     f1990::CareerGroupAccess access{f1990::setup_component, f1990::group_index};
     bool ok = want && f1990::career_data_group_is(championship, want, access);
     if (g_slot_logged++ < 8) {
