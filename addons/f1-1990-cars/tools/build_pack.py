@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.join(REPO, 'addons', 'f1-1990', 'tools'))
 import erpw
 import audio
 import cars as C
-from pkg import Pkg, to_py
+from pkg import Pkg, Val, to_py
 
 TRIES = '/mnt/work/.mp45b/porter_a/tries'
 TEAM_ERP = 'F1 25/2025_asset_groups/f1_2026_vehicle_package/teams/{d}/wep/{d}.erp'
@@ -56,6 +56,7 @@ POD_CAMERA = {
     'arrows': (0.652, 0.123),
 }
 POD_ATTACHMENTS = ('pod', 'podoffset', 'pod_left', 'pod_right')
+POD_FOV = 88.0
 TYRE_SET = f'eaid://{C.SOURCE_PACKAGE}/shared/tyres/'
 ALIASES = (f'eaid://{C.SOURCE_PACKAGE}/tyrecompounds/',)
 
@@ -163,6 +164,14 @@ def move_pod_cameras(e, c):
                 raise ValueError(f'{c.team}: {r.name} {name} offset {off} found {len(hits)} times')
             struct.pack_into('<2f', data, hits[0] + 4, off[1] + dy, off[2] + dz)
             moved.append(name)
+        if not suffix:
+            pkg = Pkg(bytes(data))
+            pods = [i for i in pkg.root['instances'].items if i['name'].value.endswith('$CamPod')]
+            if len(pods) != 1:
+                raise ValueError(f'{c.team}: {r.name} has {len(pods)} CamPod instances')
+            pods[0]['overrides']['Camera'].set('FOV', Val('fp32', POD_FOV))
+            data = bytearray(pkg.to_bytes())
+            moved.append('pod_fov')
         e.set_frag(r, 0, bytes(data))
     return moved
 
