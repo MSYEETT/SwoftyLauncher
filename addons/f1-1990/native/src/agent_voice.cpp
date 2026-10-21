@@ -13,7 +13,7 @@
 // core's career.loaded event and cleared on career.unloaded. Option agent_voice_mute turns it off.
 //
 // The stock strings that name the agent are rewritten for Flavio per language in
-// data/flavio-strings.json. With a core that has runtime string overrides (API v7), each text is
+// data/flavio-strings.json. With a core that has runtime string overrides (API v8), each text is
 // set for its own language when a 1990 career loads and cleared again when it unloads, so every
 // other career and mode keeps Elena's strings. The file is read on the first 1990 career load.
 
@@ -63,7 +63,7 @@ SWOFTY_ON_LOAD
 #include "career_1990.hpp"
 #include "speech_line.hpp"
 
-#if SWOFTY_API_VERSION >= 7
+#if SWOFTY_API_VERSION >= 8
 #include <swofty/lang.hpp>
 #include <swofty/storage.hpp>
 
@@ -82,7 +82,7 @@ std::atomic<uint32_t> g_muted_lines, g_logged;
 std::mutex g_lock;
 std::set<void *> g_muted_emitters;
 
-#if SWOFTY_API_VERSION >= 7
+#if SWOFTY_API_VERSION >= 8
 constexpr char kStringsFile[] = "data/flavio-strings.json";
 
 std::vector<f1990::AgentStrings> g_strings;
@@ -204,7 +204,7 @@ SWOFTY_WRAP(Game_SpeechSystem_PostLine, void, void *speech, void *line, uint8_t 
 SWOFTY_ON_LOAD
 {
     swofty::log("[f1-1990] voice: agent mute in 1990 careers %s", agent_voice_mute ? "on" : "off (agent_voice_mute)");
-#if SWOFTY_API_VERSION < 7
+#if SWOFTY_API_VERSION < 8
     swofty::log("[f1-1990] strings: built against SDK API v%d, without runtime string overrides; the 1990 agent keeps "
                 "Elena's strings",
                 SWOFTY_API_VERSION);
