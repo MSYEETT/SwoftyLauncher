@@ -30,7 +30,7 @@ Not covered: the garage boards and pit perches of the 1990 track worlds still sh
 - Setup mode `f1_1990` (stat_id 16), a clone of `f1_26` with option tag `gamesetup_f1_1990`, no tyre warmers, DRS lap group `f1_1990` (opens on lap 200), `tyre_regulations.allow_strategy_mandatory_stop_check` False, and the grid cutscene and grid rundown off unless `grid_cutscene` or `grid_rundown` is on.
 - Weekend (default structure): P1, P2, Friday qualifying (a single sprint-shootout session), Saturday qualifying (a single qualifying session), race. Full qualifying runs the single sessions; the race grid comes from Saturday qualifying; the race scores with `f1_1990_race` (9-6-4-3-2-1, no fastest-lap point).
 - Option tag `gamesetup_f1_1990`: the `gamesetup_f1` restrictions plus safety car Off only, parc fermé Off only, standard weekend only and no full qualifying. The 38 options shown for `gamesetup_f1` are also shown for it.
-- Track dataset `f1_1990` (parent `f1_2026`, stat_id 20, default format only): on every 2026 track C4 for all three dry compounds, presets `f1_1990` and `f1_1990_mandatory`, no required pit stop and the default weekend format; the 16 calendar tracks also carry the 1990 dates (TrackGeneralData) and grand prix names (TrackNameData) from `tools/career.py`.
+- Track dataset `f1_1990` (parent `f1_2026`, stat_id 20, default format only): on every 2026 track C4 for all three dry compounds, presets `f1_1990` and `f1_1990_mandatory`, no required pit stop and the default weekend format; the 16 calendar tracks also carry the 1990 dates, or with `career_year` 2026 the Sunday on or before each (TrackGeneralData), and grand prix names (TrackNameData) from `tools/career.py`.
 - Compound class `f1_1990` (stat_id 12) with the dry options shown as Supersoft (`Supersoft_f1_1990` and two twins for the medium and harder slots). Allocation `f1_1990`: `soft_sets` new sets in P1, P2, Friday qualifying, Saturday qualifying and the race. Mandatory `f1_1990_mandatory`: one softer set in the shootout sessions. `no_tyre_allocation` turns the allocation screen off for this class.
 - The track lighting probes also list `f1_1990`.
 
@@ -90,8 +90,9 @@ content set lists it and an available mode row names it in `game_setup_modes`; n
 check and starting the career crashes. The career data group is the key the career slot list filters on, so 1990
 careers have their own slots. The **Career year** setting runs the career in 2026 (default) or 1990. The game dates
 each race weekend from the dataset's `weekend_day` and `weekend_month` in 2026 whatever the career year, so a career
-clock started in 1990 never reaches a race. In 2026 the rounds keep their 1990 days and months, the weekday
-names follow 2026, and `db/grid.json` moves each 1990 driver's birth year 36 years on, so ages match 1990.
+clock started in 1990 never reaches a race. In 2026 `db/rules.json` moves each race to the Sunday on or before
+its 1990 date (3 days earlier: Phoenix on 8 March), and `db/grid.json` moves each 1990 driver's birth year 36 years on,
+so ages match 1990.
 
 The Choose Driver screen finds its F1, F2 and Icons drivers through the content set's official entrant lists named
 `F1CAREER_<suffix>`, `F2CAREER_<suffix>` and `ICONS_<suffix>`, with the suffix of the Career tile that opened the wizard

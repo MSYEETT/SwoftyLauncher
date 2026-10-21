@@ -4,6 +4,7 @@
 usage: rules.py [stock gamedatabases.2025.bin]
 """
 
+import datetime
 import json
 import sys
 from pathlib import Path
@@ -14,7 +15,7 @@ sys.path.insert(0, str(ADDON.parent.parent / "tools"))
 sys.path.insert(0, str(HERE))
 
 import gamedb  # noqa: E402
-from career import TRACK_DATES, TRACK_NAMES  # noqa: E402
+from career import CAREER_YEARS, TRACK_DATES, TRACK_NAMES  # noqa: E402
 
 STOCK_DB = "/mnt/work/.f1-1990/data-c26/fakegame/game_package/gamedatabases/gamedatabases.2025.bin"
 FIELDS = json.loads((HERE / "rules_fields.json").read_text())
@@ -200,11 +201,24 @@ def dataset(fields, stock):
             day, month = TRACK_DATES[track]
             ops += subtable(stock, row, sources, "TrackGeneralData", FIELDS["general_data"],
                             {"weekend_day": day, "weekend_month": month, "weekend_year": YEAR})
+            ops += sunday_dates(stock, row, sources, day, month)
         if track in TRACK_NAMES:
             long_name, short_name = TRACK_NAMES[track]
             ops += subtable(stock, row, sources, "TrackNameData", FIELDS["name_data"],
                             {"gp_long_name": long_name, "gp_long_name_multiline": long_name,
                              "gp_short_name": short_name})
+    return ops
+
+
+def sunday_dates(stock, row, sources, day, month):
+    source = next(s for s in sources if stock.get(f"{s}._TrackGeneralData_instancecount_") is not None)
+    ops = []
+    for year in CAREER_YEARS:
+        date = datetime.date(year, month, day)
+        sunday = date - datetime.timedelta(days=(date.weekday() + 1) % 7)
+        for field, value in (("weekend_day", sunday.day), ("weekend_month", sunday.month)):
+            type_, _ = stock.get(f"{source}.TrackGeneralData_0.{field}")
+            ops.append(set_(f"{row}.TrackGeneralData_0", field, value, type_, when={"career_year": str(year)}))
     return ops
 
 
