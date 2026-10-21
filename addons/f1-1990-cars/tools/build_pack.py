@@ -33,18 +33,18 @@ TEAM_ERP = 'F1 25/2025_asset_groups/f1_2026_vehicle_package/teams/{d}/wep/{d}.er
 SOURCES = {
     'mclaren': 'gridc13_mclaren', 'ferrari': 'gridc13_ferrari', 'williams': 'gridc13_williams',
     'benetton': 'gridc13_lotus', 'tyrrell': 'gridc13_mercedes', 'lotus': 'gridc13_redbull',
-    'march': 'gridn13_force_india', 'larrousse': 'gridn13_larrousse', 'ligier_prost': 'gridn13_sauber',
-    'minardi': 'gridn13_toro_rosso', 'brabham': 'gridn13_gm_cadillac', 'dallara': 'gridn13_dallara',
-    'arrows': 'gridn13_haas',
+    'march': 'gridc13_march', 'larrousse': 'gridc13_larrousse', 'ligier_prost': 'gridc13_ligier_prost',
+    'minardi': 'gridc13_minardi', 'brabham': 'gridc13_brabham', 'dallara': 'gridc13_dallara',
+    'arrows': 'gridc13_arrows',
 }
 SOURCES_B = {
     'mclaren': 'gridc13b_mclaren', 'ferrari': 'gridc13b_ferrari', 'williams': 'gridc13b_williams',
     'benetton': 'gridc13b_lotus', 'tyrrell': 'gridc13b_mercedes', 'lotus': 'gridc13b_redbull',
-    'march': 'gridn13b_force_india', 'larrousse': 'gridn13b_larrousse', 'ligier_prost': 'gridn13b_sauber',
-    'minardi': 'gridn13b_toro_rosso', 'brabham': 'gridn13b_gm_cadillac', 'dallara': 'gridn13b_dallara',
-    'arrows': 'gridn13b_haas',
+    'march': 'gridc13b_march', 'larrousse': 'gridc13b_larrousse', 'ligier_prost': 'gridc13b_ligier_prost',
+    'minardi': 'gridc13b_minardi', 'brabham': 'gridc13b_brabham', 'dallara': 'gridc13b_dallara',
+    'arrows': 'gridc13b_arrows',
 }
-COMMON = '/mnt/work/.mp45b/porter_a/tries/tyres13/common.erp'
+COMMON = '/mnt/work/.mp45b/porter_a/tries/tyres13cm/common.erp'
 TYRES = '2025_asset_groups/f1_2026_vehicle_package/tyrecompounds/tyrecompounds.erp'
 
 OLD = f'eaid://{C.SOURCE_PACKAGE}/'.encode()

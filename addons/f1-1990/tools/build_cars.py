@@ -21,7 +21,7 @@ common.erp. No 2026 archive, row or file is touched.
                          multipliers at 12/15 (works) or 8/15 (customer) of their stock distance from 1;
                          radUpgradeWeightReduction Mass = the team's weight target
 
-Option tyre_size: the f1_1990 package carries the MP4/5B 13-inch tyre set, so both values use TyreRadius 0.323 front /
+Option tyre_size: the f1_1990 package carries a 13-inch tyre set, so both values use TyreRadius 0.323 front /
 0.330 rear, AlloyRadius at its 0.175 m bead, the tyre damage node graphs remapped radially from the stock bead and
 tread onto the new ones and widened to the new mesh, and the final drive scaled by the rear radius so road speed per
 engine rev stays the same. TyreWidth, tyre mass, inertia and compression stay stock. 13in_raised also adds the radius
