@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use swofty_formats::gvdb::{Gvdb, Record, instance_count_path};
@@ -13,7 +13,29 @@ pub struct DbOps {
     pub schema_version: u32,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub fields: BTreeMap<String, Vec<String>>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub strict: bool,
     pub ops: Vec<DbOp>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CopyMode {
+    All,
+    Listed,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum StatIdMode {
+    Fresh,
+    Keep,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DbReport {
+    pub lines: Vec<String>,
+    pub warnings: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -38,6 +60,10 @@ pub enum DbOp {
         from: String,
         #[serde(default)]
         set: BTreeMap<String, String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        copy: Option<CopyMode>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stat_id: Option<StatIdMode>,
     },
     RemoveRow {
         select: String,
@@ -201,6 +227,25 @@ pub enum PkgEdit {
 
 pub trait FieldNames {
     fn fields(&self, table: &str, row: &str) -> Option<Vec<String>>;
+
+    fn row_keys(&self, shape: &str) -> Option<&[String]> {
+        let _ = shape;
+        None
+    }
+}
+
+pub const ANY_SHAPE: &str = "*";
+
+pub fn row_shape(path: &str) -> String {
+    path.split('.')
+        .map(|seg| match seg.rsplit_once('_') {
+            Some((word, idx)) if !idx.is_empty() && idx.bytes().all(|b| b.is_ascii_digit()) => {
+                format!("{word}_N")
+            }
+            _ => seg.to_owned(),
+        })
+        .collect::<Vec<_>>()
+        .join(".")
 }
 
 impl FieldNames for BTreeMap<String, Vec<String>> {
@@ -219,6 +264,10 @@ impl FieldNames for Schema<'_> {
         self.file
             .fields(table, row)
             .or_else(|| self.names.fields(table, row))
+    }
+
+    fn row_keys(&self, shape: &str) -> Option<&[String]> {
+        self.names.row_keys(shape)
     }
 }
 
@@ -268,6 +317,7 @@ struct Db<'a> {
     gvdb: &'a mut Gvdb,
     index: HashMap<u64, usize>,
     removed: Vec<usize>,
+    added_rows: HashSet<String>,
 }
 
 impl<'a> Db<'a> {
@@ -280,6 +330,7 @@ impl<'a> Db<'a> {
             gvdb,
             index,
             removed: Vec::new(),
+            added_rows: HashSet::new(),
         }
     }
 
@@ -474,14 +525,27 @@ fn resolve_key(db: &Db, key: &str) -> Result<u64> {
 }
 
 pub fn apply_db_ops(db: &mut Gvdb, ops: &DbOps, names: &dyn FieldNames) -> Result<Vec<u64>> {
+    apply_db_ops_report(db, ops, names, &mut DbReport::default())
+}
+
+pub fn apply_db_ops_report(
+    db: &mut Gvdb,
+    ops: &DbOps,
+    names: &dyn FieldNames,
+    report: &mut DbReport,
+) -> Result<Vec<u64>> {
     let schema = Schema {
         file: &ops.fields,
         names,
     };
     let mut db = Db::new(db);
+    let mut cx = Cx {
+        strict: ops.strict,
+        report,
+    };
     let mut replaced = Vec::new();
     for op in &ops.ops {
-        replaced.extend(apply(&mut db, op, &schema)?);
+        replaced.extend(apply(&mut db, op, &schema, &mut cx)?);
     }
     db.finish();
     Ok(replaced)
@@ -489,9 +553,29 @@ pub fn apply_db_ops(db: &mut Gvdb, ops: &DbOps, names: &dyn FieldNames) -> Resul
 
 pub fn apply_db_op(db: &mut Gvdb, op: &DbOp, names: &dyn FieldNames) -> Result<Option<u64>> {
     let mut db = Db::new(db);
-    let replaced = apply(&mut db, op, names)?;
+    let mut report = DbReport::default();
+    let mut cx = Cx {
+        strict: false,
+        report: &mut report,
+    };
+    let replaced = apply(&mut db, op, names, &mut cx)?;
     db.finish();
     Ok(replaced)
+}
+
+struct Cx<'r> {
+    strict: bool,
+    report: &'r mut DbReport,
+}
+
+impl Cx<'_> {
+    fn warn(&mut self, what: String) -> Result<()> {
+        if self.strict {
+            return Err(Error::Resolve(format!("{what} (strict)")));
+        }
+        self.report.warnings.push(what);
+        Ok(())
+    }
 }
 
 pub fn record_key(key: &str) -> Result<u64> {
@@ -526,7 +610,7 @@ pub fn add_row_name<'a>(table: &str, from: &'a str) -> Option<&'a str> {
         })
 }
 
-fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<Option<u64>> {
+fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames, cx: &mut Cx) -> Result<Option<u64>> {
     match op {
         DbOp::Set {
             select,
@@ -568,62 +652,25 @@ fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<Option<u64>> 
             }
             Ok(Some(key))
         }
-        DbOp::AddRow { table, from, set } => {
-            let src = resolve_row(db, from)?;
-            let Base::Path(path) = resolve_path(db, table)? else {
-                return Err(Error::Resolve(format!(
-                    "{table}: add-row needs the table's real path, not a {{hash}}"
-                )));
-            };
-            let row = match &src.base {
-                Base::Path(f) => add_row_name(&path, f),
-                Base::Hash(_) => None,
-            }
-            .ok_or_else(|| Error::Resolve(format!("{from} is not a row of {table}")))?;
-            let count_path = instance_count_path(&path, row);
-            let n = db.instance_count(&path, row).ok_or_else(|| {
-                Error::Resolve(format!(
-                    "{count_path}: missing; add-row needs the table's real path"
-                ))
-            })?;
-            let fields = names
-                .fields(table, row)
-                .or_else(|| names.fields(&path, row))
-                .ok_or_else(|| Error::Resolve(format!("{table}.{row}: field names unknown")))?;
-            if let Some(f) = set.keys().find(|f| !fields.contains(f)) {
-                return Err(Error::Resolve(format!("{table}.{row}: unknown field {f}")));
-            }
-            let table = &path;
-            let dst = Row {
-                base: Base::Path(format!("{table}.{row}_{n}")),
-            };
-            let mut rows = Vec::with_capacity(fields.len());
-            for field in &fields {
-                if db.get(dst.field(field)).is_some() {
-                    return Err(Error::Resolve(format!(
-                        "{table}.{row}_{n}.{field} already exists"
-                    )));
-                }
-                let s = db
-                    .get(src.field(field))
-                    .ok_or_else(|| Error::Resolve(format!("{from}: has no {field}")))?;
-                let value = set
-                    .get(field)
-                    .map(|v| v.clone().into_bytes())
-                    .unwrap_or_else(|| s.value.clone());
-                rows.push(Record {
-                    key: dst.field(field),
-                    tag: s.tag,
-                    value,
-                });
-            }
-            for r in rows {
-                db.push(r);
-            }
-            let count = db
-                .get_mut(fnv1a64(&count_path))
-                .expect("instance_count read it above");
-            count.value = (n + 1).to_string().into_bytes();
+        DbOp::AddRow {
+            table,
+            from,
+            set,
+            copy,
+            stat_id,
+        } => {
+            add_row(
+                db,
+                names,
+                cx,
+                AddRow {
+                    table,
+                    from,
+                    set,
+                    copy: *copy,
+                    stat_id: *stat_id,
+                },
+            )?;
             Ok(None)
         }
         DbOp::RemoveRow { .. } | DbOp::ListAppend { .. } | DbOp::ListRemove { .. } => Err(Error::Resolve(
@@ -653,6 +700,256 @@ fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames) -> Result<Option<u64>> 
             Ok(Some(k))
         }
     }
+}
+
+struct AddRow<'a> {
+    table: &'a str,
+    from: &'a str,
+    set: &'a BTreeMap<String, String>,
+    copy: Option<CopyMode>,
+    stat_id: Option<StatIdMode>,
+}
+
+#[derive(Default)]
+struct Walk {
+    keys: BTreeSet<String>,
+    uncatalogued: BTreeSet<String>,
+}
+
+fn walk(db: &Db, names: &dyn FieldNames, path: &str, rel: &str, out: &mut Walk) {
+    let shape = row_shape(path);
+    let entries = match names.row_keys(&shape) {
+        Some(e) => e,
+        None => {
+            out.uncatalogued.insert(shape);
+            match names.row_keys(ANY_SHAPE) {
+                Some(e) => e,
+                None => return,
+            }
+        }
+    };
+    for entry in entries {
+        let Some(sub) = entry.strip_prefix('+') else {
+            if db.get(fnv1a64(format!("{path}.{entry}"))).is_some() {
+                out.keys.insert(format!("{rel}{entry}"));
+            }
+            continue;
+        };
+        let (head, word) = match sub.rsplit_once('.') {
+            Some((h, w)) => (format!("{h}."), w),
+            None => (String::new(), sub),
+        };
+        let container = format!("{path}.{}", head.trim_end_matches('.'));
+        let container = container.trim_end_matches('.');
+        let count_key = format!("{rel}{head}_{word}_instancecount_");
+        let rows = match db.instance_count(container, word) {
+            Some(n) => {
+                out.keys.insert(count_key);
+                n
+            }
+            None => (0..4096)
+                .take_while(|i| {
+                    db.get(fnv1a64(format!("{container}.{word}_{i}._metadata_")))
+                        .is_some()
+                })
+                .count(),
+        };
+        for i in 0..rows {
+            walk(
+                db,
+                names,
+                &format!("{container}.{word}_{i}"),
+                &format!("{rel}{head}{word}_{i}."),
+                out,
+            );
+        }
+    }
+}
+
+fn cut_by_count(key: &str, set: &BTreeMap<String, String>) -> bool {
+    set.iter().any(|(k, v)| {
+        let Some(stem) = k.strip_suffix("_instancecount_") else {
+            return false;
+        };
+        let Ok(count) = v.trim().parse::<usize>() else {
+            return false;
+        };
+        let (head, word) = match stem.rsplit_once('.') {
+            Some((h, w)) => (format!("{h}."), w),
+            None => (String::new(), stem),
+        };
+        let Some(word) = word.strip_prefix('_') else {
+            return false;
+        };
+        key.strip_prefix(&format!("{head}{word}_"))
+            .and_then(|r| r.split_once('.'))
+            .and_then(|(i, _)| i.parse::<usize>().ok())
+            .is_some_and(|i| i >= count)
+    })
+}
+
+fn preview(keys: &[&String]) -> String {
+    let shown: Vec<&str> = keys.iter().take(12).map(|k| k.as_str()).collect();
+    match keys.len() > shown.len() {
+        true => format!("{} and {} more", shown.join(", "), keys.len() - shown.len()),
+        false => shown.join(", "),
+    }
+}
+
+fn stat_ids(db: &Db, table: &str, row: &str, rows: usize, skip: &HashSet<String>) -> Vec<i64> {
+    (0..rows)
+        .map(|i| format!("{table}.{row}_{i}"))
+        .filter(|r| !skip.contains(r))
+        .filter_map(|r| db.text(fnv1a64(format!("{r}.stat_id"))))
+        .filter_map(|v| v.trim().parse::<i64>().ok())
+        .collect()
+}
+
+fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Result<()> {
+    let AddRow {
+        table,
+        from,
+        set,
+        copy,
+        stat_id,
+    } = op;
+    let src = resolve_row(db, from)?;
+    let Base::Path(path) = resolve_path(db, table)? else {
+        return Err(Error::Resolve(format!(
+            "{table}: add-row needs the table's real path, not a {{hash}}"
+        )));
+    };
+    let Base::Path(src_path) = &src.base else {
+        return Err(Error::Resolve(format!("{from} is not a row of {table}")));
+    };
+    let row = add_row_name(&path, src_path)
+        .ok_or_else(|| Error::Resolve(format!("{from} is not a row of {table}")))?;
+    let count_path = instance_count_path(&path, row);
+    let n = db.instance_count(&path, row).ok_or_else(|| {
+        Error::Resolve(format!(
+            "{count_path}: missing; add-row needs the table's real path"
+        ))
+    })?;
+    let listed = names.fields(table, row).or_else(|| names.fields(&path, row));
+    let mode = copy.unwrap_or(CopyMode::All);
+    let mut found = Walk::default();
+    walk(db, names, src_path, "", &mut found);
+    let dst_path = format!("{path}.{row}_{n}");
+    let fields: Vec<String> = match (mode, &listed) {
+        (CopyMode::Listed, None) => {
+            return Err(Error::Resolve(format!(
+                "{table}.{row}: copy listed needs a fields list"
+            )));
+        }
+        (CopyMode::Listed, Some(l)) => l.clone(),
+        (CopyMode::All, l) => {
+            let mut all = found.keys.clone();
+            all.extend(l.iter().flatten().cloned());
+            all.into_iter().collect()
+        }
+    };
+    if fields.is_empty() {
+        return Err(Error::Resolve(format!("{table}.{row}: field names unknown")));
+    }
+    if let Some(f) = set.keys().find(|f| !fields.contains(f)) {
+        return Err(Error::Resolve(format!("{table}.{row}: unknown field {f}")));
+    }
+    let what = format!("add-row {dst_path} (from {from})");
+    if !found.uncatalogued.is_empty() {
+        let shapes: Vec<&String> = found.uncatalogued.iter().collect();
+        cx.warn(format!(
+            "{what}: the key catalogue has no entry for {}; keys only the exe builds at run time may be missing",
+            preview(&shapes)
+        ))?;
+    }
+    if let Some(l) = &listed {
+        let gaps: Vec<&String> = found
+            .keys
+            .iter()
+            .filter(|k| !l.contains(k) && !cut_by_count(k, set))
+            .collect();
+        match (mode, gaps.is_empty()) {
+            (_, true) => {}
+            (CopyMode::Listed, false) => cx.warn(format!(
+                "{what}: the fields list for {table}.{row} misses {} key(s) of the source row, not copied: {}",
+                gaps.len(),
+                preview(&gaps)
+            ))?,
+            (CopyMode::All, false) => cx.report.lines.push(format!(
+                "{what}: copied {} key(s) the fields list for {table}.{row} doesn't name: {}",
+                gaps.len(),
+                preview(&gaps)
+            )),
+        }
+    }
+    let dst = Row {
+        base: Base::Path(dst_path.clone()),
+    };
+    let mut rows = Vec::with_capacity(fields.len());
+    for field in &fields {
+        if db.get(dst.field(field)).is_some() {
+            return Err(Error::Resolve(format!("{dst_path}.{field} already exists")));
+        }
+        let s = db
+            .get(src.field(field))
+            .ok_or_else(|| Error::Resolve(format!("{from}: has no {field}")))?;
+        let value = set
+            .get(field)
+            .map(|v| v.clone().into_bytes())
+            .unwrap_or_else(|| s.value.clone());
+        rows.push(Record {
+            key: dst.field(field),
+            tag: s.tag,
+            value,
+        });
+    }
+    let stat_key = dst.field("stat_id");
+    let indexed = || {
+        let ids = stat_ids(db, &path, row, n, &db.added_rows);
+        let unique: HashSet<i64> = ids.iter().copied().collect();
+        !ids.is_empty() && unique.len() == ids.len()
+    };
+    let top_level = row_shape(&dst_path).matches("_N").count() == 1;
+    let fresh = match (stat_id, set.contains_key("stat_id")) {
+        (_, true) | (Some(StatIdMode::Keep), _) => false,
+        (Some(StatIdMode::Fresh), false) => true,
+        (None, false) => {
+            let indexed = indexed();
+            if indexed
+                && !top_level
+                && let Some(r) = rows.iter().find(|r| r.key == stat_key)
+            {
+                cx.report.lines.push(format!(
+                    "{what}: keeps the source's stat_id {} in a nested table; set stat_id or \"stat_id\": \"fresh\" for its own",
+                    String::from_utf8_lossy(&r.value)
+                ));
+            }
+            indexed && top_level
+        }
+    };
+    if fresh && let Some(r) = rows.iter_mut().find(|r| r.key == stat_key) {
+        let old = String::from_utf8_lossy(&r.value).into_owned();
+        let next = stat_ids(db, &path, row, n, &HashSet::new())
+            .into_iter()
+            .max()
+            .map_or(0, |m| m + 1);
+        r.value = next.to_string().into_bytes();
+        cx.report
+            .lines
+            .push(format!("{what}: stat_id {next} (the source's is {old})"));
+    }
+    cx.report
+        .lines
+        .push(format!("{what}: copied {} key(s)", rows.len()));
+    for r in rows {
+        db.push(r);
+    }
+    db.added_rows.insert(dst_path);
+    let count = db
+        .get_mut(fnv1a64(&count_path))
+        .expect("instance_count read it above");
+    count.value = (n + 1).to_string().into_bytes();
+    Ok(())
 }
 
 #[cfg(test)]
@@ -723,7 +1020,7 @@ mod tests {
         );
         assert_eq!(
             db.get_text("entrants.teams.team_2.stat_id").as_deref(),
-            Some("101")
+            Some("102")
         );
         assert_eq!(
             db.get_text("entrants.teams.team_2.display_name_code").as_deref(),
@@ -739,7 +1036,7 @@ mod tests {
         let ops = ops(
             r#"{"schema_version":1,"fields":{"entrants.teams.team":["_metadata_","stat_id"]},"ops":[
             {"op":"add-row","table":"entrants.teams","from":"entrants.teams.team[_metadata_=mclaren_26]",
-            "set":{"_metadata_":"team12_26"}}]}"#,
+            "stat_id":"keep","set":{"_metadata_":"team12_26"}}]}"#,
         );
         apply_db_ops(&mut db, &ops, &BTreeMap::new()).unwrap();
         assert_eq!(db.instance_count("entrants.teams", "team"), Some(3));
@@ -1087,5 +1384,244 @@ mod tests {
         )
         .unwrap();
         assert_eq!(p.edits.len(), 2);
+    }
+
+    struct Catalogue {
+        fields: BTreeMap<String, Vec<String>>,
+        shapes: HashMap<String, Vec<String>>,
+    }
+
+    impl FieldNames for Catalogue {
+        fn fields(&self, table: &str, row: &str) -> Option<Vec<String>> {
+            self.fields.fields(table, row)
+        }
+
+        fn row_keys(&self, shape: &str) -> Option<&[String]> {
+            self.shapes.get(shape).map(Vec::as_slice)
+        }
+    }
+
+    fn catalogue(fields: &[&str]) -> Catalogue {
+        let shape = |keys: &[&str]| keys.iter().map(|k| k.to_string()).collect::<Vec<_>>();
+        Catalogue {
+            fields: match fields.is_empty() {
+                true => BTreeMap::new(),
+                false => BTreeMap::from([("modes.mode".to_owned(), shape(fields))]),
+            },
+            shapes: HashMap::from([
+                (
+                    "modes.mode_N".to_owned(),
+                    shape(&[
+                        "_metadata_",
+                        "stat_id",
+                        "player.driver.preloaded",
+                        "_Com_instancecount_",
+                        "+Com",
+                        "+Loose",
+                        "+gone",
+                    ]),
+                ),
+                (
+                    "modes.mode_N.Com_N".to_owned(),
+                    shape(&["_metadata_", "save_data.group", "_Inner_instancecount_", "+Inner"]),
+                ),
+                ("modes.mode_N.Com_N.Inner_N".to_owned(), shape(&["value"])),
+                ("modes.mode_N.Loose_N".to_owned(), shape(&["_metadata_"])),
+            ]),
+        }
+    }
+
+    fn modes(ids: [&str; 2]) -> Gvdb {
+        let mut records = vec![Record::new("modes._mode_instancecount_", 0, "2")];
+        for (i, (label, id)) in ["f1", "classic"].iter().zip(ids).enumerate() {
+            let r = format!("modes.mode_{i}");
+            records.push(Record::new(&format!("{r}._metadata_"), 4, *label));
+            records.push(Record::new(&format!("{r}.stat_id"), 0, id));
+            records.push(Record::new(&format!("{r}.player.driver.preloaded"), 5, "True"));
+        }
+        for (k, tag, v) in [
+            ("modes.mode_0._Com_instancecount_", 0, "1"),
+            ("modes.mode_0.Com_0._metadata_", 4, "ComCareer"),
+            ("modes.mode_0.Com_0.save_data.group", 2, "career"),
+            ("modes.mode_0.Com_0._Inner_instancecount_", 0, "2"),
+            ("modes.mode_0.Com_0.Inner_0.value", 1, "0.5"),
+            ("modes.mode_0.Com_0.Inner_1.value", 1, "0.75"),
+            ("modes.mode_0.Loose_0._metadata_", 4, "a"),
+            ("modes.mode_0.Loose_1._metadata_", 4, "b"),
+        ] {
+            records.push(Record::new(k, tag, v));
+        }
+        Gvdb { records }
+    }
+
+    fn add_mode(extra: &str) -> DbOps {
+        ops(&format!(
+            r#"{{"schema_version":1{extra},"ops":[{{"op":"add-row","table":"modes",
+            "from":"modes.mode[_metadata_=f1]","set":{{"_metadata_":"f1_1990"}}}}]}}"#
+        ))
+    }
+
+    #[test]
+    fn add_row_copies_every_key_with_nested_rows_and_counts() {
+        let mut db = modes(["3", "7"]);
+        let mut report = DbReport::default();
+        apply_db_ops_report(&mut db, &add_mode(""), &catalogue(&[]), &mut report).unwrap();
+        let get = |k: &str| db.get_text(&format!("modes.mode_2.{k}"));
+        assert_eq!(db.instance_count("modes", "mode"), Some(3));
+        assert_eq!(get("_metadata_").as_deref(), Some("f1_1990"));
+        assert_eq!(get("player.driver.preloaded").as_deref(), Some("True"));
+        assert_eq!(get("_Com_instancecount_").as_deref(), Some("1"));
+        assert_eq!(get("Com_0.save_data.group").as_deref(), Some("career"));
+        assert_eq!(get("Com_0._Inner_instancecount_").as_deref(), Some("2"));
+        assert_eq!(get("Com_0.Inner_1.value").as_deref(), Some("0.75"));
+        assert_eq!(get("Loose_1._metadata_").as_deref(), Some("b"));
+        assert!(get("Loose_2._metadata_").is_none());
+        assert_eq!(db.get("modes.mode_2.Com_0.Inner_0.value").unwrap().tag, 1);
+        assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+        assert!(
+            report.lines.iter().any(|l| l.ends_with("copied 11 key(s)")),
+            "{:?}",
+            report.lines
+        );
+        let bytes = db.to_bytes();
+        assert_eq!(Gvdb::parse(&bytes).unwrap().to_bytes(), bytes);
+    }
+
+    #[test]
+    fn add_row_gives_a_clone_the_next_free_stat_id_and_reports_it() {
+        let mut db = modes(["3", "7"]);
+        let mut report = DbReport::default();
+        apply_db_ops_report(&mut db, &add_mode(""), &catalogue(&[]), &mut report).unwrap();
+        apply_db_ops_report(&mut db, &add_mode(""), &catalogue(&[]), &mut report).unwrap();
+        assert_eq!(db.get_text("modes.mode_2.stat_id").as_deref(), Some("8"));
+        assert_eq!(db.get_text("modes.mode_3.stat_id").as_deref(), Some("9"));
+        assert!(
+            report.lines.iter().any(|l| l
+                == "add-row modes.mode_2 (from modes.mode[_metadata_=f1]): stat_id 8 (the source's is 3)"),
+            "{:?}",
+            report.lines
+        );
+    }
+
+    #[test]
+    fn add_row_keeps_shared_stat_ids_and_explicit_ones() {
+        let mut db = modes(["3", "3"]);
+        apply_db_ops_report(&mut db, &add_mode(""), &catalogue(&[]), &mut DbReport::default()).unwrap();
+        assert_eq!(db.get_text("modes.mode_2.stat_id").as_deref(), Some("3"));
+
+        let mut db = modes(["3", "7"]);
+        let keep = ops(
+            r#"{"schema_version":1,"ops":[{"op":"add-row","table":"modes","from":"modes.mode_0",
+            "stat_id":"keep","set":{"_metadata_":"x"}},{"op":"add-row","table":"modes","from":"modes.mode_0",
+            "set":{"_metadata_":"y","stat_id":"40"}}]}"#,
+        );
+        apply_db_ops_report(&mut db, &keep, &catalogue(&[]), &mut DbReport::default()).unwrap();
+        assert_eq!(db.get_text("modes.mode_2.stat_id").as_deref(), Some("3"));
+        assert_eq!(db.get_text("modes.mode_3.stat_id").as_deref(), Some("40"));
+
+        let mut db = modes(["3", "3"]);
+        let fresh = ops(
+            r#"{"schema_version":1,"ops":[{"op":"add-row","table":"modes","from":"modes.mode_0",
+            "stat_id":"fresh","set":{"_metadata_":"x"}}]}"#,
+        );
+        apply_db_ops_report(&mut db, &fresh, &catalogue(&[]), &mut DbReport::default()).unwrap();
+        assert_eq!(db.get_text("modes.mode_2.stat_id").as_deref(), Some("4"));
+    }
+
+    #[test]
+    fn a_fields_list_names_extra_keys_and_the_build_reports_what_it_misses() {
+        let listed = ["_metadata_", "stat_id"];
+        let mut db = modes(["3", "7"]);
+        let mut report = DbReport::default();
+        apply_db_ops_report(&mut db, &add_mode(""), &catalogue(&listed), &mut report).unwrap();
+        assert_eq!(
+            db.get_text("modes.mode_2.Com_0.Inner_1.value").as_deref(),
+            Some("0.75")
+        );
+        assert!(
+            report
+                .lines
+                .iter()
+                .any(|l| l.contains("copied 9 key(s) the fields list for modes.mode doesn't name")),
+            "{:?}",
+            report.lines
+        );
+
+        let mut db = modes(["3", "7"]);
+        let mut report = DbReport::default();
+        let legacy = ops(
+            r#"{"schema_version":1,"ops":[{"op":"add-row","table":"modes","from":"modes.mode_0",
+            "copy":"listed","set":{"_metadata_":"x"}}]}"#,
+        );
+        apply_db_ops_report(&mut db, &legacy, &catalogue(&listed), &mut report).unwrap();
+        assert!(db.get("modes.mode_2.player.driver.preloaded").is_none());
+        assert_eq!(report.warnings.len(), 1, "{:?}", report.warnings);
+        assert!(
+            report.warnings[0].contains(
+                "misses 9 key(s) of the source row, not copied: Com_0.Inner_0.value, Com_0.Inner_1.value"
+            ),
+            "{}",
+            report.warnings[0]
+        );
+
+        let strict = ops(
+            r#"{"schema_version":1,"strict":true,"ops":[{"op":"add-row","table":"modes","from":"modes.mode_0",
+            "copy":"listed","set":{"_metadata_":"x"}}]}"#,
+        );
+        let err = apply_db_ops(&mut modes(["3", "7"]), &strict, &catalogue(&listed)).unwrap_err();
+        assert!(err.to_string().ends_with("(strict)"), "{err}");
+    }
+
+    #[test]
+    fn a_lowered_row_count_in_set_drops_those_rows_from_the_gap_check() {
+        let listed = [
+            "_metadata_",
+            "stat_id",
+            "player.driver.preloaded",
+            "_Com_instancecount_",
+        ];
+        let lowered = ops(
+            r#"{"schema_version":1,"ops":[{"op":"add-row","table":"modes","from":"modes.mode_0",
+            "copy":"listed","set":{"_metadata_":"x","_Com_instancecount_":"0"}}]}"#,
+        );
+        let mut report = DbReport::default();
+        let mut db = modes(["3", "7"]);
+        apply_db_ops_report(&mut db, &lowered, &catalogue(&listed), &mut report).unwrap();
+        assert_eq!(report.warnings.len(), 1, "{:?}", report.warnings);
+        assert!(
+            report.warnings[0].contains("misses 2 key(s)")
+                && report.warnings[0].ends_with("Loose_0._metadata_, Loose_1._metadata_"),
+            "{}",
+            report.warnings[0]
+        );
+    }
+
+    #[test]
+    fn a_row_shape_missing_from_the_catalogue_warns_or_fails_when_strict() {
+        let mut names = catalogue(&["_metadata_", "stat_id"]);
+        names.shapes.remove("modes.mode_N.Com_N");
+        let mut report = DbReport::default();
+        apply_db_ops_report(&mut modes(["3", "7"]), &add_mode(""), &names, &mut report).unwrap();
+        assert_eq!(report.warnings.len(), 1, "{:?}", report.warnings);
+        assert!(
+            report.warnings[0].contains("the key catalogue has no entry for modes.mode_N.Com_N"),
+            "{}",
+            report.warnings[0]
+        );
+        let err = apply_db_ops(&mut modes(["3", "7"]), &add_mode(r#","strict":true"#), &names).unwrap_err();
+        assert!(
+            err.to_string().contains("no entry for modes.mode_N.Com_N"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn row_shapes_number_every_row_segment() {
+        assert_eq!(row_shape("a.b_3.c.d_12"), "a.b_N.c.d_N");
+        assert_eq!(
+            row_shape("canned_events.Per-race DNFs.Per-race DNF_5"),
+            "canned_events.Per-race DNFs.Per-race DNF_N"
+        );
+        assert_eq!(row_shape("x_.y"), "x_.y");
     }
 }

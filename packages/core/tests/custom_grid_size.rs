@@ -206,7 +206,9 @@ fn sources(ops: &DbOps, table: &str) -> Vec<(String, BTreeMap<String, String>)> 
     ops.ops
         .iter()
         .filter_map(|op| match op {
-            DbOp::AddRow { table: t, from, set } if t == table => Some((from.clone(), set.clone())),
+            DbOp::AddRow {
+                table: t, from, set, ..
+            } if t == table => Some((from.clone(), set.clone())),
             _ => None,
         })
         .collect()

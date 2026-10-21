@@ -568,7 +568,10 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
             }
         }
         let staged = (planner.route(Kind::Db) == Route::Runtime && planner.has_db()).then(|| db.clone());
-        let added = planner.apply_db(&mut db)?;
+        let mut db_report = crate::ops::DbReport::default();
+        let added = planner.apply_db_report(&mut db, &mut db_report)?;
+        built.lines.extend(db_report.lines);
+        built.warnings.extend(db_report.warnings);
         if !added.is_empty() {
             let found = owned::owned_items(&db, &Gvdb::parse(&shipped)?, &added);
             built.lines.extend(found.lines);
@@ -1330,7 +1333,15 @@ mod tests {
         );
         assert_eq!(
             db.get_text("entrants.teams.team_2.stat_id").as_deref(),
-            Some("100")
+            Some("102")
+        );
+        assert!(
+            built
+                .lines
+                .iter()
+                .any(|l| l.ends_with("stat_id 102 (the source's is 100)")),
+            "{:?}",
+            built.lines
         );
         std::fs::remove_dir_all(&root).ok();
     }

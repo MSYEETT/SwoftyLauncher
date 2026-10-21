@@ -305,6 +305,8 @@ pub struct OpFile {
     pub schema_version: u32,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub fields: BTreeMap<String, Vec<String>>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub strict: bool,
     pub ops: Vec<AssetOp>,
 }
 
