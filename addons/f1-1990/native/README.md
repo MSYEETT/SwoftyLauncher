@@ -120,3 +120,14 @@ A separate DLL; option `pu_rules_1990` (default on). The career's `EngineManagem
 A car is a 1990 car when the driver's career entrant row (driver key low byte = `id_lo` +0x50, high word = `id_hi` +0x52) has a vehicle (+0x5c, stat id in the high word) whose `entrants.vehicles` row has `vehicle_package` `f1_1990` or `f1_1990b`; that list is read on `career.loaded`. Other packages, and every mode without a career, keep the stock rules.
 
 It logs `[f1-1990] power unit: N vehicle(s) of the f1_1990 and f1_1990b packages run without power-unit wear or grid penalties`, then per driver `session wear X skipped` and `N-place grid penalty (reason R) dropped` (first 8 and 16).
+
+## Qualifying engine lines (`f1_1990_quali.dll`)
+
+A separate DLL; option `quali_engine_1990` (default on). The rnd lane's `f1990_quali_rev_limit` and `f1990_quali_engine` are Engine Power (type 0) upgrades that stay in the Engine Power denominator.
+
+| binding | address | use |
+|---|---|---|
+| `Game_Rnd_FillVehicleUpgrades` | 0x141238cb0 | wrapped: in a 1990 career, reads the current session's group (provider +0x270 vt +0x98 = the weekend, sessions +0x220, 0xa0 each, group +0x98, current index +0x238) and marks the fill when it is not 1 (Qualifying) or 2 (SprintShootout) |
+| `Game_Rnd_CalcUpgradeTypeProgress` | 0x143526260 | wrapped: inside a marked fill, type 0 is recomputed (`src/rnd_progress.hpp`) with the two upgrades (node hash 0x1305fa1e / 0x4e03ba09 or name `f1990_quali*`) left out of the completed weighting only |
+
+Every other caller of the progress function (UI, the power-unit wear range) and every other career get the game's value. It logs `[f1-1990] quali engine: car N set up for a session of group G; qualifying engine lines counted|left out` (first 8) and `Engine Power progress X -> Y outside qualifying` (first 8 changes).

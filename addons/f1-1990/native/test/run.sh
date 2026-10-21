@@ -24,3 +24,5 @@ ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/content_tabs_test 
 ../build/content_tabs_test
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/pu_scope_test pu_scope_test.cpp
 ../build/pu_scope_test
+${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/rnd_progress_test rnd_progress_test.cpp
+../build/rnd_progress_test
