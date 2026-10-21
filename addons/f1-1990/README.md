@@ -80,6 +80,11 @@ The Choose Driver screen finds its F1, F2 and Icons drivers through the content 
 (`25`, `26`, and `90` for the 1990 tile). Content set `2026` gains `F1CAREER_90` (`f1_1990`), `F2CAREER_90` (the 2026
 F2 list; the 1990 wizard has no F2 start) and `ICONS_90` (`f1_1990_driver_pool`); the stock rows stay as they are.
 
+The 1990 wizard has no F2 start, team, season length, driver icons or driver type choice (`native/f1_1990_wizard.dll`,
+see `native/README.md`). `tools/wizard.py --game <F1 25>` writes `erp/wizard.json`: the route
+`career_wizard_driver_career_1990`, a copy of the content select's `career_wizard_driver_career_to_f1` that opens the
+settings step instead of the season length step. Only the 1990 tile fires it; stock routes stay as they are.
+
 Strings are new keys: `lng_f1990_career_content(_description)` for the third Career tile, `lng_f1990_season`,
 `lng_f1990_championship_season(_loading_screen)`, `lng_f1990_trophy_drivers_champion`, `lng_f1990_season_length`, and
 per round `lng_f1990_gp_<code>` (long Grand Prix name) and `lng_f1990_gp_<code>_short`. `career.TRACK_NAMES` and

@@ -143,16 +143,25 @@ It logs `[f1-1990] rnd: N card art donor(s)`, `card art site S image "f1990_x_in
 
 ## 1990 career setup (`f1_1990_wizard.dll`)
 
-A separate DLL; option `career_wizard_1990` (default on). The career wizard keeps its selections and steps in a state
-object; every caller of `Game_CareerWizard_StartsInF1` (0x14078ddd0) passes its +0x40, +0x70 and +0x128, the data group
-of the Career tile that opened the wizard (`f1_career_2025`, `f1_career_2026`, `f1_career_1990`). The wrap answers yes
-for `f1_career_1990` and gives every other wizard the game's answer. Yes means a career that starts in F1:
+A separate DLL; option `career_wizard_1990` (default on). A new 1990 Driver Career runs Recommended / Custom settings,
+the confirm step, then Choose Driver with the official 1990 drivers. The career wizard keeps its selections (options,
+wizard state +0x100) and steps (+0xe0) in a state object whose +0x128 is the data group of the Career tile that opened
+it (`f1_career_2025`, `f1_career_2026`, `f1_career_1990`); every hook acts only when that is `f1_career_1990`, so the
+2025 and 2026 wizards keep every step.
 
-| caller | effect of yes |
-|---|---|
-| content-select router 0x141725620 | fires `career_wizard_driver_career_to_f1` (to the season length step) instead of `career_wizard_driver_career` (the Skip to F1 / Start in F2 step) |
-| step machine 0x14386d890 | after Recommended settings (option 0xb), no team-icons step (My Team / Konnersport) |
-| driver select confirm 0x141a5df70 | the F1 path, as with option 6 (Skip to F1) |
+| binding | address | use |
+|---|---|---|
+| `Game_CareerWizard_StartsInF1` | 0x14078ddd0 | wrap, yes: the router skips the Skip to F1 / Start in F2 step, the step machine drops the team-icons step (My Team / Konnersport) after Recommended settings, the driver select confirm takes the F1 path (as option 6) |
+| `FeTile_Route_CareerItem` | 0x141725620 | wrap: the 1990 tile's `career_wizard_driver_career_to_f1` (season length step) becomes `career_wizard_driver_career_1990`, which `erp/wizard.json` adds to the content select's route grouping (`tools/wizard.py`) and which opens the settings step: no Full Season / Custom Season choice, the career keeps its full 1990 calendar |
+| `Game_CareerWizard_PushNextStep` | 0x14386d890 | wrap: a classic drivers step (14, Add Driver Icons To Market) pushed after the settings becomes the confirm step (6) |
+| `site_Game_CareerWizardConfirm_NextRoute` | 0x141a23c91 | site in the confirm step's continue (rdx = route name, rsi = view model, +0x270 the wizard): `driver_career_driver_type_select` (Official Driver / Custom Driver) becomes `driver_career_driver_select`, the route the game takes for a team-icon career |
 
-It logs `[f1-1990] wizard: f1_career_1990 starts in F1, no F2 choice and no team-icons step (game said yes|no)` (first 8).
+It logs `[f1-1990] wizard: f1_career_1990 starts in F1, no F2 choice and no team-icons step (game said yes|no)`,
+`wizard: 1990 tile opens the settings step (career_wizard_driver_career_to_f1 -> career_wizard_driver_career_1990)`,
+`wizard: classic drivers step (14) replaced by the confirm step (6)` and
+`wizard: confirm goes to driver_career_driver_select, no driver type step` (first few of each).
 
+`src/driver_select_probe.cpp` is a temporary read-only probe of the Choose Driver populate
+(`vt_Game_DriverCareerDriverSelectViewModel` slot 13): for the first 6 populates of any wizard it logs the wizard suffix,
+options, the official entrant list map (name, stat id, entrant count), the slot's game mode type chain and components,
+and how many driver cards the populate made (`[f1-1990] probe: ...`).

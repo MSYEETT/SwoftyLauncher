@@ -44,7 +44,7 @@
     },
     {
       "id": "career_wizard_1990", "type": "toggle", "label": "1990 career setup", "default": true,
-      "description": "A new 1990 Driver Career starts in F1: no Skip to F1 / Start in F2 choice and no My Team / Konnersport team choice. 2025 and 2026 careers keep every step.",
+      "description": "A new 1990 Driver Career goes from the settings straight to Choose Driver with the 1990 drivers: no F2 start, season length, team, driver icons or driver type step. 2025 and 2026 careers keep every step.",
       "binds": "native"
     },
     {
@@ -139,7 +139,7 @@
   "operations": {
     "database": ["db/career.json", "db/grid.json", "db/grid_standings.json", "db/rules.json", "db/grid_links.json", "db/cars.json", "db/audio.json", "db/rnd.json"],
     "assets": ["db/rules_text.json", "lang/grid.json", "db/career-lang.json", "cars/handling.json", "db/rnd-lang.json"],
-    "erp": ["erp/portrait.json", "erp/tracks.json", "erp/frontend.json", "erp/badges.json"],
+    "erp": ["erp/portrait.json", "erp/tracks.json", "erp/frontend.json", "erp/badges.json", "erp/wizard.json"],
     "native": [
       { "dll": "native/f1_1990.dll", "early": true }, { "dll": "native/f1_1990_tyres.dll" },
       { "dll": "native/f1_1990_replay.dll" }, { "dll": "native/f1_1990_ui.dll" },

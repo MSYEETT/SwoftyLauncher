@@ -1,0 +1,23 @@
+{
+ "schema_version": 1,
+ "ops": [
+  {
+   "op": "patch-pkg",
+   "erp": "2025_asset_groups/ui_package/persistent.erp",
+   "resource": "eaid://ui_package/routes/routes_frontend_general.uir",
+   "fragment": 0,
+   "edits": [
+    {
+     "op": "clone-entry",
+     "at": "RouteGroupings[Id=fe_career_dlc_select].Routes",
+     "src": "[Id=career_wizard_driver_career_to_f1]",
+     "as": "career_wizard_driver_career_1990",
+     "set": {
+      "Commands[Dependencies=3].Attributes[Id=To].Value": "career_wizard_settings_select",
+      "Commands[Dependencies=6].Attributes[Id=Target].Value": "career_wizard_settings_select"
+     }
+    }
+   ]
+  }
+ ]
+}
