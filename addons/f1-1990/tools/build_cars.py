@@ -93,7 +93,6 @@ PACKAGE_SET = {
     'ai_package_folder': C.AI_FOLDER,
     'tyre_compounds_asset_group': f'{C.PACKAGE_FOLDER}/tyrecompounds/tyrecompounds',
     'blob_shadow_decal': f'eaid://{C.PACKAGE_FOLDER}/shared/ao/materials/blobshadowdecal.material',
-    'has_cockpit_halo': 'False',
 }
 
 ERS_UPGRADES = [b'radUpgradeERS', b'radUpgradeWearES', b'radUpgradeWearMGUK']

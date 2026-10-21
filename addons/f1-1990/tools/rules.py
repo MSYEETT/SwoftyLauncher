@@ -25,7 +25,7 @@ NAME = "f1_1990"
 MODE_STAT_ID = "16"
 DATASET_STAT_ID = "20"
 CLASS_STAT_ID = "12"
-VISUAL_STAT_IDS = {"Supersoft_f1_1990": "28", "Supersoft_f1_1990_medium": "29", "Supersoft_f1_1990_harder": "30"}
+VISUAL_STAT_IDS = {"Supersoft_f1_1990": "28", "Ultrasoft_f1_1990": "29", "Supersoft_f1_1990_harder": "30"}
 ALLOCATION_STAT_ID = "14"
 MANDATORY_STAT_ID = "8"
 STANDINGS_STAT_ID = "15"
@@ -66,10 +66,11 @@ ALLOCATION_SESSIONS = [
     "Practice1", "Practice2", "Practice3", "Qualifying1", "Qualifying2", "Qualifying3",
     "Race", "Race2", "Race3", "SprintShootout1", "SprintShootout2", "SprintShootout3",
 ]
-SOFT_SESSIONS = {"Practice1", "Practice2", "SprintShootout1", "Qualifying1", "Race"}
+SOFT_SESSIONS = {"Practice1", "Practice2", "Race"}
+QUALI_SESSIONS = {"SprintShootout1", "Qualifying1"}
 SHOOTOUT_SESSIONS = {"SprintShootout1", "SprintShootout2", "SprintShootout3"}
 NONE = "0,0,0,0,0"
-SOFTER = "1,0,0,0,0"
+QUALI_TYRE = "0,1,0,0,0"
 POINTS = [9, 6, 4, 3, 2, 1]
 HALF_POINTS = [4, 3, 2, 1, 1, 0]
 POINT_SLOTS = 26
@@ -82,6 +83,17 @@ SUPERSOFT = {
     "title": "lng_tyre_compound_supersoft_title",
     "desc": "lng_tyre_compound_supersoft_desc",
 }
+ULTRASOFT = {
+    "material_context": "UltraSoft",
+    "material_anim": "tyre_compound_key_ultra_soft",
+    "audio_id": "UltraSoft",
+    "icon_code": "?",
+    "colour": "-6860657",
+    "display_name": "lng_tyre_compound_ultrasoft",
+    "title": "lng_tyre_compound_ultrasoft_title",
+    "desc": "lng_tyre_compound_ultrasoft_desc",
+}
+VISUALS = {"Supersoft_f1_1990": SUPERSOFT, "Ultrasoft_f1_1990": ULTRASOFT, "Supersoft_f1_1990_harder": SUPERSOFT}
 
 
 class Stock:
@@ -129,8 +141,13 @@ def presets(fields):
     allocation = {"_metadata_": ALLOCATION_NAME, "stat_id": ALLOCATION_STAT_ID}
     mandatory = {"_metadata_": MANDATORY_NAME, "stat_id": MANDATORY_STAT_ID}
     for session in ALLOCATION_SESSIONS:
-        allocation[session] = "{{soft_sets}},0,0,0,0" if session in SOFT_SESSIONS else NONE
-        mandatory[session] = SOFTER if session in SHOOTOUT_SESSIONS else NONE
+        if session in SOFT_SESSIONS:
+            allocation[session] = "{{soft_sets}},0,0,0,0"
+        elif session in QUALI_SESSIONS:
+            allocation[session] = "0,{{quali_sets}},0,0,0"
+        else:
+            allocation[session] = NONE
+        mandatory[session] = QUALI_TYRE if session in SHOOTOUT_SESSIONS else NONE
     fields["tyres.allocation_tyre_presets.TyresPerSessionPreset"] = FIELDS["allocation"]
     fields["tyres.mandatory_tyre_presets.TyresPerSessionPreset"] = FIELDS["mandatory"]
     return [
@@ -146,7 +163,7 @@ def compounds(fields):
     fields["tyres.compound_classes.CompoundClass"] = FIELDS["compound_class"]
     ops = [
         add_row("tyres.visual_compounds", "tyres.visual_compounds.VisualCompound[_metadata_=Soft_f1_26]",
-                {"_metadata_": name, "stat_id": stat_id, **SUPERSOFT})
+                {"_metadata_": name, "stat_id": stat_id, **VISUALS[name]})
         for name, stat_id in VISUAL_STAT_IDS.items()
     ]
     softer, medium, harder = VISUAL_STAT_IDS
