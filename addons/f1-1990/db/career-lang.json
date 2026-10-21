@@ -1035,6 +1035,18 @@
   },
   {
    "op": "lang.set",
+   "language": "bra",
+   "key": "lng_career_dlc_content",
+   "value": "Carreira 1990"
+  },
+  {
+   "op": "lang.set",
+   "language": "bra",
+   "key": "lng_career_dlc_content_description",
+   "value": "Jogue a carreira usando conteúdo, regras, equipes e pistas de 1990."
+  },
+  {
+   "op": "lang.set",
    "language": "dut",
    "key": "lng_elena_name",
    "value": "Flavio"
@@ -2040,6 +2052,18 @@
    "language": "dut",
    "key": "lng_subtitle_agt_intro_official",
    "value": "Hoi, ik ben Flavio Briatore. Ik word je agent voor wat ongetwijfeld een legendarische carrière in de Formula 1 zal worden. Je ziet dat elke coureur een reeks coureursscores heeft. Deze zullen gedurende je hele carrière aan jou gekoppeld zijn en je voortgang bijhouden. Naarmate je beter presteert op het circuit, zullen deze beoordelingen verbeteren en doorwerken in verschillende andere aspecten van je reis door de F1. We zullen later in meer detail treden over elke score."
+  },
+  {
+   "op": "lang.set",
+   "language": "dut",
+   "key": "lng_career_dlc_content",
+   "value": "1990 Carrière"
+  },
+  {
+   "op": "lang.set",
+   "language": "dut",
+   "key": "lng_career_dlc_content_description",
+   "value": "Speel carrière met de content, reglementen, teams en circuits van 1990."
   },
   {
    "op": "lang.set",
@@ -3057,6 +3081,18 @@
   },
   {
    "op": "lang.set",
+   "language": "eng",
+   "key": "lng_career_dlc_content",
+   "value": "1990 Career"
+  },
+  {
+   "op": "lang.set",
+   "language": "eng",
+   "key": "lng_career_dlc_content_description",
+   "value": "Play the 1990 season: 1990 teams, drivers, calendar and rules."
+  },
+  {
+   "op": "lang.set",
    "language": "fre",
    "key": "lng_elena_name",
    "value": "Flavio"
@@ -4068,6 +4104,18 @@
    "language": "fre",
    "key": "lng_subtitle_agt_intro_official",
    "value": "Bonjour, je suis Flavio Briatore et je serai ton agente pour ce qui sera, j'en suis sûre, une carrière légendaire en Formula 1. Tu vas le voir, chaque pilote dispose de notes de pilote, qui vont accompagner ta progression tout au long de ta carrière. Plus tes performances en course seront satisfaisantes, plus tes notes seront élevées et t'ouvriront des portes en F1. On reviendra en détail sur chacune de ces notes un peu plus tard."
+  },
+  {
+   "op": "lang.set",
+   "language": "fre",
+   "key": "lng_career_dlc_content",
+   "value": "Carrière 1990"
+  },
+  {
+   "op": "lang.set",
+   "language": "fre",
+   "key": "lng_career_dlc_content_description",
+   "value": "Participez à une carrière avec le contenu, le règlement, les écuries et les circuits de 1990."
   },
   {
    "op": "lang.set",
@@ -5085,6 +5133,18 @@
   },
   {
    "op": "lang.set",
+   "language": "ger",
+   "key": "lng_career_dlc_content",
+   "value": "1990 – Karriere"
+  },
+  {
+   "op": "lang.set",
+   "language": "ger",
+   "key": "lng_career_dlc_content_description",
+   "value": "Spiele den Karrieremodus mit Inhalten, Regeln, Teams und Strecken des Jahres 1990."
+  },
+  {
+   "op": "lang.set",
    "language": "ita",
    "key": "lng_elena_name",
    "value": "Flavio"
@@ -6096,6 +6156,18 @@
    "language": "ita",
    "key": "lng_subtitle_agt_intro_official",
    "value": "Ciao, mi chiamo Flavio Briatore. Sarò la tua agente e ti accompagnerò nella tua carriera leggendaria in Formula 1. Noterai che ogni pilota ha un set di valutazioni pilota: queste ti accompagneranno per tutta la durata della tua carriera e terranno traccia dei tuoi progressi. Ogni volta che ottieni buoni risultati in pista, queste valutazioni miglioreranno e confluiranno in molte altre aree del tuo viaggio in F1. Parleremo nei dettagli di ciascuna valutazione più tardi."
+  },
+  {
+   "op": "lang.set",
+   "language": "ita",
+   "key": "lng_career_dlc_content",
+   "value": "Carriera 1990"
+  },
+  {
+   "op": "lang.set",
+   "language": "ita",
+   "key": "lng_career_dlc_content_description",
+   "value": "Gioca la carriera usando i contenuti, il regolamento, le scuderie e i tracciati del 1990."
   },
   {
    "op": "lang.set",
@@ -7113,6 +7185,18 @@
   },
   {
    "op": "lang.set",
+   "language": "jap",
+   "key": "lng_career_dlc_content",
+   "value": "1990 キャリア"
+  },
+  {
+   "op": "lang.set",
+   "language": "jap",
+   "key": "lng_career_dlc_content_description",
+   "value": "1990年のコンテンツ、レギュレーション、チーム、コースを使用してキャリアをプレイします。"
+  },
+  {
+   "op": "lang.set",
    "language": "mex",
    "key": "lng_elena_name",
    "value": "Flavio"
@@ -8124,6 +8208,18 @@
    "language": "mex",
    "key": "lng_subtitle_agt_intro_official",
    "value": "Hola, soy Flavio Briatore. Seré tu agente para lo que seguro será una carrera profesional legendaria en la Formula 1. Verás que cada opción tiene un conjunto de valoraciones de piloto. Estas estarán ligadas a ti durante toda tu carrera profesional y rastrearán tu progreso. Conforme rindas bien en la pista, las valoraciones mejorarán y formarán parte de muchas otras áreas de tu viaje en la F1. Después abarcaremos cada valoración más a detalle."
+  },
+  {
+   "op": "lang.set",
+   "language": "mex",
+   "key": "lng_career_dlc_content",
+   "value": "Carrera profesional 1990"
+  },
+  {
+   "op": "lang.set",
+   "language": "mex",
+   "key": "lng_career_dlc_content_description",
+   "value": "Juega en Carrera profesional usando el contenido, las regulaciones, los equipos y las pistas de 1990."
   },
   {
    "op": "lang.set",
@@ -9141,6 +9237,18 @@
   },
   {
    "op": "lang.set",
+   "language": "pol",
+   "key": "lng_career_dlc_content",
+   "value": "Kariera 1990"
+  },
+  {
+   "op": "lang.set",
+   "language": "pol",
+   "key": "lng_career_dlc_content_description",
+   "value": "Rozegraj karierę, korzystając z zawartości, przepisów, zespołów i torów z 1990 roku."
+  },
+  {
+   "op": "lang.set",
    "language": "spa",
    "key": "lng_elena_name",
    "value": "Flavio"
@@ -10155,6 +10263,18 @@
   },
   {
    "op": "lang.set",
+   "language": "spa",
+   "key": "lng_career_dlc_content",
+   "value": "Carrera profesional (1990)"
+  },
+  {
+   "op": "lang.set",
+   "language": "spa",
+   "key": "lng_career_dlc_content_description",
+   "value": "Juega la carrera profesional usando el contenido, la normativa, los equipos y los circuitos de 1990."
+  },
+  {
+   "op": "lang.set",
    "language": "zhs",
    "key": "lng_elena_name",
    "value": "弗拉维奥"
@@ -11166,6 +11286,18 @@
    "language": "zhs",
    "key": "lng_subtitle_agt_intro_official",
    "value": "嗨，我是弗拉维奥·布里亚托雷，将担任你的经纪人，助你开启一段传奇一级方程式职业生涯。你可以看到每位车手都拥有一套车手评分。这些评分将在你的整个职业生涯中伴你左右，反映你的征程。若你在比赛中大显神威，这些评分也将随之提高，并在您的F1之旅的方方面面发挥作用。稍后我们再来详细了解各项评分。"
+  },
+  {
+   "op": "lang.set",
+   "language": "zhs",
+   "key": "lng_career_dlc_content",
+   "value": "1990 生涯"
+  },
+  {
+   "op": "lang.set",
+   "language": "zhs",
+   "key": "lng_career_dlc_content_description",
+   "value": "使用1990年内容、规则、车队和赛道进行生涯模式。"
   }
  ]
 }

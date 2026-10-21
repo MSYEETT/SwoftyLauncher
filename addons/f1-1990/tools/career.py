@@ -58,6 +58,8 @@ AGENT_NAME = {"jap": "フラビオ", "zhs": "弗拉维奥"}
 AGENT_FULL_NAME = {"jap": "フラビオ・ブリアトーレ", "zhs": "弗拉维奥·布里亚托雷"}
 STOCK_NAME = {"jap": "エレナ", "zhs": "埃琳娜"}
 INTRO_KEYS = re.compile(r"^lng_subtitle_agt_intro_")
+CONTENT_TILE_KEYS = ("lng_career_dlc_content", "lng_career_dlc_content_description")
+CONTENT_TILE_ENG = {"lng_career_dlc_content_description": "Play the 1990 season: 1990 teams, drivers, calendar and rules."}
 
 
 def setop(select, field, value, **extra):
@@ -203,6 +205,10 @@ def lang_ops(lang_dir):
             else:
                 continue
             if new != value:
+                ops.append({"op": "lang.set", "language": code, "key": key, "value": new})
+        for key in CONTENT_TILE_KEYS:
+            if key in table:
+                new = CONTENT_TILE_ENG.get(key) if code == "eng" and key in CONTENT_TILE_ENG else table[key].replace("2026", "1990")
                 ops.append({"op": "lang.set", "language": code, "key": key, "value": new})
     return ops
 
