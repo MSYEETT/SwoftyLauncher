@@ -1,23 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// F1 1990 - no F2 and Icons tabs on the Choose Driver screen of a new 1990 Driver Career. Its own
+// F1 1990 - the Choose Driver tab strip of a new 1990 Driver Career shows only the F1 tab. Its own
 // DLL, so a binding it can't resolve drops only this hook.
 //
 // The driver_career_driver_select_header view model builds its tabs with the shared tab builder
 // 0x144251f40 from the content group driver_career_driver_select_header (header_f1,
-// header_selected_team_icon, header_f2, header_icon). The redirect of that call
-// (site_Game_DriverSelectHeader_BuildTabs) gives a 1990 wizard a copy of the group without
-// header_f2 and header_icon, so the header has the first two tabs only. The view model also
-// sets tab states by fixed index (Game_DriverSelectHeader_SetTabState, e.g. tabs 0, 1 and 3 off), so
-// that wrap skips an index past the tabs the header has. A wizard is a 1990 one when the last career
-// tile pressed was the 1990 tile (F1990_CareerWizard1990, exported by f1_1990_ui.dll) and no other
-// career is loaded.
+// header_selected_team_icon, header_f2, header_icon), tab i from entry i. The screen group widget
+// on the screen (UISG, 0x144253930) spawns one tab header per entry of the same stock group and
+// binds it to headers.<name>, so the header must keep all four tabs: a header without header_f2 and
+// header_icon leaves two unbound tab headers drawn as empty boxes with their notification marker.
+// Instead, the redirect of the build (site_Game_DriverSelectHeader_BuildTabs) records which tabs are
+// F2 and Icons in a 1990 wizard, and the wrap of Game_DriverSelectHeader_SetTabState turns those
+// tabs off (content_visible and enabled 0), the state the view model gives a tab it doesn't offer,
+// such as the selected team tab. The widget binds each tab's system_data.enabled to its tooltip
+// refresh (0x144252a40), which hides the F5/F6 hints while fewer than two tabs are enabled. The wrap
+// also skips an index past the header's tabs. A wizard is a 1990 one when the last career tile
+// pressed was the 1990 tile (F1990_CareerWizard1990, exported by f1_1990_ui.dll) and no other career
+// is loaded.
 
 #include <windows.h>
 
 #include <atomic>
-#include <cstring>
-#include <vector>
 
 #include <swofty/career.hpp>
 #include <swofty/game.hpp>
@@ -31,15 +34,12 @@ namespace {
 using f1990::at;
 
 constexpr size_t kTabSize = 0x70;
-constexpr const char *kDropped[] = {"header_f2", "header_icon"};
+constexpr size_t kHeaderTabs = 0x270;
+constexpr const char *kHidden[] = {"header_f2", "header_icon"};
 
-struct Group {
-    uint8_t head[0x08];
-    const uint8_t *begin, *end;
-};
-
-std::vector<uint8_t> g_entries;
-std::atomic<uint32_t> g_builds, g_skips;
+std::atomic<void *> g_header;
+std::atomic<uint64_t> g_hidden;
+std::atomic<uint32_t> g_builds, g_skips, g_offs;
 
 bool wizard_1990()
 {
@@ -60,23 +60,21 @@ bool wizard_1990()
 
 SWOFTY_REDIRECT(site_Game_DriverSelectHeader_BuildTabs, int64_t, void *tabs, void *alloc, void *node, const void *group)
 {
-    if (!group || !wizard_1990())
-        return orig(tabs, alloc, node, group);
-    int dropped = f1990::drop_content_tabs(group, kDropped, g_entries);
-    if (dropped <= 0) {
+    void *header = tabs ? static_cast<uint8_t *>(tabs) - kHeaderTabs : nullptr;
+    int64_t mask = group && wizard_1990() ? f1990::content_tab_mask(group, kHidden) : 0;
+    if (mask > 0) {
+        g_hidden = uint64_t(mask);
+        g_header = header;
         if (g_builds++ < 4)
-            swofty::log("[f1-1990] driver select: the header group %s; its tabs stay",
-                        dropped < 0 ? "does not look like a content group" : "has no F2 or Icons tab");
-        return orig(tabs, alloc, node, group);
+            swofty::log("[f1-1990] driver select: 1990 wizard; header tabs mask 0x%llx off (F2 and Icons)",
+                        (unsigned long long)mask);
+    } else {
+        void *expected = header;
+        g_header.compare_exchange_strong(expected, nullptr);
+        if (mask < 0 && g_builds++ < 4)
+            swofty::log("[f1-1990] driver select: the header group does not look like a content group; its tabs stay");
     }
-    Group copy;
-    std::memcpy(&copy, group, sizeof copy);
-    copy.begin = g_entries.data();
-    copy.end = g_entries.data() + g_entries.size();
-    if (g_builds++ < 4)
-        swofty::log("[f1-1990] driver select: 1990 wizard; header tabs %zu of %zu (F2 and Icons hidden)",
-                    g_entries.size() / f1990::kContentTabSize, g_entries.size() / f1990::kContentTabSize + dropped);
-    return orig(tabs, alloc, node, &copy);
+    return orig(tabs, alloc, node, group);
 }
 
 SWOFTY_WRAP(Game_DriverSelectHeader_SetTabState, void, void *header, uint64_t tab, uint8_t content_visible,
@@ -90,7 +88,13 @@ SWOFTY_WRAP(Game_DriverSelectHeader_SetTabState, void, void *header, uint64_t ta
                         (unsigned long long)tab, b && e > b ? size_t(e - b) / kTabSize : size_t(0));
         return;
     }
-    orig(header, tab, content_visible, enabled);
+    f1990::TabState state{content_visible, enabled};
+    if (header == g_header.load())
+        state = f1990::header_tab_state(g_hidden, tab, state);
+    if ((state.content_visible != content_visible || state.enabled != enabled) && g_offs++ < 8)
+        swofty::log("[f1-1990] driver select: tab %llu kept off (asked content %u, enabled %u)",
+                    (unsigned long long)tab, content_visible, enabled);
+    orig(header, tab, state.content_visible, state.enabled);
 }
 
 SWOFTY_ADDON()
