@@ -24,8 +24,12 @@ std::string settings_addon(const void *from, std::string &dll);
 // (g_FeTile_SelectedCareerContent), takes the model tile's menu systems (+0x150..+0x178) when its
 // own are unset, and calls the router FeTile_Route_CareerItem.
 //
-// Router (FeTile_Route_CareerItem, wrapped): every career content tile press ends in it; the wrap
-// records the pressed tile's data group (pressed()) and fires career.content.pressed.
+// Router (FeTile_Route_CareerItem, wrapped): every career tile press ends in it; the wrap records
+// the pressed tile's data group (pressed()), fires career.content.pressed and, after the game's
+// router, hands the route to the career wizard library (career_wizard.cpp). The wrap is a core
+// mixin set of its own, shared by both libraries and offered at the first mixin commit after either
+// of them needs it, so a content and a wizard entry registered at different stages never wrap the
+// router twice.
 //
 // Gate (Game_Career_IsDriverCareerMode, wrapped): 1 only for the stock 2025 and 2026 driver-career
 // modes, so a mode championship whose statId (+0x2a8) is a content's mode (game_modes statId of the
@@ -35,9 +39,10 @@ std::string settings_addon(const void *from, std::string &dll);
 // stock false for that content's mode championship becomes the predicate's own data group check
 // (career_content_logic.hpp). Questions for any other data group keep the game's answer.
 //
-// The four hooks are one core mixin set, offered at the first mixin commit after a content was
-// registered, so a game without registered contents runs none of them, and a build where one of
-// them or a binding the handlers call does not resolve turns every content off with a log line.
+// The tile, gate and predicate hooks are one core mixin set, offered with the router at the first
+// mixin commit after a content was registered, so a game without registered contents runs none of
+// them, and a build where one of them, the router or a binding the handlers call does not resolve
+// turns every content off with a log line.
 
 namespace {
 
@@ -51,6 +56,7 @@ using swofty::game::Tile;
 using swofty::game::TileList;
 
 constexpr const char *MIXIN = "swofty_core.dll (career contents)";
+constexpr const char *ROUTE_MIXIN = "swofty_core.dll (career tile route)";
 constexpr uint32_t LOG_FIRST = 6;
 
 using AddTile = void(TileList *, uint8_t);
@@ -85,6 +91,7 @@ std::mutex lock;
 Slot slots[content::MAX_CONTENTS];
 std::atomic<size_t> count{0};
 std::atomic<bool> offered{false}, live{false}, settled{false}, off{false};
+std::atomic<bool> route_wanted{false}, route_offered{false}, route_settled{false}, route_live{false};
 std::string off_why;
 Bound b{};
 Route *route_orig;
@@ -439,7 +446,9 @@ Action *route_entry(HomeItem *item, Action *out)
     }
     if (used())
         runtime::events_fire(SWOFTY_EVENT_CAREER_CONTENT_PRESSED, s ? int64_t(s - slots) : -1, 0, g.c_str());
-    return route_orig(item, out);
+    Action *r = route_orig(item, out);
+    runtime::wizard_tile_routed(g, out);
+    return r;
 }
 
 bool gate_entry(const void *championship)
@@ -651,7 +660,9 @@ std::vector<CoreMixins> career_content_mixins()
         return out;
     offered = true;
     std::string why;
-    if (!bind_all(why)) {
+    if (route_settled && !route_live)
+        why = "the career tile route hook did not install (see the [core] lines for " + std::string(ROUTE_MIXIN) + ")";
+    if (!why.empty() || !bind_all(why)) {
         off_why = why;
         off = true;
         for (size_t i = 0; i < used(); i++)
@@ -660,20 +671,52 @@ std::vector<CoreMixins> career_content_mixins()
     }
     out.push_back({MIXIN,
                    {{"site_FeTile_CareerContentEnd", SWOFTY_MIXIN_SITE, 100, (void *)&site_entry, nullptr},
-                    {"FeTile_Route_CareerItem", SWOFTY_MIXIN_WRAP, 100, (void *)&route_entry, (void **)&route_orig},
                     {"Game_Career_IsDriverCareerMode", SWOFTY_MIXIN_WRAP, 100, (void *)&gate_entry, (void **)&gate_orig},
                     {"vt_Game_DriverCareerSlotPredicate", SWOFTY_MIXIN_WITH_ARG(SWOFTY_MIXIN_VTABLE, 2), 100,
                      (void *)&predicate_entry, (void **)&predicate_orig}}});
+    tile_route_want();
     swofty::log("[career] contents: %zu registered; offering the career content hooks", used());
     return out;
 }
 
+void tile_route_want()
+{
+    route_wanted = true;
+}
+
+std::vector<CoreMixins> tile_route_mixins()
+{
+    std::vector<CoreMixins> out;
+    if (!route_wanted || route_offered)
+        return out;
+    route_offered = true;
+    out.push_back({ROUTE_MIXIN,
+                   {{"FeTile_Route_CareerItem", SWOFTY_MIXIN_WRAP, 100, (void *)&route_entry, (void **)&route_orig}}});
+    return out;
+}
+
+void tile_route_commit()
+{
+    if (!route_offered || route_settled)
+        return;
+    route_live = core_mixins_active(ROUTE_MIXIN);
+    route_settled = true;
+    swofty::log("[career] career tile route: %s", route_live ? "armed" : "off");
+}
+
+TileRoute tile_route_state()
+{
+    return route_live ? TileRoute::live
+           : route_settled || (route_wanted && core_mixins_closed()) ? TileRoute::off
+                                                                     : TileRoute::pending;
+}
+
 void career_content_commit()
 {
-    if (!offered || settled)
+    if (!offered || settled || !route_settled)
         return;
     settled = true;
-    if (core_mixins_active(MIXIN)) {
+    if (core_mixins_active(MIXIN) && route_live) {
         live = true;
         for (size_t i = 0; i < used(); i++)
             if (slots[i].state == SWOFTY_CAREER_CONTENT_QUEUED)
@@ -683,7 +726,8 @@ void career_content_commit()
                     used());
         return;
     }
-    off_why = "the career content hooks did not install (see the [core] lines for " + std::string(MIXIN) + ")";
+    off_why = "the career content hooks did not install (see the [core] lines for " +
+              std::string(route_live ? MIXIN : ROUTE_MIXIN) + ")";
     off = true;
     for (size_t i = 0; i < used(); i++)
         if (slots[i].state != SWOFTY_CAREER_CONTENT_OFF)

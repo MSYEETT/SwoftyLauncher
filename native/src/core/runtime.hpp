@@ -91,12 +91,20 @@ struct CoreMixins {
     std::vector<SwoftyMixin> mixins;
 };
 
+enum class TileRoute { pending, live, off };
+
 std::vector<CoreMixins> career_mixins();
 std::vector<CoreMixins> characters_mixins();
 std::vector<CoreMixins> wizard_mixins();
-void characters_setup();
-void wizard_setup();
+std::vector<CoreMixins> tile_route_mixins();
+void characters_commit();
+void wizard_commit();
+void tile_route_commit();
+void tile_route_want();
+TileRoute tile_route_state();
+void wizard_tile_routed(const std::string &group, void *out);
 bool core_mixins_active(const char *name);
+bool core_mixins_closed();
 void career_setup();
 void career_tick();
 int career_block(const void *from, uint32_t mode, const char *title, const char *body);

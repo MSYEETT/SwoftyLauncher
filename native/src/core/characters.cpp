@@ -28,8 +28,11 @@
 // Strings. Each group's strings are runtime string overrides (lang_override.cpp), set when the
 // group becomes active and cleared when it stops being active.
 //
-// Each function is a core mixin set of its own (manager.cpp), so a binding that does not resolve
-// drops only that part. With no entry registered every wrap passes straight through.
+// The refs and the voices are core mixin sets of their own (manager.cpp), offered only once an addon
+// needs them: the refs after a swap, the voices after a mute, at the next mixin commit for a
+// registration from an addon's init and right after the ON_LOAD handlers for one made there. A game
+// where no addon swaps or mutes runs none of them, so an addon that wraps these functions itself
+// keeps its wraps. A binding that does not resolve drops only that part.
 
 namespace {
 
@@ -77,7 +80,13 @@ std::set<void *> muted_emitters;
 std::atomic<const void *> vector_seen{nullptr};
 std::atomic<bool> any_swap{false}, any_mute{false};
 std::atomic<uint32_t> builds_logged, stand_ins, missing_logged, muted_lines, shared_logged;
-bool ref_live, voice_live, subscribed;
+struct Part {
+    const char *name, *label;
+    std::atomic<bool> wanted{false}, offered{false}, settled{false}, live{false}, late_logged{false};
+};
+
+Part ref{REF_MIXIN, "ref"}, voice{VOICE_MIXIN, "voice"};
+bool subscribed;
 
 std::string name_of(const uint8_t *row)
 {
@@ -250,9 +259,9 @@ void apply_strings(const std::string &group)
 bool rebuild(const char *why)
 {
     const void *vector = vector_seen.load();
-    if (!ref_live || !rows(vector, nullptr)) {
+    if (!ref.live || !rows(vector, nullptr)) {
         swofty::log("[characters] %s; the character list is not rebuilt (%s)", why,
-                    ref_live ? "the game has not built it yet" : "the ref hooks are not installed");
+                    ref.live ? "the game has not built it yet" : "the ref hooks are not installed");
         return false;
     }
     uint8_t message[0x18] = {};
@@ -321,9 +330,23 @@ void changed()
     any_mute = m;
 }
 
+int need(Part &p, bool want, const char *what)
+{
+    if (!runtime::enabled("career", nullptr))
+        return SWOFTY_ASSET_UNAVAILABLE;
+    if (want)
+        p.wanted = true;
+    if (p.live || (!p.settled && !runtime::core_mixins_closed()))
+        return SWOFTY_ASSET_OK;
+    if (want && !p.settled && !p.late_logged.exchange(true))
+        swofty::log("[characters] %s registered after the last mixin commit; the %s hooks are not installed", what,
+                    p.label);
+    return SWOFTY_ASSET_UNAVAILABLE;
+}
+
 int api_available()
 {
-    return runtime::enabled("career", nullptr) && (ref_live || voice_live);
+    return runtime::enabled("career", nullptr) && (ref.live || voice.live || !(ref.settled || voice.settled));
 }
 
 int api_career_group(char *out, size_t cap)
@@ -353,9 +376,8 @@ int api_swap(const char *group, const char *character, const char *replacement)
     subscribe();
     swofty::log("[characters] %s '%s' in careers of '%s'%s%s", replacement ? "swap" : "restore", character, group,
                 replacement ? " to " : "", replacement ? replacement : "");
-    if (!ref_live)
-        return SWOFTY_ASSET_UNAVAILABLE;
-    return now ? SWOFTY_ASSET_LATE : SWOFTY_ASSET_OK;
+    int r = need(ref, replacement != nullptr, "a swap");
+    return r == SWOFTY_ASSET_OK && now ? SWOFTY_ASSET_LATE : r;
 }
 
 int api_mute(const char *group, const char *speaker, int on)
@@ -372,7 +394,7 @@ int api_mute(const char *group, const char *speaker, int on)
     changed();
     subscribe();
     swofty::log("[characters] %s %s lines in careers of '%s'", on ? "mute" : "unmute", speaker, group);
-    return voice_live ? SWOFTY_ASSET_OK : SWOFTY_ASSET_UNAVAILABLE;
+    return need(voice, on != 0, "a mute");
 }
 
 bool add_text(const std::string &group, const std::string &language, const std::string &key, const char *text,
@@ -487,20 +509,29 @@ std::vector<CoreMixins> characters_mixins()
     std::vector<CoreMixins> out;
     if (!enabled("career", nullptr))
         return out;
-    out.push_back({REF_MIXIN,
-                   {{"Game_EntrantsUi_BuildCharacterRef", SWOFTY_MIXIN_WRAP, 100, (void *)&build_ref, (void **)&orig_build},
-                    {"Game_EntrantsUi_OnCharacterListLoaded", SWOFTY_MIXIN_WRAP, 100, (void *)&list_loaded,
-                     (void **)&orig_loaded}}});
-    out.push_back({VOICE_MIXIN,
-                   {{"Game_SpeechSystem_PostLine", SWOFTY_MIXIN_WRAP, 100, (void *)&post_line, (void **)&orig_post}}});
+    if (ref.wanted && !ref.offered.exchange(true))
+        out.push_back(
+            {REF_MIXIN,
+             {{"Game_EntrantsUi_BuildCharacterRef", SWOFTY_MIXIN_WRAP, 100, (void *)&build_ref, (void **)&orig_build},
+              {"Game_EntrantsUi_OnCharacterListLoaded", SWOFTY_MIXIN_WRAP, 100, (void *)&list_loaded,
+               (void **)&orig_loaded}}});
+    if (voice.wanted && !voice.offered.exchange(true))
+        out.push_back(
+            {VOICE_MIXIN, {{"Game_SpeechSystem_PostLine", SWOFTY_MIXIN_WRAP, 100, (void *)&post_line, (void **)&orig_post}}});
     return out;
 }
 
-void characters_setup()
+void characters_commit()
 {
-    ref_live = core_mixins_active(REF_MIXIN);
-    voice_live = core_mixins_active(VOICE_MIXIN);
-    swofty::log("[characters] setup: character refs %s, voices %s", ref_live ? "armed" : "off", voice_live ? "armed" : "off");
+    bool any = false;
+    for (Part *p : {&ref, &voice})
+        if (p->offered && !p->settled) {
+            p->live = core_mixins_active(p->name);
+            p->settled = any = true;
+        }
+    auto state = [](const Part &p) { return p.live ? "armed" : p.settled ? "off" : "not used"; };
+    if (any)
+        swofty::log("[characters] setup: character refs %s, voices %s", state(ref), state(voice));
 }
 
 }

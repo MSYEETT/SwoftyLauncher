@@ -14,8 +14,10 @@
 // - Game_CareerWizard_StartsInF1(entrants, wizard data, data group): answers yes for a registered
 //   group, so the wizard has no Skip to F1 / Start in F2 step and no team-icons step and the driver
 //   select takes the F1 path.
-// - FeTile_Route_CareerItem(item, out): every career tile press ends here; the wrap records the
-//   tile's data group and, for a registered group, replaces the route the tile fires (out type 1).
+// - FeTile_Route_CareerItem(item, out): every career tile press ends here. The core's career tile
+//   route wrap (career_content.cpp), shared with the career content library, hands each press here
+//   after the game's router: the tile's data group is recorded and, for a registered group, the
+//   route the tile fires (out type 1) is replaced.
 // - Game_CareerWizard_PushNextStep(wizard): runs right after the add-option body pushed the
 //   player's option byte on wizard +0x100..+0x108 and pushes the next step byte on +0xe0..+0xe8.
 //   Before it runs, a forced option rewrites that last option byte; after it, a replaced step
@@ -28,8 +30,11 @@
 //   career of another group is loaded. Game_DriverSelectHeader_SetTabState then skips an index past
 //   the header's tabs (vector at header +0x2b8, 0x70 each), which it has no bounds check for.
 //
-// Each hook is a core mixin set of its own (manager.cpp), so a binding that does not resolve drops
-// only that control. With no entry registered every hook passes straight through.
+// Each control is a core mixin set of its own (manager.cpp), offered only once an addon registers an
+// entry for it: at the next mixin commit for a registration from an addon's init, right after the
+// ON_LOAD handlers for one made there. A game where no addon registers runs none of them, so an
+// addon that wraps these functions itself keeps its wraps. A binding that does not resolve drops
+// only that control.
 
 namespace {
 
@@ -39,16 +44,13 @@ using swofty::game::Action;
 constexpr uintptr_t NESTR_CHARS = 0x09;
 
 constexpr const char *START_MIXIN = "swofty_core.dll (wizard start in F1)";
-constexpr const char *ROUTE_MIXIN = "swofty_core.dll (wizard tile route)";
 constexpr const char *STEP_MIXIN = "swofty_core.dll (wizard steps)";
 constexpr const char *CONFIRM_MIXIN = "swofty_core.dll (wizard confirm route)";
 constexpr const char *TABS_MIXIN = "swofty_core.dll (wizard driver tabs)";
-constexpr uintptr_t ITEM_GROUP = 0x180, WIZARD_GROUP = 0x128, STEPS = 0xe0, OPTIONS = 0x100, VM_WIZARD = 0x270,
-                    HEADER_TABS = 0x2b8;
+constexpr uintptr_t WIZARD_GROUP = 0x128, STEPS = 0xe0, OPTIONS = 0x100, VM_WIZARD = 0x270, HEADER_TABS = 0x2b8;
 constexpr size_t TAB_ITEM = 0x70, CONTENT_TAB = 0x30, MAX_TABS = 64;
 
 using StartsInF1 = bool(void *entrants, void *wizard_data, const char *group);
-using RouteItem = Action *(void *item, Action *out);
 using PushStep = void(void *wizard);
 using BuildTabs = int64_t(void *tabs, void *alloc, void *node, const void *group);
 using SetTabState = void(void *header, uint64_t tab, uint8_t content_visible, uint8_t enabled);
@@ -63,7 +65,6 @@ struct Entry {
 };
 
 StartsInF1 *orig_starts;
-RouteItem *orig_route;
 PushStep *orig_push;
 BuildTabs *orig_tabs;
 SetTabState *orig_tab_state;
@@ -75,7 +76,15 @@ std::string last_tile;
 std::vector<uint8_t> tab_copy;
 std::atomic<bool> any{false};
 std::atomic<uint32_t> logged[8];
-bool live[5];
+
+struct Part {
+    const char *name;
+    std::atomic<bool> wanted{false}, offered{false}, settled{false}, live{false}, late_logged{false};
+};
+
+constexpr int ROUTE = 1, TABS = 4;
+Part parts[5] = {{START_MIXIN}, {nullptr}, {STEP_MIXIN}, {CONFIRM_MIXIN}, {TABS_MIXIN}};
+const char *const part_names[5] = {"start in F1", "tile route", "steps and options", "confirm route", "driver tabs"};
 
 const char *intern(const std::string &s)
 {
@@ -127,32 +136,6 @@ bool starts_in_f1(void *entrants, void *wizard_data, const char *group)
         return true;
     }
     return stock;
-}
-
-Action *route_item(void *item, Action *out)
-{
-    Action *r = orig_route(item, out);
-    uintptr_t gp = 0;
-    std::string g;
-    if (item && mem::read(reinterpret_cast<uintptr_t>(item) + ITEM_GROUP, gp))
-        g = nestr(gp);
-    {
-        std::lock_guard<std::mutex> lk(lock);
-        last_tile = g;
-    }
-    if (!out || out->type != 1)
-        return r;
-    std::string route = nestr(reinterpret_cast<uintptr_t>(out->str)), to;
-    if (find(TILE_ROUTE, g, [&](const Entry &e) {
-            if (!e.from.empty() && e.from != route)
-                return false;
-            to = e.to;
-            return true;
-        })) {
-        swofty::game::Ne_Make_StrFromCStr(&out->str, to.c_str(), 0, 0);
-        note(1, "[wizard] %s tile opens %s instead of %s", g.c_str(), to.c_str(), route.c_str());
-    }
-    return r;
 }
 
 bool last_byte(const void *wizard, uintptr_t vec, uintptr_t &at, size_t &count)
@@ -281,8 +264,38 @@ void tab_state(void *header, uint64_t tab, uint8_t content_visible, uint8_t enab
     orig_tab_state(header, tab, content_visible, enabled);
 }
 
+bool part_live(int i)
+{
+    return i == ROUTE ? runtime::tile_route_state() == runtime::TileRoute::live : parts[i].live.load();
+}
+
+bool part_usable(int i)
+{
+    if (i == ROUTE)
+        return runtime::tile_route_state() != runtime::TileRoute::off;
+    return parts[i].live || (!parts[i].settled && !runtime::core_mixins_closed());
+}
+
+int need(int i, bool want)
+{
+    if (!runtime::enabled("career", nullptr))
+        return SWOFTY_ASSET_UNAVAILABLE;
+    if (want) {
+        parts[i].wanted = true;
+        if (i == ROUTE || i == TABS) {
+            parts[ROUTE].wanted = true;
+            runtime::tile_route_want();
+        }
+    }
+    if (part_usable(i) && (i != TABS || part_usable(ROUTE)))
+        return SWOFTY_ASSET_OK;
+    if (want && runtime::core_mixins_closed() && !parts[i].offered && !parts[i].late_logged.exchange(true))
+        swofty::log("[wizard] %s registered after the last mixin commit; its hook is not installed", part_names[i]);
+    return SWOFTY_ASSET_UNAVAILABLE;
+}
+
 int put(Kind kind, const char *group, std::string from, const char *to, uint32_t a, uint32_t b, bool on, HMODULE owner,
-        int need)
+        int part)
 {
     if (!cu::valid_name(group) || (to && *to && !cu::valid_name(to)))
         return SWOFTY_ASSET_INVALID;
@@ -295,12 +308,20 @@ int put(Kind kind, const char *group, std::string from, const char *to, uint32_t
             entries.push_back({kind, group, std::move(from), to ? to : "", a, b, owner});
         any = !entries.empty();
     }
-    return live[need] ? SWOFTY_ASSET_OK : SWOFTY_ASSET_UNAVAILABLE;
+    return need(part, on);
 }
 
 int api_available()
 {
-    return runtime::enabled("career", nullptr) && (live[0] || live[1] || live[2] || live[3] || live[4]);
+    if (!runtime::enabled("career", nullptr))
+        return 0;
+    bool tried = false;
+    for (int i = 0; i < 5; i++) {
+        if (part_live(i))
+            return 1;
+        tried |= i == ROUTE ? runtime::tile_route_state() == runtime::TileRoute::off : parts[i].settled.load();
+    }
+    return !tried;
 }
 
 int api_group(char *out, size_t cap)
@@ -374,30 +395,65 @@ std::vector<CoreMixins> wizard_mixins()
     std::vector<CoreMixins> out;
     if (!enabled("career", nullptr))
         return out;
-    out.push_back({START_MIXIN,
-                   {{"Game_CareerWizard_StartsInF1", SWOFTY_MIXIN_WRAP, 100, (void *)&starts_in_f1, (void **)&orig_starts}}});
-    out.push_back({ROUTE_MIXIN,
-                   {{"FeTile_Route_CareerItem", SWOFTY_MIXIN_WRAP, 100, (void *)&route_item, (void **)&orig_route}}});
-    out.push_back({STEP_MIXIN,
-                   {{"Game_CareerWizard_PushNextStep", SWOFTY_MIXIN_WRAP, 100, (void *)&push_step, (void **)&orig_push}}});
-    out.push_back({CONFIRM_MIXIN,
-                   {{"site_Game_CareerWizardConfirm_NextRoute", SWOFTY_MIXIN_SITE, 100, (void *)&confirm_route, nullptr}}});
-    out.push_back({TABS_MIXIN,
-                   {{"site_Game_DriverSelectHeader_BuildTabs", SWOFTY_MIXIN_REDIRECT, 100, (void *)&build_tabs,
-                     (void **)&orig_tabs},
-                    {"Game_DriverSelectHeader_SetTabState", SWOFTY_MIXIN_WRAP, 100, (void *)&tab_state,
-                     (void **)&orig_tab_state}}});
+    auto offer = [&](int i) { return parts[i].wanted && !parts[i].offered.exchange(true); };
+    if (offer(0))
+        out.push_back(
+            {START_MIXIN,
+             {{"Game_CareerWizard_StartsInF1", SWOFTY_MIXIN_WRAP, 100, (void *)&starts_in_f1, (void **)&orig_starts}}});
+    if (offer(2))
+        out.push_back(
+            {STEP_MIXIN,
+             {{"Game_CareerWizard_PushNextStep", SWOFTY_MIXIN_WRAP, 100, (void *)&push_step, (void **)&orig_push}}});
+    if (offer(3))
+        out.push_back(
+            {CONFIRM_MIXIN,
+             {{"site_Game_CareerWizardConfirm_NextRoute", SWOFTY_MIXIN_SITE, 100, (void *)&confirm_route, nullptr}}});
+    if (offer(4))
+        out.push_back({TABS_MIXIN,
+                       {{"site_Game_DriverSelectHeader_BuildTabs", SWOFTY_MIXIN_REDIRECT, 100, (void *)&build_tabs,
+                         (void **)&orig_tabs},
+                        {"Game_DriverSelectHeader_SetTabState", SWOFTY_MIXIN_WRAP, 100, (void *)&tab_state,
+                         (void **)&orig_tab_state}}});
+    if (parts[ROUTE].wanted)
+        parts[ROUTE].offered = true;
     return out;
 }
 
-void wizard_setup()
+void wizard_commit()
 {
-    const char *names[5] = {START_MIXIN, ROUTE_MIXIN, STEP_MIXIN, CONFIRM_MIXIN, TABS_MIXIN};
-    for (int i = 0; i < 5; i++)
-        live[i] = core_mixins_active(names[i]);
-    swofty::log("[wizard] setup: start in F1 %s, tile route %s, steps and options %s, confirm route %s, driver tabs %s",
-                live[0] ? "armed" : "off", live[1] ? "armed" : "off", live[2] ? "armed" : "off",
-                live[3] ? "armed" : "off", live[4] ? "armed" : "off");
+    bool any = false;
+    for (int i = 0; i < 5; i++) {
+        Part &p = parts[i];
+        if (!p.offered || p.settled || (i == ROUTE && tile_route_state() == TileRoute::pending))
+            continue;
+        p.live = i == ROUTE ? tile_route_state() == TileRoute::live : core_mixins_active(p.name);
+        p.settled = any = true;
+    }
+    auto state = [](int i) { return parts[i].live ? "armed" : parts[i].settled ? "off" : "not used"; };
+    if (any)
+        swofty::log("[wizard] setup: start in F1 %s, tile route %s, steps and options %s, confirm route %s, driver tabs %s",
+                    state(0), state(1), state(2), state(3), state(4));
+}
+
+void wizard_tile_routed(const std::string &g, void *o)
+{
+    auto *out = static_cast<Action *>(o);
+    {
+        std::lock_guard<std::mutex> lk(lock);
+        last_tile = g;
+    }
+    if (!out || out->type != 1)
+        return;
+    std::string route = nestr(reinterpret_cast<uintptr_t>(out->str)), to;
+    if (find(TILE_ROUTE, g, [&](const Entry &e) {
+            if (!e.from.empty() && e.from != route)
+                return false;
+            to = e.to;
+            return true;
+        })) {
+        swofty::game::Ne_Make_StrFromCStr(&out->str, to.c_str(), 0, 0);
+        note(1, "[wizard] %s tile opens %s instead of %s", g.c_str(), to.c_str(), route.c_str());
+    }
 }
 
 }

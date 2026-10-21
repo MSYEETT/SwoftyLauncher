@@ -44,8 +44,11 @@ std::vector<CoreMixins> career_content_mixins();
 void career_content_commit();
 std::vector<CoreMixins> characters_mixins();
 std::vector<CoreMixins> wizard_mixins();
-void characters_setup();
-void wizard_setup();
+std::vector<CoreMixins> tile_route_mixins();
+void characters_commit();
+void wizard_commit();
+void tile_route_commit();
+std::string load_stage();
 void career_setup();
 void popup_setup();
 void ready();
@@ -85,6 +88,7 @@ struct Addon {
     std::string name;
     std::vector<Mixin> mixins;
     bool active = true;
+    bool core = false;
 };
 
 struct Handler {
@@ -132,6 +136,7 @@ Addon *current;
 size_t settled;
 std::vector<Held> held;
 Mark mark;
+bool closed;
 
 std::vector<safetyhook::InlineHook> inline_hooks;
 std::vector<std::string> inline_names;
@@ -1064,6 +1069,14 @@ std::string owners(const Group &g)
     return s;
 }
 
+bool core_only(const Group &g)
+{
+    for (auto &h : g.handlers)
+        if (!addons[h.addon].core)
+            return false;
+    return true;
+}
+
 bool drop_conflicts(const std::vector<Group> &groups, bool warn)
 {
     std::vector<size_t> bad;
@@ -1090,9 +1103,11 @@ bool drop_conflicts(const std::vector<Group> &groups, bool warn)
             api->log("[core] conflict: %s %s at 0x%llx overlaps %s %s at 0x%llx: %s vs %s", kind_name(g.kind),
                      target.c_str(), (unsigned long long)g.addr, kind_name(o.kind), o.handlers[0].m->target.c_str(),
                      (unsigned long long)o.addr, owners(g).c_str(), owners(o).c_str());
+            bool gc = core_only(g), oc = core_only(o);
             for (auto *z : {&g, &o})
-                for (auto &h : z->handlers)
-                    bad.push_back(h.addon);
+                if (gc == oc || core_only(*z))
+                    for (auto &h : z->handlers)
+                        bad.push_back(h.addon);
         }
         for (auto &h : held) {
             bool data = g.kind == SWOFTY_MIXIN_VTABLE, hdata = h.kind == SWOFTY_MIXIN_VTABLE;
@@ -1222,6 +1237,52 @@ bool install_all(const std::vector<Group> &groups)
     return true;
 }
 
+void add_core_sets(std::vector<runtime::CoreMixins> sets)
+{
+    for (auto &c : sets) {
+        Addon own{c.name, {}, true, true};
+        for (auto &m : c.mixins)
+            own.mixins.push_back({m.target, m.kind, m.priority, m.handler, m.orig});
+        api->log("[core] core mixin set '%s': %zu mixin(s), installed or dropped on its own", c.name, own.mixins.size());
+        addons.push_back(std::move(own));
+    }
+}
+
+size_t offer_core_sets()
+{
+    size_t before = addons.size();
+    for (auto *sets : {runtime::career_content_mixins, runtime::characters_mixins, runtime::wizard_mixins,
+                       runtime::tile_route_mixins})
+        add_core_sets(sets());
+    return addons.size() - before;
+}
+
+void settle_core_sets()
+{
+    runtime::tile_route_commit();
+    runtime::career_content_commit();
+    runtime::characters_commit();
+    runtime::wizard_commit();
+}
+
+void install_pass(size_t from, size_t *count)
+{
+    settled = addons.size();
+    for (size_t i = from; i < settled; i++)
+        if (addons[i].active)
+            check_targets(i);
+    std::vector<Group> groups;
+    do
+        groups = plan(from);
+    while (drop_conflicts(groups, false) || !install_all(groups));
+    drop_conflicts(groups, true);
+    for (auto &g : groups) {
+        count[SWOFTY_MIXIN_KIND(g.kind)]++;
+        held.push_back({g.kind, g.addr, g.span});
+    }
+    mark = {written.size(), stubs.size(), mid_hooks.size(), inline_hooks.size(), sites_used};
+}
+
 }
 
 namespace runtime {
@@ -1232,6 +1293,11 @@ bool core_mixins_active(const char *name)
         if (a.name == name)
             return a.active && !a.mixins.empty();
     return false;
+}
+
+bool core_mixins_closed()
+{
+    return closed;
 }
 
 }
@@ -1336,17 +1402,7 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     a->characters = runtime::characters_table();
     a->career_wizard = runtime::wizard_table();
     a->version = SWOFTY_API_VERSION;
-    std::vector<runtime::CoreMixins> sets = runtime::career_mixins();
-    for (auto *more : {runtime::characters_mixins, runtime::wizard_mixins})
-        for (auto &c : more())
-            sets.push_back(std::move(c));
-    for (auto &c : sets) {
-        Addon own{c.name, {}, true};
-        for (auto &m : c.mixins)
-            own.mixins.push_back({m.target, m.kind, m.priority, m.handler, m.orig});
-        api->log("[core] core mixin set '%s': %zu mixin(s), installed or dropped on its own", c.name, own.mixins.size());
-        addons.push_back(std::move(own));
-    }
+    add_core_sets(runtime::career_mixins());
     if (ea_diag_on()) {
         ea_log("[ea] core attached on a build the loader flagged as NON-MATCHING (bindings %s, build %.16s, "
                "same_build=%d); running EA decryption + per-binding resolution diagnostics (report-only, no mixin is "
@@ -1378,47 +1434,34 @@ extern "C" __declspec(dllexport) int SwoftyCoreInit(const wchar_t *name, SwoftyA
 
 extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
 {
-    for (auto &c : runtime::career_content_mixins()) {
-        Addon own{c.name, {}, true};
-        for (auto &m : c.mixins)
-            own.mixins.push_back({m.target, m.kind, m.priority, m.handler, m.orig});
-        api->log("[core] core mixin set '%s': %zu mixin(s), installed or dropped on its own", c.name, own.mixins.size());
-        addons.push_back(std::move(own));
-    }
+    offer_core_sets();
     size_t from = settled;
-    settled = addons.size();
-    for (size_t i = from; i < addons.size(); i++)
-        if (addons[i].active)
-            check_targets(i);
-    std::vector<Group> groups;
-    do
-        groups = plan(from);
-    while (drop_conflicts(groups, false) || !install_all(groups));
-    drop_conflicts(groups, true);
-    size_t active = 0, count[7] = {};
-    for (auto &g : groups) {
-        count[SWOFTY_MIXIN_KIND(g.kind)]++;
-        held.push_back({g.kind, g.addr, g.span});
-    }
-    mark = {written.size(), stubs.size(), mid_hooks.size(), inline_hooks.size(), sites_used};
+    size_t count[7] = {};
+    install_pass(from, count);
     if (!from) {
         runtime::career_setup();
         runtime::popup_setup();
-        runtime::characters_setup();
-        runtime::wizard_setup();
     }
-    runtime::career_content_commit();
-    for (size_t i = from; i < addons.size(); i++) {
+    settle_core_sets();
+    for (size_t i = from; i < settled; i++) {
         auto &m = addons[i];
         if (!m.active)
             continue;
-        active++;
         for (auto &x : m.mixins)
             if (SWOFTY_MIXIN_KIND(x.kind) == SWOFTY_MIXIN_ON_LOAD)
                 reinterpret_cast<void (*)()>(x.handler)();
     }
+    if (offer_core_sets()) {
+        api->log("[core] commit: installing the core mixin sets that registrations at load asked for");
+        install_pass(settled, count);
+    }
+    settle_core_sets();
+    closed = from || runtime::load_stage() != "early";
     if (!from)
         runtime::ready();
+    size_t active = 0;
+    for (size_t i = from; i < addons.size(); i++)
+        active += addons[i].active;
     api->log("[core] commit: %zu of %zu mixin addon(s) active; %zu wrap(s), %zu site(s), %zu vtable slot(s), %zu "
              "redirect(s), %zu patch(es)",
              active, addons.size() - from, count[SWOFTY_MIXIN_WRAP], count[SWOFTY_MIXIN_SITE], count[SWOFTY_MIXIN_VTABLE],

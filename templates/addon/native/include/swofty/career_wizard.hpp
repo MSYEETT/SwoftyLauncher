@@ -55,7 +55,7 @@ inline std::string z(std::string_view s)
 
 }
 
-// The library is usable (the core has the table and at least one wizard hook is installed).
+// The library is usable (the core has the table and a wizard hook is installed or none was needed yet).
 inline bool available()
 {
     auto t = detail::table();
