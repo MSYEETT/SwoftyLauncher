@@ -112,6 +112,7 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     }
     let loader = game.join(LOADER_LOG);
     let before = LogMark::read(&loader);
+    let asked = now_secs();
     let mut wrapper = launch(store, &game, args.direct, mode)?;
     let started = Instant::now();
     let dir = loop {
@@ -120,6 +121,11 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
             .filter(|d| std::fs::read_to_string(d.join("request_id")).is_ok_and(|s| s.trim() == id))
         {
             break d;
+        }
+        if let Some(report) = refused(store, asked) {
+            settle(store, &g, &mut wrapper, None, false);
+            eprintln!("swofty: {}", report.text());
+            return Ok(ExitCode::from(quarantine::REFUSED_EXIT));
         }
         if let Some(status) = wrapper.exited() {
             let err = wrapper.failure(status, "before the game started");
@@ -366,8 +372,38 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
         "staged offline play: EA AntiCheat is not started this session; multiplayer is unavailable",
     );
     let result = run_loop(store, args, &config, &request, &profile, g, installed);
+    finish(session, result)
+}
+
+/// A launch the loader check refused before the game started.
+#[derive(Debug)]
+struct Refused(quarantine::Report);
+
+impl std::fmt::Display for Refused {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0.text())
+    }
+}
+
+impl std::error::Error for Refused {}
+
+/// End the session, which rolls the game folder back; a refused launch then
+/// exits with its own code, so the launcher and `swofty run` can tell it apart.
+fn finish(session: Session, result: Result<ExitCode>) -> Result<ExitCode> {
     drop(session);
-    result
+    match result.map_err(|e| e.downcast::<Refused>()) {
+        Err(Ok(refused)) => {
+            eprintln!("swofty: {refused}");
+            Ok(ExitCode::from(quarantine::REFUSED_EXIT))
+        }
+        Err(Err(e)) => Err(e),
+        Ok(code) => Ok(code),
+    }
+}
+
+/// The wrapper's refusal of this launch (asked at `since`), once written.
+fn refused(store: &Store, since: f64) -> Option<quarantine::Report> {
+    quarantine::Report::read(&store.root).filter(|r| r.stage == Stage::BeforeLaunch && r.at >= since)
 }
 
 /// A wrapper session: it holds the session lock, and however it ends (the
@@ -490,6 +526,7 @@ fn play(
     game: &Path,
     installed: Option<Instant>,
 ) -> Result<i32> {
+    let placed_loader = check_loader(store, game, installed).map_err(Refused)?;
     let dir = store.sessions_dir().join(stamp());
     std::fs::create_dir_all(&dir)?;
     let loader = game.join(LOADER_LOG);
@@ -605,10 +642,8 @@ fn play(
     if mode.is_vr() {
         say("info", &format!("starting F1 25 in VR ({})", extra.join(" ")));
     }
-    let check = check_loader(store, game, installed);
     let usage = swofty_core::usage::Session::start(&store.root);
-    let mut watch = (check.loader && !check.reported)
-        .then(|| AttachWatch::new(loader.clone(), before.clone(), Instant::now()));
+    let mut watch = placed_loader.then(|| AttachWatch::new(loader.clone(), before.clone(), Instant::now()));
     // The antivirus explanation is a Windows one; under Proton a loader
     // that does not attach is a prefix or override problem instead.
     let missed = || {
@@ -646,17 +681,16 @@ fn play(
     Ok(code)
 }
 
-struct LoaderCheck {
-    /// The session placed version.dll, so the loader should attach.
-    loader: bool,
-    reported: bool,
-}
-
 /// Before the game starts: the DLLs the session placed are still there with
 /// the bytes written, on a first look and again a moment later, since a
-/// scanner often takes a file only once it is closed. Missing ones are
-/// reported for the launcher to show; the game still starts, without them.
-fn check_loader(store: &Store, game: &Path, installed: Option<Instant>) -> LoaderCheck {
+/// scanner often takes a file only once it is closed. Whether the session
+/// placed version.dll (so the loader should attach), or the report on the
+/// missing ones, which refuses the launch.
+fn check_loader(
+    store: &Store,
+    game: &Path,
+    installed: Option<Instant>,
+) -> std::result::Result<bool, quarantine::Report> {
     let dlls = quarantine::placed_dlls(&store.root).unwrap_or_default();
     let loader = dlls.iter().any(|(rel, _)| rel.eq_ignore_ascii_case(PROXY));
     let mut files = quarantine::damaged_install();
@@ -669,11 +703,12 @@ fn check_loader(store: &Store, game: &Path, installed: Option<Instant>) -> Loade
             files.push(rel);
         }
     }
-    let reported = !files.is_empty();
-    if reported {
-        report_blocked(store, quarantine::Report::new(Stage::BeforeLaunch, files, game));
+    if files.is_empty() {
+        return Ok(loader);
     }
-    LoaderCheck { loader, reported }
+    let report = quarantine::Report::new(Stage::BeforeLaunch, files, game);
+    report_blocked(store, &report);
+    Err(report)
 }
 
 /// The game is running but the loader never attached: say so, and whether
@@ -681,10 +716,10 @@ fn check_loader(store: &Store, game: &Path, installed: Option<Instant>) -> Loade
 fn loader_missed(store: &Store, game: &Path) {
     let mut report = quarantine::Report::new(Stage::InGame, vec![PROXY.to_owned()], game);
     report.removed = !game.join(PROXY).is_file();
-    report_blocked(store, report);
+    report_blocked(store, &report);
 }
 
-fn report_blocked(store: &Store, report: quarantine::Report) {
+fn report_blocked(store: &Store, report: &quarantine::Report) {
     say("warning", &format!("{}: {}", report.title(), report.text()));
     if let Err(e) = report.write(&store.root) {
         info(&format!("could not record it for the launcher: {e}"));
@@ -1413,43 +1448,6 @@ fn link(_: &Path, _: &Path) {}
 mod tests {
     use super::*;
 
-    #[test]
-    fn reports_a_placed_dll_an_antivirus_took_before_the_game_starts() {
-        let root = std::env::temp_dir().join(format!("swofty-run-{}-quarantine", std::process::id()));
-        std::fs::remove_dir_all(&root).ok();
-        let (data, game) = (root.join("data"), root.join("game"));
-        let core = game.join("swofty/addons/core/swofty_core.dll");
-        std::fs::create_dir_all(core.parent().unwrap()).unwrap();
-        std::fs::write(game.join(PROXY), b"proxy").unwrap();
-        std::fs::write(&core, b"core").unwrap();
-        let mut placed = swofty_core::placed::Placed::load(&data).unwrap();
-        for (rel, path) in [
-            (PROXY, game.join(PROXY)),
-            ("swofty/addons/core/swofty_core.dll", core),
-        ] {
-            placed.insert(rel, swofty_core::baseline::sha256_file(&path).unwrap(), false);
-        }
-        placed.save(&data).unwrap();
-        let store = Store::new(&data);
-        let written = Some(Instant::now() - quarantine::RECHECK_AFTER);
-        let check = check_loader(&store, &game, written);
-        assert!(check.loader && !check.reported);
-        assert_eq!(quarantine::Report::read(&data), None);
-        std::fs::remove_file(game.join(PROXY)).unwrap();
-        let check = check_loader(&store, &game, written);
-        assert!(check.loader && check.reported);
-        let report = quarantine::Report::read(&data).unwrap();
-        assert_eq!(
-            (report.stage, report.files.as_slice()),
-            (Stage::BeforeLaunch, [PROXY.to_owned()].as_slice())
-        );
-        assert_eq!(report.game, game);
-        loader_missed(&store, &game);
-        let report = quarantine::Report::read(&data).unwrap();
-        assert!(report.stage == Stage::InGame && report.removed);
-        std::fs::remove_dir_all(&root).ok();
-    }
-
     fn temp_log(name: &str) -> PathBuf {
         std::env::temp_dir()
             .join(format!("swofty-run-{}-{name}", std::process::id()))
@@ -1755,6 +1753,60 @@ mod tests {
         fn drop(&mut self) {
             std::fs::remove_dir_all(&self.root).ok();
         }
+    }
+
+    #[test]
+    fn refuses_to_start_the_game_when_an_antivirus_took_a_placed_dll() {
+        use clap::Parser;
+        #[derive(Parser)]
+        struct Cli {
+            #[command(flatten)]
+            run: RunArgs,
+        }
+        let m = Modded::new("refused");
+        let started = m.root.join("game-started");
+        let exe = m.game.dir.join(GAME_EXE);
+        std::fs::write(&exe, format!("#!/bin/sh\ntouch '{}'\n", started.display())).unwrap();
+        std::fs::set_permissions(&exe, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+        let written = Some(Instant::now() - quarantine::RECHECK_AFTER);
+        assert_eq!(check_loader(&m.store, &m.game.dir, written), Ok(false));
+        assert_eq!(quarantine::Report::read(&m.store.root), None);
+        let core = "swofty/addons/core/swofty_core.dll";
+        std::fs::remove_file(m.game.dir.join(core)).unwrap();
+        let session = Session {
+            store: &m.store,
+            game: &m.game,
+            request_id: "refused".into(),
+            _lock: SessionLock::try_acquire(&m.store.root).unwrap().unwrap(),
+        };
+        let args = Cli::parse_from(["swofty"]).run;
+        let request = LaunchRequest::default();
+        let result = run_loop(
+            &m.store,
+            &args,
+            &Config::default(),
+            &request,
+            "MODDED",
+            &m.game,
+            written,
+        );
+        assert_eq!(
+            finish(session, result).unwrap(),
+            ExitCode::from(quarantine::REFUSED_EXIT)
+        );
+        assert!(!started.exists(), "the game was started");
+        assert!(m.store.latest_session().is_none());
+        assert!(m.vanilla());
+        let report = quarantine::Report::read(&m.store.root).unwrap();
+        assert_eq!(report.stage, Stage::BeforeLaunch);
+        assert_eq!(report.files, [core]);
+        assert_eq!(report.game, m.game.dir);
+        assert_eq!(refused(&m.store, report.at - 1.0), Some(report.clone()));
+        assert_eq!(refused(&m.store, report.at + 1.0), None);
+        loader_missed(&m.store, &m.game.dir);
+        let report = quarantine::Report::read(&m.store.root).unwrap();
+        assert!(report.stage == Stage::InGame && report.removed);
+        assert_eq!(refused(&m.store, 0.0), None);
     }
 
     #[test]
