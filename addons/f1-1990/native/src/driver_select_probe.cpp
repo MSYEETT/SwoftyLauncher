@@ -10,11 +10,6 @@
 // ([[vm +0x448] +0x88] +0x260) has type 0x14604ec60 in its chain and a non-null +0xe18; with the
 // component 0x14605bed8 it collects the three lists' drivers, without it a default list.
 //
-// Team Select asks the contracts manager for the picked driver's offers (Game_DriverContracts_BuildOffers),
-// which ranks the driver's team (Game_DriverContracts_RankTeam) and offers nothing when the rank is not
-// valid. The probe logs the offer list size, the game mode's championships and UpgradesComponent teams,
-// and each rank asked for while the offers are built.
-//
 // Team Select's carousel (0x141890e60) lists the UpgradesComponent's per-team R&D models. They are
 // made (0x14a6d4570) for each entrant of the game mode (+0x2e0, 0x88 each, team +0x58, car +0x5c)
 // whose team the championship (component +0x270, vt +0x1c0) holds and whose car the vehicle table
@@ -25,9 +20,15 @@
 // the list whose stat id the CareerSetupComponent holds (+0x2b8) from the entrants registry (+0x560)
 // and copies its records. In a 1990 career every copied entrant reads team 0x3fff0000 and car 16383
 // although f1_1990's rows name the 1990 teams and cars. The probe logs, for the 1990 lists (105-107)
-// and the 2026 ones (67, 97), how many registry records carry a team; the entrants right after each
-// reset and at each 1990 wizard step; and every Career_Set_EntrantData_Thunk call that writes an
-// entrant's team, so a run shows whether the list parse or a later write leaves the teams empty.
+// and the 2026 ones (67, 97), how many registry records carry a team, the entrants right after each
+// reset and at each 1990 wizard step, and the championship's game setup mode chain.
+//
+// The season length component (k_Game_SeasonLengthComponentDesc) keeps the career's calendar: a
+// preset (data +0x290 -> +0xc0, 0x30 each: id +8, type +0x18, setup mode / season / format masks
+// +0x1c..+0x24) is applied when the career's setup mode, season and format (career vt+0xc8) pass its
+// masks, and fills the calendar (+0x2b0..+0x2b8, 0x28 each) from the dynamic event data's track list
+// with the preset's id (career +0xf58 -> +0xb8). The probe logs all of it before and after the 1990
+// wizard applies preset 0 and at Choose Driver.
 
 #include <windows.h>
 
@@ -38,6 +39,8 @@
 #include <swofty/game.hpp>
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
+
+void f1990_probe_season(const char *when, const void *season);
 
 namespace {
 
@@ -56,8 +59,7 @@ constexpr struct {
 constexpr uint8_t kRegistryLists[] = {67, 97, 105, 106, 107};
 constexpr uintptr_t kGameSetupRegistry = 0x146079b28;
 
-std::atomic<uint32_t> g_probes, g_offer_probes, g_rank_probes, g_reset_probes, g_set_probes, g_step_probes;
-thread_local bool t_in_offers;
+std::atomic<uint32_t> g_probes, g_step_probes;
 
 uintptr_t rebase(uintptr_t va)
 {
@@ -288,27 +290,51 @@ void probe_before(uintptr_t vm)
                 (unsigned long long)rd<uintptr_t>(gm + 0xe18), comps.c_str());
     probe_team_models(gm);
     probe_championship("choose driver", gm);
+    f1990_probe_season("choose driver", reinterpret_cast<void *>(component(gm, swofty::game::k_Game_SeasonLengthComponentDesc.address())));
 }
 
-std::string upgrade_teams(uintptr_t gm, size_t &count)
+
+}
+
+void f1990_probe_season(const char *when, const void *season)
 {
-    count = 0;
-    uintptr_t reg = gm ? gm + 0x1030 : 0;
-    auto **rvt = reinterpret_cast<void **>(rd<uintptr_t>(reg));
-    uintptr_t comp = rvt ? reinterpret_cast<uintptr_t (*)(uintptr_t, uintptr_t, int)>(rvt[2])(
-                               reg, swofty::game::k_Career_UpgradesComponentDesc.address(), 1)
-                         : 0;
-    if (!comp)
-        return " (no UpgradesComponent)";
-    std::string keys;
-    for (uintptr_t p = rd<uintptr_t>(comp + 0x298), e = rd<uintptr_t>(comp + 0x2a0); p && p < e && count < 64; p += 8, count++) {
-        char b[16];
-        std::snprintf(b, sizeof b, " %08x", rd<uint32_t>(rd<uintptr_t>(p) + 0xc));
-        keys += b;
+    uintptr_t c = reinterpret_cast<uintptr_t>(season);
+    if (!c)
+        return;
+    uintptr_t data = rd<uintptr_t>(c + 0x290), career = rd<uintptr_t>(c + 0x278);
+    std::string presets;
+    for (uintptr_t p = rd<uintptr_t>(data + 0xc0), e = rd<uintptr_t>(data + 0xc8); p && p < e && presets.size() < 600; p += 0x30) {
+        char b[96];
+        std::snprintf(b, sizeof b, " [type %u id %016llx masks %08x/%08x/%08x]", rd<uint8_t>(p + 0x18),
+                      (unsigned long long)rd<uint64_t>(p + 8), rd<uint32_t>(p + 0x1c), rd<uint32_t>(p + 0x20),
+                      rd<uint32_t>(p + 0x24));
+        presets += b;
     }
-    return keys;
-}
-
+    uint8_t want[8] = {};
+    auto **cvt = swofty::mem::object_like(career) ? reinterpret_cast<void **>(rd<uintptr_t>(career)) : nullptr;
+    if (cvt && swofty::mem::in_image(reinterpret_cast<uintptr_t>(cvt[0xc8 / 8])))
+        reinterpret_cast<void (*)(uintptr_t, uint8_t *)>(cvt[0xc8 / 8])(career, want);
+    uintptr_t cb = rd<uintptr_t>(c + 0x2b0), ce = rd<uintptr_t>(c + 0x2b8);
+    long events = cb && ce >= cb ? long((ce - cb) / 0x28) : -1;
+    std::string first;
+    for (uintptr_t e = cb; e && e < ce && first.size() < 300; e += 0x28) {
+        char b[64];
+        std::snprintf(b, sizeof b, " %llx/%llx", (unsigned long long)rd<uint64_t>(e + 8), (unsigned long long)rd<uint64_t>(e + 0x10));
+        first += b;
+    }
+    uintptr_t dyn = rd<uintptr_t>(career + 0xf58);
+    uintptr_t mb = rd<uintptr_t>(dyn + 0xb8), me = rd<uintptr_t>(dyn + 0xc0);
+    std::string lists;
+    for (uintptr_t m = mb; m && m < me && lists.size() < 600; m += 0x28) {
+        char b[64];
+        uintptr_t tb = rd<uintptr_t>(m + 0x10), te = rd<uintptr_t>(m + 0x18);
+        std::snprintf(b, sizeof b, " %016llx:%ld", (unsigned long long)rd<uint64_t>(m), tb && te >= tb ? long((te - tb) / 0x28) : -1L);
+        lists += b;
+    }
+    swofty::log("[f1-1990] probe: season at %s: component 0x%llx, career wants setup mode %u(%u) season %u(%u) format %u(%u); "
+                "presets%s; calendar %ld event(s) (count field %d):%s; dynamic event data 0x%llx track lists%s",
+                when, (unsigned long long)c, want[0], want[1], want[2], want[3], want[4], want[5], presets.c_str(), events,
+                rd<int>(c + 0x2c8), first.c_str(), (unsigned long long)dyn, lists.c_str());
 }
 
 void f1990_probe_entrants(const char *when, const void *career)
@@ -320,62 +346,6 @@ void f1990_probe_entrants(const char *when, const void *career)
                 (unsigned long long)rd<uintptr_t>(c + 0xe18), records(rd<uintptr_t>(c + 0x2e0), rd<uintptr_t>(c + 0x2e8)).c_str());
 }
 
-void f1990_probe_reset(const void *setup)
-{
-    if (g_reset_probes++ >= 12)
-        return;
-    uintptr_t s = reinterpret_cast<uintptr_t>(setup), career = rd<uintptr_t>(s + 0x278), mgr = rd<uintptr_t>(s + 0x290);
-    uint8_t stat = rd<uint8_t>(s + 0x2b8);
-    uintptr_t lb = rd<uintptr_t>(mgr + 0x560), le = rd<uintptr_t>(mgr + 0x568);
-    uintptr_t list = lb && stat < (le - lb) / 0x10 ? rd<uintptr_t>(lb + stat * 0x10 + 8) : 0;
-    uintptr_t named = list ? rd<uintptr_t>(list + 0x28) : 0;
-    swofty::log("[f1-1990] probe: entrants reset from list %u \"%s\" (0x%llx, %s) into career 0x%llx: %s", stat,
-                named ? str_at(rd<uintptr_t>(named + 0x10)).c_str() : "?", (unsigned long long)list,
-                list ? records(rd<uintptr_t>(list + 0x10), rd<uintptr_t>(list + 0x18)).c_str() : "none",
-                (unsigned long long)career, records(rd<uintptr_t>(career + 0x2e0), rd<uintptr_t>(career + 0x2e8)).c_str());
-    probe_championship("entrants reset", career);
-}
-
-SWOFTY_WRAP(Career_Set_EntrantData_Thunk, void, void *entity, const void *entrant_id, const uint32_t *data, uint16_t position,
-            uint8_t flag)
-{
-    uintptr_t e = reinterpret_cast<uintptr_t>(entity);
-    long before = e ? long((rd<uintptr_t>(e + 0x2e8) - rd<uintptr_t>(e + 0x2e0)) / 0x88) : -1;
-    orig(entity, entrant_id, data, position, flag);
-    if (!data || g_set_probes++ >= 48)
-        return;
-    swofty::log("[f1-1990] probe: entrant data set on 0x%llx (%ld entrant(s)): driver %08x team %08x car %08x, position %u",
-                (unsigned long long)e, before, data[0], data[2], data[3], unsigned(position));
-}
-
-SWOFTY_WRAP(Game_DriverContracts_BuildOffers, void, void *contracts, uint32_t driver)
-{
-    uintptr_t c = reinterpret_cast<uintptr_t>(contracts);
-    long before = long(rd<uintptr_t>(c + 0x3d0) - rd<uintptr_t>(c + 0x3c8));
-    t_in_offers = true;
-    orig(contracts, driver);
-    t_in_offers = false;
-    if (g_offer_probes++ >= 8)
-        return;
-    long after = long(rd<uintptr_t>(c + 0x3d0) - rd<uintptr_t>(c + 0x3c8));
-    uintptr_t gm = rd<uintptr_t>(c + 0x278);
-    size_t teams = 0;
-    std::string keys = upgrade_teams(gm, teams);
-    long champs = long((rd<uintptr_t>(gm + 0x1070) - rd<uintptr_t>(gm + 0x1068)) / 8);
-    swofty::log("[f1-1990] probe: contract offers for driver %08x: offer list %ld -> %ld byte(s); game mode 0x%llx, "
-                "%ld championship(s), UpgradesComponent teams %zu:%s",
-                driver, before, after, (unsigned long long)gm, champs, teams, keys.c_str());
-}
-
-SWOFTY_WRAP(Game_DriverContracts_RankTeam, int *, int *out, void *standings, void *game_mode, uint32_t team, uint64_t season,
-            void *alloc)
-{
-    int *r = orig(out, standings, game_mode, team, season, alloc);
-    if (t_in_offers && g_rank_probes++ < 8)
-        swofty::log("[f1-1990] probe: team %08x rank %d valid %u", team, out ? out[0] : -1,
-                    out ? unsigned(reinterpret_cast<const uint8_t *>(out)[4]) : 0u);
-    return r;
-}
 
 SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 13, void *, void *vm)
 {

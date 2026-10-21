@@ -26,17 +26,10 @@
 // - Back on the settings step (site_Game_CareerWizard_BackRoute, the wizard base handler, after its own
 //   pop) fires back_1990, a copy of the settings step's back to the home screen that returns to the
 //   Career tiles (fe_career) like the season length step's back does.
-//
-// A new career's entrants are a copy of its entrant list (Game_CareerSetup_ResetEntrants), and right
-// after the copy the game clears the team and car of every entrant whose team the career's championship
-// does not hold (Game_Championship_HasTeam: its game setup modes, their entrant setup modes, their
-// entrant lists). The R&D team models behind Team Select need the same answer. For the 1990
-// championship (game setup mode f1_1990, or none at all) the wrap counts a team of the f1_career_1990 or
-// f1_1990 lists as held when the game's own walk says no, and logs which of the two decided.
+
 
 #include <atomic>
 #include <cstring>
-#include <string>
 
 #include <swofty/game.hpp>
 #include <swofty/mixin.hpp>
@@ -44,6 +37,9 @@
 #include "career_1990.hpp"
 
 SWOFTY_SETTING(bool, career_wizard_1990, true);
+
+void f1990_probe_entrants(const char *when, const void *career);
+void f1990_probe_season(const char *when, const void *season);
 
 namespace {
 
@@ -68,14 +64,7 @@ constexpr uint8_t kOptionRecommended = 0xb;
 constexpr uint8_t kOptionCustomSettings = 0xc;
 constexpr uint8_t kPresetFullSeason = 0;
 
-constexpr char kList1990[] = "f1_1990";
-constexpr char kSetupMode1990[] = "f1_1990";
-constexpr size_t kMaxTeams = 64;
-
-std::atomic<uint32_t> g_starts_logged, g_route_logged, g_step_logged, g_confirm_logged, g_season_logged, g_back_logged,
-    g_held_logged, g_hook_logged;
-uint32_t g_teams_1990[kMaxTeams];
-std::atomic<size_t> g_team_count;
+std::atomic<uint32_t> g_starts_logged, g_route_logged, g_step_logged, g_confirm_logged, g_season_logged, g_back_logged;
 
 bool is_1990_group(const char *group)
 {
@@ -137,84 +126,21 @@ void apply_full_season(void *wizard)
             swofty::log("[f1-1990] wizard: no season length component on the career (%p); calendar left as it is", career);
         return;
     }
+    f1990_probe_season("before preset 0", season);
     swofty::game::Game_SeasonLength_ApplyPreset(season, kPresetFullSeason);
+    f1990_probe_season("after preset 0", season);
     if (g_season_logged++ < 4)
         swofty::log("[f1-1990] wizard: season length preset %u (Full Season) applied to the 1990 career", kPresetFullSeason);
 }
 
-const char *list_name(const uint8_t *list)
-{
-    auto *named = list ? at<const uint8_t *>(list, 0x28) : nullptr;
-    return named ? at<const char *>(named, 0x10) : nullptr;
 }
 
-bool is_1990_list(const char *name)
-{
-    return name && (!std::strcmp(name, f1990::kCareerGroup1990) || !std::strcmp(name, kList1990));
-}
-
-bool is_1990_team(uint32_t team)
-{
-    size_t n = g_team_count.load(std::memory_order_acquire);
-    for (size_t i = 0; i < n; i++)
-        if (g_teams_1990[i] == team)
-            return true;
-    return false;
-}
-
-void collect_1990_teams(const uint8_t *registry)
-{
-    if (!registry || g_team_count.load(std::memory_order_acquire))
-        return;
-    size_t n = 0;
-    auto *b = at<const uint8_t *>(registry, 0x560), *e = at<const uint8_t *>(registry, 0x568);
-    for (; b && b < e; b += 0x10) {
-        auto *list = at<const uint8_t *>(b, 0x08);
-        if (!list || !is_1990_list(list_name(list)))
-            continue;
-        auto *r = at<const uint8_t *>(list, 0x10), *re = at<const uint8_t *>(list, 0x18);
-        for (; r && r < re; r += 0x88) {
-            uint32_t team = at<uint32_t>(r, 0x58);
-            bool known = false;
-            for (size_t i = 0; i < n; i++)
-                known |= g_teams_1990[i] == team;
-            if ((team >> 16) != 0x3fff && !known && n < kMaxTeams)
-                g_teams_1990[n++] = team;
-        }
-    }
-    g_team_count.store(n, std::memory_order_release);
-    swofty::log("[f1-1990] wizard: %zu 1990 team key(s) from the f1_career_1990 and f1_1990 entrant lists", n);
-}
-
-std::string setup_modes(const uint8_t *championship, bool &is_1990)
-{
-    std::string names;
-    size_t count = 0;
-    bool other = false;
-    auto *b = at<const uint8_t *>(championship, 0x318), *e = at<const uint8_t *>(championship, 0x320);
-    for (; b && b < e; b += 8, count++) {
-        auto *mode = at<const uint8_t *>(b, 0);
-        auto *named = mode ? at<const uint8_t *>(mode, 0xd8) : nullptr;
-        const char *name = named ? at<const char *>(named, 0x10) : nullptr;
-        bool mine = name && !std::strcmp(name, kSetupMode1990);
-        other |= !mine;
-        names += std::string(names.empty() ? "" : ", ") + (name ? name : "?");
-    }
-    is_1990 = !other;
-    return std::to_string(count) + " game setup mode(s)" + (names.empty() ? "" : ": " + names);
-}
-
-}
-
-void f1990_probe_entrants(const char *when, const void *career);
-void f1990_probe_reset(const void *setup);
 
 SWOFTY_WRAP(Game_CareerWizard_StartsInF1, bool, void *entrants, void *wizard_data, const char *entrant_list)
 {
     bool stock = orig(entrants, wizard_data, entrant_list);
     if (!career_wizard_1990 || !is_1990_group(entrant_list))
         return stock;
-    collect_1990_teams(static_cast<const uint8_t *>(entrants));
     if (g_starts_logged++ < 8)
         swofty::log("[f1-1990] wizard: %s starts in F1, no F2 choice and no team-icons step (game said %s)",
                     entrant_list, stock ? "yes" : "no");
@@ -270,35 +196,6 @@ SWOFTY_SITE(site_Game_CareerWizardConfirm_NextRoute, swofty::Context &c)
     c.rdx = reinterpret_cast<uintptr_t>(kDriverSelectRoute);
     if (g_confirm_logged++ < 4)
         swofty::log("[f1-1990] wizard: confirm goes to %s, no driver type step", kDriverSelectRoute);
-}
-
-SWOFTY_WRAP(Game_CareerSetup_ResetEntrants, void, void *setup)
-{
-    if (career_wizard_1990 && setup)
-        collect_1990_teams(at<const uint8_t *>(setup, 0x290));
-    orig(setup);
-    f1990_probe_reset(setup);
-}
-
-SWOFTY_WRAP(Game_Championship_HasTeam, bool, void *championship, uint32_t team)
-{
-    bool held = orig(championship, team);
-    if (!career_wizard_1990 || !championship || !is_1990_team(team))
-        return held;
-    bool is_1990 = false;
-    std::string modes = setup_modes(static_cast<const uint8_t *>(championship), is_1990);
-    if (!is_1990)
-        return held;
-    if (held) {
-        if (g_held_logged++ < 2)
-            swofty::log("[f1-1990] wizard: data: championship %p (%s) holds 1990 team %08x", championship, modes.c_str(),
-                        team);
-        return held;
-    }
-    if (g_hook_logged++ < 8)
-        swofty::log("[f1-1990] wizard: hook: championship %p (%s) does not hold 1990 team %08x; counted as held",
-                    championship, modes.c_str(), team);
-    return true;
 }
 
 SWOFTY_SITE(site_Game_DriverSelect_BackRoute, swofty::Context &c)

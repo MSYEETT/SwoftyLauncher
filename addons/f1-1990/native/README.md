@@ -159,8 +159,6 @@ it (`f1_career_2025`, `f1_career_2026`, `f1_career_1990`); every hook acts only 
 | `site_Game_DriverSelect_BackRoute` | 0x141a5e8eb | site in Choose Driver's back (rdx = route name, rsi = view model, +0x438 the wizard): `screen_group_back` becomes `screen_group_back_1990`, and the confirm step and the settings choice come off the wizard state |
 | `site_Game_CareerWizard_BackRoute`, `vt_Game_CareerWizardSettingsViewModel` | 0x14bc7ab4d (.data1), 0x145727970 | site in the wizard view models' base handler after its back pop (rdx = route name, rsi = view model, +0x270 the wizard): for the settings view model `back` becomes `back_1990` |
 
-| `Game_CareerSetup_ResetEntrants` | 0x140c34960 | wrap: before a career's entrants are reset from its entrant list, collect the team keys of the `f1_career_1990` and `f1_1990` lists from the entrants registry (setup +0x290; `Game_CareerWizard_StartsInF1` collects them too) |
-| `Game_Championship_HasTeam` | 0x140aea5f0 | wrap: the reset clears the team and car of every entrant whose team the championship does not hold, and the R&D team models behind Team Select need the same answer. For a championship whose game setup modes are `f1_1990` (or none), a collected 1990 team the game's walk says no to counts as held |
 
 `erp/wizard.json` (`tools/wizard.py`) adds the routes: `screen_group_back_1990` runs the header's `back_1990`, which
 closes the driver select screen group and opens the settings step again; the settings step's `back_1990` returns to the
@@ -173,18 +171,14 @@ It logs `[f1-1990] wizard: f1_career_1990 starts in F1, no F2 choice and no team
 `wizard: confirm goes to driver_career_driver_select, no driver type step`,
 `wizard: season length preset 0 (Full Season) applied to the 1990 career`,
 `wizard: Choose Driver back goes to the settings step (screen_group_back_1990; confirm step dropped, settings choice dropped)`
-`wizard: settings back goes to the Career tiles (back_1990)`, `wizard: N 1990 team key(s) from the f1_career_1990 and
-f1_1990 entrant lists`, and for the team check either `wizard: data: championship ... holds 1990 team ...` (the
-game's own walk said yes) or `wizard: hook: championship ... (N game setup mode(s): ...) does not hold 1990 team ...;
-counted as held` (first few of each).
+and `wizard: settings back goes to the Career tiles (back_1990)` (first few of each).
 
 `src/driver_select_probe.cpp` is a temporary read-only probe of the Choose Driver populate
 (`vt_Game_DriverCareerDriverSelectViewModel` slot 13): for the first 6 populates of any wizard it logs the wizard suffix,
 options, the official entrant list map (name, stat id, entrant count), the slot's game mode type chain and components,
-and how many driver cards the populate made (`[f1-1990] probe: ...`). For the Team Select work it also logs the contract
-offers and team ranks (`Game_DriverContracts_BuildOffers`, `Game_DriverContracts_RankTeam`), the UpgradesComponent's
+and how many driver cards the populate made (`[f1-1990] probe: ...`). For the Team Select work it also logs the UpgradesComponent's
 team models and each entrant's team and car at Choose Driver, the entrants registry lists 67, 97 and 105-107 (records
-with a team or a car), the career's entrants after each `Game_CareerSetup_ResetEntrants` (0x140c34960, which copies
-the entrant list the CareerSetupComponent names) and at each 1990 wizard step, every `Career_Set_EntrantData_Thunk`
-call (driver, team, car), and the championship's game setup modes, their entrant setup modes and those modes' entrant
-lists after each reset and at Choose Driver.
+with a team or a car), the career's entrants at each 1990 wizard step,
+the championship's game setup modes, their entrant setup modes and those modes' entrant lists at Choose Driver, and
+the season length component (presets, the setup mode / season / format the career asks for, the calendar, the
+dynamic event data's track lists) before and after the 1990 wizard applies preset 0 and at Choose Driver.
