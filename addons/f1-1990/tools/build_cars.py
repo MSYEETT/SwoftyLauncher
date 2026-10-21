@@ -38,9 +38,15 @@ Option ers: removed and zeroed take the 2026 hybrid out (the section, or every h
 neither changes mass, ICE power or the battery's weight. stock keeps the donor's EnergyRecoverySystem as it is, with
 every other edit above.
 
-Option tyre_size stock (an A/B test value, `ers` ignored): the donor's stock 2026 handling file byte for byte, renamed
-into the 1990 package and nothing else: 2026 tyres, suspension, engine, ERS, mass, aero and DRS, shipped as
+Option tyre_size stock (an A/B test value, `ers` ignored): the donor's stock 2026 handling file, renamed into the 1990
+package, with only the tyre physics group changed: 2026 tyres, suspension, engine, ERS, mass, aero and DRS, shipped as
 cars/handling/stock/<folder>_handling.erp.
+
+Every variant sets Chassis/TyrePhysicsGroup to F1_1990. The game builds a wheel's compound name from it
+("%s_%s%c": group, physics_code, f or r, lowercased; 0x142ea2300) and looks that up in one global map that every loaded
+VCMPD asset fills by compound name. Activation (0x144747c60) skips a name already there and deactivation (0x1447482b0)
+erases by name, so two assets sharing names lose them both when either unloads, and a wheel whose name is missing gets
+no compound at all. The car pack's compound file names its compounds F1_1990_*, which no stock package uses.
 
 Team power, mass and drag come from the season pack's per-team scalars (season.py), applied around a common base.
 
@@ -124,6 +130,7 @@ TYRES_13 = {'Front': {'radius': 0.323, 'width': 0.311}, 'Rear': {'radius': 0.330
 STOCK_MESH_WIDTH = {'Front': 0.339, 'Rear': 0.418}
 BEAD_13 = 0.175
 ALLOY_13 = 0.182
+TYRE_GROUP = 'F1_1990'
 TYRE_GRAPHS = {b'x0_tyre_fl': 'Front', b'x0_tyre_fr': 'Front', b'x0_tyre_bl': 'Rear', b'x0_tyre_br': 'Rear'}
 SUSPENSION_HEIGHTS = (b'MinHeight', b'MaxHeight', b'BumpStopHeight')
 
@@ -350,8 +357,13 @@ def tyres(root, size):
     return TYRES_13['Rear']['radius'] / stock['Rear']
 
 
+def tyre_group(root):
+    set_value(section(root, b'Chassis'), b'TyrePhysicsGroup', TYRE_GROUP)
+
+
 def convert(root, row, ers, size):
     fam = FAMILIES[row['engine']]
+    tyre_group(root)
     ERS_MODES[ers](root)
     rolling = tyres(root, size)
 
@@ -458,8 +470,10 @@ def build(game, out):
                 files[rel] = handling_archive(e, r, C.handling_names(c), n0, n1)
                 ops.append({'op': 'file.put', 'when': {'ers': ers, 'tyre_size': tyre_size}, 'source': rel,
                             'target': C.handling_archive(c)})
+        root = vtf.parse(f0)
+        tyre_group(root)
         rel = f'cars/handling/stock/{c.folder}_handling.erp'
-        files[rel] = handling_archive(e, r, C.handling_names(c), f0, f1)
+        files[rel] = handling_archive(e, r, C.handling_names(c), vtf.write(root), vtf.tsmd(root, version))
         ops.append({'op': 'file.put', 'when': {'tyre_size': 'stock'}, 'source': rel, 'target': C.handling_archive(c)})
         info['car'] = f'{c.team}@{c.folder}'
         info['bytes'] = (len(f0), size)
