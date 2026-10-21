@@ -31,7 +31,7 @@ Not covered: the garage boards and pit perches of the 1990 track worlds still sh
 - Weekend (default structure): P1, P2, Friday qualifying (a single sprint-shootout session), Saturday qualifying (a single qualifying session), race. Full qualifying runs the single sessions; the race grid comes from Saturday qualifying; the race scores with `f1_1990_race` (9-6-4-3-2-1, no fastest-lap point).
 - Option tag `gamesetup_f1_1990`: the `gamesetup_f1` restrictions plus safety car Off only, parc fermé Off only, standard weekend only and no full qualifying. The 38 options shown for `gamesetup_f1` are also shown for it.
 - Track dataset `f1_1990` (parent `f1_2026`, stat_id 20, default format only): on every 2026 track C4 for the softer dry compound, C3 for the harder and C5 for the medium (qualifying) compound, presets `f1_1990` and `f1_1990_mandatory`, no required pit stop and the default weekend format; the 16 calendar tracks also carry the 1990 dates, or with `career_year` 2026 the Sunday on or before each (TrackGeneralData), and grand prix names (TrackNameData) from `tools/career.py`.
-- Compound class `f1_1990` (stat_id 12): the softer slot is the red Supersoft (`Supersoft_f1_1990`, C4), the harder slot the yellow Soft (`Soft_f1_1990`, C3) and the medium slot the purple Ultrasoft qualifying tyre (`Ultrasoft_f1_1990`, C5). Each row sets its own sidewall context (`SuperSoft`, `Soft`, `UltraSoft`), HUD icon (`~`, `¡`, `:`), colour and picture (`texture_name` `Soft`, `Medium`, `SuperSoft_f2`, the red S, yellow M and purple SS tyre images; the game has no yellow S or Ultrasoft image). Allocation `f1_1990`: `soft_sets` supersoft sets and `soft_sets` soft sets in P1, P2 and the race, `quali_sets` ultrasoft sets in Friday and Saturday qualifying. Mandatory `f1_1990_mandatory`: one ultrasoft set in the shootout sessions. `no_tyre_allocation` turns the allocation screen off for this class.
+- Compound class `f1_1990` (stat_id 12): the softer slot is the red Supersoft (`Supersoft_f1_1990`, C4), the harder slot the yellow Soft (`Soft_f1_1990`, C3) and the medium slot the purple Ultrasoft qualifying tyre (`Ultrasoft_f1_1990`, C5). Each row sets its own sidewall context (`SuperSoft`, `Soft`, `UltraSoft`), colour, HUD icon (`icon_code` U+E190, U+E192, U+E191) and pictures (`texture_name` `SuperSoft_f1_1990`, `Soft_f1_1990`, `UltraSoft_f1_1990`), the 2018-style SS, S and US icons below. Allocation `f1_1990`: `soft_sets` supersoft sets and `soft_sets` soft sets in P1, P2 and the race, `quali_sets` ultrasoft sets in Friday and Saturday qualifying. Mandatory `f1_1990_mandatory`: one ultrasoft set in the shootout sessions. `no_tyre_allocation` turns the allocation screen off for this class.
 - The track lighting probes also list `f1_1990`.
 - Session names (`data/session-strings.json`, `tools/sessions.py <dir of language_<code>.tsv>`): the Friday session
   reads Qualifying 1 and the Saturday session Qualifying 2. The game names a session by its type and a group by its id,
@@ -182,6 +182,26 @@ python3 addons/f1-1990/tools/rnd_look.py --game <F1 25> [--baseline <launcher ba
 
 It needs Pillow, numpy, resvg (or nix), zstd and node. rnd_look.json must run before rnd-tyres-thermal's uidb edits,
 which its `load_after` on this addon gives.
+
+## Tyre icons (erp/tyre_icons.json, erp/tyre_icons/tyre_icons.erpk, tools/tyre_icons.py)
+
+The 1990 compounds show 2018 Pirelli lettering: red SS (Supersoft), purple US (Ultrasoft), yellow S (Soft). A compound's icons come from two fields of its visual compound row: `icon_code`, a glyph of the HUD icon font (`art/fonts/icons.font` in `fonts_standard_icons.erp`: an embedded TrueType font for the code points, 306 glyph records with UVs, and a 2048x1024 BC3 colour page), and `texture_name`, a slice name in the compound texture arrays of `overrides.uidb`. `osd.car_settings_icons` also holds `<texture_name>_worn` (the game builds the name with `%s_worn`).
+
+| resource | carried by | size | new entries |
+|---|---|---|---|
+| `icons.font` glyphs (text in the icon font) | `fonts_standard_icons` | 44x44 | U+E190 SS, U+E191 US, U+E192 S (records, TrueType glyphs `uniE190`..`uniE192`, cells at y 940 of the page) |
+| `tyres.tyres_small` | `flow_pause`, `flow_garage`, `flow_post_race` | 28x28 | `SuperSoft_f1_1990`, `UltraSoft_f1_1990`, `Soft_f1_1990` |
+| `tyre_allocation.compound_icons` | `flow_loading`, `flow_car_monitor`, `flow_options`, `flow_team_hq` | 44x44 | the same three |
+| `tyre_allocation.key_icons` | `flow_st_hub`, `flow_loading`, `flow_post_race`, `flow_car_monitor`, `flow_options` | 28x28 | the same three |
+| `tyre_allocation.tyre_icons` | `flow_loading`, `flow_options`, `flow_team_hq` | 144x144 | copies of the stock red `Soft_f1_26`, purple `SuperSoft_f2` and yellow `Medium_f1_26` tyres |
+| `osd.car_settings_icons` (MFD) | `flow_post_race`, `flow_race` | 24x24 | the three, plus `_worn` (filled disc) |
+
+The badges and glyphs start from the stock `Soft_f1_26` art (and `Soft_worn_f1_26`, the `~` glyph): the ring is recoloured to the accent of the stock `Soft_f1_26` (red), `Medium_f1_26` (yellow) or `SuperSoft_f2` (purple) badge, and the letter is replaced by the text in Formula 1 TV Bold (`formula1-tv-600_bold_web.font`), at the stock letter's height, or 86% of it for two letters. Slices are BC7 and glyph cells BC3, encoded with NVIDIA Texture Tools (`nvcompress`). The arrays grow in every archive that carries them, as `erp/badges.json` grows the team arrays; the existing slices and glyphs keep their bytes. `tools/tyre_icons.py` rebuilds the archive and the ops:
+
+```sh
+nix-shell -p nodejs zstd nvidia-texture-tools "python3.withPackages (ps: [ ps.numpy ps.pillow ps.fonttools ])" \
+  --run "python3 addons/f1-1990/tools/tyre_icons.py --game <F1 25> --baseline <launcher baseline>/<build> --sheet <png>"
+```
 
 ## 13-team lists (erp/ui26.json, ui/, tools/ui26.py)
 
