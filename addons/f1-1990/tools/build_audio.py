@@ -3,7 +3,8 @@
 - four `audio.audio_bundle_settings` rows (`v12_1990`, `v10_1990`, `v8_1990`, `v8j_1990`, cloned from
   `ferrari_2026`) for the bundles `operations.files` adds as new files under `audio/2025/bundles/`;
 - one `audio.audio_car_data.<label>` row per 1990 car (put-record, every field the audio loader reads), copied from
-  the donor car's stock row with `bundle_name` set to the car's engine (V12, V10, V8, and a second V8 for Judd).
+  the donor car's stock row with `bundle_name` set to the car's engine (V12, V10, V8, and a second V8 for Judd), or
+  with option `engine_sounds` 2026 the donor's stock 2026 bundle.
 
 The labels come from audio.py: the donor's `switchName` (read from the stock 2026 carmodel layer) with `_90` for
 `_26`. The car pack writes the same label into each 1990 car's carmodel layer. Nothing stock is changed: every key
@@ -29,6 +30,7 @@ import gamedb
 from build_cars import GAMEDB, game_root
 
 OUT = 'db/audio.json'
+OPTION = 'engine_sounds'
 REGISTRY = 'audio.audio_bundle_settings'
 REGISTRY_ROW = f'{REGISTRY}.audio_bundle_settings'
 REGISTRY_FIELDS = ['_metadata_', 'bundle_name', 'era', 'engine', 'exhaust', 'cabin']
@@ -89,8 +91,12 @@ def build(root):
             key = f'{CAR_DATA}.{new}.{field}'
             if gamedb.fnv1a64(key) in by:
                 raise ValueError(f'{key} is in the stock database')
-            value = {'_metadata_': new, 'bundle_name': audio.bundle_file(c)}.get(field)
-            value = value.encode() if value is not None else src.value
+            if field == 'bundle_name':
+                for choice, value in (('1990', audio.bundle_file(c).encode()), ('2026', src.value)):
+                    ops.append({'op': 'put-record', 'key': key, 'type': src.type, 'value': value.hex(),
+                                'when': {OPTION: choice}})
+                continue
+            value = new.encode() if field == '_metadata_' else src.value
             ops.append({'op': 'put-record', 'key': key, 'type': src.type, 'value': value.hex()})
         print(f'{c.team:13} {c.folder:15} {old:22} -> {new:22} {audio.bundle_file(c)}')
     return {'schema_version': 1, 'fields': {REGISTRY_ROW: REGISTRY_FIELDS}, 'ops': ops}

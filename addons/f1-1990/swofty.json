@@ -78,6 +78,9 @@
     { "id": "career_year", "type": "choice", "label": "Career year", "default": "2026",
       "description": "The year the career calendar runs in. 2026 puts each race on the Sunday 3 days before its 1990 date, with birth years moved so driver ages match 1990. 1990 gives a season without races.",
       "values": ["2026", "1990"], "binds": "db" },
+    { "id": "engine_sounds", "type": "choice", "label": "1990 engine sounds", "default": "1990",
+      "description": "The engine sound of the 1990 cars. 1990 plays the V12, V10 and V8 bundles of the F1 25 Engine Sound Pack; 2026 plays the donor team's stock 2026 engine.",
+      "values": ["1990", "2026"], "binds": "db" },
     {
       "id": "soft_sets",
       "type": "slider",
