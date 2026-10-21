@@ -80,6 +80,7 @@ struct Slot {
     std::atomic<uint32_t> tiles{0}, presses{0}, gates{0}, slots{0};
     std::string why;
     void **vt = nullptr;
+    content::Retry retry;
 };
 
 struct Bound {
@@ -159,37 +160,41 @@ bool db_list_stat(const std::string &label, int64_t &out, void *)
     return true;
 }
 
-void resolve(Slot &s)
+void resolve(Slot &s, bool now)
 {
     if (s.resolved || s.state != SWOFTY_CAREER_CONTENT_LIVE || !runtime::db_table()->available())
         return;
     std::lock_guard<std::mutex> g(lock);
-    if (s.resolved)
+    uint64_t t = GetTickCount64();
+    if (s.resolved || (!now && !s.retry.due(t)))
         return;
     content::Db db{db_text, db_integer, db_list_stat, nullptr};
     content::Requirements r = content::requirements(s.desc, db);
     s.mode = r.mode;
     s.group = r.group;
+    if (!r.ok) {
+        s.why = r.why;
+        if (s.retry.failed(t, r.why))
+            swofty::log("[career] content '%s' (%s) not ready: %s; no tile and its mode keeps the stock gate until it is, "
+                        "checked again every %llu ms",
+                        s.desc.id.c_str(), s.owner.c_str(), r.why.c_str(), (unsigned long long)content::RETRY_MS);
+        return;
+    }
+    s.why.clear();
     s.resolved = true;
     if (!r.warn.empty())
         swofty::log("[career] content '%s': %s", s.desc.id.c_str(), r.warn.c_str());
-    if (!r.ok) {
-        s.why = r.why;
-        s.state = SWOFTY_CAREER_CONTENT_OFF;
-        swofty::log("[career] content '%s' (%s) is off: %s; no tile, and its mode keeps the stock gate", s.desc.id.c_str(),
-                    s.owner.c_str(), r.why.c_str());
-        return;
-    }
-    swofty::log("[career] content '%s' ready: mode %s statId %lld, data group %s (entrant list stat_id %lld), suffix %s "
+    swofty::log("[career] content '%s' ready%s: mode %s statId %lld, data group %s (entrant list stat_id %lld), suffix %s "
                 "(F1CAREER_%s%s%s)",
-                s.desc.id.c_str(), s.desc.mode.c_str(), (long long)r.mode, s.desc.data_group.c_str(), (long long)r.group,
+                s.desc.id.c_str(), s.retry.tries ? (" after " + std::to_string(s.retry.tries + 1) + " checks").c_str() : "",
+                s.desc.mode.c_str(), (long long)r.mode, s.desc.data_group.c_str(), (long long)r.group,
                 s.desc.suffix.c_str(), s.desc.suffix.c_str(), r.f2 ? ", F2CAREER" : "", r.icons ? ", ICONS" : "");
 }
 
-void resolve_all()
+void resolve_all(bool now)
 {
     for (size_t i = 0; i < used(); i++)
-        resolve(slots[i]);
+        resolve(slots[i], now);
 }
 
 bool ready(const Slot &s)
@@ -424,7 +429,7 @@ void site_entry(SwoftyContext *c)
     auto *list = reinterpret_cast<TileList *>(c->r14);
     if (!list || !mem::readable(list, sizeof(TileList)))
         return;
-    resolve_all();
+    resolve_all(true);
     last_list = list;
     uint8_t index = 3;
     for (size_t i = 0; i < used(); i++)
@@ -586,7 +591,7 @@ int api_info(const char *id, SwoftyCareerContentInfo *out)
         Slot &s = slots[i];
         if (s.desc.id != id)
             continue;
-        resolve(s);
+        resolve(s, true);
         std::lock_guard<std::mutex> g(lock);
         *out = {};
         out->index = uint32_t(i);
@@ -737,7 +742,7 @@ void career_content_commit()
 void career_content_tick()
 {
     if (live && used())
-        resolve_all();
+        resolve_all(false);
 }
 
 }

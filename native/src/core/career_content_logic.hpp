@@ -250,6 +250,32 @@ struct Db {
     void *user;
 };
 
+// A content whose requirements fail is checked again, at most every RETRY_MS, until they hold: rows
+// that runtime database operations add can land after the first check. A reason is logged once,
+// and again only when it changes.
+constexpr uint64_t RETRY_MS = 1000;
+
+struct Retry {
+    uint64_t next = 0;
+    uint32_t tries = 0;
+    std::string why;
+
+    bool due(uint64_t now) const
+    {
+        return now >= next;
+    }
+
+    bool failed(uint64_t now, const std::string &reason)
+    {
+        tries++;
+        next = now + RETRY_MS;
+        if (reason == why)
+            return false;
+        why = reason;
+        return true;
+    }
+};
+
 struct Requirements {
     bool ok = false;
     int64_t mode = -1;
