@@ -5,8 +5,8 @@ usage: check_career.py <stock gamedatabases.2025.bin> <built gamedatabases.2025.
 
 Protected: every stock row of the tables the 1990 career clones from (mode rows, championships, event lists, track
 lists, season lengths, track selections, the eight career data-group tables), the points presets, the 2025/2026 track
-datasets, the content sets and the customisation car groups. Allowed changes: the row counts of the tables that gain
-a 1990 row, content set 11's two lists (stock value plus the 1990 name) and the agent's two name fields. Exit code 1
+datasets, the content sets, the customisation car groups and the characters. Allowed changes: the row counts of the
+tables that gain a 1990 row and content set 11's two lists (stock value plus the 1990 name). Exit code 1
 when a protected key changed or went missing, or a 1990 row is missing.
 """
 import os
@@ -25,6 +25,7 @@ TABLES = [(c, w) for c, w in career.DATA_GROUP_TABLES] + [
     ("game_setup.session_standings", "session_standing_preset"),
     ("content_sets", "content_set"),
     ("customisation.customisation_cars", "customisation_car_group"),
+    ("entrants.characters", "character"),
 ]
 DATASETS = ("f1", "f1_2025", "f1_2026", "sprint_f1_2026")
 NEW_ROWS = [(c, w, career.DATA_GROUP) for c, w in career.DATA_GROUP_TABLES] + [
@@ -36,6 +37,7 @@ NEW_ROWS = [(c, w, career.DATA_GROUP) for c, w in career.DATA_GROUP_TABLES] + [
     (career.LENGTHS, "custom_dynamic_available_track_list_data", "F1_1990_Medium"),
     (career.LENGTHS, "custom_dynamic_available_track_list_data", "F1_1990_Short"),
     (f"{career.LENGTHS}.track_selections", "tracks_selection", career.TRACK_SELECTION),
+    ("entrants.characters", "character", career.AGENT_1990),
 ]
 
 
@@ -69,9 +71,6 @@ def allowed(stock):
                         ("available_game_setup_modes_0.setup_modes", career.SETUP_MODE)):
         path = f"content_sets.content_set_{ci}.{field}"
         ok[h(path)] = f"{stock.get(path)},{name}"
-    ai = stock.row_index("entrants.characters", "character", "elena")
-    for field in ("full_name", "last_name"):
-        ok[h(f"entrants.characters.character_{ai}.{field}")] = None
     return ok
 
 

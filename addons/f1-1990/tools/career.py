@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Writes db/career.json and db/career-lang.json: the 1990 career content, next to stock 2025 and 2026.
+"""Writes db/career.json, db/career-lang.json and data/flavio-strings.json: the 1990 career content, next to stock
+2025 and 2026.
 
 usage: career.py <stock gamedatabases.2025.bin> <dir of language_<code>.tsv dumps (key<TAB>value, \\n escaped)>
 
 Every new row is a full-key clone of its 2026 source row, with the field list read from the stock database through
 the key catalogue (tools/gamedb/catalog/keys.tsv.gz). No 2025 or 2026 row changes; content set 11 gains the 1990
-names in two lists.
+names in two lists. data/flavio-strings.json holds, per language, the stock strings that name the agent rewritten for
+Flavio Briatore; the native side applies them only while a 1990 career is loaded.
 """
 import gzip
 import json
@@ -79,7 +81,9 @@ SEASON_EVENTS = [
     ("sliding_scale_refresh_ref", "sliding_scale_refresh_26"),
 ]
 
-AGENT = "entrants.characters.character[_metadata_=elena]"
+AGENT_SOURCE = "elena"
+AGENT_1990 = "flavio"
+AGENT_1990_STAT_ID = 105
 AGENT_NAME = {"jap": "フラビオ", "zhs": "弗拉维奥"}
 AGENT_FULL_NAME = {"jap": "フラビオ・ブリアトーレ", "zhs": "弗拉维奥·布里亚托雷"}
 STOCK_AGENT_NAME = {"jap": "エレナ", "zhs": "埃琳娜"}
@@ -241,10 +245,13 @@ def build(db):
                         ("available_game_setup_modes_0.setup_modes", SETUP_MODE)):
         ops.append(setop(cs, field, f"{db.get(f'content_sets.content_set_{ci}.{field}')},{name}"))
 
-    ops += [
-        setop(AGENT, "full_name", "lng_f1990_agent_full_name"),
-        setop(AGENT, "last_name", "lng_f1990_agent_last_name"),
-    ]
+    clone("entrants.characters", "character", AGENT_SOURCE, {
+        "_metadata_": AGENT_1990,
+        "stat_id": str(AGENT_1990_STAT_ID),
+        "first_name": "lng_f1990_agent_first_name",
+        "full_name": "lng_f1990_agent_full_name",
+        "last_name": "lng_f1990_agent_last_name",
+    })
     return {"schema_version": 1, "fields": fields, "ops": ops}
 
 
@@ -257,22 +264,15 @@ def read_tsv(path):
     return out
 
 
-def lang_ops(lang_dir):
-    ops = [
-        {"op": "lang.set", "language": "*", "key": "lng_f1990_season_length", "value": "1990 Season"},
-        {"op": "lang.set", "language": "*", "key": "lng_f1990_agent_full_name", "value": "Flavio Briatore"},
-        {"op": "lang.set", "language": "*", "key": "lng_f1990_agent_last_name", "value": "Briatore"},
-    ]
-    for _, _, _, _, _, code, name in ROUNDS:
-        ops.append({"op": "lang.set", "language": "*", "key": gp_keys(code)[0], "value": f"{name} 1990"})
-    codes = sorted(n[len("language_"):-len(".tsv")] for n in os.listdir(lang_dir)
-                   if n.startswith("language_") and n.endswith(".tsv"))
-    for code in codes:
+def flavio_strings(lang_dir):
+    out = {}
+    for code in languages(lang_dir):
         table = read_tsv(os.path.join(lang_dir, f"language_{code}.tsv"))
         stock = STOCK_AGENT_NAME.get(code, "Elena")
         name = AGENT_NAME.get(code, "Flavio")
         full = AGENT_FULL_NAME.get(code, "Flavio Briatore")
         pattern = re.compile(re.escape(stock) if code in STOCK_AGENT_NAME else r"\bElena\b")
+        strings = {}
         for key in sorted(table):
             value = table[key]
             if key in ("lng_elena_name", "lng_email_from_agent"):
@@ -283,7 +283,28 @@ def lang_ops(lang_dir):
             else:
                 continue
             if new != value:
-                ops.append({"op": "lang.set", "language": code, "key": key, "value": new})
+                strings[key] = new
+        out[code] = strings
+    return out
+
+
+def languages(lang_dir):
+    return sorted(n[len("language_"):-len(".tsv")] for n in os.listdir(lang_dir)
+                  if n.startswith("language_") and n.endswith(".tsv"))
+
+
+def lang_ops(lang_dir):
+    ops = [
+        {"op": "lang.set", "language": "*", "key": "lng_f1990_season_length", "value": "1990 Season"},
+        {"op": "lang.set", "language": "*", "key": "lng_f1990_agent_full_name", "value": "Flavio Briatore"},
+        {"op": "lang.set", "language": "*", "key": "lng_f1990_agent_last_name", "value": "Briatore"},
+    ]
+    for _, _, _, _, _, code, name in ROUNDS:
+        ops.append({"op": "lang.set", "language": "*", "key": gp_keys(code)[0], "value": f"{name} 1990"})
+    for code in languages(lang_dir):
+        table = read_tsv(os.path.join(lang_dir, f"language_{code}.tsv"))
+        ops.append({"op": "lang.set", "language": code, "key": "lng_f1990_agent_first_name",
+                    "value": AGENT_NAME.get(code, "Flavio")})
         for key, source in SEASON_STRINGS.items():
             if source in table:
                 value = SEASON_STRINGS_ENG[key] if code == "eng" and key in SEASON_STRINGS_ENG else \
@@ -309,6 +330,8 @@ def main():
     db = Db(sys.argv[1])
     write_json(os.path.join(ADDON, "db", "career.json"), build(db))
     write_json(os.path.join(ADDON, "db", "career-lang.json"), {"schema_version": 1, "ops": lang_ops(sys.argv[2])})
+    os.makedirs(os.path.join(ADDON, "data"), exist_ok=True)
+    write_json(os.path.join(ADDON, "data", "flavio-strings.json"), flavio_strings(sys.argv[2]))
 
 
 if __name__ == "__main__":

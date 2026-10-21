@@ -7939,6 +7939,15 @@
    "type",
    "usesAlternateSafetyRating",
    "usesChampionships"
+  ],
+  "entrants.characters.character": [
+   "_metadata_",
+   "first_name",
+   "full_name",
+   "head",
+   "job_role",
+   "last_name",
+   "stat_id"
   ]
  },
  "ops": [
@@ -8160,16 +8169,16 @@
    "value": "f1,f1_26,f1_generic_26,f2,f1_generic,f1_esports,f1_world,f1_elimination,f1_1990"
   },
   {
-   "op": "set",
-   "select": "entrants.characters.character[_metadata_=elena]",
-   "field": "full_name",
-   "value": "lng_f1990_agent_full_name"
-  },
-  {
-   "op": "set",
-   "select": "entrants.characters.character[_metadata_=elena]",
-   "field": "last_name",
-   "value": "lng_f1990_agent_last_name"
+   "op": "add-row",
+   "table": "entrants.characters",
+   "from": "entrants.characters.character[_metadata_=elena]",
+   "set": {
+    "_metadata_": "flavio",
+    "stat_id": "105",
+    "first_name": "lng_f1990_agent_first_name",
+    "full_name": "lng_f1990_agent_full_name",
+    "last_name": "lng_f1990_agent_last_name"
+   }
   }
  ]
 }
