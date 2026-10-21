@@ -178,10 +178,6 @@ BOSS_ROWS = {"mclaren_26": "andrea_stella", "mercedes_26": "toto_wollf", "redbul
              "ferrari_26": "frederic_vasseur", "williams_26": "james_vowles", "tororosso_26": "alan_permane",
              "forceindia_26": "adrian_newey", "haas_26": "ayao_komatsu", "sauber_26": "mattia_binotto",
              "renault_26": "steve_nielsen", "gm_cadillac_26": "graeme_lowdon"}
-TEAM_DATA = "animation.team_data"
-PRINCIPALS = f"{TEAM_DATA}.principal_characters"
-TEAM_DATA_FIELDS = ["_metadata_", "team.team", "team_boss"]
-PRINCIPAL_FIELDS = ["_metadata_", "assetgroup", "is_male", "scene"]
 KIT_ROWS = {"mclaren_26": "2026-mclaren", "ferrari_26": "2026-ferrari", "williams_26": "2026-williams",
             "renault_26": "2026-renault", "mercedes_26": "2026-mercedes", "redbull_26": "2026-redbull",
             "forceindia_26": "2026-forceindia", "sauber_26": "2026-sauber", "tororosso_26": "2026-tororosso",
@@ -338,32 +334,6 @@ class Ops:
         self.add(table, word, t_row, f"{table}.{word}[_metadata_={template}]", {**donor_values, **values}, when)
 
 
-def principal_ops(o, stock, gated):
-    o.fields[f"{TEAM_DATA}.teamData"] = TEAM_DATA_FIELDS
-    o.fields[f"{PRINCIPALS}.character"] = PRINCIPAL_FIELDS
-    by_team = {}
-    for i in range(stock.count(TEAM_DATA, "teamData")):
-        row = f"{TEAM_DATA}.teamData_{i}"
-        by_team.setdefault(stock.get(f"{row}.team.team"), stock.get(f"{row}._metadata_"))
-    for s in slots():
-        donor = DONOR_ROW.get(s.team_row, s.team_row)
-        label = by_team[donor]
-        principal = stock.get(f"{stock.row(TEAM_DATA, 'teamData', label)}.team_boss")
-        boss_row = f"f1990_boss_{token(s.team)}"
-        o.ops.append(add_op(PRINCIPALS, f"{PRINCIPALS}.character[_metadata_={principal}]",
-                            {"_metadata_": boss_row}, gated(s.team)))
-        o.ops.append(add_op(TEAM_DATA, f"{TEAM_DATA}.teamData[_metadata_={label}]",
-                            {"_metadata_": team_row(s.team), "team.team": team_row(s.team), "team_boss": boss_row},
-                            gated(s.team)))
-
-
-def add_op(table, source, values, when):
-    op = {"op": "add-row", "table": table, "from": source, "set": values}
-    if when:
-        op["when"] = when
-    return op
-
-
 def lineup_of(season):
     teams = [s.team for s in slots()]
     regulars = season.regulars(teams)
@@ -461,8 +431,6 @@ def build(stock, season):
             "story_info_0.description": f"lng_f1990_desc_{s.team}",
             "story_info_0.hashtag": f"lng_f1990_tag_{s.team}",
         })
-
-    principal_ops(o, stock, gated)
 
     donor_of = donors(lineup, free)
     driver_ids = stock.free_ids(DRIVERS, "driver", 1, DRIVER_IDS_KEPT_FREE.start)
