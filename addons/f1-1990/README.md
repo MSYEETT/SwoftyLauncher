@@ -91,6 +91,26 @@ python3 addons/f1-1990/tools/career.py <stock gamedatabases.2025.bin> <dir of la
 python3 addons/f1-1990/tools/check_career.py <stock gamedatabases.2025.bin> <built gamedatabases.2025.bin>
 ```
 
+## R&D (db/rnd.json, db/rnd-lang.json, data/rnd-strings.json, data/rnd-art.json, tools/rnd.py, tools/check_rnd.py)
+
+A 1990 career reads its R&D from `upgrades.1990`; 2025 and 2026 careers keep `upgrades.2026` and their rows stay stock.
+The path is the `upgrades_path` of the career's ComUpgrades component, so the 1990 championship lists its own shared
+component set, `shared_driver_career_1990_components`: ComUpgrades on `upgrades.1990`, ComResourcePoints and
+ComAccolades on `f1_career_1990`, ComSchedule on `F1_career_1990`. Under `upgrades.1990` the engine supplier trees,
+delivery schedules, regulation change schedules and R&D challenges are copies of the 2026 tables.
+
+| Part | Rows |
+|---|---|
+| Trees | `trees.<token>` for the 12 tokens the game knows; `teams_linked_to_0.links` names each team's `_1990` and `_1990b` vehicles (Lotus and Larrousse share `redbull`) |
+| Departments | Aerodynamics 6 upgrades, Chassis 6 (with `f1990_bspec_package`, the B-spec milestone), Engine 7 for the works teams (McLaren, Ferrari, Williams, Benetton) or 5, Durability 6. No DRS, ERS or turbo rows |
+| Economy | 400 / 800 / 1400 RP, 7+7 / 14+10 / 24+14 days of research and development, no facility levels |
+| Metadata | per team: the engine supplier's Engine Power ceiling (24 to 75 bhp), the weight target towards 500 kg, fuel consumption, a drag cost on downforce |
+| Resource points | the `f1_career_1990` team rows, by the season pack's reputation: McLaren 1610 + 420 a week down to Ligier 750 + 220 |
+| Text | `lng_rnd_f1990_*` names and descriptions; `data/rnd-strings.json` holds the 1990 department names on stock keys for the runtime string override; `data/rnd-art.json` maps each part to a stock card frame |
+
+The qualifying line (`f1990_quali_rev_limit`, `f1990_quali_engine`) needs native request N12 to count only in
+qualifying; without it, it is ordinary engine power. Design and numbers: `/mnt/work/.f1-1990/v2/rnd-design.md`.
+
 ## Agent portrait (erp/portrait.json, erp/portrait/portrait.erpk, tools/portrait.py)
 
 `tools/portrait.py` cuts Flavio Briatore's head and shoulders out of a photo (GrabCut for the body, a fitted background

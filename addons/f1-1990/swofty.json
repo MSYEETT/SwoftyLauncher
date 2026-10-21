@@ -117,8 +117,8 @@
     }
   ],
   "operations": {
-    "database": ["db/career.json", "db/grid.json", "db/grid_standings.json", "db/rules.json", "db/grid_links.json", "db/cars.json", "db/audio.json"],
-    "assets": ["db/rules_text.json", "lang/grid.json", "db/career-lang.json", "cars/handling.json"],
+    "database": ["db/career.json", "db/grid.json", "db/grid_standings.json", "db/rules.json", "db/grid_links.json", "db/cars.json", "db/audio.json", "db/rnd.json"],
+    "assets": ["db/rules_text.json", "lang/grid.json", "db/career-lang.json", "cars/handling.json", "db/rnd-lang.json"],
     "erp": ["erp/portrait.json", "erp/tracks.json", "erp/frontend.json", "erp/badges.json"],
     "native": [
       { "dll": "native/f1_1990.dll", "early": true }, { "dll": "native/f1_1990_tyres.dll" },
