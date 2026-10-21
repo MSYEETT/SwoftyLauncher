@@ -1,5 +1,10 @@
 """The 1990 car table shared by build_cars.py, the vehicle rows and the car pack.
 
+Each team also has a B-spec vehicle `<token>_1990b` in the `f1_1990b` package (folder `f1_1990_vehicle_b_specs`, the
+same length as the A folder so the archives rename byte for byte). It shares the A car's folder name, so the same AI
+data, plus the A package's common.erp and the A car's handling archive; only the model archive differs. An R&D
+milestone swaps a team's entrants from `_1990` to `_1990b` (f1_1990_bspec.dll).
+
 Each 1990 team drives one vehicle row `<team>_1990` in the `f1_1990` vehicle package. Its `asset_filename` is a
 2026 car folder, so the per-track AI data under `ai/f1_2026_vehicle_package/<folder>/` serves it, while the model
 loads from `f1_1990_vehicle_package/teams/<folder>/wep/<folder>.erp`.
@@ -17,6 +22,10 @@ AI_FOLDER = 'f1_2026_vehicle_package'
 SOURCE_PACKAGE = 'f1_2026_vehicle_package'
 SOURCE_PACKAGE_ROW = 'f1_2026'
 TOKEN = {'ligier_prost': 'ligier', 'march': 'leytonhouse'}
+PACKAGE_B = 'f1_1990b'
+PACKAGE_B_FOLDER = 'f1_1990_vehicle_b_specs'
+PACKAGE_B_STAT_ID = '60'
+B_STAT_OFFSET = 13
 
 
 @dataclass(frozen=True)
@@ -38,6 +47,14 @@ class Car:
     @property
     def vehicle(self):
         return f'{self.token}_1990'
+
+    @property
+    def vehicle_b(self):
+        return f'{self.token}_1990b'
+
+    @property
+    def stat_id_b(self):
+        return self.stat_id + B_STAT_OFFSET
 
     @property
     def donor_vehicle(self):
@@ -62,6 +79,7 @@ CARS = (
 
 for _c in CARS:
     assert len(_c.stem) == len(_c.donor), _c
+assert len(PACKAGE_B_FOLDER) == len(PACKAGE_FOLDER) == len(SOURCE_PACKAGE)
 
 
 def car(team):
@@ -74,6 +92,14 @@ def group(c):
 
 def archive(c):
     return f'2025_asset_groups/{PACKAGE_FOLDER}/teams/{c.folder}/wep/{c.folder}.erp'
+
+
+def group_b(c):
+    return f'asset_groups/{PACKAGE_B_FOLDER}/teams/{c.folder}/wep/{c.folder}.assetgroup'
+
+
+def archive_b(c):
+    return f'2025_asset_groups/{PACKAGE_B_FOLDER}/teams/{c.folder}/wep/{c.folder}.erp'
 
 
 def handling_archive(c):
