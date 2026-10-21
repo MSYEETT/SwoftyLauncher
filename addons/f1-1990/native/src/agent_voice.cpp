@@ -30,7 +30,7 @@
 #include "career_1990.hpp"
 #include "speech_line.hpp"
 
-#if SWOFTY_API_VERSION >= 7
+#if SWOFTY_API_VERSION >= 8
 #include <swofty/lang.hpp>
 #include <swofty/storage.hpp>
 
@@ -51,7 +51,7 @@ std::atomic<uint32_t> g_muted_lines, g_logged;
 std::mutex g_lock;
 std::set<void *> g_muted_emitters;
 
-#if SWOFTY_API_VERSION >= 7
+#if SWOFTY_API_VERSION >= 8
 constexpr char kStringsFile[] = "data/flavio-strings.json";
 
 std::vector<f1990::AgentStrings> g_strings;

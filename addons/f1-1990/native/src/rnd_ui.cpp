@@ -28,7 +28,7 @@
 #include <swofty/mixin.hpp>
 #include <swofty/storage.hpp>
 
-#if SWOFTY_API_VERSION >= 7
+#if SWOFTY_API_VERSION >= 8
 #include <swofty/lang.hpp>
 #endif
 
@@ -113,7 +113,7 @@ void part_art(swofty::Context &c, unsigned site, bool mask)
         swofty::log("[f1-1990] rnd: card art site %u %s \"%s\" -> \"%s\"", site, mask ? "mask" : "image", name, buf);
 }
 
-#if SWOFTY_API_VERSION >= 7
+#if SWOFTY_API_VERSION >= 8
 constexpr char kStringsFile[] = "data/rnd-strings.json";
 
 struct Override {
