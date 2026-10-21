@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Writes db/career.json, db/career-lang.json and data/flavio-strings.json: the 1990 career content, next to stock
-2025 and 2026.
+"""Writes db/career.json, data/calendar-1990.json, db/career-lang.json and data/flavio-strings.json: the 1990 career
+content, next to stock 2025 and 2026.
 
 usage: career.py <stock gamedatabases.2025.bin> [<dir of language_<code>.tsv dumps (key<TAB>value, \\n escaped)>]
-Without the language dir it writes db/career.json only.
+Without the language dir it writes db/career.json and data/calendar-1990.json only.
 
 Every new row is a full-key clone of its 2026 source row. The field list comes from the key catalogue
 (tools/gamedb/catalog/keys.tsv.gz) plus every known field name (catalogue fields, tools/gamedb/names.txt, the exe's
@@ -13,6 +13,7 @@ F2CAREER_90 and ICONS_90, which the driver select looks up with the 1990 tile's 
 holds, per language, the stock strings that name the agent rewritten for Flavio Briatore; the native side applies them
 only while a 1990 career is loaded.
 """
+import datetime
 import gzip
 import json
 import os
@@ -124,6 +125,14 @@ def gp_keys(code):
 TRACK_NAMES = {track: gp_keys(code) for _, track, _, _, _, code, _ in ROUNDS}
 TRACK_DATES = {track: (day, month) for _, track, _, day, month, _, _ in ROUNDS}
 CAREER_YEARS = [2026]
+EVENT_LEAD_DAYS = 3
+MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+               "November", "December"]
+
+
+def race_sunday(year, month, day):
+    date = datetime.date(year, month, day)
+    return date - datetime.timedelta(days=(date.weekday() + 1) % 7)
 
 
 class Db:
@@ -392,6 +401,21 @@ def lang_ops(lang_dir):
     return ops
 
 
+def calendar_dates(db):
+    rows = {db.get(f"schedule.all_track_events.fixed_event_{i}._metadata_"): i
+            for i in range(db.count("schedule.all_track_events", "fixed_event"))}
+    year = CAREER_YEARS[0]
+    events = {}
+    for _, _, event, day, month, _, _ in ROUNDS:
+        row = f"schedule.all_track_events.fixed_event_{rows[event]}"
+        stock = datetime.date(int(db.get(f"{row}.date_time.year")),
+                              MONTH_NAMES.index(db.get(f"{row}.date_time.month")) + 1,
+                              int(db.get(f"{row}.date_time.day")))
+        start = race_sunday(year, month, day) - datetime.timedelta(days=EVENT_LEAD_DAYS)
+        events[db.get(f"{row}.stat_id")] = {"event": event, "stock": stock.isoformat(), "date": start.isoformat()}
+    return {"scope": DATA_GROUP, "year": str(year), "events": events}
+
+
 def write_json(path, doc):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(doc, f, indent=1, ensure_ascii=False)
@@ -403,6 +427,8 @@ def main():
         sys.exit(__doc__)
     db = Db(sys.argv[1])
     write_json(os.path.join(ADDON, "db", "career.json"), build(db))
+    os.makedirs(os.path.join(ADDON, "data"), exist_ok=True)
+    write_json(os.path.join(ADDON, "data", "calendar-1990.json"), calendar_dates(db))
     if len(sys.argv) == 2:
         return
     write_json(os.path.join(ADDON, "db", "career-lang.json"), {"schema_version": 1, "ops": lang_ops(sys.argv[2])})

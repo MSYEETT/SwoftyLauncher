@@ -101,7 +101,9 @@ careers have their own slots. The **Career year** setting runs the career in 202
 each race weekend from the dataset's `weekend_day` and `weekend_month` in 2026 whatever the career year, so a career
 clock started in 1990 never reaches a race. In 2026 `db/rules.json` moves each race to the Sunday on or before
 its 1990 date (3 days earlier: Phoenix on 8 March), and `db/grid.json` moves each 1990 driver's birth year 36 years on,
-so ages match 1990.
+so ages match 1990. The career runs its rounds by each event's own date (`schedule.all_track_events` `date_time`, the
+stock 2026 weekends), so `native/f1_1990_wizard.dll` moves the 1990 career's calendar to the 1990 days in
+`data/calendar-1990.json` (written by `tools/career.py`) and the season runs Phoenix first (see `native/README.md`).
 
 The Choose Driver screen finds its F1, F2 and Icons drivers through the content set's official entrant lists named
 `F1CAREER_<suffix>`, `F2CAREER_<suffix>` and `ICONS_<suffix>`, with the suffix of the Career tile that opened the wizard
