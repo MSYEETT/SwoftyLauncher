@@ -1026,3 +1026,51 @@ fn finds_a_crash_report_kept_in_a_session_folder() {
     );
     std::fs::remove_dir_all(&root).ok();
 }
+
+#[test]
+fn says_when_the_mod_loader_never_attached() {
+    let root = tmp("noloader");
+    let (store, game) = fake_data(&root);
+    let sessions = store.sessions_dir();
+    put(
+        &sessions.join("20261020-090000/loader.log"),
+        "01:12:12.575 [stub] [offline] session launcher invoked, args: <none>\n\
+         01:12:13.901 [stub] [offline] game image at 0x140000000, patching\n",
+    );
+    put(
+        &sessions.join("20261019-090000/loader.log"),
+        "2026-10-19 21:16:05.789 [ 2548] swofty loader (version.dll proxy) attached, pid 14088\n",
+    );
+    let summary = summary_of(&Bundle::collect_with(
+        &store,
+        &report(&game),
+        Limits::default(),
+        "x",
+    ));
+    assert!(
+        summary.contains(
+            "\nMod loader\n  sessions/20261020-090000                 mod loader never attached \
+             (version.dll not loaded; antivirus suspected)\n  sessions/20261019-090000                 \
+             mod loader attached\n"
+        ),
+        "{summary}"
+    );
+    crate::quarantine::Report::new(
+        crate::quarantine::Stage::InGame,
+        vec!["version.dll".into()],
+        &game,
+    )
+    .write(&store.root)
+    .unwrap();
+    let summary = summary_of(&Bundle::collect_with(
+        &store,
+        &report(&game),
+        Limits::default(),
+        "x",
+    ));
+    assert!(
+        summary.contains("\nMod loader\n  last launch: Mods did not load (version.dll)\n"),
+        "{summary}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}

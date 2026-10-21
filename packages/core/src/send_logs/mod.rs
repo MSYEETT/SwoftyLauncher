@@ -22,6 +22,7 @@ pub const PART_LIMIT: usize = 9 << 20;
 pub const SESSIONS: usize = 3;
 pub const SNAPSHOT: &str = "swofty/addons/swofty.career-editor/snapshot.json";
 pub const PERF_LINES: usize = 60;
+const LOADER_HEAD: u64 = 16 << 10;
 pub const LOADER_DIR: &str = "swofty";
 
 const REDACTED: &str = "[redacted]";
@@ -263,6 +264,7 @@ impl Bundle {
         let addons = serde_json::to_string_pretty(&addons_summary(store)).unwrap_or_default();
         c.push("addons.json".into(), addons.into_bytes(), None);
         let sessions = newest_sessions(store, SESSIONS);
+        let mut loader = Vec::new();
         let mut live_perf = None;
         if let Some(game) = &report.game.dir {
             for (name, rel) in [("loader.log", LOADER_LOG), ("perf.log", PERF_LOG)] {
@@ -277,6 +279,8 @@ impl Bundle {
                 c.file(format!("game/{name}"), &live, None);
                 if name == "perf.log" {
                     live_perf = Some(live);
+                } else {
+                    loader.extend(loader_line(&format!("game/{name}"), &live));
                 }
             }
         }
@@ -294,6 +298,10 @@ impl Bundle {
         }
         for dir in &sessions {
             let session = file_name(dir);
+            loader.extend(loader_line(
+                &format!("sessions/{session}"),
+                &dir.join("loader.log"),
+            ));
             for (rel, file) in files_under(dir, SESSION_DEPTH) {
                 // The crash report and its minidump are collected whole below, the dump as binary;
                 // the generic walk reads files as redacted text tails, which would corrupt the dump.
@@ -326,7 +334,7 @@ impl Bundle {
             skipped: c.skipped,
         };
         let perf = newest_perf(live_perf, &sessions);
-        let summary = bundle.summary(store, report, stamp, perf, crash_report.as_deref());
+        let summary = bundle.summary(store, report, stamp, perf, crash_report.as_deref(), &loader);
         bundle.entries.insert(
             0,
             Entry {
@@ -345,6 +353,7 @@ impl Bundle {
         stamp: &str,
         perf: Option<(String, PathBuf)>,
         crash: Option<&str>,
+        loader: &[String],
     ) -> String {
         let mut s = String::new();
         let mut line = |k: &str, v: &str| s.push_str(&format!("{k:16} {v}\n"));
@@ -364,7 +373,22 @@ impl Bundle {
         } else {
             &self.message
         });
-        s.push_str("\n\nCrash\n");
+        s.push_str("\n\nMod loader\n");
+        if let Some(r) = crate::quarantine::Report::read(&store.root) {
+            s.push_str(&format!(
+                "  last launch: {} ({})\n",
+                r.title(),
+                r.files.join(", ")
+            ));
+        }
+        if loader.is_empty() {
+            s.push_str("  No loader log was found\n");
+        }
+        for l in loader {
+            s.push_str(l);
+            s.push('\n');
+        }
+        s.push_str("\nCrash\n");
         match crash {
             Some(text) => {
                 for l in crash_excerpt(text) {
@@ -525,6 +549,17 @@ fn same_contents(a: &Path, b: &Path) -> bool {
 
 fn modified(path: &Path) -> Option<std::time::SystemTime> {
     std::fs::metadata(path).and_then(|m| m.modified()).ok()
+}
+
+/// Whether a session's loader.log shows the loader running. One with only the
+/// offline play stub's lines means version.dll never loaded in the game.
+fn loader_line(label: &str, log: &Path) -> Option<String> {
+    let head = read_head(log, LOADER_HEAD).ok()?;
+    let state = match crate::quarantine::attached(&String::from_utf8_lossy(&head))? {
+        true => "mod loader attached",
+        false => "mod loader never attached (version.dll not loaded; antivirus suspected)",
+    };
+    Some(format!("  {label:40} {state}"))
 }
 
 fn newest_perf(live: Option<PathBuf>, sessions: &[PathBuf]) -> Option<(String, PathBuf)> {
