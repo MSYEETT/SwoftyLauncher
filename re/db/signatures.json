@@ -9236,6 +9236,32 @@
    "used_by": [
     "addons/f1-1990/native/src/driver_select_probe.cpp"
    ]
+  },
+  {
+   "id": "game.championship_has_team",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 38 87 0F 83 87 E6 44 00 CC",
+   "match": "0x140aea5f0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140aea5f0",
+   "kind": "func_start",
+   "names": [
+    "Game_Championship_HasTeam"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
   }
  ]
 }
