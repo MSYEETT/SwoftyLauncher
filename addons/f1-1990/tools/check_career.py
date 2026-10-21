@@ -51,13 +51,13 @@ def protected(db):
         for i in range(db.count(container, word) or 0):
             row = f"{container}.{word}_{i}"
             label = db.get(f"{row}._metadata_")
-            for field in db.fields(container, word, label):
+            for field in db.fields(container, word, label, probe=False):
                 out[h(f"{row}.{field}")] = f"{row}.{field} ({label})"
     ts = "track_data.game_setup"
     for i in range(db.count(ts, "TrackDataSet") or 0):
         label = db.get(f"{ts}.TrackDataSet_{i}._metadata_")
         if label in DATASETS:
-            for field in db.fields(ts, "TrackDataSet", label):
+            for field in db.fields(ts, "TrackDataSet", label, probe=False):
                 out[h(f"{ts}.TrackDataSet_{i}.{field}")] = f"{ts}.TrackDataSet_{i}.{field} ({label})"
     return out
 
