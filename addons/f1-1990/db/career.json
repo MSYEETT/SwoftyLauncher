@@ -8202,6 +8202,7 @@
     "statId": "81",
     "save_data.name": "driver_career_1990",
     "event_list": "F1_career_1990",
+    "game_setup_modes": "f1_1990",
     "championship_setups.ChampionshipSetupList_0.ChampionshipSetup_0.championship": "F1_driver_career_1990",
     "championship_setups.ChampionshipSetupList_0.ChampionshipSetup_0.event_list": "F1_career_1990",
     "championships.ChampionshipReference_0.Championship": "F1_driver_career_1990"

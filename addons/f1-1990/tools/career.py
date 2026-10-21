@@ -302,6 +302,7 @@ def build(db):
         "statId": str(MODE_STAT_ID),
         "save_data.name": MODE,
         "event_list": EVENT_LIST,
+        "game_setup_modes": SETUP_MODE,
         f"{setup}.championship": CHAMPIONSHIP,
         f"{setup}.event_list": EVENT_LIST,
         "championships.ChampionshipReference_0.Championship": CHAMPIONSHIP,

@@ -64,15 +64,18 @@ The 1990 career is a third career content next to the stock 2025 and 2026 ones. 
 | Row | Name | Cloned from |
 |---|---|---|
 | career data group, in all eight data-group tables | `f1_career_1990` | `f1_career_2026` |
-| mode row | `driver_career_1990` (statId 81, save container `driver_career_1990`) | `driver_career_26` |
+| mode row | `driver_career_1990` (statId 81, save container `driver_career_1990`, game setup modes `f1_1990`) | `driver_career_26` |
 | championship | `F1_driver_career_1990` (statId 35, setup mode `f1_1990`, entrant list and setup data `f1_career_1990`) | `F1_driver_career_26` |
 | event list | `F1_career_1990`: one season, five season events (no New Season Grid Reveal) | `F1_career_26` |
 | track list | `F1_1990`: the 16 rounds in order (Hockenheim on Shanghai) | `F1_2026_16` |
 | season lengths | `F1_1990_Long`, `_Medium`, `_Short`, all 16 rounds, no transfer window, setup mode `f1_1990` | `F1_2026_*` |
 | track selection | `F1_1990` | `F1_2026` |
 
-Content set `2026` lists `driver_career_1990` and `f1_1990`. The career data group is the key the career slot list
-filters on, so 1990 careers have their own slots. The **Career year** setting starts the career in 1990 (default) or
+Content set `2026` lists `driver_career_1990` and `f1_1990`. The game registers a game setup mode only when the
+content set lists it and an available mode row names it in `game_setup_modes`; no stock mode row names `f1_1990`, so the
+1990 mode row does. Without it the 1990 championship has no setup mode, every 1990 team fails the championship's team
+check and starting the career crashes. The career data group is the key the career slot list filters on, so 1990
+careers have their own slots. The **Career year** setting starts the career in 1990 (default) or
 2026.
 
 The Choose Driver screen finds its F1, F2 and Icons drivers through the content set's official entrant lists named
