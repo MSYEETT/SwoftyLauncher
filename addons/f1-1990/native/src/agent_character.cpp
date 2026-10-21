@@ -13,6 +13,23 @@
 // keeps the character vector, and when a career load or unload changes the 1990 state the DLL runs
 // the handler again with it, so the elena node is rebuilt from the stand-in or from her own row.
 
+#include <swofty/mixin.hpp>
+
+#ifdef SWOFTY_API_CHARACTERS
+// With a core that has the characters library the core owns the ref hooks: the swap is registered
+// for the 1990 data group and the core rebuilds the character list on career load and unload.
+#include <swofty/characters.hpp>
+
+#include "career_group.hpp"
+
+SWOFTY_ON_LOAD
+{
+    namespace ch = swofty::characters;
+    ch::Result r = ch::swap(f1990::kCareerGroup1990, "elena", "flavio");
+    swofty::log("[f1-1990] agent: elena shows flavio in %s careers through the core's characters library (%s)",
+                f1990::kCareerGroup1990, ch::name(r));
+}
+#else
 #include <atomic>
 #include <cstring>
 
@@ -116,5 +133,6 @@ SWOFTY_ON_LOAD
     subscribe(SWOFTY_EVENT_CAREER_LOADED);
     subscribe(SWOFTY_EVENT_CAREER_UNLOADED);
 }
+#endif
 
 SWOFTY_ADDON()

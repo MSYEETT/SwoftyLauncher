@@ -45,6 +45,28 @@
 
 SWOFTY_SETTING(bool, career_wizard_1990, true);
 
+#ifdef SWOFTY_API_CAREER_WIZARD
+// With a core that has the career wizard library the core owns these hooks; the 1990 steps are
+// registered for the 1990 data group. The route career_wizard_driver_career_1990 still comes from
+// erp/wizard.json.
+#include <swofty/career_wizard.hpp>
+
+SWOFTY_ON_LOAD
+{
+    namespace wz = swofty::career::wizard;
+    if (!career_wizard_1990) {
+        swofty::log("[f1-1990] career wizard loaded: 1990 wizard steps off (career_wizard_1990)");
+        return;
+    }
+    const char *group = f1990::kCareerGroup1990;
+    wz::Result r[4] = {wz::start_in_f1(group), wz::tile_route(group, "career_wizard_driver_career_1990"),
+                       wz::skip_driver_icons(group), wz::skip_driver_type(group)};
+    swofty::log("[f1-1990] career wizard loaded: 1990 wizard steps through the core's wizard library (start in F1 %s, "
+                "tile route %s, driver icons %s, driver type %s)",
+                wz::name(r[0]), wz::name(r[1]), wz::name(r[2]), wz::name(r[3]));
+}
+#else
+
 namespace {
 
 using f1990::at;
@@ -341,5 +363,6 @@ SWOFTY_ON_LOAD
 {
     swofty::log("[f1-1990] career wizard loaded: 1990 wizard steps %s", career_wizard_1990 ? "on" : "off (career_wizard_1990)");
 }
+#endif
 
 SWOFTY_ADDON()

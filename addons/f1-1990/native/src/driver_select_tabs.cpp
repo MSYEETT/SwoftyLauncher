@@ -18,6 +18,25 @@
 // pressed was the 1990 tile (F1990_CareerWizard1990, exported by f1_1990_ui.dll) and no other career
 // is loaded.
 
+#include <swofty/mixin.hpp>
+
+#ifdef SWOFTY_API_CAREER_WIZARD
+// With a core that has the career wizard library the core owns the tab hooks and knows the last
+// career tile pressed; the two tabs are hidden for the 1990 data group.
+#include <swofty/career_wizard.hpp>
+
+#include "career_group.hpp"
+
+SWOFTY_ON_LOAD
+{
+    namespace wz = swofty::career::wizard;
+    const char *group = f1990::kCareerGroup1990;
+    wz::Result a = wz::hide_driver_tab(group, "header_f2"), b = wz::hide_driver_tab(group, "header_icon");
+    swofty::log("[f1-1990] driver select: F2 and Icons tabs hidden in %s wizards through the core's wizard library "
+                "(%s, %s)",
+                group, wz::name(a), wz::name(b));
+}
+#else
 #include <windows.h>
 
 #include <atomic>
@@ -96,5 +115,6 @@ SWOFTY_WRAP(Game_DriverSelectHeader_SetTabState, void, void *header, uint64_t ta
                     (unsigned long long)tab, content_visible, enabled);
     orig(header, tab, state.content_visible, state.enabled);
 }
+#endif
 
 SWOFTY_ADDON()

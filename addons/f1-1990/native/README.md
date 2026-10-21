@@ -188,3 +188,16 @@ with a team or a car), the career's entrants after each `Game_CareerSetup_ResetE
 the entrant list the CareerSetupComponent names) and at each 1990 wizard step, every `Career_Set_EntrantData_Thunk`
 call (driver, team, car), and the championship's game setup modes, their entrant setup modes and those modes' entrant
 lists after each reset and at Choose Driver.
+
+## Core libraries (`SWOFTY_API_CHARACTERS`, `SWOFTY_API_CAREER_WIZARD`)
+
+Built against an SDK whose `swofty_api.h` defines `SWOFTY_API_CHARACTERS` and `SWOFTY_API_CAREER_WIZARD` (core branch `feat/std-career-ui`; `SDK_INCLUDE=<that checkout>/packages/sdk/include ./build.sh`), four DLLs register with the core instead of hooking, all for data group `f1_career_1990`:
+
+| DLL | registers |
+|---|---|
+| `f1_1990_agent.dll` | `swofty::characters::swap("elena", "flavio")` |
+| `f1_1990_voice.dll` | `mute("agent")`, `mute("agent_cutscene")` (option `agent_voice_mute`), `strings_json` with `data/flavio-strings.json` |
+| `f1_1990_wizard.dll` | `swofty::career::wizard::start_in_f1`, `tile_route("career_wizard_driver_career_1990")`, `skip_driver_icons`, `skip_driver_type` (option `career_wizard_1990`) |
+| `f1_1990_tabs.dll` | `hide_driver_tab("header_f2")`, `hide_driver_tab("header_icon")` |
+
+Against an SDK without those macros the DLLs keep their own hooks, as described above. The route `career_wizard_driver_career_1990` still comes from `erp/wizard.json`.

@@ -17,6 +17,41 @@
 // set for its own language when a 1990 career loads and cleared again when it unloads, so every
 // other career and mode keeps Elena's strings. The file is read on the first 1990 career load.
 
+#include <swofty/mixin.hpp>
+
+SWOFTY_SETTING(bool, agent_voice_mute, true);
+
+#ifdef SWOFTY_API_CHARACTERS
+// With a core that has the characters library the core owns the speech hook and the per-career
+// strings: the agent's speakers are muted and data/flavio-strings.json is handed to the core for
+// the 1990 data group, which sets the strings on a 1990 career load and clears them on unload.
+#include <string>
+
+#include <swofty/characters.hpp>
+#include <swofty/storage.hpp>
+
+#include "career_group.hpp"
+
+SWOFTY_ON_LOAD
+{
+    namespace ch = swofty::characters;
+    const char *group = f1990::kCareerGroup1990;
+    if (agent_voice_mute) {
+        ch::Result a = ch::mute(group, "agent"), b = ch::mute(group, "agent_cutscene");
+        swofty::log("[f1-1990] voice: agent muted in %s careers through the core's characters library (%s, %s)", group,
+                    ch::name(a), ch::name(b));
+    } else {
+        swofty::log("[f1-1990] voice: agent mute in 1990 careers off (agent_voice_mute)");
+    }
+    std::string json;
+    if (auto r = swofty::storage::read("data/flavio-strings.json", json); r != swofty::storage::Result::ok)
+        swofty::log("[f1-1990] strings: read data/flavio-strings.json: %s; the 1990 agent keeps Elena's strings",
+                    swofty::storage::name(r));
+    else
+        swofty::log("[f1-1990] strings: agent strings for %s careers handed to the core (%s)", group,
+                    ch::name(ch::strings_json(group, json)));
+}
+#else
 #include <atomic>
 #include <cstring>
 #include <mutex>
@@ -25,8 +60,6 @@
 #include <swofty/career.hpp>
 #include <swofty/events.hpp>
 #include <swofty/game.hpp>
-#include <swofty/mixin.hpp>
-
 #include "career_1990.hpp"
 #include "speech_line.hpp"
 
@@ -36,8 +69,6 @@
 
 #include "json_strings.hpp"
 #endif
-
-SWOFTY_SETTING(bool, agent_voice_mute, true);
 
 namespace {
 
@@ -181,5 +212,6 @@ SWOFTY_ON_LOAD
     subscribe(SWOFTY_EVENT_CAREER_LOADED);
     subscribe(SWOFTY_EVENT_CAREER_UNLOADED);
 }
+#endif
 
 SWOFTY_ADDON()

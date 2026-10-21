@@ -13,7 +13,7 @@ export ZIG_GLOBAL_CACHE_DIR=$PWD/build/zig-cache ZIG_LOCAL_CACHE_DIR=$PWD/build/
 mkdir -p build
 
 REPO=../../..
-SDK=$REPO/packages/sdk/include
+SDK=${SDK_INCLUDE:-$REPO/packages/sdk/include}
 if [[ -z ${GAME_INCLUDE:-} ]]; then
     DEV=build/dev
     $REPO/re/tools/py $REPO/re/tools/bindgen.py --dev --no-exe --json $DEV/bindings.json --include $DEV/include/swofty \
