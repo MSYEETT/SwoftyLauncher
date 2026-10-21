@@ -3455,3 +3455,17 @@ ai.vehicle.networkReplicated
 driver_ePreLoaded_override
 driver_eUserDefined_override
 driver_eNetworkReplicated_override
+ComAccolades
+ComResourcePoints
+ComSchedule
+ComUpgrades
+create_for_drivers
+create_for_teams
+data_group
+operating_mode
+resource_points_reward_effect_message
+create_driver_schedules
+create_team_schedules
+adaptation_mode
+boost_mode
+upgrades_path

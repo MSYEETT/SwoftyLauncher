@@ -203,22 +203,6 @@ TWEAK_FIELDS = ["_metadata_", "cancelling_adaptation.refund_percentage", "cancel
                 "target_mass_adjustment_at_max_upgrade"]
 WAYPOINT_FIELDS = ["_metadata_", "destination_upgrade_name", "path_length", "path_x_coords", "path_y_coords",
                    "start_upgrade_name"]
-SHARED_FIELDS = [
-    "_metadata_",
-    "ComAccolades_0._metadata_", "ComAccolades_0.create_for_drivers", "ComAccolades_0.create_for_teams",
-    "ComAccolades_0.data_group", "ComAccolades_0.save_data.allow_reset", "ComAccolades_0.save_data.backup",
-    "ComAccolades_0.save_data.group", "ComAccolades_0.save_data.name",
-    "ComResourcePoints_0._metadata_", "ComResourcePoints_0.data_group", "ComResourcePoints_0.operating_mode",
-    "ComResourcePoints_0.resource_points_reward_effect_message", "ComResourcePoints_0.save_data.allow_reset",
-    "ComResourcePoints_0.save_data.backup", "ComResourcePoints_0.save_data.group",
-    "ComResourcePoints_0.save_data.name",
-    "ComSchedule_0._metadata_", "ComSchedule_0.create_driver_schedules", "ComSchedule_0.create_team_schedules",
-    "ComSchedule_0.event_list", "ComSchedule_0.save_data.allow_reset", "ComSchedule_0.save_data.backup",
-    "ComSchedule_0.save_data.group", "ComSchedule_0.save_data.name",
-    "ComUpgrades_0._metadata_", "ComUpgrades_0.adaptation_mode", "ComUpgrades_0.boost_mode",
-    "ComUpgrades_0.operating_mode", "ComUpgrades_0.save_data.allow_reset", "ComUpgrades_0.save_data.backup",
-    "ComUpgrades_0.save_data.group", "ComUpgrades_0.save_data.name", "ComUpgrades_0.upgrades_path",
-]
 SHARED_SET = {"_metadata_": SHARED_1990, "ComAccolades_0.data_group": career.DATA_GROUP,
               "ComResourcePoints_0.data_group": career.DATA_GROUP, "ComSchedule_0.event_list": career.EVENT_LIST,
               "ComUpgrades_0.upgrades_path": PREFIX}
@@ -249,6 +233,16 @@ DEPT_STRINGS = {
         "The Reliability & Gearbox department fights the retirements of 1990: gearbox, engine, cooling and "
         "electrics, and the semi-automatic gearbox project.",
 }
+
+
+def shared_fields(db):
+    i = db.row_index(SHARED, "SharedComponents", SHARED_SOURCE)
+    fields = sorted(db.probe(f"{SHARED}.SharedComponents_{i}", set()))
+    missing = [f for f in SHARED_SET if f not in fields]
+    counts = [f for f in fields if f.startswith("_Com") and f.endswith("_instancecount_")]
+    if missing or len(counts) != 4:
+        sys.exit(f"{SHARED_SOURCE}: fields {missing} missing or {len(counts)} component counts, not 4")
+    return fields
 
 
 def djb2(text):
@@ -447,7 +441,7 @@ def build(db):
                              ("num_initial_spendable_resource_points", team_start)]:
             ops.append({"op": "set", "select": sel, "field": field, "value": str(value), **when})
 
-    return {"schema_version": 1, "fields": {f"{SHARED}.SharedComponents": SHARED_FIELDS}, "ops": ops}
+    return {"schema_version": 1, "fields": {f"{SHARED}.SharedComponents": shared_fields(db)}, "ops": ops}
 
 
 def hub_links():

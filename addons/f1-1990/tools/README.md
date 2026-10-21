@@ -159,4 +159,6 @@ python3 addons/f1-1990/tools/check_rnd.py <stock db> <db built without rnd.json>
 
 Fails when `rnd.json` changes a stock key other than the shared component row count, when a stock R&D key of the
 2026, 2022 and My Team prefixes, the stock shared component sets or the 2025/2026 resource-point groups differs from
-stock in the full build, or when a 1990 tree, its vehicle list or its B-spec upgrade is missing.
+stock in the full build, when a key of the stock `shared_driver_career_26_components` row (row counts included) is
+missing or different in `shared_driver_career_1990_components`, or when a 1990 tree, its vehicle list or its B-spec
+upgrade is missing.

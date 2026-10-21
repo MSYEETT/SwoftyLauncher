@@ -60,7 +60,7 @@ def protected(db):
                 keys |= {f"{tree}.{word}_{i}.{f}" for i in range(n) for f in fields}
     for i in range(db.count(rnd.SHARED, "SharedComponents")):
         row = f"{rnd.SHARED}.SharedComponents_{i}"
-        keys |= {f"{row}.{f}" for f in rnd.SHARED_FIELDS} | {f"{row}._metadata_"}
+        keys |= {f"{row}.{f}" for f in db.probe(row, set())}
     for label in ("f1_career_2025", "f1_career_2026"):
         i = db.row_index("resource_points", "data_group", label)
         for f in db.fields("resource_points", "data_group", label, probe=False):
@@ -100,12 +100,13 @@ def main():
     if not row:
         bad.append(f"no {rnd.SHARED_1990} row")
     else:
-        for f, want in rnd.SHARED_SET.items():
+        src = f"{rnd.SHARED}.SharedComponents_{stock.row_index(rnd.SHARED, 'SharedComponents', rnd.SHARED_SOURCE)}"
+        fields = stock.probe(src, set())
+        for f in sorted(fields):
+            want = rnd.SHARED_SET.get(f, stock.get(f"{src}.{f}"))
             if get(f"{row}.{f}") != want:
                 bad.append(f"{row}.{f} is {get(f'{row}.{f}')!r}, not {want!r}")
-        for f in rnd.SHARED_FIELDS:
-            if get(f"{row}.{f}") is None:
-                bad.append(f"{row}.{f} missing")
+        print(f"{rnd.SHARED_1990}: {len(fields)} keys of {rnd.SHARED_SOURCE} checked")
     champ = next((f"championships.Championship_{i}" for i in range(int(get("championships._Championship_instancecount_")))
                   if get(f"championships.Championship_{i}._metadata_") == career.CHAMPIONSHIP), None)
     if not champ or get(f"{champ}.shared_components") != rnd.SHARED_LIST:
