@@ -36,6 +36,8 @@
 #include <cstdio>
 #include <string>
 
+#include <swofty/career.hpp>
+#include <swofty/events.hpp>
 #include <swofty/game.hpp>
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
@@ -294,6 +296,56 @@ void probe_before(uintptr_t vm)
 }
 
 
+}
+
+namespace {
+
+std::atomic<uint32_t> g_hub_probes;
+
+void probe_hub(const char *when, uintptr_t career)
+{
+    if (!career || g_hub_probes++ >= 12)
+        return;
+    uintptr_t champ = rd<uintptr_t>(career + 0x1058);
+    uintptr_t sb = rd<uintptr_t>(champ + 0x548), se = rd<uintptr_t>(champ + 0x550);
+    uint32_t index = rd<uint32_t>(champ + 0x560);
+    long seasons = sb && se >= sb ? long((se - sb) / 0x10) : -1;
+    uintptr_t season = seasons > long(index) ? rd<uintptr_t>(sb + index * 0x10 + 8) : 0;
+    uintptr_t wb = rd<uintptr_t>(season + 0x288), we = rd<uintptr_t>(season + 0x290);
+    long weekends = wb && we >= wb ? long((we - wb) / 8) : -1;
+    std::string list;
+    for (uintptr_t w = wb; w && w < we && list.size() < 500; w += 8) {
+        uintptr_t weekend = rd<uintptr_t>(w);
+        char b[96];
+        std::snprintf(b, sizeof b, " %s(track %u state %u)", str_at(rd<uintptr_t>(weekend + 0x28)).c_str(),
+                      rd<uint8_t>(weekend + 0x278), rd<uint32_t>(weekend + 0x23c));
+        list += b;
+    }
+    uintptr_t time = component(career, swofty::game::k_Career_CareerTimeComponentDesc.address());
+    std::string dates;
+    for (int i = 0; i < 8; i++) {
+        char b[16];
+        std::snprintf(b, sizeof b, " %08x", rd<uint32_t>(time + 0x290 + i * 4));
+        dates += b;
+    }
+    swofty::log("[f1-1990] probe: hub at %s: career 0x%llx, championship 0x%llx with %ld season(s), season %u \"%s\" with %ld "
+                "weekend(s), current %u:%s; career time 0x%llx current_minutes %u (day %u), season dates%s",
+                when, (unsigned long long)career, (unsigned long long)champ, seasons, index,
+                season ? str_at(rd<uintptr_t>(season + 0x220)).c_str() : "?", weekends, rd<uint32_t>(season + 0x2a0),
+                list.c_str(), (unsigned long long)time, rd<uint32_t>(time + 0x2b0), rd<uint32_t>(time + 0x2b0) / 1440,
+                dates.c_str());
+}
+
+void on_career(const SwoftyEvent *ev, void *)
+{
+    probe_hub(ev->name, reinterpret_cast<uintptr_t>(swofty::career::entity()));
+}
+
+}
+
+SWOFTY_ON_LOAD
+{
+    swofty::events::subscribe(SWOFTY_EVENT_CAREER_LOADED, on_career, nullptr, nullptr);
 }
 
 void f1990_probe_season(const char *when, const void *season)
