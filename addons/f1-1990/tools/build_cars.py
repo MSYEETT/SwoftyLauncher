@@ -13,7 +13,7 @@ common.erp. No 2026 archive, row or file is touched.
   GearBox                stock 8 ratios; the final drive keeps the stock top-gear speed at the limiter
   FuelTank               BSFC scaled so fuel per second at full power stays stock (baked AI fuel data)
   FuelECU                power scales divided by the stock standard scale, so the team delta is the season pack's
-  Chassis                mass from the season pack
+  Chassis                mass from the season pack, MOIX/Y/Z scaled by the same ratio to the donor's mass
   F1Aero                 drag scaled by the season pack, no moving front wing; downforce stays stock; no DRS
                          hardware: the DRS failure/joint keys removed, flap angle, open/close speed and
                          DRS-open wing factors as on the safety car (0, 1, 1.0), radUpgradeDRS emptied
@@ -21,8 +21,9 @@ common.erp. No 2026 archive, row or file is touched.
                          multipliers at 12/15 (works) or 8/15 (customer) of their stock distance from 1;
                          radUpgradeWeightReduction Mass = the team's weight target
 
-Option tyre_size: the f1_1990 package carries a 13-inch tyre set, so both values use TyreRadius 0.323 front /
-0.330 rear, AlloyRadius at its 0.175 m bead, the tyre damage node graphs remapped radially from the stock bead and
+Option tyre_size: 2026 (the default) keeps the donor's tyres and suspension as they are (TyreRadius 0.351 front /
+0.354 rear); the car pack draws the 13-inch rim with a tyre of that outer radius. 13in and 13in_raised use TyreRadius
+0.323 front / 0.330 rear, AlloyRadius at its 0.175 m bead, the tyre damage node graphs remapped radially from the stock bead and
 tread onto the new ones and widened to the new mesh, and the final drive scaled by the rear radius so road speed per
 engine rev stays the same. TyreWidth, tyre mass, inertia and compression stay stock. The wheel nodes stay at the 2026
 axle height, so the smaller radius alone drops the chassis, floor and plank by the radius drop (2.8 cm front, 2.4 cm
@@ -125,12 +126,13 @@ ERS_ZERO = {b'MaxDeployPower': 0, b'MaxDeratePower': 0, b'MinInitialDeployPower'
             b'HarvestOverrideBonusMGUK': 0, b'HarvestLimitQualifyingMGUK': 0, b'DeployLimitMGUK': 0,
             b'MaxBrakeTorqueMGUK': 0, b'OverrideModeAvailable': 'false'}
 ERS_VALUES = ('removed', 'zeroed', 'stock')
-TYRE_SIZES = ('13in', '13in_raised')
+TYRE_SIZES = ('2026', '13in', '13in_raised')
 TYRES_13 = {'Front': {'radius': 0.323, 'width': 0.311}, 'Rear': {'radius': 0.330, 'width': 0.454}}
 STOCK_MESH_WIDTH = {'Front': 0.339, 'Rear': 0.418}
 BEAD_13 = 0.175
 ALLOY_13 = 0.182
 TYRE_GROUP = 'F1_1990'
+MOMENTS = (b'MOIX', b'MOIY', b'MOIZ')
 TYRE_GRAPHS = {b'x0_tyre_fl': 'Front', b'x0_tyre_fr': 'Front', b'x0_tyre_bl': 'Rear', b'x0_tyre_br': 'Rear'}
 SUSPENSION_HEIGHTS = (b'MinHeight', b'MaxHeight', b'BumpStopHeight')
 
@@ -332,7 +334,7 @@ def shift_heights(node, d):
 
 
 def tyres(root, size):
-    if size == 'stock':
+    if size == '2026':
         return 1.0
     susp = section(root, b'SuspensionSystem')
     tyre = named(susp, b'Tyre')
@@ -396,7 +398,10 @@ def convert(root, row, ers, size):
 
     chassis = section(root, b'Chassis')
     mass = BASE_MASS * spread(row['weight'])
+    inertia = mass / value(chassis, b'Mass')
     set_value(chassis, b'Mass', round(mass, 1))
+    for k in MOMENTS:
+        set_value(chassis, k, round(value(chassis, k) * inertia, 1))
 
     aero = section(root, b'F1Aero')
     drag = spread(row['drag'])
@@ -464,7 +469,7 @@ def build(game, out):
                 got = convert(root, row, ers, tyre_size)
                 n0 = vtf.write(root)
                 n1 = vtf.tsmd(root, version)
-                if ers == 'removed' and tyre_size == '13in':
+                if ers == 'removed' and tyre_size == '2026':
                     info, size = got, len(n0)
                 rel = f'cars/handling/{ers}_{tyre_size}/{c.folder}_handling.erp'
                 files[rel] = handling_archive(e, r, C.handling_names(c), n0, n1)
