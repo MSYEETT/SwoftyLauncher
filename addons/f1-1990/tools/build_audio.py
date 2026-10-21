@@ -6,8 +6,9 @@
   the donor car's stock row with `bundle_name` set to the car's engine (V12, V10, V8, and a second V8 for Judd), or
   with option `engine_sounds` 2026 the donor's stock 2026 bundle.
 
-The labels come from audio.py: the donor's `switchName` (read from the stock 2026 carmodel layer) with `_90` for
-`_26`. The car pack writes the same label into each 1990 car's carmodel layer. Nothing stock is changed: every key
+The labels come from audio.py: the donor's `switchName` (read from the stock 2026 carmodel layer) in other letter
+case, which keeps the donor's Wwise switch state. The car pack writes the same label into each 1990 car's carmodel
+layer. Nothing stock is changed: every key
 the ops write must be absent from the stock database. Without --write it builds into build/ and exits 1 when that
 differs from the shipped file.
 """
