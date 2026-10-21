@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 import glob
-import hashlib
 import json
 import os
 import struct
@@ -24,6 +23,7 @@ from erp import parse as erp_parse
 from erpw import Erp
 from pkg import Pkg
 from season import slots
+from stock import Stock, fragments
 
 UI = "2025_asset_groups/ui_package/"
 DATABASES = UI + "databases.erp"
@@ -31,13 +31,6 @@ OVERRIDES = "eaid://ui_package/databases/overrides.uidb"
 ARRAY = "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.{}.texarray"
 BC7 = 70
 FONT = "DejaVu Sans:style=Condensed Bold"
-LIVERY = {"mclaren_26": "mclaren", "ferrari_26": "ferrari", "williams_26": "williams", "renault_26": "renault",
-          "mercedes_26": "mercedes", "redbull_26": "redbull", "forceindia_26": "forceindia", "sauber_26": "sauber",
-          "tororosso_26": "tororosso", "gm_cadillac_26": "cadillac", "haas_26": "haas"}
-TOWER = {"mclaren_26": "mclaren_26", "ferrari_26": "ferrari_26", "williams_26": "williams_26",
-         "renault_26": "alpine_26", "mercedes_26": "mercedes_26", "redbull_26": "red_bull_26",
-         "forceindia_26": "aston_martin_26", "sauber_26": "alfa_romeo_26", "tororosso_26": "alphatauri_26",
-         "gm_cadillac_26": "gm_cadillac_26", "haas_26": "haas_26", **grid.OWN_TOWER_BADGE}
 ARRAYS = {
     "team_logos.f1_2026": "row",
     "team_logos.driver_career_2024_team_select": "row",
@@ -54,55 +47,11 @@ ARRAYS = {
     "osd.timing_tower.team_badges_hud": "tower",
     "osd.timing_tower.team_badges_broadcast": "tower",
 }
-EXTRA_ROWS = ("team12_26", "team13_26")
 OUT = ROOT / "erp/badges"
 
 
 def key(kind, row):
-    if kind == "row":
-        return row
-    if kind == "tower":
-        return TOWER.get(row)
-    livery = LIVERY.get(row)
-    if livery is None:
-        return None
-    return livery if kind == "livery" else f"team_select_{livery}"
-
-
-class Stock:
-    def __init__(self, game, baseline):
-        self.game = game
-        self.files, self.objects = {}, None
-        if baseline:
-            self.files = json.loads((baseline / "baseline.json").read_text())["files"]
-            self.objects = baseline.parent / "objects"
-
-    @lru_cache(None)
-    def path(self, rel):
-        p = self.game / rel
-        entry = self.files.get(rel)
-        if entry:
-            digest = hashlib.sha256(p.read_bytes()).hexdigest()
-            if digest != entry["sha256"]:
-                obj = self.objects / entry["sha256"][:2] / entry["sha256"]
-                if not obj.exists():
-                    sys.exit(f"{rel}: changed in the game folder and no stock copy in the baseline")
-                return obj
-        return p
-
-
-def fragments(path, name):
-    meta, res = erp_parse(str(path))
-    r = {x[0]: x for x in res}[name]
-    out = []
-    with open(path, "rb") as f:
-        for fn, off, size, flags, comp, packed in r[3]:
-            f.seek(meta["data_off"] + off)
-            raw = f.read(packed)
-            if comp == 0x11:
-                raw = subprocess.run(["zstd", "-dc"], input=raw, capture_output=True, check=True).stdout
-            out.append(raw)
-    return out
+    return f"team_select_{row}" if kind == "select" else row
 
 
 def carriers(game, names):
@@ -221,15 +170,12 @@ def build(game, baseline, sheet):
         if fmt != BC7 or mips != 1 or len(data) != count * w * h or len(names_) != count \
                 or struct.unpack_from("<I", view0, 0x14)[0] != count:
             sys.exit(f"{path}: unexpected stock array (format {fmt}, {w}x{h}, {mips} mips, {count} slices)")
-        replace, append = {}, []
-        for team, row in teams:
-            k = key(kind, row)
-            if k in names_ and row not in EXTRA_ROWS:
-                replace[names_.index(k)] = team
-            elif k is not None and k not in names_ and (row in EXTRA_ROWS or kind == "tower"):
-                append.append((k, team))
-        plans[path] = (where[image], head, data, view0, w, h, count, replace, append, names_)
-        jobs |= {(t, w, h) for t in list(replace.values()) + [t for _, t in append]}
+        append = [(key(kind, grid.team_row(team)), team) for team, _ in teams]
+        taken = [k for k, _ in append if k in names_]
+        if taken:
+            sys.exit(f"{path}: already lists {taken}")
+        plans[path] = (where[image], head, data, view0, w, h, count, append, names_)
+        jobs |= {(t, w, h) for _, t in append}
 
     with ProcessPoolExecutor(max_workers=int(os.environ.get("JOBS", "8"))) as pool:
         encoded = {(t, w, h): (px, im) for t, w, h, px, im in pool.map(encode, sorted(jobs))}
@@ -238,63 +184,43 @@ def build(game, baseline, sheet):
         for p in OUT.iterdir():
             p.unlink()
     OUT.mkdir(parents=True, exist_ok=True)
-    base, grown = {}, {}
-    ops, extra_ops, edits, report = [], [], [], []
-    for path, (rels, head, data, view0, w, h, count, replace, append, names_) in plans.items():
+    grown, ops, edits, report = {}, [], [], []
+    for path, (rels, head, data, view0, w, h, count, append, names_) in plans.items():
         image, view = ARRAY.format(path) + ".image", ARRAY.format(path)
-        slab = bytearray(data)
-        for i, team in replace.items():
-            slab[i * w * h:(i + 1) * w * h] = encoded[(team, w, h)][0]
-        base[path] = bytes(slab)
+        n = len(append)
+        head2 = bytearray(head)
+        struct.pack_into("<I", head2, 28, count + n)
+        view2 = bytearray(view0)
+        struct.pack_into("<I", view2, 0x14, count + n)
+        grown[path] = (bytes(head2), data + b"".join(encoded[(t, w, h)][0] for _, t in append), bytes(view2))
         for rel in rels:
-            ops.append({"op": "put-resource", "erp": rel, "resource": image, "source": "erp/badges/badges.erpk"})
-        report.append(f"{path}: {w}x{h}, {count} slices, {len(replace)} replaced, {len(rels)} archive(s)")
-        if append:
-            n = len(append)
-            head2 = bytearray(head)
-            struct.pack_into("<I", head2, 28, count + n)
-            view2 = bytearray(view0)
-            struct.pack_into("<I", view2, 0x14, count + n)
-            more = b"".join(encoded[(t, w, h)][0] for _, t in append)
-            grown[path] = (bytes(head2), bytes(slab) + more, bytes(view2))
-            for rel in rels:
-                for res in (image, view):
-                    extra_ops.append({"op": "put-resource", "when": {"cars": 26}, "erp": rel, "resource": res,
-                                      "source": "erp/badges/badges26.erpk"})
-            at = "overrides.Contents." + ".Contents.".join(path.split(".")) + ".Contents"
-            for k, team in append:
-                edits.append({"op": "clone-entry", "at": at, "src": f"[Name={names_[-1]}]", "as": k,
-                              "set": {"Value": f"ui_package/art/textures/f1990/badges/{k}.tif"}})
-            report.append(f"{path}: at 26 cars + " + ", ".join(k for k, _ in append))
+            for res in (image, view):
+                ops.append({"op": "put-resource", "erp": rel, "resource": res, "source": "erp/badges/badges.erpk"})
+        at = "overrides.Contents." + ".Contents.".join(path.split(".")) + ".Contents"
+        for k, team in append:
+            edits.append({"op": "clone-entry", "at": at, "src": f"[Name={names_[-1]}]", "as": k,
+                          "set": {"Value": f"ui_package/art/textures/f1990/badges/{k}.tif"}})
+        report.append(f"{path}: {w}x{h}, {count} + {n} slices, {len(rels)} archive(s)")
 
-    write_archive(stock, plans, base, None, OUT / "badges.erpk")
-    write_archive(stock, plans, None, grown, OUT / "badges26.erpk")
-    ops += extra_ops
-    ops.append({"op": "patch-pkg", "when": {"cars": 26}, "erp": DATABASES, "resource": OVERRIDES, "fragment": 0,
-                "edits": edits})
+    write_archive(stock, plans, grown, OUT / "badges.erpk")
+    ops.append({"op": "patch-pkg", "erp": DATABASES, "resource": OVERRIDES, "fragment": 0, "edits": edits})
     (ROOT / "erp/badges.json").write_text(json.dumps({"schema_version": 1, "ops": ops}, indent=1) + "\n")
     if sheet:
         contact_sheet(plans, encoded, sheet)
     return report
 
 
-def write_archive(stock, plans, base, grown, out):
+def write_archive(stock, plans, grown, out):
     keep, arc = [], None
     for path, (rels, *_rest) in plans.items():
-        if grown is not None and path not in grown:
-            continue
         e = Erp(str(stock.path(rels[0])))
         image, view = ARRAY.format(path) + ".image", ARRAY.format(path)
         r_image, r_view = e.find(image), e.find(view)
-        if grown is None:
-            e.set_frag(r_image, 1, base[path])
-            keep.append(r_image)
-        else:
-            h2, d2, v2 = grown[path]
-            e.set_frag(r_image, 0, h2)
-            e.set_frag(r_image, 1, d2)
-            e.set_frag(r_view, 0, v2)
-            keep += [r_image, r_view]
+        h2, d2, v2 = grown[path]
+        e.set_frag(r_image, 0, h2)
+        e.set_frag(r_image, 1, d2)
+        e.set_frag(r_view, 0, v2)
+        keep += [r_image, r_view]
         if arc is None:
             arc = e
     arc.res = keep
@@ -304,8 +230,8 @@ def write_archive(stock, plans, base, grown, out):
 def contact_sheet(plans, encoded, out):
     from common import bc7_decode
     rows = []
-    for path, (rels, head, data, view0, w, h, count, replace, append, names_) in plans.items():
-        teams = list(replace.values()) + [t for _, t in append]
+    for path, (rels, head, data, view0, w, h, count, append, names_) in plans.items():
+        teams = [t for _, t in append]
         zoom = max(1, min(4, 96 // max(w, h))) if max(w, h) < 96 else 1
         scale = min(1.0, 180 / max(w, h)) if zoom == 1 else zoom
         cells = []

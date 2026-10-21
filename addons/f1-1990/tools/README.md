@@ -99,40 +99,27 @@ Each rating curve is flat at its value. `consistency` is not used.
 
 ## frontend.py
 
-Not in the v2 manifest: it replaces stock 2026 textures. The v2 plan (new contexts and textures for the 1990 rows) is in `/mnt/work/.f1-1990/v2/teams-career.md` §6.
-
-Writes `erp/frontend.json` and its sources under `erp/frontend/` (about 3 MB) from the season pack, `grid.py`'s row choices and the stock archives in `--game`. Needs Pillow and lz4 (`nix-shell -p "python3.withPackages (ps: [ ps.pillow ps.lz4 ])"`), `fc-match` and rnd-tyres-thermal's `bc7enc.py` (mode-6 encoder, white on alpha). `JOBS` sets the encoder processes (default 8).
+Writes `erp/frontend.json` and `erp/frontend/`: the Driver Select and Team Select backdrop names for the 1990 rows, added to `main_front_end.erp` as new resources. The backdrop is a texture picked by material context, the driver or team row label (`mfe_2025_main_menu_driver_select_name.emb?context=<label>`, `…vehicle_select_name.emb?context=<label>`). Per row: a texture `f1_drivername_f1990_d_NNN` / `f1_teamname_f1990_NN` (BC7, the template's size and mip layout, loose top mips under `names/f1990_drv_names~…` / `names/f1990_tmnames~…`), its SRV, a material and the context, each a copy of a stock one (`sonny_hayes`, `mercedes`) with the name swapped for one of the same length. Needs Pillow and lz4 (`nix-shell -p "python3.withPackages (ps: [ ps.pillow ps.lz4 ps.numpy ])"`) and rnd-tyres-thermal's `bc7enc.py`.
 
 ```sh
-python3 addons/f1-1990/tools/frontend.py --game <game folder> [--preview <dir>]
+python3 addons/f1-1990/tools/frontend.py --game <game folder> [--baseline <launcher baseline>/<build>] [--preview <dir>]
 ```
-
-| Part | Ops |
-|---|---|
-| Driver Select names | The backdrop is a texture on `mfe_2025_main_menu_driver_select_name.idf` in `environment_package/second_world/main_front_end/wep/main_front_end.erp`, picked by material context = the driver row label (`...driver_select_name.emb?context=<label>` → `mfe_2025_driver_select_<name>_a.material` → `f1_drivername_<name>.tif`, BC7 2048x512). A missing context keeps the previous name. Each of the 31 rows the grid uses gets the 1990 driver's name (first name filled, surname outlined, right-aligned, DejaVu Sans Bold stretched 1.25): the 22 rows with a context reuse their own texture; `ayrton_senna`, `alain_prost`, `nigel_mansell` and the six `OTHER_ROWS` get a new context (`add-resource`) copied from an unused one (Zenith, Konnersport, Doohan, Tsunoda, F2); `lewis_hamilton` moves to an unused F2 slot of the same size, and its texture, which `default` also uses, is left blank |
-| Team Select names | The same with `mfe_2025_main_menu_vehicle_select_name.emb?context=<team row>` and `f1_teamname_<team>.tif` (2048x256, outlined): the 13 slots' rows show the team's short name; `team12_26` and `team13_26` get contexts copied from F2 teams |
-| Textures | `replace-resource` fragment 1 (the mips in the archive, same size) and fragment 2 (the mip-file descriptor, same length, pointing at `names/f1990_drv_names~...` or `names/f1990_tmnames~...`); `add-mipmaps` installs the LZ4 mip files |
-| Tabs | `persistent.erp: screen_groups.uicontentgroup` without `header_f2` and `header_icon` in the `driver_career_driver_select_header` group (the Driver Career Choose Driver screen), behind `hide_f2_icon_tabs` (default on). The tool checks the stock resource round-trips byte-exact through `tools/pkg.py` and that the edit differs only by the two entries. The resource shrinks, so the build writes `persistent.erp` into the game files on both routes |
 
 ## badges.py
 
-Not in the v2 manifest: it replaces stock 2026 slices. v2 appends slices for the 1990 rows instead (teams-career.md §6).
-
-Writes `erp/badges.json` and two archives under `erp/badges/` (`.erpk`; the repo ignores `*.erp`) with placeholder 1990 team badges: the short name (the three-letter code at 64 px and below) in DejaVu Sans Condensed Bold on the team's primary colour, a secondary-colour stripe along the bottom.
+Writes `erp/badges.json` and `erp/badges/badges.erpk` (the repo ignores `*.erp`): placeholder 1990 team badges appended to the 14 team-logo texture arrays (the short name, or the three-letter code at 64 px and below, on the team's primary colour with a secondary stripe), with one `overrides.uidb` entry per new slice. Keys: the team row `<team>_1990` (also its `livery_name` and `timing_tower_texture_path`), `team_select_<team>_1990` in the career small logos. Stock slices stay as they are; every carrier archive grows, so the build writes them into the game files.
 
 ```sh
 python3 addons/f1-1990/tools/badges.py --game <game folder> [--baseline <launcher baseline>/<build>] [--sheet badges.png]
 ```
 
-Each team badge list is a name-keyed list in `databases.erp: overrides.uidb` whose entry at index i names slice i of a single-mip BC7 texture array (`ui_package/art/texture_arrays/overrides.uidb/overrides.<list>.texarray` and `.texarray.image`). The tool checks every UI archive that carries an array holds the same stock array, encodes the badge for each slice it replaces (rnd-tyres-thermal's `bc7enc.encode_rgba`) and writes the arrays into `erp/badges/badges.erpk`; `put-resource` copies them into every carrier. `--baseline` reads stock archives from the launcher's baseline store when the game folder holds installed ones.
+## tracks.py
 
-| List | Key | Size |
-|---|---|---|
-| `team_logos.f1_2026`, `team_logos.driver_career_2024_team_select`, `teams.mp_team_select_logos`, `teams.badges_broadcast`, `broadcast_ui_generic.grid_team_logos`, `broadcast_ui_generic.team`, `teams.fanzone_expressions`, `teams.fanzone_expressions_large`, `teams.fanzone_room`, `teams.teams_f1_2024_gp_voting` | team row | 272x156, 148x148, 700x640, 24x24, 180x180, 220x132, 28x28, 180x180, 560x484, 560x296 |
-| `teams.driver_select_team_logos`, `teams.career_team_select_logo_small` | `livery_name`, `team_select_<livery_name>` | 64x64, 268x136 |
-| `osd.timing_tower.team_badges_hud`, `_broadcast` | `timing_tower_texture_path` | 24x24 |
+Writes `erp/tracks.json` and `erp/tracks/`: a 1990 world `<track>_f1_1990.wep` in each track's `<track>_f1_26_myteam.erp`, which `grid.py`'s track layer `f1_1990` loads with the stock My Team asset group. The world is the My Team world listing its own copies of the layers Custom Grid Size widens (`…_f1990.layer`); with `cars` at 26 the copies get Custom Grid Size's 26-car edits. The stock worlds and layers stay as they are.
 
-At 26 cars the arrays keyed by team row, and the timing tower ones, grow by Larrousse and Dallara (`erp/badges/badges26.erpk`, `put-resource` with `"when": {"cars": 26}`), and a `patch-pkg` appends `team12_26`/`team13_26` (and `larrousse_90`/`dallara_90`, which `grid.py` sets as those rows' `timing_tower_texture_path`) to the lists. A grown array changes its archive's layout, so at 26 cars the build writes those archives into the game files.
+```sh
+python3 addons/f1-1990/tools/tracks.py --game <game folder> [--baseline <launcher baseline>/<build>]
+```
 
 ## check_grid.py
 
