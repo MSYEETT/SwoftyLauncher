@@ -499,8 +499,65 @@ pub fn ui_data(data: &[u8], entries: Vec<(String, Node)>) -> Result<Vec<u8>> {
     })
 }
 
+pub const MESSAGE_ID: &str = "swofty_message";
+const MESSAGE_TEMPLATE: &str = "online_services_EA_not_logged_in";
+const ATTRIBUTE_ROW: &str = "#ui_messages.default_queue.multichoice_message.user_attributes";
+
+fn attribute_token(attribute: &str) -> Node {
+    obj(vec![(
+        "VALUE",
+        obj(vec![
+            ("localise", boolv(false)),
+            ("value", s("")),
+            ("name", s("VALUE")),
+            ("dbEntry", s(&format!("{ATTRIBUTE_ROW}[{attribute}].Value"))),
+        ]),
+    )])
+}
+
+fn attribute(name: &str) -> Node {
+    obj(vec![
+        ("localise", boolv(false)),
+        ("value", s("")),
+        ("name", s(name)),
+        ("dbEntry", s("")),
+    ])
+}
+
+fn by_message_id<'n>(list: &'n [Node], id: &str) -> Option<&'n Node> {
+    list.iter()
+        .find(|m| m.as_obj().and_then(|o| o.str_at("id").ok()) == Some(id))
+}
+
+fn runtime_message(list: &[Node]) -> Result<Option<Node>> {
+    if by_message_id(list, MESSAGE_ID).is_some() {
+        return Ok(None);
+    }
+    let Some(template) = by_message_id(list, MESSAGE_TEMPLATE) else {
+        return Ok(None);
+    };
+    let mut m = template.clone();
+    let o = m.o_mut()?;
+    set_str(o, "id", MESSAGE_ID)?;
+    set_str(o, "title", "lng_value_tag")?;
+    set_str(o, "messageBody", "lng_value_tag")?;
+    o.set("titleTokens", attribute_token("title"));
+    o.set("bodyTokens", attribute_token("message"));
+    *o.at_mut("attributes")?.a_mut()? = vec![attribute("title"), attribute("message")];
+    *o.at_mut("options")?.a_mut()? = vec![obj(vec![
+        ("value", s("lng_msg_ok")),
+        ("response", s("ok")),
+        ("defaultSelection", boolv(true)),
+    ])];
+    Ok(Some(m))
+}
+
 pub fn messages(data: &[u8], text: bool) -> Result<Vec<u8>> {
     edit(data, |p| {
+        let list = root_obj(p)?.at_mut("messages")?.a_mut()?;
+        if let Some(added) = runtime_message(list)? {
+            list.push(added);
+        }
         let mut done = Vec::new();
         for m in root_obj(p)?.at_mut("messages")?.a_mut()? {
             let m = m.o_mut()?;
@@ -846,6 +903,7 @@ mod tests {
             .map(|id| message(id, id.ends_with("_with_code")))
             .collect();
         all.push(message("quit_session", false));
+        all.push(message(MESSAGE_TEMPLATE, true));
         Pkg {
             name: [0; 4],
             root: obj(vec![("messages", arr(all))]),
@@ -874,7 +932,8 @@ mod tests {
     fn online_messages_show_language_strings_and_others_stay_stock() {
         let stock = by_id(&messages_file());
         let ours = by_id(&messages(&messages_file(), true).unwrap());
-        assert_eq!(ours.len(), stock.len());
+        assert_eq!(ours.len(), stock.len() + 1);
+        assert_eq!(ours.last().unwrap().0, MESSAGE_ID);
         for ((id, m), (_, before)) in ours.iter().zip(&stock) {
             let o = m.o().unwrap();
             if !ONLINE_MESSAGES.contains(&id.as_str()) {
@@ -887,6 +946,7 @@ mod tests {
             assert_eq!(o.at("options").unwrap().a().unwrap().len(), 1);
         }
         let plain = by_id(&messages(&messages_file(), false).unwrap());
+        assert_eq!(plain.len(), stock.len() + 1);
         for ((id, m), (_, before)) in plain.iter().zip(&stock) {
             let (o, b) = (m.o().unwrap(), before.o().unwrap());
             assert_eq!(o.str_at("title").unwrap(), b.str_at("title").unwrap(), "{id}");
@@ -903,5 +963,45 @@ mod tests {
         );
         assert_eq!(strings[1].0, POPUP_BODY);
         assert!(strings[1].1.contains("New in v1.2.3"));
+    }
+
+    #[test]
+    fn the_runtime_message_reads_its_text_from_two_attributes() {
+        let ours = by_id(&messages(&messages_file(), false).unwrap());
+        let (_, m) = ours.iter().find(|(id, _)| id == MESSAGE_ID).unwrap();
+        let o = m.o().unwrap();
+        assert_eq!(o.str_at("title").unwrap(), "lng_value_tag");
+        assert_eq!(o.str_at("messageBody").unwrap(), "lng_value_tag");
+        for (tokens, attr) in [("titleTokens", "title"), ("bodyTokens", "message")] {
+            let t = o
+                .at(tokens)
+                .unwrap()
+                .o()
+                .unwrap()
+                .at("VALUE")
+                .unwrap()
+                .o()
+                .unwrap();
+            assert_eq!(t.str_at("name").unwrap(), "VALUE");
+            assert_eq!(
+                t.str_at("dbEntry").unwrap(),
+                format!("{ATTRIBUTE_ROW}[{attr}].Value")
+            );
+            assert_eq!(canonical(t.get("localise").unwrap()), canonical(&boolv(false)));
+        }
+        let names: Vec<&str> = o
+            .at("attributes")
+            .unwrap()
+            .a()
+            .unwrap()
+            .iter()
+            .map(|a| a.o().unwrap().str_at("name").unwrap())
+            .collect();
+        assert_eq!(names, ["title", "message"]);
+        let options = o.at("options").unwrap().a().unwrap();
+        assert_eq!(options.len(), 1);
+        assert_eq!(options[0].o().unwrap().str_at("response").unwrap(), "ok");
+        let twice = by_id(&messages(&messages(&messages_file(), false).unwrap(), false).unwrap());
+        assert_eq!(twice.iter().filter(|(id, _)| id == MESSAGE_ID).count(), 1);
     }
 }
