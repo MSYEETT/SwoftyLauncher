@@ -151,7 +151,7 @@ UPGRADES = [
     U("camshaft_profiles", EP, "Minor", (-4, 0), ["valve_train"], art="om_xm_valve_timing",
       title="Camshaft Profiles", text="New cam profiles for more power at the top of the rev range."),
     U("valve_train", EP, "Major", (-5, 0), ["fuel_mapping", "quali_rev_limit", "evolution_spec"],
-      art="om_xm_cylinder_head", title="High-Rev Valve Train",
+      art="om_xm_crankshaft", title="High-Rev Valve Train",
       text="A lighter valve train that lets the engine rev higher."),
     U("fuel_mapping", FC, "Minor", (-5, -1), ["fuel_package"], art="om_xm_fuel_flow_regulator",
       title="Lean Fuel Mapping",
@@ -165,7 +165,7 @@ UPGRADES = [
     U("quali_rev_limit", EP, "Minor", (-5, 1), ["quali_engine"], quali=True, art="om_xm_ignition_system",
       title="Qualifying Engine Mode",
       text="A higher rev limit and a richer mixture, used only in qualifying."),
-    U("quali_engine", EP, "Major", (-6, 1), only="works", quali=True, cost=900, art="om_xm_exhaust_power",
+    U("quali_engine", EP, "Major", (-6, 1), only="works", quali=True, cost=900, art="om_xm_lightweight_pistons",
       title="Qualifying Engine",
       text="A short-life engine built for one qualifying session. Qualifying only."),
 
