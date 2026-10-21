@@ -141,6 +141,22 @@ A separate DLL; ships `data/rnd-art.json` and `data/rnd-strings.json` through it
 
 It logs `[f1-1990] rnd: N card art donor(s)`, `card art site S image "f1990_x_in_progress" -> "om_xm_y_progress"` (first 24), `no donor for "..."` and `set|cleared N department string(s)`.
 
+## R&D look (`f1_1990_rndlook.dll`)
+
+A separate DLL; option `rnd_look_1990` (default on); ships `data/rnd-look.json` (the uidb package and the colours) through its entry's `files`. On a 1990 `career.loaded` (and `career.hub`) it turns the 1990 look on; `career.unloaded`, or a non-1990 `career.loaded`, turns it off. The colours are indexed by the department byte (0 aero, 1 chassis, 2 durability, 3 engine, 4 the rnd-tyres Tyres department, which keeps rnd-tyres' orange).
+
+| binding | use |
+|---|---|
+| `k_Career_RnDDeptColourTable`, `k_Career_RnDCardColourTable` | entries 0..4 written with the 1990 colours while the look is on (department tabs, purchase panel, upgrade cards, the performance pie), the previous values put back when it turns off |
+| `site_Career_RnDListRowColourStore`, `…LightColourStore`, `site_Career_RnDPopupColourStore`, `site_Career_RnDInProgressColourStore` | the stored colour of departments 0..4 becomes the 1990 colour (light tint for the light store) |
+| `site_Career_RnDPieSliceIconArgs` | R&D > Performance tiles: the slot colour `[rsp+0x64]`, stored by the populate switch and read at 0x141f48e86, becomes the 1990 colour unless the slot is `shutdown` or `regulation`; the wheel-icon package is swapped as below |
+| `site_Career_RnDUpgradeListDeptIcon`, `site_Career_RnDListRowDeptIcon`, `site_Career_UpgradeCardDeptIcon`, `site_Career_RnDPerksTitleDeptIcon`, `site_Career_RnDCardDeptIcon0..2`, `site_Career_RnDInProgressStrip` | `r8`, the career's R&D package (`#overrides.career.rnd_om_xm`, read from the UpgradesComponent +0x660), becomes `#overrides.career.f1990_rnd` for the department atlases |
+| `Career_Construct_RnDDeptCard` | wrapped: the department tab's icon path `<package>.rnd_dept_icons_small.<frame>` (built before the call; rnd-tyres' Tyres tab included) gets the 1990 package |
+
+`#overrides.career.f1990_rnd` is the uidb package `erp/rnd_look.json` adds (`tools/rnd_look.py`); part images, masks and category icons keep the career's package. Not covered: the Team HQ research overview pie (0x141f41d60) and Team HQ department tiles (0x1422fe430), both My Team only; the 148 px department card icon (`#overrides.career.dept_card_icons`, an absolute path in 0x14180e910), whose 1990 list ships unused until a site at 0x14180ecef is registered; the performance comparison chart's bar colours, which the shared `laptop_r_and_d.ui` scenes animate.
+
+It logs `[f1-1990] rnd look: package …, colours …`, `<table> … -> 1990 colours` and `restored to …`, `1990 career: 1990 department colours and icons on` / `no 1990 career: stock department colours and icons`, and per site (first 4) `package #overrides.career.rnd_om_xm -> #overrides.career.f1990_rnd`, `department N <was> -> <now>` or `code N (aero) <was> -> <now>`.
+
 ## 1990 career setup (`f1_1990_wizard.dll`)
 
 A separate DLL; option `career_wizard_1990` (default on). A new 1990 Driver Career runs Recommended / Custom settings,

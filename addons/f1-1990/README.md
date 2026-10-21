@@ -122,6 +122,35 @@ delivery schedules, regulation change schedules and R&D challenges are copies of
 The qualifying line (`f1990_quali_rev_limit`, `f1990_quali_engine`) needs native request N12 to count only in
 qualifying; without it, it is ordinary engine power. Design and numbers: `/mnt/work/.f1-1990/v2/rnd-design.md`.
 
+## R&D look (erp/rnd_look.json, erp/rnd_look/rnd_look.erpk, art/rnd/, data/rnd-look.json, tools/rnd_look.py)
+
+In 1990 careers each R&D department has a 1990 colour and a period icon; 2025 and 2026 careers keep the stock look.
+Option `rnd_look_1990` (default on).
+
+| department (code) | colour | icon (`art/rnd/`) |
+|---|---|---|
+| Aerodynamics (0) | Rothmans / Tyrrell blue `#2F74E8` | `aero.svg`: car front with the raised nose and anhedral wing |
+| Chassis & Suspension (1) | Benetton green `#22A45D` | `chassis.svg`: pushrod coil-over on the carbon tub |
+| Reliability & Gearbox (2) | Camel / Lotus yellow `#F6C21C` | `reliability.svg`: gear with an H-pattern gate and a spanner |
+| Engine (3) | Ferrari / Marlboro red `#E2231A` | `engine.svg`: V engine with intake trumpets |
+| Tyres (4, rnd-tyres-thermal) | orange `#FF7800`, rnd-tyres' own | `tyres.svg`: tall-sidewall slick on a 13-inch rim |
+
+`erp/rnd_look.json` adds the uidb package `overrides.career.f1990_rnd`, a clone of the stock `rnd_om_xm` package whose
+`rnd_dept_icons_small` (48 px white, alpha 255 + 128), `rnd_wheel_icon` (60 px coloured), `rnd_department_strips`
+(1112 x 4) and `dept_card_icons` (148 px coloured with a glow) use new texture arrays: aero, chassis, maintenance,
+engine, tyres and error_department, plus the stock regulation and shutdown wheel icons. The arrays are new resources in
+`flow_career_hub.erp`, `flow_r_and_d.erp` and `flow_team_hq.erp` (where the stock ones are), so no stock array, list or
+slice changes and nothing collides with arrays rnd-tyres-thermal grows. New resources change the archives' layout, so
+the build writes those archives into the game files. `native/f1_1990_rndlook.dll` points the department atlases at
+the package and writes the colours, only while a 1990 career is loaded (`native/README.md`).
+
+```sh
+python3 addons/f1-1990/tools/rnd_look.py --game <F1 25> [--baseline <launcher baseline>/<build>] [--preview <png>]
+```
+
+It needs Pillow, numpy, resvg (or nix), zstd and node. rnd_look.json must run before rnd-tyres-thermal's uidb edits,
+which its `load_after` on this addon gives.
+
 ## Agent portrait (erp/portrait.json, erp/portrait/portrait.erpk, tools/portrait.py)
 
 `tools/portrait.py` cuts Flavio Briatore's head and shoulders out of a photo (GrabCut for the body, a fitted background

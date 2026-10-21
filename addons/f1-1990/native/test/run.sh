@@ -17,7 +17,7 @@ ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/tile_logic_test ti
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/speech_line_test speech_line_test.cpp
 ../build/speech_line_test
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/json_strings_test json_strings_test.cpp
-../build/json_strings_test ../../data/flavio-strings.json ../../data/rnd-art.json ../../data/rnd-strings.json
+../build/json_strings_test ../../data/flavio-strings.json ../../data/rnd-art.json ../../data/rnd-strings.json ../../data/rnd-look.json
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/character_ref_test character_ref_test.cpp
 ../build/character_ref_test
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/content_tabs_test content_tabs_test.cpp
@@ -28,3 +28,5 @@ ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/rnd_progress_test 
 ../build/rnd_progress_test
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/rnd_art_test rnd_art_test.cpp
 ../build/rnd_art_test
+${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/rnd_look_test rnd_look_test.cpp
+../build/rnd_look_test ../../data/rnd-look.json
