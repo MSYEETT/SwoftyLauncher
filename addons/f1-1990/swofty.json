@@ -18,6 +18,11 @@
   },
   "options": [
     {
+      "id": "agent_voice_mute", "type": "toggle", "label": "Silent agent in 1990 careers", "default": true,
+      "description": "Mutes the agent's voice lines (subtitles stay) in 1990 careers only; 2025 and 2026 careers keep her voice.",
+      "binds": "native"
+    },
+    {
       "id": "dedicated_profile_saves", "type": "toggle", "label": "Separate profile save", "default": false,
       "description": "Keeps this profile's whole game profile and every career in its own save (savegame@f1990), apart from other profiles. Off: 1990 careers sit in their own slots next to the stock careers.",
       "binds": "native"
@@ -116,15 +121,13 @@
     "erp": ["erp/cars/handling.json", "erp/frontend.json"],
     "native": [
       { "dll": "native/f1_1990.dll", "early": true }, { "dll": "native/f1_1990_tyres.dll" },
-      { "dll": "native/f1_1990_replay.dll" }, { "dll": "native/f1_1990_ui.dll" }
+      { "dll": "native/f1_1990_replay.dll" }, { "dll": "native/f1_1990_ui.dll" }, { "dll": "native/f1_1990_voice.dll" }
     ],
     "files": [
       { "source": "files/audio/v12_1990.bdl", "target": "audio/2025/bundles/ferrari_2026.bdl" },
       { "source": "files/audio/v10_1990.bdl", "target": "audio/2025/bundles/renault_2026.bdl" },
       { "source": "files/audio/v8_1990.bdl", "target": "audio/2025/bundles/ford_2026.bdl" },
-      { "source": "files/audio/v8_1990.bdl", "target": "audio/2025/bundles/mercedes_2026.bdl" },
-      { "source": "files/speech/en_agent.nfs", "target": "audio/2025/speech/en_agent.nfs" },
-      { "source": "files/speech/en_agent_cutscene.nfs", "target": "audio/2025/speech/en_agent_cutscene.nfs" }
+      { "source": "files/audio/v8_1990.bdl", "target": "audio/2025/bundles/mercedes_2026.bdl" }
     ]
   }
 }

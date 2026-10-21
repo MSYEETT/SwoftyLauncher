@@ -83,3 +83,11 @@ A separate DLL, loaded at the window stage after the others; option `career_menu
 | `g_FeTile_CustomisationSystem` / `g_FeTile_SelectedCareerContent` | 0x146064df0 / 0x146066c42 | the press selects the car group with stat id 2 (`1990`), else the first dlc group (2026) |
 
 The item carries data group `f1_career_1990` (+0x180), suffix `90` (+0x188), is_dlc 0 (+0x190) and the 2026 entitlement string (+0x1c0); its vtable is a copy of the 2026 tile's with populate and press replaced. The router and the wizard's use of the data group are not traced yet (see `/mnt/work/.f1-1990/v2/third-tile.md`).
+
+## Silent agent in 1990 careers (`f1_1990_voice.dll`)
+
+A separate DLL; option `agent_voice_mute` (default on). `Game_SpeechSystem_PostLine` (0x140a30b60) is wrapped: while the loaded career's data group is `f1_career_1990` (worked out on the core's `career.loaded` event, cleared on `career.unloaded`), a line whose speaker is `agent` or `agent_cutscene` gets its emitter's `vol_speech` RTPC set to 0 (emitter vtable +0x60, the setter the post uses for `random_number_generator`) before it is posted as usual. The line still plays, so its subtitles and the end-of-event callbacks that finish it (0x140ac1160/0x140ac11a0) run; a line that was not posted would never finish. 2025 and 2026 careers keep the agent's voice, and the addon no longer replaces `en_agent*.nfs`.
+
+It logs `[f1-1990] voice: career loaded (data group f1_career_1990); agent voice muted`, `... agent line muted (emitter ...)` and, if a muted emitter also speaks for another speaker, `... that line is silent too`.
+
+The agent's strings stay stock: the core's `lang` API applies only until the game loads its first language file (later calls return `late`), so it can't switch strings per career.

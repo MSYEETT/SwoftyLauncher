@@ -14,3 +14,5 @@ ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -I../../../../packages/sdk/inc
 ../build/profile_test
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/tile_logic_test tile_logic_test.cpp
 ../build/tile_logic_test
+${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/speech_line_test speech_line_test.cpp
+../build/speech_line_test
