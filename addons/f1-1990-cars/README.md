@@ -5,7 +5,7 @@ The car models for F1 1990's `f1_1990` vehicle package. Private test content, no
 What it adds, all under new paths, nothing replacing a game file:
 
 - `2025_asset_groups/f1_1990_vehicle_package/teams/<folder>/wep/<folder>.erp`: the 13 cars, 13-inch rims, per-driver number plates.
-- `2025_asset_groups/f1_1990_vehicle_package/teams/common.erp`: the package's shared resources, with the MP4/5B 13-inch tyre set (dry and wet, Pirelli 2018 textures, no deformation data).
+- `2025_asset_groups/f1_1990_vehicle_package/teams/common.erp`: the package's shared resources, with the 2026 tyre meshes reshaped for 13-inch rims (bead 0.175 m, outer radius 0.323 m front and 0.330 m rear; dry and wet, Pirelli 2018 textures, no deformation data; `/mnt/work/.mp45b/porter_a/tyres_cm13.py`).
 - `2025_asset_groups/f1_1990_vehicle_package/tyrecompounds/tyrecompounds.erp`: a copy of the 2026 compound file.
 - `2025_asset_groups/f1_1990_vehicle_b_specs/teams/<folder>/wep/<folder>.erp`: the 13 B-spec cars (the A body with gold rims, `gridc13b_*`). Their own resources carry the B package path; references to the shared resources and to the car's handling file point at the A package, so a B group lists the A common.erp and the A handling archive.
 - Runtime asset groups (`assets/cars.json`): `asset_groups/f1_1990_vehicle_package/teams/<folder>/wep/<folder>.assetgroup` listing common.erp, the car archive and `<folder>_handling.erp` (shipped by `swofty.f1-1990`), and the tyre-compound group. Each takes its flags from the matching 2026 group.

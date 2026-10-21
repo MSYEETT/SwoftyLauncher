@@ -44,7 +44,7 @@ SOURCES_B = {
     'minardi': 'gridc13b_minardi', 'brabham': 'gridc13b_brabham', 'dallara': 'gridc13b_dallara',
     'arrows': 'gridc13b_arrows',
 }
-COMMON = '/mnt/work/.mp45b/porter_a/tries/tyres13/common.erp'
+COMMON = '/mnt/work/.mp45b/porter_a/tries/tyres13cm/common.erp'
 TYRES = '2025_asset_groups/f1_2026_vehicle_package/tyrecompounds/tyrecompounds.erp'
 
 OLD = f'eaid://{C.SOURCE_PACKAGE}/'.encode()
