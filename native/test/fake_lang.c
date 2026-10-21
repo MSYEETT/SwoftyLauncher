@@ -153,6 +153,11 @@ int main(void)
            "after clear_all every key is stock again");
     expect(step(5) == 3, "override_set without a key is invalid");
 
+    expect(step(6) == 0, "override_set of a text returned ok");
+    const char *first = look(0, "lng_mode_career");
+    expect(step(7) == 0, "clearing and setting the same text again returned ok");
+    expect(look(0, "lng_mode_career") == first && !strcmp(first, "SAME TEXT"), "the same text is stored once");
+
     printf("%s (%d failure(s))\n", fails ? "FAILED" : "ALL PASSED", fails);
     ExitProcess(fails != 0);
 }

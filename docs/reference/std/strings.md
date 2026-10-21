@@ -36,7 +36,7 @@ Every `lng_*` lookup goes through the language set's find (`Loc_LangSet_Find`). 
 
 A change applies the next time the game looks the key up. Screens and labels opened afterwards show it; text already on screen keeps its old value until it is looked up again, which `refresh()` triggers. Call `refresh()` once after a batch of changes, on the game thread (for example from a core [event](./events) handler).
 
-The core keeps every text it was given until the game exits, because the game may still hold a returned string after its override is cleared.
+The core stores each distinct text once and keeps it until the game exits, so a string the game got from an override stays valid after the override is cleared.
 
 ## Example
 
