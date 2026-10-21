@@ -28,3 +28,5 @@ ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/rnd_art_test rnd_a
 ../build/rnd_art_test
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/rnd_look_test rnd_look_test.cpp
 ../build/rnd_look_test ../../data/rnd-look.json
+${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/intro_video_test intro_video_test.cpp
+../build/intro_video_test
