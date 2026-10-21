@@ -43,6 +43,8 @@ SHARED_1990 = "shared_driver_career_1990_components"
 SHARED_LIST = f"shared_driver_career_components,shared_driver_career_offline_components,{SHARED_1990}"
 COPIED = ["engine_suppliers.trees", "engine_suppliers.delivery_schedules", "regulation_changes_schedules",
           "rnd_challenges"]
+# Keys of the copied subtrees that every stock row has but the key catalogue does not name.
+UNCATALOGUED = {"engine_suppliers.trees": ["engine_supplier_upgrades_N.engine.unused"]}
 
 STR, INT, LIST = 2, 0, 13
 
@@ -344,7 +346,7 @@ def stock_rows(db, path, word, fields):
 def copy_subtree(db, sub):
     src = f"{STOCK}.{sub}"
     h = "{%016x}" % gamedb.fnv1a64(src.encode())
-    patterns = sorted({k[len(h) + 1:] for k in db.cat if k.startswith(h + ".")})
+    patterns = sorted({k[len(h) + 1:] for k in db.cat if k.startswith(h + ".")} | set(UNCATALOGUED.get(sub, [])))
     keys = set()
     for p in patterns:
         keys.update(db.under(src, p))
