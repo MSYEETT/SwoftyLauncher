@@ -122,10 +122,28 @@ python3 addons/f1-1990/tools/frontend.py --game <game folder> [--baseline <launc
 
 ## badges.py
 
-Writes `erp/badges.json` and `erp/badges/badges.erpk` (the repo ignores `*.erp`): placeholder 1990 team badges appended to the 14 team-logo texture arrays (the short name, or the three-letter code at 64 px and below, on the team's primary colour with a secondary stripe), with one `overrides.uidb` entry per new slice. Keys: the team row `<team>_1990` (also its `livery_name` and `timing_tower_texture_path`), `team_select_<team>_1990` in the career small logos. Stock slices stay as they are; every carrier archive grows, so the build writes them into the game files.
+Writes `erp/badges.json` and `erp/badges/badges.erpk` (the repo ignores `*.erp`): one slice per 1990 team appended to 22 team texture arrays, with one `overrides.uidb` entry per new slice. Keys: the team row `<team>_1990` (also its `livery_name`, `expression_label` and `timing_tower_texture_path`), `team_select_<team>_1990` in the career small logos and `laptop_<team>_1990_logo` in the laptop header. Each array has a style in `ARRAYS`, drawn by `logo_surfaces.py` from the art in `art/logos/` and the stock slices of the array: `card` (the logo on the team's card colour), `mp`, `fade` and `holding` (the stock gradient, profile-averaged without its logo and tinted), `room` (the stock fan zone room with its logo blurred out), `contract`, `lockup` and `mark` (sized to the stock logos), `tint` and `pill` (stock backgrounds in the team colour) and `blank` (a copy of a stock F1 team's slice, for the arrays stock leaves blank). Card colours and logo variants are `CARD` in `logo_surfaces.py`. Stock slices stay as they are; every carrier archive grows, so the build writes them into the game files.
 
 ```sh
 python3 addons/f1-1990/tools/badges.py --game <game folder> [--baseline <launcher baseline>/<build>] [--sheet badges.png]
+```
+
+`--sheet` writes a contact sheet: per array a stock slice, then the 13 encoded 1990 slices decoded back.
+
+## logo_art.py
+
+Writes `art/logos/<team>/lockup_light.png`, `lockup_dark.png` and `mark.png` from `art/logos/src/`: the full logo for light and team-colour cards, the same with black or navy lettering turned white for the dark UI, and the compact symbol for square and small badges. Raster sources are traced per colour with potrace. Needs Pillow, numpy, resvg and potrace. `--check` exits 1 when a shipped file differs from a fresh build.
+
+```sh
+python3 addons/f1-1990/tools/logo_art.py [--check]
+```
+
+## hq_logos.py
+
+Writes `erp/hq_logos.json` and `erp/hq_logos/`: per 1990 team and per HQ prop (`raceday_r_n_d_folder_a`, `raceday_r_n_d_notebook_a`), a diffuse texture (BC1, the stock unbranded texture's size and mip layout, top mips in `mipmaps/` for `add-mipmaps`), its SRV, a copy of the unbranded material pointing at it, and a copy of the `default` material context named `2026-<team>_1990`, all new resources in `f1_driver_hq.erp`. The texture is the unbranded one, recoloured in the team's primary colour where the stock Williams texture differs from it, with the team logo at the Williams logo (mirrored on the notebook). Needs Pillow, numpy and lz4.
+
+```sh
+python3 addons/f1-1990/tools/hq_logos.py --game <game folder> [--baseline <launcher baseline>/<build>] [--preview hq.png]
 ```
 
 ## tracks.py
