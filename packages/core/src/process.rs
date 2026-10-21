@@ -47,6 +47,17 @@ pub fn game_processes() -> Vec<GameProcess> {
     named(GAME_EXE)
 }
 
+/// The copies in `running` that were not there before a launch (`before`) and
+/// that the session did not start (`ours`): the EA App build hands a launch
+/// back to the EA app, which starts the game again outside the session.
+pub fn started_elsewhere(running: &[GameProcess], before: &[u32], ours: impl Fn(u32) -> bool) -> Vec<u32> {
+    running
+        .iter()
+        .map(|g| g.pid)
+        .filter(|&pid| !before.contains(&pid) && !ours(pid))
+        .collect()
+}
+
 pub fn steamvr_running() -> bool {
     !named(if cfg!(windows) { "vrserver.exe" } else { "vrserver" }).is_empty()
 }
@@ -187,6 +198,15 @@ mod status_tests {
         assert_eq!(status_of(&[], Some(&root)), GameStatus::default());
         assert_eq!(status_of(&game, None).session, None);
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn picks_only_copies_the_session_neither_saw_nor_started() {
+        let running = [11076, 15472, 9960, 4242].map(|pid| GameProcess { pid, started: None });
+        let ours = |pid| pid == 9960;
+        assert_eq!(started_elsewhere(&running, &[4242], ours), vec![11076, 15472]);
+        assert_eq!(started_elsewhere(&running[2..], &[4242], ours), Vec::<u32>::new());
+        assert_eq!(started_elsewhere(&[], &[], ours), Vec::<u32>::new());
     }
 }
 

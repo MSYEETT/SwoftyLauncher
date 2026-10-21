@@ -666,6 +666,7 @@ fn play(
         }
         Ok(c.spawn()?)
     };
+    let copies_before: Vec<u32> = game_processes().iter().map(|g| g.pid).collect();
     let launched = SystemTime::now();
     std::fs::write(dir.join("game_start"), format!("{}\n", now_secs()))?;
     // The offline-play session launcher (staged in place of the EA
@@ -705,6 +706,7 @@ fn play(
         missed();
     }
     let code = status.code().unwrap_or(-1);
+    wait_relaunched(&copies_before, code, launched.elapsed().unwrap_or_default());
     if let Some(usage) = usage {
         usage.end(code);
     }
@@ -723,6 +725,66 @@ fn play(
 
 const RESTART_WAIT: Duration = Duration::from_secs(15);
 const OTHERS_SETTLE: Duration = Duration::from_secs(3);
+const RELAUNCH_SETTLE: Duration = Duration::from_secs(2);
+const RELAUNCH_AFTER_FAILURE: Duration = Duration::from_secs(20);
+const SHORT_RUN: Duration = Duration::from_secs(60);
+const RELAUNCH_CAP: Duration = Duration::from_secs(12 * 3600);
+
+/// After the launched game exits: the EA App build hands a launch it did not
+/// get from the EA app back to the EA app, which starts F1 25 again through
+/// the game folder's launcher. That copy is not the session's descendant and
+/// still holds the staged files, so the session waits for it before the
+/// game files are rolled back. A launch that failed quickly gets longer for
+/// the relaunch to appear.
+fn wait_relaunched(before: &[u32], code: i32, ran: Duration) {
+    let settle = if code != 0 && ran < SHORT_RUN {
+        RELAUNCH_AFTER_FAILURE
+    } else {
+        RELAUNCH_SETTLE
+    };
+    let start = Instant::now();
+    let until = start + settle;
+    let mut seen: Vec<u32> = Vec::new();
+    let mut asked = false;
+    loop {
+        let others = swofty_core::process::started_elsewhere(&game_processes(), before, |pid| {
+            descends_from(pid, std::process::id())
+        });
+        let new: Vec<u32> = others.iter().copied().filter(|p| !seen.contains(p)).collect();
+        for pid in new {
+            seen.push(pid);
+            say(
+                "info",
+                &format!(
+                    "waiting for a second F1 25 process (pid {pid}) started outside this session, usually by the \
+                     EA app; the game files are rolled back once it closes"
+                ),
+            );
+        }
+        if others.is_empty() && (!seen.is_empty() || Instant::now() >= until) {
+            break;
+        }
+        if start.elapsed() >= RELAUNCH_CAP {
+            info(
+                "stopped waiting for the second F1 25 process after 12 hours; rolling the game files back now",
+            );
+            return;
+        }
+        if !asked && ending() && !others.is_empty() {
+            asked = true;
+            info(
+                "asked to stop: closing the F1 25 started outside this session, then rolling its game files back",
+            );
+            for &pid in &others {
+                stop_process(pid).ok();
+            }
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    if !seen.is_empty() {
+        say("info", "the second F1 25 process has closed");
+    }
+}
 
 /// A copy of F1 25 still running after `wait`.
 fn running_copy(wait: Duration) -> Option<u32> {
