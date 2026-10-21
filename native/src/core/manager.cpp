@@ -37,6 +37,9 @@ struct CoreMixins {
     std::vector<SwoftyMixin> mixins;
 };
 std::vector<CoreMixins> career_mixins();
+const SwoftyCareerContent *career_content_table();
+std::vector<CoreMixins> career_content_mixins();
+void career_content_commit();
 void career_setup();
 void popup_setup();
 void ready();
@@ -1323,6 +1326,7 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     a->career = runtime::career_table();
     a->popup = runtime::popup_table();
     a->lang = runtime::lang_table();
+    a->career_content = runtime::career_content_table();
     a->version = SWOFTY_API_VERSION;
     for (auto &c : runtime::career_mixins()) {
         Addon own{c.name, {}, true};
@@ -1362,6 +1366,13 @@ extern "C" __declspec(dllexport) int SwoftyCoreInit(const wchar_t *name, SwoftyA
 
 extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
 {
+    for (auto &c : runtime::career_content_mixins()) {
+        Addon own{c.name, {}, true};
+        for (auto &m : c.mixins)
+            own.mixins.push_back({m.target, m.kind, m.priority, m.handler, m.orig});
+        api->log("[core] core mixin set '%s': %zu mixin(s), installed or dropped on its own", c.name, own.mixins.size());
+        addons.push_back(std::move(own));
+    }
     size_t from = settled;
     settled = addons.size();
     for (size_t i = from; i < addons.size(); i++)
@@ -1382,6 +1393,7 @@ extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
         runtime::career_setup();
         runtime::popup_setup();
     }
+    runtime::career_content_commit();
     for (size_t i = from; i < addons.size(); i++) {
         auto &m = addons[i];
         if (!m.active)

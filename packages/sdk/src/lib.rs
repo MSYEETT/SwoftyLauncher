@@ -12,6 +12,7 @@ pub const TELEMETRY_HEADER: &str = include_str!("../include/swofty/telemetry.hpp
 pub const DB_HEADER: &str = include_str!("../include/swofty/db.hpp");
 pub const STORAGE_HEADER: &str = include_str!("../include/swofty/storage.hpp");
 pub const CAREER_HEADER: &str = include_str!("../include/swofty/career.hpp");
+pub const CAREER_CONTENT_HEADER: &str = include_str!("../include/swofty/career_content.hpp");
 pub const MEM_HEADER: &str = include_str!("../include/swofty/mem.hpp");
 pub const POPUP_HEADER: &str = include_str!("../include/swofty/popup.hpp");
 pub const LANG_HEADER: &str = include_str!("../include/swofty/lang.hpp");
@@ -445,6 +446,55 @@ pub struct SwoftyLang {
     pub refresh: Option<unsafe extern "C" fn() -> c_int>,
 }
 
+pub const EVENT_CAREER_CONTENT_PRESSED: &str = "career.content.pressed";
+pub const CAREER_CONTENT_MODEL_2026: u32 = 0;
+pub const CAREER_CONTENT_MODEL_2025: u32 = 1;
+pub const CAREER_CONTENT_QUEUED: u32 = 0;
+pub const CAREER_CONTENT_LIVE: u32 = 1;
+pub const CAREER_CONTENT_OFF: u32 = 2;
+pub const CAREER_CONTENT_EXPORT: &str = "SwoftyCoreCareerContent";
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SwoftyCareerContentDesc {
+    pub size: u32,
+    pub model: u32,
+    pub id: *const c_char,
+    pub title: *const c_char,
+    pub description: *const c_char,
+    pub data_group: *const c_char,
+    pub suffix: *const c_char,
+    pub mode: *const c_char,
+    pub entitlement: *const c_char,
+    pub car_group: i32,
+    pub badge: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SwoftyCareerContentInfo {
+    pub index: u32,
+    pub state: u32,
+    pub mode_stat_id: i64,
+    pub data_group_index: i64,
+    pub tiles: u32,
+    pub presses: u32,
+    pub id: [c_char; 64],
+    pub data_group: [c_char; 64],
+    pub why: [c_char; 192],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SwoftyCareerContent {
+    pub available: Option<unsafe extern "C" fn() -> c_int>,
+    pub add: Option<unsafe extern "C" fn(desc: *const SwoftyCareerContentDesc) -> c_int>,
+    pub info: Option<unsafe extern "C" fn(id: *const c_char, out: *mut SwoftyCareerContentInfo) -> c_int>,
+    pub data_group:
+        Option<unsafe extern "C" fn(career: *const c_void, out: *mut c_char, cap: usize) -> c_int>,
+    pub pressed: Option<unsafe extern "C" fn(out: *mut c_char, cap: usize) -> c_int>,
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct SwoftyApi {
@@ -466,6 +516,7 @@ pub struct SwoftyApi {
     pub career: *const SwoftyCareer,
     pub popup: *const SwoftyPopup,
     pub lang: *const SwoftyLang,
+    pub career_content: *const SwoftyCareerContent,
 }
 
 pub type SwoftyAddonInitFn = unsafe extern "C" fn(api: *const SwoftyApi) -> c_int;
@@ -552,16 +603,22 @@ mod tests {
 
     #[test]
     fn layout_matches_header() {
-        assert_eq!(std::mem::size_of::<SwoftyApi>(), 144);
+        assert_eq!(std::mem::size_of::<SwoftyApi>(), 152);
         assert_eq!(std::mem::offset_of!(SwoftyApi, career), 120);
         assert_eq!(std::mem::offset_of!(SwoftyApi, popup), 128);
         assert_eq!(std::mem::offset_of!(SwoftyApi, lang), 136);
+        assert_eq!(std::mem::offset_of!(SwoftyApi, career_content), 144);
         assert_eq!(std::mem::size_of::<SwoftyLang>(), 40);
         assert_eq!(std::mem::size_of::<SwoftyCareer>(), 80);
         assert_eq!(std::mem::offset_of!(SwoftyCareer, block), 64);
         assert_eq!(std::mem::size_of::<SwoftyCareerStart>(), 80);
         assert_eq!(std::mem::offset_of!(SwoftyCareerStart, route), 16);
         assert_eq!(std::mem::size_of::<SwoftyPopup>(), 16);
+        assert_eq!(std::mem::size_of::<SwoftyCareerContentDesc>(), 72);
+        assert_eq!(std::mem::offset_of!(SwoftyCareerContentDesc, car_group), 64);
+        assert_eq!(std::mem::size_of::<SwoftyCareerContentInfo>(), 352);
+        assert_eq!(std::mem::offset_of!(SwoftyCareerContentInfo, id), 32);
+        assert_eq!(std::mem::size_of::<SwoftyCareerContent>(), 40);
         assert_eq!(std::mem::size_of::<SwoftyFlowState>(), 88);
         assert_eq!(std::mem::offset_of!(SwoftyFlowState, name), 24);
         assert_eq!(std::mem::size_of::<SwoftyCareerState>(), 80);
@@ -621,6 +678,9 @@ mod tests {
             "#define SWOFTY_EVENT_CAREER_STARTING \"career.starting\"",
             "SWOFTY_CAREER_START_CONTINUE = 2",
             "} SwoftyCareerStart;",
+            "const SwoftyCareerContent *career_content;",
+            "#define SWOFTY_EVENT_CAREER_CONTENT_PRESSED \"career.content.pressed\"",
+            "} SwoftyCareerContentInfo;",
             "#define SWOFTY_EVENT_CAREER_HUB \"career.hub\"",
             "} SwoftyCareerState;",
             "#define SWOFTY_EVENT_SESSION_START \"session.start\"",
@@ -691,6 +751,11 @@ mod tests {
             include_str!("../../../templates/addon/native/include/swofty/lang.hpp"),
             LANG_HEADER
         );
+        assert_eq!(
+            include_str!("../../../templates/addon/native/include/swofty/career_content.hpp"),
+            CAREER_CONTENT_HEADER
+        );
+        assert!(CAREER_CONTENT_HEADER.contains(CAREER_CONTENT_EXPORT));
     }
 
     #[test]

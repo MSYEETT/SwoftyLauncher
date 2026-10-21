@@ -347,6 +347,58 @@ typedef struct SwoftyLang {
     int (*refresh)(void);
 } SwoftyLang;
 
+/* Extra career contents (no API version of its own: the table is read only when the core exports
+   SwoftyCoreCareerContent, see swofty/career_content.hpp). A content is a tile on the career
+   content select after the stock 2025 and 2026 ones, with its own save slots (its data group). The
+   core builds the tile, presses it, routes it, passes its mode through the driver-career gate and
+   answers the save-slot predicate for it. Strings are copied. */
+#define SWOFTY_EVENT_CAREER_CONTENT_PRESSED "career.content.pressed"
+
+enum {
+    SWOFTY_CAREER_CONTENT_MODEL_2026 = 0,
+    SWOFTY_CAREER_CONTENT_MODEL_2025 = 1,
+};
+
+enum {
+    SWOFTY_CAREER_CONTENT_QUEUED = 0,
+    SWOFTY_CAREER_CONTENT_LIVE = 1,
+    SWOFTY_CAREER_CONTENT_OFF = 2,
+};
+
+typedef struct SwoftyCareerContentDesc {
+    uint32_t size;
+    uint32_t model;
+    const char *id;
+    const char *title;
+    const char *description;
+    const char *data_group;
+    const char *suffix;
+    const char *mode;
+    const char *entitlement;
+    int32_t car_group;
+    uint32_t badge;
+} SwoftyCareerContentDesc;
+
+typedef struct SwoftyCareerContentInfo {
+    uint32_t index;
+    uint32_t state;
+    int64_t mode_stat_id;
+    int64_t data_group_index;
+    uint32_t tiles;
+    uint32_t presses;
+    char id[64];
+    char data_group[64];
+    char why[192];
+} SwoftyCareerContentInfo;
+
+typedef struct SwoftyCareerContent {
+    int (*available)(void);
+    int (*add)(const SwoftyCareerContentDesc *desc);
+    int (*info)(const char *id, SwoftyCareerContentInfo *out);
+    int (*data_group)(const void *career, char *out, size_t cap);
+    int (*pressed)(char *out, size_t cap);
+} SwoftyCareerContent;
+
 typedef struct SwoftyApi {
     uint32_t version;
     void (*log)(const char *fmt, ...);
@@ -366,6 +418,7 @@ typedef struct SwoftyApi {
     const SwoftyCareer *career;
     const SwoftyPopup *popup;
     const SwoftyLang *lang;
+    const SwoftyCareerContent *career_content;
 } SwoftyApi;
 
 typedef int (*SwoftyAddonInitFn)(const SwoftyApi *api);
