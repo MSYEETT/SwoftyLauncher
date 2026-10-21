@@ -4,8 +4,13 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "../src/core/dbread_logic.hpp"
 
@@ -21,6 +26,65 @@ static void ok(bool cond, const char *what)
 static uint64_t full(const std::string &s)
 {
     return dbread::fnv64(s);
+}
+
+// A database shaped like the game's in memory: one value record per stored key, an int at +8 and,
+// for string records, the FNV-1a-32 of the text at +0x30.
+struct FakeDb {
+    std::unordered_map<uint64_t, std::vector<uint8_t>> recs;
+
+    void text(uint64_t key, const std::string &t)
+    {
+        std::vector<uint8_t> r(0x50, 0);
+        uint32_t h = dbread::fnv32(t.c_str());
+        memcpy(r.data() + dbread::REC_META, &h, 4);
+        recs[key] = r;
+    }
+    void integer(uint64_t key, int32_t v)
+    {
+        std::vector<uint8_t> r(0x50, 0);
+        memcpy(r.data() + dbread::REC_SCALAR, &v, 4);
+        recs[key] = r;
+    }
+    const void *get(uint64_t key) const
+    {
+        auto it = recs.find(key);
+        return it == recs.end() ? nullptr : it->second.data();
+    }
+};
+
+// gamedatabases.<year>.bin: u32 count, then per record u32 key_lo, u32 key_hi, u8 type, u32 n, n
+// masked bytes and a NUL; byte j of the stream is plain + MASK[(10 + j) % 30] (tools/gamedb.py).
+static bool load_bin(const char *path, FakeDb &db)
+{
+    std::ifstream f(path, std::ios::binary);
+    std::vector<uint8_t> d((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    static const char MASK[] = "tG5MYmBZEZZnrH7yg2qTC4qj42Jcq9";
+    if (d.size() < 4)
+        return false;
+    uint32_t count;
+    memcpy(&count, d.data(), 4);
+    size_t p = 4, stream = 0;
+    for (uint32_t i = 0; i < count; i++) {
+        if (p + 13 > d.size())
+            return false;
+        uint32_t lo, hi, n;
+        memcpy(&lo, &d[p], 4), memcpy(&hi, &d[p + 4], 4), memcpy(&n, &d[p + 9], 4);
+        uint8_t type = d[p + 8];
+        if (p + 14 + n > d.size())
+            return false;
+        std::string text(n, '\0');
+        for (uint32_t j = 0; j < n; j++)
+            text[j] = char(uint8_t(d[p + 13 + j] - uint8_t(MASK[(10 + stream + j) % 30])));
+        uint64_t key = uint64_t(hi) << 32 | lo;
+        if (type == 0)
+            db.integer(key, int32_t(strtol(text.c_str(), nullptr, 10)));
+        else if (type >= 2 && type <= 4)
+            db.text(key, text);
+        stream += n;
+        p += 14 + n;
+    }
+    return p == d.size();
 }
 
 int main()
@@ -126,6 +190,49 @@ int main()
     ok(!swofty::mem::printable_utf8("\xe2\x82"), "truncated sequence rejected");
     ok(!swofty::mem::printable_utf8("\xf4\x90\x80\x80"), "above U+10FFFF rejected");
     ok(swofty::mem::printable_utf8("\xf0\x9f\x8f\x81"), "4-byte sequence accepted");
+
+    // Rows by label, shaped like the built 1990 database: entrants.entrant_lists has 71 rows and
+    // the add-row clone f1_career_1990 is the last one. A row is only its fields; the label is the
+    // _metadata_ string record and the row path itself has no record.
+    {
+        FakeDb db;
+        dbread::TableKeys lists = dbread::table_keys("entrants.entrant_lists");
+        db.integer(lists.count_key, 71);
+        for (uint64_t i = 0; i < 71; i++) {
+            std::string label = i == 70 ? "f1_career_1990" : i == 64 ? "f1_2026" : "list_" + std::to_string(i);
+            db.text(dbread::label_key(lists.row_prefix, i), label);
+            db.integer(dbread::cell_key(lists.row_prefix, i, "stat_id"), i == 70 ? 107 : int32_t(i));
+        }
+        db.text(dbread::label_key(lists.row_prefix, 71), "past_the_count");
+        auto rec = [&](uint64_t key) { return db.get(key); };
+        ok(dbread::label_key(lists.row_prefix, 70) == full("entrants.entrant_lists.entrant_list_70._metadata_"),
+           "label_key is the row's _metadata_ field");
+        ok(!db.get(dbread::row_key(lists.row_prefix, 70)), "the row path has no record of its own");
+        int64_t at = dbread::find_row(rec, lists.row_prefix, 71, "f1_career_1990");
+        const void *stat = at < 0 ? nullptr : db.get(dbread::cell_key(lists.row_prefix, uint64_t(at), "stat_id"));
+        ok(at == 70 && stat && dbread::read_i32(stat) == 107, "find_row: the add-row clone f1_career_1990 is row 70, stat_id 107");
+        ok(dbread::find_row(rec, lists.row_prefix, 71, "f1_2026") == 64, "find_row: a stock row by its label");
+        ok(dbread::find_row(rec, lists.row_prefix, 71, "past_the_count") == -1, "find_row: a row past the instance count is not found");
+        ok(dbread::find_row(rec, lists.row_prefix, 71, "f1_career_1991") == -1, "find_row: an unknown label is not found");
+    }
+
+    // SWOFTY_GAMEDB_BIN=<gamedatabases.2025.bin>: the same lookup over a built database file, for
+    // SWOFTY_GAMEDB_LABEL (default f1_2026) in entrants.entrant_lists.
+    if (const char *bin = getenv("SWOFTY_GAMEDB_BIN")) {
+        const char *label = getenv("SWOFTY_GAMEDB_LABEL") ? getenv("SWOFTY_GAMEDB_LABEL") : "f1_2026";
+        FakeDb db;
+        bool loaded = load_bin(bin, db);
+        ok(loaded, "gamedb file parses");
+        dbread::TableKeys lists = dbread::table_keys("entrants.entrant_lists");
+        const void *count = db.get(lists.count_key);
+        uint64_t n = count ? uint64_t(dbread::read_i32(count)) : 0;
+        int64_t at = dbread::find_row([&](uint64_t key) { return db.get(key); }, lists.row_prefix, n, label);
+        const void *stat = at < 0 ? nullptr : db.get(dbread::cell_key(lists.row_prefix, uint64_t(at), "stat_id"));
+        printf("      %s: %zu records, %llu entrant lists, '%s' at row %lld, stat_id %d\n", bin, db.recs.size(),
+               (unsigned long long)n, label, (long long)at, stat ? dbread::read_i32(stat) : -1);
+        ok(at >= 0 && stat, "gamedb file: the label's entrant list row and its stat_id are found");
+        ok(at < 0 || !db.get(dbread::row_key(lists.row_prefix, uint64_t(at))), "gamedb file: the row path has no record");
+    }
 
     printf("%s: %d failure(s)\n", failures ? "FAIL" : "ok  ", failures);
     return failures ? 1 : 0;
