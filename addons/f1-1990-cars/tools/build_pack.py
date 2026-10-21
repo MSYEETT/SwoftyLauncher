@@ -47,7 +47,7 @@ SOURCES_B = {
     'minardi': 'gridc13b_minardi', 'brabham': 'gridc13b_brabham', 'dallara': 'gridc13b_dallara',
     'arrows': 'gridc13b_arrows',
 }
-COMMON = '/mnt/work/.mp45b/porter_a/tries/tyres13cm2/common.erp'
+COMMON = '/mnt/work/.mp45b/porter_a/tries/tyres13cm3/common.erp'
 TYRES = '2025_asset_groups/f1_2026_vehicle_package/tyrecompounds/tyrecompounds.erp'
 POD_CAMERA = {
     'mclaren': (0.658, 0.119), 'ferrari': (0.652, 0.123), 'williams': (0.626, -0.109), 'benetton': (0.630, 0.166),
