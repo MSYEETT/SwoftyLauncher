@@ -12,7 +12,7 @@
 // +0x2e0..+0x2e8, 0x88 each; the session grid is built from them) and are saved with the career,
 // so the swap persists.
 //
-// When: the core's career.loaded and career.hub events (the hub sits between sessions), only while
+// When: the core's career.loaded event and career.hub entered (the hub sits between sessions), only while
 // the loaded career's data group is f1_career_1990, and only for rows whose vehicle is an A-spec
 // 1990 car. How: the game's own line-up writer, Career_Set_EntrantData_Thunk, with every field of
 // the row kept except the vehicle (the career editor's driver swap uses the same writer and the
@@ -28,7 +28,7 @@
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 
-#include "career_group.hpp"
+#include "career_1990.hpp"
 
 SWOFTY_SETTING(bool, bspec_cars, true);
 
@@ -53,25 +53,6 @@ std::atomic<uint32_t> g_logged{0};
 bool readable(const void *p, size_t n)
 {
     return p && swofty::mem::readable(p, n);
-}
-
-void *registry_get(void *registry, uintptr_t desc)
-{
-    auto **vt = *static_cast<void ***>(registry);
-    if (!vt || !vt[2])
-        return nullptr;
-    return reinterpret_cast<void *(*)(void *, const void *, int)>(vt[2])(registry, reinterpret_cast<const void *>(desc), 1);
-}
-
-void *setup_component(void *championship)
-{
-    return registry_get(static_cast<uint8_t *>(championship) + 0x208, k_Career_CareerSetupComponentDesc.address());
-}
-
-uint8_t group_index(void *component)
-{
-    auto **vt = *static_cast<void ***>(component);
-    return reinterpret_cast<uint8_t (*)(void *)>(vt[0x268 / 8])(component);
 }
 
 bool same_key(uint32_t a, uint32_t b)
@@ -208,10 +189,10 @@ int swap_rows(void *entity, const std::vector<uint32_t> &teams)
 
 void on_career(const SwoftyEvent *ev, void *)
 {
-    if (!bspec_cars)
+    if (!bspec_cars || (!std::strcmp(ev->name, SWOFTY_EVENT_CAREER_HUB) && ev->a != 1))
         return;
     void *career = swofty::career::entity();
-    if (!career || !f1990::career_data_group_is(career, f1990::kCareerGroup1990, {setup_component, group_index}))
+    if (!career || !f1990::is_1990_career(career))
         return;
     uint32_t teams_seen = 0, bspec_seen = 0;
     std::vector<uint32_t> done = completed_teams(teams_seen, bspec_seen);
