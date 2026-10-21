@@ -55,25 +55,39 @@ python3 addons/f1-1990/tools/build_cars.py --game "<F1 25>" --write  # replace t
 
 The stock 2026 team archives and game database must be the stock files.
 
-## Driver Career (db/career.json, db/career-lang.json, tools/career.py)
+## Driver Career (db/career.json, db/career-lang.json, tools/career.py, tools/check_career.py)
 
-Driver Career 2026 is the 1990 career: one season of the 16 1990 rounds in order (Hockenheim on Shanghai until a
-Hockenheim track is added), no sprints, no transfer window, 9-6-4-3-2-1 points, and the agent is Flavio Briatore.
-The mode row's save container is `driver_career_1990`, but that container sits inside the one profile save
-(`savegame@profile#...`) with every other career, so the 1990 profile lists and can load the real 2026 careers. A
-separate save file needs the native save hook (N2: the profile save named `f1990`); until it lands, back up saves before
-playing a career in this profile.
-The **Career year** setting starts the career in 1990 (default) or 2026.
-The Career menu's 2026 tile reads "1990 Career" (`lng_career_dlc_content` and its description). The 2025 tile and the
-26 badge stay; hiding them needs the native request N6.
-The season has no New Season Grid Reveal event; the reveal crashes the game with 13 teams.
-The season-length screen lists three "1990 Season" entries, the `f1_26` Long, Medium and Short rows, all with the same
-16 rounds. The game needs all three rows: the career activity report (0x143867ff0) reads the Short and Medium lengths
-and crashes on a missing row.
+The 1990 career is a third career content next to the stock 2025 and 2026 ones. Its rows are full-key clones of the
+2026 rows; no 2025 or 2026 row changes.
 
-The agent's English speech banks are replaced with silent copies of the same length (`files/speech/`), so her lines
-show subtitles with no voice; `tools/mute_agent.py <F1 25> <out> [language ...]` writes them for any language. The
-contract scene at the start of a career still shows until the native contract hook lands.
+| Row | Name | Cloned from |
+|---|---|---|
+| career data group, in all eight data-group tables | `f1_career_1990` | `f1_career_2026` |
+| mode row | `driver_career_1990` (statId 81, save container `driver_career_1990`) | `driver_career_26` |
+| championship | `F1_driver_career_1990` (statId 35, setup mode `f1_1990`, entrant list and setup data `f1_career_1990`) | `F1_driver_career_26` |
+| event list | `F1_career_1990`: one season, five season events (no New Season Grid Reveal) | `F1_career_26` |
+| track list | `F1_1990`: the 16 rounds in order (Hockenheim on Shanghai) | `F1_2026_16` |
+| season lengths | `F1_1990_Long`, `_Medium`, `_Short`, all 16 rounds, no transfer window, setup mode `f1_1990` | `F1_2026_*` |
+| track selection | `F1_1990` | `F1_2026` |
 
-`tools/career.py <dir>` writes `db/career.json` and `db/career-lang.json`; `<dir>` holds the stock language tables
-as `language_<code>.tsv` (key, tab, value, with `\n` escaped).
+Content set `2026` lists `driver_career_1990` and `f1_1990`. The career data group is the key the career slot list
+filters on, so 1990 careers have their own slots. The **Career year** setting starts the career in 1990 (default) or
+2026.
+
+Strings are new keys: `lng_f1990_career_content(_description)` for the third Career tile, `lng_f1990_season`,
+`lng_f1990_championship_season(_loading_screen)`, `lng_f1990_trophy_drivers_champion`, `lng_f1990_season_length`, and
+per round `lng_f1990_gp_<code>` (long Grand Prix name) and `lng_f1990_gp_<code>_short`. `career.TRACK_NAMES` and
+`career.TRACK_DATES` give the keys and the 1990 dates per track for the `f1_1990` track dataset.
+
+The agent is Flavio Briatore in every career: her strings and her character row are shared by all careers, and no data
+names the agent per career. Her English speech banks are replaced with silent copies (`files/speech/`,
+`tools/mute_agent.py`), which also mutes her in 2025 and 2026 careers.
+
+```sh
+python3 addons/f1-1990/tools/career.py <stock gamedatabases.2025.bin> <dir of language_<code>.tsv>
+python3 addons/f1-1990/tools/check_career.py <stock gamedatabases.2025.bin> <built gamedatabases.2025.bin>
+```
+
+`check_career.py` fails when a key of a stock 2025/2026 career row, points preset, track dataset, content set or car
+group changed (other than the row counts, content set 11's two lists and the agent's name fields), or a 1990 row is
+missing.
