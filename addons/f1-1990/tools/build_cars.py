@@ -24,8 +24,15 @@ common.erp. No 2026 archive, row or file is touched.
 Option tyre_size: the f1_1990 package carries a 13-inch tyre set, so both values use TyreRadius 0.323 front /
 0.330 rear, AlloyRadius at its 0.175 m bead, the tyre damage node graphs remapped radially from the stock bead and
 tread onto the new ones and widened to the new mesh, and the final drive scaled by the rear radius so road speed per
-engine rev stays the same. TyreWidth, tyre mass, inertia and compression stay stock. 13in_raised also adds the radius
-drop to each axle's RideHeight and setup ride-height range.
+engine rev stays the same. TyreWidth, tyre mass, inertia and compression stay stock. The wheel nodes stay at the 2026
+axle height, so the smaller radius alone drops the chassis, floor and plank by the radius drop (2.8 cm front, 2.4 cm
+rear). The physics sets the static suspension height from MaxHeight - RestLength and the spring rates (0x1446b5f60) and
+ignores RideHeight, so each axle's suspension height frame moves down by the drop instead: MinHeight, MaxHeight,
+BumpStopHeight and the x of every HeightTo* spline, with RestLength and the spring rates stock. The car then sits at the
+2026 ride height with the 2026 travel, bump-stop margin and kinematics. The aero ride height is
+AeroReferencePlaneHeight - (height + RideHeightOffset) (0x1446cb000), so RideHeightOffset carries the drop and the aero
+maps read the 2026 values. 13in_raised moves the frame by twice the drop, lifting the car by the drop over the 2026 ride
+height, and adds that lift to RideHeight and the setup ride-height range.
 
 Team power, mass and drag come from the season pack's per-team scalars (season.py), applied around a common base.
 
@@ -110,6 +117,7 @@ STOCK_MESH_WIDTH = {'Front': 0.339, 'Rear': 0.418}
 BEAD_13 = 0.175
 ALLOY_13 = 0.182
 TYRE_GRAPHS = {b'x0_tyre_fl': 'Front', b'x0_tyre_fr': 'Front', b'x0_tyre_bl': 'Rear', b'x0_tyre_br': 'Rear'}
+SUSPENSION_HEIGHTS = (b'MinHeight', b'MaxHeight', b'BumpStopHeight')
 
 
 RND_ENGINE_PEAK = 53988
@@ -294,6 +302,16 @@ def remap_graph(graph, end, stock_radius):
         n.set_attr(b'z', fmt(float(n.attr(b'z')) * k))
 
 
+def shift_heights(node, d):
+    for k in SUSPENSION_HEIGHTS:
+        set_value(node, k, round(value(node, k) - d, 4))
+    for c in node.children:
+        if c.kind == 0 and c.name.startswith(b'HeightTo'):
+            for e in c.children:
+                if e.kind == 0:
+                    e.set_attr(b'x', fmt(round(float(e.attr(b'x')) - d, 6)))
+
+
 def tyres(root, size):
     if size == 'stock':
         return 1.0
@@ -307,13 +325,16 @@ def tyres(root, size):
         if graph.kind == 0 and graph.name == b'PhysicsNodeGraph':
             end = TYRE_GRAPHS[graph.attr(b'name')]
             remap_graph(graph, end, stock[end])
-    if size == '13in_raised':
-        tuning = section(root, b'F1Tuning')
-        for end, node in named(susp, b'Suspension').items():
-            drop = stock[end] - TYRES_13[end]['radius']
-            set_value(node, b'RideHeight', round(value(node, b'RideHeight') + drop, 4))
+    tuning = section(root, b'F1Tuning')
+    for end, node in named(susp, b'Suspension').items():
+        drop = stock[end] - TYRES_13[end]['radius']
+        lift = drop if size == '13in_raised' else 0.0
+        shift_heights(node, drop + lift)
+        set_value(node, b'RideHeightOffset', round(value(node, b'RideHeightOffset') + drop, 4))
+        if lift:
+            set_value(node, b'RideHeight', round(value(node, b'RideHeight') + lift, 4))
             for k in (f'{end}RideHeightMin', f'{end}RideHeightMax'):
-                set_value(tuning, k.encode(), round(value(tuning, k.encode()) + drop, 4))
+                set_value(tuning, k.encode(), round(value(tuning, k.encode()) + lift, 4))
     return TYRES_13['Rear']['radius'] / stock['Rear']
 
 

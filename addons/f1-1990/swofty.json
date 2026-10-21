@@ -134,7 +134,7 @@
     },
     {
       "id": "tyre_size", "type": "choice", "label": "Tyre size", "default": "13in",
-      "description": "The tyre radius the 1990 handling files use, matching the 13-inch tyre set of the 1990 car pack. Raised also lifts the ride height by the smaller radius.",
+      "description": "The tyre radius the 1990 handling files use, matching the 13-inch tyre set of the 1990 car pack. Both keep the 2026 ride height; Raised lifts the car a further 2.4 to 2.8 cm.",
       "values": [
         { "value": "13in", "label": "13-inch" }, { "value": "13in_raised", "label": "13-inch, raised" }
       ],
