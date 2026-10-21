@@ -392,7 +392,7 @@ def build(db):
         ops.append(setop(base, "_tweakables_instancecount_", 1, INT))
         for f, (tag, value) in tweaks.items():
             if f == "target_mass_adjustment_at_max_upgrade":
-                value = fmt(round(-0.5 * (team_mass(teams[0]) - 505) * 115 / 17))
+                value = fmt(round(weight_target(teams[0]) * 115 / 17))
             ops.append(setop(f"{base}.tweakables_0", f, value, tag))
 
         meta = metadata(token, meta_stock)
