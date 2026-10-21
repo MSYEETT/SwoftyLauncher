@@ -199,21 +199,32 @@ int main()
         content::Desc d = desc1990();
         d.mode = "driver_career_1991";
         r = content::requirements(d, db);
-        expect(!r.ok && r.why.find("ModeChampionship") != std::string::npos, "requirements: a missing mode row turns it off");
+        expect(!r.ok && r.why.find("ModeChampionship") != std::string::npos, "requirements: a missing mode row fails the requirements");
         d = desc1990();
         d.data_group = "f1_career_1991";
         r = content::requirements(d, db);
-        expect(!r.ok && r.why.find("entrant_lists") != std::string::npos, "requirements: a missing entrant list turns it off");
+        expect(!r.ok && r.why.find("entrant_lists") != std::string::npos, "requirements: a missing entrant list fails the requirements");
         d.data_group = "f1_career_huge";
         r = content::requirements(d, db);
-        expect(!r.ok && r.why.find("below 256") != std::string::npos, "requirements: a stat_id past a byte turns it off");
+        expect(!r.ok && r.why.find("below 256") != std::string::npos, "requirements: a stat_id past a byte fails the requirements");
         texts.erase("content_sets.content_set_1.official_entrant_list_1.name");
         r = content::requirements(desc1990(), db);
-        expect(!r.ok && r.why.find("F1CAREER_90") != std::string::npos, "requirements: no F1CAREER_<suffix> list turns it off");
+        expect(!r.ok && r.why.find("F1CAREER_90") != std::string::npos, "requirements: no F1CAREER_<suffix> list fails the requirements");
         stock_db();
         texts.erase("content_sets.content_set_1.official_entrant_list_3.name");
         r = content::requirements(desc1990(), db);
         expect(r.ok && r.warn.find("ICONS_90") != std::string::npos, "requirements: a missing ICONS_<suffix> list only warns");
+    }
+    {
+        content::Retry r;
+        expect(r.due(0), "retry: the first check is due at once");
+        expect(r.failed(0, "no entrants.entrant_lists row is named f1_career_1990"), "retry: a first failure is logged");
+        expect(!r.due(content::RETRY_MS - 1) && r.due(content::RETRY_MS), "retry: the next check waits RETRY_MS");
+        expect(!r.failed(content::RETRY_MS, "no entrants.entrant_lists row is named f1_career_1990"),
+               "retry: the same reason is not logged again");
+        expect(r.failed(2 * content::RETRY_MS, "no content set lists the official entrant list F1CAREER_90"),
+               "retry: a new reason is logged");
+        expect(r.tries == 3 && r.due(3 * content::RETRY_MS), "retry: it keeps checking, never latching off");
     }
     printf("%s\n", fails ? "career_content_test: FAILED" : "career_content_test: all passed");
     return fails ? 1 : 0;
