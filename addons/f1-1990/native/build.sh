@@ -43,5 +43,8 @@ SRC=(src/plugin.cpp src/grid_best_of.cpp src/save_separation.cpp src/contract_sk
 "${CXX[@]}" -O2 -Wall -Wextra -I"$GAME" -I$SDK -D__USE_MINGW_ANSI_STDIO=1 -shared -s \
     -o f1_1990_bspec.dll src/bspec.cpp
 
-rm -f f1_1990.lib f1_1990_tyres.lib f1_1990_replay.lib f1_1990_ui.lib f1_1990_voice.lib f1_1990_bspec.lib
-echo "built $(pwd)/f1_1990.dll $(pwd)/f1_1990_tyres.dll $(pwd)/f1_1990_replay.dll $(pwd)/f1_1990_ui.dll $(pwd)/f1_1990_voice.dll $(pwd)/f1_1990_bspec.dll"
+"${CXX[@]}" -O2 -Wall -Wextra -I"$GAME" -I$SDK -D__USE_MINGW_ANSI_STDIO=1 -shared -s \
+    -o f1_1990_agent.dll src/agent_character.cpp
+
+rm -f f1_1990.lib f1_1990_tyres.lib f1_1990_replay.lib f1_1990_ui.lib f1_1990_voice.lib f1_1990_bspec.lib f1_1990_agent.lib
+echo "built $(pwd)/f1_1990.dll $(pwd)/f1_1990_tyres.dll $(pwd)/f1_1990_replay.dll $(pwd)/f1_1990_ui.dll $(pwd)/f1_1990_voice.dll $(pwd)/f1_1990_bspec.dll $(pwd)/f1_1990_agent.dll"

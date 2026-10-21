@@ -18,3 +18,5 @@ ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/speech_line_test s
 ../build/speech_line_test
 ${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/agent_strings_test agent_strings_test.cpp
 ../build/agent_strings_test ../../data/flavio-strings.json
+${CXX:-g++} -std=c++20 -O1 -Wall -Wextra -I../src -o ../build/character_ref_test character_ref_test.cpp
+../build/character_ref_test
