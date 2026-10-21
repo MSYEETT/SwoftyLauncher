@@ -17,6 +17,21 @@
 
 React 🔁 on a report to diagnose it again. State is in `$TRIAGE_DATA_DIR/triage.db`; each case's logs, zips and `diagnosis.json` are in `$TRIAGE_DATA_DIR/cases/<message id>/`. Logs and zips are deleted after 30 days.
 
+## Release announcements
+
+With `TRIAGE_RELEASES_CHANNEL_ID` set, the bot checks the repository's GitHub releases every `TRIAGE_RELEASES_POLL_S` seconds and posts each new published release to that channel, then publishes the message when the channel is an announcement channel. The post has:
+
+- the title and opening line, with the version called a Major Version for `x.y.0` and a Minor Version otherwise;
+- the changelog, which Claude writes from `docs/releases/<version>.md` at the tag and the commits since the previous release, each line citing its pull requests;
+- links to the release's Windows and Linux archives and addon zips;
+- the contributors, by number of commits.
+
+On the first start, releases published before `TRIAGE_RELEASES_SINCE` are marked as announced. Without it, only releases published after the start are posted. Preview a post without sending it:
+
+```sh
+uv run swofty-triage release-preview v1.1.0
+```
+
 ## Configuration
 
 Environment variables, read from `/etc/swofty-triage.env` by the service:
@@ -36,6 +51,13 @@ Environment variables, read from `/etc/swofty-triage.env` by the service:
 | `TRIAGE_DAILY_LIMIT` | `40` | Reports diagnosed per 24 hours |
 | `TRIAGE_PER_NAME_HOURLY` | `3` | Reports diagnosed per Discord name per hour |
 | `TRIAGE_BACKFILL_FROM` | | On a first start, also diagnose reports from this message id onwards |
+| `TRIAGE_RELEASES_CHANNEL_ID` | | Channel for release announcements; unset turns them off |
+| `TRIAGE_RELEASES_REPO` | `Swofty-Developments/SwoftyLauncher` | Repository whose releases are announced |
+| `TRIAGE_RELEASES_PROJECT` | `Swofty Launcher for F1 25` | Project name in the announcement title |
+| `TRIAGE_RELEASES_DOCS` | `https://f1.swofty.net` | Documentation site; the post links `<docs>/releases/<version>` when the release has notes |
+| `TRIAGE_RELEASES_POLL_S` | `300` | Seconds between release checks |
+| `TRIAGE_RELEASES_SINCE` | | On a first start, announce releases published after this ISO 8601 time |
+| `GITHUB_TOKEN` | | Optional token for a higher GitHub API rate limit |
 
 ## Deploy
 

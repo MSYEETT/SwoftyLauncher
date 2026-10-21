@@ -37,6 +37,26 @@ def update_sources(_: argparse.Namespace) -> int:
     return 1 if problems else 0
 
 
+def release_preview(args: argparse.Namespace) -> int:
+    import anthropic
+
+    from . import releases
+    from .source import Sources
+
+    cfg = config.from_env(need_discord=False)
+    gh = releases.GitHub(cfg.releases_repo, cfg.github_token or None)
+    found = gh.releases()
+    release = next((r for r in found if r.tag == args.tag), None)
+    if release is None:
+        raise SystemExit(f"swofty-triage: no published release {args.tag} in {cfg.releases_repo}")
+    sources = Sources(cfg.repos, cfg.repos_dir)
+    text = releases.compose(
+        gh, sources, anthropic.Anthropic(), cfg.model, cfg.releases_project, cfg.releases_docs, release, found
+    )
+    print(text)
+    return 0
+
+
 def run(_: argparse.Namespace) -> int:
     from .bot import TriageBot
     from .pipeline import Triage
@@ -60,6 +80,9 @@ def main() -> int:
     p.add_argument("--id", help="report id, the stem by default")
     p.add_argument("--received", type=float, help="Unix time the report arrived")
     p.set_defaults(func=diagnose)
+    p = sub.add_parser("release-preview", help="print the announcement for a release without posting it")
+    p.add_argument("tag")
+    p.set_defaults(func=release_preview)
     sub.add_parser("update-sources", help="clone or fetch the source mirrors").set_defaults(
         func=update_sources
     )

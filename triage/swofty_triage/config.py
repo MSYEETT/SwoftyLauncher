@@ -26,6 +26,13 @@ class Config:
     per_name_hourly: int = 3
     backfill_from: int = 0
     part_wait_s: int = 1800
+    releases_channel_id: int = 0
+    releases_repo: str = "Swofty-Developments/SwoftyLauncher"
+    releases_project: str = "Swofty Launcher for F1 25"
+    releases_docs: str = "https://f1.swofty.net"
+    releases_poll_s: int = 300
+    releases_since: str = ""
+    github_token: str = ""
 
     @property
     def cases_dir(self) -> Path:
@@ -80,4 +87,11 @@ def from_env(env: dict[str, str] | None = None, need_discord: bool = True) -> Co
         per_name_hourly=int(env.get("TRIAGE_PER_NAME_HOURLY", "3")),
         backfill_from=int(env.get("TRIAGE_BACKFILL_FROM") or 0),
         part_wait_s=int(env.get("TRIAGE_PART_WAIT_S", "1800")),
+        releases_channel_id=int(env.get("TRIAGE_RELEASES_CHANNEL_ID") or 0),
+        releases_repo=env.get("TRIAGE_RELEASES_REPO", "Swofty-Developments/SwoftyLauncher"),
+        releases_project=env.get("TRIAGE_RELEASES_PROJECT", "Swofty Launcher for F1 25"),
+        releases_docs=env.get("TRIAGE_RELEASES_DOCS", "https://f1.swofty.net").rstrip("/"),
+        releases_poll_s=int(env.get("TRIAGE_RELEASES_POLL_S", "300")),
+        releases_since=env.get("TRIAGE_RELEASES_SINCE", ""),
+        github_token=env.get("GITHUB_TOKEN", ""),
     )

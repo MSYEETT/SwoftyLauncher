@@ -1,12 +1,14 @@
 import asyncio
+import json
 import logging
 import shutil
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 import discord
 
-from . import render, report
+from . import releases, render, report
 from .agent import Declined
 from .pipeline import Limited, Result, Triage
 from .report import Header
@@ -44,7 +46,11 @@ class TriageBot(discord.Client):
         self.ready_once = asyncio.Event()
 
     async def setup_hook(self) -> None:
-        self.tasks = [asyncio.create_task(self.worker()), asyncio.create_task(self.sweeper())]
+        self.tasks = [
+            asyncio.create_task(self.worker()),
+            asyncio.create_task(self.sweeper()),
+            asyncio.create_task(self.release_watcher()),
+        ]
 
     async def channel(self) -> discord.TextChannel:
         channel = self.get_channel(self.cfg.channel_id) or await self.fetch_channel(self.cfg.channel_id)
@@ -220,6 +226,67 @@ class TriageBot(discord.Client):
                 await asyncio.to_thread(prune_cases, self.cfg.cases_dir, CASE_DAYS)
             except Exception:
                 log.exception("sweep failed")
+
+    async def release_watcher(self) -> None:
+        await self.ready_once.wait()
+        if not self.cfg.releases_channel_id:
+            return
+        gh = releases.GitHub(self.cfg.releases_repo, self.cfg.github_token or None)
+        while True:
+            try:
+                await self.announce_releases(gh)
+            except Exception:
+                log.exception("release check failed")
+            await asyncio.sleep(self.cfg.releases_poll_s)
+
+    async def announce_releases(self, gh: releases.GitHub) -> None:
+        store = self.triage.store
+        found = await asyncio.to_thread(gh.releases)
+        raw = store.meta("releases_seen")
+        if raw is None:
+            since = since_time(self.cfg.releases_since)
+            seen = {r.tag for r in found if r.published < since}
+            store.set_meta("releases_seen", json.dumps(sorted(seen)))
+        else:
+            seen = set(json.loads(raw))
+        new = sorted((r for r in found if r.tag not in seen), key=lambda r: r.published)
+        if not new:
+            return
+        channel = self.get_channel(self.cfg.releases_channel_id) or await self.fetch_channel(
+            self.cfg.releases_channel_id
+        )
+        for release in new:
+            key = f"release_text:{release.tag}"
+            text = store.meta(key)
+            if text is None:
+                text = await asyncio.to_thread(
+                    releases.compose,
+                    gh,
+                    self.triage.sources,
+                    self.triage.agent.client,
+                    self.cfg.model,
+                    self.cfg.releases_project,
+                    self.cfg.releases_docs,
+                    release,
+                    found,
+                )
+                store.set_meta(key, text)
+            for chunk in render.split(text):
+                message = await channel.send(chunk, suppress_embeds=True)
+                if isinstance(channel, discord.TextChannel) and channel.is_news():
+                    try:
+                        await message.publish()
+                    except discord.HTTPException as e:
+                        log.warning("publishing %s: %s", release.tag, e)
+            seen.add(release.tag)
+            store.set_meta("releases_seen", json.dumps(sorted(seen)))
+            log.info("announced %s in %s", release.tag, self.cfg.releases_channel_id)
+
+
+def since_time(raw: str) -> datetime:
+    if raw:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    return datetime.now(timezone.utc)
 
 
 def prune_cases(cases_dir, days: int) -> None:
