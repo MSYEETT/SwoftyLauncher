@@ -1462,6 +1462,15 @@ pub type Career_Add_TeamModifier_t = unsafe extern "C" fn(list: *mut c_void, key
 pub type Career_Adjust_RpDriverWallet_t =
     unsafe extern "C" fn(wallets: *mut c_void, driver_key: u32, delta: i32);
 pub type Career_Adjust_RpTeamWallet_t = unsafe extern "C" fn(wallets: *mut c_void, team_key: u32, delta: i32);
+pub type Career_Build_DriverContract_t = unsafe extern "C" fn(
+    contracts: *mut c_void,
+    contract: *mut c_void,
+    driver_key: u32,
+    team_key: u32,
+    r#type: u8,
+    target: i32,
+    seasons: i32,
+) -> *mut c_void;
 pub type Career_Build_LineupChanges_t = unsafe extern "C" fn(
     out: *mut c_void,
     current_entrants: *const c_void,
@@ -1483,8 +1492,20 @@ pub type Career_Construct_RnDDeptCard_t = unsafe extern "C" fn(
     icon: *const c_char,
     dept: u8,
 ) -> *mut c_void;
+pub type Career_ContractIntro_OnEnter_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
+pub type Career_ContractIntro_OnUpdate_t =
+    unsafe extern "C" fn(state: *mut c_void, link: *mut u32) -> *mut u32;
+pub type Career_ContractOutro_OnEnter_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
+pub type Career_ContractOutro_OnUpdate_t =
+    unsafe extern "C" fn(state: *mut c_void, link: *mut u32) -> *mut u32;
+pub type Career_ContractUpdate_OnEnter_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
+pub type Career_ContractUpdate_OnExit_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
+pub type Career_ContractUpdate_OnUpdate_t =
+    unsafe extern "C" fn(state: *mut c_void, link: *mut u32) -> *mut u32;
 pub type Career_Create_SeasonWeekend_t =
     unsafe extern "C" fn(season: *mut c_void, index: u64, track: u8, name: *const c_char) -> *mut c_void;
+pub type Career_Decide_ContractNegotiation_t =
+    unsafe extern "C" fn(state: *mut c_void, link: *mut u32) -> *mut u32;
 pub type Career_Eval_Curve_t = unsafe extern "C" fn(curve: *mut c_void, x: f32) -> f32;
 pub type Career_Get_CareerLengthDays_Thunk_t = unsafe extern "C" fn(time: *mut c_void) -> u32;
 pub type Career_Get_DriverOverallRating_t =
@@ -1492,6 +1513,7 @@ pub type Career_Get_DriverOverallRating_t =
 pub type Career_Get_RpWallet_t = unsafe extern "C" fn(wallets: *mut c_void, out: *mut u64, driver_key: u32);
 pub type Career_Get_TeamRenownData_t =
     unsafe extern "C" fn(rf: *mut c_void, out_weak: *mut c_void, team_key: u32) -> *mut c_void;
+pub type Career_Needs_DriverContract_t = unsafe extern "C" fn(contracts: *mut c_void) -> bool;
 pub type Career_Post_UpgradeFittedRatio_t =
     unsafe extern "C" fn(upgrades: *mut c_void, inst: *mut c_void, fitted: u8);
 pub type Career_Rebuild_ChampionshipStandings_t =
@@ -1518,6 +1540,13 @@ pub type Career_Set_EntrantData_Thunk_t = unsafe extern "C" fn(
 );
 pub type Career_Set_UpgradeFacilityLocked_t = unsafe extern "C" fn(inst: *mut c_void, locked: u8, day: u16);
 pub type Career_Set_UpgradesOwner_t = unsafe extern "C" fn(upgrades: *mut c_void, owner: u32);
+pub type Career_Sign_DriverContract_t = unsafe extern "C" fn(
+    contracts: *mut c_void,
+    contract: *mut c_void,
+    driver_key: u64,
+    replaced_key: u32,
+    notify: u8,
+);
 pub type Career_Start_UpgradeDevelopment_t = unsafe extern "C" fn(
     upgrades: *mut c_void,
     owner: u32,
@@ -1570,15 +1599,28 @@ pub type Game_CareerWizard_StartsInF1_t = unsafe extern "C" fn(
 pub type Game_Career_IsDriverCareerMode_t = unsafe extern "C" fn(championship: *const c_void) -> bool;
 pub type Game_DriverSelectHeader_SetTabState_t =
     unsafe extern "C" fn(header: *mut c_void, tab: u64, content_visible: u8, enabled: u8);
+pub type Game_EngineMgmt_AddGridPenalty_t =
+    unsafe extern "C" fn(engine_management: *mut c_void, driver: *const u32, places: u32, reason: u32);
+pub type Game_EngineMgmt_ApplySessionWear_t =
+    unsafe extern "C" fn(engine_management: *mut c_void, driver: u32, amount: f32, flag: u8);
 pub type Game_EntrantsUi_BuildCharacterRef_t =
     unsafe extern "C" fn(out: *mut c_void, character: *const u8, node: *mut c_void) -> *mut c_void;
 pub type Game_EntrantsUi_OnCharacterListLoaded_t =
     unsafe extern "C" fn(ctx: *mut c_void, message: *const c_void) -> i64;
+pub type Game_Rnd_CalcUpgradeTypeProgress_t =
+    unsafe extern "C" fn(instances: *mut *mut c_void, r#type: u8, state: u8, meta: *const c_void) -> f32;
+pub type Game_Rnd_FillVehicleUpgrades_t =
+    unsafe extern "C" fn(component: *mut c_void, car: u8, a3: u8, a4: u8);
+pub type Game_SeasonLength_ApplyPreset_t = unsafe extern "C" fn(component: *mut c_void, preset: u8);
+pub type Game_SeasonLength_PushCalendarEntry_t =
+    unsafe extern "C" fn(calendar: *mut c_void, entry: *const c_void) -> u64;
 pub type Game_SpeechSystem_PostLine_t =
     unsafe extern "C" fn(speech: *mut c_void, line: *mut c_void, retrigger: u8);
 pub type Gdb_Lookup_Key_t = unsafe extern "C" fn(path: *const c_char) -> *mut *mut c_void;
 pub type Ne_Compare_StringNoCase_t = unsafe extern "C" fn(a: *const c_char, b: *const c_char) -> i32;
 pub type Ne_Detach_ChildNode_t = unsafe extern "C" fn(parent: *mut c_void, child: *mut c_void) -> c_int;
+pub type Ne_Entity_FindComponent_t =
+    unsafe extern "C" fn(entity: *mut c_void, r#type: *const c_void) -> *mut c_void;
 pub type Ne_Format_String_t = unsafe extern "C" fn(out: *mut *mut NeStr, fmt: *const c_char, ...) -> i64;
 pub type Ne_Get_SettingBool_t =
     unsafe extern "C" fn(node: *mut c_void, name: *const c_char, out: *mut u8, def: u8) -> u64;
@@ -1588,11 +1630,24 @@ pub type Ne_Log_Thunk_t = unsafe extern "C" fn(channel: *const c_char, fmt: *con
 pub type Ne_Make_StrFromCStr_t =
     unsafe extern "C" fn(out: *mut *mut NeStr, s: *const c_char, flags: u32, len: usize) -> u32;
 pub type Ne_Parse_Long_t = unsafe extern "C" fn(text: *const c_char, end: *mut *mut c_char, base: i32) -> i32;
+pub type Ne_Play_FullscreenVideo_t = unsafe extern "C" fn(
+    feature_system: *mut c_void,
+    path: *mut *mut NeStr,
+    on_end: *const c_void,
+    frame_callbacks: *const c_void,
+    layer: i32,
+);
 pub type Ne_Post_BusMessage_t = unsafe extern "C" fn(bus: *mut c_void, msg: *mut c_void) -> u64;
+pub type Sess_Build_GroupResult_t =
+    unsafe extern "C" fn(weekend: *mut c_void, group: u8, result: *mut c_void);
+pub type Sess_Find_GroupRowPosition_t =
+    unsafe extern "C" fn(weekend: *mut c_void, result: *mut c_void, driver_key: u32) -> *mut i32;
 pub type Sess_GameWeatherSystem_SetupSession_t =
     unsafe extern "C" fn(ws: *mut c_void, settings: *mut c_void, config: *mut c_void);
 pub type Sess_GameWeatherSystem_UpdateRandomSeed_t =
     unsafe extern "C" fn(ws: *mut c_void, seed: u32, weekend: u32);
+pub type Sess_Record_GroupTimes_t =
+    unsafe extern "C" fn(weekend: *mut c_void, group: u8, entries: *mut c_void);
 pub type Sess_Tod_BuildSessionDataset_Thunk_t = unsafe extern "C" fn(
     tod_owner: *mut c_void,
     types: *const u8,
@@ -1604,6 +1659,13 @@ pub type Sess_Tod_BuildSessionDataset_Thunk_t = unsafe extern "C" fn(
     session: u16,
     use_count: u8,
 );
+pub type Sess_TyreAllocation_OnSessionStart_t = unsafe extern "C" fn(component: *mut c_void);
+pub type Sess_Tyres_ClosestAvailableCompound_t = unsafe extern "C" fn(
+    tyre_rules: *mut c_void,
+    vehicle: u8,
+    preference: *const u32,
+    wear_scale: f32,
+) -> u32;
 pub type Sess_WeatherComponent_SetSystemRandomSeed_t = unsafe extern "C" fn(component: *mut c_void);
 pub type Vm_Set_Bool_t = unsafe extern "C" fn(
     registry: *mut c_void,
@@ -1648,6 +1710,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Career_Build_DriverContract: Binding = Binding {
+        id: "Career_Build_DriverContract",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Career_Build_LineupChanges: Binding = Binding {
         id: "Career_Build_LineupChanges",
         kind: "func",
@@ -1678,8 +1745,48 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Career_ContractIntro_OnEnter: Binding = Binding {
+        id: "Career_ContractIntro_OnEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_ContractIntro_OnUpdate: Binding = Binding {
+        id: "Career_ContractIntro_OnUpdate",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_ContractOutro_OnEnter: Binding = Binding {
+        id: "Career_ContractOutro_OnEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_ContractOutro_OnUpdate: Binding = Binding {
+        id: "Career_ContractOutro_OnUpdate",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_ContractUpdate_OnEnter: Binding = Binding {
+        id: "Career_ContractUpdate_OnEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_ContractUpdate_OnExit: Binding = Binding {
+        id: "Career_ContractUpdate_OnExit",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_ContractUpdate_OnUpdate: Binding = Binding {
+        id: "Career_ContractUpdate_OnUpdate",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Career_Create_SeasonWeekend: Binding = Binding {
         id: "Career_Create_SeasonWeekend",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Decide_ContractNegotiation: Binding = Binding {
+        id: "Career_Decide_ContractNegotiation",
         kind: "func",
         status: Status::Experimental,
     };
@@ -1705,6 +1812,11 @@ pub mod bindings {
     };
     pub const Career_Get_TeamRenownData: Binding = Binding {
         id: "Career_Get_TeamRenownData",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Needs_DriverContract: Binding = Binding {
+        id: "Career_Needs_DriverContract",
         kind: "func",
         status: Status::Experimental,
     };
@@ -1755,6 +1867,11 @@ pub mod bindings {
     };
     pub const Career_Set_UpgradesOwner: Binding = Binding {
         id: "Career_Set_UpgradesOwner",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_Sign_DriverContract: Binding = Binding {
+        id: "Career_Sign_DriverContract",
         kind: "func",
         status: Status::Experimental,
     };
@@ -1833,6 +1950,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_EngineMgmt_AddGridPenalty: Binding = Binding {
+        id: "Game_EngineMgmt_AddGridPenalty",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_EngineMgmt_ApplySessionWear: Binding = Binding {
+        id: "Game_EngineMgmt_ApplySessionWear",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_EntrantsUi_BuildCharacterRef: Binding = Binding {
         id: "Game_EntrantsUi_BuildCharacterRef",
         kind: "func",
@@ -1840,6 +1967,26 @@ pub mod bindings {
     };
     pub const Game_EntrantsUi_OnCharacterListLoaded: Binding = Binding {
         id: "Game_EntrantsUi_OnCharacterListLoaded",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_Rnd_CalcUpgradeTypeProgress: Binding = Binding {
+        id: "Game_Rnd_CalcUpgradeTypeProgress",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_Rnd_FillVehicleUpgrades: Binding = Binding {
+        id: "Game_Rnd_FillVehicleUpgrades",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_SeasonLength_ApplyPreset: Binding = Binding {
+        id: "Game_SeasonLength_ApplyPreset",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_SeasonLength_PushCalendarEntry: Binding = Binding {
+        id: "Game_SeasonLength_PushCalendarEntry",
         kind: "func",
         status: Status::Experimental,
     };
@@ -1860,6 +2007,11 @@ pub mod bindings {
     };
     pub const Ne_Detach_ChildNode: Binding = Binding {
         id: "Ne_Detach_ChildNode",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Entity_FindComponent: Binding = Binding {
+        id: "Ne_Entity_FindComponent",
         kind: "func",
         status: Status::Experimental,
     };
@@ -1893,8 +2045,23 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_Play_FullscreenVideo: Binding = Binding {
+        id: "Ne_Play_FullscreenVideo",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_Post_BusMessage: Binding = Binding {
         id: "Ne_Post_BusMessage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Build_GroupResult: Binding = Binding {
+        id: "Sess_Build_GroupResult",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Find_GroupRowPosition: Binding = Binding {
+        id: "Sess_Find_GroupRowPosition",
         kind: "func",
         status: Status::Experimental,
     };
@@ -1908,8 +2075,23 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Record_GroupTimes: Binding = Binding {
+        id: "Sess_Record_GroupTimes",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Tod_BuildSessionDataset_Thunk: Binding = Binding {
         id: "Sess_Tod_BuildSessionDataset_Thunk",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_TyreAllocation_OnSessionStart: Binding = Binding {
+        id: "Sess_TyreAllocation_OnSessionStart",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Tyres_ClosestAvailableCompound: Binding = Binding {
+        id: "Sess_Tyres_ClosestAvailableCompound",
         kind: "func",
         status: Status::Experimental,
     };
@@ -1933,6 +2115,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const g_Career_FlowLinkContinue: Binding = Binding {
+        id: "g_Career_FlowLinkContinue",
+        kind: "data",
+        status: Status::Experimental,
+    };
     pub const g_Career_RnDOverviewSelectedDept: Binding = Binding {
         id: "g_Career_RnDOverviewSelectedDept",
         kind: "data",
@@ -1953,6 +2140,11 @@ pub mod bindings {
         kind: "data",
         status: Status::Experimental,
     };
+    pub const g_Game_FlowLinkStay: Binding = Binding {
+        id: "g_Game_FlowLinkStay",
+        kind: "data",
+        status: Status::Experimental,
+    };
     pub const g_Game_Manager: Binding = Binding {
         id: "g_Game_Manager",
         kind: "data",
@@ -1963,6 +2155,11 @@ pub mod bindings {
         kind: "data",
         status: Status::Experimental,
     };
+    pub const g_Game_Root: Binding = Binding {
+        id: "g_Game_Root",
+        kind: "data",
+        status: Status::Experimental,
+    };
     pub const g_Ne_DefaultAllocator: Binding = Binding {
         id: "g_Ne_DefaultAllocator",
         kind: "data",
@@ -1970,6 +2167,21 @@ pub mod bindings {
     };
     pub const g_Ne_LogGate: Binding = Binding {
         id: "g_Ne_LogGate",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const g_Sess_TyreRulesActive: Binding = Binding {
+        id: "g_Sess_TyreRulesActive",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const g_Sess_TyreRulesMode: Binding = Binding {
+        id: "g_Sess_TyreRulesMode",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const g_Sess_TyreRulesSessionType: Binding = Binding {
+        id: "g_Sess_TyreRulesSessionType",
         kind: "data",
         status: Status::Experimental,
     };
@@ -2138,8 +2350,28 @@ pub mod bindings {
         kind: "data",
         status: Status::Experimental,
     };
+    pub const k_Game_TrackListComponentDesc: Binding = Binding {
+        id: "k_Game_TrackListComponentDesc",
+        kind: "data",
+        status: Status::Experimental,
+    };
     pub const k_Gdb_StringXorKey: Binding = Binding {
         id: "k_Gdb_StringXorKey",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Ne_TypeChainEnd: Binding = Binding {
+        id: "k_Ne_TypeChainEnd",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Ne_TypeRoot: Binding = Binding {
+        id: "k_Ne_TypeRoot",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Sess_TyreComponentType: Binding = Binding {
+        id: "k_Sess_TyreComponentType",
         kind: "data",
         status: Status::Experimental,
     };
@@ -2878,9 +3110,19 @@ pub mod bindings {
         kind: "site",
         status: Status::Experimental,
     };
+    pub const site_Game_CareerWizard_BackRoute: Binding = Binding {
+        id: "site_Game_CareerWizard_BackRoute",
+        kind: "site",
+        status: Status::Experimental,
+    };
     pub const site_Game_DriverSelectHeader_BuildTabs: Binding = Binding {
         id: "site_Game_DriverSelectHeader_BuildTabs",
         kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Game_DriverSelect_BackRoute: Binding = Binding {
+        id: "site_Game_DriverSelect_BackRoute",
+        kind: "site",
         status: Status::Experimental,
     };
     pub const site_Gdb_DeptCountStore: Binding = Binding {
@@ -3048,6 +3290,11 @@ pub mod bindings {
         kind: "call",
         status: Status::Experimental,
     };
+    pub const site_Ne_ReplayAfterRecord: Binding = Binding {
+        id: "site_Ne_ReplayAfterRecord",
+        kind: "site",
+        status: Status::Experimental,
+    };
     pub const site_Sess_AiVehicleRegisterCall: Binding = Binding {
         id: "site_Sess_AiVehicleRegisterCall",
         kind: "call",
@@ -3113,8 +3360,18 @@ pub mod bindings {
         kind: "vtable",
         status: Status::Experimental,
     };
+    pub const vt_Game_CareerWizardSettingsSelectViewModel: Binding = Binding {
+        id: "vt_Game_CareerWizardSettingsSelectViewModel",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
     pub const vt_Game_DriverCareerSlotPredicate: Binding = Binding {
         id: "vt_Game_DriverCareerSlotPredicate",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Game_TrackListComponent: Binding = Binding {
+        id: "vt_Game_TrackListComponent",
         kind: "vtable",
         status: Status::Experimental,
     };

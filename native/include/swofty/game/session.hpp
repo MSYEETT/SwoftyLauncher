@@ -147,14 +147,28 @@ static_assert(offsetof(WeatherSessionSettings, session_type) == 0x4);
 static_assert(offsetof(WeatherSessionSettings, mode) == 0xb14);
 static_assert(offsetof(WeatherSessionSettings, exact_timing) == 0xb18);
 
+using Sess_Build_GroupResult_t = void(void *weekend, uint8_t group, void *result);
+inline constexpr fn<"Sess_Build_GroupResult", Sess_Build_GroupResult_t> Sess_Build_GroupResult{}; // L2 experimental
+using Sess_Find_GroupRowPosition_t = int32_t *(void *weekend, void *result, uint32_t driver_key);
+inline constexpr fn<"Sess_Find_GroupRowPosition", Sess_Find_GroupRowPosition_t> Sess_Find_GroupRowPosition{}; // L2 experimental
 using Sess_GameWeatherSystem_SetupSession_t = void(void *ws, void *settings, void *config);
 inline constexpr fn<"Sess_GameWeatherSystem_SetupSession", Sess_GameWeatherSystem_SetupSession_t> Sess_GameWeatherSystem_SetupSession{}; // L2 experimental, GameWeatherSystem::setupSession.
 using Sess_GameWeatherSystem_UpdateRandomSeed_t = void(void *ws, uint32_t seed, uint32_t weekend);
 inline constexpr fn<"Sess_GameWeatherSystem_UpdateRandomSeed", Sess_GameWeatherSystem_UpdateRandomSeed_t> Sess_GameWeatherSystem_UpdateRandomSeed{}; // L2 experimental, GameWeatherSystem::updateRandomSeed.
+using Sess_Record_GroupTimes_t = void(void *weekend, uint8_t group, void *entries);
+inline constexpr fn<"Sess_Record_GroupTimes", Sess_Record_GroupTimes_t> Sess_Record_GroupTimes{}; // L2 experimental
 using Sess_Tod_BuildSessionDataset_Thunk_t = void(void *tod_owner, const uint8_t *types, const float *hold_s, const float *trans_s, const uint8_t *random, uint32_t count, float len_s, uint16_t session, uint8_t use_count);
 inline constexpr fn<"Sess_Tod_BuildSessionDataset_Thunk", Sess_Tod_BuildSessionDataset_Thunk_t> Sess_Tod_BuildSessionDataset_Thunk{}; // L2 experimental
+using Sess_TyreAllocation_OnSessionStart_t = void(void *component);
+inline constexpr fn<"Sess_TyreAllocation_OnSessionStart", Sess_TyreAllocation_OnSessionStart_t> Sess_TyreAllocation_OnSessionStart{}; // L2 experimental
+using Sess_Tyres_ClosestAvailableCompound_t = uint32_t(void *tyre_rules, uint8_t vehicle, const uint32_t *preference, float wear_scale);
+inline constexpr fn<"Sess_Tyres_ClosestAvailableCompound", Sess_Tyres_ClosestAvailableCompound_t> Sess_Tyres_ClosestAvailableCompound{}; // L2 experimental
 using Sess_WeatherComponent_SetSystemRandomSeed_t = void(void *component);
 inline constexpr fn<"Sess_WeatherComponent_SetSystemRandomSeed", Sess_WeatherComponent_SetSystemRandomSeed_t> Sess_WeatherComponent_SetSystemRandomSeed{}; // L2 experimental, WeatherAndTimeOfDayComponent::setWeatherSystemRandomSeed
+inline constexpr data<"g_Sess_TyreRulesActive", uint8_t> g_Sess_TyreRulesActive{}; // L2 experimental
+inline constexpr data<"g_Sess_TyreRulesMode", uint8_t> g_Sess_TyreRulesMode{}; // L2 experimental
+inline constexpr data<"g_Sess_TyreRulesSessionType", uint32_t> g_Sess_TyreRulesSessionType{}; // L2 experimental
+inline constexpr data<"k_Sess_TyreComponentType", void *> k_Sess_TyreComponentType{}; // L2 experimental
 inline constexpr call<"site_Sess_AiVehicleRegisterCall"> site_Sess_AiVehicleRegisterCall{}; // L2 experimental
 
 }
