@@ -4,7 +4,8 @@ use std::sync::OnceLock;
 use serde::Deserialize;
 
 use super::catalog::plain;
-use super::{Catalog, Edits, NodeId};
+use super::{Catalog, Edits, NodeId, rows};
+use crate::ops::first_segment;
 use crate::{Error, Result};
 
 const MODULES_JSON: &str = include_str!("modules.json");
@@ -209,6 +210,27 @@ pub struct ModuleRow {
     pub node: NodeId,
     /// One per `Module::fields`, in order.
     pub cells: Vec<Cell>,
+    /// One per [`Module::row_specs`], in order.
+    pub backing: Vec<Backing>,
+}
+
+/// A table a page's fields pick a row of by the page row's label, through a
+/// `[<field>={label}]` selector.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RowSpec {
+    /// `driver_statistics.driver_statistics.DriverStatisticsHolder`; may hold `{scope}`.
+    pub table: String,
+    pub field: String,
+}
+
+/// Where a page row's row of a [`RowSpec`] table comes from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Backing {
+    /// The stock database has it.
+    Stock,
+    /// The draft copies it from the row whose field is this label, or from the game default row.
+    Copied(Option<String>),
+    Missing,
 }
 
 #[derive(Debug, Clone)]
@@ -371,7 +393,102 @@ fn ref_names(cat: &Catalog, spec: &RefSpec, scope: Option<&str>) -> Vec<(String,
         .collect()
 }
 
+/// The table and field of the first `[<field>={label}]` selector in `path`.
+fn label_table(path: &str) -> Option<RowSpec> {
+    let mut rest = Some(path);
+    while let Some(p) = rest {
+        let (seg, tail) = first_segment(p).ok()?;
+        if let Some((field, "{label}")) = seg.select {
+            let start = path.len() - p.len();
+            return Some(RowSpec {
+                table: format!("{}{}", &path[..start], seg.name),
+                field: field.to_owned(),
+            });
+        }
+        rest = tail;
+    }
+    None
+}
+
 impl Module {
+    /// The tables this page's fields pick a row of by the row's label, in field order.
+    pub fn row_specs(&self) -> Vec<RowSpec> {
+        let mut out: Vec<RowSpec> = Vec::new();
+        for spec in self.fields.iter().filter_map(|f| label_table(&f.path)) {
+            if !out.contains(&spec) {
+                out.push(spec);
+            }
+        }
+        out
+    }
+
+    /// The index in [`Module::row_specs`] of the table field `field` reads.
+    pub fn field_row(&self, field: usize) -> Option<usize> {
+        self.field_rows().get(field).copied().flatten()
+    }
+
+    /// [`Module::field_row`] of every field, in order.
+    pub fn field_rows(&self) -> Vec<Option<usize>> {
+        let specs = self.row_specs();
+        self.fields
+            .iter()
+            .map(|f| {
+                let spec = label_table(&f.path)?;
+                specs.iter().position(|s| *s == spec)
+            })
+            .collect()
+    }
+
+    /// The table of a row spec with `{scope}` filled.
+    pub fn row_table(&self, spec: &RowSpec, scope: Option<&str>) -> String {
+        match scope {
+            Some(s) => spec.table.replace("{scope}", s),
+            None => spec.table.clone(),
+        }
+    }
+
+    /// The values of `field` of the stock rows a copy can start from, and
+    /// whether the table has a game default row (the one whose field is empty).
+    pub fn row_sources(&self, catalog: &Catalog, spec: usize, scope: Option<&str>) -> (Vec<String>, bool) {
+        let Some(spec) = self.row_specs().into_iter().nth(spec) else {
+            return (Vec::new(), false);
+        };
+        let table = self.row_table(&spec, scope);
+        let mut labels = Vec::new();
+        let mut defaults = 0;
+        for r in rows::rows(catalog, &table) {
+            match rows::value_in(catalog, r, &spec.field) {
+                Some("") => defaults += 1,
+                Some(v) if !labels.iter().any(|l| l == v) => labels.push(v.to_owned()),
+                _ => {}
+            }
+        }
+        (labels, defaults == 1)
+    }
+
+    fn backing(
+        &self,
+        cat: &Catalog,
+        edits: &Edits,
+        specs: &[RowSpec],
+        label: &str,
+        scope: Option<&str>,
+    ) -> Vec<Backing> {
+        specs
+            .iter()
+            .map(|spec| {
+                let table = self.row_table(spec, scope);
+                if !rows::matching(cat, &table, &spec.field, label).is_empty() {
+                    return Backing::Stock;
+                }
+                match edits.row(&table, &spec.field, label) {
+                    Some(r) => Backing::Copied(r.from.clone()),
+                    None => Backing::Missing,
+                }
+            })
+            .collect()
+    }
+
     fn field_key(
         &self,
         cat: &Catalog,
@@ -393,7 +510,9 @@ impl Module {
                 .map(str::to_owned),
         })
         .ok()?;
-        cat.state(None, &path).ok()
+        cat.state(None, &path)
+            .ok()
+            .or_else(|| edits.copied_path(cat, &path).map(|c| c.key))
     }
 
     fn scopes(&self, cat: &Catalog) -> Result<Vec<(String, String)>> {
@@ -448,6 +567,7 @@ impl Module {
             .map_err(Error::Resolve)?;
         let mut refs: HashMap<usize, HashMap<String, String>> = HashMap::new();
         let mut missing = BTreeSet::new();
+        let specs = self.row_specs();
         let mut out = Vec::with_capacity(rows.len());
         for row in rows {
             let label = under(cat, None, row, &self.label).unwrap_or_default().to_owned();
@@ -455,7 +575,10 @@ impl Module {
             let mut cells = Vec::with_capacity(self.fields.len());
             for (i, f) in self.fields.iter().enumerate() {
                 let key = self.field_key(cat, edits, row, &label, scope.as_deref(), &f.path);
-                let rec = key.and_then(|k| cat.record_by_key(k));
+                let rec = key.and_then(|k| {
+                    cat.record_by_key(k)
+                        .or_else(|| cat.record_by_key(edits.copied(cat, k)?.source))
+                });
                 let edit = key.and_then(|k| edits.get(k));
                 let (Some(k), true) = (key, rec.is_some() || edit.is_some()) else {
                     if !f.optional {
@@ -503,6 +626,7 @@ impl Module {
             }
             out.push(ModuleRow {
                 node: cat.lookup(row).unwrap_or(0),
+                backing: self.backing(cat, edits, &specs, &label, scope.as_deref()),
                 label,
                 name,
                 cells,

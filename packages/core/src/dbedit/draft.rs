@@ -8,7 +8,7 @@ use std::time::SystemTime;
 use serde::{Deserialize, Serialize};
 
 use super::package::{self, Package};
-use super::{Catalog, Edit, Edits};
+use super::{Catalog, Edit, Edits, RowCopy};
 use crate::manifest::Category;
 use crate::store::Store;
 use crate::{Error, Result};
@@ -37,6 +37,9 @@ pub struct Draft {
     /// The bound addon's saved edits.
     #[serde(default)]
     pub base: Vec<Edit>,
+    /// The bound addon's saved copied rows.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub base_rows: Vec<RowCopy>,
     #[serde(default)]
     pub edits: Edits,
 }
@@ -197,6 +200,7 @@ impl Draft {
         self.addon = Some(id.to_owned());
         self.stamp = stamp;
         self.base = p.edits.edits.clone();
+        self.base_rows = p.edits.rows.clone();
         self.edits = p.edits;
         Ok(())
     }
@@ -210,8 +214,23 @@ impl Draft {
         self.edits.schema_version = 1;
     }
 
-    /// How many keys differ from the bound addon's saved edits.
+    /// How many keys and copied rows differ from the bound addon's saved ones.
     pub fn unsaved(&self) -> usize {
+        let rows = self
+            .edits
+            .rows
+            .iter()
+            .filter(|r| !self.base_rows.contains(r))
+            .count()
+            + self
+                .base_rows
+                .iter()
+                .filter(|r| !self.edits.rows.contains(r))
+                .count();
+        rows + self.unsaved_keys()
+    }
+
+    fn unsaved_keys(&self) -> usize {
         let base: HashMap<u64, &Edit> = self.base.iter().map(|e| (e.key, e)).collect();
         let mine: HashSet<u64> = self.edits.edits.iter().map(|e| e.key).collect();
         let changed = self
@@ -230,11 +249,40 @@ impl Draft {
     /// Puts the edits back to the bound addon's saved ones, or none for a new addon.
     pub fn discard(&mut self) {
         self.edits.edits = self.base.clone();
+        self.edits.rows = self.base_rows.clone();
     }
 
-    /// Takes `base` as the addon's saved edits and keeps this draft's unsaved
-    /// changes on top of it.
-    pub fn rebase(&mut self, base: Vec<Edit>, stamp: Option<SystemTime>) {
+    /// Takes `base` as the addon's saved edits and rows and keeps this draft's
+    /// unsaved changes on top of them.
+    pub fn rebase(&mut self, base: Edits, stamp: Option<SystemTime>) {
+        let same = |a: &RowCopy, b: &RowCopy| a.is(&b.table, &b.field, &b.to);
+        let added: Vec<RowCopy> = self
+            .edits
+            .rows
+            .iter()
+            .filter(|r| !self.base_rows.contains(r))
+            .cloned()
+            .collect();
+        let removed: Vec<RowCopy> = self
+            .base_rows
+            .iter()
+            .filter(|r| !self.edits.rows.iter().any(|m| same(m, r)))
+            .cloned()
+            .collect();
+        let mut rows = base.rows.clone();
+        rows.retain(|r| !removed.iter().any(|x| same(x, r)));
+        for a in added {
+            match rows.iter_mut().find(|r| same(r, &a)) {
+                Some(slot) => *slot = a,
+                None => rows.push(a),
+            }
+        }
+        self.rebase_keys(base.edits, stamp);
+        self.base_rows = base.rows;
+        self.edits.rows = rows;
+    }
+
+    fn rebase_keys(&mut self, base: Vec<Edit>, stamp: Option<SystemTime>) {
         let old: HashMap<u64, &Edit> = self.base.iter().map(|e| (e.key, e)).collect();
         let mine: HashSet<u64> = self.edits.edits.iter().map(|e| e.key).collect();
         let reverted: HashSet<u64> = old.keys().filter(|k| !mine.contains(k)).copied().collect();
@@ -289,7 +337,7 @@ impl Draft {
         let stamp = package::modified(store, &id);
         let mut p = Package::open(store, &id)?;
         if stamp != self.stamp {
-            self.rebase(p.edits.edits.clone(), stamp);
+            self.rebase(p.edits.clone(), stamp);
         }
         p.edits = self.edits.clone();
         p.save(store, catalog)?;
@@ -404,12 +452,12 @@ mod tests {
             edits: base.clone(),
             ..Draft::default()
         };
-        d.rebase(Vec::new(), None);
+        d.rebase(Edits::default(), None);
         assert_eq!(d.edits.len(), 0);
         let mut newer = base.clone();
         newer.set(&cat, fnv1a64(NUM1), "7").unwrap();
         d.edits.set(&cat, fnv1a64(TEAM), "20").unwrap();
-        d.rebase(newer.edits.clone(), None);
+        d.rebase(newer.clone(), None);
         let keys: Vec<u64> = d.edits.edits.iter().map(|e| e.key).collect();
         assert_eq!(keys, [fnv1a64(NUM), fnv1a64(NUM1), fnv1a64(TEAM)]);
         assert_eq!(d.unsaved(), 1);
@@ -420,6 +468,37 @@ mod tests {
         let aside = Draft::set_aside(&s).unwrap();
         assert!(aside.is_file() && !path(&s).exists());
         assert_eq!(Draft::load(&s).unwrap(), Draft::default());
+        std::fs::remove_dir_all(&s.root).ok();
+    }
+
+    #[test]
+    fn counts_discards_and_rebases_copied_rows() {
+        use crate::dbedit::rows::tests::{HOLDERS, sample};
+        let s = store("rows");
+        let cat = Catalog::load(&sample().to_bytes()).unwrap();
+        let copy = |e: &mut Edits, from: Option<&str>, to: &str| {
+            e.copy_row(&cat, HOLDERS, "driver", from, to).unwrap();
+        };
+        let mut d = Draft::default();
+        copy(&mut d.edits, Some("lewis_hamilton"), "romain_grosjean");
+        assert_eq!(d.unsaved(), 1);
+        let id = d.save_as_addon(&s, &cat, &details("Rows")).unwrap().id;
+        d.open(&s, &id).unwrap();
+        assert_eq!((d.unsaved(), d.base_rows.len()), (0, 1));
+        assert!(d.edits.remove_row(HOLDERS, "driver", "romain_grosjean"));
+        copy(&mut d.edits, None, "nico_hulkenberg");
+        assert_eq!(d.unsaved(), 2);
+        d.discard();
+        assert_eq!((d.unsaved(), d.edits.rows[0].to.as_str()), (0, "romain_grosjean"));
+
+        copy(&mut d.edits, None, "nico_hulkenberg");
+        let mut theirs = Package::open(&s, &id).unwrap().edits;
+        assert!(theirs.remove_row(HOLDERS, "driver", "romain_grosjean"));
+        copy(&mut theirs, Some("max_verstappen"), "oliver_bearman");
+        d.rebase(theirs, None);
+        let to: Vec<&str> = d.edits.rows.iter().map(|r| r.to.as_str()).collect();
+        assert_eq!(to, ["oliver_bearman", "nico_hulkenberg"]);
+        assert_eq!(d.unsaved(), 1);
         std::fs::remove_dir_all(&s.root).ok();
     }
 

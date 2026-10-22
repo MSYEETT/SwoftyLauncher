@@ -2,9 +2,10 @@ use crate::ops::{DbOp, DbOps};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use swofty_formats::hash::fnv1a64;
+use swofty_formats::hash::{fnv1a64, fnv1a64_from};
 
 use super::Catalog;
+use super::rows::{self, Copied, METADATA, RowCopy};
 use crate::{Error, Result, io_err};
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -57,6 +58,9 @@ mod hex_key {
 pub struct Edits {
     pub schema_version: u32,
     pub edits: Vec<Edit>,
+    /// Rows added as copies of other rows, in the order they were added.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rows: Vec<RowCopy>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -77,6 +81,8 @@ struct Export<'a> {
     game_build: &'a str,
     schema_version: u32,
     edits: &'a [Edit],
+    #[serde(skip_serializing_if = "<[RowCopy]>::is_empty")]
+    rows: &'a [RowCopy],
 }
 
 /// Checks a value's text against its type tag; [`validate_like`] with no stock value.
@@ -256,11 +262,28 @@ fn hex(value: &str) -> String {
     value.bytes().map(|b| format!("{b:02x}")).collect()
 }
 
+/// The path under `row` of an edit of one of its keys.
+fn owner<'a>(row: &RowCopy, e: &'a Edit) -> Option<&'a str> {
+    let rel = row.rel(e.path.as_deref()?)?;
+    (e.stock.is_none() && row.key(rel) == e.key).then_some(rel)
+}
+
+impl Edit {
+    /// Whether this edits a key of a copied row: named by the row's selector, not in the stock database.
+    pub fn is_copied(&self) -> bool {
+        self.stock.is_none()
+            && self
+                .path
+                .as_deref()
+                .is_some_and(|p| p.contains('[') && fnv1a64(p) == self.key)
+    }
+}
+
 impl Edits {
     fn empty() -> Self {
         Edits {
             schema_version: 1,
-            edits: Vec::new(),
+            ..Edits::default()
         }
     }
 
@@ -283,24 +306,155 @@ impl Edits {
         crate::write_json_shared(path, self)
     }
 
+    /// Changed keys and copied rows.
     pub fn len(&self) -> usize {
-        self.edits.len()
+        self.edits.len() + self.rows.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.edits.is_empty()
+        self.edits.is_empty() && self.rows.is_empty()
     }
 
     pub fn get(&self, key: u64) -> Option<&Edit> {
         self.edits.iter().find(|e| e.key == key)
     }
 
-    /// The value in effect for `key`: the edit, else the stock value.
+    /// The value in effect for `key`: the edit, else the stock value, else the
+    /// value a copied row takes from its source row.
     pub fn value<'a>(&'a self, catalog: &'a Catalog, key: u64) -> Option<&'a str> {
         match self.get(key) {
             Some(e) => e.value.as_deref(),
-            None => catalog.record_by_key(key).map(|r| r.value),
+            None => catalog
+                .record_by_key(key)
+                .map(|r| r.value)
+                .or_else(|| catalog.value_of(self.copied(catalog, key)?.source)),
         }
+    }
+
+    /// The copied row and source key behind `key`, a key of a copied row.
+    pub fn copied<'a>(&'a self, catalog: &Catalog, key: u64) -> Option<Copied<'a>> {
+        self.rows.iter().find_map(|row| {
+            let src = rows::source_row(catalog, row)?;
+            rows::row_keys(catalog, src)
+                .into_iter()
+                .find(|(rel, _)| row.key(rel) == key)
+                .map(|(rel, source)| Copied {
+                    row,
+                    rel,
+                    key,
+                    source,
+                })
+        })
+    }
+
+    /// The copied-row key a selector path names, such as
+    /// `…DriverStatisticsHolder[driver=romain_grosjean].StatisticsDataSet[_metadata_=default].Statistic[_metadata_=pace].evolution`.
+    pub fn copied_path<'a>(&'a self, catalog: &Catalog, path: &str) -> Option<Copied<'a>> {
+        let path = path.trim();
+        self.rows.iter().find_map(|row| {
+            let tail = row.rel(path)?;
+            let src = rows::source_row(catalog, row)?;
+            let source = catalog.state(Some(src), tail).ok()?;
+            catalog.record_by_key(source)?;
+            let rel = rows::rel_of(catalog, src, source)?;
+            Some(Copied {
+                row,
+                key: row.key(&rel),
+                rel,
+                source,
+            })
+        })
+    }
+
+    /// The key a path names: a stock key, else a key of a copied row.
+    pub fn resolve(&self, catalog: &Catalog, path: &str) -> std::result::Result<u64, String> {
+        catalog.resolve(path).or_else(|e| {
+            self.copied_path(catalog, path)
+                .map(|c| c.key)
+                .ok_or(e.to_string())
+        })
+    }
+
+    /// The copy of `table` whose `field` is `to`.
+    pub fn row(&self, table: &str, field: &str, to: &str) -> Option<&RowCopy> {
+        self.rows.iter().find(|r| r.is(table, field, to))
+    }
+
+    /// Adds a row to `table` for `to`: a copy of the stock row whose `field` is
+    /// `from`, or of the game default row, the one whose `field` is empty.
+    /// The copy takes this draft's changes to the source row.
+    pub fn copy_row(
+        &mut self,
+        catalog: &Catalog,
+        table: &str,
+        field: &str,
+        from: Option<&str>,
+        to: &str,
+    ) -> std::result::Result<(), String> {
+        let row = self.new_row(catalog, table, field, from, to)?;
+        let src = rows::source_row(catalog, &row).expect("new_row found it");
+        let changed: Vec<(String, String)> = rows::row_keys(catalog, src)
+            .into_iter()
+            .filter(|(rel, _)| *rel != row.field && rel != METADATA)
+            .filter_map(|(rel, k)| Some((rel, self.get(k)?.value.clone()?)))
+            .collect();
+        self.rows.push(row);
+        for (rel, value) in changed {
+            let key = self.rows.last().expect("pushed").key(&rel);
+            self.set(catalog, key, &value)?;
+        }
+        Ok(())
+    }
+
+    fn new_row(
+        &self,
+        catalog: &Catalog,
+        table: &str,
+        field: &str,
+        from: Option<&str>,
+        to: &str,
+    ) -> std::result::Result<RowCopy, String> {
+        let (table, field, to) = (table.trim(), field.trim(), to.trim());
+        rows::check_table(catalog, table, field)?;
+        if to.is_empty() || to.contains(['[', ']']) {
+            return Err(format!("{to:?} can't name a row"));
+        }
+        let from = from.map(str::trim).filter(|f| !f.is_empty());
+        if from == Some(to) {
+            return Err(format!("{to} can't copy its own row"));
+        }
+        if self.row(table, field, to).is_some() || !rows::matching(catalog, table, field, to).is_empty() {
+            return Err(format!("{to} already has its own row in {table}"));
+        }
+        let row = RowCopy {
+            table: table.to_owned(),
+            field: field.to_owned(),
+            from: from.map(str::to_owned),
+            to: to.to_owned(),
+            label: None,
+        };
+        let Some(src) = rows::source_row(catalog, &row) else {
+            let found = rows::matching(catalog, table, field, from.unwrap_or("")).len();
+            return Err(match (from, found) {
+                (Some(f), 0) => format!("{table} has no row whose {field} is {f}"),
+                (None, 0) => format!("{table} has no game default row"),
+                (Some(f), n) => format!("{n} rows of {table} have {field} {f}"),
+                (None, n) => format!("{n} rows of {table} have no {field}; none is the game default"),
+            });
+        };
+        let label = (field != METADATA && catalog.value_of(fnv1a64_from(src, b"._metadata_")).is_some())
+            .then(|| rows::free_label(catalog, table, to, &self.rows));
+        Ok(RowCopy { label, ..row })
+    }
+
+    /// Removes the copy of `table` whose `field` is `to`, with every change to it.
+    pub fn remove_row(&mut self, table: &str, field: &str, to: &str) -> bool {
+        let Some(i) = self.rows.iter().position(|r| r.is(table, field, to)) else {
+            return false;
+        };
+        let row = self.rows.remove(i);
+        self.edits.retain(|e| owner(&row, e).is_none());
+        true
     }
 
     fn upsert(&mut self, edit: Edit) {
@@ -324,8 +478,31 @@ impl Edits {
         }
     }
 
-    /// Sets an existing key; a value equal to stock drops the edit.
+    /// Sets an existing key; a value equal to stock, or to the source row's
+    /// for a copied row, drops the edit.
     pub fn set(&mut self, catalog: &Catalog, key: u64, value: &str) -> std::result::Result<(), String> {
+        if catalog.record_by_key(key).is_none()
+            && let Some(c) = self.copied(catalog, key)
+        {
+            let base = catalog.record_by_key(c.source).expect("a stock key");
+            let path = c.row.path(&c.rel);
+            if same_value(base.tag, base.value, value) {
+                self.revert(key);
+                return Ok(());
+            }
+            validate_like(base.tag, Some(base.value), value)?;
+            self.upsert(Edit {
+                key,
+                path: Some(path),
+                select: None,
+                field: None,
+                tag: base.tag,
+                value: Some(value.to_owned()),
+                stock: None,
+                origin: Origin::Typed,
+            });
+            return Ok(());
+        }
         let Some(stock) = catalog.record_by_key(key) else {
             let Some(e) = self.edits.iter_mut().find(|e| e.key == key && e.stock.is_none()) else {
                 return Err(format!("0x{key:016x} is not in the game database"));
@@ -380,6 +557,9 @@ impl Edits {
     }
 
     pub fn remove_key(&mut self, catalog: &Catalog, key: u64) -> std::result::Result<(), String> {
+        if catalog.record_by_key(key).is_none() && self.copied(catalog, key).is_some() {
+            return Err("a copied row keeps every key of its source row; remove the row instead".into());
+        }
         let Some(stock) = catalog.record_by_key(key) else {
             return match self.revert(key) {
                 true => Ok(()),
@@ -432,38 +612,50 @@ impl Edits {
 
     pub fn clear(&mut self) {
         self.edits.clear();
+        self.rows.clear();
     }
 
-    /// The database operations the build applies after every addon.
+    /// The database operations the build applies after every addon: the
+    /// copied rows with their changes, then the other changes, relabels last.
     pub fn to_ops(&self) -> DbOps {
-        let relabels = |e: &&Edit| e.field.as_deref() == Some("_metadata_");
-        let ordered = self
-            .edits
+        let mut ops: Vec<DbOp> = self
+            .rows
             .iter()
-            .filter(|e| !relabels(e))
-            .chain(self.edits.iter().filter(relabels));
-        let ops = ordered
-            .map(|e| match (&e.value, &e.stock, &e.select, &e.field) {
-                (None, _, _, _) => DbOp::RemoveRecord {
-                    key: key_ref(e),
-                    allow_stock_removal: false,
-                },
-                (Some(v), Some(_), Some(select), Some(field)) if field != "_metadata_" => DbOp::Set {
-                    select: select.clone(),
-                    field: field.clone(),
-                    value: Some(v.clone()),
-                    value_from: None,
-                    datasets: Vec::new(),
-                    create: false,
-                    tag: None,
-                },
-                (Some(v), _, _, _) => DbOp::PutRecord {
-                    key: key_ref(e),
-                    tag: e.tag,
-                    value: hex(v),
-                },
+            .filter_map(|row| {
+                let values = self
+                    .edits
+                    .iter()
+                    .filter_map(|e| Some((owner(row, e)?.to_owned(), e.value.clone()?)))
+                    .collect();
+                row.op(values)
             })
             .collect();
+        let relabels = |e: &&Edit| e.field.as_deref() == Some("_metadata_");
+        let others = self.edits.iter().filter(|e| !e.is_copied());
+        let ordered = others
+            .clone()
+            .filter(|e| !relabels(e))
+            .chain(others.filter(relabels));
+        ops.extend(ordered.map(|e| match (&e.value, &e.stock, &e.select, &e.field) {
+            (None, _, _, _) => DbOp::RemoveRecord {
+                key: key_ref(e),
+                allow_stock_removal: false,
+            },
+            (Some(v), Some(_), Some(select), Some(field)) if field != "_metadata_" => DbOp::Set {
+                select: select.clone(),
+                field: field.clone(),
+                value: Some(v.clone()),
+                value_from: None,
+                datasets: Vec::new(),
+                create: false,
+                tag: None,
+            },
+            (Some(v), _, _, _) => DbOp::PutRecord {
+                key: key_ref(e),
+                tag: e.tag,
+                value: hex(v),
+            },
+        }));
         DbOps {
             strict: false,
             schema_version: 1,
@@ -479,6 +671,7 @@ impl Edits {
             game_build: catalog.build_id(),
             schema_version: 1,
             edits: &self.edits,
+            rows: &self.rows,
         })
         .expect("serialisable")
     }
@@ -509,6 +702,13 @@ impl Edits {
                 report.format = "swofty";
                 let edits: Vec<Edit> =
                     serde_json::from_value(doc["edits"].clone()).map_err(|e| format!("{file_name}: {e}"))?;
+                let rows: Vec<RowCopy> = match doc.get("rows") {
+                    Some(r) => serde_json::from_value(r.clone()).map_err(|e| format!("{file_name}: {e}"))?,
+                    None => Vec::new(),
+                };
+                for r in rows {
+                    self.import_row(catalog, r, &mut report);
+                }
                 for e in edits {
                     match (&e.value, catalog.record_by_key(e.key)) {
                         (Some(v), _) => self.import_value(catalog, e.key, v, Some(&e), &origin, &mut report),
@@ -531,6 +731,26 @@ impl Edits {
             other => return Err(format!("{file_name}: unknown format {other:?}")),
         }
         Ok(report)
+    }
+
+    fn import_row(&mut self, catalog: &Catalog, r: RowCopy, report: &mut ImportReport) {
+        if let Some(have) = self.rows.iter_mut().find(|h| h.is(&r.table, &r.field, &r.to)) {
+            match have.from == r.from {
+                true => report.unchanged += 1,
+                false => {
+                    have.from = r.from;
+                    report.imported += 1;
+                }
+            }
+            return;
+        }
+        match self.new_row(catalog, &r.table, &r.field, r.from.as_deref(), &r.to) {
+            Ok(row) => {
+                self.rows.push(row);
+                report.imported += 1;
+            }
+            Err(why) => report.skipped.push(format!("{}: {why}", r.select())),
+        }
     }
 
     fn import_value(

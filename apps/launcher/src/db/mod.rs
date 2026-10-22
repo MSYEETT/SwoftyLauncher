@@ -707,7 +707,7 @@ impl Shell {
             Ok(pkg) => {
                 let reload = self.db.addon_error.is_none() && self.db.draft.stamp.is_some();
                 let dirty = self.db.draft.is_dirty();
-                self.db.draft.rebase(pkg.edits.edits, stamp);
+                self.db.draft.rebase(pkg.edits, stamp);
                 self.db.addon_error = None;
                 self.db_persist(cx);
                 if reload && !quiet {

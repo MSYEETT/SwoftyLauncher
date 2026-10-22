@@ -7,6 +7,7 @@ mod edits;
 mod ego;
 mod modules;
 pub mod package;
+pub mod rows;
 mod schema;
 mod search;
 
@@ -14,10 +15,11 @@ pub use catalog::{Catalog, FieldMeta, Node, NodeId, NodeKind, RecordView, UNNAME
 pub use draft::Draft;
 pub use edits::{Edit, Edits, ImportReport, Origin, bool_text, validate, validate_like};
 pub use modules::{
-    Cell, Column, FieldSpec, Kind, LinkSpec, Module, ModuleRow, ModuleView, NameSpec, OptionSpec, RefSpec,
-    Scope, module, modules,
+    Backing, Cell, Column, FieldSpec, Kind, LinkSpec, Module, ModuleRow, ModuleView, NameSpec, OptionSpec,
+    RefSpec, RowSpec, Scope, module, modules,
 };
 pub use package::{GameExport, Imported, Incoming, Package, PackageInfo};
+pub use rows::{Copied, RowCopy};
 pub use search::{Hit, HitKind, Target};
 
 use std::path::PathBuf;

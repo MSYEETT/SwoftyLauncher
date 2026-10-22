@@ -10,7 +10,7 @@ use std::time::SystemTime;
 use serde::{Deserialize, Serialize};
 use swofty_formats::gvdb::{Gvdb, Record};
 
-use super::{Catalog, Edit, Edits, ImportReport, Origin};
+use super::{Catalog, Edit, Edits, ImportReport, Origin, RowCopy};
 use crate::install::Game;
 use crate::manifest::{AddonManifest, Category, MANIFEST_FILE, valid_id};
 use crate::store::Store;
@@ -26,6 +26,8 @@ pub const DEFAULT_AUTHOR: &str = "Unknown";
 /// `origin.tool` of every DB Editor addon.
 pub const ORIGIN_TOOL: &str = "db-editor";
 const GAME_BUILDS: &str = ">=25251167";
+/// The first launcher that reads copied rows (`rows` in `dbedit.json`, format version 2).
+const ROWS_LAUNCHER: semver::Version = semver::Version::new(1, 3, 4);
 /// The game database's file name, which a modded-database import looks for.
 pub const GVDB_NAME: &str = "gamedatabases.2025.bin";
 pub const README: &str = "README.txt";
@@ -70,6 +72,7 @@ pub struct GameExport {
     pub bytes: u64,
 }
 
+/// `dbedit.json`. Format version 2 adds `rows`; a file without copied rows is written as version 1.
 #[derive(Serialize, Deserialize)]
 struct PackageFile {
     format: String,
@@ -77,6 +80,8 @@ struct PackageFile {
     #[serde(default)]
     game_build: String,
     edits: Vec<Edit>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    rows: Vec<RowCopy>,
 }
 
 fn dir(store: &Store, id: &str) -> PathBuf {
@@ -201,6 +206,30 @@ fn launcher_floor(v: &semver::Version) -> semver::Version {
         ..semver::Version::new(v.major, v.minor, v.patch)
     };
     v.min(semver::Version::new(1, 3, 0))
+}
+
+/// Raises a `>=` launcher requirement below [`ROWS_LAUNCHER`] to it, or to
+/// `current` when this launcher is older (a development build).
+fn raise_launcher(req: &mut Option<semver::VersionReq>, current: &semver::Version) {
+    let current = semver::Version {
+        pre: current.pre.clone(),
+        ..semver::Version::new(current.major, current.minor, current.patch)
+    };
+    let floor = ROWS_LAUNCHER.min(current);
+    let low = match req.as_ref().map(|r| r.comparators.as_slice()) {
+        None => true,
+        Some([c]) if c.op == semver::Op::GreaterEq => {
+            let v = semver::Version {
+                pre: c.pre.clone(),
+                ..semver::Version::new(c.major, c.minor.unwrap_or(0), c.patch.unwrap_or(0))
+            };
+            v < floor
+        }
+        Some(_) => false,
+    };
+    if low {
+        *req = semver::VersionReq::parse(&format!(">={floor}")).ok();
+    }
 }
 
 fn origin() -> crate::manifest::Origin {
@@ -432,6 +461,7 @@ pub fn install(store: &Store, root: &Path) -> Result<(Package, Option<String>)> 
             package.edits = Edits {
                 schema_version: 1,
                 edits: source.edits,
+                rows: source.rows,
             };
             package.game_build = source.game_build;
             package.write(store)
@@ -447,7 +477,7 @@ fn import_json(catalog: &Catalog, file: &Path) -> Result<Incoming> {
     let bytes = std::fs::read(file).map_err(io_err(file))?;
     let mut edits = Edits {
         schema_version: 1,
-        edits: Vec::new(),
+        ..Edits::default()
     };
     let report = edits
         .import(catalog, &bytes, &file_label(file))
@@ -575,6 +605,7 @@ fn database_edits(catalog: &Catalog, bytes: &[u8], label: &str) -> Result<(Edits
         Edits {
             schema_version: 1,
             edits,
+            rows: Vec::new(),
         },
         out,
     ))
@@ -642,12 +673,18 @@ pub fn export_packages(store: &Store, game: &Game, packages: &[Package], out: &P
     let stock = std::fs::read(&src).map_err(io_err(&src))?;
     let mut db = Gvdb::parse(&stock)?;
     let keys: HashSet<u64> = db.records.iter().map(|r| r.key).collect();
+    let fields = std::collections::BTreeMap::new();
+    let names = crate::rowkeys::Names {
+        fields: &fields,
+        keys: crate::rowkeys::RowKeys::builtin(),
+        stock: Some(&keys),
+    };
     let mut export = GameExport::default();
     let mut left_out = 0;
     for p in packages {
         let ops = p.edits.to_ops();
         let mut report = crate::ops::DbReport::default();
-        let (_, failed) = crate::ops::apply_db_ops_lenient(&mut db, &ops, &keys, &mut report);
+        let (_, failed) = crate::ops::apply_db_ops_lenient(&mut db, &ops, &names, &mut report);
         left_out += failed.len() + report.stock_removals;
         export.changes += ops.ops.len() - failed.len() - report.stock_removals;
         let name = &p.manifest.name;
@@ -740,7 +777,7 @@ impl Package {
             id,
             edits: Edits {
                 schema_version: 1,
-                edits: Vec::new(),
+                ..Edits::default()
             },
             game_build: String::new(),
         };
@@ -771,6 +808,7 @@ impl Package {
             edits: Edits {
                 schema_version: 1,
                 edits: file.edits,
+                rows: file.rows,
             },
             game_build: file.game_build,
         })
@@ -804,6 +842,9 @@ impl Package {
             let floor = launcher_floor(&crate::update::current_version());
             m.compat.launcher = semver::VersionReq::parse(&format!(">={floor}")).ok();
         }
+        if !self.edits.rows.is_empty() {
+            raise_launcher(&mut m.compat.launcher, &crate::update::current_version());
+        }
         let dir = dir(store, &self.id);
         crate::write_json_shared(&dir.join(OPS_FILE), &self.edits.to_ops())?;
         crate::write_json_shared(&dir.join(MANIFEST_FILE), &self.manifest)?;
@@ -811,9 +852,10 @@ impl Package {
             &dir.join(MARKER),
             &PackageFile {
                 format: FORMAT.into(),
-                format_version: 1,
+                format_version: if self.edits.rows.is_empty() { 1 } else { 2 },
                 game_build: self.game_build.clone(),
                 edits: self.edits.edits.clone(),
+                rows: self.edits.rows.clone(),
             },
         )
     }
@@ -906,7 +948,7 @@ mod tests {
     fn empty() -> Edits {
         Edits {
             schema_version: 1,
-            edits: Vec::new(),
+            ..Edits::default()
         }
     }
 
@@ -978,6 +1020,23 @@ mod tests {
         let req = m.compat.launcher.as_ref().unwrap();
         assert_eq!(req.to_string(), format!(">={}", launcher_floor(&current)));
         assert!(req.matches(&current) && req.matches(&v("1.3.0")));
+    }
+
+    #[test]
+    fn copied_rows_raise_a_low_launcher_requirement() {
+        let v = |s: &str| semver::Version::parse(s).unwrap();
+        let req = |s: &str| Some(semver::VersionReq::parse(s).unwrap());
+        for (have, current, want) in [
+            (req(">=1.3.0"), "1.4.0", ">=1.3.4"),
+            (None, "1.4.0", ">=1.3.4"),
+            (req(">=1.3.0"), "1.3.3", ">=1.3.3"),
+            (req(">=1.5.0"), "1.5.1", ">=1.5.0"),
+            (req("^1.2"), "1.5.1", "^1.2"),
+        ] {
+            let mut r = have;
+            raise_launcher(&mut r, &v(current));
+            assert_eq!(r.unwrap().to_string(), want, "{current}");
+        }
     }
 
     #[test]
