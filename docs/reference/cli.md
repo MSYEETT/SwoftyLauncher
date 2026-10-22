@@ -54,6 +54,8 @@ Sends your logs to the developers on Discord, like **Send Logs to Developers** i
 
 The command prints its progress and exits with an error when Discord can't be reached or refuses the upload, naming the HTTP status. A zip over 9 MB goes in several messages, labelled `part 1/3` and so on. Builds from source can't send; there, only `--dry-run` works.
 
+Without `--dry-run`, the command keeps the zip in `$DATA/logs/swofty-logs-<username>-<time>.zip`, beside the launcher's, and removes all but the newest 10. After sending, it prints the zip's path and size. When sending fails, it prints the path before the error.
+
 ## `swofty build`
 
 Use `swofty build [--profile <name>]` when you want to prepare your profile's database and track files without starting the game. You'll find the output in `$DATA/cache/overlay/<profile>/<buildhash>/`: `swofty/settings.json` holds the session settings, and `plan.json` lists the game files to replace and add, along with their sources. Track archives, menu archives and car handling files are built in `$DATA/cache/maps`, `$DATA/cache/menus` and `$DATA/cache/ers`. Once the build succeeds, it removes older builds from those folders and your profile's overlay folder, keeping any that another profile's latest build uses.

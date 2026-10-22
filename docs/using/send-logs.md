@@ -14,6 +14,16 @@ When something goes wrong, you can send your logs to the developers straight fro
 
 The dialog shows the progress, then **Sent — thanks!**. If the logs could not be sent, it shows the reason, such as no connection to Discord or the HTTP status Discord returned, and **Try again**. The launcher remembers your username for next time.
 
+## Send the zip yourself
+
+The launcher keeps a copy of the zip in `$DATA/logs/`, the newest 10. To send it to someone else, such as the author of a track or a mod:
+
+1. Send your logs as above. The zip is kept whether or not they were sent.
+2. Under the result, select **Click here to open them in File Explorer** (on Linux, **in your file manager**). The folder opens with the zip selected.
+3. Drag the zip into Discord or a message.
+
+On Linux, the launcher asks your file manager to select the zip over D-Bus (`org.freedesktop.FileManager1`). Without one that answers, it opens the `logs` folder.
+
 ## What gets sent
 
 The logs go to the developers' Discord as one zip file, `swofty-logs-<username>-<time>.zip`. A large zip goes in several parts.
@@ -40,6 +50,6 @@ A bot in the developers' Discord reads each report with Anthropic's Claude API t
 swofty logs send --name <your Discord username> --message "What went wrong"
 ```
 
-To see what would be sent without sending it, add `--dry-run`. See [`swofty logs send`](/reference/cli#swofty-logs-send).
+The command keeps the zip in `$DATA/logs/` too and prints its path. To write the zip and list what it holds without sending it, add `--dry-run`. See [`swofty logs send`](/reference/cli#swofty-logs-send).
 
-Builds from source don't include the developers' Discord address. There, the button reads **Sending logs isn't available in this build**, and `swofty logs send` only works with `--dry-run`.
+Builds from source don't include the developers' Discord address. There, the button reads **Save Logs**: it saves the zip to `$DATA/logs/` without sending it, then offers the same link to the zip. `swofty logs send` only works with `--dry-run`.
