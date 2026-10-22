@@ -107,12 +107,15 @@ std::string check_text(const Edit &e, int tag)
             return "'" + t + "' is outside the 32-bit int range the game stores";
         return {};
     }
-    case 12:
-        if (e.kind == json::Value::Bool || !all_digits(t, 0))
-            return "a t12 value needs unsigned integer text, got '" + t + "'";
+    case 12: {
+        // The game parses t12 text with strtoull, which takes a sign: "-1" is 2^64 - 1.
+        size_t from = !t.empty() && (t[0] == '-' || t[0] == '+') ? 1 : 0;
+        if (e.kind == json::Value::Bool || !all_digits(t, from))
+            return "a t12 value needs integer text (the game parses it with strtoull), got '" + t + "'";
         errno = 0;
         strtoull(t.c_str(), nullptr, 10);
         return errno == ERANGE ? "'" + t + "' is outside the unsigned 64-bit range" : std::string();
+    }
     case 1: {
         if (e.kind == json::Value::Bool || t.empty())
             return "a float needs number text, got '" + t + "'";

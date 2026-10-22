@@ -137,6 +137,8 @@ full = {
         {'key': 'swofty.runtime_test.big', 'type': 'int', 'value': 1234567890},
         {'key': 'swofty.runtime_test.toobig', 'type': 'int', 'value': 3000000000},
         {'key': 'swofty.runtime_test.u64', 'type': 't12', 'value': 12345678901234567},
+        {'key': 'swofty.runtime_test.u64neg', 'type': 't12', 'value': '-1'},
+        {'key': 'swofty.runtime_test.u64bad', 'type': 't12', 'value': '-x'},
         {'key': 'swofty.runtime_test.f', 'type': 'float', 'value': 0.1},
         {'key': 'swofty.runtime_test.badint', 'type': 'int', 'value': 'abc'},
     ],
@@ -230,10 +232,12 @@ for mode in none replace gated late early earlywait secondcopy; do
         check "gamedb: new key without type skipped" '\[assets\] gamedb: swofty\.runtime_test\.untyped skipped: a new key needs "type"'
         check "gamedb: 10-digit int exact" '\[assets\] gamedb: created swofty\.runtime_test\.big .*tag 0 int\): 1234567890'
         check "gamedb: 17-digit t12 exact" '\[assets\] gamedb: created swofty\.runtime_test\.u64 .*tag 12 t12\): 12345678901234567'
+        check "gamedb: negative t12 wraps like strtoull" '\[assets\] gamedb: created swofty\.runtime_test\.u64neg .*tag 12 t12\): 18446744073709551615'
+        check "gamedb: non-integer t12 refused" "\[assets\] gamedb: edit swofty\.runtime_test\.u64bad ignored: a t12 value needs integer text"
         check "gamedb: float text exact" '\[assets\] gamedb: created swofty\.runtime_test\.f .*tag 1 float\): 0\.1'
         check "gamedb: int out of range refused" "\[assets\] gamedb: edit swofty\.runtime_test\.toobig ignored: '3000000000' is outside the 32-bit int range"
         check "gamedb: non-integer int refused" "\[assets\] gamedb: edit swofty\.runtime_test\.badint ignored: an int needs integer text"
-        check "gamedb: summary" '\[assets\] gamedb: 2 overwritten, 5 created, 1 retyped, 2 skipped'
+        check "gamedb: summary" '\[assets\] gamedb: 2 overwritten, 6 created, 1 retyped, 2 skipped'
         check "gamedb: window-stage read-back through Gdb_Lookup_Key" '\[assets\] gamedb: window stage: Gdb_Lookup_Key\("ai\.general_ai_settings\.max_test_time"\) -> 301'
         check "dbread: window stage sees the loaded database" '\[dbread\] window stage: database ready; 5 key\(s\), 2 table\(s\) to inspect'
         check "dbread: int_at reads an int record" '\[dbread\] inspect fake\.keep: int_at ok 7'

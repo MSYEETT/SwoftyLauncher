@@ -1134,6 +1134,7 @@ int main(int argc, char **argv)
     void **m1 = fake_gdb_lookup("swofty.runtime_test.marker"), **m2 = fake_gdb_lookup("swofty.runtime_test.answer");
     void **rt = fake_gdb_lookup("fake.retype_me"), **kp = fake_gdb_lookup("fake.keep"), **fl = fake_gdb_lookup("fake.flag");
     void **big = fake_gdb_lookup("swofty.runtime_test.big"), **u64 = fake_gdb_lookup("swofty.runtime_test.u64");
+    void **u64neg = fake_gdb_lookup("swofty.runtime_test.u64neg");
     void **tb = fake_gdb_lookup("swofty.runtime_test.toobig"), **fv = fake_gdb_lookup("swofty.runtime_test.f");
     printf("      db: max_test_time=%g marker=%s answer=%d retype_me vt=%s keep=%d flag=%d dtor calls %d\n", mtt,
            m1 && *m1 ? *(char **)((uint8_t *)*m1 + 8) : "(none)", m2 && *m2 ? *(int32_t *)((uint8_t *)*m2 + 8) : -1,
@@ -1155,6 +1156,8 @@ int main(int argc, char **argv)
         expect(big && *big && *(int32_t *)((uint8_t *)*big + 8) == 1234567890, "db: a 10-digit int keeps its exact text (1234567890)");
         expect(u64 && *u64 && *(uint64_t *)((uint8_t *)*u64 + 8) == 12345678901234567ull,
                "db: a 17-digit t12 value keeps its exact text (12345678901234567)");
+        expect(u64neg && *u64neg && *(uint64_t *)((uint8_t *)*u64neg + 8) == UINT64_MAX,
+               "db: a negative t12 value is created and wraps like strtoull (-1 -> 2^64 - 1)");
         expect(fv && *fv && *(float *)((uint8_t *)*fv + 8) == 0.1f, "db: a float keeps its exact text (0.1)");
         expect(!tb, "db: an int outside the 32-bit range is refused, not wrapped");
     } else if (late) {
