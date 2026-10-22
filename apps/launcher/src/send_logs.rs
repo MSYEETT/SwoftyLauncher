@@ -1,3 +1,4 @@
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -7,15 +8,28 @@ use gpui_kit::component::dialog::DialogFooter;
 use gpui_kit::component::input::{Input, InputEvent, InputState, Textarea, TextareaState};
 use gpui_kit::component::spinner::Spinner;
 use gpui_kit::component::{Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
-use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::send_logs::{self, Bundle, GameInfo, MESSAGE_MAX, Report, Stage};
 use swofty_core::store::Store;
 
+use crate::reveal;
 use crate::shell::Shell;
 use crate::theme::{Palette, palette};
 
 pub const LABEL: &str = "Send Logs to Developers";
+pub const SAVE_LABEL: &str = "Save Logs";
+
+pub fn label() -> &'static str {
+    if send_logs::available() { LABEL } else { SAVE_LABEL }
+}
+
+pub fn icon() -> IconName {
+    if send_logs::available() {
+        IconName::Send
+    } else {
+        IconName::Save
+    }
+}
 
 const WHAT_IS_SENT: &str = "Your launcher and game logs. They can include folder paths with your computer's \
                             user name, your hardware, and your installed mods and profiles. Passwords and \
@@ -25,8 +39,15 @@ const WHAT_IS_SENT: &str = "Your launcher and game logs. They can include folder
 enum Phase {
     Editing,
     Working,
-    Sent(usize),
-    Failed(String),
+    Sent { parts: usize, zip: Option<PathBuf> },
+    Saved(PathBuf),
+    Failed { text: String, zip: Option<PathBuf> },
+}
+
+impl Phase {
+    fn done(&self) -> bool {
+        matches!(self, Self::Sent { .. } | Self::Saved(_))
+    }
 }
 
 pub struct SendLogs {
@@ -85,7 +106,7 @@ impl SendLogs {
     }
 
     fn submit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if matches!(self.phase, Phase::Working | Phase::Sent(_)) {
+        if self.working() || self.phase.done() {
             return;
         }
         let name = send_logs::check_name(&self.name.read(cx).value());
@@ -109,8 +130,9 @@ impl SendLogs {
             message,
             game: self.game.clone(),
         };
+        let sending = send_logs::available();
         self._work = Some(cx.spawn_in(window, async move |this, cx| {
-            let result = cx
+            let (zip, sent) = cx
                 .background_executor()
                 .spawn(async move {
                     let bundle = Bundle::collect(&store, &report);
@@ -119,10 +141,16 @@ impl SendLogs {
                             *slot = s;
                         }
                     };
-                    send_logs::send(&bundle, &progress).map_err(|e| e.to_string())
+                    progress(Stage::Packing);
+                    let zip = bundle
+                        .save(&send_logs::kept_dir(&store), send_logs::KEPT)
+                        .map_err(|e| e.to_string());
+                    let sent =
+                        sending.then(|| send_logs::send(&bundle, &progress).map_err(|e| e.to_string()));
+                    (zip, sent)
                 })
                 .await;
-            this.update(cx, |f, cx| f.finish(name, result, cx)).ok();
+            this.update(cx, |f, cx| f.finish(name, zip, sent, cx)).ok();
         }));
         self._poll = Some(cx.spawn(async move |this, cx| {
             loop {
@@ -141,26 +169,49 @@ impl SendLogs {
         cx.notify();
     }
 
-    fn finish(&mut self, name: String, result: Result<usize, String>, cx: &mut Context<Self>) {
-        self.phase = match result {
-            Ok(parts) => {
-                let mut config = self.store.config();
-                if config.discord_username.as_deref() != Some(name.as_str()) {
-                    config.discord_username = Some(name);
-                    if let Err(e) = self.store.save_config(&config) {
-                        eprintln!("swofty-launcher: could not remember the Discord username: {e}");
-                    }
-                }
-                Phase::Sent(parts)
-            }
-            Err(e) => Phase::Failed(e),
+    fn finish(
+        &mut self,
+        name: String,
+        zip: Result<PathBuf, String>,
+        sent: Option<Result<usize, String>>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Err(e) = &zip {
+            eprintln!("swofty-launcher: could not keep the logs zip: {e}");
+        }
+        self.phase = match (sent, zip) {
+            (Some(Ok(parts)), zip) => Phase::Sent { parts, zip: zip.ok() },
+            (Some(Err(e)), zip) => Phase::Failed {
+                text: format!("Not sent. {e}"),
+                zip: zip.ok(),
+            },
+            (None, Ok(zip)) => Phase::Saved(zip),
+            (None, Err(e)) => Phase::Failed {
+                text: format!("Not saved. {e}"),
+                zip: None,
+            },
         };
+        if self.phase.done() {
+            let mut config = self.store.config();
+            if config.discord_username.as_deref() != Some(name.as_str()) {
+                config.discord_username = Some(name);
+                if let Err(e) = self.store.save_config(&config) {
+                    eprintln!("swofty-launcher: could not remember the Discord username: {e}");
+                }
+            }
+        }
         cx.notify();
     }
 
     fn status(&self, p: Palette) -> Option<Div> {
         let row = || h_flex().gap(px(8.)).items_start().text_size(px(13.));
         let text = |t: String| div().flex_1().min_w_0().child(t);
+        let with_zip = |line: Div, zip: Option<&PathBuf>, also: bool| {
+            v_flex()
+                .gap(px(6.))
+                .child(line)
+                .children(zip.map(|z| manual(z, also, p)))
+        };
         match &self.phase {
             Phase::Editing => self.invalid.clone().map(|e| {
                 row()
@@ -177,7 +228,7 @@ impl SendLogs {
                         .child(text(stage)),
                 )
             }
-            Phase::Sent(parts) => Some(
+            Phase::Sent { parts, zip } => Some(with_zip(
                 row()
                     .text_color(p.success)
                     .child(Icon::new(IconName::CircleCheck).size(px(15.)))
@@ -185,13 +236,25 @@ impl SendLogs {
                         1 => "Sent — thanks!".into(),
                         n => format!("Sent in {n} parts — thanks!"),
                     })),
-            ),
-            Phase::Failed(e) => Some(
+                zip.as_ref(),
+                true,
+            )),
+            Phase::Saved(zip) => Some(with_zip(
+                row()
+                    .text_color(p.success)
+                    .child(Icon::new(IconName::CircleCheck).size(px(15.)))
+                    .child(text("Saved.".into())),
+                Some(zip),
+                false,
+            )),
+            Phase::Failed { text: t, zip } => Some(with_zip(
                 row()
                     .text_color(p.error)
                     .child(Icon::new(IconName::CircleAlert).size(px(15.)))
-                    .child(text(format!("Not sent. {e}"))),
-            ),
+                    .child(text(t.clone())),
+                zip.as_ref(),
+                true,
+            )),
         }
     }
 
@@ -202,7 +265,7 @@ impl SendLogs {
                 .on_click(|_, window, cx| window.close_dialog(cx))
         };
         match &self.phase {
-            Phase::Sent(_) => DialogFooter::new().child(
+            phase if phase.done() => DialogFooter::new().child(
                 Button::new("send-logs-done")
                     .primary()
                     .label("Done")
@@ -210,16 +273,19 @@ impl SendLogs {
             ),
             phase => {
                 let working = *phase == Phase::Working;
+                let sending = send_logs::available();
                 DialogFooter::new()
                     .child(close(if working { "Close" } else { "Cancel" }))
                     .child(
                         Button::new("send-logs-send")
                             .primary()
-                            .icon(IconName::Send)
-                            .label(match phase {
-                                Phase::Working => "Sending…",
-                                Phase::Failed(_) => "Try again",
-                                _ => "Send",
+                            .icon(icon())
+                            .label(match (phase, sending) {
+                                (Phase::Working, true) => "Sending…",
+                                (Phase::Working, false) => "Saving…",
+                                (Phase::Failed { .. }, _) => "Try again",
+                                (_, true) => "Send",
+                                (_, false) => "Save",
                             })
                             .loading(working)
                             .disabled(working)
@@ -230,6 +296,29 @@ impl SendLogs {
             }
         }
     }
+}
+
+fn manual(zip: &Path, also: bool, p: Palette) -> Div {
+    let zip = zip.to_path_buf();
+    h_flex()
+        .flex_wrap()
+        .gap_x(px(4.))
+        .pl(px(23.))
+        .text_size(px(13.))
+        .child(div().text_color(p.text_muted).child(if also {
+            "You can also send your logs manually for debugging."
+        } else {
+            "You can send your logs manually for debugging."
+        }))
+        .child(
+            div()
+                .id("send-logs-reveal")
+                .cursor_pointer()
+                .text_color(p.accent_hover)
+                .hover(|s| s.underline())
+                .child(format!("Click here to open them in {}.", reveal::FILE_MANAGER))
+                .on_click(move |_, _, cx| reveal::show(&zip, cx)),
+        )
 }
 
 fn field(title: &'static str, hint: Option<SharedString>, p: Palette) -> Div {
@@ -243,7 +332,7 @@ fn field(title: &'static str, hint: Option<SharedString>, p: Palette) -> Div {
 impl Render for SendLogs {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let p = palette(cx);
-        let locked = matches!(self.phase, Phase::Working | Phase::Sent(_));
+        let locked = self.working() || self.phase.done();
         let count = self.message.read(cx).value().chars().count();
         v_flex()
             .gap(px(14.))
@@ -319,8 +408,12 @@ impl Shell {
             let footer = form.read(cx).footer(form.clone());
             alert
                 .width(px(560.))
-                .title(LABEL)
-                .description("Sends your logs to the developers on Discord, so they can see what went wrong.")
+                .title(label())
+                .description(if send_logs::available() {
+                    "Sends your logs to the developers on Discord, so they can see what went wrong."
+                } else {
+                    "Saves your logs to a zip you can send yourself. Sending them to the developers isn't available in this build."
+                })
                 .child(form.clone())
                 .footer(footer)
                 .on_ok(move |_, window, cx| {
@@ -331,7 +424,6 @@ impl Shell {
     }
 
     pub(crate) fn send_logs_button(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let enabled = send_logs::available();
         h_flex()
             .id("send-logs")
             .min_h(px(36.))
@@ -344,22 +436,11 @@ impl Shell {
             .bg(p.surface)
             .text_size(px(13.))
             .font_weight(FontWeight::MEDIUM)
-            .map(|d| {
-                if enabled {
-                    d.cursor_pointer()
-                        .text_color(p.text_muted)
-                        .hover(move |s| s.bg(p.hover).border_color(p.border).text_color(p.text))
-                        .on_click(cx.listener(|this, _, window, cx| this.send_logs(window, cx)))
-                } else {
-                    d.text_color(p.text_placeholder)
-                }
-            })
-            .child(Icon::new(IconName::Send).size(px(15.)).flex_shrink_0())
-            .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .child(if enabled { LABEL } else { send_logs::UNAVAILABLE }),
-            )
+            .cursor_pointer()
+            .text_color(p.text_muted)
+            .hover(move |s| s.bg(p.hover).border_color(p.border).text_color(p.text))
+            .on_click(cx.listener(|this, _, window, cx| this.send_logs(window, cx)))
+            .child(Icon::new(icon()).size(px(15.)).flex_shrink_0())
+            .child(div().flex_1().min_w_0().child(label()))
     }
 }

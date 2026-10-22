@@ -9,7 +9,6 @@ use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::launcher::{TaskItem, TaskList, TaskState, Tasks};
-use swofty_core::send_logs;
 use swofty_core::view::{Effect, Shown};
 
 use crate::shell::Shell;
@@ -312,7 +311,6 @@ impl Shell {
             .when(counts.total > 0, |s| {
                 s.child(div().truncate().child(counts.line()))
             });
-        let logs = send_logs::available();
         let footer = h_flex()
             .gap(px(10.))
             .items_center()
@@ -320,9 +318,8 @@ impl Shell {
             .when(failed && !running, |f| {
                 f.child(
                     Button::new("tasks-send-logs")
-                        .icon(IconName::Send)
-                        .label(crate::send_logs::LABEL)
-                        .disabled(!logs)
+                        .icon(crate::send_logs::icon())
+                        .label(crate::send_logs::label())
                         .on_click(cx.listener(|s, _, window, cx| s.send_logs(window, cx))),
                 )
             })

@@ -13,6 +13,7 @@ mod library;
 mod news;
 mod pages;
 mod play_bar;
+mod reveal;
 mod sections;
 mod send_logs;
 mod shell;
