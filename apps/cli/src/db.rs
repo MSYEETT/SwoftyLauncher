@@ -2,10 +2,10 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Result, anyhow, bail};
 use clap::Subcommand;
 use swofty_core::dbedit::package::{self, Package};
-use swofty_core::dbedit::{Catalog, Edits, NodeId, NodeKind};
+use swofty_core::dbedit::{Catalog, Edits, NodeId, NodeKind, RowCopy, modules};
 use swofty_core::manifest::Category;
 use swofty_core::store::Store;
 
@@ -90,6 +90,33 @@ pub enum DbCommand {
         #[arg(long, alias = "package")]
         addon: String,
     },
+    #[command(
+        about = "Add a row to a table for an entity that has none: a copy of another entity's row, or of the game default row with FROM default"
+    )]
+    CopyRow {
+        #[arg(help = "The table's rows, such as driver_statistics.driver_statistics.DriverStatisticsHolder")]
+        table: String,
+        #[arg(help = "The entity whose row to copy, or default")]
+        from: String,
+        #[arg(help = "The entity the new row belongs to")]
+        to: String,
+        #[arg(
+            long,
+            help = "The field naming a row's entity (default: the one the DB Editor pages use, else _metadata_)"
+        )]
+        field: Option<String>,
+        #[arg(long, alias = "package")]
+        addon: String,
+    },
+    #[command(about = "Remove a row copy-row added, with its changes")]
+    RemoveRow {
+        table: String,
+        to: String,
+        #[arg(long)]
+        field: Option<String>,
+        #[arg(long, alias = "package")]
+        addon: String,
+    },
     #[command(about = "Put a key back to its stock value in a DB Editor addon, or every key with --all")]
     Revert {
         path: Option<String>,
@@ -103,6 +130,22 @@ pub enum DbCommand {
         #[arg(long, alias = "package")]
         addon: String,
     },
+}
+
+/// The field naming a row's entity in `table`: `--field`, else the one a DB Editor page selects it by.
+fn row_field(table: &str, field: Option<String>) -> String {
+    field.unwrap_or_else(|| {
+        modules()
+            .iter()
+            .flat_map(|m| m.row_specs())
+            .find(|s| s.table == table)
+            .map_or_else(|| "_metadata_".to_owned(), |s| s.field)
+    })
+}
+
+fn row_line(r: &RowCopy) -> String {
+    let from = r.from.as_deref().unwrap_or("the game default row");
+    format!("{}: a copy of {from}", r.select())
 }
 
 fn category(s: &str) -> std::result::Result<Category, String> {
@@ -142,7 +185,6 @@ pub fn command(store: &Store, profile: &str, game: Option<PathBuf>, cmd: DbComma
         let g = crate::build::game(store, game.clone())?;
         Ok(Catalog::open(store, &g)?)
     };
-    let key_of = |cat: &Catalog, p: &str| cat.resolve(p).map_err(|e| anyhow!("{e}"));
     match cmd {
         DbCommand::Addons => {
             let p = store.profile(profile)?;
@@ -289,18 +331,64 @@ pub fn command(store: &Store, profile: &str, game: Option<PathBuf>, cmd: DbComma
                 None => Edits::default(),
             };
             let cat = catalog()?;
-            let node = cat
-                .find(&path)
-                .with_context(|| format!("{path}: not in the game database"))?;
-            show(&cat, &edits, node);
+            match (cat.find(&path), edits.copied_path(&cat, &path)) {
+                (Some(node), _) => show(&cat, &edits, node),
+                (None, Some(c)) => {
+                    let value = edits.value(&cat, c.key).unwrap_or_default();
+                    println!("{} (0x{:016x})", c.row.path(&c.rel), c.key);
+                    println!("  value: {value}");
+                    println!("  {}", row_line(c.row));
+                    if edits.get(c.key).is_some() {
+                        println!(
+                            "  copied: {}",
+                            cat.record_by_key(c.source).map_or("", |r| r.value)
+                        );
+                    }
+                }
+                (None, None) => bail!("{path}: not in the game database"),
+            }
         }
         DbCommand::Set { path, value, addon } => {
             let cat = catalog()?;
-            let key = key_of(&cat, &path)?;
             edit(store, &cat, &addon, |p| {
+                let key = p.edits.resolve(&cat, &path).map_err(|e| anyhow!("{e}"))?;
                 p.edits.set(&cat, key, &value).map_err(|e| anyhow!("{path}: {e}"))
             })?;
             println!("{path} = {value} in {addon}");
+        }
+        DbCommand::CopyRow {
+            table,
+            from,
+            to,
+            field,
+            addon,
+        } => {
+            let cat = catalog()?;
+            let field = row_field(&table, field);
+            let source = (from != "default").then_some(from.as_str());
+            let line = edit(store, &cat, &addon, |p| {
+                p.edits
+                    .copy_row(&cat, &table, &field, source, &to)
+                    .map_err(|e| anyhow!("{e}"))?;
+                Ok(row_line(p.edits.row(&table, &field, &to).expect("just added")))
+            })?;
+            println!("added {line} in {addon}");
+        }
+        DbCommand::RemoveRow {
+            table,
+            to,
+            field,
+            addon,
+        } => {
+            let cat = catalog()?;
+            let field = row_field(&table, field);
+            edit(store, &cat, &addon, |p| {
+                match p.edits.remove_row(&table, &field, &to) {
+                    true => Ok(()),
+                    false => bail!("{addon} adds no row for {to} to {table}"),
+                }
+            })?;
+            println!("removed the row for {to} from {table} in {addon}");
         }
         DbCommand::Add {
             path,
@@ -324,10 +412,12 @@ pub fn command(store: &Store, profile: &str, game: Option<PathBuf>, cmd: DbComma
                     println!("reverted {n} change(s) in {addon}");
                 }
                 (Some(path), false) => {
-                    let key = key_of(&cat, &path)?;
-                    edit(store, &cat, &addon, |p| match p.edits.revert(key) {
-                        true => Ok(()),
-                        false => bail!("{path} has no change in {addon}"),
+                    edit(store, &cat, &addon, |p| {
+                        let key = p.edits.resolve(&cat, &path).map_err(|e| anyhow!("{e}"))?;
+                        match p.edits.revert(key) {
+                            true => Ok(()),
+                            false => bail!("{path} has no change in {addon}"),
+                        }
                     })?;
                     println!("reverted {path} in {addon}");
                 }
@@ -336,9 +426,16 @@ pub fn command(store: &Store, profile: &str, game: Option<PathBuf>, cmd: DbComma
         }
         DbCommand::List { addon } => {
             let p = open(store, &addon)?;
+            for r in &p.edits.rows {
+                println!("{}", row_line(r));
+            }
             for e in &p.edits.edits {
                 let name = e.path.clone().unwrap_or_else(|| format!("0x{:016x}", e.key));
-                let stock = e.stock.as_deref().unwrap_or("(added)");
+                let stock = match (&e.stock, e.is_copied()) {
+                    (Some(s), _) => s.as_str(),
+                    (None, true) => "(copied row)",
+                    (None, false) => "(added)",
+                };
                 let value = e.value.as_deref().unwrap_or("(removed)");
                 println!("{name}: {stock} -> {value}");
             }
