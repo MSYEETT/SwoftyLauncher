@@ -10535,6 +10535,33 @@
    "used_by": [
     "addons/re-optimization/native/src/re_optimization.cpp (xanpavle.re-optimization)"
    ]
+  },
+  {
+   "id": "session.tyre_class_from_name",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 48 89 86 C0 9B 00 00 4C 8B B0 70",
+   "match": "0x142ea0fe4",
+   "anchor": "0x1",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x0"
+   },
+   "target": "0x142e97cb0",
+   "kind": "call",
+   "names": [
+    "Sess_TyreClass_FromName"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-22",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/tyre_class.cpp"
+   ]
   }
  ]
 }
