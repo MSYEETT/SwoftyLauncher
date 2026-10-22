@@ -24,6 +24,8 @@ pub const SNAPSHOT: &str = "swofty/addons/swofty.career-editor/snapshot.json";
 pub const PERF_LINES: usize = 60;
 const LOADER_HEAD: u64 = 16 << 10;
 pub const LOADER_DIR: &str = "swofty";
+pub const KEPT_DIR: &str = "logs";
+pub const KEPT: usize = 10;
 
 const REDACTED: &str = "[redacted]";
 const SESSION_DEPTH: usize = 3;
@@ -44,6 +46,37 @@ pub fn send(bundle: &Bundle, progress: &dyn Fn(Stage)) -> std::result::Result<us
     destination()
         .ok_or(SendError::Unavailable)?
         .send(bundle, progress)
+}
+
+/// `$DATA/logs`, where the launcher and `swofty logs send` keep the newest
+/// bundles for the player to share themselves.
+pub fn kept_dir(store: &Store) -> PathBuf {
+    store.root.join(KEPT_DIR)
+}
+
+/// Removes the bundles in `dir` beyond the newest `keep`, counting `newest`
+/// and never removing it. Returns the removed files.
+pub fn prune(dir: &Path, keep: usize, newest: &Path) -> Vec<PathBuf> {
+    let Ok(read) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut older: Vec<_> = read
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p != newest && is_bundle(p))
+        .map(|p| (modified(&p), p))
+        .collect();
+    older.sort_by(|a, b| b.cmp(a));
+    older
+        .into_iter()
+        .skip(keep.saturating_sub(1))
+        .filter_map(|(_, p)| std::fs::remove_file(&p).ok().map(|()| p))
+        .collect()
+}
+
+fn is_bundle(path: &Path) -> bool {
+    let name = file_name(path);
+    name.starts_with("swofty-logs-") && name.ends_with(".zip") && path.is_file()
 }
 
 pub fn check_name(raw: &str) -> std::result::Result<String, String> {
@@ -467,6 +500,19 @@ impl Bundle {
 
     pub fn zip(&self) -> Result<Vec<u8>> {
         zip_entries(self.entries.iter())
+    }
+
+    /// Writes the whole zip into `dir` as [`Bundle::file_name`], then prunes
+    /// `dir` to the newest `keep` bundles.
+    pub fn save(&self, dir: &Path, keep: usize) -> Result<PathBuf> {
+        let data = self.zip()?;
+        std::fs::create_dir_all(dir).map_err(crate::io_err(dir))?;
+        let path = dir.join(self.file_name());
+        let partial = dir.join(format!("{}.tmp", self.file_name()));
+        std::fs::write(&partial, &data).map_err(crate::io_err(&partial))?;
+        std::fs::rename(&partial, &path).map_err(crate::io_err(&path))?;
+        prune(dir, keep, &path);
+        Ok(path)
     }
 
     /// The zip files to upload, each at most `limit` bytes where possible:

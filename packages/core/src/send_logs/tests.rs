@@ -1133,3 +1133,95 @@ fn sends_the_newest_addon_logs() {
     );
     std::fs::remove_dir_all(&root).ok();
 }
+
+fn aged(path: &Path, base: std::time::SystemTime, secs: u64) {
+    put(path, "zip");
+    std::fs::File::options()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_modified(base + Duration::from_secs(secs))
+        .unwrap();
+}
+
+fn listed(dir: &Path) -> BTreeSet<String> {
+    std::fs::read_dir(dir)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect()
+}
+
+#[test]
+fn keeps_the_zip_in_the_data_folder() {
+    let root = tmp("keep");
+    let (store, game) = fake_data(&root);
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261020-101010");
+    let dir = kept_dir(&store);
+    assert_eq!(dir, store.root.join("logs"));
+    let path = bundle.save(&dir, KEPT).unwrap();
+    assert_eq!(path, dir.join("swofty-logs-swofty-20261020-101010.zip"));
+    assert_eq!(listed(&dir), BTreeSet::from([bundle.file_name()]));
+    let kept = std::fs::read(&path).unwrap();
+    assert_eq!(names(&kept), names(&bundle.zip().unwrap()));
+    assert_eq!(entry(&kept, "state/launcher-run.log"), "launcher line\n");
+    let again = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261020-101011");
+    assert!(
+        !names(&again.zip().unwrap())
+            .iter()
+            .any(|n| n.contains("swofty-logs-")),
+        "a kept bundle went into the next one"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn keeps_only_the_newest_bundles() {
+    let root = tmp("prune");
+    let dir = root.join("logs");
+    let base = std::time::SystemTime::now() - Duration::from_secs(3600);
+    for i in 0..12 {
+        aged(
+            &dir.join(format!("swofty-logs-p{i:02}-20261020-1010{i:02}.zip")),
+            base,
+            i * 60,
+        );
+    }
+    aged(&dir.join("notes.txt"), base, 0);
+    aged(&dir.join("swofty-logs-left-20261019-000000.zip.tmp"), base, 0);
+    std::fs::create_dir_all(dir.join("swofty-logs-folder.zip")).unwrap();
+    let bundle = noisy_bundle(&[100]);
+    let path = bundle.save(&dir, 10).unwrap();
+    let kept: BTreeSet<String> = listed(&dir)
+        .into_iter()
+        .filter(|n| n.starts_with("swofty-logs-") && n.ends_with(".zip"))
+        .collect();
+    let mut want: BTreeSet<String> = (3..12)
+        .map(|i| format!("swofty-logs-p{i:02}-20261020-1010{i:02}.zip"))
+        .collect();
+    want.insert(bundle.file_name());
+    want.insert("swofty-logs-folder.zip".into());
+    assert_eq!(kept, want);
+    assert!(dir.join("notes.txt").is_file());
+    assert!(dir.join("swofty-logs-left-20261019-000000.zip.tmp").is_file());
+    assert!(path.is_file());
+
+    let old = dir.join("swofty-logs-p03-20261020-101003.zip");
+    let removed = prune(&dir, 3, &old);
+    assert!(old.is_file(), "pruning never removes the bundle just written");
+    assert_eq!(removed.len(), 7, "{removed:?}");
+    let left: BTreeSet<String> = listed(&dir)
+        .into_iter()
+        .filter(|n| n.ends_with(".zip") && dir.join(n).is_file())
+        .collect();
+    assert_eq!(
+        left,
+        BTreeSet::from([
+            "swofty-logs-p03-20261020-101003.zip".to_owned(),
+            "swofty-logs-p11-20261020-101011.zip".to_owned(),
+            bundle.file_name(),
+        ])
+    );
+    assert!(prune(&root.join("missing"), 3, &old).is_empty());
+    std::fs::remove_dir_all(&root).ok();
+}
