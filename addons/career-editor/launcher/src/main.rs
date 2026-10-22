@@ -7,6 +7,7 @@ mod tracks;
 mod ui;
 mod undo;
 
+use std::io::Write;
 use std::path::PathBuf;
 
 use serde_json::{Value, json};
@@ -27,6 +28,14 @@ pub struct App {
     pub cal_move: (Option<i64>, Option<i64>),
     last_tick: Option<(Option<bool>, Option<u64>, Bridge)>,
     closed_since: Option<u64>,
+    logged_state: Option<String>,
+    logged_disagree: bool,
+    logged_error: Option<String>,
+}
+
+pub fn log(line: std::fmt::Arguments) {
+    let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
+    writeln!(std::io::stderr(), "{now} {line}").ok();
 }
 
 impl App {
@@ -41,6 +50,9 @@ impl App {
             cal_move: (None, None),
             last_tick: None,
             closed_since: None,
+            logged_state: None,
+            logged_disagree: false,
+            logged_error: None,
         }
     }
 
@@ -66,12 +78,67 @@ impl App {
         status
     }
 
+    fn note(&mut self, status: Option<&Value>) -> Bridge {
+        let running = status.and_then(|s| s["running"].as_bool());
+        let host_pid = status.and_then(|s| s["pid"].as_u64());
+        let closed_since = self.closed_since;
+        let error = self.store.snap_error.clone();
+        let snap = self.store.snapshot();
+        let bridge = live::bridge_of(running, snap, closed_since);
+        let disagree = running == Some(false) && live::says_running(snap);
+        let written = live::written(snap);
+        let age = if written > 0 {
+            format!("{} ms old", store::now_ms().saturating_sub(written))
+        } else {
+            "missing".to_owned()
+        };
+        let st = &snap["status"];
+        let plugin = format!(
+            "snapshot {age}, pid {}, game {}, career {}, mode {}, phase {}",
+            snap["pid"], st["game"], st["career"], st["mode"], st["phase"]
+        );
+        let shown = if bridge == Bridge::Live && st["career"] == true {
+            st["mode"].as_str().unwrap_or("none").to_owned()
+        } else {
+            "none".to_owned()
+        };
+        if error != self.logged_error {
+            match &error {
+                Some(e) => log(format_args!("snapshot.json is unreadable: {e}")),
+                None => log(format_args!("snapshot.json is readable again")),
+            }
+            self.logged_error = error;
+        }
+        if disagree != self.logged_disagree {
+            if disagree {
+                log(format_args!(
+                    "the launcher's game_status says F1 25 is not running ({}) but the game plugin says it is: {plugin}",
+                    status.map_or_else(|| "no answer".to_owned(), Value::to_string)
+                ));
+            } else {
+                log(format_args!(
+                    "the launcher's game_status and the game plugin agree again (running {running:?}, {plugin})"
+                ));
+            }
+            self.logged_disagree = disagree;
+        }
+        let state = format!("{running:?} {bridge:?} {shown}");
+        if self.logged_state.as_ref() != Some(&state) {
+            log(format_args!(
+                "page: game_status running {running:?} pid {host_pid:?}; {plugin}; bridge {bridge:?}; shows mode {shown}"
+            ));
+            self.logged_state = Some(state);
+        }
+        bridge
+    }
+
     pub fn live(&mut self, host: &mut Host) -> Live {
         self.locate(host);
         self.store.collect_acks();
         let status = self.game_status(host);
         let known = self.store.mailbox.is_some();
         self.store.touch_viewer();
+        self.note(status.as_ref());
         let snap = self.store.snapshot().clone();
         Live::new(
             status,
@@ -90,9 +157,9 @@ impl App {
             changed = true;
         }
         let status = self.game_status(host);
+        let bridge = self.note(status.as_ref());
         let running = status.as_ref().and_then(|s| s["running"].as_bool());
         let pid = status.as_ref().and_then(|s| s["pid"].as_u64());
-        let bridge = live::bridge_of(running, self.store.snapshot(), self.closed_since);
         let key = (running, pid, bridge);
         if self.last_tick != Some(key) {
             changed = true;
