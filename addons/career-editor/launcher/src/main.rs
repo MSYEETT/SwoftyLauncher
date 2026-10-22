@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use serde_json::{Value, json};
 
 use host::Host;
-use live::Live;
+use live::{Bridge, Live};
 use store::Store;
 
 const API: u64 = 1;
@@ -25,7 +25,8 @@ pub struct App {
     pub tab: String,
     pub profile_tracks: Option<Result<Value, String>>,
     pub cal_move: (Option<i64>, Option<i64>),
-    last_tick: Option<(Option<bool>, Option<u64>, u64)>,
+    last_tick: Option<(Option<bool>, Option<u64>, Bridge)>,
+    closed_since: Option<u64>,
 }
 
 impl App {
@@ -39,6 +40,7 @@ impl App {
             profile_tracks: None,
             cal_move: (None, None),
             last_tick: None,
+            closed_since: None,
         }
     }
 
@@ -51,17 +53,33 @@ impl App {
         }
     }
 
-    pub fn live(&mut self, host: &mut Host) -> Live {
-        self.locate(host);
-        self.store.collect_acks();
+    fn game_status(&mut self, host: &mut Host) -> Option<Value> {
         let status = host
             .call("game_status", Value::Null)
             .ok()
-            .filter(|v| v.is_object());
+            .filter(Value::is_object);
+        if status.as_ref().and_then(|s| s["running"].as_bool()) == Some(false) {
+            self.closed_since.get_or_insert_with(store::now_ms);
+        } else {
+            self.closed_since = None;
+        }
+        status
+    }
+
+    pub fn live(&mut self, host: &mut Host) -> Live {
+        self.locate(host);
+        self.store.collect_acks();
+        let status = self.game_status(host);
         let known = self.store.mailbox.is_some();
         self.store.touch_viewer();
         let snap = self.store.snapshot().clone();
-        Live::new(status, &snap, known, self.store.snap_error.clone())
+        Live::new(
+            status,
+            &snap,
+            known,
+            self.store.snap_error.clone(),
+            self.closed_since,
+        )
     }
 
     fn tick(&mut self, host: &mut Host) {
@@ -71,12 +89,11 @@ impl App {
         if self.store.outbox_changed() && self.store.collect_acks() > 0 {
             changed = true;
         }
-        let status = host.call("game_status", Value::Null).ok();
+        let status = self.game_status(host);
         let running = status.as_ref().and_then(|s| s["running"].as_bool());
         let pid = status.as_ref().and_then(|s| s["pid"].as_u64());
-        let written = self.store.snapshot()["written"].as_u64().unwrap_or(0);
-        let fresh = written > 0 && store::now_ms().saturating_sub(written) < live::STALE_MS;
-        let key = (running, pid, u64::from(fresh));
+        let bridge = live::bridge_of(running, self.store.snapshot(), self.closed_since);
+        let key = (running, pid, bridge);
         if self.last_tick != Some(key) {
             changed = true;
             self.last_tick = Some(key);
