@@ -171,12 +171,20 @@ These commands work on DB Editor addons. A DB Editor addon is a data addon of ga
 | `swofty db get <path> [--addon <id>]` | Show a key's value, or what a table, row or container holds |
 | `swofty db set <path> <value> --addon <id>` | Change a key's value in the addon |
 | `swofty db add <path> <type> <value> --addon <id>` | Add a key the game database lacks; `<type>` is the record type number |
+| `swofty db copy-row <table> <from> <to> --addon <id> [--field <field>]` | Add a row to `<table>` for `<to>`, a copy of `<from>`'s row, or of the game default row when `<from>` is `default` |
+| `swofty db remove-row <table> <to> --addon <id> [--field <field>]` | Remove a row `copy-row` added, with its changes |
 | `swofty db revert <path> --addon <id>` | Put a key back to its stock value in the addon |
 | `swofty db revert --all --addon <id>` | Remove every change from the addon |
 | `swofty db list --addon <id>` | List the addon's changes |
 
 A `<path>` is a dotted path, a selector path such as `entrants.drivers.driver[_metadata_=max_verstappen].car_number`, or `0x` and 16 hex digits.
 `swofty db get` without `--addon` shows stock values.
+`<table>` names the rows without a row number, such as `driver_statistics.driver_statistics.DriverStatisticsHolder`.
+`--field` is the field that names a row's entity, such as `driver`. Without it, `copy-row` and `remove-row` use the field the DB Editor pages pick the table's rows by, else `_metadata_`.
+`copy-row` refuses an entity that already has a row in the table.
+The new row has every key of the source row, nested tables included, with `--field` set to `<to>`, its own `_metadata_` label, and its own `stat_id` in a table of stat ids.
+The build adds it after the table's last row, after the addons before this one.
+`swofty db set`, `revert` and `get --addon` take selector paths into a copied row, such as `driver_statistics.driver_statistics.DriverStatisticsHolder[driver=romain_grosjean].StatisticsDataSet[_metadata_=default].Statistic[_metadata_=pace].evolution`.
 A `<category>` is one of `tracks`, `liveries`, `cars`, `drivers-teams`, `seasons`, `database`, `gameplay`, `ui`, `audio`, `tools` and `other`.
 A new DB Editor addon has the category `database` and the origin tool `db-editor` in its `swofty.json`.
 `swofty db import` of a DB Editor addon zip creates a new addon with the zip's name, version, author, description, category and changes, and copies no other file.

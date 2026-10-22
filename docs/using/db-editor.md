@@ -48,6 +48,18 @@ A page shows its rows in a table. Pages with a choice above the table, such as t
 
 **Driver Manager** creates new drivers. The **Drivers** page links to it: it opens its page when it's installed, offers to turn it on when it's off, and opens its download page when it isn't installed.
 
+## Copy a row from someone else
+
+Some fields live in a row of another table, such as a driver's ratings on **Drivers**. A driver without such a row gets the game's default row, and those fields show **Inherited**.
+
+**Copy from…** above the fields gives the driver their own row. It lists every driver who has one, and **Game default**. Search by name and pick one. The fields then hold that driver's values and change like any other value. A copy takes your unsaved changes to the source row.
+
+A copied row says **Copied from** and the source's name, with **Remove own row**, which takes the row and its changes out of the draft. **Discard changes** and **Revert all changes** remove copied rows too. A field the source row doesn't have says **Not in the copied row**: the game default's ratings have no 2026 season, for example.
+
+The build adds the copied row after the table's last row, and it stacks with other addons. It has every key of the source row and its own label. **Changes** lists copied rows under **Copied rows**.
+
+An addon with copied rows needs Swofty Launcher 1.3.4 or later.
+
 ## All tables
 
 **All tables** browses the whole database the way the game stores it: containers, tables and their rows, and keys with their type, meaning, unit and range. A table opens as a grid of rows and fields. **Add key** adds a key the game's database doesn't have. The game reads only the keys it looks for, and a missing key it looks for crashes it.
@@ -73,7 +85,7 @@ A page shows its rows in a table. Pages with a choice above the table, such as t
 
 **Import…** also takes a modded `gamedatabases.2025.bin`, or a mod `.zip` that holds one and has no `swofty.json`. It compares the file with the game's stock database and opens the differences as a new draft, named after the file. Changed values, added keys and removed keys all become changes. A file that's the same as the stock database, or isn't a game database, isn't imported.
 
-The import names the tables the file adds rows to. An addon made this way that adds rows to a table doesn't stack with another addon that adds rows to the same table.
+The import names the tables the file adds rows to. An addon made this way that adds rows to a table doesn't stack with another addon that adds rows to the same table. Rows copied with **Copy from…** stack.
 
 ## Share without the launcher
 
