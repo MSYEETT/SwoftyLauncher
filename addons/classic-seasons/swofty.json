@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "swofty.classic-seasons",
+  "name": "Classic Seasons",
+  "version": "0.1.0",
+  "author": "Swofty",
+  "description": "Adds the F1 2016 to F1 2024 seasons to Grand Prix and Time Trial, with each season's teams and drivers.",
+  "license": "AGPL-3.0-or-later",
+  "kind": [
+    "database",
+    "erp",
+    "files",
+    "native"
+  ],
+  "compat": {
+    "game": "f1_25",
+    "game_builds": [
+      ">=25251167"
+    ],
+    "launcher": ">=1.3.5"
+  },
+  "requires": [
+    {
+      "id": "swofty.core",
+      "version": ">=0.2.11"
+    }
+  ],
+  "operations": {
+    "database": [
+      "db/seasons.json"
+    ],
+    "assets": [
+      "lang/seasons.json",
+      "assets/cars.json"
+    ],
+    "native": [
+      {
+        "dll": "native/classic_seasons.dll",
+        "early": false
+      }
+    ],
+    "erp": [
+      "erp/frontend.json",
+      "erp/logos.json"
+    ]
+  }
+}

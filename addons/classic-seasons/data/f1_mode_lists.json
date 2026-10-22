@@ -1,0 +1,337 @@
+[
+ {
+  "key": "bdb65ad0c68daf99",
+  "name": "{09b585fbaaabe38c}0.game_setup_modes",
+  "stock": "f1,f1_generic,f1_beta,f1_elimination,f1_tr"
+ },
+ {
+  "key": "b3e9939e0d345c30",
+  "name": "{09b585fbaaabe38c}1.game_setup_modes",
+  "stock": "f1,f1_generic,f1_beta,f1_elimination,f1_tr"
+ },
+ {
+  "key": "b94000910d08b706",
+  "name": "{09b585fbaaabe38c}3.game_setup_modes",
+  "stock": "f1,f1_generic,f1_beta,f1_elimination,f1_tr"
+ },
+ {
+  "key": "72c8a85b47ae1891",
+  "name": "{15dfa85eb17a6504}0.game_setup_modes",
+  "stock": "f1,f1_generic,f1_world,f1_elimination,f1_tr"
+ },
+ {
+  "key": "94cc435b197a2301",
+  "name": "{1a5c73a2e2b1d2b6}2.game_setup_modes",
+  "stock": "f1,f1a_mp,f1_generic,f1_world,f1_elimination,f1_tr"
+ },
+ {
+  "key": "31a137f9714d8a98",
+  "name": "{1a5c73a2e2b1d2b6}3.game_setup_modes",
+  "stock": "f1,f1_generic,f1_world"
+ },
+ {
+  "key": "58b02b4ad26b8b71",
+  "name": "{267daf82dcdfbd60}4.game_setup_modes",
+  "stock": "f1,f1_generic,f1_beta,f1_esports"
+ },
+ {
+  "key": "0d5fcd8ff02f3cdd",
+  "name": "{2e47cdd25071dcdc}4.game_setup_modes",
+  "stock": "f1,f1_generic,f1_world,f1_elimination"
+ },
+ {
+  "key": "8e1dc08d21c68a14",
+  "name": "{2e47cdd25071dcdc}5.game_setup_modes",
+  "stock": "f1,f1_generic,f1_world,f1_elimination"
+ },
+ {
+  "key": "e28e76825232ecc3",
+  "name": "{2e47cdd25071dcdc}6.game_setup_modes",
+  "stock": "f1,f1_generic,f1_world,f1_elimination,f1_tr"
+ },
+ {
+  "key": "0585413b4eb34b7a",
+  "name": "{2e47cdd25071dcdc}7.game_setup_modes",
+  "stock": "f1,f1_generic,f1_world,f1_elimination,f1_tr"
+ },
+ {
+  "key": "d93c00cd036d8ea1",
+  "name": "{2e47cdd25071dcdc}8.game_setup_modes",
+  "stock": "f1,f1_generic,f1_world,f1_elimination,f1_tr"
+ },
+ {
+  "key": "8875ad0588fa977d",
+  "name": "{2e895dfd052f0ef8}0.game_setup_modes",
+  "stock": "f1,f1_generic,f1_elimination,f1_tr"
+ },
+ {
+  "key": "8c910378ba258634",
+  "name": "{2e895dfd052f0ef8}1.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "3ef364d36c639163",
+  "name": "{2e895dfd052f0ef8}2.game_setup_modes",
+  "stock": "f1,f1_generic,f1_elimination,f1_tr"
+ },
+ {
+  "key": "6baab131e3e349f6",
+  "name": "{2e895dfd052f0ef8}7.game_setup_modes",
+  "stock": "f1,f1_generic,f1_elimination"
+ },
+ {
+  "key": "f09817c6a79c9289",
+  "name": "{351da64a2ed4463c}0.game_setup_modes",
+  "stock": "f1,classic,f1_26,f1_generic_26,f2,f1_generic,f1_world,multiclass"
+ },
+ {
+  "key": "40a568d707356121",
+  "name": "{351da94a2ed44b54}0.game_setup_modes",
+  "stock": "f1,classic,f2,f1_generic"
+ },
+ {
+  "key": "9d59bf0a07f00bee",
+  "name": "{351da94a2ed44b54}3.game_setup_modes",
+  "stock": "f1,classic,f1_generic_26,f2,f1_generic,f1_world,f1_elimination"
+ },
+ {
+  "key": "19a21c154795726c",
+  "name": "{351da94a2ed44b54}5.game_setup_modes",
+  "stock": "f1,classic,f1_26,f1_generic_26,f2,f1_generic,f1_world"
+ },
+ {
+  "key": "d50455e018e64969",
+  "name": "{446668bc25ba571c}0.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "0feba31f4071bf7e",
+  "name": "{5f3e00138b1a3e26}1.game_setup_modes",
+  "stock": "f1,f1_esports"
+ },
+ {
+  "key": "cd18c782c24a3cd1",
+  "name": "{914a6e85d007b644}0.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "884f70f12eebe2e8",
+  "name": "{914a6e85d007b644}1.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "a133b5f568973d37",
+  "name": "{914a6e85d007b644}2.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "f0350b491331b49e",
+  "name": "{914a6e85d007b644}3.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "62de3c9a3581dea5",
+  "name": "{914a6e85d007b644}4.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "32d75142fadddd1c",
+  "name": "{914a6e85d007b644}5.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "12ed9ae1e8de92a2",
+  "name": "{914a6e85d007b644}7.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "1b938a287ae6a359",
+  "name": "{914a6e85d007b644}8.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "c25752d15b1b5ff0",
+  "name": "{914a6e85d007b644}9.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "5e2c58e0adf1d2a7",
+  "name": "{9c7be06936b6ac10}1.valid_game_setup_modes",
+  "stock": "f1,f1_26"
+ },
+ {
+  "key": "e3aea52075765b63",
+  "name": "{9c7be06936b6ac10}23.valid_game_setup_modes",
+  "stock": "f1,f1_26"
+ },
+ {
+  "key": "50159d37c6d26334",
+  "name": "{9c7be06936b6ac10}24.valid_game_setup_modes",
+  "stock": "f1,f1_26"
+ },
+ {
+  "key": "5b505a24b78e8bfd",
+  "name": "{9d2a73c7f8667c12}9.valid_game_setup_modes",
+  "stock": "f1,f1_26"
+ },
+ {
+  "key": "3c4b35cbadd1c7cb",
+  "name": "{9d5043dcec401300}2.game_setup_modes",
+  "stock": "f1,classic,solo_battle,f1_generic_26,f2,f1_generic,f1_beta,f1_esports,f1_world,f1_elimination,multiclass,f1_tr"
+ },
+ {
+  "key": "92c13e207e5f6862",
+  "name": "{9d5043dcec401300}3.game_setup_modes",
+  "stock": "f1,f1_generic,f1_elimination,f1_tr"
+ },
+ {
+  "key": "eb0b5d0c0e287691",
+  "name": "{9d5043dcec401300}4.game_setup_modes",
+  "stock": "f1,f1_generic,f1_elimination,f1_tr"
+ },
+ {
+  "key": "820f7f7bb1fa18a8",
+  "name": "{9d5043dcec401300}5.game_setup_modes",
+  "stock": "f1,f1_generic,f1_elimination,f1_tr"
+ },
+ {
+  "key": "00efc04864bde3f7",
+  "name": "{9d5043dcec401300}6.game_setup_modes",
+  "stock": "f1,f1_generic,f1_elimination,f1_tr"
+ },
+ {
+  "key": "efae52f357f5aa5e",
+  "name": "{9d5043dcec401300}7.game_setup_modes",
+  "stock": "f1,f1_generic,f1_elimination,f1_tr"
+ },
+ {
+  "key": "5afbd97daafc14e2",
+  "name": "{aafff59123b34b80}3.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "daf47b81eafe7969",
+  "name": "{e93041607d1b071c}0.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "407145d99b438b00",
+  "name": "{e93041607d1b071c}1.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "334f4b5c7d32344f",
+  "name": "{e93041607d1b071c}2.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "8940f3b95eb79296",
+  "name": "{e93041607d1b071c}3.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "851735b6d486de1d",
+  "name": "{e93041607d1b071c}4.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "0a40a7e0e5227254",
+  "name": "{e93041607d1b071c}5.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "3ed31c825feeae03",
+  "name": "{e93041607d1b071c}6.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "e4f49dea1db3f6ba",
+  "name": "{e93041607d1b071c}7.game_setup_modes",
+  "stock": "f1"
+ },
+ {
+  "key": "b36d92baa94db8ad",
+  "name": "{f00a4d3551bd3be0}8.game_setup_modes",
+  "stock": "f1,f1_generic"
+ },
+ {
+  "key": "29377e5ec087fca4",
+  "name": "{f00a4d3551bd3be0}9.game_setup_modes",
+  "stock": "f1_26,f1,classic,f2"
+ },
+ {
+  "key": "820c9f51af4674f1",
+  "name": "{f792cd488e86aae4}0.game_setup_modes",
+  "stock": "f1,classic,f1_generic_26,f1_generic,f1_world,multiclass"
+ },
+ {
+  "key": "da8db600c4917508",
+  "name": "{f792cd488e86aae4}1.game_setup_modes",
+  "stock": "f1,classic,f1_26,f1_generic_26,f2,f1_generic,f1_world,f1_elimination,multiclass"
+ },
+ {
+  "key": "2f6bfc36e78fb0bc",
+  "name": "{f792cd488e86aae4}5.game_setup_modes",
+  "stock": "f1,f1_26,classic,f2,f1_generic"
+ },
+ {
+  "key": "a9e6688c148308ab",
+  "name": "{f792cd488e86aae4}6.game_setup_modes",
+  "stock": "f1,f1_26,classic,f2,f1_generic"
+ },
+ {
+  "key": "837d27d02760bc42",
+  "name": "{f792cd488e86aae4}7.game_setup_modes",
+  "stock": "f1,classic,f1_26,f1_generic_26,f2,f1_generic,f1_world"
+ },
+ {
+  "key": "27243a3ed48cbd10",
+  "name": "{f792cd488e86aae4}9.game_setup_modes",
+  "stock": "f1,f1_26,classic,f2"
+ },
+ {
+  "key": "11c41b39e2e094b9",
+  "name": null,
+  "stock": "f1,f1_26,f1_generic_26,f2,f1_generic,f1_esports,f1_world,f1_elimination"
+ },
+ {
+  "key": "19cf00926853dd5d",
+  "name": null,
+  "stock": "f1,f1a_mp"
+ },
+ {
+  "key": "1d5b0192a15b3194",
+  "name": null,
+  "stock": "f1,f1_beta"
+ },
+ {
+  "key": "4fad392264f1f8d4",
+  "name": null,
+  "stock": "f1,f1_generic,f1_world"
+ },
+ {
+  "key": "613c4f7184a077e1",
+  "name": null,
+  "stock": "f1,f1_generic"
+ },
+ {
+  "key": "71620c51e6c39204",
+  "name": null,
+  "stock": "f1,classic,f1_26,f1_generic_26,f2,f1_generic,f1_beta,f1_esports,f1_elimination,f1_tr"
+ },
+ {
+  "key": "7b889bd465aa151d",
+  "name": null,
+  "stock": "f1,f1_generic,f1_esports,f2,f1_world,f1_elimination"
+ },
+ {
+  "key": "906c3a6c1f0d4036",
+  "name": null,
+  "stock": "f1,f2"
+ },
+ {
+  "key": "ab449e8672506cda",
+  "name": null,
+  "stock": "f1,f2,f1_generic,f1_esports,f1_world,f1_elimination"
+ }
+]
