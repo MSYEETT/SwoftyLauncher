@@ -242,8 +242,23 @@ pub(crate) fn started(pid: u32) -> Option<SystemTime> {
     SystemTime::now().checked_sub(std::time::Duration::from_secs_f64(age))
 }
 
+/// The processes whose exe file is `name`, read from the system's process
+/// list; tasklist answers only when that list cannot be taken.
 #[cfg(windows)]
 pub(crate) fn named(name: &str) -> Vec<GameProcess> {
+    win32::process_ids(name)
+        .unwrap_or_else(|| tasklist(name))
+        .into_iter()
+        .map(|pid| GameProcess {
+            pid,
+            started: None,
+            origin: Origin::default(),
+        })
+        .collect()
+}
+
+#[cfg(windows)]
+fn tasklist(name: &str) -> Vec<u32> {
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     let filter = format!("IMAGENAME eq {name}");
@@ -259,13 +274,67 @@ pub(crate) fn named(name: &str) -> Vec<GameProcess> {
         .filter_map(|line| {
             let mut cols = line.split("\",\"").map(|c| c.trim_matches('"'));
             cols.next()?.eq_ignore_ascii_case(name).then_some(())?;
-            Some(GameProcess {
-                pid: cols.next()?.parse().ok()?,
-                started: None,
-                origin: Origin::default(),
-            })
+            cols.next()?.parse().ok()
         })
         .collect()
+}
+
+#[cfg(windows)]
+mod win32 {
+    use std::ffi::c_void;
+
+    const TH32CS_SNAPPROCESS: u32 = 0x2;
+    const INVALID_HANDLE_VALUE: *mut c_void = -1isize as *mut c_void;
+    const MAX_PATH: usize = 260;
+
+    #[repr(C)]
+    struct ProcessEntry32W {
+        size: u32,
+        usage: u32,
+        process_id: u32,
+        default_heap_id: usize,
+        module_id: u32,
+        threads: u32,
+        parent_process_id: u32,
+        priority: i32,
+        flags: u32,
+        exe_file: [u16; MAX_PATH],
+    }
+
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn CreateToolhelp32Snapshot(flags: u32, pid: u32) -> *mut c_void;
+        fn Process32FirstW(snapshot: *mut c_void, entry: *mut ProcessEntry32W) -> i32;
+        fn Process32NextW(snapshot: *mut c_void, entry: *mut ProcessEntry32W) -> i32;
+        fn CloseHandle(handle: *mut c_void) -> i32;
+    }
+
+    /// The pids of the processes whose exe file name is `name` in any case,
+    /// or None when the process list could not be taken.
+    pub fn process_ids(name: &str) -> Option<Vec<u32>> {
+        // SAFETY: the snapshot handle is checked before use and closed once;
+        // the entry is zeroed with its size set, as Process32FirstW requires,
+        // and exe_file is read only up to its NUL inside the array.
+        unsafe {
+            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+            if snapshot == INVALID_HANDLE_VALUE || snapshot.is_null() {
+                return None;
+            }
+            let mut entry: ProcessEntry32W = std::mem::zeroed();
+            entry.size = std::mem::size_of::<ProcessEntry32W>() as u32;
+            let mut out = Vec::new();
+            let mut more = Process32FirstW(snapshot, &mut entry) != 0;
+            while more {
+                let len = entry.exe_file.iter().position(|&c| c == 0).unwrap_or(MAX_PATH);
+                if String::from_utf16_lossy(&entry.exe_file[..len]).eq_ignore_ascii_case(name) {
+                    out.push(entry.process_id);
+                }
+                more = Process32NextW(snapshot, &mut entry) != 0;
+            }
+            CloseHandle(snapshot);
+            Some(out)
+        }
+    }
 }
 
 #[cfg(not(any(target_os = "linux", windows)))]
@@ -594,6 +663,21 @@ mod origin_tests {
         std::os::unix::fs::symlink(&steam, f.0.join("data/state/game-link")).unwrap();
         let g = seen(None, Some(&f.windows(r"data\state\game-link\F1_25.exe")), None);
         assert!(g.is_in(&steam) && g.elsewhere(&ea));
+    }
+}
+
+#[cfg(all(test, windows))]
+mod windows_tests {
+    #[test]
+    fn finds_this_test_by_its_exe_name_in_any_case() {
+        let exe = std::env::current_exe().unwrap();
+        let name = exe.file_name().unwrap().to_str().unwrap().to_owned();
+        let me = std::process::id();
+        let pids = super::win32::process_ids(&name).expect("the process list");
+        assert!(pids.contains(&me), "{name}: {pids:?} lacks {me}");
+        let shouted = super::named(&name.to_uppercase());
+        assert!(shouted.iter().any(|g| g.pid == me), "{shouted:?}");
+        assert!(super::named("no-such-process-swofty.exe").is_empty());
     }
 }
 
