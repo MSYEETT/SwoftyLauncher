@@ -1,9 +1,9 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Args;
-use swofty_core::send_logs::{self, Bundle, GameInfo, PART_LIMIT, Report, Stage};
+use swofty_core::send_logs::{self, Bundle, GameInfo, PART_LIMIT, Report, Stage, Webhook};
 use swofty_core::store::Store;
 
 #[derive(Args, Debug)]
@@ -26,6 +26,10 @@ pub struct SendArgs {
 }
 
 pub fn send(store: &Store, args: SendArgs) -> Result<ExitCode> {
+    send_to(store, args, send_logs::destination())
+}
+
+pub fn send_to(store: &Store, args: SendArgs, to: Option<Webhook>) -> Result<ExitCode> {
     let remembered = store.config().discord_username;
     let raw = args
         .name
@@ -34,8 +38,11 @@ pub fn send(store: &Store, args: SendArgs) -> Result<ExitCode> {
     let name = send_logs::check_name(&raw).map_err(|e| anyhow!(e))?;
     let message =
         send_logs::check_message(args.message.as_deref().unwrap_or_default()).map_err(|e| anyhow!(e))?;
-    if args.dry_run.is_none() && !send_logs::available() {
-        bail!("{}", send_logs::UNAVAILABLE);
+    if args.dry_run.is_none() && to.is_none() {
+        bail!(
+            "{}; add --dry-run to write the zip without sending it",
+            send_logs::UNAVAILABLE
+        );
     }
     eprintln!("swofty: {}", Stage::Collecting);
     let report = Report {
@@ -47,13 +54,29 @@ pub fn send(store: &Store, args: SendArgs) -> Result<ExitCode> {
     if let Some(out) = args.dry_run {
         return dry_run(&bundle, out);
     }
-    send_logs::send(&bundle, &|stage| eprintln!("swofty: {stage}")).map_err(|e| anyhow!(e))?;
+    let kept = bundle.save(&send_logs::kept_dir(store), send_logs::KEPT);
+    let sent = to
+        .context(send_logs::UNAVAILABLE)?
+        .send(&bundle, &|stage| eprintln!("swofty: {stage}"));
+    match (&kept, &sent) {
+        (Ok(zip), Ok(_)) => println!("{} ({})", zip.display(), send_logs::size(zip_len(zip))),
+        (Ok(zip), Err(_)) => eprintln!(
+            "swofty: the zip is at {}; you can send it yourself",
+            zip.display()
+        ),
+        (Err(e), _) => eprintln!("swofty: could not keep a copy of the zip: {e}"),
+    }
+    sent.map_err(|e| anyhow!(e))?;
     let mut config = store.config();
     if config.discord_username.as_deref() != Some(name.as_str()) {
         config.discord_username = Some(name);
         store.save_config(&config)?;
     }
     Ok(ExitCode::SUCCESS)
+}
+
+fn zip_len(zip: &Path) -> u64 {
+    std::fs::metadata(zip).map_or(0, |m| m.len())
 }
 
 fn dry_run(bundle: &Bundle, out: Option<PathBuf>) -> Result<ExitCode> {
