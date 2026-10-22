@@ -1660,6 +1660,8 @@ pub type Sess_Tod_BuildSessionDataset_Thunk_t = unsafe extern "C" fn(
     use_count: u8,
 );
 pub type Sess_TyreAllocation_OnSessionStart_t = unsafe extern "C" fn(component: *mut c_void);
+pub type Sess_TyreClass_FromName_t =
+    unsafe extern "C" fn(classes: *mut c_void, name: *const c_void, check_weekend_format: u8) -> *mut c_void;
 pub type Sess_Tyres_ClosestAvailableCompound_t = unsafe extern "C" fn(
     tyre_rules: *mut c_void,
     vehicle: u8,
@@ -2087,6 +2089,11 @@ pub mod bindings {
     };
     pub const Sess_TyreAllocation_OnSessionStart: Binding = Binding {
         id: "Sess_TyreAllocation_OnSessionStart",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_TyreClass_FromName: Binding = Binding {
+        id: "Sess_TyreClass_FromName",
         kind: "func",
         status: Status::Experimental,
     };
