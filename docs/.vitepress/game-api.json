@@ -2322,6 +2322,12 @@
           "link": "/reference/game/game#Game_EntrantsUi_OnCharacterListLoaded"
         },
         {
+          "name": "Game_F1WorldActivityContainer_SelectEntrantList",
+          "kind": "func",
+          "status": "experimental",
+          "link": "/reference/game/game#Game_F1WorldActivityContainer_SelectEntrantList"
+        },
+        {
           "name": "Game_Rnd_CalcUpgradeTypeProgress",
           "kind": "func",
           "status": "experimental",

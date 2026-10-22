@@ -43,6 +43,8 @@ using Game_EntrantsUi_BuildCharacterRef_t = void *(void *out, const uint8_t *cha
 inline constexpr fn<"Game_EntrantsUi_BuildCharacterRef", Game_EntrantsUi_BuildCharacterRef_t> Game_EntrantsUi_BuildCharacterRef{}; // L2 experimental
 using Game_EntrantsUi_OnCharacterListLoaded_t = int64_t(void *ctx, const void *message);
 inline constexpr fn<"Game_EntrantsUi_OnCharacterListLoaded", Game_EntrantsUi_OnCharacterListLoaded_t> Game_EntrantsUi_OnCharacterListLoaded{}; // L2 experimental
+using Game_F1WorldActivityContainer_SelectEntrantList_t = void(void *container, const char *entrant_list);
+inline constexpr fn<"Game_F1WorldActivityContainer_SelectEntrantList", Game_F1WorldActivityContainer_SelectEntrantList_t> Game_F1WorldActivityContainer_SelectEntrantList{}; // L2 experimental
 using Game_Rnd_CalcUpgradeTypeProgress_t = float(void *const *instances, uint8_t type, uint8_t state, const void *meta);
 inline constexpr fn<"Game_Rnd_CalcUpgradeTypeProgress", Game_Rnd_CalcUpgradeTypeProgress_t> Game_Rnd_CalcUpgradeTypeProgress{}; // L2 experimental
 using Game_Rnd_FillVehicleUpgrades_t = void(void *component, uint8_t car, uint8_t a3, uint8_t a4);
