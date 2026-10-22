@@ -9,7 +9,7 @@ use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::{Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
-use swofty_core::dbedit::{Catalog, Edit, NodeId, NodeKind, Origin};
+use swofty_core::dbedit::{Catalog, Edit, NodeId, NodeKind, Origin, RowCopy};
 
 use super::{ADDABLE, Nav, hex, type_name};
 use crate::library::plural;
@@ -112,9 +112,12 @@ fn title_case(word: &str) -> String {
         .join(" ")
 }
 
+const COPIED: &str = "Copied rows";
+
 pub(crate) struct ChangeItem {
     pub group: Option<String>,
     pub edit: Option<Edit>,
+    pub row: Option<RowCopy>,
     pub name: String,
     pub path: Option<String>,
     pub node: Option<NodeId>,
@@ -701,6 +704,24 @@ impl Shell {
             return Vec::new();
         };
         let mut groups: Vec<(String, Vec<ChangeItem>)> = Vec::new();
+        let rows: Vec<ChangeItem> = self
+            .db
+            .draft
+            .edits
+            .rows
+            .iter()
+            .map(|r| ChangeItem {
+                group: None,
+                edit: None,
+                row: Some(r.clone()),
+                name: format!("{} › Own row", self.db_row_name(&r.to)),
+                path: Some(r.select()),
+                node: None,
+            })
+            .collect();
+        if !rows.is_empty() {
+            groups.push((COPIED.to_owned(), rows));
+        }
         for e in &self.db.draft.edits.edits {
             let node = catalog.node_of_key(e.key);
             let mut path = Some(e.path.clone().unwrap_or_else(|| hex(e.key)));
@@ -743,6 +764,11 @@ impl Shell {
                     };
                     (name, group)
                 }
+                _ if e.is_copied() => (
+                    self.db_cell_name(e.key)
+                        .unwrap_or_else(|| e.path.clone().unwrap_or_else(|| hex(e.key))),
+                    COPIED.to_owned(),
+                ),
                 _ => (
                     e.path.clone().unwrap_or_else(|| hex(e.key)),
                     "Added keys".to_owned(),
@@ -751,6 +777,7 @@ impl Shell {
             let item = ChangeItem {
                 group: None,
                 edit: Some(e.clone()),
+                row: None,
                 name,
                 path,
                 node,
@@ -765,6 +792,7 @@ impl Shell {
             out.push(ChangeItem {
                 group: Some(format!("{g} · {}", items.len())),
                 edit: None,
+                row: None,
                 name: String::new(),
                 path: None,
                 node: None,
@@ -862,14 +890,21 @@ impl Shell {
                 .child(label(g.to_uppercase(), p))
                 .into_any_element();
         }
+        if let Some(r) = &it.row {
+            return self.db_copy_change_row(r, it, p, cx);
+        }
         let Some(e) = &it.edit else {
             return div().into_any_element();
         };
         let key = e.key;
         let node = it.node;
-        let stock = match &e.stock {
+        let copied = self.db.catalog().filter(|_| e.is_copied()).and_then(|c| {
+            let source = self.db.draft.edits.copied(c, e.key)?.source;
+            c.record_by_key(source).map(|r| r.value.to_owned())
+        });
+        let stock = match e.stock.clone().or(copied) {
             Some(s) if s.is_empty() => "empty".to_owned(),
-            Some(s) => s.clone(),
+            Some(s) => s,
             None => "added".to_owned(),
         };
         let new = match &e.value {
@@ -965,6 +1000,104 @@ impl Shell {
                     this.db_show_node(n, cx);
                 }
             }))
+            .into_any_element()
+    }
+
+    /// `Row › Field` of the open page's cell holding `key`.
+    fn db_cell_name(&self, key: u64) -> Option<String> {
+        let slot = self.db.view.as_ref()?;
+        let module = self.db.module(&slot.module)?;
+        slot.view.rows.iter().find_map(|r| {
+            let i = r.cells.iter().position(|c| c.key == Some(key))?;
+            let name = if r.name.is_empty() { &r.label } else { &r.name };
+            Some(format!("{name} › {}", module.fields.get(i)?.label))
+        })
+    }
+
+    /// The name a page gives the row labelled `label`, else the label in title case.
+    fn db_row_name(&self, label: &str) -> String {
+        self.db
+            .view
+            .as_ref()
+            .and_then(|v| v.view.rows.iter().find(|r| r.label == label))
+            .map(|r| r.name.clone())
+            .filter(|n| !n.is_empty())
+            .unwrap_or_else(|| title_case(label))
+    }
+
+    fn db_copy_change_row(
+        &self,
+        r: &RowCopy,
+        it: &ChangeItem,
+        p: Palette,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let from = match &r.from {
+            Some(l) => format!("copy of {}", self.db_row_name(l)),
+            None => "copy of the game default".to_owned(),
+        };
+        let (table, field, to) = (r.table.clone(), r.field.clone(), r.to.clone());
+        h_flex()
+            .id(SharedString::from(format!("db-change-row-{}", r.select())))
+            .w_full()
+            .h(px(LIST_H))
+            .px(px(12.))
+            .gap(px(14.))
+            .border_t_1()
+            .border_color(p.border_variant)
+            .hover(move |s| s.bg(p.hover))
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w(px(160.))
+                    .child(
+                        div()
+                            .text_size(px(13.))
+                            .font_weight(FontWeight::MEDIUM)
+                            .truncate()
+                            .child(it.name.clone()),
+                    )
+                    .children(it.path.clone().map(|path| {
+                        div()
+                            .text_size(px(11.))
+                            .text_color(p.text_placeholder)
+                            .truncate()
+                            .child(path)
+                    })),
+            )
+            .child(
+                h_flex()
+                    .w(px(220.))
+                    .flex_shrink_0()
+                    .gap(px(8.))
+                    .text_size(px(13.))
+                    .child(div().text_color(p.text_muted).child("none"))
+                    .child(
+                        Icon::new(IconName::ArrowRight)
+                            .size(px(12.))
+                            .text_color(p.text_placeholder),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .truncate()
+                            .text_color(p.accent)
+                            .child(from),
+                    ),
+            )
+            .child(
+                Button::new(SharedString::from(format!("db-change-unrow-{}", r.select())))
+                    .ghost()
+                    .xsmall()
+                    .icon(IconName::Undo2)
+                    .tooltip("Remove own row")
+                    .disabled(self.db_locked())
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        cx.stop_propagation();
+                        this.db_remove_copy(&table, &field, &to, cx);
+                    })),
+            )
             .into_any_element()
     }
 

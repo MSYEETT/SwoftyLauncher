@@ -9,7 +9,7 @@ use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
-use swofty_core::dbedit::{Kind, NodeId};
+use swofty_core::dbedit::{Backing, Kind, NodeId};
 
 use super::{Nav, bool_text, clean, hex, kind_of, type_name};
 use crate::pages::{fact, label};
@@ -60,11 +60,18 @@ struct ColorSlot {
     _sub: Subscription,
 }
 
+struct CopySlot {
+    state: Entity<SelectState<Choices>>,
+    seen: bool,
+    _sub: Subscription,
+}
+
 #[derive(Default)]
 pub(crate) struct Slots {
     inputs: HashMap<String, InputSlot>,
     selects: HashMap<String, SelectSlot>,
     colors: HashMap<String, ColorSlot>,
+    copies: HashMap<String, CopySlot>,
 }
 
 impl Slots {
@@ -98,6 +105,8 @@ pub(crate) struct FieldModel {
     pub optional: bool,
     pub shared: bool,
     pub others: Option<String>,
+    /// For a field read from another table's row picked by this row's label: the row spec and where the row comes from.
+    pub row: Option<(usize, Backing)>,
 }
 
 struct Curve {
@@ -228,12 +237,18 @@ impl Shell {
         let Some(r) = slot.view.rows.iter().find(|r| r.label == *row) else {
             return Vec::new();
         };
+        let rows = module.field_rows();
         module
             .fields
             .iter()
             .zip(&r.cells)
             .enumerate()
             .map(|(i, (f, c))| {
+                let row = rows
+                    .get(i)
+                    .copied()
+                    .flatten()
+                    .and_then(|spec| Some((spec, r.backing.get(spec)?.clone())));
                 let kind = kind_of(f.kind, c.tag);
                 let options = match kind {
                     Kind::Choice => f
@@ -265,6 +280,7 @@ impl Shell {
                     optional: f.optional,
                     shared: f.path.contains('[') || f.path.contains('{'),
                     others: c.key.and_then(|k| self.db_others(k)),
+                    row,
                 }
             })
             .collect()
@@ -305,6 +321,7 @@ impl Shell {
             optional: false,
             shared: false,
             others: self.db_others(key),
+            row: None,
         })
     }
 
@@ -326,7 +343,22 @@ impl Shell {
         for s in self.db.slots.colors.values_mut() {
             s.seen = false;
         }
-        for f in self.db_detail_fields() {
+        for s in self.db.slots.copies.values_mut() {
+            s.seen = false;
+        }
+        let fields = self.db_detail_fields();
+        let mut missing: Vec<usize> = fields
+            .iter()
+            .filter_map(|f| match &f.row {
+                Some((spec, Backing::Missing)) => Some(*spec),
+                _ => None,
+            })
+            .collect();
+        missing.dedup();
+        for spec in missing {
+            self.sync_copy(spec, window, cx);
+        }
+        for f in fields {
             let Some(key) = f.key else {
                 continue;
             };
@@ -386,6 +418,79 @@ impl Shell {
         self.db.slots.inputs.retain(|_, s| s.seen);
         self.db.slots.selects.retain(|_, s| s.seen);
         self.db.slots.colors.retain(|_, s| s.seen);
+        self.db.slots.copies.retain(|_, s| s.seen);
+    }
+
+    fn copy_id(&self, spec: usize) -> Option<String> {
+        let slot = self.db.view.as_ref()?;
+        let row = self.db.row.as_ref()?;
+        Some(format!(
+            "{}/{}/{row}/{spec}",
+            slot.module,
+            slot.scope.as_deref().unwrap_or_default()
+        ))
+    }
+
+    /// The "Copy from…" picker of a row spec: every entity with a row of its own, and the game default.
+    fn sync_copy(&mut self, spec: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(id) = self.copy_id(spec) else {
+            return;
+        };
+        if let Some(s) = self.db.slots.copies.get_mut(&id) {
+            s.seen = true;
+            return;
+        }
+        let (Some(catalog), Some(slot)) = (self.db.catalog().cloned(), self.db.view.as_ref()) else {
+            return;
+        };
+        let Some(module) = self.db.module(&slot.module) else {
+            return;
+        };
+        let (labels, default) = module.row_sources(&catalog, spec, slot.scope.as_deref());
+        let names: HashMap<&str, &str> = slot
+            .view
+            .rows
+            .iter()
+            .filter(|r| !r.name.is_empty())
+            .map(|r| (r.label.as_str(), r.name.as_str()))
+            .collect();
+        let mut items: Vec<Choice> = labels
+            .into_iter()
+            .map(|l| Choice {
+                title: SharedString::from(names.get(l.as_str()).map_or_else(|| l.clone(), |n| n.to_string())),
+                value: l,
+            })
+            .collect();
+        items.sort_by_key(|c| c.title.to_lowercase());
+        if default {
+            items.insert(
+                0,
+                Choice {
+                    value: String::new(),
+                    title: "Game default".into(),
+                },
+            );
+        }
+        let state =
+            cx.new(|cx| SelectState::new(SearchableVec::new(items), None, window, cx).searchable(true));
+        let sub = cx.subscribe_in(
+            &state,
+            window,
+            move |this, _, ev: &SelectEvent<Choices>, _, cx| {
+                if let SelectEvent::Confirm(Some(v)) = ev {
+                    let from = (!v.is_empty()).then(|| v.clone());
+                    this.db_copy_row(spec, from, cx);
+                }
+            },
+        );
+        self.db.slots.copies.insert(
+            id,
+            CopySlot {
+                state,
+                seen: true,
+                _sub: sub,
+            },
+        );
     }
 
     fn sync_input(
@@ -646,17 +751,113 @@ impl Shell {
                 None => sections.push((f.section.clone(), vec![f])),
             }
         }
+        let mut shown: Vec<usize> = Vec::new();
         sections
             .into_iter()
             .map(|(title, list)| {
+                let strip = list
+                    .iter()
+                    .filter_map(|f| f.row.as_ref())
+                    .find(|(spec, b)| *b != Backing::Stock && !shown.contains(spec))
+                    .cloned();
+                if let Some((spec, _)) = &strip {
+                    shown.push(*spec);
+                }
                 v_flex()
                     .flex_shrink_0()
                     .gap(px(14.))
                     .when_some(title, |d, t| d.child(label(t.to_uppercase(), p)))
+                    .when_some(strip, |d, (spec, b)| d.child(self.db_row_strip(spec, &b, p, cx)))
                     .children(list.into_iter().map(|f| self.db_field(f, p, cx)))
                     .into_any_element()
             })
             .collect()
+    }
+
+    /// Above the fields of another table's row: a picker to copy a row when this
+    /// entity has none, or where its own row came from with a way to remove it.
+    fn db_row_strip(&self, spec: usize, backing: &Backing, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+        let locked = self.db_locked();
+        match backing {
+            Backing::Copied(from) => {
+                let from = match from {
+                    Some(l) => self
+                        .db
+                        .view
+                        .as_ref()
+                        .and_then(|v| v.view.rows.iter().find(|r| r.label == *l))
+                        .map(|r| r.name.clone())
+                        .filter(|n| !n.is_empty())
+                        .unwrap_or_else(|| l.clone()),
+                    None => "the game default".into(),
+                };
+                h_flex()
+                    .gap(px(8.))
+                    .min_h(px(22.))
+                    .child(Icon::new(IconName::Copy).size(px(13.)).text_color(p.accent))
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .text_size(px(12.))
+                            .text_color(p.text_muted)
+                            .truncate()
+                            .child(format!("Copied from {from}")),
+                    )
+                    .child(
+                        Button::new(SharedString::from(format!("db-row-remove-{spec}")))
+                            .ghost()
+                            .xsmall()
+                            .icon(IconName::Trash)
+                            .label("Remove own row")
+                            .disabled(locked)
+                            .on_click(cx.listener(move |this, _, _, cx| this.db_remove_row(spec, cx))),
+                    )
+                    .into_any_element()
+            }
+            _ => {
+                let picker = self
+                    .copy_id(spec)
+                    .and_then(|id| self.db.slots.copies.get(&id))
+                    .map(|s| {
+                        Select::new(&s.state)
+                            .id(SharedString::from(format!("db-row-copy-{spec}")))
+                            .small()
+                            .w_full()
+                            .menu_max_h(px(320.))
+                            .search_placeholder("Search")
+                            .placeholder("Copy from…")
+                            .disabled(locked)
+                    });
+                v_flex()
+                    .gap(px(8.))
+                    .px(px(10.))
+                    .py(px(9.))
+                    .rounded(px(6.))
+                    .border_1()
+                    .border_color(p.border_variant)
+                    .bg(p.surface)
+                    .child(
+                        h_flex()
+                            .gap(px(8.))
+                            .items_start()
+                            .text_size(px(12.))
+                            .line_height(px(17.))
+                            .text_color(p.text)
+                            .child(
+                                Icon::new(IconName::Info)
+                                    .size(px(13.))
+                                    .mt(px(2.))
+                                    .text_color(p.text_muted),
+                            )
+                            .child(div().flex_1().min_w_0().child(
+                                "These values come from the game default. Copy someone's row to edit them.",
+                            )),
+                    )
+                    .children(picker)
+                    .into_any_element()
+            }
+        }
     }
 
     pub(crate) fn db_field(&self, f: &FieldModel, p: Palette, cx: &mut Context<Self>) -> AnyElement {
@@ -670,16 +871,13 @@ impl Shell {
                         .text_color(p.text_muted)
                         .child(f.label.clone()),
                 )
-                .child(
-                    div()
-                        .text_size(px(13.))
-                        .text_color(p.text_placeholder)
-                        .child(if f.optional {
-                            "Inherited"
-                        } else {
-                            "Not in this row"
-                        }),
-                )
+                .child(div().text_size(px(13.)).text_color(p.text_placeholder).child(
+                    match (&f.row, f.optional) {
+                        (Some((_, Backing::Copied(_))), _) => "Not in the copied row",
+                        (_, true) => "Inherited",
+                        (_, false) => "Not in this row",
+                    },
+                ))
                 .into_any_element();
         };
         let locked = f.readonly || self.db_locked();
@@ -762,7 +960,10 @@ impl Shell {
                         .text_color(p.text_placeholder)
                         .truncate()
                         .flex_shrink_0()
-                        .child(format!("Stock: {s}")),
+                        .child(match &f.row {
+                            Some((_, Backing::Copied(_))) => format!("Copied: {s}"),
+                            _ => format!("Stock: {s}"),
+                        }),
                 )
             })
             .when_some(f.others.clone(), |d, t| {

@@ -221,8 +221,8 @@ impl Db {
             Some(e) => e.value.clone().unwrap_or_default(),
             None => self
                 .catalog()
-                .and_then(|c| c.record_by_key(key))
-                .map(|r| r.value.to_owned())
+                .and_then(|c| self.draft.edits.value(c, key))
+                .map(str::to_owned)
                 .unwrap_or_default(),
         }
     }
@@ -1412,6 +1412,53 @@ impl Shell {
                 cx.notify();
                 false
             }
+        }
+    }
+
+    /// The table and field of row spec `spec` of the open page, and the selected row's label.
+    fn db_row_target(&self, spec: usize) -> Option<(String, String, String)> {
+        let slot = self.db.view.as_ref()?;
+        let module = self.db.module(&slot.module)?;
+        let spec = module.row_specs().into_iter().nth(spec)?;
+        let table = module.row_table(&spec, slot.scope.as_deref());
+        Some((table, spec.field, self.db.row.clone()?))
+    }
+
+    /// Gives the selected row its own row of spec `spec`'s table: a copy of `from`'s, or of the game default.
+    pub(crate) fn db_copy_row(&mut self, spec: usize, from: Option<String>, cx: &mut Context<Self>) {
+        let (Some(catalog), Some((table, field, to))) =
+            (self.db.catalog().cloned(), self.db_row_target(spec))
+        else {
+            return;
+        };
+        if !self.db_ready_to_edit(cx) {
+            return;
+        }
+        let edits = &mut self.db.draft.edits;
+        match guarded(|| edits.copy_row(&catalog, &table, &field, from.as_deref(), &to)) {
+            Ok(()) => self.db_changed(None, true, cx),
+            Err(e) => {
+                self.db.toasts.push(Notification::error(e));
+                cx.notify();
+            }
+        }
+    }
+
+    pub(crate) fn db_remove_row(&mut self, spec: usize, cx: &mut Context<Self>) {
+        let Some((table, field, to)) = self.db_row_target(spec) else {
+            return;
+        };
+        self.db_remove_copy(&table, &field, &to, cx);
+    }
+
+    pub(crate) fn db_remove_copy(&mut self, table: &str, field: &str, to: &str, cx: &mut Context<Self>) {
+        if !self.db_ready_to_edit(cx) {
+            return;
+        }
+        if guarded(|| Ok(self.db.draft.edits.remove_row(table, field, to))).unwrap_or(false) {
+            self.db.errors.clear();
+            self.db.slots = Slots::default();
+            self.db_changed(None, true, cx);
         }
     }
 
