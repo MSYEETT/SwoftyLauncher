@@ -37,7 +37,7 @@ Bindings are found by signature at load time. The RVAs on each page are for this
 | [entrants](./entrants.md) | `<swofty/game/entrants.hpp>` | 0 | 2 | 0 | 0 |
 | [fe_flow](./fe_flow.md) | `<swofty/game/fe_flow.hpp>` | 1 | 1 | 0 | 1 |
 | [fe_home](./fe_home.md) | `<swofty/game/fe_home.hpp>` | 2 | 0 | 0 | 1 |
-| [fe_tiles](./fe_tiles.md) | `<swofty/game/fe_tiles.hpp>` | 5 | 6 | 2 | 1 |
+| [fe_tiles](./fe_tiles.md) | `<swofty/game/fe_tiles.hpp>` | 7 | 6 | 2 | 2 |
 | [game](./game.md) | `<swofty/game/game.hpp>` | 13 | 4 | 5 | 7 |
 | [gamedb](./gamedb.md) | `<swofty/game/gamedb.hpp>` | 1 | 1 | 1 | 1 |
 | [session](./session.md) | `<swofty/game/session.hpp>` | 10 | 9 | 4 | 1 |

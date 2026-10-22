@@ -2178,6 +2178,12 @@
           "link": "/reference/game/fe_tiles#TileList"
         },
         {
+          "name": "FeTile_Add_EraTile",
+          "kind": "func",
+          "status": "experimental",
+          "link": "/reference/game/fe_tiles#FeTile_Add_EraTile"
+        },
+        {
           "name": "FeTile_Build_List",
           "kind": "func",
           "status": "stable",
@@ -2194,6 +2200,12 @@
           "kind": "func",
           "status": "experimental",
           "link": "/reference/game/fe_tiles#FeTile_Construct_CareerItem"
+        },
+        {
+          "name": "FeTile_Is_EraScenarioAvailable_Thunk",
+          "kind": "func",
+          "status": "experimental",
+          "link": "/reference/game/fe_tiles#FeTile_Is_EraScenarioAvailable_Thunk"
         },
         {
           "name": "FeTile_ItemBase_Populate",
@@ -2224,6 +2236,12 @@
           "kind": "site",
           "status": "experimental",
           "link": "/reference/game/fe_tiles#site_FeTile_CareerContentEnd"
+        },
+        {
+          "name": "site_FeTile_EraTilesBuilt",
+          "kind": "site",
+          "status": "experimental",
+          "link": "/reference/game/fe_tiles#site_FeTile_EraTilesBuilt"
         }
       ]
     },

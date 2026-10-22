@@ -10562,6 +10562,86 @@
    "used_by": [
     "addons/f1-1990/native/src/tyre_class.cpp"
    ]
+  },
+  {
+   "id": "fe_tiles.era_tiles_built",
+   "section": ".xtls",
+   "pattern": "C6 86 F0 06 00 00 01 C6 86 08 07 00 00 00",
+   "match": "0x141a6f728",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a6f728",
+   "kind": "mid",
+   "expect": "C6 86 F0 06 00 00 01",
+   "names": [
+    "site_FeTile_EraTilesBuilt"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-22",
+     "by": "classic-seasons",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/classic-seasons/native/src/era_tiles.cpp"
+   ]
+  },
+  {
+   "id": "fe_tiles.add_era_tile",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 00 00 00 C5 F8 29 74 24 70 4D 89 CF 44 89 C5 48 89 D7",
+   "match": "0x141a6d0e0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a6d0e0",
+   "kind": "func_start",
+   "names": [
+    "FeTile_Add_EraTile"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-22",
+     "by": "classic-seasons",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/classic-seasons/native/src/era_tiles.cpp"
+   ]
+  },
+  {
+   "id": "fe_tiles.is_era_scenario_available",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 88 44 24 56 4C 8D 35",
+   "match": "0x141a6ebfc",
+   "anchor": "0x1",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x0"
+   },
+   "target": "0x141a6cfd0",
+   "kind": "call",
+   "names": [
+    "FeTile_Is_EraScenarioAvailable_Thunk"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-22",
+     "by": "classic-seasons",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/classic-seasons/native/src/era_tiles.cpp"
+   ]
   }
  ]
 }

@@ -50,12 +50,16 @@ struct TileList {
 static_assert(offsetof(TileList, items_begin) == 0x78);
 static_assert(offsetof(TileList, items_end) == 0x80);
 
+using FeTile_Add_EraTile_t = void(void *tiles, void *alloc, uint8_t index, const char *node, const char *name, uint8_t enabled, const char *title, const char *command, const char *image, uint8_t is_dlc);
+inline constexpr fn<"FeTile_Add_EraTile", FeTile_Add_EraTile_t> FeTile_Add_EraTile{}; // L2 experimental
 using FeTile_Build_List_t = void(TileList *self, void *ctx, void *a3, void *a4, uint8_t menu_kind, uint8_t sub_kind, uint32_t a7);
 inline constexpr fn<"FeTile_Build_List", FeTile_Build_List_t> FeTile_Build_List{}; // L3 stable
 using FeTile_CareerDlcItem_Populate_t = void(HomeItem *item, void *node, uint32_t a7);
 inline constexpr fn<"FeTile_CareerDlcItem_Populate", FeTile_CareerDlcItem_Populate_t> FeTile_CareerDlcItem_Populate{}; // L2 experimental
 using FeTile_Construct_CareerItem_t = HomeItem *(HomeItem *item, NeAllocator *alloc, const char *id);
 inline constexpr fn<"FeTile_Construct_CareerItem", FeTile_Construct_CareerItem_t> FeTile_Construct_CareerItem{}; // L2 experimental
+using FeTile_Is_EraScenarioAvailable_Thunk_t = uint8_t(void *mode, const char *setup_mode, const char *entrant_list);
+inline constexpr fn<"FeTile_Is_EraScenarioAvailable_Thunk", FeTile_Is_EraScenarioAvailable_Thunk_t> FeTile_Is_EraScenarioAvailable_Thunk{}; // L2 experimental
 using FeTile_ItemBase_Populate_t = void(HomeItem *item, void *node, uint32_t a7);
 inline constexpr fn<"FeTile_ItemBase_Populate", FeTile_ItemBase_Populate_t> FeTile_ItemBase_Populate{}; // L3 stable
 using FeTile_Route_CareerItem_t = Action *(HomeItem *item, Action *out);
@@ -63,5 +67,6 @@ inline constexpr fn<"FeTile_Route_CareerItem", FeTile_Route_CareerItem_t> FeTile
 inline constexpr data<"g_FeTile_CustomisationSystem", void *> g_FeTile_CustomisationSystem{}; // L2 experimental
 inline constexpr data<"g_FeTile_SelectedCareerContent", uint32_t> g_FeTile_SelectedCareerContent{}; // L2 experimental
 inline constexpr site<"site_FeTile_CareerContentEnd"> site_FeTile_CareerContentEnd{}; // L2 experimental
+inline constexpr site<"site_FeTile_EraTilesBuilt"> site_FeTile_EraTilesBuilt{}; // L2 experimental
 
 }

@@ -1574,6 +1574,18 @@ pub type Career_Teardown_Weekend_t = unsafe extern "C" fn(weekend: *mut c_void);
 pub type FeHome_Add_CareerTile_t = unsafe extern "C" fn(list: *mut TileList, index: u8);
 pub type FeHome_Handle_Command_t =
     unsafe extern "C" fn(vm: *mut FEHomeViewModel, cmd: *mut *mut NeStr) -> u64;
+pub type FeTile_Add_EraTile_t = unsafe extern "C" fn(
+    tiles: *mut c_void,
+    alloc: *mut c_void,
+    index: u8,
+    node: *const c_char,
+    name: *const c_char,
+    enabled: u8,
+    title: *const c_char,
+    command: *const c_char,
+    image: *const c_char,
+    is_dlc: u8,
+);
 pub type FeTile_Build_List_t = unsafe extern "C" fn(
     self_: *mut TileList,
     ctx: *mut c_void,
@@ -1587,6 +1599,8 @@ pub type FeTile_CareerDlcItem_Populate_t =
     unsafe extern "C" fn(item: *mut HomeItem, node: *mut c_void, a7: u32);
 pub type FeTile_Construct_CareerItem_t =
     unsafe extern "C" fn(item: *mut HomeItem, alloc: *mut NeAllocator, id: *const c_char) -> *mut HomeItem;
+pub type FeTile_Is_EraScenarioAvailable_Thunk_t =
+    unsafe extern "C" fn(mode: *mut c_void, setup_mode: *const c_char, entrant_list: *const c_char) -> u8;
 pub type FeTile_ItemBase_Populate_t = unsafe extern "C" fn(item: *mut HomeItem, node: *mut c_void, a7: u32);
 pub type FeTile_Route_CareerItem_t =
     unsafe extern "C" fn(item: *mut HomeItem, out: *mut Action) -> *mut Action;
@@ -1907,6 +1921,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Stable,
     };
+    pub const FeTile_Add_EraTile: Binding = Binding {
+        id: "FeTile_Add_EraTile",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const FeTile_Build_List: Binding = Binding {
         id: "FeTile_Build_List",
         kind: "func",
@@ -1919,6 +1938,11 @@ pub mod bindings {
     };
     pub const FeTile_Construct_CareerItem: Binding = Binding {
         id: "FeTile_Construct_CareerItem",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const FeTile_Is_EraScenarioAvailable_Thunk: Binding = Binding {
+        id: "FeTile_Is_EraScenarioAvailable_Thunk",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3109,6 +3133,11 @@ pub mod bindings {
     };
     pub const site_FeTile_CareerContentEnd: Binding = Binding {
         id: "site_FeTile_CareerContentEnd",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_FeTile_EraTilesBuilt: Binding = Binding {
+        id: "site_FeTile_EraTilesBuilt",
         kind: "site",
         status: Status::Experimental,
     };
