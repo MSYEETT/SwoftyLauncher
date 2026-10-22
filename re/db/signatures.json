@@ -8593,7 +8593,7 @@
    ]
   },
   {
-   "id": "game.season_length_component",
+   "id": "game.track_list_component",
    "section": ".xtls",
    "pattern": "48 8D 05 ?? ?? ?? ?? 48 89 06 C5 F8 57 C0 C5 F8 11 86 90 02 00 00",
    "match": "0x140d01505",
@@ -8606,7 +8606,7 @@
    "target": "0x14568c1e0",
    "kind": "data",
    "names": [
-    "vt_Game_SeasonLengthComponent"
+    "vt_Game_TrackListComponent"
    ],
    "verified": [
     {
@@ -8760,7 +8760,7 @@
    ]
   },
   {
-   "id": "core.component_base_type",
+   "id": "core.type_root",
    "section": ".xtls",
    "pattern": "48 8B 04 C1 48 85 C0 74 78 48 8D 0D",
    "match": "0x14368fe32",
@@ -8773,7 +8773,7 @@
    "target": "0x146129ca0",
    "kind": "data",
    "names": [
-    "k_Ne_ComponentBaseType"
+    "k_Ne_TypeRoot"
    ],
    "verified": [
     {
@@ -9538,7 +9538,7 @@
    "data1_reason": "the career wizard view models' shared command handler body lives only in .data1 (0x14bc7a8d0, reached through the thunk 0x141a21ec0 that each step's handler calls first)"
   },
   {
-   "id": "game.career_wizard_settings_view_model",
+   "id": "game.career_wizard_settings_select_view_model",
    "section": ".xtls",
    "pattern": "C4 C1 78 29 B6 D0 02 00 00 49 C7 86 F0 02 00 00 00 00 00 00 48 8D 05",
    "match": "0x1415e0512",
@@ -9551,7 +9551,7 @@
    "target": "0x145727970",
    "kind": "data",
    "names": [
-    "vt_Game_CareerWizardSettingsViewModel"
+    "vt_Game_CareerWizardSettingsSelectViewModel"
    ],
    "verified": [
     {
@@ -9566,7 +9566,7 @@
    ]
   },
   {
-   "id": "game.season_length_component_desc",
+   "id": "game.track_list_component_desc",
    "section": ".xtls",
    "pattern": "48 8D 15 ?? ?? ?? ?? 48 89 F9 41 B8 01 00 00 00 FF 50 10 48 89 C1 B2 02",
    "match": "0x14386dcea",
@@ -9579,7 +9579,7 @@
    "target": "0x14605b368",
    "kind": "data",
    "names": [
-    "k_Game_SeasonLengthComponentDesc"
+    "k_Game_TrackListComponentDesc"
    ],
    "verified": [
     {
