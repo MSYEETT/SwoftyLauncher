@@ -7811,6 +7811,626 @@
    ]
   },
   {
+   "id": "session.build_group_result",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC C8 00 00 00 89 D3 8D 43 FF",
+   "match": "0x140afa220",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140afa220",
+   "kind": "func_start",
+   "names": [
+    "Sess_Build_GroupResult"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/grid_best_of.cpp"
+   ]
+  },
+  {
+   "id": "session.record_group_times",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 28 48 8B 81 88 04 00 00",
+   "match": "0x140af2880",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140af2880",
+   "kind": "func_start",
+   "names": [
+    "Sess_Record_GroupTimes"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/grid_best_of.cpp"
+   ]
+  },
+  {
+   "id": "session.find_group_row_position",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 55 53 48 81 EC 98 00 00 00 C5 F8 29 BC 24 80 00 00 00",
+   "match": "0x140af8aa0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140af8aa0",
+   "kind": "func_start",
+   "names": [
+    "Sess_Find_GroupRowPosition"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/grid_best_of.cpp"
+   ]
+  },
+  {
+   "id": "game.save_mgr_create_save_job",
+   "section": ".xtls",
+   "pattern": "FE 02 56 D9 3C 50 4C E9 ?? ?? ?? ?? 31 BD 0F 81 7E FA C8 FE E7 06 A6 9F CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC E9 ?? ?? ?? ?? E9",
+   "match": "0x143659720",
+   "anchor": "0x30",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143659750",
+   "kind": "func_start",
+   "names": [
+    "Game_SaveMgr_CreateSaveJob"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.wheel_map_insert_call",
+   "section": ".xtls",
+   "pattern": "48 8B 4C 24 38 48 8D 54 24 40 4C 8D 44 24 33 E8",
+   "match": "0x142e909df",
+   "anchor": "0xa",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e909e9",
+   "kind": "mid",
+   "expect": "4C 8D 44 24 33",
+   "names": [
+    "site_Sess_WheelMapInsertCall"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "heap-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "re/tests/heap-1990.trace.json"
+   ]
+  },
+  {
+   "id": "core.save_system2_win_start",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 40 C5 F8 29 74 24 30 48 89 CE 48 8B 49 08",
+   "match": "0x14413af70",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14413af70",
+   "kind": "func_start",
+   "names": [
+    "Ne_SaveSystem2Win_Start"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "core.request_save_op_kind2",
+   "section": ".xtls",
+   "pattern": "15 DB 37 C0 01 89 05 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? CC CC CC CC CC CC CC CC 41 57 41 56 41 54",
+   "match": "0x144139170",
+   "anchor": "0x30",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1441391a0",
+   "kind": "func_start",
+   "names": [
+    "Ne_Request_SaveOpKind2"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "core.request_save_op_kind1",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 53 48 83 EC 68 48 89 D6 4C 89 4C 24 60 C5 F8 57 C0 C5 F8 11 02 80 B9 DC 02 00 00 00 0F 84 ?? ?? ?? ?? 4D 89 CE 4D 89 C4 48 89 CF 4C 8B B9 B8 03 00 00 49 8B 07 BA 10 01 00 00 41 B8 08 00 00 00 4C 89 F9 FF 50 18 48 89 C3 48 85 C0 74 24 48 8B 84 24 C8 00 00 00 4C 8D 47 50 48 85 C0 4C 0F 45 C0 48 89 D9 4C 89 E2 41 B9 01 00 00 00",
+   "match": "0x144138aa0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x144138aa0",
+   "kind": "func_start",
+   "names": [
+    "Ne_Request_SaveOpKind1"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "career.needs_driver_contract",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 53 48 81 EC D8 00 00 00 48 89 CE 48 8B 89 78 02 00 00",
+   "match": "0x140d83090",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140d83090",
+   "kind": "func_start",
+   "names": [
+    "Career_Needs_DriverContract"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.decide_contract_negotiation",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 55 53 48 83 EC 20 48 89 D6 48 8B 81 A0 0C 00 00",
+   "match": "0x142d57d10",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142d57d10",
+   "kind": "func_start",
+   "names": [
+    "Career_Decide_ContractNegotiation"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.build_driver_contract",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 55 53 48 83 EC 30 44 89 CF 44 89 C3 48 89 D6 49 89 CE 44 0F B6 A4 24 90 00 00 00",
+   "match": "0x140d79dd0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140d79dd0",
+   "kind": "func_start",
+   "names": [
+    "Career_Build_DriverContract"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.sign_driver_contract",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC A8 01 00 00 45 89 CF",
+   "match": "0x140d79ff0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140d79ff0",
+   "kind": "func_start",
+   "names": [
+    "Career_Sign_DriverContract"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_intro_on_enter",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 55 53 48 81 EC D0 00 00 00 C5 F8 29 B4 24 C0 00 00 00",
+   "match": "0x1436c2620",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c2620",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractIntro_OnEnter"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_intro_on_update",
+   "section": ".xtls",
+   "pattern": "56 57 48 83 EC 38 48 89 D6 48 89 CF 80 B9 9C 0C 00 00 00",
+   "match": "0x1436c2dc0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c2dc0",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractIntro_OnUpdate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_update_on_enter",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 53 48 81 EC 88 00 00 00 48 89 CE 48 8B 81 80 0C 00 00",
+   "match": "0x1436c1760",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c1760",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractUpdate_OnEnter"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_update_on_update",
+   "section": ".xtls",
+   "pattern": "56 57 55 53 48 83 EC 28 48 89 D6 48 89 CF 80 B9 5A 0D 00 00 00",
+   "match": "0x1436c1e00",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c1e00",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractUpdate_OnUpdate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_update_on_exit",
+   "section": ".xtls",
+   "pattern": "56 57 48 83 EC 28 48 89 CF 48 8B 81 60 0D 00 00",
+   "match": "0x1436c1fc0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c1fc0",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractUpdate_OnExit"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_outro_on_enter",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 40 80 B9 A0 0C 00 00 00",
+   "match": "0x1436c3330",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c3330",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractOutro_OnEnter"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.contract_outro_on_update",
+   "section": ".xtls",
+   "pattern": "56 57 48 83 EC 38 48 89 D6 48 89 CF 80 B9 A3 0C 00 00 00",
+   "match": "0x1436c3750",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c3750",
+   "kind": "func_start",
+   "names": [
+    "Career_ContractOutro_OnUpdate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "career.flow_link_continue",
+   "section": ".xtls",
+   "pattern": "C3 48 8D 05 ?? ?? ?? ?? EB E9 CC CC",
+   "match": "0x1436c2e70",
+   "anchor": "0x4",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x1",
+    "len": 7
+   },
+   "target": "0x146cb2284",
+   "kind": "data",
+   "names": [
+    "g_Career_FlowLinkContinue"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/contract_skip.cpp"
+   ]
+  },
+  {
+   "id": "session.tyre_allocation_on_session_start",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 88 00 00 00 48 89 CE 48 8B 89 70 02 00 00",
+   "match": "0x140bcc190",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140bcc190",
+   "kind": "func_start",
+   "names": [
+    "Sess_TyreAllocation_OnSessionStart"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/fq_tyres.cpp"
+   ]
+  },
+  {
+   "id": "core.replay_after_record",
+   "section": ".xtls",
+   "pattern": "FF 50 20 49 89 F4 48 8B 06 48 89 F1",
+   "match": "0x1445d170f",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1445d1712",
+   "kind": "mid",
+   "expect": "49 89 F4 48 8B 06",
+   "names": [
+    "site_Ne_ReplayAfterRecord"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "heap-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/replay_holders.cpp"
+   ]
+  },
+  {
+   "id": "fe_tiles.career_default_item_get_action",
+   "section": ".xtls",
+   "pattern": "56 48 83 EC 20 48 89 D6 48 8B 05 ?? ?? ?? ?? 48 8B 90 30 02 00 00",
+   "match": "0x141726620",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141726620",
+   "kind": "func_start",
+   "names": [
+    "FeTile_CareerDefaultItem_GetAction"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_menu_ui.cpp"
+   ]
+  },
+  {
+   "id": "fe_tiles.item_base_get_action",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 30 48 89 D6 48 C7 44 24 28 00 00 00 00 48 8D 15 ?? ?? ?? ?? 48 8D 7C 24 28 48 89 F9 45 31 C0 45 31 C9 E8 ?? ?? ?? ?? 48 8D 5E 08 48 C7 46 08 00 00 00 00 C7 06 00 00 00 00",
+   "match": "0x141698450",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141698450",
+   "kind": "func_start",
+   "names": [
+    "FeTile_ItemBase_GetAction"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_menu_ui.cpp"
+   ]
+  },
+  {
    "id": "loc.lang_set_find",
    "section": ".xtls",
    "pattern": "41 57 41 56 41 54 56 57 53 48 83 EC 28 44 89 C7 49 89 D6 48 89 CB",
@@ -7888,6 +8508,337 @@
    ],
    "used_by": [
     "native/src/core/lang_override.cpp"
+   ]
+  },
+  {
+   "id": "core.play_fullscreen_video",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 53 48 83 EC 40 4C 89 CE 4C 89 C7 49 89 D7",
+   "match": "0x14416de50",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14416de50",
+   "kind": "func_start",
+   "names": [
+    "Ne_Play_FullscreenVideo"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "intro-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/intro_video.cpp"
+   ]
+  },
+  {
+   "id": "game.flow_link_stay",
+   "section": ".xtls",
+   "pattern": "74 15 48 8D 05 ?? ?? ?? ?? 8B 00 89 06",
+   "match": "0x1436c2e5a",
+   "anchor": "0x5",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x2",
+    "len": 7
+   },
+   "target": "0x146cb2280",
+   "kind": "data",
+   "names": [
+    "g_Game_FlowLinkStay"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "intro-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/intro_video.cpp"
+   ]
+  },
+  {
+   "id": "game.root",
+   "section": ".xtls",
+   "pattern": "48 89 F1 E8 ?? ?? ?? ?? 85 C0 0F 85 ?? ?? ?? ?? 48 8B 05",
+   "match": "0x140266ae0",
+   "anchor": "0x13",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x10",
+    "len": 7
+   },
+   "target": "0x14601db08",
+   "kind": "data",
+   "names": [
+    "g_Game_Root"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "intro-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/intro_video.cpp"
+   ]
+  },
+  {
+   "id": "game.season_length_component",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 48 89 06 C5 F8 57 C0 C5 F8 11 86 90 02 00 00",
+   "match": "0x140d01505",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x14568c1e0",
+   "kind": "data",
+   "names": [
+    "vt_Game_SeasonLengthComponent"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
+  },
+  {
+   "id": "session.tyres_closest_available_compound",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 83 F8 04 77 18 C7 44 24 20 FF FF FF FF",
+   "match": "0x142a3ba4c",
+   "anchor": "0x1",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x0"
+   },
+   "target": "0x14368fb40",
+   "kind": "call",
+   "names": [
+    "Sess_Tyres_ClosestAvailableCompound"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/fq_tyres.cpp"
+   ]
+  },
+  {
+   "id": "session.tyre_rules_active",
+   "section": ".xtls",
+   "pattern": "48 83 EC 28 B2 01 80 3D ?? ?? ?? ?? 00",
+   "match": "0x142e88630",
+   "anchor": "0x8",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x6",
+    "len": 7
+   },
+   "target": "0x1460806c8",
+   "kind": "data",
+   "names": [
+    "g_Sess_TyreRulesActive"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/fq_tyres.cpp"
+   ]
+  },
+  {
+   "id": "session.tyre_rules_mode",
+   "section": ".xtls",
+   "pattern": "44 0F B6 05 ?? ?? ?? ?? 41 83 F8 01",
+   "match": "0x142e8863f",
+   "anchor": "0x4",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 8
+   },
+   "target": "0x146080694",
+   "kind": "data",
+   "names": [
+    "g_Sess_TyreRulesMode"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/fq_tyres.cpp"
+   ]
+  },
+  {
+   "id": "session.tyre_rules_session_type",
+   "section": ".xtls",
+   "pattern": "74 ED 8B 15 ?? ?? ?? ?? 44 8D 42 FF",
+   "match": "0x142e88674",
+   "anchor": "0x4",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x2",
+    "len": 6
+   },
+   "target": "0x146080688",
+   "kind": "data",
+   "names": [
+    "g_Sess_TyreRulesSessionType"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/fq_tyres.cpp"
+   ]
+  },
+  {
+   "id": "session.tyre_component_type",
+   "section": ".xtls",
+   "pattern": "48 8B 04 C1 48 85 C0 74 78 48 8D 0D ?? ?? ?? ?? 48 8D 15",
+   "match": "0x14368fe32",
+   "anchor": "0x13",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x10",
+    "len": 7
+   },
+   "target": "0x146080cc8",
+   "kind": "data",
+   "names": [
+    "k_Sess_TyreComponentType"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/fq_tyres.cpp"
+   ]
+  },
+  {
+   "id": "core.component_base_type",
+   "section": ".xtls",
+   "pattern": "48 8B 04 C1 48 85 C0 74 78 48 8D 0D",
+   "match": "0x14368fe32",
+   "anchor": "0xc",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x9",
+    "len": 7
+   },
+   "target": "0x146129ca0",
+   "kind": "data",
+   "names": [
+    "k_Ne_ComponentBaseType"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/fq_tyres.cpp"
+   ]
+  },
+  {
+   "id": "core.type_chain_end",
+   "section": ".xtls",
+   "pattern": "48 8B 04 C1 48 85 C0 74 78 48 8D 0D ?? ?? ?? ?? 48 8D 15 ?? ?? ?? ?? 48 39 CA 0F 94 C1 4C 8D 05",
+   "match": "0x14368fe32",
+   "anchor": "0x20",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x1d",
+    "len": 7
+   },
+   "target": "0x146c62e70",
+   "kind": "data",
+   "names": [
+    "k_Ne_TypeChainEnd"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/fq_tyres.cpp"
+   ]
+  },
+  {
+   "id": "core.entity_find_component",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 28 48 89 D7 48 89 CE 0F B7 41 18",
+   "match": "0x143f9b3c0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143f9b3c0",
+   "kind": "func_start",
+   "names": [
+    "Ne_Entity_FindComponent"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/fq_tyres.cpp"
    ]
   },
   {
@@ -8273,6 +9224,110 @@
    ]
   },
   {
+   "id": "game.engine_mgmt_apply_session_wear",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 55 53 48 81 EC D0 00 00 00 C5 78 29 BC 24 C0 00 00 00 C5 78 29 B4 24 B0 00 00 00 C5 78 29 AC 24 A0 00 00 00 C5 78 29 A4 24 90 00 00 00 C5 78 29 9C 24 80 00 00 00 C5 78 29 54 24 70 C5 78 29 4C 24 60 C5 78 29 44 24 50 C5 F8 29 7C 24 40 C5 F8 29 74 24 30 44 89 CB C5 F8 28 F2",
+   "match": "0x1411d1560",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1411d1560",
+   "kind": "func_start",
+   "names": [
+    "Game_EngineMgmt_ApplySessionWear"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/pu_rules.cpp"
+   ]
+  },
+  {
+   "id": "game.engine_mgmt_add_grid_penalty",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 58 01 00 00 C5 F9 29 B4 24 40 01 00 00",
+   "match": "0x1411d0740",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1411d0740",
+   "kind": "func_start",
+   "names": [
+    "Game_EngineMgmt_AddGridPenalty"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/pu_rules.cpp"
+   ]
+  },
+  {
+   "id": "game.rnd_calc_upgrade_type_progress",
+   "section": ".xtls",
+   "pattern": "56 57 53 B8 20 18 00 00 E8 ?? ?? ?? ?? 48 29 C4",
+   "match": "0x143526260",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143526260",
+   "kind": "func_start",
+   "names": [
+    "Game_Rnd_CalcUpgradeTypeProgress"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/quali_engine.cpp"
+   ]
+  },
+  {
+   "id": "game.rnd_fill_vehicle_upgrades",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 98 0C 00 00 C5 78 29 84 24 80 0C 00 00 C5 F8 29 BC 24 70 0C 00 00 C5 F8 29 B4 24 60 0C 00 00 44 89 CB",
+   "match": "0x141238cb0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141238cb0",
+   "kind": "func_start",
+   "names": [
+    "Game_Rnd_FillVehicleUpgrades"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "native-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/quali_engine.cpp"
+   ]
+  },
+  {
    "id": "game.career_wizard_starts_in_f1",
    "section": ".xtls",
    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 38 48 85 C9 0F 84 ?? ?? ?? ?? 48 89 D6",
@@ -8326,6 +9381,34 @@
    ]
   },
   {
+   "id": "game.driver_career_driver_select_view_model",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 49 89 06 48 8D 05 ?? ?? ?? ?? 49 89 86 60 02 00 00 4D 89 BE 68 02 00 00 4D 89 BE 70 02 00 00",
+   "match": "0x1415df79a",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x1457298a0",
+   "kind": "data",
+   "names": [
+    "vt_Game_DriverCareerDriverSelectViewModel"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
+  },
+  {
    "id": "game.career_wizard_push_next_step",
    "section": ".xtls",
    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 28 48 89 CE E8 ?? ?? ?? ?? 4C 8B 30 4C 8B 86 28 01 00 00",
@@ -8338,6 +9421,267 @@
    "kind": "func_start",
    "names": [
     "Game_CareerWizard_PushNextStep"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
+  },
+  {
+   "id": "game.driver_contracts_build_offers",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC A8 0A 00 00 4C 8B A9 C8 03 00 00",
+   "match": "0x140d80ef0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140d80ef0",
+   "kind": "func_start",
+   "names": [
+    "Game_DriverContracts_BuildOffers"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "game.driver_contracts_rank_team",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? E9 ?? ?? ?? ?? E9 ?? ?? ?? ?? B0 38",
+   "match": "0x1407c45d0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1407c45d0",
+   "kind": "func_start",
+   "names": [
+    "Game_DriverContracts_RankTeam"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "game.driver_select_back_route",
+   "section": ".xtls",
+   "pattern": "48 89 05 ?? ?? ?? ?? 48 C7 44 24 78 00 00 00 00 48 8D 15 ?? ?? ?? ?? 48 8D 7C 24 78 48 89 F9",
+   "match": "0x141a5e8d4",
+   "anchor": "0x17",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a5e8eb",
+   "kind": "mid",
+   "expect": "48 8D 7C 24 78",
+   "names": [
+    "site_Game_DriverSelect_BackRoute"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
+  },
+  {
+   "id": "game.career_wizard_back_route",
+   "section": ".data1",
+   "pattern": "E8 ?? ?? ?? ?? 48 C7 44 24 40 00 00 00 00 48 8D 15 ?? ?? ?? ?? 48 8D 7C 24 40 48 89 F9",
+   "match": "0x14bc7ab38",
+   "anchor": "0x15",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14bc7ab4d",
+   "kind": "mid",
+   "expect": "48 8D 7C 24 40",
+   "names": [
+    "site_Game_CareerWizard_BackRoute"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ],
+   "data1_reason": "the career wizard view models' shared command handler body lives only in .data1 (0x14bc7a8d0, reached through the thunk 0x141a21ec0 that each step's handler calls first)"
+  },
+  {
+   "id": "game.career_wizard_settings_view_model",
+   "section": ".xtls",
+   "pattern": "C4 C1 78 29 B6 D0 02 00 00 49 C7 86 F0 02 00 00 00 00 00 00 48 8D 05",
+   "match": "0x1415e0512",
+   "anchor": "0x17",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x14",
+    "len": 7
+   },
+   "target": "0x145727970",
+   "kind": "data",
+   "names": [
+    "vt_Game_CareerWizardSettingsViewModel"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
+  },
+  {
+   "id": "game.season_length_component_desc",
+   "section": ".xtls",
+   "pattern": "48 8D 15 ?? ?? ?? ?? 48 89 F9 41 B8 01 00 00 00 FF 50 10 48 89 C1 B2 02",
+   "match": "0x14386dcea",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x14605b368",
+   "kind": "data",
+   "names": [
+    "k_Game_SeasonLengthComponentDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
+  },
+  {
+   "id": "game.season_length_apply_preset",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? BE 0F 8C 16 9D 87 FC",
+   "match": "0x140bc9fc0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140bc9fc0",
+   "kind": "func_start",
+   "names": [
+    "Game_SeasonLength_ApplyPreset"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
+  },
+  {
+   "id": "game.season_length_push_calendar_entry",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 3F 6E 19 C4 96 BE 5A",
+   "match": "0x140bc9d80",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140bc9d80",
+   "kind": "func_start",
+   "names": [
+    "Game_SeasonLength_PushCalendarEntry"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/f1-1990/native/src/career_wizard.cpp"
+   ]
+  },
+  {
+   "id": "game.career_setup_reset_entrants",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 53 48 83 EC 48 48 89 CE 48 8B 99 78 02 00 00",
+   "match": "0x140c34960",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140c34960",
+   "kind": "func_start",
+   "names": [
+    "Game_CareerSetup_ResetEntrants"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-21",
+     "by": "wizard-1990",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "game.championship_has_team",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 38 87 0F 83 87 E6 44 00 CC",
+   "match": "0x140aea5f0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140aea5f0",
+   "kind": "func_start",
+   "names": [
+    "Game_Championship_HasTeam"
    ],
    "verified": [
     {
