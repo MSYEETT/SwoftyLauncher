@@ -2538,6 +2538,12 @@
           "link": "/reference/game/session#Sess_TyreAllocation_OnSessionStart"
         },
         {
+          "name": "Sess_TyreClass_FromName",
+          "kind": "func",
+          "status": "experimental",
+          "link": "/reference/game/session#Sess_TyreClass_FromName"
+        },
+        {
           "name": "Sess_Tyres_ClosestAvailableCompound",
           "kind": "func",
           "status": "experimental",
