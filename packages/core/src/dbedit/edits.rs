@@ -401,7 +401,7 @@ impl Edits {
         self.rows.push(row);
         for (rel, value) in changed {
             let key = self.rows.last().expect("pushed").key(&rel);
-            self.set(catalog, key, &value)?;
+            self.set(catalog, key, &value).ok();
         }
         Ok(())
     }
