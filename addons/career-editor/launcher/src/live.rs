@@ -24,6 +24,13 @@ pub fn says_running(snap: &Value) -> bool {
     fresh(snap) && snap["status"]["game"] == "running"
 }
 
+pub fn closed_since(was: Option<u64>, running: Option<bool>, saw_running: bool, now: u64) -> Option<u64> {
+    match running {
+        Some(false) => Some(was.unwrap_or(if saw_running { now } else { 0 })),
+        _ => None,
+    }
+}
+
 pub fn bridge_of(running: Option<bool>, snap: &Value, closed_since: Option<u64>) -> Bridge {
     let plugin_running = says_running(snap) && written(snap) > closed_since.unwrap_or(0);
     if snap.is_null() {
@@ -179,7 +186,7 @@ impl Live {
 mod tests {
     use serde_json::{Value, json};
 
-    use super::{Bridge, Live, STALE_MS};
+    use super::{Bridge, Live, STALE_MS, closed_since};
     use crate::store::now_ms;
 
     fn snapshot(age_ms: u64) -> Value {
@@ -248,5 +255,17 @@ mod tests {
         let live = Live::new(closed(), &snap, true, None, None);
         assert_eq!(live.bridge, Bridge::Stale);
         assert!(!live.game_running());
+    }
+
+    #[test]
+    fn the_game_counts_as_closed_from_the_first_false_after_a_true() {
+        assert_eq!(closed_since(None, Some(false), true, 500), Some(500));
+        assert_eq!(closed_since(Some(500), Some(false), true, 900), Some(500));
+        assert_eq!(closed_since(Some(500), Some(true), true, 900), None);
+        assert_eq!(closed_since(Some(500), None, true, 900), None);
+        let never = closed_since(None, Some(false), false, 900);
+        assert_eq!(never, Some(0));
+        let live = Live::new(closed(), &snapshot(4_000), true, None, never);
+        assert!(live.live() && live.game_running() && live.my_team());
     }
 }

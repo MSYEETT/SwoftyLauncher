@@ -28,6 +28,7 @@ pub struct App {
     pub cal_move: (Option<i64>, Option<i64>),
     last_tick: Option<(Option<bool>, Option<u64>, Bridge)>,
     closed_since: Option<u64>,
+    saw_running: bool,
     logged_state: Option<String>,
     logged_disagree: bool,
     logged_error: Option<String>,
@@ -50,6 +51,7 @@ impl App {
             cal_move: (None, None),
             last_tick: None,
             closed_since: None,
+            saw_running: false,
             logged_state: None,
             logged_disagree: false,
             logged_error: None,
@@ -70,11 +72,9 @@ impl App {
             .call("game_status", Value::Null)
             .ok()
             .filter(Value::is_object);
-        if status.as_ref().and_then(|s| s["running"].as_bool()) == Some(false) {
-            self.closed_since.get_or_insert_with(store::now_ms);
-        } else {
-            self.closed_since = None;
-        }
+        let running = status.as_ref().and_then(|s| s["running"].as_bool());
+        self.closed_since = live::closed_since(self.closed_since, running, self.saw_running, store::now_ms());
+        self.saw_running |= running == Some(true);
         status
     }
 
