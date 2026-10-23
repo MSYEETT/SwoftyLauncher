@@ -163,10 +163,12 @@ fn experimental_labels(m: &AddonItem) -> String {
         .join(", ")
 }
 
-/// The icon an addon without its own shows: a race track for tracks, else a box.
+/// The icon an addon without its own shows: a race track for tracks, a palette for shader
+/// packs, else a box.
 fn fallback_icon(m: &AddonItem, size: f32, p: Palette) -> Div {
     match m.category() {
         Some(Category::Tracks) => track_badge(size, p),
+        Some(Category::Shaders) => badge(IconName::Palette, size, p),
         _ => badge(IconName::Package, size, p),
     }
 }
@@ -1798,6 +1800,9 @@ impl Shell {
             .when(!man.kind.is_empty(), |d| d.child(fact("Type", Type::list(m), p)))
             .when(!man.experimental_features.is_empty(), |d| {
                 d.child(fact("Experimental features", experimental_labels(m), p))
+            })
+            .when_some(man.shader.as_ref(), |d, s| {
+                d.child(fact("Look", s.lut.clone(), p))
             })
             .child(fact("Source", source, p))
             .child(fact(

@@ -163,9 +163,11 @@ fn category(s: &str) -> std::result::Result<CategoryArg, String> {
     if s == "uncategorised" {
         return Ok(CategoryArg(None));
     }
-    serde_json::from_value(serde_json::Value::String(s.to_owned()))
-        .map(|c| CategoryArg(Some(c)))
-        .map_err(|_| format!("{s} is not a category; see --help"))
+    match serde_json::from_value(serde_json::Value::String(s.to_owned())) {
+        Ok(Category::Shaders) => Err("shaders is for shader packs, not DB Editor addons; see --help".into()),
+        Ok(c) => Ok(CategoryArg(Some(c))),
+        Err(_) => Err(format!("{s} is not a category; see --help")),
+    }
 }
 
 fn open(store: &Store, id: &str) -> Result<Package> {

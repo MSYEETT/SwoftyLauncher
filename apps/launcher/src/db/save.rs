@@ -65,7 +65,8 @@ fn category_picker(chosen: Rc<Cell<Option<Category>>>, p: Palette) -> Div {
             .dropdown_caret(true)
             .dropdown_menu_with_anchor(Anchor::TopLeft, move |mut menu, _, _| {
                 menu = menu.min_w(px(220.)).max_h(px(360.)).scrollable(true);
-                for c in Category::ALL.map(Some).into_iter().chain([None]) {
+                let packages = Category::ALL.into_iter().filter(|c| *c != Category::Shaders);
+                for c in packages.map(Some).chain([None]) {
                     let chosen = chosen.clone();
                     menu = menu.item(
                         PopupMenuItem::new(category_label(c))
