@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -5,7 +6,7 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow, bail};
 use clap::Subcommand;
 use swofty_core::dbedit::package::{self, Package};
-use swofty_core::dbedit::{Catalog, Edits, NodeId, NodeKind, RowCopy, modules};
+use swofty_core::dbedit::{Catalog, Edits, NodeId, NodeKind, RowCopy, deps, modules};
 use swofty_core::manifest::Category;
 use swofty_core::store::Store;
 
@@ -60,6 +61,13 @@ pub enum DbCommand {
         query: String,
         #[arg(long, default_value_t = 30)]
         limit: usize,
+    },
+    #[command(
+        about = "List what a copy of a row does not bring along: rows of other tables labelled with the row's label or a name derived from it, and values that pick the row by label or stat_id"
+    )]
+    Deps {
+        #[arg(help = "The row, as a dotted or selector path")]
+        row: String,
     },
     #[command(about = "Show a key's value, or what a table, row or container holds")]
     Get {
@@ -332,6 +340,16 @@ pub fn command(store: &Store, profile: &str, game: Option<PathBuf>, cmd: DbComma
                 println!("{:<10} {}  {}", format!("{:?}", h.kind), h.title, h.detail);
             }
         }
+        DbCommand::Deps { row } => {
+            let cat = catalog()?;
+            let node = cat
+                .find(&row)
+                .ok_or_else(|| anyhow!("{row}: not in the game database"))?;
+            if !matches!(cat.node(node).kind, NodeKind::Row { .. }) {
+                bail!("{row}: not a row");
+            }
+            print_deps(&cat, node);
+        }
         DbCommand::Get { path, addon } => {
             let edits = match &addon {
                 Some(id) => open(store, id)?.edits,
@@ -450,6 +468,70 @@ pub fn command(store: &Store, profile: &str, game: Option<PathBuf>, cmd: DbComma
         }
     }
     Ok(ExitCode::SUCCESS)
+}
+
+fn print_deps(cat: &Catalog, row: NodeId) {
+    let d = deps::deps(cat, row);
+    let mut hows: BTreeMap<&str, Vec<String>> = BTreeMap::new();
+    for n in &d.names {
+        hows.entry(n.value.as_str()).or_default().push(n.how());
+    }
+    println!("{}", cat.path(row));
+    println!("names the game can derive from the row:");
+    for (value, how) in &hows {
+        println!("  {value}: {}", how.join(", "));
+    }
+    let mut keyed: BTreeMap<(bool, String, &str), usize> = BTreeMap::new();
+    for k in &d.keyed {
+        let tables = match k.tables.len() {
+            1 => cat.path(k.tables[0]),
+            _ => k.family.clone(),
+        };
+        let by_label = hows[k.name.value.as_str()]
+            .iter()
+            .any(|h| h.starts_with("the label"));
+        let n = keyed
+            .entry((!by_label, tables, k.name.value.as_str()))
+            .or_default();
+        *n = (*n).max(k.tables.len());
+    }
+    let mut section = None;
+    for ((by_field, tables, value), n) in &keyed {
+        if section != Some(*by_field) {
+            section = Some(*by_field);
+            match by_field {
+                false => println!("rows of other tables labelled with the label or a name built from it:"),
+                true => println!(
+                    "rows of other tables labelled with a value of the row (a copy that changes it needs its own):"
+                ),
+            }
+        }
+        let tables = match n {
+            1 => tables.clone(),
+            n => format!("{tables} ({n} tables)"),
+        };
+        println!("  {tables}: {value} ({})", hows[value].join(", "));
+    }
+    if keyed.is_empty() {
+        println!("rows of other tables labelled with these names: none");
+    }
+    println!("values that pick the row:");
+    if d.references.is_empty() {
+        println!("  none");
+    }
+    for r in &d.references {
+        let by = match r.by {
+            deps::By::Label => "label",
+            deps::By::StatId => "stat_id",
+        };
+        println!("  by {by}: {} ({})", r.field, r.count);
+    }
+    if d.unnamed > 0 {
+        println!(
+            "  {} value(s) under keys the catalogue does not name hold the label",
+            d.unnamed
+        );
+    }
 }
 
 fn show(cat: &Catalog, edits: &Edits, node: NodeId) {
