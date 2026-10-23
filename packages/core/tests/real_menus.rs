@@ -75,7 +75,7 @@ fn menus_match_the_prototype_byte_for_byte() {
     let Some((game, oracle)) = dirs() else { return };
     let out = std::env::temp_dir().join(format!("swofty-menus-{}", std::process::id()));
     std::fs::remove_dir_all(&out).ok();
-    let built = swofty_core::ui::build(&session(), &|rel| game.join(rel), &out, true).unwrap();
+    let built = swofty_core::ui::build(&session(), &|rel| game.join(rel), &out, true, true).unwrap();
     let mut bad = Vec::new();
     for (rel, path) in &built.erps {
         if swofty_core::ui::era::ARCHIVES.iter().any(|a| rel.ends_with(a)) {
@@ -168,7 +168,7 @@ fn menus_and_a_map_patch_one_databases_erp() {
     };
     built.plan.data.extend(map_ui.replaced.clone());
     let mut session = session();
-    build_menus(&mut built, &mut session, &resolve, true).unwrap();
+    build_menus(&mut built, &mut session, &resolve, true, true).unwrap();
     assert_eq!(built.plan.data[rel], out.join("overlay").join(rel));
     for (r, src) in &map_ui.replaced {
         if !swofty_core::ui::ERPS.iter().any(|e| r.ends_with(e)) {
@@ -247,7 +247,7 @@ fn stock_dialogs_keep_their_text() {
     };
     let out = std::env::temp_dir().join(format!("swofty-menus-dialogs-{}", std::process::id()));
     std::fs::remove_dir_all(&out).ok();
-    let built = swofty_core::ui::build(&session(), &|rel| game.join(rel), &out, true).unwrap();
+    let built = swofty_core::ui::build(&session(), &|rel| game.join(rel), &out, true, true).unwrap();
     let rel = "2025_asset_groups/ui_package/flow_persistent.erp";
     let report = resource_report(&built.erps[rel], &game.join(rel), &POPUP);
     assert!(report.is_empty(), "{rel} changed outside the popup:\n{report}");
@@ -369,7 +369,7 @@ fn the_core_build_adds_the_era_rows() {
     };
     let out = std::env::temp_dir().join(format!("swofty-menus-era-{}", std::process::id()));
     std::fs::remove_dir_all(&out).ok();
-    let built = swofty_core::ui::build(&session(), &|rel| stock(&game, rel), &out, true).unwrap();
+    let built = swofty_core::ui::build(&session(), &|rel| stock(&game, rel), &out, true, true).unwrap();
     assert!(
         built
             .lines
@@ -637,7 +637,7 @@ fn the_core_build_adds_the_era_rows() {
         true => built.erps[rel].clone(),
         false => stock(&game, rel),
     };
-    let twice = swofty_core::ui::build(&session(), &input, &again, true).unwrap();
+    let twice = swofty_core::ui::build(&session(), &input, &again, true, true).unwrap();
     for rel in era::ARCHIVES {
         assert!(
             !twice.erps.contains_key(&format!("{}/{rel}", swofty_core::ui::UI)),
@@ -691,7 +691,7 @@ fn the_era_rows_keep_what_an_addon_put_in_the_same_archive() {
     };
     built.plan.data.insert(rel.clone(), addon.clone());
     let mut session = session();
-    build_menus(&mut built, &mut session, &|r| stock(&game, r), true).unwrap();
+    build_menus(&mut built, &mut session, &|r| stock(&game, r), true, true).unwrap();
     assert_eq!(built.plan.data[&rel], addon);
     let names: Vec<String> = Erp::parse(&std::fs::read(&addon).unwrap())
         .unwrap()

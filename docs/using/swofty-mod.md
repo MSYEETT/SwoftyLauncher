@@ -34,7 +34,7 @@ If the game build isn't recognised, the **ADDON SETTINGS** entry may be unavaila
 
 ## Era picker
 
-SwoftyMod splits the era picker of **Grand Prix** and **Time Trial** into two rows. The top row, **Built In**, holds the game's own eras, such as F1 2026 and F2 2026. The bottom row, **Addons**, holds the eras that addons add. Each row scrolls sideways on its own; press **Up** or **Down** to move between them.
+SwoftyMod splits the era picker of **Grand Prix** and **Time Trial** into two rows. The top row, **Built In**, holds the game's own eras, such as F1 2026 and F2 2026. The bottom row, **Addons**, holds the eras that addons add. Each row scrolls sideways on its own; press **Up** or **Down** to move between them. The rows appear when an enabled addon adds an era; without one, the picker is the game's single row.
 
 ## Next
 
