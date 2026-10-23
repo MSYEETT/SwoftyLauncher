@@ -70,6 +70,12 @@ impl Type {
             Self::Code => "Code",
         }
     }
+
+    /// An addon's types in [`Type::ALL`] order, as "Database, Archives".
+    fn list(m: &AddonItem) -> String {
+        let types: BTreeSet<Type> = m.manifest.kind.iter().map(|k| Self::of(*k)).collect();
+        types.into_iter().map(Self::label).collect::<Vec<_>>().join(", ")
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1422,6 +1428,7 @@ impl Shell {
             None if m.source == Source::Builtin => None,
             None => Some("Uncategorised"),
         };
+        let types = Type::list(m);
         let row = h_flex()
             .id(SharedString::from(format!("addon-{id}")))
             .relative()
@@ -1509,6 +1516,18 @@ impl Shell {
                                     })
                                     .child(c)
                             }))
+                            .when(!types.is_empty(), |d| {
+                                d.when(category.is_some(), |d| {
+                                    d.child(div().text_color(p.text_placeholder).child("·"))
+                                })
+                                .child(
+                                    div()
+                                        .min_w_0()
+                                        .truncate()
+                                        .text_color(p.text_placeholder)
+                                        .child(types),
+                                )
+                            })
                             .child(
                                 div()
                                     .h(px(16.))
@@ -1744,6 +1763,7 @@ impl Shell {
                     p,
                 ))
             })
+            .when(!man.kind.is_empty(), |d| d.child(fact("Type", Type::list(m), p)))
             .child(fact("Source", source, p))
             .child(fact(
                 "Game version",

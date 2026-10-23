@@ -71,7 +71,7 @@ Launchers from 1.3.6 read the categories of earlier launchers: `liveries` as `ca
 | `file` | string? | The file name the addon was made from. |
 | `sha256` | string? | That file's SHA-256, in hex. |
 
-The **Addons** page shows the source as Built in, DB Editor, Simplified or Installed. A launcher before 1.3.0 rejects `category` and `origin`; set `"compat": { "launcher": ">=1.3.0" }` when you use them.
+The **Addons** page shows the source as Built in, DB Editor, Imported or Installed. A launcher before 1.3.0 rejects `category` and `origin`; set `"compat": { "launcher": ">=1.3.0" }` when you use them.
 
 ## saves
 

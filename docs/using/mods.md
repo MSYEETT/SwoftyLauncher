@@ -34,7 +34,7 @@ Importing the same mod again replaces its addon and keeps its place and switch i
 | Other game files | The files it replaces or adds |
 | A community track | The track, as a track addon |
 
-Each addon gets a category from what it changes, such as Tracks, Cars or Liveries, and the mod's name, author and version.
+Each addon gets a category from what it changes, such as Tracks, Cars or Helmets, and the mod's name, author and version. A mod that loads from the game's shader packages, such as a Simplified Studio or My Team mod, also gets the type Simplified.
 
 A mod made of several parts imports as one addon per part. When the parts are alternatives that change the same things, such as tyre colour sets for different seasons, they import as variants: every variant is installed and only one is on. Turn on another on the **Addons** page.
 

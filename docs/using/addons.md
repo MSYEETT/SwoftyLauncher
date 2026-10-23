@@ -25,11 +25,11 @@ Type in the search box on the left to search names, ids, authors and description
 | Filter | Values |
 |---|---|
 | Category | What the addon is for: Seasons, Tracks, Cars, Helmets, or Uncategorised. Built-in addons show no category. |
-| Type | What it changes: Database, Archives, Text & UI, Files, Code |
-| Source | Built in, DB Editor, Simplified, Installed. Each row shows its source as a tag with the same name. |
+| Type | What it changes: Database, Archives, Text & UI, Simplified, Files, Code. Simplified is a mod merged into the game's shader packages, as the Simplified Suite loads `.serps` mods. |
+| Source | Built in, DB Editor, Imported, Installed. Imported addons come from the [Simplified Importer](/using/mods). |
 | State | On, Off, Has conflicts, Update available |
 
-Each value shows how many addons match. **Clear** removes every filter. An open panel closes when its addon no longer matches.
+Under its name, each row shows the addon's category, its types and a tag with its source. Each value shows how many addons match. **Clear** removes every filter. An open panel closes when its addon no longer matches.
 
 On a window less than 760 pixels tall, the install cards shrink to one row.
 

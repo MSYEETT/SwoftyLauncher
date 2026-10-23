@@ -46,7 +46,7 @@ impl Source {
         match self {
             Self::Builtin => "Built in",
             Self::DbEditor => "DB Editor",
-            Self::Importer => "Simplified",
+            Self::Importer => "Imported",
             Self::Installed => "Installed",
         }
     }
