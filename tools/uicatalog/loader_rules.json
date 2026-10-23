@@ -1,0 +1,5 @@
+{
+ "schema_version": 1,
+ "source": "engine reverse engineering of the UI loader; each rule cites the function and evidence level it was read from",
+ "rules": []
+}
