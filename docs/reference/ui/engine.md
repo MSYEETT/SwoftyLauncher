@@ -9,11 +9,12 @@ This page describes the code in `F1_25.exe` that turns a `.ui` resource into liv
 
 All addresses are for the Steam build (`sha256 d873a1c8…`, image base `0x140000000`). Each claim is marked:
 
-- **[read]**: read in the decompile, callers listed (KB level L2 evidence; the rows are recorded at L1 until the `vm` lane owner raises them).
+- **[read]**: read in the decompile, callers listed (KB level L2).
+- **[traced]**: also observed in the running game with the [live trace](#live-trace) on 2026-10-23.
 - **[scan]**: derived by a byte or immediate scan (KB L1).
 - **[inferred]**: a reading of the code that no decompile or trace has confirmed.
 
-Nothing on this page is runtime-confirmed yet. The [live trace](#live-trace) below is the test.
+The runtime-confirmed parts are the `NBVN` check, the instance build of a failing template root and the tab controller's two loops and instance names. The KB write-ups are `re/db/subsystems/vm.md` (engine side) and `re/db/subsystems/ui_system.md` (format side).
 
 The machine-readable form of every check is [`re/db/ui/loader_rules.json`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/re/db/ui/loader_rules.json): the rules, the error codes, the silently ignored cases, the order-dependent paths and a table of all 136 node classes.
 
@@ -87,7 +88,7 @@ Stock pairs `visualNav` and `NBVN` exactly: every template root with the prop li
 | duplicate template name at load | every later template of that resource | none |
 | template name not in the store at instantiation | that one instance (the caller skips it) | none |
 
-**Nothing is cleaned up [read].** `Vm_Build_TemplateNode` (`0x1441815c0`) attaches a node to its parent (`parent->vt[0x170]`, `0x14418169e`) after the node's own init succeeds and before its children are built. When a descendant fails, `Vm_Instantiate_Template_Body` (`0x153215c10`) jumps straight to its exit (`0x153215e71`) and the root, with every node built so far, stays attached to the parent without its `vt+0x58` setup, signal remap or `vt+0x50` link. When the root's own init fails, nothing is attached and the root object leaks; for a tab, the controller then has no content instance for that tab.
+**Nothing is cleaned up [read].** `Vm_Build_TemplateNode` (`0x1441815c0`) attaches a node to its parent (`parent->vt[0x170]`, `0x14418169e`) after the node's own init succeeds and before its children are built. When a descendant fails, `Vm_Instantiate_Template_Body` (`0x153215c10`) jumps straight to its exit (`0x153215e71`) and the root, with every node built so far, stays attached to the parent without its `vt+0x58` setup, signal remap or `vt+0x50` link. When the root's own init fails, nothing is attached and the root object leaks; for a tab, the controller then has no content instance for that tab **[traced]**.
 
 ## Template instantiation
 
@@ -102,9 +103,21 @@ The body **[read]**:
 
 ### Tabs (`UITC`)
 
-`Vm_UiTabs_OnMessage` (`0x144264d50`, `UITC` slot 43) handles the data-context message: it resolves the `tabs` array under the controller's data context and, for every entry, calls `Vm_UiTabs_AddTabTemplate` (`0x144266e30`) with `content_template`, then in a second loop with `header_template` **[read]**. `Vm_UiTabs_AddTabTemplate` reads the template name from the tab's VM node, looks it up (miss: `0x144267110`) and instantiates it under the controller (result: `0x14426708d`). Both a miss and a failed instance return NULL; the content result is discarded and the loop continues with the next tab. The instance name is always `tab_<n>( <content_template> )`, built from the `content_template` value even in the header loop, so a header instance carries the content template's name; `<n>` is the controller's child count plus one.
+`Vm_UiTabs_OnMessage` (`0x144264d50`, `UITC` slot 43) handles the data-context message: it resolves the `tabs` array under the controller's data context and, for every entry, calls `Vm_UiTabs_AddTabTemplate` (`0x144266e30`) with `content_template`, then in a second loop with `header_template` **[read]**. `Vm_UiTabs_AddTabTemplate` reads the template name from the tab's VM node, looks it up (miss: `0x144267110`) and instantiates it under the controller (result: `0x14426708d`). Both a miss and a failed instance return NULL; the content result is discarded and the loop continues with the next tab **[traced]**. The instance name is always `tab_<n>( <content_template> )`, built from the `content_template` value even in the header loop, so a header instance carries the content template's name; `<n>` is the controller's child count plus one. A content instance whose root init failed attaches nothing, so the next instance gets the same `<n>` **[traced]**.
 
-For `f1_world_activity_container`, `Game_F1WorldActivityContainer_AddTabs` (`0x141a76130`) creates the tab view models with the template names `f1_world_activity`, `f1_world_activity_offline`, `dynamic_era_select` (three tabs), `public_gp_select` and `time_trial_select` **[read]**. All of these templates live in fragment 1 (`syst`) of the container `.ui`; the screen itself is fragment 0.
+For `f1_world_activity_container`, `Game_F1WorldActivityContainer_AddTabs` (`0x141a76130`) creates seven tab view models, in this order **[read, traced]**:
+
+| tab | template | title |
+|---|---|---|
+| 1 | `f1_world_activity` | `lng_f1_world_play` |
+| 2 | `f1_world_activity_offline` | `lng_f1_world_play_offline` |
+| 3 | `dynamic_era_select` | `lng_solo_grand_prix` |
+| 4 | `public_gp_select` | `lng_public_grand_prix` |
+| 5 | `dynamic_era_select` | `lng_time_trial` |
+| 6 | `dynamic_era_select` | `lng_screen_era_select` |
+| 7 | `session_create_dlc_select_tab` | `lng_create_session_dlc_select` |
+
+`f1_world_activity`, `f1_world_activity_offline`, `dynamic_era_select` and `public_gp_select` live in fragment 1 (`syst`) of `f1_world_activity_container.ui`, whose fragment 0 is the screen; `session_create_dlc_select_tab` is registered by `f1_world_container.ui`. The `time_trial_select` template in the container `.ui` is not used by any tab. Every header instance builds `primary_nav_tab` from `templates/tab_header_templates.ui` **[traced]**.
 
 ## Signals, commands and events at runtime
 

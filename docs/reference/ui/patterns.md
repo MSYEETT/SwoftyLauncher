@@ -14,11 +14,13 @@ A container screen (`UISC`) holds a tab controller (`UITC`) and hosts tab templa
 - The `UITC` binds the scene's content element with one layout entry, such as `screen_container`, an `eXRef`. `contentPoint` (`Scene Root.screen.screen_cc`) and `usedElement` (`screen_cc`) name where a tab template's scene is placed, and `tabContainer` names the stacker that holds the tab headers.
 - The tab templates are `UIGP` roots in the `Templates` list, each with its own scene in the components slot. Which templates become tabs comes from the view model: stock bindings name them as `tab_controller.tab_<n>( <template> )`, such as `#f1_world_flow.f1_world_compendium_container.tab_controller.tab_1( f1_world_compendium_chapter_tab )`.
 - The controller raises lifecycle commands on a tab template root. Stock `UIGP` nodes declare `onTabSelected` (43), `onShowCompleted` (30), `onTabActivated` (30), `onTabDeselectBegin` (10), `onTabDeselected` and `onTabDeactivated`, and forward them to their children. Stock `dynamic_era_select` declares only `onShowCompleted` (→ `tiles.trigger`, which spawns the row) and `onTabDeselectBegin` (→ `tiles.detach`, which despawns it).
-- Fragment 1 of `f1_world_activity_container.ui` holds the tab templates `f1_world_activity` and `f1_world_activity_offline` (the play screen), `dynamic_era_select` (the era picker), `public_gp_select` and `time_trial_select`, and the tile templates they spawn (`activity_*_tile`, `era_select_tile`).
+- Fragment 1 of `f1_world_activity_container.ui` holds the tab templates `f1_world_activity` and `f1_world_activity_offline` (the play screen), `dynamic_era_select` (the era picker), `public_gp_select` and `time_trial_select`, and the tile templates they spawn (`activity_*_tile`, `era_select_tile`). The container's view model creates seven tabs: the two activity tabs, `dynamic_era_select` three times (Grand Prix, Time Trial, split-screen), `public_gp_select` and `session_create_dlc_select_tab` from `f1_world_container.ui`. No tab uses `time_trial_select` ([engine](./engine#tabs-uitc)).
 
 **Verified in game:** when the game rejects one edited tab template, the whole container fails without an error at warn level. The play screen's category boxes vanish even though every other template in the file is byte-identical to stock. With the era UI edit off, the play screen always shows. With the same edited build (two rows, earlier navigation, no masks), the play screen showed in one session and not in a later one.
 
-**Inferred:** the container binds all of its templates when it opens, so a template that fails to bind takes the container with it. A failure that changes from session to session points at a binding whose target exists only sometimes when the template binds; see [Runtime bindings](#runtime-bindings).
+**Traced in game:** in that build the `dynamic_era_select` root kept the `NBVN` behaviour without its `visualNav` property, so its init returned 3 in all three era tabs. The tab controller dropped those three content instances without a log and built all seven headers ([engine](./engine#the-era-picker-container-failure)).
+
+**Inferred:** the controller then maps the seven tabs to the four content instances it has out of step, which empties the play screen depending on which tab is selected first.
 
 ## Multi-row lists
 
@@ -53,7 +55,7 @@ A spawner fires `navigate_up_failed`, `navigate_down_failed`, `navigate_left_fai
 - `InputOnActPrt` is a `bool` set on `F1TS` (37), `UITG` (32) and `SCRL` (4) only. **Verified in game:** setting it on the era `F1TS` in place of `consumeStrategy` works.
 - `consumeStrategy` is a `ui32` on 9 node types, mostly `DDMC` message containers (26).
 - `inputAllow` and `inputDisallow` are pins on `F1TS`, `UIGP`, `TILE`, `UITC`, `UIKL` and others. `inputAllowed` is the matching property (a literal or bound `bool`).
-- `focus`, `unfocus`, `focus_and_reset` and `focusFirstAvailable` are the spawner focus pins. **Verified in game:** dropping `visualNav` from the era template root and the magnet rename from `focused` to `unfocus` work.
+- `focus`, `unfocus`, `focus_and_reset` and `focusFirstAvailable` are the spawner focus pins. **Verified in game:** the magnet rename from `focused` to `unfocus` works. A template root that drops `visualNav` must also drop `NBVN` from its behaviours; with `NBVN` kept, the template fails to build (`behaviour.nbvn_visualnav` below).
 
 ## Masks and clipping
 
