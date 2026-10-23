@@ -5,6 +5,11 @@ The shared addon gets the rows every season shares (new drivers and their statis
 and lang/core.json, and native/src/seasons.hpp, the boxes its plugin registers. Each season's addon (layout.py) gets
 its manifest, its rows in db/season.json (with its entrant list appended to swofty.core's swofty_f1 host setup mode
 and the content sets), its text in lang/season.json and its cars' asset ops in assets/cars.json.
+
+The game looks up the AI and player car setups by vehicle package name in car_setup.presets, under
+<row>.<ai|player>.<variant>.<slider>, and a package without a row gets setups that ground the cars. Each season copies
+the f1_2025 presets under its own package name; data/setup_preset_fields.json lists the keys, which the database
+catalogue does not name.
 """
 
 import json
@@ -18,6 +23,7 @@ from layout import ROOT, asset_ops, built, year_dir
 DATA = json.loads((ROOT / "data" / "seasons.json").read_text())
 STOCK = json.loads((ROOT / "data" / "stock_looks.json").read_text())
 DRIVER_FIELDS = json.loads((ROOT / "data" / "driver_fields.json").read_text())
+SETUP_PRESET_FIELDS = json.loads((ROOT / "data" / "setup_preset_fields.json").read_text())
 
 CATEGORY = "options_system.options.multiplayer.options_folder_2.option[_metadata_=category]"
 CATEGORY_FIELDS = ["_metadata_", "confirmation_dialogue", "description_override", "game_value", "is_default", "loc_tag",
@@ -35,6 +41,7 @@ DRIVER_STAT_BASE = 225
 SCENARIO_STAT_BASE = 15
 HOST_MODE = "swofty_f1"
 SETUP_ROW = "entrants.entrant_setup_modes.entrant_setup_mode"
+SETUP_PRESETS = "car_setup.presets.vehicle_package_setups"
 SEASON_LAUNCHER = ">=1.3.6"
 
 
@@ -143,6 +150,8 @@ def build():
                                 "blob_shadow_decal": f"eaid://{shared}/shared/ao/materials/blobshadowdecal.material",
                                 "driver_animation_set": animation,
                                 "has_cockpit_halo": str(season.get("halo", True))}})
+            ops.append({"op": "add-row", "table": "car_setup.presets",
+                        "from": f"{SETUP_PRESETS}[_metadata_=f1_2025_vehicle_package]", "set": {"_metadata_": pkg}})
 
         for team in season["teams"]:
             folder = team["folder"]
@@ -223,7 +232,8 @@ def build():
     for year, ops, text in seasons:
         folder = year_dir(year)
         write_json(folder / "swofty.json", season_manifest(core, year))
-        write_json(folder / "db" / "season.json", {"schema_version": 1, "fields": fields, "ops": ops})
+        write_json(folder / "db" / "season.json",
+                   {"schema_version": 1, "fields": {**fields, SETUP_PRESETS: SETUP_PRESET_FIELDS}, "ops": ops})
         write_json(folder / "lang" / "season.json", {"schema_version": 1, "ops": text})
         (folder / ".gitignore").write_text("cars/\n")
         cars = built(year)
