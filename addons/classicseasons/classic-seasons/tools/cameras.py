@@ -11,7 +11,7 @@ taller car.
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "tools"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "tools"))
 
 from pkg import Obj, Pkg, Val
 

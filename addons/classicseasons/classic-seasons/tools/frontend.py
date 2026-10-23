@@ -26,7 +26,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-REPO = ROOT.parents[1]
+REPO = ROOT.parents[2]
 sys.path.insert(0, str(REPO / "tools"))
 
 from erp import parse as erp_parse  # noqa: E402

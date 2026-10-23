@@ -12,7 +12,7 @@ fi
 export ZIG_GLOBAL_CACHE_DIR=$PWD/build/zig-cache ZIG_LOCAL_CACHE_DIR=$PWD/build/zig-cache
 mkdir -p build
 
-REPO=../../..
+REPO=../../../..
 SDK=$REPO/packages/sdk/include
 if [[ -z ${GAME_INCLUDE:-} ]]; then
     DEV=build/dev

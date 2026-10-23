@@ -27,7 +27,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-REPO = ROOT.parent.parent
+REPO = ROOT.parents[2]
 sys.path.insert(0, str(REPO / "tools"))
 
 import erpw

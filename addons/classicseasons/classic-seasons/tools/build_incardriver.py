@@ -17,7 +17,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT.parent.parent / "tools"))
+sys.path.insert(0, str(ROOT.parents[2] / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import erpw
