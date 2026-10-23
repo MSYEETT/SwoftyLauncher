@@ -1,5 +1,6 @@
 pub mod catalog;
 pub mod check;
+pub mod era;
 pub mod idf;
 pub mod node;
 pub mod pages;
@@ -37,6 +38,8 @@ pub const ERPS: &[&str] = &[
     "databases.erp",
     "flow_persistent.erp",
     "flow_frontend.erp",
+    era::ARCHIVES[0],
+    era::ARCHIVES[1],
 ];
 pub const READS: &[&str] = &["flow_options.erp"];
 
@@ -50,6 +53,7 @@ pub struct MenuBuild {
     pub screens: BTreeMap<String, PathBuf>,
     pub session: Vec<SessionScreen>,
     pub strings: Vec<(String, String)>,
+    pub lines: Vec<String>,
 }
 
 type Patch<'a> = Box<dyn FnOnce(&[u8]) -> Result<Vec<u8>> + 'a>;
@@ -65,18 +69,56 @@ fn read_frag(path: &Path, name: &str, index: usize) -> Result<Vec<u8>> {
 }
 
 fn write_erp(src: &Path, dst: &Path, patches: Vec<(&str, Patch)>) -> Result<()> {
+    let patches = patches.into_iter().map(|(name, f)| (name, 0, f)).collect();
+    write_archive(src, dst, patches, Vec::new())
+}
+
+type Added = (String, &'static str, Vec<Vec<u8>>);
+
+fn write_archive(
+    src: &Path,
+    dst: &Path,
+    patches: Vec<(&str, usize, Patch)>,
+    added: Vec<Added>,
+) -> Result<()> {
     let file = ErpFile::open(src)?;
     let mut owned: HashMap<String, Resource> = HashMap::new();
-    for (name, f) in patches {
+    for (name, index, f) in patches {
         let mut res = match owned.remove(name) {
             Some(r) => r,
             None => file.load(file.erp.find(name)?)?,
         };
-        let data = f(&res.fragments[0].data()?)?;
-        res.set_fragment(0, &data)?;
+        let frag = res
+            .fragments
+            .get(index)
+            .ok_or_else(|| err(format!("{name} has no fragment {index}")))?;
+        let data = f(&frag.data()?)?;
+        res.set_fragment(index, &data)?;
         owned.insert(name.to_owned(), res);
     }
-    let entries = file
+    let mut extra = Vec::new();
+    for (name, kind, data) in added {
+        let want = swofty_formats::erp::kind(kind)?;
+        let like = file
+            .erp
+            .resources
+            .iter()
+            .find(|r| r.kind == want && r.fragments.len() == data.len())
+            .ok_or_else(|| {
+                err(format!(
+                    "{}: no {kind} resource to take {name}'s layout from",
+                    src.display()
+                ))
+            })?;
+        let res = Resource::like(&name, like, &data)?;
+        match file.erp.resources.iter().any(|r| r.name == name) {
+            true => {
+                owned.insert(name, res);
+            }
+            false => extra.push(Entry::Owned(res)),
+        }
+    }
+    let mut entries: Vec<Entry> = file
         .erp
         .resources
         .iter()
@@ -85,6 +127,7 @@ fn write_erp(src: &Path, dst: &Path, patches: Vec<(&str, Patch)>) -> Result<()> 
             None => Entry::Copy(r),
         })
         .collect();
+    entries.extend(extra);
     let dir = dst.parent().expect("has parent");
     std::fs::create_dir_all(dir).map_err(io_err(dir))?;
     file.write(entries, dst)?;
@@ -237,10 +280,14 @@ pub fn build(
     )?;
 
     let mut build = MenuBuild::default();
+    let eras = era_rows(input, out, &mut build.lines)?;
     if lang {
         build.strings = popup.strings();
     }
-    for rel in ERPS {
+    for rel in ERPS
+        .iter()
+        .filter(|r| !era::ARCHIVES.contains(r) || eras.contains(r))
+    {
         build.erps.insert(ui_file(rel), out.join(ui_file(rel)));
     }
     for (name, data) in &built.order {
@@ -259,4 +306,60 @@ pub fn build(
         });
     }
     Ok(build)
+}
+
+fn era_rows(
+    input: &dyn Fn(&str) -> PathBuf,
+    out: &Path,
+    lines: &mut Vec<String>,
+) -> Result<Vec<&'static str>> {
+    let world = input(&ui_file(era::ARCHIVES[0]));
+    let title = read_frag(&world, era::TITLE_SCENE, 0)?;
+    let mask = read_frag(&world, era::MASK_SCENE, 0)?;
+    let image = format!("{}.image", era::FADE_SOURCE);
+    let fade = era::fade(
+        &read_frag(&world, era::FADE_SOURCE, 0)?,
+        &read_frag(&world, &image, 0)?,
+        era::FADE,
+    )?;
+    let mut written = Vec::new();
+    for rel in era::ARCHIVES {
+        let (src, dst) = (input(&ui_file(rel)), out.join(ui_file(rel)));
+        let ui = read_frag(&src, era::UI, era::UI_FRAGMENT)?;
+        if era::taken(&ui, &read_frag(&src, era::SCENE, 0)?)? {
+            lines.push(format!(
+                "ui: the era picker in {rel} already has an Addons row from another addon; left as it is"
+            ));
+            continue;
+        }
+        let (title, mask) = (&title, &mask);
+        write_archive(
+            &src,
+            &dst,
+            vec![
+                (era::UI, era::UI_FRAGMENT, Box::new(era::build_ui)),
+                (
+                    era::SCENE,
+                    0,
+                    Box::new(move |d| era::build_scene(d, title, mask, era::FADE)),
+                ),
+            ],
+            vec![
+                (era::FADE.to_owned(), era::SRV_KIND, vec![fade[0].clone()]),
+                (
+                    format!("{}.image", era::FADE),
+                    era::SURFACE_KIND,
+                    vec![fade[1].clone(), fade[2].clone()],
+                ),
+            ],
+        )?;
+        written.push(rel);
+    }
+    if !written.is_empty() {
+        lines.push(format!(
+            "ui: the Grand Prix and Time Trial era picker gets Built In and Addons rows in {} archive(s)",
+            written.len()
+        ));
+    }
+    Ok(written)
 }

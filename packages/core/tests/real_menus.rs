@@ -78,6 +78,9 @@ fn menus_match_the_prototype_byte_for_byte() {
     let built = swofty_core::ui::build(&session(), &|rel| game.join(rel), &out, true).unwrap();
     let mut bad = Vec::new();
     for (rel, path) in &built.erps {
+        if swofty_core::ui::era::ARCHIVES.iter().any(|a| rel.ends_with(a)) {
+            continue;
+        }
         let theirs = oracle.join(rel);
         if std::fs::read(path).unwrap() != std::fs::read(&theirs).unwrap() {
             let skip: &[&str] = if rel.ends_with("/flow_persistent.erp") {
@@ -298,5 +301,432 @@ fn stock_dialogs_keep_their_text() {
     let keys: Vec<&str> = built.strings.iter().map(|(k, _)| k.as_str()).collect();
     assert_eq!(keys, [POPUP_TITLE, POPUP_BODY]);
     assert!(built.strings.iter().all(|(_, v)| !v.is_empty()));
+    std::fs::remove_dir_all(&out).ok();
+}
+
+fn stock(game: &Path, rel: &str) -> PathBuf {
+    let path = game.join(rel);
+    let Some(base) = std::env::var_os("SWOFTY_BASELINE").map(PathBuf::from) else {
+        return path;
+    };
+    let listed: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(base.join("baseline.json")).unwrap()).unwrap();
+    match listed["files"][rel]["sha256"].as_str() {
+        Some(sha) if swofty_core::baseline::sha256_file(&path).unwrap() != sha => {
+            base.parent().unwrap().join("objects").join(&sha[..2]).join(sha)
+        }
+        _ => path,
+    }
+}
+
+fn fragment(path: &Path, name: &str, index: usize) -> Vec<u8> {
+    let res = Erp::read_matching(path, |n| n == name).unwrap();
+    res[0].fragments[index].data().unwrap()
+}
+
+#[test]
+fn era_picker_matches_the_prototype_byte_for_byte() {
+    use swofty_core::ui::era;
+    use swofty_core::ui::node::{NodeExt, ObjExt, set_str};
+    use swofty_formats::pkg::Pkg;
+
+    let (Some(game), Some(oracle)) = (
+        std::env::var_os("F1_25_DIR").map(PathBuf::from),
+        std::env::var_os("SWOFTY_ERA_ORACLE").map(PathBuf::from),
+    ) else {
+        eprintln!("F1_25_DIR and SWOFTY_ERA_ORACLE are not both set; skipping");
+        return;
+    };
+    let fade = "eaid://ui_package/art/textures/classic_seasons/era_rows/row_fade.tif";
+    let erp = stock(&game, &format!("{}/{}", swofty_core::ui::UI, era::ARCHIVES[0]));
+    let read = |name: &str| fragment(&erp, name, 0);
+
+    let ours = era::build_ui(&fragment(&erp, era::UI, era::UI_FRAGMENT)).unwrap();
+    let mut theirs =
+        Pkg::parse(&std::fs::read(oracle.join("f1_world_activity_container.syst")).unwrap()).unwrap();
+    let spawner = theirs
+        .root
+        .o_mut()
+        .unwrap()
+        .at_mut("Templates")
+        .unwrap()
+        .a_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|t| t.is_node() && t.name() == "dynamic_era_select")
+        .unwrap()
+        .find_mut("addon_tiles.tile_spawner")
+        .unwrap();
+    let data = spawner
+        .props_mut()
+        .unwrap()
+        .at_mut("dataContext")
+        .unwrap()
+        .o_mut()
+        .unwrap();
+    set_str(data, "dbentry", era::ADDON_TILES).unwrap();
+    let theirs = theirs.to_bytes().unwrap();
+    assert!(
+        ours == theirs,
+        "the era picker UI: {}",
+        first_difference(&ours, &theirs)
+    );
+
+    let ours = era::build_scene(
+        &read(era::SCENE),
+        &read(era::TITLE_SCENE),
+        &read(era::MASK_SCENE),
+        fade,
+    )
+    .unwrap();
+    let theirs = std::fs::read(oracle.join("vehicle_type.idf")).unwrap();
+    assert!(
+        ours == theirs,
+        "the era picker scene: {}",
+        first_difference(&ours, &theirs)
+    );
+
+    let ours = era::fade(
+        &read(era::FADE_SOURCE),
+        &read(&format!("{}.image", era::FADE_SOURCE)),
+        fade,
+    )
+    .unwrap();
+    for (data, file) in ours.iter().zip([
+        "row_fade.tif.f0",
+        "row_fade.tif.image.f0",
+        "row_fade.tif.image.f1",
+    ]) {
+        assert_eq!(data, &std::fs::read(oracle.join(file)).unwrap(), "{file}");
+    }
+}
+
+fn signals(e: &swofty_formats::pkg::Obj) -> Vec<(String, String)> {
+    use swofty_core::ui::node::{NodeExt, ObjExt};
+    e.at("signals")
+        .unwrap()
+        .a()
+        .unwrap()
+        .iter()
+        .map(|s| {
+            let s = s.o().unwrap();
+            (
+                s.str_at("to_object_name").unwrap().to_owned(),
+                s.str_at("to_pin_name").unwrap().to_owned(),
+            )
+        })
+        .collect()
+}
+
+fn event<'a>(
+    n: &'a swofty_formats::pkg::Node,
+    slot: usize,
+    key: &str,
+    name: &str,
+) -> &'a swofty_formats::pkg::Obj {
+    use swofty_core::ui::node::{NodeExt, ObjExt};
+    n.slot(slot)
+        .unwrap()
+        .iter()
+        .filter_map(|e| e.as_obj())
+        .find(|e| e.str_at(key).ok() == Some(name))
+        .unwrap_or_else(|| panic!("{}: no {name}", n.name()))
+}
+
+#[test]
+fn the_core_build_adds_the_era_rows() {
+    use swofty_core::ui::era;
+    use swofty_core::ui::node::{CHILDREN, COMMANDS, EVENTS, LAYOUT, NodeExt, ObjExt};
+    use swofty_formats::pkg::Pkg;
+
+    let Some(game) = std::env::var_os("F1_25_DIR").map(PathBuf::from) else {
+        eprintln!("F1_25_DIR is not set; skipping");
+        return;
+    };
+    let out = std::env::temp_dir().join(format!("swofty-menus-era-{}", std::process::id()));
+    std::fs::remove_dir_all(&out).ok();
+    let built = swofty_core::ui::build(&session(), &|rel| stock(&game, rel), &out, true).unwrap();
+    assert!(
+        built
+            .lines
+            .iter()
+            .any(|l| l.contains("era picker gets Built In and Addons rows in 2 archive(s)")),
+        "{:?}",
+        built.lines
+    );
+    let world = stock(&game, &format!("{}/{}", swofty_core::ui::UI, era::ARCHIVES[0]));
+    let read = |name: &str| fragment(&world, name, 0);
+    let fade = era::fade(
+        &read(era::FADE_SOURCE),
+        &read(&format!("{}.image", era::FADE_SOURCE)),
+        era::FADE,
+    )
+    .unwrap();
+    for rel in era::ARCHIVES {
+        let rel = format!("{}/{rel}", swofty_core::ui::UI);
+        let (ours, stock) = (&built.erps[&rel], stock(&game, &rel));
+        let ui = fragment(ours, era::UI, era::UI_FRAGMENT);
+        assert_eq!(
+            ui,
+            era::build_ui(&fragment(&stock, era::UI, era::UI_FRAGMENT)).unwrap()
+        );
+        assert_eq!(fragment(ours, era::UI, 0), fragment(&stock, era::UI, 0));
+        let scene = era::build_scene(
+            &fragment(&stock, era::SCENE, 0),
+            &read(era::TITLE_SCENE),
+            &read(era::MASK_SCENE),
+            era::FADE,
+        )
+        .unwrap();
+        assert_eq!(fragment(ours, era::SCENE, 0), scene);
+        let problems = swofty_core::ui::idf::id_problems(&Pkg::parse(&scene).unwrap()).unwrap();
+        assert!(problems.is_empty(), "{problems:?}");
+        assert!(era::taken(&ui_of(ours), &scene).unwrap());
+        let (a, b) = (
+            Erp::parse(&std::fs::read(ours).unwrap()).unwrap(),
+            Erp::parse(&std::fs::read(&stock).unwrap()).unwrap(),
+        );
+        assert_eq!(a.resources.len(), b.resources.len() + 2, "{rel}");
+        for (x, y) in a.resources.iter().zip(&b.resources) {
+            assert_eq!(x.name, y.name);
+            if x.name != era::UI && x.name != era::SCENE {
+                assert_eq!(
+                    x.content_hash().unwrap(),
+                    y.content_hash().unwrap(),
+                    "{rel}: {}",
+                    x.name
+                );
+            }
+        }
+        let added: Vec<(&str, String)> = a.resources[b.resources.len()..]
+            .iter()
+            .map(|r| (r.name.as_str(), r.kind()))
+            .collect();
+        let image = format!("{}.image", era::FADE);
+        assert_eq!(
+            added,
+            [
+                (era::FADE, era::SRV_KIND.to_owned()),
+                (image.as_str(), era::SURFACE_KIND.to_owned())
+            ]
+        );
+        assert_eq!(fragment(ours, era::FADE, 0), fade[0]);
+        assert_eq!(fragment(ours, &image, 0), fade[1]);
+        assert_eq!(fragment(ours, &image, 1), fade[2]);
+
+        let (nodes, sigs, bad) = swofty_core::ui::check::integrity(&ui).unwrap();
+        assert!(bad.is_empty() && nodes > 0 && sigs > 0, "{bad:?}");
+        let p = Pkg::parse(&ui).unwrap();
+        let tpl = p
+            .root
+            .o()
+            .unwrap()
+            .at("Templates")
+            .unwrap()
+            .a()
+            .unwrap()
+            .iter()
+            .find(|t| t.is_node() && t.name() == "dynamic_era_select")
+            .unwrap();
+        assert!(tpl.props().unwrap().get("visualNav").is_none());
+        let kids: Vec<&str> = tpl
+            .slot(CHILDREN)
+            .unwrap()
+            .iter()
+            .filter(|k| k.is_node())
+            .map(|k| k.name())
+            .collect();
+        assert_eq!(kids, ["tiles", era::ADDON_TILES, "label_builtin", "label_addons"]);
+        let layout = |n: &swofty_formats::pkg::Node| -> Vec<String> {
+            n.slot(LAYOUT).unwrap()[0]
+                .a()
+                .unwrap()
+                .iter()
+                .map(|b| b.o().unwrap().str_at("debugName").unwrap().to_owned())
+                .collect()
+        };
+        let (top, bottom) = (tpl.child("tiles").unwrap(), tpl.child(era::ADDON_TILES).unwrap());
+        assert_eq!(layout(top), ["row_mask_builtin", "play_categories_row"]);
+        assert_eq!(layout(bottom), ["row_mask_addons", "addon_categories_row"]);
+        for (row, other) in [(top, era::ADDON_TILES), (bottom, "tiles")] {
+            let sp = row.child("tile_spawner").unwrap().props().unwrap();
+            assert!(sp.get("consumeStrategy").is_none());
+            assert!(sp.get("InputOnActPrt").is_some());
+            assert_eq!(
+                signals(event(row, EVENTS, "eventName", "focused")),
+                [(format!("dynamic_era_select.{other}"), "unfocus".to_owned())]
+            );
+        }
+        let entry = |n: &swofty_formats::pkg::Node, key: &str| {
+            n.props()
+                .unwrap()
+                .at(key)
+                .unwrap()
+                .o()
+                .unwrap()
+                .str_at("dbentry")
+                .unwrap()
+                .to_owned()
+        };
+        let (ts, bs) = (
+            top.child("tile_spawner").unwrap(),
+            bottom.child("tile_spawner").unwrap(),
+        );
+        assert_eq!(
+            (entry(ts, "dataContext"), entry(ts, "selection")),
+            ("tiles".into(), "selected_tile".into())
+        );
+        assert_eq!(
+            (entry(bs, "dataContext"), entry(bs, "selection")),
+            (era::ADDON_TILES.to_owned(), era::ADDON_SELECTION.to_owned())
+        );
+        let press = event(bs, EVENTS, "eventName", "select_pressed")
+            .at("signals")
+            .unwrap()
+            .a()
+            .unwrap()[0]
+            .o()
+            .unwrap()
+            .at("attributes")
+            .unwrap()
+            .o()
+            .unwrap()
+            .at("command")
+            .unwrap()
+            .o()
+            .unwrap()
+            .at("name")
+            .unwrap()
+            .o()
+            .unwrap()
+            .str_at("value")
+            .unwrap()
+            .to_owned();
+        assert_eq!(press, era::ADDON_PRESSED);
+        let top_spawner = "dynamic_era_select.tiles.tile_spawner".to_owned();
+        assert!(
+            signals(event(bs, EVENTS, "eventName", "spawned"))
+                .contains(&(top_spawner.clone(), "focus".into()))
+        );
+        assert!(
+            !signals(event(bs, EVENTS, "eventName", "spawned"))
+                .iter()
+                .any(|(_, p)| p == "focus_and_reset")
+        );
+        assert!(
+            signals(event(ts, EVENTS, "eventName", "spawned"))
+                .iter()
+                .any(|(_, p)| p == "focus_and_reset")
+        );
+        assert_eq!(
+            signals(event(bs, EVENTS, "eventName", "navigate_up_failed")),
+            [(top_spawner, "focus".into())]
+        );
+        assert_eq!(
+            signals(event(ts, EVENTS, "eventName", "navigate_down_failed")),
+            [(
+                "dynamic_era_select.addon_tiles.tile_spawner".into(),
+                "focus".into()
+            )]
+        );
+        for (cmd, pin) in [("onShowCompleted", "trigger"), ("onTabDeselectBegin", "detach")] {
+            assert!(
+                signals(event(tpl, COMMANDS, "commandName", cmd))
+                    .contains(&("dynamic_era_select.addon_tiles".into(), pin.into()))
+            );
+        }
+        for (label, text) in [("label_builtin", "Built In"), ("label_addons", "Addons")] {
+            let t = tpl
+                .child(label)
+                .unwrap()
+                .child("label_title")
+                .unwrap()
+                .props()
+                .unwrap();
+            assert_eq!(t.at("text").unwrap().o().unwrap().str_at("value").unwrap(), text);
+        }
+    }
+    let again = out.join("again");
+    let input = |rel: &str| match era::ARCHIVES.iter().any(|a| rel.ends_with(a)) {
+        true => built.erps[rel].clone(),
+        false => stock(&game, rel),
+    };
+    let twice = swofty_core::ui::build(&session(), &input, &again, true).unwrap();
+    for rel in era::ARCHIVES {
+        assert!(
+            !twice.erps.contains_key(&format!("{}/{rel}", swofty_core::ui::UI)),
+            "{rel}"
+        );
+        assert!(
+            twice
+                .lines
+                .iter()
+                .any(|l| l.contains(rel) && l.contains("already has an Addons row"))
+        );
+    }
+    std::fs::remove_dir_all(&out).ok();
+}
+
+fn ui_of(path: &Path) -> Vec<u8> {
+    fragment(path, swofty_core::ui::era::UI, swofty_core::ui::era::UI_FRAGMENT)
+}
+
+#[test]
+fn the_era_rows_keep_what_an_addon_put_in_the_same_archive() {
+    use swofty_core::build::{Built, build_menus};
+    use swofty_core::ui::era;
+    use swofty_formats::erp::{Entry, ErpFile, Resource};
+
+    let Some(game) = std::env::var_os("F1_25_DIR").map(PathBuf::from) else {
+        eprintln!("F1_25_DIR is not set; skipping");
+        return;
+    };
+    let out = std::env::temp_dir().join(format!("swofty-menus-era-addon-{}", std::process::id()));
+    std::fs::remove_dir_all(&out).ok();
+    let overlay = out.join("overlay");
+    let rel = format!("{}/{}", swofty_core::ui::UI, era::ARCHIVES[0]);
+    let slice = "eaid://ui_package/art/textures/test_addon/slice.tif";
+    let addon = overlay.join(&rel);
+    std::fs::create_dir_all(addon.parent().unwrap()).unwrap();
+    let file = ErpFile::open(&stock(&game, &rel)).unwrap();
+    let res = Resource::like(
+        slice,
+        file.erp.find(era::FADE_SOURCE).unwrap(),
+        &[b"slice\0".to_vec()],
+    )
+    .unwrap();
+    let mut entries: Vec<Entry> = file.erp.resources.iter().map(Entry::Copy).collect();
+    entries.push(Entry::Owned(res));
+    file.write(entries, &addon).unwrap();
+
+    let mut built = Built {
+        overlay: overlay.clone(),
+        ..Built::default()
+    };
+    built.plan.data.insert(rel.clone(), addon.clone());
+    let mut session = session();
+    build_menus(&mut built, &mut session, &|r| stock(&game, r), true).unwrap();
+    assert_eq!(built.plan.data[&rel], addon);
+    let names: Vec<String> = Erp::parse(&std::fs::read(&addon).unwrap())
+        .unwrap()
+        .resources
+        .into_iter()
+        .map(|r| r.name)
+        .collect();
+    let at = |n: &str| {
+        names
+            .iter()
+            .position(|x| x == n)
+            .unwrap_or_else(|| panic!("{n} is missing"))
+    };
+    assert!(at(slice) < at(era::FADE));
+    assert_eq!(fragment(&addon, slice, 0), b"slice\0");
+    assert!(era::has_rows(&ui_of(&addon)).unwrap());
+    assert!(
+        built
+            .lines
+            .iter()
+            .any(|l| l.contains("era picker gets Built In and Addons rows"))
+    );
     std::fs::remove_dir_all(&out).ok();
 }

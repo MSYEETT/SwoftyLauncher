@@ -1464,6 +1464,7 @@ pub fn build_menus(
             menus.strings.len()
         ));
     }
+    built.lines.extend(menus.lines);
     built.plan.data.extend(menus.erps);
     for (rel, src) in menus.screens {
         if built.plan.loader.insert(rel.clone(), src).is_some() {
