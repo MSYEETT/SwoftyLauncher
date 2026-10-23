@@ -696,6 +696,82 @@ impl Module {
                 .collect(),
         }
     }
+
+    /// Whether `field` takes one value the page can set on many rows at once: not
+    /// read-only, not the row's label or a `lng_*` key, and not a list, curve or vector.
+    pub fn sets_all(&self, field: usize, tag: u8) -> bool {
+        let Some(f) = self.fields.get(field) else {
+            return false;
+        };
+        let many = match f.kind {
+            Some(k) => matches!(k, Kind::List | Kind::RefList | Kind::Curve | Kind::Vector),
+            None => matches!(tag, 9 | 13 | 14),
+        };
+        !f.readonly && !f.lng && f.path != self.label && !many
+    }
+
+    /// `value` held inside `field`'s range. Values that aren't numbers stay as they are.
+    pub fn clamp(&self, field: usize, value: &str) -> String {
+        let Some(f) = self.fields.get(field) else {
+            return value.to_owned();
+        };
+        let Ok(n) = value.trim().parse::<f64>() else {
+            return value.to_owned();
+        };
+        let held = match (f.min, f.max) {
+            (Some(min), _) if n < min => min,
+            (_, Some(max)) if n > max => max,
+            _ => return value.to_owned(),
+        };
+        format!("{held}")
+    }
+
+    /// The keys `field` reads in `rows` of `view`, each once, skipping rows without one.
+    pub fn keys_of(&self, view: &ModuleView, rows: &[usize], field: usize) -> Vec<u64> {
+        let mut keys: Vec<u64> = Vec::new();
+        for k in rows
+            .iter()
+            .filter_map(|&r| view.rows.get(r)?.cells.get(field)?.key)
+        {
+            if !keys.contains(&k) {
+                keys.push(k);
+            }
+        }
+        keys
+    }
+
+    /// Sets `field` to `value`, held inside its range, in `rows` of `view` as one change:
+    /// every value or, on an error, none. Returns how many values changed.
+    pub fn set_all(
+        &self,
+        catalog: &Catalog,
+        edits: &mut Edits,
+        view: &ModuleView,
+        rows: &[usize],
+        field: usize,
+        value: &str,
+    ) -> std::result::Result<usize, String> {
+        let Some(f) = self.fields.get(field) else {
+            return Err(format!("{}: no field {field}", self.title));
+        };
+        let value = self.clamp(field, value);
+        let keys = self.keys_of(view, rows, field);
+        let mut next = edits.clone();
+        let mut changed = 0;
+        for k in keys {
+            let tag = catalog.record_by_key(k).map_or(2, |r| r.tag);
+            if !self.sets_all(field, tag) {
+                return Err(format!("{} can't be set on every row", f.label));
+            }
+            if next.value(catalog, k) == Some(value.as_str()) {
+                continue;
+            }
+            next.set(catalog, k, &value)?;
+            changed += 1;
+        }
+        *edits = next;
+        Ok(changed)
+    }
 }
 
 const TRACK_ROWS: &str = "tracks.Track";
@@ -805,6 +881,78 @@ mod tests {
         let calendar = module("calendar").unwrap();
         let event = calendar.fields.iter().position(|f| f.id == "event_name").unwrap();
         assert!(calendar.choices_with(&cat, event, None, &added).is_empty());
+    }
+
+    #[test]
+    fn sets_one_value_on_every_listed_row_held_in_range() {
+        use swofty_formats::gvdb::{Gvdb, Record};
+        let mut records = vec![Record::new("entrants.drivers._driver_instancecount_", 0, "4")];
+        for (i, (label, mistakes)) in [("a", "0.5"), ("b", "0.2"), ("c", "1"), ("d", "0.4")]
+            .into_iter()
+            .enumerate()
+        {
+            let row = format!("entrants.drivers.driver_{i}");
+            records.push(Record::new(&format!("{row}._metadata_"), 2, label));
+            records.push(Record::new(&format!("{row}.full_name"), 2, "lng_x"));
+            records.push(Record::new(&format!("{row}.car_number"), 0, "7"));
+            if label != "d" {
+                records.push(Record::new(
+                    &format!("{row}.driver_characteristics.mistakes"),
+                    1,
+                    mistakes,
+                ));
+            }
+        }
+        let cat = Catalog::load(&Gvdb { records }.to_bytes()).unwrap();
+        let drivers = module("drivers").unwrap();
+        let at = |id: &str| drivers.fields.iter().position(|f| f.id == id).unwrap();
+        let (mistakes, number, name) = (at("trait_mistakes"), at("car_number"), at("full_name"));
+        let view = drivers.view(&cat, &Edits::default(), None).unwrap();
+        let key = |row: usize| view.rows[row].cells[mistakes].key.unwrap();
+
+        assert!(drivers.sets_all(mistakes, 1) && drivers.sets_all(number, 0));
+        assert!(!drivers.sets_all(name, 2), "a lng_* key");
+        assert_eq!(drivers.clamp(mistakes, "1.5"), "1");
+        assert_eq!(drivers.clamp(mistakes, "-2"), "0");
+        assert_eq!(drivers.clamp(mistakes, "0.75"), "0.75");
+        assert_eq!(drivers.clamp(mistakes, "high"), "high");
+        assert_eq!(
+            drivers.keys_of(&view, &[0, 2, 3], mistakes).len(),
+            2,
+            "d has no value"
+        );
+
+        let mut edits = Edits::default();
+        let n = drivers
+            .set_all(&cat, &mut edits, &view, &[0, 2, 3], mistakes, "9")
+            .unwrap();
+        assert_eq!(n, 1, "c already holds the max");
+        assert_eq!(edits.value(&cat, key(0)), Some("1"));
+        assert_eq!(edits.value(&cat, key(1)), Some("0.2"), "b is not listed");
+        assert_eq!(edits.len(), 1);
+
+        let n = drivers
+            .set_all(&cat, &mut edits, &view, &[0, 1, 2], mistakes, "0.3")
+            .unwrap();
+        assert_eq!(n, 3);
+        assert!(
+            [0, 1, 2]
+                .iter()
+                .all(|&r| edits.value(&cat, key(r)) == Some("0.3"))
+        );
+
+        let before = edits.clone();
+        assert!(
+            drivers
+                .set_all(&cat, &mut edits, &view, &[0, 1], number, "seven")
+                .is_err()
+        );
+        assert_eq!(edits, before, "a failed change leaves every value as it was");
+        assert!(
+            drivers
+                .set_all(&cat, &mut edits, &view, &[0, 1], name, "lng_y")
+                .is_err()
+        );
     }
 
     #[test]

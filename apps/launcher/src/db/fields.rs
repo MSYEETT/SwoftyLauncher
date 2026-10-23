@@ -4,6 +4,7 @@ use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::color_picker::{ColorPicker, ColorPickerEvent, ColorPickerState};
 use gpui_kit::component::input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent};
+use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::select::{SearchableVec, Select, SelectEvent, SelectItem, SelectState};
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
@@ -107,6 +108,8 @@ pub(crate) struct FieldModel {
     pub others: Option<String>,
     /// For a field read from another table's row picked by this row's label: the row spec and where the row comes from.
     pub row: Option<(usize, Backing)>,
+    /// The page field's index, when one value can be set on every listed row.
+    pub all: Option<usize>,
 }
 
 struct Curve {
@@ -281,6 +284,7 @@ impl Shell {
                     shared: f.path.contains('[') || f.path.contains('{'),
                     others: c.key.and_then(|k| self.db_others(k)),
                     row,
+                    all: (c.key.is_some() && module.sets_all(i, c.tag)).then_some(i),
                 }
             })
             .collect()
@@ -322,6 +326,7 @@ impl Shell {
             shared: false,
             others: self.db_others(key),
             row: None,
+            all: None,
         })
     }
 
@@ -860,6 +865,53 @@ impl Shell {
         }
     }
 
+    fn db_set_all_menu(&self, f: &FieldModel, locked: bool, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let field = f.all.filter(|_| !locked)?;
+        let n = self.db_listed(field);
+        if n < 2 {
+            return None;
+        }
+        let mut picks: Vec<(String, String, String)> = Vec::new();
+        if !f.value.is_empty() {
+            let shown = shown_value(f, &f.value);
+            picks.push((format!("Set all {n} to {shown}"), f.value.clone(), shown));
+        }
+        for (end, limit) in [("max", f.max), ("min", f.min)] {
+            if let Some(v) = limit {
+                picks.push((
+                    format!("Set all {n} to the {end}, {v}"),
+                    format!("{v}"),
+                    format!("{v}"),
+                ));
+            }
+        }
+        if picks.is_empty() {
+            return None;
+        }
+        let shell = cx.entity().downgrade();
+        Some(
+            Button::new(SharedString::from(format!("all-{}", f.id)))
+                .ghost()
+                .xsmall()
+                .icon(IconName::ListChecks)
+                .label("All rows")
+                .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
+                    for (text, value, shown) in &picks {
+                        let (shell, value, shown) = (shell.clone(), value.clone(), shown.clone());
+                        menu = menu.item(PopupMenuItem::new(text.clone()).on_click(move |_, window, cx| {
+                            shell
+                                .update(cx, |s, cx| {
+                                    s.db_confirm_set_all(field, value.clone(), shown.clone(), window, cx)
+                                })
+                                .ok();
+                        }));
+                    }
+                    menu
+                })
+                .into_any_element(),
+        )
+    }
+
     pub(crate) fn db_field(&self, f: &FieldModel, p: Palette, cx: &mut Context<Self>) -> AnyElement {
         let Some(key) = f.key else {
             return v_flex()
@@ -891,6 +943,7 @@ impl Shell {
                 .disabled(self.db_locked())
                 .on_click(cx.listener(move |this, _, _, cx| this.db_revert(key, cx)))
         });
+        let all = self.db_set_all_menu(f, locked, cx);
         let control = self.db_control(f, key, locked, p, cx);
         let stock = f.stock.as_ref().filter(|_| f.edited).map(|s| shown_value(f, s));
         v_flex()
@@ -919,6 +972,7 @@ impl Shell {
                         )
                     })
                     .child(div().flex_1())
+                    .children(all)
                     .children(revert),
             )
             .child(control)

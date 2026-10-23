@@ -23,6 +23,7 @@ use swofty_core::dbedit::{
 use swofty_core::store::Store;
 use swofty_core::view::{Block, Body};
 
+use crate::library::plural;
 use crate::shell::{Page, Shell};
 
 pub(crate) use fields::Slots;
@@ -1492,6 +1493,98 @@ impl Shell {
         if self.db_set(ka, &vb, cx) && self.db_set(kb, &va, cx) {
             self.db.row = Some(reveal.label.clone());
             self.db.reveal = Some(reveal);
+        }
+    }
+
+    /// How many values `field` of the open page reads in the rows the page lists.
+    pub(crate) fn db_listed(&self, field: usize) -> usize {
+        let Some(slot) = self.db.view.as_ref() else {
+            return 0;
+        };
+        self.db
+            .module(&slot.module)
+            .map_or(0, |m| m.keys_of(&slot.view, &slot.shown, field).len())
+    }
+
+    pub(crate) fn db_confirm_set_all(
+        &mut self,
+        field: usize,
+        value: String,
+        shown: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(slot) = self.db.view.as_ref() else {
+            return;
+        };
+        let Some(f) = self.db.module(&slot.module).and_then(|m| m.fields.get(field)) else {
+            return;
+        };
+        let n = self.db_listed(field);
+        let title = format!("Set {} to {shown} on {}?", f.label, plural(n, "row", "rows"));
+        let rows = if slot.shown.len() < slot.view.rows.len() {
+            "Every row the search lists"
+        } else {
+            "Every row of this page"
+        };
+        let description = format!(
+            "{rows} gets this value, held inside the field's range. It saves to the addon like any other change."
+        );
+        let shell = cx.entity().downgrade();
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let (shell, value) = (shell.clone(), value.clone());
+            alert
+                .title(title.clone())
+                .description(description.clone())
+                .ok_text("Set all")
+                .show_cancel(true)
+                .on_ok(move |_, _, cx| {
+                    shell.update(cx, |s, cx| s.db_set_all(field, &value, cx)).ok();
+                    true
+                })
+        });
+    }
+
+    /// Sets `field` of the open page to `value` in every listed row, as one change.
+    pub(crate) fn db_set_all(&mut self, field: usize, value: &str, cx: &mut Context<Self>) {
+        let Some(catalog) = self.db.catalog().cloned() else {
+            return;
+        };
+        if !self.db_ready_to_edit(cx) {
+            return;
+        }
+        let Some(slot) = self.db.view.as_ref() else {
+            return;
+        };
+        let Some(module) = self.db.module(&slot.module) else {
+            return;
+        };
+        let (view, rows) = (slot.view.clone(), slot.shown.clone());
+        let label = module
+            .fields
+            .get(field)
+            .map(|f| f.label.clone())
+            .unwrap_or_default();
+        let edits = &mut self.db.draft.edits;
+        match guarded(|| module.set_all(&catalog, edits, &view, &rows, field, value)) {
+            Ok(0) => {
+                self.db.toasts.push(Notification::info(format!(
+                    "Every listed row already has that {label}"
+                )));
+                cx.notify();
+            }
+            Ok(n) => {
+                self.db.slots = Slots::default();
+                self.db.toasts.push(Notification::success(format!(
+                    "{label}: changed {}",
+                    plural(n, "row", "rows")
+                )));
+                self.db_changed(None, true, cx);
+            }
+            Err(e) => {
+                self.db.toasts.push(Notification::error(e));
+                cx.notify();
+            }
         }
     }
 
