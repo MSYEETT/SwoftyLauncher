@@ -35,3 +35,5 @@ Every menu screen in F1 25 has a layout, its [scene](./idf), stored as an `.idf`
 | [Editing menus with an addon](./editing-menus) | One scene from Swofty UI to the game, step by step |
 | [Techniques](./techniques) | Tracing what draws an element, counts fixed in native code, patching native builders safely |
 | [Debugging live](./debugging) | Attaching gdb to the running game under Proton or Wine |
+| [UI node reference](./nodes) | Every stock node type and scene element type: properties, commands, events, pins, wiring and layout bindings |
+| [UI patterns](./patterns) | Tab containers, multi-row lists, row navigation, input blocking, masks, runtime bindings, and the checks every UI edit goes through |

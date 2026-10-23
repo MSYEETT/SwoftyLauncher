@@ -262,6 +262,8 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Editing menus", link: "/reference/ui/editing-menus", icon: "file" },
               { text: "Techniques", link: "/reference/ui/techniques", icon: "file" },
               { text: "Debugging live", link: "/reference/ui/debugging", icon: "file" },
+              { text: "Node reference", link: "/reference/ui/nodes", icon: "file" },
+              { text: "Patterns and checks", link: "/reference/ui/patterns", icon: "file" },
               { text: "UI engine internals", link: "/reference/ui/engine", icon: "file" },
             ],
           },
