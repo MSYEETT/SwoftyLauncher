@@ -22,6 +22,8 @@ List the operation file in `operations.database` in your [manifest](/reference/a
 
 Values are strings. Write arrays as comma-separated values, such as `"0,-0.6,0"`.
 
+Next to `ops`, a file can hold `fields` ([Key names](#key-names)), `strict` ([The completeness check](#the-completeness-check)) and `side_data` ([Acknowledging findings](#acknowledging-findings)).
+
 ## Operations
 
 | Operation | Required fields | Purpose |
@@ -117,7 +119,8 @@ An `unlockable_se_livery` row added to an `unlockable_content.unlockable_items.u
 
 | What the copy lacks | How the game finds it | Known case |
 |---|---|---|
-| Rows of another table labelled with the source's label | Its own label | Teams: `showroom.teams_history.team_history`, `f1_world.fan_zone.fz_choices_stings.FZChoicesStings` (`williams_26`). Vehicles: `animation.team_data.teamData`, `audio.audio_bundle_settings.audio_bundle_settings` (`mercedes_2025`). Game setup modes: `game_setup.branding.game_setup_branding` (`f1`) |
+| Rows of another table labelled with the source's label | Its own label | Teams: `showroom.teams_history.team_history`, `f1_world.fan_zone.fz_choices_stings.FZChoicesStings` (`williams_26`) |
+| Rows of another table that name the source in a field | A field value or list of each row, every row read | Teams: `pit_lane.pit_times.team_pit_times`, by `team`. Game setup modes: `game_setup.branding.game_setup_branding` and `track_data.game_setup.TrackDataSet`, by `game_setup_modes` |
 | Rows labelled with a name built from the source | A folder name, the label plus a suffix, a field value | Vehicle packages: `car_setup.presets.vehicle_package_setups_N`, labelled with the package folder `f1_2025_vehicle_package`, the first folder of `resource_path` |
 | Values elsewhere that name the source | Other rows hold the source's label or `stat_id` | Vehicles: `entrants.entrant_lists.entrant_list_N.entrant_N.vehicle`, `showroom.vehicle_offsets.vehicle_offset_N.vehicle`, `showroom.vehicles_history.vehicle_history_N.vehicle`. Vehicle packages: `entrants.vehicles.vehicle_N.vehicle_package` |
 | Game files named after the source | Paths built from the label or a field | Vehicle packages: the car template's `CarPhysics2.baseVtfAsset` and `Tyres` defaults name `eaid://f1_2025_vehicle_package/...`. Vehicles: per-track AI data at `environment_package/tracks/<track>/ai/<ai_package_folder>/<asset_filename>/` |
@@ -148,23 +151,82 @@ Launchers before 1.3.8 copy only the catalogued `_metadata_`; give the op a `fie
 
 ### The side-data check
 
-After every addon's operations ran, the build checks each `add-row` whose copy has a new label, against the built database:
+After every addon's operations ran, the build checks each `add-row` whose copy has a new label, against the built database. A finding is one of three kinds:
 
-1. It lists the names the game can derive from the source row: the label, the label plus the table's row word (`f1_2025_vehicle_package`), identifier values of the row's fields (`asset_filename`, `ai_package_folder`), and the folders of path values that hold the label or a digit (`resource_path`). It keeps the names the copy changed.
-2. For each such name, it finds rows labelled with it in other tables, and warns for each table that has no row labelled with the copy's name.
-3. It finds values elsewhere that name the source by its label, or by its `stat_id` in an id field named after the source's table (`team_id`), and warns for each field that never names the copy. When rows of other tables share the source's label, it counts only fields named after the source's table or whose catalogue meaning names it.
+| Kind | What it is | In the build |
+|---|---|---|
+| Known lookup | A lookup a reverse-engineered reader makes, listed below | A warning per lookup and addon |
+| To review | A name or value match with no known reader | One warning per addon with the count |
+| Out of area | A match in a table of a game area the copy does not reach by default | Listed only |
 
-It leaves out the table the copy went into, rows under the source and the copy, and the copies SwoftyMod adds. It groups the copies of one source, lists derived names before plain labels, and shows at most 8 table warnings per addon. The warnings do not fail the build, even with `"strict": true`:
+`swofty build --side-data` lists every finding after the warnings, tagged `[known]`, `[review]`, `[ignored]` or with its area, such as `[career]`. The warnings do not fail the build, even with `"strict": true`.
+
+#### Known lookups
+
+| Copy of | The game looks up | Reader | Without it |
+|---|---|---|---|
+| `entrants.vehicles.vehicle_packages.vehicle_package_N` | the `car_setup.presets.vehicle_package_setups` row labelled with folder 1 of `resource_path` | `Car_Load_SetupPreset` (`0x140c04fd0`) | The AI drives setups that ground the car |
+| `game_setup.game_setup_modes.game_setup_mode_N` | the `game_setup.branding.game_setup_branding` rows whose `game_setup_modes` list the mode | `0x142a12f80` | No branding: logos and flags such as `car_setup_available` and `mfd_enabled` |
+| `game_setup.game_setup_modes.game_setup_mode_N` | the `track_data.game_setup.TrackDataSet` rows whose `game_setup_modes` list the mode | `0x142e44b50` | No per-track data set |
+| `entrants.teams.team_N` | the `pit_lane.pit_times.team_pit_times` row whose `team` names the team | `0x1434c8bf0` (pit lane system) | Other pit stop times |
+
+A copy whose name for the lookup is the source's, such as a vehicle package copy that keeps its `resource_path`, finds the source's row and gets no finding.
 
 ```text
-Classic Seasons: car_setup.presets.vehicle_package_setups has a row labelled f1_2025_vehicle_package and none labelled cs_2019_vehicle_package; f1_2025_vehicle_package is folder 1 of resource_path and the label + _vehicle_package of the add-row source entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]. Add a row per copy, such as an add-row into car_setup.presets.vehicle_package_setups from car_setup.presets.vehicle_package_setups[_metadata_=f1_2025_vehicle_package] that sets _metadata_
-My Team: showroom.teams_history.team_history has a row labelled williams_26 and none labelled team12_26; williams_26 is the label of the add-row source entrants.teams.team[_metadata_=williams_26]. Add a row per copy, such as an add-row into showroom.teams_history.team_history from showroom.teams_history.team_history[_metadata_=williams_26] that sets _metadata_
-My Team: 4 value(s) pick the add-row source entrants.vehicles.vehicle[_metadata_=mercedes_2025] by its label and none pick the copy team12_2025: entrants.entrant_lists.entrant_list_N.entrant_N.vehicle (2), showroom.vehicle_offsets.vehicle_offset_N.vehicle (1), showroom.vehicles_history.vehicle_history_N.vehicle (1)
+Classic Seasons: F1 2019: car_setup.presets.vehicle_package_setups has a row labelled f1_2025_vehicle_package and none labelled cs_2019_vehicle_package; f1_2025_vehicle_package is folder 1 of resource_path of the add-row vehicle package entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025], and Car_Load_SetupPreset (0x140c04fd0) reads the package's car setups from that row on session start: without it the AI drives setups that ground the car. Add a row per copy, such as an add-row into car_setup.presets.vehicle_package_setups from car_setup.presets.vehicle_package_setups[_metadata_=f1_2025_vehicle_package] that sets _metadata_
 ```
 
-A table that holds a row for every season, such as `entrants.entrant_lists.entrant_list` for a vehicle package labelled `f1_2025`, also shows up when the source's label is a season name. The check reads names only: a table the game never reads by that name, and game files, are outside it.
+#### Matches to review
 
-`swofty db deps <row>` prints the same data for a stock row before you copy it: the derived names, the rows of other tables labelled with each, and the fields whose values pick the row:
+1. The check lists the names the game can derive from the source row: the label, the label plus the table's row word (`f1_2025_vehicle_package`), identifier values of the row's fields (`asset_filename`, `ai_package_folder`), and the folders of path values that hold the label or a digit (`resource_path`). It keeps the names the copy changed.
+2. For each such name, it finds rows labelled with it in other tables, and reports each table that has no row labelled with one of the copy's names from the same fields. A copy that keeps a field value, such as `ai_package_folder`, still reaches the rows labelled with it, except when the source's label or label plus row word gives the same name.
+3. It finds values elsewhere that name the source by its label, or by its `stat_id` in an id field named after the source's table (`team_id`), and reports each field that never names the copy. When rows of other tables share the source's label, it counts only fields named after the source's table or whose catalogue meaning names it.
+
+It leaves out:
+
+- the table the copy went into, and rows under the source and the copy;
+- tables covered by a known lookup for the copy;
+- a field value that names another row, such as an entrant's `driver`, when the copy's value labels a row of a table where the source's value labels one too: that row's own copy is checked;
+- rows labelled with the label of another `add-row` source of the build in the same table, such as `entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]` for an entrant list copied from `f1_2025`;
+- values inside copies the same addon made that still name the source, such as a package copy's `ai_package_folder`.
+
+It groups the findings per table or field and addon. The copies SwoftyMod adds get no findings.
+
+```text
+Classic Seasons: F1 2019: 23 side-data finding(s) to review, matched by name with no known reader: rows labelled with a source's name in animation.team_data.teamData, audio.audio_bundle_settings.audio_bundle_settings, beta.team_colours.teamColours and 15 more and none for the copy; values naming a source in 16 field(s) and none naming the copy. swofty build --side-data lists them; list reviewed ones in the op file's side_data.ignore
+```
+
+#### Game areas
+
+A match in a table under one of these prefixes is listed only, unless the addon made an `add-row` copy into a table of the same area:
+
+| Area | Table prefixes |
+|---|---|
+| `career` | `accolades`, `bank`, `career`, `challenge_career`, `driver_academies`, `driver_contracts`, `driver_market`, `emails`, `engine_management`, `facilities`, `invitational_events`, `news`, `personal_development`, `pit_crew_training`, `press_interviews`, `recognition`, `resource_points`, `rivals`, `specialist_manager`, `sponsors` |
+| `story mode` | `story_mode`, `driver_statistics.story_mode_driver_statistics` |
+| `F1 World` | `f1_world`, `second_worlds`, `f1cg`, `auction` |
+| `online` | `leaderboards`, `online_systems`, `entitlements`, `paddock_pass`, `options_system.options.multiplayer`, `options_system.context`, `options_system.restrictions` |
+| `front end` | `showroom`, `f1_life`, `videos` |
+| `customisation` | `customisation`, `unlockable_content` |
+| `unnamed` | top-level names the catalogue does not know, written `{<hash>}` |
+
+#### Acknowledging findings
+
+`side_data.ignore` at the top of an op file lists the tables and fields whose findings you reviewed, for the copies the file makes:
+
+```json
+{
+  "schema_version": 1,
+  "side_data": { "ignore": ["bank.*", "engine_management.driver_wear_rates.driver_wear_rate"] },
+  "ops": []
+}
+```
+
+A pattern is a dotted table path (`<container>.<row word>`) or field path, as the findings print them, with or without row numbers and `_N`; `*` matches any run of characters. `accolades.AccoladeDataGroup.driver_data.AccoladeDriver` and `accolades.AccoladeDataGroup_N.driver_data.AccoladeDriver_N` are the same pattern. A pattern covers known lookups too. Acknowledged findings are listed with `[ignored]`. A pattern that matches no finding gives a warning. An unknown key under `side_data`, or a pattern that is not a path, fails the build like other op-file errors.
+
+#### Before you copy
+
+`swofty db deps <row>` prints the same data for a stock row: the derived names, the known lookups with the row each finds, the rows of other tables labelled with each name, and the fields whose values pick the row, each tagged with its area:
 
 ```sh
 swofty db deps "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]"
