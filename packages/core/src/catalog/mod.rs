@@ -2,10 +2,13 @@
 //! Swofty registry, fetched and saved so the last catalog shows offline, and
 //! downloads checked against the size and SHA-256 the registry lists.
 
+pub mod search;
+pub mod stars;
+
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use semver::VersionReq;
 use serde::{Deserialize, Serialize};
@@ -19,10 +22,12 @@ pub const URL_ENV: &str = "SWOFTY_REGISTRY_URL";
 pub const DEFAULT_URL: &str = "https://api.f1.swofty.net";
 pub const CACHE_DIR: &str = "cache/registry";
 pub const CATALOG_FILE: &str = "catalog.json";
+pub const LOG_FILE: &str = "state/registry.log";
 pub const TIMEOUT: Duration = Duration::from_secs(10);
 pub const DOWNLOAD_LIMIT: u64 = 300 * 1024 * 1024;
 const CATALOG_LIMIT: u64 = 16 * 1024 * 1024;
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+const LOG_LIMIT: u64 = 512 * 1024;
 
 static INSTALLING: Mutex<()> = Mutex::new(());
 
@@ -57,6 +62,12 @@ pub struct Addon {
     #[serde(default)]
     pub downloads: u64,
     #[serde(default)]
+    pub downloads_30d: u64,
+    #[serde(default)]
+    pub stars: u64,
+    #[serde(default)]
+    pub trend: Option<Trend>,
+    #[serde(default)]
     pub created_at: String,
     #[serde(default)]
     pub updated_at: String,
@@ -64,6 +75,16 @@ pub struct Addon {
     pub latest: Option<Version>,
     #[serde(default)]
     pub versions: Vec<Version>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct Trend {
+    #[serde(default)]
+    pub days: Vec<String>,
+    #[serde(default)]
+    pub downloads: Vec<u64>,
+    #[serde(default)]
+    pub stars: Vec<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -120,26 +141,53 @@ impl Addon {
             .is_some_and(|v| v.native)
     }
 
+    /// The category it lists, read as the launcher reads a manifest's: unknown
+    /// and retired ones are none.
+    pub fn category(&self) -> Option<Category> {
+        let raw = self.category.as_deref()?.trim();
+        serde_json::from_value(serde_json::Value::String(raw.to_owned())).ok()
+    }
+
     pub fn category_label(&self) -> Option<String> {
         let raw = self.category.as_deref()?.trim();
         if raw.is_empty() {
             return None;
         }
-        let known = serde_json::from_value::<Category>(serde_json::Value::String(raw.to_owned()));
-        Some(match known {
-            Ok(c) => c.label().to_owned(),
-            Err(_) => title_case(raw),
+        Some(match self.category() {
+            Some(c) => c.label().to_owned(),
+            None => title_case(raw),
         })
     }
 
-    pub fn matches(&self, query: &str) -> bool {
-        let query = query.trim().to_lowercase();
-        query.is_empty()
-            || [&self.name, &self.id, &self.author, &self.summary]
-                .into_iter()
-                .chain(self.category.as_ref())
-                .any(|s| s.to_lowercase().contains(&query))
+    /// Its kinds as the Addons page names them, each once.
+    pub fn kind_labels(&self) -> Vec<&'static str> {
+        let mut out: Vec<&'static str> = Vec::new();
+        for k in &self.kind {
+            if let Some(l) = kind_label(k).filter(|l| !out.contains(l)) {
+                out.push(l);
+            }
+        }
+        out
     }
+
+    pub fn author_name(&self) -> &str {
+        match self.author.trim() {
+            "" => self.publishers.first().map_or("", |p| p.name.trim()),
+            author => author,
+        }
+    }
+}
+
+pub fn kind_label(kind: &str) -> Option<&'static str> {
+    Some(match kind {
+        "database" => "Database",
+        "erp" => "Archives",
+        "text" | "ui" => "Text & UI",
+        "simplified" => "Simplified",
+        "files" => "Files",
+        "native" => "Code",
+        _ => return None,
+    })
 }
 
 fn title_case(text: &str) -> String {
@@ -218,6 +266,13 @@ pub fn cache_path(root: &Path) -> PathBuf {
     root.join(CACHE_DIR).join(CATALOG_FILE)
 }
 
+/// When the saved catalog was last fetched.
+pub fn cached_at(root: &Path) -> Option<SystemTime> {
+    std::fs::metadata(cache_path(root))
+        .and_then(|m| m.modified())
+        .ok()
+}
+
 pub fn cached(root: &Path) -> Option<Vec<Addon>> {
     std::fs::read_to_string(cache_path(root))
         .ok()
@@ -238,12 +293,13 @@ impl std::fmt::Display for Trouble {
     }
 }
 
+pub(crate) fn agent_name() -> &'static str {
+    concat!("swofty-launcher/", env!("CARGO_PKG_VERSION"))
+}
+
 fn get(url: &str, timeout: Duration) -> std::result::Result<ureq::Body, Trouble> {
     let response = ureq::get(url)
-        .header(
-            "User-Agent",
-            concat!("swofty-launcher/", env!("CARGO_PKG_VERSION")),
-        )
+        .header("User-Agent", agent_name())
         .config()
         .timeout_global(Some(timeout))
         .timeout_connect(Some(Duration::from_secs(15)))
@@ -277,6 +333,98 @@ pub fn fetch(root: &Path) -> std::result::Result<Vec<Addon>, Trouble> {
     Ok(addons)
 }
 
+/// How far an install has got.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Stage {
+    Downloading(u64),
+    Verifying,
+    Installing,
+}
+
+/// One addon with every version and its 30-day trend.
+pub fn fetch_one(id: &str) -> std::result::Result<Addon, Trouble> {
+    let url = format!("{}/v1/addons/{id}", base_url());
+    let text = get(&url, TIMEOUT)?
+        .with_config()
+        .limit(CATALOG_LIMIT)
+        .read_to_string()
+        .map_err(|e| Trouble::Failed(format!("{url}: {e}")))?;
+    serde_json::from_str(&text).map_err(|e| Trouble::Failed(format!("{url}: {e}")))
+}
+
+pub fn now_secs() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs() as i64)
+}
+
+/// `secs` since the Unix epoch as `2026-10-23T01:02:03Z`.
+pub fn iso(secs: i64) -> String {
+    let (days, rem) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    format!(
+        "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z",
+        rem / 3600,
+        rem % 3600 / 60,
+        rem % 60
+    )
+}
+
+/// Now as `2026-10-23T01:02:03.456Z`.
+pub fn iso_now() -> String {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as i64);
+    let secs = iso(millis.div_euclid(1000));
+    format!("{}.{:03}Z", &secs[..secs.len() - 1], millis.rem_euclid(1000))
+}
+
+/// The seconds since the Unix epoch of an ISO 8601 UTC time, to the second.
+pub fn epoch(iso: &str) -> Option<i64> {
+    let num = |r: std::ops::Range<usize>| iso.get(r)?.parse::<i64>().ok();
+    let (y, m, d) = (num(0..4)?, num(5..7)?, num(8..10)?);
+    let (hh, mm, ss) = (
+        num(11..13).unwrap_or(0),
+        num(14..16).unwrap_or(0),
+        num(17..19).unwrap_or(0),
+    );
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    Some(days * 86_400 + hh * 3600 + mm * 60 + ss)
+}
+
+/// Adds a line to the registry log Save Logs sends, and to stderr.
+pub fn log(root: &Path, line: &str) {
+    eprintln!("swofty-launcher: registry: {line}");
+    let path = root.join(LOG_FILE);
+    if std::fs::metadata(&path).is_ok_and(|m| m.len() > LOG_LIMIT)
+        && let Ok(text) = std::fs::read_to_string(&path)
+    {
+        let keep = text.len() / 2;
+        let cut = text[keep..].find('\n').map_or(text.len(), |i| keep + i + 1);
+        std::fs::write(&path, &text[cut..]).ok();
+    }
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).ok();
+    }
+    let opened = std::fs::OpenOptions::new().create(true).append(true).open(&path);
+    if let Ok(mut file) = opened {
+        writeln!(file, "{} {line}", iso(now_secs())).ok();
+    }
+}
+
 pub fn verify(v: &Version, len: u64, sha256: &str) -> Result<()> {
     if len != v.size {
         return Err(Error::Other(format!(
@@ -295,7 +443,7 @@ pub fn verify(v: &Version, len: u64, sha256: &str) -> Result<()> {
 
 /// Copies `reader` to `to`, refusing more bytes than `v` lists, then checks
 /// the size and SHA-256.
-pub fn save(mut reader: impl Read, v: &Version, to: &Path, progress: &dyn Fn(u64)) -> Result<()> {
+pub fn save(mut reader: impl Read, v: &Version, to: &Path, progress: &dyn Fn(Stage)) -> Result<()> {
     if v.size > DOWNLOAD_LIMIT {
         return Err(Error::Other(format!(
             "{} bytes is over the {DOWNLOAD_LIMIT}-byte download limit",
@@ -322,20 +470,21 @@ pub fn save(mut reader: impl Read, v: &Version, to: &Path, progress: &dyn Fn(u64
         }
         hash.update(&buf[..n]);
         file.write_all(&buf[..n]).map_err(io_err(to))?;
-        progress(len);
+        progress(Stage::Downloading(len));
     }
+    progress(Stage::Verifying);
     file.sync_all().map_err(io_err(to))?;
     let digest: String = hash.finalize().iter().map(|b| format!("{b:02x}")).collect();
     verify(v, len, &digest)
 }
 
-pub fn download(v: &Version, to: &Path, progress: &dyn Fn(u64)) -> Result<()> {
+pub fn download(v: &Version, to: &Path, progress: &dyn Fn(Stage)) -> Result<()> {
     let mut body = get(&v.url, DOWNLOAD_TIMEOUT).map_err(|t| Error::Other(t.to_string()))?;
     save(body.with_config().limit(DOWNLOAD_LIMIT).reader(), v, to, progress)
 }
 
 /// Downloads `v` of `addon`, checks it and installs it into `store`.
-pub fn install(store: &Store, addon: &Addon, v: &Version, progress: &dyn Fn(u64)) -> Result<AddonManifest> {
+pub fn install(store: &Store, addon: &Addon, v: &Version, progress: &dyn Fn(Stage)) -> Result<AddonManifest> {
     let dir = store.root.join(CACHE_DIR).join("downloads");
     std::fs::create_dir_all(&dir).map_err(io_err(&dir))?;
     let safe: String = addon
@@ -352,6 +501,7 @@ pub fn install(store: &Store, addon: &Addon, v: &Version, progress: &dyn Fn(u64)
     let path = dir.join(format!("{safe}-{}.zip", v.version));
     let result = download(v, &path, progress).and_then(|()| {
         let _one = INSTALLING.lock().unwrap_or_else(|e| e.into_inner());
+        progress(Stage::Installing);
         store.install_addon(&path)
     });
     std::fs::remove_file(&path).ok();
@@ -397,6 +547,9 @@ mod tests {
             icon: None,
             publishers: Vec::new(),
             downloads: 0,
+            downloads_30d: 0,
+            stars: 0,
+            trend: None,
             created_at: String::new(),
             updated_at: String::new(),
             latest: versions.first().cloned(),
@@ -514,8 +667,26 @@ mod tests {
         assert_eq!(addons[0].category_label().as_deref(), Some("Tracks"));
         assert!(addons[0].native(&launcher("1.3.7")));
         assert_eq!(addons[0].listed().len(), 1);
-        assert!(addons[0].matches("career"));
-        assert!(!addons[0].matches("helmet"));
+        assert_eq!(addons[0].kind_labels(), ["Code"]);
+        assert_eq!(addons[0].stars, 0);
         assert!(parse("<html>").is_none());
+    }
+
+    #[test]
+    fn reads_and_writes_utc_times() {
+        for t in [
+            "1970-01-01T00:00:00Z",
+            "2000-02-29T23:59:59Z",
+            "2026-10-24T01:02:03Z",
+        ] {
+            assert_eq!(iso(epoch(t).unwrap()), t);
+        }
+        assert_eq!(epoch("2026-10-24T01:02:03.456Z"), epoch("2026-10-24T01:02:03Z"));
+        assert_eq!(
+            epoch("2026-10-24").map(iso).as_deref(),
+            Some("2026-10-24T00:00:00Z")
+        );
+        assert!(epoch("soon").is_none());
+        assert_eq!(iso_now().len(), "2026-10-24T01:02:03.456Z".len());
     }
 }

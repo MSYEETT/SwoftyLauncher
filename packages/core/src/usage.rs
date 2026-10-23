@@ -59,7 +59,7 @@ pub fn install_id(data: &Path) -> Option<String> {
     Some(id)
 }
 
-fn random_hex(words: usize) -> String {
+pub(crate) fn random_hex(words: usize) -> String {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos());
