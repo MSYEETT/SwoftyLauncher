@@ -1,3 +1,5 @@
 cars/
 build/
 art/carperf/
+art/heads/
+art/tiles/*.png
