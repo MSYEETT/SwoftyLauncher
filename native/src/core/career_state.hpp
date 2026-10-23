@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -56,6 +57,30 @@ static_assert(djb2("StateTeamHQToSession") == 0xc5dd1dcdu, "state name hashing d
 
 constexpr uint64_t COMPONENT_GRACE_MS = 4000;
 constexpr size_t MAX_STATES = 256;
+constexpr uint64_t POLL_MS = 250;
+constexpr uint64_t SETTLE_MS = 8000;
+constexpr uint64_t IDLE_POLL_MS = 30000;
+
+static_assert(SETTLE_MS > COMPONENT_GRACE_MS + POLL_MS, "the poll must outlast the component grace");
+
+// When the component poll runs. A career loads, unloads or changes around flow-state transitions,
+// so after one the poll runs every POLL_MS for SETTLE_MS; otherwise every IDLE_POLL_MS, and never in
+// a session, where none of that happens. Each poll costs a few guarded reads of the game's heap,
+// which on Windows can take milliseconds, so polling all the time stuttered every frame it landed on.
+class PollSchedule {
+public:
+    void transition(uint64_t now) { until_.store(now + SETTLE_MS, std::memory_order_relaxed); }
+
+    bool due(uint64_t now, uint64_t last, bool session) const
+    {
+        if (now < until_.load(std::memory_order_relaxed))
+            return now - last >= POLL_MS;
+        return !session && now - last >= IDLE_POLL_MS;
+    }
+
+private:
+    std::atomic<uint64_t> until_{0};
+};
 
 struct Components {
     bool entity = false;
@@ -190,6 +215,14 @@ public:
     }
 
     bool session() const { return status(Session) || status(LoadSession) || status(UnloadSession); }
+
+    // The poll follows every transition outside a session and a session state's own, not the pause
+    // menus and screens inside one.
+    bool settles(uint32_t hash) const
+    {
+        int s = slot_of(hash);
+        return !session() || s == Session || s == LoadSession || s == UnloadSession;
+    }
 
     bool hub() const
     {

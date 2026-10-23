@@ -11,6 +11,7 @@
 using runtime::career::Components;
 using runtime::career::djb2;
 using runtime::career::Edges;
+using runtime::career::PollSchedule;
 using runtime::career::Tracker;
 
 static int fails;
@@ -164,6 +165,42 @@ int main()
         t.flow(djb2("StateTeamHQUpdate"), 0, 2, "StateTeamHQUpdate", true, 0);
         expect(t.status(runtime::career::TeamHqUpdate) == SWOFTY_FLOW_NONE,
                "a full table drops new states (documented limit)");
+    }
+
+    {
+        using runtime::career::IDLE_POLL_MS;
+        using runtime::career::POLL_MS;
+        using runtime::career::SETTLE_MS;
+        PollSchedule p;
+        const uint64_t t0 = 600000;
+        expect(p.due(t0, 0, false), "the first poll runs at once");
+        expect(!p.due(t0 + POLL_MS, t0, false) && p.due(t0 + IDLE_POLL_MS, t0, false),
+               "with no transition the poll waits the idle interval");
+        p.transition(t0 + 1000);
+        expect(!p.due(t0 + 1000 + POLL_MS - 1, t0 + 1000, false) && p.due(t0 + 1000 + POLL_MS, t0 + 1000, false),
+               "after a transition the poll runs every POLL_MS");
+        expect(p.due(t0 + 1000 + SETTLE_MS - 1, t0 + 1000 + SETTLE_MS - 1 - POLL_MS, true),
+               "the settle window polls in a session too");
+        const uint64_t after = t0 + 1000 + SETTLE_MS;
+        expect(!p.due(after + POLL_MS, after, false) && p.due(after + IDLE_POLL_MS, after, false),
+               "after the settle window the poll goes back to the idle interval");
+        expect(!p.due(after + 10 * IDLE_POLL_MS, after, true), "no idle poll in a session");
+        p.transition(after + 5000);
+        expect(p.due(after + 5000 + POLL_MS, after, true), "a new transition reopens the window");
+    }
+
+    {
+        Tracker t;
+        expect(t.settles(djb2("StateFrontendMenu")) && t.settles(djb2("StateTeamHQUpdate")),
+               "outside a session every transition settles the poll");
+        go(t, "StateLoadSession", 0, 1, 10);
+        expect(t.session() && t.settles(djb2("StateLoadSession")), "a session state's own transition settles");
+        go(t, "StateLoadSession", 1, 0, 20);
+        go(t, "StateSession", 0, 2, 30);
+        expect(!t.settles(djb2("ScreenPause")) && t.settles(djb2("StateSession")),
+               "in a session, pause screens do not settle the poll and the session state does");
+        go(t, "StateSession", 2, 0, 40);
+        expect(!t.session() && t.settles(djb2("ScreenPause")), "after the session every transition settles again");
     }
 
     printf("%s: %d failure(s)\n", fails ? "FAIL" : "ok  ", fails);

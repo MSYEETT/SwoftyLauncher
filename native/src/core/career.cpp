@@ -43,11 +43,11 @@ namespace {
 namespace g = swofty::game;
 namespace layout = runtime::layout;
 namespace mem = swofty::mem;
+using runtime::career::PollSchedule;
 using runtime::career::Tracker;
 
 constexpr const char *FLOW_MIXIN = "swofty_core.dll (flow states)";
 constexpr const char *TEAM_HQ_MIXIN = "swofty_core.dll (Team HQ answer)";
-constexpr uint64_t POLL_MS = 250;
 constexpr uintptr_t REGISTRY_GET_SLOT = 0x10;
 constexpr uint32_t HUMAN_FLAG = 0x10000000u;
 constexpr size_t MAX_ENTRANTS = 128;
@@ -61,6 +61,8 @@ Tracker tracker;
 std::atomic<bool> armed, set_up;
 bool flow_live, team_hq_live;
 std::atomic<uint64_t> last_poll;
+PollSchedule schedule;
+std::atomic<bool> in_session;
 std::mutex names_lock;
 std::unordered_map<uint32_t, std::string> names;
 
@@ -229,8 +231,12 @@ void on_flow(SwoftyContext *c)
     SwoftyFlowState f;
     {
         std::lock_guard<std::mutex> g(lock);
-        tracker.flow(hash, uint32_t(from), to, name.c_str(), named, now_ms());
+        uint64_t now = now_ms();
+        tracker.flow(hash, uint32_t(from), to, name.c_str(), named, now);
         f = *tracker.last();
+        if (tracker.settles(hash))
+            schedule.transition(now);
+        in_session = tracker.session();
     }
     if (known || first)
         swofty::log("[career] flow \"%s\" %s -> %s%s", name.c_str(), STATUS[from & 3], STATUS[to & 3],
@@ -282,6 +288,8 @@ template <class E = g::CareerEntity> uintptr_t registry_get(uintptr_t e, uintptr
         if (!e || !desc || !mem::read(reg, vt) || !mem::in_image(vt) || !mem::read(vt + REGISTRY_GET_SLOT, fn) ||
             !mem::in_image(fn))
             return 0;
+        static const uint32_t probe = perf::probe("core", "career RegistryGet (game call)");
+        perf::Scope p(probe);
         auto c = reinterpret_cast<uintptr_t>(
             reinterpret_cast<RegistryGet *>(fn)(reinterpret_cast<void *>(reg), reinterpret_cast<const void *>(desc), 1));
         return mem::object_like(c) ? c : 0;
@@ -335,15 +343,30 @@ void entrants(uintptr_t e, runtime::career::Components &out)
 
 runtime::career::Components poll()
 {
+    static const uint32_t find = perf::probe("core", "career poll: entity");
+    static const uint32_t lookup = perf::probe("core", "career poll: components");
+    static const uint32_t walk = perf::probe("core", "career poll: entrants");
     runtime::career::Components c;
-    uintptr_t e = championship_entity();
+    uintptr_t e = 0;
+    {
+        perf::Scope p(find);
+        e = championship_entity();
+    }
     c.entity = e != 0;
-    c.career = e && component_of(e, "CareerComponent");
+    if (!e)
+        return c;
+    {
+        perf::Scope p(lookup);
+        c.career = component_of(e, "CareerComponent");
+        if (c.career) {
+            if (component_of(e, "CareerBankComponent") || component_of(e, "MyTeamFacilitiesComponent"))
+                c.mode = SWOFTY_CAREER_MY_TEAM;
+            else if (component_of(e, "DriverCareerPlayerDriverStatisticsComponent"))
+                c.mode = SWOFTY_CAREER_DRIVER;
+        }
+    }
     if (c.career) {
-        if (component_of(e, "CareerBankComponent") || component_of(e, "MyTeamFacilitiesComponent"))
-            c.mode = SWOFTY_CAREER_MY_TEAM;
-        else if (component_of(e, "DriverCareerPlayerDriverStatisticsComponent"))
-            c.mode = SWOFTY_CAREER_DRIVER;
+        perf::Scope p(walk);
         entrants(e, c);
     }
     return c;
@@ -516,7 +539,8 @@ void career_tick()
     if (!armed || !layout::CAREER)
         return;
     uint64_t now = now_ms(), was = last_poll.load();
-    if (now - was < POLL_MS || !last_poll.compare_exchange_strong(was, now))
+    if (!schedule.due(now, was, in_session.load(std::memory_order_relaxed)) ||
+        !last_poll.compare_exchange_strong(was, now))
         return;
     runtime::career::Components c = poll();
     {
