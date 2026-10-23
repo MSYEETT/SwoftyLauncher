@@ -29,6 +29,9 @@ pub struct AddonManifest {
     pub icon: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub kind: Vec<Kind>,
+    /// Experimental engines of the core the addon uses; the build turns them on while it is on.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub experimental_features: Vec<ExperimentalFeature>,
     pub compat: Compat,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub requires: Vec<Requirement>,
@@ -172,6 +175,30 @@ pub enum Kind {
     Native,
     /// Merged into the game's shader packages, as the Simplified Suite loads `.serps` mods.
     Simplified,
+}
+
+/// An experimental engine of the in-game core, named as its standard library page's
+/// Feature row names it, that an addon turns on by listing it.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum ExperimentalFeature {
+    /// Drawing over the game with `swofty/overlay.hpp`.
+    Overlay,
+}
+
+impl ExperimentalFeature {
+    /// Its name in `swofty/assets.json`.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Overlay => "overlay",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Overlay => "Overlay",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -701,6 +728,33 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(serde_json::to_value(&m).unwrap()["category"], "cars");
+    }
+
+    #[test]
+    fn experimental_features_name_the_core_engines_an_addon_turns_on() {
+        let m = AddonManifest::parse(GRID24).unwrap();
+        assert!(m.experimental_features.is_empty());
+        assert!(
+            serde_json::to_value(&m)
+                .unwrap()
+                .get("experimental_features")
+                .is_none()
+        );
+        let with = |f: &str| {
+            GRID24.replace(
+                r#""author": "swofty","#,
+                &format!(r#""author": "swofty", "experimental_features": {f},"#),
+            )
+        };
+        let m = AddonManifest::parse(&with(r#"["overlay"]"#)).unwrap();
+        assert_eq!(m.experimental_features, [ExperimentalFeature::Overlay]);
+        let f = m.experimental_features[0];
+        assert_eq!((f.name(), f.label()), ("overlay", "Overlay"));
+        assert_eq!(
+            serde_json::to_value(&m).unwrap()["experimental_features"][0],
+            "overlay"
+        );
+        assert!(AddonManifest::parse(&with(r#"["hud"]"#)).is_err());
     }
 
     #[test]

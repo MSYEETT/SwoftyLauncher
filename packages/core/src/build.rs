@@ -456,6 +456,20 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
     }
     let mut runtime = Runtime::new(planner.features());
+    let mut experimental: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for id in &resolved.order {
+        for f in &addons[id].experimental_features {
+            experimental.entry(f.name()).or_default().push(&addons[id].name);
+        }
+    }
+    for (feature, by) in &experimental {
+        runtime.enable(feature);
+        hasher.update(format!("feature {feature};"));
+        built.lines.push(format!(
+            "features: the experimental {feature} feature is on for {}",
+            by.join(", ")
+        ));
+    }
     for id in &resolved.order {
         let m = &addons[id];
         hasher.update(format!("{id}@{};", m.version));
@@ -2552,6 +2566,55 @@ mod tests {
         assert_eq!(
             (pair.winner.as_str(), pair.loser.as_str(), pair.resources),
             ("t.pack", "t.edit", 1)
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn an_addon_turns_on_the_experimental_features_it_lists() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-features-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        std::fs::write(dir.join(GVDB), Gvdb { records: Vec::new() }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let src = root.join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(
+            src.join("swofty.json"),
+            r#"{ "schema_version": 1, "id": "t.hud", "name": "Race Control", "version": "1.0.0", "author": "t",
+                 "compat": { "game": "f1_25" }, "experimental_features": ["overlay"] }"#,
+        )
+        .unwrap();
+        store.install_addon(&src).unwrap();
+        let assets = |built: &Built| {
+            built
+                .plan
+                .loader
+                .get("swofty/assets.json")
+                .map(|p| serde_json::from_slice::<serde_json::Value>(&std::fs::read(p).unwrap()).unwrap())
+        };
+        let off = build(&store, "default", &game).unwrap();
+        assert_eq!(assets(&off), None);
+        store
+            .update_profile("default", |p| p.set_enabled("t.hud", true))
+            .unwrap();
+        let on = build(&store, "default", &game).unwrap();
+        assert_eq!(assets(&on).unwrap()["features"], serde_json::json!(["overlay"]));
+        assert!(
+            on.lines
+                .contains(&"features: the experimental overlay feature is on for Race Control".to_owned()),
+            "{:?}",
+            on.lines
         );
         std::fs::remove_dir_all(&root).ok();
     }

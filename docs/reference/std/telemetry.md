@@ -94,4 +94,4 @@ The name stays valid for the lifetime of the process.
 
 ## Availability
 
-`telemetry` is experimental and stays off until you list `telemetry` under `"features"` in `swofty/assets.json`; see [feature gates](/design/native-libraries#feature-gates). The telemetry engine lane hasn't landed yet, so every call on current builds returns `unavailable`. See [the native-libraries design](/design/native-libraries#_3-telemetry).
+`telemetry` is experimental, and `experimental_features` in a manifest doesn't accept it yet; see [feature gates](/design/native-libraries#feature-gates). The telemetry engine lane hasn't landed yet, so every call on current builds returns `unavailable`. See [the native-libraries design](/design/native-libraries#_3-telemetry).

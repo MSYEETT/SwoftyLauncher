@@ -22,7 +22,7 @@ pub struct Assets {
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub early_stage: bool,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub features: Vec<Kind>,
+    pub features: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub asset_groups: Vec<Group>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -102,6 +102,9 @@ pub fn overlay_fits(
 #[derive(Debug, Default)]
 pub struct Runtime {
     pub assets: Assets,
+    // An addon turned on an experimental feature of the core, which needs the
+    // file even with no assets.
+    enabled: bool,
     resources: usize,
     pub files: BTreeMap<String, PathBuf>,
     tables: BTreeMap<String, Lng>,
@@ -207,11 +210,19 @@ impl Runtime {
     pub fn new(features: Vec<Kind>) -> Self {
         Self {
             assets: Assets {
-                features,
+                features: features.iter().map(Kind::to_string).collect(),
                 ..Assets::default()
             },
             ..Self::default()
         }
+    }
+
+    /// Turns on an experimental feature of the core, such as `overlay`.
+    pub fn enable(&mut self, feature: &str) {
+        if !self.assets.features.iter().any(|f| f == feature) {
+            self.assets.features.push(feature.to_owned());
+        }
+        self.enabled = true;
     }
 
     fn place(&mut self, rel: String, src: PathBuf) -> Result<()> {
@@ -413,7 +424,7 @@ impl Runtime {
             features: self.assets.features.clone(),
             ..Assets::default()
         };
-        if self.assets == empty {
+        if self.assets == empty && !self.enabled {
             return Ok(None);
         }
         let path = out.join(ASSETS_FILE);
