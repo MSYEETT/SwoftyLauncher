@@ -1,4 +1,5 @@
 pub mod bxml;
+pub mod cube;
 pub mod erp;
 pub mod gvdb;
 pub mod hash;
