@@ -119,7 +119,16 @@ pub fn view(app: &mut App, host: &mut Host) -> Value {
         app.retry_game();
     }
     app.ensure_game(host);
+    app.refresh_files(host);
     app.ensure_previews(host);
+    if app.stock.is_some() {
+        let notices = scope_notices(app);
+        let mut v = crate::stock::view(app, notices);
+        if app.busy() {
+            v["tick"] = json!(true);
+        }
+        return v;
+    }
     let roster = match app.roster() {
         Ok(r) => r,
         Err(e) => {
@@ -195,7 +204,7 @@ fn list_view(app: &App, roster: &Roster) -> Value {
         left
     );
     let can_add = game.is_some() && left > 0;
-    let mut actions = Vec::new();
+    let mut actions = vec![button("stock", "Game drivers", "users", "outline")];
     if !roster.drivers.is_empty() {
         actions.push(button("bulk", "Set for every driver", "gauge", "outline"));
     }
@@ -279,12 +288,12 @@ fn option(app: &App, list: List, value: &str, label: String) -> Value {
     o
 }
 
-fn options(app: &App, list: List, current: &str) -> Value {
+pub(crate) fn options(app: &App, list: List, current: &str) -> Value {
     let game = app.game.as_ref();
     let mut opts: Vec<Value> = game
         .map(|g| {
             g.choices(list)
-                .map(|c| option(app, list, &c.value, c.label.clone()))
+                .map(|c| option(app, list, &c.value, g.label(list, &c.value)))
                 .collect()
         })
         .unwrap_or_default();
@@ -753,6 +762,9 @@ pub fn event(app: &mut App, host: &mut Host, event: &Value) -> Result<Value, Str
         if app.bulk.as_deref() == Some(form) {
             return bulk_submit(app, &submit["values"]);
         }
+        if app.stock.is_some() {
+            return crate::stock::submit(app, form, &submit["values"]);
+        }
         let Some(edit) = app.edit.as_mut().filter(|e| e.form == form) else {
             return Ok(json!("reload"));
         };
@@ -788,6 +800,11 @@ pub fn event(app: &mut App, host: &mut Host, event: &Value) -> Result<Value, Str
 }
 
 fn click_event(app: &mut App, host: &mut Host, id: &str) -> Result<Value, String> {
+    if let Some(result) = crate::stock::click(app, id) {
+        app.edit = None;
+        app.bulk = None;
+        return result;
+    }
     match id {
         "add" => {
             app.wait_game(host);
@@ -871,7 +888,38 @@ pub fn build(app: &mut App, host: &mut Host, params: &Value) -> Value {
         Ok(r) => r,
         Err(e) => return json!({ "ops": [], "warnings": [e] }),
     };
-    crate::ops::build(&roster, app.game.as_ref(), &params["features"])
+    app.refresh_files(host);
+    let mut built = crate::ops::build(&roster, app.game.as_ref(), &params["features"]);
+    let changes = match crate::stock::Changes::load(&app.data_dir) {
+        Ok(c) => c,
+        Err(e) => {
+            push(&mut built, "warnings", json!(e));
+            return built;
+        }
+    };
+    if let (Some(game), false) = (app.game.as_ref(), changes.drivers.is_empty()) {
+        let (ops, warnings) = crate::stock::ops(&changes, game);
+        let changed = plural(changes.drivers.len(), "game driver", "game drivers");
+        push(
+            &mut built,
+            "lines",
+            json!(format!("{changed} with a changed head or helmet")),
+        );
+        for op in ops {
+            push(&mut built, "ops", op);
+        }
+        for w in warnings {
+            push(&mut built, "warnings", json!(w));
+        }
+    }
+    built
+}
+
+fn push(built: &mut Value, key: &str, item: Value) {
+    match built[key].as_array_mut() {
+        Some(list) => list.push(item),
+        None => built[key] = json!([item]),
+    }
 }
 
 #[cfg(test)]

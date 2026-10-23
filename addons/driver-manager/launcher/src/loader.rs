@@ -38,11 +38,7 @@ pub fn read(db_path: &Path, game_dir: Option<&Path>, key: &str) -> Result<GameDa
         }
         None => None,
     };
-    let mut data = game::extract(&db, lng.as_ref(), key);
-    if let Some(dir) = game_dir {
-        crate::preview::mark_missing(&mut data, dir);
-    }
-    Ok(data)
+    Ok(game::extract(&db, lng.as_ref(), key))
 }
 
 impl Loading {

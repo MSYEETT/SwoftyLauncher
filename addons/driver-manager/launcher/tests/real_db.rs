@@ -446,3 +446,87 @@ fn launcher_built_database_has_the_drivers() {
     }
     eprintln!("{}", report.join("\n"));
 }
+
+#[test]
+fn stock_driver_changes_apply_to_the_real_database() {
+    let Some(db_path) = pristine() else {
+        eprintln!("F1_25_DIR is not set or has no game database; skipping");
+        return;
+    };
+    let stock = Gvdb::parse(&std::fs::read(&db_path).unwrap()).unwrap();
+    let game = game::extract(&stock, None, "test");
+    let kimi = game
+        .stock_driver("andrea-kimi_antonelli")
+        .expect("Antonelli is in the game");
+    assert_eq!(kimi.head, "andrea-kimi_antonelli");
+    assert!(kimi.looks.len() >= 2, "{:?}", kimi.looks);
+    let helmet = game
+        .helmets
+        .iter()
+        .map(|c| c.value.clone())
+        .find(|v| kimi.looks.iter().all(|l| l.helmet != *v))
+        .unwrap();
+    let scratch = std::env::temp_dir().join(format!("dm-real-stock-{}", std::process::id()));
+    let (data_dir, cache_dir) = (scratch.join("addon-data"), scratch.join("cache"));
+    std::fs::remove_dir_all(&scratch).ok();
+    let mut changes = driver_manager::stock::Changes::load(&data_dir).unwrap();
+    changes.set(
+        "andrea-kimi_antonelli",
+        driver_manager::stock::Change {
+            head: Some("daniil_kvyat".into()),
+            helmet: Some(helmet.clone()),
+        },
+    );
+    changes.save(&data_dir).unwrap();
+
+    let reply = helper_build(&data_dir, &cache_dir, &db_path);
+    assert_eq!(reply["warnings"], json!([]), "{reply:#}");
+    let built: Built = serde_json::from_value(reply).unwrap();
+    let features = Features {
+        stable: BTreeSet::from([Kind::Db, Kind::Lang]),
+        experimental: BTreeSet::new(),
+    };
+    let opt_in = BTreeSet::new();
+    let mut planner = Planner::new(&features, &opt_in);
+    planner.add_fields(ADDON, built.fields.clone());
+    for op in built.ops {
+        planner.push(Op {
+            op,
+            origin: Origin {
+                addon: ADDON.into(),
+                item: None,
+            },
+        });
+    }
+    let mut db = stock.clone();
+    planner.apply_db(&mut db).unwrap();
+    let after = Rows(&db);
+    let [i] = after.find("entrants.drivers", "driver", "andrea-kimi_antonelli")[..] else {
+        panic!("one Antonelli row");
+    };
+    assert_eq!(
+        after.text(&format!("entrants.drivers.driver_{i}.head")),
+        "daniil_kvyat"
+    );
+    let folder = "entrants.driver_customisations.folder_1";
+    for look in &kimi.looks {
+        let [j] = after.find(folder, "preloaded_driver_customisation_properties", &look.label)[..] else {
+            panic!("one {} row", look.label);
+        };
+        assert_eq!(
+            after.text(&format!(
+                "{folder}.preloaded_driver_customisation_properties_{j}.helmet"
+            )),
+            helmet
+        );
+    }
+    let before = Rows(&stock);
+    let [k] = before.find("entrants.drivers", "driver", "charles_leclerc")[..] else {
+        panic!("one Leclerc row");
+    };
+    assert_eq!(
+        after.text(&format!("entrants.drivers.driver_{k}.head")),
+        before.text(&format!("entrants.drivers.driver_{k}.head"))
+    );
+    std::fs::remove_dir_all(&scratch).ok();
+}

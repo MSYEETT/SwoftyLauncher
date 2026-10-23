@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use serde_json::{Value, json};
 
+use crate::assets::Files;
 use crate::game::{self, GameData};
 use crate::host::Host;
 use crate::loader::{self, Loading};
@@ -29,6 +30,8 @@ pub struct App {
     pub previews: Option<Previews>,
     pub building: Option<Building>,
     pub previews_tried: bool,
+    pub files: Files,
+    pub stock: Option<crate::stock::Editing>,
 }
 
 impl App {
@@ -49,6 +52,8 @@ impl App {
             previews: None,
             building: None,
             previews_tried: false,
+            files: Files::default(),
+            stock: None,
         }
     }
 
@@ -110,6 +115,24 @@ impl App {
         self.loading = Some(Loading::start(db, dir, key, cache));
     }
 
+    pub fn refresh_files(&mut self, host: &mut Host) {
+        if self.game_dir.is_none() {
+            self.game_dir = Self::string(host, "game_dir", Value::Null)
+                .ok()
+                .flatten()
+                .map(PathBuf::from);
+        }
+        let addons = host.call("addons", Value::Null).unwrap_or(Value::Null);
+        self.files = Files::new(self.game_dir.clone(), &addons);
+        self.apply_files();
+    }
+
+    fn apply_files(&mut self) {
+        if let Some(game) = self.game.as_mut() {
+            preview::mark_missing(game, &self.files);
+        }
+    }
+
     pub fn poll(&mut self) -> bool {
         let mut changed = false;
         if let Some(done) = self.building.as_ref().and_then(Building::poll) {
@@ -134,6 +157,7 @@ impl App {
             Ok(g) => self.game = Some(g),
             Err(e) => self.game_error = Some(e),
         }
+        self.apply_files();
         true
     }
 
@@ -142,28 +166,48 @@ impl App {
     }
 
     pub fn ensure_previews(&mut self, host: &mut Host) {
+        if self.game.is_none() || self.building.is_some() {
+            return;
+        }
+        if self.game_dir.is_none() {
+            self.refresh_files(host);
+        }
         let Some(game) = &self.game else {
             return;
         };
-        if self.previews_tried {
+        if self.game_dir.is_none() {
             return;
         }
-        self.previews_tried = true;
-        if self.game_dir.is_none() {
-            self.game_dir = Self::string(host, "game_dir", Value::Null)
-                .ok()
-                .flatten()
-                .map(PathBuf::from);
+        let root = self.cache_dir.join("previews");
+        if !self.previews_tried {
+            self.previews_tried = true;
+            self.previews = Previews::load(&root, &game.key);
+            if self.previews.is_none() {
+                let jobs = preview::jobs(game);
+                self.building = Some(Building::start(
+                    self.files.clone(),
+                    root,
+                    game.key.clone(),
+                    jobs,
+                    None,
+                ));
+                return;
+            }
         }
-        let Some(dir) = self.game_dir.clone() else {
+        let Some(p) = &self.previews else {
             return;
         };
-        let root = self.cache_dir.join("previews");
-        if let Some(p) = Previews::load(&root, &game.key) {
-            self.previews = Some(p);
-            return;
+        let jobs = preview::missing_jobs(game, &p.index);
+        if !jobs.is_empty() {
+            let before = Some(p.index.clone());
+            self.building = Some(Building::start(
+                self.files.clone(),
+                root,
+                game.key.clone(),
+                jobs,
+                before,
+            ));
         }
-        self.building = Some(Building::start(dir, root, game.key.clone(), preview::jobs(game)));
     }
 
     pub fn thumb(&self, list: game::List, value: &str) -> Option<String> {
@@ -174,12 +218,11 @@ impl App {
     }
 
     pub fn large(&mut self, list: game::List, value: &str) -> Option<String> {
-        let (Some(previews), Some(game), Some(dir)) = (self.previews.as_mut(), &self.game, &self.game_dir)
-        else {
+        let (Some(previews), Some(game)) = (self.previews.as_mut(), &self.game) else {
             return None;
         };
         previews
-            .large(dir, game, list, value)
+            .large(&self.files, game, list, value)
             .map(|p| p.to_string_lossy().into_owned())
     }
 

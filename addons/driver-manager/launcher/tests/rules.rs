@@ -27,6 +27,7 @@ fn game() -> GameData {
             code: "VER".into(),
             number: 1,
             stat_id: 9,
+            ..StockDriver::default()
         }],
         driver_ids: [9, 207].into(),
         preset_ids: [365].into(),

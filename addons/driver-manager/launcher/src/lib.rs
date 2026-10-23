@@ -1,4 +1,5 @@
 pub mod app;
+pub mod assets;
 pub mod check;
 pub mod fields;
 pub mod game;
@@ -9,3 +10,4 @@ pub mod ops;
 pub mod pages;
 pub mod pixels;
 pub mod preview;
+pub mod stock;

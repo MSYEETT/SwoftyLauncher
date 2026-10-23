@@ -13,7 +13,7 @@ User guide: [Driver Manager](https://f1.swofty.net/using/driver-manager).
 
 ## Data
 
-The plugin keeps `drivers.json` in the addon's data folder, shared by every profile. It holds each driver and the id allocator: driver ids run from 208 to 253 and look ids from 366 upward, skipping ids the game uses. Ids are never reused. The game's lists of nationalities, heads, kit, poses, emotes and commentary names are read from the clean game database and the English text at run time and cached in the addon's cache folder per game build.
+The plugin keeps `drivers.json` and `stock.json` in the addon's data folder, shared by every profile. `stock.json` holds the head and helmet set on drivers the game already has, by driver label. It holds each driver and the id allocator: driver ids run from 208 to 253 and look ids from 366 upward, skipping ids the game uses. Ids are never reused. The game's lists of nationalities, heads, kit, poses, emotes and commentary names are read from the clean game database and the English text at run time and cached in the addon's cache folder per game build. Whether each head and piece of kit is installed is worked out on every view and build: a file in the game folder, or a `file.put` target of an addon that is on in the profile (its manifest's `operations.files` and the `file.put` ops in its `assets` and `erp` op files). Previews of items installed later are made then and added to the cached set.
 
 ## Build reply
 
@@ -29,7 +29,7 @@ For each valid driver the build adds, by label:
 
 Driver Manager builds after every other addon in the profile (`load_after: ["*"]`). Its labels then resolve against the tables a mod leaves, such as a mod made for an earlier game version that moves entrant lists or lowers row counts.
 
-`lang.set` adds `lng_dm_<id>_first`, `_last` and `_full`. A retired driver keeps every row except the pool rows. A driver with an error is left out of the build.
+`lang.set` adds `lng_dm_<id>_first`, `_last` and `_full`. For each driver in `stock.json` the build sets `entrants.drivers.driver[_metadata_=<label>].head` and the `helmet` of every `preloaded_driver_customisation_properties` row whose `linked_driver_stat_id` is the label. A head or helmet that isn't installed is left out with a warning. A retired driver keeps every row except the pool rows. A driver with an error is left out of the build.
 
 ## Tests
 

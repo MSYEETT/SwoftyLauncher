@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::{ChildStdin, ChildStdout, Command, Stdio};
 use std::time::{Duration, Instant};
 
+use driver_manager::assets::Files;
 use driver_manager::check;
 use driver_manager::game::{self, List};
 use driver_manager::loader;
@@ -37,7 +38,12 @@ fn previews_from_the_real_game() {
         eprintln!("F1_25_DIR is not set or has no character packages; skipping");
         return;
     };
-    let data = loader::read(&dir.join(game::DB_REL), Some(&dir), "test-key").unwrap();
+    let mut data = loader::read(&dir.join(game::DB_REL), Some(&dir), "test-key").unwrap();
+    let files = Files {
+        game_dir: Some(dir.clone()),
+        ..Files::default()
+    };
+    preview::mark_missing(&mut data, &files);
     for list in [List::Head, List::Helmet, List::Suit, List::Gloves] {
         let missing = data
             .list(list)
@@ -73,7 +79,7 @@ fn previews_from_the_real_game() {
     let jobs = preview::jobs(&data);
     let total = jobs.len();
     let started = Instant::now();
-    let built = preview::build(&dir, &root, &data.key, jobs);
+    let built = preview::build(&files, &root, &data.key, jobs, None);
     let elapsed = started.elapsed();
     let ready = built.index.ready.len();
     eprintln!(
@@ -109,7 +115,7 @@ fn previews_from_the_real_game() {
     assert!(Previews::load(&root, "other-build").is_none());
 
     let started = Instant::now();
-    let rebuilt = preview::build(&dir, &root, &data.key, preview::jobs(&data));
+    let rebuilt = preview::build(&files, &root, &data.key, preview::jobs(&data), None);
     eprintln!("warm rebuild in {:?}", started.elapsed());
     assert_eq!(rebuilt.index.ready.len(), ready);
 
@@ -119,7 +125,7 @@ fn previews_from_the_real_game() {
         .iter()
         .find(|c| large.path(List::Helmet, &c.value).is_some())
         .unwrap();
-    let path = large.large(&dir, &data, List::Helmet, &helmet.value).unwrap();
+    let path = large.large(&files, &data, List::Helmet, &helmet.value).unwrap();
     assert_eq!(png_size(&path).0, 256);
 }
 
@@ -128,6 +134,7 @@ struct Helper {
     lines: Lines<BufReader<ChildStdout>>,
     db: PathBuf,
     dir: PathBuf,
+    addons: Value,
     next: u64,
     invalidated: bool,
 }
@@ -149,6 +156,7 @@ impl Helper {
                         "game_build_key" => json!("25251167-previews"),
                         "game_original" => json!(self.db),
                         "game_dir" => json!(self.dir),
+                        "addons" => self.addons.clone(),
                         other => panic!("unexpected host call {other}"),
                     };
                     self.send(json!({ "id": host_id, "result": result }));
@@ -203,6 +211,7 @@ fn the_page_shows_previews() {
         lines: BufReader::new(child.stdout.take().unwrap()).lines(),
         db: dir.join(game::DB_REL),
         dir: dir.clone(),
+        addons: json!([]),
         next: 0,
         invalidated: false,
     };
@@ -290,6 +299,138 @@ fn the_page_shows_previews() {
     .unwrap();
     let art = &list["body"]["list"]["rows"][0]["art"]["image"];
     assert!(art.as_str().is_some_and(|p| Path::new(p).is_file()), "{art}");
+    drop(h);
+    child.wait().unwrap();
+}
+
+fn settle(h: &mut Helper) -> Value {
+    let started = Instant::now();
+    let mut view = h.call("view", json!({}));
+    while view["tick"] == true {
+        assert!(
+            started.elapsed() < Duration::from_secs(120),
+            "previews never finished"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+        h.call("tick", json!({}));
+        if h.invalidated {
+            h.invalidated = false;
+            view = h.call("view", json!({}));
+        }
+    }
+    view
+}
+
+#[test]
+fn heads_an_addon_adds_show_on_the_page() {
+    let Some(dir) = game_dir() else {
+        eprintln!("F1_25_DIR is not set or has no character packages; skipping");
+        return;
+    };
+    const HEADS: &str = "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads";
+    if dir.join(HEADS).join("daniil_kvyat.erp").is_file() {
+        eprintln!("this game folder already has daniil_kvyat.erp; skipping");
+        return;
+    }
+    let out = scratch("addon-heads");
+    let (data_dir, cache_dir) = (out.join("data"), out.join("cache"));
+    let addon = out.join("addons/mod.more-driver-models");
+    std::fs::create_dir_all(addon.join("ops")).unwrap();
+    std::fs::create_dir_all(addon.join("files")).unwrap();
+    let head = std::env::var_os("DM_KVYAT_ERP")
+        .map_or_else(|| dir.join(HEADS).join("charles_leclerc.erp"), PathBuf::from);
+    std::fs::copy(&head, addon.join("files/daniil_kvyat.erp")).unwrap();
+    std::fs::write(
+        addon.join("swofty.json"),
+        r#"{"schema_version":1,"id":"mod.more-driver-models","name":"More Driver Models","version":"1.2.0","author":"MildtDesign","operations":{"assets":["ops/files.json"]}}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        addon.join("ops/files.json"),
+        serde_json::to_vec(&json!({ "schema_version": 1, "ops": [
+            { "op": "file.put", "source": "files/daniil_kvyat.erp", "target": format!("{HEADS}/daniil_kvyat.erp") }
+        ] }))
+        .unwrap(),
+    )
+    .unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_driver-manager-helper"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut h = Helper {
+        stdin: child.stdin.take().unwrap(),
+        lines: BufReader::new(child.stdout.take().unwrap()).lines(),
+        db: dir.join(game::DB_REL),
+        dir: dir.clone(),
+        addons: json!([]),
+        next: 0,
+        invalidated: false,
+    };
+    h.call(
+        "hello",
+        json!({
+        "api": 1, "addon": "swofty.driver-manager", "data_dir": data_dir, "cache_dir": cache_dir,
+        "profile": { "name": "default", "vanilla": false, "enabled": true }, "launcher": "1.3.7" }),
+    );
+    settle(&mut h);
+    h.call("event", json!({ "event": { "click": { "id": "add" } } }));
+    let edit = h.call("view", json!({}));
+    let heads = find_select(&edit, "head").unwrap()["options"]
+        .as_array()
+        .unwrap()
+        .clone();
+    assert!(
+        !heads.iter().any(|o| o["value"] == "daniil_kvyat"),
+        "offered before the addon is on"
+    );
+
+    h.addons = json!([{ "id": "mod.more-driver-models", "name": "More Driver Models", "dir": addon, "enabled": true }]);
+    settle(&mut h);
+    let edit = h.call("view", json!({}));
+    let heads = find_select(&edit, "head").unwrap()["options"]
+        .as_array()
+        .unwrap()
+        .clone();
+    let kvyat = heads
+        .iter()
+        .find(|o| o["value"] == "daniil_kvyat")
+        .expect("the addon's head is offered");
+    assert_eq!(kvyat["label"], "Looks like Daniil KVYAT (More Driver Models)");
+    assert!(
+        kvyat["image"].as_str().is_some_and(|p| Path::new(p).is_file()),
+        "{kvyat}"
+    );
+
+    h.call("event", json!({ "event": { "click": { "id": "stock" } } }));
+    let list = h.call("view", json!({}));
+    assert!(find(&list, "rows").unwrap().as_array().unwrap().len() > 100);
+    h.call(
+        "event",
+        json!({ "event": { "click": { "id": "stock_edit:andrea-kimi_antonelli" } } }),
+    );
+    let stock = h.call("view", json!({}));
+    let form = find(&stock, "form").unwrap()["id"].as_str().unwrap().to_owned();
+    assert!(
+        find_select(&stock, "head").unwrap()["options"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|o| o["value"] == "daniil_kvyat")
+    );
+    let saved = h.call(
+        "event",
+        json!({ "event": { "submit": { "form": form, "values": { "head": "daniil_kvyat", "helmet": "2026-mercedes_andrea-kimi_antonelli" } } } }),
+    );
+    assert!(saved["notice"].as_str().is_some(), "{saved}");
+    let changes = driver_manager::stock::Changes::load(&data_dir).unwrap();
+    assert_eq!(
+        changes.drivers["andrea-kimi_antonelli"],
+        driver_manager::stock::Change {
+            head: Some("daniil_kvyat".into()),
+            helmet: None,
+        }
+    );
     drop(h);
     child.wait().unwrap();
 }

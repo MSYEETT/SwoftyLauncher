@@ -7,12 +7,19 @@ use swofty_formats::hash::fnv1a64;
 use swofty_formats::lng::Lng;
 
 pub const DB_REL: &str = "game_package/gamedatabases/gamedatabases.2025.bin";
-const CACHE_SCHEMA: u32 = 2;
+const CACHE_SCHEMA: u32 = 3;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Choice {
     pub value: String,
     pub label: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct StockLook {
+    pub folder: String,
+    pub label: String,
+    pub helmet: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -22,6 +29,10 @@ pub struct StockDriver {
     pub code: String,
     pub number: u32,
     pub stat_id: u32,
+    #[serde(default)]
+    pub head: String,
+    #[serde(default)]
+    pub looks: Vec<StockLook>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -49,8 +60,10 @@ pub struct GameData {
     pub labels: BTreeSet<String>,
     #[serde(default)]
     pub art: BTreeMap<String, Art>,
-    #[serde(default)]
+    #[serde(skip)]
     pub missing: BTreeSet<String>,
+    #[serde(skip)]
+    pub supplied: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -130,10 +143,19 @@ impl GameData {
     }
 
     pub fn label(&self, list: List, value: &str) -> String {
-        self.list(list)
+        let label = self
+            .list(list)
             .iter()
             .find(|c| c.value == value)
-            .map_or_else(|| value.to_owned(), |c| c.label.clone())
+            .map_or_else(|| value.to_owned(), |c| c.label.clone());
+        match self.supplied.get(&list.key(value)) {
+            Some(addon) => format!("{label} ({addon})"),
+            None => label,
+        }
+    }
+
+    pub fn stock_driver(&self, label: &str) -> Option<&StockDriver> {
+        self.stock.iter().find(|s| s.label == label)
     }
 
     pub fn load_cached(path: &Path, key: &str) -> Option<GameData> {
@@ -298,6 +320,8 @@ pub fn extract(db: &Gvdb, lng: Option<&Lng>, key: &str) -> GameData {
                 code: field(db, &r, "initials"),
                 number: int(db, &r, "car_number").unwrap_or(0),
                 stat_id: id,
+                head: field(db, &r, "head"),
+                looks: Vec::new(),
             });
         }
         data.labels.insert(label.clone());
@@ -419,10 +443,24 @@ pub fn extract(db: &Gvdb, lng: Option<&Lng>, key: &str) -> GameData {
         voices.into_iter().partition(|c| c.value == "DefaultName");
     data.voices = default.into_iter().chain(disambiguate(rest)).collect();
 
+    let at: HashMap<String, usize> = data
+        .stock
+        .iter()
+        .enumerate()
+        .map(|(i, s)| (s.label.clone(), i))
+        .collect();
     for folder in rows(db, "entrants.driver_customisations", "folder") {
+        let folder_label = field(db, &folder, "_metadata_");
         for r in rows(db, &folder, "preloaded_driver_customisation_properties") {
             if let Some(id) = int(db, &r, "stat_id") {
                 data.preset_ids.insert(id);
+            }
+            if let Some(&i) = at.get(&field(db, &r, "linked_driver_stat_id")) {
+                data.stock[i].looks.push(StockLook {
+                    folder: folder_label.clone(),
+                    label: field(db, &r, "_metadata_"),
+                    helmet: field(db, &r, "helmet"),
+                });
             }
         }
     }
