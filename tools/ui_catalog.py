@@ -816,6 +816,7 @@ def ui_job(job):
                         visit(c, f'{path}.{name(c)}', t, kid_ctx, scopes + [my_xref] if my_xref is not None else scopes, depth + 1)
 
             for top in tops:
+                C[('rootname', key, name(top), rname)] += 1
                 visit(top, name(top), None, node_scene(top), [], 0)
     return rname, C, EX, VALS
 
@@ -942,7 +943,11 @@ def build_catalog(C, EX, VALS, resources, meta):
     meta['self_signals'] = sum(v for k, v in C.items() if k[0] == 'self_signal')
     return {'meta': meta, 'node_types': dict(sorted(nodes.items())), 'scene_elements': dict(sorted(els.items())),
             'mask_scenes': {m: {'elements': C[('maskscene', m)], 'first': EX.get(('mask', m)), 'archives': resources.get(m, [])[:4]} for m in masks},
-            'resources': {k: v[:4] for k, v in sorted(resources.items()) if k.endswith('.ui')}}
+            'resources': {k: v[:4] for k, v in sorted(resources.items()) if k.endswith('.ui')},
+            'root_names': {kind: {n: sorted({k[3] for k in C if k[0] == 'rootname' and k[1] == kind and k[2] == n})
+                                  for n in sorted({k[2] for k in C if k[0] == 'rootname' and k[1] == kind})}
+                           for kind in ('Screens', 'Templates')},
+            'scene_ids': sorted(f'{s:016x}' for s in SCENES)}
 
 
 def nodes_main(argv):
