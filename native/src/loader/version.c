@@ -13,7 +13,7 @@
 #define HOST_EXE L"F1_25.exe"
 #define EXPECTED_SIZE 408063872ULL
 #define EXPECTED_STAMP 1789118616UL
-#define WINDOW_TIMEOUT_MS 300000
+#define WINDOW_TIMEOUT_MS 1800000
 #define POLL_MS 50
 
 static const char *const fwd_names[] = {
@@ -569,8 +569,8 @@ static void open_diag_log(void)
     swprintf(path, MAX_PATH * 2, L"%ls\\ea-diagnostics.log", dir);
     swprintf(prev, MAX_PATH * 2, L"%ls\\ea-diagnostics.prev.log", dir);
     MoveFileExW(path, prev, MOVEFILE_REPLACE_EXISTING);
-    diag_file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS,
-                            FILE_ATTRIBUTE_NORMAL, NULL);
+    diag_file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+                            OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 }
 
 /* The engine's runtime code section: the first EXECUTE|READ, non-writable section (EA .rdata, Steam
@@ -1199,9 +1199,17 @@ static void open_log(void)
     CreateDirectoryW(dir, NULL);
     swprintf(path, MAX_PATH * 2, L"%ls\\loader.log", dir);
     swprintf(prev, MAX_PATH * 2, L"%ls\\loader.prev.log", dir);
+    /* The hook also appends to this file and may hold it open; a failed rotation is fine, we append in place.
+       FILE_SHARE_DELETE lets the next run rotate even while we hold it. */
     MoveFileExW(path, prev, MOVEFILE_REPLACE_EXISTING);
-    log_file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS,
-                           FILE_ATTRIBUTE_NORMAL, NULL);
+    /* The hook appends to the same file and briefly holds it during its own startup; retry past that window. */
+    for (int tries = 0; tries < 20; tries++) {
+        log_file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+                               OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (log_file != INVALID_HANDLE_VALUE)
+            break;
+        Sleep(100);
+    }
 }
 
 static void log_build(void)
