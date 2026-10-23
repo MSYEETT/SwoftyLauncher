@@ -6,6 +6,7 @@ pub mod build;
 pub mod builtin;
 pub mod bundled;
 pub mod cache;
+pub mod catalog;
 pub mod compat;
 pub mod conflicts;
 pub mod copies;
