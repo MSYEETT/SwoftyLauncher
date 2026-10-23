@@ -297,7 +297,7 @@ impl Shell {
             .rounded_full()
             .overflow_hidden();
         match url.and_then(|u| self.browser.avatars.get(u)) {
-            Some(image) => face.child(img(image.clone()).size_full()),
+            Some(image) => face.child(img(image.clone()).size_full().rounded_full()),
             None => {
                 let c = face_color(id, p);
                 let letter: String = name.trim().chars().take(1).flat_map(char::to_uppercase).collect();
