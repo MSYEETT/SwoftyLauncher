@@ -57,6 +57,9 @@ pub struct AddonManifest {
     /// The tool that generated the addon and the file it came from.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin: Option<Origin>,
+    /// A colour look applied to the game's picture, before the HUD draws.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shader: Option<Shader>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -67,10 +70,17 @@ pub enum Category {
     #[serde(alias = "liveries")]
     Cars,
     Helmets,
+    Shaders,
 }
 
 impl Category {
-    pub const ALL: [Category; 4] = [Self::Seasons, Self::Tracks, Self::Cars, Self::Helmets];
+    pub const ALL: [Category; 5] = [
+        Self::Seasons,
+        Self::Tracks,
+        Self::Cars,
+        Self::Helmets,
+        Self::Shaders,
+    ];
 
     /// Categories from earlier launchers that read as none.
     pub const RETIRED: [&str; 7] = [
@@ -89,6 +99,7 @@ impl Category {
             Self::Tracks => "Tracks",
             Self::Cars => "Cars",
             Self::Helmets => "Helmets",
+            Self::Shaders => "Shaders",
         }
     }
 
@@ -184,6 +195,8 @@ pub enum Kind {
 pub enum ExperimentalFeature {
     /// Drawing over the game with `swofty/overlay.hpp`.
     Overlay,
+    /// Grading the game's picture with a [`Shader`] look.
+    Shaders,
 }
 
 impl ExperimentalFeature {
@@ -191,14 +204,51 @@ impl ExperimentalFeature {
     pub fn name(self) -> &'static str {
         match self {
             Self::Overlay => "overlay",
+            Self::Shaders => "shaders",
         }
     }
 
     pub fn label(self) -> &'static str {
         match self {
             Self::Overlay => "Overlay",
+            Self::Shaders => "Shaders",
         }
     }
+}
+
+/// A colour look: a `.cube` 3D LUT graded in display colour, as a screenshot is, applied to
+/// the game's picture after its tonemap and before the HUD.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Shader {
+    /// The `.cube` file inside the addon. `{{id}}` names a `db` option, so a choice can pick
+    /// between looks.
+    pub lut: String,
+    /// How much of the look applies, from 0 to 100, or `{{id}}` naming a `db` slider over that
+    /// range. Defaults to 100.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub strength: Option<Strength>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum Strength {
+    Percent(f64),
+    Option(String),
+}
+
+/// The option ids a `{{id}}` template names, in order.
+pub fn placeholders(text: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(start) = rest.find("{{") {
+        let Some(end) = rest[start..].find("}}") else {
+            break;
+        };
+        out.push(rest[start + 2..start + end].trim());
+        rest = &rest[start + end + 2..];
+    }
+    out
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -462,6 +512,10 @@ impl AddonManifest {
         if let Some(p) = paths.into_iter().find(|p| !relative_inside(p)) {
             return fail(format!("{p} must be a relative path inside the addon"));
         }
+        if let Some(s) = &self.shader {
+            self.validate_shader(s)
+                .or_else(|e| fail(format!("shader: {e}")))?;
+        }
         if let Some(l) = &self.launcher {
             if l.program.is_empty() {
                 return fail("launcher.program names no program".into());
@@ -473,6 +527,48 @@ impl AddonManifest {
             }
         }
         Ok(())
+    }
+
+    fn validate_shader(&self, s: &Shader) -> std::result::Result<(), String> {
+        if !self.experimental_features.contains(&ExperimentalFeature::Shaders) {
+            return Err("list \"shaders\" in experimental_features to use it".into());
+        }
+        if !relative_inside(&s.lut) {
+            return Err(format!("lut {} must be a relative path inside the addon", s.lut));
+        }
+        if !s.lut.to_ascii_lowercase().ends_with(".cube") {
+            return Err(format!("lut {} must be a .cube file", s.lut));
+        }
+        if s.lut.matches("{{").count() != placeholders(&s.lut).len() {
+            return Err(format!("lut {} has an unclosed {{{{", s.lut));
+        }
+        let db_option = |id: &str, slider: bool| {
+            let o = self.options.iter().find(|o| o.id == id);
+            match o {
+                None => Err(format!("{{{{{id}}}}} names no option")),
+                Some(o) if o.binds != Binds::Db => Err(format!("option {id} must bind db")),
+                Some(o) if slider && o.kind != OptionType::Slider => {
+                    Err(format!("option {id} must be a slider"))
+                }
+                Some(o) if slider && (o.min.unwrap_or(0.) < 0. || o.max.unwrap_or(0.) > 100.) => {
+                    Err(format!("option {id} must stay within 0 to 100"))
+                }
+                Some(_) => Ok(()),
+            }
+        };
+        for id in placeholders(&s.lut) {
+            db_option(id, false)?;
+        }
+        match &s.strength {
+            Some(Strength::Percent(p)) if !(0.0..=100.0).contains(p) => {
+                Err(format!("strength {p} is not from 0 to 100"))
+            }
+            Some(Strength::Option(t)) => match placeholders(t)[..] {
+                [id] if t.trim().starts_with("{{") && t.trim().ends_with("}}") => db_option(id, true),
+                _ => Err(format!("strength {t:?} must be a number or one {{{{option}}}}")),
+            },
+            _ => Ok(()),
+        }
     }
 }
 
@@ -755,6 +851,90 @@ mod tests {
             "overlay"
         );
         assert!(AddonManifest::parse(&with(r#"["hud"]"#)).is_err());
+        let m = AddonManifest::parse(&with(r#"["shaders"]"#)).unwrap();
+        let f = m.experimental_features[0];
+        assert_eq!((f.name(), f.label()), ("shaders", "Shaders"));
+    }
+
+    const LOOKS: &str = r#"{
+        "schema_version": 1, "id": "author.looks", "name": "Looks", "version": "1.0.0", "author": "a",
+        "category": "shaders", "experimental_features": ["shaders"], "compat": { "game": "f1_25" },
+        "options": [
+            { "id": "look", "type": "choice", "default": "mono", "values": ["mono", "noir"], "binds": "db" },
+            { "id": "strength", "type": "slider", "min": 0, "max": 100, "step": 10, "default": 100, "binds": "db" },
+            { "id": "live", "type": "toggle", "default": true, "binds": "native" }
+        ],
+        "shader": SHADER
+    }"#;
+
+    fn looks(shader: &str) -> std::result::Result<AddonManifest, String> {
+        AddonManifest::parse(&LOOKS.replace("SHADER", shader)).map_err(|e| e.to_string())
+    }
+
+    #[test]
+    fn a_shader_pack_names_its_lut_and_strength() {
+        let m = looks(r#"{ "lut": "looks/{{look}}.cube", "strength": "{{ strength }}" }"#).unwrap();
+        assert_eq!(m.category, Some(Category::Shaders));
+        assert_eq!(Category::Shaders.label(), "Shaders");
+        let s = m.shader.as_ref().unwrap();
+        assert_eq!(s.lut, "looks/{{look}}.cube");
+        assert_eq!(s.strength, Some(Strength::Option("{{ strength }}".into())));
+        assert_eq!(placeholders(&s.lut), ["look"]);
+        let m = looks(r#"{ "lut": "looks/mono.CUBE", "strength": 40 }"#).unwrap();
+        assert_eq!(m.shader.unwrap().strength, Some(Strength::Percent(40.0)));
+        assert_eq!(
+            looks(r#"{ "lut": "mono.cube" }"#)
+                .unwrap()
+                .shader
+                .unwrap()
+                .strength,
+            None
+        );
+    }
+
+    #[test]
+    fn a_shader_pack_is_checked_before_it_installs() {
+        let err = |shader: &str| looks(shader).unwrap_err();
+        let at = |msg: &str| format!("invalid manifest: author.looks: shader: {msg}");
+        assert_eq!(
+            err(r#"{ "lut": "mono.png" }"#),
+            at("lut mono.png must be a .cube file")
+        );
+        assert_eq!(
+            err(r#"{ "lut": "../mono.cube" }"#),
+            at("lut ../mono.cube must be a relative path inside the addon")
+        );
+        assert_eq!(
+            err(r#"{ "lut": "{{look.cube" }"#),
+            at("lut {{look.cube has an unclosed {{")
+        );
+        assert_eq!(
+            err(r#"{ "lut": "{{shade}}.cube" }"#),
+            at("{{shade}} names no option")
+        );
+        assert_eq!(
+            err(r#"{ "lut": "{{live}}.cube" }"#),
+            at("option live must bind db")
+        );
+        assert_eq!(
+            err(r#"{ "lut": "a.cube", "strength": 150 }"#),
+            at("strength 150 is not from 0 to 100")
+        );
+        assert_eq!(
+            err(r#"{ "lut": "a.cube", "strength": "{{look}}" }"#),
+            at("option look must be a slider")
+        );
+        assert_eq!(
+            err(r#"{ "lut": "a.cube", "strength": "x{{strength}}" }"#),
+            at(r#"strength "x{{strength}}" must be a number or one {{option}}"#)
+        );
+        let no_feature = LOOKS
+            .replace(r#""experimental_features": ["shaders"],"#, "")
+            .replace("SHADER", r#"{ "lut": "a.cube" }"#);
+        assert_eq!(
+            AddonManifest::parse(&no_feature).unwrap_err().to_string(),
+            at(r#"list "shaders" in experimental_features to use it"#)
+        );
     }
 
     #[test]
