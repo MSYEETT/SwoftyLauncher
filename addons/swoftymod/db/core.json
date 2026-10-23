@@ -345,7 +345,7 @@
    "from": "game_setup.game_setup_modes.game_setup_mode[_metadata_=f1]",
    "set": {
     "_metadata_": "swofty_f1",
-    "stat_id": "16",
+    "stat_id": "20",
     "entrant_setup_modes": "swofty_f1"
    }
   },

@@ -195,7 +195,7 @@ fn core_db_ops_add_the_swofty_f1_modes_to_the_real_database() {
     let row = format!("{modes}.game_setup_mode_{}", n - 1);
     let text = |k: &str| db.get_text(&format!("{row}.{k}"));
     assert_eq!(text("_metadata_").as_deref(), Some(CORE_MODE));
-    assert_eq!(text("stat_id").as_deref(), Some("16"));
+    assert_eq!(text("stat_id").as_deref(), Some("20"));
     assert_eq!(text("entrant_setup_modes").as_deref(), Some(CORE_MODE));
     let mut ids: Vec<String> = (0..n)
         .map(|i| {

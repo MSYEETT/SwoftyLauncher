@@ -149,7 +149,7 @@ A mod made for an earlier game version can lower a count and leave stock rows ab
 
 SwoftyMod adds two rows labelled `swofty_f1`, copies of the stock `f1` rows, before any addon's operations run:
 
-- a game setup mode in `game_setup.game_setup_modes`, with `stat_id` 16 and the `swofty_f1` entrant setup mode;
+- a game setup mode in `game_setup.game_setup_modes`, with `stat_id` 20 and the `swofty_f1` entrant setup mode;
 - an entrant setup mode in `entrants.entrant_setup_modes`, with empty `entrant_lists` and `selectable_entrant_lists`.
 
 Every stock list of game setup modes that holds `f1` also holds `swofty_f1`. A SwoftyMod change that does not apply to the database is skipped with a warning. An addon adds its entrant lists to the mode with `list-append`:
