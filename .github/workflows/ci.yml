@@ -25,7 +25,6 @@ jobs:
       native: ${{ github.event_name != 'pull_request' || steps.filter.outputs.native == 'true' }}
       swofty-ui: ${{ github.event_name != 'pull_request' || steps.filter.outputs.swofty-ui == 'true' }}
       docs: ${{ github.event_name != 'pull_request' || steps.filter.outputs.docs == 'true' }}
-      triage: ${{ github.event_name != 'pull_request' || steps.filter.outputs.triage == 'true' }}
     steps:
       - id: filter
         if: github.event_name == 'pull_request'
@@ -91,9 +90,6 @@ jobs:
               - package.json
               - pnpm-lock.yaml
               - pnpm-workspace.yaml
-            triage:
-              - *always
-              - triage/**
 
   rust:
     name: Rust (${{ matrix.os }})
@@ -180,27 +176,6 @@ jobs:
           path: dist/swofty-ui/swofty-ui*
           if-no-files-found: error
           retention-days: 14
-
-  triage:
-    name: Log triage bot
-    needs: changes
-    if: needs.changes.outputs.triage == 'true'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: triage
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: astral-sh/setup-uv@v10.3.0
-
-      - name: Lint
-        run: |
-          uv run --frozen ruff check .
-          uv run --frozen ruff format --check .
-
-      - name: Test
-        run: uv run --frozen pytest -q
 
   # The rust job lints the installer on both systems; this job builds the release binary people test.
   installer:
