@@ -412,6 +412,12 @@ impl Bundle {
         line("Launcher", &self.launcher);
         line("OS", &self.os);
         line("Hardware", &hardware());
+        if cfg!(windows) {
+            line(
+                "Administrator",
+                if crate::compat::elevated() { "yes" } else { "no" },
+            );
+        }
         line("F1 25", &self.game);
         if let Some(dir) = &report.game.dir {
             line("Game folder", &dir.display().to_string());

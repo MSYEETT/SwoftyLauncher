@@ -390,6 +390,23 @@ impl Shell {
         shell.refresh_views(cx);
         shell.fetch_news(cx);
         shell.db_profile_changed(cx);
+        if cfg!(windows) {
+            cx.spawn_in(window, async move |_, cx| {
+                let elevated = cx
+                    .background_executor()
+                    .spawn(async { swofty_core::compat::elevated() })
+                    .await;
+                if elevated {
+                    let note = Notification::warning(
+                        "Windows blocks dragging files onto a program that runs as administrator. Choose files \
+                         with the launcher's buttons instead, or open Swofty Launcher normally to drag and drop.",
+                    )
+                    .title("Running as administrator");
+                    cx.update(|window, cx| window.push_notification(note, cx)).ok();
+                }
+            })
+            .detach();
+        }
         shell
     }
 
