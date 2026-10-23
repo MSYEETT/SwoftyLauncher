@@ -34,15 +34,17 @@ enum Type {
     Database,
     Archives,
     Text,
+    Simplified,
     Files,
     Code,
 }
 
 impl Type {
-    const ALL: [Type; 5] = [
+    const ALL: [Type; 6] = [
         Self::Database,
         Self::Archives,
         Self::Text,
+        Self::Simplified,
         Self::Files,
         Self::Code,
     ];
@@ -52,6 +54,7 @@ impl Type {
             Kind::Database => Self::Database,
             Kind::Erp => Self::Archives,
             Kind::Text | Kind::Ui => Self::Text,
+            Kind::Simplified => Self::Simplified,
             Kind::Files => Self::Files,
             Kind::Native => Self::Code,
         }
@@ -62,6 +65,7 @@ impl Type {
             Self::Database => "Database",
             Self::Archives => "Archives",
             Self::Text => "Text & UI",
+            Self::Simplified => "Simplified",
             Self::Files => "Files",
             Self::Code => "Code",
         }

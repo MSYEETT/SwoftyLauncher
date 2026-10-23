@@ -32,7 +32,7 @@ Your addon needs a `swofty.json` at its root. This is where you give it a name, 
 | `license` | string? | SPDX identifier, such as `MIT`. |
 | `homepage` | string? | A URL. |
 | `icon` | string? | A path inside your addon, shown on the Tools page and your addon's sidebar pages. Use an `.svg` for a one-colour glyph in the launcher's icon style, or a square `.png`, `.jpg` or `.webp` to show the image as it is. |
-| `kind` | string[] | What the addon touches: `database`, `erp`, `text`, `ui`, `files`, `native`. `text` needs launcher 1.3.0 or later, and an earlier launcher rejects the manifest. |
+| `kind` | string[] | What the addon touches: `database`, `erp`, `text`, `ui`, `files`, `native`, `simplified`. `text` needs launcher 1.3.0 or later and `simplified` 1.3.6 or later; an earlier launcher rejects the manifest. `simplified` marks a mod merged into the game's shader packages, as the Simplified Suite loads `.serps` mods. |
 | `category` | string? | What the addon is for ([category](#category)). |
 | `origin` | object? | The tool and file the addon was made from ([origin](#origin)). |
 

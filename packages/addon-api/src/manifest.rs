@@ -170,6 +170,8 @@ pub enum Kind {
     Ui,
     Files,
     Native,
+    /// Merged into the game's shader packages, as the Simplified Suite loads `.serps` mods.
+    Simplified,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -506,11 +508,13 @@ mod tests {
         assert_eq!(AddonManifest::parse(GRID24).unwrap().kind, [Kind::Database]);
         let m = AddonManifest::parse(&GRID24.replace(
             r#""kind": ["database"]"#,
-            r#""kind": ["database", "erp", "text", "ui", "files", "native"]"#,
+            r#""kind": ["database", "erp", "text", "ui", "files", "native", "simplified"]"#,
         ))
         .unwrap();
         assert_eq!(m.kind[2], Kind::Text);
+        assert_eq!(m.kind[6], Kind::Simplified);
         assert_eq!(serde_json::to_value(&m).unwrap()["kind"][2], "text");
+        assert_eq!(serde_json::to_value(&m).unwrap()["kind"][6], "simplified");
         assert!(
             AddonManifest::parse(&GRID24.replace(r#""kind": ["database"]"#, r#""kind": ["lang"]"#)).is_err()
         );
