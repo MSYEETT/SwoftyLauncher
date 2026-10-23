@@ -5,7 +5,7 @@ description: Add a box to the Addons row of the Grand Prix and Time Trial era pi
 
 # Era picker boxes
 
-The era picker is the row of boxes shown after Grand Prix or Time Trial (and on the split-screen game mode select): F1 2026, F1 2025, F2 2025 and so on. SwoftyMod gives it a second row. The game's own boxes stay in the top row, **Built In**, and boxes that addons register go in the bottom row, **Addons**, which scrolls on its own. Up and down move between the rows. The launcher builds the two rows only when the built game database has an entrant list in the `swofty_f1` entrant setup mode, so a profile without an era addon keeps the stock picker.
+The era picker is the row of boxes shown after Grand Prix or Time Trial (and on the split-screen game mode select): F1 2026, F1 2025, F2 2025 and so on. SwoftyMod gives it a second row. The game's own boxes stay in the top row, **Built In**, and boxes that addons register go in the bottom row, **Addons**, which scrolls on its own. Up and down move between the rows.
 
 You register a box from your addon; the core builds it every time the picker is built, presses it like a stock box and, when it is pressed, narrows the host setup mode to the box's entrant list so Time Trial loads only that list's cars. The data side (the entrant list, its teams and drivers, and its place in the host setup mode) comes from your addon's [database operations](/reference/ops/database).
 

@@ -670,7 +670,6 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         .warnings
         .extend(ui_notes.into_iter().map(|n| format!("menus: {n}")));
     let mut stock_removals = BTreeMap::new();
-    let mut eras = false;
     if !maps.is_empty() || planner.has_db() {
         let shipped = std::fs::read(&db_src).map_err(io_err(&db_src))?;
         let mut db = Gvdb::parse(&shipped)?;
@@ -713,7 +712,6 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             session.owned_items = found.items;
         }
         let cars = grid_size(&db);
-        eras = crate::ui::era::host_has_lists(&db);
         if let Some(staged) = staged {
             match db_edits(&staged, &db) {
                 Ok(edits) => {
@@ -1013,7 +1011,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             ));
             if menus {
                 let lang = planner.route(Kind::Lang) == Route::Runtime;
-                for (key, value) in build_menus(&mut built, &mut session, &resolve, lang, eras)? {
+                for (key, value) in build_menus(&mut built, &mut session, &resolve, lang)? {
                     planner.push(Op {
                         op: AssetOp::Lang(LangOp::Set {
                             language: "*".into(),
@@ -1452,10 +1450,9 @@ pub fn build_menus(
     session: &mut SessionSettings,
     original: &dyn Fn(&str) -> PathBuf,
     lang: bool,
-    eras: bool,
 ) -> Result<Vec<(String, String)>> {
     let input = |rel: &str| built.plan.data.get(rel).cloned().unwrap_or_else(|| original(rel));
-    let menus = crate::ui::build(session, &input, &built.overlay, lang, eras)?;
+    let menus = crate::ui::build(session, &input, &built.overlay, lang)?;
     built.lines.push(format!(
         "ui: ADDON SETTINGS with {} screen(s) under {LOADER_DIR}/ui, {} game archive(s) patched",
         menus.session.len(),

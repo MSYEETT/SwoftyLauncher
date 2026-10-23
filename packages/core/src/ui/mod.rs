@@ -159,7 +159,6 @@ pub fn build(
     input: &dyn Fn(&str) -> PathBuf,
     out: &Path,
     lang: bool,
-    eras: bool,
 ) -> Result<MenuBuild> {
     let flow_options = input(&ui_file("flow_options.erp"));
     let flow_frontend = input(&ui_file("flow_frontend.erp"));
@@ -281,15 +280,7 @@ pub fn build(
     )?;
 
     let mut build = MenuBuild::default();
-    let eras = if eras {
-        era_rows(input, out, &mut build.lines)?
-    } else {
-        build.lines.push(format!(
-            "ui: no addon adds an entrant list to {}, so the era picker keeps its stock row",
-            era::HOST
-        ));
-        Vec::new()
-    };
+    let eras = era_rows(input, out, &mut build.lines)?;
     if lang {
         build.strings = popup.strings();
     }

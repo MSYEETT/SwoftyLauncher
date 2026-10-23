@@ -7,8 +7,6 @@ use super::node::*;
 use crate::Result;
 
 pub const ARCHIVES: [&str; 2] = ["flow_f1_world.erp", "screens/f1_world_activity_container.erp"];
-pub const HOST: &str = "swofty_f1";
-const SETUP_MODES: &str = "entrants.entrant_setup_modes";
 pub const UI: &str = "eaid://ui_package/screens/f1_world_activity_container.ui";
 pub const UI_FRAGMENT: usize = 1;
 pub const SCENE: &str = "eaid://ui_package/art/screens/vehicle_type/vehicle_type.idf";
@@ -126,19 +124,6 @@ fn input_on_active_part(spawner: &mut Node) -> Result<()> {
 
 fn set_dbentry(n: &mut Node, key: &str, entry: &str) -> Result<()> {
     set_str(n.props_mut()?.at_mut(key)?.o_mut()?, "dbentry", entry)
-}
-
-pub fn host_has_lists(db: &swofty_formats::gvdb::Gvdb) -> bool {
-    let text = |key: String| db.get(&key).map(|r| r.text().trim().to_owned());
-    let count = text(format!("{SETUP_MODES}._entrant_setup_mode_instancecount_"))
-        .and_then(|n| n.parse::<usize>().ok())
-        .unwrap_or(0);
-    (0..count).any(|i| {
-        let row = format!("{SETUP_MODES}.entrant_setup_mode_{i}");
-        text(format!("{row}._metadata_")).as_deref() == Some(HOST)
-            && text(format!("{row}.entrant_lists"))
-                .is_some_and(|l| l.split(',').any(|v| !v.trim().is_empty()))
-    })
 }
 
 pub fn has_rows(data: &[u8]) -> Result<bool> {
@@ -406,36 +391,6 @@ pub fn fade(srv: &[u8], header: &[u8], fade: &str) -> Result<Vec<Vec<u8>>> {
 mod tests {
     use super::*;
     use swofty_formats::texture::{Codec, decode_pixels};
-
-    #[test]
-    fn the_rows_wait_for_an_entrant_list_on_the_host_setup_mode() {
-        use swofty_formats::gvdb::{Gvdb, Record};
-        let db = |lists: &str| Gvdb {
-            records: vec![
-                Record::new(
-                    &format!("{SETUP_MODES}._entrant_setup_mode_instancecount_"),
-                    0,
-                    "2",
-                ),
-                Record::new(&format!("{SETUP_MODES}.entrant_setup_mode_0._metadata_"), 4, "f1"),
-                Record::new(
-                    &format!("{SETUP_MODES}.entrant_setup_mode_0.entrant_lists"),
-                    2,
-                    "f1_2025",
-                ),
-                Record::new(&format!("{SETUP_MODES}.entrant_setup_mode_1._metadata_"), 4, HOST),
-                Record::new(
-                    &format!("{SETUP_MODES}.entrant_setup_mode_1.entrant_lists"),
-                    2,
-                    lists,
-                ),
-            ],
-        };
-        assert!(!host_has_lists(&db("")));
-        assert!(!host_has_lists(&db(" , ")));
-        assert!(host_has_lists(&db("cs_f1_2016")));
-        assert!(!host_has_lists(&Gvdb { records: Vec::new() }));
-    }
 
     #[test]
     fn the_fade_mask_is_white_and_fades_in_behind_the_labels() {
