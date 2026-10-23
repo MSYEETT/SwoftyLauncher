@@ -19,6 +19,7 @@ and the same edit. They are not shipped, except Swofty UI.
 | `gdb_hashsim.py` | Replays the game's hash-map load of `gamedatabases.2025.bin` and prints the missing-key sentinel |
 | `rtassets.py` | ERP and LNGT writers for the runtime assets Wine test (`native/test/run_runtime_assets_test.sh`) |
 | `gamedb/catalog.py` | The table and key catalogue of the game database (`gamedb/catalog/`), rerunnable against a game folder |
+| `ui_catalog.py nodes` | The UI node catalogue (`uicatalog/catalog.json`): every node type, property, command, event, pin and layout binding in the stock `.ui` files, and every scene element type and param in the stock `.idf` scenes. `packages/core` checks UI edits against it |
 | `pack_addon.py` | Packages an addon folder as a `.swoftyaddon`; `native/build.sh` uses it for the addons a release bundles |
 
 `packages/formats/tests/real_files.rs` runs the comparison:
@@ -31,6 +32,12 @@ Check a build with tracks (needs `zstandard` or the `zstd` command):
 
 ```sh
 python3 tools/map_check.py <overlay folder> --game <game folder or pristine copy> --maps <track packages folder>
+```
+
+Rebuild the UI node catalogue (archives the launcher has replaced are read from `--stock` folders, checked against the baseline's sha256):
+
+```sh
+F1_25_DIR=<game folder> python3 tools/ui_catalog.py nodes --baseline ~/.local/share/swofty/baseline/<build>/baseline.json [--stock <pristine copy>]
 ```
 
 The reader-key part of the check and `track_keys.py` need `numpy`, `pefile` and `capstone`, and an `F1_25.exe` whose build is listed in `track_keys.BUILDS`.

@@ -514,7 +514,492 @@ def main():
     print(len(screens), 'screens', len(ui_res), '.ui', len(only_per_screen), 'per-screen-only')
 
 
+NODES_OUT = f'{ROOT}/tools/uicatalog/catalog.json'
+SKIP_PROPS = {'id', 'nameId', 'version', 'name', 'type'}
+SCALARS = {'stri', 'bool', 'ui32', 'si32', 'fp32', 'rgba', 'ui64'}
+SCENES = {}
+
+
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for b in iter(lambda: f.read(1 << 20), b''):
+            h.update(b)
+    return h.hexdigest()
+
+
+def stock_archives(stock_dirs, baselines):
+    want = {}
+    for b in baselines:
+        for k, v in json.load(open(b))['files'].items():
+            want[k] = (v['sha256'], v['size'])
+    picked, refused = {}, []
+    for f in sorted(glob.glob(f'{UIP}/**/*.erp', recursive=True)):
+        rel = os.path.relpath(f, GAME)
+        if '/texture_arrays/' in rel or os.path.basename(rel).startswith('swofty'):
+            continue
+        cands = [f'{d}/{rel}' for d in stock_dirs] + [f]
+        if rel not in want:
+            picked[rel] = next(c for c in cands if os.path.exists(c))
+            continue
+        sha, size = want[rel]
+        pick = next((c for c in cands if os.path.exists(c) and os.path.getsize(c) == size and sha256(c) == sha), None)
+        if pick:
+            picked[rel] = pick
+        else:
+            refused.append(rel)
+    return picked, refused
+
+
+def load_frags(path, data_off, frags):
+    out = []
+    with open(path, 'rb') as f:
+        for fn, off, size, flags, comp, packed in frags:
+            f.seek(data_off + off)
+            raw = f.read(packed)
+            if comp == 0x11:
+                raw = subprocess.run(['zstd', '-dc'], input=raw, capture_output=True, check=True).stdout
+            out.append((fn, raw))
+    return out
+
+
+def vshape(v):
+    if isinstance(v, Val):
+        return '=' + v.type
+    if isinstance(v, Arr):
+        return 'arr'
+    if isinstance(v, Obj):
+        keys = [k.value for k, _ in v.items]
+        if 'value' in keys:
+            inner = v['value']
+            base = inner.type if isinstance(inner, Val) else vshape(inner)
+            extra = sorted(k for k in keys if k != 'value')
+            return base + (('+' + '+'.join(extra)) if extra else '')
+        return 'obj{' + ','.join(sorted(keys)) + '}'
+    return type(v).__name__
+
+
+def attr_shape(a, pre=''):
+    if isinstance(a, Val):
+        return [f'{pre}:{a.type}']
+    if isinstance(a, Obj):
+        return [x for k, v in a.items for x in attr_shape(v, f'{pre}.{k.value}' if pre else k.value)]
+    if isinstance(a, Arr):
+        return [f'{pre}[]']
+    return [pre]
+
+
+def el_type(e):
+    t = e.get('typeName')
+    return t.value if isinstance(t, Val) else '?'
+
+
+def el_name(e):
+    t = e.get('name')
+    return t.value if isinstance(t, Val) else '?'
+
+
+def el_kids(e):
+    c = e.get('children')
+    return [x for x in c.items if isinstance(x, Obj)] if isinstance(c, Arr) else []
+
+
+def scene_job(job):
+    rname, path, data_off, frags = job
+    C, EX = collections.Counter(), {}
+    index = {}
+    data = load_frags(path, data_off, frags)[0][1]
+    if data[:4] != b'!pkg':
+        return rname, index, C, EX
+    root = Pkg(data).root
+    sl = root.get('scenelist')
+    for entry in sl.items if isinstance(sl, Arr) else []:
+        sid = entry['name'].value
+        leaf, xrefs = {}, []
+        index[sid] = (leaf, xrefs)
+
+        def walk_el(e, parent, path):
+            t = el_type(e)
+            nm = el_name(e)
+            here = nm if parent is None else (nm if not path else f'{path}.{nm}')
+            xr = e.get('xref')
+            leaf.setdefault(nm, []).append((t, xr.value if isinstance(xr, Val) else None, here if parent is not None else ''))
+            if isinstance(xr, Val):
+                xrefs.append(xr.value)
+            C[('el', t)] += 1
+            EX.setdefault(('el', t), f'{rname}:{here}')
+            if parent is not None:
+                C[('elparent', t, parent)] += 1
+                C[('elchild', parent, t)] += 1
+            pa = e.get('params')
+            for it in pa.items if isinstance(pa, Arr) else []:
+                if isinstance(it, Obj) and isinstance(it.get('name'), Val):
+                    v = it.get('value')
+                    C[('elparam', t, it['name'].value, v.type if isinstance(v, Val) else vshape(v))] += 1
+            for k in ('geoms', 'anims'):
+                a = e.get(k)
+                if isinstance(a, Arr) and a.items:
+                    C[('el' + k, t)] += 1
+            if isinstance(xr, Val):
+                C[('elxref', t)] += 1
+            if t == 'eMask':
+                EX.setdefault(('mask', rname), here)
+                C[('maskscene', rname)] += 1
+            for c in el_kids(e):
+                walk_el(c, t, '' if parent is None else here)
+
+        sc = entry.get('scene')
+        if isinstance(sc, Obj):
+            walk_el(sc, None, '')
+    return rname, index, C, EX
+
+
+def lookup(nm, sid, prefix):
+    hits = [h + (sid,) for h in SCENES[sid][0].get(nm, []) if h[2].startswith(prefix)]
+    if hits or prefix:
+        return hits
+    seen, queue = set(), [sid]
+    while queue:
+        s = queue.pop(0)
+        if s in seen or s not in SCENES:
+            continue
+        seen.add(s)
+        names, xrefs = SCENES[s]
+        if nm in names:
+            return [h + (s,) for h in names[nm]]
+        queue.extend(xrefs)
+    return []
+
+
+def resolve(names, sid, prefix=''):
+    if sid not in SCENES:
+        return [], 'no-scene'
+    hits = lookup(names[0], sid, prefix)
+    if not hits:
+        return [], 'no-element'
+    if len(names) == 1:
+        return [hits[0][0]], hits[0][1]
+    best = None
+    for t, xr, path, s in sorted(hits, key=lambda h: h[1] is None):
+        chain, last = resolve(names[1:], xr, '') if xr is not None else resolve(names[1:], s, path + '.')
+        if isinstance(last, (int, type(None))):
+            return [t] + chain, last
+        best = best or ([t] + chain, last)
+    return best
+
+
+def node_scene(n):
+    comps = n.items[COMPONENTS]
+    for c in comps.items if isinstance(comps, Arr) else []:
+        if isinstance(c, Obj) and isinstance(c.get('componentId'), Val):
+            return c['componentId'].value
+    for grp in layout_groups(n):
+        for b in grp:
+            if b.get('isComponentId') is not None and isinstance(b.get('componentId'), Val):
+                return b['componentId'].value
+    return None
+
+
+def layout_groups(n):
+    lay = n.items[LAYOUT]
+    for grp in lay.items if isinstance(lay, Arr) else []:
+        ents = grp.items if isinstance(grp, Arr) else [grp]
+        yield [b for b in ents if isinstance(b, Obj)]
+
+
+def ui_job(job):
+    rname, path, data_off, frags = job
+    C, EX, VALS = collections.Counter(), {}, collections.defaultdict(set)
+    for fn, data in load_frags(path, data_off, frags):
+        if data[:4] != b'!pkg':
+            continue
+        root = Pkg(data).root
+        for key, role in (('Screens', 'screen_root'), ('Templates', 'template_root')):
+            arr = root.get(key) if isinstance(root, Obj) else None
+            if not isinstance(arr, Arr):
+                continue
+            tops = [t for t in arr.items if is_node(t)]
+            types = {p: ntype(n) for t in tops for p, n in walk(t)}
+
+            def visit(n, path, parent_t, ctx, scopes, depth):
+                t = ntype(n)
+                loc = f'{rname}#{fn}:{path}'
+                C[('node', t)] += 1
+                C[('role', t, role if depth == 0 else 'child')] += 1
+                C[('res', t, rname)] += 1
+                EX.setdefault(('node', t), loc)
+                if parent_t:
+                    C[('child', parent_t, t)] += 1
+                for k, v in n.items[PROPS].items:
+                    if k.value in SKIP_PROPS:
+                        continue
+                    sh = vshape(v)
+                    C[('prop', t, k.value, sh)] += 1
+                    EX.setdefault(('prop', t, k.value), loc)
+                    if isinstance(v, Obj) and isinstance(v.get('dbentry'), Val):
+                        VALS[('db', t, k.value)].add(str(v['dbentry'].value))
+                    elif isinstance(v, Obj) and isinstance(v.get('value'), Val) and v['value'].type in SCALARS:
+                        VALS[('v', t, k.value)].add(repr(v['value'].value))
+                for slot, nkey, hkey, kind in ((COMMANDS, 'commandName', 'command', 'command'), (EVENTS, 'eventName', 'event', 'event')):
+                    arr2 = n.items[slot]
+                    for e in arr2.items if isinstance(arr2, Arr) else []:
+                        if not isinstance(e, Obj):
+                            continue
+                        nm = e.get(nkey)
+                        nm = nm.value if isinstance(nm, Val) else '?'
+                        sigs = e.get('signals')
+                        sigs = [s for s in sigs.items if isinstance(s, Obj)] if isinstance(sigs, Arr) else []
+                        C[(kind, t, nm)] += 1
+                        if not sigs:
+                            C[(kind + '_nosig', t, nm)] += 1
+                        EX.setdefault((kind, t, nm), loc)
+                        h = e.get(hkey)
+                        if isinstance(h, Val) and h.value != djb2(nm):
+                            C[('badhash', kind)] += 1
+                        for s in sigs:
+                            to = s['to_object_name'].value if isinstance(s.get('to_object_name'), Val) else '?'
+                            pin = s['to_pin_name'].value if isinstance(s.get('to_pin_name'), Val) else '?'
+                            fp = s.get('from_pin_name')
+                            fp = fp.value if isinstance(fp, Val) else None
+                            tt = types.get(to, '?')
+                            C[('pin_in', tt, pin)] += 1
+                            EX.setdefault(('pin_in', tt, pin), f'{loc} -> {to}')
+                            C[('pin_out', t, fp)] += 1
+                            if fp != nm:
+                                C[('pin_out_renamed', t, nm, fp)] += 1
+                            C[('wire', t, kind, nm, tt, pin)] += 1
+                            C[('link', t, tt, pin)] += 1
+                            a = s.get('attributes')
+                            C[('pin_attr', tt, pin, ' '.join(sorted(attr_shape(a))) if a is not None else '')] += 1
+                            if to == path:
+                                C[('self_signal', t, pin)] += 1
+                beh = n.items[BEHAVIOURS]
+                bs = [fourcc(b['type'].value) for b in beh.items if isinstance(b, Obj) and isinstance(b.get('type'), Val)] if isinstance(beh, Arr) else []
+                for b in bs:
+                    C[('beh', t, b)] += 1
+                C[('bset', t, '+'.join(bs))] += 1
+                own = node_scene(n)
+                if own is not None:
+                    C[('component', t, role if depth == 0 else 'child')] += 1
+                my_xref = None
+                for grp in layout_groups(n):
+                    kinds = ['comp' if b.get('isComponentId') is not None else 'node' if b.get('nodeId') is not None else '?' for b in grp]
+                    C[('layout', t, '>'.join(kinds), role if depth == 0 else 'child')] += 1
+                    names = [b['debugName'].value for b in grp if isinstance(b.get('debugName'), Val) and b.get('nodeId') is not None]
+                    if not names or len(names) != len(grp):
+                        continue
+                    if depth == 0:
+                        C[('layout_el', t, 'outer:' + str(len(names)))] += 1
+                        continue
+                    chain, last, how = [], 'no-scene', 'ctx'
+                    for i, sid in enumerate(([ctx] if ctx is not None else []) + scopes[::-1]):
+                        chain, last = resolve(names, sid)
+                        if isinstance(last, (int, type(None))):
+                            how = 'ctx' if i == 0 and ctx is not None else 'xref-scope'
+                            break
+                    if isinstance(last, (int, type(None))):
+                        ch = '>'.join(chain)
+                        C[('layout_el', t, ch)] += 1
+                        C[('bound_by', chain[-1], t)] += 1
+                        if len(chain) > 1:
+                            C[('bound_via', chain[-2], chain[-1], t)] += 1
+                        C[('layout_res', how)] += 1
+                        EX.setdefault(('layout_el', t, ch), loc)
+                        if last is not None:
+                            my_xref = last
+                    else:
+                        C[('layout_res', last)] += 1
+                kid_ctx = own if own is not None else ctx
+                kids = n.items[CHILDREN]
+                for c in kids.items if isinstance(kids, Arr) else []:
+                    if is_node(c):
+                        visit(c, f'{path}.{name(c)}', t, kid_ctx, scopes + [my_xref] if my_xref is not None else scopes, depth + 1)
+
+            for top in tops:
+                visit(top, name(top), None, node_scene(top), [], 0)
+    return rname, C, EX, VALS
+
+
+def top(counter, n=None):
+    return dict(sorted(counter.items(), key=lambda kv: (-kv[1], str(kv[0])))[:n])
+
+
+def build_catalog(C, EX, VALS, resources, meta):
+    T = collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(collections.Counter)))
+    nodes = {}
+
+    def nt(t):
+        if t not in nodes:
+            nodes[t] = {'count': 0, 'roles': collections.Counter(), 'resources': 0, 'example': EX.get(('node', t)),
+                        'props': {}, 'commands': {}, 'events': {}, 'pins_in': {}, 'pins_out': collections.Counter(),
+                        'wiring': collections.Counter(), 'links': collections.Counter(), 'children': collections.Counter(), 'parents': collections.Counter(),
+                        'behaviours': collections.Counter(), 'behaviour_sets': collections.Counter(),
+                        'layout': collections.Counter(), 'layout_elements': collections.Counter(), 'components': collections.Counter()}
+        return nodes[t]
+
+    for k, v in C.items():
+        kind = k[0]
+        if kind == 'node':
+            nt(k[1])['count'] += v
+        elif kind == 'role':
+            nt(k[1])['roles'][k[2]] += v
+        elif kind == 'res':
+            nt(k[1])['resources'] += 1
+        elif kind == 'child':
+            nt(k[1])['children'][k[2]] += v
+            nt(k[2])['parents'][k[1]] += v
+        elif kind == 'prop':
+            p = nt(k[1])['props'].setdefault(k[2], {'count': 0, 'shapes': collections.Counter()})
+            p['count'] += v
+            p['shapes'][k[3]] += v
+        elif kind in ('command', 'event'):
+            e = nt(k[1])[kind + 's'].setdefault(k[2], {'count': 0, 'no_signals': 0})
+            e['count'] += v
+        elif kind in ('command_nosig', 'event_nosig'):
+            e = nt(k[1])[kind.split('_')[0] + 's'].setdefault(k[2], {'count': 0, 'no_signals': 0})
+            e['no_signals'] += v
+        elif kind == 'pin_in':
+            p = nt(k[1])['pins_in'].setdefault(k[2], {'count': 0, 'attributes': collections.Counter()})
+            p['count'] += v
+        elif kind == 'pin_attr':
+            p = nt(k[1])['pins_in'].setdefault(k[2], {'count': 0, 'attributes': collections.Counter()})
+            if k[3]:
+                p['attributes'][k[3]] += v
+        elif kind == 'pin_out':
+            nt(k[1])['pins_out'][k[2]] += v
+        elif kind == 'wire':
+            nt(k[1])['wiring'][f'{k[2]} {k[3]} -> {k[4]}.{k[5]}'] += v
+        elif kind == 'link':
+            nt(k[1])['links'][f'{k[2]}.{k[3]}'] += v
+        elif kind == 'beh':
+            nt(k[1])['behaviours'][k[2]] += v
+        elif kind == 'bset':
+            nt(k[1])['behaviour_sets'][k[2]] += v
+        elif kind == 'layout':
+            nt(k[1])['layout'][f'{k[3]}:{k[2]}'] += v
+        elif kind == 'layout_el':
+            nt(k[1])['layout_elements'][k[2]] += v
+        elif kind == 'component':
+            nt(k[1])['components'][k[2]] += v
+    for t, d in nodes.items():
+        for key, p in d['props'].items():
+            p['shapes'] = top(p['shapes'])
+            vals = VALS.get(('v', t, key), set())
+            dbs = VALS.get(('db', t, key), set())
+            if vals:
+                p['distinct_values'] = len(vals)
+                p['values'] = sorted(vals)[:12]
+            if dbs:
+                p['bound'] = len(dbs)
+                p['dbentries'] = sorted(dbs)[:6]
+            p['example'] = EX.get(('prop', t, key))
+        for kind in ('commands', 'events'):
+            for nm, e in d[kind].items():
+                e['example'] = EX.get((kind[:-1], t, nm))
+        for pin, p in d['pins_in'].items():
+            p['attributes'] = top(p['attributes'])
+            p['example'] = EX.get(('pin_in', t, pin))
+        for key in ('roles', 'pins_out', 'links', 'children', 'parents', 'behaviours', 'layout', 'layout_elements', 'components'):
+            d[key] = top(d[key])
+        d['wiring'] = top(d['wiring'], 40)
+        d['behaviour_sets'] = top(d['behaviour_sets'], 6)
+        for key in ('props', 'commands', 'events', 'pins_in'):
+            d[key] = dict(sorted(d[key].items(), key=lambda kv: (-kv[1]['count'], kv[0])))
+    els = {}
+    for k, v in C.items():
+        kind = k[0]
+        if not kind.startswith('el') and kind not in ('bound_by', 'bound_via'):
+            continue
+        t = k[2] if kind == 'bound_via' else k[1]
+        d = els.setdefault(t, {'count': 0, 'params': {}, 'parents': collections.Counter(), 'children': collections.Counter(),
+                               'geoms': 0, 'anims': 0, 'xref': 0, 'bound_by': collections.Counter(), 'bound_via': collections.Counter(),
+                               'example': EX.get(('el', t))})
+        if kind == 'el':
+            d['count'] += v
+        elif kind == 'elparam':
+            p = d['params'].setdefault(k[2], {'count': 0, 'types': collections.Counter()})
+            p['count'] += v
+            p['types'][k[3]] += v
+        elif kind == 'elparent':
+            d['parents'][k[2]] += v
+        elif kind == 'elchild':
+            d['children'][k[2]] += v
+        elif kind in ('elgeoms', 'elanims', 'elxref'):
+            d[kind[2:]] += v
+        elif kind == 'bound_by':
+            d['bound_by'][k[2]] += v
+        elif kind == 'bound_via':
+            d['bound_via'][f'{k[1]}>{k[2]} by {k[3]}'] += v
+    for t, d in els.items():
+        for p in d['params'].values():
+            p['types'] = top(p['types'])
+        d['params'] = dict(sorted(d['params'].items(), key=lambda kv: (-kv[1]['count'], kv[0])))
+        for key in ('parents', 'children', 'bound_by', 'bound_via'):
+            d[key] = top(d[key])
+    masks = sorted(k[1] for k in C if k[0] == 'maskscene')
+    meta['layout_resolution'] = top(collections.Counter({k[1]: v for k, v in C.items() if k[0] == 'layout_res'}))
+    meta['bad_hashes'] = top(collections.Counter({k[1]: v for k, v in C.items() if k[0] == 'badhash'}))
+    meta['self_signals'] = sum(v for k, v in C.items() if k[0] == 'self_signal')
+    return {'meta': meta, 'node_types': dict(sorted(nodes.items())), 'scene_elements': dict(sorted(els.items())),
+            'mask_scenes': {m: {'elements': C[('maskscene', m)], 'first': EX.get(('mask', m)), 'archives': resources.get(m, [])[:4]} for m in masks},
+            'resources': {k: v[:4] for k, v in sorted(resources.items()) if k.endswith('.ui')}}
+
+
+def nodes_main(argv):
+    import argparse
+    import multiprocessing
+    ap = argparse.ArgumentParser(prog='ui_catalog.py nodes')
+    ap.add_argument('--stock', action='append', default=[], help='a folder laid out like the game folder holding stock copies')
+    ap.add_argument('--baseline', action='append', default=[], help='a swofty baseline.json; archives it lists must match its sha256')
+    ap.add_argument('--out', default=NODES_OUT)
+    ap.add_argument('-j', type=int, default=os.cpu_count())
+    a = ap.parse_args(argv)
+    picked, refused = stock_archives(a.stock, a.baseline)
+    if refused:
+        print('skipped, no stock copy:', ', '.join(refused), file=sys.stderr)
+    seen_ui, seen_idf, resources = {}, {}, collections.defaultdict(list)
+    for rel, path in sorted(picked.items()):
+        meta, res = parse(path)
+        short = os.path.relpath(rel, '2025_asset_groups/ui_package')
+        for r in res:
+            nm, typ = r[0], r[1]
+            if typ == 'UIDF' and nm.endswith('.ui'):
+                resources[nm].append(short)
+                seen_ui.setdefault((nm, r[4]), (nm, path, meta['data_off'], r[3]))
+            elif typ == 'UILayout' and nm.endswith('.idf'):
+                resources[nm].append(short)
+                seen_idf.setdefault(r[4], (nm, path, meta['data_off'], r[3]))
+    C, EX, VALS = collections.Counter(), {}, collections.defaultdict(set)
+    ctx = multiprocessing.get_context('fork')
+    with ctx.Pool(a.j) as pool:
+        for rname, index, c, ex in pool.imap(scene_job, sorted(seen_idf.values()), chunksize=8):
+            SCENES.update(index)
+            C.update(c)
+            for k, v in ex.items():
+                EX.setdefault(k, v)
+    with ctx.Pool(a.j) as pool:
+        for rname, c, ex, vals in pool.imap(ui_job, sorted(seen_ui.values()), chunksize=2):
+            C.update(c)
+            for k, v in ex.items():
+                EX.setdefault(k, v)
+            for k, v in vals.items():
+                VALS[k] |= v
+    meta = {'generator': 'python3 tools/ui_catalog.py nodes', 'archives': len(picked), 'skipped_archives': refused,
+            'ui_resources': len({k[0] for k in seen_ui}), 'ui_copies': len(seen_ui), 'scenes': len(SCENES), 'scene_copies': len(seen_idf),
+            'nodes': sum(v for k, v in C.items() if k[0] == 'node'), 'signals': sum(v for k, v in C.items() if k[0] == 'pin_in'),
+            'scene_elements': sum(v for k, v in C.items() if k[0] == 'el')}
+    cat = build_catalog(C, EX, VALS, resources, meta)
+    os.makedirs(os.path.dirname(a.out), exist_ok=True)
+    with open(a.out, 'w') as f:
+        json.dump(cat, f, indent=1, sort_keys=False, ensure_ascii=False)
+        f.write('\n')
+    print(json.dumps(meta, indent=1))
+
+
 if __name__ == '__main__':
+    if sys.argv[1:2] == ['nodes']:
+        nodes_main(sys.argv[2:])
+        sys.exit(0)
     if len(sys.argv) > 1:
         LOGS = sys.argv[1:]
     main()
