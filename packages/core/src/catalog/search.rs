@@ -130,7 +130,12 @@ impl Query {
         let category = a.category_label().unwrap_or_else(|| "Other".to_owned());
         if let Some(author) = &self.author {
             let mut names = vec![a.author.as_str()];
-            names.extend(a.publishers.iter().map(|p| p.name.as_str()));
+            names.extend(
+                a.owner()
+                    .into_iter()
+                    .chain(&a.publishers)
+                    .map(|p| p.name.as_str()),
+            );
             if !narrows(author, &names) {
                 return None;
             }
@@ -143,8 +148,9 @@ impl Query {
         }
         let kinds = a.kind_labels().join(" ");
         let publishers = a
-            .publishers
-            .iter()
+            .owner()
+            .into_iter()
+            .chain(&a.publishers)
             .map(|p| p.name.as_str())
             .collect::<Vec<_>>()
             .join(" ");
@@ -173,6 +179,27 @@ impl Query {
         let phrase = self.words.join(" ");
         if !phrase.is_empty() && a.name.to_lowercase().starts_with(&phrase) {
             total += NAME * 2;
+        }
+        Some(total)
+    }
+
+    /// How well a publisher's name matches, or `None` when it doesn't or the
+    /// query only narrows by category.
+    pub fn score_name(&self, name: &str) -> Option<u32> {
+        if (self.words.is_empty() && self.author.is_none()) || self.category.is_some() {
+            return None;
+        }
+        if let Some(author) = &self.author
+            && !narrows(author, &[name])
+        {
+            return None;
+        }
+        let mut total = 1;
+        for term in &self.words {
+            match best(term, name) {
+                0 => return None,
+                q => total += q,
+            }
         }
         Some(total)
     }
@@ -297,6 +324,20 @@ mod tests {
         assert_eq!(ids("code"), ["swofty.career-editor"]);
         assert_eq!(ids("retro"), ["demo.lids", "demo.monaco"]);
         assert_eq!(ids("tracks"), ["demo.monaco"]);
+    }
+
+    #[test]
+    fn matches_publisher_names() {
+        let name = |q: &str| Query::parse(q).score_name("Retro Grid");
+        assert!(name("retro").is_some());
+        assert!(name("grid ret").is_some());
+        assert!(name("rerto").is_some());
+        assert!(name("author:retro").is_some());
+        assert!(name("retro liveries").is_none());
+        assert!(name("author:pixel").is_none());
+        assert!(name("category:cars").is_none());
+        assert!(name("").is_none());
+        assert!(name("retro grid") > name("ret"));
     }
 
     #[test]

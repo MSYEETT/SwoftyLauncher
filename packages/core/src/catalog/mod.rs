@@ -2,6 +2,7 @@
 //! Swofty registry, fetched and saved so the last catalog shows offline, and
 //! downloads checked against the size and SHA-256 the registry lists.
 
+pub mod publishers;
 pub mod search;
 pub mod stars;
 
@@ -57,6 +58,8 @@ pub struct Addon {
     pub homepage: Option<String>,
     #[serde(default)]
     pub icon: Option<String>,
+    #[serde(default)]
+    pub publisher: Option<Publisher>,
     #[serde(default)]
     pub publishers: Vec<Publisher>,
     #[serde(default)]
@@ -170,10 +173,12 @@ impl Addon {
         out
     }
 
+    /// Who it is by: its owner's name, or the manifest's author for a catalog
+    /// saved before the registry listed owners.
     pub fn author_name(&self) -> &str {
-        match self.author.trim() {
-            "" => self.publishers.first().map_or("", |p| p.name.trim()),
-            author => author,
+        match self.owner().map(|o| o.name.trim()) {
+            Some(name) if !name.is_empty() => name,
+            _ => self.author.trim(),
         }
     }
 }
@@ -545,6 +550,7 @@ mod tests {
             kind: Vec::new(),
             homepage: None,
             icon: None,
+            publisher: None,
             publishers: Vec::new(),
             downloads: 0,
             downloads_30d: 0,
