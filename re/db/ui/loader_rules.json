@@ -97,6 +97,28 @@
    "ev": "decomp:re/decomp/1441ffb90.c"
   },
   {
+   "id": "behaviour.nbvn_visualnav",
+   "level": "L2",
+   "check": "A node whose slot 6 lists NBVN (type 1314275918, visual navigation) must have a visualNav object prop (fnv1a32 0x13eff3de; stock: {xOffset, yOffset}). NBVN init reads it first; missing -> 3 and the node (for a template root: the whole instance) is rejected. Stock pairs them exactly: every root with visualNav lists NBVN and none without it does (f1_world_activity lists neither).",
+   "fail": {
+    "code": 3,
+    "scope": "node"
+   },
+   "fn": "0x144289830 Vm_VisualNavBehaviour_Init; 0x14417f1b0 Vm_Read_PropObject_Thunk; 0x143927f90 Vm_Find_PkgObjectKey_Thunk",
+   "ev": "decomp:re/decomp/144289830.c;decomp:re/decomp/14417f1b0.c;decomp:re/decomp/143927f90.c"
+  },
+  {
+   "id": "behaviour.types",
+   "level": "L2",
+   "check": "Behaviour from-data inits (vtable slot 5, +0x28) and the props they read: NBVN 0x144289830 visualNav (required) then autoFocus, allowXNav, allowYNav, xOffset, yOffset, navEnabled (optional); NBMO 0x144280780 materialData (optional, missing returns 0); NBEL 0x14427fd50 hideOnUnbind (optional); NBAN 0x14427e320 handleRepeats (optional); NBAC 0x14427dfd0 audioContext (optional); NBDC, NBVM, NBXA, NBTP 0x1438d50b0 read nothing. NBMG, NBFC and NBOS are not registered behaviour types (no code references them) and are skipped.",
+   "fail": {
+    "code": "NBVN only",
+    "scope": "node"
+   },
+   "fn": "0x1441ffb90 (loop 0x14420254d)",
+   "ev": "decomp:re/decomp/144289830.c;decomp:re/decomp/144280780.c;decomp:re/decomp/14427fd50.c;decomp:re/decomp/1438d50b0.c"
+  },
+  {
    "id": "commands.entry",
    "level": "L2",
    "check": "Slot 2 entries: key command (djb2 id, fnv key 0x93594ab2) required and signals (0xc3c68e0e) required (empty array allowed); commandName is not read.",
@@ -187,7 +209,7 @@
   {
    "id": "template.child_abort",
    "level": "L2",
-   "check": "Template instance build: the first child with rc != 0 stops the build; the rc propagates to every ancestor and to the instance. The partially built tree is NOT detached or destroyed (roots attach to their parent before their children are built).",
+   "check": "Template instance build: the first child with rc != 0 stops the build; the rc propagates to every ancestor and to the instance. The partially built tree is NOT detached or destroyed: each node attaches to its parent after its own init succeeds and before its children are built, so a descendant failure leaves the root and every node built before it attached, while a root whose own init fails is never attached (the object leaks).",
    "fail": {
     "code": "child rc",
     "scope": "whole template instance (partial tree leaks under the parent)"
@@ -221,6 +243,7 @@
  "silently_ignored": [
   "Unknown template name at instantiation: every caller skips it (UITC 0x144267110, 0x144178270, 0x144253930...).",
   "Template instance failure: UITC returns NULL (0x144266e30), callers ignore it; no log on any channel.",
+  "UITC instance names always embed the content_template value, also for header instances: tab_<n>( <content template> ) can be a header_template instance.",
   "Signal target id not found at link time: Vm_Link_NodeReference 0x144179da0 registers a pending link (0x1442238b0) and resolves it when a node with that id appears; until then Vm_Dispatch_EventSignals 0x144251800 skips the signal.",
   "Pin the target class does not handle: delivered through target vt+0x190; no error path in the dispatcher.",
   "Event not declared on the node, or an event with zero signals: Vm_Raise_NodeEvent 0x1442468d0 returns 0.",
