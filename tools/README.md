@@ -19,6 +19,7 @@ and the same edit. They are not shipped, except Swofty UI.
 | `gdb_hashsim.py` | Replays the game's hash-map load of `gamedatabases.2025.bin` and prints the missing-key sentinel |
 | `rtassets.py` | ERP and LNGT writers for the runtime assets Wine test (`native/test/run_runtime_assets_test.sh`) |
 | `gamedb/catalog.py` | The table and key catalogue of the game database (`gamedb/catalog/`), rerunnable against a game folder |
+| `gamedb/deepkeys.py` | Finds the keys under a game-database row that no catalogue names, by hashing candidate paths from the exe's identifiers, the catalogue and table labels |
 | `ui_catalog.py nodes` | The UI node catalogue (`uicatalog/catalog.json`): every node type, property, command, event, pin and layout binding in the stock `.ui` files, and every scene element type and param in the stock `.idf` scenes. `packages/core` checks UI edits against it |
 | `pack_addon.py` | Packages an addon folder as a `.swoftyaddon`; `native/build.sh` uses it for the addons a release bundles |
 
