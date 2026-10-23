@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use swofty_core::asset::{AssetOp, FileKind, OpFile};
+use swofty_core::dbedit::deps::{self, Copy};
 use swofty_core::manifest::AddonManifest;
 use swofty_core::ops::{CopyMode, DbOp, DbOps, DbReport, apply_db_ops_report};
 use swofty_core::profile::Profile;
@@ -36,6 +37,7 @@ fn main() {
         stock: None,
     };
     let (mut warnings, mut gaps) = (0, 0);
+    let mut copies = Vec::new();
     for rel in files {
         let text = std::fs::read(addon.join(&rel)).expect("read the op file");
         let mut doc: serde_json::Value = serde_json::from_slice(&text).expect("op file json");
@@ -88,6 +90,16 @@ fn main() {
         if let Err(e) = result {
             println!("  error: {e}");
         }
+        copies.extend(report.added_rows.into_iter().map(|r| Copy {
+            addon: manifest.name.clone(),
+            from: r.from,
+            row: r.row,
+        }));
+    }
+    println!("== label-keyed side data of {} add-row(s)", copies.len());
+    for w in deps::check(&db, &copies, &|id| id.to_owned()) {
+        warnings += 1;
+        println!("  warning: {w}");
     }
     println!("{warnings} warning(s), {gaps} fields list gap(s) closed by the full copy");
 }

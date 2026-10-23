@@ -38,6 +38,15 @@ pub struct DbReport {
     pub warnings: Vec<String>,
     /// `remove-record` ops left out because their key is a stock record.
     pub stock_removals: usize,
+    /// Each `add-row` applied, in order.
+    pub added_rows: Vec<AddedRow>,
+}
+
+/// An `add-row` applied: the source row's path and the new row's path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AddedRow {
+    pub from: String,
+    pub row: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1070,6 +1079,10 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
             None => db.push(r),
         }
     }
+    cx.report.added_rows.push(AddedRow {
+        from: src_path.clone(),
+        row: dst_path.clone(),
+    });
     db.added_rows.insert(dst_path);
     let count = db
         .get_mut(fnv1a64(&count_path))
@@ -1760,6 +1773,15 @@ mod tests {
                 == "add-row modes.mode_2 (from modes.mode[_metadata_=f1]): stat_id 8 (the source's is 3)"),
             "{:?}",
             report.lines
+        );
+        let rows: Vec<(&str, &str)> = report
+            .added_rows
+            .iter()
+            .map(|r| (r.from.as_str(), r.row.as_str()))
+            .collect();
+        assert_eq!(
+            rows,
+            [("modes.mode_0", "modes.mode_2"), ("modes.mode_0", "modes.mode_3")]
         );
     }
 

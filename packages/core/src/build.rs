@@ -719,6 +719,12 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             let name = addons.get(id).map_or(id.as_str(), |m| m.name.as_str());
             built.warnings.push(stock_removals_line(name, *n));
         }
+        let mut copies = planner.take_copies();
+        copies.retain(|c| c.addon != CORE_ID);
+        let addon_name = |id: &str| addons.get(id).map_or(id, |m| m.name.as_str()).to_owned();
+        built
+            .warnings
+            .extend(crate::dbedit::deps::check(&db, &copies, &addon_name));
         if !added.is_empty() {
             let found = owned::owned_items(&db, &Gvdb::parse(&shipped)?, &added);
             built.lines.extend(found.lines);

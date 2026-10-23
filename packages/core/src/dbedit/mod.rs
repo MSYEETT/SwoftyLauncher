@@ -2,6 +2,7 @@
 //! edits saved as data addons, and the friendly modules the launcher draws.
 
 mod catalog;
+pub mod deps;
 pub mod draft;
 mod edits;
 mod ego;

@@ -170,14 +170,23 @@ pub(crate) fn parse_key(s: &str) -> Option<u64> {
 impl Catalog {
     pub fn load(db: &[u8]) -> Result<Self> {
         let gvdb = Gvdb::parse(db)?;
+        Ok(Self::from_gvdb(
+            gvdb,
+            crate::baseline::sha256_bytes(db)[..16].to_owned(),
+        ))
+    }
+
+    /// A parsed database; `build` is what [`Catalog::build_id`] returns.
+    pub fn from_gvdb(gvdb: Gvdb, build: String) -> Self {
         let n = gvdb.records.len();
+        let bytes: usize = gvdb.records.iter().map(|r| r.value.len()).sum();
         let mut cat = Catalog {
-            build: crate::baseline::sha256_bytes(db)[..16].to_owned(),
+            build,
             index: IdMap::with_capacity_and_hasher(n, Default::default()),
             keys: Vec::with_capacity(n),
             tags: Vec::with_capacity(n),
             spans: Vec::with_capacity(n),
-            values: String::with_capacity(db.len()),
+            values: String::with_capacity(bytes),
             nodes: Vec::with_capacity(n + n / 8),
             hashes: Vec::with_capacity(n + n / 8),
             child_start: Vec::new(),
@@ -256,7 +265,7 @@ impl Catalog {
         }
         cat.link();
         cat.mark_duplicate_labels();
-        Ok(cat)
+        cat
     }
 
     fn push_node(&mut self, node: Node, hash: u64) -> NodeId {
