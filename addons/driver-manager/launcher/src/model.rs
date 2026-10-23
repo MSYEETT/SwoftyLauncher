@@ -201,6 +201,82 @@ impl Driver {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Part {
+    Start,
+    Peak,
+    Both,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Target {
+    Trait(usize),
+    Rating(usize, Part),
+}
+
+impl Target {
+    pub fn all() -> Vec<Target> {
+        let traits = (0..TRAITS.len()).map(Target::Trait);
+        let ratings = (0..STATS.len())
+            .flat_map(|i| [Part::Both, Part::Start, Part::Peak].map(|p| Target::Rating(i, p)));
+        traits.chain(ratings).collect()
+    }
+
+    pub fn key(self) -> String {
+        match self {
+            Target::Trait(i) => format!("trait_{}", TRAITS[i].0),
+            Target::Rating(i, part) => format!(
+                "{}_{}",
+                STATS[i].0,
+                match part {
+                    Part::Start => "start",
+                    Part::Peak => "peak",
+                    Part::Both => "both",
+                }
+            ),
+        }
+    }
+
+    pub fn parse(key: &str) -> Option<Target> {
+        Target::all().into_iter().find(|t| t.key() == key)
+    }
+
+    pub fn label(self) -> String {
+        match self {
+            Target::Trait(i) => format!("AI {}", TRAITS[i].1.to_lowercase()),
+            Target::Rating(i, Part::Both) => format!("{} at start and peak", STATS[i].1),
+            Target::Rating(i, Part::Start) => format!("{} at start", STATS[i].1),
+            Target::Rating(i, Part::Peak) => format!("{} at peak", STATS[i].1),
+        }
+    }
+}
+
+impl Driver {
+    pub fn set(&mut self, target: Target, value: u32) {
+        let value = value.min(100);
+        match target {
+            Target::Trait(i) => self.traits[i] = f64::from(value) / 100.,
+            Target::Rating(i, part) => {
+                let r = &mut self.ratings[i];
+                match part {
+                    Part::Start => {
+                        r.start = value;
+                        r.peak = r.peak.max(value);
+                    }
+                    Part::Peak => {
+                        r.peak = value;
+                        r.start = r.start.min(value);
+                    }
+                    Part::Both => {
+                        r.start = value;
+                        r.peak = value;
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Roster {
     pub schema: u32,
@@ -265,6 +341,15 @@ impl Roster {
         self.next_driver = driver + 1;
         self.next_preset = preset + 1;
         Ok((driver, preset))
+    }
+
+    pub fn set_all(&mut self, target: Target, value: u32, retired: bool) -> usize {
+        let mut n = 0;
+        for d in self.drivers.iter_mut().filter(|d| retired || !d.retired) {
+            d.set(target, value);
+            n += 1;
+        }
+        n
     }
 
     pub fn free_number(&self, game: Option<&GameData>) -> u32 {

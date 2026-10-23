@@ -5,7 +5,7 @@ use crate::check::{self, Issue, Level};
 use crate::game::{GameData, List};
 use crate::host::Host;
 use crate::model::{
-    Driver, FIRST_DRIVER_ID, LAST_DRIVER_ID, MAX_DRIVERS, MONTHS, Rating, Roster, STATS, TRAITS,
+    Driver, FIRST_DRIVER_ID, LAST_DRIVER_ID, MAX_DRIVERS, MONTHS, Rating, Roster, STATS, TRAITS, Target,
 };
 
 pub const SECTION: &str = "drivers";
@@ -137,6 +137,8 @@ pub fn view(app: &mut App, host: &mut Host) -> Value {
             helmet: app.large(List::Helmet, &helmet),
         };
         edit_view(app, &roster, &large)
+    } else if let Some(form) = &app.bulk {
+        bulk_view(app, &roster, form)
     } else {
         list_view(app, &roster)
     };
@@ -193,11 +195,13 @@ fn list_view(app: &App, roster: &Roster) -> Value {
         left
     );
     let can_add = game.is_some() && left > 0;
-    let actions = if can_add {
-        vec![button("add", "Add driver", "plus", "primary")]
-    } else {
-        Vec::new()
-    };
+    let mut actions = Vec::new();
+    if !roster.drivers.is_empty() {
+        actions.push(button("bulk", "Set for every driver", "gauge", "outline"));
+    }
+    if can_add {
+        actions.push(button("add", "Add driver", "plus", "primary"));
+    }
     let footer = format!(
         "Drivers are kept in {} and shared by every profile. Ids {FIRST_DRIVER_ID} to {LAST_DRIVER_ID} are never reused.",
         crate::model::Roster::path(&app.data_dir).display()
@@ -559,6 +563,75 @@ fn edit_view(app: &App, roster: &Roster, looks: &Looks) -> Value {
     })
 }
 
+fn bulk_view(app: &App, roster: &Roster, form: &str) -> Value {
+    let active = roster.drivers.iter().filter(|d| !d.retired).count();
+    let targets: Vec<Value> = Target::all()
+        .into_iter()
+        .map(|t| json!({ "value": t.key(), "label": t.label() }))
+        .collect();
+    let first = Target::all()[0].key();
+    let fields = vec![
+        select("target", "Rating", &first, Value::Array(targets), true, None),
+        number(
+            "value",
+            "Value",
+            100,
+            0,
+            100,
+            Some(
+                "100 is the most. For AI traits 100 is the game's 1.0, and higher mistake avoidance means fewer mistakes.",
+            ),
+        ),
+        select(
+            "who",
+            "Drivers",
+            "all",
+            json!([
+                { "value": "all", "label": format!("Every driver ({})", roster.drivers.len()) },
+                { "value": "active", "label": format!("Free agents only ({active})") }
+            ]),
+            false,
+            None,
+        ),
+    ];
+    let blocks = vec![
+        json!({ "hero": {
+            "title": "Set for every driver",
+            "subtitle": "Gives one rating or AI trait the same value for each of your drivers. The game's own drivers aren't changed.",
+            "buttons": [button("back", "Back to drivers", "", "ghost")]
+        } }),
+        json!({ "card": {
+            "title": "Rating",
+            "subtitle": "A start above a driver's peak raises the peak to match, and a peak below the start lowers the start.",
+            "blocks": [ { "form": {
+                "id": form,
+                "columns": 3,
+                "fields": fields,
+                "apply": "Set for drivers"
+            } } ]
+        } }),
+    ];
+    json!({
+        "subtitle": "Set for every driver",
+        "notices": scope_notices(app),
+        "body": { "blocks": blocks }
+    })
+}
+
+fn bulk_submit(app: &mut App, values: &Value) -> Result<Value, String> {
+    let key = str_of(values, "target").unwrap_or_default();
+    let target = Target::parse(&key).ok_or_else(|| format!("{key:?} isn't a rating Driver Manager sets."))?;
+    let value = u32_of(values, "value").unwrap_or(100).min(100);
+    let retired = str_of(values, "who").as_deref() != Some("active");
+    let mut roster = app.roster()?;
+    let n = roster.set_all(target, value, retired);
+    app.save(&roster)?;
+    app.bulk = None;
+    Ok(
+        json!({ "notice": format!("Set {} to {value} for {}.", target.label(), plural(n, "driver", "drivers")) }),
+    )
+}
+
 fn str_of(values: &Value, key: &str) -> Option<String> {
     values.get(key).and_then(Value::as_str).map(str::to_owned)
 }
@@ -643,6 +716,7 @@ fn open_editor(app: &mut App, draft: Driver) {
         format!("edit_{}", draft.stat_id)
     };
     let form = app.next_form(&base);
+    app.bulk = None;
     app.edit = Some(Edit {
         draft,
         form,
@@ -676,6 +750,9 @@ pub fn event(app: &mut App, host: &mut Host, event: &Value) -> Result<Value, Str
     }
     if let Some(submit) = event.get("submit") {
         let form = submit["form"].as_str().unwrap_or_default();
+        if app.bulk.as_deref() == Some(form) {
+            return bulk_submit(app, &submit["values"]);
+        }
         let Some(edit) = app.edit.as_mut().filter(|e| e.form == form) else {
             return Ok(json!("reload"));
         };
@@ -725,6 +802,12 @@ fn click_event(app: &mut App, host: &mut Host, id: &str) -> Result<Value, String
         }
         "back" => {
             app.edit = None;
+            app.bulk = None;
+            Ok(json!("reload"))
+        }
+        "bulk" => {
+            app.edit = None;
+            app.bulk = Some(app.next_form("bulk"));
             Ok(json!("reload"))
         }
         "retry" => {
@@ -789,4 +872,45 @@ pub fn build(app: &mut App, host: &mut Host, params: &Value) -> Value {
         Err(e) => return json!({ "ops": [], "warnings": [e] }),
     };
     crate::ops::build(&roster, app.game.as_ref(), &params["features"])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_set_for_every_driver_page_reads_and_saves() {
+        let dir = std::env::temp_dir().join(format!("dm-bulk-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        let mut app = App::new(&json!({ "data_dir": dir, "cache_dir": dir.join("cache") }));
+        let mut roster = app.roster().unwrap();
+        for (i, retired) in [false, true].into_iter().enumerate() {
+            let mut d = Driver::blank(None, 2 + i as u32);
+            d.stat_id = 208 + i as u32;
+            d.retired = retired;
+            roster.drivers.push(d);
+        }
+        app.save(&roster).unwrap();
+
+        let list: swofty_addon::view::View = serde_json::from_value(list_view(&app, &roster)).unwrap();
+        assert!(list.actions.iter().any(|b| b.id == "bulk"));
+        app.bulk = Some(app.next_form("bulk"));
+        let form = app.bulk.clone().unwrap();
+        let view = bulk_view(&app, &roster, &form);
+        serde_json::from_value::<swofty_addon::view::View>(view).unwrap();
+
+        let reply = bulk_submit(
+            &mut app,
+            &json!({ "target": "trait_mistakes", "value": 100, "who": "active" }),
+        )
+        .unwrap();
+        assert_eq!(reply["notice"], "Set AI mistake avoidance to 100 for 1 driver.");
+        assert!(app.bulk.is_none());
+        let saved = app.roster().unwrap();
+        assert_eq!(saved.drivers[0].traits[2], 1.0);
+        assert_eq!(saved.drivers[1].traits[2], roster.drivers[1].traits[2]);
+
+        assert!(bulk_submit(&mut app, &json!({ "target": "first", "value": 1 })).is_err());
+        std::fs::remove_dir_all(&dir).ok();
+    }
 }

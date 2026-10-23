@@ -31,6 +31,12 @@ Open **Driver Manager** and press **Add driver**. Set:
 
 Press **Add driver** to save. The page lists every driver with code, number, nationality, status and check result. **Edit**, **Duplicate**, **Retire** and **Restore** act on one driver. Every profile with Driver Manager on gets the same drivers.
 
+## Set a value for every driver
+
+**Set for every driver** gives one rating or AI trait the same value on each of your drivers. Choose the rating, a value from 0 to 100 and **Every driver** or **Free agents only**, then press **Set for drivers**. The value starts at 100, the most. For AI traits 100 is the game's 1.0; for mistake avoidance it means the fewest mistakes. Ratings take the start, the peak or both. A start above a driver's peak raises the peak to match, and a peak below the start lowers the start. The game's own drivers aren't changed.
+
+## Play with your drivers
+
 The next launch adds the drivers to the game. Start a new career to find them among the free agents. Driver Manager builds after your other addons and mods, so the drivers join the driver pools a team mod leaves. The [Career Mode Editor](/using/career-editor) swaps a free agent into a race seat in Driver Career.
 
 ## Checks

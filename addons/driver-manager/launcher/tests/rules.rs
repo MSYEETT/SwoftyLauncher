@@ -143,3 +143,59 @@ fn curves_have_four_points_from_start_to_peak() {
         "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0,0.25:0.5,0.5:1,1:1"
     );
 }
+
+#[test]
+fn set_for_every_driver_keeps_peaks_at_or_above_starts() {
+    use driver_manager::model::{Part, Target};
+    let g = game();
+    let mut roster = Roster {
+        schema: 1,
+        next_driver: 208,
+        next_preset: 366,
+        drivers: Vec::new(),
+    };
+    add(&mut roster, &g, "One", "ONE", 2);
+    add(&mut roster, &g, "Two", "TWO", 3);
+    let mut gone = add(&mut roster, &g, "Gone", "GON", 4);
+    gone.retired = true;
+    *roster.get_mut(gone.stat_id).unwrap() = gone.clone();
+
+    assert_eq!(Target::all().len(), 6 + 5 * 3);
+    for t in Target::all() {
+        assert_eq!(Target::parse(&t.key()), Some(t));
+    }
+    assert_eq!(Target::parse("nope"), None);
+
+    let mistakes = Target::parse("trait_mistakes").unwrap();
+    assert_eq!(mistakes.label(), "AI mistake avoidance");
+    assert_eq!(roster.set_all(mistakes, 100, false), 2);
+    let traits: Vec<f64> = roster.drivers.iter().map(|d| d.traits[2]).collect();
+    assert_eq!(traits, [1.0, 1.0, gone.traits[2]]);
+
+    assert_eq!(roster.set_all(Target::Rating(3, Part::Start), 95, true), 3);
+    assert!(
+        roster
+            .drivers
+            .iter()
+            .all(|d| d.ratings[3] == Rating { start: 95, peak: 95 })
+    );
+    assert_eq!(roster.set_all(Target::Rating(3, Part::Peak), 60, true), 3);
+    assert!(
+        roster
+            .drivers
+            .iter()
+            .all(|d| d.ratings[3] == Rating { start: 60, peak: 60 })
+    );
+    assert_eq!(roster.set_all(Target::Rating(0, Part::Both), 250, true), 3);
+    assert!(roster.drivers.iter().all(|d| d.ratings[0]
+        == Rating {
+            start: 100,
+            peak: 100
+        }));
+    assert_eq!(roster.set_all(Target::Trait(0), 0, true), 3);
+    assert!(roster.drivers.iter().all(|d| d.traits[0] == 0.0));
+
+    for d in &roster.drivers {
+        assert!(check::is_valid(&check::check(d, &roster, Some(&g))), "{d:?}");
+    }
+}
