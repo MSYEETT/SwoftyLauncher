@@ -640,6 +640,15 @@
   },
   {
    "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=mercedes]",
+   "set": {
+    "_metadata_": "cs16_mercedes",
+    "team": "cs16_mercedes"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=mercedes_2025]",
    "set": {
@@ -708,6 +717,15 @@
     "display_name_super_short": "lng_cs_team_16_redbull",
     "display_name_code": "RBR",
     "timing_tower_texture_path": "cs16_redbull"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=redbull]",
+   "set": {
+    "_metadata_": "cs16_redbull",
+    "team": "cs16_redbull"
    }
   },
   {
@@ -784,6 +802,15 @@
   },
   {
    "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=ferrari]",
+   "set": {
+    "_metadata_": "cs16_ferrari",
+    "team": "cs16_ferrari"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=ferrari_2025]",
    "set": {
@@ -852,6 +879,15 @@
     "display_name_super_short": "lng_cs_team_16_williams",
     "display_name_code": "WIL",
     "timing_tower_texture_path": "cs16_williams"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=williams]",
+   "set": {
+    "_metadata_": "cs16_williams",
+    "team": "cs16_williams"
    }
   },
   {
@@ -928,6 +964,15 @@
   },
   {
    "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=forceindia]",
+   "set": {
+    "_metadata_": "cs16_force_india",
+    "team": "cs16_force_india"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=force_india_2025]",
    "set": {
@@ -996,6 +1041,15 @@
     "display_name_super_short": "lng_cs_team_16_lotus",
     "display_name_code": "REN",
     "timing_tower_texture_path": "cs16_lotus"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=renault]",
+   "set": {
+    "_metadata_": "cs16_lotus",
+    "team": "cs16_lotus"
    }
   },
   {
@@ -1072,6 +1126,15 @@
   },
   {
    "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=tororosso]",
+   "set": {
+    "_metadata_": "cs16_toro_rosso",
+    "team": "cs16_toro_rosso"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=toro_rosso_2025]",
    "set": {
@@ -1140,6 +1203,15 @@
     "display_name_super_short": "lng_cs_team_16_sauber",
     "display_name_code": "SAU",
     "timing_tower_texture_path": "cs16_sauber"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=sauber]",
+   "set": {
+    "_metadata_": "cs16_sauber",
+    "team": "cs16_sauber"
    }
   },
   {
@@ -1216,6 +1288,15 @@
   },
   {
    "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=mclaren]",
+   "set": {
+    "_metadata_": "cs16_mclaren",
+    "team": "cs16_mclaren"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=mclaren_2025]",
    "set": {
@@ -1288,6 +1369,15 @@
   },
   {
    "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=sauber]",
+   "set": {
+    "_metadata_": "cs16_manor",
+    "team": "cs16_manor"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=sauber_2025]",
    "set": {
@@ -1356,6 +1446,15 @@
     "display_name_super_short": "lng_cs_team_16_haas",
     "display_name_code": "HAA",
     "timing_tower_texture_path": "cs16_haas"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=haas]",
+   "set": {
+    "_metadata_": "cs16_haas",
+    "team": "cs16_haas"
    }
   },
   {

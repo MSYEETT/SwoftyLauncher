@@ -14,6 +14,9 @@ catalogue does not name.
 A track's f1 world has ten garages; the eleventh is in the f1_26 world. With a season of more than ten teams, the shared
 addon moves swofty_f1 from the f1 track layer to a copy of the f1_26 one for the 2023 to 2025 seasons, which every
 classic entrant list uses, so every season races on the f1_26 worlds.
+
+The pit lane reads a team's pit stop times from the pit_lane.pit_times row whose team names it, so each season team
+copies its stock team's row.
 """
 
 import json
@@ -189,6 +192,9 @@ def build():
                         "set": {"_metadata_": label, "display_name": name_key, "display_name_short": name_key,
                                 "display_name_super_short": name_key, "display_name_code": team["code"],
                                 "timing_tower_texture_path": label}})
+            ops.append({"op": "add-row", "table": "pit_lane.pit_times",
+                        "from": f"pit_lane.pit_times.team_pit_times[_metadata_={stock['team']}]",
+                        "set": {"_metadata_": label, "team": label}})
             text.append(lang(name_key, team["name"]))
             vehicle = {"_metadata_": label}
             if cars:

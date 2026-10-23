@@ -620,6 +620,15 @@
   },
   {
    "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=mercedes]",
+   "set": {
+    "_metadata_": "cs18_mercedes",
+    "team": "cs18_mercedes"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=mercedes_2025]",
    "set": {
@@ -688,6 +697,15 @@
     "display_name_super_short": "lng_cs_team_18_ferrari",
     "display_name_code": "FER",
     "timing_tower_texture_path": "cs18_ferrari"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=ferrari]",
+   "set": {
+    "_metadata_": "cs18_ferrari",
+    "team": "cs18_ferrari"
    }
   },
   {
@@ -764,6 +782,15 @@
   },
   {
    "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=redbull]",
+   "set": {
+    "_metadata_": "cs18_redbull",
+    "team": "cs18_redbull"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=redbull_2025]",
    "set": {
@@ -832,6 +859,15 @@
     "display_name_super_short": "lng_cs_team_18_lotus",
     "display_name_code": "REN",
     "timing_tower_texture_path": "cs18_lotus"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=renault]",
+   "set": {
+    "_metadata_": "cs18_lotus",
+    "team": "cs18_lotus"
    }
   },
   {
@@ -908,6 +944,15 @@
   },
   {
    "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=haas]",
+   "set": {
+    "_metadata_": "cs18_haas",
+    "team": "cs18_haas"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=haas_2025]",
    "set": {
@@ -976,6 +1021,15 @@
     "display_name_super_short": "lng_cs_team_18_mclaren",
     "display_name_code": "MCL",
     "timing_tower_texture_path": "cs18_mclaren"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=mclaren]",
+   "set": {
+    "_metadata_": "cs18_mclaren",
+    "team": "cs18_mclaren"
    }
   },
   {
@@ -1052,6 +1106,15 @@
   },
   {
    "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=forceindia]",
+   "set": {
+    "_metadata_": "cs18_force_india",
+    "team": "cs18_force_india"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=force_india_2025]",
    "set": {
@@ -1120,6 +1183,15 @@
     "display_name_super_short": "lng_cs_team_18_sauber",
     "display_name_code": "SAU",
     "timing_tower_texture_path": "cs18_sauber"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=sauber]",
+   "set": {
+    "_metadata_": "cs18_sauber",
+    "team": "cs18_sauber"
    }
   },
   {
@@ -1196,6 +1268,15 @@
   },
   {
    "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=tororosso]",
+   "set": {
+    "_metadata_": "cs18_toro_rosso",
+    "team": "cs18_toro_rosso"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=toro_rosso_2025]",
    "set": {
@@ -1264,6 +1345,15 @@
     "display_name_super_short": "lng_cs_team_18_williams",
     "display_name_code": "WIL",
     "timing_tower_texture_path": "cs18_williams"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "pit_lane.pit_times",
+   "from": "pit_lane.pit_times.team_pit_times[_metadata_=williams]",
+   "set": {
+    "_metadata_": "cs18_williams",
+    "team": "cs18_williams"
    }
   },
   {
