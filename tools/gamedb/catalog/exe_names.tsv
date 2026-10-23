@@ -1519,8 +1519,8 @@ allow_night_start	yes
 allow_player_custom_pose	yes
 allow_quick_practice	yes
 allow_sponsors_and_badges	yes
-allow_strategy_mandatory_stop_check	no
-allow_strategy_valid_laps_check	no
+allow_strategy_mandatory_stop_check	yes
+allow_strategy_valid_laps_check	yes
 allow_to_pass	yes
 allow_to_pass.allow_to_pass_gap	yes
 allow_to_pass.dist_for_max_slow_down_before_pull_out	yes
@@ -2236,7 +2236,7 @@ championship_setups	yes
 championship_setups_override	no
 championship_setups_selection	no
 championship_trophies	yes
-championship_won_cutscene	no
+championship_won_cutscene	yes
 championship_wongame_setup	no
 championships	yes
 championships.shared_components	no
@@ -5532,7 +5532,7 @@ pit_wall_asset_group	yes
 pit_yield_speed	yes
 pits,	no
 pitstop_result	yes
-pitstop_threshold	no
+pitstop_threshold	yes
 pitstop_tyre_set	yes
 placeholder_tracks	yes
 placement_marker	yes
@@ -7626,9 +7626,9 @@ tyre_grip_modifier	yes
 tyre_inner_degrees	no
 tyre_inner_normalised	no
 tyre_normalised	no
-tyre_regulations	no
+tyre_regulations	yes
 tyre_regulationschampionship_wongame_setup	no
-tyre_setup_enabled	no
+tyre_setup_enabled	yes
 tyre_temperature	no
 tyre_wear	yes
 tyre_wear_TrackTyreWearScatrack_tyre_wear_tyres	no
@@ -7890,7 +7890,7 @@ usable_in_wet_conditions	yes
 usable_track_capacity_graphs	yes
 usable_tyre_wear	no
 useDynamicMaxSteerCalc	yes
-useManager	no
+useManager	yes
 useMaxPeakSlip	yes
 useTeamVariant	yes
 useTrackAndWetnessGripInEst	yes

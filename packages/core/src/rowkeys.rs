@@ -108,6 +108,9 @@ mod tests {
         );
         assert!(has(presets, "ai.max_downforce.front_suspension_height"));
         assert!(has(presets, "player.max_speed.brake_bm_input_end"));
+        let setup = "game_setup.game_setup_modes.game_setup_mode_N";
+        assert!(has(setup, "tyre_regulations.race2_length_requirement"));
+        assert!(has(setup, "championship_won_cutscene.useManager"));
     }
 
     #[test]

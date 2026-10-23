@@ -14,3 +14,8 @@ ai_vehicle_package_config.driver_parameter_maps.{alongside_awareness,alongside_s
 # '%s.%s.%s' on car setup presets: car_setup.presets.vehicle_package_setups_N. FUN_140c04fd0 reads
 # <row>.<ai|player>.<variant>.<slider>; the sliders are the car_setup.sliders.slider_N labels.
 {ai,player}.{max_downforce,med_downforce,balanced,med_speed,max_speed}.{ballast,brake_bias,brake_pressure,fuel_load,front_antiroll_bar,rear_antiroll_bar,front_camber,rear_camber,front_suspension,rear_suspension,front_suspension_height,rear_suspension_height,front_toe,rear_toe,front_wing,rear_wing,on_throttle,off_throttle,ramp_differential,front_right_tyre_pressure,front_left_tyre_pressure,rear_right_tyre_pressure,rear_left_tyre_pressure,engine_braking_fraction,mid_corner,diff_high_speed,diff_preload,brake_bm,brake_bm_input_start,front_right_tyre_pressure_inter,front_left_tyre_pressure_inter,rear_right_tyre_pressure_inter,rear_left_tyre_pressure_inter,front_right_tyre_pressure_wet,front_left_tyre_pressure_wet,rear_right_tyre_pressure_wet,rear_left_tyre_pressure_wet,brake_ch_front,brake_ch_rear,brake_bd_factor_front,brake_bd_factor_rear,brake_bm_input_end}
+
+# Sub-objects of game setup modes: game_setup.game_setup_modes.game_setup_mode_N. No identifier in the exe names
+# race0_length_requirement and its siblings, and add-row copies such as swofty_f1 missed all 11 keys.
+championship_won_cutscene.{camera,scene,subscene,useManager}
+tyre_regulations.{allow_strategy_mandatory_stop_check,allow_strategy_valid_laps_check,pitstop_threshold,race0_length_requirement,race1_length_requirement,race2_length_requirement,tyre_setup_enabled}

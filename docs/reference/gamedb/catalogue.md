@@ -11,14 +11,14 @@ Every table family found in `gamedatabases.2025.bin`, generated from the databas
 | | |
 |---|---|
 | Records | 742,857 |
-| Records with a known name | 586,899 |
+| Records with a known name | 587,053 |
 | Table families | 2,080 |
 | Families with a full path | 823 |
 | Table instances | 11,209 |
 | Rows | 60,782 |
-| Schema keys (`Table_N.field` form) | 17,016 |
+| Schema keys (`Table_N.field` form) | 17,027 |
 | Names the exe reads | 8,286 |
-| Exe names with no match in the DB | 3,881 |
+| Exe names with no match in the DB | 3,874 |
 | Full key hashes held as exe immediates | 1,098 |
 
 ## Tables with a full path
@@ -472,7 +472,7 @@ Every table family found in `gamedatabases.2025.bin`, generated from the databas
 | `game_setup.branding.game_setup_branding_N` | Game setup modes: grids, worlds and rules a mode uses *(inferred)* | 13 | 13 | 62 |  | 62 | f1, f2, classic |
 | `game_setup.branding.game_setup_branding_N.branding_videos_N` | Game setup modes: grids, worlds and rules a mode uses *(inferred)* | 1-3 × 11 | 1-3 | 7 |  | 7 | f1\_sprint, 2023\_onwards, 2024\_story |
 | `game_setup.branding.game_setup_branding_N.textures.texture_override_N` | Game setup modes: grids, worlds and rules a mode uses *(inferred)* | 19 × 6 | 19 | 2 |  | 2 | #overrides.weekend\_structure.se…, #overrides.weekend\_structure.se…, #overrides.weekend\_structure.se… |
-| `game_setup.game_setup_modes.game_setup_mode_N` | Game setup modes: grids, worlds and rules a mode uses *(inferred)* | 14 | 14 | 51 |  | 51 | f1\_26, f1, classic |
+| `game_setup.game_setup_modes.game_setup_mode_N` | Game setup modes: grids, worlds and rules a mode uses *(inferred)* | 14 | 14 | 62 |  | 51 | f1\_26, f1, classic |
 | `game_setup.game_setup_modes.game_setup_mode_N.DefaultSimOptions_N` | Game setup modes: grids, worlds and rules a mode uses *(inferred)* | 1 × 2 | 1 | 2 |  | 2 | DefaultSimOptions, DefaultSimOptions |
 | `game_setup.game_setup_modes.game_setup_mode_N.DynamicObjectivesGamemodeOptions_N` | Game setup modes: grids, worlds and rules a mode uses *(inferred)* | 1 × 6 | 1 | 2 |  | 2 | DynamicObjectivesGamemodeOptions, DynamicObjectivesGamemodeOptions, DynamicObjectivesGamemodeOptions |
 | `game_setup.game_setup_modes.game_setup_mode_N.weekend_options_N` | Game setup modes: grids, worlds and rules a mode uses *(inferred)* | 1 × 14 | 1 | 1 |  | 1 | weekend\_options, weekend\_options, weekend\_options |
