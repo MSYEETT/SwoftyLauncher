@@ -159,7 +159,7 @@ fn collects_the_logs_the_developers_need() {
         default["addons"]
             .as_array()
             .unwrap()
-            .contains(&json!({"id": "t.helper", "enabled": false}))
+            .contains(&json!({"id": "t.helper", "name": "Helper", "enabled": false}))
     );
     let summary = entry(&zip, "summary.txt");
     for want in [
@@ -818,23 +818,25 @@ fn bundles_the_running_games_logs_first_with_its_performance_summary() {
         "{summary}"
     );
     let addons = summary
-        .split_once("\nAddons\n  Active profile: default\n")
+        .split_once("\nAddons\n")
         .and_then(|(_, rest)| rest.split_once("\nFiles\n"))
         .map(|(block, _)| block)
         .unwrap_or_else(|| panic!("{summary}"));
-    let row = |id: &str| {
-        addons
-            .lines()
-            .find(|l| l.split_whitespace().next() == Some(id))
-            .unwrap_or_else(|| panic!("{id} missing from:\n{addons}"))
-    };
-    let helper = row("t.helper");
-    assert_eq!(
-        helper.split_whitespace().collect::<Vec<_>>(),
-        ["t.helper", "1.2.3", "off"]
+    let (on, off) = addons
+        .split_once("\n  Off:\n")
+        .unwrap_or_else(|| panic!("{addons}"));
+    assert!(
+        on.starts_with("  Active profile: default, 1 of 2 addons on\n"),
+        "{addons}"
     );
-    let core = row(crate::builtin::CORE_ID);
-    assert!(core.ends_with("on  built in"), "{core}");
+    assert!(
+        on.contains("     1. SwoftyMod ") && on.contains(&format!("({}), built in", crate::builtin::CORE_ID)),
+        "{addons}"
+    );
+    assert!(
+        off.contains("        Helper 1.2.3 (t.helper), installed\n"),
+        "{addons}"
+    );
     assert!(summary.find("\nPerformance\n") < summary.find("\nFiles\n"));
     std::fs::remove_dir_all(&root).ok();
 }
@@ -1223,5 +1225,88 @@ fn keeps_only_the_newest_bundles() {
         ])
     );
     assert!(prune(&root.join("missing"), 3, &old).is_empty());
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn lists_the_addons_by_name_in_load_order_with_their_source_and_settings() {
+    let root = tmp("addon-list");
+    let (store, game) = fake_data(&root);
+    put(
+        &store.addons_dir().join("mod.cars/swofty.json"),
+        r#"{"schema_version":1,"id":"mod.cars","name":"Cars › Classic","version":"1.0.0","author":"t","compat":{"game":"f1_25"},
+            "origin":{"tool":"teamsimplified.mods","file":"Cars.zip"}}"#,
+    );
+    put(
+        &store.addons_dir().join("t.grid/swofty.json"),
+        r#"{"schema_version":1,"id":"t.grid","name":"Grid","version":"0.2.0","author":"t","compat":{"game":"f1_25"},
+            "options":[{"id":"cars","type":"slider","label":"Cars","default":22,"min":22,"max":30,"step":1,"binds":"db"},
+                       {"id":"api_token","type":"choice","default":"a","values":["a","b"],"binds":"native"}]}"#,
+    );
+    put(
+        &store.root.join("profiles/default.json"),
+        r#"{"schema_version":1,"name":"default","addons":[{"id":"t.grid","enabled":true},{"id":"mod.cars","enabled":true},
+            {"id":"t.helper","enabled":false}],"options":{"t.grid":{"cars":26,"api_token":"b"}}}"#,
+    );
+    put(
+        &store.root.join("profiles/test.json"),
+        r#"{"schema_version":1,"name":"test","addons":[{"id":"mod.cars","enabled":true}]}"#,
+    );
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261023-120000");
+    let summary = summary_of(&bundle);
+    let addons = summary
+        .split_once("\nAddons\n")
+        .and_then(|(_, rest)| rest.split_once("\nFiles\n"))
+        .map(|(block, _)| block)
+        .unwrap_or_else(|| panic!("{summary}"));
+    let on: Vec<&str> = addons
+        .lines()
+        .filter(|l| l.trim_start().starts_with(char::is_numeric))
+        .collect();
+    assert_eq!(on.len(), 3, "{addons}");
+    assert!(on[1].ends_with("2. Grid 0.2.0 (t.grid), installed"), "{addons}");
+    assert!(
+        on[2].ends_with("3. Cars › Classic 1.0.0 (mod.cars), imported from Cars.zip"),
+        "{addons}"
+    );
+    assert!(
+        addons.contains(
+            "(t.grid), installed\n          Cars: 26 (default 22)\n          api_token: [redacted] (default [redacted])\n"
+        ),
+        "{addons}"
+    );
+    assert!(
+        addons.contains("Off:\n        Helper 1.2.3 (t.helper), installed\n"),
+        "{addons}"
+    );
+    assert!(
+        addons.contains("Other profiles: vanilla (0 on), test (2 on)"),
+        "{addons}"
+    );
+    let zip = bundle.zip().unwrap();
+    let json: Value = serde_json::from_str(&entry(&zip, "addons.json")).unwrap();
+    let cars = json["installed"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "mod.cars")
+        .unwrap();
+    assert_eq!(cars["source"], "imported from Cars.zip");
+    assert_eq!(cars["origin"]["file"], "Cars.zip");
+    let default = json["profiles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["name"] == "default")
+        .unwrap();
+    let grid = default["addons"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "t.grid")
+        .unwrap();
+    assert_eq!(grid["name"], "Grid");
+    assert_eq!(grid["options"]["cars"], 26);
+    assert_eq!(grid["options"]["api_token"], "[redacted]");
     std::fs::remove_dir_all(&root).ok();
 }

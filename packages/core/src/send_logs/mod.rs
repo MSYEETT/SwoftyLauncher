@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
 
+use crate::manifest::AddonManifest;
 use crate::session::{LOADER_LOG, PERF_LOG};
 use crate::store::Store;
 use crate::{Error, GAME_EXE, Result};
@@ -911,7 +912,8 @@ fn addon_logs(store: &Store) -> Vec<(String, PathBuf)> {
 }
 
 fn addons_summary(store: &Store) -> Value {
-    let installed = match store.addons() {
+    let manifests = store.addons();
+    let installed = match &manifests {
         Ok(addons) => Value::Array(
             addons
                 .values()
@@ -921,58 +923,160 @@ fn addons_summary(store: &Store) -> Value {
                         "name": m.name,
                         "version": m.version.to_string(),
                         "builtin": store.is_builtin(&m.id),
+                        "source": addon_source(store, m),
+                        "category": m.category,
+                        "kind": m.kind,
+                        "origin": m.origin,
                     })
                 })
                 .collect(),
         ),
         Err(e) => json!({ "error": e.to_string() }),
     };
+    let name = |id: &str| {
+        manifests
+            .as_ref()
+            .ok()
+            .and_then(|a| a.get(id))
+            .map(|m| m.name.clone())
+    };
     let active = store.active_profile();
     let profiles = match store.profile_names() {
         Ok(names) => Value::Array(
             names
                 .iter()
-                .map(|name| match store.profile(name) {
+                .map(|n| match store.profile(n) {
                     Ok(p) => json!({
-                        "name": name,
-                        "active": *name == active,
-                        "addons": p.addons.iter().map(|a| json!({ "id": a.id, "enabled": a.enabled })).collect::<Vec<_>>(),
+                        "name": n,
+                        "active": *n == active,
+                        "addons": p.addons.iter().map(|a| {
+                            let mut entry = json!({ "id": a.id, "name": name(&a.id), "enabled": a.enabled });
+                            if let Some(options) = p.options.get(&a.id) {
+                                entry["options"] = json!(options);
+                            }
+                            entry
+                        }).collect::<Vec<_>>(),
                     }),
-                    Err(e) => json!({ "name": name, "error": e.to_string() }),
+                    Err(e) => json!({ "name": n, "error": e.to_string() }),
                 })
                 .collect(),
         ),
         Err(e) => json!({ "error": e.to_string() }),
     };
-    json!({ "installed": installed, "profiles": profiles })
+    let mut out = json!({ "installed": installed, "profiles": profiles });
+    redact_json(&mut out);
+    out
 }
 
+/// Where an addon came from, as the Addons page tags it.
+fn addon_source(store: &Store, m: &AddonManifest) -> String {
+    let tool = m.origin.as_ref().map(|o| o.tool.as_str());
+    if store.is_builtin(&m.id) || m.id == crate::managed::ID {
+        "built in".into()
+    } else if tool == Some(crate::dbedit::package::ORIGIN_TOOL)
+        || crate::dbedit::package::is_package(store, &m.id)
+    {
+        "DB Editor".into()
+    } else if tool == Some(crate::managed::ID) {
+        match m.origin.as_ref().and_then(|o| o.file.as_deref()) {
+            Some(file) => format!("imported from {file}"),
+            None => "imported".into(),
+        }
+    } else {
+        "installed".into()
+    }
+}
+
+fn setting_text(v: &Value) -> String {
+    match v {
+        Value::String(s) => s.clone(),
+        other => other.to_string(),
+    }
+}
+
+/// The active profile's addons by name: those on in load order, then the rest,
+/// each with its source and the settings changed from their defaults.
 fn addon_lines(store: &Store) -> String {
     let addons = match store.addons() {
         Ok(a) => a,
         Err(e) => return format!("  could not list the addons: {e}\n"),
     };
     let active = store.active_profile();
-    let (on, mut s) = match store.profile(&active) {
-        Ok(p) => (
-            p.enabled()
-                .map(str::to_owned)
-                .collect::<std::collections::BTreeSet<_>>(),
-            format!("  Active profile: {active}\n"),
-        ),
-        Err(e) => (
-            Default::default(),
-            format!("  Active profile: {active} (could not be read: {e})\n"),
-        ),
+    let p = match store.profile(&active) {
+        Ok(p) => p,
+        Err(e) => {
+            let mut s = format!("  Active profile: {active} (could not be read: {e})\n");
+            for m in addons.values() {
+                s.push_str(&format!("  {} {} ({})\n", m.name, m.version, m.id));
+            }
+            return s;
+        }
     };
-    for m in addons.values() {
-        let state = if on.contains(&m.id) { "on" } else { "off" };
-        let builtin = if store.is_builtin(&m.id) { "  built in" } else { "" };
-        s.push_str(&format!(
-            "  {:40} {:12} {state}{builtin}\n",
-            m.id,
-            m.version.to_string()
-        ));
+    let row = |id: &str| match addons.get(id) {
+        Some(m) => {
+            let mut row = format!(
+                "{} {} ({}), {}\n",
+                m.name,
+                m.version,
+                m.id,
+                addon_source(store, m)
+            );
+            let stored = p.options.get(id);
+            let declared = m.options.iter().map(|o| (o.id.as_str(), Some(o)));
+            let stale = stored
+                .into_iter()
+                .flat_map(|v| v.keys())
+                .filter(|k| !m.options.iter().any(|o| o.id == **k))
+                .map(|k| (k.as_str(), None));
+            for (option, o) in declared.chain(stale) {
+                let Some(value) = stored.and_then(|v| v.get(option)) else {
+                    continue;
+                };
+                let shown = |v: &Value| match secret_name(option) {
+                    true => REDACTED.to_owned(),
+                    false => setting_text(v),
+                };
+                let label = o.and_then(|o| o.label.as_deref()).unwrap_or(option);
+                let default = o.map_or_else(String::new, |o| format!(" (default {})", shown(&o.default)));
+                row.push_str(&format!("          {label}: {}{default}\n", shown(value)));
+            }
+            row
+        }
+        None => format!("{id} (not installed)\n"),
+    };
+    let on: Vec<&str> = p.enabled().collect();
+    let mut s = format!(
+        "  Active profile: {active}, {} of {} addons on\n",
+        on.len(),
+        addons.len()
+    );
+    s.push_str("  On, in load order (a later addon wins where two change the same thing):\n");
+    for (i, id) in on.iter().enumerate() {
+        s.push_str(&format!("  {:>4}. {}", i + 1, row(id)));
+    }
+    let off: Vec<&str> = addons
+        .keys()
+        .map(String::as_str)
+        .filter(|id| !on.contains(id))
+        .collect();
+    if !off.is_empty() {
+        s.push_str("  Off:\n");
+        for id in off {
+            s.push_str(&format!("        {}", row(id)));
+        }
+    }
+    let others: Vec<String> = store
+        .profile_names()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|n| *n != active)
+        .map(|n| match store.profile(&n) {
+            Ok(o) => format!("{n} ({} on)", o.enabled().count()),
+            Err(_) => n,
+        })
+        .collect();
+    if !others.is_empty() {
+        s.push_str(&format!("  Other profiles: {}\n", others.join(", ")));
     }
     s
 }
