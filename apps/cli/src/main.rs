@@ -893,13 +893,10 @@ mod tests {
         std::fs::remove_dir_all(&root).ok();
     }
 
-    fn stub_webhook(code: u16) -> (String, std::thread::JoinHandle<usize>) {
+    fn stub_log_server(code: u16) -> (String, std::thread::JoinHandle<usize>) {
         use std::io::Read;
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let url = format!(
-            "http://{}/api/webhooks/123456789012/stubTOKENstub",
-            listener.local_addr().unwrap()
-        );
+        let url = format!("http://{}/v1/logs", listener.local_addr().unwrap());
         let handle = std::thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
             stream
@@ -959,8 +956,8 @@ mod tests {
             dry_run: None,
         };
 
-        let (url, server) = stub_webhook(200);
-        let hook = swofty_core::send_logs::Webhook::new(Some(&url));
+        let (url, server) = stub_log_server(200);
+        let hook = swofty_core::send_logs::LogServer::new(Some(&url));
         assert_eq!(
             send_logs::send_to(&store, args("sender"), hook).unwrap(),
             ExitCode::SUCCESS
@@ -977,8 +974,8 @@ mod tests {
         assert!(zip_names(&zips[0]).contains(&"state/launcher-run.log".to_owned()));
         assert_eq!(store.config().discord_username.as_deref(), Some("sender"));
 
-        let (url, server) = stub_webhook(400);
-        let hook = swofty_core::send_logs::Webhook::new(Some(&url));
+        let (url, server) = stub_log_server(400);
+        let hook = swofty_core::send_logs::LogServer::new(Some(&url));
         let err = send_logs::send_to(&store, args("refused"), hook).unwrap_err();
         assert!(err.to_string().contains("HTTP 400"), "{err}");
         server.join().unwrap();

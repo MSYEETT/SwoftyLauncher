@@ -9,19 +9,12 @@ const MAX_WAITS: usize = 5;
 const MAX_WAIT: f64 = 60.;
 const SERVER_RETRIES: usize = 2;
 const CONTENT_MAX: usize = 2000;
-const HIDDEN: &str = "[webhook]";
 
-/// The Discord webhook the logs go to. Its URL never leaves this type:
-/// `Debug` hides it and every error text passes through [`Webhook::redact`].
-#[derive(Clone)]
-pub struct Webhook {
+/// The log server Send Logs to Developers uploads to, which posts each part to
+/// the developers' Discord channel.
+#[derive(Debug, Clone)]
+pub struct LogServer {
     url: String,
-}
-
-impl std::fmt::Debug for Webhook {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Webhook([hidden])")
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -42,7 +35,7 @@ impl std::fmt::Display for Stage {
             Self::Sending { part, total, bytes } => {
                 write!(f, "Sending part {part}/{total} ({})…", super::size(*bytes as u64))
             }
-            Self::Waiting { secs } => write!(f, "Discord asked to wait; retrying in {secs} s…"),
+            Self::Waiting { secs } => write!(f, "The log server asked to wait; retrying in {secs} s…"),
             Self::Sent { .. } => f.write_str("Sent — thanks!"),
         }
     }
@@ -62,15 +55,15 @@ impl std::fmt::Display for SendError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Unavailable => f.write_str(super::UNAVAILABLE),
-            Self::Unreachable(e) => write!(f, "Couldn't reach Discord: {e}"),
+            Self::Unreachable(e) => write!(f, "Couldn't reach the log server: {e}"),
             Self::Status {
                 code,
                 message: Some(m),
-            } => write!(f, "Discord answered HTTP {code}: {m}"),
-            Self::Status { code, message: None } => write!(f, "Discord answered HTTP {code}"),
-            Self::TooBig => f.write_str("The logs are too big for Discord (HTTP 413), even split into parts"),
+            } => write!(f, "The log server answered HTTP {code}: {m}"),
+            Self::Status { code, message: None } => write!(f, "The log server answered HTTP {code}"),
+            Self::TooBig => f.write_str("The logs are too big to send (HTTP 413), even split into parts"),
             Self::RateLimited => {
-                f.write_str("Discord is limiting uploads right now (HTTP 429); try again in a few minutes")
+                f.write_str("Too many logs were sent from your network recently (HTTP 429); try again later")
             }
             Self::Other(e) => f.write_str(e),
         }
@@ -79,39 +72,18 @@ impl std::fmt::Display for SendError {
 
 impl std::error::Error for SendError {}
 
-impl Webhook {
+impl LogServer {
     pub fn new(raw: Option<&str>) -> Option<Self> {
         let url = raw?.trim();
         (url.starts_with("https://") || url.starts_with("http://")).then(|| Self { url: url.to_owned() })
-    }
-
-    /// `text` with the URL and its secret parts (the webhook id and token)
-    /// replaced, for error messages that quote the request.
-    pub fn redact(&self, text: &str) -> String {
-        let bare = self
-            .url
-            .split_once("://")
-            .map_or(self.url.as_str(), |(_, rest)| rest);
-        let mut secrets: Vec<&str> = vec![self.url.as_str(), bare];
-        secrets.extend(
-            bare.split(['/', '?', '&', '='])
-                .skip(1)
-                .filter(|s| s.len() >= 8 && !s.eq_ignore_ascii_case("webhooks")),
-        );
-        secrets.sort_by_key(|s| std::cmp::Reverse(s.len()));
-        let mut out = text.to_owned();
-        for s in secrets {
-            out = out.replace(s, HIDDEN);
-        }
-        out
     }
 
     pub fn send(&self, bundle: &Bundle, progress: &dyn Fn(Stage)) -> Result<usize, SendError> {
         self.send_with(bundle, PART_LIMIT, Duration::from_secs(300), progress)
     }
 
-    /// Upload `bundle` in parts of at most `limit` bytes. Discord's 413 on
-    /// the first part halves the limit and starts again, down to 1 MB.
+    /// Upload `bundle` in parts of at most `limit` bytes. A 413 on the first
+    /// part halves the limit and starts again, down to 1 MB.
     pub fn send_with(
         &self,
         bundle: &Bundle,
@@ -165,7 +137,7 @@ impl Webhook {
                 .max_redirects(0)
                 .build()
                 .send(&body[..])
-                .map_err(|e| SendError::Unreachable(self.redact(&e.to_string())))?;
+                .map_err(|e| SendError::Unreachable(e.to_string()))?;
             let code = response.status().as_u16();
             if (200..300).contains(&code) {
                 return Ok(());
@@ -212,7 +184,7 @@ impl Webhook {
                 message: reply["message"]
                     .as_str()
                     .filter(|m| !m.is_empty())
-                    .map(|m| self.redact(m)),
+                    .map(str::to_owned),
             });
         }
     }

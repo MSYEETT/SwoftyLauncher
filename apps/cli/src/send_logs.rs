@@ -3,7 +3,7 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Args;
-use swofty_core::send_logs::{self, Bundle, GameInfo, PART_LIMIT, Report, Stage, Webhook};
+use swofty_core::send_logs::{self, Bundle, GameInfo, LogServer, PART_LIMIT, Report, Stage};
 use swofty_core::store::Store;
 
 #[derive(Args, Debug)]
@@ -29,7 +29,7 @@ pub fn send(store: &Store, args: SendArgs) -> Result<ExitCode> {
     send_to(store, args, send_logs::destination())
 }
 
-pub fn send_to(store: &Store, args: SendArgs, to: Option<Webhook>) -> Result<ExitCode> {
+pub fn send_to(store: &Store, args: SendArgs, to: Option<LogServer>) -> Result<ExitCode> {
     let remembered = store.config().discord_username;
     let raw = args
         .name

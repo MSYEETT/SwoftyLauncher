@@ -9,9 +9,9 @@ use crate::store::Store;
 use crate::{Error, GAME_EXE, Result};
 
 pub mod perf;
-pub mod webhook;
+pub mod upload;
 
-pub use webhook::{SendError, Stage, Webhook};
+pub use upload::{LogServer, SendError, Stage};
 
 pub const UNAVAILABLE: &str = "Sending logs isn't available in this build";
 pub const NAME_MIN: usize = 2;
@@ -34,9 +34,11 @@ const MIN_TAIL: u64 = 64 << 10;
 const PERF_READ: u64 = 1 << 20;
 const DUMP_CAP: u64 = 24 << 20;
 
-/// Where the logs go: the webhook baked in at build time, if any.
-pub fn destination() -> Option<Webhook> {
-    Webhook::new(option_env!("SWOFTY_LOG_WEBHOOK"))
+/// Where the logs go: `SWOFTY_LOGS_URL` at run time, else the address baked in
+/// at build time, if any.
+pub fn destination() -> Option<LogServer> {
+    let runtime = std::env::var("SWOFTY_LOGS_URL").ok();
+    LogServer::new(runtime.as_deref().or(option_env!("SWOFTY_LOGS_URL")))
 }
 
 pub fn available() -> bool {

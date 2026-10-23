@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use super::webhook::{SendError, Stage, multipart, payload};
+use super::upload::{SendError, Stage, multipart, payload};
 use super::*;
 
 fn tmp(name: &str) -> PathBuf {
@@ -462,10 +462,7 @@ fn serve(expect: usize, respond: Responder) -> (String, std::thread::JoinHandle<
         }
         got
     });
-    (
-        format!("http://127.0.0.1:{port}/api/webhooks/987654321098/TOKENtokenTOKEN"),
-        handle,
-    )
+    (format!("http://127.0.0.1:{port}/v1/logs"), handle)
 }
 
 fn collect_stages() -> (Arc<Mutex<Vec<Stage>>>, impl Fn(Stage)) {
@@ -480,16 +477,12 @@ fn posts_multipart_with_payload_json_and_the_zip() {
     let (store, game) = fake_data(&root);
     let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261020-101010");
     let (url, server) = serve(1, Box::new(|_, _| (204, String::new())));
-    let hook = Webhook::new(Some(&url)).unwrap();
+    let hook = LogServer::new(Some(&url)).unwrap();
     let (stages, progress) = collect_stages();
     assert_eq!(hook.send(&bundle, &progress), Ok(1));
     let got = server.join().unwrap();
     assert_eq!(got.len(), 1);
-    assert!(
-        got[0]
-            .head
-            .starts_with("POST /api/webhooks/987654321098/TOKENtokenTOKEN HTTP/1.1")
-    );
+    assert!(got[0].head.starts_with("POST /v1/logs HTTP/1.1"));
     assert!(
         got[0]
             .header("content-type")
@@ -540,7 +533,7 @@ fn sends_parts_and_waits_out_rate_limits() {
             _ => (200, "{}".into()),
         }),
     );
-    let hook = Webhook::new(Some(&url)).unwrap();
+    let hook = LogServer::new(Some(&url)).unwrap();
     let (stages, progress) = collect_stages();
     let sent = hook.send_with(&bundle, 1 << 20, Duration::from_secs(30), &progress);
     assert_eq!(sent, Ok(3));
@@ -569,7 +562,7 @@ fn sends_parts_and_waits_out_rate_limits() {
 }
 
 #[test]
-fn halves_the_part_size_when_discord_says_too_big() {
+fn halves_the_part_size_when_the_server_says_too_big() {
     let bundle = noisy_bundle(&[700 << 10, 700 << 10]);
     let (url, server) = serve(
         4,
@@ -584,7 +577,7 @@ fn halves_the_part_size_when_discord_says_too_big() {
             }
         }),
     );
-    let hook = Webhook::new(Some(&url)).unwrap();
+    let hook = LogServer::new(Some(&url)).unwrap();
     let (_, progress) = collect_stages();
     assert_eq!(
         hook.send_with(&bundle, 4 << 20, Duration::from_secs(30), &progress),
@@ -595,7 +588,7 @@ fn halves_the_part_size_when_discord_says_too_big() {
     assert!(got[0].body.len() > 1_100_000 && got[1].body.len() > 1_100_000);
 
     let (url, server) = serve(1, Box::new(|_, _| (413, String::new())));
-    let hook = Webhook::new(Some(&url)).unwrap();
+    let hook = LogServer::new(Some(&url)).unwrap();
     assert_eq!(
         hook.send_with(&bundle, 1 << 20, Duration::from_secs(30), &progress),
         Err(SendError::TooBig)
@@ -604,56 +597,63 @@ fn halves_the_part_size_when_discord_says_too_big() {
 }
 
 #[test]
-fn never_shows_the_webhook_url_in_errors() {
-    let url = "http://127.0.0.1:1/api/webhooks/123456789012345/SuperSecretToken_abcdef";
-    let hook = Webhook::new(Some(url)).unwrap();
-    assert_eq!(format!("{hook:?}"), "Webhook([hidden])");
+fn reports_server_errors() {
+    let hook = LogServer::new(Some("http://127.0.0.1:1/v1/logs")).unwrap();
     let bundle = noisy_bundle(&[10]);
     let (_, progress) = collect_stages();
     let err = hook
         .send_with(&bundle, 1 << 20, Duration::from_secs(5), &progress)
         .unwrap_err();
-    let text = err.to_string();
     assert!(matches!(err, SendError::Unreachable(_)), "{err:?}");
-    assert!(text.starts_with("Couldn't reach Discord"), "{text}");
-    for secret in ["SuperSecretToken", "123456789012345", "/api/webhooks"] {
-        assert!(!text.contains(secret), "{text}");
-    }
-    assert_eq!(
-        hook.redact(&format!(
-            "error sending request for url ({url}): refused; token SuperSecretToken_abcdef"
-        )),
-        "error sending request for url ([webhook]): refused; token [webhook]"
+    assert!(
+        err.to_string().starts_with("Couldn't reach the log server"),
+        "{err}"
     );
 
     let (url, server) = serve(
         1,
-        Box::new(|_, g| {
-            let path = g.head.split(' ').nth(1).unwrap().to_owned();
+        Box::new(|_, _| {
             (
-                404,
-                json!({"message": format!("Unknown Webhook {path}"), "code": 10015}).to_string(),
+                429,
+                json!({"message": "too many logs sent from this network; try again later", "retry_after": 600.0})
+                    .to_string(),
             )
         }),
     );
-    let hook = Webhook::new(Some(&url)).unwrap();
+    let hook = LogServer::new(Some(&url)).unwrap();
+    let err = hook
+        .send_with(&bundle, 1 << 20, Duration::from_secs(5), &progress)
+        .unwrap_err();
+    server.join().unwrap();
+    assert_eq!(err, SendError::RateLimited);
+
+    let (url, server) = serve(
+        3,
+        Box::new(|_, _| {
+            (
+                503,
+                json!({"message": "sending logs is not set up on this server"}).to_string(),
+            )
+        }),
+    );
+    let hook = LogServer::new(Some(&url)).unwrap();
     let err = hook
         .send_with(&bundle, 1 << 20, Duration::from_secs(5), &progress)
         .unwrap_err();
     server.join().unwrap();
     assert_eq!(
         err.to_string(),
-        "Discord answered HTTP 404: Unknown Webhook /api/webhooks/[webhook]/[webhook]"
+        "The log server answered HTTP 503: sending logs is not set up on this server"
     );
 }
 
 #[test]
-fn disabled_without_a_webhook_at_build_time() {
-    assert!(Webhook::new(None).is_none());
-    assert!(Webhook::new(Some("")).is_none());
-    assert!(Webhook::new(Some("   ")).is_none());
-    assert!(Webhook::new(Some("not a url")).is_none());
-    if option_env!("SWOFTY_LOG_WEBHOOK").is_none() {
+fn disabled_without_a_log_server_at_build_time() {
+    assert!(LogServer::new(None).is_none());
+    assert!(LogServer::new(Some("")).is_none());
+    assert!(LogServer::new(Some("   ")).is_none());
+    assert!(LogServer::new(Some("not a url")).is_none());
+    if option_env!("SWOFTY_LOGS_URL").is_none() && std::env::var_os("SWOFTY_LOGS_URL").is_none() {
         assert!(!available());
         let (_, progress) = collect_stages();
         assert_eq!(send(&noisy_bundle(&[1]), &progress), Err(SendError::Unavailable));
