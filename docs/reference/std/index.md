@@ -25,6 +25,7 @@ When your [engine plugin](/reference/addons/native-plugins) initializes, it rece
 | [Career contents](./career-content) | `swofty/career_content.hpp` | `career` (experimental) | 8, feature-detected | Addon init, flow thread |
 | [Characters](./characters) | `swofty/characters.hpp` | `career` (stable) | 8, feature-detected | Any; `refresh` on the game thread |
 | [Career wizard](./career-wizard) | `swofty/career_wizard.hpp` | `career` (stable) | 8, feature-detected | Any |
+| [Era picker boxes](./era-picker) | `swofty/era.hpp` | none | 8, feature-detected | Addon init; others any |
 | [Memory](./memory) | `swofty/mem.hpp` | none (header only) | any | Any |
 
 For screens and home tiles, use an addon operation rather than a `SwoftyApi` table; see [UI](./ui). You can find the merged engine-side contract for the version-5 tables in [the native-libraries design](/design/native-libraries).
@@ -47,6 +48,7 @@ Include the header for the library you need. The [addon template](/reference/add
 | `swofty/career_content.hpp` | `packages/sdk/include/swofty/` | Extra career content tiles with their own save slots, and the per-career check |
 | `swofty/characters.hpp` | `packages/sdk/include/swofty/` | Per-career character refs, voices and strings |
 | `swofty/career_wizard.hpp` | `packages/sdk/include/swofty/` | Per-career new-career wizard control |
+| `swofty/era.hpp` | `packages/sdk/include/swofty/` | Boxes in the Addons row of the Grand Prix / Time Trial era picker |
 | `swofty/mem.hpp` | `packages/sdk/include/swofty/` | Guarded memory reads: `read`, `in_image`, `object_like`, `c_string` |
 | `swofty/assets.hpp` | `packages/sdk/include/swofty/` | Runtime asset loading; see [Asset API](/reference/addons/asset-api) |
 | `swofty/game.hpp`, `swofty/game/*.hpp` | `native/include/swofty/` | The [Game API](/reference/game/): the engine's functions, structs and sites |

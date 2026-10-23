@@ -443,6 +443,29 @@ typedef struct SwoftyCareerWizard {
     int (*clear)(const char *group);
 } SwoftyCareerWizard;
 
+/* Era picker boxes (swofty/era.hpp). Present on cores that have them, NULL otherwise; the table is read
+   only when the core exports SwoftyCoreEra, and SWOFTY_API_ERA marks a header that declares it. A box
+   is a box in the Addons row of the Grand Prix / Time Trial era picker that selects entrant_list, which
+   must be in the entrant lists of the core's host setup mode swofty_f1; the core skips, with a log
+   line, a box whose list the screen's mode does not offer there. title is a lng_* key (NULL or "" for
+   lng_<entrant_list>), image a texture path (NULL or "" for
+   #overrides.home_screen.tiles_solo_6x6[<entrant_list>]), order sorts the boxes (then registration
+   order). Strings are copied. */
+#define SWOFTY_API_ERA 1
+typedef struct SwoftyEraBox {
+    uint32_t size;
+    const char *entrant_list;
+    const char *title;
+    const char *image;
+    int32_t order;
+} SwoftyEraBox;
+
+typedef struct SwoftyEra {
+    int (*available)(void);
+    int (*add_box)(const SwoftyEraBox *box);
+    int (*count)(void);
+} SwoftyEra;
+
 typedef struct SwoftyApi {
     uint32_t version;
     void (*log)(const char *fmt, ...);
@@ -465,6 +488,7 @@ typedef struct SwoftyApi {
     const SwoftyCareerContent *career_content;
     const SwoftyCharacters *characters;
     const SwoftyCareerWizard *career_wizard;
+    const SwoftyEra *era;
 } SwoftyApi;
 
 typedef int (*SwoftyAddonInitFn)(const SwoftyApi *api);

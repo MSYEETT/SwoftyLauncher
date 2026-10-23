@@ -18,6 +18,7 @@ pub const POPUP_HEADER: &str = include_str!("../include/swofty/popup.hpp");
 pub const LANG_HEADER: &str = include_str!("../include/swofty/lang.hpp");
 pub const CHARACTERS_HEADER: &str = include_str!("../include/swofty/characters.hpp");
 pub const CAREER_WIZARD_HEADER: &str = include_str!("../include/swofty/career_wizard.hpp");
+pub const ERA_HEADER: &str = include_str!("../include/swofty/era.hpp");
 
 pub const CAREER_START_PICK: u32 = 0;
 pub const CAREER_START_NEW: u32 = 1;
@@ -543,6 +544,24 @@ pub struct SwoftyCareerWizard {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct SwoftyEraBox {
+    pub size: u32,
+    pub entrant_list: *const c_char,
+    pub title: *const c_char,
+    pub image: *const c_char,
+    pub order: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SwoftyEra {
+    pub available: Option<unsafe extern "C" fn() -> c_int>,
+    pub add_box: Option<unsafe extern "C" fn(box_: *const SwoftyEraBox) -> c_int>,
+    pub count: Option<unsafe extern "C" fn() -> c_int>,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct SwoftyApi {
     pub version: u32,
     pub log: Option<LogFn>,
@@ -565,6 +584,7 @@ pub struct SwoftyApi {
     pub career_content: *const SwoftyCareerContent,
     pub characters: *const SwoftyCharacters,
     pub career_wizard: *const SwoftyCareerWizard,
+    pub era: *const SwoftyEra,
 }
 
 pub type SwoftyAddonInitFn = unsafe extern "C" fn(api: *const SwoftyApi) -> c_int;
@@ -651,7 +671,11 @@ mod tests {
 
     #[test]
     fn layout_matches_header() {
-        assert_eq!(std::mem::size_of::<SwoftyApi>(), 168);
+        assert_eq!(std::mem::size_of::<SwoftyApi>(), 176);
+        assert_eq!(std::mem::offset_of!(SwoftyApi, era), 168);
+        assert_eq!(std::mem::size_of::<SwoftyEraBox>(), 40);
+        assert_eq!(std::mem::offset_of!(SwoftyEraBox, order), 32);
+        assert_eq!(std::mem::size_of::<SwoftyEra>(), 24);
         assert_eq!(std::mem::offset_of!(SwoftyApi, characters), 152);
         assert_eq!(std::mem::offset_of!(SwoftyApi, career_wizard), 160);
         assert_eq!(std::mem::size_of::<SwoftyCharacters>(), 64);
@@ -737,6 +761,9 @@ mod tests {
             "const SwoftyCareerWizard *career_wizard;",
             "#define SWOFTY_API_CHARACTERS 1",
             "#define SWOFTY_API_CAREER_WIZARD 1",
+            "const SwoftyEra *era;",
+            "#define SWOFTY_API_ERA 1",
+            "} SwoftyEraBox;",
             "#define SWOFTY_EVENT_CAREER_HUB \"career.hub\"",
             "} SwoftyCareerState;",
             "#define SWOFTY_EVENT_SESSION_START \"session.start\"",
@@ -819,6 +846,10 @@ mod tests {
         assert_eq!(
             include_str!("../../../templates/addon/native/include/swofty/career_wizard.hpp"),
             CAREER_WIZARD_HEADER
+        );
+        assert_eq!(
+            include_str!("../../../templates/addon/native/include/swofty/era.hpp"),
+            ERA_HEADER
         );
     }
 

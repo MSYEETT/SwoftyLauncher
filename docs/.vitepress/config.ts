@@ -289,6 +289,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
                   { text: "Career contents", link: "/reference/std/career-content", icon: "file" },
                   { text: "Characters", link: "/reference/std/characters", icon: "file" },
                   { text: "Career wizard", link: "/reference/std/career-wizard", icon: "file" },
+                  { text: "Era picker boxes", link: "/reference/std/era-picker", icon: "file" },
                   { text: "Memory", link: "/reference/std/memory", icon: "file" },
                   { text: "Logging", link: "/reference/std/logging", icon: "file" },
                   { text: "Mixin API", link: "/reference/std/mixin", icon: "file" },
