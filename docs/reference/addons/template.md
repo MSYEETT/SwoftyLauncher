@@ -1,16 +1,17 @@
 ---
 title: Templates
-description: Two starting points — templates/launcher-addon for a launcher plugin, templates/addon for data and an engine plugin. What each file is and how to build it.
+description: Three starting points — templates/launcher-addon for a launcher plugin, templates/addon for data and an engine plugin, templates/shader-pack for colour looks. What each file is and how to build it.
 ---
 
 # Templates
 
-Pick the repository template that fits what you want to build. Copy it, change `id` in `swofty.json`, then build it. Both templates are MIT-licensed; you can use any licence for your addon.
+Pick the repository template that fits what you want to build. Copy it, change `id` in `swofty.json`, then build it. All three templates are MIT-licensed; you can use any licence for your addon.
 
 | Template | Start here for |
 |---|---|
 | [`templates/launcher-addon`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/launcher-addon) | A [launcher plugin](./launcher-api): a sidebar page, an importer, a build hook and a command. |
 | [`templates/addon`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/addon) | [Data](/reference/data/) and an [engine plugin](./native-plugins): database and UI edits driven by settings, plus a C++ plugin. |
+| [`templates/shader-pack`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/shader-pack) | A [shader pack](./shader-packs): three colour looks, with settings to pick one and its strength. |
 
 ## templates/launcher-addon
 
@@ -60,6 +61,24 @@ swofty addons enable example.sample-mod
 ```
 
 If you only need data edits, remove the `native` entry from `swofty.json` and the `native/` directory. You can then install the folder as it is, without a compiler.
+
+## templates/shader-pack
+
+Use this template for a [shader pack](./shader-packs): colour looks for the race, picked with a setting.
+
+| Path | What it is |
+|---|---|
+| `swofty.json` | The manifest: the `shaders` category and experimental feature, a `look` choice and a `strength` slider (both `db`), and the `shader` block that names the look's `.cube` file. |
+| `looks/monochrome.cube`, `looks/overcast.cube`, `looks/noir.cube` | The three looks, 17×17×17 each. |
+| `looks/make_looks.py` | The script that wrote the three `.cube` files. |
+| `README.md` | How to make your own look, and install steps. |
+
+Install and enable it as it is; it needs no compiler:
+
+```sh
+swofty addons install .
+swofty addons enable example.monochrome-looks
+```
 
 ## Share
 

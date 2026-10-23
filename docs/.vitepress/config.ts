@@ -240,6 +240,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Your first addon", link: "/reference/addons/first-addon", icon: "file" },
               { text: "Templates", link: "/reference/addons/template", icon: "file" },
               { text: "Settings", link: "/reference/addons/settings", icon: "file" },
+              { text: "Shader packs", link: "/reference/addons/shader-packs", icon: "file" },
               { text: "Packaging and publishing", link: "/reference/addons/publishing", icon: "file" },
             ],
           },

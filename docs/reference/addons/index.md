@@ -45,6 +45,7 @@ swofty addons install ./my-addon
 | Run code in the game: hooks, telemetry, an overlay | Engine plugin | `operations.native` | [Engine plugins](./native-plugins) |
 | Add launcher pages, an importer, commands or a build step | Launcher plugin | `launcher` | [Launcher plugins](./launcher-api) |
 | Move or add elements on a menu screen, or add a screen | Menu edit | `operations.erp`, `operations.screens` | [Menus and UI](/reference/ui/) |
+| Change the race's colours with a LUT | Shader pack | `shader` | [Shader packs](./shader-packs) |
 
 One manifest can combine them. This one has a database operation, an engine plugin, a launcher page and a setting:
 

@@ -31,6 +31,7 @@ profile lists it under `experimental_features` in its `swofty.json`.
 | `db` | stable | Database read (shares the gate with database write) |
 | `overlay` | experimental | Overlay / draw |
 | `telemetry` | experimental | Telemetry |
+| `shaders` | experimental | Shader looks ([Shader packs](/reference/addons/shader-packs)) |
 
 ## Threads
 

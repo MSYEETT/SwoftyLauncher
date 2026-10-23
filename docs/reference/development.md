@@ -18,6 +18,7 @@ Run your build commands from the repository root. For current progress and what'
 | `addons/custom-grid-size` | Custom Grid Size addon |
 | `addons/rnd-tyres-thermal` | R&D: Tyres & Thermal Management addon (source only) |
 | `templates/addon` | Sample data addon with an engine plugin (MIT) |
+| `templates/shader-pack` | Sample shader pack with three looks (MIT) |
 | `templates/launcher-addon` | Sample launcher plugin (MIT) |
 | `installer/` | The installer that downloads the latest release |
 | `tools/` | Python tools for game files |

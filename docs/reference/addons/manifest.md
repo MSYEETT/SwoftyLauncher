@@ -34,8 +34,9 @@ Your addon needs a `swofty.json` at its root. This is where you give it a name, 
 | `icon` | string? | A path inside your addon, shown on the Tools page and your addon's sidebar pages. Use an `.svg` for a one-colour glyph in the launcher's icon style, or a square `.png`, `.jpg` or `.webp` to show the image as it is. |
 | `kind` | string[] | What the addon touches: `database`, `erp`, `text`, `ui`, `files`, `native`, `simplified`. `text` needs launcher 1.3.0 or later and `simplified` 1.3.6 or later; an earlier launcher rejects the manifest. `simplified` marks a mod merged into the game's shader packages, as the Simplified Suite loads `.serps` mods. |
 | `category` | string? | What the addon is for ([category](#category)). |
-| `experimental_features` | string[]? | Experimental engines of the in-game core the addon uses: `overlay` ([Overlay](/reference/std/overlay)). While the addon is on, the build turns each one on, and the Addons page tags the addon **Uses experimental features**. Needs launcher 1.3.7 or later; an earlier launcher rejects the manifest. |
+| `experimental_features` | string[]? | Experimental engines of the in-game core the addon uses: `overlay` ([Overlay](/reference/std/overlay)) and `shaders` ([Shader packs](./shader-packs)). While the addon is on, the build turns each one on, and the Addons page tags the addon **Uses experimental features**. Needs launcher 1.3.7 or later, and 1.3.8 or later for `shaders`; an earlier launcher rejects the manifest. |
 | `origin` | object? | The tool and file the addon was made from ([origin](#origin)). |
+| `shader` | object? | A colour look for the game's picture ([shader](#shader)). |
 
 ## category
 
@@ -51,8 +52,9 @@ Your addon needs a `swofty.json` at its root. This is where you give it a name, 
 | `tracks` | Tracks |
 | `cars` | Cars |
 | `helmets` | Helmets |
+| `shaders` | Shaders |
 
-An addon without a category is listed as Uncategorised. `helmets` needs launcher 1.3.6 or later.
+An addon without a category is listed as Uncategorised. `helmets` needs launcher 1.3.6 or later, and `shaders` 1.3.8 or later. DB Editor addons can't use `shaders`.
 
 Launchers from 1.3.6 read the categories of earlier launchers: `liveries` as `cars`, and `drivers-teams`, `database`, `gameplay`, `ui`, `audio`, `tools` and `other` as no category.
 
@@ -73,6 +75,22 @@ Launchers from 1.3.6 read the categories of earlier launchers: `liveries` as `ca
 | `sha256` | string? | That file's SHA-256, in hex. |
 
 The **Addons** page shows the source as Built in, DB Editor, Imported or Installed. A launcher before 1.3.0 rejects `category` and `origin`; set `"compat": { "launcher": ">=1.3.0" }` when you use them.
+
+## shader
+
+`shader` grades the game's picture with a `.cube` 3D LUT. [Shader packs](./shader-packs) covers making a look.
+
+```json
+"experimental_features": ["shaders"],
+"shader": { "lut": "looks/{{look}}.cube", "strength": "{{strength}}" }
+```
+
+| Field | Type | Value |
+|---|---|---|
+| `lut` | string | The `.cube` file, a path inside the addon. <span v-pre>`{{id}}`</span> is replaced with a `db` option's value. |
+| `strength` | number or string? | From 0 to 100, or <span v-pre>`"{{id}}"`</span> naming a `db` slider that stays within 0 to 100. Defaults to 100. |
+
+`shader` needs `"shaders"` in `experimental_features` and launcher 1.3.8 or later. One look applies at a time: with two addons that have a `shader` on, the later one in the load order applies.
 
 ## saves
 
