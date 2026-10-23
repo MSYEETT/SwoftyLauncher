@@ -78,7 +78,7 @@ Removing a DB Editor addon deletes its changes. To keep them, select **Export** 
 | **SwoftyMod** | Loads addons in game and adds **ADDON SETTINGS**. It's always on in modded profiles |
 | **Simplified for Swofty** | Team Simplified's addon: the [Simplified Importer](/using/mods). The launcher installs it, [keeps it up to date](/using/updating#simplified-for-swofty) and keeps it on |
 
-Each release also installs a few addons switched off, such as xanpavle's F1 25 RE-Optimization; see [Addons that ship with the launcher](/using/bundled-addons).
+Every other addon, including [Swofty's own](/using/swofty-addons), comes from the [Addon Browser](/using/addon-browser).
 
 ## From a terminal
 

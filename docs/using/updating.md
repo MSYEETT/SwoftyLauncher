@@ -12,7 +12,7 @@ The launcher keeps itself and Simplified for Swofty, the addon behind the **Mods
 The launcher checks for a new launcher release and a new Simplified for Swofty release when it opens, then every minute while it's open. When either is available, **Play** becomes **Update**. The button names what will update, and the line next to it shows the versions and a link to the release notes.
 
 1. Close F1 25. While the game runs, you'll keep the **Stop** button; **Update** appears once the game exits.
-2. Select **Update**. It installs the launcher first, then Simplified for Swofty, and shows the progress on the button. Each download is checked against its release's `SHA256SUMS`. The launcher update replaces `bin/`, `loader/`, `addons/` and, on Linux, `share/`. A newer version of an [addon that ships with the launcher](/using/bundled-addons) replaces the installed one the next time the launcher starts. The same goes for the Career Mode Editor and Driver Manager when you have an older version installed; the launcher doesn't install either one for you.
+2. Select **Update**. It installs the launcher first, then Simplified for Swofty, and shows the progress on the button. Each download is checked against its release's `SHA256SUMS`. The launcher update replaces `bin/`, `loader/` and, on Linux, `share/`, and removes the `addons/` folder that launchers before 1.4.0 carried.
 3. The launcher restarts on its own when the update finishes, including when only Simplified for Swofty updated. It restarts once, into the new launcher, when both updated.
 
 If a check fails because you're offline, GitHub is down or GitHub's rate limit is reached, you can still play. The launcher checks again a minute later, or when GitHub's rate limit resets.
@@ -54,11 +54,22 @@ These rules are for Team Simplified, who publish the addon at [TeamSimplified/si
 - Without that asset, the launcher downloads the package once to read its requirement and keeps it for the install.
 - The `swofty.json` inside the package decides at install time.
 
+## Addon updates
+
+The launcher compares your installed addons with the [Addon Browser](/using/addon-browser) when it opens, then every 30 minutes. When any has a newer version that works with your launcher, **Play** becomes **Update addons** with the number of updates, and the line next to it lists them.
+
+1. Close F1 25. **Update addons** appears once the game exits.
+2. Select **Update addons**. Each addon downloads, is checked against its SHA-256, and replaces the installed one. Its switch and settings stay as they were in every profile.
+3. A notification lists what updated and anything that failed, with the reason. **Play** comes back.
+
+An addon that fails to update stays at its installed version, and **Play** comes back. The launcher tries again at the next check.
+
 ## Addons and mods
 
 | To update | Do |
 |---|---|
-| An addon | [Install](/using/addons#install-an-addon) the new version. It replaces the addon with the same id and keeps its switch and settings in every profile. The Career Mode Editor and Driver Manager also update with the launcher. |
+| An addon from the Addon Browser | Select **Update addons**, as in [Addon updates](#addon-updates). |
+| An addon you installed from a file | [Install](/using/addons#install-an-addon) the new version. It replaces the addon with the same id and keeps its switch and settings in every profile. |
 | A mod or track | [Import](/using/mods#import-a-mod-or-track) the new version. It keeps its place and switch in every profile. |
 
 ## Next

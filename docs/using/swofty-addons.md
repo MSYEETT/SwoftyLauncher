@@ -1,27 +1,31 @@
 ---
-title: Addons that ship with the launcher
-description: The addons every launcher release installs switched off, starting with xanpavle's F1 25 RE-Optimization - what it changes, its settings, and how to turn it on, off or remove it.
+title: Swofty's addons
+description: The addons Swofty publishes in the Addon Browser - F1 25 RE-Optimization, the Career Mode Editor, the Driver Manager and R&D Tyres & Thermal Management - and how to install, update and remove them.
 ---
 
-# Addons that ship with the launcher
+# Swofty's addons
 
-Every launcher release carries a few addons in the `addons/` folder next to `bin/` and `loader/`. On start, the launcher installs each one into `$DATA/addons/<id>/`. They appear on the **Addons** page and stay off in every profile, new and existing, until you turn them on.
+Swofty publishes these addons in the [Addon Browser](/using/addon-browser), next to everyone else's. Install them from there; they arrive switched off in every profile.
 
 | Addon | Id | By |
 |---|---|---|
 | [F1 25 RE-Optimization](#f1-25-re-optimization) | `xanpavle.re-optimization` | [xanpavle](https://github.com/xanpavle), ported by Swofty |
+| [Career Mode Editor](/using/career-editor) | `swofty.career-editor` | Swofty |
+| [Driver Manager](/using/driver-manager) | `swofty.driver-manager` | Swofty |
+| R&D: Tyres & Thermal Management | `swofty.rnd-tyres-thermal` | Swofty |
 
-## Turn one on, off or remove it
+## Install, update or remove one
 
+- **Install it:** open the **Addon Browser**, find it, and select **Install**. The launcher opens the **Addons** page with the new addon highlighted.
 - **Turn it on:** on the **Addons** page, toggle its switch in the profile you want it in, then press **Play**. From a terminal: `swofty addons enable <id>`.
-- **Turn it off:** toggle the switch again, or run `swofty addons disable <id>`.
-- **Remove it:** expand its row and select **Remove addon**. It stays removed when the launcher updates. To get it back, install `addons/<id>.swoftyaddon` from the launcher's install folder.
+- **Update it:** when Swofty publishes a new version, **Play** becomes **Update addons**. See [Updating](/using/updating#addon-updates).
+- **Remove it:** expand its row on the **Addons** page and select **Remove addon**. Install it again from the Addon Browser to get it back.
 
-A launcher update that carries a newer version of a bundled addon updates the installed copy. Your settings and the profiles it's on stay as they are.
+Launchers before 1.4.0 carried these addons in an `addons/` folder next to `bin/`. Updating to 1.4.0 removes that folder; the installed copies stay installed and update from the Addon Browser.
 
 ## F1 25 RE-Optimization
 
-F1 25 RE-Optimization is [xanpavle's renderer optimisation for F1 25](https://github.com/xanpavle/F1-25-RE-Optimization), released under the MIT licence. Swofty ported it to a launcher addon with his permission. It makes the renderer do less work: it lowers a set of quality settings that cost a lot of GPU time, holds the expensive shadow, fog and crowd values down inside the engine, overrides a few engine-level renderer limits, and picks the upscaler your GPU supports. The bundled version tracks upstream 0.2.5.
+F1 25 RE-Optimization is [xanpavle's renderer optimisation for F1 25](https://github.com/xanpavle/F1-25-RE-Optimization), released under the MIT licence. Swofty ported it to a launcher addon with his permission. It makes the renderer do less work: it lowers a set of quality settings that cost a lot of GPU time, holds the expensive shadow, fog and crowd values down inside the engine, overrides a few engine-level renderer limits, and picks the upscaler your GPU supports. It tracks upstream 0.2.5.
 
 - It is off until you turn it on.
 - It works offline and in single-player only, like every modded session.
