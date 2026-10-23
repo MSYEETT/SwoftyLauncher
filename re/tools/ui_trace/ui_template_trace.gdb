@@ -71,7 +71,7 @@ commands
 silent
 set $seq = $seq + 1
 printf "[ui %d] TEMPLATE LOAD duplicate name '", $seq
-ui_nestr *(unsigned long*)($rsp+0x40)
+ui_nestr *(void**)($rsp+0x40)
 printf "': Vm_Load_UidfTemplates returns 0x58, the rest of this .ui resource's templates are NOT registered\n"
 continue
 end
@@ -101,7 +101,7 @@ commands
 silent
 set $seq = $seq + 1
 printf "[ui %d] TEMPLATE NODE '", $seq
-ui_cstr *(unsigned long*)($rdi+0x68)
+ui_cstr *(void**)($rdi+0x68)
 printf "' class "
 ui_cc ($rdi+0x70)
 printf " has no registered factory (or it returned null): rc 5\n"
@@ -114,7 +114,7 @@ commands
 silent
 set $seq = $seq + 1
 printf "[ui %d] TEMPLATE NODE '", $seq
-ui_cstr *(unsigned long*)($rdi+0x68)
+ui_cstr *(void**)($rdi+0x68)
 printf "' class "
 ui_cc ($rdi+0x70)
 printf " init rejected it: rc=%d (%#x) [3 = a required key is missing (layout step nodeId/componentId, component name/componentId, behaviour type, list data dbentry); 5 = wrong value shape or FourCC mismatch; 0x22 = empty layout path; 0x57 = bad enum value]\n", $eax, $eax
@@ -127,7 +127,7 @@ commands
 silent
 set $seq = $seq + 1
 printf "[ui %d]   <- node '", $seq
-ui_cstr *(unsigned long*)($rdi+0x68)
+ui_cstr *(void**)($rdi+0x68)
 printf "' ("
 ui_cc ($rdi+0x70)
 printf ") returns rc=%d\n", $eax
@@ -147,7 +147,7 @@ commands
 silent
 set $seq = $seq + 1
 printf "[ui %d] TEMPLATE INSTANCE '", $seq
-ui_cstr *(unsigned long*)($rsp+0x1d8)
+ui_cstr *(void**)($rsp+0x1d8)
 printf "' link (root vt+0x50) failed rc=%d\n", $eax
 continue
 end
@@ -167,7 +167,7 @@ set $inst = $inst + 1
 if $inst <= $inst_max || $ebp != 0
   set $seq = $seq + 1
   printf "[ui %d] TEMPLATE INSTANCE #%d '", $seq, $inst
-  ui_cstr *(unsigned long*)($rsp+0x1d8)
+  ui_cstr *(void**)($rsp+0x1d8)
   if $ebp == 0
     printf "' ok root=%#lx ", $rdi
     ui_vt $rdi
@@ -185,9 +185,9 @@ commands
 silent
 set $seq = $seq + 1
 printf "[ui %d] UITC TAB template '", $seq
-ui_nestr *(unsigned long*)($rsp+0x58)
+ui_nestr *(void**)($rsp+0x58)
 printf "' NOT FOUND in the template store (instance '"
-ui_nestr *(unsigned long*)($rsp+0x50)
+ui_nestr *(void**)($rsp+0x50)
 printf "'); tab left empty\n"
 continue
 end
@@ -198,9 +198,9 @@ commands
 silent
 set $seq = $seq + 1
 printf "[ui %d] UITC TAB instance '", $seq
-ui_nestr *(unsigned long*)($rsp+0x50)
+ui_nestr *(void**)($rsp+0x50)
 printf "' of template '"
-ui_nestr *(unsigned long*)($rsp+0x58)
+ui_nestr *(void**)($rsp+0x58)
 printf "' FAILED rc=%d; partial tree stays under the tab controller\n", *(int*)($rsp+0x78)
 continue
 end
