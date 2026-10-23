@@ -31,6 +31,77 @@ pub struct EngineRule {
     #[serde(rename = "fn")]
     pub func: String,
     pub ev: String,
+    pub applies_to: AppliesTo,
+    pub props: Vec<PropRule>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(default)]
+pub struct AppliesTo {
+    pub classes: Vec<String>,
+    pub behaviours: Vec<String>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(default)]
+pub struct PropRule {
+    pub key: String,
+    pub required: bool,
+    pub shape: String,
+    pub values: Vec<String>,
+    pub case_insensitive: bool,
+}
+
+impl AppliesTo {
+    pub fn matches(&self, class: &str, behaviours: &[String]) -> bool {
+        (self.classes.is_empty() || self.classes.iter().any(|c| c == class))
+            && (self.behaviours.is_empty() || self.behaviours.iter().any(|b| behaviours.contains(b)))
+            && !(self.classes.is_empty() && self.behaviours.is_empty())
+    }
+}
+
+impl PropRule {
+    pub fn problem(&self, prop: Option<&Node>) -> Option<String> {
+        let key = &self.key;
+        let Some(v) = prop else {
+            return self.required.then(|| format!("{key} is missing"));
+        };
+        let obj = v.as_obj();
+        match self.shape.as_str() {
+            "object" if obj.is_none() => return Some(format!("{key} is not an object")),
+            "value" if obj.and_then(|o| o.get("value")).is_none() => {
+                return Some(format!("{key} is not a {{ value }} object"));
+            }
+            "binding" => {
+                let db = obj
+                    .and_then(|o| o.get("dbentry"))
+                    .and_then(Node::as_val)
+                    .and_then(Val::as_str);
+                if db.is_none_or(str::is_empty) {
+                    return Some(format!(
+                        "{key} must be {{ value, dbentry }} with a non-empty dbentry"
+                    ));
+                }
+            }
+            _ => {}
+        }
+        if self.values.is_empty() {
+            return None;
+        }
+        let value = obj
+            .and_then(|o| o.get("value"))
+            .and_then(Node::as_val)
+            .and_then(Val::as_str)
+            .unwrap_or_default();
+        let ok = self.values.iter().any(|w| {
+            if self.case_insensitive {
+                w.eq_ignore_ascii_case(value)
+            } else {
+                w == value
+            }
+        });
+        (!ok).then(|| format!("{key} {value:?} is not one of {}", self.values.join(", ")))
+    }
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]

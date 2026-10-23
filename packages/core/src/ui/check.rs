@@ -536,6 +536,80 @@ fn roots(data: &[u8]) -> crate::Result<BTreeMap<String, BTreeSet<String>>> {
     Ok(out)
 }
 
+fn prop_index(data: &[u8]) -> crate::Result<BTreeMap<String, (String, BTreeSet<String>)>> {
+    let p = Pkg::parse(data)?;
+    let mut nodes = Vec::new();
+    for key in ["Screens", "Templates"] {
+        for top in p
+            .root
+            .o()?
+            .get(key)
+            .and_then(Node::as_arr)
+            .map(|a| a.items.as_slice())
+            .unwrap_or_default()
+        {
+            if top.is_node() {
+                integrity_walk(top, None, &mut nodes);
+            }
+        }
+    }
+    Ok(nodes
+        .into_iter()
+        .map(|(path, n)| {
+            let keys = n
+                .props()
+                .map(|p| p.keys().map(str::to_owned).collect())
+                .unwrap_or_default();
+            (path, (n.type_code(), keys))
+        })
+        .collect())
+}
+
+pub fn dropped_props(
+    stock: &[u8],
+    edited: &[u8],
+    frag: &str,
+    engine: &Engine,
+) -> crate::Result<Vec<Finding>> {
+    let (old, new) = (prop_index(stock)?, prop_index(edited)?);
+    let mut out = Vec::new();
+    for (path, (class, keys)) in &new {
+        let Some((_, before)) = old.get(path) else {
+            continue;
+        };
+        for k in before.difference(keys) {
+            let read_by = engine
+                .rules
+                .iter()
+                .find(|r| r.props.iter().any(|p| &p.key == k))
+                .map(|r| format!("rule {}", r.id))
+                .or_else(|| {
+                    engine
+                        .classes
+                        .get(class)
+                        .filter(|c| c.props_read_by_init.contains(k))
+                        .map(|c| format!("the {class} init {}", c.init))
+                })
+                .or_else(|| {
+                    engine
+                        .element_base_props
+                        .contains(k)
+                        .then(|| "the element base init".to_owned())
+                });
+            if let Some(by) = read_by {
+                out.push(Finding::stock_diff(
+                    "prop-dropped",
+                    class,
+                    k,
+                    &format!("{frag}: {path} [{class}]"),
+                    format!("stock sets {k} here and {by} reads it; the edit drops it"),
+                ));
+            }
+        }
+    }
+    Ok(out)
+}
+
 pub fn runtime_bindings(stock: &[u8], edited: &[u8], frag: &str) -> crate::Result<Vec<Finding>> {
     let (old, new) = (roots(stock)?, roots(edited)?);
     let mut out = Vec::new();
@@ -739,37 +813,29 @@ impl Loader<'_> {
             }
         }
         let p = props.expect("checked above");
-        if info.init_calls_list_base || LIST_CLASSES.contains(&class.as_str()) {
-            let db = p
-                .get("data")
-                .and_then(Node::as_obj)
-                .and_then(|d| d.get("dbentry"))
-                .and_then(Node::as_val)
-                .and_then(|v| v.as_str());
-            if db.is_none_or(str::is_empty) {
-                self.flag(
-                    "listbase.data_binding",
-                    &here,
-                    "data must be { value, dbentry } with a non-empty dbentry".into(),
-                );
+        let behaviours: Vec<String> = slot(6)
+            .iter()
+            .filter_map(|b| b.as_obj()?.get("type")?.as_val()?.as_u32())
+            .map(fourcc_str)
+            .collect();
+        for rule in engine.rules.iter().filter(|r| !r.props.is_empty()) {
+            if !rule.applies_to.matches(&class, &behaviours) {
+                continue;
             }
-        }
-        if class == "SVCD" && p.get("value").is_none() {
-            self.flag("svcd.value", &here, "SVCD needs value".into());
-        }
-        if class == "F1TS"
-            && let Some(v) = p
-                .get("inputType")
-                .and_then(Node::as_obj)
-                .and_then(|o| str_of(o, "value"))
-            && !v.eq_ignore_ascii_case("normal")
-            && !v.eq_ignore_ascii_case("dpadOnly")
-        {
-            self.flag(
-                "f1ts.input_type",
-                &here,
-                format!("inputType {v:?} is neither normal nor dpadOnly"),
-            );
+            for pr in &rule.props {
+                if let Some(problem) = pr.problem(p.get(&pr.key)) {
+                    let on = if rule.applies_to.behaviours.is_empty() {
+                        class.clone()
+                    } else {
+                        format!("{class} with {}", rule.applies_to.behaviours.join(", "))
+                    };
+                    self.out.push(Finding::engine(
+                        rule,
+                        &format!("{}: {here}", self.frag),
+                        format!("{on}: {problem}"),
+                    ));
+                }
+            }
         }
         for c in slot(CHILDREN) {
             self.node(c, &path);
@@ -884,6 +950,7 @@ pub fn ui_edit(input: &UiInput, scenes: &Scenes, cat: &Catalog, engine: &Engine)
     }));
     if let Some(s) = input.stock {
         found.extend(runtime_bindings(s, input.data, frag)?);
+        found.extend(dropped_props(s, input.data, frag, engine)?);
     }
     for f in found {
         report.add(f);
@@ -1699,7 +1766,9 @@ fn scene_walk(e: &Node, parent: Option<&str>, path: &str, cat: &Catalog, out: &m
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ui::node::{arr, boolv, command, event, fix_ids, node, obj, prop, s, sig, u32v, ui_bytes};
+    use crate::ui::node::{
+        arr, boolv, command, event, f32v, fix_ids, node, obj, prop, s, sig, u32v, ui_bytes,
+    };
 
     fn screen_with(kids: Vec<Node>, vm: bool) -> Vec<u8> {
         let mut props = vec![];
@@ -2032,13 +2101,21 @@ mod tests {
 
     fn engine() -> Engine {
         let rule = |id: &str, code: u64| serde_json::json!({ "id": id, "level": "L2", "check": "", "fail": { "code": code, "scope": "node" }, "fn": format!("0x14000{code:04x} {id}") });
+        let with = |mut r: serde_json::Value, applies: serde_json::Value, props: serde_json::Value| {
+            r["applies_to"] = applies;
+            r["props"] = props;
+            r
+        };
         serde_json::from_value(serde_json::json!({
             "schema": 1,
             "rules": [
                 rule("node.record", 5), rule("node.class_registered", 5), rule("layout.path_nonempty", 34),
                 rule("layout.step_keys", 3), rule("components.keys", 3), rule("behaviours.type", 3),
                 rule("commands.entry", 3), rule("events.entry", 3), rule("signals.entry", 3),
-                rule("listbase.data_binding", 5), rule("svcd.value", 3), rule("f1ts.input_type", 87),
+                with(rule("listbase.data_binding", 5), serde_json::json!({ "classes": ["UIL2"] }), serde_json::json!([{ "key": "data", "required": true, "shape": "binding" }])),
+                with(rule("svcd.value", 3), serde_json::json!({ "classes": ["SVCD"] }), serde_json::json!([{ "key": "value", "required": true }])),
+                with(rule("f1ts.input_type", 87), serde_json::json!({ "classes": ["F1TS"] }), serde_json::json!([{ "key": "inputType", "shape": "value", "values": ["normal", "dpadOnly"], "case_insensitive": true }])),
+                with(rule("behaviour.nbvn_visualnav", 3), serde_json::json!({ "behaviours": ["NBVN"] }), serde_json::json!([{ "key": "visualNav", "required": true, "shape": "object" }])),
                 rule("template.duplicate", 88), rule("screen.duplicate", 85)
             ],
             "classes": {
@@ -2049,6 +2126,46 @@ mod tests {
             }
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn a_visual_nav_behaviour_needs_its_visual_nav_object() {
+        let root = |props: Vec<(&str, Node)>| {
+            let mut r = node("tpl", "UIGP", props, vec![], &[], &["NBEL", "NBVN"]);
+            r.a_mut().unwrap()[COMPONENTS] = arr(vec![obj(vec![
+                ("componentId", u64v(1)),
+                ("debugName", s("eaid://ui_package/art/x")),
+                ("name", s("x")),
+            ])]);
+            fix_ids(&mut r, None);
+            pkg(obj(vec![("Templates", arr(vec![r]))]))
+        };
+        let nav = obj(vec![
+            ("xOffset", prop(f32v(0.0), None)),
+            ("yOffset", prop(f32v(0.0), None)),
+        ]);
+        let missing = root(vec![]);
+        let report = ui_edit(&input(&missing, None), &Scenes::default(), &cat(), &engine()).unwrap();
+        assert_eq!(report.hard.len(), 1, "{report:#?}");
+        assert_eq!(report.hard[0].code, "behaviour.nbvn_visualnav");
+        assert!(
+            report.hard[0]
+                .message
+                .contains("UIGP with NBVN: visualNav is missing"),
+            "{report:#?}"
+        );
+        let scalar = root(vec![("visualNav", u32v(0))]);
+        let report = ui_edit(&input(&scalar, None), &Scenes::default(), &cat(), &engine()).unwrap();
+        assert!(
+            report
+                .hard
+                .iter()
+                .any(|h| h.message.contains("visualNav is not an object")),
+            "{report:#?}"
+        );
+        let fine = root(vec![("visualNav", nav)]);
+        let report = ui_edit(&input(&fine, None), &Scenes::default(), &cat(), &engine()).unwrap();
+        assert!(report.hard.is_empty(), "{report:#?}");
     }
 
     fn input<'a>(data: &'a [u8], stock: Option<&'a [u8]>) -> UiInput<'a> {
@@ -2140,6 +2257,19 @@ mod tests {
             assert!(e.rule(id).is_some(), "{id}");
         }
         assert!(e.classes["F1TS"].native_pins.iter().any(|p| p == "inputAllow"));
+        for id in [
+            "behaviour.nbvn_visualnav",
+            "svcd.value",
+            "f1ts.input_type",
+            "listbase.data_binding",
+        ] {
+            let r = e.rule(id).unwrap();
+            assert!(!r.props.is_empty(), "{id}");
+            assert!(
+                !r.applies_to.classes.is_empty() || !r.applies_to.behaviours.is_empty(),
+                "{id}"
+            );
+        }
     }
 
     fn scene_at(path: &str, kids: Vec<Node>) -> Vec<u8> {

@@ -104,8 +104,21 @@ Each rule in `re/db/ui/loader_rules.json` that the checker implements runs when 
 | `listbase.data_binding` | List classes bind `data` with a non-empty `dbentry` |
 | `svcd.value` | An `SVCD` sets `value` |
 | `f1ts.input_type` | An `F1TS` `inputType` is `normal` or `dpadOnly` |
+| `behaviour.nbvn_visualnav` | A node that lists the `NBVN` behaviour sets a `visualNav` object. Without it `NBVN` init returns 3 and a template root takes the whole instance down. **Verified in game:** the era picker edit that dropped `visualNav` from the `dynamic_era_select` root emptied the F1 World play screen |
 | `template.duplicate` | No template name repeats in the file or matches a template another stock `.ui` registers |
 | `screen.duplicate` | No screen name repeats in the file or matches a screen another stock `.ui` registers |
+
+Rules with a property requirement carry it as data, and the checker applies every such rule the file lists:
+
+```json
+{
+  "id": "behaviour.nbvn_visualnav",
+  "applies_to": { "behaviours": ["NBVN"] },
+  "props": [{ "key": "visualNav", "required": true, "shape": "object" }]
+}
+```
+
+`applies_to` names node classes (`classes`), behaviour types in slot 6 (`behaviours`), or both. Each entry in `props` has a `key`, `required`, a `shape` (`any`, `object`, `value` for `{ value }`, `binding` for `{ value, dbentry }` with a non-empty `dbentry`), and optionally `values` with `case_insensitive`.
 
 The rules `node.fourcc_matches_class`, `template.child_abort`, `template.link` and `screen.child_abort` describe what a failure takes down; they have no check of their own. Findings for pins and empty signal lists quote the engine's silently ignored cases: a pin the target class does not handle, and an event with no signals, do nothing at run time.
 
@@ -140,6 +153,7 @@ The rules `node.fourcc_matches_class`, `template.child_abort`, `template.link` a
 | `element-id` | An `elementId` that is not the djb2 of the element's dotted path |
 | `copies-differ` | Two archives carry different copies of the same resource; the game uses the copy from the archive that loads first |
 | `vm-key-new` | A view-model key that no stock node of the same template binds |
+| `prop-dropped` | A property the stock node sets and the engine reads (a rule's `props`, the class init, or the element base init) that the edit removes |
 
 ### Where it runs
 

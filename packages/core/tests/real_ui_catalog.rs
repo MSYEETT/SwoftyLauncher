@@ -69,3 +69,30 @@ fn every_stock_ui_and_scene_passes_the_catalogue() {
         bad[..bad.len().min(40)].join("\n")
     );
 }
+
+#[test]
+fn the_era_picker_cases_split_on_the_visual_nav_rule() {
+    let Some(dir) = std::env::var_os("SWOFTY_UI_CASES").map(PathBuf::from) else {
+        eprintln!("SWOFTY_UI_CASES is not set; skipping");
+        return;
+    };
+    let Some(game) = std::env::var_os("F1_25_DIR").map(PathBuf::from) else {
+        eprintln!("F1_25_DIR is not set; skipping");
+        return;
+    };
+    let stock = game.join("2025_asset_groups/ui_package/flow_f1_world.erp");
+    let run = |file: &str| {
+        check::archive_files(&[("flow_f1_world.erp", stock.as_path(), dir.join(file).as_path())]).unwrap()
+    };
+    let broken = run("breaks_newnav_flow_f1_world.erp");
+    let nav: Vec<_> = broken
+        .hard
+        .iter()
+        .filter(|h| h.code == "behaviour.nbvn_visualnav")
+        .collect();
+    assert_eq!(nav.len(), 1, "{broken:#?}");
+    assert!(nav[0].at.contains("dynamic_era_select"), "{nav:#?}");
+    assert!(nav[0].source.contains("0x144289830"), "{nav:#?}");
+    let fixed = run("fixed_visualnav_flow_f1_world.erp");
+    assert!(fixed.hard.is_empty(), "{fixed:#?}");
+}
