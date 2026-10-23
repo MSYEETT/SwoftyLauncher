@@ -10,6 +10,9 @@ from typing import Any
 
 from aiohttp import web
 
+from .relay import Relay
+from .relay import routes as relay_routes
+
 log = logging.getLogger("swofty_triage.usage")
 
 ONLINE_S = 600
@@ -297,7 +300,7 @@ class Usage:
 PAGE = Path(__file__).with_name("stats.html")
 
 
-def app(usage: Usage) -> web.Application:
+def app(usage: Usage, relay: Relay | None = None) -> web.Application:
     async def events(request: web.Request) -> web.Response:
         if request.content_length is not None and request.content_length > BODY_MAX:
             return web.Response(status=413)
@@ -331,6 +334,7 @@ def app(usage: Usage) -> web.Application:
     application.router.add_get("/v1/stats", stats)
     application.router.add_get("/healthz", health)
     application.router.add_get("/", index)
+    relay_routes(application, relay)
     return application
 
 
@@ -345,9 +349,9 @@ async def sampler(usage: Usage) -> None:
             log.exception("sampling failed")
 
 
-def serve(db_path: Path, host: str, port: int) -> None:
+def serve(db_path: Path, host: str, port: int, relay: Relay | None = None) -> None:
     usage = Usage(db_path)
-    application = app(usage)
+    application = app(usage, relay)
 
     async def start(app_: web.Application) -> None:
         app_["sampler"] = asyncio.create_task(sampler(usage))

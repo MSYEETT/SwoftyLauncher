@@ -9,7 +9,7 @@
 
 ## How it works
 
-1. The bot reads every message in the channel and keeps the ones the launcher's webhook posted (`TRIAGE_WEBHOOK_ID`) in the format from `packages/core/src/send_logs/webhook.rs`. A report sent in several parts waits until every part has arrived, or for 30 minutes.
+1. The launcher sends each report to `POST /v1/logs` on api.f1.swofty.net (see Logs relay), which posts it to the channel through a webhook. The bot reads every message in the channel and keeps the ones the webhooks in `TRIAGE_WEBHOOK_ID` posted in the format from `packages/core/src/send_logs/upload.rs`. A report sent in several parts waits until every part has arrived, or for 30 minutes.
 2. It downloads the zip, unpacks it with path and size checks, and builds a briefing: the header, `summary.txt`, the file list, `addons.json`, `config.json`, each session's exit code and `[crash]` lines, the last lines of each log, and a crash signature.
 3. It fetches bare mirrors of the source repositories and adds the release tag the player ran (`v<launcher version>`) and the commits on `main` since that tag.
 4. Claude (`TRIAGE_MODEL`, adaptive thinking at `TRIAGE_EFFORT`) investigates with read-only tools: list, read and search the log bundle; list, read and search a repository at any ref; `git log` and `git show`; earlier diagnoses. It ends by calling `submit_diagnosis`. The tools cannot reach anything outside the bundle and the git object stores, and the process environment is not passed to git.
@@ -44,6 +44,17 @@ uv run swofty-triage release-preview v1.1.0
 
 Caddy (`deploy/Caddyfile`) serves `api.f1.swofty.net` and `stats.f1.swofty.net` with Let's Encrypt certificates. With `TRIAGE_STATS_CHANNEL_ID` set, the bot renames that channel to the number of launchers online every 10 minutes.
 
+## Logs relay
+
+`swofty-triage usage` also serves `POST /v1/logs`, the only place Send Logs to Developers posts to. The launcher holds no webhook. The relay:
+
+- takes the launcher's `multipart/form-data` with `payload_json` and one `files[0]`, and refuses anything that is not a logs report: the content must match the report header, the file name must match `swofty-logs-…zip`, and the file must be a zip of at most 10 MB;
+- posts only the content and the zip to the webhook in `SWOFTY_LOG_WEBHOOK`, with mentions off and link previews suppressed;
+- limits each client IP to 12 parts per 10 minutes, 40 parts and 120 MB per day, and everyone together to 25 parts a minute and 400 an hour, answering 429 with `retry_after`;
+- answers like Discord: 413 with code 40005 for a part that is too big, 429 with `retry_after`, 502 when Discord fails, and 503 when `SWOFTY_LOG_WEBHOOK` is unset.
+
+`SWOFTY_LOG_WEBHOOK` lives in `/etc/swofty-usage.env` (root:triage 0640), which `install.sh` creates empty. The client IP comes from Caddy's `X-Real-IP`, trusted only from loopback.
+
 ## Configuration
 
 Environment variables, read from `/etc/swofty-triage.env` by the service:
@@ -53,7 +64,7 @@ Environment variables, read from `/etc/swofty-triage.env` by the service:
 | `ANTHROPIC_API_KEY` | | Claude API key |
 | `DISCORD_TOKEN` | | Bot token. The bot needs the Message Content intent, and View Channel, Read Message History, Add Reactions, Create Public Threads and Send Messages in Threads in the channel |
 | `TRIAGE_CHANNEL_ID` | | Channel the webhook posts to |
-| `TRIAGE_WEBHOOK_ID` | | Webhook id from `SWOFTY_LOG_WEBHOOK` (`/api/webhooks/<id>/<token>`) |
+| `TRIAGE_WEBHOOK_ID` | | Comma-separated ids of the webhooks reports come from (`/api/webhooks/<id>/<token>`) |
 | `TRIAGE_REPOS` | `launcher=<SwoftyLauncher URL>` | Comma-separated `name=url`, `launcher` first. For a private repository over SSH, put its deploy key at `$TRIAGE_DATA_DIR/repos/<name>.key` |
 | `TRIAGE_DATA_DIR` | `/var/lib/swofty-triage` | State, mirrors and cases |
 | `TRIAGE_MODEL` | `claude-opus-5-5` | Model |

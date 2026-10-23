@@ -58,9 +58,13 @@ def release_preview(args: argparse.Namespace) -> int:
 
 
 def usage(args: argparse.Namespace) -> int:
+    import os
+
+    from .relay import Relay
     from .usage import serve
 
-    serve(Path(args.db), args.host, args.port)
+    webhook = os.environ.get("SWOFTY_LOG_WEBHOOK", "").strip()
+    serve(Path(args.db), args.host, args.port, Relay(webhook) if webhook else None)
     return 0
 
 

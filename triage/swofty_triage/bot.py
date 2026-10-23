@@ -147,7 +147,7 @@ class TriageBot(discord.Client):
         await self.consider(message, force=True)
 
     async def consider(self, message: discord.Message, force: bool = False) -> None:
-        if message.webhook_id != self.cfg.webhook_id:
+        if message.webhook_id not in self.cfg.webhook_ids:
             return
         header = report.parse_header(message.content)
         attachment = next((a for a in message.attachments if report.parse_attachment(a.filename)), None)

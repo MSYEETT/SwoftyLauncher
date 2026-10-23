@@ -15,7 +15,7 @@ class Repo:
 class Config:
     discord_token: str
     channel_id: int
-    webhook_id: int
+    webhook_ids: frozenset[int]
     data_dir: Path
     repos: tuple[Repo, ...]
     model: str = "claude-opus-5-5"
@@ -78,7 +78,13 @@ def from_env(env: dict[str, str] | None = None, need_discord: bool = True) -> Co
     return Config(
         discord_token=need("DISCORD_TOKEN") if need_discord else env.get("DISCORD_TOKEN", ""),
         channel_id=int(need("TRIAGE_CHANNEL_ID")) if need_discord else int(env.get("TRIAGE_CHANNEL_ID", "0")),
-        webhook_id=int(need("TRIAGE_WEBHOOK_ID")) if need_discord else int(env.get("TRIAGE_WEBHOOK_ID", "0")),
+        webhook_ids=frozenset(
+            int(w)
+            for w in (need("TRIAGE_WEBHOOK_ID") if need_discord else env.get("TRIAGE_WEBHOOK_ID", "")).split(
+                ","
+            )
+            if w.strip()
+        ),
         data_dir=Path(env.get("TRIAGE_DATA_DIR", "/var/lib/swofty-triage")),
         repos=parse_repos(env.get("TRIAGE_REPOS", DEFAULT_REPOS)),
         model=env.get("TRIAGE_MODEL", "claude-opus-5-5"),

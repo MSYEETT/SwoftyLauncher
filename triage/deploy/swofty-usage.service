@@ -4,6 +4,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
+EnvironmentFile=-/etc/swofty-usage.env
 User=triage
 Group=triage
 ExecStart=/opt/swofty-triage/venv/bin/swofty-triage usage --db /var/lib/swofty-usage/usage.db --host 127.0.0.1 --port 8471
