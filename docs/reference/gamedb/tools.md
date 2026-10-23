@@ -83,7 +83,7 @@ Names it cannot reach stay unnamed. Adding names to `names.txt` and rerunning na
 | 2 | `catalog+labels`, `exe+catalog+labels` |
 | 3 | `containers`, `containers`, `catalog` |
 
-`--level N=<vocabularies>` replaces level N. The tool hashes the row path once and continues the hash per word. When the last level has at most `--unwind-max` words (5,000), it unwinds every key of the file by each of them instead, and searches the earlier levels against the result, so a wide middle level costs one pass over its words per prefix. `--braces` prints a full product as one `compositions.txt` line.
+`--depth N` searches paths exactly N levels below the row. `--level N=<vocabularies>` replaces level N. The tool hashes the row path once and continues the hash per word. When the last level has at most `--unwind-max` words (5,000), it unwinds every key of the file by each of them instead, and searches the earlier levels against the result, so a wide middle level costs one pass over its words per prefix. `--braces` prints a full product as one `compositions.txt` line.
 
 The car setup presets of a vehicle package, found from the slider labels, the catalogue's container words and the exe's identifiers in 2.5 minutes:
 
