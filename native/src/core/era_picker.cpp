@@ -32,6 +32,8 @@ std::string settings_addon(const void *from, std::string &dll);
 // FeTile_Add_EraTile adds each box while vm+0x698 points at addon_tiles, so its VM node lands in the
 // addon row and its Tile in the stock vector after the stock tiles, which the game frees with them.
 // Boxes whose entrant list the screen's mode does not offer under swofty_f1 are skipped with one log line.
+// The VM bool addon_tiles_visible says whether the addon row holds a box; the UI only moves Down from the
+// stock row to the addon row while it is true.
 //
 // Press (FeTile_Press_EraTile, wrapped): addon_select_pressed runs the stock select_pressed path with
 // vm+0x698, vm+0x6b8 and the vector start pointed at the addon row, so the pressed box raises
@@ -59,6 +61,7 @@ using swofty::game::FeTile_Is_EraScenarioAvailable_Thunk_t;
 using swofty::game::FeTile_Press_EraTile_t;
 using swofty::game::Game_F1WorldActivityContainer_SelectEntrantList_t;
 using swofty::game::Vm_GetOrCreate_ListChild_t;
+using swofty::game::Vm_Set_Bool_t;
 using swofty::game::Vm_Set_NodeRef_t;
 
 constexpr const char *MIXIN = "swofty_core.dll (era picker)";
@@ -110,7 +113,7 @@ static_assert(offsetof(Set, list) == VM_TILES_NODE - VM_TILES && offsetof(Set, s
               offsetof(Set, begin) == VM_TILE_BEGIN - VM_TILES);
 
 struct Bound {
-    uintptr_t site, press, select, add, available, list_child, node_ref, clear, registry;
+    uintptr_t site, press, select, add, available, list_child, node_ref, set_bool, clear, registry;
 } b;
 
 struct Built {
@@ -320,6 +323,10 @@ void site_entry(SwoftyContext *c)
         built.boxes++;
     }
     ref<uint8_t *>(vm, VM_TILES_NODE) = tiles_node;
+    if (auto *root = at<uint8_t *>(vm, VM_ROOT)) {
+        uint8_t visible = built.boxes > 0;
+        reinterpret_cast<Vm_Set_Bool_t *>(b.set_bool)(registry(), root + 8, logic::ADDON_TILES_VISIBLE, &visible, 1);
+    }
     if (logged_builds++ < LOG_FIRST)
         swofty::log("[era] era select: %zu stock box(es), %zu addon box(es) of %zu registered", stock, built.boxes,
                     order.size());
@@ -385,6 +392,7 @@ bool bind_all(std::string &why)
     b.available = need("FeTile_Is_EraScenarioAvailable_Thunk", missing);
     b.list_child = need("Vm_GetOrCreate_ListChild", missing);
     b.node_ref = need("Vm_Set_NodeRef", missing);
+    b.set_bool = need("Vm_Set_Bool", missing);
     b.clear = need("FeTile_Clear_EraTileSet_Thunk", missing);
     b.registry = need("g_Vm_Registry", missing);
     if (missing.empty())

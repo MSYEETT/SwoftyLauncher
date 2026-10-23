@@ -12,6 +12,7 @@ namespace runtime::era {
 
 constexpr const char *HOST = "swofty_f1";
 constexpr const char *SELECTED_ADDON_TILE = "selected_addon_tile";
+constexpr const char *ADDON_TILES_VISIBLE = "addon_tiles_visible";
 constexpr const char *IMAGE_ARRAY = "#overrides.home_screen.tiles_solo_6x6";
 constexpr size_t MAX_BOXES = 64;
 constexpr size_t LIST_NAME_MAX = 63;
