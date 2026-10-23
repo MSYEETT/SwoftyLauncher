@@ -39,7 +39,7 @@ def sources(addon, rel):
                 if refs is None:
                     walk(v)
                     continue
-                out.extend(r for r in refs if isinstance(r, str) and os.path.isfile(os.path.join(addon, r)))
+                out.extend(r for r in refs if isinstance(r, str) and os.path.exists(os.path.join(addon, r)))
         elif isinstance(o, list):
             for v in o:
                 walk(v)
