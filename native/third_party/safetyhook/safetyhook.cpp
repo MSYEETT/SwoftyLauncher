@@ -248,6 +248,16 @@ std::expected<uint8_t*, Allocator::Error> Allocator::allocate_nearby_memory(
         if (auto allocation_address = attempt_allocation(p); allocation_address != nullptr) {
             return allocation_address;
         }
+
+        // Swofty: the walk enters each free region at one position (just below the previous busy
+        // region) and skips the whole region when that single attempt misses, even when the region
+        // has room elsewhere. Retry once at the region's highest fitting address before skipping it.
+        auto top = align_down(mbi.address + mbi.size - size, si.allocation_granularity);
+        if (top > p) {
+            if (auto allocation_address = attempt_allocation(top); allocation_address != nullptr) {
+                return allocation_address;
+            }
+        }
     }
 
     // Search forwards from the desired_address.
