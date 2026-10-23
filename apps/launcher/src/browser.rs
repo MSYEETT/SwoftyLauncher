@@ -1,62 +1,60 @@
 //! The Addon Browser: the addons published to the Swofty registry, to search,
-//! read about, and install or update in one click.
+//! sort, filter, star, read about, and install or update in one click.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, Instant};
+use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
+use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::scroll::ScrollableElement;
+use gpui_kit::component::spinner::Spinner;
 use gpui_kit::component::tooltip::Tooltip;
-use gpui_kit::component::{ActiveTheme, Disableable, Icon, Sizable, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
-use swofty_core::catalog::{self, Addon, Trouble, Update};
+use swofty_core::catalog::search::Query;
+use swofty_core::catalog::stars::{self, Stars};
+use swofty_core::catalog::{self, Addon, Stage, Trouble, Update};
+use swofty_core::manifest::Category;
 use swofty_core::update::current_version;
 
+use crate::addons::{FILTERS_W, Type, ago, facet_row};
 use crate::library::{Source, plural};
 use crate::news::format_date;
-use crate::pages::{GUTTER, badge, label, tag};
-use crate::shell::{Page, Shell};
+use crate::pages::{GUTTER, avatar, badge, label, stat, tag};
+use crate::play_bar::link;
+use crate::shell::{Page, PlayState, Shell};
 use crate::theme::Palette;
 
 const STALE: Duration = Duration::from_secs(30 * 60);
+const TICK: Duration = Duration::from_secs(5 * 60);
+const STAR_DELAY: Duration = Duration::from_secs(1);
+const ACTIVITY_KEPT: usize = 50;
 const ICONS_DIR: &str = "icons";
-const CARD_W: f32 = 330.;
+const CARD_W: f32 = 300.;
 const GAP: f32 = 14.;
 const SIDE_W: f32 = 340.;
+const AUTHORS_SHOWN: usize = 8;
 const NATIVE: &str = "Runs code in the game";
-
-fn kind_label(kind: &str) -> &str {
-    match kind {
-        "database" => "Database",
-        "erp" => "Archives",
-        "text" | "ui" => "Text & UI",
-        "simplified" => "Simplified",
-        "files" => "Files",
-        "native" => "Code",
-        other => other,
-    }
-}
-
-fn kinds(a: &Addon) -> String {
-    let mut seen: Vec<&str> = Vec::new();
-    for k in &a.kind {
-        let l = kind_label(k);
-        if !seen.contains(&l) {
-            seen.push(l);
-        }
-    }
-    seen.join(", ")
-}
+const VERIFYING: u8 = 1;
+const INSTALLING: u8 = 2;
 
 fn day(iso: &str) -> String {
     format_date(iso.get(..10).unwrap_or(iso))
+}
+
+fn since(iso: &str) -> Option<String> {
+    catalog::epoch(iso).map(|s| ago(s as f64))
+}
+
+fn since_time(t: SystemTime) -> String {
+    ago(t.duration_since(UNIX_EPOCH).map_or(0., |d| d.as_secs_f64()))
 }
 
 fn host(url: &str) -> &str {
@@ -65,6 +63,36 @@ fn host(url: &str) -> &str {
 
 fn web_url(url: &str) -> bool {
     url.starts_with("https://") || url.starts_with("http://")
+}
+
+fn size_text(bytes: u64) -> String {
+    const KB: f64 = 1024.;
+    let b = bytes as f64;
+    if b < KB {
+        format!("{bytes} B")
+    } else if b < KB * KB {
+        format!("{:.0} KB", b / KB)
+    } else if b < KB * KB * KB {
+        format!("{:.1} MB", b / KB / KB)
+    } else {
+        format!("{:.2} GB", b / KB / KB / KB)
+    }
+}
+
+fn compact(n: u64) -> String {
+    match n {
+        0..1000 => n.to_string(),
+        1000..10_000 => format!("{:.1}k", n as f64 / 1000.),
+        10_000..1_000_000 => format!("{}k", n / 1000),
+        _ => format!("{:.1}M", n as f64 / 1e6),
+    }
+}
+
+fn took_text(d: Duration) -> String {
+    match d.as_millis() {
+        ms @ 0..1000 => format!("{ms} ms"),
+        ms => format!("{:.1} s", ms as f64 / 1000.),
+    }
 }
 
 fn native_badge(id: String, p: Palette) -> Stateful<Div> {
@@ -88,13 +116,247 @@ fn native_badge(id: String, p: Palette) -> Stateful<Div> {
         })
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Progress {
+    Downloading { done: u64, size: u64, rate: f64 },
+    Verifying,
+    Installing,
+}
+
+impl Progress {
+    fn fraction(self) -> f32 {
+        match self {
+            Self::Downloading { done, size, .. } if size > 0 => (done as f32 / size as f32).min(1.),
+            Self::Downloading { .. } => 0.,
+            Self::Verifying | Self::Installing => 1.,
+        }
+    }
+
+    fn short(self) -> String {
+        match self {
+            Self::Downloading { size: 0, .. } => "Downloading…".into(),
+            Self::Downloading { .. } => format!("Downloading {:.0}%", self.fraction() * 100.),
+            Self::Verifying => "Verifying…".into(),
+            Self::Installing => "Installing…".into(),
+        }
+    }
+
+    fn long(self) -> String {
+        match self {
+            Self::Downloading { done, size, rate } => {
+                let mut text = format!(
+                    "Downloading {} of {} · {:.0}%",
+                    size_text(done),
+                    size_text(size),
+                    self.fraction() * 100.
+                );
+                if rate > 0. {
+                    text.push_str(&format!(" · {}/s", size_text(rate as u64)));
+                }
+                text
+            }
+            Self::Verifying => "Verifying the download's size and SHA-256…".into(),
+            Self::Installing => "Installing…".into(),
+        }
+    }
+}
+
+struct Job {
+    bytes: Arc<AtomicU64>,
+    stage: Arc<AtomicU8>,
+    size: u64,
+    started: Instant,
+}
+
+impl Job {
+    fn progress(&self) -> Progress {
+        match self.stage.load(Ordering::Relaxed) {
+            VERIFYING => Progress::Verifying,
+            INSTALLING => Progress::Installing,
+            _ => {
+                let done = self.bytes.load(Ordering::Relaxed);
+                let secs = self.started.elapsed().as_secs_f64();
+                Progress::Downloading {
+                    done,
+                    size: self.size,
+                    rate: if secs > 0.3 { done as f64 / secs } else { 0. },
+                }
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 enum Offer {
     Install,
-    Installed,
-    Update(semver::Version),
+    Installed(semver::Version),
+    Update(semver::Version, semver::Version),
     TooOld,
-    Working(Option<u64>),
+    Working(Progress),
+    Failed,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Sort {
+    Match,
+    Stars,
+    Downloads,
+    Trending,
+    Updated,
+    Newest,
+    Name,
+}
+
+impl Sort {
+    const ALL: [Sort; 7] = [
+        Self::Match,
+        Self::Stars,
+        Self::Downloads,
+        Self::Trending,
+        Self::Updated,
+        Self::Newest,
+        Self::Name,
+    ];
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Match => "Best match",
+            Self::Stars => "Most stars",
+            Self::Downloads => "Most downloads",
+            Self::Trending => "Trending",
+            Self::Updated => "Recently updated",
+            Self::Newest => "Newest",
+            Self::Name => "Name A–Z",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum Want {
+    Installed,
+    NotInstalled,
+    Update,
+    Starred,
+    Works,
+}
+
+impl Want {
+    const ALL: [Want; 5] = [
+        Self::Installed,
+        Self::NotInstalled,
+        Self::Update,
+        Self::Starred,
+        Self::Works,
+    ];
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Installed => "Installed",
+            Self::NotInstalled => "Not installed",
+            Self::Update => "Update available",
+            Self::Starred => "Starred by you",
+            Self::Works => "Works with this launcher",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Group {
+    Category,
+    Type,
+    State,
+    Author,
+    Code,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum Facet {
+    Type(Type),
+    State(Want),
+    Author(String),
+}
+
+impl Facet {
+    fn group(&self) -> Group {
+        match self {
+            Self::Type(_) => Group::Type,
+            Self::State(_) => Group::State,
+            Self::Author(_) => Group::Author,
+        }
+    }
+
+    fn label(&self) -> String {
+        match self {
+            Self::Type(t) => t.label().to_owned(),
+            Self::State(w) => w.label().to_owned(),
+            Self::Author(a) => a.clone(),
+        }
+    }
+}
+
+/// A category bar tab: all addons, one category, or none of them.
+type Tab = Option<Option<Category>>;
+
+fn tab_label(tab: Tab) -> &'static str {
+    match tab {
+        None => "All",
+        Some(Some(c)) => c.label(),
+        Some(None) => "Other",
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Op {
+    Catalog,
+    Stars,
+    Install,
+    Details,
+}
+
+impl Op {
+    fn icon(self) -> IconName {
+        match self {
+            Self::Catalog => IconName::RefreshCw,
+            Self::Stars => IconName::Star,
+            Self::Install => IconName::Download,
+            Self::Details => IconName::Info,
+        }
+    }
+}
+
+struct Activity {
+    at: SystemTime,
+    op: Op,
+    ok: bool,
+    title: String,
+    detail: String,
+    took: Duration,
+}
+
+#[derive(Default)]
+struct Batch {
+    left: BTreeSet<String>,
+    updated: Vec<String>,
+    failed: Vec<(String, String)>,
+}
+
+impl Batch {
+    fn total(&self) -> usize {
+        self.left.len() + self.updated.len() + self.failed.len()
+    }
+
+    fn summary(&self) -> String {
+        let mut lines = Vec::new();
+        if !self.updated.is_empty() {
+            lines.push(format!("Updated {}", self.updated.join(", ")));
+        }
+        lines.extend(
+            self.failed
+                .iter()
+                .map(|(name, e)| format!("Couldn't update {name}: {e}")),
+        );
+        lines.join("\n")
+    }
 }
 
 struct Fetched {
@@ -126,21 +388,39 @@ pub(crate) struct Browser {
     pub(crate) toasts: Vec<Notification>,
     icons: HashMap<String, Arc<Image>>,
     checked: Option<Instant>,
+    fetched_at: Option<SystemTime>,
     live: bool,
     saved: bool,
     fetching: bool,
     trouble: Option<Trouble>,
     search: Entity<InputState>,
+    window: AnyWindowHandle,
     open: Option<String>,
-    working: HashMap<String, Arc<AtomicU64>>,
+    details: HashMap<String, Addon>,
+    loading: BTreeSet<String>,
+    working: HashMap<String, Job>,
+    failed: HashMap<String, String>,
+    batch: Option<Batch>,
+    held: BTreeMap<String, (semver::Version, String)>,
     ticking: bool,
-    prompted: BTreeSet<(String, semver::Version)>,
+    stars: Stars,
+    syncing: bool,
+    sync_again: bool,
+    star_gen: u64,
+    sort: Sort,
+    search_sort: Option<Sort>,
+    tab: Tab,
+    facets: BTreeSet<Facet>,
+    hide_code: bool,
+    activity: VecDeque<Activity>,
+    activity_open: bool,
     _search: Subscription,
 }
 
 impl Browser {
     pub(crate) fn new(root: &Path, window: &mut Window, cx: &mut Context<Shell>) -> Self {
-        let search = cx.new(|cx| InputState::new(window, cx).placeholder("Search the Addon Browser"));
+        let search = cx
+            .new(|cx| InputState::new(window, cx).placeholder("Search names, authors, author: or category:"));
         let changed = cx.subscribe(&search, |_, _, e: &InputEvent, cx| {
             if matches!(e, InputEvent::Change) {
                 cx.notify();
@@ -149,6 +429,7 @@ impl Browser {
         let cached = catalog::cached(root);
         Self {
             saved: cached.is_some(),
+            fetched_at: cached.as_ref().and_then(|_| catalog::cached_at(root)),
             addons: cached.unwrap_or_default(),
             updates: Vec::new(),
             toasts: Vec::new(),
@@ -158,10 +439,26 @@ impl Browser {
             fetching: false,
             trouble: None,
             search,
+            window: window.window_handle(),
             open: None,
+            details: HashMap::new(),
+            loading: BTreeSet::new(),
             working: HashMap::new(),
+            failed: HashMap::new(),
+            batch: None,
+            held: BTreeMap::new(),
             ticking: false,
-            prompted: BTreeSet::new(),
+            stars: Stars::load(root),
+            syncing: false,
+            sync_again: false,
+            star_gen: 0,
+            sort: Sort::Stars,
+            search_sort: None,
+            tab: None,
+            facets: BTreeSet::new(),
+            hide_code: false,
+            activity: VecDeque::new(),
+            activity_open: false,
             _search: changed,
         }
     }
@@ -171,30 +468,44 @@ impl Browser {
     }
 
     fn subtitle(&self) -> String {
-        if self.fetching {
-            return "Checking the registry…".into();
-        }
         let base = catalog::base_url();
-        if self.live {
-            return format!(
-                "{} from {}",
-                plural(self.addons.len(), "addon", "addons"),
-                host(&base)
-            );
+        let n = plural(self.addons.len(), "addon", "addons");
+        let age = self.fetched_at.map(since_time);
+        if self.fetching && self.fetched_at.is_none() {
+            return format!("Checking {}…", host(&base));
         }
-        let shown = if self.saved {
-            "showing the addons saved last time"
-        } else {
-            "no addons saved yet"
+        let mut text = match (&self.trouble, self.saved) {
+            (None, _) => format!("{n} from {}", host(&base)),
+            (Some(_), true) if !self.live => format!("Offline · showing the {n} saved last time"),
+            (Some(_), true) => format!("Offline · showing {n} from {}", host(&base)),
+            (Some(_), false) => "Offline · no addons saved yet".to_owned(),
         };
-        match self.trouble {
-            Some(Trouble::Failed(_)) => format!("Couldn't load the registry · {shown}"),
-            _ => format!("Offline · {shown}"),
+        if let Some(age) = age.filter(|_| self.saved) {
+            text.push_str(&format!(" · updated {age}"));
         }
+        if self.fetching {
+            text.push_str(" · checking…");
+        }
+        text
     }
 
     fn find(&self, id: &str) -> Option<&Addon> {
         self.addons.iter().find(|a| a.id == id)
+    }
+
+    fn stars_of(&self, a: &Addon) -> u64 {
+        self.stars.count(&a.id, a.stars)
+    }
+
+    fn clear_search(&self, cx: &mut App) {
+        let (input, window) = (self.search.clone(), self.window);
+        cx.defer(move |cx| {
+            window
+                .update(cx, |_, window, cx| {
+                    input.update(cx, |s, cx| s.set_value("", window, cx))
+                })
+                .ok();
+        });
     }
 }
 
@@ -202,15 +513,45 @@ impl Shell {
     pub(crate) fn watch_catalog(cx: &mut Context<Self>) -> Task<()> {
         cx.spawn(async move |this, cx| {
             loop {
-                cx.background_executor().timer(STALE).await;
-                if this.update(cx, |s, cx| s.fetch_catalog(true, cx)).is_err() {
+                cx.background_executor().timer(TICK).await;
+                let ticked = this.update(cx, |s, cx| {
+                    if s.browser.stale() {
+                        s.fetch_catalog(cx);
+                    } else {
+                        s.sync_stars(cx);
+                    }
+                    cx.notify();
+                });
+                if ticked.is_err() {
                     break;
                 }
             }
         })
     }
 
-    pub(crate) fn fetch_catalog(&mut self, prompt: bool, cx: &mut Context<Self>) {
+    fn record(&mut self, op: Op, ok: bool, title: String, detail: String, took: Duration) {
+        let mut line = format!(
+            "{} {title} ({})",
+            if ok { "ok" } else { "failed" },
+            took_text(took)
+        );
+        if !detail.is_empty() {
+            line.push_str(&format!(": {detail}"));
+        }
+        catalog::log(&self.store.root, &line);
+        let b = &mut self.browser;
+        b.activity.push_front(Activity {
+            at: SystemTime::now(),
+            op,
+            ok,
+            title,
+            detail,
+            took,
+        });
+        b.activity.truncate(ACTIVITY_KEPT);
+    }
+
+    pub(crate) fn fetch_catalog(&mut self, cx: &mut Context<Self>) {
         if self.browser.fetching {
             return;
         }
@@ -218,30 +559,133 @@ impl Shell {
         let root = self.store.root.clone();
         let shown = self.browser.addons.clone();
         let known = self.browser.icons.keys().cloned().collect();
+        let started = Instant::now();
         cx.spawn(async move |this, cx| {
             let fetched = cx
                 .background_executor()
                 .spawn(async move { fetch(&root, shown, known) })
                 .await;
             this.update(cx, |s, cx| {
+                let took = started.elapsed();
+                let from = host(&catalog::base_url()).to_owned();
+                match (&fetched.error, &fetched.addons) {
+                    (Some(e), _) => s.record(
+                        Op::Catalog,
+                        false,
+                        format!("Couldn't fetch the catalog from {from}"),
+                        e.to_string(),
+                        took,
+                    ),
+                    (None, Some(addons)) => s.record(
+                        Op::Catalog,
+                        true,
+                        "Fetched the catalog".to_owned(),
+                        format!("{} from {from}", plural(addons.len(), "addon", "addons")),
+                        took,
+                    ),
+                    (None, None) => {}
+                }
                 let b = &mut s.browser;
                 b.fetching = false;
                 b.checked = Some(Instant::now());
-                if let Some(e) = &fetched.error {
-                    eprintln!("swofty-launcher: could not check the addon registry: {e}");
-                }
                 b.trouble = fetched.error;
                 if let Some(addons) = fetched.addons {
                     b.addons = addons;
                     b.live = true;
                     b.saved = true;
+                    b.fetched_at = Some(SystemTime::now());
                 }
                 b.icons.extend(fetched.icons);
                 s.sync_catalog_updates();
-                if prompt {
-                    s.prompt_updates(cx);
+                s.sync_stars(cx);
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        cx.notify();
+    }
+
+    pub(crate) fn sync_stars(&mut self, cx: &mut Context<Self>) {
+        let b = &mut self.browser;
+        if b.syncing {
+            b.sync_again = true;
+            return;
+        }
+        b.syncing = true;
+        let sent = b.stars.outgoing();
+        let client = b.stars.client.clone();
+        let started = Instant::now();
+        cx.spawn(async move |this, cx| {
+            let job = sent.clone();
+            let result = cx
+                .background_executor()
+                .spawn(async move { stars::sync(&client, &job) })
+                .await;
+            this.update(cx, |s, cx| {
+                let took = started.elapsed();
+                s.browser.syncing = false;
+                match result {
+                    Ok(reply) => {
+                        let applied = reply.applied;
+                        let b = &mut s.browser;
+                        b.stars.synced(&sent, reply, catalog::iso_now());
+                        let detail = format!(
+                            "{} sent, {applied} applied · {} starred · {}",
+                            plural(sent.len(), "change", "changes"),
+                            b.stars.starred.len(),
+                            b.stars.user.as_deref().unwrap_or("no user yet")
+                        );
+                        s.record(Op::Stars, true, "Synced stars".to_owned(), detail, took);
+                    }
+                    Err(e) => {
+                        s.browser.stars.failed(e.to_string());
+                        let waiting = plural(s.browser.stars.pending.len(), "change", "changes");
+                        s.record(
+                            Op::Stars,
+                            false,
+                            "Couldn't sync stars".to_owned(),
+                            format!("{e} · {waiting} waiting"),
+                            took,
+                        );
+                    }
+                }
+                if let Err(e) = s.browser.stars.save(&s.store.root) {
+                    eprintln!("swofty-launcher: could not save the stars: {e}");
+                }
+                if std::mem::take(&mut s.browser.sync_again) {
+                    s.sync_stars(cx);
                 }
                 cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn toggle_star(&mut self, id: &str, cx: &mut Context<Self>) {
+        let listed = self.browser.find(id).map_or(0, |a| a.stars);
+        let on = self.browser.stars.toggle(id, listed, catalog::iso_now());
+        if let Err(e) = self.browser.stars.save(&self.store.root) {
+            eprintln!("swofty-launcher: could not save the stars: {e}");
+        }
+        catalog::log(
+            &self.store.root,
+            &format!(
+                "{} {id}, {} waiting",
+                if on { "starred" } else { "unstarred" },
+                plural(self.browser.stars.pending.len(), "change", "changes")
+            ),
+        );
+        self.browser.star_gen += 1;
+        let ticket = self.browser.star_gen;
+        cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(STAR_DELAY).await;
+            this.update(cx, |s, cx| {
+                if s.browser.star_gen == ticket {
+                    s.sync_stars(cx);
+                }
             })
             .ok();
         })
@@ -263,51 +707,24 @@ impl Shell {
         self.browser.updates.iter().find(|u| u.id == id)
     }
 
-    fn prompt_updates(&mut self, cx: &mut Context<Self>) {
-        let fresh: Vec<(String, semver::Version)> = self
-            .browser
-            .updates
+    fn installed_version(&self, id: &str) -> Option<semver::Version> {
+        self.library
+            .addons
             .iter()
-            .map(|u| (u.id.clone(), u.to.version.clone()))
-            .filter(|k| !self.browser.prompted.contains(k))
-            .collect();
-        if fresh.is_empty() {
-            return;
-        }
-        self.browser.prompted.extend(fresh);
-        if self.page == Page::Browser {
-            return;
-        }
-        let n = self.browser.updates.len();
-        let text = format!("{} available", plural(n, "addon update", "addon updates"));
-        let shell = cx.entity().downgrade();
-        let note = Notification::info(text)
-            .title("Addon updates")
-            .action(move |_, _, cx| {
-                let shell = shell.clone();
-                let note = cx.entity().downgrade();
-                Button::new("open-addon-browser")
-                    .outline()
-                    .small()
-                    .label("Open Addon Browser")
-                    .on_click(move |_, window, cx| {
-                        shell.update(cx, |s, cx| s.open_page(Page::Browser, cx)).ok();
-                        note.update(cx, |n, cx| n.dismiss(window, cx)).ok();
-                    })
-            });
-        self.browser.toasts.push(note);
+            .find(|m| m.manifest.id == id)
+            .map(|m| m.manifest.version.clone())
     }
 
     fn offer(&self, a: &Addon) -> Offer {
-        if let Some(bytes) = self.browser.working.get(&a.id) {
-            let size = a.offered(&current_version()).map_or(0, |v| v.size);
-            let done = bytes.load(Ordering::Relaxed);
-            return Offer::Working((size > 0).then(|| (done * 100 / size).min(100)));
+        if let Some(job) = self.browser.working.get(&a.id) {
+            return Offer::Working(job.progress());
         }
-        let installed = self.library.addons.iter().find(|m| m.manifest.id == a.id);
-        match (a.offered(&current_version()), installed) {
-            (Some(v), Some(m)) if v.version > m.manifest.version => Offer::Update(v.version.clone()),
-            (_, Some(_)) => Offer::Installed,
+        if self.browser.failed.contains_key(&a.id) {
+            return Offer::Failed;
+        }
+        match (a.offered(&current_version()), self.installed_version(&a.id)) {
+            (Some(v), Some(m)) if v.version > m => Offer::Update(m, v.version.clone()),
+            (_, Some(m)) => Offer::Installed(m),
             (Some(_), None) => Offer::Install,
             (None, None) => Offer::TooOld,
         }
@@ -323,35 +740,97 @@ impl Shell {
         let Some(version) = addon.offered(&current_version()).cloned() else {
             return;
         };
-        let updating = self.library.addons.iter().any(|m| m.manifest.id == addon.id);
-        let bytes = Arc::new(AtomicU64::new(0));
-        self.browser.working.insert(addon.id.clone(), bytes.clone());
+        let updating = self.installed_version(id).is_some();
+        self.browser.failed.remove(id);
+        let job = Job {
+            bytes: Arc::new(AtomicU64::new(0)),
+            stage: Arc::new(AtomicU8::new(0)),
+            size: version.size,
+            started: Instant::now(),
+        };
+        let (bytes, stage) = (job.bytes.clone(), job.stage.clone());
+        self.browser.working.insert(addon.id.clone(), job);
+        catalog::log(
+            &self.store.root,
+            &format!(
+                "{} {} {} ({}) from {}",
+                if updating { "updating" } else { "installing" },
+                addon.id,
+                version.version,
+                size_text(version.size),
+                version.url
+            ),
+        );
         let store = self.store.clone();
+        let started = Instant::now();
         cx.spawn(async move |this, cx| {
             let (job, v) = (addon.clone(), version.clone());
             let result = cx
                 .background_executor()
-                .spawn(
-                    async move { catalog::install(&store, &job, &v, &|n| bytes.store(n, Ordering::Relaxed)) },
-                )
+                .spawn(async move {
+                    catalog::install(&store, &job, &v, &|s| match s {
+                        Stage::Downloading(n) => bytes.store(n, Ordering::Relaxed),
+                        Stage::Verifying => stage.store(VERIFYING, Ordering::Relaxed),
+                        Stage::Installing => stage.store(INSTALLING, Ordering::Relaxed),
+                    })
+                })
                 .await;
             this.update(cx, |s, cx| {
                 s.browser.working.remove(&addon.id);
-                let note = match result {
-                    Ok(m) => Notification::success(format!(
-                        "{} {} {}",
-                        if updating { "Updated" } else { "Installed" },
-                        m.name,
-                        m.version
-                    )),
-                    Err(e) => Notification::error(e.to_string()).title(format!(
-                        "Could not {} {}",
-                        if updating { "update" } else { "install" },
-                        addon.name
-                    )),
-                };
-                s.browser.toasts.push(note);
-                s.reload(cx);
+                let took = started.elapsed();
+                let in_batch = s.browser.batch.as_mut().is_some_and(|b| b.left.remove(&addon.id));
+                let verb = if updating { "update" } else { "install" };
+                match result {
+                    Ok(m) => {
+                        let title = format!(
+                            "{} {} {}",
+                            if updating { "Updated" } else { "Installed" },
+                            m.name,
+                            m.version
+                        );
+                        let detail = format!("{} · {}", size_text(version.size), addon.id);
+                        s.record(Op::Install, true, title.clone(), detail, took);
+                        s.reload(cx);
+                        if in_batch {
+                            if let Some(b) = s.browser.batch.as_mut() {
+                                b.updated.push(format!("{} {}", m.name, m.version));
+                            }
+                        } else if s.page == Page::Browser {
+                            s.show_installed(&m.id, cx);
+                        } else {
+                            s.browser.toasts.push(Notification::success(title));
+                        }
+                    }
+                    Err(e) => {
+                        let error = e.to_string();
+                        s.record(
+                            Op::Install,
+                            false,
+                            format!("Couldn't {verb} {} {}", addon.name, version.version),
+                            error.clone(),
+                            took,
+                        );
+                        s.browser.failed.insert(addon.id.clone(), error.clone());
+                        if in_batch {
+                            if let Some(b) = s.browser.batch.as_mut() {
+                                b.failed.push((addon.name.clone(), error));
+                            }
+                        } else {
+                            s.browser.toasts.push(
+                                Notification::error(error).title(format!("Could not {verb} {}", addon.name)),
+                            );
+                        }
+                        s.reload(cx);
+                    }
+                }
+                if in_batch && let Some(to) = s.catalog_update(&addon.id).map(|u| u.to.version.clone()) {
+                    let error = s.browser.failed.get(&addon.id).cloned().unwrap_or_default();
+                    s.browser.held.insert(addon.id.clone(), (to, error));
+                }
+                if in_batch && s.browser.batch.as_ref().is_some_and(|b| b.left.is_empty()) {
+                    s.finish_addon_updates();
+                }
+                cx.notify();
             })
             .ok();
         })
@@ -360,11 +839,250 @@ impl Shell {
         cx.notify();
     }
 
-    fn update_all(&mut self, cx: &mut Context<Self>) {
-        let ids: Vec<String> = self.browser.updates.iter().map(|u| u.id.clone()).collect();
+    /// Opens where `id` now lists, highlighting it: Addons, or Tracks for a track addon.
+    fn show_installed(&mut self, id: &str, cx: &mut Context<Self>) {
+        let track = self.library.addons.iter().any(|a| a.manifest.id == id && a.track);
+        match self.library.tracks_page.filter(|_| track) {
+            Some(i) => self.open_page(Page::Section(i), cx),
+            None => self.show_addon(id, cx),
+        }
+    }
+
+    /// The addon updates the play bar offers: every outdated registry addon
+    /// except the ones that failed at this version.
+    fn addon_updates(&self) -> Vec<&Update> {
+        self.browser
+            .updates
+            .iter()
+            .filter(|u| {
+                self.browser
+                    .held
+                    .get(&u.id)
+                    .is_none_or(|(v, _)| *v != u.to.version)
+            })
+            .collect()
+    }
+
+    fn updating_addons(&self) -> bool {
+        self.browser.batch.as_ref().is_some_and(|b| !b.left.is_empty())
+    }
+
+    pub(crate) fn addon_update_takes_play(&self, state: &PlayState) -> bool {
+        self.updating_addons()
+            || (matches!(state, PlayState::Ready | PlayState::Crashed(_)) && !self.addon_updates().is_empty())
+    }
+
+    fn update_addons(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if matches!(
+            self.play_state(),
+            PlayState::Running | PlayState::Elsewhere(_) | PlayState::Launching
+        ) {
+            window.push_notification(Notification::error("Close F1 25 before updating addons."), cx);
+            return;
+        }
+        let ids: Vec<String> = self
+            .addon_updates()
+            .into_iter()
+            .map(|u| u.id.clone())
+            .filter(|id| !self.browser.working.contains_key(id))
+            .collect();
+        if ids.is_empty() || self.updating_addons() {
+            return;
+        }
+        catalog::log(&self.store.root, &format!("updating addons: {}", ids.join(", ")));
+        self.browser.batch = Some(Batch {
+            left: ids.iter().cloned().collect(),
+            ..Batch::default()
+        });
         for id in ids {
             self.install_from_catalog(&id, cx);
         }
+    }
+
+    fn retry_addon_updates(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.browser.held.clear();
+        self.update_addons(window, cx);
+    }
+
+    fn finish_addon_updates(&mut self) {
+        let Some(b) = self.browser.batch.take() else {
+            return;
+        };
+        let summary = b.summary();
+        catalog::log(&self.store.root, &summary.replace('\n', "; "));
+        let title = format!(
+            "Updated {} of {}",
+            b.updated.len(),
+            plural(b.total(), "addon", "addons")
+        );
+        self.browser.toasts.push(if b.failed.is_empty() {
+            Notification::success(summary).title(title)
+        } else {
+            Notification::warning(summary).title(title)
+        });
+    }
+
+    fn batch_progress(&self) -> Option<(f32, String)> {
+        let b = self.browser.batch.as_ref()?;
+        let total = b.total().max(1) as f32;
+        let mut done = (b.updated.len() + b.failed.len()) as f32;
+        let mut detail = None;
+        for id in &b.left {
+            if let Some(job) = self.browser.working.get(id) {
+                let pr = job.progress();
+                done += pr.fraction();
+                if detail.is_none() {
+                    let name = self.browser.find(id).map_or(id.as_str(), |a| a.name.as_str());
+                    detail = Some(format!("{name} · {}", pr.short()));
+                }
+            }
+        }
+        Some((done / total, detail.unwrap_or_else(|| "Starting…".into())))
+    }
+
+    pub(crate) fn addon_update_button(&self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+        let running = self.updating_addons();
+        let due = self.addon_updates();
+        let (label, sub, progress) = match self.batch_progress().filter(|_| running) {
+            Some((done, detail)) => (format!("Updating {:.0}%", done * 100.), detail, Some(done)),
+            None => (
+                format!("Update addons ({})", due.len()),
+                match due.as_slice() {
+                    [one] => format!("{} {} → {}", one.name, one.installed, one.to.version),
+                    many => plural(many.len(), "addon update", "addon updates"),
+                },
+                None,
+            ),
+        };
+        div()
+            .id("play")
+            .relative()
+            .overflow_hidden()
+            .h(px(52.))
+            .w(px(crate::update::BUTTON_WIDTH))
+            .flex_shrink_0()
+            .rounded(px(9.))
+            .bg(if running { p.elevated } else { p.accent })
+            .text_color(if running { p.text } else { p.on_accent })
+            .flex()
+            .items_center()
+            .gap(px(10.))
+            .px(px(14.))
+            .when(running, |d| d.border_1().border_color(p.border))
+            .when(!running, |d| {
+                d.cursor_pointer()
+                    .hover(move |s| s.bg(p.accent_hover))
+                    .on_click(cx.listener(|this, _, window, cx| this.update_addons(window, cx)))
+            })
+            .map(|d| {
+                if running {
+                    d.child(Spinner::new().icon(IconName::LoaderCircle).with_size(px(18.)))
+                } else {
+                    d.child(Icon::new(IconName::CircleArrowUp).size(px(18.)))
+                }
+            })
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .child(
+                        div()
+                            .text_size(px(15.))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(label),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(11.))
+                            .truncate()
+                            .text_color(if running { p.text_muted } else { p.on_accent })
+                            .when(!running, |d| d.opacity(0.85))
+                            .child(sub),
+                    ),
+            )
+            .when_some(progress, |d, done| {
+                d.child(
+                    div()
+                        .absolute()
+                        .left_0()
+                        .bottom_0()
+                        .h(px(4.))
+                        .w(relative(done.clamp(0., 1.)))
+                        .bg(p.accent),
+                )
+            })
+            .into_any_element()
+    }
+
+    pub(crate) fn addon_update_status(
+        &self,
+        state: &PlayState,
+        row: Div,
+        p: Palette,
+        cx: &mut Context<Self>,
+    ) -> Option<Div> {
+        let dot = |c: Hsla| div().size(px(7.)).rounded_full().bg(c).flex_shrink_0();
+        let text = |t: String| div().min_w_0().truncate().child(t);
+        if let Some(b) = self.browser.batch.as_ref().filter(|_| self.updating_addons()) {
+            let names: Vec<String> = b
+                .left
+                .iter()
+                .map(|id| {
+                    self.browser
+                        .find(id)
+                        .map_or_else(|| id.clone(), |a| a.name.clone())
+                })
+                .collect();
+            return Some(
+                row.child(dot(p.warning))
+                    .child(text(format!("Updating {}.", names.join(", ")))),
+            );
+        }
+        if !matches!(state, PlayState::Ready | PlayState::Crashed(_)) {
+            return None;
+        }
+        let due = self.addon_updates();
+        if !due.is_empty() {
+            let changes: Vec<String> = due
+                .iter()
+                .map(|u| format!("{} {} → {}", u.name, u.installed, u.to.version))
+                .collect();
+            return Some(
+                row.child(dot(p.accent))
+                    .child(text(format!("Addon updates: {}.", changes.join(", ")))),
+            );
+        }
+        let failed: Vec<String> = self
+            .browser
+            .held
+            .iter()
+            .filter(|(id, (v, _))| self.catalog_update(id).is_some_and(|u| u.to.version == *v))
+            .map(|(id, (_, e))| {
+                let name = self.browser.find(id).map_or(id.as_str(), |a| a.name.as_str());
+                format!("{name}: {e}")
+            })
+            .collect();
+        if failed.is_empty() {
+            return None;
+        }
+        let tip = SharedString::from(failed.join("\n"));
+        Some(
+            row.text_color(p.error)
+                .child(Icon::new(IconName::CircleAlert).size(px(16.)))
+                .child(
+                    div()
+                        .id("addon-updates-failed")
+                        .min_w_0()
+                        .truncate()
+                        .child(format!("Couldn't update {}", failed.join("; ")))
+                        .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx)),
+                )
+                .child(
+                    link("addon-updates-again", "Try again", p)
+                        .flex_shrink_0()
+                        .on_click(cx.listener(|this, _, window, cx| this.retry_addon_updates(window, cx))),
+                ),
+        )
     }
 
     fn tick_browser(&mut self, cx: &mut Context<Self>) {
@@ -393,40 +1111,136 @@ impl Shell {
         .detach();
     }
 
+    fn open_details(&mut self, id: &str, cx: &mut Context<Self>) {
+        self.browser.open = Some(id.to_owned());
+        self.browser.activity_open = false;
+        if !self.browser.loading.insert(id.to_owned()) {
+            return;
+        }
+        let id = id.to_owned();
+        let started = Instant::now();
+        cx.spawn(async move |this, cx| {
+            let job = id.clone();
+            let result = cx
+                .background_executor()
+                .spawn(async move { catalog::fetch_one(&job) })
+                .await;
+            this.update(cx, |s, cx| {
+                s.browser.loading.remove(&id);
+                let took = started.elapsed();
+                match result {
+                    Ok(a) => {
+                        let detail = format!(
+                            "{} · {}",
+                            plural(a.versions.len(), "version", "versions"),
+                            if a.trend.is_some() {
+                                "30-day trend"
+                            } else {
+                                "no trend"
+                            }
+                        );
+                        s.record(Op::Details, true, format!("Fetched {}", a.name), detail, took);
+                        s.browser.details.insert(id, a);
+                    }
+                    Err(e) => s.record(
+                        Op::Details,
+                        false,
+                        format!("Couldn't fetch {id}"),
+                        e.to_string(),
+                        took,
+                    ),
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        cx.notify();
+    }
+
     pub(crate) fn offer_button(&self, a: &Addon, id: String, cx: &mut Context<Self>) -> Button {
         let target = a.id.clone();
         let button = Button::new(SharedString::from(id)).small();
-        match self.offer(a) {
+        let button = match self.offer(a) {
             Offer::Install => button.primary().icon(IconName::Download).label("Install"),
-            Offer::Update(v) => button
-                .primary()
-                .icon(IconName::CircleArrowUp)
-                .label(format!("Update to v{v}")),
-            Offer::Installed => {
+            Offer::Update(from, to) => {
+                return button
+                    .outline()
+                    .icon(IconName::CircleArrowUp)
+                    .label(format!("Installed v{from} · v{to} in the play bar"))
+                    .disabled(true);
+            }
+            Offer::Failed => button.danger().icon(IconName::RotateCw).label("Failed – Retry"),
+            Offer::Installed(v) => {
                 return button
                     .outline()
                     .icon(IconName::Check)
-                    .label("Installed")
+                    .label(format!("Installed v{v}"))
                     .disabled(true);
             }
             Offer::TooOld => {
                 return button.outline().label("Needs a newer launcher").disabled(true);
             }
-            Offer::Working(pct) => {
+            Offer::Working(progress) => {
                 return button
                     .primary()
                     .loading(true)
-                    .label(match pct {
-                        Some(n) if n < 100 => format!("Downloading… {n}%"),
-                        _ => "Installing…".to_owned(),
-                    })
+                    .label(progress.short())
                     .disabled(true);
             }
-        }
-        .on_click(cx.listener(move |this, _, _, cx| {
+        };
+        button.on_click(cx.listener(move |this, _, _, cx| {
             cx.stop_propagation();
             this.install_from_catalog(&target, cx);
         }))
+    }
+
+    fn star_button(
+        &self,
+        a: &Addon,
+        id: String,
+        big: bool,
+        p: Palette,
+        cx: &mut Context<Self>,
+    ) -> Stateful<Div> {
+        let on = self.browser.stars.has(&a.id);
+        let n = self.browser.stars_of(a);
+        let target = a.id.clone();
+        let color = if on { p.warning } else { p.text_muted };
+        h_flex()
+            .id(SharedString::from(id))
+            .h(px(if big { 28. } else { 24. }))
+            .px(px(if big { 10. } else { 7. }))
+            .gap(px(5.))
+            .flex_shrink_0()
+            .rounded(px(5.))
+            .border_1()
+            .border_color(if on { p.warning.opacity(0.5) } else { p.border })
+            .when(on, |d| d.bg(p.warning.opacity(0.1)))
+            .cursor_pointer()
+            .hover(move |s| s.bg(p.hover).border_color(p.warning.opacity(0.7)))
+            .text_size(px(12.))
+            .font_weight(FontWeight::MEDIUM)
+            .text_color(color)
+            .child(Icon::new(IconName::Star).size(px(13.)).text_color(color))
+            .when(big, |d| d.child(if on { "Starred" } else { "Star" }))
+            .child(
+                div()
+                    .text_color(if on { p.text } else { p.text_muted })
+                    .child(compact(n)),
+            )
+            .tooltip(move |window, cx| {
+                Tooltip::new(if on {
+                    "You starred this. Click to unstar it."
+                } else {
+                    "Star it. Stars sync to every launcher you use."
+                })
+                .build(window, cx)
+            })
+            .on_click(cx.listener(move |this, _, _, cx| {
+                cx.stop_propagation();
+                this.toggle_star(&target, cx);
+            }))
     }
 
     fn catalog_icon(&self, a: &Addon, size: f32, p: Palette) -> Div {
@@ -441,37 +1255,93 @@ impl Shell {
         }
     }
 
+    fn catalog_facet(&self, a: &Addon, f: &Facet) -> bool {
+        match f {
+            Facet::Type(t) => a.kind_labels().contains(&t.label()),
+            Facet::State(Want::Installed) => self.installed_version(&a.id).is_some(),
+            Facet::State(Want::NotInstalled) => self.installed_version(&a.id).is_none(),
+            Facet::State(Want::Update) => self.catalog_update(&a.id).is_some(),
+            Facet::State(Want::Starred) => self.browser.stars.has(&a.id),
+            Facet::State(Want::Works) => a.offered(&current_version()).is_some(),
+            Facet::Author(name) => a.author_name() == name,
+        }
+    }
+
+    fn catalog_passes(&self, a: &Addon, matched: bool, except: Option<Group>) -> bool {
+        let b = &self.browser;
+        matched
+            && (except == Some(Group::Category) || b.tab.is_none_or(|t| a.category() == t))
+            && (except == Some(Group::Code) || !(b.hide_code && a.native(&current_version())))
+            && [Group::Type, Group::State, Group::Author]
+                .into_iter()
+                .filter(|g| Some(*g) != except)
+                .all(|g| {
+                    let mut chosen = b.facets.iter().filter(|f| f.group() == g).peekable();
+                    chosen.peek().is_none() || chosen.any(|f| self.catalog_facet(a, f))
+                })
+    }
+
+    fn sort_now(&self, query: &Query) -> Sort {
+        if query.is_empty() {
+            self.browser.sort
+        } else {
+            self.browser.search_sort.unwrap_or(Sort::Match)
+        }
+    }
+
+    fn set_sort(&mut self, sort: Sort, cx: &mut Context<Self>) {
+        let searching = !self.browser.search.read(cx).value().trim().is_empty();
+        if searching {
+            self.browser.search_sort = Some(sort);
+        } else {
+            self.browser.sort = sort;
+        }
+        cx.notify();
+    }
+
+    fn clear_filters(&mut self, cx: &mut Context<Self>) {
+        let b = &mut self.browser;
+        b.facets.clear();
+        b.tab = None;
+        b.hide_code = false;
+        b.search_sort = None;
+        b.clear_search(cx);
+        cx.notify();
+    }
+
     pub(crate) fn browser_page(&mut self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
         if self.browser.stale() {
-            self.fetch_catalog(false, cx);
+            self.fetch_catalog(cx);
         }
-        let n = self.browser.updates.len();
-        let pending = self
-            .browser
-            .updates
-            .iter()
-            .filter(|u| !self.browser.working.contains_key(&u.id))
-            .count();
         let actions = h_flex()
             .gap(px(8.))
-            .when(n > 0, |d| {
-                d.child(
-                    Button::new("browser-update-all")
-                        .primary()
-                        .icon(IconName::CircleArrowUp)
-                        .label(format!("Update all ({n})"))
-                        .disabled(pending == 0)
-                        .on_click(cx.listener(|this, _, _, cx| this.update_all(cx))),
-                )
-            })
+            .child(self.stars_status(p, cx))
+            .child(
+                Button::new("browser-activity")
+                    .map(|b| {
+                        if self.browser.activity_open {
+                            b.outline()
+                        } else {
+                            b.ghost()
+                        }
+                    })
+                    .small()
+                    .icon(IconName::Activity)
+                    .label("Activity")
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.browser.activity_open = !this.browser.activity_open;
+                        cx.notify();
+                    })),
+            )
             .child(
                 Button::new("browser-refresh")
                     .ghost()
                     .small()
                     .icon(IconName::RefreshCw)
                     .label("Refresh")
+                    .loading(self.browser.fetching)
                     .disabled(self.browser.fetching)
-                    .on_click(cx.listener(|this, _, _, cx| this.fetch_catalog(false, cx))),
+                    .on_click(cx.listener(|this, _, _, cx| this.fetch_catalog(cx))),
             );
         let open = self
             .browser
@@ -484,140 +1354,694 @@ impl Shell {
         };
         v_flex()
             .size_full()
+            .relative()
             .child(self.header(Page::Browser.label(), self.browser.subtitle(), actions, p))
+            .children(self.trouble_banner(p, cx))
             .child(content)
+            .when(self.browser.activity_open, |d| {
+                d.child(self.activity_panel(p, cx))
+            })
             .into_any_element()
     }
 
-    fn browser_grid(&self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
-        let query = self.browser.search.read(cx).value().trim().to_lowercase();
-        let shown: Vec<&Addon> = self.browser.addons.iter().filter(|a| a.matches(&query)).collect();
-        let bar = h_flex()
-            .px(px(GUTTER))
-            .pb(px(16.))
-            .gap(px(12.))
-            .flex_shrink_0()
-            .items_center()
+    fn stars_status(&self, p: Palette, cx: &mut Context<Self>) -> Stateful<Div> {
+        let s = &self.browser.stars;
+        let waiting = s.pending.len();
+        let (icon, color, text) = if self.browser.syncing {
+            (IconName::RefreshCw, p.text_muted, "Syncing stars…".to_owned())
+        } else if s.error.is_some() {
+            (
+                IconName::CircleAlert,
+                p.warning,
+                match waiting {
+                    0 => "Stars not synced".to_owned(),
+                    n => format!("Stars not synced · {n} waiting"),
+                },
+            )
+        } else if waiting > 0 {
+            (
+                IconName::Clock,
+                p.text_muted,
+                format!("{} waiting", plural(waiting, "star change", "star changes")),
+            )
+        } else if let Some(at) = s.synced_at.as_deref().and_then(since) {
+            (IconName::Star, p.text_muted, format!("Stars synced {at}"))
+        } else {
+            (IconName::Star, p.text_muted, "Stars not synced yet".to_owned())
+        };
+        let tip = match (&s.error, &s.synced_at) {
+            (Some(e), last) => format!(
+                "The last sync failed: {e}\nLast synced: {}\nClick to try again.",
+                last.as_deref().and_then(since).unwrap_or_else(|| "never".into())
+            ),
+            (None, _) => format!(
+                "{} starred by you · client {}…\nClick to sync now.",
+                s.starred.len(),
+                &s.client[..8.min(s.client.len())]
+            ),
+        };
+        h_flex()
+            .id("browser-stars-status")
+            .h(px(28.))
+            .px(px(8.))
+            .gap(px(6.))
+            .rounded(px(5.))
+            .cursor_pointer()
+            .hover(move |s| s.bg(p.hover))
+            .text_size(px(12.))
+            .text_color(color)
+            .child(Icon::new(icon).size(px(13.)))
+            .child(text)
+            .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx))
+            .on_click(cx.listener(|this, _, _, cx| this.sync_stars(cx)))
+    }
+
+    fn trouble_banner(&self, p: Palette, cx: &mut Context<Self>) -> Option<Div> {
+        let trouble = self.browser.trouble.as_ref()?;
+        let what = match trouble {
+            Trouble::Offline(_) => "Couldn't reach the registry",
+            Trouble::Failed(_) => "The registry answered with an error",
+        };
+        Some(
+            h_flex()
+                .mx(px(GUTTER))
+                .mb(px(12.))
+                .px(px(12.))
+                .py(px(8.))
+                .gap(px(10.))
+                .flex_shrink_0()
+                .items_center()
+                .rounded(px(8.))
+                .bg(p.warning.opacity(0.08))
+                .border_1()
+                .border_color(p.warning.opacity(0.4))
+                .child(Icon::new(IconName::CloudOff).size(px(15.)).text_color(p.warning))
+                .child(
+                    v_flex()
+                        .flex_1()
+                        .min_w_0()
+                        .child(
+                            div()
+                                .text_size(px(13.))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(format!(
+                                    "{what} · {}",
+                                    if self.browser.saved {
+                                        "showing the saved catalog"
+                                    } else {
+                                        "nothing saved to show"
+                                    }
+                                )),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(12.))
+                                .text_color(p.text_muted)
+                                .truncate()
+                                .child(trouble.to_string()),
+                        ),
+                )
+                .child(
+                    Button::new("browser-retry")
+                        .outline()
+                        .small()
+                        .icon(IconName::RefreshCw)
+                        .label("Retry")
+                        .loading(self.browser.fetching)
+                        .disabled(self.browser.fetching)
+                        .on_click(cx.listener(|this, _, _, cx| this.fetch_catalog(cx))),
+                ),
+        )
+    }
+
+    fn activity_panel(&self, p: Palette, cx: &mut Context<Self>) -> Stateful<Div> {
+        let rows: Vec<AnyElement> = self
+            .browser
+            .activity
+            .iter()
+            .enumerate()
+            .map(|(i, e)| {
+                let color = if e.ok { p.text_muted } else { p.error };
+                h_flex()
+                    .px(px(14.))
+                    .py(px(9.))
+                    .gap(px(10.))
+                    .items_start()
+                    .when(i > 0, |d| d.border_t_1().border_color(p.border_variant))
+                    .child(
+                        div().pt(px(2.)).child(
+                            Icon::new(if e.ok { e.op.icon() } else { IconName::CircleAlert })
+                                .size(px(14.))
+                                .text_color(color),
+                        ),
+                    )
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .gap(px(2.))
+                            .child(
+                                h_flex()
+                                    .gap(px(8.))
+                                    .child(
+                                        div()
+                                            .flex_1()
+                                            .min_w_0()
+                                            .truncate()
+                                            .text_size(px(13.))
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .text_color(if e.ok { p.text } else { p.error })
+                                            .child(e.title.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .flex_shrink_0()
+                                            .text_size(px(11.))
+                                            .text_color(p.text_placeholder)
+                                            .child(format!("{} · {}", since_time(e.at), took_text(e.took))),
+                                    ),
+                            )
+                            .when(!e.detail.is_empty(), |d| {
+                                d.child(
+                                    div()
+                                        .text_size(px(12.))
+                                        .line_height(px(17.))
+                                        .text_color(p.text_muted)
+                                        .child(e.detail.clone()),
+                                )
+                            }),
+                    )
+                    .into_any_element()
+            })
+            .collect();
+        let empty = rows.is_empty().then(|| {
+            div()
+                .p(px(16.))
+                .text_size(px(13.))
+                .text_color(p.text_placeholder)
+                .child("Nothing yet. Catalog fetches, star syncs and installs show here.")
+        });
+        v_flex()
+            .id("browser-activity-panel")
+            .absolute()
+            .top(px(64.))
+            .right(px(GUTTER))
+            .w(px(460.))
+            .rounded(px(10.))
+            .border_1()
+            .border_color(p.border)
+            .bg(p.elevated)
+            .shadow_lg()
+            .occlude()
+            .overflow_hidden()
             .child(
-                div().w(px(320.)).child(
-                    Input::new(&self.browser.search).cleanable(true).prefix(
-                        Icon::new(IconName::Search)
+                h_flex()
+                    .px(px(14.))
+                    .h(px(44.))
+                    .flex_shrink_0()
+                    .gap(px(8.))
+                    .items_center()
+                    .border_b_1()
+                    .border_color(p.border)
+                    .child(
+                        Icon::new(IconName::Activity)
                             .size(px(14.))
-                            .text_color(p.text_placeholder),
+                            .text_color(p.text_muted),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .text_size(px(14.))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child("Activity"),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(12.))
+                            .text_color(p.text_placeholder)
+                            .child(format!(
+                                "last {} · {}",
+                                self.browser.activity.len(),
+                                catalog::LOG_FILE
+                            )),
+                    )
+                    .child(
+                        Button::new("browser-activity-close")
+                            .ghost()
+                            .xsmall()
+                            .icon(IconName::X)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.browser.activity_open = false;
+                                cx.notify();
+                            })),
                     ),
+            )
+            .child(
+                v_flex()
+                    .id("browser-activity-rows")
+                    .max_h(px(470.))
+                    .overflow_y_scrollbar()
+                    .children(rows)
+                    .children(empty),
+            )
+    }
+
+    fn filter_column(&self, matched: &[(&Addon, Option<u32>)], p: Palette, cx: &mut Context<Self>) -> Div {
+        let b = &self.browser;
+        let query = b.search.read(cx).value().trim().to_owned();
+        let active = !b.facets.is_empty() || b.tab.is_some() || b.hide_code || !query.is_empty();
+        let count = |f: &Facet| {
+            matched
+                .iter()
+                .filter(|(a, s)| {
+                    self.catalog_passes(a, s.is_some(), Some(f.group())) && self.catalog_facet(a, f)
+                })
+                .count()
+        };
+        let row = |f: Facet, cx: &mut Context<Self>| {
+            let n = count(&f);
+            let on = b.facets.contains(&f);
+            let key = f.clone();
+            facet_row(format!("browser-filter-{f:?}"), on, f.label(), n, p)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    if !this.browser.facets.remove(&key) {
+                        this.browser.facets.insert(key.clone());
+                    }
+                    cx.notify();
+                }))
+                .into_any_element()
+        };
+        let group = |title: &'static str, rows: Vec<AnyElement>| {
+            v_flex()
+                .gap(px(1.))
+                .child(div().pb(px(4.)).child(label(title, p)))
+                .children(rows)
+        };
+        let types: Vec<AnyElement> = Type::ALL
+            .into_iter()
+            .map(Facet::Type)
+            .filter(|f| b.facets.contains(f) || b.addons.iter().any(|a| self.catalog_facet(a, f)))
+            .map(|f| row(f, cx))
+            .collect();
+        let states: Vec<AnyElement> = Want::ALL.into_iter().map(|w| row(Facet::State(w), cx)).collect();
+        let mut authors: Vec<(String, usize)> = Vec::new();
+        for a in &b.addons {
+            let name = a.author_name();
+            if name.is_empty() {
+                continue;
+            }
+            match authors.iter_mut().find(|(n, _)| n == name) {
+                Some((_, k)) => *k += 1,
+                None => authors.push((name.to_owned(), 1)),
+            }
+        }
+        authors.sort_by(|a, b| {
+            b.1.cmp(&a.1)
+                .then_with(|| a.0.to_lowercase().cmp(&b.0.to_lowercase()))
+        });
+        let authors: Vec<AnyElement> = authors
+            .into_iter()
+            .enumerate()
+            .filter(|(i, (name, _))| *i < AUTHORS_SHOWN || b.facets.contains(&Facet::Author(name.clone())))
+            .map(|(_, (name, _))| row(Facet::Author(name), cx))
+            .collect();
+        let natives = matched
+            .iter()
+            .filter(|(a, s)| {
+                a.native(&current_version()) && self.catalog_passes(a, s.is_some(), Some(Group::Code))
+            })
+            .count();
+        let code = facet_row(
+            "browser-filter-code",
+            b.hide_code,
+            "Hide addons that run code",
+            natives,
+            p,
+        )
+        .on_click(cx.listener(|this, _, _, cx| {
+            this.browser.hide_code = !this.browser.hide_code;
+            cx.notify();
+        }))
+        .into_any_element();
+        let clear = active.then(|| {
+            div()
+                .id("browser-filters-clear")
+                .text_size(px(12.))
+                .text_color(p.accent)
+                .cursor_pointer()
+                .hover(move |s| s.text_color(p.accent_hover))
+                .child("Clear filters")
+                .on_click(cx.listener(|this, _, _, cx| this.clear_filters(cx)))
+        });
+        v_flex()
+            .w(px(FILTERS_W))
+            .flex_shrink_0()
+            .h_full()
+            .gap(px(14.))
+            .child(
+                Input::new(&b.search).cleanable(true).prefix(
+                    Icon::new(IconName::Search)
+                        .size(px(14.))
+                        .text_color(p.text_placeholder),
                 ),
             )
-            .child(div().flex_1())
             .child(
-                div()
-                    .text_size(px(12.))
-                    .text_color(p.text_placeholder)
-                    .child(if query.is_empty() {
-                        plural(shown.len(), "addon", "addons")
-                    } else {
-                        format!("{} of {}", shown.len(), self.browser.addons.len())
-                    }),
+                h_flex()
+                    .pb(px(8.))
+                    .mb(px(-6.))
+                    .border_b_1()
+                    .border_color(p.border_variant)
+                    .justify_between()
+                    .child(
+                        h_flex()
+                            .gap(px(6.))
+                            .text_color(p.text_muted)
+                            .child(Icon::new(IconName::Funnel).size(px(13.)))
+                            .child(
+                                div()
+                                    .text_size(px(13.))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .child("Filters"),
+                            ),
+                    )
+                    .children(clear),
+            )
+            .child(
+                v_flex()
+                    .id("browser-filters")
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .gap(px(16.))
+                    .pb(px(8.))
+                    .child(group("TYPE", types))
+                    .child(group("STATE", states))
+                    .child(group("RUNS CODE IN THE GAME", vec![code]))
+                    .when(!authors.is_empty(), |d| d.child(group("AUTHOR", authors))),
+            )
+    }
+
+    fn category_bar(&self, matched: &[(&Addon, Option<u32>)], p: Palette, cx: &mut Context<Self>) -> Div {
+        let tabs: Vec<Tab> = [None]
+            .into_iter()
+            .chain(Category::ALL.into_iter().map(|c| Some(Some(c))))
+            .chain([Some(None)])
+            .collect();
+        let pills: Vec<AnyElement> = tabs
+            .into_iter()
+            .map(|tab| {
+                let n = matched
+                    .iter()
+                    .filter(|(a, s)| {
+                        self.catalog_passes(a, s.is_some(), Some(Group::Category))
+                            && tab.is_none_or(|t| a.category() == t)
+                    })
+                    .count();
+                let on = self.browser.tab == tab;
+                h_flex()
+                    .id(SharedString::from(format!("browser-tab-{tab:?}")))
+                    .h(px(28.))
+                    .px(px(11.))
+                    .gap(px(6.))
+                    .flex_shrink_0()
+                    .rounded(px(14.))
+                    .border_1()
+                    .cursor_pointer()
+                    .text_size(px(13.))
+                    .map(|d| {
+                        if on {
+                            d.bg(p.accent.opacity(0.14))
+                                .border_color(p.accent.opacity(0.6))
+                                .text_color(p.text)
+                                .font_weight(FontWeight::MEDIUM)
+                        } else {
+                            d.border_color(p.border)
+                                .text_color(p.text_muted)
+                                .hover(move |s| s.bg(p.hover).text_color(p.text))
+                        }
+                    })
+                    .child(tab_label(tab))
+                    .child(
+                        div()
+                            .text_size(px(11.))
+                            .text_color(if on { p.text_muted } else { p.text_placeholder })
+                            .child(n.to_string()),
+                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.browser.tab = tab;
+                        cx.notify();
+                    }))
+                    .into_any_element()
+            })
+            .collect();
+        h_flex().gap(px(6.)).flex_wrap().children(pills)
+    }
+
+    fn sort_button(&self, sort: Sort, searching: bool, cx: &mut Context<Self>) -> impl IntoElement + use<> {
+        let shell = cx.entity().downgrade();
+        Button::new("browser-sort")
+            .outline()
+            .small()
+            .icon(IconName::ArrowUpDown)
+            .label(sort.label())
+            .dropdown_caret(true)
+            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
+                for s in Sort::ALL.into_iter().filter(|s| searching || *s != Sort::Match) {
+                    let shell = shell.clone();
+                    menu = menu.item(PopupMenuItem::new(s.label()).checked(s == sort).on_click(
+                        move |_, _, cx| {
+                            shell.update(cx, |this, cx| this.set_sort(s, cx)).ok();
+                        },
+                    ));
+                }
+                menu
+            })
+    }
+
+    fn browser_grid(&mut self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+        let text = self.browser.search.read(cx).value().trim().to_owned();
+        if text.is_empty() {
+            self.browser.search_sort = None;
+        }
+        let query = Query::parse(&text);
+        let matched: Vec<(&Addon, Option<u32>)> =
+            self.browser.addons.iter().map(|a| (a, query.score(a))).collect();
+        let mut shown: Vec<(&Addon, u32)> = matched
+            .iter()
+            .filter(|(a, s)| self.catalog_passes(a, s.is_some(), None))
+            .map(|(a, s)| (*a, s.unwrap_or(0)))
+            .collect();
+        let sort = self.sort_now(&query);
+        shown.sort_by(|(a, sa), (b, sb)| {
+            let first = match sort {
+                Sort::Match => sb
+                    .cmp(sa)
+                    .then_with(|| self.browser.stars_of(b).cmp(&self.browser.stars_of(a))),
+                Sort::Stars => self.browser.stars_of(b).cmp(&self.browser.stars_of(a)),
+                Sort::Downloads => b.downloads.cmp(&a.downloads),
+                Sort::Trending => b.downloads_30d.cmp(&a.downloads_30d),
+                Sort::Updated => b.updated_at.cmp(&a.updated_at),
+                Sort::Newest => b.created_at.cmp(&a.created_at),
+                Sort::Name => std::cmp::Ordering::Equal,
+            };
+            first.then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+        });
+        let filtering = !query.is_empty()
+            || !self.browser.facets.is_empty()
+            || self.browser.tab.is_some()
+            || self.browser.hide_code;
+        let count = if filtering {
+            plural(shown.len(), "result", "results")
+        } else {
+            plural(shown.len(), "addon", "addons")
+        };
+        let bar = h_flex()
+            .pb(px(14.))
+            .gap(px(12.))
+            .flex_shrink_0()
+            .items_start()
+            .child(div().flex_1().min_w_0().child(self.category_bar(&matched, p, cx)))
+            .child(
+                h_flex()
+                    .gap(px(10.))
+                    .flex_shrink_0()
+                    .items_center()
+                    .h(px(28.))
+                    .child(
+                        div()
+                            .text_size(px(12.))
+                            .text_color(p.text_placeholder)
+                            .child(count),
+                    )
+                    .child(self.sort_button(sort, !query.is_empty(), cx)),
             );
-        if shown.is_empty() {
-            let (title, body) = if self.browser.addons.is_empty() {
+        let filters = self.filter_column(&matched, p, cx);
+        let width = self.content_width - FILTERS_W - 20.;
+        let body = if shown.is_empty() {
+            let (title, body, action) = if self.browser.addons.is_empty() {
                 (
                     "No addons to show yet",
                     if self.browser.fetching {
                         "Checking the registry for addons…"
                     } else {
-                        "The registry couldn't be reached. Refresh to try again."
+                        "The registry couldn't be reached. Retry to check again."
                     },
+                    Button::new("browser-empty-retry")
+                        .outline()
+                        .small()
+                        .icon(IconName::RefreshCw)
+                        .label("Retry")
+                        .disabled(self.browser.fetching)
+                        .on_click(cx.listener(|this, _, _, cx| this.fetch_catalog(cx))),
                 )
             } else {
-                ("No addons match", "Try another name, author or category.")
+                (
+                    "No addons match",
+                    "Nothing matches this search and these filters. Check the spelling, or try author: or category:.",
+                    Button::new("browser-empty-clear")
+                        .outline()
+                        .small()
+                        .icon(IconName::X)
+                        .label("Clear search and filters")
+                        .on_click(cx.listener(|this, _, _, cx| this.clear_filters(cx))),
+                )
             };
-            return v_flex()
+            self.empty(IconName::PackageSearch, title, body, action, p)
+        } else {
+            let columns = ((width + GAP) / (CARD_W + GAP)).floor().max(1.) as usize;
+            let card_w = ((width - GAP * (columns - 1) as f32) / columns as f32).floor() - 1.;
+            let mut rows = Vec::new();
+            for chunk in shown.chunks(columns) {
+                let cards: Vec<AnyElement> = chunk
+                    .iter()
+                    .map(|(a, _)| self.browser_card(a, &query, card_w, p, cx))
+                    .collect();
+                rows.push(
+                    h_flex()
+                        .flex_shrink_0()
+                        .items_stretch()
+                        .gap(px(GAP))
+                        .children(cards)
+                        .into_any_element(),
+                );
+            }
+            v_flex()
+                .id("browser-cards")
                 .flex_1()
                 .min_h_0()
-                .child(bar)
-                .child(self.empty(IconName::PackageSearch, title, body, div(), p))
-                .into_any_element();
-        }
-        let columns = ((self.content_width + GAP) / (CARD_W + GAP)).floor().max(1.) as usize;
-        let width = ((self.content_width - GAP * (columns - 1) as f32) / columns as f32).floor() - 1.;
-        let mut rows = Vec::new();
-        for chunk in shown.chunks(columns) {
-            let cards: Vec<AnyElement> = chunk.iter().map(|a| self.browser_card(a, width, p, cx)).collect();
-            rows.push(
-                h_flex()
-                    .flex_shrink_0()
-                    .items_stretch()
-                    .gap(px(GAP))
-                    .children(cards)
-                    .into_any_element(),
-            );
-        }
-        v_flex()
+                .overflow_y_scrollbar()
+                .pb(px(24.))
+                .gap(px(GAP))
+                .children(rows)
+                .into_any_element()
+        };
+        h_flex()
             .flex_1()
             .min_h_0()
-            .child(bar)
-            .child(
-                v_flex()
-                    .id("browser-cards")
-                    .flex_1()
-                    .min_h_0()
-                    .overflow_y_scrollbar()
-                    .px(px(GUTTER))
-                    .pb(px(24.))
-                    .gap(px(GAP))
-                    .children(rows),
-            )
+            .items_start()
+            .px(px(GUTTER))
+            .pb(px(20.))
+            .gap(px(20.))
+            .child(filters)
+            .child(v_flex().flex_1().min_w_0().h_full().child(bar).child(body))
             .into_any_element()
     }
 
     fn tags(&self, a: &Addon, id: String, p: Palette) -> Option<Div> {
         let category = a.category_label();
-        let types = kinds(a);
+        let kinds = a.kind_labels();
         let native = a.native(&current_version());
-        (category.is_some() || !types.is_empty() || native).then(|| {
+        (category.is_some() || !kinds.is_empty() || native).then(|| {
             h_flex()
                 .flex_wrap()
                 .gap(px(6.))
-                .when_some(category, |d, c| d.child(tag(c, p).text_color(p.text)))
-                .when(!types.is_empty(), |d| d.child(tag(types, p)))
+                .when_some(category, |d, c| {
+                    d.child(
+                        tag(c, p)
+                            .text_color(p.text)
+                            .bg(p.accent.opacity(0.1))
+                            .border_color(p.accent.opacity(0.35)),
+                    )
+                })
+                .children(kinds.into_iter().map(|k| tag(k, p)))
                 .when(native, |d| d.child(native_badge(id, p)))
         })
     }
 
-    fn browser_card(&self, a: &Addon, width: f32, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+    fn browser_card(
+        &self,
+        a: &Addon,
+        query: &Query,
+        width: f32,
+        p: Palette,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let launcher = current_version();
         let offered = a.offered(&launcher).or_else(|| a.newest());
         let updating = self.catalog_update(&a.id).is_some();
+        let failed = self.browser.failed.get(&a.id).cloned();
+        let progress = self.browser.working.get(&a.id).map(Job::progress);
         let id = a.id.clone();
-        let stats = [
-            offered.map(|v| format!("v{}", v.version)),
-            Some(plural(a.downloads as usize, "download", "downloads")),
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .join(" · ");
+        let marks: Vec<(std::ops::Range<usize>, HighlightStyle)> = query
+            .marks(&a.name)
+            .into_iter()
+            .map(|r| {
+                (
+                    r,
+                    HighlightStyle {
+                        color: Some(p.accent),
+                        background_color: Some(p.accent.opacity(0.12)),
+                        ..HighlightStyle::default()
+                    },
+                )
+            })
+            .collect();
+        let name = StyledText::new(a.name.clone()).with_highlights(marks);
+        let mut stats = vec![
+            h_flex()
+                .gap(px(4.))
+                .child(Icon::new(IconName::Download).size(px(12.)))
+                .child(compact(a.downloads))
+                .into_any_element(),
+        ];
+        if a.downloads_30d > 0 {
+            stats.push(
+                div()
+                    .child(format!("{} this month", compact(a.downloads_30d)))
+                    .into_any_element(),
+            );
+        }
+        if let Some(when) = since(&a.updated_at) {
+            stats.push(div().child(format!("Updated {when}")).into_any_element());
+        }
+        let author = match a.author_name() {
+            "" => a.id.clone(),
+            author => format!("by {author}"),
+        };
         v_flex()
             .id(SharedString::from(format!("browser-card-{}", a.id)))
             .w(px(width))
             .flex_none()
             .p(px(16.))
-            .gap(px(12.))
+            .gap(px(10.))
             .rounded(px(10.))
             .border_1()
-            .border_color(if updating { p.accent.opacity(0.6) } else { p.border })
+            .border_color(if failed.is_some() {
+                p.error.opacity(0.6)
+            } else if updating {
+                p.accent.opacity(0.6)
+            } else {
+                p.border
+            })
             .bg(p.surface)
             .cursor_pointer()
             .hover(move |s| s.border_color(p.accent).bg(p.hover))
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.browser.open = Some(id.clone());
-                cx.notify();
-            }))
+            .on_click(cx.listener(move |this, _, _, cx| this.open_details(&id, cx)))
             .child(
                 h_flex()
                     .gap(px(12.))
                     .items_start()
-                    .child(self.catalog_icon(a, 48., p))
+                    .child(self.catalog_icon(a, 44., p))
                     .child(
                         v_flex()
                             .flex_1()
@@ -628,19 +2052,17 @@ impl Shell {
                                     .text_size(px(15.))
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .truncate()
-                                    .child(a.name.clone()),
+                                    .child(name),
                             )
                             .child(
                                 div()
                                     .text_size(px(12.))
                                     .text_color(p.text_muted)
                                     .truncate()
-                                    .child(match a.author.trim() {
-                                        "" => a.id.clone(),
-                                        author => format!("by {author}"),
-                                    }),
+                                    .child(author),
                             ),
-                    ),
+                    )
+                    .child(self.star_button(a, format!("browser-star-{}", a.id), false, p, cx)),
             )
             .child(
                 div()
@@ -657,6 +2079,15 @@ impl Shell {
             .child(
                 h_flex()
                     .gap(px(10.))
+                    .text_size(px(12.))
+                    .text_color(p.text_placeholder)
+                    .overflow_hidden()
+                    .whitespace_nowrap()
+                    .children(stats),
+            )
+            .child(
+                h_flex()
+                    .gap(px(10.))
                     .items_center()
                     .child(
                         div()
@@ -665,36 +2096,118 @@ impl Shell {
                             .truncate()
                             .text_size(px(12.))
                             .text_color(p.text_placeholder)
-                            .child(stats),
+                            .child(offered.map(|v| format!("v{}", v.version)).unwrap_or_default()),
                     )
                     .child(self.offer_button(a, format!("browser-offer-{}", a.id), cx)),
             )
+            .when_some(progress, |d, pr| {
+                d.child(
+                    div()
+                        .h(px(3.))
+                        .w_full()
+                        .rounded(px(2.))
+                        .bg(p.border_variant)
+                        .child(
+                            div()
+                                .h_full()
+                                .rounded(px(2.))
+                                .bg(p.accent)
+                                .w(relative(pr.fraction())),
+                        ),
+                )
+            })
+            .when_some(failed, |d, e| {
+                let tip = e.clone();
+                d.child(
+                    h_flex()
+                        .id(SharedString::from(format!("browser-failed-{}", a.id)))
+                        .gap(px(6.))
+                        .text_size(px(12.))
+                        .text_color(p.error)
+                        .child(Icon::new(IconName::CircleAlert).size(px(12.)))
+                        .child(div().flex_1().min_w_0().truncate().child(e))
+                        .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx)),
+                )
+            })
             .into_any_element()
     }
 
+    fn trend_chart(&self, a: &Addon, p: Palette) -> Option<Div> {
+        let trend = a.trend.as_ref().filter(|t| !t.downloads.is_empty())?;
+        let max = trend.downloads.iter().copied().max().unwrap_or(0).max(1);
+        let total: u64 = trend.downloads.iter().sum();
+        let bars: Vec<AnyElement> = trend
+            .downloads
+            .iter()
+            .enumerate()
+            .map(|(i, n)| {
+                let when = trend.days.get(i).map(|d| day(d)).unwrap_or_default();
+                let tip = format!("{when}: {}", plural(*n as usize, "download", "downloads"));
+                div()
+                    .id(SharedString::from(format!("browser-trend-{i}")))
+                    .flex_1()
+                    .h_full()
+                    .flex()
+                    .flex_col()
+                    .justify_end()
+                    .hover(move |s| s.bg(p.hover))
+                    .child(
+                        div()
+                            .w_full()
+                            .h(px((54. * *n as f32 / max as f32).max(2.)))
+                            .rounded_t(px(2.))
+                            .bg(if *n == 0 { p.border } else { p.accent.opacity(0.75) }),
+                    )
+                    .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx))
+                    .into_any_element()
+            })
+            .collect();
+        Some(
+            v_flex()
+                .p(px(16.))
+                .gap(px(10.))
+                .rounded(px(10.))
+                .border_1()
+                .border_color(p.border)
+                .bg(p.surface)
+                .child(
+                    h_flex()
+                        .child(
+                            div()
+                                .flex_1()
+                                .text_size(px(14.))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child("Downloads, last 30 days"),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(12.))
+                                .text_color(p.text_placeholder)
+                                .child(plural(total as usize, "download", "downloads")),
+                        ),
+                )
+                .child(h_flex().h(px(56.)).gap(px(2.)).items_end().children(bars))
+                .child(
+                    h_flex()
+                        .justify_between()
+                        .text_size(px(11.))
+                        .text_color(p.text_placeholder)
+                        .child(trend.days.first().map(|d| day(d)).unwrap_or_default())
+                        .child(trend.days.last().map(|d| day(d)).unwrap_or_default()),
+                ),
+        )
+    }
+
     fn browser_detail(&self, id: &str, p: Palette, cx: &mut Context<Self>) -> AnyElement {
-        let Some(a) = self.browser.find(id) else {
+        let Some(listed) = self.browser.find(id) else {
             return div().into_any_element();
         };
+        let full = self.browser.details.get(id);
+        let a = full.unwrap_or(listed);
         let launcher = current_version();
         let mono = cx.theme().mono_font_family.clone();
-        let installed = self
-            .library
-            .addons
-            .iter()
-            .find(|m| m.manifest.id == a.id)
-            .map(|m| m.manifest.version.clone());
-        let offered = a.offered(&launcher);
-        let stats = [
-            offered.or_else(|| a.newest()).map(|v| format!("v{}", v.version)),
-            Some(plural(a.downloads as usize, "download", "downloads")),
-            (!a.updated_at.is_empty()).then(|| format!("Updated {}", day(&a.updated_at))),
-            installed.as_ref().map(|v| format!("v{v} installed")),
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .join(" · ");
+        let installed = self.installed_version(&a.id);
+        let offered = a.offered(&launcher).or_else(|| a.newest());
         let back = h_flex()
             .id("browser-back")
             .gap(px(6.))
@@ -740,26 +2253,136 @@ impl Shell {
                                 .child(a.name.clone()),
                         )
                         .child(div().text_size(px(13.)).text_color(p.text_muted).child(
-                            match a.author.trim() {
+                            match a.author_name() {
                                 "" => a.id.clone(),
                                 author => format!("by {author} · {}", a.id),
                             },
                         ))
-                        .children(self.tags(a, "browser-detail-native".into(), p))
-                        .child(
-                            div()
-                                .text_size(px(12.))
-                                .text_color(p.text_placeholder)
-                                .child(stats),
-                        ),
+                        .children(self.tags(a, "browser-detail-native".into(), p)),
                 )
                 .child(
                     h_flex()
                         .gap(px(8.))
                         .flex_shrink_0()
+                        .child(self.star_button(listed, "browser-detail-star".into(), true, p, cx))
                         .children(homepage)
-                        .child(self.offer_button(a, "browser-detail-offer".into(), cx)),
+                        .child(self.offer_button(listed, "browser-detail-offer".into(), cx)),
                 );
+        let working = self.browser.working.get(&a.id).map(Job::progress).map(|pr| {
+            v_flex()
+                .gap(px(6.))
+                .p(px(12.))
+                .rounded(px(8.))
+                .border_1()
+                .border_color(p.accent.opacity(0.4))
+                .bg(p.accent.opacity(0.06))
+                .child(div().text_size(px(13.)).child(pr.long()))
+                .child(
+                    div()
+                        .h(px(4.))
+                        .w_full()
+                        .rounded(px(2.))
+                        .bg(p.border_variant)
+                        .child(
+                            div()
+                                .h_full()
+                                .rounded(px(2.))
+                                .bg(p.accent)
+                                .w(relative(pr.fraction())),
+                        ),
+                )
+        });
+        let failure = self.browser.failed.get(&a.id).map(|e| {
+            let target = a.id.clone();
+            h_flex()
+                .gap(px(10.))
+                .items_start()
+                .p(px(12.))
+                .rounded(px(8.))
+                .bg(p.error.opacity(0.08))
+                .border_1()
+                .border_color(p.error.opacity(0.4))
+                .child(Icon::new(IconName::CircleAlert).size(px(15.)).text_color(p.error))
+                .child(
+                    v_flex()
+                        .flex_1()
+                        .min_w_0()
+                        .gap(px(2.))
+                        .child(div().text_size(px(13.)).font_weight(FontWeight::SEMIBOLD).child(
+                            if installed.is_some() {
+                                "The update failed"
+                            } else {
+                                "The install failed"
+                            },
+                        ))
+                        .child(div().text_size(px(13.)).text_color(p.text_muted).child(e.clone())),
+                )
+                .child(
+                    Button::new("browser-detail-retry")
+                        .outline()
+                        .small()
+                        .icon(IconName::RotateCw)
+                        .label("Retry")
+                        .on_click(cx.listener(move |this, _, _, cx| this.install_from_catalog(&target, cx))),
+                )
+        });
+        let requirement = offered
+            .and_then(|v| v.launcher.as_ref())
+            .map_or_else(|| "Any launcher".to_owned(), |r| r.to_string());
+        let fits = offered.is_some_and(|v| v.accepts(&launcher));
+        let sha = offered
+            .map(|v| v.sha256.chars().take(12).collect::<String>())
+            .unwrap_or_default();
+        let facts = h_flex()
+            .flex_wrap()
+            .gap_x(px(28.))
+            .gap_y(px(14.))
+            .p(px(16.))
+            .rounded(px(10.))
+            .border_1()
+            .border_color(p.border)
+            .bg(p.surface)
+            .child(stat("STARS", compact(self.browser.stars_of(listed)), p.text, p))
+            .child(stat(
+                "DOWNLOADS",
+                format!(
+                    "{} · {} in 30 days",
+                    compact(a.downloads),
+                    compact(a.downloads_30d)
+                ),
+                p.text,
+                p,
+            ))
+            .child(stat(
+                "SIZE",
+                offered.map(|v| size_text(v.size)).unwrap_or_default(),
+                p.text,
+                p,
+            ))
+            .child(stat(
+                "LAST UPDATED",
+                since(&a.updated_at).unwrap_or_else(|| "–".into()),
+                p.text,
+                p,
+            ))
+            .child(stat("FIRST PUBLISHED", day(&a.created_at), p.text, p))
+            .child(stat(
+                "LAUNCHER",
+                requirement,
+                if fits { p.text } else { p.warning },
+                p,
+            ))
+            .child(
+                v_flex().gap(px(3.)).child(label("SHA-256", p)).child(
+                    div()
+                        .text_size(px(13.))
+                        .font_family(mono.clone())
+                        .child(format!("{sha}…")),
+                ),
+            )
+            .when_some(installed.clone(), |d, v| {
+                d.child(stat("INSTALLED", format!("v{v}"), p.success, p))
+            });
         let native_note = a.native(&launcher).then(|| {
             h_flex()
                 .gap(px(10.))
@@ -806,8 +2429,6 @@ impl Shell {
             crate::news::render_markdown(&format!("browser-{}", a.id), &a.description, p, &mono)
         };
         let about = v_flex()
-            .flex_1()
-            .min_w_0()
             .p(px(24.))
             .rounded(px(10.))
             .border_1()
@@ -817,9 +2438,32 @@ impl Shell {
             .line_height(px(22.))
             .child(div().pb(px(12.)).child(label("ABOUT", p)))
             .children(description);
-        let listed = a.listed();
-        let count = listed.len();
-        let versions: Vec<AnyElement> = listed
+        let publishers: Vec<AnyElement> = a
+            .publishers
+            .iter()
+            .map(|pb| {
+                h_flex()
+                    .gap(px(8.))
+                    .text_size(px(13.))
+                    .child(avatar(&pb.name, 22., p))
+                    .child(pb.name.clone())
+                    .into_any_element()
+            })
+            .collect();
+        let people = (!publishers.is_empty()).then(|| {
+            v_flex()
+                .p(px(16.))
+                .gap(px(8.))
+                .rounded(px(10.))
+                .border_1()
+                .border_color(p.border)
+                .bg(p.surface)
+                .child(label("PUBLISHERS", p))
+                .children(publishers)
+        });
+        let listed_versions = a.listed();
+        let count = listed_versions.len();
+        let versions: Vec<AnyElement> = listed_versions
             .into_iter()
             .enumerate()
             .map(|(i, v)| {
@@ -847,7 +2491,7 @@ impl Shell {
                                 div()
                                     .text_size(px(12.))
                                     .text_color(p.text_placeholder)
-                                    .child(day(&v.published_at)),
+                                    .child(format!("{} · {}", day(&v.published_at), size_text(v.size))),
                             ),
                     )
                     .when(!fits, |d| {
@@ -876,8 +2520,6 @@ impl Shell {
             })
             .collect();
         let changelog = v_flex()
-            .w(px(SIDE_W))
-            .flex_shrink_0()
             .rounded(px(10.))
             .border_1()
             .border_color(p.border)
@@ -897,12 +2539,13 @@ impl Shell {
                             .child("Versions"),
                     )
                     .child(div().flex_1())
-                    .child(
-                        div()
-                            .text_size(px(12.))
-                            .text_color(p.text_placeholder)
-                            .child(plural(count, "version", "versions")),
-                    ),
+                    .child(div().text_size(px(12.)).text_color(p.text_placeholder).child(
+                        if full.is_none() && self.browser.loading.contains(id) {
+                            "Loading…".to_owned()
+                        } else {
+                            plural(count, "version", "versions")
+                        },
+                    )),
             )
             .children(versions);
         v_flex()
@@ -915,21 +2558,47 @@ impl Shell {
             .gap(px(18.))
             .child(back)
             .child(hero)
+            .children(working)
+            .children(failure)
+            .child(facts)
             .children(native_note)
-            .child(h_flex().items_start().gap(px(16.)).child(about).child(changelog))
+            .child(
+                h_flex()
+                    .items_start()
+                    .gap(px(16.))
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .gap(px(16.))
+                            .children(self.trend_chart(a, p))
+                            .child(about),
+                    )
+                    .child(
+                        v_flex()
+                            .w(px(SIDE_W))
+                            .flex_shrink_0()
+                            .gap(px(16.))
+                            .children(people)
+                            .child(changelog),
+                    ),
+            )
             .into_any_element()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{host, kind_label};
+    use super::{compact, host, size_text};
 
     #[test]
-    fn names_kinds_and_hosts() {
-        assert_eq!(kind_label("erp"), "Archives");
-        assert_eq!(kind_label("native"), "Code");
+    fn names_sizes_counts_and_hosts() {
         assert_eq!(host("https://api.f1.swofty.net"), "api.f1.swofty.net");
         assert_eq!(host("http://localhost:8471"), "localhost:8471");
+        assert_eq!(size_text(512), "512 B");
+        assert_eq!(size_text(1_892_759), "1.8 MB");
+        assert_eq!(compact(999), "999");
+        assert_eq!(compact(3412), "3.4k");
+        assert_eq!(compact(41_000), "41k");
     }
 }

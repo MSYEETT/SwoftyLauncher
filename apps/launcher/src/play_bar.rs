@@ -263,6 +263,9 @@ impl Shell {
         if let Some(row) = self.update_status(self.update_gate(state), status_row(), p, cx) {
             return row;
         }
+        if let Some(row) = self.addon_update_status(state, status_row(), p, cx) {
+            return row;
+        }
         let rebuild = !self.library.profile.is_vanilla() && !self.library.rebuild.is_empty();
         match state {
             PlayState::Running => row,
@@ -526,6 +529,9 @@ impl Shell {
         let gate = self.update_gate(state);
         if gate != Gate::Play {
             return self.update_button(gate, p, cx);
+        }
+        if self.addon_update_takes_play(state) {
+            return self.addon_update_button(p, cx);
         }
         let vr = self.launch_mode().is_vr();
         let (icon, label, bg, fg, enabled) = match state {

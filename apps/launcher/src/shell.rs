@@ -399,7 +399,7 @@ impl Shell {
         shell.refresh_views(cx);
         shell.fetch_news(cx);
         shell.sync_catalog_updates();
-        shell.fetch_catalog(true, cx);
+        shell.fetch_catalog(cx);
         shell.db_profile_changed(cx);
         if cfg!(windows) {
             cx.spawn_in(window, async move |_, cx| {

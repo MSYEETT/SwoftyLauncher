@@ -24,13 +24,13 @@ use crate::shell::{Page, Shell};
 use crate::theme::{Palette, palette};
 
 const FADE: Duration = Duration::from_secs(4);
-const FILTERS_W: f32 = 226.;
+pub(crate) const FILTERS_W: f32 = 226.;
 const DETAIL_W: f32 = 380.;
 const SPLIT_AT: f32 = 1000.;
 const ITEMS_SHOWN: usize = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum Type {
+pub(crate) enum Type {
     Database,
     Archives,
     Text,
@@ -40,7 +40,7 @@ enum Type {
 }
 
 impl Type {
-    const ALL: [Type; 6] = [
+    pub(crate) const ALL: [Type; 6] = [
         Self::Database,
         Self::Archives,
         Self::Text,
@@ -60,7 +60,7 @@ impl Type {
         }
     }
 
-    fn label(self) -> &'static str {
+    pub(crate) fn label(self) -> &'static str {
         match self {
             Self::Database => "Database",
             Self::Archives => "Archives",
@@ -368,7 +368,7 @@ fn item_group(item: &str) -> (String, String) {
     (format!("Files in {dir}"), file.to_owned())
 }
 
-fn ago(seconds: f64) -> String {
+pub(crate) fn ago(seconds: f64) -> String {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0., |d| d.as_secs_f64());
@@ -381,7 +381,7 @@ fn ago(seconds: f64) -> String {
     }
 }
 
-fn checkbox(on: bool, p: Palette) -> Div {
+pub(crate) fn checkbox(on: bool, p: Palette) -> Div {
     div()
         .size(px(14.))
         .flex_shrink_0()
@@ -399,6 +399,42 @@ fn checkbox(on: bool, p: Palette) -> Div {
                 d.border_color(p.border)
             }
         })
+}
+
+/// A row of a filter column: a checkbox, its label and how many it would show.
+pub(crate) fn facet_row(
+    id: impl Into<SharedString>,
+    on: bool,
+    text: impl Into<SharedString>,
+    count: usize,
+    p: Palette,
+) -> Stateful<Div> {
+    let id: SharedString = id.into();
+    let dim = count == 0 && !on;
+    h_flex()
+        .id(id)
+        .h(px(26.))
+        .px(px(6.))
+        .gap(px(8.))
+        .rounded(px(5.))
+        .cursor_pointer()
+        .hover(move |s| s.bg(p.hover))
+        .child(checkbox(on, p))
+        .child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .truncate()
+                .text_size(px(13.))
+                .text_color(if dim { p.text_placeholder } else { p.text })
+                .child(text.into()),
+        )
+        .child(
+            div()
+                .text_size(px(12.))
+                .text_color(if on { p.text_muted } else { p.text_placeholder })
+                .child(count.to_string()),
+        )
 }
 
 fn stock_removals_text(n: usize) -> String {
@@ -1194,31 +1230,7 @@ impl Shell {
 
     fn filter_row(&self, f: Facet, count: usize, p: Palette, cx: &mut Context<Self>) -> AnyElement {
         let on = self.addons.facets.contains(&f);
-        let dim = count == 0 && !on;
-        h_flex()
-            .id(SharedString::from(format!("filter-{f:?}")))
-            .h(px(26.))
-            .px(px(6.))
-            .gap(px(8.))
-            .rounded(px(5.))
-            .cursor_pointer()
-            .hover(move |s| s.bg(p.hover))
-            .child(checkbox(on, p))
-            .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .truncate()
-                    .text_size(px(13.))
-                    .text_color(if dim { p.text_placeholder } else { p.text })
-                    .child(f.label()),
-            )
-            .child(
-                div()
-                    .text_size(px(12.))
-                    .text_color(if on { p.text_muted } else { p.text_placeholder })
-                    .child(count.to_string()),
-            )
+        facet_row(format!("filter-{f:?}"), on, f.label(), count, p)
             .on_click(cx.listener(move |this, _, _, cx| {
                 if !this.addons.facets.remove(&f) {
                     this.addons.facets.insert(f);
@@ -1612,7 +1624,9 @@ impl Shell {
                                 .id(SharedString::from(format!("update-{id}")))
                                 .tooltip(move |window, cx| {
                                     Tooltip::new(match &to {
-                                        Some(v) => format!("{v} is in the Addon Browser"),
+                                        Some(v) => {
+                                            format!("{v} is available. Update addons from the play bar.")
+                                        }
                                         None => "Update available".to_owned(),
                                     })
                                     .build(window, cx)
@@ -1923,15 +1937,6 @@ impl Shell {
                 )
             });
         let mut actions: Vec<AnyElement> = Vec::new();
-        if let Some(a) = self
-            .catalog_update(id)
-            .and_then(|_| self.browser.addons.iter().find(|a| a.id == id))
-        {
-            actions.push(
-                self.offer_button(a, "detail-update".into(), cx)
-                    .into_any_element(),
-            );
-        }
         if m.source == Source::DbEditor {
             let id = id.to_owned();
             actions.push(
