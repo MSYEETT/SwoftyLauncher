@@ -1,3 +1,4 @@
+import sys
 from functools import lru_cache
 from pathlib import Path
 
@@ -29,7 +30,12 @@ def lum(c):
 
 @lru_cache(None)
 def art(token, kind):
-    return Image.open(ART / token / f"{kind}.png").convert("RGBA")
+    im = Image.open(ART / token / f"{kind}.png").convert("RGBA")
+    a = np.asarray(im)
+    edge = np.concatenate([a[0], a[-1], a[:, 0], a[:, -1]])
+    if ((edge[:, :3].min(-1) > 230) & (edge[:, 3] > 200)).mean() > 0.5:
+        sys.exit(f"{token}/{kind}.png: opaque white background, key it to alpha in logo_art.py")
+    return im.crop(alpha_box(im))
 
 
 def fit(im, w, h):
@@ -70,10 +76,9 @@ def colour_box(im):
     return box_of(np.abs(a - a[2, 2]).sum(-1) > 60)
 
 
-def median_box(slices):
-    boxes = [b for b in map(alpha_box, slices) if b]
-    med = lambda f: float(np.median([f(b) for b in boxes]))
-    return med(lambda b: b[2] - b[0]), med(lambda b: b[3] - b[1])
+def stock_size(slices):
+    sizes = [(r - l, b - t) for l, t, r, b in filter(None, map(alpha_box, slices))]
+    return float(np.median([w * h for w, h in sizes])), max(w for w, _ in sizes), max(h for _, h in sizes)
 
 
 def profile(im, box, axis):
@@ -119,7 +124,7 @@ class Surface:
         self.template = getattr(self, "prepare_" + style)()
 
     def prepare_mark(self):
-        return median_box([im for k, im in self.stock.items() if k != self.ref or len(self.stock) == 1])
+        return stock_size([im for k, im in self.stock.items() if k != self.ref or len(self.stock) == 1])
 
     def prepare_card(self):
         return colour_box(self.stock[self.ref])
@@ -133,9 +138,11 @@ class Surface:
         return getattr(self, "render_" + self.style)(token, w, h)
 
     def render_mark(self, token, w, h):
-        side = max(self.template)
-        return place(Image.new("RGBA", (w, h), (0, 0, 0, 0)),
-                     fit(art(token, "mark"), min(w * 0.96, side), min(h * 0.96, side)), w / 2, h / 2)
+        area, most_w, most_h = self.template
+        logo = art(token, "mark")
+        s = (area / (logo.width * logo.height)) ** 0.5
+        box = min(logo.width * s, most_w, w * 0.96), min(logo.height * s, most_h, h * 0.96)
+        return place(Image.new("RGBA", (w, h), (0, 0, 0, 0)), fit(logo, *box), w / 2, h / 2)
 
     def render_card(self, token, w, h):
         l, t, r, b = self.template

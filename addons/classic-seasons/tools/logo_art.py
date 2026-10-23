@@ -2,6 +2,7 @@
 import argparse
 import io
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -16,6 +17,8 @@ SRC = ART / "src"
 LOCKUP_W = 1200
 MARK_W = 600
 KINDS = ("lockup_light", "lockup_dark", "mark")
+SAUBER_RING = (-2587.1, 1024.7, 722.9)
+SAUBER_TAIL = ("v -400.3078", "A 679 679 0 0 1 -3263.3,973.6 L -3043.1801,1126.9983")
 SOURCES = {
     "force_india.svg": "https://en.wikipedia.org/wiki/File:Force_India.svg",
     "racing_point.svg": "https://commons.wikimedia.org/wiki/File:Racing_Point.svg",
@@ -33,11 +36,19 @@ def hexrgb(h):
     return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
 
-def render(name, width):
+def rasterise(text, width):
     with tempfile.TemporaryDirectory() as d:
-        out = os.path.join(d, "out.png")
-        subprocess.run(["resvg", "-w", str(width), str(SRC / name), out], check=True, capture_output=True)
+        src, out = os.path.join(d, "in.svg"), os.path.join(d, "out.png")
+        Path(src).write_text(text)
+        subprocess.run(["resvg", "-w", str(width), src, out], check=True, capture_output=True)
         return Image.open(out).convert("RGBA").copy()
+
+
+def render(name, width, swaps=()):
+    text = (SRC / name).read_text()
+    for old, new in swaps:
+        text = text.replace(old, new)
+    return rasterise(text, width)
 
 
 def trim(im, pad=2):
@@ -67,19 +78,20 @@ def to_white(im, *colours, tol=90):
     return recolour(im, [(c, "#FFFFFF") for c in colours], tol)
 
 
-def key_white(im, lo=30, hi=90):
-    a = np.asarray(im).astype(np.float32)
-    dist = np.sqrt(((a[..., :3] - 255) ** 2).sum(-1))
-    alpha = np.clip((dist - lo) / (hi - lo), 0, 1) * a[..., 3] / 255
-    f = np.where(alpha > 0, alpha, 1)[..., None]
-    rgb = np.clip((a[..., :3] - (1 - f) * 255) / f, 0, 255)
-    return Image.fromarray(np.dstack([rgb, alpha * 255]).astype(np.uint8), "RGBA")
+def drop(im, *colours, tol=60):
+    a = np.asarray(im).copy()
+    for c in colours:
+        a[np.sqrt(((a[..., :3].astype(np.float32) - hexrgb(c)) ** 2).sum(-1)) < tol, 3] = 0
+    return Image.fromarray(a, "RGBA")
 
 
 def force_india():
     logo = trim(render("force_india.svg", LOCKUP_W))
     dark = to_white(logo, "#737375", "#383336", tol=60)
-    return logo, dark, crop(logo, 0, 0, 0.27, 1)
+    stemless = [("c-8.634 0.952-11.734 3.418-15.717 6.622l-39.706 45.08 27.506-46.533", "l-27.917 5.169"),
+                ("-78.644 24.252-69.035 8.332z", "-70 14-69.035 8.332z")]
+    flag = render("force_india.svg", LOCKUP_W, stemless)
+    return logo, dark, trim(drop(crop(flag, 0, 0, 0.37, 1), "#737375", "#737378"))
 
 
 def racing_point():
@@ -90,12 +102,12 @@ def racing_point():
 def renault():
     logo = trim(render("renault.svg", LOCKUP_W))
     white = to_white(logo, "#000000", tol=120)
-    return logo, white, crop(white, 0, 0, 0.21, 1)
+    return logo, white, crop(white, 0, 0, 0.31, 1)
 
 
 def toro_rosso():
     logo = trim(render("toro_rosso.svg", LOCKUP_W))
-    return logo, logo, crop(logo, 0.35, 0, 0.66, 0.45)
+    return logo, logo, crop(logo, 0.35, 0, 0.71, 0.45)
 
 
 def alphatauri():
@@ -104,10 +116,26 @@ def alphatauri():
     return logo, white, crop(white, 0, 0.13, 1, 0.80)
 
 
+def sauber_s(text):
+    d = re.search(r'id="path13".*?\sd="([^"]*)"', text, re.S).group(1)
+    inside = "M" + d[1:d.index(" m -703.8525")].replace(*SAUBER_TAIL)
+    cx, cy, r = SAUBER_RING
+    ring = f"M {cx - r},{cy} a {r},{r} 0 1 0 {2 * r},0 a {r},{r} 0 1 0 {-2 * r},0 z"
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{cx - r - 4} {cy - r - 4} {2 * r + 8} {2 * r + 8}">'
+            f'<path fill="#fff" fill-rule="evenodd" d="{ring} {inside}"/></svg>')
+
+
 def sauber():
-    logo = trim(render("sauber.svg", LOCKUP_W))
-    keyed = trim(key_white(logo))
-    return logo, to_white(keyed, "#000000", tol=120), crop(logo, 0, 0, 0.245, 1)
+    text = (SRC / "sauber.svg").read_text()
+    bare = rasterise(text.replace("fill:#ffffff;fill-opacity:1", "fill:#ffffff;fill-opacity:0"), LOCKUP_W)
+    a = np.asarray(bare).astype(np.int32)
+    red = (np.abs(a[..., :3] - hexrgb("#d0180d")).sum(-1) < 90) & (a[..., 3] > 128)
+    l, t, r, b = Image.fromarray(red.astype(np.uint8) * 255).getbbox()
+    logo = Image.new("RGBA", bare.size, (0, 0, 0, 0))
+    logo.paste((255, 255, 255, 255), (l + 1, t + 1, r - 1, b - 1))
+    logo.alpha_composite(bare)
+    logo = trim(logo)
+    return logo, to_white(logo, "#000000", tol=120), trim(rasterise(sauber_s(text), MARK_W))
 
 
 def alfa_romeo():

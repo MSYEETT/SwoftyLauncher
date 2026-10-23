@@ -11,6 +11,7 @@ from concurrent.futures import ProcessPoolExecutor
 from functools import lru_cache
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 HERE = Path(__file__).resolve().parent
@@ -48,6 +49,7 @@ ARRAYS = {
 BRANDS = {"Force India": "force_india", "Racing Point": "racing_point", "Renault": "renault",
           "Toro Rosso": "toro_rosso", "AlphaTauri": "alphatauri", "Sauber": "sauber", "Alfa Romeo": "alfa_romeo"}
 OUT = ROOT / "erp/logos"
+W2 = np.array([0, 21, 43, 64])
 
 
 def season_teams():
@@ -80,9 +82,97 @@ def decode(job):
     return path, name, Image.frombytes("RGBA", (w, h), bc7_decode(px, w, h))
 
 
+def blocks(im):
+    w, h = im.size
+    return np.asarray(im).reshape(h // 4, 4, w // 4, 4, 4).transpose(0, 2, 1, 3, 4).reshape(-1, 16, 4).astype(np.int64)
+
+
+def block_error(px, dec):
+    d = (px - dec).astype(np.float64) ** 2
+    return (d[..., :3].sum(2) * px[..., 3] / 255 + 4 * d[..., 3]).sum(1)
+
+
+def ramp(e0, e1):
+    return ((64 - W2)[None, :, None] * e0[:, None] + W2[None, :, None] * e1[:, None] + 32) >> 6
+
+
+def nearest(pal, src):
+    return ((pal[:, None] - src[:, :, None]) ** 2).sum(-1).argmin(2)
+
+
+def mode5_fit(src, wt, idx):
+    f = W2[idx] / 64
+    g = 1 - f
+    a, b, c = (wt * g * g).sum(1), (wt * g * f).sum(1), (wt * f * f).sum(1)
+    x0, x1 = ((wt * g)[..., None] * src).sum(1), ((wt * f)[..., None] * src).sum(1)
+    det = a * c - b * b
+    ok = (np.abs(det) > 1e-9)[:, None]
+    safe = np.where(ok[:, 0], det, 1)[:, None]
+    flat = (x0 + x1) / np.maximum(a + 2 * b + c, 1e-9)[:, None]
+    return np.where(ok, (c[:, None] * x0 - b[:, None] * x1) / safe, flat), \
+        np.where(ok, (a[:, None] * x1 - b[:, None] * x0) / safe, flat)
+
+
+def mode5(px):
+    src, wt = px[..., :3].astype(np.float64), px[..., 3] / 255
+    mean = (src * wt[..., None]).sum(1) / np.maximum(wt.sum(1), 1e-9)[:, None]
+    dev = (src - mean[:, None]) * np.sqrt(wt)[..., None]
+    cov = np.einsum("npi,npj->nij", dev, dev)
+    axis = np.ones((len(px), 3))
+    for _ in range(8):
+        axis = np.einsum("nij,nj->ni", cov, axis)
+        axis /= np.maximum(np.linalg.norm(axis, axis=1, keepdims=True), 1e-12)
+    t = np.einsum("npc,nc->np", src - mean[:, None], axis)
+    lo, hi = np.where(wt > 0, t, np.inf).min(1), np.where(wt > 0, t, -np.inf).max(1)
+    lo, hi = np.where(np.isfinite(lo), lo, 0), np.where(np.isfinite(hi), hi, 0)
+    best = None
+    ends = (mean + lo[:, None] * axis, mean + hi[:, None] * axis)
+    for _ in range(3):
+        q = [np.clip(np.rint(e / 255 * 127), 0, 127).astype(np.int64) for e in ends]
+        pal = ramp(*[(v << 1) | (v >> 6) for v in q])
+        idx = nearest(pal, px[..., :3])
+        err = (((np.take_along_axis(pal, idx[..., None], 1) - px[..., :3]) ** 2).sum(2) * wt).sum(1)
+        if best is None:
+            best = [q, idx, err]
+        else:
+            take = err < best[2]
+            best = [[np.where(take[:, None], n, o) for n, o in zip(q, best[0])],
+                    np.where(take[:, None], idx, best[1]), np.where(take, err, best[2])]
+        ends = mode5_fit(src, wt, best[1])
+    (c0, c1), cidx = best[0], best[1]
+    a0, a1 = px[..., 3].min(1), px[..., 3].max(1)
+    apal = ramp(a0[:, None], a1[:, None])[..., 0]
+    aidx = np.abs(apal[:, None] - px[..., 3:4]).argmin(2)
+    cpal = ramp((c0 << 1) | (c0 >> 6), (c1 << 1) | (c1 >> 6))
+    dec = np.concatenate([np.take_along_axis(cpal, cidx[..., None], 1),
+                          np.take_along_axis(apal, aidx, 1)[..., None]], 2)
+    return (c0, c1, a0, a1, cidx, aidx), block_error(px, dec)
+
+
+def mode5_word(fit, n):
+    c0, c1, a0, a1, cidx, aidx = [f[n].tolist() for f in fit]
+    if cidx[0] >= 2:
+        c0, c1, cidx = c1, c0, [3 - i for i in cidx]
+    if aidx[0] >= 2:
+        a0, a1, aidx = a1, a0, [3 - i for i in aidx]
+    fields = [(1 << 5, 6), (0, 2)] + [(e[c], 7) for c in range(3) for e in (c0, c1)] + [(a0, 8), (a1, 8)]
+    fields += [(cidx[0], 1)] + [(i, 2) for i in cidx[1:]] + [(aidx[0], 1)] + [(i, 2) for i in aidx[1:]]
+    bits, pos = 0, 0
+    for v, k in fields:
+        bits |= v << pos
+        pos += k
+    return bits.to_bytes(16, "little")
+
+
 def encode(job):
     path, brand, im = job
-    return path, brand, bc7enc.encode_rgba(im.tobytes(), im.width, im.height)
+    data = bytearray(bc7enc.encode_rgba(im.tobytes(), im.width, im.height))
+    px = blocks(im)
+    dec = blocks(Image.frombytes("RGBA", im.size, bc7_decode(bytes(data), im.width, im.height)))
+    fit, err = mode5(px)
+    for n in np.nonzero(err < block_error(px, dec))[0].tolist():
+        data[n * 16:(n + 1) * 16] = mode5_word(fit, n)
+    return path, brand, bytes(data)
 
 
 def build(game, baseline, sheet):
