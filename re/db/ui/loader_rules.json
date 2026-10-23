@@ -105,7 +105,19 @@
     "scope": "node"
    },
    "fn": "0x144289830 Vm_VisualNavBehaviour_Init; 0x14417f1b0 Vm_Read_PropObject_Thunk; 0x143927f90 Vm_Find_PkgObjectKey_Thunk",
-   "ev": "decomp:re/decomp/144289830.c;decomp:re/decomp/14417f1b0.c;decomp:re/decomp/143927f90.c"
+   "ev": "decomp:re/decomp/144289830.c;decomp:re/decomp/14417f1b0.c;decomp:re/decomp/143927f90.c",
+   "applies_to": {
+    "behaviours": [
+     "NBVN"
+    ]
+   },
+   "props": [
+    {
+     "key": "visualNav",
+     "required": true,
+     "shape": "object"
+    }
+   ]
   },
   {
    "id": "behaviour.types",
@@ -160,7 +172,23 @@
     "scope": "node"
    },
    "fn": "0x144208c80 Vm_ListBase_Init; 0x14417e200 Vm_Read_PropBinding",
-   "ev": "decomp:re/decomp/144208c80.c"
+   "ev": "decomp:re/decomp/144208c80.c",
+   "applies_to": {
+    "classes": [
+     "UITG",
+     "UITB",
+     "UILT",
+     "UIL2",
+     "UIEL"
+    ]
+   },
+   "props": [
+    {
+     "key": "data",
+     "required": true,
+     "shape": "binding"
+    }
+   ]
   },
   {
    "id": "svcd.value",
@@ -171,7 +199,19 @@
     "scope": "node"
    },
    "fn": "0x144276f20 (body 0x1538601e0)",
-   "ev": "decomp:re/decomp/144276f20.c"
+   "ev": "decomp:re/decomp/144276f20.c",
+   "applies_to": {
+    "classes": [
+     "SVCD"
+    ]
+   },
+   "props": [
+    {
+     "key": "value",
+     "required": true,
+     "shape": "any"
+    }
+   ]
   },
   {
    "id": "f1ts.input_type",
@@ -182,7 +222,24 @@
     "scope": "node"
    },
    "fn": "0x14382cff0",
-   "ev": "decomp:re/decomp/14382cff0.c"
+   "ev": "decomp:re/decomp/14382cff0.c",
+   "applies_to": {
+    "classes": [
+     "F1TS"
+    ]
+   },
+   "props": [
+    {
+     "key": "inputType",
+     "required": false,
+     "shape": "value",
+     "values": [
+      "normal",
+      "dpadOnly"
+     ],
+     "case_insensitive": true
+    }
+   ]
   },
   {
    "id": "screen.duplicate",
