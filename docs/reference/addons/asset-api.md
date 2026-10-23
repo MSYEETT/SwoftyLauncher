@@ -131,6 +131,8 @@ A later write wins, so load order matters when addons write to the same target. 
 | A string in a language | `lang.set` |
 | A game path | `file.put`, `erp.add-mipmaps` (its `target`) |
 
+A `file.put` of a whole archive writes every resource that ERP ops write in that archive. Ops from the addon that puts it, or from addons after it in load order, apply to the archive it puts. A put after them in load order replaces their changes.
+
 If one origin has already written to a target, replacing it counts as a conflict. That applies to `erp.put-resource`, `erp.replace-resource`, `erp.remove-resource`, `erp.overlay`, `erp.add-mipmaps`, `db.set`, `db.put-record`, `db.remove-record`, `lang.set` and `file.put`. By contrast, `erp.add-resource`, `erp.copy-resource`, `erp.patch-pkg`, `group.register` and added rows compose. After its stages, the build prints a line per addon with what it writes, then a warning per pair of addons in conflict, the winner first:
 
 ```text

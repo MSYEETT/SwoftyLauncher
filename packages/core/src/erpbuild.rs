@@ -191,6 +191,21 @@ pub fn reads(op: &ErpOp) -> Vec<&str> {
     }
 }
 
+/// The archives `op` changes.
+pub fn writes(op: &ErpOp) -> Vec<&str> {
+    match op {
+        ErpOp::PutResource { erp, .. }
+        | ErpOp::ReplaceResource { erp, .. }
+        | ErpOp::AddResource { erp, .. }
+        | ErpOp::CopyResource { erp, .. }
+        | ErpOp::RemoveResource { erp, .. }
+        | ErpOp::PatchPkg { erp, .. }
+        | ErpOp::MergeSlices { erp, .. } => vec![erp.as_str()],
+        ErpOp::Overlay { erps, .. } => erps.iter().map(String::as_str).collect(),
+        ErpOp::AddMipmaps { .. } => Vec::new(),
+    }
+}
+
 pub fn unsupported(op: &ErpOp) -> Option<&'static str> {
     match op {
         ErpOp::PatchPkg { edits, .. } => edits.iter().find(|e| !supported(e)).map(edit_name),

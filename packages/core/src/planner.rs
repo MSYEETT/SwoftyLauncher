@@ -507,6 +507,22 @@ impl<'a> Planner<'a> {
         self.write(target, origin, true);
     }
 
+    /// Records that `origin` puts the whole archive `erp` with a `file.put`: it
+    /// writes every resource other ops write in it, and load order decides.
+    pub fn put_archive(&mut self, erp: &str, origin: &Origin) {
+        let inside: Vec<Target> = self
+            .writers
+            .keys()
+            .filter(
+                |t| matches!(t, Target::Resource { erp: e, .. } | Target::Slice { erp: e, .. } if e == erp),
+            )
+            .cloned()
+            .collect();
+        for target in inside {
+            self.write(target, origin, true);
+        }
+    }
+
     pub fn features(&self) -> Vec<Kind> {
         self.features
             .experimental

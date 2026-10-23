@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ use crate::asset::{
 use crate::baseline::{Baseline, Objects, hex, sha256_file, sha256_opt};
 use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
 use crate::conflicts::Report;
-use crate::erpbuild::{ErpBuild, Resized, SliceMerge, reads, unsupported};
+use crate::erpbuild::{ErpBuild, Resized, SliceMerge, reads, unsupported, writes};
 use crate::install::{Game, LOADER_DIR, Plan};
 use crate::launcher::BuildCx;
 use crate::manifest::{AddonManifest, relative_inside};
@@ -818,11 +818,45 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             }
         }
     }
-    let erp_ops = planner.take_erp();
+    let file_ops = planner.take_files();
+    let mut erp_ops = planner.take_erp();
+    let rank = |o: &Origin| {
+        resolved
+            .order
+            .iter()
+            .position(|id| *id == o.addon)
+            .unwrap_or(usize::MAX)
+    };
+    let puts = archive_puts(store, &file_ops, &erp_ops, &rank)?;
+    for (rel, put) in &puts {
+        planner.put_archive(rel, &put.origin);
+    }
+    erp_ops.retain_mut(|op| {
+        let rank = rank(&op.origin);
+        after_puts(op, &puts, rank)
+    });
     let mut mipmaps = BTreeMap::new();
+    let mut built_over = BTreeSet::new();
     if !erp_ops.is_empty() {
         let staged = built.plan.data.clone();
-        let base = |rel: &str| staged.get(rel).cloned().unwrap_or_else(|| resolve(rel));
+        let base = |rel: &str| {
+            staged
+                .get(rel)
+                .or_else(|| puts.get(rel).map(|p| &p.path))
+                .cloned()
+                .unwrap_or_else(|| resolve(rel))
+        };
+        for (rel, put) in &puts {
+            if erp_ops
+                .iter()
+                .any(|op| matches!(&op.op, AssetOp::Erp(e) if writes(e).contains(&rel.as_str())))
+            {
+                built.lines.push(format!(
+                    "erp: {rel}: later changes apply to the whole archive {} puts",
+                    put.origin
+                ));
+            }
+        }
         let mut erps = ErpBuild::new(&base);
         let runtime_route = planner.route(Kind::Erp) == Route::Runtime;
         // Every origin that writes, in load order: the later wins.
@@ -924,8 +958,13 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             resized
         };
         built.warnings.extend(stock_holders(&game.dir, &resized));
+        built_over = puts
+            .keys()
+            .filter(|rel| built.plan.data.contains_key(*rel) && !staged.contains_key(*rel))
+            .cloned()
+            .collect();
     }
-    put_files(&mut built, store, game, mipmaps, planner.take_files())?;
+    put_files(&mut built, store, game, mipmaps, file_ops, &built_over)?;
     match loader_dir() {
         Some(dir) => {
             built.plan.loader = loader_files(&dir)?;
@@ -1164,6 +1203,61 @@ fn stage_erps(built: &mut Built, staged: &BTreeMap<String, PathBuf>, rels: Vec<S
     Ok(())
 }
 
+/// An archive a `file.put` replaces whole while ERP ops change it too: its last
+/// put in load order.
+struct ArchivePut {
+    rank: usize,
+    origin: Origin,
+    path: PathBuf,
+}
+
+fn archive_puts(
+    store: &Store,
+    files: &[Op],
+    erps: &[Op],
+    rank: &dyn Fn(&Origin) -> usize,
+) -> Result<BTreeMap<String, ArchivePut>> {
+    let changed: BTreeSet<&str> = erps
+        .iter()
+        .flat_map(|op| match &op.op {
+            AssetOp::Erp(e) => writes(e),
+            _ => Vec::new(),
+        })
+        .collect();
+    let mut puts = BTreeMap::new();
+    for op in files {
+        let AssetOp::File(FileOp::Put { source, target }) = &op.op else {
+            continue;
+        };
+        if changed.contains(target.as_str()) {
+            let path = source.resolve(&source_dir(store, &op.origin.addon, source.root))?;
+            puts.insert(
+                target.clone(),
+                ArchivePut {
+                    rank: rank(&op.origin),
+                    origin: op.origin.clone(),
+                    path,
+                },
+            );
+        }
+    }
+    Ok(puts)
+}
+
+/// Leaves out of `op` the archives a put replaces later in load order; false
+/// when none is left.
+fn after_puts(op: &mut Op, puts: &BTreeMap<String, ArchivePut>, rank: usize) -> bool {
+    let replaced = |erp: &str| puts.get(erp).is_some_and(|p| p.rank > rank);
+    match &mut op.op {
+        AssetOp::Erp(crate::ops::ErpOp::Overlay { erps, .. }) => {
+            erps.retain(|e| !replaced(e));
+            !erps.is_empty()
+        }
+        AssetOp::Erp(e) => !writes(e).into_iter().any(replaced),
+        _ => true,
+    }
+}
+
 fn index_of(path: &Path) -> Option<Vec<u8>> {
     use std::io::{Read, Seek, SeekFrom};
     let mut f = std::fs::File::open(path).ok()?;
@@ -1253,9 +1347,11 @@ fn put_files(
     game: &Game,
     mipmaps: BTreeMap<String, PathBuf>,
     ops: Vec<Op>,
+    built_over: &BTreeSet<String>,
 ) -> Result<()> {
     let mips = mipmaps.len();
-    let mut put = mipmaps;
+    let mut put: BTreeMap<String, (PathBuf, Option<Origin>)> =
+        mipmaps.into_iter().map(|(rel, src)| (rel, (src, None))).collect();
     for op in ops {
         let AssetOp::File(FileOp::Put { source, target }) = op.op else {
             continue;
@@ -1265,10 +1361,8 @@ fn put_files(
                 "{target} must be a relative path inside the game folder"
             )));
         }
-        put.insert(
-            target,
-            source.resolve(&source_dir(store, &op.origin.addon, source.root))?,
-        );
+        let src = source.resolve(&source_dir(store, &op.origin.addon, source.root))?;
+        put.insert(target, (src, Some(op.origin)));
     }
     if put.is_empty() {
         return Ok(());
@@ -1279,16 +1373,30 @@ fn put_files(
             || (game.dir.join(rel).is_file() && !left_over(store, game, rel))
     };
     let (mut replaced, mut added) = (0, 0);
-    for (rel, src) in put {
-        let into = if stock(&rel) {
+    for (rel, (src, origin)) in put {
+        let is_stock = stock(&rel);
+        if is_stock {
             replaced += 1;
-            &mut built.plan.data
         } else {
             added += 1;
-            &mut built.plan.added
+        }
+        if built_over.contains(&rel) {
+            if !is_stock && let Some(archive) = built.plan.data.remove(&rel) {
+                built.plan.added.insert(rel, archive);
+            }
+            continue;
+        }
+        let into = match is_stock {
+            true => &mut built.plan.data,
+            false => &mut built.plan.added,
         };
         if into.insert(rel.clone(), src).is_some() {
-            return Err(Error::Other(format!("{rel} is replaced twice")));
+            return Err(Error::Other(match origin {
+                Some(o) => format!(
+                    "{rel} is replaced twice: {o} puts the whole file, and an added track changes it too"
+                ),
+                None => format!("{rel} is replaced twice"),
+            }));
         }
     }
     built
@@ -2105,6 +2213,10 @@ mod tests {
     }
 
     fn archive(names: &[&str], byte: u8) -> Vec<u8> {
+        archive_of("UILayout", names, byte)
+    }
+
+    fn archive_of(kind: &str, names: &[&str], byte: u8) -> Vec<u8> {
         use swofty_formats::erp::{Erp, Fragment, HEADER_LEN, MAGIC, Resource, STORED};
         let mut header = [0u8; HEADER_LEN];
         header[..4].copy_from_slice(MAGIC);
@@ -2116,7 +2228,7 @@ mod tests {
                 .iter()
                 .map(|n| Resource {
                     name: (*n).into(),
-                    kind: swofty_formats::erp::kind("UILayout").unwrap(),
+                    kind: swofty_formats::erp::kind(kind).unwrap(),
                     unk: vec![0; 4],
                     fragments: vec![Fragment {
                         name: *b"temp",
@@ -2282,6 +2394,119 @@ mod tests {
                 .unwrap()
                 .pairs
                 .is_empty()
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    // One addon puts `t.erp` whole and another replaces a resource in it with a
+    // bigger one; `edit_first` loads the edit before the put.
+    fn build_put_and_edit(name: &str, edit_first: bool) -> (Built, PathBuf, PathBuf) {
+        let root = std::env::temp_dir().join(format!("swofty-build-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::create_dir_all(dir.join("2025_asset_groups")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        std::fs::write(dir.join(GVDB), Gvdb { records: Vec::new() }.to_bytes()).unwrap();
+        let erp = "2025_asset_groups/t.erp";
+        std::fs::write(
+            dir.join(erp),
+            archive_of("Data", &["eaid://t/a.idf", "eaid://t/b.idf"], 0),
+        )
+        .unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let pack = (
+            "t.pack",
+            format!(r#""files": [{{ "source": "whole.erp", "target": "{erp}" }}]"#),
+        );
+        let edit = ("t.edit", r#""assets": ["ops.json"]"#.to_owned());
+        let order = match edit_first {
+            true => [edit, pack],
+            false => [pack, edit],
+        };
+        for (id, operations) in order {
+            let src = root.join("src").join(id);
+            std::fs::create_dir_all(&src).unwrap();
+            std::fs::write(
+                src.join("swofty.json"),
+                format!(
+                    r#"{{ "schema_version": 1, "id": "{id}", "name": "{id}", "version": "1.0.0", "author": "t",
+                         "compat": {{ "game": "f1_25" }}, "operations": {{ {operations} }} }}"#
+                ),
+            )
+            .unwrap();
+            std::fs::write(
+                src.join("ops.json"),
+                format!(
+                    r#"{{ "schema_version": 1, "ops": [{{"op":"erp.replace-resource","erp":"{erp}","resource":"eaid://t/a.idf","source":"a.bin"}}] }}"#
+                ),
+            )
+            .unwrap();
+            std::fs::write(src.join("a.bin"), [9, 9]).unwrap();
+            std::fs::write(
+                src.join("whole.erp"),
+                archive_of("Data", &["eaid://t/a.idf", "eaid://t/b.idf", "eaid://t/c.idf"], 5),
+            )
+            .unwrap();
+            store.install_addon(&src).unwrap();
+            store
+                .update_profile("default", |p| p.set_enabled(id, true))
+                .unwrap();
+        }
+        let built = build(&store, "default", &game).unwrap();
+        let whole = store.addons_dir().join("t.pack").join("whole.erp");
+        (built, root, whole)
+    }
+
+    fn fragments(path: &Path) -> Vec<(String, Vec<u8>)> {
+        let f = swofty_formats::erp::ErpFile::open(path).unwrap();
+        f.erp
+            .resources
+            .iter()
+            .map(|r| (r.name.clone(), f.load(r).unwrap().fragments[0].raw.clone()))
+            .collect()
+    }
+
+    #[test]
+    fn a_later_resource_edit_applies_to_an_archive_put_whole() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let (built, root, _) = build_put_and_edit("put-then-edit", false);
+        let erp = "2025_asset_groups/t.erp";
+        assert_eq!(
+            fragments(&built.plan.data[erp]),
+            [
+                ("eaid://t/a.idf".to_owned(), vec![9, 9]),
+                ("eaid://t/b.idf".to_owned(), vec![5]),
+                ("eaid://t/c.idf".to_owned(), vec![5]),
+            ]
+        );
+        assert!(!built.plan.added.contains_key(erp));
+        let pair = &built.report.pairs[0];
+        assert_eq!(
+            (pair.winner.as_str(), pair.loser.as_str(), pair.resources),
+            ("t.edit", "t.pack", 1)
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn an_archive_put_whole_replaces_earlier_resource_edits() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let (built, root, whole) = build_put_and_edit("edit-then-put", true);
+        assert_eq!(built.plan.data["2025_asset_groups/t.erp"], whole);
+        let pair = &built.report.pairs[0];
+        assert_eq!(
+            (pair.winner.as_str(), pair.loser.as_str(), pair.resources),
+            ("t.pack", "t.edit", 1)
         );
         std::fs::remove_dir_all(&root).ok();
     }
