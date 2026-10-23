@@ -79,16 +79,51 @@ The launcher flags every view-model key an edited template binds that no stock n
 
 ## Checking UI edits
 
-`check::ui_edit` (`.ui`) and `check::scene_edit` (`.idf`) in `packages/core/src/ui/check.rs` report two layers:
+`packages/core/src/ui/check.rs` checks edited `.ui` and `.idf` resources in three layers:
 
 | Layer | Source | Effect |
 |---|---|---|
-| Hard | The format: node `id` and `nameId`, layout `nodeId`, event and command hashes, signal `to_object` and `to_pin` hashes, signals to nodes missing from their own root, and `eXRef` ids that disagree with `fileRef` | The build stops |
-| Hard | `tools/uicatalog/loader_rules.json`: rules read from the engine's UI loader | The build stops; the finding cites the rule and its evidence |
-| Warning | The stock catalogue | Listed in the build's warnings |
-| Warning | A diff against the stock template: view-model keys stock never binds there | Listed in the build's warnings |
+| Hard, engine | `re/db/ui/loader_rules.json`: the checks the engine's UI loader applies, read from `F1_25.exe` and documented in `docs/reference/ui/engine.md` | The build stops. The finding cites the rule id, its evidence level, the error code, what a failure takes down and the function address |
+| Hard, format | The hashes and ids the engine resolves by, and bindings the edit breaks | The build stops |
+| Warning | The stock catalogue, and a diff against the stock template | Listed in the build's warnings |
 
-Catalogue warnings (code, what it flags):
+### Engine rules
+
+Each rule in `re/db/ui/loader_rules.json` that the checker implements runs when the file lists its id; its id, level, `fail.code`, `fail.scope` and `fn` go into every finding it raises.
+
+| Rule id | Checks |
+|---|---|
+| `node.record` | Every node is `[props with name and type, children, commands, events, layout, components(, behaviours, slot7)]` |
+| `node.class_registered` | The type FourCC is one of the 136 registered node classes |
+| `layout.path_nonempty` | The first layout path is not an empty list |
+| `layout.step_keys` | Each layout step has `isComponentId` with a u64 `componentId`, or a u32 `nodeId` |
+| `components.keys` | The first component has `name` and a u64 `componentId` |
+| `behaviours.type` | Every behaviour has a `type` |
+| `commands.entry`, `events.entry` | Every command has `command` and `signals`, every event `event` and `signals` (an empty list is allowed) |
+| `signals.entry` | Every signal has `to_pin` and `to_object`, every mapping a `value` |
+| `listbase.data_binding` | List classes bind `data` with a non-empty `dbentry` |
+| `svcd.value` | An `SVCD` sets `value` |
+| `f1ts.input_type` | An `F1TS` `inputType` is `normal` or `dpadOnly` |
+| `template.duplicate` | No template name repeats in the file or matches a template another stock `.ui` registers |
+| `screen.duplicate` | No screen name repeats in the file or matches a screen another stock `.ui` registers |
+
+The rules `node.fourcc_matches_class`, `template.child_abort`, `template.link` and `screen.child_abort` describe what a failure takes down; they have no check of their own. Findings for pins and empty signal lists quote the engine's silently ignored cases: a pin the target class does not handle, and an event with no signals, do nothing at run time.
+
+### Format checks
+
+| Code | Checks |
+|---|---|
+| `integrity` | Node `id` and `nameId`, layout `nodeId`, event and command hashes, signal `to_object` and `to_pin` hashes, and signals to nodes missing from their own root |
+| `xref-mismatch` | An `eXRef`'s `xref` is md5-64 of its `fileRef` |
+| `scene-id` | A scene's `name` is the componentId of its resource path |
+| `nodeidlookup` | A scene's `nodeidlookup` is the sorted djb2 of every element's leaf name |
+| `component-missing` | A screen or template root's scene is in this archive or in a stock archive |
+| `layout-node-missing` | A layout step whose nodeId was in the stock scenes of the archive is still in an edited scene's `nodeidlookup` |
+| `layout-unresolved` | A layout path that resolved against the stock scenes still resolves against the edited ones |
+
+`check::archives` runs these for every archive that carries an edited resource, each with its own scenes, so a screen carried by both `flow_f1_world.erp` and `screens/f1_world_activity_container.erp` is checked in both.
+
+### Warnings
 
 | Code | Flags |
 |---|---|
@@ -100,43 +135,24 @@ Catalogue warnings (code, what it flags):
 | `event-signals`, `command-signals` | Signals on an event or command that never has any in stock |
 | `pin-in`, `pin-out`, `link`, `pin-attributes` | A signal to a pin stock never signals on the target type, from a pin the source type never sends from, between types stock never links, or with attribute shapes stock never sends |
 | `layout-shape`, `layout-element`, `layout-through` | A layout attach shape, a bound element-type chain, or a path through a non-`eXRef` element that stock never uses |
+| `layout-node-unknown` | A new layout step whose nodeId is in no scene of the archive |
+| `component-elsewhere` | A new root whose scene is in another archive |
+| `element-id` | An `elementId` that is not the djb2 of the element's dotted path |
+| `copies-differ` | Two archives carry different copies of the same resource; the game uses the copy from the archive that loads first |
 | `vm-key-new` | A view-model key that no stock node of the same template binds |
-
-### Loader rules
-
-`tools/uicatalog/loader_rules.json` holds rules read from the engine. A rule upgrades every finding it matches to a hard one:
-
-```json
-{
-  "schema_version": 1,
-  "rules": [
-    {
-      "id": "uigp-nav-event-needs-signals",
-      "code": "event-no-signals",
-      "node_type": "UIGP",
-      "name": "navUp",
-      "effect": "reject",
-      "evidence": "FUN_14xxxxxxx L2",
-      "message": "the event binder rejects an event with no signals"
-    }
-  ]
-}
-```
-
-`code` is a finding code from the table above. `node_type` and `name` narrow the match, and `*` or leaving them out matches any. `effect` is `reject` or `drop`; `warn` keeps the finding a warning. Two codes only rules produce: `required-prop` (a node of `node_type` must set property `name`) and `forbidden-prop` (it must not).
 
 ### Where it runs
 
-- Every addon build: after an addon's ERP operations apply, each changed `.ui` and `.idf` fragment is checked against its stock copy with the scenes of its archive. Hard findings stop the build.
+- Every addon build: after an addon's ERP operations apply, every archive with a changed `.ui` or `.idf` goes through `check::archives` against its stock copy. Hard findings stop the build.
 - Every addon screen in `operations.screens`: hard findings stop the build; warnings go in the build's warnings.
-- The core menu build: the hard checks run on every ADDON SETTINGS screen it generates.
+- The core menu build: the hard checks run on every ADDON SETTINGS screen it generates. Menu edits written with `write_erp` call `check::archive_files(&[(name, stock archive, built archive), …])` and stop on hard findings.
 - By hand:
 
 ```sh
-cargo run --release -p swofty-core --example ui_check -- <archive.erp> <eaid resource> [--stock <stock archive.erp>] [--against <other archive.erp>]
+cargo run --release -p swofty-core --example ui_check -- <stock.erp>=<built.erp> [<stock.erp>=<built.erp> …] [--against <stock.erp>=<other.erp>]
 ```
 
-`--stock` adds the runtime-binding diff, `--against` prints only findings the other archive does not have, and the exit status is 1 when there are hard findings.
+Each pair is a stock archive and the built archive that replaces it. `--against` prints only findings the other build does not have. The exit status is 1 when there are hard findings.
 
 ### Rebuilding the catalogue
 

@@ -541,9 +541,16 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             let path = dir.join(&s.file);
             let data = std::fs::read(&path).map_err(io_err(&path))?;
             if swofty_formats::pkg::is_pkg(&data) {
-                let (cat, rules) = (crate::ui::catalog::stock(), crate::ui::catalog::rules());
+                let (cat, engine) = (crate::ui::catalog::stock(), crate::ui::catalog::engine());
                 let none = crate::ui::catalog::Scenes::default();
-                let report = crate::ui::check::ui_edit(&s.file, &data, None, &none, cat, rules)?;
+                let resource = format!("{id}/{}", s.file);
+                let input = crate::ui::check::UiInput {
+                    resource: &resource,
+                    frag: "temp",
+                    data: &data,
+                    stock: None,
+                };
+                let report = crate::ui::check::ui_edit(&input, &none, cat, engine)?;
                 if !report.hard.is_empty() {
                     let lines: Vec<String> = report.hard.iter().map(|h| h.to_string()).collect();
                     return Err(Error::Other(format!(

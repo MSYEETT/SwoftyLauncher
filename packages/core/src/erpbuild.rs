@@ -765,77 +765,64 @@ impl<'a> ErpBuild<'a> {
     }
 
     pub fn check_ui(&self) -> Result<Vec<String>> {
-        let (cat, rules) = (crate::ui::catalog::stock(), crate::ui::catalog::rules());
-        let (mut hard, mut warnings) = (Vec::new(), Vec::new());
-        for (rel, a) in &self.erps {
-            let edited: Vec<&Resource> = a
-                .slots
+        use crate::ui::check::ArchiveUi;
+        let ui = |r: &Resource| matches!(r.kind().as_str(), "UIDF" | SCENE) && !r.name.contains('?');
+        let frags = |r: &Resource| {
+            r.fragments
                 .iter()
-                .filter_map(|s| match s {
-                    Slot::Owned(r)
-                        if matches!(r.kind().as_str(), "UIDF" | SCENE) && !r.name.contains('?') =>
-                    {
-                        Some(r)
-                    }
-                    _ => None,
-                })
-                .collect();
-            if edited.is_empty() {
+                .map(|f| f.data())
+                .collect::<swofty_formats::Result<Vec<_>>>()
+        };
+        let (mut edited, mut stock) = (Vec::new(), Vec::new());
+        for (rel, a) in &self.erps {
+            if !a.slots.iter().any(|s| matches!(s, Slot::Owned(r) if ui(r))) {
                 continue;
             }
-            let mut scenes = crate::ui::catalog::Scenes::default();
-            if edited.iter().any(|r| r.kind() == "UIDF") {
-                for s in &a.slots {
-                    let r = a.entry(s);
-                    if r.kind() != SCENE || r.name.contains('?') {
-                        continue;
-                    }
-                    let loaded;
-                    let r = match s {
-                        Slot::Owned(r) => r,
-                        Slot::Stock(_) => {
-                            loaded = a.file.load(r)?;
-                            &loaded
-                        }
-                    };
-                    if let Some(f) = r.fragments.first() {
-                        scenes.add(&f.data()?).ok();
-                    }
-                }
+            let mut was = ArchiveUi {
+                archive: rel.clone(),
+                ..Default::default()
+            };
+            for r in a.file.erp.resources.iter().filter(|r| ui(r)) {
+                let loaded = a.file.load(r)?;
+                was.resources.insert(r.name.clone(), (r.kind(), frags(&loaded)?));
             }
-            for r in edited {
-                let stock = match a.file.erp.resources.iter().find(|s| s.name == r.name) {
-                    Some(s) => Some(a.file.load(s)?),
-                    None => None,
+            let mut now = ArchiveUi {
+                archive: rel.clone(),
+                ..Default::default()
+            };
+            for s in &a.slots {
+                let r = a.entry(s);
+                if !ui(r) {
+                    continue;
+                }
+                let entry = match (s, was.resources.get(&r.name)) {
+                    (Slot::Stock(_), Some(stock)) => stock.clone(),
+                    _ => (r.kind(), frags(r)?),
                 };
-                for (i, f) in r.fragments.iter().enumerate() {
-                    let data = f.data()?;
-                    let base = match stock.as_ref().and_then(|s| s.fragments.get(i)) {
-                        Some(s) => Some(s.data()?),
-                        None => None,
-                    };
-                    if base.as_deref() == Some(data.as_slice()) || !swofty_formats::pkg::is_pkg(&data) {
-                        continue;
-                    }
-                    let report = if r.kind() == "UIDF" {
-                        crate::ui::check::ui_edit(&f.name(), &data, base.as_deref(), &scenes, cat, rules)
-                    } else {
-                        crate::ui::check::scene_edit(&data, cat, rules)
-                    }
-                    .map_err(|e| fail(format!("{rel}: {}: {e}", r.name)))?;
-                    hard.extend(report.hard.iter().map(|h| format!("{rel}: {}: {h}", r.name)));
-                    warnings.extend(report.warnings.iter().map(|w| format!("{rel}: {}: {w}", r.name)));
-                }
+                now.resources.insert(r.name.clone(), entry);
             }
+            edited.push(now);
+            stock.push(was);
         }
-        if !hard.is_empty() {
+        if edited.is_empty() {
+            return Ok(Vec::new());
+        }
+        let report = crate::ui::check::archives(
+            &edited,
+            &stock,
+            crate::ui::catalog::stock(),
+            crate::ui::catalog::engine(),
+        )
+        .map_err(|e| fail(format!("checking UI edits: {e}")))?;
+        if !report.hard.is_empty() {
+            let lines: Vec<String> = report.hard.iter().map(|h| h.to_string()).collect();
             return Err(fail(format!(
                 "{} UI edit(s) break rules the game's UI loader enforces:\n  {}",
-                hard.len(),
-                hard.join("\n  ")
+                lines.len(),
+                lines.join("\n  ")
             )));
         }
-        Ok(warnings)
+        Ok(report.warnings.iter().map(|w| w.to_string()).collect())
     }
 
     pub fn write(self, out: &Path) -> Result<Vec<String>> {

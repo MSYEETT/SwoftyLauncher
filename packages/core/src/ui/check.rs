@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use swofty_formats::hash::djb2;
 use swofty_formats::pkg::{Node, Pkg};
 
-use super::catalog::{Catalog, NodeType, Rule, Rules, Scenes, attr_shape, element_type, shape, tag};
+use super::catalog::{Catalog, Engine, EngineRule, NodeType, Scenes, attr_shape, element_type, shape, tag};
 use super::idf;
 use super::node::*;
 
@@ -362,7 +362,14 @@ pub fn integrity(data: &[u8]) -> crate::Result<(usize, usize, Vec<String>)> {
                 if e.get(hash).is_some() && u32_at(e, hash) != Some(djb2(name)) {
                     bad.push(format!("{path}: {key} {name}"));
                 }
-                for s in e.at("signals")?.a()?.iter().filter_map(Node::as_obj) {
+                for s in e
+                    .get("signals")
+                    .and_then(Node::as_arr)
+                    .map(|a| a.items.as_slice())
+                    .unwrap_or_default()
+                    .iter()
+                    .filter_map(Node::as_obj)
+                {
                     signals += 1;
                     let to = str_of(s, "to_object_name").unwrap_or_default();
                     let pin = str_of(s, "to_pin_name").unwrap_or_default();
@@ -416,6 +423,14 @@ impl Finding {
         }
     }
 
+    fn engine(rule: &EngineRule, at: &str, message: String) -> Self {
+        Self {
+            level: Level::Hard,
+            source: rule.cite(),
+            ..Self::warn(&rule.id, "", "", at, message)
+        }
+    }
+
     fn hard(code: &str, at: &str, message: String, source: &str) -> Self {
         Self {
             level: Level::Hard,
@@ -438,21 +453,16 @@ pub struct Report {
 }
 
 impl Report {
-    fn add(&mut self, f: Finding, rules: &Rules) {
-        let rule = rules
-            .rules
-            .iter()
-            .find(|r| r.matches(&f.code, &f.node_type, &f.name));
-        match rule {
-            Some(r) if r.effect != "warn" => self.hard.push(Finding {
-                level: Level::Hard,
-                source: format!("{} {}: {}", r.id, r.effect, r.evidence),
-                message: r.message.clone().unwrap_or(f.message.clone()),
-                ..f
-            }),
-            _ if f.level == Level::Hard => self.hard.push(f),
-            _ => self.warnings.push(f),
+    pub fn add(&mut self, f: Finding) {
+        match f.level {
+            Level::Hard => self.hard.push(f),
+            Level::Warn => self.warnings.push(f),
         }
+    }
+
+    pub fn extend(&mut self, other: Report) {
+        self.hard.extend(other.hard);
+        self.warnings.extend(other.warnings);
     }
 }
 
@@ -547,20 +557,467 @@ pub fn runtime_bindings(stock: &[u8], edited: &[u8], frag: &str) -> crate::Resul
     Ok(out)
 }
 
-pub fn required_props(data: &[u8], rules: &Rules, frag: &str) -> crate::Result<Vec<Finding>> {
-    let wanted: Vec<&Rule> = rules
-        .rules
-        .iter()
-        .filter(|r| matches!(r.code.as_str(), "required-prop" | "forbidden-prop"))
-        .collect();
+fn u64_of(n: Option<&Node>) -> Option<u64> {
+    match &n?.as_val()?.value {
+        swofty_formats::pkg::Value::Raw(b) if b.len() >= 8 => {
+            Some(u64::from_le_bytes(b[..8].try_into().ok()?))
+        }
+        _ => None,
+    }
+}
+
+struct Loader<'a> {
+    engine: &'a Engine,
+    frag: &'a str,
+    out: Vec<Finding>,
+}
+
+impl Loader<'_> {
+    fn flag(&mut self, id: &str, path: &str, message: String) {
+        if let Some(rule) = self.engine.rule(id) {
+            self.out
+                .push(Finding::engine(rule, &format!("{}: {path}", self.frag), message));
+        }
+    }
+
+    fn node(&mut self, n: &Node, parent: &str) {
+        let Some(items) = n.as_arr().map(|a| &a.items) else {
+            self.flag("node.record", parent, "a child is not a node record".into());
+            return;
+        };
+        let props = items.first().and_then(Node::as_obj);
+        let name = props.and_then(|p| str_of(p, "name"));
+        let ty = props
+            .and_then(|p| p.get("type"))
+            .and_then(Node::as_val)
+            .and_then(|v| v.as_u32());
+        let path = match (parent, name) {
+            ("", Some(nm)) => nm.to_owned(),
+            (_, Some(nm)) => format!("{parent}.{nm}"),
+            (_, None) => format!("{parent}.?"),
+        };
+        let slots_ok = (6..=8).contains(&items.len()) && items[1..].iter().all(|s| s.as_arr().is_some());
+        let (Some(_), Some(ty), true) = (name, ty, slots_ok) else {
+            self.flag(
+                "node.record",
+                &path,
+                "the node must be [props with name and type, children, commands, events, layout, components(, behaviours, slot7)]".into(),
+            );
+            return;
+        };
+        let class = fourcc_str(ty);
+        let here = format!("{path} [{class}]");
+        let slot = |i: usize| {
+            items
+                .get(i)
+                .and_then(Node::as_arr)
+                .map(|a| a.items.as_slice())
+                .unwrap_or_default()
+        };
+        let engine = self.engine;
+        let Some(info) = engine.classes.get(&class) else {
+            self.flag(
+                "node.class_registered",
+                &here,
+                format!("no node class is registered for {class}"),
+            );
+            return;
+        };
+        if info.init_calls_element_base {
+            if let Some(first) = slot(4).first() {
+                match first.as_arr() {
+                    Some(a) if a.items.is_empty() => self.flag(
+                        "layout.path_nonempty",
+                        &here,
+                        "the layout path is an empty list".into(),
+                    ),
+                    Some(a) => {
+                        for step in &a.items {
+                            let Some(o) = step.as_obj() else {
+                                self.flag("layout.step_keys", &here, "a layout step is not an object".into());
+                                continue;
+                            };
+                            if o.get("isComponentId").is_some() {
+                                if u64_of(o.get("componentId")).is_none() {
+                                    self.flag(
+                                        "layout.step_keys",
+                                        &here,
+                                        "a component layout step has no u64 componentId".into(),
+                                    );
+                                }
+                            } else if o
+                                .get("nodeId")
+                                .and_then(Node::as_val)
+                                .and_then(|v| v.as_u32())
+                                .is_none()
+                            {
+                                self.flag(
+                                    "layout.step_keys",
+                                    &here,
+                                    "a layout step has neither isComponentId nor a u32 nodeId".into(),
+                                );
+                            }
+                        }
+                    }
+                    None => self.flag(
+                        "layout.step_keys",
+                        &here,
+                        "the layout path is not a list of steps".into(),
+                    ),
+                }
+            }
+            if let Some(c) = slot(5).first() {
+                let ok = c
+                    .as_obj()
+                    .is_some_and(|o| o.get("name").is_some() && u64_of(o.get("componentId")).is_some());
+                if !ok {
+                    self.flag(
+                        "components.keys",
+                        &here,
+                        "the first component has no name or no u64 componentId".into(),
+                    );
+                }
+            }
+            for b in slot(6) {
+                if b.as_obj().and_then(|o| o.get("type")).is_none() {
+                    self.flag("behaviours.type", &here, "a behaviour has no type".into());
+                }
+            }
+        }
+        for (i, key, id) in [
+            (COMMANDS, "command", "commands.entry"),
+            (EVENTS, "event", "events.entry"),
+        ] {
+            for e in slot(i) {
+                let o = e.as_obj();
+                if !o.is_some_and(|o| {
+                    o.get(key).is_some() && o.get("signals").and_then(Node::as_arr).is_some()
+                }) {
+                    let what = o
+                        .and_then(|o| {
+                            str_of(
+                                o,
+                                if key == "command" {
+                                    "commandName"
+                                } else {
+                                    "eventName"
+                                },
+                            )
+                        })
+                        .unwrap_or("?");
+                    self.flag(
+                        id,
+                        &here,
+                        format!("{key} {what} needs a {key} hash and a signals list"),
+                    );
+                    continue;
+                }
+                let sigs = o
+                    .and_then(|o| o.get("signals"))
+                    .and_then(Node::as_arr)
+                    .map(|a| a.items.as_slice())
+                    .unwrap_or_default();
+                for s in sigs {
+                    let so = s.as_obj();
+                    let ok = so.is_some_and(|s| s.get("to_pin").is_some() && s.get("to_object").is_some());
+                    let maps_ok = so
+                        .and_then(|s| s.get("mappings"))
+                        .and_then(Node::as_arr)
+                        .is_none_or(|m| {
+                            m.items
+                                .iter()
+                                .all(|e| e.as_obj().is_some_and(|e| e.get("value").is_some()))
+                        });
+                    if !ok || !maps_ok {
+                        self.flag(
+                            "signals.entry",
+                            &here,
+                            "a signal needs to_pin and to_object, and every mapping a value".into(),
+                        );
+                    }
+                }
+            }
+        }
+        let p = props.expect("checked above");
+        if info.init_calls_list_base || LIST_CLASSES.contains(&class.as_str()) {
+            let db = p
+                .get("data")
+                .and_then(Node::as_obj)
+                .and_then(|d| d.get("dbentry"))
+                .and_then(Node::as_val)
+                .and_then(|v| v.as_str());
+            if db.is_none_or(str::is_empty) {
+                self.flag(
+                    "listbase.data_binding",
+                    &here,
+                    "data must be { value, dbentry } with a non-empty dbentry".into(),
+                );
+            }
+        }
+        if class == "SVCD" && p.get("value").is_none() {
+            self.flag("svcd.value", &here, "SVCD needs value".into());
+        }
+        if class == "F1TS"
+            && let Some(v) = p
+                .get("inputType")
+                .and_then(Node::as_obj)
+                .and_then(|o| str_of(o, "value"))
+            && !v.eq_ignore_ascii_case("normal")
+            && !v.eq_ignore_ascii_case("dpadOnly")
+        {
+            self.flag(
+                "f1ts.input_type",
+                &here,
+                format!("inputType {v:?} is neither normal nor dpadOnly"),
+            );
+        }
+        for c in slot(CHILDREN) {
+            self.node(c, &path);
+        }
+    }
+}
+
+fn root_names(data: &[u8]) -> crate::Result<Vec<(String, String)>> {
+    let p = Pkg::parse(data)?;
+    let root = p.root.o()?;
     let mut out = Vec::new();
-    if wanted.is_empty() {
-        return Ok(out);
+    for key in ["Screens", "Templates"] {
+        for t in root
+            .get(key)
+            .and_then(Node::as_arr)
+            .map(|a| a.items.as_slice())
+            .unwrap_or_default()
+        {
+            if t.is_node() {
+                out.push((key.to_owned(), t.name().to_owned()));
+            }
+        }
+    }
+    Ok(out)
+}
+
+pub fn loader_findings(
+    resource: &str,
+    frag: &str,
+    data: &[u8],
+    stock: Option<&[u8]>,
+    cat: &Catalog,
+    engine: &Engine,
+) -> crate::Result<Vec<Finding>> {
+    let p = Pkg::parse(data)?;
+    let root = p.root.o()?;
+    let mut l = Loader {
+        engine,
+        frag,
+        out: Vec::new(),
+    };
+    for key in ["Screens", "Templates"] {
+        for t in root
+            .get(key)
+            .and_then(Node::as_arr)
+            .map(|a| a.items.as_slice())
+            .unwrap_or_default()
+        {
+            l.node(t, "");
+        }
+    }
+    let names = root_names(data)?;
+    let before: BTreeSet<(String, String)> = match stock {
+        Some(s) => root_names(s)?.into_iter().collect(),
+        None => BTreeSet::new(),
+    };
+    let mut seen = BTreeSet::new();
+    for (kind, name) in &names {
+        let id = if kind == "Templates" {
+            "template.duplicate"
+        } else {
+            "screen.duplicate"
+        };
+        let what = if kind == "Templates" { "template" } else { "screen" };
+        if !seen.insert((kind.clone(), name.clone())) {
+            l.flag(id, name, format!("a second {what} named {name} in this file"));
+            continue;
+        }
+        if before.contains(&(kind.clone(), name.clone())) {
+            continue;
+        }
+        let elsewhere: Vec<&String> = cat
+            .root_names
+            .get(kind)
+            .and_then(|m| m.get(name))
+            .map(|v| v.iter().filter(|r| r.as_str() != resource).collect())
+            .unwrap_or_default();
+        if let Some(other) = elsewhere.first() {
+            l.flag(
+                id,
+                name,
+                format!("stock {other} already registers a {what} named {name}"),
+            );
+        }
+    }
+    Ok(l.out)
+}
+
+#[derive(Clone, Copy)]
+pub struct UiInput<'a> {
+    pub resource: &'a str,
+    pub frag: &'a str,
+    pub data: &'a [u8],
+    pub stock: Option<&'a [u8]>,
+}
+
+pub fn ui_edit(input: &UiInput, scenes: &Scenes, cat: &Catalog, engine: &Engine) -> crate::Result<Report> {
+    let mut report = Report::default();
+    let frag = input.frag;
+    let mut found = integrity_findings(input.data, frag)?;
+    found.extend(loader_findings(
+        input.resource,
+        frag,
+        input.data,
+        input.stock,
+        cat,
+        engine,
+    )?);
+    found.extend(against_stock(input.data, cat, scenes)?.into_iter().map(|mut f| {
+        f.at = format!("{frag}: {}", f.at);
+        f
+    }));
+    if let Some(s) = input.stock {
+        found.extend(runtime_bindings(s, input.data, frag)?);
+    }
+    for f in found {
+        report.add(f);
+    }
+    Ok(report)
+}
+
+pub fn scene_edit(resource: &str, data: &[u8], cat: &Catalog) -> crate::Result<Report> {
+    let mut report = Report::default();
+    let p = Pkg::parse(data)?;
+    let format = "format: the game finds a scene by its componentId, md5-64 of its eaid path, and an element by its leaf name through nodeidlookup";
+    for m in idf::xref_mismatches(&p)? {
+        let (at, msg) = m.split_once(": ").unwrap_or((&m, ""));
+        report.add(Finding::hard(
+            "xref-mismatch",
+            at,
+            msg.to_owned(),
+            "format: the game loads the scene an eXRef's xref id names",
+        ));
+    }
+    if resource.ends_with(".idf") {
+        let want = idf::scene_id(resource);
+        for entry in idf::scenes(&p)? {
+            if idf::scene_name(entry) != Some(want) {
+                report.add(Finding::hard(
+                    "scene-id",
+                    resource,
+                    format!("the scene's name is not {want:#018x}, the componentId of its path"),
+                    format,
+                ));
+            }
+        }
+    }
+    for problem in idf::id_problems(&p)? {
+        if problem == "nodeidlookup" {
+            report.add(Finding::hard(
+                "nodeidlookup",
+                resource,
+                "nodeidlookup is not the sorted djb2 of every element's leaf name, so layout attaches cannot find the missing elements".into(),
+                format,
+            ));
+        } else {
+            report.add(Finding::warn(
+                "element-id",
+                "",
+                &problem,
+                resource,
+                format!("{problem} is not the djb2 of the element's dotted path"),
+            ));
+        }
+    }
+    for f in scene_against_stock(data, cat)? {
+        report.add(f);
+    }
+    Ok(report)
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ArchiveUi {
+    pub archive: String,
+    pub resources: BTreeMap<String, (String, Vec<Vec<u8>>)>,
+}
+
+impl ArchiveUi {
+    pub fn read(archive: &str, path: &std::path::Path) -> crate::Result<Self> {
+        let all = swofty_formats::erp::Erp::read_matching(path, |n| {
+            n.ends_with(".ui") || (n.ends_with(".idf") && !n.contains('?'))
+        })?;
+        let mut resources = BTreeMap::new();
+        for r in all
+            .into_iter()
+            .filter(|r| matches!(r.kind().as_str(), "UIDF" | "UILayout"))
+        {
+            let frags = r
+                .fragments
+                .iter()
+                .map(|f| f.data())
+                .collect::<swofty_formats::Result<Vec<_>>>()?;
+            resources.insert(r.name.clone(), (r.kind(), frags));
+        }
+        Ok(Self {
+            archive: archive.to_owned(),
+            resources,
+        })
+    }
+
+    fn scenes(&self) -> Scenes {
+        let mut s = Scenes::default();
+        for (kind, frags) in self.resources.values() {
+            if kind == "UILayout"
+                && let Some(f) = frags.first()
+            {
+                s.add(f).ok();
+            }
+        }
+        s
+    }
+}
+
+type Binding = (String, Option<u64>, Vec<u32>, Vec<String>);
+type CopyOf<'a> = (&'a String, &'a Vec<Vec<u8>>);
+
+fn bindings(data: &[u8]) -> crate::Result<Vec<Binding>> {
+    fn walk(n: &Node, path: &str, ctx: Option<u64>, out: &mut Vec<Binding>) {
+        let here = if path.is_empty() {
+            n.name().to_owned()
+        } else {
+            format!("{path}.{}", n.name())
+        };
+        let own = node_scene(n);
+        if let Some(first) = layout_groups(n).into_iter().next() {
+            let ids: Vec<u32> = first
+                .iter()
+                .filter_map(|b| b.get("nodeId"))
+                .filter_map(Node::as_val)
+                .filter_map(|v| v.as_u32())
+                .collect();
+            let names: Vec<String> = first
+                .iter()
+                .filter_map(|b| str_of(b, "debugName"))
+                .map(str::to_owned)
+                .collect();
+            if !path.is_empty() && !ids.is_empty() && ids.len() == first.len() {
+                out.push((here.clone(), ctx, ids, names));
+            }
+        }
+        for c in n.slot(CHILDREN).into_iter().flatten().filter(|c| c.is_node()) {
+            walk(c, &here, own.or(ctx), out);
+        }
     }
     let p = Pkg::parse(data)?;
-    let mut nodes = Vec::new();
+    let mut out = Vec::new();
     for key in ["Screens", "Templates"] {
-        for top in p
+        for t in p
             .root
             .o()?
             .get(key)
@@ -568,76 +1025,217 @@ pub fn required_props(data: &[u8], rules: &Rules, frag: &str) -> crate::Result<V
             .map(|a| a.items.as_slice())
             .unwrap_or_default()
         {
-            integrity_walk(top, None, &mut nodes);
-        }
-    }
-    for (path, n) in nodes {
-        let t = n.type_code();
-        let props = n.props()?;
-        for r in &wanted {
-            let Some(name) = r.name.as_deref() else { continue };
-            if !r.node_type.as_deref().is_none_or(|x| x == "*" || x == t) {
-                continue;
-            }
-            let has = props.get(name).is_some();
-            if (r.code == "required-prop") != has {
-                let what = if has { "sets" } else { "does not set" };
-                out.push(Finding::warn(
-                    &r.code,
-                    &t,
-                    name,
-                    &format!("{frag}: {path} [{t}]"),
-                    format!("{what} {name}"),
-                ));
+            if t.is_node() {
+                walk(t, "", node_scene(t), &mut out);
             }
         }
     }
     Ok(out)
 }
 
-pub fn ui_edit(
-    frag: &str,
-    data: &[u8],
-    stock: Option<&[u8]>,
-    scenes: &Scenes,
+fn roots_scenes(data: &[u8]) -> crate::Result<Vec<(String, u64)>> {
+    let p = Pkg::parse(data)?;
+    let mut out = Vec::new();
+    for key in ["Screens", "Templates"] {
+        for t in p
+            .root
+            .o()?
+            .get(key)
+            .and_then(Node::as_arr)
+            .map(|a| a.items.as_slice())
+            .unwrap_or_default()
+        {
+            if let Some(id) = t.is_node().then(|| node_scene(t)).flatten() {
+                out.push((t.name().to_owned(), id));
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn in_lookup(scenes: &Scenes, ids: &[u32]) -> Option<u32> {
+    ids.iter()
+        .copied()
+        .find(|id| !scenes.scenes.values().any(|s| s.lookup.binary_search(id).is_ok()))
+}
+
+pub fn scene_bindings(
+    archive: &str,
+    input: &UiInput,
+    edited: &Scenes,
+    before: &Scenes,
     cat: &Catalog,
-    rules: &Rules,
+) -> crate::Result<Vec<Finding>> {
+    let UiInput {
+        resource,
+        frag,
+        data,
+        stock,
+    } = *input;
+    let format = "format: the game resolves each layout step's nodeId through the nodeidlookup of the scene it reaches";
+    let mut out = Vec::new();
+    let at = |p: &str| format!("{archive}: {resource} {frag}: {p}");
+    let stock_roots: BTreeSet<(String, u64)> = match stock {
+        Some(s) => roots_scenes(s)?.into_iter().collect(),
+        None => BTreeSet::new(),
+    };
+    for (root, id) in roots_scenes(data)? {
+        if stock_roots.contains(&(root.clone(), id)) {
+            continue;
+        }
+        if !edited.scenes.contains_key(&id) && !cat.has_scene(id) {
+            out.push(Finding::hard(
+                "component-missing",
+                &at(&root),
+                format!("its scene {id:#018x} is in neither this archive nor any stock archive"),
+                format,
+            ));
+        } else if !edited.scenes.contains_key(&id) {
+            out.push(Finding::warn("component-elsewhere", "", &format!("{id:016x}"), &at(&root), format!("its scene {id:#018x} is not in this archive; it loads only if another archive has brought it in")));
+        }
+    }
+    let old = match stock {
+        Some(s) => bindings(s)?,
+        None => Vec::new(),
+    };
+    let found: BTreeSet<(String, Vec<u32>)> = old
+        .iter()
+        .filter(|(_, _, ids, _)| in_lookup(before, ids).is_none())
+        .map(|(p, _, ids, _)| (p.clone(), ids.clone()))
+        .collect();
+    let resolved: BTreeSet<(String, Vec<u32>)> = old
+        .iter()
+        .filter(|(_, ctx, ids, _)| resolves(before, *ctx, ids))
+        .map(|(p, _, ids, _)| (p.clone(), ids.clone()))
+        .collect();
+    let known: BTreeSet<(String, Vec<u32>)> = old.into_iter().map(|(p, _, ids, _)| (p, ids)).collect();
+    for (path, ctx, ids, names) in bindings(data)? {
+        let key = (path.clone(), ids.clone());
+        if let Some(missing) = in_lookup(edited, &ids) {
+            let name = names
+                .get(ids.iter().position(|i| *i == missing).unwrap_or(0))
+                .cloned()
+                .unwrap_or_default();
+            if found.contains(&key) {
+                out.push(Finding::hard(
+                    "layout-node-missing",
+                    &at(&path),
+                    format!("layout step {name} (nodeId {missing}) was in the stock scenes of this archive and is in no edited scene's nodeidlookup"),
+                    format,
+                ));
+            } else if !known.contains(&key) {
+                out.push(Finding::warn(
+                    "layout-node-unknown",
+                    "",
+                    &name,
+                    &at(&path),
+                    format!("layout step {name} (nodeId {missing}) is in no scene's nodeidlookup in this archive; it binds only if another archive's scene or native code provides it"),
+                ));
+            }
+            continue;
+        }
+        if resolved.contains(&key) && !resolves(edited, ctx, &ids) {
+            out.push(Finding::hard(
+                "layout-unresolved",
+                &at(&path),
+                format!(
+                    "layout {} resolved against the stock scenes and does not resolve against the edited ones",
+                    names.join(">")
+                ),
+                format,
+            ));
+        }
+    }
+    Ok(out)
+}
+
+fn resolves(scenes: &Scenes, ctx: Option<u64>, ids: &[u32]) -> bool {
+    let Some(sid) = ctx else { return false };
+    scenes.resolve_ids(ids, sid)
+}
+
+pub fn archives(
+    edited: &[ArchiveUi],
+    stock: &[ArchiveUi],
+    cat: &Catalog,
+    engine: &Engine,
 ) -> crate::Result<Report> {
     let mut report = Report::default();
-    let mut found = integrity_findings(data, frag)?;
-    found.extend(against_stock(data, cat, scenes)?.into_iter().map(|mut f| {
-        f.at = format!("{frag}: {}", f.at);
-        f
-    }));
-    if let Some(s) = stock {
-        found.extend(runtime_bindings(s, data, frag)?);
+    let empty = ArchiveUi::default();
+    for a in edited {
+        let s = stock.iter().find(|s| s.archive == a.archive).unwrap_or(&empty);
+        let changed: Vec<(&String, &String, &Vec<Vec<u8>>)> = a
+            .resources
+            .iter()
+            .filter(|(name, (_, frags))| s.resources.get(*name).is_none_or(|(_, f)| f != frags))
+            .map(|(name, (kind, frags))| (name, kind, frags))
+            .collect();
+        if changed.is_empty() {
+            continue;
+        }
+        let (scenes, before) = (a.scenes(), s.scenes());
+        for (name, kind, frags) in changed {
+            let base = s.resources.get(name).map(|(_, f)| f);
+            for (i, data) in frags.iter().enumerate() {
+                let old = base.and_then(|f| f.get(i)).map(Vec::as_slice);
+                if old == Some(data.as_slice()) || !swofty_formats::pkg::is_pkg(data) {
+                    continue;
+                }
+                let frag = format!("{}#{i}", if kind == "UIDF" { "ui" } else { "idf" });
+                let mut r = if kind == "UIDF" {
+                    let input = UiInput {
+                        resource: name,
+                        frag: &frag,
+                        data,
+                        stock: old,
+                    };
+                    let mut r = ui_edit(&input, &scenes, cat, engine)?;
+                    for f in scene_bindings(&a.archive, &input, &scenes, &before, cat)? {
+                        r.add(f);
+                    }
+                    r
+                } else {
+                    scene_edit(name, data, cat)?
+                };
+                for f in r.hard.iter_mut().chain(r.warnings.iter_mut()) {
+                    if !f.at.starts_with(&a.archive) {
+                        f.at = format!("{}: {name}: {}", a.archive, f.at);
+                    }
+                }
+                report.extend(r);
+            }
+        }
     }
-    found.extend(required_props(data, rules, frag)?);
-    for f in found {
-        report.add(f, rules);
+    let mut copies: BTreeMap<&String, Vec<CopyOf>> = BTreeMap::new();
+    for a in edited {
+        for (name, (_, frags)) in &a.resources {
+            copies.entry(name).or_default().push((&a.archive, frags));
+        }
+    }
+    for (name, list) in copies {
+        if let Some((a, first)) = list.first()
+            && let Some((b, _)) = list.iter().find(|(_, f)| f != first)
+        {
+            report.add(Finding::warn(
+                "copies-differ",
+                "",
+                name,
+                name,
+                format!("{a} and {b} carry different copies; the game uses the one from the archive that loads first"),
+            ));
+        }
     }
     Ok(report)
 }
 
-pub fn scene_edit(data: &[u8], cat: &Catalog, rules: &Rules) -> crate::Result<Report> {
-    let mut report = Report::default();
-    let p = Pkg::parse(data)?;
-    for m in idf::xref_mismatches(&p)? {
-        let (at, msg) = m.split_once(": ").unwrap_or((&m, ""));
-        report.add(
-            Finding::hard(
-                "xref-mismatch",
-                at,
-                msg.to_owned(),
-                "format: the game loads the scene an eXRef's xref id names",
-            ),
-            rules,
-        );
+pub fn archive_files(pairs: &[(&str, &std::path::Path, &std::path::Path)]) -> crate::Result<Report> {
+    let mut edited = Vec::new();
+    let mut stock = Vec::new();
+    for (name, before, after) in pairs {
+        stock.push(ArchiveUi::read(name, before)?);
+        edited.push(ArchiveUi::read(name, after)?);
     }
-    for f in scene_against_stock(data, cat)? {
-        report.add(f, rules);
-    }
-    Ok(report)
+    archives(&edited, &stock, super::catalog::stock(), super::catalog::engine())
 }
 
 const SKIP_PROPS: &[&str] = &["id", "nameId", "version", "name", "type"];
@@ -818,8 +1416,9 @@ impl Stock<'_> {
                         name,
                         here,
                         format!(
-                            "{kind} {name} has no signals; all {} stock {t} {name} {kind}s have signals",
-                            s.count
+                            "{kind} {name} has no signals; all {} stock {t} {name} {kind}s have signals. The loader accepts an empty signals list, and raising the {kind} then does nothing ({}.entry; Vm_Raise_NodeEvent 0x1442468d0)",
+                            s.count,
+                            if kind == "event" { "events" } else { "commands" }
                         ),
                     )),
                     Some(s) if !sigs.is_empty() && s.no_signals == s.count => out.push(Finding::warn(
@@ -858,7 +1457,10 @@ impl Stock<'_> {
                             tt,
                             pin,
                             here,
-                            format!("on {name} -> {to}.{pin}: no stock signal reaches pin {pin} on a {tt}"),
+                            format!(
+                                "on {name} -> {to}.{pin}: no stock signal reaches pin {pin} on a {tt}{}",
+                                pin_note(tt, pin)
+                            ),
                         ));
                         continue;
                     };
@@ -954,6 +1556,16 @@ impl Stock<'_> {
                 kid_scopes.push(x);
             }
         }
+    }
+}
+
+fn pin_note(class: &str, pin: &str) -> String {
+    match super::catalog::engine().classes.get(class) {
+        Some(c) if !c.native_pins.iter().any(|p| p == pin) => format!(
+            "; the {class} pin handler ({}) has no case for it, so the signal does nothing unless the target declares an event or command named {pin}",
+            c.deliver_pin
+        ),
+        _ => String::new(),
     }
 }
 
@@ -1418,49 +2030,219 @@ mod tests {
         assert!(c.scene_elements["eMaskTexture"].children.contains_key("eXRef"));
     }
 
-    #[test]
-    fn loader_rules_turn_matching_findings_into_hard_ones() {
-        let rules: Rules = serde_json::from_value(serde_json::json!({
-            "schema_version": 1,
+    fn engine() -> Engine {
+        let rule = |id: &str, code: u64| serde_json::json!({ "id": id, "level": "L2", "check": "", "fail": { "code": code, "scope": "node" }, "fn": format!("0x14000{code:04x} {id}") });
+        serde_json::from_value(serde_json::json!({
+            "schema": 1,
             "rules": [
-                { "id": "nav-needs-signals", "code": "event-no-signals", "node_type": "UIGP", "name": "navUp", "effect": "reject", "evidence": "FUN_140000000 L2" },
-                { "id": "row-needs-visible", "code": "required-prop", "node_type": "UIGP", "name": "visible", "effect": "drop", "evidence": "FUN_140000010 L1" }
-            ]
+                rule("node.record", 5), rule("node.class_registered", 5), rule("layout.path_nonempty", 34),
+                rule("layout.step_keys", 3), rule("components.keys", 3), rule("behaviours.type", 3),
+                rule("commands.entry", 3), rule("events.entry", 3), rule("signals.entry", 3),
+                rule("listbase.data_binding", 5), rule("svcd.value", 3), rule("f1ts.input_type", 87),
+                rule("template.duplicate", 88), rule("screen.duplicate", 85)
+            ],
+            "classes": {
+                "UIGP": { "init_calls_element_base": true },
+                "F1TS": { "init_calls_element_base": true },
+                "SVCD": { "init_calls_element_base": true },
+                "UIL2": { "init_calls_element_base": true, "init_calls_list_base": true }
+            }
         }))
-        .unwrap();
-        let row = node("row", "UIGP", vec![], vec![event("navUp", vec![])], &[], &[]);
-        let report = ui_edit(
-            "syst",
-            &template(vec![row], 1),
-            None,
-            &Scenes::default(),
-            &cat(),
-            &rules,
-        )
-        .unwrap();
-        assert_eq!(report.hard.len(), 3, "{report:#?}");
+        .unwrap()
+    }
+
+    fn input<'a>(data: &'a [u8], stock: Option<&'a [u8]>) -> UiInput<'a> {
+        UiInput {
+            resource: "eaid://ui_package/screens/x.ui",
+            frag: "syst",
+            data,
+            stock,
+        }
+    }
+
+    #[test]
+    fn engine_rules_reject_what_the_loader_rejects() {
+        let mut row = node("row", "UIGP", vec![], vec![], &[], &[]);
+        row.a_mut().unwrap()[EVENTS] = arr(vec![obj(vec![
+            ("eventName", s("navUp")),
+            ("event", u32v(djb2("navUp"))),
+        ])]);
+        row.a_mut().unwrap()[LAYOUT] = arr(vec![arr(vec![])]);
+        let spawner = node(
+            "sp",
+            "F1TS",
+            vec![("inputType", prop(s("stick"), None))],
+            vec![],
+            &["a"],
+            &[],
+        );
+        let query = node("q", "SVCD", vec![], vec![], &[], &[]);
+        let list = node("l", "UIL2", vec![("data", prop(s("x"), None))], vec![], &[], &[]);
+        let alien = node("z", "UIZZ", vec![], vec![], &[], &[]);
+        let mut bad_step = node("b", "UIGP", vec![], vec![], &[], &[]);
+        bad_step.a_mut().unwrap()[LAYOUT] = arr(vec![arr(vec![obj(vec![("debugName", s("b"))])])]);
+        let tpl = template_node(vec![row, spawner, query, list, alien, bad_step], 1);
+        let mut other = template_node(vec![], 2);
+        other.props_mut().unwrap().set("name", s("tile"));
+        let mut cat = cat();
+        cat.root_names.insert(
+            "Templates".into(),
+            BTreeMap::from([(
+                "tile".to_owned(),
+                vec!["eaid://ui_package/screens/y.ui".to_owned()],
+            )]),
+        );
+        let data = pkg(obj(vec![("Templates", arr(vec![tpl.clone(), tpl, other]))]));
+        let report = ui_edit(&input(&data, None), &Scenes::default(), &cat, &engine()).unwrap();
+        let ids: BTreeSet<&str> = report.hard.iter().map(|h| h.code.as_str()).collect();
+        for id in [
+            "events.entry",
+            "layout.path_nonempty",
+            "layout.step_keys",
+            "f1ts.input_type",
+            "svcd.value",
+            "listbase.data_binding",
+            "node.class_registered",
+            "template.duplicate",
+        ] {
+            assert!(ids.contains(id), "{id} missing: {report:#?}");
+        }
+        let dup: Vec<&Finding> = report
+            .hard
+            .iter()
+            .filter(|h| h.code == "template.duplicate")
+            .collect();
+        assert_eq!(dup.len(), 2, "{dup:#?}");
+        assert!(dup.iter().any(|h| h.message.contains("y.ui")), "{dup:#?}");
+        let f1ts = report.hard.iter().find(|h| h.code == "f1ts.input_type").unwrap();
+        assert!(
+            f1ts.source.starts_with("f1ts.input_type L2: rc 0x57"),
+            "{f1ts:#?}"
+        );
+        assert!(f1ts.source.contains("0x140000057"), "{f1ts:#?}");
+        let stock = pkg(obj(vec![("Templates", arr(vec![template_node(vec![], 1)]))]));
+        let clean = ui_edit(&input(&stock, Some(&stock)), &Scenes::default(), &cat, &engine()).unwrap();
+        assert!(clean.hard.is_empty() && clean.warnings.is_empty(), "{clean:#?}");
+    }
+
+    #[test]
+    fn the_engine_rules_file_loads() {
+        let e = super::super::catalog::engine();
+        assert!(e.rules.len() >= 18);
+        assert_eq!(e.classes.len(), 136);
+        for id in [
+            "node.record",
+            "events.entry",
+            "signals.entry",
+            "template.duplicate",
+            "f1ts.input_type",
+        ] {
+            assert!(e.rule(id).is_some(), "{id}");
+        }
+        assert!(e.classes["F1TS"].native_pins.iter().any(|p| p == "inputAllow"));
+    }
+
+    fn scene_at(path: &str, kids: Vec<Node>) -> Vec<u8> {
+        let mut entry = obj(vec![
+            ("scene", el("Scene Root", "eScene", kids, None)),
+            ("name", u64v(idf::scene_id(path))),
+            ("nodeidlookup", arr(vec![])),
+        ]);
+        idf::relookup(&mut entry).unwrap();
+        let mut p = Pkg::parse(&pkg(obj(vec![("scenelist", arr(vec![entry]))]))).unwrap();
+        for e in idf::scenes_mut(&mut p).unwrap() {
+            let root = e.o_mut().unwrap().at_mut("scene").unwrap();
+            for c in idf::children_mut(root).unwrap() {
+                let n = idf::elem_name(c).to_owned();
+                idf::recompute_ids(c, &n).unwrap();
+            }
+        }
+        p.to_bytes().unwrap()
+    }
+
+    #[test]
+    fn scene_edits_are_checked_against_the_ui_that_binds_them() {
+        let path = "eaid://ui_package/art/x.idf";
+        let id = idf::scene_id(path);
+        let ui = "eaid://ui_package/screens/x.ui";
+        let tpl = |kids: Vec<Node>| pkg(obj(vec![("Templates", arr(vec![template_node(kids, id)]))]));
+        let bound = || node("row", "UIGP", vec![], vec![], &["row"], &[]);
+        let stock_scene = scene_at(path, vec![el("row", "eNull", vec![], None)]);
+        let archive = |name: &str, scene: &[u8], ui_data: &[u8]| ArchiveUi {
+            archive: name.into(),
+            resources: BTreeMap::from([
+                (path.to_owned(), ("UILayout".to_owned(), vec![scene.to_vec()])),
+                (ui.to_owned(), ("UIDF".to_owned(), vec![ui_data.to_vec()])),
+            ]),
+        };
+        let stock_ui = tpl(vec![bound()]);
+        let stock = [
+            archive("a.erp", &stock_scene, &stock_ui),
+            archive("b.erp", &stock_scene, &stock_ui),
+        ];
+        let mut cat = cat();
+        cat.scene_ids = vec![format!("{id:016x}")];
+        let engine = engine();
+
+        let renamed = scene_at(path, vec![el("row_2", "eNull", vec![], None)]);
+        let new_ui = tpl(vec![
+            bound(),
+            node("extra", "UIGP", vec![], vec![], &["row"], &[]),
+        ]);
+        let edited = [
+            archive("a.erp", &renamed, &new_ui),
+            archive("b.erp", &stock_scene, &stock_ui),
+        ];
+        let report = archives(&edited, &stock, &cat, &engine).unwrap();
+        let has = |code: &str, at: &str| {
+            report
+                .hard
+                .iter()
+                .chain(&report.warnings)
+                .any(|f| f.code == code && f.to_string().contains(at))
+        };
+        assert!(
+            has(
+                "layout-node-unknown",
+                "a.erp: eaid://ui_package/screens/x.ui ui#0: tpl.extra"
+            ),
+            "{report:#?}"
+        );
+        assert!(has("layout-node-missing", "tpl.row"), "{report:#?}");
+        assert!(has("copies-differ", "a.erp and b.erp"), "{report:#?}");
+        assert!(report.hard.iter().all(|h| h.level == Level::Hard));
         assert!(
             report
                 .hard
                 .iter()
-                .any(|h| h.source.starts_with("nav-needs-signals reject"))
+                .any(|h| h.code == "layout-node-missing" && h.at.contains("tpl.row")),
+            "{report:#?}"
         );
+
+        let mut stale = Pkg::parse(&stock_scene).unwrap();
+        let entry = &mut idf::scenes_mut(&mut stale).unwrap()[0];
+        let root = entry.o_mut().unwrap().at_mut("scene").unwrap();
+        idf::children_mut(root)
+            .unwrap()
+            .push(el("row_3", "eNull", vec![], None));
+        entry.o_mut().unwrap().set("name", u64v(7));
+        let stale = stale.to_bytes().unwrap();
+        let edited = [
+            archive("a.erp", &stale, &stock_ui),
+            archive("b.erp", &stale, &stock_ui),
+        ];
+        let report = archives(&edited, &stock, &cat, &engine).unwrap();
+        let codes: BTreeSet<&str> = report.hard.iter().map(|h| h.code.as_str()).collect();
         assert!(
-            report
-                .hard
-                .iter()
-                .any(|h| h.code == "required-prop" && h.source.starts_with("row-needs-visible drop"))
+            codes.contains("nodeidlookup") && codes.contains("scene-id"),
+            "{report:#?}"
         );
-        let none = ui_edit(
-            "syst",
-            &template(vec![], 1),
-            None,
-            &Scenes::default(),
-            &cat(),
-            &Rules::default(),
-        )
-        .unwrap();
-        assert!(none.hard.is_empty() && none.warnings.is_empty(), "{none:#?}");
+
+        let report = archives(&stock, &stock, &cat, &engine).unwrap();
+        assert!(
+            report.hard.is_empty() && report.warnings.is_empty(),
+            "{report:#?}"
+        );
     }
 
     #[test]
@@ -1527,15 +2309,8 @@ mod tests {
             .props_mut()
             .unwrap()
             .set("nameId", u32v(1));
-        let report = ui_edit(
-            "syst",
-            &pkg(obj(vec![("Templates", arr(vec![root]))])),
-            None,
-            &Scenes::default(),
-            &cat(),
-            &Rules::default(),
-        )
-        .unwrap();
+        let data = pkg(obj(vec![("Templates", arr(vec![root]))]));
+        let report = ui_edit(&input(&data, None), &Scenes::default(), &cat(), &engine()).unwrap();
         assert_eq!(report.hard.len(), 1, "{report:#?}");
         assert!(
             report.hard[0].to_string().contains("tpl.row: nameId"),

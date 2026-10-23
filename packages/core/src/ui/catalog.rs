@@ -7,41 +7,85 @@ use swofty_formats::pkg::{Node, Pkg, Val, Value};
 use super::idf;
 
 const STOCK_JSON: &str = include_str!("../../../../tools/uicatalog/catalog.json");
-const RULES_JSON: &str = include_str!("../../../../tools/uicatalog/loader_rules.json");
+const ENGINE_JSON: &str = include_str!("../../../../re/db/ui/loader_rules.json");
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
-pub struct Rules {
-    pub schema_version: u32,
-    pub rules: Vec<Rule>,
+pub struct Engine {
+    pub schema: u32,
+    pub build: String,
+    pub error_codes: BTreeMap<String, String>,
+    pub rules: Vec<EngineRule>,
+    pub silently_ignored: Vec<String>,
+    pub element_base_props: Vec<String>,
+    pub classes: BTreeMap<String, Class>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
 #[serde(default)]
-pub struct Rule {
+pub struct EngineRule {
     pub id: String,
-    pub code: String,
-    pub node_type: Option<String>,
-    pub name: Option<String>,
-    pub effect: String,
-    pub evidence: String,
-    pub message: Option<String>,
+    pub level: String,
+    pub check: String,
+    pub fail: Fail,
+    #[serde(rename = "fn")]
+    pub func: String,
+    pub ev: String,
 }
 
-impl Rule {
-    pub fn matches(&self, code: &str, node_type: &str, name: &str) -> bool {
-        self.code == code
-            && self
-                .node_type
-                .as_deref()
-                .is_none_or(|t| t == "*" || t == node_type)
-            && self.name.as_deref().is_none_or(|n| n == "*" || n == name)
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(default)]
+pub struct Fail {
+    pub code: serde_json::Value,
+    pub scope: String,
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(default)]
+pub struct Class {
+    pub registry: String,
+    pub init: String,
+    pub deliver_pin: String,
+    pub init_calls_element_base: bool,
+    pub init_calls_list_base: bool,
+    pub props_read_by_init: Vec<String>,
+    pub native_pins: Vec<String>,
+}
+
+impl Engine {
+    pub fn rule(&self, id: &str) -> Option<&EngineRule> {
+        self.rules.iter().find(|r| r.id == id)
     }
 }
 
-pub fn rules() -> &'static Rules {
-    static RULES: OnceLock<Rules> = OnceLock::new();
-    RULES.get_or_init(|| serde_json::from_str(RULES_JSON).expect("tools/uicatalog/loader_rules.json parses"))
+impl EngineRule {
+    pub fn code(&self) -> String {
+        match &self.fail.code {
+            serde_json::Value::Number(n) => match n.as_u64() {
+                Some(v) if v > 9 => format!("{v:#x}"),
+                Some(v) => v.to_string(),
+                None => n.to_string(),
+            },
+            serde_json::Value::String(s) => s.clone(),
+            other => other.to_string(),
+        }
+    }
+
+    pub fn cite(&self) -> String {
+        format!(
+            "{} {}: rc {}, takes down the {}; {}",
+            self.id,
+            self.level,
+            self.code(),
+            self.fail.scope,
+            self.func
+        )
+    }
+}
+
+pub fn engine() -> &'static Engine {
+    static ENGINE: OnceLock<Engine> = OnceLock::new();
+    ENGINE.get_or_init(|| serde_json::from_str(ENGINE_JSON).expect("re/db/ui/loader_rules.json parses"))
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -49,6 +93,14 @@ pub fn rules() -> &'static Rules {
 pub struct Catalog {
     pub node_types: BTreeMap<String, NodeType>,
     pub scene_elements: BTreeMap<String, ElementType>,
+    pub root_names: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+    pub scene_ids: Vec<String>,
+}
+
+impl Catalog {
+    pub fn has_scene(&self, id: u64) -> bool {
+        self.scene_ids.binary_search(&format!("{id:016x}")).is_ok()
+    }
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -193,6 +245,7 @@ pub struct Scene {
     pub elements: Vec<(String, String, Option<u64>, String)>,
     pub by_name: HashMap<String, Vec<usize>>,
     pub xrefs: Vec<u64>,
+    pub lookup: Vec<u32>,
 }
 
 #[derive(Debug, Default)]
@@ -228,6 +281,17 @@ impl Scenes {
                     if i == 0 { String::new() } else { path },
                 ));
             }
+            sc.lookup = entry
+                .as_obj()
+                .and_then(|o| o.get("nodeidlookup"))
+                .and_then(Node::as_arr)
+                .map(|a| {
+                    a.items
+                        .iter()
+                        .filter_map(|v| v.as_val().and_then(Val::as_u32))
+                        .collect()
+                })
+                .unwrap_or_default();
             self.scenes.insert(sid, sc);
         }
         Ok(())
@@ -267,6 +331,28 @@ impl Scenes {
             queue.extend(sc.xrefs.iter().copied());
         }
         Vec::new()
+    }
+
+    pub fn resolve_ids(&self, ids: &[u32], sid: u64) -> bool {
+        let Some((first, rest)) = ids.split_first() else {
+            return true;
+        };
+        let Some(sc) = self.scenes.get(&sid) else {
+            return false;
+        };
+        let hits: Vec<&(String, String, Option<u64>, String)> = sc
+            .elements
+            .iter()
+            .filter(|(name, ..)| swofty_formats::hash::djb2(name) == *first)
+            .collect();
+        if hits.is_empty() {
+            return sc.xrefs.iter().any(|x| self.resolve_ids(ids, *x));
+        }
+        if rest.is_empty() {
+            return true;
+        }
+        hits.iter()
+            .any(|(_, _, x, _)| x.is_some_and(|x| self.resolve_ids(rest, x)))
     }
 
     pub fn resolve(&self, names: &[&str], sid: u64) -> Result<(Vec<String>, Option<u64>), String> {

@@ -1,77 +1,57 @@
-use std::collections::BTreeSet;
 use std::path::Path;
 
-use swofty_core::ui::catalog::{self, Scenes};
-use swofty_core::ui::check;
-use swofty_formats::erp::Erp;
-
-fn findings(erp: &Path, resource: &str, stock: Option<&Path>) -> Vec<String> {
-    let all = Erp::read_matching(erp, |n| {
-        n == resource || (n.ends_with(".idf") && !n.contains('?'))
-    })
-    .expect("read the archive");
-    let mut scenes = Scenes::default();
-    for r in all.iter().filter(|r| r.kind() == "UILayout") {
-        for f in &r.fragments {
-            scenes.add(&f.data().expect("scene fragment")).ok();
-        }
-    }
-    let target = all
-        .iter()
-        .find(|r| r.name == resource)
-        .expect("the resource is in the archive");
-    let stock = stock.and_then(|s| Erp::read_matching(s, |n| n == resource).ok()?.into_iter().next());
-    let mut out = Vec::new();
-    for (i, f) in target.fragments.iter().enumerate() {
-        let data = f.data().expect("fragment");
-        let report = if target.kind() == "UIDF" {
-            let base = stock.as_ref().and_then(|s| s.fragments.get(i)?.data().ok());
-            check::ui_edit(
-                &f.name(),
-                &data,
-                base.as_deref(),
-                &scenes,
-                catalog::stock(),
-                catalog::rules(),
-            )
-        } else {
-            check::scene_edit(&data, catalog::stock(), catalog::rules())
-        }
-        .expect("check the fragment");
-        out.extend(report.hard.iter().map(|h| format!("HARD {h}")));
-        out.extend(report.warnings.iter().map(|w| format!("warn {w}")));
-    }
-    out
-}
+use swofty_core::ui::check::{self, Level};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let (erp, resource) = match args.as_slice() {
-        [erp, resource, ..] => (Path::new(erp), resource.as_str()),
-        _ => panic!(
-            "usage: ui_check <archive.erp> <eaid resource> [--stock <stock.erp>] [--against <other.erp>]"
-        ),
-    };
-    let flag = |name: &str| {
-        args.iter()
-            .position(|a| a == name)
-            .map(|i| Path::new(&args[i + 1]))
-    };
-    let stock = flag("--stock");
-    let found = findings(erp, resource, stock);
-    let base: BTreeSet<String> = match flag("--against") {
-        Some(other) => findings(other, resource, stock).into_iter().collect(),
-        None => BTreeSet::new(),
-    };
-    let fresh: Vec<&String> = found.iter().filter(|f| !base.contains(*f)).collect();
-    for f in &fresh {
-        println!("{f}");
+    let mut pairs = Vec::new();
+    let mut against = None;
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--against" => against = it.next().cloned(),
+            pair => {
+                let (stock, built) = pair
+                    .split_once('=')
+                    .expect("usage: ui_check <stock.erp>=<built.erp>... [--against <stock.erp>=<other.erp>]");
+                pairs.push((stock.to_owned(), built.to_owned()));
+            }
+        }
     }
-    let hard = found.iter().filter(|f| f.starts_with("HARD")).count();
+    let run = |pairs: &[(String, String)]| {
+        let named: Vec<(String, &Path, &Path)> = pairs
+            .iter()
+            .map(|(s, b)| {
+                let name = Path::new(s).file_name().unwrap().to_string_lossy().into_owned();
+                (name, Path::new(s.as_str()), Path::new(b.as_str()))
+            })
+            .collect();
+        let refs: Vec<(&str, &Path, &Path)> = named.iter().map(|(n, s, b)| (n.as_str(), *s, *b)).collect();
+        check::archive_files(&refs).expect("check the archives")
+    };
+    let report = run(&pairs);
+    let base: Vec<String> = match &against {
+        Some(p) => {
+            let (s, b) = p.split_once('=').expect("--against <stock.erp>=<other.erp>");
+            let r = run(&[(s.to_owned(), b.to_owned())]);
+            r.hard.iter().chain(&r.warnings).map(|f| f.to_string()).collect()
+        }
+        None => Vec::new(),
+    };
+    let all: Vec<_> = report.hard.iter().chain(&report.warnings).collect();
+    let mut shown = 0;
+    for f in &all {
+        let line = f.to_string();
+        if base.contains(&line) {
+            continue;
+        }
+        shown += 1;
+        println!("{} {line}", if f.level == Level::Hard { "HARD" } else { "warn" });
+    }
     eprintln!(
-        "{} findings ({hard} hard), {} not in the --against archive",
-        found.len(),
-        fresh.len()
+        "{} hard, {} warnings, {shown} not in the --against build",
+        report.hard.len(),
+        report.warnings.len()
     );
-    std::process::exit(i32::from(hard > 0));
+    std::process::exit(i32::from(!report.hard.is_empty()));
 }

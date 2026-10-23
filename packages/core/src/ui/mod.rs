@@ -131,7 +131,13 @@ pub fn build(
     let mut problems = check::screens(&built.order, &built.view_models)?;
     let no_scenes = catalog::Scenes::default();
     for (name, data) in &built.order {
-        let report = check::ui_edit(name, data, None, &no_scenes, catalog::stock(), catalog::rules())?;
+        let input = check::UiInput {
+            resource: name,
+            frag: "temp",
+            data,
+            stock: None,
+        };
+        let report = check::ui_edit(&input, &no_scenes, catalog::stock(), catalog::engine())?;
         problems.extend(report.hard.iter().map(|h| h.to_string()));
     }
 
