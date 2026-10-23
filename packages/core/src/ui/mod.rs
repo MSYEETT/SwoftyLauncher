@@ -353,6 +353,22 @@ fn era_rows(
         written.push(rel);
     }
     if !written.is_empty() {
+        let files: Vec<(String, PathBuf, PathBuf)> = written
+            .iter()
+            .map(|rel| (ui_file(rel), input(&ui_file(rel)), out.join(ui_file(rel))))
+            .collect();
+        let pairs: Vec<(&str, &Path, &Path)> = files
+            .iter()
+            .map(|(name, src, dst)| (name.as_str(), src.as_path(), dst.as_path()))
+            .collect();
+        let report = check::archive_files(&pairs)?;
+        if !report.hard.is_empty() {
+            let found: Vec<String> = report.hard.iter().map(ToString::to_string).collect();
+            return Err(Error::Other(format!(
+                "the era picker rows break the game's UI loader rules: {}",
+                found.join("; ")
+            )));
+        }
         lines.push(format!(
             "ui: the Grand Prix and Time Trial era picker gets Built In and Addons rows in {} archive(s)",
             written.len()
