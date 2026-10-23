@@ -57,7 +57,7 @@ typedef struct SwoftyCareerState {
 } SwoftyCareerState;
 ```
 
-The mode comes from the components first: a `CareerComponent` means a loaded career, `CareerBankComponent` or `MyTeamFacilitiesComponent` means My Team, and `DriverCareerPlayerDriverStatisticsComponent` means Driver Career. When the components have no answer, the core uses what Team HQ answered as it opened (`Career_Is_MyTeamGameMode`, read at `site_Career_TeamHqIsMyTeamResult`). Both career modes use the same `StateTeamHQ` and `StateTeamHQUpdate` states. If Team HQ has been up for 4 seconds and the components still show no career, `components` turns to `_FALLBACK` and the flow states decide whether a career is loaded.
+The mode comes from the components first: a `CareerComponent` means a loaded career, `CareerBankComponent` or `MyTeamFacilitiesComponent` means My Team, and `DriverCareerPlayerDriverStatisticsComponent` means Driver Career. When the components have no answer, the core uses what Team HQ answered as it opened (`Career_Is_MyTeamGameMode`, read at `site_Career_TeamHqIsMyTeamResult`). Both career modes use the same `StateTeamHQ` and `StateTeamHQUpdate` states. If Team HQ has been up for 4 seconds and the components still show no career, `components` turns to `_FALLBACK` and the flow states decide whether a career is loaded. The core reads the components every 250 ms for 8 seconds after a flow-state change and every 30 seconds otherwise. In a session it reads them only after the session states change, not after pause screens.
 
 `career.loaded` fires once the mode is known. A change of mode or career key while a career is loaded fires `career.unloaded` and then `career.loaded`.
 
