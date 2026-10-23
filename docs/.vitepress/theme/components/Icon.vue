@@ -27,6 +27,11 @@ defineProps<{ name: string }>();
       <path d="m7 10 5 5 5-5" />
       <path d="M4.5 19.5h15" />
     </template>
+    <template v-else-if="name === 'upload'">
+      <path d="M12 15.5v-11" />
+      <path d="m7 9 5-5 5 5" />
+      <path d="M4.5 19.5h15" />
+    </template>
     <template v-else-if="name === 'map'">
       <path d="M3.5 6.5 9 4.5l6 2 5.5-2v13l-5.5 2-6-2-5.5 2Z" />
       <path d="M9 4.5v13" />

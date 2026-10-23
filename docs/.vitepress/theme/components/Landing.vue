@@ -66,6 +66,9 @@ const footPaths = footBands.map((b) => ({ color: b.color, d: wave(b, 1440, 420) 
     <nav class="lp-nav" aria-label="Site">
       <a class="lp-btn lp-btn--ink" :href="to('/')" aria-current="page"><Icon name="home" /><span>Home</span></a>
       <a class="lp-btn lp-btn--ink" :href="to(hero.docs)"><Icon name="book" /><span>Docs</span></a>
+      <a class="lp-btn lp-btn--ink" href="https://publish.f1.swofty.net" aria-label="Publishing">
+        <Icon name="upload" /><span class="lp-nav-label">Publishing</span>
+      </a>
     </nav>
 
     <header class="lp-hero">

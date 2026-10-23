@@ -192,7 +192,15 @@ onUnmounted(() => window.removeEventListener("hashchange", syncHash));
       </button>
     </div>
 
-    <div class="overlay search-pill">
+    <div class="overlay actions">
+      <a
+        class="publish"
+        href="https://publish.f1.swofty.net"
+        aria-label="Publishing"
+        title="Publish addons"
+      >
+        <Icon name="upload" /><span>Publishing</span>
+      </a>
       <VPNavBarSearch />
     </div>
 

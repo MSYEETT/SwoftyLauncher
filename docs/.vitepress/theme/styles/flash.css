@@ -130,7 +130,7 @@
   }
 
   .flash-docs > nav:not(.collapsed) ~ .overlay.theme,
-  .flash-docs > nav:not(.collapsed) ~ .overlay.search-pill {
+  .flash-docs > nav:not(.collapsed) ~ .overlay.actions {
     display: none;
   }
 

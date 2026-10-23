@@ -171,6 +171,12 @@
   gap: 1rem;
 }
 
+@media (max-width: 379px) {
+  .lp-nav .lp-nav-label {
+    display: none;
+  }
+}
+
 /* Hero */
 
 .lp-hero {
