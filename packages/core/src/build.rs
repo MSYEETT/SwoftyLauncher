@@ -952,7 +952,16 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         for n in erps.take_notes() {
             built.lines.push(format!("erp: {n}"));
         }
-        for w in erps.check_ui()? {
+        let name = |origin: &str| match origin.split_once(" (") {
+            Some((id, item)) => match addons.get(id) {
+                Some(m) => format!("{} ({item}", m.name),
+                None => origin.to_owned(),
+            },
+            None => addons
+                .get(origin)
+                .map_or_else(|| origin.to_owned(), |m| m.name.clone()),
+        };
+        for w in erps.check_ui(&name)? {
             built.warnings.push(format!("ui: {w}"));
         }
         mipmaps = erps.take_mipmaps();

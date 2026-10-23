@@ -89,6 +89,8 @@ The launcher flags every view-model key an edited template binds that no stock n
 | Hard, format | The hashes and ids the engine resolves by, and bindings the edit breaks | The build stops |
 | Warning | The stock catalogue, and a diff against the stock template | Listed in the build's warnings |
 
+In a profile build, each finding starts with the name of the addon that last wrote the resource. A `stale-hash` finding in an addon's resource is a warning there: the engine resolves the node, event or signal by its stored hash, so it keeps the identity it had before the rename. The launcher's own menus still stop on it.
+
 ### Engine rules
 
 Each rule in `re/db/ui/loader_rules.json` that the checker implements runs when the file lists its id; its id, level, `fail.code`, `fail.scope` and `fn` go into every finding it raises.
@@ -128,7 +130,8 @@ The rules `node.fourcc_matches_class`, `template.child_abort`, `template.link` a
 
 | Code | Checks |
 |---|---|
-| `integrity` | Node `id` and `nameId`, layout `nodeId`, event and command hashes, signal `to_object` and `to_pin` hashes, and signals to nodes missing from their own root |
+| `stale-hash` | Node `id` and `nameId`, layout `nodeId`, event and command hashes, and signal `to_object` and `to_pin` hashes match the djb2 of their names |
+| `integrity` | Signals to nodes missing from their own root |
 | `xref-mismatch` | An `eXRef`'s `xref` is md5-64 of its `fileRef` |
 | `scene-id` | A scene's `name` is the componentId of its resource path |
 | `nodeidlookup` | A scene's `nodeidlookup` is the sorted djb2 of every element's leaf name |

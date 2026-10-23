@@ -9,6 +9,9 @@ use super::node::*;
 
 const LIST_CLASSES: &[&str] = &["UITG", "UITB", "UILT", "UIL2", "UIEL"];
 const SCREEN_CMDS: &[&str] = &["OpenScreen", "CloseScreen", "TransitionScreen"];
+/// The code of a finding where a name no longer matches the djb2 hash stored
+/// beside it, as after a rename that kept the hash.
+pub const STALE_HASH: &str = "stale-hash";
 
 fn str_of<'a>(o: &'a swofty_formats::pkg::Obj, key: &str) -> Option<&'a str> {
     o.get(key)?.as_val()?.as_str()
@@ -483,8 +486,12 @@ fn integrity_findings(data: &[u8], frag: &str) -> crate::Result<Vec<Finding>> {
         })
         .map(|b| {
             let (at, msg) = b.split_once(": ").unwrap_or((&b, ""));
+            let code = match msg.contains(" -> missing ") {
+                true => "integrity",
+                false => STALE_HASH,
+            };
             Finding::hard(
-                "integrity",
+                code,
                 &format!("{frag}: {at}"),
                 msg.to_owned(),
                 "format: the loader resolves nodes, events and signals by these djb2 hashes",
