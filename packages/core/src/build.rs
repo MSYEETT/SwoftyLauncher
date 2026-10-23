@@ -539,7 +539,24 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
         for s in &m.operations.screens {
             let path = dir.join(&s.file);
-            hasher.update(std::fs::read(&path).map_err(io_err(&path))?);
+            let data = std::fs::read(&path).map_err(io_err(&path))?;
+            if swofty_formats::pkg::is_pkg(&data) {
+                let (cat, rules) = (crate::ui::catalog::stock(), crate::ui::catalog::rules());
+                let none = crate::ui::catalog::Scenes::default();
+                let report = crate::ui::check::ui_edit(&s.file, &data, None, &none, cat, rules)?;
+                if !report.hard.is_empty() {
+                    let lines: Vec<String> = report.hard.iter().map(|h| h.to_string()).collect();
+                    return Err(Error::Other(format!(
+                        "{id}: screen {} breaks rules the game's UI loader enforces:\n  {}",
+                        s.name,
+                        lines.join("\n  ")
+                    )));
+                }
+                built
+                    .warnings
+                    .extend(report.warnings.iter().map(|w| format!("{id}: ui: {w}")));
+            }
+            hasher.update(&data);
         }
         let pending = m.operations.ui.len();
         if pending > 0 {

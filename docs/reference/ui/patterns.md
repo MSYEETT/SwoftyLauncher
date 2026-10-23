@@ -128,6 +128,7 @@ Catalogue warnings (code, what it flags):
 ### Where it runs
 
 - Every addon build: after an addon's ERP operations apply, each changed `.ui` and `.idf` fragment is checked against its stock copy with the scenes of its archive. Hard findings stop the build.
+- Every addon screen in `operations.screens`: hard findings stop the build; warnings go in the build's warnings.
 - The core menu build: the hard checks run on every ADDON SETTINGS screen it generates.
 - By hand:
 
