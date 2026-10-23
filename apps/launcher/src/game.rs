@@ -262,12 +262,21 @@ impl Launch {
     }
 
     pub fn failure(&self) -> String {
-        std::fs::read_to_string(&self.log)
-            .ok()
-            .and_then(|s| s.lines().rev().find(|l| !l.trim().is_empty()).map(str::to_owned))
-            .map(|l| l.trim_start_matches("swofty: ").to_owned())
+        failure_line(&std::fs::read_to_string(&self.log).unwrap_or_default())
             .unwrap_or_else(|| "the launch exited before the game started".into())
     }
+}
+
+/// The wrapper's last error, from its `swofty: ` line, or else the last line it
+/// wrote. An error over several lines gives its first, which says what failed.
+fn failure_line(log: &str) -> Option<String> {
+    let lines: Vec<&str> = log.lines().filter(|l| !l.trim().is_empty()).collect();
+    lines
+        .iter()
+        .rev()
+        .find_map(|l| l.strip_prefix("swofty: "))
+        .or_else(|| lines.last().copied())
+        .map(|l| l.trim_end_matches(':').to_owned())
 }
 
 fn cli_path(store: &Store) -> Option<PathBuf> {
@@ -330,5 +339,21 @@ pub fn duration(secs: u64) -> String {
         0..60 => format!("{secs} s"),
         60..3600 => format!("{} min", secs / 60),
         _ => format!("{} h {} min", secs / 3600, secs % 3600 / 60),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::failure_line;
+
+    #[test]
+    fn a_failed_launch_shows_the_first_line_of_the_wrappers_error() {
+        let log = "[info] installing profile default\nswofty: 2 UI edit(s) break rules the game's UI loader enforces:\n  a.erp: b.ui: page.kid: on pressed -> missing page.gone\n  a.erp: b.ui: page.kid: id\n";
+        assert_eq!(
+            failure_line(log).as_deref(),
+            Some("2 UI edit(s) break rules the game's UI loader enforces")
+        );
+        assert_eq!(failure_line("[info] starting\nexit\n").as_deref(), Some("exit"));
+        assert_eq!(failure_line("\n"), None);
     }
 }
