@@ -101,7 +101,7 @@ mod tests {
             added,
             [
                 ("entrants.entrant_setup_modes", CORE_MODE, None),
-                ("game_setup.game_setup_modes", CORE_MODE, Some("16")),
+                ("game_setup.game_setup_modes", CORE_MODE, Some("20")),
             ]
         );
         let lists = ops
