@@ -407,6 +407,23 @@
     "_metadata_": "nico_rosberg",
     "driver": "nico_rosberg"
    }
+  },
+  {
+   "op": "add-row",
+   "table": "track_data.track_layers",
+   "from": "track_data.track_layers.TrackLayer[_metadata_=f1_26]",
+   "set": {
+    "_metadata_": "swofty_f1",
+    "game_setup_modes": "swofty_f1",
+    "seasons": "season_2023,season_2024,season_2025",
+    "statId": "20"
+   }
+  },
+  {
+   "op": "list-remove",
+   "select": "track_data.track_layers.TrackLayer[_metadata_=f1]",
+   "field": "game_setup_modes",
+   "value": "swofty_f1"
   }
  ]
 }

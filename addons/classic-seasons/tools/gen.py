@@ -10,6 +10,10 @@ The game looks up the AI and player car setups by vehicle package name in car_se
 <row>.<ai|player>.<variant>.<slider>, and a package without a row gets setups that ground the cars. Each season copies
 the f1_2025 presets under its own package name; data/setup_preset_fields.json lists the keys, which the database
 catalogue does not name.
+
+A track's f1 world has ten garages; the eleventh is in the f1_26 world. With a season of more than ten teams, the shared
+addon moves swofty_f1 from the f1 track layer to a copy of the f1_26 one for the 2023 to 2025 seasons, which every
+classic entrant list uses, so every season races on the f1_26 worlds.
 """
 
 import json
@@ -39,6 +43,7 @@ CONTENT_SETS = ("2025", "2026")
 LOOK_STAT_BASE = 420
 DRIVER_STAT_BASE = 225
 SCENARIO_STAT_BASE = 15
+TRACK_LAYER_STAT = 20
 HOST_MODE = "swofty_f1"
 SETUP_ROW = "entrants.entrant_setup_modes.entrant_setup_mode"
 SETUP_PRESETS = "car_setup.presets.vehicle_package_setups"
@@ -123,6 +128,14 @@ def build():
         ops.append({"op": "add-row", "table": "driver_statistics.driver_statistics",
                     "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
                     "set": {"_metadata_": label, "driver": label}})
+
+    if any(len(season["teams"]) > 10 for season in DATA["seasons"]):
+        ops.append({"op": "add-row", "table": "track_data.track_layers",
+                    "from": "track_data.track_layers.TrackLayer[_metadata_=f1_26]",
+                    "set": {"_metadata_": HOST_MODE, "game_setup_modes": HOST_MODE,
+                            "seasons": "season_2023,season_2024,season_2025", "statId": str(TRACK_LAYER_STAT)}})
+        ops.append({"op": "list-remove", "select": "track_data.track_layers.TrackLayer[_metadata_=f1]",
+                    "field": "game_setup_modes", "value": HOST_MODE})
 
     core_ops, core_text = ops, text
     for index, season in enumerate(DATA["seasons"]):
