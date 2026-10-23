@@ -364,17 +364,23 @@ impl Shell {
                 name => format!("by {name}"),
             }));
         };
+        let credit = a.credit().map(|credit| {
+            let tip = format!("{} published it. Its manifest credits {credit}.", owner.name);
+            div()
+                .id(SharedString::from(format!("{key}-credit")))
+                .min_w_0()
+                .truncate()
+                .text_color(p.text_placeholder)
+                .child(format!("· credited to {credit}"))
+                .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx))
+        });
         row.child(div().flex_shrink_0().child("by"))
-            .child(self.author_link(key, &owner.id, &owner.name, size, p, cx))
-            .when_some(a.credit(), |d, credit| {
-                d.child(
-                    div()
-                        .min_w_0()
-                        .truncate()
-                        .text_color(p.text_placeholder)
-                        .child(format!("· credited to {credit}")),
-                )
-            })
+            .child(
+                self.author_link(key, &owner.id, &owner.name, size, p, cx)
+                    .flex_shrink_0()
+                    .max_w(relative(0.75)),
+            )
+            .children(credit)
     }
 
     pub(super) fn back_bar(&self, p: Palette, cx: &mut Context<Self>) -> Div {

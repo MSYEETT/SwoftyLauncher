@@ -2340,7 +2340,7 @@ impl Shell {
                     )
                     .child(
                         h_flex()
-                            .gap(px(6.))
+                            .gap(px(4.))
                             .min_w_0()
                             .child(self.byline(a, "browser-detail-by".into(), 13., p, cx))
                             .child(
