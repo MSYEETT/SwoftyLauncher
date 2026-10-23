@@ -1,0 +1,70 @@
+"""Where each season's addon lives, and the asset ops that ship its cars.
+
+The core addon (this folder) holds what every season shares. Each season is its own addon, a sibling folder
+classic-seasons-<year>, whose cars/ holds the built archives (not committed).
+"""
+
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SOURCE = "f1_2025_vehicle_package"
+STOCK_COMMON = f"2025_asset_groups/{SOURCE}/teams/common.erp"
+FOLDERS = ("mercedes", "redbull", "ferrari", "williams", "force_india", "lotus", "toro_rosso", "sauber", "mclaren",
+           "haas")
+
+
+def year_dir(year):
+    return ROOT.parent / f"classic-seasons-{year}"
+
+
+def cars_dir(year):
+    return year_dir(year) / "cars"
+
+
+def package(year):
+    return f"cs_{year}_vehicle_package"
+
+
+def meta(year):
+    path = cars_dir(year) / "meta.json"
+    return json.loads(path.read_text()) if path.exists() else None
+
+
+def built(year):
+    m = meta(year)
+    if not m:
+        return None
+    teams = cars_dir(year) / "teams"
+    if m["common"] == "own" and not (teams / "common.erp").exists():
+        return None
+    if not all((teams / f / "wep" / f"{f}.erp").exists() for f in FOLDERS):
+        return None
+    return m
+
+
+def asset_ops(year):
+    pkg = package(year)
+    m = meta(year)
+    ops = []
+    if m["common"] == "own":
+        common = f"2025_asset_groups/{pkg}/teams/common.erp"
+        ops.append({"op": "file.put", "source": "cars/teams/common.erp", "target": common})
+    else:
+        common = STOCK_COMMON
+    for rel in m["sidecars"]:
+        ops.append({"op": "file.put", "source": f"cars/sidecars/{rel}", "target": rel})
+    if (cars_dir(year) / "incardriver" / "incardriver_f1.erp").exists():
+        scenes = f"animation_package/scenes/incardriver/cs{year % 100:02d}/incardriver_f1"
+        ops.append({"op": "file.put", "source": "cars/incardriver/incardriver_f1.erp",
+                    "target": f"2025_asset_groups/{scenes}.erp"})
+        ops.append({"op": "group.register", "group": f"asset_groups/{scenes}.assetgroup",
+                    "erps": [f"2025_asset_groups/{scenes}.erp"],
+                    "template": "asset_groups/animation_package/scenes/incardriver/2025/incardriver_f1.assetgroup"})
+    for folder in FOLDERS:
+        target = f"2025_asset_groups/{pkg}/teams/{folder}/wep/{folder}.erp"
+        ops.append({"op": "file.put", "source": f"cars/teams/{folder}/wep/{folder}.erp", "target": target})
+        ops.append({"op": "group.register", "group": f"asset_groups/{pkg}/teams/{folder}/wep/{folder}.assetgroup",
+                    "erps": [common, target],
+                    "template": f"asset_groups/{SOURCE}/teams/{folder}/wep/{folder}.assetgroup"})
+    return {"schema_version": 1, "ops": ops}

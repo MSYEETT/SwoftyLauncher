@@ -4,7 +4,8 @@
 The zips replace animation_package/scenes/incardriver/2025/incardriver_f1.erp, whose scene maps every car's steering
 animation (driver_in_car_<year>_<team>.idf, shipped in the same archive). Each season keeps its own copy under
 incardriver/cs<yy>/: the scene `eaid://animation_package/scenes/incardriver/2025/` is renamed byte for byte to
-`.../incardriver/cs<yy>/`, which the season's driver animation set loads. Writes cars/<year>/incardriver/incardriver_f1.erp.
+`.../incardriver/cs<yy>/`, which the season's driver animation set loads. Writes the season addon's
+cars/incardriver/incardriver_f1.erp.
 """
 
 import argparse
@@ -21,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import erpw
 from build_cars import find_zip, rewrite
+from layout import cars_dir
 
 OLD = b"eaid://animation_package/scenes/incardriver/2025/"
 MEMBER = "2025_asset_groups/animation_package/scenes/incardriver/2025/incardriver_f1.erp"
@@ -42,7 +44,7 @@ def build(year, src_zip):
         scene = f"{new.decode()}incardriver_f1.scene"
         if not any(r.name == scene for r in e.res):
             raise SystemExit(f"{year}: no {scene} after the rename")
-        out = ROOT / "cars" / str(year) / "incardriver" / "incardriver_f1.erp"
+        out = cars_dir(year) / "incardriver" / "incardriver_f1.erp"
         out.parent.mkdir(parents=True, exist_ok=True)
         e.to_file(str(out))
         return renamed, rewritten, out.stat().st_size

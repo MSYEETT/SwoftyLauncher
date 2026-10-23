@@ -39,6 +39,7 @@ SHADOW_MAX = 40000
 PART_REBUILD = 1000
 LOD0_COPY = 0.9
 TEXTURE_CAP = 1024
+DECAL_CAP = 2048
 SKIP_SUBMESHES = {"shadow", "rainbeads"}
 POSITION, BLEND = 1, 7
 MESH_NAME = re.compile(r"^(?P<base>.*)\?lod=(?P<lod>\d+)&(?:(?P<part>.+)&)?mesh$")
@@ -394,8 +395,9 @@ def surface(e, r):
 
 def role(name):
     base = name.rsplit("/", 1)[-1]
-    if TEAM_TEXTURE.search(name) and LIVERY.search(name) and "steering" not in base:
-        return "livery"
+    livery = LIVERY.search(name)
+    if TEAM_TEXTURE.search(name) and livery and "steering" not in base:
+        return "livery" if livery.group(1) == "paint" else "decal"
     for key in ("steering", "wheel", "detail", "damage", "driver", "helmet", "visor", "suit", "glove"):
         if key in base:
             return key
@@ -418,12 +420,18 @@ def srv_for(e, name):
     return hits[0] if len(hits) == 1 else None
 
 
+def cap_for(name, cap):
+    r = role(name)
+    return None if r == "livery" else max(cap, DECAL_CAP) if r == "decal" else cap
+
+
 def cap_textures(e, report, cap=TEXTURE_CAP):
     for r in e.res:
         if kind(r) != "GfxSurfaceRes":
             continue
         s = surface(e, r)
-        if role(r.name) == "livery" or max(s["full_w"], s["full_h"]) <= cap:
+        limit = cap_for(r.name, cap)
+        if limit is None or max(s["full_w"], s["full_h"]) <= limit:
             continue
         if s["side"]:
             report["textures_left"].append({"texture": r.name, "size": [s["full_w"], s["full_h"]],
@@ -436,8 +444,11 @@ def cap_textures(e, report, cap=TEXTURE_CAP):
                                             "why": "unknown layout" if not block or s["array"] != 1 else "no SRV"})
             continue
         drop = 0
-        while max(s["w"] >> drop, s["h"] >> drop) > cap and drop < s["levels"] - 1:
+        while max(s["w"] >> drop, s["h"] >> drop) > limit and drop < s["levels"] - 1:
             drop += 1
+        if not drop:
+            report["textures_left"].append({"texture": r.name, "size": [s["w"], s["h"]], "why": "one mip level"})
+            continue
         sizes = level_sizes(s["w"], s["h"], s["levels"], block)
         head = bytearray(e.frag_data(r, 0))
         struct.pack_into("<2I", head, 12, max(1, s["w"] >> drop), max(1, s["h"] >> drop))
@@ -464,20 +475,22 @@ def cap_sidecars(archives, files, cap=TEXTURE_CAP):
     refs = {}
     for e in archives:
         for r in e.res:
-            if kind(r) != "GfxSurfaceRes" or len(r.frags) < 3 or role(r.name) == "livery":
+            limit = cap_for(r.name, cap)
+            if kind(r) != "GfxSurfaceRes" or len(r.frags) < 3 or limit is None:
                 continue
             s = surface(e, r)
-            if s["sidecar"] in files and max(s["full_w"], s["full_h"]) > cap:
-                refs.setdefault(s["sidecar"], []).append((e, r, s))
+            if s["sidecar"] in files and max(s["full_w"], s["full_h"]) > limit:
+                refs.setdefault(s["sidecar"], []).append((e, r, s, limit))
     out, report = {}, {"capped": [], "left": []}
     for path, users in sorted(refs.items()):
         data = files[path]
-        f2s = {e.frag_data(r, 2) for e, r, _ in users}
-        dims = {(s["w"], s["h"], s["side"]) for _, _, s in users}
+        f2s = {e.frag_data(r, 2) for e, r, _, _ in users}
+        dims = {(s["w"], s["h"], s["side"]) for _, _, s, _ in users}
+        limit = min(lim for *_, lim in users)
         at, levels = sidecar_levels(next(iter(f2s)))
         w, h, side = next(iter(dims))
         drop = 0
-        while drop < side and max(w << (side - drop), h << (side - drop)) > cap:
+        while drop < side and max(w << (side - drop), h << (side - drop)) > limit:
             drop += 1
         whole = levels and levels[0][2] == 0 and sum(lv[3] for lv in levels) == len(data) and all(
             levels[i + 1][2] == levels[i][2] + levels[i][3] for i in range(len(levels) - 1))
@@ -491,7 +504,7 @@ def cap_sidecars(archives, files, cap=TEXTURE_CAP):
         kept = [(a, b, off - base, packed, raw) for a, b, off, packed, raw in levels[drop:]]
         body = b"".join(struct.pack("<BBQQQ", *lv) for lv in kept)
         f2 = f2[:at] + struct.pack("<I", len(kept)) + body + f2[at + 4 + 26 * len(levels):]
-        for e, r, _ in users:
+        for e, r, _, _ in users:
             e.set_frag(r, 2, bytes(f2))
         out[path] = data[base:]
         report["capped"].append({"sidecar": path, "before": [w << side, h << side],

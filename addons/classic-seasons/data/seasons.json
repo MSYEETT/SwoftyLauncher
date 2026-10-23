@@ -12,18 +12,35 @@
     "haas":        { "team": "haas",       "vehicle": "haas_2025" }
   },
   "new_drivers": {
-    "felipe_nasr":       { "first": "Felipe",    "last": "Nasr",       "initials": "NAS", "nationality": "brazil",      "head": "male_ls192" },
-    "esteban_gutierrez": { "first": "Esteban",   "last": "Gutiérrez",  "initials": "GUT", "nationality": "mexico",      "head": "male_ls240" },
-    "stoffel_vandoorne": { "first": "Stoffel",   "last": "Vandoorne",  "initials": "VAN", "nationality": "belgium",     "head": "male_ls204" },
-    "brendon_hartley":   { "first": "Brendon",   "last": "Hartley",    "initials": "HAR", "nationality": "new_zealand", "head": "brendon_hartley" },
-    "sergey_sirotkin":   { "first": "Sergey",    "last": "Sirotkin",   "initials": "SIR", "nationality": "default",     "head": "sergey_sirotkin" }
+    "felipe_nasr":       { "first": "Felipe",    "last": "Nasr",       "initials": "NAS", "nationality": "brazil",      "head": "male_ls487" },
+    "esteban_gutierrez": { "first": "Esteban",   "last": "Gutiérrez",  "initials": "GUT", "nationality": "mexico",      "head": "male_ls212" },
+    "stoffel_vandoorne": { "first": "Stoffel",   "last": "Vandoorne",  "initials": "VAN", "nationality": "belgium",     "head": "male_ls343" },
+    "brendon_hartley":   { "first": "Brendon",   "last": "Hartley",    "initials": "HAR", "nationality": "new_zealand", "head": "male_ls265" },
+    "sergey_sirotkin":   { "first": "Sergey",    "last": "Sirotkin",   "initials": "SIR", "nationality": "default",     "head": "male_ls790" }
   },
   "holders_for": ["nico_rosberg"],
-  "head_overrides": { "nico_rosberg": "male_ls248" },
+  "head_overrides": {
+    "nico_rosberg":       "male_ls265",
+    "sebastian_vettel":   "male_ls553",
+    "kimi_raikkonen":     "male_ls161",
+    "daniil_kvyat":       "male_ls807",
+    "romain_grosjean":    "male_ls356",
+    "marcus_ericsson":    "male_ls192",
+    "jolyon_palmer":      "male_ls204",
+    "pascal_wehrlein":    "male_ls487",
+    "antonio_giovinazzi": "male_ls515",
+    "robert_kubica":      "male_ls347",
+    "nicholas_latifi":    "male_ls533",
+    "mick_schumacher":    "male_ls192",
+    "nikita_mazepin":     "male_ls265",
+    "nyck_de-vries":      "male_ls343"
+  },
   "seasons": [
     {
       "year": 2016,
+      "pod_camera": { "near_clip": 0.6 },
       "halo": false,
+      "cockpit_camera": { "up": 0.04, "forward": 0.06 },
       "teams": [
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["nico_rosberg", 6]] },
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "drivers": [["daniel_ricciardo", 3], ["max_verstappen", 33]] },
@@ -39,6 +56,7 @@
     },
     {
       "year": 2017,
+      "pod_camera": { "near_clip": 0.6 },
       "halo": false,
       "teams": [
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]] },
@@ -55,6 +73,7 @@
     },
     {
       "year": 2018,
+      "pod_camera": { "near_clip": 0.6 },
       "teams": [
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]] },
         { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "drivers": [["sebastian_vettel", 5], ["kimi_raikkonen", 7]] },
@@ -70,6 +89,7 @@
     },
     {
       "year": 2019,
+      "pod_camera": { "near_clip": 0.6 },
       "teams": [
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]] },
         { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "drivers": [["sebastian_vettel", 5], ["charles_leclerc", 16]] },
@@ -85,6 +105,7 @@
     },
     {
       "year": 2020,
+      "pod_camera": { "near_clip": 0.6 },
       "teams": [
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]] },
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "drivers": [["max_verstappen", 33], ["alex_albon", 23]] },
@@ -100,6 +121,7 @@
     },
     {
       "year": 2021,
+      "pod_camera": { "near_clip": 0.6 },
       "teams": [
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]] },
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "drivers": [["max_verstappen", 33], ["sergio_perez", 11]] },
@@ -115,6 +137,7 @@
     },
     {
       "year": 2022,
+      "pod_camera": { "near_clip": 0.6 },
       "teams": [
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "drivers": [["max_verstappen", 1], ["sergio_perez", 11]] },
         { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "drivers": [["charles_leclerc", 16], ["carlos_sainz-jr", 55]] },
@@ -130,6 +153,7 @@
     },
     {
       "year": 2023,
+      "pod_camera": { "near_clip": 0.6 },
       "teams": [
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "drivers": [["max_verstappen", 1], ["sergio_perez", 11]] },
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["george_russell", 63]] },
@@ -145,6 +169,7 @@
     },
     {
       "year": 2024,
+      "pod_camera": { "near_clip": 0.6 },
       "teams": [
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "drivers": [["max_verstappen", 1], ["sergio_perez", 11]] },
         { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "drivers": [["lando_norris", 4], ["oscar_piastri", 81]] },

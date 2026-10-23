@@ -6,10 +6,12 @@ Each zip replaces the stock 2025 cars in place, so its archives name their resou
 (the same length, so no payload offset moves). A zip without its own teams/common.erp keeps the cars' shared
 references on the stock f1_2025 package, whose common.erp the season's asset groups then list. Bare `.mipmaps`
 sidecar paths that the zip ships as loose files move to the season's folder with the files; every other sidecar path
-stays on the stock files. Each car then gets the frame-rate pass (carperf: shadow casters rebuilt from a lower LOD,
-non-livery textures and shipped sidecars capped at 1024 px), and 2016-2021 commons get the stock tyre reshaped to the
-period size (tyres13). The build checks that every renamed reference resolves inside the season's archives, writes
-them under cars/<year>/ and the file.put and group.register ops in assets/cars.json.
+stays on the stock files. A season with its own common.erp renames its tyre set (shared/tyres/) with the rest, and
+every car and showroom model layer gets a Tyres override naming it (tyres.py): the car templates name the stock
+tyre set, whose resources share their names with the zip's tyre set and its larger buffers. Each car then gets the
+frame-rate pass (carperf: shadow casters rebuilt from a lower LOD, non-livery textures and shipped sidecars capped
+at 1024 px), and its handling files take the wheel positions from themselves instead of the model (handling.py). The build checks that every renamed reference resolves inside the season's archives, writes
+them to the season addon's cars/ folder (layout.py), whose asset ops gen.py writes.
 """
 
 import argparse
@@ -29,20 +31,16 @@ sys.path.insert(0, str(REPO / "tools"))
 import erpw
 
 sys.path.insert(0, str(ROOT / "tools"))
+import cameras
 import carperf
-import tyres13
+import handling
+import tyres
+from layout import FOLDERS, SOURCE, STOCK_COMMON, cars_dir, package
 
-SOURCE = "f1_2025_vehicle_package"
 OLD = f"eaid://{SOURCE}/"
 ANY_EAID = re.compile(rb"eaid://[\x21-\x7e]+")
 SIDECAR = re.compile(rb"f1_20\d\d_vehicle_package/[\x21-\x7e]*?\.mipmaps")
-STOCK_COMMON = f"2025_asset_groups/{SOURCE}/teams/common.erp"
-FOLDERS = ("mercedes", "redbull", "ferrari", "williams", "force_india", "lotus", "toro_rosso", "sauber", "mclaren",
-           "haas")
-
-
-def package(year):
-    return f"cs_{year}_vehicle_package"
+SEASONS = {s["year"]: s for s in json.loads((ROOT / "data" / "seasons.json").read_text())["seasons"]}
 
 
 def find_zip(downloads, year):
@@ -91,7 +89,7 @@ def build_season(year, src_zip, out_dir, game):
     pkg = package(year)
     new = f"eaid://{pkg}/"
     report = {"year": year, "zip": os.path.basename(src_zip), "cars": {}}
-    with zipfile.ZipFile(src_zip) as z, tempfile.TemporaryDirectory(dir=out_dir.parent) as tmp:
+    with zipfile.ZipFile(src_zip) as z, tempfile.TemporaryDirectory(dir=out_dir) as tmp:
         names = z.namelist()
         loose = {}
         for n in names:
@@ -123,6 +121,21 @@ def build_season(year, src_zip, out_dir, game):
             renamed, rewritten = rewrite(e, pattern, repl)
             loaded[key] = e
             report["cars"][key] = {"resources": len(e.res), "renamed": renamed, "rewritten": rewritten}
+
+        if own_common:
+            report["tyre_overrides"] = sum(tyres.override_layers(loaded[f], pkg) for f in FOLDERS)
+
+        camera = SEASONS.get(year, {}).get("cockpit_camera")
+        if camera:
+            for folder in FOLDERS:
+                cameras.move_cockpit(loaded[folder], pkg, camera["up"], camera["forward"])
+            report["cockpit_camera"] = camera
+        pod = SEASONS.get(year, {}).get("pod_camera")
+        if pod:
+            for folder in FOLDERS:
+                cameras.pod_near_clip(loaded[folder], pkg, pod["near_clip"])
+            report["pod_camera"] = pod
+        report["handling_positions"] = sum(handling.use_handling_positions(loaded[f]) for f in FOLDERS)
 
         shipped = set()
         for key, e in loaded.items():
@@ -162,9 +175,6 @@ def build_season(year, src_zip, out_dir, game):
                                           foreign=foreign[:20], foreign_count=len(foreign),
                                           missing_sidecars=missing_sidecars[:20])
 
-        if own_common and year in tyres13.PERIOD:
-            report["tyres"] = {}
-            tyres13.swap_tyres(loaded["common"], year, game, [loaded[f] for f in FOLDERS], report=report["tyres"])
         for key, e in loaded.items():
             perf = carperf.optimise(e)
             try:
@@ -189,55 +199,6 @@ def build_season(year, src_zip, out_dir, game):
     return report
 
 
-def meta(year):
-    path = ROOT / "cars" / str(year) / "meta.json"
-    return json.loads(path.read_text()) if path.exists() else None
-
-
-def built(year):
-    m = meta(year)
-    if not m:
-        return False
-    teams = ROOT / "cars" / str(year) / "teams"
-    return (m["common"] == "stock" or (teams / "common.erp").exists()) and all(
-        (teams / f / "wep" / f"{f}.erp").exists() for f in FOLDERS)
-
-
-def asset_ops(years):
-    ops = []
-    for year in years:
-        pkg = package(year)
-        m = meta(year)
-        if m["common"] == "own":
-            common = f"2025_asset_groups/{pkg}/teams/common.erp"
-            ops.append({"op": "file.put", "source": f"cars/{year}/teams/common.erp", "target": common})
-        else:
-            common = STOCK_COMMON
-        for rel in m["sidecars"]:
-            ops.append({"op": "file.put", "source": f"cars/{year}/sidecars/{rel}", "target": rel})
-        if (ROOT / "cars" / str(year) / "tyrecompounds" / "tyrecompounds.erp").exists():
-            compounds = f"{pkg}/tyrecompounds/tyrecompounds"
-            ops.append({"op": "file.put", "source": f"cars/{year}/tyrecompounds/tyrecompounds.erp",
-                        "target": f"2025_asset_groups/{compounds}.erp"})
-            ops.append({"op": "group.register", "group": f"asset_groups/{compounds}.assetgroup",
-                        "erps": [f"2025_asset_groups/{compounds}.erp"],
-                        "template": f"asset_groups/{SOURCE}/tyrecompounds/tyrecompounds.assetgroup"})
-        if (ROOT / "cars" / str(year) / "incardriver" / "incardriver_f1.erp").exists():
-            scenes = f"animation_package/scenes/incardriver/cs{year % 100:02d}/incardriver_f1"
-            ops.append({"op": "file.put", "source": f"cars/{year}/incardriver/incardriver_f1.erp",
-                        "target": f"2025_asset_groups/{scenes}.erp"})
-            ops.append({"op": "group.register", "group": f"asset_groups/{scenes}.assetgroup",
-                        "erps": [f"2025_asset_groups/{scenes}.erp"],
-                        "template": "asset_groups/animation_package/scenes/incardriver/2025/incardriver_f1.assetgroup"})
-        for folder in FOLDERS:
-            target = f"2025_asset_groups/{pkg}/teams/{folder}/wep/{folder}.erp"
-            ops.append({"op": "file.put", "source": f"cars/{year}/teams/{folder}/wep/{folder}.erp", "target": target})
-            ops.append({"op": "group.register", "group": f"asset_groups/{pkg}/teams/{folder}/wep/{folder}.assetgroup",
-                        "erps": [common, target],
-                        "template": f"asset_groups/{SOURCE}/teams/{folder}/wep/{folder}.assetgroup"})
-    return {"schema_version": 1, "ops": ops}
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--downloads", default=os.path.expanduser("~/Downloads"))
@@ -245,28 +206,20 @@ def main():
     ap.add_argument("--years", default="2016-2024")
     args = ap.parse_args()
     lo, _, hi = args.years.partition("-")
-    years = list(range(int(lo), int(hi or lo) + 1))
-    reports_path = ROOT / "cars" / "report.json"
-    reports = {r["year"]: r for r in json.loads(reports_path.read_text())} if reports_path.exists() else {}
-    for year in years:
+    for year in range(int(lo), int(hi or lo) + 1):
         src = find_zip(args.downloads, year)
-        out = ROOT / "cars" / str(year)
+        out = cars_dir(year)
         if out.exists():
             for p in sorted(out.rglob("*"), reverse=True):
                 p.unlink() if p.is_file() else p.rmdir()
         out.mkdir(parents=True, exist_ok=True)
         r = build_season(year, src, out, Path(args.game))
+        (out / "report.json").write_text(json.dumps(r, indent=1) + "\n")
         bad = {k: v["unresolved_count"] for k, v in r["cars"].items() if v.get("unresolved_count")}
         foreign = {k: v["foreign_count"] for k, v in r["cars"].items() if v.get("foreign_count")}
         miss = {k: len(v["missing_sidecars"]) for k, v in r["cars"].items() if v.get("missing_sidecars")}
         print(f"{year}: {len(r['cars'])} archives from {r['zip']}, {r['sidecars']} sidecar(s) moved, "
               f"unresolved {bad or 'none'}, foreign {foreign or 'none'}, missing sidecars {miss or 'none'}", flush=True)
-        reports[year] = r
-    reports_path.write_text(json.dumps([reports[y] for y in sorted(reports)], indent=1) + "\n")
-    all_years = sorted(int(p.name) for p in (ROOT / "cars").iterdir() if p.is_dir() and p.name.isdigit()
-                       and built(int(p.name)))
-    (ROOT / "assets").mkdir(exist_ok=True)
-    (ROOT / "assets" / "cars.json").write_text(json.dumps(asset_ops(all_years), indent=1) + "\n")
 
 
 if __name__ == "__main__":
