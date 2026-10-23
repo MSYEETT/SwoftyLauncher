@@ -274,7 +274,7 @@ def rows(data):
     teams, drivers = [], []
     for season in data["seasons"]:
         for team in season["teams"]:
-            teams.append((f"cs{season['year'] % 100:02d}_{team['folder']}", team_name(team["name"])))
+            teams.append((f"cs{season['year'] % 100:02d}_{team.get('key', team['folder'])}", team_name(team["name"])))
             for label, _number in team["drivers"]:
                 if label not in drivers:
                     drivers.append(label)

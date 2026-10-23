@@ -607,6 +607,26 @@
   },
   {
    "op": "add-row",
+   "table": "entrants.vehicles.vehicle_packages",
+   "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+   "set": {
+    "_metadata_": "cx_2016",
+    "resource_path": "cx_2016_vehicle_package/teams/[FILENAME]/wep/[FILENAME]",
+    "blob_shadow_decal": "eaid://cs_2016_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+    "driver_animation_set": "cs_2016",
+    "has_cockpit_halo": "False"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "car_setup.presets",
+   "from": "car_setup.presets.vehicle_package_setups[_metadata_=f1_2025_vehicle_package]",
+   "set": {
+    "_metadata_": "cx_2016_vehicle_package"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.teams",
    "from": "entrants.teams.team[_metadata_=mercedes]",
    "set": {
@@ -1256,6 +1276,78 @@
   {
    "op": "add-row",
    "table": "entrants.teams",
+   "from": "entrants.teams.team[_metadata_=sauber]",
+   "set": {
+    "_metadata_": "cs16_manor",
+    "display_name": "lng_cs_team_16_manor",
+    "display_name_short": "lng_cs_team_16_manor",
+    "display_name_super_short": "lng_cs_team_16_manor",
+    "display_name_code": "MRT",
+    "timing_tower_texture_path": "cs16_manor"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.vehicles",
+   "from": "entrants.vehicles.vehicle[_metadata_=sauber_2025]",
+   "set": {
+    "_metadata_": "cs16_manor",
+    "vehicle_package": "cx_2016"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-sauber_nico_hulkenberg]",
+   "set": {
+    "_metadata_": "2016-cs_manor_pascal_wehrlein",
+    "helmet": "2025-sauber_nico_hulkenberg",
+    "suit": "2025-sauber_nico_hulkenberg",
+    "gloves": "2025-sauber_nico_hulkenberg",
+    "linked_driver_stat_id": "pascal_wehrlein",
+    "available": "False",
+    "stat_id": "438"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=max_verstappen]",
+   "set": {
+    "_metadata_": "cs2016-pascal_wehrlein",
+    "driver": "pascal_wehrlein",
+    "driver_customisation": "2016-cs_manor_pascal_wehrlein",
+    "car_number": "94"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-sauber_gabriel_bortoleto]",
+   "set": {
+    "_metadata_": "2016-cs_manor_rio_haryanto",
+    "helmet": "2025-sauber_gabriel_bortoleto",
+    "suit": "2025-sauber_gabriel_bortoleto",
+    "gloves": "2025-sauber_gabriel_bortoleto",
+    "linked_driver_stat_id": "rio_haryanto",
+    "available": "False",
+    "stat_id": "439"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.entrant_lists.entrants",
+   "from": "entrants.entrant_lists.entrants.entrant[_metadata_=max_verstappen]",
+   "set": {
+    "_metadata_": "cs2016-rio_haryanto",
+    "driver": "rio_haryanto",
+    "driver_customisation": "2016-cs_manor_rio_haryanto",
+    "car_number": "88"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.teams",
    "from": "entrants.teams.team[_metadata_=haas]",
    "set": {
     "_metadata_": "cs16_haas",
@@ -1286,7 +1378,7 @@
     "gloves": "2025-haas_esteban_ocon",
     "linked_driver_stat_id": "romain_grosjean",
     "available": "False",
-    "stat_id": "438"
+    "stat_id": "440"
    }
   },
   {
@@ -1311,7 +1403,7 @@
     "gloves": "2025-haas_oliver_bearman",
     "linked_driver_stat_id": "esteban_gutierrez",
     "available": "False",
-    "stat_id": "439"
+    "stat_id": "441"
    }
   },
   {
@@ -1328,7 +1420,7 @@
   {
    "op": "add-row",
    "table": "entrants.standings",
-   "from": "entrants.standings.standings[_metadata_=f1_teams_2024]",
+   "from": "entrants.standings.standings[_metadata_=f1_teams_2026]",
    "set": {
     "_metadata_": "cs_f1_teams_2016"
    }
@@ -1391,17 +1483,32 @@
    "op": "set",
    "select": "entrants.standings.standings[_metadata_=cs_f1_teams_2016].team_reference_9",
    "field": "team",
+   "value": "cs16_manor"
+  },
+  {
+   "op": "set",
+   "select": "entrants.standings.standings[_metadata_=cs_f1_teams_2016].team_reference_10",
+   "field": "team",
    "value": "cs16_haas"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_setup_modes.entrant_setup_mode[_metadata_=swofty_f1]",
+   "field": "max_entrants",
+   "value": "22"
   },
   {
    "op": "add-row",
    "table": "entrants.entrant_lists",
-   "from": "entrants.entrant_lists.entrant_list[_metadata_=f1_2025]",
+   "from": "entrants.entrant_lists.entrant_list[_metadata_=f1_2026]",
    "set": {
     "_metadata_": "cs_f1_2016",
     "display_name": "lng_cs_f1_2016",
     "previous_season_team_standings": "cs_f1_teams_2016",
-    "previous_season_driver_standings": ""
+    "previous_season_driver_standings": "",
+    "season": "season_2025",
+    "leaderboard": "f1",
+    "ui_path": "f1_2023"
    }
   },
   {
@@ -2272,25 +2379,25 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_18",
    "field": "_metadata_",
-   "value": "cs16_haas_driver_01"
+   "value": "cs16_manor_driver_01"
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_18",
    "field": "team",
-   "value": "cs16_haas"
+   "value": "cs16_manor"
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_18",
    "field": "vehicle",
-   "value": "cs16_haas"
+   "value": "cs16_manor"
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_18",
    "field": "entrant_reference",
-   "value": "cs2016-romain_grosjean"
+   "value": "cs2016-pascal_wehrlein"
   },
   {
    "op": "set",
@@ -2320,25 +2427,25 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_19",
    "field": "_metadata_",
-   "value": "cs16_haas_driver_02"
+   "value": "cs16_manor_driver_02"
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_19",
    "field": "team",
-   "value": "cs16_haas"
+   "value": "cs16_manor"
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_19",
    "field": "vehicle",
-   "value": "cs16_haas"
+   "value": "cs16_manor"
   },
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_19",
    "field": "entrant_reference",
-   "value": "cs2016-esteban_gutierrez"
+   "value": "cs2016-rio_haryanto"
   },
   {
    "op": "set",
@@ -2361,6 +2468,102 @@
   {
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_19",
+   "field": "driver_customisation",
+   "value": ""
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_20",
+   "field": "_metadata_",
+   "value": "cs16_haas_driver_01"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_20",
+   "field": "team",
+   "value": "cs16_haas"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_20",
+   "field": "vehicle",
+   "value": "cs16_haas"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_20",
+   "field": "entrant_reference",
+   "value": "cs2016-romain_grosjean"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_20",
+   "field": "team_position",
+   "value": "0"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_20",
+   "field": "car_number",
+   "value": "255"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_20",
+   "field": "driver",
+   "value": ""
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_20",
+   "field": "driver_customisation",
+   "value": ""
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_21",
+   "field": "_metadata_",
+   "value": "cs16_haas_driver_02"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_21",
+   "field": "team",
+   "value": "cs16_haas"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_21",
+   "field": "vehicle",
+   "value": "cs16_haas"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_21",
+   "field": "entrant_reference",
+   "value": "cs2016-esteban_gutierrez"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_21",
+   "field": "team_position",
+   "value": "1"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_21",
+   "field": "car_number",
+   "value": "255"
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_21",
+   "field": "driver",
+   "value": ""
+  },
+  {
+   "op": "set",
+   "select": "entrants.entrant_lists.entrant_list[_metadata_=cs_f1_2016].entrant_21",
    "field": "driver_customisation",
    "value": ""
   },

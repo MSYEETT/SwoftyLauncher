@@ -25,8 +25,8 @@ def tyre_paths(pkg):
     }
 
 
-def override_layers(e, pkg):
-    paths = tyre_paths(pkg)
+def override_layers(e, pkg, tyre_pkg=None):
+    paths = tyre_paths(tyre_pkg or pkg)
     prefix = f"eaid://{pkg}/"
     done = 0
     for r in e.res:

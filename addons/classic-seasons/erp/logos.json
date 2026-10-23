@@ -572,6 +572,15 @@
      "op": "clone-entry",
      "at": "overrides.Contents.team_logos.Contents.f1_2023.Contents",
      "src": "[Name=williams]",
+     "as": "cs16_manor",
+     "set": {
+      "Value": "ui_package/art/textures/classic_seasons/logos/cs16_manor.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.f1_2023.Contents",
+     "src": "[Name=williams]",
      "as": "cs16_haas",
      "set": {
       "Value": "ui_package/art/textures/classic_seasons/logos/cs16_haas.tif"
@@ -1382,6 +1391,15 @@
      "op": "clone-entry",
      "at": "overrides.Contents.teams.Contents.mp_team_select_logos.Contents",
      "src": "[Name=vanamersfoort_26]",
+     "as": "cs16_manor",
+     "set": {
+      "Value": "ui_package/art/textures/classic_seasons/logos/cs16_manor.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.mp_team_select_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
      "as": "cs16_haas",
      "set": {
       "Value": "ui_package/art/textures/classic_seasons/logos/cs16_haas.tif"
@@ -2192,6 +2210,15 @@
      "op": "clone-entry",
      "at": "overrides.Contents.teams.Contents.driver_select_team_logos.Contents",
      "src": "[Name=zenith_25]",
+     "as": "cs16_manor",
+     "set": {
+      "Value": "ui_package/art/textures/classic_seasons/logos/cs16_manor.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.driver_select_team_logos.Contents",
+     "src": "[Name=zenith_25]",
      "as": "cs16_haas",
      "set": {
       "Value": "ui_package/art/textures/classic_seasons/logos/cs16_haas.tif"
@@ -3002,6 +3029,15 @@
      "op": "clone-entry",
      "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
      "src": "[Name=vanamersfoort_26]",
+     "as": "cs16_manor",
+     "set": {
+      "Value": "ui_package/art/textures/classic_seasons/logos/cs16_manor.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.team_logos.Contents.driver_career_2024_team_select.Contents",
+     "src": "[Name=vanamersfoort_26]",
      "as": "cs16_haas",
      "set": {
       "Value": "ui_package/art/textures/classic_seasons/logos/cs16_haas.tif"
@@ -3812,6 +3848,15 @@
      "op": "clone-entry",
      "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
      "src": "[Name=vanamersfoort_26]",
+     "as": "cs16_manor",
+     "set": {
+      "Value": "ui_package/art/textures/classic_seasons/logos/cs16_manor.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.teams.Contents.badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
      "as": "cs16_haas",
      "set": {
       "Value": "ui_package/art/textures/classic_seasons/logos/cs16_haas.tif"
@@ -4622,6 +4667,15 @@
      "op": "clone-entry",
      "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
      "src": "[Name=vanamersfoort_26]",
+     "as": "cs16_manor",
+     "set": {
+      "Value": "ui_package/art/textures/classic_seasons/logos/cs16_manor.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.broadcast_ui_generic.Contents.grid_team_logos.Contents",
+     "src": "[Name=vanamersfoort_26]",
      "as": "cs16_haas",
      "set": {
       "Value": "ui_package/art/textures/classic_seasons/logos/cs16_haas.tif"
@@ -5432,6 +5486,15 @@
      "op": "clone-entry",
      "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
      "src": "[Name=vanamersfoort_26]",
+     "as": "cs16_manor",
+     "set": {
+      "Value": "ui_package/art/textures/classic_seasons/logos/cs16_manor.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_hud.Contents",
+     "src": "[Name=vanamersfoort_26]",
      "as": "cs16_haas",
      "set": {
       "Value": "ui_package/art/textures/classic_seasons/logos/cs16_haas.tif"
@@ -6236,6 +6299,15 @@
      "as": "cs16_mclaren",
      "set": {
       "Value": "ui_package/art/textures/classic_seasons/logos/cs16_mclaren.tif"
+     }
+    },
+    {
+     "op": "clone-entry",
+     "at": "overrides.Contents.osd.Contents.timing_tower.Contents.team_badges_broadcast.Contents",
+     "src": "[Name=vanamersfoort_26]",
+     "as": "cs16_manor",
+     "set": {
+      "Value": "ui_package/art/textures/classic_seasons/logos/cs16_manor.tif"
      }
     },
     {

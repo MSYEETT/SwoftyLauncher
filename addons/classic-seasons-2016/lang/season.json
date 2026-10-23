@@ -64,6 +64,12 @@
   {
    "op": "lang.set",
    "language": "*",
+   "key": "lng_cs_team_16_manor",
+   "value": "Manor"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
    "key": "lng_cs_team_16_haas",
    "value": "Haas"
   }

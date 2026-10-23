@@ -18,7 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from layout import ROOT, asset_ops, built, year_dir
+from layout import ROOT, asset_ops, built, extra_package, year_dir
 
 DATA = json.loads((ROOT / "data" / "seasons.json").read_text())
 STOCK = json.loads((ROOT / "data" / "stock_looks.json").read_text())
@@ -152,12 +152,25 @@ def build():
                                 "has_cockpit_halo": str(season.get("halo", True))}})
             ops.append({"op": "add-row", "table": "car_setup.presets",
                         "from": f"{SETUP_PRESETS}[_metadata_=f1_2025_vehicle_package]", "set": {"_metadata_": pkg}})
+            if cars.get("extra"):
+                extra = extra_package(year)
+                ops.append({"op": "add-row", "table": "entrants.vehicles.vehicle_packages",
+                            "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+                            "set": {"_metadata_": f"cx_{year}",
+                                    "resource_path": f"{extra}/teams/[FILENAME]/wep/[FILENAME]",
+                                    "blob_shadow_decal": f"eaid://{shared}/shared/ao/materials/blobshadowdecal.material",
+                                    "driver_animation_set": animation,
+                                    "has_cockpit_halo": str(season.get("halo", True))}})
+                ops.append({"op": "add-row", "table": "car_setup.presets",
+                            "from": f"{SETUP_PRESETS}[_metadata_=f1_2025_vehicle_package]",
+                            "set": {"_metadata_": extra}})
 
         for team in season["teams"]:
             folder = team["folder"]
+            key = team.get("key", folder)
             stock = DATA["folders"][folder]
-            label = team_label(year, folder)
-            name_key = f"lng_cs_team_{yy:02d}_{folder}"
+            label = team_label(year, key)
+            name_key = f"lng_cs_team_{yy:02d}_{key}"
             ops.append({"op": "add-row", "table": "entrants.teams",
                         "from": f"entrants.teams.team[_metadata_={stock['team']}]",
                         "set": {"_metadata_": label, "display_name": name_key, "display_name_short": name_key,
@@ -166,13 +179,13 @@ def build():
             text.append(lang(name_key, team["name"]))
             vehicle = {"_metadata_": label}
             if cars:
-                vehicle["vehicle_package"] = f"cs_{year}"
+                vehicle["vehicle_package"] = f"cx_{year}" if "car" in team else f"cs_{year}"
             ops.append({"op": "add-row", "table": "entrants.vehicles",
                         "from": f"entrants.vehicles.vehicle[_metadata_={stock['vehicle']}]", "set": vehicle})
 
             for position, (driver, number) in enumerate(team["drivers"]):
                 seat, helmet, suit, gloves = placeholder_look(folder, position, driver)
-                look = look_label(year, folder, driver)
+                look = look_label(year, key, driver)
                 ops.append({"op": "add-row", "table": LOOKS, "from": f"{LOOK_ROW}[_metadata_={seat}]",
                             "set": {"_metadata_": look, "helmet": helmet, "suit": suit, "gloves": gloves,
                                     "linked_driver_stat_id": driver, "available": "False",
@@ -183,20 +196,27 @@ def build():
                             "set": {"_metadata_": f"cs{year}-{driver}", "driver": driver,
                                     "driver_customisation": look, "car_number": str(number)}})
 
+        grid = sum(len(team["drivers"]) for team in season["teams"])
+        wide = grid > 20
         ops.append({"op": "add-row", "table": "entrants.standings",
-                    "from": "entrants.standings.standings[_metadata_=f1_teams_2024]",
+                    "from": f"entrants.standings.standings[_metadata_={'f1_teams_2026' if wide else 'f1_teams_2024'}]",
                     "set": {"_metadata_": standings}})
         for position, team in enumerate(season["teams"]):
             ops.append({"op": "set", "select": f"entrants.standings.standings[_metadata_={standings}].team_reference_{position}",
-                        "field": "team", "value": team_label(year, team["folder"])})
+                        "field": "team", "value": team_label(year, team.get("key", team["folder"]))})
 
+        entrant_list = {"_metadata_": list_label, "display_name": f"lng_cs_f1_{year}",
+                        "previous_season_team_standings": standings, "previous_season_driver_standings": ""}
+        if wide:
+            entrant_list.update(season="season_2025", leaderboard="f1", ui_path="f1_2023")
+            ops.append({"op": "set", "select": f"{SETUP_ROW}[_metadata_={HOST_MODE}]", "field": "max_entrants",
+                        "value": str(grid)})
         ops.append({"op": "add-row", "table": "entrants.entrant_lists",
-                    "from": "entrants.entrant_lists.entrant_list[_metadata_=f1_2025]",
-                    "set": {"_metadata_": list_label, "display_name": f"lng_cs_f1_{year}",
-                            "previous_season_team_standings": standings, "previous_season_driver_standings": ""}})
+                    "from": f"entrants.entrant_lists.entrant_list[_metadata_={'f1_2026' if wide else 'f1_2025'}]",
+                    "set": entrant_list})
         slot = 0
         for team in season["teams"]:
-            label = team_label(year, team["folder"])
+            label = team_label(year, team.get("key", team["folder"]))
             for position, (driver, _number) in enumerate(team["drivers"]):
                 row = f"entrants.entrant_lists.entrant_list[_metadata_={list_label}].entrant_{slot}"
                 for field, value in (("_metadata_", f"{label}_driver_0{position + 1}"), ("team", label),
@@ -205,8 +225,8 @@ def build():
                                      ("driver", ""), ("driver_customisation", "")):
                     ops.append({"op": "set", "select": row, "field": field, "value": value})
                 slot += 1
-        if slot != 20:
-            raise SystemExit(f"{year}: {slot} entrants, the f1_2025 list has 20")
+        if slot != (22 if wide else 20):
+            raise SystemExit(f"{year}: {slot} entrants, the f1_2025 list has 20 and the f1_2026 list 22")
 
         ops.append({"op": "add-row", "table": "game_setup.scenarios",
                     "from": "game_setup.scenarios.scenario[_metadata_=f1]",

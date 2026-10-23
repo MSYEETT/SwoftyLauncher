@@ -244,6 +244,24 @@
    }
   },
   {
+   "op": "add-row",
+   "table": "entrants.drivers",
+   "from": "entrants.drivers.driver[_metadata_=lando_norris]",
+   "set": {
+    "_metadata_": "rio_haryanto",
+    "first_name": "lng_cs_driver_rio_haryanto_first",
+    "last_name": "lng_cs_driver_rio_haryanto_last",
+    "full_name": "lng_cs_driver_rio_haryanto_full",
+    "last_name_standard": "",
+    "initials": "HAR",
+    "nationality": "indonesia",
+    "head": "male_ls161",
+    "audio_name": "DefaultName",
+    "expression_label": "",
+    "stat_id": "230"
+   }
+  },
+  {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=nico_rosberg]",
    "field": "head",
@@ -370,6 +388,15 @@
    "set": {
     "_metadata_": "sergey_sirotkin",
     "driver": "sergey_sirotkin"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "set": {
+    "_metadata_": "rio_haryanto",
+    "driver": "rio_haryanto"
    }
   },
   {

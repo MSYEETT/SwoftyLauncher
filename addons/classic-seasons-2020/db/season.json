@@ -638,7 +638,7 @@
     "gloves": "2025-mercedes_george_russell",
     "linked_driver_stat_id": "lewis_hamilton",
     "available": "False",
-    "stat_id": "500"
+    "stat_id": "502"
    }
   },
   {
@@ -663,7 +663,7 @@
     "gloves": "2025-mercedes_andrea-kimi_antonelli",
     "linked_driver_stat_id": "valtteri_bottas",
     "available": "False",
-    "stat_id": "501"
+    "stat_id": "503"
    }
   },
   {
@@ -710,7 +710,7 @@
     "gloves": "2025-redbull_max_verstappen",
     "linked_driver_stat_id": "max_verstappen",
     "available": "False",
-    "stat_id": "502"
+    "stat_id": "504"
    }
   },
   {
@@ -735,7 +735,7 @@
     "gloves": "2025-redbull_yuki_tsunoda",
     "linked_driver_stat_id": "alex_albon",
     "available": "False",
-    "stat_id": "503"
+    "stat_id": "505"
    }
   },
   {
@@ -782,7 +782,7 @@
     "gloves": "2025-mclaren_oscar_piastri",
     "linked_driver_stat_id": "carlos_sainz-jr",
     "available": "False",
-    "stat_id": "504"
+    "stat_id": "506"
    }
   },
   {
@@ -807,7 +807,7 @@
     "gloves": "2025-mclaren_lando_norris",
     "linked_driver_stat_id": "lando_norris",
     "available": "False",
-    "stat_id": "505"
+    "stat_id": "507"
    }
   },
   {
@@ -854,7 +854,7 @@
     "gloves": "2025-forceindia_lance_stroll",
     "linked_driver_stat_id": "sergio_perez",
     "available": "False",
-    "stat_id": "506"
+    "stat_id": "508"
    }
   },
   {
@@ -879,7 +879,7 @@
     "gloves": "2025-forceindia_fernando_alonso",
     "linked_driver_stat_id": "lance_stroll",
     "available": "False",
-    "stat_id": "507"
+    "stat_id": "509"
    }
   },
   {
@@ -926,7 +926,7 @@
     "gloves": "2025-renault_pierre_gasly",
     "linked_driver_stat_id": "daniel_ricciardo",
     "available": "False",
-    "stat_id": "508"
+    "stat_id": "510"
    }
   },
   {
@@ -951,7 +951,7 @@
     "gloves": "2025-renault_franco_colapinto",
     "linked_driver_stat_id": "esteban_ocon",
     "available": "False",
-    "stat_id": "509"
+    "stat_id": "511"
    }
   },
   {
@@ -998,7 +998,7 @@
     "gloves": "2025-ferrari_charles_leclerc",
     "linked_driver_stat_id": "sebastian_vettel",
     "available": "False",
-    "stat_id": "510"
+    "stat_id": "512"
    }
   },
   {
@@ -1023,7 +1023,7 @@
     "gloves": "2025-ferrari_lewis_hamilton",
     "linked_driver_stat_id": "charles_leclerc",
     "available": "False",
-    "stat_id": "511"
+    "stat_id": "513"
    }
   },
   {
@@ -1070,7 +1070,7 @@
     "gloves": "2025-tororosso_isack_hadjar",
     "linked_driver_stat_id": "pierre_gasly",
     "available": "False",
-    "stat_id": "512"
+    "stat_id": "514"
    }
   },
   {
@@ -1095,7 +1095,7 @@
     "gloves": "2025-tororosso_liam_lawson",
     "linked_driver_stat_id": "daniil_kvyat",
     "available": "False",
-    "stat_id": "513"
+    "stat_id": "515"
    }
   },
   {
@@ -1142,7 +1142,7 @@
     "gloves": "2025-sauber_nico_hulkenberg",
     "linked_driver_stat_id": "kimi_raikkonen",
     "available": "False",
-    "stat_id": "514"
+    "stat_id": "516"
    }
   },
   {
@@ -1167,7 +1167,7 @@
     "gloves": "2025-sauber_gabriel_bortoleto",
     "linked_driver_stat_id": "antonio_giovinazzi",
     "available": "False",
-    "stat_id": "515"
+    "stat_id": "517"
    }
   },
   {
@@ -1214,7 +1214,7 @@
     "gloves": "2025-haas_esteban_ocon",
     "linked_driver_stat_id": "romain_grosjean",
     "available": "False",
-    "stat_id": "516"
+    "stat_id": "518"
    }
   },
   {
@@ -1239,7 +1239,7 @@
     "gloves": "2025-haas_oliver_bearman",
     "linked_driver_stat_id": "kevin_magnussen",
     "available": "False",
-    "stat_id": "517"
+    "stat_id": "519"
    }
   },
   {
@@ -1286,7 +1286,7 @@
     "gloves": "2025-williams_alex_albon",
     "linked_driver_stat_id": "george_russell",
     "available": "False",
-    "stat_id": "518"
+    "stat_id": "520"
    }
   },
   {
@@ -1311,7 +1311,7 @@
     "gloves": "2025-williams_carlos_sainz-jr",
     "linked_driver_stat_id": "nicholas_latifi",
     "available": "False",
-    "stat_id": "519"
+    "stat_id": "521"
    }
   },
   {

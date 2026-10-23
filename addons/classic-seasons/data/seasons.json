@@ -16,7 +16,8 @@
     "esteban_gutierrez": { "first": "Esteban",   "last": "Gutiérrez",  "initials": "GUT", "nationality": "mexico",      "head": "male_ls212" },
     "stoffel_vandoorne": { "first": "Stoffel",   "last": "Vandoorne",  "initials": "VAN", "nationality": "belgium",     "head": "male_ls343" },
     "brendon_hartley":   { "first": "Brendon",   "last": "Hartley",    "initials": "HAR", "nationality": "new_zealand", "head": "male_ls265" },
-    "sergey_sirotkin":   { "first": "Sergey",    "last": "Sirotkin",   "initials": "SIR", "nationality": "default",     "head": "male_ls790" }
+    "sergey_sirotkin":   { "first": "Sergey",    "last": "Sirotkin",   "initials": "SIR", "nationality": "default",     "head": "male_ls790" },
+    "rio_haryanto":      { "first": "Rio",       "last": "Haryanto",   "initials": "HAR", "nationality": "indonesia",   "head": "male_ls161" }
   },
   "holders_for": ["nico_rosberg"],
   "head_overrides": {
@@ -51,6 +52,7 @@
         { "folder": "toro_rosso",  "name": "Toro Rosso",      "code": "STR", "drivers": [["carlos_sainz-jr", 55], ["daniil_kvyat", 26]] },
         { "folder": "sauber",      "name": "Sauber",          "code": "SAU", "drivers": [["marcus_ericsson", 9], ["felipe_nasr", 12]] },
         { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "drivers": [["fernando_alonso", 14], ["jenson_button", 22]] },
+        { "folder": "sauber",      "name": "Manor",           "code": "MRT", "drivers": [["pascal_wehrlein", 94], ["rio_haryanto", 88]], "key": "manor", "car": "sauber.erp" },
         { "folder": "haas",        "name": "Haas",            "code": "HAA", "drivers": [["romain_grosjean", 8], ["esteban_gutierrez", 21]] }
       ]
     },

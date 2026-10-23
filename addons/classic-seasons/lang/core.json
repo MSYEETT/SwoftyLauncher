@@ -90,6 +90,24 @@
    "language": "*",
    "key": "lng_cs_driver_sergey_sirotkin_full",
    "value": "Sergey SIROTKIN"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_cs_driver_rio_haryanto_first",
+   "value": "Rio"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_cs_driver_rio_haryanto_last",
+   "value": "HARYANTO"
+  },
+  {
+   "op": "lang.set",
+   "language": "*",
+   "key": "lng_cs_driver_rio_haryanto_full",
+   "value": "Rio HARYANTO"
   }
  ]
 }

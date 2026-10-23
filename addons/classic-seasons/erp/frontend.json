@@ -294,6 +294,35 @@
   {
    "op": "add-resource",
    "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_cs_tm_11.tif.image",
+   "type": "GfxSurfaceRes",
+   "sources": [
+    "erp/frontend/team.head",
+    "erp/frontend/cs_tm_11.f1",
+    "erp/frontend/cs_tm_11.f2"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_team_names/f1_teamname_cs_tm_11.tif",
+   "type": "GfxSRVResource",
+   "sources": [
+    "erp/frontend/cs_tm_11.srv"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/materials/main_front_end/names/mfe_2025_team_select_cs_tm_11_a.material",
+   "type": "GfxMaterialRes",
+   "sources": [
+    "erp/frontend/cs_tm_11.material"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
    "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_cs_driver01.tif.image",
    "type": "GfxSurfaceRes",
    "sources": [
@@ -1019,6 +1048,35 @@
   {
    "op": "add-resource",
    "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_cs_driver26.tif.image",
+   "type": "GfxSurfaceRes",
+   "sources": [
+    "erp/frontend/driver.head",
+    "erp/frontend/cs_driver26.f1",
+    "erp/frontend/cs_driver26.f2"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/textures/main_front_end/names/f1_driver_names/f1_drivername_cs_driver26.tif",
+   "type": "GfxSRVResource",
+   "sources": [
+    "erp/frontend/cs_driver26.srv"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/materials/main_front_end/names/mfe_2025_driver_select_cs_driver26_a.material",
+   "type": "GfxMaterialRes",
+   "sources": [
+    "erp/frontend/cs_driver26.material"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
    "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_vehicle_select_name.emb?context=cs16_mercedes",
    "type": "GfxMatBindRes",
    "sources": [
@@ -1095,6 +1153,15 @@
    "type": "GfxMatBindRes",
    "sources": [
     "erp/frontend/cs16_mclaren.bind"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_vehicle_select_name.emb?context=cs16_manor",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/cs16_manor.bind"
    ]
   },
   {
@@ -1928,6 +1995,24 @@
   {
    "op": "add-resource",
    "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=pascal_wehrlein",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/pascal_wehrlein.bind"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
+   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=rio_haryanto",
+   "type": "GfxMatBindRes",
+   "sources": [
+    "erp/frontend/rio_haryanto.bind"
+   ]
+  },
+  {
+   "op": "add-resource",
+   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
    "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=romain_grosjean",
    "type": "GfxMatBindRes",
    "sources": [
@@ -1941,15 +2026,6 @@
    "type": "GfxMatBindRes",
    "sources": [
     "erp/frontend/esteban_gutierrez.bind"
-   ]
-  },
-  {
-   "op": "add-resource",
-   "erp": "2025_asset_groups/environment_package/second_world/main_front_end/wep/main_front_end.erp",
-   "resource": "eaid://environment_package/core_assets/objects/idf/main_front_end/mfe_2025_main_menu_driver_select_name.emb?context=pascal_wehrlein",
-   "type": "GfxMatBindRes",
-   "sources": [
-    "erp/frontend/pascal_wehrlein.bind"
    ]
   },
   {

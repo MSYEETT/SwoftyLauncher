@@ -11,7 +11,9 @@ every car and showroom model layer gets a Tyres override naming it (tyres.py): t
 tyre set, whose resources share their names with the zip's tyre set and its larger buffers. Each car then gets the
 frame-rate pass (carperf: shadow casters rebuilt from a lower LOD, non-livery textures and shipped sidecars capped
 at 1024 px), and its handling files take the wheel positions from themselves instead of the model (handling.py). The build checks that every renamed reference resolves inside the season's archives, writes
-them to the season addon's cars/ folder (layout.py), whose asset ops gen.py writes.
+them to the season addon's cars/ folder (layout.py), whose asset ops gen.py writes. A team with its own car archive in data/seasons.json ("car", a file in the downloads
+folder, shipped in the slot of the team named by "folder") gets the same passes in the season's second package
+(layout.py), with its shared references on the season's shared archive.
 """
 
 import argparse
@@ -35,7 +37,7 @@ import cameras
 import carperf
 import handling
 import tyres
-from layout import FOLDERS, SOURCE, STOCK_COMMON, cars_dir, package
+from layout import FOLDERS, SOURCE, STOCK_COMMON, cars_dir, extra_package, package
 
 OLD = f"eaid://{SOURCE}/"
 ANY_EAID = re.compile(rb"eaid://[\x21-\x7e]+")
@@ -199,6 +201,40 @@ def build_season(year, src_zip, out_dir, game):
     return report
 
 
+def build_extra(year, team, downloads, out_dir, game):
+    folder, pkg, extra = team["folder"], package(year), extra_package(year)
+    own_common = json.loads((out_dir / "meta.json").read_text())["common"] == "own"
+    e = erpw.Erp(str(downloads / team["car"]))
+    renamed, rewritten = rewrite(e, re.compile(re.escape(f"{OLD}teams/".encode())),
+                                 lambda m: f"eaid://{extra}/teams/".encode())
+    if own_common:
+        rewrite(e, re.compile(re.escape(OLD.encode())), lambda m: f"eaid://{pkg}/".encode())
+        tyres.override_layers(e, extra, pkg)
+    season = SEASONS.get(year, {})
+    if season.get("cockpit_camera"):
+        cameras.move_cockpit(e, extra, season["cockpit_camera"]["up"], season["cockpit_camera"]["forward"])
+    if season.get("pod_camera"):
+        cameras.pod_near_clip(e, extra, season["pod_camera"]["near_clip"])
+    handling.use_handling_positions(e)
+    known = {r.name.split("?")[0] for r in e.res}
+    common = out_dir / "teams" / "common.erp" if own_common else game / STOCK_COMMON
+    known |= {r.name.split("?")[0] for r in erpw.Erp(str(common)).res}
+    world = f"eaid://{extra}/teams/{folder}/wep/{folder}.wep"
+    if world not in known:
+        raise SystemExit(f"{year} {team['key']}: no World {world}")
+    missing = sorted(r for r in references(e) - known if r.startswith((f"eaid://{extra}/", f"eaid://{pkg}/", OLD)))
+    if missing:
+        raise SystemExit(f"{year} {team['key']}: {len(missing)} unresolved reference(s), such as {missing[:5]}")
+    perf = carperf.optimise(e)
+    shadow = carperf.check(e)
+    out = out_dir / "extra" / "teams" / folder / "wep" / f"{folder}.erp"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    e.to_file(str(out))
+    return {"car": team["car"], "folder": folder, "package": extra, "renamed": renamed, "rewritten": rewritten,
+            "shadow_triangles": shadow, "shadows_rebuilt": len(perf["shadows"]),
+            "textures_capped": len(perf["textures"]), "bytes": out.stat().st_size}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--downloads", default=os.path.expanduser("~/Downloads"))
@@ -214,12 +250,19 @@ def main():
                 p.unlink() if p.is_file() else p.rmdir()
         out.mkdir(parents=True, exist_ok=True)
         r = build_season(year, src, out, Path(args.game))
+        extras = [t for t in SEASONS.get(year, {}).get("teams", []) if "car" in t]
+        if extras:
+            r["extra"] = {t["key"]: build_extra(year, t, Path(args.downloads), out, Path(args.game)) for t in extras}
+            meta = json.loads((out / "meta.json").read_text())
+            meta["extra"] = [t["folder"] for t in extras]
+            (out / "meta.json").write_text(json.dumps(meta, indent=1) + "\n")
         (out / "report.json").write_text(json.dumps(r, indent=1) + "\n")
         bad = {k: v["unresolved_count"] for k, v in r["cars"].items() if v.get("unresolved_count")}
         foreign = {k: v["foreign_count"] for k, v in r["cars"].items() if v.get("foreign_count")}
         miss = {k: len(v["missing_sidecars"]) for k, v in r["cars"].items() if v.get("missing_sidecars")}
         print(f"{year}: {len(r['cars'])} archives from {r['zip']}, {r['sidecars']} sidecar(s) moved, "
-              f"unresolved {bad or 'none'}, foreign {foreign or 'none'}, missing sidecars {miss or 'none'}", flush=True)
+              f"unresolved {bad or 'none'}, foreign {foreign or 'none'}, missing sidecars {miss or 'none'}"
+              + "".join(f", {k} from {v['car']} in {v['package']}" for k, v in r.get("extra", {}).items()), flush=True)
 
 
 if __name__ == "__main__":

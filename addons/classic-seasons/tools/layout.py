@@ -1,7 +1,9 @@
 """Where each season's addon lives, and the asset ops that ship its cars.
 
 The core addon (this folder) holds what every season shares. Each season is its own addon, a sibling folder
-classic-seasons-<year>, whose cars/ holds the built archives (not committed).
+classic-seasons-<year>, whose cars/ holds the built archives (not committed). A team whose car comes from its own
+archive instead of the season zip (a season's eleventh team, shipped in another team's slot) goes in a second package,
+cx_<year>_vehicle_package, under that slot's folder, so its per-track AI data is the slot's.
 """
 
 import json
@@ -24,6 +26,10 @@ def cars_dir(year):
 
 def package(year):
     return f"cs_{year}_vehicle_package"
+
+
+def extra_package(year):
+    return f"cx_{year}_vehicle_package"
 
 
 def meta(year):
@@ -65,6 +71,13 @@ def asset_ops(year):
         target = f"2025_asset_groups/{pkg}/teams/{folder}/wep/{folder}.erp"
         ops.append({"op": "file.put", "source": f"cars/teams/{folder}/wep/{folder}.erp", "target": target})
         ops.append({"op": "group.register", "group": f"asset_groups/{pkg}/teams/{folder}/wep/{folder}.assetgroup",
+                    "erps": [common, target],
+                    "template": f"asset_groups/{SOURCE}/teams/{folder}/wep/{folder}.assetgroup"})
+    extra = extra_package(year)
+    for folder in m.get("extra", []):
+        target = f"2025_asset_groups/{extra}/teams/{folder}/wep/{folder}.erp"
+        ops.append({"op": "file.put", "source": f"cars/extra/teams/{folder}/wep/{folder}.erp", "target": target})
+        ops.append({"op": "group.register", "group": f"asset_groups/{extra}/teams/{folder}/wep/{folder}.assetgroup",
                     "erps": [common, target],
                     "template": f"asset_groups/{SOURCE}/teams/{folder}/wep/{folder}.assetgroup"})
     return {"schema_version": 1, "ops": ops}
