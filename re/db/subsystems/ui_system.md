@@ -1,6 +1,8 @@
 # F1 25 UI system — authored formats + runtime model (edit/add reference)
 
-Owner lane: `ui` (prefix `Ui`, owner `ui-format`). Companion map: [`ui.md`](ui.md).
+Owner lane: `ui` (prefix `Ui`; owner in `subsystems.tsv`). Companion map: [`ui.md`](ui.md). The
+engine side of the same graph (template store, instantiation, behaviours, signals, failure modes) is the
+`vm` lane map [`vm.md`](vm.md); the user-facing pages are `docs/reference/ui/{engine,nodes,patterns}.md`.
 Exe-side functions/globals live in the `vm`, `fe_flow`, `fe_home`, `fe_tiles`, `fe_popup`,
 `fe_input`, `hud`, `assets` and `career` lanes — this doc is the **format and workflow**
 reference that ties them together, so a future addon can edit and add UI in a general way.
@@ -10,7 +12,15 @@ Distilled from, and kept honest against, three primary sources (all in
 - the launcher's UI generator — `packages/core/src/ui/{node,pages,patch,check,mod}.rs` (it
   authors working `.ui`/UIDF screens and patches the stock UI ERPs, so it is the Rosetta stone);
 - the binary format crates — `packages/formats/src/{pkg,erp}.rs`;
-- the native runtime loader + view-model binder — `native/src/core/{ui,ui_vm.cpp}`.
+- the native runtime loader + view-model binder — `native/src/core/{ui,ui_vm.cpp}`;
+- since 2026-10-23, the engine's own loader read from `F1_25.exe` (`vm.md#templates` .. `#failures`,
+  `re/db/ui/loader_rules.json`) and the stock catalogue `tools/uicatalog/catalog.json` (345 `.ui`,
+  5,208 `.idf`).
+
+Engine facts below carry a marker: **[L2]** read in the decompile with callers listed (the KB row is
+L2), **[run]** also seen in the 2026-10-23 live gdb trace (`vm.md#trace`), **[game]** observed in game
+without a trace, **[L1]** scan or rules-file only, **[inferred]** not confirmed. Facts without a marker
+are format facts from the launcher's own reader and writer.
 
 Image base `0x140000000`, build `d873a1c8…` (Steam), code section `.xtls`.
 
@@ -88,7 +98,9 @@ order (re-sorting only v1 hashes), and pads to alignment. `pkg.rs` tests assert 
 ## 2. The `.ui` / UIDF node grammar {#ui}
 
 A `.ui` file's root is an object `{ "Screens": [ <screen-node>, ... ] }`
-(`node.rs::ui_bytes`). Everything inside is a **node**.
+(`node.rs::ui_bytes`). Everything inside is a **node**. A `.ui` resource has up to two fragments the
+engine reads: `temp` (fragment 0: `Screens`, `Flows`), built later by a screen job, and `syst`
+(fragment 1: `Templates`), registered synchronously by name (§2.9) **[L2]**.
 
 ### 2.1 A node is an 8-element list
 `is_node(n)` ⇔ `n` is a list of length 8 whose item 0 is an object with a `name` key
@@ -100,10 +112,15 @@ A `.ui` file's root is an object `{ "Screens": [ <screen-node>, ... ] }`
 | 1 | `CHILDREN` | list of child nodes (and inline data-decision nodes) |
 | 2 | `COMMANDS` | list of command handlers `{commandName, command, signals[]}` |
 | 3 | `EVENTS` | list of event handlers `{eventName, event, signals[]}` |
-| 4 | `LAYOUT` | layout-attach list (how this node binds into its parent's layout) |
-| 5 | `COMPONENTS` | scene components this node instantiates: `[{componentId: ui64 = md5-64(path), debugName: <eaid path without .idf>, name}]` (e.g. `tab_content_rnd_upgrades_alt` → `rnd_overview`, the UITH `laptop_r_and_d_tab_header` → `primary_icon_nav_item`); its descendants then attach by name into that scene |
-| 6 | `BEHAVIOURS` | list of `{type: <FourCC>}` neon behaviours |
+| 4 | `LAYOUT` | `[path]`: the layout path is the first entry, a list of steps (§2.5). The engine reads only `slot4[0]`; an empty path fails the node with 0x22; an empty slot 4 means no attach **[L2]** |
+| 5 | `COMPONENTS` | scene components this node instantiates: `[{componentId: ui64 = md5-64(path), debugName: <eaid path without .idf>, name}]` (e.g. `tab_content_rnd_upgrades_alt` → `rnd_overview`, the UITH `laptop_r_and_d_tab_header` → `primary_icon_nav_item`); its descendants then attach by name into that scene. The engine reads the first entry, which needs `name` and `componentId` (else 3; `debugName` is not read), and adds it as one more layout step **[L2]** |
+| 6 | `BEHAVIOURS` | list of `{type: <FourCC>}` neon behaviours; `type` is required (else 3); some types require props (§2.6) **[L2]** |
 | 7 | — | empty in authored screens (role unread) |
+
+The launcher's `is_node` wants 8 slots; the engine (`Vm_Read_UidfNode` 0x14417f5f0) accepts a node
+array whose slots 6 and 7 are absent, needs every present slot to be a readable `!pkg` array/object and
+the props to hold `name` and `type`, else 5 **[L2]**. It reads the record into name `char*` +0x68,
+FourCC +0x70, object +0x78, children +0x10.
 
 ### 2.2 The props object
 Every node's props carry five fixed keys (`node.rs::node`), then widget-specific props:
@@ -116,7 +133,10 @@ name    stri   the node's local name
 ```
 `id`/`nameId`/layout `nodeId`/event+command/signal hashes are all recomputed by
 `node.rs::fix_ids` after any edit — **always re-run the id fixup after renaming or moving a
-node**, or the engine's hash lookups miss.
+node**, or the engine's hash lookups miss. The element init compares `type` with the class's own FourCC
+(vt+0x80) and fails the node with 5 on a mismatch **[L2]**. Props are found by a case-insensitive string
+compare of the key names (`Vm_Find_PkgObjectKey_Thunk` 0x143927f90), not by their stored fnv1a32; a
+missing required key returns 3 **[L2]**.
 
 ### 2.3 Property values and data binding (`@`) {#binding}
 A property value is either a bare scalar, or a **binding object** `{ value, dbentry }`
@@ -165,14 +185,34 @@ from_pin_name   stri   this node's output pin / the event name
 attributes?     obj    typed args passed with the signal
 ```
 Lifecycle/nav pins seen: `focus navUp navDown navLeft navRight pressed focused route reset
-stop show setText trigger query is_valid`. A **data-dispatched command** is a signal to the
+stop show setText trigger query is_valid`.
+
+**What the loader requires** (`Vm_Read_CommandList` 0x1442c29e0 / `Vm_Read_EventList` 0x1442c2fd0 →
+`Vm_Read_SignalList` 0x1442c17e0) **[L2]**: every command entry needs `command` and `signals`, every
+event entry `event` and `signals` (an empty `signals` array is accepted); every signal needs `to_pin` and
+`to_object`; `attributes` are optional; each `mappings` entry needs `value`. A miss is code 3 and fails
+the node. `commandName`, `eventName`, `to_object_name`, `to_pin_name`, `from_pin_name` and `debugName`
+are **never read**: only the hashes count, so a stale hash with a correct name is a broken signal.
+
+**At run time** (`vm.md#signals`) **[L2]**: a signal holds a link handle (`structs/UiSignal.h`), filled
+when its target id is found, or left **pending** until a node with that id is created; signals fired
+before then are dropped. Inside a template instance, `to_object` ids that name a node of the same
+template are rewritten to the instance's runtime ids; ids outside it stay as authored. Raising an event
+the node does not declare, or one with no signals, does nothing; a pin the target class does not handle
+is ignored. None of these log. A **data-dispatched command** is a signal to the
 screen's own node with pin `raise_command` and `attributes.command = {name, data}`
 (`node.rs::raise_cmd`) → arrives at `<Screen>VM::onCommandRaised` (slot 10; dispatcher
 `Vm_Dispatch_BindingMessage` 0x1442c00e0). This is how a button triggers custom VM logic.
 
 ### 2.5 Layout attach (slot 4) — how a node is placed {#layout-attach}
-Slot 4 is a list of groups; each group is a list of attach-objects. Two legal forms
-(`check.rs::walk` rejects a node whose attach has neither):
+Slot 4 is `[path]`; the engine reads only `path = slot4[0]`, a list of steps, and stores one
+`UiLayoutStep` per step in the node's attach behaviour (`structs/UiLayoutStep.h`, `vm.md#layout-attach`).
+Multi-step paths are normal: stock nodes use 2 to 6 steps. An empty path is 0x22; a step that has
+`isComponentId` must have `componentId` (step kind 1), any other step must have `nodeId` (kind 0), else
+3 **[L2]**. Nothing is resolved against the `.idf` at load: the steps resolve when the element attaches
+to its scene, so a step naming a missing element fails silently later, not at load (how a step descends
+through `eXRef`/`eMask` is not mapped). Two legal forms (`check.rs` rules `layout.path_nonempty` and
+`layout.step_keys` reject a path that breaks these):
 - **`nodeId` attach** — `{ nodeId: ui32 = djb2(debugName), debugName: stri }`
   (`node.rs::layout_path`). The node drops into a named slot of the **parent's** layout, keyed
   by `djb2(slot debug name)`. This is how the launcher attaches tiles/rows into the stock
@@ -199,8 +239,26 @@ box-grid builder fills a tab controller whose headers stack in an `eStacker`.
 A list of `{ type: ui32 = FourCC }` (`node.rs::behaviours`). Two stock sets:
 - `SCREEN_BEHAVIOURS` = `NBEL NBDC NBMG NBVM NBAC NBOS NBXA NBMO NBTR` (on `UISC` roots).
 - `GROUP_BEHAVIOURS` = `NBEL NBDC NBMG NBVM NBFC NBAN NBAC NBOS NBXA NBMO` (on `UIGP` groups).
-Codes are factual (from `node.rs`); role glosses are name-based guesses (unverified): `NBVM`
-likely the view-model behaviour, `NBEL` element, `NBDC` data-context, `NBAC` action/route.
+
+The element init creates one behaviour per registered `type` and runs its from-data init (vtable slot
+5) in order; a non-zero rc fails the node (`vm.md#behaviours`) **[L2]**. What each init reads:
+
+| type | role | props it reads |
+|---|---|---|
+| `NBVN` | visual navigation | **`visualNav` object, required** (else 3); then `autoFocus`, `allowXNav`, `allowYNav`, `xOffset`, `yOffset`, `navEnabled` **[L2, run]** |
+| `NBMO` | material override | `materialData`, optional **[L1]** |
+| `NBEL` | element attach | `hideOnUnbind`, optional **[L1]** |
+| `NBAN` | animation | `handleRepeats`, optional **[L1]** |
+| `NBAC` | audio context | `audioContext`, optional **[L1]** |
+| `NBDC` `NBVM` `NBXA` `NBTP` | — | nothing **[L1]** |
+| `NBMG` `NBFC` `NBOS` | — | not registered; the engine skips them **[L1]** |
+
+**`NBVN` needs `visualNav`.** Stock pairs them exactly: every template root with `visualNav` lists
+`NBVN` and `f1_world_activity` has neither. A node that keeps `NBVN` in slot 6 and loses `visualNav`
+fails with 3; on a template root that takes the whole instance down (§2.9). The era picker edit that
+dropped `visualNav` from the `dynamic_era_select` root failed all three era content tabs and emptied the
+F1 World play screen; restoring the stock `visualNav = {xOffset: 0, yOffset: 0}` fixed it **[run]**.
+`check.rs` rule `behaviour.nbvn_visualnav` refuses such an edit.
 Inline data-decision child nodes (classes `SVCD MVCD DBVV DBRV DBCD DBAM WUDN UIVF`,
 `node.rs::DECISIONS`) are logic nodes the launcher strips from cloned templates and re-adds
 deliberately (e.g. the popup "seen once" gate, `patch.rs::persistent_gate`).
@@ -225,6 +283,30 @@ swofty_addon_5 [UISC]
   row_2..row_N [UIGP] → toggle/slider [UIGP] → label/value [UILB], left/right_arrow [UIGP], indicator
 ```
 
+### 2.9 Templates (fragment 1) {#templates}
+A `.ui`'s `Templates` list (fragment 1, `syst`) holds reusable roots — usually `UIGP`, each carrying its
+own scene in slot 5 — that the game instantiates at run time: tab contents and headers, spawned tiles,
+list rows. At load the engine stores only each template's name, `!pkg` buffer and node reference
+(`structs/UiTemplateRecord.h`); the tree is built again on every instantiation **[L2]**.
+
+- **Names are global.** The template store spans every loaded `.ui`. A template whose name is already
+  registered makes the loader return 0x58, and every later template of that resource is never
+  registered; which resource wins depends on load order **[L2]**. `check.rs` rule
+  `template.duplicate` refuses a name that repeats in the file or that another stock `.ui` registers.
+- **Instantiation.** A caller looks the name up (a miss is skipped silently) and builds the tree under a
+  parent; each node attaches to the parent after its own init succeeds and before its children are
+  built; the first failing node stops the build and fails the instance **[L2]**. A failing descendant
+  leaves the partial tree attached; a failing root attaches nothing **[L2, run]**. No failure logs.
+- **Tabs.** A tab controller (`UITC`) gets its tab list from the view model (`tabs[i].content_template`,
+  `header_template`) and instantiates every content template, then every header template. Each
+  instance is named `tab_<n>( <content_template> )` — **also the header instances** — with `<n>` the
+  controller's child count + 1. A failed content instance is dropped and the loop continues **[L2, run]**.
+  For `f1_world_activity_container` the seven tabs are `f1_world_activity`, `f1_world_activity_offline`,
+  `dynamic_era_select` (three times: Grand Prix, Time Trial, split-screen era select), `public_gp_select`
+  and `session_create_dlc_select_tab` (from `f1_world_container.ui`); headers use `primary_nav_tab`
+  (`templates/tab_header_templates.ui`). `time_trial_select`, also in that `.ui`, is not used by any tab
+  **[L2, run]**.
+
 ---
 
 ## 3. Node / widget classes (the FourCC registry) {#classes}
@@ -232,7 +314,10 @@ swofty_addon_5 [UISC]
 Every node's `props.type` is a 4-char class code, little-endian (`"UIGP"` →
 `0x50474955`). The class factory table is built by `Vm_Register_NodeClasses`
 (vm 0x14419b1d0): ~97 factories, each 0xc0 bytes, installed by `Vm_Install_NodeFactories`
-(0x1441cac40). When a screen loads, `Vm_Build_UidfNode`/`Vm_Read_UidfNode` look the class up
+(0x1441cac40); the game registers its own classes (`F1xx`, `TILE`, `LCDC`, `OSPL`, `RSCM`, `TACM`,
+`TADM`, `UISS`) in 0x1437ea4a0, 136 in all **[L1]**. `re/db/ui/loader_rules.json` `classes` lists every
+class with its vtable, init, pin handler, the props its init reads and the pins its handler implements;
+`docs/reference/ui/nodes.md` lists what stock files use per class. When a screen loads, `Vm_Build_UidfNode`/`Vm_Read_UidfNode` look the class up
 here; **a FourCC with no factory makes the build fail with code 5** (`ui.cpp::factory_site`:
 "has no registered class factory"). Full 97-class list in `vm.md#classes`.
 
@@ -247,10 +332,13 @@ UIAM audio-trigger     UIMO motion/anim          UIXA anim             TIME time
 UIDS data-source       SVCD single-value-decision  MVCD multi-value-decision
 DBVV/DBRV/DBCD/DBAM/WUDN/UIVF  data-binding/decision nodes   LOCA localise  SWIP swipe
 ```
-Element-init base chain (`vm.md#element-init`): `Vm_ElementBase_Init` (0x1441ffb90) → class init
-(`Vm_UiToggle_Init` 0x144272810, `Vm_UiSlider_Init` 0x1442593b0). The base reads the layout
-attach and returns **code 3** without a `componentId`/`nodeId`; the list base returns **code 3/5**
-without a bound `data`. These are the two most common "screen won't open" causes (§8.4).
+Element-init base chain (`vm.md#element-init`): `Vm_ElementBase_Init` (0x1441ffb90, 126 of 136
+classes) → class init (`Vm_UiToggle_Init` 0x144272810, `Vm_UiSlider_Init` 0x1442593b0,
+`Vm_SingleValueDecision_Init_Thunk` 0x144276f20). The base checks, in order, the FourCC (5), the
+layout path (0x22 / 3), the first component (3) and the behaviours (3 or the behaviour init's rc); the
+list base returns **3/5** without a bound `data`; `SVCD` fails without `value`; `F1TS` rejects an
+`inputType` other than `normal`/`dpadOnly` with 0x57 **[L2; F1TS L1]**. What a rejection takes down is
+in §8.4.
 
 ---
 
@@ -342,6 +430,7 @@ Each element is an object with (observed) keys:
 ```
 name        stri   slot name a widget attaches to; root is "Scene Root"
 elementId   ui32   = djb2(dotted path)  — the element's own id (a `.ui` attach uses djb2(name))
+xref        ui64   eXRef only: componentId of the referenced scene (§5.5, the xref rule)
 typeName    shnm   authoring class (see 5.4)
 position    vec3   local translation (x, y, z[, pad])   — stored as 4 floats
 scale       vec3   local scale
@@ -368,7 +457,8 @@ relative to its parent), plus `scale` and `rotation`. Its *size* is the local bo
 ### 5.4 Authoring classes (`typeName`)
 ```
 eScene    scene root                 eNull     transform/group (most common)
-eXRef     external component ref (param fileRef = another .idf, XrefMaterialBinding = its .emb)
+eXRef     external component ref (element key xref = the referenced scene's componentId;
+          params fileRef = that .idf, XrefMaterialBinding = its .emb)
 eText     text/label (params style, halign, wrapping, textcase, boxWidth, maskWidth/Height, document)
 ePoint    anchor point               eAnchor   anchor
 eStacker  linear/grid layout container (params stackerType, gap, useStaticGap)
@@ -379,10 +469,20 @@ eMaskTexture / eMask  texture mask   eScroller scroll region   eCanvas  canvas  
 ### 5.5 Param vocabulary (name → meaning)
 `className` (the class, mirrors typeName) · `guid` (per-element uuid) ·
 `pivotRot`/`pivotTrans`/`scaleRot` (transform pivots) · `minExtents`/`maxExtents` (local bbox) ·
-`eLayer.layer`/`eLayer.layerIsOffset` (z-order) · `fileRef`/`XrefMaterialBinding` (eXRef targets) ·
+`eLayer.layer`/`eLayer.layerIsOffset` (z-order) · `fileRef`/`XrefMaterialBinding` (eXRef targets,
+see the xref rule below) ·
 `eAnimationGroup.AnimGroup` · eText: `style boxWidth maskWidth maskHeight halign wrapping textcase
 document preview*` · eStacker: `gap stackerType('l'=linear) useStaticGap` · eScaler:
 `scaleX/Y/Z eScalee.enabled` · `width height` · `eRTL.*` (locale direction) · `eMaskTexture.*`.
+
+**The eXRef xref rule.** An `eXRef` element carries the element key `xref` (ui64) = md5-64
+big-endian of the referenced scene's `eaid://` path without `.idf`, i.e. that scene's `componentId`,
+besides its `fileRef` param. The game loads the scene whose componentId is `xref`, whatever `fileRef`
+says; every stock `eXRef` has `xref == md5-64(fileRef)` (58,925 references). Changing only `fileRef`
+keeps the old scene in game while a `fileRef`-following viewer shows the new one: the R&D pie's
+`chart_1` pointed at `rnd_dev_potential5.idf` with the stock `xref` drew the stock 4 wedges **[game]**
+(`rnd_ui.md#pie`). A scene edit sets `xref` and `XrefMaterialBinding` with `fileRef` (`idf.py retarget`);
+`check.rs` reports `xref-mismatch` as a hard finding.
 
 ### 5.6 Two layout patterns (the fixed-vs-dynamic distinction that governs the R&D box)
 - **Fixed grid** — boxes are distinct sibling elements each with an explicit `position`.
@@ -540,7 +640,8 @@ How an authored node tree becomes a live tree with real data.
 ### Node class → live node
 On screen load the UIDF handler (`Ui_Uidf_Handler`, native target in `ui.cpp`) drives
 `Vm_Load_UidfScreens` jobs (mgr+0xb900). Per node it looks up the class factory (§3), reads the
-node from the `.ui` data, then runs the class's from-data init. The engine resolves each
+node from the `.ui` data, then runs the class's from-data init. Templates (§2.9) go through the same
+reader and inits each time they are instantiated (`Vm_Build_TemplateNode`, `vm.md#templates`). The engine resolves each
 binding's `dbentry` through `Vm_Resolve_RegistryNode` (0x1442b1b60) into a node in
 `g_Vm_Registry` (0x146ca54f8), so a bound property mirrors a registry value. List controls
 spawn one child per element of their bound `data` array (§2.3).
@@ -653,11 +754,36 @@ matches the name. To be *reachable*, the screen also needs a route (`.uir`), a f
 `enter_<screen>` entry (`flows.ui`), and a `region_undefined` entry (`region_loading`) — which is
 exactly the set of stock-ERP patches the launcher applies for ADDON SETTINGS (`mod.rs::build`).
 
-### 8.4 Checklist / gotchas enforced by `check.rs`
-A screen fails to open (and the whole page goes blank) if any of these is wrong:
-- a list control (`UITG/UITB/UILT/UIL2/UIEL`) has no non-empty `data.dbentry` (bind
-  `data=@<array>`, and for `UITG` also `selection=@<value>`);
-- any layout attach entry has neither `nodeId` nor `componentId`+`isComponentId`;
+### 8.4 What a rejection takes down, and what `check.rs` enforces
+A node the engine rejects takes down more than itself, and nothing logs it (`vm.md#failures`) **[L2]**:
+- in a **screen**: that screen and every later screen of the same `.ui` (a same-name screen, 0x55,
+  only skips itself);
+- in a **template instance**: the whole instance (a failing root attaches nothing; a failing
+  descendant leaves the partial tree attached) **[L2, run]**;
+- in a **tab content** template: that tab's content instance, dropped silently; the controller keeps
+  its headers **[L2, run]**; how it then maps tabs to the remaining contents is not mapped, and with
+  the era picker it emptied the F1 World play screen **[run; mapping inferred]**;
+- a **duplicate template name**: every later template of that resource **[L2]**.
+
+`packages/core/src/ui/check.rs` checks every edited `.ui`/`.idf` against its stock copy before a build
+ships (addon `operations.erp` results, `operations.screens` files, the core menu build) in three layers
+(`docs/reference/ui/patterns.md#checking-ui-edits`):
+- **hard, engine** — the rules in `re/db/ui/loader_rules.json`: `node.record`,
+  `node.class_registered`, `layout.path_nonempty`, `layout.step_keys`, `components.keys`,
+  `behaviours.type`, `commands.entry`, `events.entry`, `signals.entry`, `listbase.data_binding`
+  (bind `data=@<array>`; for `UITG` also `selection=@<value>`), `svcd.value`, `f1ts.input_type`,
+  `behaviour.nbvn_visualnav`, `template.duplicate`, `screen.duplicate`; each finding cites the rule
+  id, level, code, scope and function address;
+- **hard, format** — stale node/event/command/signal hashes, signals to nodes missing from their root,
+  `xref-mismatch`, `scene-id`, `nodeidlookup`, missing scenes and layout steps the edit no longer
+  resolves;
+- **warnings** — anything the stock catalogue never does (types, props, shapes, pins, links, layout
+  chains), view-model keys no stock node of the template binds (`vm-key-new`) and engine-read props the
+  edit drops (`prop-dropped`).
+
+By hand: `cargo run --release -p swofty-core --example ui_check -- <stock.erp>=<built.erp>`. A failure the
+checks cannot see (ordering, bindings, attach-time resolution) is traced live with
+`re/tools/ui_trace/ui_template_trace.sh` (`vm.md#trace`). The older launcher-side checks still apply:
 - a non-root node sets `allowVMBinding`;
 - `allowVMBinding` is set without an attached view model, or vice-versa;
 - a route's target screen is not listed by any flow that loads the right ERP; a `TriggerSubRoute`
@@ -702,7 +828,11 @@ Tools (`/mnt/work/VSC/F1ModManager/tools/`, mirrored in the `modlist` worktree `
   4243 scenes / 43746 elements. An edited `.idf` ships with `operations.erp` `replace-resource`
   (§5.7, launcher PR #138). Remaining: a few rarely-used element params (`document`, `preview*`,
   `eRTL.*`) are name-only guesses.
-- **8-slot node slots 5 and 7** — empty in authored screens; roles unread.
+- **Node slot 7** — empty in authored screens; role unread (slot 5 is the components list, §2.1).
+- **Attach-time layout resolution** — how a stored layout step resolves through `eXRef`/`eMask`
+  elements when the element attaches (0x144218810) is not mapped.
+- **Tab content mapping** — how `UITC` maps a selected tab to its content instance when one is
+  missing.
 - **Node-class roles** — only ~20 of ~97 FourCCs annotated (`vm.md#classes`); the rest are L1.
 - **`operations.ui` pipeline** — not built (`build.rs`); `set-text`/`clone-node`/`set-props`/
   `add-signal`/`remove-signal` are a planned format. `operations.erp` `patch-pkg` builds only
@@ -710,7 +840,9 @@ Tools (`/mnt/work/VSC/F1ModManager/tools/`, mirrored in the `modlist` worktree `
 - **Language (`lng_*`) authoring** — not built; new text must be literal (`localise=false`).
   New `lng_*` keys for new strings can't be added through an addon yet (noted in `career.md`
   as a blocker for the `lng_rnd_dept_tyres` name).
-- **Runtime confirmation** — the binding/route path is L2 (static); `vm.md`/`fe_home.md` flag
-  `Vm_Fire_Route` + label rendering as needing a trace test.
+- **Runtime confirmation** — the template path (instantiation, tabs, NBVN) was traced live on
+  2026-10-23 (`vm.md#trace`), but the logs are not filed as a T### run, so those rows are L2; the
+  binding/route path is L2 (static); `vm.md`/`fe_home.md` flag `Vm_Fire_Route` + label rendering as
+  needing a trace test.
 
 ## Inbox
