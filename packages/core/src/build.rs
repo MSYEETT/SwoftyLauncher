@@ -21,7 +21,7 @@ use crate::conflicts::Report;
 use crate::erpbuild::{ErpBuild, Resized, SliceMerge, reads, unsupported, writes};
 use crate::install::{Game, LOADER_DIR, Plan};
 use crate::launcher::BuildCx;
-use crate::manifest::{AddonManifest, relative_inside};
+use crate::manifest::{AddonManifest, Strength, relative_inside};
 use crate::map::TrackPackage;
 use crate::owned;
 use crate::placed::Placed;
@@ -32,7 +32,9 @@ use crate::profile::Profile;
 use crate::registry::Host;
 use crate::resolver::resolve;
 use crate::runtime::{Prebuilt, Runtime, db_edits, overlay_fits};
-use crate::settings::{SessionMod, SessionSettings, SessionUi, render_ops, screen_file, screens};
+use crate::settings::{
+    SessionMod, SessionSettings, SessionUi, render_ops, render_text, screen_file, screens,
+};
 use crate::store::Store;
 use crate::ui::{ERPS as MENU_ERPS, READS as MENU_READS, ui_file};
 use crate::{Error, Result, io_err};
@@ -164,6 +166,29 @@ pub fn source_dir(store: &Store, addon: &str, root: Root) -> PathBuf {
         Root::Data => store.addon_data_dir(addon),
         Root::Cache => store.addon_cache_dir(addon),
     }
+}
+
+/// The `.cube` a shader pack's settings pick, and its strength from 0 to 100.
+fn shader_look(m: &AddonManifest, p: &Profile) -> Result<(String, f64)> {
+    let s = m.shader.as_ref().expect("a shader pack");
+    let rel = render_text(&s.lut, m, p)?;
+    if !relative_inside(&rel) {
+        return Err(Error::Other(format!(
+            "{}: shader lut {rel} must be a relative path inside the addon",
+            m.name
+        )));
+    }
+    let strength = match &s.strength {
+        None => 100.0,
+        Some(Strength::Percent(v)) => *v,
+        Some(Strength::Option(t)) => render_text(t, m, p)?
+            .trim()
+            .parse::<f64>()
+            .ok()
+            .filter(|v| (0.0..=100.0).contains(v))
+            .ok_or_else(|| Error::Other(format!("{}: shader strength {t} is not from 0 to 100", m.name)))?,
+    };
+    Ok((rel, strength))
 }
 
 fn render_file(
@@ -471,6 +496,34 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         built.lines.push(format!(
             "features: the experimental {feature} feature is on for {}",
             by.join(", ")
+        ));
+    }
+    let looks: Vec<&AddonManifest> = resolved
+        .order
+        .iter()
+        .map(|id| &addons[id])
+        .filter(|m| m.shader.is_some())
+        .collect();
+    if let Some((m, earlier)) = looks.split_last() {
+        for e in earlier {
+            built.warnings.push(format!(
+                "{}: its look is not applied; one shader look applies at a time, and {} loads after it",
+                e.name, m.name
+            ));
+        }
+        let (rel, strength) = shader_look(m, &p)?;
+        let path = store.addons_dir().join(&m.id).join(&rel);
+        let text =
+            std::fs::read_to_string(&path).map_err(|e| Error::Other(format!("{}: {rel}: {e}", m.name)))?;
+        let cube = swofty_formats::cube::Cube::parse(&text)
+            .map_err(|e| Error::Other(format!("{}: {rel}: {e}", m.name)))?;
+        hasher.update(format!("shader {} {rel} {strength};", m.id));
+        hasher.update(text.as_bytes());
+        runtime.shader(cube.pack(), strength / 100.0, &m.name);
+        built.lines.push(format!(
+            "shaders: {} grades the picture with {rel} ({n}x{n}x{n}) at {strength}% strength",
+            m.name,
+            n = cube.size
         ));
     }
     for id in &resolved.order {
@@ -2627,6 +2680,146 @@ mod tests {
             "{:?}",
             on.lines
         );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_shader_pack_grades_with_the_look_its_settings_pick() {
+        use swofty_formats::cube::Cube;
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-shaders-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        std::fs::write(dir.join(GVDB), Gvdb { records: Vec::new() }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let pack = |id: &str, name: &str, warm: &str| {
+            let src = root.join(id);
+            std::fs::create_dir_all(src.join("looks")).unwrap();
+            std::fs::write(
+                src.join("swofty.json"),
+                format!(
+                    r#"{{ "schema_version": 1, "id": "{id}", "name": "{name}", "version": "1.0.0", "author": "t",
+                     "category": "shaders", "experimental_features": ["shaders"], "compat": {{ "game": "f1_25" }},
+                     "options": [
+                       {{ "id": "look", "type": "choice", "default": "mono", "values": ["mono", "warm"], "binds": "db" }},
+                       {{ "id": "strength", "type": "slider", "min": 0, "max": 100, "step": 10, "default": 50,
+                         "binds": "db" }}
+                     ],
+                     "shader": {{ "lut": "looks/{{{{look}}}}.cube", "strength": "{{{{strength}}}}" }} }}"#
+                ),
+            )
+            .unwrap();
+            std::fs::write(src.join("looks/mono.cube"), Cube::identity(2).to_text()).unwrap();
+            std::fs::write(src.join("looks/warm.cube"), warm).unwrap();
+            store.install_addon(&src).unwrap()
+        };
+        let looks = pack("t.looks", "Looks", &Cube::identity(3).to_text());
+        store
+            .update_profile("default", |p| p.set_enabled("t.looks", true))
+            .unwrap();
+        let built = build(&store, "default", &game).unwrap();
+        let assets: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&built.plan.loader["swofty/assets.json"]).unwrap())
+                .unwrap();
+        assert_eq!(assets["features"], serde_json::json!(["shaders"]));
+        assert_eq!(
+            assets["shader"],
+            serde_json::json!({ "lut": "shaders/look.lut", "strength": 0.5, "addon": "Looks" })
+        );
+        let packed = std::fs::read(&built.plan.loader["swofty/shaders/look.lut"]).unwrap();
+        assert_eq!(Cube::unpack(&packed).unwrap().table, Cube::identity(2).table);
+        let line = |file: &str, size: usize, strength: u32| {
+            format!(
+                "shaders: Looks grades the picture with looks/{file} ({size}x{size}x{size}) at {strength}% strength"
+            )
+        };
+        assert!(
+            built.lines.contains(&line("mono.cube", 2, 50)),
+            "{:?}",
+            built.lines
+        );
+
+        store
+            .update_profile("default", |p| {
+                p.set_option(&looks, "look", "warm".into())?;
+                p.set_option(&looks, "strength", 100.into()).map(drop)
+            })
+            .unwrap();
+        let built = build(&store, "default", &game).unwrap();
+        assert!(
+            built.lines.contains(&line("warm.cube", 3, 100)),
+            "{:?}",
+            built.lines
+        );
+
+        let later = pack("t.later", "Later Looks", "LUT_3D_SIZE 2\n0 0 0\n");
+        store
+            .update_profile("default", |p| {
+                p.set_enabled("t.later", true)?;
+                p.set_option(&later, "look", "warm".into()).map(drop)
+            })
+            .unwrap();
+        let err = build(&store, "default", &game).unwrap_err().to_string();
+        assert!(
+            err.contains("Later Looks: looks/warm.cube: 1 colour line(s), but LUT_3D_SIZE 2 needs 8"),
+            "{err}"
+        );
+        store
+            .update_profile("default", |p| {
+                p.set_option(&later, "look", "mono".into()).map(drop)
+            })
+            .unwrap();
+        let built = build(&store, "default", &game).unwrap();
+        let skipped = "Looks: its look is not applied; one shader look applies at a time, and Later Looks loads after it";
+        assert!(
+            built.warnings.contains(&skipped.to_owned()),
+            "{:?}",
+            built.warnings
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn the_template_shader_pack_builds() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-template-look-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        std::fs::write(dir.join(GVDB), Gvdb { records: Vec::new() }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let template = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../templates/shader-pack");
+        let m = store.install_addon(&template).unwrap();
+        store
+            .update_profile("default", |p| p.set_enabled(&m.id, true))
+            .unwrap();
+        for look in ["monochrome", "overcast", "noir"] {
+            store
+                .update_profile("default", |p| p.set_option(&m, "look", look.into()).map(drop))
+                .unwrap();
+            let built = build(&store, "default", &game).unwrap();
+            let line = format!(
+                "shaders: Monochrome Looks grades the picture with looks/{look}.cube (17x17x17) at 100% strength"
+            );
+            assert!(built.lines.contains(&line), "{:?}", built.lines);
+        }
         std::fs::remove_dir_all(&root).ok();
     }
 

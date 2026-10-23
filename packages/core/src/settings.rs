@@ -400,6 +400,20 @@ pub fn render_ops(doc: &mut Value, m: &AddonManifest, profile: &Profile) -> Resu
     Ok(())
 }
 
+/// One manifest string with its `{{id}}` placeholders filled from the profile's option values.
+pub fn render_text(text: &str, m: &AddonManifest, profile: &Profile) -> Result<String> {
+    let mut v = Value::String(text.to_owned());
+    substitute(&mut v, &|id| {
+        let o = m
+            .options
+            .iter()
+            .find(|o| o.id == id)
+            .ok_or_else(|| Error::Resolve(format!("{}: unknown option {id}", m.id)))?;
+        Ok(o.placeholder(&profile.option(m, o)))
+    })?;
+    Ok(v.as_str().expect("a string stays a string").to_owned())
+}
+
 fn substitute(v: &mut Value, lookup: &dyn Fn(&str) -> Result<String>) -> Result<()> {
     match v {
         Value::String(s) if s.contains("{{") => {

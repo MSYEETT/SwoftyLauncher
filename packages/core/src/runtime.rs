@@ -15,6 +15,8 @@ const SWOFTY: &str = "swofty";
 const RESOURCES_DIR: &str = "assets/resources";
 const LANG_DIR: &str = "assets/lang";
 const OVERLAY_DIR: &str = "overlay";
+/// The active shader look's packed LUT, under `swofty/`.
+pub const SHADER_LUT: &str = "shaders/look.lut";
 const NO_VALUE_TAGS: [u8; 3] = [10, 15, 16];
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -33,6 +35,19 @@ pub struct Assets {
     pub lang: BTreeMap<String, LangTable>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub overlay: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shader: Option<ShaderLook>,
+}
+
+/// The look the in-game core grades the picture with.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ShaderLook {
+    /// The packed LUT, relative to `swofty/`.
+    pub lut: String,
+    /// From 0 (the game's own colours) to 1 (the look in full).
+    pub strength: f64,
+    /// The addon's name, for the core's log.
+    pub addon: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -109,6 +124,7 @@ pub struct Runtime {
     pub files: BTreeMap<String, PathBuf>,
     tables: BTreeMap<String, Lng>,
     defaults: BTreeMap<String, BTreeMap<String, String>>,
+    look: Option<Vec<u8>>,
 }
 
 fn argument_len(erp: &Erp) -> usize {
@@ -223,6 +239,16 @@ impl Runtime {
             self.assets.features.push(feature.to_owned());
         }
         self.enabled = true;
+    }
+
+    /// Grades the picture with a packed LUT at `strength`, from 0 to 1.
+    pub fn shader(&mut self, packed: Vec<u8>, strength: f64, addon: &str) {
+        self.assets.shader = Some(ShaderLook {
+            lut: SHADER_LUT.into(),
+            strength,
+            addon: addon.into(),
+        });
+        self.look = Some(packed);
     }
 
     fn place(&mut self, rel: String, src: PathBuf) -> Result<()> {
@@ -419,6 +445,13 @@ impl Runtime {
             std::fs::write(&path, table.to_bytes()).map_err(io_err(&path))?;
             self.place(rel.clone(), path)?;
             self.assets.lang.insert(language, LangTable { table: rel });
+        }
+        if let Some(packed) = self.look.take() {
+            let path = out.join(SWOFTY).join(SHADER_LUT);
+            let dir = path.parent().expect("has parent");
+            std::fs::create_dir_all(dir).map_err(io_err(dir))?;
+            std::fs::write(&path, packed).map_err(io_err(&path))?;
+            self.place(SHADER_LUT.into(), path)?;
         }
         let empty = Assets {
             features: self.assets.features.clone(),
