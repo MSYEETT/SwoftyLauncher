@@ -3713,7 +3713,51 @@
     }
    ],
    "notes": [
-    "Lists sorted by date order their events by the weekend dates in Track settings."
+    "Lists sorted by date order their events by the weekend dates in Track settings.",
+    "To race a round at another track, such as Sepang in the bahrain24 slot or a modded track, change its weekend's track in Race weekends."
+   ]
+  },
+  {
+   "id": "race-weekends",
+   "group": "Tracks & Calendar",
+   "title": "Race weekends",
+   "icon": "map-pin",
+   "summary": "The track each race weekend runs at, in every calendar that holds the weekend.",
+   "rows": "schedule.activities.activity_race_weekend",
+   "name": {
+    "field": "_metadata_",
+    "lng": true
+   },
+   "columns": [
+    "track"
+   ],
+   "fields": [
+    {
+     "id": "track",
+     "label": "Track",
+     "path": "track",
+     "kind": "ref",
+     "refs": {
+      "rows": "tracks.Track",
+      "name": {
+       "field": "gp_short_name",
+       "lng": true
+      }
+     },
+     "help": "The track this weekend races at. Calendar events of the weekend race there, so Singapore set to Sepang (bahrain24) puts Sepang in Singapore's rounds."
+    },
+    {
+     "id": "label",
+     "label": "Label",
+     "path": "_metadata_",
+     "readonly": true,
+     "section": "Identity",
+     "help": "The id calendar events use to find this weekend."
+    }
+   ],
+   "notes": [
+    "A modded track, or the bahrain24 slot a track like Sepang fills, needs its track addon on in the profile.",
+    "A weekend at another track uses that track's Track settings, including the weekend date that lists sorted by date order by."
    ]
   },
   {

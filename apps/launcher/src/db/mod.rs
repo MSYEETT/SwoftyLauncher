@@ -1140,6 +1140,7 @@ impl Shell {
             .filter(|v| v.module == id && v.scope == scope)
             .map(|v| v.choices.clone());
         let edits = self.db.draft.edits.clone();
+        let store = self.store.clone();
         cx.spawn(async move |this, cx| {
             let (view, choices) = cx
                 .background_executor()
@@ -1150,12 +1151,13 @@ impl Shell {
                             .map_err(|e| e.to_string())
                     });
                     let choices = choices.unwrap_or_else(|| {
+                        let tracks = swofty_core::tracks::installed(&store);
                         let refs = module
                             .fields
                             .iter()
                             .enumerate()
                             .filter(|(_, f)| matches!(f.kind, Some(Kind::Ref | Kind::RefList)))
-                            .map(|(i, _)| (i, module.choices_in(&catalog, i, scope.as_deref())))
+                            .map(|(i, _)| (i, module.choices_with(&catalog, i, scope.as_deref(), &tracks)))
                             .collect();
                         Arc::new(refs)
                     });

@@ -11,6 +11,8 @@ use swofty_formats::gvdb::{Gvdb, Record};
 use swofty_formats::hash::fnv1a64;
 
 use crate::launcher::{ProfileTrack, ProfileTracks};
+use crate::map::TrackPackage;
+use crate::store::Store;
 use crate::{Result, io_err};
 
 const TRACKS: &str = "tracks.Track";
@@ -207,6 +209,47 @@ pub fn is_track_addon(dir: &Path, m: &AddonManifest) -> bool {
     tracks > 0
 }
 
+/// The tracks installed addons add with `track.add`, named from their
+/// packages, by addon id; the first addon to add a track keeps it. Ops or
+/// packages that don't read are skipped.
+pub fn installed(store: &Store) -> Vec<PlanTrack> {
+    let mut out: Vec<PlanTrack> = Vec::new();
+    for (id, m) in store.addons().unwrap_or_default() {
+        let dir = store.addons_dir().join(&id);
+        for rel in &m.operations.assets {
+            let Some(file) = std::fs::read(dir.join(rel))
+                .ok()
+                .and_then(|d| serde_json::from_slice(&d).ok())
+                .and_then(|doc| OpFile::from_value(doc, FileKind::Assets).ok())
+            else {
+                continue;
+            };
+            for op in file.ops {
+                let AssetOp::Track(TrackOp::Add { source }) = op else {
+                    continue;
+                };
+                let Some(pkg) = source
+                    .resolve(&crate::build::source_dir(store, &id, source.root))
+                    .ok()
+                    .and_then(|d| std::fs::read(d.join(crate::map::MANIFEST_FILE)).ok())
+                    .and_then(|b| TrackPackage::parse(&b).ok())
+                else {
+                    continue;
+                };
+                if out.iter().any(|t| t.code == pkg.track_code) {
+                    continue;
+                }
+                out.push(PlanTrack {
+                    name: pkg.track_name.filter(|n| !n.trim().is_empty()),
+                    addon: Some(id.clone()),
+                    code: pkg.track_code,
+                });
+            }
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -291,5 +334,63 @@ mod tests {
             (43, true, Some("Okayama"))
         );
         assert_eq!(o.addon.as_deref(), Some("teamsimplified.mods"));
+    }
+
+    #[test]
+    fn lists_the_tracks_installed_addons_add() {
+        let root = std::env::temp_dir().join(format!("swofty-installed-tracks-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let store = Store::new(&root);
+        let addon = |id: &str, ops: &str, package: Option<String>| {
+            let dir = store.addons_dir().join(id);
+            std::fs::create_dir_all(dir.join("ops")).unwrap();
+            std::fs::write(
+                dir.join("swofty.json"),
+                format!(
+                    r#"{{"schema_version":1,"id":"{id}","name":"{id}","version":"1.0.0","author":"t",
+                    "compat":{{"game":"f1_25"}},"operations":{{"assets":["ops/track.json"]}}}}"#
+                ),
+            )
+            .unwrap();
+            std::fs::write(dir.join("ops/track.json"), ops).unwrap();
+            if let Some(package) = package {
+                std::fs::create_dir_all(dir.join("track")).unwrap();
+                std::fs::write(dir.join("track/manifest.json"), package).unwrap();
+            }
+        };
+        let add = r#"{"schema_version":1,"ops":[{"op":"track.add","source":"track"}]}"#;
+        let like = |code: &str, name: &str| {
+            crate::map::tests::OKAYAMA_LIKE
+                .replace(
+                    r#""track_code": "testring""#,
+                    &format!(r#""track_code": "{code}""#),
+                )
+                .replace(
+                    r#""track_name": "Test Ring""#,
+                    &format!(r#""track_name": "{name}""#),
+                )
+        };
+        addon("mod.bahrain24", add, Some(like("bahrain24", "Sepang")));
+        addon("mod.okayama", add, Some(like("okayama", "")));
+        addon("mod.twice", add, Some(like("okayama", "Again")));
+        addon("mod.unread", add, None);
+        addon("mod.other", r#"{"schema_version":1,"ops":[]}"#, None);
+        let found = installed(&store);
+        assert_eq!(
+            found,
+            [
+                PlanTrack {
+                    code: "bahrain24".into(),
+                    name: Some("Sepang".into()),
+                    addon: Some("mod.bahrain24".into()),
+                },
+                PlanTrack {
+                    code: "okayama".into(),
+                    name: None,
+                    addon: Some("mod.okayama".into()),
+                },
+            ]
+        );
+        std::fs::remove_dir_all(&root).ok();
     }
 }
