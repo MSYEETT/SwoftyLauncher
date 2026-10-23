@@ -117,8 +117,7 @@ fn native_badge(id: String, p: Palette) -> Stateful<Div> {
         .child(Icon::new(IconName::Cpu).size(px(11.)))
         .child(NATIVE)
         .tooltip(|window, cx| {
-            Tooltip::new("It ships native code that runs inside F1 25 while it's on. Install it only if you trust its author.")
-                .build(window, cx)
+            Tooltip::new("It ships native code that runs inside F1 25 while it's on.").build(window, cx)
         })
 }
 
@@ -2476,37 +2475,6 @@ impl Shell {
             .when_some(installed.clone(), |d, v| {
                 d.child(stat("INSTALLED", format!("v{v}"), p.success, p))
             });
-        let native_note = a.native(&launcher).then(|| {
-            h_flex()
-                .gap(px(10.))
-                .items_start()
-                .p(px(12.))
-                .rounded(px(8.))
-                .bg(p.warning.opacity(0.08))
-                .border_1()
-                .border_color(p.warning.opacity(0.4))
-                .child(
-                    Icon::new(IconName::TriangleAlert)
-                        .size(px(15.))
-                        .text_color(p.warning),
-                )
-                .child(
-                    v_flex()
-                        .flex_1()
-                        .min_w_0()
-                        .gap(px(2.))
-                        .child(
-                            div()
-                                .text_size(px(13.))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .child(NATIVE),
-                        )
-                        .child(div().text_size(px(13.)).text_color(p.text_muted).child(
-                            "This addon ships native code (a .dll) that runs inside F1 25 while it's on. \
-                             Install it only if you trust its author.",
-                        )),
-                )
-        });
         let description = if a.description.trim().is_empty() {
             vec![
                 div()
@@ -2557,7 +2525,6 @@ impl Shell {
                                     .child(format!("v{}", v.version)),
                             )
                             .when(current, |d| d.child(tag("Installed", p).text_color(p.success)))
-                            .when(v.native, |d| d.child(tag("Code", p).text_color(p.warning)))
                             .child(div().flex_1())
                             .child(
                                 div()
@@ -2630,7 +2597,6 @@ impl Shell {
             .children(working)
             .children(failure)
             .child(facts)
-            .children(native_note)
             .child(
                 h_flex()
                     .items_start()
