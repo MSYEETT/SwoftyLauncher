@@ -1,6 +1,10 @@
 //! The Addon Browser: the addons published to the Swofty registry, to search,
 //! sort, filter, star, read about, and install or update in one click.
 
+mod authors;
+
+pub(crate) use authors::View;
+
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::path::Path;
 use std::sync::Arc;
@@ -12,12 +16,13 @@ use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::notification::Notification;
-use gpui_kit::component::scroll::ScrollableElement;
+use gpui_kit::component::scroll::{ScrollableElement, Scrollbar};
 use gpui_kit::component::spinner::Spinner;
 use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{ActiveTheme, Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
+use swofty_core::catalog::publishers::{self, Creator, Profile};
 use swofty_core::catalog::search::Query;
 use swofty_core::catalog::stars::{self, Stars};
 use swofty_core::catalog::{self, Addon, Stage, Trouble, Update};
@@ -27,7 +32,7 @@ use swofty_core::update::current_version;
 use crate::addons::{FILTERS_W, Type, ago, facet_row};
 use crate::library::{Source, plural};
 use crate::news::format_date;
-use crate::pages::{GUTTER, avatar, badge, label, stat, tag};
+use crate::pages::{GUTTER, badge, label, stat, tag};
 use crate::play_bar::link;
 use crate::shell::{Page, PlayState, Shell};
 use crate::theme::Palette;
@@ -37,6 +42,7 @@ const TICK: Duration = Duration::from_secs(5 * 60);
 const STAR_DELAY: Duration = Duration::from_secs(1);
 const ACTIVITY_KEPT: usize = 50;
 const ICONS_DIR: &str = "icons";
+const AVATARS_DIR: &str = "avatars";
 const CARD_W: f32 = 300.;
 const GAP: f32 = 14.;
 const SIDE_W: f32 = 340.;
@@ -273,7 +279,7 @@ enum Group {
 enum Facet {
     Type(Type),
     State(Want),
-    Author(String),
+    Author { id: String, name: String },
 }
 
 impl Facet {
@@ -281,7 +287,7 @@ impl Facet {
         match self {
             Self::Type(_) => Group::Type,
             Self::State(_) => Group::State,
-            Self::Author(_) => Group::Author,
+            Self::Author { .. } => Group::Author,
         }
     }
 
@@ -289,7 +295,7 @@ impl Facet {
         match self {
             Self::Type(t) => t.label().to_owned(),
             Self::State(w) => w.label().to_owned(),
-            Self::Author(a) => a.clone(),
+            Self::Author { name, .. } => name.clone(),
         }
     }
 }
@@ -311,6 +317,7 @@ enum Op {
     Stars,
     Install,
     Details,
+    Profile,
 }
 
 impl Op {
@@ -320,6 +327,7 @@ impl Op {
             Self::Stars => IconName::Star,
             Self::Install => IconName::Download,
             Self::Details => IconName::Info,
+            Self::Profile => IconName::UserRound,
         }
     }
 }
@@ -363,6 +371,29 @@ struct Fetched {
     addons: Option<Vec<Addon>>,
     icons: Vec<(String, Arc<Image>)>,
     error: Option<Trouble>,
+    creators: std::result::Result<Vec<Creator>, Trouble>,
+    avatars: Vec<(String, Arc<Image>)>,
+}
+
+fn images<'a>(
+    dir: &Path,
+    urls: impl IntoIterator<Item = &'a String>,
+    known: &BTreeSet<String>,
+) -> Vec<(String, Arc<Image>)> {
+    let mut wanted: Vec<&String> = urls
+        .into_iter()
+        .filter(|url| web_url(url) && !known.contains(*url))
+        .collect();
+    wanted.sort();
+    wanted.dedup();
+    wanted
+        .into_iter()
+        .filter_map(|url| crate::news::image(dir, url).map(|i| (url.clone(), i)))
+        .collect()
+}
+
+fn avatar_dir(root: &Path) -> std::path::PathBuf {
+    root.join(catalog::CACHE_DIR).join(AVATARS_DIR)
 }
 
 fn fetch(root: &Path, shown: Vec<Addon>, known: BTreeSet<String>) -> Fetched {
@@ -370,16 +401,26 @@ fn fetch(root: &Path, shown: Vec<Addon>, known: BTreeSet<String>) -> Fetched {
         Ok(addons) => (Some(addons), None),
         Err(e) => (None, Some(e)),
     };
-    let dir = root.join(catalog::CACHE_DIR).join(ICONS_DIR);
-    let icons = addons
-        .as_ref()
-        .unwrap_or(&shown)
+    let creators = publishers::fetch(root);
+    let listed = addons.as_ref().unwrap_or(&shown);
+    let icons = images(
+        &root.join(catalog::CACHE_DIR).join(ICONS_DIR),
+        listed.iter().filter_map(|a| a.icon.as_ref()),
+        &known,
+    );
+    let faces = listed
         .iter()
-        .filter_map(|a| a.icon.clone())
-        .filter(|url| web_url(url) && !known.contains(url))
-        .filter_map(|url| crate::news::image(&dir, &url).map(|i| (url, i)))
-        .collect();
-    Fetched { addons, icons, error }
+        .flat_map(|a| a.owner().into_iter().chain(&a.publishers))
+        .filter_map(|p| p.avatar.as_ref())
+        .chain(creators.iter().flatten().filter_map(|c| c.avatar.as_ref()));
+    let avatars = images(&avatar_dir(root), faces, &known);
+    Fetched {
+        addons,
+        icons,
+        error,
+        creators,
+        avatars,
+    }
 }
 
 pub(crate) struct Browser {
@@ -395,7 +436,9 @@ pub(crate) struct Browser {
     trouble: Option<Trouble>,
     search: Entity<InputState>,
     window: AnyWindowHandle,
-    open: Option<String>,
+    view: View,
+    trail: Vec<(View, Point<Pixels>)>,
+    scroll: ScrollHandle,
     details: HashMap<String, Addon>,
     loading: BTreeSet<String>,
     working: HashMap<String, Job>,
@@ -414,6 +457,12 @@ pub(crate) struct Browser {
     hide_code: bool,
     activity: VecDeque<Activity>,
     activity_open: bool,
+    creators: Vec<Creator>,
+    profiles: HashMap<String, Profile>,
+    profile_loading: BTreeSet<String>,
+    profile_failed: HashMap<String, String>,
+    author_sort: Sort,
+    avatars: HashMap<String, Arc<Image>>,
     _search: Subscription,
 }
 
@@ -440,7 +489,9 @@ impl Browser {
             trouble: None,
             search,
             window: window.window_handle(),
-            open: None,
+            view: View::Grid,
+            trail: Vec::new(),
+            scroll: ScrollHandle::new(),
             details: HashMap::new(),
             loading: BTreeSet::new(),
             working: HashMap::new(),
@@ -459,6 +510,12 @@ impl Browser {
             hide_code: false,
             activity: VecDeque::new(),
             activity_open: false,
+            creators: publishers::cached(root).unwrap_or_default(),
+            profiles: HashMap::new(),
+            profile_loading: BTreeSet::new(),
+            profile_failed: HashMap::new(),
+            author_sort: Sort::Stars,
+            avatars: HashMap::new(),
             _search: changed,
         }
     }
@@ -558,7 +615,13 @@ impl Shell {
         self.browser.fetching = true;
         let root = self.store.root.clone();
         let shown = self.browser.addons.clone();
-        let known = self.browser.icons.keys().cloned().collect();
+        let known = self
+            .browser
+            .icons
+            .keys()
+            .chain(self.browser.avatars.keys())
+            .cloned()
+            .collect();
         let started = Instant::now();
         cx.spawn(async move |this, cx| {
             let fetched = cx
@@ -585,7 +648,21 @@ impl Shell {
                     ),
                     (None, None) => {}
                 }
+                match &fetched.creators {
+                    Ok(creators) => catalog::log(
+                        &s.store.root,
+                        &format!(
+                            "ok fetched {} from {from}",
+                            plural(creators.len(), "publisher", "publishers")
+                        ),
+                    ),
+                    Err(e) => catalog::log(&s.store.root, &format!("failed to fetch the publishers: {e}")),
+                }
                 let b = &mut s.browser;
+                if let Ok(creators) = fetched.creators {
+                    b.creators = creators;
+                }
+                b.avatars.extend(fetched.avatars);
                 b.fetching = false;
                 b.checked = Some(Instant::now());
                 b.trouble = fetched.error;
@@ -1112,8 +1189,10 @@ impl Shell {
     }
 
     fn open_details(&mut self, id: &str, cx: &mut Context<Self>) {
-        self.browser.open = Some(id.to_owned());
-        self.browser.activity_open = false;
+        self.browse(View::Addon(id.to_owned()), cx);
+    }
+
+    fn fetch_details(&mut self, id: &str, cx: &mut Context<Self>) {
         if !self.browser.loading.insert(id.to_owned()) {
             return;
         }
@@ -1263,7 +1342,7 @@ impl Shell {
             Facet::State(Want::Update) => self.catalog_update(&a.id).is_some(),
             Facet::State(Want::Starred) => self.browser.stars.has(&a.id),
             Facet::State(Want::Works) => a.offered(&current_version()).is_some(),
-            Facet::Author(name) => a.author_name() == name,
+            Facet::Author { id, .. } => a.owner().is_some_and(|o| o.id == *id),
         }
     }
 
@@ -1316,6 +1395,7 @@ impl Shell {
         let actions = h_flex()
             .gap(px(8.))
             .child(self.stars_status(p, cx))
+            .child(self.creators_button(cx))
             .child(
                 Button::new("browser-activity")
                     .map(|b| {
@@ -1343,14 +1423,11 @@ impl Shell {
                     .disabled(self.browser.fetching)
                     .on_click(cx.listener(|this, _, _, cx| this.fetch_catalog(cx))),
             );
-        let open = self
-            .browser
-            .open
-            .clone()
-            .filter(|id| self.browser.find(id).is_some());
-        let content = match open {
-            Some(id) => self.browser_detail(&id, p, cx),
-            None => self.browser_grid(p, cx),
+        let content = match self.browser.view.clone() {
+            View::Addon(id) if self.browser.find(&id).is_some() => self.browser_detail(&id, p, cx),
+            View::Author(id) => self.author_page(&id, p, cx),
+            View::Creators => self.creators_page(p, cx),
+            _ => self.browser_grid(p, cx),
         };
         v_flex()
             .size_full()
@@ -1644,26 +1721,15 @@ impl Shell {
             .map(|f| row(f, cx))
             .collect();
         let states: Vec<AnyElement> = Want::ALL.into_iter().map(|w| row(Facet::State(w), cx)).collect();
-        let mut authors: Vec<(String, usize)> = Vec::new();
-        for a in &b.addons {
-            let name = a.author_name();
-            if name.is_empty() {
-                continue;
-            }
-            match authors.iter_mut().find(|(n, _)| n == name) {
-                Some((_, k)) => *k += 1,
-                None => authors.push((name.to_owned(), 1)),
-            }
-        }
-        authors.sort_by(|a, b| {
-            b.1.cmp(&a.1)
-                .then_with(|| a.0.to_lowercase().cmp(&b.0.to_lowercase()))
-        });
-        let authors: Vec<AnyElement> = authors
+        let authors: Vec<AnyElement> = publishers::by_publisher(&b.addons)
             .into_iter()
+            .map(|(pb, _)| Facet::Author {
+                id: pb.id,
+                name: pb.name,
+            })
             .enumerate()
-            .filter(|(i, (name, _))| *i < AUTHORS_SHOWN || b.facets.contains(&Facet::Author(name.clone())))
-            .map(|(_, (name, _))| row(Facet::Author(name), cx))
+            .filter(|(i, f)| *i < AUTHORS_SHOWN || b.facets.contains(f))
+            .map(|(_, f)| row(f, cx))
             .collect();
         let natives = matched
             .iter()
@@ -1877,7 +1943,23 @@ impl Shell {
             );
         let filters = self.filter_column(&matched, p, cx);
         let width = self.content_width - FILTERS_W - 20.;
-        let body = if shown.is_empty() {
+        let found = self.creators_found(&query, p, cx);
+        let body = if shown.is_empty() && found.is_some() {
+            self.scroll_area(
+                v_flex()
+                    .id("browser-cards")
+                    .pb(px(24.))
+                    .gap(px(GAP))
+                    .children(found)
+                    .child(
+                        div()
+                            .text_size(px(13.))
+                            .text_color(p.text_placeholder)
+                            .child("No addons match this search and these filters."),
+                    ),
+            )
+            .into_any_element()
+        } else if shown.is_empty() {
             let (title, body, action) = if self.browser.addons.is_empty() {
                 (
                     "No addons to show yet",
@@ -1908,32 +1990,17 @@ impl Shell {
             };
             self.empty(IconName::PackageSearch, title, body, action, p)
         } else {
-            let columns = ((width + GAP) / (CARD_W + GAP)).floor().max(1.) as usize;
-            let card_w = ((width - GAP * (columns - 1) as f32) / columns as f32).floor() - 1.;
-            let mut rows = Vec::new();
-            for chunk in shown.chunks(columns) {
-                let cards: Vec<AnyElement> = chunk
-                    .iter()
-                    .map(|(a, _)| self.browser_card(a, &query, card_w, p, cx))
-                    .collect();
-                rows.push(
-                    h_flex()
-                        .flex_shrink_0()
-                        .items_stretch()
-                        .gap(px(GAP))
-                        .children(cards)
-                        .into_any_element(),
-                );
-            }
-            v_flex()
-                .id("browser-cards")
-                .flex_1()
-                .min_h_0()
-                .overflow_y_scrollbar()
-                .pb(px(24.))
-                .gap(px(GAP))
-                .children(rows)
-                .into_any_element()
+            let addons: Vec<&Addon> = shown.iter().map(|(a, _)| *a).collect();
+            let rows = self.card_rows(&addons, &query, width, p, cx);
+            self.scroll_area(
+                v_flex()
+                    .id("browser-cards")
+                    .pb(px(24.))
+                    .gap(px(GAP))
+                    .children(found)
+                    .children(rows),
+            )
+            .into_any_element()
         };
         h_flex()
             .flex_1()
@@ -1945,6 +2012,48 @@ impl Shell {
             .child(filters)
             .child(v_flex().flex_1().min_w_0().h_full().child(bar).child(body))
             .into_any_element()
+    }
+
+    fn card_rows(
+        &self,
+        addons: &[&Addon],
+        query: &Query,
+        width: f32,
+        p: Palette,
+        cx: &mut Context<Self>,
+    ) -> Vec<AnyElement> {
+        let columns = ((width + GAP) / (CARD_W + GAP)).floor().max(1.) as usize;
+        let card_w = ((width - GAP * (columns - 1) as f32) / columns as f32).floor() - 1.;
+        addons
+            .chunks(columns)
+            .map(|chunk| {
+                h_flex()
+                    .flex_shrink_0()
+                    .items_stretch()
+                    .gap(px(GAP))
+                    .children(chunk.iter().map(|a| self.browser_card(a, query, card_w, p, cx)))
+                    .into_any_element()
+            })
+            .collect()
+    }
+
+    fn scroll_area(&self, body: Stateful<Div>) -> Div {
+        div()
+            .relative()
+            .flex_1()
+            .min_h_0()
+            .w_full()
+            .child(
+                div()
+                    .id("browser-scroll")
+                    .size_full()
+                    .flex()
+                    .flex_col()
+                    .overflow_y_scroll()
+                    .track_scroll(&self.browser.scroll)
+                    .child(body.flex_none()),
+            )
+            .child(Scrollbar::new(&self.browser.scroll))
     }
 
     fn tags(&self, a: &Addon, id: String, p: Palette) -> Option<Div> {
@@ -2014,10 +2123,7 @@ impl Shell {
         if let Some(when) = since(&a.updated_at) {
             stats.push(div().child(format!("Updated {when}")).into_any_element());
         }
-        let author = match a.author_name() {
-            "" => a.id.clone(),
-            author => format!("by {author}"),
-        };
+        let author = self.byline(a, format!("browser-card-by-{}", a.id), 12., p, cx);
         v_flex()
             .id(SharedString::from(format!("browser-card-{}", a.id)))
             .w(px(width))
@@ -2054,13 +2160,7 @@ impl Shell {
                                     .truncate()
                                     .child(name),
                             )
-                            .child(
-                                div()
-                                    .text_size(px(12.))
-                                    .text_color(p.text_muted)
-                                    .truncate()
-                                    .child(author),
-                            ),
+                            .child(author),
                     )
                     .child(self.star_button(a, format!("browser-star-{}", a.id), false, p, cx)),
             )
@@ -2208,20 +2308,7 @@ impl Shell {
         let mono = cx.theme().mono_font_family.clone();
         let installed = self.installed_version(&a.id);
         let offered = a.offered(&launcher).or_else(|| a.newest());
-        let back = h_flex()
-            .id("browser-back")
-            .gap(px(6.))
-            .flex_shrink_0()
-            .cursor_pointer()
-            .text_size(px(13.))
-            .text_color(p.text_muted)
-            .hover(move |s| s.text_color(p.text))
-            .child(Icon::new(IconName::ArrowLeft).size(px(14.)))
-            .child("All addons")
-            .on_click(cx.listener(|this, _, _, cx| {
-                this.browser.open = None;
-                cx.notify();
-            }));
+        let back = self.back_bar(p, cx);
         let homepage = a
             .homepage
             .clone()
@@ -2234,40 +2321,46 @@ impl Shell {
                     .label("Homepage")
                     .on_click(move |_, _, cx| cx.open_url(&url))
             });
-        let hero =
-            h_flex()
-                .gap(px(16.))
-                .items_start()
-                .flex_shrink_0()
-                .child(self.catalog_icon(a, 64., p))
-                .child(
-                    v_flex()
-                        .flex_1()
-                        .min_w_0()
-                        .gap(px(6.))
-                        .child(
-                            div()
-                                .text_size(px(22.))
-                                .line_height(px(28.))
-                                .font_weight(FontWeight::BOLD)
-                                .child(a.name.clone()),
-                        )
-                        .child(div().text_size(px(13.)).text_color(p.text_muted).child(
-                            match a.author_name() {
-                                "" => a.id.clone(),
-                                author => format!("by {author} · {}", a.id),
-                            },
-                        ))
-                        .children(self.tags(a, "browser-detail-native".into(), p)),
-                )
-                .child(
-                    h_flex()
-                        .gap(px(8.))
-                        .flex_shrink_0()
-                        .child(self.star_button(listed, "browser-detail-star".into(), true, p, cx))
-                        .children(homepage)
-                        .child(self.offer_button(listed, "browser-detail-offer".into(), cx)),
-                );
+        let hero = h_flex()
+            .gap(px(16.))
+            .items_start()
+            .flex_shrink_0()
+            .child(self.catalog_icon(a, 64., p))
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(6.))
+                    .child(
+                        div()
+                            .text_size(px(22.))
+                            .line_height(px(28.))
+                            .font_weight(FontWeight::BOLD)
+                            .child(a.name.clone()),
+                    )
+                    .child(
+                        h_flex()
+                            .gap(px(6.))
+                            .min_w_0()
+                            .child(self.byline(a, "browser-detail-by".into(), 13., p, cx))
+                            .child(
+                                div()
+                                    .flex_shrink_0()
+                                    .text_size(px(13.))
+                                    .text_color(p.text_placeholder)
+                                    .child(format!("· {}", a.id)),
+                            ),
+                    )
+                    .children(self.tags(a, "browser-detail-native".into(), p)),
+            )
+            .child(
+                h_flex()
+                    .gap(px(8.))
+                    .flex_shrink_0()
+                    .child(self.star_button(listed, "browser-detail-star".into(), true, p, cx))
+                    .children(homepage)
+                    .child(self.offer_button(listed, "browser-detail-offer".into(), cx)),
+            );
         let working = self.browser.working.get(&a.id).map(Job::progress).map(|pr| {
             v_flex()
                 .gap(px(6.))
@@ -2438,29 +2531,8 @@ impl Shell {
             .line_height(px(22.))
             .child(div().pb(px(12.)).child(label("ABOUT", p)))
             .children(description);
-        let publishers: Vec<AnyElement> = a
-            .publishers
-            .iter()
-            .map(|pb| {
-                h_flex()
-                    .gap(px(8.))
-                    .text_size(px(13.))
-                    .child(avatar(&pb.name, 22., p))
-                    .child(pb.name.clone())
-                    .into_any_element()
-            })
-            .collect();
-        let people = (!publishers.is_empty()).then(|| {
-            v_flex()
-                .p(px(16.))
-                .gap(px(8.))
-                .rounded(px(10.))
-                .border_1()
-                .border_color(p.border)
-                .bg(p.surface)
-                .child(label("PUBLISHERS", p))
-                .children(publishers)
-        });
+        let people = self.published_by(listed, p, cx);
+        let more = self.more_from(listed, p, cx);
         let listed_versions = a.listed();
         let count = listed_versions.len();
         let versions: Vec<AnyElement> = listed_versions
@@ -2548,11 +2620,8 @@ impl Shell {
                     )),
             )
             .children(versions);
-        v_flex()
+        let body = v_flex()
             .id("browser-detail")
-            .flex_1()
-            .min_h_0()
-            .overflow_y_scrollbar()
             .px(px(GUTTER))
             .pb(px(24.))
             .gap(px(18.))
@@ -2580,10 +2649,11 @@ impl Shell {
                             .flex_shrink_0()
                             .gap(px(16.))
                             .children(people)
+                            .children(more)
                             .child(changelog),
                     ),
-            )
-            .into_any_element()
+            );
+        self.scroll_area(body).into_any_element()
     }
 }
 
