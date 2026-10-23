@@ -446,7 +446,7 @@ fn the_core_build_adds_the_era_rows() {
             .iter()
             .find(|t| t.is_node() && t.name() == "dynamic_era_select")
             .unwrap();
-        assert!(tpl.props().unwrap().get("visualNav").is_none());
+        assert!(tpl.props().unwrap().get("visualNav").is_some());
         let kids: Vec<&str> = tpl
             .slot(CHILDREN)
             .unwrap()

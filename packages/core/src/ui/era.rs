@@ -184,7 +184,6 @@ pub fn build_ui(data: &[u8]) -> Result<Vec<u8>> {
     let root = doc.root.o_mut()?;
     let title = template_mut(root, TITLE_TEMPLATE)?.child("screen_title")?.clone();
     let tpl = template_mut(root, TEMPLATE)?;
-    tpl.props_mut()?.drop_key("visualNav");
     let at = tpl
         .slot(CHILDREN)?
         .iter()
