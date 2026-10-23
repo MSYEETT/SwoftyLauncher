@@ -11,6 +11,7 @@ repository.workspace = true
 flate2.workspace = true
 md-5.workspace = true
 png.workspace = true
+rars.workspace = true
 semver.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -25,6 +26,7 @@ ureq.workspace = true
 zip.workspace = true
 
 [dev-dependencies]
+rars = { workspace = true, features = ["write"] }
 serde_json.workspace = true
 
 [lints]

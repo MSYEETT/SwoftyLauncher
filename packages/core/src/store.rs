@@ -7,7 +7,6 @@ use swofty_addon::launcher::Builtin;
 use crate::builtin::{CORE_ID, core_manifest};
 use crate::helper::Helpers;
 use crate::manifest::{AddonManifest, MANIFEST_FILE};
-use crate::map;
 use crate::profile::{self, Profile};
 use crate::session::Config;
 use crate::settings::{self, Merge, Requests, SessionSettings};
@@ -243,10 +242,38 @@ impl Store {
         self.install_addon_for(src, &crate::update::current_version())
     }
 
+    /// Every addon `src` holds: a zip or rar may carry several addon folders
+    /// and packages.
+    pub fn install_addons(&self, src: &Path) -> Vec<Result<AddonManifest>> {
+        let launcher = crate::update::current_version();
+        if !src.is_file() {
+            return vec![self.install_addon_for(src, &launcher)];
+        }
+        let scratch = self.scratch_dir();
+        let installed = match self.unpacked_addons(src, &scratch) {
+            Ok(found) => found
+                .iter()
+                .map(|addon| self.install_addon_for(addon, &launcher))
+                .collect(),
+            Err(e) => vec![Err(e)],
+        };
+        std::fs::remove_dir_all(&scratch).ok();
+        installed
+    }
+
     pub fn install_addon_for(&self, src: &Path, launcher: &semver::Version) -> Result<AddonManifest> {
         if src.is_file() {
-            let scratch = self.addons_dir().join(".importing");
-            let result = self.install_addon_zip(src, &scratch, launcher);
+            let scratch = self.scratch_dir();
+            let result = self
+                .unpacked_addons(src, &scratch)
+                .and_then(|found| match found.as_slice() {
+                    [one] => self.install_addon_for(one, launcher),
+                    many => Err(Error::Other(format!(
+                        "{} holds {} addons; drop it on the launcher to install them all",
+                        src.display(),
+                        many.len()
+                    ))),
+                });
             std::fs::remove_dir_all(&scratch).ok();
             return result;
         }
@@ -283,19 +310,30 @@ impl Store {
         Ok(m)
     }
 
-    fn install_addon_zip(
-        &self,
-        zip: &Path,
-        scratch: &Path,
-        launcher: &semver::Version,
-    ) -> Result<AddonManifest> {
+    fn scratch_dir(&self) -> PathBuf {
+        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.addons_dir().join(format!(".importing-{n}"))
+    }
+
+    // A package is one addon; any other archive holds whatever addons it has.
+    fn unpacked_addons(&self, archive: &Path, scratch: &Path) -> Result<Vec<PathBuf>> {
         if scratch.exists() {
             std::fs::remove_dir_all(scratch).map_err(io_err(scratch))?;
         }
-        map::unzip(zip, scratch, Error::Other)?;
-        let root = crate::import::addon_root(scratch)
-            .ok_or_else(|| Error::Other(format!("{} has no {MANIFEST_FILE}", zip.display())))?;
-        self.install_addon_for(&root, launcher)
+        crate::import::unpack(archive, scratch)?;
+        let found = if crate::import::is_package(archive) {
+            crate::import::addon_root(scratch).into_iter().collect()
+        } else {
+            crate::import::found_addons(scratch)
+        };
+        if found.is_empty() {
+            return Err(Error::Other(format!(
+                "{} has no {MANIFEST_FILE}",
+                archive.display()
+            )));
+        }
+        Ok(found)
     }
 
     pub fn remove_addon(&self, id: &str) -> Result<()> {
@@ -689,13 +727,101 @@ mod tests {
             z.finish().unwrap();
             assert_eq!(store.install_addon(&path).unwrap().id, "t.zipped");
             assert!(store.addons_dir().join("t.zipped/plugins/a.dll").is_file());
-            assert!(!store.addons_dir().join(".importing").exists());
+            assert_eq!(scratch_dirs(&store), 0);
         }
         let bare = root.join("bare.zip");
         zip::ZipWriter::new(std::fs::File::create(&bare).unwrap())
             .finish()
             .unwrap();
         assert!(store.install_addon(&bare).is_err());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    fn scratch_dirs(store: &Store) -> usize {
+        std::fs::read_dir(store.addons_dir())
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().starts_with(".importing"))
+            .count()
+    }
+
+    fn manifest_json(id: &str) -> String {
+        format!(
+            r#"{{"schema_version":1,"id":"{id}","name":"{id}","version":"1.0.0","author":"t","compat":{{"game":"f1_25"}}}}"#
+        )
+    }
+
+    fn package(id: &str) -> Vec<u8> {
+        let mut z = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        z.start_file(MANIFEST_FILE, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        std::io::Write::write_all(&mut z, manifest_json(id).as_bytes()).unwrap();
+        z.finish().unwrap().into_inner()
+    }
+
+    #[test]
+    fn installs_every_addon_a_rar_holds() {
+        let root = tmp("addon-rars");
+        let store = Store::new(root.join("data"));
+        for (name, version) in [
+            ("rar5.rar", rars::ArchiveVersion::Rar50),
+            ("rar29.rar", rars::ArchiveVersion::Rar29),
+        ] {
+            let mut b = rars::Builder::new(version);
+            let mut add = |path: &str, data: Vec<u8>| {
+                b.add_bytes(path.as_bytes().to_vec(), data, None, None).unwrap();
+            };
+            add("Pack/t.packed.swoftyaddon", package("t.packed"));
+            add(
+                &format!("Pack/folder/{MANIFEST_FILE}"),
+                manifest_json("t.folder").into_bytes(),
+            );
+            add("Pack/folder/plugins/a.dll", b"dll".to_vec());
+            add("Pack/readme.txt", b"hi".to_vec());
+            let rar = root.join(name);
+            std::fs::write(&rar, b.to_bytes().unwrap()).unwrap();
+            assert_eq!(
+                crate::import::addon_claim(&rar),
+                swofty_addon::launcher::Claim::Yes
+            );
+            let ids: Vec<String> = store
+                .install_addons(&rar)
+                .into_iter()
+                .map(|m| m.unwrap().id)
+                .collect();
+            assert_eq!(ids, ["t.folder", "t.packed"], "{name}");
+            assert!(store.addons_dir().join("t.folder/plugins/a.dll").is_file());
+            assert!(
+                store
+                    .install_addon(&rar)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("holds 2 addons")
+            );
+            assert_eq!(scratch_dirs(&store), 0);
+        }
+        let mut b = rars::Builder::new(rars::ArchiveVersion::Rar50);
+        b.add_bytes(b"One/t.one.swoftyaddon".to_vec(), package("t.one"), None, None)
+            .unwrap();
+        let one = root.join("one.rar");
+        std::fs::write(&one, b.to_bytes().unwrap()).unwrap();
+        assert_eq!(store.install_addon(&one).unwrap().id, "t.one");
+        let mut b = rars::Builder::new(rars::ArchiveVersion::Rar50);
+        b.add_bytes(
+            b"mod/2025_asset_groups/a.erp".to_vec(),
+            b"erp".to_vec(),
+            None,
+            None,
+        )
+        .unwrap();
+        let game_mod = root.join("mod.rar");
+        std::fs::write(&game_mod, b.to_bytes().unwrap()).unwrap();
+        assert_eq!(
+            crate::import::addon_claim(&game_mod),
+            swofty_addon::launcher::Claim::No
+        );
+        let err = store.install_addons(&game_mod).remove(0).unwrap_err();
+        assert!(err.to_string().contains("has no swofty.json"), "{err}");
         std::fs::remove_dir_all(&root).ok();
     }
 

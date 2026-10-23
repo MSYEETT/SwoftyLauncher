@@ -528,10 +528,10 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
             }
         }
         AddonsCommand::Install { path } => {
-            let m = store
-                .install_addon(&path)
-                .with_context(|| format!("installing {}", path.display()))?;
-            println!("installed {} {}", m.id, m.version);
+            for result in store.install_addons(&path) {
+                let m = result.with_context(|| format!("installing {}", path.display()))?;
+                println!("installed {} {}", m.id, m.version);
+            }
         }
         AddonsCommand::Enable { id }
         | AddonsCommand::Disable { id, .. }

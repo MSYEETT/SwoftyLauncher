@@ -1,14 +1,16 @@
-use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use swofty_addon::launcher::Claim;
 
 use crate::manifest::MANIFEST_FILE;
 use crate::registry::Registry;
+use crate::{Error, Result};
 
 pub const ADDON_EXTENSION: &str = "swoftyaddon";
 /// Accepted for packages made before the mods-to-addons rename.
 pub const ADDON_EXTENSION_LEGACY: &str = "swoftymod";
+/// How many folders down an archive may hold an addon.
+const MAX_DEPTH: usize = 3;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Route {
@@ -51,10 +53,14 @@ pub fn addon_claim(path: &Path) -> Claim {
     if path.is_dir() {
         return claim(addon_root(path).is_some());
     }
-    if has_extension(path, ADDON_EXTENSION) || has_extension(path, ADDON_EXTENSION_LEGACY) {
+    if is_package(path) {
         return Claim::Yes;
     }
-    claim(has_extension(path, "zip") && zip_names(path).is_some_and(|n| holds_addon(&n)))
+    claim(archive_names(path).is_some_and(|n| holds_addon(&n)))
+}
+
+pub fn is_package(path: &Path) -> bool {
+    has_extension(path, ADDON_EXTENSION) || has_extension(path, ADDON_EXTENSION_LEGACY)
 }
 
 pub fn addon_root(dir: &Path) -> Option<PathBuf> {
@@ -71,20 +77,135 @@ pub fn addon_root(dir: &Path) -> Option<PathBuf> {
     }
 }
 
-fn holds_addon(names: &[String]) -> bool {
-    if names.iter().any(|n| n == MANIFEST_FILE) {
-        return true;
+/// The addon folders and packages in an unpacked archive, outermost first: a
+/// folder with a swofty.json is one addon, whatever it holds.
+pub fn found_addons(dir: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    find_addons(dir, 0, &mut found);
+    found
+}
+
+fn find_addons(dir: &Path, depth: usize, found: &mut Vec<PathBuf>) {
+    if dir.join(MANIFEST_FILE).is_file() {
+        found.push(dir.to_path_buf());
+        return;
     }
-    let tops: BTreeSet<&str> = names.iter().filter_map(|n| n.split('/').next()).collect();
-    match tops.iter().collect::<Vec<_>>().as_slice() {
-        [top] => names.iter().any(|n| *n == format!("{top}/{MANIFEST_FILE}")),
-        _ => false,
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    let mut entries: Vec<PathBuf> = entries.filter_map(|e| Some(e.ok()?.path())).collect();
+    entries.sort();
+    for path in entries {
+        if path.is_dir() {
+            if depth < MAX_DEPTH {
+                find_addons(&path, depth + 1, found);
+            }
+        } else if is_package(&path) {
+            found.push(path);
+        }
+    }
+}
+
+fn holds_addon(names: &[String]) -> bool {
+    names.iter().any(|n| {
+        let parts: Vec<&str> = n.split('/').filter(|p| !p.is_empty()).collect();
+        let Some((file, dirs)) = parts.split_last() else {
+            return false;
+        };
+        let ext = Path::new(file).extension().and_then(|e| e.to_str());
+        dirs.len() <= MAX_DEPTH
+            && (*file == MANIFEST_FILE
+                || ext.is_some_and(|e| {
+                    e.eq_ignore_ascii_case(ADDON_EXTENSION) || e.eq_ignore_ascii_case(ADDON_EXTENSION_LEGACY)
+                }))
+    })
+}
+
+fn is_rar(path: &Path) -> bool {
+    has_extension(path, "rar")
+}
+
+fn archive_names(path: &Path) -> Option<Vec<String>> {
+    if is_rar(path) {
+        rar_names(path)
+    } else if has_extension(path, "zip") {
+        zip_names(path)
+    } else {
+        None
     }
 }
 
 fn zip_names(path: &Path) -> Option<Vec<String>> {
     let zip = zip::ZipArchive::new(std::fs::File::open(path).ok()?).ok()?;
-    zip.file_names().map(|n| n.ok().map(|n| n.into_owned())).collect()
+    zip.file_names()
+        .map(|n| n.ok().map(|n| n.replace('\\', "/")))
+        .collect()
+}
+
+fn rar_names(path: &Path) -> Option<Vec<String>> {
+    let rar = rars::ArchiveReader::read_path(path).ok()?;
+    Some(
+        rar.members()
+            .map(|m| m.meta.name_lossy().replace('\\', "/"))
+            .collect(),
+    )
+}
+
+/// Unpacks a zip (an addon package is one) or a rar into `dest`.
+pub fn unpack(archive: &Path, dest: &Path) -> Result<()> {
+    if is_rar(archive) {
+        unrar(archive, dest)
+    } else {
+        crate::map::unzip(archive, dest, Error::Other)
+    }
+}
+
+fn unrar(path: &Path, dest: &Path) -> Result<()> {
+    let fail = |e: rars::Error| {
+        Error::Other(format!(
+            "{} is not a RAR archive the launcher can read: {e}",
+            path.display()
+        ))
+    };
+    let rar = rars::ArchiveReader::read_path(path).map_err(fail)?;
+    let mut refused = None;
+    rar.extract_to(None, |entry| {
+        let name = entry.name_lossy().replace('\\', "/");
+        let Some(rel) = enclosed(&name) else {
+            refused.get_or_insert(name);
+            return Ok(Box::new(std::io::sink()));
+        };
+        let out = dest.join(rel);
+        if entry.is_directory {
+            std::fs::create_dir_all(&out)?;
+            return Ok(Box::new(std::io::sink()));
+        }
+        if let Some(dir) = out.parent() {
+            std::fs::create_dir_all(dir)?;
+        }
+        Ok(Box::new(std::fs::File::create(&out)?))
+    })
+    .map_err(fail)?;
+    match refused {
+        Some(name) => Err(Error::Other(format!("{}: unsafe entry {name}", path.display()))),
+        None => Ok(()),
+    }
+}
+
+fn enclosed(name: &str) -> Option<PathBuf> {
+    if name.starts_with('/') {
+        return None;
+    }
+    let mut rel = PathBuf::new();
+    for part in name.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => return None,
+            p if p.contains(':') => return None,
+            p => rel.push(p),
+        }
+    }
+    (!rel.as_os_str().is_empty()).then_some(rel)
 }
 
 fn has_extension(path: &Path, ext: &str) -> bool {
@@ -173,6 +294,11 @@ mod tests {
         );
         write_zip(&root.join("track.zip"), OKAYAMA_LIKE, true);
         zip_of(&root.join("other.zip"), &["readme.txt"]);
+        zip_of(
+            &root.join("nested.zip"),
+            &["Pack/inner.swoftyaddon", "Pack/readme.txt"],
+        );
+        zip_of(&root.join("deep.zip"), &["a/b/c/d/swofty.json"]);
         std::fs::write(root.join("livery.serps"), "x").unwrap();
         std::fs::write(root.join("notes.txt"), "x").unwrap();
         let store = Store::new(root.join("data")).with_builtins(vec![fake("t.mods", "serps", "zip")]);
@@ -185,6 +311,8 @@ mod tests {
         assert_eq!(at("track.zip"), Some(Route::Importer("t.mods".into())));
         assert_eq!(at("livery.serps"), Some(Route::Importer("t.mods".into())));
         assert_eq!(at("other.zip"), Some(Route::Importer("t.mods".into())));
+        assert_eq!(at("nested.zip"), Some(Route::Addon));
+        assert_eq!(at("deep.zip"), Some(Route::Importer("t.mods".into())));
         assert_eq!(at("loose"), None);
         assert_eq!(at("notes.txt"), None);
         let paths: Vec<PathBuf> = ["livery.serps", "notes.txt", "legacy.swoftymod", "other.zip"]
@@ -212,5 +340,19 @@ mod tests {
             Some(Route::Importer("t.mods".into()))
         );
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn keeps_rar_entries_inside_the_folder() {
+        assert_eq!(
+            enclosed("Pack/a/swofty.json"),
+            Some(PathBuf::from("Pack/a/swofty.json"))
+        );
+        assert_eq!(enclosed("./Pack//a"), Some(PathBuf::from("Pack/a")));
+        assert_eq!(enclosed("../evil.dll"), None);
+        assert_eq!(enclosed("Pack/../../evil.dll"), None);
+        assert_eq!(enclosed("/etc/evil"), None);
+        assert_eq!(enclosed("C:/evil.dll"), None);
+        assert_eq!(enclosed(""), None);
     }
 }
