@@ -155,10 +155,16 @@ int64_t build_tabs_impl(void *tabs, void *alloc, void *node, const uint8_t *grou
 }
 
 static int tab_state_calls;
+static char tab_states[16];
 void tab_state_impl(void *header, uint64_t tab, uint8_t visible, uint8_t enabled)
 {
-    (void)header, (void)tab, (void)visible, (void)enabled;
+    (void)header;
     tab_state_calls++;
+    if (tab < 4) {
+        tab_states[tab * 3] = (char)('0' + visible);
+        tab_states[tab * 3 + 1] = (char)('0' + enabled);
+        tab_states[tab * 3 + 2] = ' ';
+    }
 }
 
 void *game_manager_slot;
@@ -397,18 +403,25 @@ int main(void)
     static uint8_t group[0x18];
     *(void **)(group + 0x08) = entries[0];
     *(void **)(group + 0x10) = entries[0] + sizeof entries;
-    fake_route(item90, &out);
-    fake_header_build(NULL, NULL, NULL, group);
-    printf("      1990 tabs %d: %s\n", tabs_seen, tabs_names);
-    expect(tabs_seen == 2 && !strcmp(tabs_names, "header_f1 header_selected_team_icon "),
-           "driver tabs: the 1990 wizard's header has no F2 or Icons tab");
-    fake_route(item26, &out);
-    fake_header_build(NULL, NULL, NULL, group);
-    expect(tabs_seen == 4, "driver tabs: the 2026 wizard's header keeps its four tabs");
-    static uint8_t header[0x300], tab_items[2][0x70];
+    static uint8_t header[0x300], tab_items[4][0x70];
     *(void **)(header + 0x2b8) = tab_items[0];
     *(void **)(header + 0x2c0) = tab_items[0] + sizeof tab_items;
-    fake_tab_state(header, 3, 0, 0);
+    fake_route(item90, &out);
+    fake_header_build(header + 0x270, NULL, NULL, group);
+    printf("      1990 tabs %d: %s\n", tabs_seen, tabs_names);
+    expect(tabs_seen == 4, "driver tabs: the 1990 wizard's header keeps all four tabs, so no empty tab box");
+    for (int i = 0; i < 4; i++)
+        fake_tab_state(header, (uint64_t)i, 1, 1);
+    printf("      1990 tab states: %s\n", tab_states);
+    expect(!strcmp(tab_states, "11 11 00 00 "), "driver tabs: the 1990 wizard's F2 and Icons tabs are off");
+    fake_route(item26, &out);
+    fake_header_build(header + 0x270, NULL, NULL, group);
+    expect(tabs_seen == 4, "driver tabs: the 2026 wizard's header keeps its four tabs");
+    for (int i = 0; i < 4; i++)
+        fake_tab_state(header, (uint64_t)i, 1, 1);
+    expect(!strcmp(tab_states, "11 11 11 11 "), "driver tabs: the 2026 wizard's tabs stay as the game sets them");
+    tab_state_calls = 0;
+    fake_tab_state(header, 5, 0, 0);
     fake_tab_state(header, 1, 0, 0);
     expect(tab_state_calls == 1, "tab state: an index past the header's tabs is skipped, one inside is set");
 

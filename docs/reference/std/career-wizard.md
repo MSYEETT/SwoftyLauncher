@@ -41,7 +41,7 @@ The wizard state carries the data group of the career content tile it was opened
 | `season_length(group, choice)` | the season length step records `option::full_season` (or `custom_season`) whatever the player picks |
 | `confirm_route(group, to, from = route_driver_type)` | the confirm step opens `to` where it would open `from` |
 | `skip_driver_type(group, on = true)` | the confirm step opens Choose Driver (`driver_career_driver_select`) instead of Official Driver / Custom Driver |
-| `hide_driver_tab(group, tab, on = true)` | the Choose Driver header has no tab `tab` (`header_f1`, `header_selected_team_icon`, `header_f2`, `header_icon`) |
+| `hide_driver_tab(group, tab, on = true)` | the Choose Driver tab `tab` (`header_f1`, `header_selected_team_icon`, `header_f2`, `header_icon`) is off and drawn as no tab |
 | `clear(group)` | drops every wizard entry your addon registered for `group` |
 
 Passing the stock value back drops an entry: `on = false`, `with == from`, or an empty `to`. Entries belong to the module that registered them; for the same key in the same group the last one registered wins.
@@ -71,7 +71,7 @@ then call `tile_route(group, "career_wizard_driver_career_1990")`. A wizard that
 | tile route | `FeTile_Route_CareerItem` (wrap, `swofty_core.dll (career tile route)`, shared with [career contents](./career-content)) | every career tile press; records the tile's data group (item `+0x180`) and rewrites a type-1 route after the game's router. `hide_driver_tab` needs it too, for the last tile's group |
 | steps and options | `Game_CareerWizard_PushNextStep` (wrap) | runs after the player's option byte is pushed on wizard `+0x100..+0x108`; a forced option rewrites it before the step machine runs, a replaced step rewrites the step byte it pushed on `+0xe0..+0xe8` |
 | confirm route | `site_Game_CareerWizardConfirm_NextRoute` (site) | `rdx` is the route the confirm step picked, `rsi` the view model (`+0x270` the wizard) |
-| driver tabs | `site_Game_DriverSelectHeader_BuildTabs` (redirect), `Game_DriverSelectHeader_SetTabState` (wrap) | the tab builder gets a copy of the header's content group without the hidden tabs, for the last tile's group while no career of another group is loaded; a tab state index past the header's tabs is skipped |
+| driver tabs | `site_Game_DriverSelectHeader_BuildTabs` (redirect), `Game_DriverSelectHeader_SetTabState` (wrap) | the tab builder's call records which tabs of the header's content group are hidden, for the last tile's group while no career of another group is loaded; the tab state wrap keeps those tabs at `content_visible` 0 and `enabled` 0, the state the game gives a tab it doesn't offer, and skips an index past the header's tabs |
 
 Each hook is a core mixin set of its own, so a binding that does not resolve turns off only that control. Once the driver tabs hook is installed, a tab state index past the header's tabs is always skipped.
 
@@ -98,4 +98,4 @@ To build one plugin against cores with and without the library, guard the calls 
 
 ## Log
 
-`[wizard] setup: start in F1 armed|off|not used, tile route ..., steps and options ..., confirm route ..., driver tabs ...` after each commit that installs a control, then up to six lines per control: `[wizard] <group> starts in F1`, `<group> tile opens <to> instead of <from>`, `<group>: option <a> recorded as <b>`, `<group>: step <a> replaced by step <b>`, `<group>: confirm opens <to> instead of <from>`, `<group>: Choose Driver header tabs <n> of <m>`.
+`[wizard] setup: start in F1 armed|off|not used, tile route ..., steps and options ..., confirm route ..., driver tabs ...` after each commit that installs a control, then up to six lines per control: `[wizard] <group> starts in F1`, `<group> tile opens <to> instead of <from>`, `<group>: option <a> recorded as <b>`, `<group>: step <a> replaced by step <b>`, `<group>: confirm opens <to> instead of <from>`, `<group>: Choose Driver header tabs: <n> of <m> off`.

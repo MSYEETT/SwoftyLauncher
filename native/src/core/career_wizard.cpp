@@ -25,10 +25,14 @@
 // - site_Game_CareerWizardConfirm_NextRoute: rdx is the route the confirm step picked, rsi the view
 //   model (+0x270 the wizard state); a registered route swap changes rdx.
 // - site_Game_DriverSelectHeader_BuildTabs: the call to the shared tab builder for the Choose
-//   Driver header gets a copy of the content group (entries +0x08..+0x10, 0x30 bytes each, tab name
-//   string +0x08 with its text at +0x09) without the hidden tabs, for the last tile's group while no
-//   career of another group is loaded. Game_DriverSelectHeader_SetTabState then skips an index past
-//   the header's tabs (vector at header +0x2b8, 0x70 each), which it has no bounds check for.
+//   Driver header (its first argument is header +0x270) records which entries of the content group
+//   (+0x08..+0x10, 0x30 bytes each, tab name string +0x08 with its text at +0x09) are hidden tabs,
+//   for the last tile's group while no career of another group is loaded. The header keeps every
+//   tab: the screen spawns one tab box per entry of the stock group, so a header built without a tab
+//   leaves an empty box with its notification marker. Game_DriverSelectHeader_SetTabState keeps a
+//   hidden tab at content_visible 0 and enabled 0, the state the game gives a tab it doesn't offer,
+//   and skips an index past the header's tabs (vector at header +0x2b8, 0x70 each), which it has no
+//   bounds check for.
 //
 // Each control is a core mixin set of its own (manager.cpp), offered only once an addon registers an
 // entry for it: at the next mixin commit for a registration from an addon's init, right after the
@@ -47,7 +51,8 @@ constexpr const char *START_MIXIN = "swofty_core.dll (wizard start in F1)";
 constexpr const char *STEP_MIXIN = "swofty_core.dll (wizard steps)";
 constexpr const char *CONFIRM_MIXIN = "swofty_core.dll (wizard confirm route)";
 constexpr const char *TABS_MIXIN = "swofty_core.dll (wizard driver tabs)";
-constexpr uintptr_t WIZARD_GROUP = 0x128, STEPS = 0xe0, OPTIONS = 0x100, VM_WIZARD = 0x270, HEADER_TABS = 0x2b8;
+constexpr uintptr_t WIZARD_GROUP = 0x128, STEPS = 0xe0, OPTIONS = 0x100, VM_WIZARD = 0x270, HEADER_BUILD = 0x270,
+                    HEADER_TABS = 0x2b8;
 constexpr size_t TAB_ITEM = 0x70, CONTENT_TAB = 0x30, MAX_TABS = 64;
 
 using StartsInF1 = bool(void *entrants, void *wizard_data, const char *group);
@@ -73,7 +78,8 @@ std::mutex lock;
 std::vector<Entry> entries;
 std::set<std::string> interned;
 std::string last_tile;
-std::vector<uint8_t> tab_copy;
+std::atomic<uintptr_t> hidden_header{0};
+std::atomic<uint64_t> hidden_tabs{0};
 std::atomic<bool> any{false};
 std::atomic<uint32_t> logged[8];
 
@@ -206,7 +212,8 @@ std::string tab_name(const uint8_t *entry)
     return mem::read(reinterpret_cast<uintptr_t>(entry) + 0x08, s) && s ? read_cstr(s + 9) : std::string();
 }
 
-int64_t build_tabs(void *tabs, void *alloc, void *node, const void *group)
+// Bit i set when entry i of the header's content group is a tab hidden for the last tile's group.
+uint64_t hidden_mask(const void *group)
 {
     std::string g;
     {
@@ -214,10 +221,10 @@ int64_t build_tabs(void *tabs, void *alloc, void *node, const void *group)
         g = last_tile;
     }
     if (!any.load() || !group || g.empty() || !find(TAB, g, [](const Entry &) { return true; }))
-        return orig_tabs(tabs, alloc, node, group);
+        return 0;
     std::string loaded = cu::loaded_group();
     if (!loaded.empty() && loaded != g)
-        return orig_tabs(tabs, alloc, node, group);
+        return 0;
     struct Group {
         uint8_t head[0x08];
         const uint8_t *begin, *end;
@@ -225,29 +232,38 @@ int64_t build_tabs(void *tabs, void *alloc, void *node, const void *group)
     if (!mem::read(group, copy) || !copy.begin || copy.end < copy.begin || size_t(copy.end - copy.begin) % CONTENT_TAB ||
         size_t(copy.end - copy.begin) / CONTENT_TAB > MAX_TABS) {
         note(5, "[wizard] %s: the Choose Driver header group does not look like a content group; its tabs stay", g.c_str());
-        return orig_tabs(tabs, alloc, node, group);
+        return 0;
     }
     std::lock_guard<std::mutex> lk(lock);
-    tab_copy.clear();
-    size_t dropped = 0, total = size_t(copy.end - copy.begin) / CONTENT_TAB;
-    for (const uint8_t *p = copy.begin; p < copy.end; p += CONTENT_TAB) {
+    uint64_t mask = 0;
+    size_t i = 0, dropped = 0, total = size_t(copy.end - copy.begin) / CONTENT_TAB;
+    for (const uint8_t *p = copy.begin; p < copy.end; p += CONTENT_TAB, i++) {
         std::string name = tab_name(p);
         bool hide = false;
         for (auto &e : entries)
             hide |= e.kind == TAB && e.group == g && e.from == name;
         if (hide)
-            dropped++;
-        else
-            tab_copy.insert(tab_copy.end(), p, p + CONTENT_TAB);
+            mask |= uint64_t(1) << i, dropped++;
     }
-    if (!dropped)
-        return orig_tabs(tabs, alloc, node, group);
-    copy.begin = tab_copy.data();
-    copy.end = tab_copy.data() + tab_copy.size();
-    char a[16], b[16];
-    snprintf(a, sizeof a, "%zu", total - dropped), snprintf(b, sizeof b, "%zu", total);
-    note(6, "[wizard] %s: Choose Driver header tabs %s of %s", g.c_str(), a, b);
-    return orig_tabs(tabs, alloc, node, &copy);
+    if (mask) {
+        char a[16], b[16];
+        snprintf(a, sizeof a, "%zu", dropped), snprintf(b, sizeof b, "%zu", total);
+        note(6, "[wizard] %s: Choose Driver header tabs: %s of %s off", g.c_str(), a, b);
+    }
+    return mask;
+}
+
+int64_t build_tabs(void *tabs, void *alloc, void *node, const void *group)
+{
+    uintptr_t header = tabs ? reinterpret_cast<uintptr_t>(tabs) - HEADER_BUILD : 0;
+    if (uint64_t mask = hidden_mask(group)) {
+        hidden_tabs = mask;
+        hidden_header = header;
+    } else {
+        uintptr_t expected = header;
+        hidden_header.compare_exchange_strong(expected, 0);
+    }
+    return orig_tabs(tabs, alloc, node, group);
 }
 
 void tab_state(void *header, uint64_t tab, uint8_t content_visible, uint8_t enabled)
@@ -261,6 +277,9 @@ void tab_state(void *header, uint64_t tab, uint8_t content_visible, uint8_t enab
         note(7, "[wizard] Choose Driver tab %s state skipped, past the header's tabs", a);
         return;
     }
+    if (header && reinterpret_cast<uintptr_t>(header) == hidden_header.load() && tab < MAX_TABS &&
+        (hidden_tabs.load() >> tab & 1))
+        content_visible = enabled = 0;
     orig_tab_state(header, tab, content_visible, enabled);
 }
 
