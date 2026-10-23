@@ -430,7 +430,8 @@ impl Shell {
     }
 
     fn update_ready(&self, m: &AddonItem) -> bool {
-        m.manifest.id == swofty_core::managed::ID && self.updates.plan().addon.is_some()
+        (m.manifest.id == swofty_core::managed::ID && self.updates.plan().addon.is_some())
+            || self.catalog_update(&m.manifest.id).is_some()
     }
 
     fn pairs_of<'a>(&'a self, id: &'a str) -> impl Iterator<Item = &'a Pair> + 'a {
@@ -1068,11 +1069,31 @@ impl Shell {
                 })
                 .on_click(cx.listener(|this, _, _, cx| this.open_page(Page::Importer, cx))),
         );
+        let browser = card(
+            "install-browse",
+            IconName::PackageSearch,
+            p.warning,
+            "Looking for a Swofty Addon?",
+            "Browse addons published by the community",
+        )
+        .border_color(p.border_variant)
+        .child(
+            Button::new("go-browser")
+                .outline()
+                .small()
+                .label(if roomy {
+                    "Open Addon Browser"
+                } else {
+                    "Addon Browser"
+                })
+                .on_click(cx.listener(|this, _, _, cx| this.open_page(Page::Browser, cx))),
+        );
         h_flex()
             .px(px(GUTTER))
             .pb(px(if short { 12. } else { 18. }))
             .gap(px(if short { 10. } else { 14. }))
             .flex_shrink_0()
+            .child(browser)
             .child(addon)
             .child(importer)
     }
@@ -1585,7 +1606,18 @@ impl Shell {
                     .gap(px(4.))
                     .justify_end()
                     .when(self.update_ready(m), |d| {
-                        d.child(pill(IconName::CircleArrowUp, "", p.accent))
+                        let to = self.catalog_update(&id).map(|u| format!("v{}", u.to.version));
+                        d.child(
+                            pill(IconName::CircleArrowUp, to.clone().unwrap_or_default(), p.accent)
+                                .id(SharedString::from(format!("update-{id}")))
+                                .tooltip(move |window, cx| {
+                                    Tooltip::new(match &to {
+                                        Some(v) => format!("{v} is in the Addon Browser"),
+                                        None => "Update available".to_owned(),
+                                    })
+                                    .build(window, cx)
+                                }),
+                        )
                     })
                     .when(kept > 0, |d| {
                         d.child(
@@ -1891,6 +1923,15 @@ impl Shell {
                 )
             });
         let mut actions: Vec<AnyElement> = Vec::new();
+        if let Some(a) = self
+            .catalog_update(id)
+            .and_then(|_| self.browser.addons.iter().find(|a| a.id == id))
+        {
+            actions.push(
+                self.offer_button(a, "detail-update".into(), cx)
+                    .into_any_element(),
+            );
+        }
         if m.source == Source::DbEditor {
             let id = id.to_owned();
             actions.push(

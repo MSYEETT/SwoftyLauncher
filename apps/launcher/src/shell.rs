@@ -35,6 +35,7 @@ use crate::theme::{Palette, palette};
 pub enum Page {
     News,
     Addons,
+    Browser,
     Importer,
     Tools,
     Profiles,
@@ -47,6 +48,7 @@ impl Page {
         match self {
             Self::News => "News",
             Self::Addons => "Addons",
+            Self::Browser => "Addon Browser",
             Self::Importer => "Simplified Importer",
             Self::Tools => "Tools",
             Self::Profiles => "Profiles",
@@ -59,6 +61,7 @@ impl Page {
         match self {
             Self::News => IconName::Newspaper,
             Self::Addons => IconName::Puzzle,
+            Self::Browser => IconName::PackageSearch,
             Self::Importer => IconName::FolderInput,
             Self::Tools => IconName::Wrench,
             Self::Profiles => IconName::Layers,
@@ -135,11 +138,13 @@ pub struct Shell {
     pub(crate) addons: crate::addons::AddonsPage,
     pub(crate) db: crate::db::Db,
     pub(crate) news: crate::news::News,
+    pub(crate) browser: crate::browser::Browser,
     pub(crate) tools: crate::tools::Carousel,
     _console_closed: Subscription,
     _poll: Task<()>,
     _live: Task<()>,
     _updates: Task<()>,
+    _catalog: Task<()>,
 }
 
 pub struct SliderSlot {
@@ -327,6 +332,8 @@ impl Shell {
         let vr_profiles = config.vr_profiles;
         let start_store = config.launch.start_store;
         let news = crate::news::News::load(&store.root);
+        let browser = crate::browser::Browser::new(&store.root, window, cx);
+        let catalog = Self::watch_catalog(cx);
         let mut shell = Self {
             library,
             store,
@@ -381,14 +388,18 @@ impl Shell {
             addons: crate::addons::AddonsPage::new(window, cx),
             db: crate::db::Db::new(cx),
             news,
+            browser,
             tools: Default::default(),
             _console_closed: console_closed,
             _poll: poll,
             _live: live,
             _updates: updates,
+            _catalog: catalog,
         };
         shell.refresh_views(cx);
         shell.fetch_news(cx);
+        shell.sync_catalog_updates();
+        shell.fetch_catalog(true, cx);
         shell.db_profile_changed(cx);
         if cfg!(windows) {
             cx.spawn_in(window, async move |_, cx| {
@@ -586,6 +597,7 @@ impl Shell {
         }
         self.refresh_views(cx);
         self.db_profile_changed(cx);
+        self.sync_catalog_updates();
         cx.notify();
     }
 
@@ -1163,6 +1175,7 @@ impl Shell {
         let big = [
             (Page::News, None),
             (Page::Addons, Some(self.library.listed().count())),
+            (Page::Browser, None),
             (Page::Tools, None),
             (Page::Profiles, Some(self.library.profiles.len())),
         ];
@@ -1289,11 +1302,15 @@ impl Render for Shell {
         for note in std::mem::take(&mut self.db.toasts) {
             window.push_notification(note, cx);
         }
+        for note in std::mem::take(&mut self.browser.toasts) {
+            window.push_notification(note, cx);
+        }
         let content = match self.page {
             Page::News => self.news_page(p, short, cx),
             Page::Importer => self.importer_page(p, cx),
             Page::Tools => self.tools_page(p, window, cx),
             Page::Addons => self.addons_page(p, cx),
+            Page::Browser => self.browser_page(p, cx),
             Page::Database => self.db_page(p, cx),
             Page::Profiles => self.profiles_page(p, wide, cx),
             Page::Section(i) => self.section_page(i, p, cx),

@@ -2,6 +2,7 @@
 
 mod addons;
 mod blocks;
+mod browser;
 mod console;
 mod db;
 mod discord;
