@@ -588,7 +588,7 @@ impl Shell {
         .detach();
     }
 
-    fn pick_addons(&mut self, folder: bool, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn pick_addons(&mut self, folder: bool, window: &mut Window, cx: &mut Context<Self>) {
         let rx = cx.prompt_for_paths(PathPromptOptions {
             files: !folder,
             directories: folder,
@@ -624,14 +624,15 @@ impl Shell {
                 .spawn(async move {
                     addons
                         .iter()
-                        .map(|path| {
-                            store.install_addon(path).map_err(|e| {
-                                let name = path.file_name().map_or_else(
-                                    || path.display().to_string(),
-                                    |n| n.to_string_lossy().into_owned(),
-                                );
-                                format!("{name}: {e}")
-                            })
+                        .flat_map(|path| {
+                            let name = path.file_name().map_or_else(
+                                || path.display().to_string(),
+                                |n| n.to_string_lossy().into_owned(),
+                            );
+                            store
+                                .install_addons(path)
+                                .into_iter()
+                                .map(move |r| r.map_err(|e| format!("{name}: {e}")))
                         })
                         .collect::<Vec<_>>()
                 })

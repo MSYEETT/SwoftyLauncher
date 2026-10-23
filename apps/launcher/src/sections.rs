@@ -1210,7 +1210,7 @@ impl Shell {
                             .text_size(px(13.))
                             .line_height(px(19.))
                             .text_color(p.text_muted)
-                            .child("Addon folders, .swoftyaddon files, track packages and the files your addons import."),
+                            .child("Addon folders, .swoftyaddon files, zip and rar archives, track packages and the files your addons import."),
                     ),
             )
     }
@@ -1344,9 +1344,11 @@ fn import_all(
         match route {
             Route::Addon => {
                 for path in paths {
-                    match store.install_addon(&path) {
-                        Ok(m) => done.push(format!("Installed {} {}", m.name, m.version)),
-                        Err(e) => failed.push(format!("{}: {e}", file_name(&path))),
+                    for result in store.install_addons(&path) {
+                        match result {
+                            Ok(m) => done.push(format!("Installed {} {}", m.name, m.version)),
+                            Err(e) => failed.push(format!("{}: {e}", file_name(&path))),
+                        }
                     }
                 }
             }

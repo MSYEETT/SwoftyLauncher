@@ -388,38 +388,29 @@ impl Shell {
     }
 
     // On every page in the Addons group.
-    pub(crate) fn install_addon_button(&self, cx: &mut Context<Self>) -> Button {
+    pub(crate) fn install_addon_button(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let shell = cx.entity().downgrade();
         Button::new("install-addon")
             .outline()
             .icon(IconName::Plus)
             .label("Install addon…")
-            .on_click(cx.listener(|this, _, window, cx| this.install_addon(window, cx)))
-    }
-
-    fn install_addon(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.prompt(
-            Prompt {
-                title: "Install addon",
-                description: "An addon folder that contains swofty.json.".into(),
-                initial: String::new(),
-                placeholder: "/path/to/my-addon",
-                ok: "Install",
-                browse: Some(PathPromptOptions {
-                    files: false,
-                    directories: true,
-                    multiple: false,
-                    prompt: Some("Install".into()),
-                }),
-                action: Rc::new(|store, value| {
-                    let m = store
-                        .install_addon(std::path::Path::new(value))
-                        .map_err(|e| e.to_string())?;
-                    Ok(format!("Installed {} {}", m.name, m.version))
-                }),
-            },
-            window,
-            cx,
-        );
+            .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
+                let (file, folder) = (shell.clone(), shell.clone());
+                menu.item(
+                    PopupMenuItem::new("Choose a file…")
+                        .icon(IconName::File)
+                        .on_click(move |_, window, cx| {
+                            file.update(cx, |s, cx| s.pick_addons(false, window, cx)).ok();
+                        }),
+                )
+                .item(
+                    PopupMenuItem::new("Choose a folder…")
+                        .icon(IconName::FolderOpen)
+                        .on_click(move |_, window, cx| {
+                            folder.update(cx, |s, cx| s.pick_addons(true, window, cx)).ok();
+                        }),
+                )
+            })
     }
 
     pub(crate) fn settings(
