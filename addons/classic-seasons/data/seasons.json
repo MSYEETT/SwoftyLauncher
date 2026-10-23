@@ -89,7 +89,7 @@
     },
     {
       "year": 2019,
-      "pod_camera": { "near_clip": 0.6 },
+      "pod_camera": { "near_clip": 0.8 },
       "teams": [
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]] },
         { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "drivers": [["sebastian_vettel", 5], ["charles_leclerc", 16]] },
