@@ -129,6 +129,11 @@ pub fn build(
     let built = pages::build_all(&src, &TILES, &flow)?;
     let names: Vec<String> = built.order.iter().map(|(n, _)| n.clone()).collect();
     let mut problems = check::screens(&built.order, &built.view_models)?;
+    let no_scenes = catalog::Scenes::default();
+    for (name, data) in &built.order {
+        let report = check::ui_edit(name, data, None, &no_scenes, catalog::stock(), catalog::rules())?;
+        problems.extend(report.hard.iter().map(|h| h.to_string()));
+    }
 
     let pages: Vec<(String, String)> = flow
         .iter()
