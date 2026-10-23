@@ -37,6 +37,7 @@ The logs go to the developers' Discord as one zip file, `swofty-logs-<username>-
 | `sessions/<time>/` | The logs and small files of your three latest game sessions, such as `loader.log`, `perf.log`, `env.txt` and `exit_code` |
 | `addons/<id>/helper.log` | Each addon helper's log |
 | `addons.json` | The id, name, version, source, category, types and origin of every installed addon, and each profile's addons with their names and settings |
+| `conflicts.json` | From the active profile's last build: each pair of addons that change the same thing, which one wins, and the records, resources, files and text they both change |
 | `config.json` | The launcher's settings |
 | `game/career-editor/snapshot.json` | The Career Mode Editor's snapshot, when the game folder has one |
 

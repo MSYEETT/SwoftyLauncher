@@ -291,6 +291,10 @@ impl Bundle {
         }
         let addons = serde_json::to_string_pretty(&addons_summary(store)).unwrap_or_default();
         c.push("addons.json".into(), addons.into_bytes(), None);
+        let conflicts = crate::conflicts::path(store, &store.active_profile());
+        if conflicts.is_file() {
+            c.file("conflicts.json".into(), &conflicts, None);
+        }
         if let Ok(p) = store.profile(&store.active_profile()) {
             for id in p
                 .enabled()

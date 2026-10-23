@@ -1252,6 +1252,8 @@ fn lists_the_addons_by_name_in_load_order_with_their_source_and_settings() {
         &store.root.join("profiles/test.json"),
         r#"{"schema_version":1,"name":"test","addons":[{"id":"mod.cars","enabled":true}]}"#,
     );
+    let pairs = r#"{"profile":"default","built_at":1.0,"pairs":[{"winner":"t.grid","loser":"mod.cars","database":1,"resources":0,"files":0,"items":["tracks.Track_3.laps"]}]}"#;
+    put(&crate::conflicts::path(&store, "default"), pairs);
     let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261023-120000");
     let summary = summary_of(&bundle);
     let addons = summary
@@ -1284,6 +1286,7 @@ fn lists_the_addons_by_name_in_load_order_with_their_source_and_settings() {
         "{addons}"
     );
     let zip = bundle.zip().unwrap();
+    assert_eq!(entry(&zip, "conflicts.json"), pairs);
     let json: Value = serde_json::from_str(&entry(&zip, "addons.json")).unwrap();
     let cars = json["installed"]
         .as_array()
