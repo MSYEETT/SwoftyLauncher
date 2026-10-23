@@ -25,4 +25,4 @@ fi
 CXX=("${ZIG[@]}" c++ -target x86_64-windows-gnu -std=c++23)
 
 "${CXX[@]}" -O2 -Wall -Wextra -I"$GAME" -I$SDK -D__USE_MINGW_ANSI_STDIO=1 -shared -s \
-    -o classic_seasons.dll src/era_tiles.cpp
+    -o classic_seasons.dll src/boxes.cpp
