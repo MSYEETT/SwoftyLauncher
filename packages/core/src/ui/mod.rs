@@ -315,13 +315,21 @@ fn era_rows(
 ) -> Result<Vec<&'static str>> {
     let world = input(&ui_file(era::ARCHIVES[0]));
     let title = read_frag(&world, era::TITLE_SCENE, 0)?;
-    let mask = read_frag(&world, era::MASK_SCENE, 0)?;
-    let image = format!("{}.image", era::FADE_SOURCE);
-    let fade = era::fade(
-        &read_frag(&world, era::FADE_SOURCE, 0)?,
-        &read_frag(&world, &image, 0)?,
-        era::FADE,
-    )?;
+    let mut added = Vec::new();
+    if era::ROW_FADE {
+        let image = format!("{}.image", era::FADE_SOURCE);
+        let fade = era::fade(
+            &read_frag(&world, era::FADE_SOURCE, 0)?,
+            &read_frag(&world, &image, 0)?,
+            era::FADE,
+        )?;
+        added.push((era::FADE.to_owned(), era::SRV_KIND, vec![fade[0].clone()]));
+        added.push((
+            format!("{}.image", era::FADE),
+            era::SURFACE_KIND,
+            fade[1..].to_vec(),
+        ));
+    }
     let mut written = Vec::new();
     for rel in era::ARCHIVES {
         let (src, dst) = (input(&ui_file(rel)), out.join(ui_file(rel)));
@@ -332,26 +340,15 @@ fn era_rows(
             ));
             continue;
         }
-        let (title, mask) = (&title, &mask);
+        let title = &title;
         write_archive(
             &src,
             &dst,
             vec![
                 (era::UI, era::UI_FRAGMENT, Box::new(era::build_ui)),
-                (
-                    era::SCENE,
-                    0,
-                    Box::new(move |d| era::build_scene(d, title, mask, era::FADE)),
-                ),
+                (era::SCENE, 0, Box::new(move |d| era::build_scene(d, title))),
             ],
-            vec![
-                (era::FADE.to_owned(), era::SRV_KIND, vec![fade[0].clone()]),
-                (
-                    format!("{}.image", era::FADE),
-                    era::SURFACE_KIND,
-                    vec![fade[1].clone(), fade[2].clone()],
-                ),
-            ],
+            added.clone(),
         )?;
         written.push(rel);
     }

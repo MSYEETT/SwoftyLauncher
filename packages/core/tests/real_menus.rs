@@ -324,83 +324,6 @@ fn fragment(path: &Path, name: &str, index: usize) -> Vec<u8> {
     res[0].fragments[index].data().unwrap()
 }
 
-#[test]
-fn era_picker_matches_the_prototype_byte_for_byte() {
-    use swofty_core::ui::era;
-    use swofty_core::ui::node::{NodeExt, ObjExt, set_str};
-    use swofty_formats::pkg::Pkg;
-
-    let (Some(game), Some(oracle)) = (
-        std::env::var_os("F1_25_DIR").map(PathBuf::from),
-        std::env::var_os("SWOFTY_ERA_ORACLE").map(PathBuf::from),
-    ) else {
-        eprintln!("F1_25_DIR and SWOFTY_ERA_ORACLE are not both set; skipping");
-        return;
-    };
-    let fade = "eaid://ui_package/art/textures/classic_seasons/era_rows/row_fade.tif";
-    let erp = stock(&game, &format!("{}/{}", swofty_core::ui::UI, era::ARCHIVES[0]));
-    let read = |name: &str| fragment(&erp, name, 0);
-
-    let ours = era::build_ui(&fragment(&erp, era::UI, era::UI_FRAGMENT)).unwrap();
-    let mut theirs =
-        Pkg::parse(&std::fs::read(oracle.join("f1_world_activity_container.syst")).unwrap()).unwrap();
-    let spawner = theirs
-        .root
-        .o_mut()
-        .unwrap()
-        .at_mut("Templates")
-        .unwrap()
-        .a_mut()
-        .unwrap()
-        .iter_mut()
-        .find(|t| t.is_node() && t.name() == "dynamic_era_select")
-        .unwrap()
-        .find_mut("addon_tiles.tile_spawner")
-        .unwrap();
-    let data = spawner
-        .props_mut()
-        .unwrap()
-        .at_mut("dataContext")
-        .unwrap()
-        .o_mut()
-        .unwrap();
-    set_str(data, "dbentry", era::ADDON_TILES).unwrap();
-    let theirs = theirs.to_bytes().unwrap();
-    assert!(
-        ours == theirs,
-        "the era picker UI: {}",
-        first_difference(&ours, &theirs)
-    );
-
-    let ours = era::build_scene(
-        &read(era::SCENE),
-        &read(era::TITLE_SCENE),
-        &read(era::MASK_SCENE),
-        fade,
-    )
-    .unwrap();
-    let theirs = std::fs::read(oracle.join("vehicle_type.idf")).unwrap();
-    assert!(
-        ours == theirs,
-        "the era picker scene: {}",
-        first_difference(&ours, &theirs)
-    );
-
-    let ours = era::fade(
-        &read(era::FADE_SOURCE),
-        &read(&format!("{}.image", era::FADE_SOURCE)),
-        fade,
-    )
-    .unwrap();
-    for (data, file) in ours.iter().zip([
-        "row_fade.tif.f0",
-        "row_fade.tif.image.f0",
-        "row_fade.tif.image.f1",
-    ]) {
-        assert_eq!(data, &std::fs::read(oracle.join(file)).unwrap(), "{file}");
-    }
-}
-
 fn signals(e: &swofty_formats::pkg::Obj) -> Vec<(String, String)> {
     use swofty_core::ui::node::{NodeExt, ObjExt};
     e.at("signals")
@@ -436,8 +359,9 @@ fn event<'a>(
 #[test]
 fn the_core_build_adds_the_era_rows() {
     use swofty_core::ui::era;
+    use swofty_core::ui::idf;
     use swofty_core::ui::node::{CHILDREN, COMMANDS, EVENTS, LAYOUT, NodeExt, ObjExt};
-    use swofty_formats::pkg::Pkg;
+    use swofty_formats::pkg::{Node, Pkg};
 
     let Some(game) = std::env::var_os("F1_25_DIR").map(PathBuf::from) else {
         eprintln!("F1_25_DIR is not set; skipping");
@@ -455,13 +379,9 @@ fn the_core_build_adds_the_era_rows() {
         built.lines
     );
     let world = stock(&game, &format!("{}/{}", swofty_core::ui::UI, era::ARCHIVES[0]));
-    let read = |name: &str| fragment(&world, name, 0);
-    let fade = era::fade(
-        &read(era::FADE_SOURCE),
-        &read(&format!("{}.image", era::FADE_SOURCE)),
-        era::FADE,
-    )
-    .unwrap();
+    let title = fragment(&world, era::TITLE_SCENE, 0);
+    let pair = |a: &str, b: &str| (a.to_owned(), b.to_owned());
+    let t = |row: &str| format!("dynamic_era_select.{row}");
     for rel in era::ARCHIVES {
         let rel = format!("{}/{rel}", swofty_core::ui::UI);
         let (ours, stock) = (&built.erps[&rel], stock(&game, &rel));
@@ -471,22 +391,35 @@ fn the_core_build_adds_the_era_rows() {
             era::build_ui(&fragment(&stock, era::UI, era::UI_FRAGMENT)).unwrap()
         );
         assert_eq!(fragment(ours, era::UI, 0), fragment(&stock, era::UI, 0));
-        let scene = era::build_scene(
-            &fragment(&stock, era::SCENE, 0),
-            &read(era::TITLE_SCENE),
-            &read(era::MASK_SCENE),
-            era::FADE,
-        )
-        .unwrap();
+        let scene = era::build_scene(&fragment(&stock, era::SCENE, 0), &title).unwrap();
         assert_eq!(fragment(ours, era::SCENE, 0), scene);
-        let problems = swofty_core::ui::idf::id_problems(&Pkg::parse(&scene).unwrap()).unwrap();
-        assert!(problems.is_empty(), "{problems:?}");
-        assert!(era::taken(&ui_of(ours), &scene).unwrap());
+        let parsed = Pkg::parse(&scene).unwrap();
+        assert!(idf::id_problems(&parsed).unwrap().is_empty());
+        assert!(era::taken(&ui, &scene).unwrap());
+        let root = idf::scenes(&parsed).unwrap()[0].o().unwrap().at("scene").unwrap();
+        let tops: Vec<&str> = root
+            .o()
+            .unwrap()
+            .at("children")
+            .unwrap()
+            .a()
+            .unwrap()
+            .iter()
+            .map(idf::elem_name)
+            .collect();
+        assert!(tops.contains(&"play_categories_row"), "{tops:?}");
+        assert_eq!(
+            tops[tops.len() - 3..],
+            ["addon_categories_row", "label_builtin", "label_addons"]
+        );
+        assert!(!idf::elements(root).iter().any(|(p, _)| p.contains("mask")));
+
         let (a, b) = (
             Erp::parse(&std::fs::read(ours).unwrap()).unwrap(),
             Erp::parse(&std::fs::read(&stock).unwrap()).unwrap(),
         );
-        assert_eq!(a.resources.len(), b.resources.len() + 2, "{rel}");
+        let fade = if era::ROW_FADE { 2 } else { 0 };
+        assert_eq!(a.resources.len(), b.resources.len() + fade, "{rel}");
         for (x, y) in a.resources.iter().zip(&b.resources) {
             assert_eq!(x.name, y.name);
             if x.name != era::UI && x.name != era::SCENE {
@@ -498,21 +431,6 @@ fn the_core_build_adds_the_era_rows() {
                 );
             }
         }
-        let added: Vec<(&str, String)> = a.resources[b.resources.len()..]
-            .iter()
-            .map(|r| (r.name.as_str(), r.kind()))
-            .collect();
-        let image = format!("{}.image", era::FADE);
-        assert_eq!(
-            added,
-            [
-                (era::FADE, era::SRV_KIND.to_owned()),
-                (image.as_str(), era::SURFACE_KIND.to_owned())
-            ]
-        );
-        assert_eq!(fragment(ours, era::FADE, 0), fade[0]);
-        assert_eq!(fragment(ours, &image, 0), fade[1]);
-        assert_eq!(fragment(ours, &image, 1), fade[2]);
 
         let (nodes, sigs, bad) = swofty_core::ui::check::integrity(&ui).unwrap();
         assert!(bad.is_empty() && nodes > 0 && sigs > 0, "{bad:?}");
@@ -536,8 +454,18 @@ fn the_core_build_adds_the_era_rows() {
             .filter(|k| k.is_node())
             .map(|k| k.name())
             .collect();
-        assert_eq!(kids, ["tiles", era::ADDON_TILES, "label_builtin", "label_addons"]);
-        let layout = |n: &swofty_formats::pkg::Node| -> Vec<String> {
+        assert_eq!(
+            kids,
+            [
+                "tiles",
+                era::ADDON_TILES,
+                "label_builtin",
+                "label_addons",
+                "addon_row_has_tiles",
+                "trigger_nav_on_up_down"
+            ]
+        );
+        let layout = |n: &Node| -> Vec<String> {
             n.slot(LAYOUT).unwrap()[0]
                 .a()
                 .unwrap()
@@ -546,18 +474,68 @@ fn the_core_build_adds_the_era_rows() {
                 .collect()
         };
         let (top, bottom) = (tpl.child("tiles").unwrap(), tpl.child(era::ADDON_TILES).unwrap());
-        assert_eq!(layout(top), ["row_mask_builtin", "play_categories_row"]);
-        assert_eq!(layout(bottom), ["row_mask_addons", "addon_categories_row"]);
-        for (row, other) in [(top, era::ADDON_TILES), (bottom, "tiles")] {
-            let sp = row.child("tile_spawner").unwrap().props().unwrap();
+        assert_eq!(layout(top), ["play_categories_row"]);
+        assert_eq!(layout(bottom), ["addon_categories_row"]);
+        let sound = pair(&t("trigger_nav_on_up_down"), "navigate");
+        let navs = [
+            (
+                top,
+                era::ADDON_TILES,
+                [
+                    vec![],
+                    vec![pair(&t("addon_row_has_tiles"), "query")],
+                    vec![],
+                    vec![],
+                ],
+            ),
+            (
+                bottom,
+                "tiles",
+                [
+                    vec![pair(&t("tiles"), "focus"), sound.clone()],
+                    vec![],
+                    vec![],
+                    vec![],
+                ],
+            ),
+        ];
+        for (row, other, nav) in navs {
+            let path = t(row.name());
+            let spawner = row.child("tile_spawner").unwrap();
+            let sp = spawner.props().unwrap();
             assert!(sp.get("consumeStrategy").is_none());
             assert!(sp.get("InputOnActPrt").is_some());
+            let pins = ["navUp", "navDown", "navLeft", "navRight"];
+            for (dir, pin) in ["up", "down", "left", "right"].into_iter().zip(pins) {
+                let failed = format!("navigate_{dir}_failed");
+                assert_eq!(
+                    signals(event(spawner, EVENTS, "eventName", &failed)),
+                    [pair(&path, pin)]
+                );
+            }
+            for (cmd, pin) in [
+                ("focus", "focus"),
+                ("block_input", "inputDisallow"),
+                ("unblock_input", "inputAllow"),
+            ] {
+                assert_eq!(
+                    signals(event(row, COMMANDS, "commandName", cmd)),
+                    [pair(&format!("{path}.tile_spawner"), pin)]
+                );
+            }
             assert_eq!(
                 signals(event(row, EVENTS, "eventName", "focused")),
-                [(format!("dynamic_era_select.{other}"), "unfocus".to_owned())]
+                [pair(&t(other), "unfocus")]
             );
+            for (pin, want) in pins.into_iter().zip(nav) {
+                assert_eq!(
+                    signals(event(row, EVENTS, "eventName", pin)),
+                    want,
+                    "{path} {pin}"
+                );
+            }
         }
-        let entry = |n: &swofty_formats::pkg::Node, key: &str| {
+        let entry = |n: &Node, key: &str| {
             n.props()
                 .unwrap()
                 .at(key)
@@ -603,38 +581,46 @@ fn the_core_build_adds_the_era_rows() {
             .unwrap()
             .to_owned();
         assert_eq!(press, era::ADDON_PRESSED);
-        let top_spawner = "dynamic_era_select.tiles.tile_spawner".to_owned();
-        assert!(
-            signals(event(bs, EVENTS, "eventName", "spawned"))
-                .contains(&(top_spawner.clone(), "focus".into()))
-        );
-        assert!(
-            !signals(event(bs, EVENTS, "eventName", "spawned"))
+        let resets = |n: &Node| {
+            signals(event(n, EVENTS, "eventName", "spawned"))
                 .iter()
                 .any(|(_, p)| p == "focus_and_reset")
-        );
-        assert!(
-            signals(event(ts, EVENTS, "eventName", "spawned"))
-                .iter()
-                .any(|(_, p)| p == "focus_and_reset")
-        );
+        };
+        assert!(resets(ts) && !resets(bs));
+        let both = |pin: &str| vec![pair(&t("tiles"), pin), pair(&t(era::ADDON_TILES), pin)];
+        let mut show = vec![
+            pair(&t("tiles"), "trigger"),
+            pair(&t(era::ADDON_TILES), "trigger"),
+        ];
+        show.extend(both("unblock_input"));
         assert_eq!(
-            signals(event(bs, EVENTS, "eventName", "navigate_up_failed")),
-            [(top_spawner, "focus".into())]
+            signals(event(tpl, COMMANDS, "commandName", "onShowCompleted")),
+            show
         );
+        let mut hide = vec![pair(&t("tiles"), "detach"), pair(&t(era::ADDON_TILES), "detach")];
+        hide.extend(both("block_input"));
         assert_eq!(
-            signals(event(ts, EVENTS, "eventName", "navigate_down_failed")),
-            [(
-                "dynamic_era_select.addon_tiles.tile_spawner".into(),
-                "focus".into()
-            )]
+            signals(event(tpl, COMMANDS, "commandName", "onTabDeselectBegin")),
+            hide
         );
-        for (cmd, pin) in [("onShowCompleted", "trigger"), ("onTabDeselectBegin", "detach")] {
-            assert!(
-                signals(event(tpl, COMMANDS, "commandName", cmd))
-                    .contains(&("dynamic_era_select.addon_tiles".into(), pin.into()))
+        for cmd in ["onTabSelected", "onTabActivated"] {
+            assert_eq!(
+                signals(event(tpl, COMMANDS, "commandName", cmd)),
+                both("unblock_input")
             );
         }
+        let gate = tpl.child("addon_row_has_tiles").unwrap();
+        assert_eq!(gate.type_code(), "SVCD");
+        let gp = gate.props().unwrap();
+        assert_eq!(
+            gp.at("dbEntry").unwrap().o().unwrap().str_at("value").unwrap(),
+            era::ADDON_VISIBLE
+        );
+        assert_eq!(
+            signals(event(gate, EVENTS, "eventName", "yes")),
+            [pair(&t(era::ADDON_TILES), "focus"), sound]
+        );
+        assert_eq!(tpl.child("trigger_nav_on_up_down").unwrap().type_code(), "UIAM");
         for (label, text) in [("label_builtin", "Built In"), ("label_addons", "Addons")] {
             let t = tpl
                 .child(label)
@@ -713,13 +699,7 @@ fn the_era_rows_keep_what_an_addon_put_in_the_same_archive() {
         .into_iter()
         .map(|r| r.name)
         .collect();
-    let at = |n: &str| {
-        names
-            .iter()
-            .position(|x| x == n)
-            .unwrap_or_else(|| panic!("{n} is missing"))
-    };
-    assert!(at(slice) < at(era::FADE));
+    assert!(names.iter().any(|n| n == slice), "{slice} is missing");
     assert_eq!(fragment(&addon, slice, 0), b"slice\0");
     assert!(era::has_rows(&ui_of(&addon)).unwrap());
     assert!(

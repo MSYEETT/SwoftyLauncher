@@ -1,5 +1,5 @@
 use swofty_formats::hash::djb2;
-use swofty_formats::pkg::{Node, Obj, Pkg, Val, Value};
+use swofty_formats::pkg::{Node, Obj, Pkg, Val};
 
 use super::check;
 use super::idf::{self, elem_name};
@@ -11,44 +11,43 @@ pub const UI: &str = "eaid://ui_package/screens/f1_world_activity_container.ui";
 pub const UI_FRAGMENT: usize = 1;
 pub const SCENE: &str = "eaid://ui_package/art/screens/vehicle_type/vehicle_type.idf";
 pub const TITLE_SCENE: &str = "eaid://ui_package/art/screens/modular_menu/mm_tt_select.idf";
-pub const MASK_SCENE: &str = "eaid://ui_package/art/components/f1_world/f1_world_play/play_button_list.idf";
 pub const FADE_SOURCE: &str =
     "eaid://ui_package/art/textures/key_textures/gradients/grad_mask_left_clamped.tif";
 pub const FADE: &str = "eaid://ui_package/art/textures/swofty/era_rows/row_fade.tif";
+pub const ROW_FADE: bool = false;
 pub const SRV_KIND: &str = "GfxSRVResource";
 pub const SURFACE_KIND: &str = "GfxSurfaceRes";
 pub const ADDON_TILES: &str = "addon_tiles";
 pub const ADDON_SELECTION: &str = "selected_addon_tile";
 pub const ADDON_PRESSED: &str = "addon_select_pressed";
+pub const ADDON_VISIBLE: &str = "addon_tiles_visible";
 pub const PIXELS: &[u8] = include_bytes!("row_fade.bc7");
 
-const MASK_SOURCE: &str = "mask_list";
 const TEMPLATE: &str = "dynamic_era_select";
 const TITLE_TEMPLATE: &str = "time_trial_select";
+const TOP: &str = "tiles";
+const GATE: &str = "addon_row_has_tiles";
+const NAV_SOUND: &str = "trigger_nav_on_up_down";
 const STOCK_ROW: &str = "play_categories_row";
 const ADDON_ROW: &str = "addon_categories_row";
 const SCALE: f64 = 0.5;
 const ROW_X: f64 = -8.0;
-const MASKS: [(&str, f64); 2] = [("row_mask_builtin", 1.6), ("row_mask_addons", -2.45)];
-const MASK_X: (f64, f64) = (-8.6, 9.8);
-const MASK_TOP: f64 = 3.68 + 0.5;
-const MASK_BOTTOM: f64 = 3.88 + 0.32;
+const ROW_Y: [f64; 2] = [1.6, -2.45];
+const FADE_SPAN: (f64, f64) = (-8.6, 9.8);
 pub const FADE_X: (f64, f64) = (-8.6, -8.0);
 pub const FADE_W: usize = 512;
 pub const FADE_H: usize = 40;
 const LABELS: [(&str, &str, f64); 2] = [
-    ("label_builtin", "Built In", 1.6),
-    ("label_addons", "Addons", -2.45),
+    ("label_builtin", "Built In", ROW_Y[0]),
+    ("label_addons", "Addons", ROW_Y[1]),
 ];
 const LABEL_X: f64 = -8.6;
 const LABEL_DY: f64 = -0.9;
 const LABEL_ROTATION: [f64; 4] = [0.0, 0.0, -0.70710677, -0.70710677];
-const GUIDS: [(&str, &str); 5] = [
+const GUIDS: [(&str, &str); 3] = [
     (ADDON_ROW, "5b0f6c1e-3d2a-4c8e-9a51-7e4b2c9d0a11"),
     ("label_builtin", "8c2d4e6f-1a3b-4c5d-8e7f-9a0b1c2d3e41"),
     ("label_addons", "3e5f7a9b-2c4d-4e6f-8a1b-3c5d7e9f0b52"),
-    ("row_mask_builtin", "d4a6c8e0-5b7d-4f91-a3c5-e7092b4d6f63"),
-    ("row_mask_addons", "1f3b5d7f-9a2c-4e4b-8d6f-0b2d4f6a8c74"),
 ];
 
 fn guid(name: &str) -> &'static str {
@@ -60,7 +59,7 @@ fn guid(name: &str) -> &'static str {
 }
 
 pub fn fade_alpha(px: usize) -> u8 {
-    let (x0, x1) = MASK_X;
+    let (x0, x1) = FADE_SPAN;
     let (f0, f1) = FADE_X;
     let x = x0 + (px as f64 + 0.5) / FADE_W as f64 * (x1 - x0);
     let t = ((x - f0) / (f1 - f0)).clamp(0.0, 1.0);
@@ -86,20 +85,6 @@ fn named<'a>(n: &'a mut Node, slot: usize, key: &str, name: &str) -> Result<&'a 
 
 fn event_mut<'a>(n: &'a mut Node, name: &str) -> Result<&'a mut Obj> {
     named(n, EVENTS, "eventName", name)
-}
-
-fn renamed_event(n: &mut Node, like: &str, name: &str, signals: Vec<Node>) -> Result<Node> {
-    let mut e = event_mut(n, like)?.clone();
-    set_str(&mut e, "eventName", name)?;
-    e.at_mut("event")?.v_mut()?.set_u32(djb2(name));
-    *e.at_mut("signals")?.a_mut()? = signals;
-    Ok(Node::Obj(e))
-}
-
-fn add_event(n: &mut Node, like: &str, name: &str, signals: Vec<Node>) -> Result<()> {
-    let e = renamed_event(n, like, name, signals)?;
-    n.slot_mut(EVENTS)?.push(e);
-    Ok(())
 }
 
 fn set_layout(n: &mut Node, path: &[&str]) -> Result<()> {
@@ -154,6 +139,40 @@ pub fn taken(ui: &[u8], scene: &[u8]) -> Result<bool> {
     Ok(has_rows(ui)? || idf::find(first_root(&Pkg::parse(scene)?)?, ADDON_ROW).is_some())
 }
 
+fn path(row: &str) -> String {
+    format!("{TEMPLATE}.{row}")
+}
+
+fn row_chain(row: &mut Node, other: &str, nav: [Vec<Node>; 4]) -> Result<()> {
+    let name = row.name().to_owned();
+    let spawner = format!("{}.tile_spawner", path(&name));
+    let pins = ["navUp", "navDown", "navLeft", "navRight"];
+    let failed = [
+        "navigate_up_failed",
+        "navigate_down_failed",
+        "navigate_left_failed",
+        "navigate_right_failed",
+    ];
+    let events = row.child_mut("tile_spawner")?.slot_mut(EVENTS)?;
+    for (from, pin) in failed.into_iter().zip(pins) {
+        events.push(event(from, vec![sig(&path(&name), pin, from)]));
+    }
+    row.slot_mut(COMMANDS)?.extend(
+        [
+            ("focus", "focus"),
+            ("block_input", "inputDisallow"),
+            ("unblock_input", "inputAllow"),
+        ]
+        .map(|(cmd, pin)| command(cmd, vec![sig(&spawner, pin, cmd)])),
+    );
+    let events = row.slot_mut(EVENTS)?;
+    events.push(event("focused", vec![sig(&path(other), "unfocus", "focused")]));
+    for (pin, signals) in pins.into_iter().zip(nav) {
+        events.push(event(pin, signals));
+    }
+    Ok(())
+}
+
 pub fn build_ui(data: &[u8]) -> Result<Vec<u8>> {
     let mut doc = Pkg::parse(data)?;
     if doc.to_bytes()? != data {
@@ -169,26 +188,25 @@ pub fn build_ui(data: &[u8]) -> Result<Vec<u8>> {
     let at = tpl
         .slot(CHILDREN)?
         .iter()
-        .position(|k| k.is_node() && k.name() == "tiles")
-        .ok_or_else(|| err(format!("{TEMPLATE} has no tiles")))?;
+        .position(|k| k.is_node() && k.name() == TOP)
+        .ok_or_else(|| err(format!("{TEMPLATE} has no {TOP}")))?;
     let mut tiles = tpl.slot(CHILDREN)?[at].clone();
     input_on_active_part(tiles.child_mut("tile_spawner")?)?;
     let mut addon = clone_node(&tiles, TEMPLATE, ADDON_TILES)?;
-    set_layout(&mut tiles, &[MASKS[0].0, STOCK_ROW])?;
-    set_layout(&mut addon, &[MASKS[1].0, ADDON_ROW])?;
+    set_layout(&mut addon, &[ADDON_ROW])?;
     let spawner = addon.child_mut("tile_spawner")?;
     set_dbentry(spawner, "dataContext", ADDON_TILES)?;
     set_dbentry(spawner, "selection", ADDON_SELECTION)?;
-    let top = format!("{TEMPLATE}.tiles.tile_spawner");
-    let spawned = event_mut(spawner, "spawned")?.at_mut("signals")?.a_mut()?;
-    spawned.retain(|s| {
-        s.as_obj()
-            .and_then(|o| o.get("to_pin_name"))
-            .and_then(Node::as_val)
-            .and_then(Val::as_str)
-            != Some("focus_and_reset")
-    });
-    spawned.push(sig(&top, "focus", "spawned"));
+    event_mut(spawner, "spawned")?
+        .at_mut("signals")?
+        .a_mut()?
+        .retain(|s| {
+            s.as_obj()
+                .and_then(|o| o.get("to_pin_name"))
+                .and_then(Node::as_val)
+                .and_then(Val::as_str)
+                != Some("focus_and_reset")
+        });
     let press = event_mut(spawner, "select_pressed")?
         .at_mut("signals")?
         .a_mut()?
@@ -203,53 +221,69 @@ pub fn build_ui(data: &[u8]) -> Result<Vec<u8>> {
         .at_mut("name")?
         .o_mut()?;
     set_str(name, "value", ADDON_PRESSED)?;
-    add_event(
-        spawner,
-        "back_pressed",
-        "navigate_up_failed",
-        vec![sig(&top, "focus", "navigate_up_failed")],
+    let sound = |from: &str| sig(&path(NAV_SOUND), "navigate", from);
+    row_chain(
+        &mut tiles,
+        ADDON_TILES,
+        [vec![], vec![sig(&path(GATE), "query", "navDown")], vec![], vec![]],
     )?;
-    add_event(
-        tiles.child_mut("tile_spawner")?,
-        "back_pressed",
-        "navigate_down_failed",
-        vec![sig(
-            &format!("{TEMPLATE}.{ADDON_TILES}.tile_spawner"),
-            "focus",
-            "navigate_down_failed",
-        )],
+    row_chain(
+        &mut addon,
+        TOP,
+        [
+            vec![sig(&path(TOP), "focus", "navUp"), sound("navUp")],
+            vec![],
+            vec![],
+            vec![],
+        ],
     )?;
-    for (cmd, pin) in [("onShowCompleted", "trigger"), ("onTabDeselectBegin", "detach")] {
-        named(tpl, COMMANDS, "commandName", cmd)?
+    for (cmd, pins) in [
+        ("onShowCompleted", &["trigger", "unblock_input"][..]),
+        ("onTabDeselectBegin", &["detach", "block_input"]),
+    ] {
+        let signals = named(tpl, COMMANDS, "commandName", cmd)?
             .at_mut("signals")?
-            .a_mut()?
-            .push(sig(&format!("{TEMPLATE}.{ADDON_TILES}"), pin, cmd));
+            .a_mut()?;
+        signals.push(sig(&path(ADDON_TILES), pins[0], cmd));
+        for pin in &pins[1..] {
+            signals.extend([TOP, ADDON_TILES].map(|row| sig(&path(row), pin, cmd)));
+        }
     }
-    for (row, other) in [(&mut tiles, ADDON_TILES), (&mut addon, "tiles")] {
-        let focused = renamed_event(
-            row.child_mut("magnet_left")?,
-            "triggered",
-            "focused",
-            vec![sig(&format!("{TEMPLATE}.{other}"), "unfocus", "focused")],
-        )?;
-        row.slot_mut(EVENTS)?.push(focused);
+    for cmd in ["onTabSelected", "onTabActivated"] {
+        let signals = [TOP, ADDON_TILES].map(|row| sig(&path(row), "unblock_input", cmd));
+        tpl.slot_mut(COMMANDS)?.push(command(cmd, signals.to_vec()));
     }
     let kids = tpl.slot_mut(CHILDREN)?;
     kids[at] = tiles;
     kids.insert(at + 1, addon);
     for (name, text, _) in LABELS {
         let mut label = title.clone();
-        rename_refs(
-            &mut label,
-            &format!("{TITLE_TEMPLATE}.screen_title"),
-            &format!("{TEMPLATE}.{name}"),
-        );
+        rename_refs(&mut label, &format!("{TITLE_TEMPLATE}.screen_title"), &path(name));
         rename(&mut label, name)?;
         set_layout(&mut label, &[name])?;
         literal_text(label.child_mut("label_title")?, text)?;
         fix_ids(&mut label, Some(TEMPLATE));
         kids.push(label);
     }
+    let mut gate = node(
+        GATE,
+        "SVCD",
+        vec![
+            ("value", prop(boolv(true), None)),
+            ("dbEntry", prop(s(ADDON_VISIBLE), None)),
+        ],
+        vec![event(
+            "yes",
+            vec![sig(&path(ADDON_TILES), "focus", "yes"), sound("yes")],
+        )],
+        &[],
+        &[],
+    );
+    let mut nav = node(NAV_SOUND, "UIAM", vec![], vec![], &[], &[]);
+    for n in [&mut gate, &mut nav] {
+        fix_ids(n, Some(TEMPLATE));
+    }
+    kids.extend([gate, nav]);
     let out = doc.to_bytes()?;
     if Pkg::parse(&out)?.to_bytes()? != out {
         return Err(err(format!("the patched {UI} does not round-trip")));
@@ -273,71 +307,6 @@ fn place(e: &mut Node, x: f64, y: f64, scale: Option<f64>, rotation: Option<[f64
     Ok(())
 }
 
-enum Param<'a> {
-    Str(&'a str),
-    Floats(Vec<f64>),
-}
-
-fn set_params(e: &mut Node, mut values: Vec<(&str, Param)>) -> Result<()> {
-    let owner = elem_name(e).to_owned();
-    let params = e.o_mut()?.at_mut("params")?.a_mut()?;
-    for p in params.iter_mut().filter_map(Node::as_obj_mut) {
-        let Some(key) = p
-            .get("name")
-            .and_then(Node::as_val)
-            .and_then(Val::as_str)
-            .map(str::to_owned)
-        else {
-            continue;
-        };
-        let Some(i) = values.iter().position(|(k, _)| *k == key) else {
-            continue;
-        };
-        let (_, value) = values.remove(i);
-        let v = p.at_mut("value")?.v_mut()?;
-        v.value = match (value, &v.ty) {
-            (Param::Str(s), b"stri") => Value::Str(s.to_owned()),
-            (Param::Floats(f), b"fp32") if f.len() == 1 => idf::floats(v.ty, &f).value,
-            (Param::Floats(f), b"vec3" | b"vec4" | b"quat") if f.len() == 4 => idf::floats(v.ty, &f).value,
-            _ => return Err(err(format!("{owner}: param {key} does not take that value"))),
-        };
-    }
-    if !values.is_empty() {
-        let names: Vec<&str> = values.iter().map(|(k, _)| *k).collect();
-        return Err(err(format!("{owner}: no params {names:?}")));
-    }
-    Ok(())
-}
-
-fn row_mask(template: &Node, name: &str, row: Node, y: f64, fade: &str) -> Result<Node> {
-    let mut mask = idf::detached(template);
-    mask.o_mut()?.set("name", s(name));
-    *idf::children_mut(&mut mask)? = vec![row];
-    let (x0, x1) = MASK_X;
-    let (y0, y1) = (y - MASK_BOTTOM * SCALE, y + MASK_TOP * SCALE);
-    set_params(
-        &mut mask,
-        vec![
-            ("guid", Param::Str(guid(name))),
-            ("width", Param::Floats(vec![x1 - x0])),
-            ("height", Param::Floats(vec![y1 - y0])),
-            ("minExtents", Param::Floats(vec![x0, y0, 0.0001, 0.0])),
-            ("maxExtents", Param::Floats(vec![x1, y1, 0.0001, 0.0])),
-            (
-                "pivotTrans",
-                Param::Floats(vec![(x0 + x1) / 2.0, (y0 + y1) / 2.0, 0.0001, 0.0]),
-            ),
-            (
-                "eMaskTexture.maskHalfVec",
-                Param::Floats(vec![(x1 - x0) / 2.0, (y1 - y0) / 2.0, 0.0, 0.0]),
-            ),
-            ("eMaskTexture.maskTextureResource", Param::Str(fade)),
-        ],
-    )?;
-    idf::recompute_ids(&mut mask, name)?;
-    Ok(mask)
-}
-
 fn first_root(p: &Pkg) -> Result<&Node> {
     idf::scenes(p)?
         .first()
@@ -346,11 +315,10 @@ fn first_root(p: &Pkg) -> Result<&Node> {
         .at("scene")
 }
 
-pub fn build_scene(data: &[u8], title: &[u8], mask: &[u8], fade: &str) -> Result<Vec<u8>> {
+pub fn build_scene(data: &[u8], title: &[u8]) -> Result<Vec<u8>> {
     let mut doc = Pkg::parse(data)?;
-    let (title_doc, mask_doc) = (Pkg::parse(title)?, Pkg::parse(mask)?);
+    let title_doc = Pkg::parse(title)?;
     let title = idf::find(first_root(&title_doc)?, "screen_title").ok_or_else(|| err("no screen_title"))?;
-    let template = idf::find(first_root(&mask_doc)?, MASK_SOURCE).ok_or_else(|| err("no mask_list"))?;
     let entry = idf::scenes_mut(&mut doc)?
         .first_mut()
         .ok_or_else(|| err(format!("{SCENE} has no scenes")))?;
@@ -366,15 +334,13 @@ pub fn build_scene(data: &[u8], title: &[u8], mask: &[u8], fade: &str) -> Result
         .iter()
         .position(|k| elem_name(k) == STOCK_ROW)
         .ok_or_else(|| err(format!("{SCENE} has no {STOCK_ROW}")))?;
-    let mut row = kids[at].clone();
-    let mut addon = idf::detached(&row);
+    let mut addon = idf::detached(&kids[at]);
     addon.o_mut()?.set("name", s(ADDON_ROW));
     idf::set_param(&mut addon, "guid", Val::str(guid(ADDON_ROW)))?;
     idf::recompute_ids(&mut addon, ADDON_ROW)?;
-    place(&mut row, ROW_X, MASKS[0].1, Some(SCALE), None)?;
-    place(&mut addon, ROW_X, MASKS[1].1, Some(SCALE), None)?;
-    kids[at] = row_mask(template, MASKS[0].0, row, MASKS[0].1, fade)?;
-    kids.push(row_mask(template, MASKS[1].0, addon, MASKS[1].1, fade)?);
+    place(&mut kids[at], ROW_X, ROW_Y[0], Some(SCALE), None)?;
+    place(&mut addon, ROW_X, ROW_Y[1], Some(SCALE), None)?;
+    kids.push(addon);
     for (name, _, y) in LABELS {
         let mut label = idf::detached(title);
         label.o_mut()?.set("name", s(name));
