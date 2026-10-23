@@ -642,7 +642,7 @@ fn roll_back(done: &[Swap]) {
 pub fn apply(new: &Path, root: &Path, backup: &Path) -> Result<()> {
     let files = crate::builtin::loader_files(new)?;
     let mut stale: Vec<String> = Vec::new();
-    for sub in ["loader", crate::bundled::RELEASE_DIR] {
+    for sub in ["loader", "addons"] {
         let dir = root.join(sub);
         if dir.is_dir() {
             stale.extend(

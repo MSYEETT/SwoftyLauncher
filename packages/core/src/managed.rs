@@ -146,7 +146,7 @@ pub fn requirement(store: &Store, release: &Release) -> Result<VersionReq> {
         .and_then(|m| launcher_needs(&m).ok());
     match published {
         Some(needs) => Ok(needs),
-        None => launcher_needs(&crate::bundled::package_manifest(&fetch_package(
+        None => launcher_needs(&crate::package::manifest(&fetch_package(
             store, release, &Quiet,
         )?)?),
     }
@@ -189,7 +189,7 @@ pub fn install_release(
 // launcher requirement when it loads it: installing first would replace a
 // working copy with one the launcher then refuses to load.
 fn compatible(package: &Path, release: &Release, launcher: &Version) -> Result<()> {
-    let needs = launcher_needs(&crate::bundled::package_manifest(package)?)?;
+    let needs = launcher_needs(&crate::package::manifest(package)?)?;
     match needs.matches(launcher) {
         true => Ok(()),
         false => Err(Error::Other(format!(

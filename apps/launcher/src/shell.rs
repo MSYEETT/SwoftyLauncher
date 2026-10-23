@@ -261,10 +261,6 @@ impl Shell {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let store = Store::open_default().with_builtins(swofty_builtins::all());
         let migrated = store.migrate();
-        match store.seed_bundled() {
-            Ok(notes) => notes.iter().for_each(|n| eprintln!("swofty-launcher: {n}")),
-            Err(e) => eprintln!("swofty-launcher: could not install the bundled addons: {e}"),
-        }
         swofty_core::usage::launcher_heartbeats(store.root.clone());
         let recovered_seen = Notice::read(&store.root).map_or(0.0, |n| n.at);
         let mods_blocked_seen = quarantine::Report::read(&store.root).map_or(0.0, |r| r.at);

@@ -89,8 +89,6 @@ pub struct Config {
     pub build_assets: BTreeSet<Kind>,
     #[serde(default, skip_serializing_if = "UpdateConfig::is_default")]
     pub updates: UpdateConfig,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub bundled: BTreeMap<String, String>,
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub vr_profiles: BTreeSet<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

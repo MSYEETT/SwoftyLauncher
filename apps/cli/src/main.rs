@@ -247,10 +247,6 @@ fn migrate(store: &Store) {
         Ok(notes) => notes.iter().for_each(|n| eprintln!("swofty: {n}")),
         Err(e) => eprintln!("swofty: data migration failed: {e}"),
     }
-    match store.seed_bundled() {
-        Ok(notes) => notes.iter().for_each(|n| eprintln!("swofty: {n}")),
-        Err(e) => eprintln!("swofty: could not install the bundled addons: {e}"),
-    }
 }
 
 fn data_dir_arg(args: &[OsString]) -> Option<PathBuf> {

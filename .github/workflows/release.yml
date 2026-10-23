@@ -154,12 +154,9 @@ jobs:
       - name: Package
         run: |
           out="swofty-launcher-$TAG-linux-x86_64"
-          mkdir -p "$out/bin" "$out/loader" "$out/addons/updates" "$out/share/applications" "$out/share/icons/hicolor/256x256/apps" "$out/share/icons/hicolor/512x512/apps" "$out/share/icons/hicolor/scalable/apps"
+          mkdir -p "$out/bin" "$out/loader" "$out/share/applications" "$out/share/icons/hicolor/256x256/apps" "$out/share/icons/hicolor/512x512/apps" "$out/share/icons/hicolor/scalable/apps"
           cp target/release/swofty target/release/swofty-launcher dist/swofty-ui/swofty-ui "$out/bin/"
           cp -r native/dist/. "$out/loader/"
-          cp native/bundled/*.swoftyaddon "$out/addons/"
-          cp addons/career-editor/*.swoftyaddon addons/driver-manager/*.swoftyaddon "$out/addons/updates/"
-          cp addons/rnd-tyres-thermal/swofty.rnd-tyres-thermal.zip "$out/addons/updates/swofty.rnd-tyres-thermal.swoftyaddon"
           cp apps/launcher/assets/net.swofty.ModLauncher.desktop tools/swofty-ui/res/net.swofty.SwoftyUI.desktop "$out/share/applications/"
           cp apps/launcher/assets/icon-256.png "$out/share/icons/hicolor/256x256/apps/net.swofty.ModLauncher.png"
           cp apps/launcher/assets/icon-512.png "$out/share/icons/hicolor/512x512/apps/net.swofty.ModLauncher.png"
@@ -247,12 +244,9 @@ jobs:
         shell: pwsh
         run: |
           $out = "swofty-launcher-$env:TAG-windows-x86_64"
-          New-Item -ItemType Directory -Force "$out/bin", "$out/loader", "$out/addons", "$out/addons/updates" | Out-Null
+          New-Item -ItemType Directory -Force "$out/bin", "$out/loader" | Out-Null
           Copy-Item target/release/swofty.exe, target/release/swofty-launcher.exe, dist/swofty-ui/swofty-ui.exe "$out/bin/"
           Copy-Item -Recurse native/dist/* "$out/loader/"
-          Copy-Item native/bundled/*.swoftyaddon "$out/addons/"
-          Copy-Item addons/career-editor/*.swoftyaddon, addons/driver-manager/*.swoftyaddon "$out/addons/updates/"
-          Copy-Item addons/rnd-tyres-thermal/swofty.rnd-tyres-thermal.zip "$out/addons/updates/swofty.rnd-tyres-thermal.swoftyaddon"
           Copy-Item LICENSE, README.md, THIRD_PARTY.md "$out/"
           Compress-Archive -Path $out -DestinationPath "$out.zip"
 
