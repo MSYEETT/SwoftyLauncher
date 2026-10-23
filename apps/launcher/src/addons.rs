@@ -2009,6 +2009,7 @@ impl Shell {
                 )
             })
             .child(facts)
+            .children(self.registry_section(id, p, cx))
             .child(what)
             .child(conflicts)
             .children(settings)

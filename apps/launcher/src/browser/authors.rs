@@ -4,6 +4,7 @@
 use super::*;
 
 const MORE_SHOWN: usize = 4;
+const MORE_INSTALLED: usize = 3;
 const CREATORS_FOUND: usize = 4;
 const CRUMBS_SHOWN: usize = 4;
 const CREATOR_W: f32 = 300.;
@@ -22,13 +23,14 @@ const MONTHS: [&str; 12] = [
     "December",
 ];
 
-/// What the browser shows.
+/// What the browser shows. `Installed` is the Addons page, for the way back to it.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum View {
     Grid,
     Creators,
     Addon(String),
     Author(String),
+    Installed(String),
 }
 
 fn joined(iso: &str) -> Option<String> {
@@ -118,6 +120,7 @@ impl Browser {
             View::Creators => "Creators".to_owned(),
             View::Addon(id) => self.find(id).map_or_else(|| id.clone(), |a| a.name.clone()),
             View::Author(id) => self.publisher_name(id),
+            View::Installed(_) => "Addons".to_owned(),
         }
     }
 
@@ -161,6 +164,14 @@ impl Shell {
         };
         b.trail.truncate(i);
         b.activity_open = false;
+        if let View::Installed(id) = view {
+            b.view = View::Grid;
+            b.trail.clear();
+            b.scroll.set_offset(Point::default());
+            self.open_addon = Some(id);
+            self.go(Page::Addons, cx);
+            return;
+        }
         b.view = view.clone();
         b.scroll.set_offset(offset);
         self.load_view(&view, cx);
@@ -190,6 +201,17 @@ impl Shell {
             Some(i) => self.browse_back_to(i, cx),
             None => self.browse(View::Grid, cx),
         }
+    }
+
+    /// Opens `to` in the browser from the Addons page, with `id` open there to come back to.
+    pub(crate) fn browse_from_addons(&mut self, id: &str, to: View, cx: &mut Context<Self>) {
+        let b = &mut self.browser;
+        b.trail = vec![(View::Installed(id.to_owned()), Point::default())];
+        b.view = to.clone();
+        b.scroll.set_offset(Point::default());
+        b.activity_open = false;
+        self.load_view(&to, cx);
+        self.go(Page::Browser, cx);
     }
 
     fn load_view(&mut self, view: &View, cx: &mut Context<Self>) {
@@ -1110,6 +1132,172 @@ impl Shell {
                         ),
                 )
                 .children(others.into_iter().map(|o| self.compact_card(o, p, cx))),
+        )
+    }
+
+    fn small_offer(&self, a: &Addon, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+        let key = SharedString::from(format!("addon-more-offer-{}", a.id));
+        let target = a.id.clone();
+        match self.offer(a) {
+            Offer::Install => Button::new(key)
+                .primary()
+                .xsmall()
+                .icon(IconName::Download)
+                .label("Install")
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    cx.stop_propagation();
+                    this.install_from_catalog(&target, cx);
+                }))
+                .into_any_element(),
+            Offer::Failed => Button::new(key)
+                .danger()
+                .xsmall()
+                .icon(IconName::RotateCw)
+                .label("Retry")
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    cx.stop_propagation();
+                    this.install_from_catalog(&target, cx);
+                }))
+                .into_any_element(),
+            Offer::Working(progress) => Button::new(key)
+                .primary()
+                .xsmall()
+                .loading(true)
+                .label(progress.short())
+                .disabled(true)
+                .into_any_element(),
+            Offer::Installed(_) | Offer::Update(..) => {
+                tag("Installed", p).text_color(p.success).into_any_element()
+            }
+            Offer::TooOld => tag("Needs a newer launcher", p).into_any_element(),
+        }
+    }
+
+    /// The registry's side of an installed addon, for its panel on the Addons page.
+    pub(crate) fn registry_section(
+        &self,
+        id: &str,
+        p: Palette,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        let a = self.browser.find(id)?;
+        let from = id.to_owned();
+        let owner = a.owner().map(|o| {
+            let (from, target) = (from.clone(), o.id.clone());
+            h_flex()
+                .flex_1()
+                .min_w_0()
+                .gap(px(8.))
+                .text_size(px(13.))
+                .text_color(p.text_muted)
+                .child(self.publisher_avatar(&o.id, &o.name, o.avatar.as_deref(), 24., p))
+                .child(div().flex_shrink_0().child("by"))
+                .child(
+                    div()
+                        .id("addon-registry-author")
+                        .min_w_0()
+                        .truncate()
+                        .cursor_pointer()
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(p.text)
+                        .hover(move |s| s.text_color(p.accent).underline())
+                        .child(o.name.clone())
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.browse_from_addons(&from, View::Author(target.clone()), cx)
+                        })),
+                )
+        });
+        let others = publishers::more_from(&self.browser.addons, a, MORE_INSTALLED);
+        let rows: Vec<AnyElement> = others
+            .iter()
+            .map(|o| {
+                let (from, target) = (from.clone(), o.id.clone());
+                h_flex()
+                    .id(SharedString::from(format!("addon-more-{}", o.id)))
+                    .px(px(8.))
+                    .py(px(6.))
+                    .mx(px(-8.))
+                    .gap(px(10.))
+                    .items_center()
+                    .rounded(px(6.))
+                    .cursor_pointer()
+                    .hover(move |s| s.bg(p.hover))
+                    .child(self.catalog_icon(o, 28., p))
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .child(
+                                div()
+                                    .text_size(px(13.))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .truncate()
+                                    .child(o.name.clone()),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(12.))
+                                    .text_color(p.text_placeholder)
+                                    .truncate()
+                                    .child(o.summary.clone()),
+                            ),
+                    )
+                    .child(self.small_offer(o, p, cx))
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.browse_from_addons(&from, View::Addon(target.clone()), cx)
+                    }))
+                    .into_any_element()
+            })
+            .collect();
+        let more = (!rows.is_empty()).then(|| {
+            let name = a.owner().map_or("this author", |o| o.name.as_str());
+            v_flex()
+                .gap(px(2.))
+                .child(
+                    div()
+                        .pb(px(4.))
+                        .child(label(format!("MORE FROM {}", name.to_uppercase()), p)),
+                )
+                .children(rows)
+        });
+        let view = {
+            let from = from.clone();
+            text_link("addon-registry-view".into(), "View in Addon Browser", p)
+                .child(Icon::new(IconName::ArrowRight).size(px(12.)))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.browse_from_addons(&from, View::Addon(from.clone()), cx)
+                }))
+        };
+        Some(
+            v_flex()
+                .gap(px(10.))
+                .child(label("FROM THE ADDON BROWSER", p))
+                .child(
+                    h_flex()
+                        .gap(px(10.))
+                        .items_center()
+                        .children(owner)
+                        .when(a.owner().is_none(), |d| d.child(div().flex_1()))
+                        .child(self.star_button(a, "addon-registry-star".into(), false, p, cx)),
+                )
+                .child(
+                    h_flex()
+                        .gap(px(10.))
+                        .text_size(px(12.))
+                        .text_color(p.text_placeholder)
+                        .child(
+                            h_flex()
+                                .gap(px(4.))
+                                .child(Icon::new(IconName::Download).size(px(12.)))
+                                .child(plural(a.downloads as usize, "download", "downloads")),
+                        )
+                        .when(a.downloads_30d > 0, |d| {
+                            d.child(format!("{} this month", compact(a.downloads_30d)))
+                        }),
+                )
+                .children(more)
+                .child(view)
+                .into_any_element(),
         )
     }
 }
