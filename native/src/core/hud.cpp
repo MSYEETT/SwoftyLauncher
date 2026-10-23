@@ -55,9 +55,10 @@ std::string addon_image(const Caller &c, const char *file, std::string &why)
 }
 
 // ----- D3D12 present hook + minimal solid-geometry renderer -------------------------------------
-// The renderer draws the frame's filled rectangles, rectangle outlines and lines as solid-colour
-// triangles over the game's back buffer. Text and image commands are recorded by the draw list but
-// this build does not paint them (see docs/design/native-libraries.md). Every step is guarded: the
+// The renderer draws the frame's filled rectangles, rectangle outlines, lines and text as solid-colour
+// triangles over the game's back buffer; text is the built-in font's pixel blocks (hud_font.hpp).
+// Image commands are recorded by the draw list but this build does not paint them (see
+// docs/design/native-libraries.md). Every step is guarded: the
 // first failure sets failed and the overlay goes quiet for the rest of the process, so a drawing
 // fault never takes the game down with it.
 
@@ -118,6 +119,9 @@ std::vector<Vertex> tessellate(const hud::Frame &f)
             push_line(v, c.x, c.y, c.w, c.h, c.thickness, col);
             break;
         case hud::Op::text:
+            hud::glyph_rects(c.x, c.y, c.font_size, c.text,
+                             [&](float x, float y, float w, float h) { push_rect(v, x, y, w, h, col); });
+            break;
         case hud::Op::image:
             break;
         }
@@ -142,7 +146,7 @@ CreateDeviceFn d3d12_create_device;
 SerializeRootFn d3d12_serialize_root;
 CreateFactoryFn dxgi_create_factory;
 
-constexpr UINT MAX_VERTS = 1u << 16;
+constexpr UINT MAX_VERTS = 1u << 18;
 
 struct Renderer {
     ID3D12Device *dev = nullptr;

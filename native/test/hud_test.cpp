@@ -7,6 +7,7 @@
 
 #include <cstdio>
 #include <string>
+#include <vector>
 
 static int failures;
 
@@ -124,9 +125,54 @@ static void test_image_registry()
     CHECK(reg.image_count() == 2, "two distinct images registered");
 }
 
+struct Box {
+    float x, y, w, h;
+    bool operator==(const Box &) const = default;
+};
+
+static std::vector<Box> boxes(const char *s, float size = 16)
+{
+    std::vector<Box> out;
+    hud::glyph_rects(100, 50, size, s, [&](float x, float y, float w, float h) { out.push_back({x, y, w, h}); });
+    return out;
+}
+
+static float area(const std::vector<Box> &b)
+{
+    float a = 0;
+    for (auto &r : b)
+        a += r.w * r.h;
+    return a;
+}
+
+static int lit(const char *s)
+{
+    int n = 0;
+    for (uint8_t row : hud::font::GLYPHS[s[0] - 0x20])
+        for (int col = 0; col < 8; col++)
+            n += row >> col & 1;
+    return n;
+}
+
+static void test_glyphs()
+{
+    CHECK((boxes("|") == std::vector<Box>{{104, 52, 2, 12}}), "a bar is one block, two font pixels per pixel at size 16");
+    CHECK(boxes("!").size() == 2, "a gap splits a column into two blocks");
+    CHECK(boxes(" ").empty(), "a space draws nothing");
+    auto bars = boxes("||");
+    CHECK(bars.size() == 2 && bars[1].x == 104 + hud::FONT_ADVANCE * 2, "the second glyph starts one advance along");
+    for (const char *c : {"A", "g", "W", "@", "8"})
+        CHECK(area(boxes(c, 8)) == float(lit(c)), "the blocks cover each lit pixel once");
+    CHECK(boxes("\xe4\xb8\xad") == boxes("?"), "a codepoint the font lacks draws as ?");
+    CHECK(boxes("\xc3\xa9") != boxes("?") && !boxes("\xc3\xa9").empty(), "latin-1 letters such as e acute draw");
+    CHECK(boxes("\xc3") == boxes("?"), "a cut-off sequence draws as ?");
+    CHECK(hud::glyphs("caf\xc3\xa9") == 4, "one glyph per codepoint, as measure counts");
+}
+
 int main()
 {
     test_measure();
+    test_glyphs();
     test_culling();
     test_commands();
     test_registry();

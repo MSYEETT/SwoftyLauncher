@@ -12,7 +12,7 @@ You draw an immediate-mode 2D overlay on top of the game by registering a paint 
 | Header | `swofty/overlay.hpp` |
 | Namespace | `swofty::overlay` |
 | Table | `SwoftyApi::overlay` (`SwoftyOverlay`) |
-| Feature | `overlay` — experimental, off by default |
+| Feature | `overlay` — experimental, on while an addon lists it in `experimental_features` |
 | API version | 5 |
 | Thread | Render thread (the swapchain present path) for paint callbacks |
 
@@ -31,10 +31,10 @@ To check whether `on_paint`, `remove` or `load_image` succeeded, use the returne
 | `rect(paint, x, y, w, h, rgba)` | filled rectangle |
 | `rect_outline(paint, x, y, w, h, thickness, rgba)` | rectangle outline |
 | `line(paint, x0, y0, x1, y1, thickness, rgba)` | line segment |
-| `text(paint, x, y, font_size, rgba, utf8)` | text in the built-in font; `(x, y)` is its top-left |
+| `text(paint, x, y, font_size, rgba, utf8)` | text in the built-in font, a 5×8 pixel font with ASCII and Latin-1, scaled to `font_size` pixels tall; `(x, y)` is its top-left. Other characters draw as `?` |
 | `measure(paint, font_size, utf8, &w, &h)` | writes the bounds the text would occupy |
 | `load_image(id, file)` | loads a texture from a file in the addon folder under `id`; `invalid` for a bad id or missing file |
-| `image(paint, id, x, y, w, h, tint = 0xffffffff)` | draws a loaded texture into the rectangle, multiplied by `tint`; `invalid` for an unknown id |
+| `image(paint, id, x, y, w, h, tint = 0xffffffff)` | draws a loaded texture into the rectangle, multiplied by `tint`; `invalid` for an unknown id. Current builds draw nothing for it |
 
 Your callback, `fn`, has the signature `void(SwoftyPaint *paint, void *user)`. Use the draw calls, `size` and `measure` only inside a paint callback, passing that callback's `paint` handle. To draw a texture, first call `load_image` outside paint. The id then stays loaded for the lifetime of the process.
 
@@ -65,9 +65,10 @@ SWOFTY_ON_LOAD
 SWOFTY_ADDON()
 ```
 
-Then name your plugin in `operations.native`:
+Then name your plugin in `operations.native` and list the overlay in `experimental_features`:
 
 ```json [swofty.json]
+"experimental_features": ["overlay"],
 "operations": {
   "native": [{ "dll": "native/my_plugin.dll" }]
 }
@@ -75,4 +76,12 @@ Then name your plugin in `operations.native`:
 
 ## Availability
 
-`overlay` is experimental. To enable it, you need to list `overlay` under `"features"` in `swofty/assets.json`; see [feature gates](/design/native-libraries#feature-gates). The overlay engine implementation has yet to land, though, so on current builds `available()` returns `false` and your draw calls do nothing. See [the native-libraries design](/design/native-libraries#_2-overlay-draw).
+`overlay` is experimental. List it in your addon's `swofty.json`:
+
+```json [swofty.json]
+"experimental_features": ["overlay"]
+```
+
+While your addon is on, the build turns the overlay on for that profile, and the Addons page tags your addon **Uses experimental features**. Players install your addon and nothing else. This needs launcher 1.3.7 or later.
+
+Rectangles, outlines, lines and text draw. `image()` draws nothing yet. See [feature gates](/design/native-libraries#feature-gates).

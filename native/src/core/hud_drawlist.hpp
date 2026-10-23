@@ -4,6 +4,7 @@
 #include <string_view>
 #include <vector>
 
+#include "hud_font.hpp"
 #include "swofty_api.h"
 
 namespace hud {
@@ -48,6 +49,62 @@ inline void measure(float font_size, std::string_view s, float *width, float *he
         *width = text_width(font_size, s);
     if (height)
         *height = font_size;
+}
+
+// The glyph of a codepoint; one the font lacks shows as '?'.
+inline const uint8_t *glyph(uint32_t cp)
+{
+    if (cp >= 0x20 && cp <= 0x7e)
+        return font::GLYPHS[cp - 0x20];
+    if (cp >= 0xa0 && cp <= 0xff)
+        return font::GLYPHS[95 + cp - 0xa0];
+    return font::GLYPHS['?' - 0x20];
+}
+
+// Whether columns first..last are set in row bits and the columns either side are not.
+inline bool run_at(uint8_t bits, int first, int last)
+{
+    uint8_t run = uint8_t(((1u << (last - first + 1)) - 1) << first);
+    return (bits & run) == run && !(first > 0 && (bits >> (first - 1) & 1)) && !(bits >> (last + 1) & 1);
+}
+
+// Calls rect(x, y, w, h) for the solid blocks that draw s from (x, y), one glyph per codepoint
+// FONT_ADVANCE apart, each font pixel font_size / FONT_CELL wide. A run of pixels in a row joins
+// the same run in the rows below it, so a glyph takes a handful of rectangles.
+template <class F> void glyph_rects(float x, float y, float font_size, std::string_view s, F &&rect)
+{
+    float px = font_size / FONT_CELL;
+    int n = 0;
+    for (size_t i = 0; i < s.size();) {
+        unsigned char b = static_cast<unsigned char>(s[i++]);
+        if ((b & 0xc0) == 0x80)
+            continue;
+        uint32_t cp = b;
+        int more = b >= 0xf0 ? 3 : b >= 0xe0 ? 2 : b >= 0xc0 ? 1 : 0;
+        if (more)
+            cp = b & (0x3f >> more);
+        for (; more && i < s.size() && (static_cast<unsigned char>(s[i]) & 0xc0) == 0x80; more--)
+            cp = cp << 6 | (static_cast<unsigned char>(s[i++]) & 0x3f);
+        const uint8_t *g = glyph(more ? '?' : cp);
+        float gx = x + float(n++) * FONT_ADVANCE * px;
+        uint8_t used[8] = {};
+        for (int row = 0; row < 8; row++)
+            for (int col = 0; col < 8; col++) {
+                if (!(g[row] >> col & 1) || (used[row] >> col & 1))
+                    continue;
+                int last = col;
+                while (last < 7 && (g[row] >> (last + 1) & 1))
+                    last++;
+                int bottom = row;
+                while (bottom < 7 && run_at(g[bottom + 1], col, last))
+                    bottom++;
+                uint8_t run = uint8_t(((1u << (last - col + 1)) - 1) << col);
+                for (int r = row; r <= bottom; r++)
+                    used[r] |= run;
+                rect(gx + float(col) * px, y + float(row) * px, float(last - col + 1) * px, float(bottom - row + 1) * px);
+                col = last;
+            }
+    }
 }
 
 inline bool rgba_visible(uint32_t rgba)
