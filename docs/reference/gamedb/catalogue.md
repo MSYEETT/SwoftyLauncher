@@ -11,14 +11,14 @@ Every table family found in `gamedatabases.2025.bin`, generated from the databas
 | | |
 |---|---|
 | Records | 742,857 |
-| Records with a known name | 566,078 |
+| Records with a known name | 586,899 |
 | Table families | 2,080 |
 | Families with a full path | 823 |
 | Table instances | 11,209 |
 | Rows | 60,782 |
-| Schema keys (`Table_N.field` form) | 16,502 |
+| Schema keys (`Table_N.field` form) | 17,016 |
 | Names the exe reads | 8,286 |
-| Exe names with no match in the DB | 3,935 |
+| Exe names with no match in the DB | 3,881 |
 | Full key hashes held as exe immediates | 1,098 |
 
 ## Tables with a full path
@@ -72,7 +72,7 @@ Every table family found in `gamedatabases.2025.bin`, generated from the databas
 | `calendar.calendar_item_formats.CalendarItemFormat_N` | Rows of calendar item format under calendar item formats *(inferred)* | 3 | 3 | 3 |  | 3 | ranked\_promotion, season\_rollover, double\_xp |
 | `canned_events.Per-race DNFs.Per-race DNF_N` | Scripted AI retirements per track (failures, faults, accidents, lock-ups); read by track label without a found check *(proven)* | 44 | 44 | 71 | track | 4 | melbourne, sepang, shanghai |
 | `canned_events.player_data.fault_data.attributes.FaultChanceAttribute_N` | Rows of fault chance attribute under attributes *(inferred)* | 4 | 4 | 3 |  | 3 | Gearbox, DRS, ERSInacessibleModes |
-| `car_setup.presets.vehicle_package_setups_N` | Rows of vehicle package setups under presets *(inferred)* | 43 | 43 | 1 | season | 1 | f2\_2023\_vehicle\_package, f1\_safetycar\_package, f1\_classic\_vehicle\_package |
+| `car_setup.presets.vehicle_package_setups_N` | Rows of vehicle package setups under presets *(inferred)* | 43 | 43 | 421 | season | 1 | f2\_2023\_vehicle\_package, f1\_safetycar\_package, f1\_classic\_vehicle\_package |
 | `car_setup.sliders.slider_N` | Rows of slider under sliders *(inferred)* | 42 | 42 | 5 |  | 5 | ballast, brake\_bias, brake\_pressure |
 | `career.career_setup.CareerSetupDataGroup_N` | Career mode data *(inferred)* | 2 | 2 | 1 |  | 1 | f1\_career\_2025, f1\_career\_2026 |
 | `career.career_setup.CareerSetupDataGroup_N.SpawnedCustom_N` | Career mode data *(inferred)* | 1 × 2 | 1 | 8 |  | 8 | SpawnedCustom, SpawnedCustom |
@@ -325,7 +325,7 @@ Every table family found in `gamedatabases.2025.bin`, generated from the databas
 | `entrants.entrant_lists.entrant_list_N.entrant_N` | One seat on a grid: driver, team, car, number and customisations *(proven)* | 1-50 × 64 | 1-50 | 10 |  | 10 | c\_classic\_car, generic\_driver\_01, generic\_driver\_02 |
 | `entrants.entrant_lists.entrant_list_N.vehicle_package_override_N` | Rows of vehicle package override under entrant list *(inferred)* | 1 | 1 | 3 |  | 3 | vehicle\_package\_override |
 | `entrants.entrant_lists.entrants.entrant_N` | Rows of entrant under entrants *(inferred)* | 167 | 167 | 10 |  | 10 | max\_verstappen, sergio\_perez, oscar\_piastri |
-| `entrants.entrant_setup_modes.entrant_setup_mode_N` | How a mode builds its grid: entrant lists, max\_entrants, max\_teams, reuse\_entrants, selection order *(proven)* | 11 | 11 | 12 |  | 12 | f1, classic, f2 |
+| `entrants.entrant_setup_modes.entrant_setup_mode_N` | How a mode builds its grid: entrant lists, max\_entrants, max\_teams, reuse\_entrants, selection order *(proven)* | 11 | 11 | 39 |  | 12 | f1, classic, f2 |
 | `entrants.entrant_specialisation.specialisation_sets.specialisation_set_N` | Rows of specialisation set under specialisation sets *(inferred)* | 6 | 6 | 5 | season | 5 | classics\_2019, f1\_2023, f1\_2024\_beta |
 | `entrants.entrant_specialisation.specialisation_sets.specialisation_set_N.specialisation_team_reference_N` | Rows of specialisation team reference under specialisation set *(inferred)* | 11-12 × 4 | 11-12 | 2 | team | 2 | ferrari, forceindia, haas |
 | `entrants.entrant_specialisation.specialisation_sets.specialisation_set_N.specialisation_team_reference_N.driver_reference_N` | Rows of driver reference under specialisation team reference *(inferred)* | 2-4 × 45 | 2-4 | 3 | driver | 3 | charles\_leclerc, carlos\_sainz-jr, lance\_stroll |
@@ -349,7 +349,7 @@ Every table family found in `gamedatabases.2025.bin`, generated from the databas
 | `entrants.ui.asset_templates.tyre_compounds.textures.ui_texture_path_N` | Rows of ui texture path under textures *(inferred)* | 5 | 5 | 3 |  | 3 | small, compound\_icon, tyre\_icon |
 | `entrants.vehicles.vehicle_N` | Cars: one row per car a driver can drive (F1, F2, classic, My Team, safety and medical cars), with AI handling config *(proven)* | 413 | 413 | 246 | vehicle | 246 | safety\_car\_mercedes, c\_classic\_car, fom\_car |
 | `entrants.vehicles.vehicle_customisations.vehicle_customisation_N` | Rows of vehicle customisation under vehicle customisations *(inferred)* | 69 | 69 | 19 |  | 19 | test\_customisation, arron\_barnes, martin\_giles |
-| `entrants.vehicles.vehicle_packages.vehicle_package_N` | Vehicle packages (car generations): AI package folder, resource path template, regulation flags *(inferred)* | 43 | 43 | 17 | season | 17 | f1\_classic, f1\_safety\_car, f1\_2024\_beta |
+| `entrants.vehicles.vehicle_packages.vehicle_package_N` | Vehicle packages (car generations): AI package folder, resource path template, regulation flags *(inferred)* | 43 | 43 | 72 | season | 17 | f1\_classic, f1\_safety\_car, f1\_2024\_beta |
 | `entrants.vehicles.vehicle_specialisations.decal_nodes.vehicle_decal_node_group_N` | Rows of vehicle decal node group under decal nodes *(inferred)* | 1 | 1 | 3 |  | 3 | f2\_car |
 | `entrants.vehicles.vehicle_specialisations.vehicle_specialisation_group_N` | Rows of vehicle specialisation group under vehicle specialisations *(inferred)* | 4 | 4 | 1 | season | 1 | f2\_2023, f2\_2024, f2\_2025 |
 | `entrants.vehicles.vehicle_specialisations.vehicle_specialisation_group_N.vehicle_specialisation_N` | Rows of vehicle specialisation under vehicle specialisation group *(inferred)* | 44 × 4 | 44 | 11 |  | 11 | frederik\_vesti, oliver\_bearman, jack\_doohan |
@@ -440,10 +440,10 @@ Every table family found in `gamedatabases.2025.bin`, generated from the databas
 | `frontend_scene.scenes.groups.Scene_Group_N` | Front-end (menu) scenes *(inferred)* | 9 | 9 | 2 |  | 2 | 2021, 2021\_beta, 2022 |
 | `game_actions.action_groups.game_action_group_N` | Rows of game action group under action groups *(inferred)* | 1 | 1 | 2 |  | 2 | story\_mode\_action\_group |
 | `game_actions.actions.game_action_N` | Rows of game action under actions *(inferred)* | 19 | 19 | 4 |  | 4 | fastest\_lap\_story\_event\_small\_p…, finishing\_position\_story\_event\_…, finishing\_position\_story\_event\_… |
-| `game_modes.GameMode_N` | Game modes *(inferred)* | 1 | 1 | 14 |  | 11 | benchmark |
+| `game_modes.GameMode_N` | Game modes *(inferred)* | 1 | 1 | 17 |  | 11 | benchmark |
 | `game_modes.GameMode_N.EntrantsOptions_N` | Game modes *(inferred)* | 1 | 1 | 3 |  | 3 | EntrantsOptions |
 | `game_modes.GameMode_N.OptionsSystemConfiguration_N` | Game modes *(inferred)* | 1 | 1 | 4 |  | 4 | OptionsSystemConfiguration |
-| `game_modes.ModeChampionship_N` | Game modes *(inferred)* | 29 | 29 | 40 |  | 37 | online\_custom, event\_mode, career\_invitationals |
+| `game_modes.ModeChampionship_N` | Game modes *(inferred)* | 29 | 29 | 43 |  | 37 | online\_custom, event\_mode, career\_invitationals |
 | `game_modes.ModeChampionship_N.ComProPitMarker_N` | Game modes *(inferred)* | 1 × 2 | 1 | 5 |  | 2 | ComProPitMarker, ComProPitMarker |
 | `game_modes.ModeChampionship_N.ComReplayLapTimes_N` | Game modes *(inferred)* | 1 × 18 | 1 | 5 |  | 2 | ComReplayLapTimes, ComReplayLapTimes, ComReplayLapTimes |
 | `game_modes.ModeChampionship_N.ComTeamIcons_N` | Game modes *(inferred)* | 1 × 9 | 1 | 7 |  | 4 | ComTeamIcons, ComTeamIcons, ComTeamIcons |
@@ -458,7 +458,7 @@ Every table family found in `gamedatabases.2025.bin`, generated from the databas
 | `game_modes.ModeChampionship_N.championship_setups.ChampionshipSetupList_N` | Game modes *(inferred)* | 2 | 2 | 1 |  | 1 | F1\_Only, F2\_Default |
 | `game_modes.ModeChampionship_N.championship_setups.ChampionshipSetupList_N.ChampionshipSetup_N` | Game modes *(inferred)* | 1-2 × 2 | 1-2 | 3 |  | 3 | ChampionshipSetup, ChampionshipSetup, ChampionshipSetup |
 | `game_modes.ModeChampionship_N.championships.ChampionshipReference_N` | Game modes *(inferred)* | 2-4 × 5 | 2-4 | 2 |  | 2 | ChampionshipReference, ChampionshipReference, prologue |
-| `game_modes.ModeTimeTrial_N` | Game modes *(inferred)* | 2 | 2 | 20 |  | 17 | time\_trial, solo\_testing |
+| `game_modes.ModeTimeTrial_N` | Game modes *(inferred)* | 2 | 2 | 23 |  | 17 | time\_trial, solo\_testing |
 | `game_modes.ModeTimeTrial_N.ComProPitMarker_N` | Game modes *(inferred)* | 1 | 1 | 5 |  | 2 | ComProPitMarker |
 | `game_modes.ModeTimeTrial_N.ComTeamIcons_N` | Game modes *(inferred)* | 1 × 2 | 1 | 7 |  | 4 | ComTeamIcons, ComTeamIcons |
 | `game_modes.ModeTimeTrial_N.CustomTeam_N` | Game modes *(inferred)* | 1 × 2 | 1 | 1 |  | 1 | CustomTeam, CustomTeam |
@@ -468,7 +468,7 @@ Every table family found in `gamedatabases.2025.bin`, generated from the databas
 | `game_modes.ModeTimeTrial_N.EntrantSetupModeOverride_N` | Game modes *(inferred)* | 1-2 × 2 | 1-2 | 3 |  | 3 | EntrantSetupModeOverride, EntrantSetupModeOverride, EntrantSetupModeOverride |
 | `game_modes.ModeTimeTrial_N.EntrantsOptions_N` | Game modes *(inferred)* | 1 × 2 | 1 | 3 |  | 3 | EntrantsOptions, EntrantsOptions |
 | `game_modes.ModeTimeTrial_N.OptionsSystemConfiguration_N` | Game modes *(inferred)* | 1 × 2 | 1 | 4 |  | 4 | OptionsSystemConfiguration, OptionsSystemConfiguration |
-| `game_modes.shared_components.SharedComponents_N` | Game modes *(inferred)* | 3 | 3 | 14 |  | 11 | shared\_career\_components, shared\_my\_team\_career\_components, shared\_driver\_career\_components |
+| `game_modes.shared_components.SharedComponents_N` | Game modes *(inferred)* | 3 | 3 | 17 |  | 11 | shared\_career\_components, shared\_my\_team\_career\_components, shared\_driver\_career\_components |
 | `game_setup.branding.game_setup_branding_N` | Game setup modes: grids, worlds and rules a mode uses *(inferred)* | 13 | 13 | 62 |  | 62 | f1, f2, classic |
 | `game_setup.branding.game_setup_branding_N.branding_videos_N` | Game setup modes: grids, worlds and rules a mode uses *(inferred)* | 1-3 × 11 | 1-3 | 7 |  | 7 | f1\_sprint, 2023\_onwards, 2024\_story |
 | `game_setup.branding.game_setup_branding_N.textures.texture_override_N` | Game setup modes: grids, worlds and rules a mode uses *(inferred)* | 19 × 6 | 19 | 2 |  | 2 | #overrides.weekend\_structure.se…, #overrides.weekend\_structure.se…, #overrides.weekend\_structure.se… |

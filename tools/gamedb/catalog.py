@@ -439,10 +439,25 @@ def short(v, n=48):
     return v if len(v) <= n else v[:n - 1] + '…'
 
 
+def expand_braces(line):
+    m = re.search(r'\{([^{}]*)\}', line)
+    if not m:
+        return [line]
+    out = []
+    for choice in m.group(1).split(','):
+        out += expand_braces(line[:m.start()] + choice + line[m.end():])
+    return out
+
+
 def build(args):
     db = args.db or os.path.join(args.game, DB_REL)
     exe = args.exe or (os.path.join(args.game, 'F1_25.exe') if args.game else None)
     seed = [l.rstrip('\n') for l in open(args.names, encoding='utf-8') if l.strip()]
+    if os.path.exists(args.compositions):
+        for l in open(args.compositions, encoding='utf-8'):
+            l = l.strip()
+            if l and not l.startswith('#'):
+                seed += expand_braces(l)
     enames = exe_names(exe, args.exe_names) if (exe or args.exe_names) else []
     exe_set = set(enames)
     exe_words = words_of(enames)
@@ -812,6 +827,8 @@ def main():
     ap.add_argument('--exe', help='F1_25.exe, overriding --game')
     ap.add_argument('--exe-names', help='read (or cache) the exe name list here instead of running track_keys')
     ap.add_argument('--names', default=os.path.join(HERE, 'names.txt'))
+    ap.add_argument('--compositions', default=os.path.join(HERE, 'compositions.txt'),
+                    help='relative row keys the exe builds at run time, {a,b} groups expanded')
     ap.add_argument('--meanings', default=os.path.join(HERE, 'meanings.tsv'))
     ap.add_argument('--no-immediates', action='store_true')
     ap.add_argument('--out', default=os.path.join(HERE, 'catalog'))

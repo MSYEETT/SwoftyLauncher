@@ -97,6 +97,17 @@ mod tests {
         assert!(has(championship, "+ComInfluence"));
         assert!(has(championship, "_ComCareer_instancecount_"));
         assert!(has("championships.Championship_N.ComCareer_N", "save_data.group"));
+        let presets = "car_setup.presets.vehicle_package_setups_N";
+        let setups = keys.get(presets).unwrap();
+        assert_eq!(
+            setups
+                .iter()
+                .filter(|k| k.starts_with("ai.") || k.starts_with("player."))
+                .count(),
+            420
+        );
+        assert!(has(presets, "ai.max_downforce.front_suspension_height"));
+        assert!(has(presets, "player.max_speed.brake_bm_input_end"));
     }
 
     #[test]

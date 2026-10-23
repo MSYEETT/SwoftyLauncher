@@ -54,7 +54,7 @@ nix-shell -p 'python3.withPackages(ps: [ps.numpy ps.pefile ps.capstone])'
 
 ### How `catalog.py` names keys
 
-1. It reads the names the exe's database readers use (`track_keys.exe_names`) and the seed list `tools/gamedb/names.txt`.
+1. It reads the names the exe's database readers use (`track_keys.exe_names`), the seed list `tools/gamedb/names.txt` and the run-time compositions in `tools/gamedb/compositions.txt`, with each `{a,b}` group expanded.
 2. It finds tables bottom-up: for every key it peels `._metadata_` and a row digit; a hash reached from both row 0 and row 1 is a table prefix.
 3. It walks top-down from every name: `<node>._<word>_instancecount_` finds a table and its row count, and `<node>.<name>` finds a field. New rows are walked again, which finds nested tables.
 4. It names unresolved table prefixes by trying every row word against the count key, and attaches them to a known parent where a name links them.

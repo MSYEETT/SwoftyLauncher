@@ -2,19 +2,19 @@
  "db": "gamedatabases.2025.bin",
  "db_bytes": 19341077,
  "records": 742857,
- "named_records": 566078,
- "unnamed_records": 176779,
+ "named_records": 586899,
+ "unnamed_records": 155958,
  "unnamed_by_type": {
-  "float": 43190,
-  "int": 41197,
-  "bool": 23667,
+  "float": 41298,
+  "bool": 23370,
+  "int": 23137,
   "id": 20321,
   "string": 17390,
   "t11": 11507,
   "curve": 5011,
   "time": 4337,
-  "enum": 3870,
   "t7": 3469,
+  "enum": 3298,
   "t12": 1772,
   "list": 756,
   "t8": 145,
@@ -44,12 +44,12 @@
  "table_instances": 11209,
  "rows": 60782,
  "named_tables": 823,
- "schema_keys": 16502,
+ "schema_keys": 17016,
  "schema_keys_exe_path": 1888,
- "schema_keys_exe_leaf": 12792,
+ "schema_keys_exe_leaf": 13294,
  "exe_names": 8286,
- "exe_names_in_db": 4351,
- "exe_names_not_in_db": 3935,
+ "exe_names_in_db": 4405,
+ "exe_names_not_in_db": 3881,
  "exe_key_immediates": 1098,
  "exe_key_immediates_named": 98,
  "scopes": {
@@ -66,7 +66,7 @@
   "proven": 39
  },
  "key_evidence": {
-  "inferred": 12364,
+  "inferred": 12878,
   "proven": 4138
  }
 }
