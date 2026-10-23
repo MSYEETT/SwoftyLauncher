@@ -13,7 +13,7 @@ Start from [`templates/shader-pack`](https://github.com/Swofty-Developments/Swof
 |---|---|
 | Manifest | `shader`, `"category": "shaders"`, `"experimental_features": ["shaders"]` |
 | Feature | `shaders` — experimental, on while an addon lists it in `experimental_features` |
-| Launcher | 1.3.8 or later; an earlier launcher rejects the manifest |
+| Launcher | 1.4.0 or later; an earlier launcher rejects the manifest |
 | Picture | SDR. With HDR on, the game keeps its own colours |
 
 ## Make a look

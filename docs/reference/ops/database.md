@@ -124,7 +124,7 @@ An `unlockable_se_livery` row added to an `unlockable_content.unlockable_items.u
 | Rows labelled with a name built from the source | A folder name, the label plus a suffix, a field value | Vehicle packages: `car_setup.presets.vehicle_package_setups_N`, labelled with the package folder `f1_2025_vehicle_package`, the first folder of `resource_path` |
 | Values elsewhere that name the source | Other rows hold the source's label or `stat_id` | Vehicles: `entrants.entrant_lists.entrant_list_N.entrant_N.vehicle`, `showroom.vehicle_offsets.vehicle_offset_N.vehicle`, `showroom.vehicles_history.vehicle_history_N.vehicle`. Vehicle packages: `entrants.vehicles.vehicle_N.vehicle_package` |
 | Game files named after the source | Paths built from the label or a field | Vehicle packages: the car template's `CarPhysics2.baseVtfAsset` and `Tyres` defaults name `eaid://f1_2025_vehicle_package/...`. Vehicles: per-track AI data at `environment_package/tracks/<track>/ai/<ai_package_folder>/<asset_filename>/` |
-| Keys of the source the catalogue does not name | Paths the exe builds at run time | Car setup presets: 420 keys per row. Game setup modes: 11 keys under `championship_won_cutscene` and `tyre_regulations`, which the `swofty_f1` copy lacked until `addons/swoftymod/db/core.json` listed them in a `fields` list. Both are in the catalogue from launcher 1.3.8 |
+| Keys of the source the catalogue does not name | Paths the exe builds at run time | Car setup presets: 420 keys per row. Game setup modes: 11 keys under `championship_won_cutscene` and `tyre_regulations`, which the `swofty_f1` copy lacked until `addons/swoftymod/db/core.json` listed them in a `fields` list. Both are in the catalogue from launcher 1.4.0 |
 
 ### Car setups of a vehicle package
 
@@ -147,7 +147,7 @@ Each stock row holds these 420 keys and its `_metadata_`. A copy of `f1_2025` wi
 | `_metadata_` only | Loading the session crashes (a read at index -1) |
 | All 421 keys | The copy drives its source's setups |
 
-Launchers before 1.3.8 copy only the catalogued `_metadata_`; give the op a `fields` list of the 421 keys for them.
+Launchers before 1.4.0 copy only the catalogued `_metadata_`; give the op a `fields` list of the 421 keys for them.
 
 ### The side-data check
 
