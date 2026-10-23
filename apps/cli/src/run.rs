@@ -560,7 +560,7 @@ fn rebuild_if_needed(store: &Store, profile: &str, game: &Path) {
         "info",
         &format!("rebuilding {profile} for {}", pending.join(", ")),
     );
-    if let Err(e) = crate::build::build(store, profile, Some(game.to_path_buf())) {
+    if let Err(e) = crate::build::build(store, profile, Some(game.to_path_buf()), false) {
         say("info", &format!("rebuild failed, launching anyway: {e:#}"));
     }
 }

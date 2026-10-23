@@ -64,6 +64,7 @@ impl AddonBuilder {
                 schema_version: 1,
                 fields: BTreeMap::new(),
                 strict: false,
+                side_data: Default::default(),
                 ops: Vec::new(),
             },
             erp: Vec::new(),

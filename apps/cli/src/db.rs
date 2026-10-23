@@ -481,8 +481,23 @@ fn print_deps(cat: &Catalog, row: NodeId) {
     for (value, how) in &hows {
         println!("  {value}: {}", how.join(", "));
     }
-    let mut keyed: BTreeMap<(bool, String, &str), usize> = BTreeMap::new();
-    for k in &d.keyed {
+    let tag = |area: Option<&str>| area.map(|a| format!(" [{a}]")).unwrap_or_default();
+    if !d.rules.is_empty() {
+        println!("rows the game is known to look up for the row:");
+    }
+    for (rule, name, found) in &d.rules {
+        let by = match rule.field {
+            None => format!("labelled {name} ({})", rule.how()),
+            Some(field) => format!("whose {field} names {name}"),
+        };
+        let found = match found {
+            Some(row) => cat.path(*row),
+            None => "none".into(),
+        };
+        println!("  {} row {by}: {found}; {}", rule.table, rule.reader);
+    }
+    let mut keyed: BTreeMap<(bool, String, &str), (usize, Option<&str>)> = BTreeMap::new();
+    for k in d.keyed.iter().filter(|k| k.rule.is_none()) {
         let tables = match k.tables.len() {
             1 => cat.path(k.tables[0]),
             _ => k.family.clone(),
@@ -492,11 +507,11 @@ fn print_deps(cat: &Catalog, row: NodeId) {
             .any(|h| h.starts_with("the label"));
         let n = keyed
             .entry((!by_label, tables, k.name.value.as_str()))
-            .or_default();
-        *n = (*n).max(k.tables.len());
+            .or_insert((0, k.area));
+        n.0 = n.0.max(k.tables.len());
     }
     let mut section = None;
-    for ((by_field, tables, value), n) in &keyed {
+    for ((by_field, tables, value), (n, area)) in &keyed {
         if section != Some(*by_field) {
             section = Some(*by_field);
             match by_field {
@@ -510,9 +525,9 @@ fn print_deps(cat: &Catalog, row: NodeId) {
             1 => tables.clone(),
             n => format!("{tables} ({n} tables)"),
         };
-        println!("  {tables}: {value} ({})", hows[value].join(", "));
+        println!("  {tables}: {value} ({}){}", hows[value].join(", "), tag(*area));
     }
-    if keyed.is_empty() {
+    if d.keyed.is_empty() {
         println!("rows of other tables labelled with these names: none");
     }
     println!("values that pick the row:");
@@ -524,12 +539,17 @@ fn print_deps(cat: &Catalog, row: NodeId) {
             deps::By::Label => "label",
             deps::By::StatId => "stat_id",
         };
-        println!("  by {by}: {} ({})", r.field, r.count);
+        println!("  by {by}: {} ({}){}", r.field, r.count, tag(r.area));
     }
     if d.unnamed > 0 {
         println!(
             "  {} value(s) under keys the catalogue does not name hold the label",
             d.unnamed
+        );
+    }
+    if d.keyed.iter().any(|k| k.area.is_some()) || d.references.iter().any(|r| r.area.is_some()) {
+        println!(
+            "[area]: a table of a game area an add-row copy does not reach by default; the build lists its findings only with swofty build --side-data"
         );
     }
 }

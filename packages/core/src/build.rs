@@ -53,6 +53,8 @@ pub struct Built {
     pub plan: Plan,
     pub lines: Vec<String>,
     pub warnings: Vec<String>,
+    /// Every side-data finding of the add-row copies, tagged; see [`crate::dbedit::deps::Report`].
+    pub side_data: Vec<String>,
     pub settings: Option<SessionSettings>,
     pub conflicts: Vec<Conflict>,
     pub waiting: Vec<Op>,
@@ -190,6 +192,7 @@ fn package_ops(store: &Store, id: &str) -> Result<OpFile> {
         schema_version: ops.schema_version,
         fields: ops.fields,
         strict: ops.strict,
+        side_data: ops.side_data,
         ops: ops.ops.into_iter().map(AssetOp::Db).collect(),
     })
 }
@@ -720,11 +723,13 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             built.warnings.push(stock_removals_line(name, *n));
         }
         let mut copies = planner.take_copies();
-        copies.retain(|c| c.addon != CORE_ID);
+        for c in &mut copies {
+            c.quiet = c.addon == CORE_ID;
+        }
         let addon_name = |id: &str| addons.get(id).map_or(id, |m| m.name.as_str()).to_owned();
-        built
-            .warnings
-            .extend(crate::dbedit::deps::check(&db, &copies, &addon_name));
+        let side = crate::dbedit::deps::check(&db, &copies, &addon_name);
+        built.warnings.extend(side.warnings);
+        built.side_data = side.findings;
         if !added.is_empty() {
             let found = owned::owned_items(&db, &Gvdb::parse(&shipped)?, &added);
             built.lines.extend(found.lines);

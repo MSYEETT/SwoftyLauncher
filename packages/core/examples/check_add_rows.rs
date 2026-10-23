@@ -55,6 +55,7 @@ fn main() {
             schema_version: file.schema_version,
             fields: file.fields,
             strict: file.strict,
+            side_data: file.side_data,
             ops: file
                 .ops
                 .into_iter()
@@ -94,12 +95,18 @@ fn main() {
             addon: manifest.name.clone(),
             from: r.from,
             row: r.row,
+            ignore: ops.side_data.ignore.clone(),
+            quiet: false,
         }));
     }
     println!("== label-keyed side data of {} add-row(s)", copies.len());
-    for w in deps::check(&db, &copies, &|id| id.to_owned()) {
+    let side = deps::check(&db, &copies, &|id| id.to_owned());
+    for w in &side.warnings {
         warnings += 1;
         println!("  warning: {w}");
+    }
+    for f in &side.findings {
+        println!("  {f}");
     }
     println!("{warnings} warning(s), {gaps} fields list gap(s) closed by the full copy");
 }

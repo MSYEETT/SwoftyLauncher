@@ -52,6 +52,11 @@ enum Command {
     Build {
         #[arg(long, help = GAME_HELP)]
         game: Option<PathBuf>,
+        #[arg(
+            long,
+            help = "Also list every side-data finding of add-row copies: known lookups, matches to review, matches in other game areas and acknowledged ones"
+        )]
+        side_data: bool,
     },
     #[command(about = "Show which addons override which in the profile's last build")]
     Conflicts {
@@ -427,7 +432,7 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
     let profile = cli.profile.unwrap_or_else(|| store.active_profile());
     match cli.command {
         Command::Run(args) => run::run(&store, &profile, args),
-        Command::Build { game } => build::build(&store, &profile, game),
+        Command::Build { game, side_data } => build::build(&store, &profile, game, side_data),
         Command::Conflicts { check, game } => build::conflicts(&store, &profile, check, game),
         Command::Apply { game } => build::apply(&store, &profile, game),
         Command::Verify { game } => build::verify(&store, game),

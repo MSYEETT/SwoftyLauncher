@@ -18,11 +18,11 @@ fn stock() -> Option<Gvdb> {
     Some(Gvdb::parse(&data).unwrap())
 }
 
-fn build(db: Gvdb, ops: &str) -> Vec<String> {
+fn build(db: Gvdb, ops: &str) -> deps::Report {
     build_report(db, ops).1
 }
 
-fn build_report(mut db: Gvdb, ops: &str) -> (DbReport, Vec<String>) {
+fn build_report(mut db: Gvdb, ops: &str) -> (DbReport, deps::Report) {
     let ops: DbOps = serde_json::from_str(ops).unwrap();
     let none = BTreeMap::new();
     let names = Names {
@@ -39,10 +39,12 @@ fn build_report(mut db: Gvdb, ops: &str) -> (DbReport, Vec<String>) {
             addon: "seasons".into(),
             from: r.from.clone(),
             row: r.row.clone(),
+            ignore: ops.side_data.ignore.clone(),
+            quiet: false,
         })
         .collect();
-    let warnings = deps::check(&db, &copies, &|id| id.to_owned());
-    (report, warnings)
+    let side = deps::check(&db, &copies, &|id| id.to_owned());
+    (report, side)
 }
 
 const PACKAGE: &str = r#"{ "op": "add-row", "table": "entrants.vehicles.vehicle_packages",
@@ -56,43 +58,91 @@ const PRESET: &str = r#"{ "op": "add-row", "table": "car_setup.presets",
 #[test]
 fn a_season_package_copy_needs_setup_presets_in_the_real_database() {
     let Some(db) = stock() else { return };
-    let flagged = |w: &Vec<String>| {
+    let flagged = |w: &[String]| {
         w.iter().any(|l| {
             l.contains("car_setup.presets.vehicle_package_setups has a row labelled f1_2025_vehicle_package")
                 && l.contains("none labelled cs_2019_vehicle_package")
+                && l.contains("Car_Load_SetupPreset (0x140c04fd0)")
         })
     };
-    let warnings = build(
+    let side = build(
         db.clone(),
         &format!(r#"{{"schema_version":1,"ops":[{PACKAGE}]}}"#),
     );
-    assert!(flagged(&warnings), "{warnings:#?}");
-    let warnings = build(
+    assert!(flagged(&side.warnings), "{side:#?}");
+    let side = build(
         db,
         &format!(r#"{{"schema_version":1,"ops":[{PACKAGE},{PRESET}]}}"#),
     );
-    assert!(!flagged(&warnings), "{warnings:#?}");
+    assert!(!flagged(&side.findings), "{side:#?}");
+    assert!(
+        !side.findings.iter().any(|f| f.contains("ai_package_folder")),
+        "{side:#?}"
+    );
 }
 
 #[test]
 fn a_team_copy_names_its_history_row_in_the_real_database() {
     let Some(db) = stock() else { return };
-    let warnings = build(
+    let side = build(
         db,
         r#"{"schema_version":1,"ops":[{ "op": "add-row", "table": "entrants.teams",
         "from": "entrants.teams.team[_metadata_=williams_26]", "set": { "_metadata_": "team12_26" } }]}"#,
     );
     assert!(
-        warnings.iter().any(|w| w.starts_with(
-            "seasons: showroom.teams_history.team_history has a row labelled williams_26 and none labelled team12_26"
+        side.findings.iter().any(|w| w.starts_with(
+            "seasons: [front end] showroom.teams_history.team_history has a row labelled williams_26 and none labelled team12_26"
         )),
-        "{warnings:#?}"
+        "{side:#?}"
     );
     assert!(
-        warnings
+        side.findings
             .iter()
             .any(|w| w.contains("entrants.entrant_lists.entrant_list_N.entrant_N.team")),
-        "{warnings:#?}"
+        "{side:#?}"
+    );
+    assert!(
+        !side
+            .warnings
+            .iter()
+            .any(|w| w.contains("showroom") || w.contains("bank")),
+        "{side:#?}"
+    );
+}
+
+#[test]
+fn a_new_driver_gets_one_review_line_in_the_real_database() {
+    let Some(db) = stock() else { return };
+    let ops = r#"{"schema_version":1,"ops":[{ "op": "add-row", "table": "entrants.drivers",
+        "from": "entrants.drivers.driver[_metadata_=lando_norris]", "set": { "_metadata_": "felipe_nasr" } }]}"#;
+    let side = build(db.clone(), ops);
+    assert_eq!(side.warnings.len(), 1, "{side:#?}");
+    assert!(
+        side.warnings[0].starts_with("seasons: ") && side.warnings[0].contains("to review"),
+        "{side:#?}"
+    );
+    assert!(
+        side.findings.iter().any(|f| f.starts_with(
+            "seasons: [review] entrants.expression_label.expression_label has a row labelled lando_norris"
+        )),
+        "{side:#?}"
+    );
+    assert!(
+        side.findings
+            .iter()
+            .any(|f| f.starts_with("seasons: [career] accolades.")),
+        "{side:#?}"
+    );
+    let acked = ops.replacen(
+        r#""ops":"#,
+        r#""side_data":{"ignore":["engine_management.*","entrants.*","*"]},"ops":"#,
+        1,
+    );
+    let side = build(db, &acked);
+    assert!(side.warnings.is_empty(), "{side:#?}");
+    assert!(
+        side.findings.iter().all(|f| f.starts_with("seasons: [ignored] ")),
+        "{side:#?}"
     );
 }
 

@@ -15,7 +15,40 @@ pub struct DbOps {
     pub fields: BTreeMap<String, Vec<String>>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub strict: bool,
+    #[serde(default, skip_serializing_if = "SideData::is_empty")]
+    pub side_data: SideData,
     pub ops: Vec<DbOp>,
+}
+
+/// The file's settings for the build's side-data check of its `add-row` copies.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SideData {
+    /// Tables and fields whose side-data findings were reviewed: dotted paths
+    /// with or without row numbers, `*` matching any run of characters.
+    #[serde(default, deserialize_with = "patterns", skip_serializing_if = "Vec::is_empty")]
+    pub ignore: Vec<String>,
+}
+
+impl SideData {
+    pub fn is_empty(&self) -> bool {
+        self.ignore.is_empty()
+    }
+}
+
+fn patterns<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Vec<String>, D::Error> {
+    let v = Vec::<String>::deserialize(d)?;
+    for p in &v {
+        let ok = !p.is_empty()
+            && p.bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"_.*{}[]=-".contains(&b));
+        if !ok {
+            return Err(serde::de::Error::custom(format!(
+                "side_data.ignore: {p:?} is not a table or field path"
+            )));
+        }
+    }
+    Ok(v)
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -1141,6 +1174,29 @@ mod tests {
 
     fn ops(json: &str) -> DbOps {
         serde_json::from_str(json).unwrap()
+    }
+
+    #[test]
+    fn side_data_lists_ignore_patterns_and_rejects_the_rest() {
+        let file = ops(
+            r#"{"schema_version":1,"side_data":{"ignore":["bank.*","accolades.AccoladeDataGroup_N.driver_data.AccoladeDriver_N"]},"ops":[]}"#,
+        );
+        assert_eq!(file.side_data.ignore.len(), 2);
+        let parse = |json: &str| serde_json::from_str::<DbOps>(json).unwrap_err().to_string();
+        assert!(
+            parse(r#"{"schema_version":1,"side_data":{"ignored":[]},"ops":[]}"#)
+                .contains("unknown field `ignored`")
+        );
+        assert!(
+            parse(r#"{"schema_version":1,"side_data":{"ignore":["bank initial"]},"ops":[]}"#)
+                .contains("is not a table or field path")
+        );
+        assert!(
+            parse(r#"{"schema_version":1,"side_data":{"ignore":[""]},"ops":[]}"#)
+                .contains("side_data.ignore")
+        );
+        let roundtrip = serde_json::to_string(&ops(r#"{"schema_version":1,"ops":[]}"#)).unwrap();
+        assert!(!roundtrip.contains("side_data"), "{roundtrip}");
     }
 
     #[test]

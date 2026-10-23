@@ -1519,6 +1519,7 @@ mod tests {
         db.remove("tracks.Track_0.PoleOnRight").unwrap();
         let add = crate::ops::DbOps {
             strict: false,
+            side_data: Default::default(),
             schema_version: 1,
             fields: BTreeMap::from([(
                 "entrants.drivers.driver".to_owned(),

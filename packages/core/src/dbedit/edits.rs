@@ -658,6 +658,7 @@ impl Edits {
         }));
         DbOps {
             strict: false,
+            side_data: Default::default(),
             schema_version: 1,
             fields: Default::default(),
             ops,

@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Map, Value};
 
 use crate::manifest::{Operations, relative_inside};
-use crate::ops::{DbOp, ErpOp};
+use crate::ops::{DbOp, ErpOp, SideData};
 use crate::{Error, Result};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -314,6 +314,8 @@ pub struct OpFile {
     pub fields: BTreeMap<String, Vec<String>>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub strict: bool,
+    #[serde(default, skip_serializing_if = "SideData::is_empty")]
+    pub side_data: SideData,
     pub ops: Vec<AssetOp>,
 }
 

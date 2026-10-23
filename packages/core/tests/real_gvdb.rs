@@ -163,6 +163,7 @@ fn core_db_ops_add_the_swofty_f1_modes_to_the_real_database() {
         schema_version: file.schema_version,
         fields: file.fields,
         strict: true,
+        side_data: file.side_data,
         ops: file
             .ops
             .into_iter()

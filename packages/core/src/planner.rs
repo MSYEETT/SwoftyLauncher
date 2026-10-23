@@ -321,6 +321,7 @@ impl<'a> Planner<'a> {
                             schema_version: 1,
                             fields: BTreeMap::new(),
                             strict: false,
+                            side_data: Default::default(),
                             ops: vec![db],
                         },
                     )),
@@ -338,6 +339,7 @@ impl<'a> Planner<'a> {
                 schema_version: file.schema_version,
                 fields: file.fields,
                 strict: file.strict,
+                side_data: file.side_data,
                 ops: Vec::new(),
             };
             self.db.push((origin.clone(), ops));
@@ -590,6 +592,8 @@ impl<'a> Planner<'a> {
                 addon: origin.addon.clone(),
                 from: r.from,
                 row: r.row,
+                ignore: ops.side_data.ignore.clone(),
+                quiet: false,
             }));
             for key in replaced {
                 self.write(Target::Record(key), &origin, true);
