@@ -153,6 +153,16 @@ fn pinned_delta(addons: &[swofty_core::profile::ProfileAddon], id: &str, from: u
     to.max(floor) as isize - from as isize
 }
 
+/// The experimental features an addon turns on, as "Overlay".
+fn experimental_labels(m: &AddonItem) -> String {
+    m.manifest
+        .experimental_features
+        .iter()
+        .map(|f| f.label())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// The icon an addon without its own shows: a race track for tracks, else a box.
 fn fallback_icon(m: &AddonItem, size: f32, p: Palette) -> Div {
     match m.category() {
@@ -1541,7 +1551,29 @@ impl Shell {
                                     .text_size(px(10.5))
                                     .text_color(p.text_muted)
                                     .child(m.source.label()),
-                            ),
+                            )
+                            .when(!man.experimental_features.is_empty(), |d| {
+                                let features = experimental_labels(m);
+                                d.child(
+                                    div()
+                                        .id(SharedString::from(format!("experimental-{id}")))
+                                        .h(px(16.))
+                                        .px(px(5.))
+                                        .flex()
+                                        .items_center()
+                                        .flex_shrink_0()
+                                        .rounded(px(3.))
+                                        .border_1()
+                                        .border_color(p.warning.opacity(0.6))
+                                        .text_size(px(10.5))
+                                        .text_color(p.warning)
+                                        .child("Uses experimental features")
+                                        .tooltip(move |window, cx| {
+                                            Tooltip::new(format!("Turns on {features} while it's on"))
+                                                .build(window, cx)
+                                        }),
+                                )
+                            }),
                     ),
             )
             .child(
@@ -1764,6 +1796,9 @@ impl Shell {
                 ))
             })
             .when(!man.kind.is_empty(), |d| d.child(fact("Type", Type::list(m), p)))
+            .when(!man.experimental_features.is_empty(), |d| {
+                d.child(fact("Experimental features", experimental_labels(m), p))
+            })
             .child(fact("Source", source, p))
             .child(fact(
                 "Game version",

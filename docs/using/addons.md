@@ -29,7 +29,7 @@ Type in the search box on the left to search names, ids, authors and description
 | Source | Built in, DB Editor, Imported, Installed. Imported addons come from the [Simplified Importer](/using/mods). |
 | State | On, Off, Has conflicts, Update available |
 
-Under its name, each row shows the addon's category, its types and a tag with its source. Each value shows how many addons match. **Clear** removes every filter. An open panel closes when its addon no longer matches.
+Under its name, each row shows the addon's category, its types and a tag with its source. An addon that turns on an experimental feature of the game's core, such as the [overlay](/reference/std/overlay), also has a **Uses experimental features** tag, and its panel lists the features. Each value shows how many addons match. **Clear** removes every filter. An open panel closes when its addon no longer matches.
 
 On a window less than 760 pixels tall, the install cards shrink to one row.
 
