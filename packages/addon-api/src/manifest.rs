@@ -45,7 +45,11 @@ pub struct AddonManifest {
     #[serde(default, skip_serializing_if = "Saves::is_unset")]
     pub saves: Saves,
     /// What the addon is for, for grouping and filtering; `kind` says what it touches.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "Category::read",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub category: Option<Category>,
     /// The tool that generated the addon and the file it came from.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -55,47 +59,44 @@ pub struct AddonManifest {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(rename_all = "kebab-case")]
 pub enum Category {
-    Tracks,
-    Liveries,
-    Cars,
-    DriversTeams,
     Seasons,
-    Database,
-    Gameplay,
-    Ui,
-    Audio,
-    Tools,
-    Other,
+    Tracks,
+    #[serde(alias = "liveries")]
+    Cars,
+    Helmets,
 }
 
 impl Category {
-    pub const ALL: [Category; 11] = [
-        Self::Tracks,
-        Self::Liveries,
-        Self::Cars,
-        Self::DriversTeams,
-        Self::Seasons,
-        Self::Database,
-        Self::Gameplay,
-        Self::Ui,
-        Self::Audio,
-        Self::Tools,
-        Self::Other,
+    pub const ALL: [Category; 4] = [Self::Seasons, Self::Tracks, Self::Cars, Self::Helmets];
+
+    /// Categories from earlier launchers that read as none.
+    pub const RETIRED: [&str; 7] = [
+        "drivers-teams",
+        "database",
+        "gameplay",
+        "ui",
+        "audio",
+        "tools",
+        "other",
     ];
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Tracks => "Tracks",
-            Self::Liveries => "Liveries",
-            Self::Cars => "Cars",
-            Self::DriversTeams => "Drivers & teams",
             Self::Seasons => "Seasons",
-            Self::Database => "Database",
-            Self::Gameplay => "Gameplay",
-            Self::Ui => "UI",
-            Self::Audio => "Audio",
-            Self::Tools => "Tools",
-            Self::Other => "Other",
+            Self::Tracks => "Tracks",
+            Self::Cars => "Cars",
+            Self::Helmets => "Helmets",
+        }
+    }
+
+    /// Reads an optional category, taking `liveries` as cars and a
+    /// [retired](Category::RETIRED) one as none.
+    pub fn read<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Option<Self>, D::Error> {
+        use serde::de::IntoDeserializer;
+        match Option::<String>::deserialize(d)? {
+            Some(name) if Self::RETIRED.contains(&name.as_str()) => Ok(None),
+            Some(name) => Self::deserialize(name.into_deserializer()).map(Some),
+            None => Ok(None),
         }
     }
 }
@@ -639,19 +640,19 @@ mod tests {
         assert!(json.get("category").is_none() && json.get("origin").is_none());
         let with = GRID24.replace(
             r#""author": "swofty","#,
-            r#""author": "swofty", "category": "drivers-teams",
+            r#""author": "swofty", "category": "helmets",
                "origin": { "tool": "teamsimplified.mods", "tool_version": "2.0.0", "file": "grid.zip", "sha256": "ab" },"#,
         );
         let m = AddonManifest::parse(&with).unwrap();
-        assert_eq!(m.category, Some(Category::DriversTeams));
-        assert_eq!(m.category.unwrap().label(), "Drivers & teams");
+        assert_eq!(m.category, Some(Category::Helmets));
+        assert_eq!(m.category.unwrap().label(), "Helmets");
         let origin = m.origin.as_ref().unwrap();
         assert_eq!(
             (origin.tool.as_str(), origin.file.as_deref()),
             ("teamsimplified.mods", Some("grid.zip"))
         );
         let json = serde_json::to_value(&m).unwrap();
-        assert_eq!(json["category"], "drivers-teams");
+        assert_eq!(json["category"], "helmets");
         assert_eq!(AddonManifest::parse(&json.to_string()).unwrap(), m);
         let bare = with.replace(
             r#", "tool_version": "2.0.0", "file": "grid.zip", "sha256": "ab""#,
@@ -673,6 +674,29 @@ mod tests {
             let bad = GRID24.replace(r#""author": "swofty","#, &format!(r#""author": "swofty", {bad}"#));
             assert!(AddonManifest::parse(&bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn earlier_categories_read_as_the_nearest_or_none() {
+        let read = |c: &str| {
+            let with = GRID24.replace(
+                r#""author": "swofty","#,
+                &format!(r#""author": "swofty", "category": {c},"#),
+            );
+            AddonManifest::parse(&with).unwrap().category
+        };
+        assert_eq!(read(r#""liveries""#), Some(Category::Cars));
+        assert_eq!(read(r#""tracks""#), Some(Category::Tracks));
+        assert_eq!(read("null"), None);
+        for c in Category::RETIRED {
+            assert_eq!(read(&format!("{c:?}")), None, "{c}");
+        }
+        let m = AddonManifest::parse(&GRID24.replace(
+            r#""author": "swofty","#,
+            r#""author": "swofty", "category": "liveries","#,
+        ))
+        .unwrap();
+        assert_eq!(serde_json::to_value(&m).unwrap()["category"], "cars");
     }
 
     #[test]

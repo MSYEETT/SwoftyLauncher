@@ -41,22 +41,19 @@ Your addon needs a `swofty.json` at its root. This is where you give it a name, 
 `kind` says what an addon touches; `category` says what it is for. The **Addons** page groups and filters by it.
 
 ```json
-"category": "liveries"
+"category": "cars"
 ```
 
 | Value | Label |
 |---|---|
-| `tracks` | Tracks |
-| `liveries` | Liveries |
-| `cars` | Cars |
-| `drivers-teams` | Drivers & teams |
 | `seasons` | Seasons |
-| `database` | Database |
-| `gameplay` | Gameplay |
-| `ui` | UI |
-| `audio` | Audio |
-| `tools` | Tools |
-| `other` | Other |
+| `tracks` | Tracks |
+| `cars` | Cars |
+| `helmets` | Helmets |
+
+An addon without a category is listed as Uncategorised. `helmets` needs launcher 1.3.6 or later.
+
+Launchers from 1.3.6 read the categories of earlier launchers: `liveries` as `cars`, and `drivers-teams`, `database`, `gameplay`, `ui`, `audio`, `tools` and `other` as no category.
 
 ## origin
 

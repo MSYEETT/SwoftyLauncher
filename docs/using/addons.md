@@ -24,7 +24,7 @@ Type in the search box on the left to search names, ids, authors and description
 
 | Filter | Values |
 |---|---|
-| Category | What the addon is for: Tracks, Liveries, Cars, Drivers & teams, Seasons, Database, Gameplay, UI, Audio, Tools, Other, or Uncategorised. Built-in addons show no category. |
+| Category | What the addon is for: Seasons, Tracks, Cars, Helmets, or Uncategorised. Built-in addons show no category. |
 | Type | What it changes: Database, Archives, Text & UI, Files, Code |
 | Source | Built in, DB Editor, Simplified, Installed. Each row shows its source as a tag with the same name. |
 | State | On, Off, Has conflicts, Update available |

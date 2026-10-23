@@ -50,25 +50,31 @@ fn caption(title: &'static str, p: Palette) -> Div {
         .child(title)
 }
 
-fn category_picker(chosen: Rc<Cell<Category>>, p: Palette) -> Div {
+fn category_label(c: Option<Category>) -> &'static str {
+    c.map_or("Uncategorised", Category::label)
+}
+
+fn category_picker(chosen: Rc<Cell<Option<Category>>>, p: Palette) -> Div {
     let current = chosen.get();
     v_flex().gap(px(6.)).child(caption("CATEGORY", p)).child(
         Button::new("db-save-category")
             .outline()
             .small()
             .w_full()
-            .label(current.label())
+            .label(category_label(current))
             .dropdown_caret(true)
             .dropdown_menu_with_anchor(Anchor::TopLeft, move |mut menu, _, _| {
                 menu = menu.min_w(px(220.)).max_h(px(360.)).scrollable(true);
-                for c in Category::ALL {
+                for c in Category::ALL.map(Some).into_iter().chain([None]) {
                     let chosen = chosen.clone();
-                    menu = menu.item(PopupMenuItem::new(c.label()).checked(c == current).on_click(
-                        move |_, window, _| {
-                            chosen.set(c);
-                            window.refresh();
-                        },
-                    ));
+                    menu = menu.item(
+                        PopupMenuItem::new(category_label(c))
+                            .checked(c == current)
+                            .on_click(move |_, window, _| {
+                                chosen.set(c);
+                                window.refresh();
+                            }),
+                    );
                 }
                 menu
             }),
@@ -81,7 +87,7 @@ struct Form {
     version: Option<Entity<InputState>>,
     author: Entity<InputState>,
     description: Entity<InputState>,
-    category: Rc<Cell<Category>>,
+    category: Rc<Cell<Option<Category>>>,
 }
 
 impl Form {
@@ -123,9 +129,7 @@ impl Shell {
                 "What the addon changes",
                 cx,
             ),
-            category: Rc::new(Cell::new(
-                m.and_then(|m| m.category).unwrap_or(Category::Database),
-            )),
+            category: Rc::new(Cell::new(m.and_then(|m| m.category))),
         }
     }
 

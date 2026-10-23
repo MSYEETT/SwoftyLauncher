@@ -252,7 +252,6 @@ fn manifest(id: &str, name: &str) -> Result<AddonManifest> {
         "kind": ["database"],
         "compat": { "game": crate::GAME_ID, "game_builds": [GAME_BUILDS], "launcher": format!(">={launcher}") },
         "operations": { "database": [OPS_FILE] },
-        "category": Category::Database,
     }))
     .map_err(|e| Error::Manifest(e.to_string()))?;
     let m = AddonManifest {
@@ -455,9 +454,7 @@ pub fn install(store: &Store, root: &Path) -> Result<(Package, Option<String>)> 
             d.description.as_deref().unwrap_or_default(),
         )
         .and_then(|()| {
-            if let Some(c) = d.category.and_then(|v| serde_json::from_value(v).ok()) {
-                package.set_category(c);
-            }
+            package.set_category(d.category.and_then(|v| Category::read(v).ok().flatten()));
             package.edits = Edits {
                 schema_version: 1,
                 edits: source.edits,
@@ -833,12 +830,11 @@ impl Package {
     }
 
     /// Writes the three files as they are, keeping `game_build`; an addon
-    /// from before 1.3.0 gains its origin and category.
+    /// from before 1.3.0 gains its origin.
     pub fn write(&mut self, store: &Store) -> Result<()> {
         let m = &mut self.manifest;
         if m.origin.is_none() {
             m.origin = Some(origin());
-            m.category.get_or_insert(Category::Database);
             let floor = launcher_floor(&crate::update::current_version());
             m.compat.launcher = semver::VersionReq::parse(&format!(">={floor}")).ok();
         }
@@ -878,8 +874,8 @@ impl Package {
         Ok(())
     }
 
-    pub fn set_category(&mut self, category: Category) {
-        self.manifest.category = Some(category);
+    pub fn set_category(&mut self, category: Option<Category>) {
+        self.manifest.category = category;
     }
 
     /// Removes every change and returns how many; [`Package::save`] writes it.

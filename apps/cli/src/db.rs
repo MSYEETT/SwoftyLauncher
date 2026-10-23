@@ -52,8 +52,8 @@ pub enum DbCommand {
         author: Option<String>,
         #[arg(long)]
         description: Option<String>,
-        #[arg(long, value_parser = category, help = "One of tracks, liveries, cars, drivers-teams, seasons, database, gameplay, ui, audio, tools, other")]
-        category: Option<Category>,
+        #[arg(long, value_parser = category, help = "One of seasons, tracks, cars, helmets, uncategorised")]
+        category: Option<CategoryArg>,
     },
     #[command(about = "Search names, tables, keys, values and English text")]
     Search {
@@ -148,8 +148,15 @@ fn row_line(r: &RowCopy) -> String {
     format!("{}: a copy of {from}", r.select())
 }
 
-fn category(s: &str) -> std::result::Result<Category, String> {
+#[derive(Debug, Clone, Copy)]
+pub struct CategoryArg(Option<Category>);
+
+fn category(s: &str) -> std::result::Result<CategoryArg, String> {
+    if s == "uncategorised" {
+        return Ok(CategoryArg(None));
+    }
     serde_json::from_value(serde_json::Value::String(s.to_owned()))
+        .map(|c| CategoryArg(Some(c)))
         .map_err(|_| format!("{s} is not a category; see --help"))
 }
 
@@ -289,7 +296,7 @@ pub fn command(store: &Store, profile: &str, game: Option<PathBuf>, cmd: DbComma
             category,
         } => {
             let mut p = open(store, &id)?;
-            if let Some(c) = category {
+            if let Some(CategoryArg(c)) = category {
                 p.set_category(c);
             }
             if name.is_some()

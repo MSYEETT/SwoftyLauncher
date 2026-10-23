@@ -49,7 +49,7 @@ pub struct Draft {
 pub struct Details {
     pub name: String,
     pub author: String,
-    pub category: Category,
+    pub category: Option<Category>,
     pub description: String,
 }
 
@@ -366,7 +366,7 @@ mod tests {
         Details {
             name: name.into(),
             author: "Max".into(),
-            category: Category::Seasons,
+            category: Some(Category::Seasons),
             description: "Numbers".into(),
         }
     }

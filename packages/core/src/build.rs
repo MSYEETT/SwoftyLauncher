@@ -2315,7 +2315,7 @@ mod tests {
         std::fs::write(src.join("a.erp"), archive(&[uri], 9)).unwrap();
         std::fs::write(src.join("a.dds"), "dds").unwrap();
         let mut b = AddonBuilder::new("t.generated", "Generated", "t");
-        b.category = Some(Category::Gameplay);
+        b.category = Some(Category::Helmets);
         b.db(DbOp::PutRecord {
             key: "rules.laps".into(),
             tag: 0,
@@ -2333,7 +2333,7 @@ mod tests {
         b.write(&root.join("out")).unwrap();
         let store = Store::new(root.join("data"));
         let m = store.install_addon(&root.join("out")).unwrap();
-        assert_eq!(m.category, Some(Category::Gameplay));
+        assert_eq!(m.category, Some(Category::Helmets));
         store
             .update_profile("default", |p| p.set_enabled("t.generated", true))
             .unwrap();
