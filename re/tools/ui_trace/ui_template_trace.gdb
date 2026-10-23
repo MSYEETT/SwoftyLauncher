@@ -64,6 +64,31 @@ define ui_vt
   end
 end
 
+define ui_beh
+  set $bv = *(unsigned long*)$arg0
+  if $bv == 0x145a7eed0
+    printf "NBVN(visual nav, needs prop visualNav)"
+  else
+    if $bv == 0x145a6d770
+      printf "NBMO"
+    else
+      if $bv == 0x145a7ecf0
+        printf "NBAN"
+      else
+        if $bv == 0x145a7f0b0
+          printf "NBAC"
+        else
+          if $bv == 0x145a73fa0
+            printf "NBEL"
+          else
+            printf "behaviour vt=%#lx", $bv
+          end
+        end
+      end
+    end
+  end
+end
+
 # 1. Template store load: duplicate template name (Vm_Load_UidfTemplates returns 0x58 and the
 #    UIDF handler drops every later template of that resource). sil == 1 marks the duplicate path.
 break *0x144177cfd if ($rsi & 0xff) == 1
@@ -108,8 +133,8 @@ printf " has no registered factory (or it returned null): rc 5\n"
 continue
 end
 
-# 5. Class init (vt+0x48 from-data) rejected the node.
-break *0x144181657 if $eax != 0
+# 5. Class init (vt+0x48 from-data) rejected a non-root node (roots are reported by tracepoint 12).
+break *0x144181657 if $eax != 0 && *(long*)($rsp+0x1b0) == 0
 commands
 silent
 set $seq = $seq + 1
@@ -197,7 +222,11 @@ break *0x14426708d if *(int*)($rsp+0x78) != 0
 commands
 silent
 set $seq = $seq + 1
-printf "[ui %d] UITC TAB instance '", $seq
+if *(long*)($rsp+0x198) == 0
+  printf "[ui %d] UITC TAB content instance '", $seq
+else
+  printf "[ui %d] UITC TAB header #%ld instance '", $seq, *(long*)($rsp+0x198)
+end
 ui_nestr *(void**)($rsp+0x50)
 printf "' of template '"
 ui_nestr *(void**)($rsp+0x58)
@@ -214,7 +243,115 @@ printf "[ui %d] ERA TILES build starts (FeTile_Build_EraTiles); core creates add
 continue
 end
 
-printf "[ui] armed: 11 tracepoints; open F1 World -> Play now, press Ctrl+C in this terminal when done\n"
+# 12. Template ROOT init result, success or failure (param_11 = instance name is set only for the root).
+#     Prints which pkg buffer and node the root came from, and how many behaviours slot 6 lists.
+break *0x144181657 if *(long*)($rsp+0x1b0) != 0
+commands
+silent
+set $seq = $seq + 1
+printf "[ui %d] ROOT INIT '", $seq
+ui_cstr *(void**)($rdi+0x68)
+printf "' ("
+ui_cc ($rdi+0x70)
+printf ") as '"
+ui_cstr *(void**)($rsp+0x1b0)
+printf "' init rc=%d pkg=%#lx props=%#lx slot6=%#lx", $eax, *(unsigned long*)($rdi+0x48), *(unsigned long*)($rdi+0x50), *(unsigned long*)($rdi+0x38)
+if *(long*)($rdi+0x38) != 0
+  printf " (%u behaviour(s))", *(unsigned int*)(*(unsigned long*)($rdi+0x38)+4) & 0xffffff
+end
+printf "\n"
+continue
+end
+
+# 13. Element init: a behaviour's from-data init returned non-zero (slot-6 behaviour loop in Vm_ElementBase_Init).
+break *0x144202550 if $eax != 0
+commands
+silent
+set $seq = $seq + 1
+printf "[ui %d] BEHAVIOUR INIT failed rc=%d on node '", $seq, $eax
+ui_cstr *(void**)($r13+0x68)
+printf "': "
+ui_beh *(void**)($rsi+$rdi*8)
+printf "\n"
+continue
+end
+
+# 14. Element init: the NBAN re-init (event-driven) and the NBMO init returned non-zero.
+break *0x1442028c8 if $eax != 0
+commands
+silent
+set $seq = $seq + 1
+printf "[ui %d] BEHAVIOUR INIT (NBAN re-init) failed rc=%d on node '", $seq, $eax
+ui_cstr *(void**)($r13+0x68)
+printf "'\n"
+continue
+end
+break *0x144202978 if $eax != 0
+commands
+silent
+set $seq = $seq + 1
+printf "[ui %d] BEHAVIOUR INIT (NBMO) failed rc=%d on node '", $seq, $eax
+ui_cstr *(void**)($r13+0x68)
+printf "'\n"
+continue
+end
+
+# 15. NBVN (visual navigation) init: remember the record at entry, report the visualNav read.
+set $nbvn_rec = 0
+set $nbvn_n = 0
+break *0x144289830
+commands
+silent
+set $nbvn_rec = $r8
+continue
+end
+break *0x144289879
+commands
+silent
+set $nbvn_n = $nbvn_n + 1
+if $eax != 0 || $nbvn_n <= 200
+  set $seq = $seq + 1
+  printf "[ui %d] NBVN init on node '", $seq
+  if $nbvn_rec != 0
+    ui_cstr *(void**)($nbvn_rec+0x68)
+  end
+  if $eax == 0
+    printf "': visualNav found\n"
+  else
+    printf "': visualNav MISSING, rc=%d (the node fails with this code)\n", $eax
+  end
+end
+continue
+end
+
+# 16. UITC tab add: content or header, the instance name (always built from content_template) and the
+#     template actually instantiated (the content_template or header_template value), with its record.
+break *0x144266fa1
+commands
+silent
+set $seq = $seq + 1
+if *(long*)($rsp+0x198) == 0
+  printf "[ui %d] UITC TAB content instance '", $seq
+else
+  printf "[ui %d] UITC TAB header #%ld instance '", $seq, *(long*)($rsp+0x198)
+end
+ui_nestr *(void**)($rsp+0x50)
+printf "' builds template '"
+ui_nestr *(void**)$r8
+printf "' (record %#lx pkg=%#lx node_off=%#x)\n", $r8, *(unsigned long*)($r8+0x10), *(unsigned int*)($r8+0x18)
+continue
+end
+
+# 17. UITC destroys an old tab instance (call into the instance destroyer).
+break *0x144265036
+commands
+silent
+set $seq = $seq + 1
+printf "[ui %d] UITC destroys instance %#lx\n", $seq, $rdx
+continue
+end
+
+printf "[ui] armed: 20 tracepoints; open F1 World -> Play now, press Ctrl+C in this terminal when done\n"
 continue
 printf "[ui] tracing stopped (%d instance(s) seen); breakpoint hit counts:\n", $inst
 info breakpoints
