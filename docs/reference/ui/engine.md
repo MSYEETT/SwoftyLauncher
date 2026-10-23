@@ -58,8 +58,25 @@ A non-zero return from any of these fails the node. Codes: `3` a required key is
 | `UITG` `UITB` `UILT` `UIL2` `UIEL`: `data` has no `dbentry` key / is missing, not an object or empty | 3 / 5 | `Vm_ListBase_Init` `0x144208c80` |
 | `SVCD`: `value` cannot be read | its rc | `0x144276f20` |
 | `F1TS`: `inputType` is neither `normal` nor `dpadOnly` | 0x57 | `0x14382cff0` |
+| slot 6 lists `NBVN` (visual navigation, type `1314275918`) but props have no `visualNav` object | 3 | `Vm_VisualNavBehaviour_Init` `0x144289830` |
 
-All of these are **[read]**. The loader never reads `commandName`, `eventName`, `to_object_name`, `to_pin_name`, `from_pin_name` or `debugName`; only the hashes count. An empty `signals` array is accepted. Multi-step layout paths are normal: stock nodes use paths of 2 to 6 steps.
+All of these are **[read]**; the `NBVN` row is also runtime-confirmed (below). The loader never reads `commandName`, `eventName`, `to_object_name`, `to_pin_name`, `from_pin_name` or `debugName`; only the hashes count. An empty `signals` array is accepted. Multi-step layout paths are normal: stock nodes use paths of 2 to 6 steps.
+
+### Behaviours (slot 6)
+
+Each slot-6 `type` that is a registered behaviour gets a behaviour object, and its from-data init (vtable slot 5, `+0x28`) runs in the element init's loop (`0x14420254d`); a non-zero return rejects the node **[read]**:
+
+| type | init | props it reads |
+|---|---|---|
+| `NBVN` visual navigation | `0x144289830` | `visualNav` object, **required**; then `autoFocus`, `allowXNav`, `allowYNav`, `xOffset`, `yOffset`, `navEnabled` |
+| `NBMO` material override | `0x144280780` | `materialData`, optional (missing returns 0) |
+| `NBEL` element attach | `0x14427fd50` | `hideOnUnbind`, optional |
+| `NBAN` animation | `0x14427e320` | `handleRepeats`, optional |
+| `NBAC` audio context | `0x14427dfd0` | `audioContext`, optional |
+| `NBDC`, `NBVM`, `NBXA`, `NBTP` | `0x1438d50b0` | nothing |
+| `NBMG`, `NBFC`, `NBOS` | none | not registered; skipped |
+
+Stock pairs `visualNav` and `NBVN` exactly: every template root with the prop lists the behaviour, and `f1_world_activity` has neither. Props are found by case-insensitive string compare of the key names (`0x143927f90`), not by hash; a missing key returns 3.
 
 ## What a failure takes down
 
@@ -70,7 +87,7 @@ All of these are **[read]**. The loader never reads `commandName`, `eventName`, 
 | duplicate template name at load | every later template of that resource | none |
 | template name not in the store at instantiation | that one instance (the caller skips it) | none |
 
-**The partial tree stays attached [read].** `Vm_Build_TemplateNode` (`0x1441815c0`) attaches each node to its parent (`parent->vt[0x170]`, `0x14418169e`) *before* building its children. When a child fails, `Vm_Instantiate_Template_Body` (`0x153215c10`) jumps straight to its exit (`0x153215e71`) and nothing detaches or destroys the half-built root. Its `vt+0x58` setup, its signal remap and its `vt+0x50` link never run. For a tab, the orphan stays a child of the tab controller node.
+**Nothing is cleaned up [read].** `Vm_Build_TemplateNode` (`0x1441815c0`) attaches a node to its parent (`parent->vt[0x170]`, `0x14418169e`) after the node's own init succeeds and before its children are built. When a descendant fails, `Vm_Instantiate_Template_Body` (`0x153215c10`) jumps straight to its exit (`0x153215e71`) and the root, with every node built so far, stays attached to the parent without its `vt+0x58` setup, signal remap or `vt+0x50` link. When the root's own init fails, nothing is attached and the root object leaks; for a tab, the controller then has no content instance for that tab.
 
 ## Template instantiation
 
@@ -85,7 +102,7 @@ The body **[read]**:
 
 ### Tabs (`UITC`)
 
-`Vm_UiTabs_OnMessage` (`0x144264d50`, `UITC` slot 43) handles the data-context message: it resolves the `tabs` array under the controller's data context and, for every entry, calls `Vm_UiTabs_AddTabTemplate` (`0x144266e30`) with `content_template`, then in a second loop with `header_template` **[read]**. `Vm_UiTabs_AddTabTemplate` reads the template name from the tab's VM node, looks it up (miss: `0x144267110`) and instantiates it under the controller (result: `0x14426708d`). Both a miss and a failed instance return NULL; the content result is discarded and the loop continues with the next tab.
+`Vm_UiTabs_OnMessage` (`0x144264d50`, `UITC` slot 43) handles the data-context message: it resolves the `tabs` array under the controller's data context and, for every entry, calls `Vm_UiTabs_AddTabTemplate` (`0x144266e30`) with `content_template`, then in a second loop with `header_template` **[read]**. `Vm_UiTabs_AddTabTemplate` reads the template name from the tab's VM node, looks it up (miss: `0x144267110`) and instantiates it under the controller (result: `0x14426708d`). Both a miss and a failed instance return NULL; the content result is discarded and the loop continues with the next tab. The instance name is always `tab_<n>( <content_template> )`, built from the `content_template` value even in the header loop, so a header instance carries the content template's name; `<n>` is the controller's child count plus one.
 
 For `f1_world_activity_container`, `Game_F1WorldActivityContainer_AddTabs` (`0x141a76130`) creates the tab view models with the template names `f1_world_activity`, `f1_world_activity_offline`, `dynamic_era_select` (three tabs), `public_gp_select` and `time_trial_select` **[read]**. All of these templates live in fragment 1 (`syst`) of the container `.ui`; the screen itself is fragment 0.
 
@@ -109,21 +126,24 @@ At init, the layout path is only stored: `Vm_GetOrCreate_AttachBehaviour` (`0x14
 
 ## The era picker container failure
 
-Observed: with an edited `dynamic_era_select` template, the play tab's category boxes in `f1_world_activity_container` can vanish, with no log. The same build has shown the play screen in one session and not in another; with the era edit off it has always worked.
+Observed: with an edited `dynamic_era_select` template, the play tab's category boxes in `f1_world_activity_container` can vanish, with no log.
 
-What the code shows:
+**Cause of the rejection (runtime-confirmed 2026-10-23).** The edit removed the root's `visualNav` prop but kept `NBVN` in its slot 6. `Vm_VisualNavBehaviour_Init` reads `visualNav` first and returns 3 when it is missing, so the root's element init returns 3 and every content instance of `dynamic_era_select` fails. A live trace with the breaking build showed `TEMPLATE NODE 'dynamic_era_select' class UIGP init rejected it: rc=3` for each of the three era tabs. The stock template has `visualNav = {xOffset: 0, yOffset: 0}`; restoring it (or dropping `NBVN` from slot 6) satisfies the check.
 
-1. A failing node anywhere in a tab template fails the whole tab instance silently and leaves the half-built instance attached to the tab controller [read]. That orphan has had no setup or link, and the controller keeps processing its children. A broken controller taking the other tabs with it is consistent with this, but it is **[inferred]**.
-2. Both breaking variants are well-formed under every load-time check above: their `SVCD` and `UIAM` nodes have the same shape as stock ones, multi-step layout paths are allowed, empty `signals` arrays are allowed, `navigate` is a native `UIAM` pin and the `UIGP` commands `focus`, `block_input`, `unblock_input`, `onTabSelected` and `onTabActivated` all occur in stock, and stock `UIGP` nodes receive `navUp`/`navDown`/`navLeft`/`navRight` signals while declaring those names only as events, as the edit does. No static rule explains a rejection, so the failing node and code have to come from the [live trace](#live-trace).
-3. Paths that depend on order or timing **[read]** unless marked:
-   - the template store is global by name, so two resident `.ui` resources that share a template name race at load (`0x58`);
-   - signal links to nodes created later stay pending, and signals fired before then are dropped;
-   - tab templates are instantiated on the controller's data-context message, which can come before or after `FeTile_Build_EraTiles` (`0x141a6e980`; core's `site_FeTile_EraTilesBuilt` `0x141a6f728` creates `addon_tiles` and `addon_tiles_visible` there);
-   - bindings such as `F1TS dataContext` and `SVCD dbEntry` store a path at init and resolve it later. `Vm_GetOrCreate_ListChild` (`0x1442b30e0`) keeps an existing child only if it is a list node, otherwise it creates one, so a node created earlier under the same name with another kind is not the node core fills **[inferred]**.
+**There is no second, successful build.** The same trace showed seven more instances named `tab_5( f1_world_activity )` … `tab_11( session_create_dlc_select_tab )`, three of them `tab_N( dynamic_era_select )`, all `ok`. These are the tab controller's header loop: their names embed the content template, but the template built is each tab's `header_template` [read]. The era content template fails on every build.
+
+**What follows, [inferred].** Because a root whose init fails is never attached, the controller ends up with four content instances (two activity tabs, `public_gp_select`, `session_create_dlc_select_tab`) for seven tabs, while its headers are complete. How the controller maps a selected tab to its content instance is not mapped; a shifted mapping between the seven tabs and four contents would explain a missing play screen, and would make the result depend on which tab is selected first.
+
+Other paths that depend on order or timing **[read]** unless marked:
+
+- the template store is global by name, so two resident `.ui` resources that share a template name race at load (`0x58`);
+- signal links to nodes created later stay pending, and signals fired before then are dropped;
+- tab templates are instantiated on the controller's data-context message, which can come before or after `FeTile_Build_EraTiles` (`0x141a6e980`; core's `site_FeTile_EraTilesBuilt` `0x141a6f728` creates `addon_tiles` and `addon_tiles_visible` there);
+- bindings such as `F1TS dataContext` and `SVCD dbEntry` store a path at init and resolve it later. `Vm_GetOrCreate_ListChild` (`0x1442b30e0`) keeps an existing child only if it is a list node, otherwise it creates one, so a node created earlier under the same name with another kind is not the node core fills **[inferred]**.
 
 ## Live trace
 
-[`re/tools/ui_trace/ui_template_trace.sh`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/re/tools/ui_trace) attaches gdb to the running game and arms 11 tracepoints that print and continue:
+[`re/tools/ui_trace/ui_template_trace.sh`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/re/tools/ui_trace) attaches gdb to the running game and arms 20 tracepoints that print and continue:
 
 | tracepoint | address | prints |
 |---|---|---|
@@ -131,12 +151,17 @@ What the code shows:
 | templates fragment of a resource failed | `0x14449e292` | rc, resource id |
 | template node unreadable | `0x14418160a` | rc |
 | no factory | `0x144181765` | node name, FourCC |
-| class init rejected | `0x144181657` | node name, FourCC, rc |
+| class init rejected (non-root) | `0x144181657` | node name, FourCC, rc |
+| every template root init | `0x144181657` | root name, instance, rc, pkg buffer, props, slot-6 count |
+| behaviour init failed | `0x144202550`, `0x1442028c8`, `0x144202978` | node name, behaviour |
+| `NBVN` init | `0x144289830`, `0x144289879` | node name, whether `visualNav` was found |
 | failure chain | `0x14418176a` | each failing node and ancestor |
 | instance link failed (hardware) | `0x153215dbf` | instance name, rc |
 | every instance (hardware) | `0x153215e71` | instance name, rc, root class |
 | tab template not found | `0x144267110` | template, instance |
-| tab instance failed | `0x14426708d` | template, instance, rc |
+| tab instance failed | `0x14426708d` | content or header, template, instance, rc |
+| tab template record | `0x144266fa1` | content or header, instance, template built, record, pkg buffer, node offset |
+| tab instance destroyed | `0x144265036` | instance |
 | era tiles build | `0x141a6e980` | ordering marker |
 
 Lines are numbered in the order they happen. The two `.data1` tracepoints are hardware breakpoints only; if the CPU refuses them they stay off.
@@ -146,4 +171,4 @@ Lines are numbered in the order they happen. The two `.data1` tracepoints are ha
 3. Open F1 World, then Play. Load-time lines appear when the F1 World flow loads, so the trace must be armed first.
 4. Press <kbd>Ctrl</kbd>+<kbd>C</kbd> in the trace terminal. gdb prints hit counts, detaches and the game keeps running.
 
-A failing node shows as `TEMPLATE NODE '<name>' class XXXX init rejected it: rc=…`, followed by `<- node …` lines up to the template root and `TEMPLATE INSTANCE … FAILED` or `UITC TAB instance … FAILED`. If every instance reports `ok`, the failure is not in node building or linking; compare the order of the `ERA TILES` line with the `dynamic_era_select` instances between a good and a bad session.
+A failing root shows as `ROOT INIT '<name>' (XXXX) … init rc=…`, a failing behaviour as `BEHAVIOUR INIT failed …` or `NBVN init … visualNav MISSING`, a failing inner node as `TEMPLATE NODE '<name>' class XXXX init rejected it`, followed by `<- node …` lines and `TEMPLATE INSTANCE … FAILED` or `UITC TAB content|header … FAILED`. The behaviour tracepoint is hit for every element built, so the game can stutter while a flow loads. If every instance reports `ok`, the failure is not in node building or linking; compare the order of the `ERA TILES` line with the `dynamic_era_select` instances between a good and a bad session.
