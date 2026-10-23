@@ -130,7 +130,7 @@ pub fn format_date(date: &str) -> String {
     }
 }
 
-fn image_format(bytes: &[u8]) -> Option<ImageFormat> {
+pub(crate) fn image_format(bytes: &[u8]) -> Option<ImageFormat> {
     match bytes {
         [0x89, b'P', b'N', b'G', ..] => Some(ImageFormat::Png),
         [0xff, 0xd8, ..] => Some(ImageFormat::Jpeg),
@@ -140,7 +140,7 @@ fn image_format(bytes: &[u8]) -> Option<ImageFormat> {
     }
 }
 
-fn image(dir: &Path, url: &str) -> Option<Arc<Image>> {
+pub(crate) fn image(dir: &Path, url: &str) -> Option<Arc<Image>> {
     let mut hasher = DefaultHasher::new();
     url.hash(&mut hasher);
     let path = dir.join(format!("{:016x}", hasher.finish()));
@@ -351,11 +351,19 @@ fn body(post: &Post, p: Palette, mono: &SharedString) -> Vec<AnyElement> {
     } else {
         markdown::parse(&post.body)
     };
+    blocks_view(&format!("news-{}", post.id), &blocks, p, mono)
+}
+
+pub(crate) fn render_markdown(id: &str, text: &str, p: Palette, mono: &SharedString) -> Vec<AnyElement> {
+    blocks_view(id, &markdown::parse(text), p, mono)
+}
+
+fn blocks_view(prefix: &str, blocks: &[Block], p: Palette, mono: &SharedString) -> Vec<AnyElement> {
     let text = p.text.opacity(0.84);
     let mut previous: Option<&Block> = None;
     let mut out = Vec::with_capacity(blocks.len());
     for (i, block) in blocks.iter().enumerate() {
-        let id = format!("news-{}-{i}", post.id);
+        let id = format!("{prefix}-{i}");
         let top = match (previous, block) {
             (None, _) => 0.,
             (_, Block::Heading(..)) => 26.,
