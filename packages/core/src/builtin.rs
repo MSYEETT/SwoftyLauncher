@@ -1,17 +1,25 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use crate::asset::{FileKind, OpFile};
 use crate::install::PROXY;
 use crate::manifest::AddonManifest;
 use crate::{Result, io_err};
 
 pub use swofty_addon::CORE_ID;
 pub const CORE_MANIFEST: &str = include_str!("../../../addons/swoftymod/swofty.json");
+pub const CORE_DB: &str = include_str!("../../../addons/swoftymod/db/core.json");
+pub const CORE_MODE: &str = "swofty_f1";
 pub const CORE_DLL: &str = "swofty/addons/core/swofty_core.dll";
 pub const LOADER_ENV: &str = "SWOFTY_LOADER_DIR";
 
 pub fn core_manifest() -> AddonManifest {
     AddonManifest::parse(CORE_MANIFEST).expect("the built-in manifest is valid")
+}
+
+pub fn core_db_ops() -> OpFile {
+    let doc = serde_json::from_str(CORE_DB).expect("the built-in database ops are JSON");
+    OpFile::from_value(doc, FileKind::Database).expect("the built-in database ops are valid")
 }
 
 pub fn loader_dir() -> Option<PathBuf> {
@@ -61,6 +69,46 @@ mod tests {
         let m = core_manifest();
         assert_eq!(m.id, CORE_ID);
         assert!(m.is_builtin());
+    }
+
+    #[test]
+    fn builtin_database_ops_add_the_swofty_f1_modes() {
+        use crate::asset::AssetOp;
+        use crate::ops::DbOp;
+
+        let file = core_db_ops();
+        let ops: Vec<&DbOp> = file
+            .ops
+            .iter()
+            .filter_map(|op| match op {
+                AssetOp::Db(op) => Some(op),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(ops.len(), file.ops.len());
+        let added: Vec<(&str, &str, Option<&str>)> = ops
+            .iter()
+            .filter_map(|op| match op {
+                DbOp::AddRow { table, set, .. } => Some((
+                    table.as_str(),
+                    set["_metadata_"].as_str(),
+                    set.get("stat_id").map(String::as_str),
+                )),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            added,
+            [
+                ("entrants.entrant_setup_modes", CORE_MODE, None),
+                ("game_setup.game_setup_modes", CORE_MODE, Some("16")),
+            ]
+        );
+        let lists = ops
+            .iter()
+            .filter(|op| matches!(op, DbOp::ListAppend { value, .. } if value == CORE_MODE))
+            .count();
+        assert_eq!((lists, ops.len()), (67, 69));
     }
 
     #[test]

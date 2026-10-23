@@ -145,6 +145,20 @@ Adding a row also updates the table's `_instancecount_`. The game ignores rows b
 
 A mod made for an earlier game version can lower a count and leave stock rows above it. `add-row` writes the new row over those stock keys and the build prints `reuses N stock key(s) of a row above the table's count`. A key another addon wrote at the new row's number still fails the op with `already exists`.
 
+## Rows SwoftyMod adds
+
+SwoftyMod adds two rows labelled `swofty_f1`, copies of the stock `f1` rows, before any addon's operations run:
+
+- a game setup mode in `game_setup.game_setup_modes`, with `stat_id` 16 and the `swofty_f1` entrant setup mode;
+- an entrant setup mode in `entrants.entrant_setup_modes`, with empty `entrant_lists` and `selectable_entrant_lists`.
+
+Every stock list of game setup modes that holds `f1` also holds `swofty_f1`. A SwoftyMod change that does not apply to the database is skipped with a warning. An addon adds its entrant lists to the mode with `list-append`:
+
+```json
+{ "op": "list-append", "select": "entrants.entrant_setup_modes.entrant_setup_mode[_metadata_=swofty_f1]",
+  "field": "entrant_lists", "value": "my_entrant_list" }
+```
+
 ## Settings
 
 A `db` [option](/reference/addons/manifest#options) changes operations at build time:

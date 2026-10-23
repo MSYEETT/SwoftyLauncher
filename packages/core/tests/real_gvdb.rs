@@ -140,3 +140,118 @@ fn nested_selectors_resolve_against_the_real_database() {
         Some("nested_test")
     );
 }
+
+#[test]
+fn core_db_ops_add_the_swofty_f1_modes_to_the_real_database() {
+    use swofty_core::asset::AssetOp;
+    use swofty_core::builtin::{CORE_MODE, core_db_ops};
+    use swofty_core::ops::{DbReport, apply_db_ops_report};
+    use swofty_core::rowkeys::{Names, RowKeys};
+
+    let Some(dir) = std::env::var_os("F1_25_DIR").map(PathBuf::from) else {
+        eprintln!("F1_25_DIR is not set; skipping");
+        return;
+    };
+    let Ok(data) = std::fs::read(dir.join("game_package/gamedatabases/gamedatabases.2025.bin")) else {
+        eprintln!("no gamedatabases.2025.bin under F1_25_DIR; skipping");
+        return;
+    };
+    let pristine = Gvdb::parse(&data).unwrap();
+    let mut db = pristine.clone();
+    let file = core_db_ops();
+    let ops = DbOps {
+        schema_version: file.schema_version,
+        fields: file.fields,
+        strict: true,
+        ops: file
+            .ops
+            .into_iter()
+            .filter_map(|op| match op {
+                AssetOp::Db(op) => Some(op),
+                _ => None,
+            })
+            .collect(),
+    };
+    let none = BTreeMap::new();
+    let stock = pristine.records.iter().map(|r| r.key).collect();
+    let names = Names {
+        fields: &none,
+        keys: RowKeys::builtin(),
+        stock: Some(&stock),
+    };
+    let mut report = DbReport::default();
+    apply_db_ops_report(&mut db, &ops, &names, &mut report).unwrap();
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+
+    let modes = "game_setup.game_setup_modes";
+    let count = |db: &Gvdb, t: &str, row: &str| -> usize {
+        db.get_text(&format!("{t}._{row}_instancecount_"))
+            .unwrap()
+            .parse()
+            .unwrap()
+    };
+    let n = count(&db, modes, "game_setup_mode");
+    assert_eq!(n, count(&pristine, modes, "game_setup_mode") + 1);
+    let row = format!("{modes}.game_setup_mode_{}", n - 1);
+    let text = |k: &str| db.get_text(&format!("{row}.{k}"));
+    assert_eq!(text("_metadata_").as_deref(), Some(CORE_MODE));
+    assert_eq!(text("stat_id").as_deref(), Some("16"));
+    assert_eq!(text("entrant_setup_modes").as_deref(), Some(CORE_MODE));
+    let mut ids: Vec<String> = (0..n)
+        .map(|i| {
+            db.get_text(&format!("{modes}.game_setup_mode_{i}.stat_id"))
+                .unwrap()
+        })
+        .collect();
+    ids.sort();
+    ids.dedup();
+    assert_eq!(ids.len(), n, "game setup mode stat ids collide");
+
+    let setups = "entrants.entrant_setup_modes";
+    let n = count(&db, setups, "entrant_setup_mode");
+    assert_eq!(n, count(&pristine, setups, "entrant_setup_mode") + 1);
+    let row = format!("{setups}.entrant_setup_mode_{}", n - 1);
+    assert_eq!(
+        db.get_text(&format!("{row}._metadata_")).as_deref(),
+        Some(CORE_MODE)
+    );
+    for k in ["entrant_lists", "selectable_entrant_lists"] {
+        assert_eq!(db.get_text(&format!("{row}.{k}")).as_deref(), Some(""), "{k}");
+    }
+    let mut ids: Vec<String> = (0..n)
+        .map(|i| {
+            db.get_text(&format!("{setups}.entrant_setup_mode_{i}.stat_id"))
+                .unwrap()
+        })
+        .collect();
+    ids.sort();
+    ids.dedup();
+    assert_eq!(ids.len(), n, "entrant setup mode stat ids collide");
+
+    let after: std::collections::HashMap<u64, &[u8]> =
+        db.records.iter().map(|r| (r.key, r.value.as_slice())).collect();
+    let appended = pristine
+        .records
+        .iter()
+        .filter(|r| {
+            let now = after[&r.key];
+            now != r.value
+                && String::from_utf8_lossy(now)
+                    == format!("{},{CORE_MODE}", String::from_utf8_lossy(&r.value))
+        })
+        .count();
+    assert_eq!(appended, 67);
+
+    let addon: DbOps = serde_json::from_str(&format!(
+        r#"{{"schema_version":1,"ops":[
+          {{"op":"list-append","select":"{setups}.entrant_setup_mode[_metadata_={CORE_MODE}]","field":"entrant_lists","value":"f1_2025"}},
+          {{"op":"list-append","select":"{setups}.entrant_setup_mode[_metadata_={CORE_MODE}]","field":"selectable_entrant_lists","value":"f1_2025"}}
+        ]}}"#
+    ))
+    .unwrap();
+    apply_db_ops(&mut db, &addon, &none).unwrap();
+    assert_eq!(
+        db.get_text(&format!("{row}.entrant_lists")).as_deref(),
+        Some("f1_2025")
+    );
+}

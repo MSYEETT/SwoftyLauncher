@@ -16,7 +16,7 @@ use crate::asset::{
     AssetOp, FileKind, FileOp, GroupOp, ItemOp, LangOp, Op, OpFile, Origin, Root, Source, TrackOp,
 };
 use crate::baseline::{Baseline, Objects, hex, sha256_file, sha256_opt};
-use crate::builtin::{CORE_ID, LOADER_ENV, loader_dir, loader_files};
+use crate::builtin::{CORE_DB, CORE_ID, LOADER_ENV, core_db_ops, loader_dir, loader_files};
 use crate::conflicts::Report;
 use crate::erpbuild::{ErpBuild, Resized, SliceMerge, reads, unsupported, writes};
 use crate::install::{Game, LOADER_DIR, Plan};
@@ -441,9 +441,13 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             .map(|f| f.erp.resources.into_iter().map(|r| r.name).collect())
             .unwrap_or_default()
     };
+    let mut lenient = packages.clone();
+    if let Some(core) = addons.get(CORE_ID) {
+        lenient.insert(CORE_ID.to_owned(), core.name.clone());
+    }
     let mut planner = Planner::new(&features, &config.runtime_assets)
         .build_only(&config.build_assets)
-        .lenient(packages.clone())
+        .lenient(lenient)
         .overlays(&overlay_names);
     if features != Features::default() {
         hasher.update(format!("runtime {features:?} {:?};", config.runtime_assets));
@@ -473,6 +477,10 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                     built.warnings.push(format!("{name}: package skipped: {e}"));
                 }
             }
+        }
+        if id == CORE_ID {
+            hasher.update(CORE_DB);
+            files.push((FileKind::Database, core_db_ops()));
         }
         for (kind, rel) in m.operations.op_files() {
             if package.is_some() && kind == FileKind::Database {
@@ -1780,7 +1788,7 @@ mod tests {
         let dir = root.join("game");
         std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
         std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
-        std::fs::write(dir.join(GVDB), "db").unwrap();
+        std::fs::write(dir.join(GVDB), Gvdb { records: Vec::new() }.to_bytes()).unwrap();
         let game = Game {
             identity: Identity::detect(&dir, Some(1)).unwrap(),
             dir,
