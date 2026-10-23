@@ -47,14 +47,15 @@ ARRAYS = {
     "osd.timing_tower.team_badges_broadcast": ("mark", TOWER, "Broadcast timing tower"),
 }
 BRANDS = {"Force India": "force_india", "Racing Point": "racing_point", "Renault": "renault",
-          "Toro Rosso": "toro_rosso", "AlphaTauri": "alphatauri", "Sauber": "sauber", "Alfa Romeo": "alfa_romeo"}
+          "Toro Rosso": "toro_rosso", "AlphaTauri": "alphatauri", "Sauber": "sauber", "Alfa Romeo": "alfa_romeo",
+          "Manor": "manor"}
 OUT = ROOT / "erp/logos"
 W2 = np.array([0, 21, 43, 64])
 
 
 def season_teams():
     data = json.loads((ROOT / "data/seasons.json").read_text())
-    return [(f"cs{s['year'] % 100:02d}_{t['folder']}", s["year"], t["name"], data["folders"][t["folder"]]["team"],
+    return [(f"cs{s['year'] % 100:02d}_{t.get('key', t['folder'])}", s["year"], t["name"], data["folders"][t["folder"]]["team"],
              BRANDS.get(t["name"])) for s in data["seasons"] for t in s["teams"]]
 
 

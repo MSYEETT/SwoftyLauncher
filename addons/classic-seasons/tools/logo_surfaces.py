@@ -15,8 +15,9 @@ CARD = {
     "alphatauri": ("#0F1E36", "dark"),
     "sauber": ("#F2F2F2", "light"),
     "alfa_romeo": ("#8E0D14", "dark"),
+    "manor": ("#F2F2F2", "light"),
 }
-KEEP_LIGHT = {"force_india", "racing_point", "sauber"}
+KEEP_LIGHT = {"force_india", "racing_point", "sauber", "manor"}
 
 
 def rgb(h):

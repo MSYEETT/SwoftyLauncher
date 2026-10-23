@@ -28,6 +28,7 @@ SOURCES = {
     "alphatauri.svg": "https://en.wikipedia.org/wiki/File:Scuderia_Alpha-Tauri.svg",
     "sauber.svg": "https://commons.wikimedia.org/wiki/File:Sauber_F1_Team_logo.svg",
     "alfa_romeo.svg": "https://commons.wikimedia.org/wiki/File:AlfaRomeoF1Stake.svg",
+    "manor.png": "https://en.wikipedia.org/wiki/File:ManorF1Logo.png",
 }
 
 
@@ -144,7 +145,14 @@ def alfa_romeo():
     return logo, white, crop(white, 0, 0, 0.58, 1)
 
 
-TEAMS = {f.__name__: f for f in (force_india, racing_point, renault, toro_rosso, alphatauri, sauber, alfa_romeo)}
+def manor():
+    logo = trim(Image.open(SRC / "manor.png").convert("RGBA"))
+    logo = logo.resize((LOCKUP_W, round(logo.height * LOCKUP_W / logo.width)), Image.LANCZOS)
+    white = to_white(logo, "#0078b8", tol=60)
+    return logo, white, crop(white, 0.345, 0, 0.605, 0.52)
+
+
+TEAMS = {f.__name__: f for f in (force_india, racing_point, renault, toro_rosso, alphatauri, sauber, alfa_romeo, manor)}
 
 
 def fit_width(im, width):
