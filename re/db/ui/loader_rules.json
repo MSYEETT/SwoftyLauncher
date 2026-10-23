@@ -3,7 +3,7 @@
  "build": "d873a1c8d2044cef (Steam F1_25.exe, base 0x140000000)",
  "reference": "docs/reference/ui/engine.md",
  "notes": [
-  "Levels: L2 = read in the decompile with callers listed; L1 = pattern/scan derived. No item here is runtime-confirmed yet.",
+  "Levels: L2 = read in the decompile with callers listed; L1 = pattern/scan derived. A rule with a runtime field was also observed in a live gdb trace (re/tools/ui_trace, 2026-10-23); the logs are not filed as a KB T### run, so none is L3.",
   "props_read_by_init: fnv1a32 key immediates found in the class init and one level of callees, resolved against every exe string and every stock .ui name; element-base keys are listed once in element_base_props and apply to every class whose init_calls_element_base is true.",
   "native_pins: pin ids compared in the class vt+0x190 pin handler and one level of callees; the pin-id globals were read from the running game (they are djb2 values filled at startup) and resolved by name. A lower bound: deeper handlers and custom commands (slot 2) add more.",
   "stock: what shipping .ui files use per class (catalogue of 508 fragments); observed, not a code limit.",
@@ -117,7 +117,8 @@
      "required": true,
      "shape": "object"
     }
-   ]
+   ],
+   "runtime": "2026-10-23: the dynamic_era_select root without visualNav failed NBVN init with 3 in all three era content tabs; with the stock visualNav restored every root init returned 0."
   },
   {
    "id": "behaviour.types",
@@ -192,7 +193,7 @@
   },
   {
    "id": "svcd.value",
-   "level": "L1",
+   "level": "L2",
    "check": "SVCD: Vm_ElementBase_Init rules, then dbEntry (0xfe80e13d) and comparison_op (0xd07f8d2e) optional, value (0x425ed3ca) required (its read rc is returned).",
    "fail": {
     "code": "non-zero",
@@ -272,7 +273,8 @@
     "scope": "whole template instance (partial tree leaks under the parent)"
    },
    "fn": "0x1441815c0 Vm_Build_TemplateNode; 0x153215c10 Vm_Instantiate_Template_Body",
-   "ev": "decomp:re/decomp/1441815c0.c;decomp:re/decomp/153215c10.c"
+   "ev": "decomp:re/decomp/1441815c0.c;decomp:re/decomp/153215c10.c",
+   "runtime": "2026-10-23: a root whose init failed was not attached (the next UITC instance reused the same tab number); the descendant case was not exercised."
   },
   {
    "id": "template.link",
