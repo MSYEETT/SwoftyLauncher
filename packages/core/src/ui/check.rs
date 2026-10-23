@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use swofty_formats::hash::djb2;
 use swofty_formats::pkg::{Node, Pkg};
 
 use super::node::*;
@@ -302,6 +303,80 @@ pub fn stock_kept(stock: &[u8], patched: &[u8], prefix: &str) -> crate::Result<V
     Ok(out)
 }
 
+fn integrity_walk<'a>(n: &'a Node, parent: Option<&str>, out: &mut Vec<(String, &'a Node)>) {
+    let path = match parent {
+        Some(p) => format!("{p}.{}", n.name()),
+        None => n.name().to_owned(),
+    };
+    out.push((path.clone(), n));
+    for c in n.slot(CHILDREN).into_iter().flatten().filter(|c| c.is_node()) {
+        integrity_walk(c, Some(&path), out);
+    }
+}
+
+fn u32_at(o: &swofty_formats::pkg::Obj, key: &str) -> Option<u32> {
+    o.get(key)?.as_val()?.as_u32()
+}
+
+pub fn integrity(data: &[u8]) -> crate::Result<(usize, usize, Vec<String>)> {
+    let p = Pkg::parse(data)?;
+    let root = p.root.o()?;
+    let mut nodes = Vec::new();
+    for key in ["Screens", "Templates"] {
+        for top in root
+            .get(key)
+            .and_then(Node::as_arr)
+            .map(|a| a.items.as_slice())
+            .unwrap_or_default()
+        {
+            integrity_walk(top, None, &mut nodes);
+        }
+    }
+    let paths: BTreeSet<&str> = nodes.iter().map(|(p, _)| p.as_str()).collect();
+    let (mut bad, mut signals) = (Vec::new(), 0);
+    for (path, n) in &nodes {
+        let props = n.props()?;
+        if props.get("id").is_some() && u32_at(props, "id") != Some(djb2(path)) {
+            bad.push(format!("{path}: id"));
+        }
+        if props.get("nameId").is_some() && u32_at(props, "nameId") != Some(djb2(n.name())) {
+            bad.push(format!("{path}: nameId"));
+        }
+        for grp in n.slot(LAYOUT).into_iter().flatten().filter_map(Node::as_arr) {
+            for b in grp.items.iter().filter_map(Node::as_obj) {
+                if let (Some(debug), Some(id)) = (str_of(b, "debugName"), u32_at(b, "nodeId"))
+                    && id != djb2(debug)
+                {
+                    bad.push(format!("{path}: layout {debug}"));
+                }
+            }
+        }
+        for (slot, key, hash) in [
+            (EVENTS, "eventName", "event"),
+            (COMMANDS, "commandName", "command"),
+        ] {
+            for e in n.slot(slot).into_iter().flatten().filter_map(Node::as_obj) {
+                let Some(name) = str_of(e, key) else { continue };
+                if e.get(hash).is_some() && u32_at(e, hash) != Some(djb2(name)) {
+                    bad.push(format!("{path}: {key} {name}"));
+                }
+                for s in e.at("signals")?.a()?.iter().filter_map(Node::as_obj) {
+                    signals += 1;
+                    let to = str_of(s, "to_object_name").unwrap_or_default();
+                    let pin = str_of(s, "to_pin_name").unwrap_or_default();
+                    if u32_at(s, "to_object") != Some(djb2(to)) || u32_at(s, "to_pin") != Some(djb2(pin)) {
+                        bad.push(format!("{path}: hash {to}.{pin}"));
+                    }
+                    if !paths.contains(to) {
+                        bad.push(format!("{path}: on {name} -> missing {to}.{pin}"));
+                    }
+                }
+            }
+        }
+    }
+    Ok((nodes.len(), signals, bad))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -315,6 +390,40 @@ mod tests {
         let mut scr = node("page", "UISC", props, vec![], &[], &[]);
         scr.a_mut().unwrap()[CHILDREN] = arr(kids);
         ui_bytes(vec![scr]).unwrap()
+    }
+
+    #[test]
+    fn integrity_finds_stale_hashes_and_missing_targets() {
+        use crate::ui::node::{event, sig};
+        let kid = node(
+            "kid",
+            "UIGP",
+            vec![],
+            vec![event("pressed", vec![sig("page.kid", "focus", "pressed")])],
+            &["slot"],
+            &[],
+        );
+        let mut scr = node("page", "UISC", vec![], vec![], &[], &[]);
+        scr.a_mut().unwrap()[CHILDREN] = arr(vec![kid]);
+        let mut bad = scr.clone();
+        fix_ids(&mut scr, None);
+        let (nodes, signals, problems) = integrity(&ui_bytes(vec![scr]).unwrap()).unwrap();
+        assert_eq!((nodes, signals), (2, 1));
+        assert!(problems.is_empty(), "{problems:?}");
+        let kid = &mut bad.slot_mut(CHILDREN).unwrap()[0];
+        let e = &mut kid.slot_mut(EVENTS).unwrap()[0];
+        let s = &mut e.o_mut().unwrap().at_mut("signals").unwrap().a_mut().unwrap()[0];
+        set_str(s.o_mut().unwrap(), "to_object_name", "page.gone").unwrap();
+        let (_, _, problems) = integrity(&ui_bytes(vec![bad]).unwrap()).unwrap();
+        assert_eq!(
+            problems,
+            [
+                "page: id",
+                "page.kid: id",
+                "page.kid: hash page.gone.focus",
+                "page.kid: on pressed -> missing page.gone.focus"
+            ]
+        );
     }
 
     #[test]
