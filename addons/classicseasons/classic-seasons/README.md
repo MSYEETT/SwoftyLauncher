@@ -47,6 +47,8 @@ The car, suit and head archives are not in the repository. The built packages, e
 Shared addon:
 
 - The new drivers, their statistics holders and the head overrides (`head_overrides` in `data/seasons.json`): the driver rows' `head`, a stock generic head (`male_ls<n>`) or one of the real heads below.
+- Statistics holders for the season drivers the stock game has none for (`holders_for` in `data/seasons.json`), copied from de Vries's.
+- Each season driver's statistics dataset `classic_seasons` for the setup mode `swofty_f1`, a copy of his `default` dataset whose pace is flat at the median of his season ratings in `data/performance.json` (tools/ratings.py).
 
 Each season:
 

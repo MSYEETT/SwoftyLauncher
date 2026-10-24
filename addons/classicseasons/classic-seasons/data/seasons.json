@@ -19,7 +19,7 @@
     "sergey_sirotkin":   { "first": "Sergey",    "last": "Sirotkin",   "initials": "SIR", "nationality": "default",     "head": "male_ls790" },
     "rio_haryanto":      { "first": "Rio",       "last": "Haryanto",   "initials": "HAR", "nationality": "indonesia",   "head": "male_ls161" }
   },
-  "holders_for": ["nico_rosberg"],
+  "holders_for": ["antonio_giovinazzi", "daniil_kvyat", "jolyon_palmer", "marcus_ericsson", "mick_schumacher", "nicholas_latifi", "nico_rosberg", "nikita_mazepin", "pascal_wehrlein", "robert_kubica", "romain_grosjean"],
   "head_overrides": {
     "nico_rosberg":       "male_ls265",
     "sebastian_vettel":   "sebastian_vettel",

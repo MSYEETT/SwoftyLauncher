@@ -502,9 +502,771 @@
    "table": "driver_statistics.driver_statistics",
    "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
    "set": {
+    "_metadata_": "antonio_giovinazzi",
+    "driver": "antonio_giovinazzi"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "set": {
+    "_metadata_": "daniil_kvyat",
+    "driver": "daniil_kvyat"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "set": {
+    "_metadata_": "jolyon_palmer",
+    "driver": "jolyon_palmer"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "set": {
+    "_metadata_": "marcus_ericsson",
+    "driver": "marcus_ericsson"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "set": {
+    "_metadata_": "mick_schumacher",
+    "driver": "mick_schumacher"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "set": {
+    "_metadata_": "nicholas_latifi",
+    "driver": "nicholas_latifi"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "set": {
     "_metadata_": "nico_rosberg",
     "driver": "nico_rosberg"
    }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "set": {
+    "_metadata_": "nikita_mazepin",
+    "driver": "nikita_mazepin"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "set": {
+    "_metadata_": "pascal_wehrlein",
+    "driver": "pascal_wehrlein"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "set": {
+    "_metadata_": "robert_kubica",
+    "driver": "robert_kubica"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
+   "set": {
+    "_metadata_": "romain_grosjean",
+    "driver": "romain_grosjean"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=alex_albon]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=alex_albon].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=alex_albon].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.862,0:0.862,1:0.862,1:0.862"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=antonio_giovinazzi]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=antonio_giovinazzi].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=antonio_giovinazzi].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.877,0:0.877,1:0.877,1:0.877"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=brendon_hartley]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=brendon_hartley].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=brendon_hartley].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.809,0:0.809,1:0.809,1:0.809"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=carlos_sainz-jr]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=carlos_sainz-jr].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=carlos_sainz-jr].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.880,0:0.880,1:0.880,1:0.880"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=charles_leclerc]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=charles_leclerc].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=charles_leclerc].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.893,0:0.893,1:0.893,1:0.893"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=daniel_ricciardo]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=daniel_ricciardo].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=daniel_ricciardo].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.889,0:0.889,1:0.889,1:0.889"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=daniil_kvyat]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=daniil_kvyat].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=daniil_kvyat].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.847,0:0.847,1:0.847,1:0.847"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=esteban_gutierrez]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=esteban_gutierrez].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=esteban_gutierrez].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.779,0:0.779,1:0.779,1:0.779"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=esteban_ocon]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=esteban_ocon].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=esteban_ocon].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.856,0:0.856,1:0.856,1:0.856"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=felipe_massa]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=felipe_massa].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=felipe_massa].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.857,0:0.857,1:0.857,1:0.857"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=felipe_nasr]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=felipe_nasr].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=felipe_nasr].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.807,0:0.807,1:0.807,1:0.807"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=fernando_alonso]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=fernando_alonso].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=fernando_alonso].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.866,0:0.866,1:0.866,1:0.866"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=george_russell]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=george_russell].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=george_russell].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.892,0:0.892,1:0.892,1:0.892"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=guanyu_zhou]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=guanyu_zhou].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=guanyu_zhou].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.831,0:0.831,1:0.831,1:0.831"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=jenson_button]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=jenson_button].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=jenson_button].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.850,0:0.850,1:0.850,1:0.850"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=jolyon_palmer]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=jolyon_palmer].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=jolyon_palmer].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.760,0:0.760,1:0.760,1:0.760"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=kevin_magnussen]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=kevin_magnussen].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=kevin_magnussen].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.768,0:0.768,1:0.768,1:0.768"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=kimi_raikkonen]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=kimi_raikkonen].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=kimi_raikkonen].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.858,0:0.858,1:0.858,1:0.858"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=lance_stroll]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=lance_stroll].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=lance_stroll].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.796,0:0.796,1:0.796,1:0.796"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=lando_norris]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=lando_norris].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=lando_norris].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.907,0:0.907,1:0.907,1:0.907"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=lewis_hamilton]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=lewis_hamilton].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=lewis_hamilton].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.888,0:0.888,1:0.888,1:0.888"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=logan_sargeant]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=logan_sargeant].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=logan_sargeant].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.803,0:0.803,1:0.803,1:0.803"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=marcus_ericsson]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=marcus_ericsson].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=marcus_ericsson].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.819,0:0.819,1:0.819,1:0.819"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=max_verstappen]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=max_verstappen].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=max_verstappen].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.917,0:0.917,1:0.917,1:0.917"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=mick_schumacher]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=mick_schumacher].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=mick_schumacher].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.726,0:0.726,1:0.726,1:0.726"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nicholas_latifi]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nicholas_latifi].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nicholas_latifi].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.812,0:0.812,1:0.812,1:0.812"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nico_hulkenberg]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nico_hulkenberg].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nico_hulkenberg].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.876,0:0.876,1:0.876,1:0.876"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nico_rosberg]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nico_rosberg].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nico_rosberg].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.889,0:0.889,1:0.889,1:0.889"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nikita_mazepin]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nikita_mazepin].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nikita_mazepin].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.659,0:0.659,1:0.659,1:0.659"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nyck_de-vries]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nyck_de-vries].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=nyck_de-vries].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.670,0:0.670,1:0.670,1:0.670"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=oscar_piastri]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=oscar_piastri].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=oscar_piastri].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.892,0:0.892,1:0.892,1:0.892"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=pascal_wehrlein]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=pascal_wehrlein].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=pascal_wehrlein].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.830,0:0.830,1:0.830,1:0.830"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=pierre_gasly]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=pierre_gasly].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=pierre_gasly].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.856,0:0.856,1:0.856,1:0.856"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=rio_haryanto]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=rio_haryanto].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=rio_haryanto].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.807,0:0.807,1:0.807,1:0.807"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=robert_kubica]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=robert_kubica].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=robert_kubica].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.840,0:0.840,1:0.840,1:0.840"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=romain_grosjean]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=romain_grosjean].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=romain_grosjean].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.785,0:0.785,1:0.785,1:0.785"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=sebastian_vettel]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=sebastian_vettel].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=sebastian_vettel].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.870,0:0.870,1:0.870,1:0.870"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=sergey_sirotkin]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=sergey_sirotkin].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=sergey_sirotkin].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.788,0:0.788,1:0.788,1:0.788"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=sergio_perez]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=sergio_perez].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=sergio_perez].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.855,0:0.855,1:0.855,1:0.855"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=stoffel_vandoorne]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=stoffel_vandoorne].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=stoffel_vandoorne].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.829,0:0.829,1:0.829,1:0.829"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=valtteri_bottas]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=valtteri_bottas].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=valtteri_bottas].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.868,0:0.868,1:0.868,1:0.868"
+  },
+  {
+   "op": "add-row",
+   "table": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=yuki_tsunoda]",
+   "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=yuki_tsunoda].StatisticsDataSet[_metadata_=default]",
+   "set": {
+    "_metadata_": "classic_seasons",
+    "game_setup_modes": "swofty_f1",
+    "seasons": ""
+   }
+  },
+  {
+   "op": "set",
+   "select": "driver_statistics.driver_statistics.DriverStatisticsHolder[driver=yuki_tsunoda].StatisticsDataSet[_metadata_=classic_seasons].Statistic[_metadata_=pace]",
+   "field": "evolution",
+   "value": "@v2@minx:0,maxx:10,miny:0,maxy:100,0:0.830,0:0.830,1:0.830,1:0.830"
   },
   {
    "op": "add-row",

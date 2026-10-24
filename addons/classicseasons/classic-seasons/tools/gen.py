@@ -44,6 +44,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import heads
+import ratings
 import suit_sources
 from layout import (ROOT, SUIT_YEARS, asset_ops, built, extra_package, helmet_asset_ops, helmets, real_suit_asset_ops,
                     real_suits, suit_asset_ops, suits, year_dir)
@@ -264,6 +265,7 @@ def build():
         ops.append({"op": "add-row", "table": "driver_statistics.driver_statistics",
                     "from": "driver_statistics.driver_statistics.DriverStatisticsHolder[_metadata_=nyck_de-vries]",
                     "set": {"_metadata_": label, "driver": label}})
+    ops += ratings.dataset_ops()
 
     if any(len(season["teams"]) > 10 for season in DATA["seasons"]):
         ops.append({"op": "add-row", "table": "track_data.track_layers",
