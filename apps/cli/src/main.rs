@@ -536,6 +536,13 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
                 };
                 println!("{id:32} {:10} {state:9} {}", m.version.to_string(), m.name);
             }
+            for u in store.unreadable_addons() {
+                let version = u.version.as_deref().unwrap_or("?");
+                println!(
+                    "{:32} {version:10} {:9} {}: it {}",
+                    u.id, "unusable", u.name, u.reason
+                );
+            }
         }
         AddonsCommand::Install { path } => {
             for result in store.install_addons(&path) {
@@ -545,6 +552,17 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
                     println!("warning: {line}");
                 }
             }
+        }
+        AddonsCommand::Enable { id } if let Some(u) = unreadable(store, &id) => {
+            bail!("{}", u.line())
+        }
+        AddonsCommand::Disable { id, .. } if unreadable(store, &id).is_some() => {
+            store.update_profile(profile, |p| p.set_enabled(&id, false))?;
+            println!("disabled {id} in profile {profile}");
+        }
+        AddonsCommand::Remove { id, .. } if unreadable(store, &id).is_some() => {
+            store.remove_addon(&id)?;
+            println!("removed {id}");
         }
         AddonsCommand::Enable { id }
         | AddonsCommand::Disable { id, .. }
@@ -570,6 +588,10 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn unreadable(store: &Store, id: &str) -> Option<swofty_core::store::Unreadable> {
+    store.unreadable_addons().into_iter().find(|u| u.id == id)
 }
 
 fn confirm_saves(w: &SavesWarning, verb: &str, yes: bool) -> Result<()> {

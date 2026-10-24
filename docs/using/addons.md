@@ -71,6 +71,12 @@ Select **Remove** in the addon's panel and confirm. Removing an addon deletes it
 
 Removing a DB Editor addon deletes its changes. To keep them, select **Export** › **Share addon (.zip)** in the [DB Editor](/using/db-editor) first.
 
+## Addons that can't be used
+
+An addon made for a newer Swofty Launcher, or one whose `swofty.json` is damaged, is listed under **Can't be used** with the reason, such as "It needs a newer Swofty Launcher (unknown field `hud`)". The launcher leaves it out of builds, and **Remove** deletes it. The rest of your addons work as before. Installing such an addon is refused with the same reason.
+
+A profile saved by a newer launcher keeps the settings this launcher doesn't know, and saves them back unchanged.
+
 ## Built-in addons
 
 | Addon | What it does |
