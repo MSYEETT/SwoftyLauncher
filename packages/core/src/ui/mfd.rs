@@ -18,7 +18,7 @@ const NEXT_TO: &str = "mods_panel";
 
 pub struct Row {
     pub label: String,
-    pub value: String,
+    pub value: Option<String>,
 }
 
 pub fn value_path(k: usize) -> String {
@@ -61,8 +61,7 @@ fn row(stock: &Node, parent: &str, k: usize, r: &Row) -> Result<Node> {
         if c.name() == "name" {
             literal_label(&mut c, &r.label)?;
         } else {
-            let p = c.props_mut()?;
-            p.set("text", prop(s(""), Some(&r.value)));
+            c.props_mut()?.set("text", prop(s(""), r.value.as_deref()));
             set_prop_value(&mut c, "localise", Val::bool(false))?;
         }
         *c.slot_mut(EVENTS)? = vec![];
@@ -267,12 +266,16 @@ mod real {
         let stock = std::fs::read(path).unwrap();
         let rows = [
             Row {
+                label: "PIT LANE".into(),
+                value: None,
+            },
+            Row {
                 label: "Pit limiter".into(),
-                value: value_path(0),
+                value: Some(value_path(0)),
             },
             Row {
                 label: "Mode".into(),
-                value: value_path(1),
+                value: Some(value_path(1)),
             },
         ];
         let out = templates(&stock, &rows).unwrap();

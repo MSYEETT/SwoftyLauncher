@@ -178,10 +178,10 @@ To give players settings they can change, declare them in `options`. They'll app
 
 | Field | Type | Value |
 |---|---|---|
-| `mfd.title` | string? | The page title, 1 to 32 characters. Defaults to the addon's `name`. The page does not show it yet. |
+| `mfd.title` | string? | A heading row above the addon's rows, 1 to 32 characters. Defaults to the addon's `name`. |
 | `mfd.rows` | array | 1 to 8 option ids of this addon, in page order. Each must be a `toggle` or `choice` option whose label is at most 32 characters. |
 
-Each row shows the option's label and its current value. The launcher builds the page into the game's UI files when the addon is on; the core updates a row whenever the option changes. Rows from every addon with `hud.mfd` share the one page, at most 8 in all, in load order. Changing a value from the MFD is not built yet: players change the options in ADDON SETTINGS or on the **Addons** page.
+Each row shows the option's label and its current value. Launchers up to 1.5.1 reject a manifest with `hud`. The launcher builds the page into the game's UI files when the addon is on; the core updates a row whenever the option changes. Rows from every addon with `hud.mfd` share the one page, at most 8 in all, in load order. Changing a value from the MFD is not built yet: players change the options in ADDON SETTINGS or on the **Addons** page.
 
 ## operations
 

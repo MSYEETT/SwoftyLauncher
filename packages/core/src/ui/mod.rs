@@ -165,6 +165,7 @@ fn core_version(settings: &SessionSettings) -> String {
 
 pub struct MfdRow {
     pub addon: String,
+    pub title: String,
     pub option: String,
     pub label: String,
     pub text: String,
@@ -178,6 +179,7 @@ pub fn mfd_rows(settings: &SessionSettings) -> Vec<MfdRow> {
             if let Some(o) = a.options.iter().find(|o| &o.id == id) {
                 out.push(MfdRow {
                     addon: a.id.clone(),
+                    title: m.title.clone(),
                     option: o.id.clone(),
                     label: o.label.clone(),
                     text: o
@@ -383,14 +385,19 @@ pub fn build(
 
     let mut build = MenuBuild::default();
     if !mfd_rows.is_empty() {
-        let rows: Vec<mfd::Row> = mfd_rows
-            .iter()
-            .enumerate()
-            .map(|(k, r)| mfd::Row {
+        let mut rows: Vec<mfd::Row> = Vec::new();
+        for (k, r) in mfd_rows.iter().enumerate() {
+            if k == 0 || mfd_rows[k - 1].addon != r.addon {
+                rows.push(mfd::Row {
+                    label: r.title.clone(),
+                    value: None,
+                });
+            }
+            rows.push(mfd::Row {
                 label: r.label.clone(),
-                value: mfd::value_path(k),
-            })
-            .collect();
+                value: Some(mfd::value_path(k)),
+            });
+        }
         for rel in mfd::TEMPLATE_ERPS {
             let (src, dst) = erp(rel);
             write_erp(
