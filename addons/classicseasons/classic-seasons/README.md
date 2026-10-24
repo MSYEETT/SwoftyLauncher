@@ -6,7 +6,9 @@ Classic Seasons is ten addons in `addons/classicseasons/`. This folder is the sh
 
 Cars: fanfreluche (Fanfreluche aka totolab), "F1 <year> cars for F1 25", used with permission.
 
-Suits: "F1 2016 - suits mod" (author unknown), "2018 Redbull for F1 25" (author unknown), and the F1 2020 mods "2017 Suits for F1 2020" (author unknown) and "White Mercedes Driver Suits 1.01" (author unknown), used with permission.
+Suits: JaapVer12 ("F1 2016 - suits mod"), Dromodf ("2018 Redbull for F1 25"), and the F1 2020 mods "2017 Suits for F1 2020" (author unknown) and "White Mercedes Driver Suits 1.01" (author unknown), used with permission.
+
+Code: Swofty. Supported by AMO Motorsport (https://discord.gg/amocommunity).
 
 Heads: MildtDesign, "More Driver Models" v1.2, and unknown, "F1 25 Kubica Face Mod", used with permission.
 
