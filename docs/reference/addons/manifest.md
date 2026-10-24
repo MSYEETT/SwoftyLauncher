@@ -139,6 +139,10 @@ Leave `saves` out for an addon that doesn't affect saves. The launcher shows the
 | `conflicts` | `[{ id, touches? }]` | List the addons that must not be enabled together. Use `touches` to narrow the conflict to a shared target; `id` may be `*`. |
 | `load_after` | string[] | Addon ids or `*` patterns to build before your addon. |
 
+A profile with your addon enabled builds only when every addon in `requires` is enabled at a matching version. List as many as your addon needs; `swofty.core` and the other built-in addons are always present.
+
+The [Addon Browser](/using/addon-browser#requirements) reads `requires` when a player installs your addon. It installs each required addon the player lacks, and each one's own `requires`, from the Addon Browser. It refuses the install when a required addon isn't published there, or when no published version matches the range and works with the player's launcher. Publish the addons yours requires before you publish yours.
+
 ## options
 
 To give players settings they can change, declare them in `options`. They'll appear in your addon's row on the launcher's **Addons** page and on its page in **ADDON SETTINGS** in game. Values are stored per profile. Follow [Settings](./settings) for the full procedure.

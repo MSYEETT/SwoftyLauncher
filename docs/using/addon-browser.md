@@ -20,6 +20,16 @@ Select an addon for its description, a 30-day downloads chart, its file size and
 
 Select **Install**. The launcher downloads the newest version that works with your launcher, checks its size and SHA-256, installs it switched off, and opens the **Addons** page with it highlighted. An addon marked **Runs code in the game** includes native code that runs inside F1 25.
 
+### Requirements {#requirements}
+
+An addon can require other addons (its manifest's [`requires`](/reference/addons/manifest#requires-conflicts-load-after)). Installing it installs them too, first:
+
+- A required addon you have at a matching version, or one built into the launcher, stays as it is.
+- A required addon you don't have, or have at a version that doesn't match, comes from the Addon Browser: the newest version that matches and works with your launcher. A required addon's own requirements install the same way.
+- When a required addon isn't on the Addon Browser, no version of it matches, or replacing yours would break another addon you have, nothing installs. The addon shows **Missing requirements**, naming each missing addon and the version it needs.
+
+The addon's page lists **Also installs** with the other addons the install brings, and its card shows the same line. The progress bar covers every download, and **Activity** records what else was installed. Each version in **Versions** lists what it requires.
+
 ## Updates
 
 When an installed addon has a newer version, **Play** becomes **Update addons** with the number of updates. See [Updating](/using/updating#addon-updates).
