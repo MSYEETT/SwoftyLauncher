@@ -780,14 +780,16 @@ impl Shell {
         let Some(dir) = self.install.as_ref().map(|i| i.dir.clone()) else {
             return;
         };
+        let data = self.store.root.clone();
         window.open_alert_dialog(cx, move |alert, _, _| {
-            let dir = dir.clone();
+            let (dir, data) = (dir.clone(), data.clone());
             alert
                 .title("Stop F1 25?")
                 .description("The game closes immediately. Unsaved progress is lost.")
                 .ok_text("Stop game")
                 .show_cancel(true)
                 .on_ok(move |_, window, cx| {
+                    swofty_core::session::request_stop(&data);
                     if let Err(e) = stop_game_in(&dir) {
                         window.push_notification(Notification::error(e.to_string()), cx);
                     }
