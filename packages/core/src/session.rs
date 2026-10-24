@@ -430,6 +430,145 @@ pub struct LaunchRequest {
     pub apply: bool,
 }
 
+pub const END_FILE: &str = "end.json";
+pub const STOP_FILE: &str = "stop_requested";
+
+/// How a session's game ended. `Crash` needs evidence: a crash exit code,
+/// or an unhandled exception the mod loader saw. F1 25's own crash handler
+/// ends the game with -1, a code it also leaves when it fails while
+/// closing, so -1 alone is `Unknown`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Ending {
+    Quit,
+    Crash,
+    Stopped,
+    Unknown,
+}
+
+impl Ending {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Quit => "quit",
+            Self::Crash => "crash",
+            Self::Stopped => "stopped",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+/// An exit code a crash leaves: an error NTSTATUS (0xC0000000 and up) other
+/// than -1, or an unhandled breakpoint.
+pub fn crash_code(code: u32) -> bool {
+    (0xc000_0000..0xffff_ffff).contains(&code) || code == 0x8000_0003
+}
+
+/// The session log's `end.json`: how the game ended, its exit code when the
+/// session could read it, and why.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SessionEnd {
+    pub end: Ending,
+    pub exit_code: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub crash_code: Option<u32>,
+    pub reason: String,
+}
+
+impl SessionEnd {
+    /// `code` is the exit code the session read, or None with `unread`
+    /// saying why it could not. The session launcher's line in the loader
+    /// log gives the game's own code, which the session lacks when the EA
+    /// app started the game and gets only the low byte of under Proton.
+    /// `stopped` says who closed the game on purpose.
+    pub fn resolve(
+        code: Option<i32>,
+        unread: &str,
+        stopped: Option<&str>,
+        loader: Option<&crate::launch::LoaderSeen>,
+    ) -> Self {
+        let loader = loader.copied().unwrap_or_default();
+        let code = loader.stub_exit.map(|c| c as i32).or(code);
+        let end = |end, crash_code, reason: String| Self {
+            end,
+            exit_code: code,
+            crash_code,
+            reason,
+        };
+        let Some(c) = code else {
+            return match stopped {
+                Some(who) => end(Ending::Stopped, None, format!("{who}; {unread}")),
+                None => end(Ending::Unknown, None, unread.to_owned()),
+            };
+        };
+        if let Some(who) = stopped {
+            return end(
+                Ending::Stopped,
+                None,
+                format!("{who}; F1 25 exited with code {c}"),
+            );
+        }
+        if c == 0 {
+            return end(Ending::Quit, None, "F1 25 exited with code 0".into());
+        }
+        let named = |x: u32| {
+            crate::crash::fatal_name(x)
+                .map(|n| format!("{n}, "))
+                .unwrap_or_default()
+        };
+        if let Some(x) = loader.unhandled {
+            return end(
+                Ending::Crash,
+                Some(x),
+                format!(
+                    "the mod loader saw an unhandled exception ({}{x:#010x}), then F1 25 exited with code {c}",
+                    named(x)
+                ),
+            );
+        }
+        let u = c as u32;
+        if crash_code(u) {
+            return end(
+                Ending::Crash,
+                Some(u),
+                format!("F1 25 exited with a crash code ({}{u:#010x})", named(u)),
+            );
+        }
+        let seen = if loader.attached {
+            "the mod loader saw no unhandled exception"
+        } else {
+            "the mod loader was not attached to see why"
+        };
+        let reason = if c == -1 {
+            format!(
+                "F1 25 ended itself with code -1, which its crash handler uses and which it also leaves when \
+                 it fails while closing; {seen}"
+            )
+        } else {
+            format!("F1 25 exited with code {c} ({u:#x}); {seen}")
+        };
+        end(Ending::Unknown, None, reason)
+    }
+
+    pub fn write(&self, dir: &Path) -> crate::Result<()> {
+        crate::write_json(&dir.join(END_FILE), self)
+    }
+}
+
+/// Mark the live session as stopped by the player before its game is
+/// closed, so its end is reported as a stop and not a crash.
+pub fn request_stop(data: &Path) {
+    let Ok(dir) = std::fs::read_to_string(data.join("sessions/latest.txt")) else {
+        return;
+    };
+    let session = SessionRecord::read(Path::new(dir.trim()));
+    if session.started.is_some() && session.ended.is_none() {
+        let now = SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0.0, |d| d.as_secs_f64());
+        std::fs::write(session.dir.join(STOP_FILE), format!("{now}\n")).ok();
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SessionRecord {
     pub dir: PathBuf,
@@ -437,6 +576,7 @@ pub struct SessionRecord {
     pub started: Option<f64>,
     pub ended: Option<f64>,
     pub exit_code: Option<i32>,
+    pub end: Option<SessionEnd>,
 }
 
 impl SessionRecord {
@@ -453,11 +593,21 @@ impl SessionRecord {
             started: read("game_start").and_then(|s| s.parse().ok()),
             ended: read("game_end").and_then(|s| s.parse().ok()),
             exit_code: read("exit_code").and_then(|s| s.parse().ok()),
+            end: crate::read_json(&dir.join(END_FILE)).ok(),
         }
     }
 
+    /// Whether to show the session as a crash. A stop or a quit is not one,
+    /// and an end without an exit code tells nothing.
     pub fn crashed(&self) -> bool {
-        self.exit_code.is_some_and(|c| c != 0)
+        match &self.end {
+            Some(e) => match e.end {
+                Ending::Crash => true,
+                Ending::Unknown => e.exit_code.is_some_and(|c| c != 0),
+                Ending::Quit | Ending::Stopped => false,
+            },
+            None => self.exit_code.is_some_and(|c| c != 0),
+        }
     }
 
     pub fn wine_log(&self) -> PathBuf {
@@ -761,6 +911,140 @@ mod tests {
         std::fs::write(dir.join("exit_code"), "3\n").unwrap();
         assert!(SessionRecord::read(&dir).crashed());
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    fn seen(log: &str) -> crate::launch::LoaderSeen {
+        crate::launch::LoaderSeen::scan(log)
+    }
+
+    const ATTACHED: &str = "swofty loader (version.dll proxy) attached, pid 15228\n";
+    const UNHANDLED: &str = "[22104] [crash] unhandled ACCESS_VIOLATION (0xc0000005) at F1_25.exe+0xb9ae23 \
+                             reached the top-level filter; passing it to the game's filter\n";
+
+    #[test]
+    fn a_crash_needs_a_crash_code_or_an_unhandled_exception() {
+        let crashed = format!("{ATTACHED}{UNHANDLED}[stub] [offline] game exited with code 4294967295\n");
+        let end = SessionEnd::resolve(Some(-1), "", None, Some(&seen(&crashed)));
+        assert_eq!(
+            (end.end, end.exit_code, end.crash_code),
+            (Ending::Crash, Some(-1), Some(0xc000_0005))
+        );
+        assert!(
+            end.reason.contains("access violation, 0xc0000005"),
+            "{}",
+            end.reason
+        );
+
+        let end = SessionEnd::resolve(Some(-1073740791), "", None, None);
+        assert_eq!((end.end, end.crash_code), (Ending::Crash, Some(0xc000_0409)));
+        assert!(end.reason.contains("stack buffer overrun"), "{}", end.reason);
+        for code in [0xc0e9_0002u32, 0xcfff_ffff, 0xc000_001d, 0x8000_0003] {
+            assert_eq!(
+                SessionEnd::resolve(Some(code as i32), "", None, None).end,
+                Ending::Crash
+            );
+        }
+
+        let quit_late =
+            format!("{ATTACHED}[crash] TerminateProcess(4294967295) on thread 39612, 2916 s after load\n");
+        let end = SessionEnd::resolve(Some(-1), "", None, Some(&seen(&quit_late)));
+        assert_eq!(
+            (end.end, end.exit_code, end.crash_code),
+            (Ending::Unknown, Some(-1), None)
+        );
+        assert!(
+            end.reason.contains("saw no unhandled exception"),
+            "{}",
+            end.reason
+        );
+        let end = SessionEnd::resolve(Some(-1), "", None, None);
+        assert!(end.reason.contains("not attached"), "{}", end.reason);
+        for code in [1, 0x4001_0004, 255] {
+            assert_eq!(
+                SessionEnd::resolve(Some(code), "", None, None).end,
+                Ending::Unknown
+            );
+        }
+        assert_eq!(SessionEnd::resolve(Some(0), "", None, None).end, Ending::Quit);
+    }
+
+    #[test]
+    fn the_session_launchers_line_gives_the_code_the_session_could_not_read() {
+        let ea = "[stub] [offline] game exited with code 1\n";
+        let end = SessionEnd::resolve(None, "the EA app started F1 25", None, Some(&seen(ea)));
+        assert_eq!((end.end, end.exit_code), (Ending::Unknown, Some(1)));
+        let proton = "[stub] [offline] game exited with code 3221225477\n";
+        let end = SessionEnd::resolve(Some(5), "", None, Some(&seen(proton)));
+        assert_eq!((end.end, end.exit_code), (Ending::Crash, Some(-1073741819)));
+        let end = SessionEnd::resolve(None, "the EA app started F1 25", None, Some(&seen(ATTACHED)));
+        assert_eq!(
+            end,
+            SessionEnd {
+                end: Ending::Unknown,
+                exit_code: None,
+                crash_code: None,
+                reason: "the EA app started F1 25".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn a_stop_is_not_a_crash() {
+        let crashed = format!("{ATTACHED}{UNHANDLED}");
+        let end = SessionEnd::resolve(
+            Some(-1),
+            "",
+            Some("Stop in the launcher closed F1 25"),
+            Some(&seen(&crashed)),
+        );
+        assert_eq!(
+            (end.end, end.exit_code, end.crash_code),
+            (Ending::Stopped, Some(-1), None)
+        );
+        assert_eq!(
+            end.reason,
+            "Stop in the launcher closed F1 25; F1 25 exited with code -1"
+        );
+        let end = SessionEnd::resolve(None, "signal 9", Some("asked to stop"), None);
+        assert_eq!((end.end, end.exit_code), (Ending::Stopped, None));
+        assert_eq!(end.reason, "asked to stop; signal 9");
+    }
+
+    #[test]
+    fn the_end_file_decides_what_shows_as_a_crash() {
+        let root = std::env::temp_dir().join(format!("swofty-session-end-{}", std::process::id()));
+        let dir = root.join("sessions/20261023-221530");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(root.join("sessions/latest.txt"), format!("{}\n", dir.display())).unwrap();
+        std::fs::write(dir.join("game_start"), "100\n").unwrap();
+        request_stop(&root);
+        assert!(dir.join(STOP_FILE).is_file());
+        std::fs::write(dir.join("exit_code"), "-1\n").unwrap();
+        std::fs::write(dir.join("game_end"), "200\n").unwrap();
+        assert!(
+            SessionRecord::read(&dir).crashed(),
+            "no end file: any non-zero code"
+        );
+        let mut end = SessionEnd::resolve(Some(-1), "", Some("Stop in the launcher closed F1 25"), None);
+        end.write(&dir).unwrap();
+        let record = SessionRecord::read(&dir);
+        assert_eq!(record.end.as_ref(), Some(&end));
+        assert!(!record.crashed());
+        for (ending, code, shown) in [
+            (Ending::Crash, Some(-1), true),
+            (Ending::Unknown, Some(-1), true),
+            (Ending::Unknown, None, false),
+            (Ending::Quit, Some(0), false),
+        ] {
+            end.end = ending;
+            end.exit_code = code;
+            end.write(&dir).unwrap();
+            assert_eq!(SessionRecord::read(&dir).crashed(), shown, "{ending:?} {code:?}");
+        }
+        std::fs::remove_file(dir.join(STOP_FILE)).unwrap();
+        request_stop(&root);
+        assert!(!dir.join(STOP_FILE).exists(), "the session has ended");
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
