@@ -39,6 +39,7 @@
   "seasons": [
     {
       "year": 2016,
+      "pod_camera": { "near_clip": 0.35 },
       "halo": false,
       "cockpit_camera": { "up": 0.04, "forward": 0.06 },
       "teams": [

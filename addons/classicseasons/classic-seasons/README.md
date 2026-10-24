@@ -117,7 +117,7 @@ python3 tools/build_helmets.py --downloads ~/Downloads --game <F1 25>
 - Moves the `.mipmaps` sidecars the zip ships to the season's folder.
 - Rebuilds every shadow caster over 20,000 triangles from a lower LOD of the same part, and fails a car with a caster over 40,000.
 - Caps every non-livery texture and shipped sidecar at 1024 px.
-- Moves the cockpit camera of a season with `cockpit_camera` (`up` and `forward`, in metres) in `data/seasons.json` (tools/cameras.py).
+- Moves the cockpit camera of a season with `cockpit_camera` (`up` and `forward`, in metres) in `data/seasons.json`, and sets the TV pod cameras' near clip of a season with `pod_camera` (`near_clip`, in metres; stock 0.23 m on CamPod) (tools/cameras.py).
 - Turns off `UseModelPositions` in every handling file, so the wheels sit at the handling file's positions instead of the model's (tools/handling.py).
 - Renames the tyre set (`shared/tyres/`) of a season with its own `common.erp` with the rest, and adds a `Tyres` override naming it (`tyre model`, `tyre wet model`, `material`, `wet material`) to every car and showroom model layer (tools/tyres.py). The car templates in `eaid://wote/types` name the stock tyre set.
 
