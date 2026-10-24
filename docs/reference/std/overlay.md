@@ -102,13 +102,23 @@ What an addon's `Input` holds depends on the focus:
 
 | Focus | `Input` |
 |---|---|
-| Nobody holds it | `x`, `y` (the cursor in framebuffer pixels), `keys_down` and `keys_pressed`. `focused` is 0 |
+| Nobody holds it | `x`, `y` (the cursor in framebuffer pixels), the keys (`keys_down`, `keys_pressed`, `keys_typed`) and the gamepad (`pad_*`). `focused` is 0 |
 | The addon holds it | everything: also `buttons`, `pressed`, `released` (`mouse::left`, `mouse::right`, `mouse::middle`), `wheel` (notches, positive away from the player) and up to 16 typed characters in `chars` (UTF-32, `char_count`). `focused` is 1 |
 | Another addon holds it | `x` and `y` are -1 and nothing else is set |
 
-`key_down(vk)`, `key_pressed(vk)`, `clicked(button)`, `held(button)` and `inside(x, y, w, h)` read an `Input`. Keys are Windows virtual-key codes; `keys_pressed` holds the keys that went down this frame, without auto-repeat.
+`key_down(vk)`, `key_pressed(vk)`, `key_typed(vk)`, `clicked(button)`, `held(button)`, `pad_held(button)`, `pad_hit(button)` and `inside(x, y, w, h)` read an `Input`. Keys are Windows virtual-key codes; `keys_pressed` holds the keys that went down this frame and `keys_typed` also their auto-repeats.
 
-While an addon holds focus, the core keeps mouse moves, button presses, the wheel, typed characters, key presses and raw input (`WM_INPUT`) from the game and draws a cursor. Button and key releases and Alt key combinations still reach the game. The newest `focus(true)` wins. The focus goes back by itself when its addon has not painted for 2 s, and `swofty/loader.log` says so. Game controllers are not affected.
+The gamepad fields come from `xinput1_4.dll!XInputGetState`, read while an addon calls `input()`:
+
+| Field | Holds |
+|---|---|
+| `pad_connected` | a bit per connected XInput slot |
+| `pad_buttons` | the buttons held on any pad (`pad::up`, `pad::down`, `pad::left`, `pad::right`, `pad::a`, `pad::b`, `pad::x`, `pad::y`, `pad::lb`, `pad::rb`, `pad::start`, `pad::back`); the left stick past half way also holds the d-pad |
+| `pad_pressed` | buttons that went down this frame; a held d-pad direction presses again after 400 ms, then every 90 ms |
+| `pad_lx`, `pad_ly`, `pad_rx`, `pad_ry` | the first connected pad's sticks, -1 to 1 with a deadzone, up positive |
+| `pad_lt`, `pad_rt` | the triggers, 0 to 1 |
+
+While an addon holds focus, the core keeps mouse moves, button presses, the wheel, typed characters, key presses and raw input (`WM_INPUT`) from the game and draws a cursor. Button and key releases and Alt key combinations still reach the game. The newest `focus(true)` wins. The focus goes back by itself when its addon has not painted for 2 s, and `swofty/loader.log` says so. Gamepads and wheels still reach the game while an addon holds focus: the core reads XInput but does not block it, and the game also reads controllers through DirectInput and Windows.Gaming.Input.
 
 ## Toolkit
 
@@ -123,10 +133,27 @@ While an addon holds focus, the core keeps mouse moves, button presses, the whee
 | `toggle(ui, rect, text, &on)` | a labelled switch; `true` when clicked |
 | `slider(ui, rect, text, &value, lo, hi, fmt = "%.0f")` | a labelled track with the value printed with `fmt`; drag it or use the wheel over it; `true` while the value changes |
 | `list(ui, rect, id, count, item, &selected, &scroll)` | a clipped scrolling list; `item(i)` returns row `i`'s text; the wheel scrolls it and a click selects; `true` when the selection changes |
+| `text_field(ui, rect, id, &text, max_bytes = 128, placeholder = {})` | a one-line text field; `true` when the text changes |
+| `clipboard_text()`, `set_clipboard_text(utf8)` | read and write the clipboard's text |
 | `toast(state, text, seconds = 3)` | queues a message; at most 5 are kept |
 | `draw_toasts(ui)` | draws the queue at the top right of the safe area, sliding in and fading out |
 
-Buttons, toggles, sliders and lists react only while the addon holds focus. A typical addon opens its panel and takes focus on a hotkey:
+Buttons, toggles, sliders, lists and text fields react only while the addon holds focus, to the mouse, the keyboard and the gamepad:
+
+| Input | Does |
+|---|---|
+| Up/down (d-pad, left stick, arrow keys) | moves to the previous or next widget; a list moves its selection first, until its first or last row |
+| Tab, Shift+Tab, RB, LB | moves to the next or previous widget |
+| A, Enter, Space | presses a button or toggle, starts editing a text field |
+| Left/right | moves a slider by 5% |
+| Triggers | move a slider continuously, the full range in 2 s |
+| B, Esc | sets `Ui::back`; the addon decides what it closes |
+
+Navigation draws a ring around the current widget and hides it when the mouse moves. While a text field is edited, the keyboard edits it: typing inserts at the caret, Backspace and Delete remove, Left/Right/Home/End move the caret (with Shift they select), Ctrl+A selects all, Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste, and Enter, Esc, Tab, B or a click outside end editing.
+
+`Theme::toast_at` places toasts: `ToastAt::left_middle` (the default, on the left edge of the safe area under the game's standings tower), `ToastAt::top_center` or `ToastAt::top_right` (over the game's timing box).
+
+A typical addon opens its panel and takes focus on a hotkey:
 
 ```cpp [native/src/my_plugin.cpp]
 #include <swofty/overlay_ui.hpp>
