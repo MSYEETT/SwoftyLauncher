@@ -21,7 +21,8 @@ copies its stock team's row.
 Suits of 2016 to 2023 (suit_sources.py): each driver's look wears the suit and gloves suit_sources.pick chooses, a
 real suit (a mod's or F1 23's, built by build_real_suits.py into this addon's suits/, or a stock F1 25 one) or, for
 2016 to 2021, the team's generated suit (build_suits.py, the season's suits/meta.json), and a real driver suit's
-helmet. A 2022 or 2023 look with no built F1 23 suit keeps its seat's stock kit, as 2024 does. The core addon copies
+helmet. A 2022 or 2023 look with no built F1 23 suit keeps its seat's stock kit. A driver with a stock look of the
+season (<year>-<stock team>_<driver>, the 2024 grid) wears that look's suit, gloves and helmet. The core addon copies
 each built mod suit's suit, gloves and helmet rows from its base under its label, with item ids REAL_SUIT_IDS and
 HELMET_IDS, and ships its archives (assets/suits.json). A season copies its generated suits' rows; every team-season of
 SUIT_YEARS takes the next id of SUIT_IDS, in season and team order, whether its suit is generated or not. The suits of
@@ -95,8 +96,12 @@ def look_label(year, folder, driver):
     return f"{year}-cs_{folder}_{driver}"
 
 
-def placeholder_look(folder, position, driver):
-    seat = STOCK["seat_looks"][DATA["folders"][folder]["team"]][str(position)]
+def placeholder_look(folder, position, driver, year):
+    team = DATA["folders"][folder]["team"]
+    period = STOCK["looks"].get(f"{year}-{team}_{driver}")
+    if period:
+        return f"{year}-{team}_{driver}", period["helmet"], period["suit"], period["gloves"]
+    seat = STOCK["seat_looks"][team][str(position)]
     own = STOCK["driver_looks"].get(driver)
     helmet_from = STOCK["looks"][own] if own else STOCK["looks"][seat]
     suit_from = STOCK["looks"][seat]
@@ -321,7 +326,7 @@ def build():
                         "from": f"entrants.vehicles.vehicle[_metadata_={stock['vehicle']}]", "set": vehicle})
 
             for position, (driver, number) in enumerate(team["drivers"]):
-                seat, helmet, suit_look, gloves = placeholder_look(folder, position, driver)
+                seat, helmet, suit_look, gloves = placeholder_look(folder, position, driver, year)
                 if year in suit_sources.REAL_YEARS:
                     choice = suit_sources.pick(year, team, driver, set(made))
                     if choice:
