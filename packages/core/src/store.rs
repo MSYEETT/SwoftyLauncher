@@ -856,7 +856,7 @@ mod tests {
             &store,
             "t.look",
             r#"{"schema_version":1,"id":"t.look","name":"Look","version":"1.0.0","author":"t",
-                "compat":{"game":"f1_25","launcher":">=9.0.0"},"experimental_features":["postfx"]}"#,
+                "compat":{"game":"f1_25","launcher":">=9.0.0"},"experimental_features":["holograms"]}"#,
         );
         put_addon(&store, "t.broken", "{\"id\": 5}");
         let addons = store.addons().unwrap();
@@ -871,7 +871,7 @@ mod tests {
                 "t.broken can't be read: invalid type: integer `5`, expected a string at line 1 column 8"
                     .to_owned(),
                 format!(
-                    "Look (t.look) needs Swofty Launcher >=9.0.0; this is {launcher} (unknown value `postfx`)"
+                    "Look (t.look) needs Swofty Launcher >=9.0.0; this is {launcher} (unknown value `holograms`)"
                 ),
                 "Race HUD (w3.hud) needs a newer Swofty Launcher (unknown field `hud`)".to_owned(),
             ]
