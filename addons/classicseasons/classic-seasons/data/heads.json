@@ -17,10 +17,20 @@
  },
  "heads": {
   "kimi_raikkonen": "more_driver_models",
+  "sebastian_vettel": "more_driver_models",
   "romain_grosjean": "more_driver_models",
   "daniil_kvyat": "more_driver_models",
   "antonio_giovinazzi": "more_driver_models",
+  "nicholas_latifi": "more_driver_models",
+  "mick_schumacher": "more_driver_models",
   "nikita_mazepin": "more_driver_models",
+  "nyck_de-vries": "more_driver_models",
   "robert_kubica": "kubica_face_mod"
+ },
+ "repair_from": {
+  "sebastian_vettel": "kimi_raikkonen",
+  "mick_schumacher": "kimi_raikkonen",
+  "nicholas_latifi": "kimi_raikkonen",
+  "nyck_de-vries": "kimi_raikkonen"
  }
 }

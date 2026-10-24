@@ -22,7 +22,7 @@
   "holders_for": ["nico_rosberg"],
   "head_overrides": {
     "nico_rosberg":       "male_ls265",
-    "sebastian_vettel":   "male_ls553",
+    "sebastian_vettel":   "sebastian_vettel",
     "kimi_raikkonen":     "kimi_raikkonen",
     "daniil_kvyat":       "daniil_kvyat",
     "romain_grosjean":    "romain_grosjean",
@@ -31,10 +31,10 @@
     "pascal_wehrlein":    "male_ls487",
     "antonio_giovinazzi": "antonio_giovinazzi",
     "robert_kubica":      "robert_kubica",
-    "nicholas_latifi":    "male_ls533",
-    "mick_schumacher":    "male_ls192",
+    "nicholas_latifi":    "nicholas_latifi",
+    "mick_schumacher":    "mick_schumacher",
     "nikita_mazepin":     "nikita_mazepin",
-    "nyck_de-vries":      "male_ls343"
+    "nyck_de-vries":      "nyck_de-vries"
   },
   "seasons": [
     {

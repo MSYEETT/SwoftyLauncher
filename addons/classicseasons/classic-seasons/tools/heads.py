@@ -13,6 +13,10 @@ archives go to heads/cs_<head>.erp and morph_poses/cs_<head>.erp, and both group
 with lando_norris's groups as templates. A head whose textures stream also has .mipmaps files under
 character_package/heads/male_driver/<head>/textures/, put at their own paths.
 
+A head with `repair_from` in data/heads.json takes, for each of its materials that names a .sampler resource or a
+heads/male_driver/ resource its archive lacks, the same-named material of the donor head, with the donor's texture
+folder code (male_driver/serps_<code>/textures, the same length in every More Driver Models head) renamed to the head's.
+
 The tool fails when --game is not the F1 25 folder or a target exists in it, and when a head's archives name a
 .sampler resource (an older format F1 25 1.0.141 has none of) or a resource under heads/male_driver/ they do not hold:
 the team picker's head preview crashes in Ne_LinkResolver_ResolveLinks on such a link. A head must be the head of a
@@ -34,6 +38,7 @@ sys.path.insert(0, str(ROOT.parents[2] / "tools"))
 import erpw
 
 EAID = re.compile(rb"eaid://[\x21-\x7e]+")
+CODE = re.compile(rb"/heads/male_driver/(serps_[A-Za-z0-9]+)/textures/")
 OUT = ROOT / "heads"
 OPS = ROOT / "assets" / "heads.json"
 SCENES = "animation_package/scenes/cinematics/drivers"
@@ -88,17 +93,51 @@ def extract(downloads, source, head):
     return sorted(files)
 
 
+def bad_refs(e, r, held):
+    out = set()
+    for i in range(len(r.frags)):
+        for m in EAID.finditer(e.frag_data(r, i)):
+            ref = m.group(0).decode()
+            if ref.endswith(".sampler") or ("/heads/male_driver/" in ref and ref.split("?")[0] not in held):
+                out.add(ref)
+    return out
+
+
 def broken_links(path):
     e = erpw.Erp(str(path))
     held = {r.name.split("?")[0] for r in e.res}
-    bad = set()
+    return sorted(set().union(*(bad_refs(e, r, held) for r in e.res)))
+
+
+def texture_code(e):
+    codes = {m.group(1) for r in e.res for m in [CODE.search(r.name.encode())] if m}
+    if len(codes) != 1:
+        sys.exit(f"{e.path}: texture folder codes {sorted(codes)}")
+    return codes.pop()
+
+
+def repair(head, donor):
+    path = OUT / archives(head)[0]
+    e, d = erpw.Erp(str(path)), erpw.Erp(str(OUT / archives(donor)[0]))
+    mine, theirs = texture_code(e), texture_code(d)
+    if len(mine) != len(theirs):
+        sys.exit(f"{head}: texture folder {mine.decode()} and {donor}'s {theirs.decode()} differ in length")
+    held = {r.name.split("?")[0] for r in e.res}
+    materials = {r.name.rsplit("/", 1)[-1]: r for r in d.res if r.name.endswith(".material")}
+    swapped = []
     for r in e.res:
-        for i in range(len(r.frags)):
-            for m in EAID.finditer(e.frag_data(r, i)):
-                ref = m.group(0).decode()
-                if ref.endswith(".sampler") or ("/heads/male_driver/" in ref and ref.split("?")[0] not in held):
-                    bad.add(ref)
-    return sorted(bad)
+        if not r.name.endswith(".material") or not bad_refs(e, r, held):
+            continue
+        src = materials.get(r.name.rsplit("/", 1)[-1])
+        if src is None:
+            sys.exit(f"{head}: {donor} has no {r.name.rsplit('/', 1)[-1]}")
+        data = [d.frag_data(src, i).replace(theirs, mine) for i in range(len(src.frags))]
+        r.frags = r.frags[:len(data)]
+        for i, b in enumerate(data):
+            e.set_frag(r, i, b)
+        swapped.append(r.name.rsplit("/", 1)[-1])
+    e.to_file(str(path))
+    return swapped
 
 
 def asset_ops(heads):
@@ -124,6 +163,8 @@ def main():
     if OUT.exists():
         shutil.rmtree(OUT)
     heads = {head: extract(args.downloads, data["sources"][key], head) for head, key in data["heads"].items()}
+    for head, donor in data.get("repair_from", {}).items():
+        print(f"{head}: materials from {donor}: {', '.join(repair(head, donor))}")
     for head in heads:
         bad = [ref for rel in archives(head) for ref in broken_links(OUT / rel)]
         if bad:
