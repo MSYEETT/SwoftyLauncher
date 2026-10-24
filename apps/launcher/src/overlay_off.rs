@@ -23,11 +23,21 @@ pub(crate) fn why(off: &OverlayOff) -> String {
     let when = off
         .removal
         .as_ref()
-        .map(|r| format!("{:.0} s", (r.after_draw_ms as f64 / 1000.0).max(1.0)));
+        .map(|r| match (r.after_draw_ms + 500) / 1000 {
+            0 | 1 => "about a second".to_owned(),
+            n => format!("about {n} seconds"),
+        });
     format!(
         "Your graphics card stopped responding{} after an addon drew over the game, so Swofty turned the \
          in-game overlay off. Your addons still run, but nothing they draw over the game shows.",
         when.map_or_else(String::new, |w| format!(" {w}"))
+    )
+}
+
+pub(crate) fn advice() -> String {
+    format!(
+        "Turn it back on to try again. If the game stops again, keep it off and press {}.",
+        crate::send_logs::label()
     )
 }
 
@@ -145,10 +155,7 @@ impl Shell {
                                 .text_size(px(12.))
                                 .line_height(px(18.))
                                 .text_color(p.text_muted)
-                                .child(
-                                    "Turn it back on to try again. If the game stops again, keep it off and \
-                                     send logs from Tools.",
-                                ),
+                                .child(advice()),
                         ),
                 )
                 .footer(
@@ -227,7 +234,7 @@ impl Shell {
 
 #[cfg(test)]
 mod tests {
-    use super::{addons_text, seen_key, why};
+    use super::{addons_text, advice, seen_key, why};
     use swofty_core::overlay_guard::{OverlayOff, Removal};
 
     fn off(after_draw_ms: Option<u64>) -> OverlayOff {
@@ -245,10 +252,12 @@ mod tests {
     fn the_notice_says_what_happened_in_plain_words() {
         assert_eq!(
             why(&off(Some(4812))),
-            "Your graphics card stopped responding 5 s after an addon drew over the game, so Swofty turned the \
-             in-game overlay off. Your addons still run, but nothing they draw over the game shows."
+            "Your graphics card stopped responding about 5 seconds after an addon drew over the game, so \
+             Swofty turned the in-game overlay off. Your addons still run, but nothing they draw over the game \
+             shows."
         );
         assert!(why(&off(None)).starts_with("Your graphics card stopped responding after an addon drew"));
+        assert!(why(&off(Some(1200))).contains("responding about a second after"));
     }
 
     #[test]
@@ -265,6 +274,11 @@ mod tests {
             addons_text(&[]),
             ["None of the addons on in this profile draw over the game."]
         );
+    }
+
+    #[test]
+    fn the_advice_names_the_send_logs_button() {
+        assert!(advice().ends_with(&format!("keep it off and press {}.", crate::send_logs::label())));
     }
 
     #[test]
