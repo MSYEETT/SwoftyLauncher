@@ -760,55 +760,77 @@ impl<'a> Installer<'a> {
             placed.registry = Some(name.clone());
         }
         placed.save(self.data)?;
-        let mut n = 0;
-        for (rel, src) in &plan.data {
-            let path = self.path(rel);
-            let i = j.begin(
+        let mut steps = Vec::new();
+        for rel in plan.data.keys() {
+            let before = baseline.files[rel].sha256.clone();
+            steps.push((
                 Op::ReplaceFile,
-                rel,
-                Some(baseline.files[rel].sha256.clone()),
+                rel.clone(),
+                Some(before),
                 Some(after[rel.as_str()].clone()),
-            )?;
-            self.step(&mut n)?;
-            std::fs::copy(src, &path).map_err(|e| crate::quarantine::copy_error(rel, &path, e))?;
-            hashes.wrote(&path, &after[rel.as_str()]);
-            j.done(i)?;
+            ));
         }
-        for (rel, src) in plan.added.iter().chain(&plan.loader) {
+        let mut dirs = BTreeSet::new();
+        for rel in plan.added.keys().chain(plan.loader.keys()) {
             for dir in rel_parts(rel) {
-                let path = self.path(&dir);
-                if !path.is_dir() {
-                    let i = j.begin(Op::CreateDir, &dir, None, None)?;
-                    self.step(&mut n)?;
-                    std::fs::create_dir(&path).map_err(io_err(&path))?;
-                    j.done(i)?;
+                if !self.path(&dir).is_dir() && dirs.insert(dir.clone()) {
+                    steps.push((Op::CreateDir, dir, None, None));
                 }
             }
-            let path = self.path(rel);
-            let i = j.begin(Op::CreateFile, rel, None, Some(after[rel.as_str()].clone()))?;
-            self.step(&mut n)?;
-            // Windows refused the file as a threat. The entry stays pending, so
-            // the rollback clears whatever was left, and the check before the
-            // game starts finds the file missing and refuses the launch with
-            // the antivirus report instead of a bare copy error here.
-            match std::fs::copy(src, &path) {
-                Err(e) if crate::quarantine::is_virus_error(&e) => continue,
-                r => r.map_err(io_err(&path))?,
-            };
-            hashes.wrote(&path, &after[rel.as_str()]);
-            j.done(i)?;
+            steps.push((
+                Op::CreateFile,
+                rel.clone(),
+                None,
+                Some(after[rel.as_str()].clone()),
+            ));
         }
-        if let Some((reg, name, text, out)) = registry {
-            let before = objects.put_file(reg)?;
-            let i = j.begin(
-                Op::RegistryOverride,
-                &name,
-                Some(before),
-                Some(sha256_bytes(out.as_bytes())),
-            )?;
+        let registry = match registry {
+            Some((reg, name, text, out)) => {
+                let (before, now) = (objects.put_file(reg)?, sha256_bytes(out.as_bytes()));
+                steps.push((Op::RegistryOverride, name, Some(before), Some(now)));
+                Some((reg, text, out))
+            }
+            None => None,
+        };
+        j.begin_all(steps)?;
+        let sources: BTreeMap<&str, &PathBuf> = plan
+            .data
+            .iter()
+            .chain(&plan.added)
+            .chain(&plan.loader)
+            .map(|(rel, src)| (rel.as_str(), src))
+            .collect();
+        let mut n = 0;
+        for i in 0..j.entries.len() {
             self.step(&mut n)?;
-            if out != text {
-                std::fs::write(reg, out).map_err(io_err(reg))?;
+            let e = &j.entries[i];
+            let path = self.path(&e.path);
+            match e.op {
+                Op::ReplaceFile => {
+                    std::fs::copy(sources[e.path.as_str()], &path)
+                        .map_err(|err| crate::quarantine::copy_error(&e.path, &path, err))?;
+                }
+                Op::CreateDir => std::fs::create_dir(&path).map_err(io_err(&path))?,
+                // Windows refused the file as a threat. The entry stays pending, so
+                // the rollback clears whatever was left, and the check before the
+                // game starts finds the file missing and refuses the launch with
+                // the antivirus report instead of a bare copy error here.
+                Op::CreateFile => match std::fs::copy(sources[e.path.as_str()], &path) {
+                    Err(err) if crate::quarantine::is_virus_error(&err) => continue,
+                    r => {
+                        r.map_err(io_err(&path))?;
+                    }
+                },
+                Op::RegistryOverride => {
+                    if let Some((reg, text, out)) = &registry
+                        && out != text
+                    {
+                        std::fs::write(reg, out).map_err(io_err(*reg))?;
+                    }
+                }
+            }
+            if matches!(e.op, Op::ReplaceFile | Op::CreateFile) {
+                hashes.wrote(&path, e.after.as_deref().expect("a placed file has after"));
             }
             j.done(i)?;
         }

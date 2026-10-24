@@ -97,30 +97,31 @@ impl Journal {
         crate::write_json(&self.file, self)
     }
 
-    pub fn begin(
+    /// Record every step of an install as pending, in one flushed write,
+    /// before the first of them starts. A crash at any point then leaves all
+    /// of them on disk: a rollback treats a pending step exactly as done while
+    /// its file holds what was written, and a step that never started has
+    /// nothing to undo. One write keeps an install of thousands of files from
+    /// rewriting the whole journal once per file.
+    pub fn begin_all(
         &mut self,
-        op: Op,
-        path: &str,
-        before: Option<String>,
-        after: Option<String>,
-    ) -> Result<usize> {
-        let seq = self.entries.len() as u32;
-        self.entries.push(Entry {
-            seq,
-            op,
-            path: path.into(),
-            before,
-            after,
-            state: State::Pending,
-        });
-        self.save()?;
-        Ok(self.entries.len() - 1)
+        steps: impl IntoIterator<Item = (Op, String, Option<String>, Option<String>)>,
+    ) -> Result<()> {
+        for (op, path, before, after) in steps {
+            self.entries.push(Entry {
+                seq: self.entries.len() as u32,
+                op,
+                path,
+                before,
+                after,
+                state: State::Pending,
+            });
+        }
+        self.save()
     }
 
-    /// Mark entry `i` finished. It reaches the disk with the next
-    /// [`begin`](Self::begin) or [`commit`](Self::commit), which saves one
-    /// flushed write per step; a crash before then leaves it pending, which a
-    /// rollback treats exactly as done while the file holds what was written.
+    /// Mark entry `i` finished. It reaches the disk with the
+    /// [`commit`](Self::commit); a crash before then leaves it pending.
     pub fn done(&mut self, i: usize) -> Result<()> {
         self.entries[i].state = State::Done;
         Ok(())

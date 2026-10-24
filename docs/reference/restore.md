@@ -52,7 +52,7 @@ The next install records each original again as it first sees it, checked agains
 
 ## Recovery rules
 
-Record each change before applying it. Undo changes in reverse order, including steps that may have been interrupted.
+Record every change of an install in the journal, in one write, before applying the first. Undo changes in reverse order, including steps that may have been interrupted or never started.
 
 Restore replaced files from backups. Remove files and empty folders created by the launcher. Remove the Wine override added for the session.
 

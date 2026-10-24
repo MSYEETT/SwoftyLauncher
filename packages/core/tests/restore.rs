@@ -193,7 +193,7 @@ fn a_kill_between_any_two_steps_rolls_back_to_the_baseline() {
 
         let open = Journal::open(&f.data).unwrap();
         assert_eq!(open.len(), 1, "k={k}");
-        if let Some(e) = open[0].entries.last().filter(|e| e.state == State::Pending) {
+        if let Some(e) = open[0].entries.get(k).filter(|e| e.state == State::Pending) {
             match e.op {
                 Op::ReplaceFile | Op::CreateFile => write(&f.game.join(&e.path), "partial"),
                 Op::CreateDir => std::fs::create_dir_all(f.game.join(&e.path)).unwrap(),
@@ -241,6 +241,43 @@ fn an_install_the_free_space_cannot_hold_changes_nothing() {
     };
     roomy.apply(&f.maps_plan()).unwrap();
     assert_eq!(f.read(UI), "ui-B");
+}
+
+#[test]
+fn an_install_of_thousands_of_files_writes_the_journal_once() {
+    let f = Fixture::new("many");
+    let original = f.snapshot();
+    let game = f.game("1");
+    let mut plan = f.plan("a");
+    for i in 0..10_000 {
+        let src = f.src.join(format!("many/{i}"));
+        write(&src, &i.to_string());
+        plan.added
+            .insert(format!("2025_asset_groups/many/{}/{i}.erp", i % 50), src);
+    }
+    let started = std::time::Instant::now();
+    Installer::new(&f.data, &game).apply(&plan).unwrap();
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(60),
+        "{:?}",
+        started.elapsed()
+    );
+    let open = Journal::open(&f.data).unwrap();
+    assert!(open[0].committed && open[0].entries.iter().all(|e| e.state == State::Done));
+    assert_eq!(open[0].entries.len(), 7 + 10_000 + 51);
+    assert_eq!(f.read("2025_asset_groups/many/7/9957.erp"), "9957");
+
+    let mut stopped = Installer::new(&f.data, &game);
+    stopped.stop_after = Some(5_000);
+    assert!(stopped.apply(&plan).is_err());
+    assert!(
+        Journal::open(&f.data).unwrap()[0]
+            .entries
+            .iter()
+            .all(|e| e.state == State::Pending)
+    );
+    assert_eq!(Installer::new(&f.data, &game).recover().unwrap(), []);
+    assert_eq!(f.snapshot(), original);
 }
 
 #[test]
@@ -347,7 +384,7 @@ fn a_kill_while_installing_maps_rolls_back_to_the_baseline() {
         inst.stop_after = Some(k);
         assert_eq!(inst.apply(&f.maps_plan()).is_ok(), k == total, "k={k}");
         let open = Journal::open(&f.data).unwrap();
-        if let Some(e) = open[0].entries.last().filter(|e| e.state == State::Pending) {
+        if let Some(e) = open[0].entries.get(k).filter(|e| e.state == State::Pending) {
             match e.op {
                 Op::ReplaceFile | Op::CreateFile => write(&f.game.join(&e.path), "partial"),
                 Op::CreateDir => std::fs::create_dir_all(f.game.join(&e.path)).unwrap(),
