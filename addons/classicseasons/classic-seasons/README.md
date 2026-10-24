@@ -2,13 +2,15 @@
 
 Adds the F1 2016 to F1 2024 seasons to the Grand Prix and Time Trial pickers. Each season has its own teams, drivers, car numbers, cars, team logos and name backdrops.
 
-Classic Seasons is ten addons in `addons/classicseasons/`. This folder is the shared addon, `swofty.classic-seasons`: the plugin that registers the season boxes, the new drivers, team logos, name backdrops and box art. Each season is its own addon, `swofty.classic-seasons-<year>` in `../classic-seasons-<year>/`, which requires the core and holds that season's cars, rows and text. Any set of seasons installs on top of the core, and a season that is not installed has no box.
+Classic Seasons is ten addons in `addons/classicseasons/`. This folder is the shared addon, `swofty.classic-seasons`: the plugin that registers the season boxes, the new drivers, real driver heads, team logos, name backdrops and box art. Each season is its own addon, `swofty.classic-seasons-<year>` in `../classic-seasons-<year>/`, which requires the core and holds that season's cars, rows and text. Any set of seasons installs on top of the core, and a season that is not installed has no box.
 
 Cars: fanfreluche (Fanfreluche aka totolab), "F1 <year> cars for F1 25", used with permission.
 
 Suits: "F1 2016 - suits mod" (author unknown), "2018 Redbull for F1 25" (author unknown), and the F1 2020 mods "2017 Suits for F1 2020" (author unknown) and "White Mercedes Driver Suits 1.01" (author unknown), used with permission.
 
-The car archives are not in the repository. The built packages, each season's `.swoftyaddon` with its cars and the shared addon's, are on the `classic-seasons-<version>` release; install the shared addon and any seasons through the launcher.
+Heads: MildtDesign, "More Driver Models" v1.2, and unknown, "F1 25 Kubica Face Mod", used with permission.
+
+The car, suit and head archives are not in the repository. The built packages, each season's `.swoftyaddon` with its cars and the shared addon's, are on the `classic-seasons-<version>` release; install the shared addon and any seasons through the launcher.
 
 ## Layout
 
@@ -16,6 +18,8 @@ The car archives are not in the repository. The built packages, each season's `.
 |---|---|
 | `data/seasons.json` | Teams, team names and line-ups per season, new drivers |
 | `data/stock_looks.json` | Stock helmet, suit and glove looks used as placeholders |
+| `data/heads.json` | The real heads, each with its mod zip |
+| `tools/heads.py` | Copies the heads into `heads/` (not committed) and writes `assets/heads.json` |
 | `tools/gen.py` | Writes the core's `db/core.json`, `lang/core.json` and `native/src/seasons.hpp`, and each season addon's `swofty.json`, `db/season.json`, `lang/season.json` and `assets/cars.json` |
 | `tools/layout.py` | Season addon folders and the asset ops that ship a season's cars |
 | `tools/build_cars.py` | Builds a season addon's `cars/` from the season zips, and an extra team's car (`car` in `data/seasons.json`) into `cars/extra/` |
@@ -44,7 +48,7 @@ The car archives are not in the repository. The built packages, each season's `.
 
 Shared addon:
 
-- The new drivers, their statistics holders and the head overrides.
+- The new drivers, their statistics holders and the head overrides (`head_overrides` in `data/seasons.json`): the driver rows' `head`, a stock generic head (`male_ls<n>`) or one of the real heads below.
 
 Each season:
 
@@ -63,6 +67,34 @@ With a season of more than ten teams, the shared addon adds a `track_data.track_
 ## Plugin
 
 At load it registers one box per season with `swofty::era::add_box` (`swofty/era.hpp`): entrant list `cs_f1_<year>`, title `lng_cs_f1_<year>`, image `#overrides.home_screen.tiles_solo_6x6[cs_f1_<year>]`, in year order. swofty.core builds them in the Addons row of the Grand Prix and Time Trial era picker, skips a season that is not installed and narrows `swofty_f1` to the pressed season.
+
+## Heads
+
+| Driver | Head | Seasons | Mod |
+|---|---|---|---|
+| Kimi Räikkönen | `kimi_raikkonen` | 2016 to 2021 | More Driver Models |
+| Sebastian Vettel | `sebastian_vettel` | 2016 to 2022 | More Driver Models |
+| Romain Grosjean | `romain_grosjean` | 2016 to 2020 | More Driver Models |
+| Daniil Kvyat | `daniil_kvyat` | 2016, 2017, 2019, 2020 | More Driver Models |
+| Antonio Giovinazzi | `antonio_giovinazzi` | 2019 to 2021 | More Driver Models |
+| Nicholas Latifi | `nicholas_latifi` | 2020 to 2022 | More Driver Models |
+| Mick Schumacher | `mick_schumacher` | 2021, 2022 | More Driver Models |
+| Nikita Mazepin | `nikita_mazepin` | 2021 | More Driver Models |
+| Nyck de Vries | `nyck_de-vries` | 2023 | More Driver Models |
+| Robert Kubica | `robert_kubica` | 2019 | F1 25 Kubica Face Mod (Cap On) |
+
+The stock database has an `entrants.animation.driver_heads.driver_head` row for each of these heads, and each driver's row names it in `head`. The row's `model_path` is `eaid://[CHARACTER_PACKAGE]/heads/male_driver/<head>/idf/<head>_rig_head_morph_v1`, and its asset group path formats give two groups. The stock game ships neither archive:
+
+- `2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/<head>.erp`: the model, materials and textures.
+- `2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/<head>.erp`: the facial morph clips.
+
+Kubica's head also has three `.2025.mipmaps` textures in `character_package/heads/male_driver/robert_kubica/textures/`. The More Driver Models heads hold their textures in the heads archive.
+
+`assets/heads.json` adds each file with `file.put` and registers both groups with `group.register`, with `lando_norris`'s groups as templates. `tools/heads.py` reads the zips named in `data/heads.json` from the downloads folder. It fails when a target exists in the game folder, or when no driver in `data/seasons.json` has the head.
+
+```sh
+python3 tools/heads.py --downloads ~/Downloads --game <F1 25>
+```
 
 ## Car archives
 
@@ -205,3 +237,5 @@ It needs numpy, Pillow, SciPy and lz4, zstandard for `suit_transfer.py`, `node` 
 ```sh
 for a in ../classic-seasons ../classic-seasons-20*; do python3 ../../../tools/pack_addon.py "$a" dist; done
 ```
+
+The shared addon's package holds `heads/` and `native/classic_seasons.dll`: run `tools/heads.py` and `native/build.sh` before packing it.
