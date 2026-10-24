@@ -6,6 +6,7 @@
   "author": "Swofty",
   "description": "Classic Seasons core: season boxes in Grand Prix and Time Trial, team logos, suits and the shared drivers with their real heads. Add the F1 2016 to F1 2024 seasons on top.",
   "license": "AGPL-3.0-or-later",
+  "icon": "icon.png",
   "kind": [
     "database",
     "erp",
@@ -17,7 +18,7 @@
     "game_builds": [
       ">=25251167"
     ],
-    "launcher": ">=1.5.0"
+    "launcher": ">=1.5.1"
   },
   "requires": [
     {

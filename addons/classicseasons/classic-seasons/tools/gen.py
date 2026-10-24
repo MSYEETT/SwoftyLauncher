@@ -70,7 +70,7 @@ TRACK_LAYER_STAT = 20
 HOST_MODE = "swofty_f1"
 SETUP_ROW = "entrants.entrant_setup_modes.entrant_setup_mode"
 SETUP_PRESETS = "car_setup.presets.vehicle_package_setups"
-SEASON_LAUNCHER = ">=1.5.0"
+SEASON_LAUNCHER = ">=1.5.1"
 DIRECT_SUITS = [e for e in suit_sources.REAL["suits"] if "transfer" not in suit_sources.REAL["mods"][e["mod"]]]
 TRANSFERRED_SUITS = [e for e in suit_sources.REAL["suits"] if "transfer" in suit_sources.REAL["mods"][e["mod"]]]
 REAL_SUIT_IDS = range(974, 974 + len(DIRECT_SUITS))
@@ -199,6 +199,7 @@ def season_manifest(core, year, assets):
         "description": f"The F1 {year} season for Classic Seasons: its cars, teams and drivers in Grand Prix and "
                        f"Time Trial. Cars by fanfreluche.",
         "license": core["license"],
+        "icon": "icon.png",
         "kind": ["database", "files"],
         "compat": {**core["compat"], "launcher": SEASON_LAUNCHER},
         "requires": core["requires"] + [{"id": core["id"], "version": f">={core['version']}"}],

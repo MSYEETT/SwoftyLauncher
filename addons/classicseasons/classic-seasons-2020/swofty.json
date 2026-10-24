@@ -6,6 +6,7 @@
  "author": "Swofty",
  "description": "The F1 2020 season for Classic Seasons: its cars, teams and drivers in Grand Prix and Time Trial. Cars by fanfreluche.",
  "license": "AGPL-3.0-or-later",
+ "icon": "icon.png",
  "kind": [
   "database",
   "files"
@@ -15,7 +16,7 @@
   "game_builds": [
    ">=25251167"
   ],
-  "launcher": ">=1.5.0"
+  "launcher": ">=1.5.1"
  },
  "requires": [
   {
