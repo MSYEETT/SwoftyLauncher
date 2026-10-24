@@ -112,6 +112,8 @@ Select **Play** in the launcher or run `swofty run`. If Steam is closed, it [sta
 
 Modded sessions don't start while `F1_25.exe` is set to **Run this program as an administrator** and the launcher runs normally: Windows won't start the game unelevated (error 740), and the launch stops with a message naming the setting. To fix it, right-click `F1_25.exe` in the game folder, open **Properties > Compatibility** and untick the box, or untick it under **Change settings for all users** when it's set for all users. You can also run the launcher as administrator. `swofty doctor` shows the setting in its `run as admin` row.
 
+The launcher doesn't pass its `__COMPAT_LAYER`, the variable Windows uses to hand compatibility settings on to the programs a program starts, to F1 25, to the offline play session launcher, or to the EA app when it starts the EA app. The launch log says `environment: not passing the Windows compatibility layer __COMPAT_LAYER=<layers> to the game` when it drops one. A `__COMPAT_LAYER` under `"env"` in `"launch"` in `$DATA/config.json` is still passed. Each session's `env.txt` lists the environment the launcher starts the game with.
+
 Modded sessions also don't start while the game folder is one this process can't create files in, such as the EA app's `C:\Program Files\EA Games\F1 25`, and the launcher runs normally. The check creates and deletes a file in the game folder and in `2025_asset_groups/ui_package`, the first folder an install writes in. The launch stops before the build with a message naming the folder; the launcher offers **Restart as administrator**. See [A game folder only administrators can change](/using/game-copies#a-game-folder-only-administrators-can-change).
 
 ## VR

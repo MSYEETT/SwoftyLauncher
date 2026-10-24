@@ -236,6 +236,11 @@ fn is_yes(on: &bool) -> bool {
 /// the helper then creates a game process that dies during startup before
 /// loading a single DLL. Build-shell variables are not part of running a
 /// game, so they are dropped, and whatever remains is trimmed to fit.
+///
+/// The launcher's own [`COMPAT_LAYER`] is dropped too: Windows applies the
+/// layers it names to every program started with it, and with one set (such
+/// as `DetectorsAppHealth`) F1 25 has held System32's version.dll instead of
+/// the loader. `overrides` can still set one.
 pub fn game_env(
     parent: impl IntoIterator<Item = (String, String)>,
     overrides: &BTreeMap<String, String>,
@@ -307,7 +312,7 @@ pub fn game_env(
 
     let mut env: BTreeMap<String, String> = parent
         .into_iter()
-        .filter(|(k, _)| !is_build_shell_var(k))
+        .filter(|(k, _)| !is_build_shell_var(k) && !is_compat_layer(k))
         .collect();
     for (k, v) in overrides {
         env.insert(k.clone(), v.clone());
@@ -327,6 +332,14 @@ pub fn game_env(
         env.remove(&largest);
     }
     env
+}
+
+/// The variable Windows reads a process's compatibility layers from, and
+/// hands on to the programs that process starts.
+pub const COMPAT_LAYER: &str = "__COMPAT_LAYER";
+
+pub fn is_compat_layer(name: &str) -> bool {
+    name.eq_ignore_ascii_case(COMPAT_LAYER)
 }
 
 pub const SDL2_SONAME: &str = "libSDL2-2.0.so.0";
@@ -835,6 +848,24 @@ mod tests {
         for dropped in ["NIX_LDFLAGS", "CFLAGS", "buildInputs", "depsBuildBuild"] {
             assert!(!env.contains_key(dropped), "{dropped} kept");
         }
+    }
+
+    #[test]
+    fn game_env_drops_an_inherited_compat_layer() {
+        let parent = || {
+            [
+                ("Path".to_string(), r"C:\WINDOWS\system32".to_string()),
+                ("__COMPAT_LAYER".to_string(), "DetectorsAppHealth".to_string()),
+                ("__compat_layer".to_string(), "RunAsInvoker".to_string()),
+            ]
+        };
+        let env = game_env(parent(), &BTreeMap::new());
+        assert_eq!(env.keys().collect::<Vec<_>>(), ["Path"]);
+        let mut overrides = BTreeMap::new();
+        overrides.insert(COMPAT_LAYER.to_string(), "HighDpiAware".to_string());
+        let env = game_env(parent(), &overrides);
+        assert_eq!(env.get(COMPAT_LAYER).map(String::as_str), Some("HighDpiAware"));
+        assert_eq!(env.len(), 2);
     }
 
     #[test]

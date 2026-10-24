@@ -18,8 +18,8 @@ use swofty_core::quarantine::{self, Attach, AttachWatch, Stage};
 use swofty_core::recovery::{Scope, SessionLock};
 use swofty_core::session::{
     Config, DEFAULT_WINEDEBUG, LOADER_LOG, LOADER_MARK, LaunchMode, LaunchRequest, LogMark, PERF_LOG,
-    RUNTIME_LIBS_DIR, STOP_FILE, SessionEnd, SessionRecord, game_args, parse_cpu_list, parse_steam_command,
-    request_stop, written_since,
+    RUNTIME_LIBS_DIR, STOP_FILE, SessionEnd, SessionRecord, game_args, is_compat_layer, parse_cpu_list,
+    parse_steam_command, request_stop, written_since,
 };
 use swofty_core::steam_client::{self, Ready, Report, State, Wait};
 use swofty_core::store::Store;
@@ -614,9 +614,6 @@ fn play(
     std::fs::write(store.sessions_dir().join("latest.txt"), dir.display().to_string())?;
     std::fs::write(dir.join("request_id"), format!("{}\n", request.id))?;
     std::fs::write(dir.join("steam_command.txt"), shell_join(&args.steam_command))?;
-    let mut env: Vec<String> = std::env::vars().map(|(k, v)| format!("{k}={v}")).collect();
-    env.sort();
-    std::fs::write(dir.join("env.txt"), env.join("\n") + "\n")?;
     let cmd = parse_steam_command(&args.steam_command);
     let mode = if args.vr {
         LaunchMode::Vr
@@ -664,9 +661,17 @@ fn play(
     // The game gets a curated environment: Proton's steam helper packs it
     // into a Windows environment block (32767 characters), and a build
     // shell's variables blow past that, which kills the game at startup.
-    let (shell_vars, game_env) = {
+    let (shell_vars, mut game_env) = {
         let shell: Vec<(String, String)> = std::env::vars().collect();
-        let n = shell.len();
+        if let Some((k, v)) = shell.iter().find(|(k, _)| is_compat_layer(k))
+            && !config.launch.env.keys().any(|k| is_compat_layer(k))
+        {
+            say(
+                "info",
+                &format!("environment: not passing the Windows compatibility layer {k}={v} to the game"),
+            );
+        }
+        let n = shell.iter().filter(|(k, _)| !is_compat_layer(k)).count();
         let env = swofty_core::session::game_env(shell, &config.launch.env);
         (n, env)
     };
@@ -696,6 +701,20 @@ fn play(
             "controllers: this system has no SDL2, so Proton reads wheels and pads through Steam's runtime copy",
         );
     }
+    game_env.extend(
+        [
+            ("PROTON_LOG", "1".to_owned()),
+            ("PROTON_LOG_DIR", dir.to_string_lossy().into_owned()),
+            ("WINEDEBUG", winedebug),
+            ("SteamAppId", STEAM_APP_ID.to_string()),
+            ("SteamGameId", STEAM_APP_ID.to_string()),
+        ]
+        .into_iter()
+        .chain(library_path.map(|p| ("LD_LIBRARY_PATH", p)))
+        .map(|(k, v)| (k.to_owned(), v)),
+    );
+    let listed: String = game_env.iter().map(|(k, v)| format!("{k}={v}\n")).collect();
+    std::fs::write(dir.join("env.txt"), listed)?;
     let spawn = |exe: &str, log: &str| -> Result<std::process::Child> {
         let out = std::fs::File::create(dir.join(log))?;
         let mut c = match &proton {
@@ -710,16 +729,8 @@ fn play(
             .current_dir(game)
             .env_clear()
             .envs(&game_env)
-            .env("PROTON_LOG", "1")
-            .env("PROTON_LOG_DIR", &dir)
-            .env("WINEDEBUG", &winedebug)
-            .env("SteamAppId", STEAM_APP_ID.to_string())
-            .env("SteamGameId", STEAM_APP_ID.to_string())
             .stdout(out.try_clone()?)
             .stderr(out);
-        if let Some(path) = &library_path {
-            c.env("LD_LIBRARY_PATH", path);
-        }
         start(&mut c)
     };
     let copies_before: Vec<u32> = game_processes().iter().map(|g| g.pid).collect();

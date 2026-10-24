@@ -6,6 +6,7 @@ use std::process::Command;
 
 use crate::GAME_EXE;
 use crate::compat::parse_reg_query;
+use crate::session::COMPAT_LAYER;
 
 pub const MARKER: &str = "__Installer/installerdata.xml";
 pub const PROCESS: &str = "EADesktop.exe";
@@ -322,10 +323,12 @@ impl Handoff {
         }
     }
 
+    /// The command that hands over `url`. The EA app it may start is the
+    /// one that starts F1 25, so the launcher's [`COMPAT_LAYER`] stays out.
     pub fn command(&self, url: &str) -> Command {
         let argv = self.argv(url);
         let mut c = Command::new(&argv[0]);
-        c.args(&argv[1..]);
+        c.args(&argv[1..]).env_remove(COMPAT_LAYER);
         c
     }
 }
@@ -401,17 +404,17 @@ fn windows_handoff() -> Option<Handoff> {
 /// What opens the EA app without a launch link: EALauncher.exe on its own,
 /// or the setting's command with the link left out.
 pub fn opener(handoff: &Handoff) -> Option<Command> {
-    match handoff {
-        Handoff::Program(words) if words[0].to_ascii_lowercase().ends_with(".exe") => {
-            Some(Command::new(&words[0]))
-        }
+    let mut c = match handoff {
+        Handoff::Program(words) if words[0].to_ascii_lowercase().ends_with(".exe") => Command::new(&words[0]),
         Handoff::Shell(line) => {
             let mut c = Command::new("sh");
             c.arg("-c").arg(line.replace("{url}", ""));
-            Some(c)
+            c
         }
-        Handoff::Program(_) => None,
-    }
+        Handoff::Program(_) => return None,
+    };
+    c.env_remove(COMPAT_LAYER);
+    Some(c)
 }
 
 pub fn running() -> bool {
@@ -571,6 +574,9 @@ mod tests {
         );
         let bare = Handoff::Program(vec!["EALauncher.exe".into()]);
         assert_eq!(bare.argv("u"), ["EALauncher.exe", "u"]);
+        let strips = |c: Command| c.get_envs().any(|(k, v)| k == COMPAT_LAYER && v.is_none());
+        assert!(strips(h.command("u")) && strips(opener(&h).unwrap()));
+        assert!(strips(opener(&Handoff::Shell("open {url}".into())).unwrap()));
     }
 
     #[test]
