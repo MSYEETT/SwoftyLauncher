@@ -3,8 +3,9 @@ name: DXC
 # Builds dxc, dxcompiler and the open-source DXIL validator (dxil) from microsoft/DirectXShaderCompiler at
 # the tag in tools/dxc/version, for the dxc/ folder of a release, which compiles addons' post-process
 # passes. These builds are under the University of Illinois/NCSA licence; Microsoft's own binary
-# releases carry other terms. A dispatch with publish attaches the archives to this repository's
-# dxc-<tag> pre-release, which release.yml downloads.
+# releases carry other terms. tools/dxc/SHA256SUMS pins the archives of one run of this workflow. A
+# dispatch with publish and that run's id attaches those archives to this repository's dxc-<tag>
+# pre-release, which release.yml downloads; the archives must match the pinned hashes.
 
 on:
   workflow_dispatch:
@@ -13,17 +14,23 @@ on:
         description: Attach the archives to the dxc-<tag> pre-release
         type: boolean
         default: false
-  pull_request:
+      run_id:
+        description: The DXC run whose archives tools/dxc/SHA256SUMS pins (publish takes them instead of building)
+        type: string
+        default: ''
+  push:
     paths:
       - .github/workflows/dxc.yml
       - tools/dxc/**
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   build:
     name: ${{ matrix.name }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_id == '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -102,7 +109,7 @@ jobs:
   publish:
     name: Publish dxc-<tag>
     needs: build
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.publish && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -111,13 +118,19 @@ jobs:
         with:
           path: artefacts
           merge-multiple: true
+          run-id: ${{ inputs.run_id || github.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Check the pinned hashes
+        working-directory: artefacts
+        run: sha256sum -c ../tools/dxc/SHA256SUMS
 
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="dxc-$(cat tools/dxc/version)"
-          (cd artefacts && sha256sum dxc-*.tar.gz > SHA256SUMS && cat SHA256SUMS)
+          cp tools/dxc/SHA256SUMS artefacts/SHA256SUMS
           gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --prerelease --latest=false \
             --title "dxc $(cat tools/dxc/version) for post-process passes" \
             --notes "dxc, dxcompiler and dxil built from microsoft/DirectXShaderCompiler $(cat tools/dxc/version) by the DXC workflow, for the dxc/ folder of launcher releases. University of Illinois/NCSA licence (LICENSE.txt inside)."
