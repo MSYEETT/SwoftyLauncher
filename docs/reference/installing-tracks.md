@@ -7,7 +7,7 @@ description: What activating a community track changes in the archives, the game
 
 If you're contributing track support, here's what happens when a track is activated. For playing with tracks, see [Mods and tracks](/using/mods#tracks).
 
-Tracks live as [mods](/reference/mods/tracks) in the Team Simplified library. Its build hook works through enabled track packages in profile order, emitting a `track.add` [operation](/reference/data/operations) for each, with the source `library/<id>/track` in Team Simplified's `addon-data` folder. A data addon can list `track.add` in an `assets` file too ([A track with its own name](/reference/data/track-names)). Both `swofty build` and `swofty apply` activate every `track.add` before the other database ops. You'll find the code in `packages/core/src/activation/`.
+Tracks live as [mods](/reference/mods/tracks) in the Team Simplified library. Its build hook works through enabled track packages in profile order, emitting a `track.add` [operation](/reference/data/operations) for each, with the source `library/<id>/track` in Team Simplified's `addon-data` folder. A data addon can list `track.add` in an `assets` file too ([A track with its own name](/reference/data/track-names)). Both `swofty build` and `swofty apply` activate every `track.add` before the other database ops, and those ops can't remove the records activation adds; see [Removing stock records](/reference/ops/database#removing-stock-records). You'll find the code in `packages/core/src/activation/`.
 
 ## The track archive
 

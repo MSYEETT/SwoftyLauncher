@@ -179,6 +179,7 @@ fn core_db_ops_add_the_swofty_f1_modes_to_the_real_database() {
         fields: &none,
         keys: RowKeys::builtin(),
         stock: Some(&stock),
+        tracks: None,
     };
     let mut report = DbReport::default();
     apply_db_ops_report(&mut db, &ops, &names, &mut report).unwrap();

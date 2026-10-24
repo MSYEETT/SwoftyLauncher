@@ -43,7 +43,9 @@ fn build(file: &str) -> (Gvdb, DbReport) {
     let mut db = stock();
     let keys = db.records.iter().map(|r| r.key).collect();
     let mut report = DbReport::default();
-    planner.apply_db_report(&mut db, &keys, &mut report).unwrap();
+    planner
+        .apply_db_report(&mut db, &keys, &Default::default(), &mut report)
+        .unwrap();
     (db, report)
 }
 

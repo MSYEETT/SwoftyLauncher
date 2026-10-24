@@ -110,6 +110,13 @@ pub fn stock_removals_line(name: &str, n: usize) -> String {
     )
 }
 
+/// The build warning for `n` removals of records the tracks add that addon `name` asked for.
+pub fn track_removals_line(name: &str, n: usize) -> String {
+    format!(
+        "{name}: {n} removal(s) of database records the tracks add skipped; the game crashes when a record it reads is missing"
+    )
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Planned {
     pub runtime: Vec<Op>,
@@ -134,6 +141,7 @@ pub struct Planner<'a> {
     fields: BTreeMap<String, BTreeMap<String, Vec<String>>>,
     skipped: Vec<String>,
     stock_removals: BTreeMap<String, usize>,
+    track_removals: BTreeMap<String, usize>,
     copies: Vec<Copy>,
     lenient: BTreeMap<String, String>,
     touched: BTreeMap<String, Touched>,
@@ -222,6 +230,7 @@ impl<'a> Planner<'a> {
             fields: BTreeMap::new(),
             skipped: Vec::new(),
             stock_removals: BTreeMap::new(),
+            track_removals: BTreeMap::new(),
             copies: Vec::new(),
             lenient: BTreeMap::new(),
             touched: BTreeMap::new(),
@@ -561,15 +570,18 @@ impl<'a> Planner<'a> {
     /// [`Planner::apply_db_report`] with `db` as the stock database.
     pub fn apply_db(&mut self, db: &mut Gvdb) -> Result<Vec<Added>> {
         let stock = db.records.iter().map(|r| r.key).collect();
-        self.apply_db_report(db, &stock, &mut DbReport::default())
+        self.apply_db_report(db, &stock, &HashSet::new(), &mut DbReport::default())
     }
 
     /// Applies every addon's database ops in load order. A `remove-record` of a
-    /// key in `stock` is left out unless the op allows it; see [`Planner::take_stock_removals`].
+    /// key in `stock` is left out unless the op allows it, and one of a key in
+    /// `tracks`, the records track activation added, always; see
+    /// [`Planner::take_stock_removals`] and [`Planner::take_track_removals`].
     pub fn apply_db_report(
         &mut self,
         db: &mut Gvdb,
         stock: &HashSet<u64>,
+        tracks: &HashSet<u64>,
         report: &mut DbReport,
     ) -> Result<Vec<Added>> {
         let fields = std::mem::take(&mut self.fields);
@@ -581,6 +593,7 @@ impl<'a> Planner<'a> {
                 fields: fields.get(&origin.addon).unwrap_or(&none),
                 keys: RowKeys::builtin(),
                 stock: Some(stock),
+                tracks: Some(tracks),
             };
             let mut ours = DbReport::default();
             let replaced = if let Some(name) = self.lenient.get(&origin.addon) {
@@ -605,6 +618,9 @@ impl<'a> Planner<'a> {
             );
             if ours.stock_removals > 0 {
                 *self.stock_removals.entry(origin.addon.clone()).or_default() += ours.stock_removals;
+            }
+            if ours.track_removals > 0 {
+                *self.track_removals.entry(origin.addon.clone()).or_default() += ours.track_removals;
             }
             self.copies.extend(ours.added_rows.into_iter().map(|r| Copy {
                 addon: origin.addon.clone(),
@@ -638,6 +654,11 @@ impl<'a> Planner<'a> {
     /// Per addon id, the removals of stock records the last `apply_db` left out.
     pub fn take_stock_removals(&mut self) -> BTreeMap<String, usize> {
         std::mem::take(&mut self.stock_removals)
+    }
+
+    /// Per addon id, the removals of records the tracks added that the last `apply_db` left out.
+    pub fn take_track_removals(&mut self) -> BTreeMap<String, usize> {
+        std::mem::take(&mut self.track_removals)
     }
 
     /// The `add-row` copies the last `apply_db` made, in load order.

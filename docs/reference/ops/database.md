@@ -48,6 +48,8 @@ A `remove-record` of a key in the game's stock database is skipped. The build wa
 { "op": "remove-record", "key": "tracks.Track_0.PoleOnRight", "allow_stock_removal": true }
 ```
 
+A `remove-record` of a record that a track's activation adds is always skipped, with or without `allow_stock_removal`. The build warns once per addon with the count, such as `My Mod: 12 removal(s) of database records the tracks add skipped; the game crashes when a record it reads is missing`.
+
 The game crashes on any key it reads that is missing; see [Missing keys](/reference/gamedb/reading#missing-keys). A build that removes a stock record writes the database into `gamedatabases.2025.bin` instead of editing it at runtime. **Export game files (.zip)** in the DB Editor skips the same removals and lists them.
 
 `add-row` copies every key of the source row: its fields, its sub-object keys such as `ai_vehicle_config.*` on vehicles, and its nested tables with their `_instancecount_` keys and rows, at any depth. `set` then changes keys of the copy. Every `set` key must be a key the copy has:

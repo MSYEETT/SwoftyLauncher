@@ -71,6 +71,8 @@ pub struct DbReport {
     pub warnings: Vec<String>,
     /// `remove-record` ops left out because their key is a stock record.
     pub stock_removals: usize,
+    /// `remove-record` ops left out because their key is a record a track added.
+    pub track_removals: usize,
     /// Each `add-row` applied, in order.
     pub added_rows: Vec<AddedRow>,
 }
@@ -129,7 +131,8 @@ pub enum DbOp {
         value: String,
     },
     /// Removing a key already absent is a no-op. A stock record stays unless
-    /// `allow_stock_removal` is set; see [`FieldNames::stock`].
+    /// `allow_stock_removal` is set, and a record a track added always stays;
+    /// see [`FieldNames::stock`] and [`FieldNames::track`].
     RemoveRecord {
         key: String,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -356,6 +359,12 @@ pub trait FieldNames {
         let _ = key;
         false
     }
+
+    /// Whether `key` is a record a track's activation added to the database.
+    fn track(&self, key: u64) -> bool {
+        let _ = key;
+        false
+    }
 }
 
 /// Stock record keys and no field names.
@@ -407,6 +416,10 @@ impl FieldNames for Schema<'_> {
 
     fn stock(&self, key: u64) -> bool {
         self.names.stock(key)
+    }
+
+    fn track(&self, key: u64) -> bool {
+        self.names.track(key)
     }
 }
 
@@ -905,6 +918,11 @@ fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames, cx: &mut Cx) -> Result<
             // The game reads every stock key and crashes at the missing-key sentinel.
             if !allow_stock_removal && names.stock(k) {
                 cx.report.stock_removals += 1;
+                return Ok(None);
+            }
+            // A track's new rows count in their tables, and the game reads them like stock rows.
+            if names.track(k) {
+                cx.report.track_removals += 1;
                 return Ok(None);
             }
             db.remove(k);

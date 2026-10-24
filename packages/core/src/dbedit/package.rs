@@ -675,6 +675,7 @@ pub fn export_packages(store: &Store, game: &Game, packages: &[Package], out: &P
         fields: &fields,
         keys: crate::rowkeys::RowKeys::builtin(),
         stock: Some(&keys),
+        tracks: None,
     };
     let mut export = GameExport::default();
     let mut left_out = 0;
