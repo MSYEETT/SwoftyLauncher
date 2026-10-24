@@ -7,7 +7,7 @@ description: The Tools page shows the tools that make or edit Swofty addons as l
 
 **Tools**, in the sidebar, shows the tools that make or edit Swofty addons. Each tool has a large card with a picture, its name, who made it, what it does and a button.
 
-The cards sit in one row. Scroll it sideways with the mouse wheel or a trackpad, or use the arrows at the top right. The row stops with a card lined up at its edge. The dots beside the arrows show which card you're on, and clicking a dot moves to that card.
+The cards sit in one row. Scroll it sideways with the mouse wheel or a trackpad, drag the scrollbar under it, or use the arrows at the top right. The row stops with a card lined up at its edge. The dots beside the arrows show which card you're on, and clicking a dot moves to that card.
 
 | Button | What it does |
 |---|---|

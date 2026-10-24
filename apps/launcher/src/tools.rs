@@ -17,13 +17,15 @@ use serde::Deserialize;
 
 use crate::pages::GUTTER;
 use crate::shell::{Page, Shell};
-use crate::theme::Palette;
+use crate::theme::{Palette, scrollbar_x};
 
 mod art {
     include!(concat!(env!("OUT_DIR"), "/tools_art.rs"));
 }
 
 const GAP: f32 = 24.;
+/// The strip under the cards that holds the scrollbar.
+const BAR: f32 = 18.;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Link {
@@ -485,6 +487,14 @@ impl Shell {
                 div()
                     .relative()
                     .w_full()
+                    .on_mouse_up(
+                        MouseButton::Left,
+                        cx.listener(|this, e: &MouseUpEvent, _, cx| {
+                            if e.position.y > this.tools.scroll.bounds().bottom() - px(BAR) {
+                                this.tools_settle(cx);
+                            }
+                        }),
+                    )
                     .child(
                         h_flex()
                             .id("tools-row")
@@ -496,12 +506,14 @@ impl Shell {
                                 cx.listener(|this, _: &ScrollWheelEvent, _, cx| this.tools_wheel(cx)),
                             )
                             .px(px(GUTTER))
-                            .py(px(4.))
+                            .pt(px(4.))
+                            .pb(px(BAR))
                             .gap(px(GAP))
                             .children(cards),
                     )
                     .when(ahead, |d| d.child(fade(true)))
-                    .when(back, |d| d.child(fade(false))),
+                    .when(back, |d| d.child(fade(false)))
+                    .child(scrollbar_x(&self.tools.scroll)),
             )
             .into_any_element()
     }
