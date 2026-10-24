@@ -2156,34 +2156,6 @@
   },
   {
    "op": "file.put",
-   "source": "suits/cs17-redbull_liam_lawson/liam_lawson.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-redbull_liam_lawson/liam_lawson.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-redbull_liam_lawson/liam_lawson.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-redbull_liam_lawson/liam_lawson.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-redbull_liam_lawson/liam_lawson.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-redbull_liam_lawson/liam_lawson.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "suits/cs17-redbull_max_verstappen/max_verstappen.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-redbull_max_verstappen/max_verstappen.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-redbull_max_verstappen/max_verstappen.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-redbull_max_verstappen/max_verstappen.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-redbull_max_verstappen/max_verstappen.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-redbull_max_verstappen/max_verstappen.assetgroup"
-  },
-  {
-   "op": "file.put",
    "source": "suits/cs17-ferrari/cs17-ferrari.erp",
    "target": "2025_asset_groups/character_package/team_livery/cs17-ferrari/cs17-ferrari.erp"
   },
@@ -2195,34 +2167,6 @@
     "2025_asset_groups/character_package/team_livery/cs17-ferrari/cs17-ferrari.erp"
    ],
    "template": "asset_groups/character_package/team_livery/2025-ferrari/2025-ferrari.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "suits/cs17-ferrari_charles_leclerc/charles_leclerc.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-ferrari_charles_leclerc/charles_leclerc.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-ferrari_charles_leclerc/charles_leclerc.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-ferrari_charles_leclerc/charles_leclerc.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-ferrari_charles_leclerc/charles_leclerc.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-ferrari_charles_leclerc/charles_leclerc.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "suits/cs17-ferrari_lewis_hamilton/lewis_hamilton.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-ferrari_lewis_hamilton/lewis_hamilton.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-ferrari_lewis_hamilton/lewis_hamilton.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-ferrari_lewis_hamilton/lewis_hamilton.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-ferrari_lewis_hamilton/lewis_hamilton.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-ferrari_lewis_hamilton/lewis_hamilton.assetgroup"
   },
   {
    "op": "file.put",
@@ -2240,34 +2184,6 @@
   },
   {
    "op": "file.put",
-   "source": "suits/cs17-williams_alex_albon/alex_albon.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-williams_alex_albon/alex_albon.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-williams_alex_albon/alex_albon.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-williams_alex_albon/alex_albon.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-williams_alex_albon/alex_albon.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-williams_alex_albon/alex_albon.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "suits/cs17-williams_carlos_sainz-jr/carlos_sainz-jr.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-williams_carlos_sainz-jr/carlos_sainz-jr.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-williams_carlos_sainz-jr/carlos_sainz-jr.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-williams_carlos_sainz-jr/carlos_sainz-jr.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-williams_carlos_sainz-jr/carlos_sainz-jr.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-williams_carlos_sainz-jr/carlos_sainz-jr.assetgroup"
-  },
-  {
-   "op": "file.put",
    "source": "suits/cs17-forceindia/cs17-forceindia.erp",
    "target": "2025_asset_groups/character_package/team_livery/cs17-forceindia/cs17-forceindia.erp"
   },
@@ -2279,34 +2195,6 @@
     "2025_asset_groups/character_package/team_livery/cs17-forceindia/cs17-forceindia.erp"
    ],
    "template": "asset_groups/character_package/team_livery/2025-forceindia/2025-forceindia.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "suits/cs17-forceindia_fernando_alonso/fernando_alonso.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-forceindia_fernando_alonso/fernando_alonso.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-forceindia_fernando_alonso/fernando_alonso.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-forceindia_fernando_alonso/fernando_alonso.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-forceindia_fernando_alonso/fernando_alonso.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-forceindia_fernando_alonso/fernando_alonso.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "suits/cs17-forceindia_lance_stroll/lance_stroll.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-forceindia_lance_stroll/lance_stroll.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-forceindia_lance_stroll/lance_stroll.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-forceindia_lance_stroll/lance_stroll.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-forceindia_lance_stroll/lance_stroll.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-forceindia_lance_stroll/lance_stroll.assetgroup"
   },
   {
    "op": "file.put",
@@ -2324,34 +2212,6 @@
   },
   {
    "op": "file.put",
-   "source": "suits/cs17-renault_franco_colapinto/franco_colapinto.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-renault_franco_colapinto/franco_colapinto.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-renault_franco_colapinto/franco_colapinto.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-renault_franco_colapinto/franco_colapinto.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-renault_franco_colapinto/franco_colapinto.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-renault_franco_colapinto/franco_colapinto.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "suits/cs17-renault_jack_doohan/jack_doohan.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-renault_jack_doohan/jack_doohan.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-renault_jack_doohan/jack_doohan.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-renault_jack_doohan/jack_doohan.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-renault_jack_doohan/jack_doohan.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-renault_jack_doohan/jack_doohan.assetgroup"
-  },
-  {
-   "op": "file.put",
    "source": "suits/cs17-tororosso/cs17-tororosso.erp",
    "target": "2025_asset_groups/character_package/team_livery/cs17-tororosso/cs17-tororosso.erp"
   },
@@ -2363,34 +2223,6 @@
     "2025_asset_groups/character_package/team_livery/cs17-tororosso/cs17-tororosso.erp"
    ],
    "template": "asset_groups/character_package/team_livery/2025-tororosso/2025-tororosso.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "suits/cs17-tororosso_isack_hadjar/isack_hadjar.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-tororosso_isack_hadjar/isack_hadjar.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-tororosso_isack_hadjar/isack_hadjar.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-tororosso_isack_hadjar/isack_hadjar.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-tororosso_isack_hadjar/isack_hadjar.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-tororosso_isack_hadjar/isack_hadjar.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "suits/cs17-tororosso_liam_lawson/liam_lawson.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-tororosso_liam_lawson/liam_lawson.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-tororosso_liam_lawson/liam_lawson.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-tororosso_liam_lawson/liam_lawson.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-tororosso_liam_lawson/liam_lawson.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-tororosso_liam_lawson/liam_lawson.assetgroup"
   },
   {
    "op": "file.put",
@@ -2408,34 +2240,6 @@
   },
   {
    "op": "file.put",
-   "source": "suits/cs17-sauber_gabriel_bortoleto/gabriel_bortoleto.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-sauber_gabriel_bortoleto/gabriel_bortoleto.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-sauber_gabriel_bortoleto/gabriel_bortoleto.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-sauber_gabriel_bortoleto/gabriel_bortoleto.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-sauber_gabriel_bortoleto/gabriel_bortoleto.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-sauber_gabriel_bortoleto/gabriel_bortoleto.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "suits/cs17-sauber_nico_hulkenberg/nico_hulkenberg.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-sauber_nico_hulkenberg/nico_hulkenberg.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-sauber_nico_hulkenberg/nico_hulkenberg.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-sauber_nico_hulkenberg/nico_hulkenberg.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-sauber_nico_hulkenberg/nico_hulkenberg.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-sauber_nico_hulkenberg/nico_hulkenberg.assetgroup"
-  },
-  {
-   "op": "file.put",
    "source": "suits/cs17-mclaren/cs17-mclaren.erp",
    "target": "2025_asset_groups/character_package/team_livery/cs17-mclaren/cs17-mclaren.erp"
   },
@@ -2450,34 +2254,6 @@
   },
   {
    "op": "file.put",
-   "source": "suits/cs17-mclaren_lando_norris/lando_norris.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-mclaren_lando_norris/lando_norris.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-mclaren_lando_norris/lando_norris.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-mclaren_lando_norris/lando_norris.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-mclaren_lando_norris/lando_norris.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-mclaren_lando_norris/lando_norris.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "suits/cs17-mclaren_oscar_piastri/oscar_piastri.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-mclaren_oscar_piastri/oscar_piastri.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-mclaren_oscar_piastri/oscar_piastri.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-mclaren_oscar_piastri/oscar_piastri.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-mclaren_oscar_piastri/oscar_piastri.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-mclaren_oscar_piastri/oscar_piastri.assetgroup"
-  },
-  {
-   "op": "file.put",
    "source": "suits/cs17-haas/cs17-haas.erp",
    "target": "2025_asset_groups/character_package/team_livery/cs17-haas/cs17-haas.erp"
   },
@@ -2489,34 +2265,6 @@
     "2025_asset_groups/character_package/team_livery/cs17-haas/cs17-haas.erp"
    ],
    "template": "asset_groups/character_package/team_livery/2025-haas/2025-haas.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "suits/cs17-haas_esteban_ocon/esteban_ocon.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-haas_esteban_ocon/esteban_ocon.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-haas_esteban_ocon/esteban_ocon.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-haas_esteban_ocon/esteban_ocon.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-haas_esteban_ocon/esteban_ocon.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-haas_esteban_ocon/esteban_ocon.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "suits/cs17-haas_oliver_bearman/oliver_bearman.erp",
-   "target": "2025_asset_groups/character_package/drivers/male/cs17-haas_oliver_bearman/oliver_bearman.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/character_package/drivers/male/cs17-haas_oliver_bearman/oliver_bearman.assetgroup",
-   "erps": [
-    "2025_asset_groups/character_package/drivers/male/2025-haas_oliver_bearman/oliver_bearman.erp",
-    "2025_asset_groups/character_package/drivers/male/cs17-haas_oliver_bearman/oliver_bearman.erp"
-   ],
-   "template": "asset_groups/character_package/drivers/male/2025-haas_oliver_bearman/oliver_bearman.assetgroup"
   },
   {
    "op": "file.put",

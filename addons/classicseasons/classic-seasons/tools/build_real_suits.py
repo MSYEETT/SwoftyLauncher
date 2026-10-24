@@ -28,6 +28,7 @@ import hashlib
 import json
 import re
 import shutil
+import struct
 import sys
 from pathlib import Path
 
@@ -47,6 +48,7 @@ from carperf import kind
 OUT = ROOT / "suits"
 SIDECARS = OUT / "sidecars"
 EAID = re.compile(rb"eaid://[\x21-\x7e]+")
+MATERIAL_TEXTURE = 2
 TEAMS = "character_package/team_livery"
 DRIVERS = "character_package/drivers/male"
 
@@ -140,6 +142,19 @@ def relabel(src, base_erp, old, new, mod_root, files, game, report):
     if missing:
         raise SystemExit(f"{new}: names {len(missing)} resource(s) neither archive holds: {sorted(missing)[:4]}")
     return e, shipped
+
+
+def bad_texture_links(e):
+    out = []
+    for r in e.res:
+        if kind(r) != "GfxMaterialRes":
+            continue
+        d = e.frag_data(r, 0)
+        recs = [struct.unpack_from("<9I", d, 0x20 + 36 * i) for i in range(struct.unpack_from("<I", d, 0)[0])]
+        starts = {x[7] for x in recs if x[1] == MATERIAL_TEXTURE}
+        if any(x[1] != MATERIAL_TEXTURE and x[8] and x[8] not in starts for x in recs):
+            out.append(r.name)
+    return out
 
 
 def paths(entry):
@@ -276,6 +291,9 @@ def build(game, mods, f1_23=None, logos="f1-23"):
                 h = digest(e, r)
                 if owners.setdefault(r.name, (h, entry["label"]))[0] != h:
                     raise SystemExit(f"{r.name}: {entry['label']} and {owners[r.name][1]} differ")
+            broken = bad_texture_links(e)
+            if broken:
+                raise SystemExit(f"{entry['label']}: a parameter of {broken[0]} names no texture")
             source = f"suits/{entry['label']}/{Path(p[key + 'target']).name}"
             (ROOT / source).parent.mkdir(parents=True, exist_ok=True)
             e.to_file(str(ROOT / source))

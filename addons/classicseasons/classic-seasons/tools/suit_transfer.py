@@ -433,7 +433,7 @@ def retarget(b, swap):
     n, ncb, vsz, o_sh, o_nm, o_t1, o_t2, o_cb = struct.unpack_from("<8I", b, 0)
     base = 0x20 + 36 * n
     recs = [list(struct.unpack_from("<9I", b, 0x20 + 36 * i)) for i in range(n)]
-    pool, seen, hit = bytearray(), {}, False
+    pool, seen, moved, hit = bytearray(), {}, {}, False
     for r in recs:
         if r[1] != MATERIAL_TEXTURE:
             continue
@@ -444,9 +444,16 @@ def retarget(b, swap):
         if name not in seen:
             seen[name] = len(pool)
             pool += name.encode() + b"\0"
+        moved[r[7]] = seen[name]
         r[7], r[4] = seen[name], len(name) + 1
     if not hit:
         return b
+    for r in recs:
+        if r[1] != MATERIAL_TEXTURE and r[8] in moved:
+            r[8] = moved[r[8]]
+    starts = {r[7] for r in recs if r[1] == MATERIAL_TEXTURE}
+    if any(r[1] != MATERIAL_TEXTURE and r[8] and r[8] not in starts for r in recs):
+        raise SystemExit("a material parameter names a texture offset no texture starts at")
     grow = len(pool) - (o_t2 - o_t1)
     head = struct.pack("<8I", n, ncb, vsz, o_sh, o_nm, o_t1, o_t2 + grow, o_cb + grow)
     return (head + b"".join(struct.pack("<9I", *r) for r in recs) + b[base:base + o_t1] + bytes(pool) +

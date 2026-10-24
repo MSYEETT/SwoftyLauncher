@@ -1141,8 +1141,8 @@
    "set": {
     "_metadata_": "2020-cs_ferrari_sebastian_vettel",
     "helmet": "2025-ferrari_charles_leclerc",
-    "suit": "cs17-ferrari_charles_leclerc",
-    "gloves": "cs17-ferrari_charles_leclerc",
+    "suit": "cs17-ferrari",
+    "gloves": "cs17-ferrari",
     "linked_driver_stat_id": "sebastian_vettel",
     "available": "False",
     "stat_id": "512"
@@ -1471,8 +1471,8 @@
    "set": {
     "_metadata_": "2020-cs_haas_romain_grosjean",
     "helmet": "2025-haas_esteban_ocon",
-    "suit": "cs17-haas_esteban_ocon",
-    "gloves": "cs17-haas_esteban_ocon",
+    "suit": "cs17-haas",
+    "gloves": "cs17-haas",
     "linked_driver_stat_id": "romain_grosjean",
     "available": "False",
     "stat_id": "518"
@@ -1496,8 +1496,8 @@
    "set": {
     "_metadata_": "2020-cs_haas_kevin_magnussen",
     "helmet": "2024-haas_kevin_magnussen",
-    "suit": "cs17-haas_oliver_bearman",
-    "gloves": "cs17-haas_oliver_bearman",
+    "suit": "cs17-haas",
+    "gloves": "cs17-haas",
     "linked_driver_stat_id": "kevin_magnussen",
     "available": "False",
     "stat_id": "519"
