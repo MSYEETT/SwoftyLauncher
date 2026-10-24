@@ -3,6 +3,8 @@
 mod existing;
 mod running;
 mod shortcut;
+#[cfg(windows)]
+mod win32;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
