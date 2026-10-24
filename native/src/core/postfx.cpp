@@ -86,7 +86,7 @@ template <size_t N> class PtrSet {
     static_assert((N & (N - 1)) == 0, "a power of two");
     std::atomic<uintptr_t> key[N] = {};
     std::atomic<uint8_t> on[N] = {};
-    size_t used = 0;
+    size_t used = 0, live = 0;
 
     static size_t hash(uintptr_t k) { return size_t((k * 0x9E3779B97F4A7C15ull) >> 40) & (N - 1); }
 
@@ -122,11 +122,14 @@ public:
     }
     bool contains(const void *p) const { return get(p) != 0; }
     bool half_full() const { return used * 2 >= N; }
+    bool reclaimable() const { return live * 4 < N; }
     bool set(const void *p, uint8_t bits)
     {
         size_t i = find(uintptr_t(p), bits != 0);
         if (i == N)
             return bits == 0;
+        uint8_t was = on[i].load(std::memory_order_relaxed);
+        live += (!was && bits) - (was && !bits);
         on[i].store(bits, std::memory_order_release);
         return true;
     }
@@ -144,35 +147,69 @@ public:
 
 enum : uint8_t { W_TONEMAP = 1, W_BACK = 2, W_HUDLESS = 4, W_UI = 8, W_DEPTH = 16 };
 
-using Watched = PtrSet<1024>;
-std::atomic<Watched *> watched{new Watched};
-std::vector<std::pair<Watched *, ULONGLONG>> retired_tables;
+// The few resources the passes key on and the game's many UI images live in separate tables, so UI
+// churn can never push the tonemap or the back buffers out. A table is rebuilt only when most of its
+// keys are dead; a table full of live keys keeps what it has and says once that it dropped some.
+template <size_t N> class Table {
+    std::atomic<PtrSet<N> *> cur{new PtrSet<N>};
+    std::vector<std::pair<PtrSet<N> *, ULONGLONG>> retired;
+    const char *what;
+    bool told = false;
+
+    void dropped(size_t n)
+    {
+        if (n && !told) {
+            told = true;
+            swofty::log("[postfx] the %s table is full; %zu resource(s) are no longer watched", what, n);
+        }
+    }
+
+public:
+    explicit Table(const char *name) : what(name) {}
+
+    uint8_t get(const void *p) const { return cur.load(std::memory_order_acquire)->get(p); }
+
+    void put(const void *p, uint8_t bits)
+    {
+        PtrSet<N> *w = cur.load(std::memory_order_relaxed);
+        if (!bits || !w->half_full() || !w->reclaimable()) {
+            if (!w->set(p, bits))
+                dropped(1);
+            return;
+        }
+        auto *fresh = new PtrSet<N>;
+        size_t lost = 0;
+        w->each([&](const void *k, uint8_t b) {
+            if (k != p && !fresh->set(k, b))
+                lost++;
+        });
+        if (!fresh->set(p, bits))
+            lost++;
+        dropped(lost);
+        cur.store(fresh, std::memory_order_release);
+        ULONGLONG now = GetTickCount64();
+        std::erase_if(retired, [&](const std::pair<PtrSet<N> *, ULONGLONG> &r) {
+            if (now - r.second < 5000)
+                return false;
+            delete r.first;
+            return true;
+        });
+        retired.emplace_back(w, now);
+    }
+};
+
+Table<256> key_watched("key resource");
+Table<8192> ui_watched("UI");
 
 uint8_t watched_bits(const void *p)
 {
-    return watched.load(std::memory_order_acquire)->get(p);
+    return key_watched.get(p) | ui_watched.get(p);
 }
 
 void watch(const void *p, uint8_t bits)
 {
-    Watched *w = watched.load(std::memory_order_relaxed);
-    if ((!bits || !w->half_full()) && w->set(p, bits))
-        return;
-    auto *fresh = new Watched;
-    w->each([&](const void *k, uint8_t b) {
-        if (k != p)
-            fresh->set(k, b);
-    });
-    fresh->set(p, bits);
-    watched.store(fresh, std::memory_order_release);
-    ULONGLONG now = GetTickCount64();
-    std::erase_if(retired_tables, [&](const std::pair<Watched *, ULONGLONG> &r) {
-        if (now - r.second < 5000)
-            return false;
-        delete r.first;
-        return true;
-    });
-    retired_tables.emplace_back(w, now);
+    key_watched.put(p, uint8_t(bits & ~W_UI));
+    ui_watched.put(p, uint8_t(bits & W_UI));
 }
 std::recursive_mutex lock;
 std::vector<Pass> passes;
