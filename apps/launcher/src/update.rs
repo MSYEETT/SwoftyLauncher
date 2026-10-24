@@ -128,7 +128,7 @@ fn log_change(part: Part, before: &Option<String>, after: &Option<String>) {
     }
 }
 
-fn sentence(text: &str) -> String {
+pub(crate) fn sentence(text: &str) -> String {
     let mut chars = text.chars();
     match chars.next() {
         Some(c) => c.to_uppercase().chain(chars).collect(),

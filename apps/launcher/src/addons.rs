@@ -668,10 +668,11 @@ impl Shell {
                                 || path.display().to_string(),
                                 |n| n.to_string_lossy().into_owned(),
                             );
-                            store
-                                .install_addons(path)
-                                .into_iter()
-                                .map(move |r| r.map_err(|e| format!("{name}: {e}")))
+                            let store = &store;
+                            store.install_addons(path).into_iter().map(move |r| match r {
+                                Ok(m) => Ok((swofty_core::tracks::left_out_lines(store, &m), m)),
+                                Err(e) => Err(format!("{name}: {e}")),
+                            })
                         })
                         .collect::<Vec<_>>()
                 })
@@ -680,9 +681,15 @@ impl Shell {
                 let mut last = None;
                 for r in results {
                     match r {
-                        Ok(m) => {
+                        Ok((left_out, m)) => {
                             let text = format!("Installed {} {}", m.name, m.version);
                             window.push_notification(Notification::success(text), cx);
+                            if !left_out.is_empty() {
+                                let note = Notification::warning(left_out.join("\n"))
+                                    .title("Track can't be used")
+                                    .autohide(false);
+                                window.push_notification(note, cx);
+                            }
                             last = Some(m.id);
                         }
                         Err(e) => window.push_notification(Notification::error(e), cx),
@@ -1633,6 +1640,14 @@ impl Shell {
                                 }),
                         )
                     })
+                    .when(!m.left_out.is_empty(), |d| {
+                        let why = m.left_out.join("\n");
+                        d.child(
+                            pill(IconName::TriangleAlert, "Track left out", p.warning)
+                                .id(SharedString::from(format!("left-out-{id}")))
+                                .tooltip(move |window, cx| Tooltip::new(why.clone()).build(window, cx)),
+                        )
+                    })
                     .when(kept > 0, |d| {
                         d.child(
                             pill(
@@ -1935,7 +1950,21 @@ impl Shell {
                         .text_color(p.warning)
                         .child(format!("Could not read {}", changes.unreadable.join(", "))),
                 )
-            });
+            })
+            .children(m.left_out.iter().map(|why| {
+                h_flex()
+                    .gap(px(6.))
+                    .items_start()
+                    .text_size(px(13.))
+                    .text_color(p.text_muted)
+                    .child(
+                        Icon::new(IconName::TriangleAlert)
+                            .size(px(14.))
+                            .mt(px(2.))
+                            .text_color(p.warning),
+                    )
+                    .child(div().flex_1().min_w_0().child(why.clone()))
+            }));
         let mut actions: Vec<AnyElement> = Vec::new();
         if m.source == Source::DbEditor {
             let id = id.to_owned();

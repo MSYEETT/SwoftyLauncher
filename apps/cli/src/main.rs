@@ -527,6 +527,9 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
             for result in store.install_addons(&path) {
                 let m = result.with_context(|| format!("installing {}", path.display()))?;
                 println!("installed {} {}", m.id, m.version);
+                for line in swofty_core::tracks::left_out_lines(store, &m) {
+                    println!("warning: {line}");
+                }
             }
         }
         AddonsCommand::Enable { id }

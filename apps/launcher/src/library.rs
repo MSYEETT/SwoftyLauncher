@@ -22,6 +22,8 @@ pub struct AddonItem {
     /// Built from the DB Editor (see [`swofty_core::dbedit::package::is_package`]).
     pub package: bool,
     pub source: Source,
+    /// Why builds leave out each track package it adds that can't be used.
+    pub left_out: Vec<String>,
 }
 
 impl AddonItem {
@@ -266,6 +268,13 @@ impl Library {
                         && swofty_core::tracks::is_track_addon(&store.addons_dir().join(&m.id), m),
                     package,
                     source: Source::of(store, m, package),
+                    left_out: match m.is_builtin() {
+                        true => Vec::new(),
+                        false => swofty_core::tracks::unusable(store, &m.id, m)
+                            .iter()
+                            .map(|u| format!("{}.", crate::update::sentence(&u.text())))
+                            .collect(),
+                    },
                     manifest: m.clone(),
                 }
             })
@@ -367,6 +376,7 @@ mod tests {
             track,
             package: false,
             source: Source::Installed,
+            left_out: Vec::new(),
         }
     }
 
