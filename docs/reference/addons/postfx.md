@@ -15,7 +15,7 @@ Start from [`templates/postfx-pass`](https://github.com/Swofty-Developments/Swof
 | Feature | `postfx`: experimental, on while an addon lists it in `experimental_features` |
 | Launcher | Not in a release yet; an earlier launcher rejects the manifest |
 | Build | dxc from `SWOFTY_DXC`, the launcher's `dxc/` folder, or `PATH` |
-| Picture | The game's encoded picture: sRGB in SDR, PQ or scRGB in HDR |
+| Picture | The game's encoded picture: sRGB in SDR (R8G8B8A8), PQ in HDR (R10G10B10A2) |
 
 ## The manifest
 
@@ -119,6 +119,7 @@ The compiled passes are installed as `swofty/postfx/00.dxil` onwards, and `swoft
 
 - `swofty/loader.log` shows `[postfx] 1 pass(es) wait for the game's tonemap`, `[postfx] My Vignette's pass vignette is ready`, then `[postfx] the picture now goes through 1 pass(es) before the HUD` once the race renders.
 - Every 10 s for the first minute, the log counts the frames the passes ran on and the frames they skipped: `[postfx] last 10 s: passes ran on 598 frame(s); 0 tonemap list(s) also drew UI and 0 left no back buffer to draw on, so passes skipped them`. Loading screens draw their UI in the same list as the tonemap, so passes skip them.
+- With HDR on, the back buffer is R10G10B10A2 and holds PQ: `[postfx] passes run on the game's 1908x1028 picture (format 24)`, and `swofty_encoding` is `SWOFTY_POSTFX_HDR10`. A pass that works in `to_linear`/`from_linear` looks the same in SDR and HDR.
 - With Frame Generation, the game keeps a HUD-less copy of the picture, `eaid://ego_package/hudless_backbuffer.image`; the passes' result goes into it too: `[postfx] the game's HUD-less copy of the picture gets the passes too, for Frame Generation`.
 - A pass whose pipeline cannot be made is turned off: `[postfx] My Vignette's pass vignette is off: its pipeline could not be made`.
 - The core measures each pass's GPU time. A pass whose average over 120 frames stays above `budget_ms` three times in a row is turned off: `[postfx] My Vignette's pass vignette is off: it took 2.410 ms of GPU time a frame, over its 1.50 ms budget`.
