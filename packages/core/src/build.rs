@@ -574,7 +574,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             m.id, pass.shader, pass.order
         ));
         match crate::postfx::compile(&source, &store.addon_cache_dir(&m.id).join("postfx")) {
-            Ok(dxil) => {
+            Ok(crate::postfx::Compiled { dxil, .. }) => {
                 hasher.update(&dxil);
                 built.lines.push(format!(
                     "postfx: {}'s pass {label} runs as pass {} after the tonemap ({} bytes of DXIL)",
