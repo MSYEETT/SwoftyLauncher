@@ -3,6 +3,18 @@ use std::collections::HashSet;
 use crate::{Error, Result};
 
 pub const MAGIC: &[u8; 5] = b"\x01BXML";
+pub const STATS_MAGIC: &[u8; 4] = b"TSMD";
+pub const STATS_LEN: usize = 120;
+
+// The game sizes its string pools for a bxml fragment from the TSMD stats beside it,
+// so data with more strings than its stats count overruns them.
+pub fn stale_stats(data: &[u8], stats: &[u8]) -> bool {
+    if !data.starts_with(MAGIC) || stats.len() != STATS_LEN || !stats.starts_with(STATS_MAGIC) {
+        return false;
+    }
+    let version = u32::from_le_bytes(stats[4..8].try_into().expect("4 bytes"));
+    Document::parse(data).map_or(true, |d| d.string_stats(version) != stats)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
@@ -299,6 +311,20 @@ mod tests {
         let stats = doc.string_stats(1);
         assert_eq!(stats.len(), 4 + 4 + 28 * 4);
         assert_eq!(u32::from_le_bytes(stats[8..12].try_into().unwrap()), 2);
+    }
+
+    #[test]
+    fn stats_go_stale_when_the_data_changes() {
+        let bytes = sample();
+        let stats = Document::parse(&bytes).unwrap().string_stats(1);
+        assert_eq!(stats.len(), STATS_LEN);
+        assert!(!stale_stats(&bytes, &stats));
+        let mut doc = Document::parse(&bytes).unwrap();
+        doc.root.children[0].set_attr(b"value", b"bahrain_longer_name");
+        assert!(stale_stats(&doc.to_bytes(), &stats));
+        assert!(stale_stats(&bytes[..bytes.len() / 2], &stats));
+        assert!(!stale_stats(b"!pkg", &stats));
+        assert!(!stale_stats(&bytes, &stats[..100]));
     }
 
     #[test]

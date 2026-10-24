@@ -98,6 +98,19 @@ impl Resource {
         Ok(res)
     }
 
+    pub fn has_stats(&self) -> bool {
+        matches!(&self.fragments[..], [_, s, ..] if s.size == crate::bxml::STATS_LEN as u64)
+    }
+
+    pub fn stale_stats(&self) -> Result<bool> {
+        match &self.fragments[..] {
+            [data, stats, ..] if self.has_stats() => {
+                Ok(crate::bxml::stale_stats(&data.data()?, &stats.data()?))
+            }
+            _ => Ok(false),
+        }
+    }
+
     pub fn set_fragment(&mut self, index: usize, data: &[u8]) -> Result<()> {
         let f = self
             .fragments
@@ -542,6 +555,35 @@ mod tests {
         let res = &back.resources[0];
         assert_eq!(res.fragments[0].data().unwrap(), b"changed");
         assert_eq!(res.content_hash().unwrap(), hash);
+    }
+
+    #[test]
+    fn stale_stats_compares_a_bxml_fragment_with_its_tsmd() {
+        use crate::bxml::{Document, Element, Kind};
+        let doc = |v: &[u8]| Document {
+            root: Element {
+                kind: Kind::Element,
+                pad: 0,
+                name: b"track".to_vec(),
+                attrs: vec![(b"name".to_vec(), v.to_vec())],
+                children: Vec::new(),
+                end_pad: 0,
+            },
+            tail: Vec::new(),
+        };
+        let stock = doc(b"default");
+        let t = &sample().resources[0];
+        let spline = |data: &Document| {
+            Resource::like(
+                "eaid://environment_package/tracks/x/ai/x_ai_track.aispline",
+                t,
+                &[data.to_bytes(), stock.string_stats(1)],
+            )
+            .unwrap()
+        };
+        assert!(spline(&stock).has_stats() && !spline(&stock).stale_stats().unwrap());
+        assert!(spline(&doc(b"a longer name")).stale_stats().unwrap());
+        assert!(!sample().resources[0].has_stats() && !sample().resources[0].stale_stats().unwrap());
     }
 
     #[test]
