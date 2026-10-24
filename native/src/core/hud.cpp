@@ -44,7 +44,8 @@ Caller caller(const void *from)
 
 bool gate_on()
 {
-    return runtime::enabled("overlay", nullptr);
+    static const bool on = runtime::enabled("overlay", nullptr);
+    return on;
 }
 
 std::mutex reg_lock;
@@ -1047,6 +1048,7 @@ hud::input::Focus in_focus, frame_focus;
 std::atomic<bool> focus_held;
 std::atomic<WNDPROC> game_proc;
 std::atomic<HWND> game_wnd;
+std::atomic<uint32_t> client_size;
 std::atomic<unsigned> blocked_msgs, blocked_raw;
 hud::input::Utf16 utf16;
 std::atomic<ULONGLONG> input_read_ms;
@@ -1144,6 +1146,10 @@ LRESULT CALLBACK input_proc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
     case WM_SYSKEYDOWN:
         e = {Ev::key_down, uint32_t(wp) & 0xff, 0, 0};
         break;
+    case WM_SIZE:
+        client_size.store(uint32_t(lp), std::memory_order_relaxed);
+        record = false;
+        break;
     case WM_INPUT:
         record = false;
         if (held) {
@@ -1174,6 +1180,9 @@ void hook_window(HWND wnd)
     if (!prev)
         return;
     game_proc.store(prev);
+    RECT rc{};
+    if (GetClientRect(wnd, &rc))
+        client_size.store(uint32_t(rc.right & 0xffff) | uint32_t(rc.bottom & 0xffff) << 16);
     game_wnd.store(wnd);
     SetWindowLongPtrW(wnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&input_proc));
     swofty::log("[overlay] input: window %p subclassed (procedure %p); addons can read the mouse and keyboard and "
@@ -1183,12 +1192,11 @@ void hook_window(HWND wnd)
 
 void input_frame(const std::vector<hud::Paintsub> &subs, float fb_w, float fb_h, ULONGLONG now)
 {
-    HWND wnd = game_wnd.load();
-    RECT rc{};
-    float sx = 1, sy = 1;
-    if (wnd && GetClientRect(wnd, &rc) && rc.right > 0 && rc.bottom > 0) {
-        sx = fb_w / float(rc.right);
-        sy = fb_h / float(rc.bottom);
+    uint32_t cs = client_size.load(std::memory_order_relaxed);
+    float sx = 1, sy = 1, cw = float(cs & 0xffff), ch = float(cs >> 16);
+    if (cw > 0 && ch > 0) {
+        sx = fb_w / cw;
+        sy = fb_h / ch;
     }
     std::string expired;
     bool pads_wanted = now - input_read_ms.load(std::memory_order_relaxed) < 2000 && !killed("pad");
@@ -1556,7 +1564,7 @@ int ov_load_image(const char *id, const char *file)
     int slot;
     {
         std::lock_guard<std::mutex> g(reg_lock);
-        slot = reg.set_image(c.id + "\n" + id, w, h, std::move(px.rgba));
+        slot = reg.set_image(owner_of(c) + "\n" + id, w, h, std::move(px.rgba));
     }
     if (slot + 1 >= int(TEX_MAX)) {
         swofty::log("[overlay] api: %s load_image %s -> invalid: the overlay holds at most %u images", who, id,
@@ -1567,19 +1575,25 @@ int ov_load_image(const char *id, const char *file)
     return SWOFTY_ASSET_OK;
 }
 
+hud::Frame *frame_of(SwoftyPaint *paint)
+{
+    return reinterpret_cast<hud::Frame *>(paint);
+}
+
 struct Found {
     int slot = -1;
     float w = 0, h = 0;
 };
 
-Found find_image(const void *from, const char *id)
+Found find_image(const std::string &owner, const char *id)
 {
     Found f;
     if (!id || !*id)
         return f;
-    Caller c = caller(from);
+    static thread_local std::string key;
+    key.assign(owner).append(1, '\n').append(id);
     std::lock_guard<std::mutex> g(reg_lock);
-    f.slot = reg.find_image(c.id + "\n" + id);
+    f.slot = reg.find_image(key);
     if (const hud::Image *im = reg.image(f.slot)) {
         f.w = float(im->width);
         f.h = float(im->height);
@@ -1591,17 +1605,12 @@ int ov_image(SwoftyPaint *paint, const char *id, float x, float y, float w, floa
 {
     if (!implemented || !gate_on())
         return SWOFTY_ASSET_UNAVAILABLE;
-    Found f = find_image(__builtin_return_address(0), id);
+    Found f = find_image(paint ? frame_of(paint)->owner : owner_of(caller(__builtin_return_address(0))), id);
     if (f.slot < 0)
         return SWOFTY_ASSET_INVALID;
     if (paint)
-        hud::image(*reinterpret_cast<hud::Frame *>(paint), f.slot, x, y, w, h, tint);
+        hud::image(*frame_of(paint), f.slot, x, y, w, h, tint);
     return SWOFTY_ASSET_OK;
-}
-
-hud::Frame *frame_of(SwoftyPaint *paint)
-{
-    return reinterpret_cast<hud::Frame *>(paint);
 }
 
 void ov_rect_rounded(SwoftyPaint *paint, float x, float y, float w, float h, float radius, uint32_t rgba)
@@ -1701,7 +1710,7 @@ int ov_image_uv(SwoftyPaint *paint, const char *id, float x, float y, float w, f
 {
     if (!implemented || !gate_on())
         return SWOFTY_ASSET_UNAVAILABLE;
-    Found f = find_image(__builtin_return_address(0), id);
+    Found f = find_image(paint ? frame_of(paint)->owner : owner_of(caller(__builtin_return_address(0))), id);
     if (f.slot < 0)
         return SWOFTY_ASSET_INVALID;
     if (paint)
@@ -1714,7 +1723,7 @@ int ov_image_nine(SwoftyPaint *paint, const char *id, float x, float y, float w,
 {
     if (!implemented || !gate_on())
         return SWOFTY_ASSET_UNAVAILABLE;
-    Found f = find_image(__builtin_return_address(0), id);
+    Found f = find_image(paint ? frame_of(paint)->owner : owner_of(caller(__builtin_return_address(0))), id);
     if (f.slot < 0)
         return SWOFTY_ASSET_INVALID;
     if (paint)
@@ -1726,7 +1735,7 @@ int ov_image_size(const char *id, float *width, float *height)
 {
     if (!implemented || !gate_on())
         return SWOFTY_ASSET_UNAVAILABLE;
-    Found f = find_image(__builtin_return_address(0), id);
+    Found f = find_image(owner_of(caller(__builtin_return_address(0))), id);
     if (width)
         *width = f.w;
     if (height)
