@@ -1,5 +1,6 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod running;
 mod shortcut;
 
 use std::path::{Path, PathBuf};
@@ -12,6 +13,7 @@ use swofty_core::launcher::Progress;
 use swofty_core::update::{self, Install};
 
 const FOLDER_NAME: &str = "SwoftyLauncher";
+const FINDING: &str = "Finding the latest release";
 
 const BACKGROUND: Color32 = Color32::from_rgb(0x18, 0x1b, 0x22);
 const SURFACE: Color32 = Color32::from_rgb(0x1f, 0x23, 0x2d);
@@ -25,6 +27,7 @@ const ERROR: Color32 = Color32::from_rgb(0xf0, 0x6d, 0x78);
 
 enum Stage {
     Ready,
+    Open(PathBuf, String),
     Working { done: f32, text: String },
     Failed(String),
     Launched,
@@ -97,14 +100,30 @@ impl Installer {
             }
         };
         self.folder = root.display().to_string();
+        if let Some(why) = running::game_block() {
+            *self.stage.lock().unwrap() = Stage::Failed(why.into());
+            return;
+        }
+        let open = running::from(&root);
+        if !open.is_empty() {
+            *self.stage.lock().unwrap() = Stage::Open(root, running::describe(&open));
+            return;
+        }
+        self.run(root, false, ctx);
+    }
+
+    fn run(&mut self, root: PathBuf, close: bool, ctx: &egui::Context) {
         let reporter = Reporter {
             stage: self.stage.clone(),
             ctx: ctx.clone(),
         };
-        reporter.report(0.0, "Finding the latest release");
+        reporter.report(0.0, if close { running::CLOSING } else { FINDING });
         let desktop = self.desktop;
         std::thread::spawn(move || {
-            let stage = match install(&root, desktop, &reporter).and_then(|exe| launch(&exe)) {
+            let stage = match running::clear(&root, close, &reporter)
+                .and_then(|()| install(&root, desktop, &reporter))
+                .and_then(|exe| launch(&exe))
+            {
                 Ok(()) => Stage::Launched,
                 Err(e) => Stage::Failed(e),
             };
@@ -116,13 +135,14 @@ impl Installer {
 impl eframe::App for Installer {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
-        let (working, progress, error) = match &*self.stage.lock().unwrap() {
-            Stage::Ready => (false, None, None),
-            Stage::Working { done, text } => (true, Some((*done, text.clone())), None),
-            Stage::Failed(e) => (false, None, Some(e.clone())),
+        let (working, progress, error, open) = match &*self.stage.lock().unwrap() {
+            Stage::Ready => (false, None, None, None),
+            Stage::Open(root, why) => (true, None, None, Some((root.clone(), why.clone()))),
+            Stage::Working { done, text } => (true, Some((*done, text.clone())), None, None),
+            Stage::Failed(e) => (false, None, Some(e.clone()), None),
             Stage::Launched => {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                (true, None, None)
+                (true, None, None, None)
             }
         };
         egui::CentralPanel::default_margins()
@@ -147,11 +167,35 @@ impl eframe::App for Installer {
                             self.browse();
                         }
                     });
+                    ui.add_space(4.0);
+                    ui.label(RichText::new(running::placement(&self.folder)).color(MUTED));
                     ui.add_space(6.0);
                     ui.checkbox(&mut self.desktop, "Add a desktop shortcut");
                 });
                 ui.add_space(18.0);
-                if let Some((done, text)) = progress {
+                if let Some((root, why)) = open {
+                    ui.label(RichText::new(why).color(TEXT));
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        let cancel = 84.0;
+                        let width = ui.available_width() - cancel - ui.spacing().item_spacing.x;
+                        let close = egui::Button::new(
+                            RichText::new("Close Swofty Launcher and continue")
+                                .size(15.0)
+                                .color(ON_ACCENT),
+                        )
+                        .fill(ACCENT);
+                        if ui.add_sized([width, 34.0], close).clicked() {
+                            self.run(root, true, &ctx);
+                        }
+                        if ui
+                            .add_sized([cancel, 34.0], egui::Button::new("Cancel"))
+                            .clicked()
+                        {
+                            *self.stage.lock().unwrap() = Stage::Ready;
+                        }
+                    });
+                } else if let Some((done, text)) = progress {
                     ui.add(
                         egui::ProgressBar::new(done)
                             .desired_height(30.0)
@@ -266,7 +310,7 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_title("Swofty Launcher Installer")
             .with_app_id("net.swofty.ModLauncher.Installer")
-            .with_inner_size([540.0, 290.0])
+            .with_inner_size([540.0, 340.0])
             .with_resizable(false)
             .with_icon(icon),
         centered: true,
