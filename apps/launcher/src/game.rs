@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use swofty_core::app_control::Block;
 use swofty_core::copies::{self, Found, GameCopy};
 use swofty_core::crash::{LogScan, StartFailure, Symbols, fatal_name};
 use swofty_core::install::{Game, Source};
@@ -228,7 +229,7 @@ impl Launch {
             .map_err(|e| format!("{}: {e}", log.display()))?;
         let err = out.try_clone().map_err(|e| e.to_string())?;
         std::fs::remove_file(store.root.join(steam_client::STAGE_FILE)).ok();
-        let mut c = Command::new(cli);
+        let mut c = Command::new(&cli);
         c.arg("--data-dir")
             .arg(&store.root)
             .arg("--profile")
@@ -246,7 +247,7 @@ impl Launch {
             .stdout(out)
             .stderr(err)
             .spawn()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| not_started(store, &log, &cli, &e))?;
         Ok(Self {
             child,
             since: Instant::now(),
@@ -265,6 +266,21 @@ impl Launch {
         failure_line(&std::fs::read_to_string(&self.log).unwrap_or_default())
             .unwrap_or_else(|| "the launch exited before the game started".into())
     }
+}
+
+/// A CLI that would not start: the error goes in the launch log. One Windows
+/// refused is also recorded for Send Logs, and says what blocked it.
+fn not_started(store: &Store, log: &Path, cli: &Path, e: &std::io::Error) -> String {
+    let block = Block::of(cli, e);
+    let mut lines = format!("swofty-launcher: could not start {}: {e}\n", cli.display());
+    if let Some(b) = &block {
+        lines.push_str(&format!("swofty-launcher: {}\n", b.headline()));
+        launch::Failure::new(launch::Cause::Blocked(b.clone()))
+            .write(&store.root)
+            .ok();
+    }
+    std::fs::write(log, lines).ok();
+    block.map_or_else(|| e.to_string(), |b| b.text())
 }
 
 /// The wrapper's last error, from its `swofty: ` line, or else the last line it
@@ -344,7 +360,49 @@ pub fn duration(secs: u64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::failure_line;
+    use std::path::Path;
+
+    use swofty_core::app_control::Block;
+    use swofty_core::launch;
+    use swofty_core::store::Store;
+
+    use super::{failure_line, not_started};
+
+    #[test]
+    fn a_cli_that_does_not_start_says_so_in_the_launch_log() {
+        let root = std::env::temp_dir().join(format!("swofty-launcher-not-started-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("state")).unwrap();
+        let store = Store::new(&root);
+        let log = root.join("state/launcher-run.log");
+        let cli = Path::new(r"C:\Swofty\bin\swofty.exe");
+        let missing = std::io::Error::from_raw_os_error(2);
+        assert_eq!(not_started(&store, &log, cli, &missing), missing.to_string());
+        let written = std::fs::read_to_string(&log).unwrap();
+        assert_eq!(
+            written,
+            format!("swofty-launcher: could not start {}: {missing}\n", cli.display())
+        );
+        assert_eq!(launch::Failure::read(&root), None);
+        let blocked = std::io::Error::from_raw_os_error(4551);
+        let text = not_started(&store, &log, cli, &blocked);
+        let written = std::fs::read_to_string(&log).unwrap();
+        match Block::of(cli, &blocked) {
+            Some(b) => {
+                assert_eq!(text, b.text());
+                assert!(
+                    written.ends_with(&format!("swofty-launcher: {}\n", b.headline())),
+                    "{written}"
+                );
+                assert_eq!(
+                    launch::Failure::read(&root).map(|f| f.cause),
+                    Some(launch::Cause::Blocked(b))
+                );
+            }
+            None => assert_eq!(text, blocked.to_string()),
+        }
+        assert!(written.contains("could not start"), "{written}");
+        std::fs::remove_dir_all(&root).ok();
+    }
 
     #[test]
     fn a_failed_launch_shows_the_first_line_of_the_wrappers_error() {

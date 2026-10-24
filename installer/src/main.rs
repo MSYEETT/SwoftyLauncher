@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Stroke};
+use swofty_core::app_control::Block;
 use swofty_core::launcher::Progress;
 use swofty_core::update::{self, Install};
 
@@ -295,11 +296,12 @@ fn launch(exe: &Path) -> Result<(), String> {
         .stderr(Stdio::null())
         .spawn()
         .map(drop)
-        .map_err(|e| {
-            format!(
+        .map_err(|e| match Block::of(exe, &e) {
+            Some(b) => format!("Installed, but the launcher would not start. {}", b.text()),
+            None => format!(
                 "Installed, but the launcher would not start ({}): {e}",
                 exe.display()
-            )
+            ),
         })
 }
 

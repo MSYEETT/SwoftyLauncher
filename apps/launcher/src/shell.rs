@@ -672,7 +672,15 @@ impl Shell {
             self.launch_mode(),
         ) {
             Ok(l) => self.launch = Some(l),
-            Err(e) => window.push_notification(Notification::error(e).title("Could not launch F1 25"), cx),
+            Err(e) => {
+                self.launch_failed_seen = game::now_secs();
+                window.push_notification(
+                    Notification::error(e)
+                        .title("Could not launch F1 25")
+                        .autohide(false),
+                    cx,
+                );
+            }
         }
         cx.notify();
     }

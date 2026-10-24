@@ -14,6 +14,7 @@ use gpui_kit::component::{Disableable, Icon, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use serde::Deserialize;
+use swofty_core::app_control::Block;
 
 use crate::pages::GUTTER;
 use crate::shell::{Page, Shell};
@@ -210,7 +211,11 @@ impl Shell {
                                 cx,
                             ),
                             Err(e) => window.push_notification(
-                                Notification::error(e.to_string()).title(format!("Could not start {name}")),
+                                match Block::of(&path, &e) {
+                                    Some(b) => Notification::error(b.text()).autohide(false),
+                                    None => Notification::error(e.to_string()),
+                                }
+                                .title(format!("Could not start {name}")),
                                 cx,
                             ),
                         }
