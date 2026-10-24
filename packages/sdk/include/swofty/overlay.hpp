@@ -60,6 +60,14 @@ inline const SwoftyOverlay *table3()
     return t && core_version() >= 3 ? t : nullptr;
 }
 
+// A NUL-terminated copy of s in a per-thread buffer reused across calls; slot picks one of two buffers
+// for calls that pass two strings.
+inline const char *cstr(std::string_view s, int slot = 0)
+{
+    static thread_local std::string buf[2];
+    return buf[slot & 1].assign(s).c_str();
+}
+
 inline Result result(int r)
 {
     return r == SWOFTY_ASSET_OK ? Result::ok
@@ -140,14 +148,14 @@ inline void line(Paint *paint, float x0, float y0, float x1, float y1, float thi
 inline void text(Paint *paint, float x, float y, float font_size, uint32_t rgba, std::string_view utf8)
 {
     if (auto t = detail::table())
-        t->text(paint, x, y, font_size, rgba, std::string(utf8).c_str());
+        t->text(paint, x, y, font_size, rgba, detail::cstr(utf8));
 }
 
 // Bounds the text would occupy at the given pixel size.
 inline void measure(const Paint *paint, float font_size, std::string_view utf8, float *width, float *height)
 {
     if (auto t = detail::table())
-        t->measure(paint, font_size, std::string(utf8).c_str(), width, height);
+        t->measure(paint, font_size, detail::cstr(utf8), width, height);
 }
 
 // Load a texture from a file in the addon folder and register it under an id. Call outside
@@ -157,7 +165,7 @@ inline Result load_image(std::string_view id, std::string_view file)
     auto t = detail::table();
     if (!t)
         return Result::unavailable;
-    return detail::result(t->load_image(std::string(id).c_str(), std::string(file).c_str()));
+    return detail::result(t->load_image(detail::cstr(id), detail::cstr(file, 1)));
 }
 
 // Draw a loaded texture into the rectangle, multiplied by the tint colour (0xffffffff for none).
@@ -166,7 +174,7 @@ inline Result image(Paint *paint, std::string_view id, float x, float y, float w
     auto t = detail::table();
     if (!t)
         return Result::unavailable;
-    return detail::result(t->image(paint, std::string(id).c_str(), x, y, w, h, tint));
+    return detail::result(t->image(paint, detail::cstr(id), x, y, w, h, tint));
 }
 
 inline const char *name(Result r)
@@ -302,7 +310,7 @@ inline void text(Paint *paint, float x, float y, const TextStyle &style, std::st
 {
     if (auto t = detail::table2()) {
         SwoftyTextStyle s = detail::style(style);
-        t->text_styled(paint, x, y, &s, std::string(utf8).c_str());
+        t->text_styled(paint, x, y, &s, detail::cstr(utf8));
         return;
     }
     float w = 0, h = 0;
@@ -318,7 +326,7 @@ inline void measure(const Paint *paint, const TextStyle &style, std::string_view
 {
     if (auto t = detail::table2()) {
         SwoftyTextStyle s = detail::style(style);
-        t->measure_styled(paint, &s, std::string(utf8).c_str(), width, height);
+        t->measure_styled(paint, &s, detail::cstr(utf8), width, height);
         return;
     }
     measure(paint, style.size, utf8, width, height);
@@ -343,7 +351,7 @@ inline Result image(Paint *paint, std::string_view id, float x, float y, float w
     auto t = detail::table2();
     if (!t)
         return Result::unavailable;
-    return detail::result(t->image_uv(paint, std::string(id).c_str(), x, y, w, h, u0, v0, u1, v1, tint));
+    return detail::result(t->image_uv(paint, detail::cstr(id), x, y, w, h, u0, v0, u1, v1, tint));
 }
 
 // Nine-slice panel: the corners of a loaded texture (left/top/right/bottom insets in texture pixels)
@@ -355,7 +363,7 @@ inline Result image_nine(Paint *paint, std::string_view id, float x, float y, fl
     if (!t)
         return Result::unavailable;
     return detail::result(
-        t->image_nine(paint, std::string(id).c_str(), x, y, w, h, left, top, right, bottom, scale, tint));
+        t->image_nine(paint, detail::cstr(id), x, y, w, h, left, top, right, bottom, scale, tint));
 }
 
 // Pixel size of a loaded texture.
@@ -364,7 +372,7 @@ inline Result image_size(std::string_view id, float *width, float *height)
     auto t = detail::table2();
     if (!t)
         return Result::unavailable;
-    return detail::result(t->image_size(std::string(id).c_str(), width, height));
+    return detail::result(t->image_size(detail::cstr(id), width, height));
 }
 
 // Clip later drawing to a rectangle (intersected with the current clip; under a transform, the
@@ -484,10 +492,18 @@ namespace mouse {
 constexpr uint32_t left = SWOFTY_MOUSE_LEFT, right = SWOFTY_MOUSE_RIGHT, middle = SWOFTY_MOUSE_MIDDLE;
 }
 
+namespace pad {
+constexpr uint32_t up = SWOFTY_PAD_UP, down = SWOFTY_PAD_DOWN, left = SWOFTY_PAD_LEFT, right = SWOFTY_PAD_RIGHT;
+constexpr uint32_t a = SWOFTY_PAD_A, b = SWOFTY_PAD_B, x = SWOFTY_PAD_X, y = SWOFTY_PAD_Y;
+constexpr uint32_t lb = SWOFTY_PAD_LB, rb = SWOFTY_PAD_RB, start = SWOFTY_PAD_START, back = SWOFTY_PAD_BACK;
+}
+
 // This frame's input for the calling addon. While nobody holds focus every addon gets the cursor
-// position and key states (for hotkeys); the addon holding focus also gets buttons, wheel and typed
-// text; while another addon holds focus, x and y are -1 and nothing else is set. Positions are
-// framebuffer pixels.
+// position, key states and gamepad state (for hotkeys); the addon holding focus also gets mouse
+// buttons, wheel and typed text; while another addon holds focus, x and y are -1 and nothing else is
+// set. Positions are framebuffer pixels. keys_pressed holds keys that went down this frame,
+// keys_typed also their auto-repeats. pad_pressed holds gamepad buttons that went down this frame; a
+// held d-pad direction (or the left stick past half way) presses again after 400 ms, then every 90 ms.
 struct Input : SwoftyInput {
     Input()
         : SwoftyInput{}
@@ -499,6 +515,12 @@ struct Input : SwoftyInput {
     bool key_down(uint32_t vk) const { return vk < 256 && (keys_down[vk >> 3] >> (vk & 7) & 1); }
 
     bool key_pressed(uint32_t vk) const { return vk < 256 && (keys_pressed[vk >> 3] >> (vk & 7) & 1); }
+
+    bool key_typed(uint32_t vk) const { return vk < 256 && (keys_typed[vk >> 3] >> (vk & 7) & 1); }
+
+    bool pad_held(uint32_t button) const { return (pad_buttons & button) != 0; }
+
+    bool pad_hit(uint32_t button) const { return (pad_pressed & button) != 0; }
 
     bool clicked(uint32_t button = mouse::left) const { return (pressed & button) != 0; }
 

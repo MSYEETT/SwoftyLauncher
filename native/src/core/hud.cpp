@@ -16,6 +16,7 @@
 #include <d3dcompiler.h>
 #include <dxgi1_6.h>
 #include <windowsx.h>
+#include <xinput.h>
 
 #include <algorithm>
 #include <atomic>
@@ -1048,6 +1049,44 @@ std::atomic<WNDPROC> game_proc;
 std::atomic<HWND> game_wnd;
 std::atomic<unsigned> blocked_msgs, blocked_raw;
 hud::input::Utf16 utf16;
+std::atomic<ULONGLONG> input_read_ms;
+
+using XInputGetStateFn = DWORD(WINAPI *)(DWORD, XINPUT_STATE *);
+XInputGetStateFn xinput_get;
+bool xinput_tried;
+hud::input::PadRaw pads[4];
+ULONGLONG pad_probe_at[4];
+
+void poll_pads(ULONGLONG now)
+{
+    if (!xinput_tried) {
+        xinput_tried = true;
+        HMODULE m = GetModuleHandleW(L"xinput1_4.dll");
+        if (!m)
+            m = LoadLibraryW(L"xinput1_4.dll");
+        xinput_get = m ? reinterpret_cast<XInputGetStateFn>(GetProcAddress(m, "XInputGetState")) : nullptr;
+        swofty::log(xinput_get ? "[overlay] input: gamepads read through xinput1_4.dll!XInputGetState"
+                               : "[overlay] input: xinput1_4.dll!XInputGetState is unavailable; no gamepad input");
+    }
+    if (!xinput_get)
+        return;
+    for (DWORD i = 0; i < 4; i++) {
+        if (!pads[i].connected && now < pad_probe_at[i])
+            continue;
+        XINPUT_STATE st{};
+        bool was = pads[i].connected;
+        bool on = xinput_get(i, &st) == ERROR_SUCCESS;
+        if (!on) {
+            pads[i] = {};
+            pad_probe_at[i] = now + 2000;
+        } else {
+            const XINPUT_GAMEPAD &g = st.Gamepad;
+            pads[i] = {true, g.wButtons, g.bLeftTrigger, g.bRightTrigger, g.sThumbLX, g.sThumbLY, g.sThumbRX, g.sThumbRY};
+        }
+        if (on != was)
+            swofty::log("[overlay] input: gamepad %lu %s", static_cast<unsigned long>(i), on ? "connected" : "disconnected");
+    }
+}
 
 LRESULT CALLBACK input_proc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
 {
@@ -1152,9 +1191,16 @@ void input_frame(const std::vector<hud::Paintsub> &subs, float fb_w, float fb_h,
         sy = fb_h / float(rc.bottom);
     }
     std::string expired;
+    bool pads_wanted = now - input_read_ms.load(std::memory_order_relaxed) < 2000 && !killed("pad");
+    if (pads_wanted)
+        poll_pads(now);
     {
         std::lock_guard<std::mutex> g(in_lock);
         hud::input::fold(in_snap, in_events, sx, sy);
+        if (pads_wanted)
+            hud::input::fold_pads(in_snap, pads, 4, now);
+        else
+            in_snap.pad_pressed = 0;
         in_events.clear();
         for (const auto &s : subs)
             in_focus.painted(s.owner, now);
@@ -1345,10 +1391,12 @@ void paint_frame(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const std::vector<h
 {
     static const uint32_t paint_probe = perf::probe("core", "overlay paint callbacks");
     static hud::Frame frame;
-    perf::Scope painting(paint_probe);
-    input_frame(subs, float(desc.BufferDesc.Width), float(desc.BufferDesc.Height), now);
-    hud::build(subs, frame, float(desc.BufferDesc.Width), float(desc.BufferDesc.Height), overlay_off());
-    draw_cursor(frame);
+    {
+        perf::Scope painting(paint_probe);
+        input_frame(subs, float(desc.BufferDesc.Width), float(desc.BufferDesc.Height), now);
+        hud::build(subs, frame, float(desc.BufferDesc.Width), float(desc.BufferDesc.Height), overlay_off());
+        draw_cursor(frame);
+    }
     const std::vector<Vertex> &verts = frame.verts;
     flush_stats(now);
     if (frame.dropped && !dropped_told) {
@@ -1739,6 +1787,7 @@ int ov_input(const SwoftyPaint *paint, SwoftyInput *out)
         return SWOFTY_ASSET_UNAVAILABLE;
     if (!paint || !out || out->size < offsetof(SwoftyInput, x))
         return SWOFTY_ASSET_INVALID;
+    input_read_ms.store(GetTickCount64(), std::memory_order_relaxed);
     SwoftyInput full{};
     full.size = sizeof full;
     hud::input::view(frame_snap, frame_focus, reinterpret_cast<const hud::Frame *>(paint)->owner, full);

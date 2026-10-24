@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -20,6 +21,13 @@ struct Event {
     float x, y;
 };
 
+struct PadRaw {
+    bool connected = false;
+    uint16_t buttons = 0;
+    uint8_t lt = 0, rt = 0;
+    int16_t lx = 0, ly = 0, rx = 0, ry = 0;
+};
+
 struct Snapshot {
     float x = -1, y = -1;
     float wheel = 0;
@@ -27,7 +35,70 @@ struct Snapshot {
     std::vector<uint32_t> chars;
     uint8_t keys_down[32] = {};
     uint8_t keys_pressed[32] = {};
+    uint8_t keys_typed[32] = {};
+    uint32_t pad_connected = 0, pad_buttons = 0, pad_pressed = 0;
+    float pad_lx = 0, pad_ly = 0, pad_rx = 0, pad_ry = 0, pad_lt = 0, pad_rt = 0;
+    uint32_t pad_prev = 0;
+    uint64_t pad_repeat_at = 0;
 };
+
+constexpr uint32_t PAD_DIRS = SWOFTY_PAD_UP | SWOFTY_PAD_DOWN | SWOFTY_PAD_LEFT | SWOFTY_PAD_RIGHT;
+constexpr uint64_t PAD_REPEAT_DELAY = 400, PAD_REPEAT_EVERY = 90;
+
+inline float stick(int16_t v, float deadzone)
+{
+    float f = v < 0 ? float(v) / 32768.0f : float(v) / 32767.0f;
+    float a = f < 0 ? -f : f;
+    if (a <= deadzone)
+        return 0;
+    float k = (a - deadzone) / (1 - deadzone);
+    return f < 0 ? -k : k;
+}
+
+// Folds the pads polled this frame: buttons are ORed across pads, the sticks come from the first
+// connected pad and the left stick past half way also holds the d-pad. A held direction presses again
+// after 400 ms and then every 90 ms.
+inline void fold_pads(Snapshot &s, const PadRaw *pads, int n, uint64_t now)
+{
+    uint32_t held = 0, connected = 0;
+    bool sticks = false;
+    s.pad_lx = s.pad_ly = s.pad_rx = s.pad_ry = s.pad_lt = s.pad_rt = 0;
+    for (int i = 0; i < n; i++) {
+        const PadRaw &p = pads[i];
+        if (!p.connected)
+            continue;
+        connected |= 1u << i;
+        held |= p.buttons;
+        s.pad_lt = std::max(s.pad_lt, float(p.lt) / 255.0f);
+        s.pad_rt = std::max(s.pad_rt, float(p.rt) / 255.0f);
+        if (!sticks) {
+            sticks = true;
+            s.pad_lx = stick(p.lx, 0.24f);
+            s.pad_ly = stick(p.ly, 0.24f);
+            s.pad_rx = stick(p.rx, 0.27f);
+            s.pad_ry = stick(p.ry, 0.27f);
+        }
+    }
+    if (s.pad_ly > 0.5f)
+        held |= SWOFTY_PAD_UP;
+    if (s.pad_ly < -0.5f)
+        held |= SWOFTY_PAD_DOWN;
+    if (s.pad_lx < -0.5f)
+        held |= SWOFTY_PAD_LEFT;
+    if (s.pad_lx > 0.5f)
+        held |= SWOFTY_PAD_RIGHT;
+    s.pad_connected = connected;
+    s.pad_buttons = held;
+    s.pad_pressed = held & ~s.pad_prev;
+    uint32_t dirs = held & PAD_DIRS;
+    if (s.pad_pressed & PAD_DIRS)
+        s.pad_repeat_at = now + PAD_REPEAT_DELAY;
+    else if (dirs && now >= s.pad_repeat_at) {
+        s.pad_pressed |= dirs;
+        s.pad_repeat_at = now + PAD_REPEAT_EVERY;
+    }
+    s.pad_prev = held;
+}
 
 inline void set_bit(uint8_t *bits, uint32_t vk, bool on)
 {
@@ -52,6 +123,7 @@ inline void fold(Snapshot &s, const std::vector<Event> &events, float sx, float 
     s.pressed = s.released = 0;
     s.chars.clear();
     memset(s.keys_pressed, 0, sizeof s.keys_pressed);
+    memset(s.keys_typed, 0, sizeof s.keys_typed);
     for (const Event &e : events) {
         switch (e.kind) {
         case Ev::move:
@@ -81,6 +153,7 @@ inline void fold(Snapshot &s, const std::vector<Event> &events, float sx, float 
             if (!bit(s.keys_down, e.a))
                 set_bit(s.keys_pressed, e.a, true);
             set_bit(s.keys_down, e.a, true);
+            set_bit(s.keys_typed, e.a, true);
             break;
         case Ev::key_up:
             set_bit(s.keys_down, e.a, false);
@@ -161,6 +234,16 @@ inline void view(const Snapshot &s, const Focus &f, const std::string &who, Swof
     out.y = s.y;
     memcpy(out.keys_down, s.keys_down, sizeof out.keys_down);
     memcpy(out.keys_pressed, s.keys_pressed, sizeof out.keys_pressed);
+    memcpy(out.keys_typed, s.keys_typed, sizeof out.keys_typed);
+    out.pad_connected = s.pad_connected;
+    out.pad_buttons = s.pad_buttons;
+    out.pad_pressed = s.pad_pressed;
+    out.pad_lx = s.pad_lx;
+    out.pad_ly = s.pad_ly;
+    out.pad_rx = s.pad_rx;
+    out.pad_ry = s.pad_ry;
+    out.pad_lt = s.pad_lt;
+    out.pad_rt = s.pad_rt;
     if (!mine)
         return;
     out.wheel = s.wheel;

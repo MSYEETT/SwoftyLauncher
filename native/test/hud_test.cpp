@@ -436,6 +436,28 @@ static void test_input()
     CHECK(!bit(s.keys_pressed, 0x77) && bit(s.keys_down, 0x77), "a key held into the next frame is not pressed again");
     fold(s, {{Ev::key_down, 0x77, 0, 0}}, 1, 1);
     CHECK(!bit(s.keys_pressed, 0x77), "auto-repeat of a held key is not a new press");
+    fold(s, {{Ev::key_down, 0x08, 0, 0}, {Ev::key_down, 0x08, 0, 0}}, 1, 1);
+    CHECK(bit(s.keys_typed, 0x08) && bit(s.keys_pressed, 0x08), "keys_typed includes the first press");
+    fold(s, {{Ev::key_down, 0x08, 0, 0}}, 1, 1);
+    CHECK(bit(s.keys_typed, 0x08) && !bit(s.keys_pressed, 0x08), "auto-repeat shows in keys_typed only");
+    PadRaw pads[4] = {};
+    pads[1] = {true, SWOFTY_PAD_A, 0, 255, 0, 32767, 0, 0};
+    fold_pads(s, pads, 4, 1000);
+    CHECK(s.pad_connected == 2 && (s.pad_pressed & SWOFTY_PAD_A) && s.pad_rt == 1 && s.pad_ly == 1,
+          "a connected pad reports buttons, triggers and the stick");
+    CHECK((s.pad_buttons & SWOFTY_PAD_UP) && (s.pad_pressed & SWOFTY_PAD_UP), "the left stick past half way holds the d-pad");
+    fold_pads(s, pads, 4, 1100);
+    CHECK(!(s.pad_pressed & (SWOFTY_PAD_A | SWOFTY_PAD_UP)), "held buttons do not press again at once");
+    fold_pads(s, pads, 4, 1400);
+    CHECK((s.pad_pressed & SWOFTY_PAD_UP) && !(s.pad_pressed & SWOFTY_PAD_A), "a held direction repeats after 400 ms");
+    fold_pads(s, pads, 4, 1450);
+    CHECK(!(s.pad_pressed & SWOFTY_PAD_UP), "and not again before 90 ms");
+    fold_pads(s, pads, 4, 1500);
+    CHECK((s.pad_pressed & SWOFTY_PAD_UP), "then every 90 ms");
+    pads[1].ly = 3000;
+    pads[1].buttons = 0;
+    fold_pads(s, pads, 4, 1600);
+    CHECK(s.pad_ly == 0 && !(s.pad_buttons & SWOFTY_PAD_UP), "small stick moves sit in the deadzone");
     Utf16 u;
     CHECK(u.push(0xd83c) == 0 && u.push(0xdfce) == 0x1f3ce && u.push('x') == 'x', "surrogate pairs join into one code point");
     Focus f;
