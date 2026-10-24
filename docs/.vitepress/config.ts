@@ -245,6 +245,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Templates", link: "/reference/addons/template", icon: "file" },
               { text: "Settings", link: "/reference/addons/settings", icon: "file" },
               { text: "Shader packs", link: "/reference/addons/shader-packs", icon: "file" },
+              { text: "Post-process passes", link: "/reference/addons/postfx", icon: "file" },
               { text: "Packaging and publishing", link: "/reference/addons/publishing", icon: "file" },
             ],
           },

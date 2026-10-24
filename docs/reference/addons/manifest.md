@@ -34,7 +34,7 @@ Your addon needs a `swofty.json` at its root. This is where you give it a name, 
 | `icon` | string? | A path inside your addon, shown on the Tools page and your addon's sidebar pages. Use an `.svg` for a one-colour glyph in the launcher's icon style, or a square `.png`, `.jpg` or `.webp` to show the image as it is. |
 | `kind` | string[] | What the addon touches: `database`, `erp`, `text`, `ui`, `files`, `native`, `simplified`. `text` needs launcher 1.3.0 or later and `simplified` 1.3.6 or later; an earlier launcher rejects the manifest. `simplified` marks a mod merged into the game's shader packages, as the Simplified Suite loads `.serps` mods. |
 | `category` | string? | What the addon is for ([category](#category)). |
-| `experimental_features` | string[]? | Experimental engines of the in-game core the addon uses: `overlay` ([Overlay](/reference/std/overlay)) and `shaders` ([Shader packs](./shader-packs)). While the addon is on, the build turns each one on, and the Addons page tags the addon **Uses experimental features**. Needs launcher 1.3.7 or later, and 1.4.0 or later for `shaders`; an earlier launcher rejects the manifest. |
+| `experimental_features` | string[]? | Experimental engines of the in-game core the addon uses: `overlay` ([Overlay](/reference/std/overlay)) `shaders` ([Shader packs](./shader-packs)) and `postfx` ([Post-process passes](./postfx)). While the addon is on, the build turns each one on, and the Addons page tags the addon **Uses experimental features**. Needs launcher 1.3.7 or later, and 1.4.0 or later for `shaders`; an earlier launcher rejects the manifest. |
 | `origin` | object? | The tool and file the addon was made from ([origin](#origin)). |
 | `shader` | object? | A colour look for the game's picture ([shader](#shader)). |
 
@@ -75,6 +75,23 @@ Launchers from 1.3.6 read the categories of earlier launchers: `liveries` as `ca
 | `sha256` | string? | That file's SHA-256, in hex. |
 
 The **Addons** page shows the source as Built in, DB Editor, Imported or Installed. A launcher before 1.3.0 rejects `category` and `origin`; set `"compat": { "launcher": ">=1.3.0" }` when you use them.
+
+## postfx
+
+`postfx` lists HLSL post-process passes that run on the game's picture after its tonemap and before the HUD. [Post-process passes](./postfx) covers the shader contract.
+
+```json
+"experimental_features": ["postfx"],
+"postfx": [{ "shader": "fx/vignette.hlsl", "options": ["{{amount}}"], "order": 0, "budget_ms": 1.5 }]
+```
+
+| Field | Type | Value |
+|---|---|---|
+| `shader` | string | The `.hlsl` file, a path inside the addon. |
+| `name` | string? | The pass's name in logs. Defaults to the file name without `.hlsl`. |
+| `options` | (number \| string)[]? | Up to 16 values for `option(i)`; a string is <span v-pre>`"{{id}}"`</span> naming a `db` option. |
+| `order` | integer? | Lower runs first among every addon's passes. Defaults to 0. |
+| `budget_ms` | number? | GPU milliseconds a frame past which the core turns the pass off. Defaults to 1.5. |
 
 ## shader
 
