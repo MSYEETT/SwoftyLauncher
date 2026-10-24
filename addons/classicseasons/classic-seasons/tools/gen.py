@@ -26,7 +26,8 @@ each built mod suit's suit, gloves and helmet rows from its base under its label
 HELMET_IDS, and ships its archives (assets/suits.json). A season copies its generated suits' rows; every team-season of
 SUIT_YEARS takes the next id of SUIT_IDS, in season and team order, whether its suit is generated or not. The suits of
 mods converted by suit_transfer.py (a "transfer" mod) take TRANSFER_SUIT_IDS, the ids after SUIT_IDS, in
-data/real_suits.json order. The stock suit and gloves ids are 448 to 973, the helmet ids 315 to 867.
+data/real_suits.json order. The stock suit and gloves ids are 448 to 973, the helmet ids 315 to 867. The build fails
+when two suit, gloves or helmet copies share an id, or one takes a stock id (check_item_ids).
 
 Every customisation item row holds colour_1_default to colour_4_default (tag 11), which the catalogue does not name.
 Game_Build_CustomisationCatalogue reads all four at boot, and a copy without them crashes the game in
@@ -78,6 +79,7 @@ SUIT_IDS = range(REAL_SUIT_IDS.stop, REAL_SUIT_IDS.stop + sum(len(s["teams"]) fo
 TRANSFER_SUIT_IDS = range(SUIT_IDS.stop, SUIT_IDS.stop + len(TRANSFERRED_SUITS))
 HELMET_IDS = range(868, 868 + sum(1 for e in suit_sources.REAL["suits"] if e.get("helmet")))
 HELMETS = "customisation.custom_avatar.helmets"
+STOCK_ITEM_IDS = {"suits": range(448, 974), "gloves": range(448, 974), "helmets": range(315, 868)}
 COLOUR_FIELDS = [f"colour_{n}_default" for n in range(1, 5)]
 SUITS = "customisation.custom_avatar.suits"
 GLOVES = "customisation.custom_avatar.gloves"
@@ -123,6 +125,22 @@ def write_native_seasons(years):
         "struct Season {\n    const char *entrant_list;\n    const char *title;\n    const char *image;\n"
         "    int32_t order;\n};\n\n"
         f"inline constexpr Season kSeasons[] = {{\n{rows}\n}};\n\n}}\n")
+
+
+def check_item_ids(files):
+    seen = {}
+    for name, ops in files:
+        for o in ops:
+            table = o.get("table", "")
+            if o["op"] != "add-row" or not table.startswith("customisation.custom_avatar."):
+                continue
+            kind, item_id, label = table.rsplit(".", 1)[1], o["set"]["id"], o["set"]["_metadata_"]
+            if int(item_id) in STOCK_ITEM_IDS.get(kind, ()):
+                raise SystemExit(f"{kind} id {item_id} of {label} ({name}) is a stock id")
+            if (kind, item_id) in seen:
+                raise SystemExit(f"{kind} id {item_id}: {seen[kind, item_id]} and {label} ({name})")
+            seen[kind, item_id] = f"{label} ({name})"
+    return len(seen)
 
 
 def write_json(path, data):
@@ -367,6 +385,7 @@ def build():
 
     fields = {"game_setup.scenarios.scenario": SCENARIO_FIELDS, "entrants.drivers.driver": DRIVER_FIELDS,
               CATEGORY + ".value": CATEGORY_FIELDS}
+    items = check_item_ids([("core", core_ops)] + [(str(year), ops) for year, ops, _ in seasons])
     write_json(ROOT / "db" / "core.json",
                {"schema_version": 1, "fields": {**fields, **(ITEM_FIELDS if made else {})}, "ops": core_ops})
     core_assets = [a for a in core["operations"]["assets"] if a != "assets/suits.json"]
@@ -381,7 +400,8 @@ def build():
     write_json(ROOT / "lang" / "core.json", {"schema_version": 1, "ops": core_text})
     write_native_seasons([year for year, _, _ in seasons])
     print(f"core: {len(core_ops)} db ops, {len(core_text)} strings, looks {LOOK_STAT_BASE}..{look_stat - 1}, "
-          f"{len(made)} real suits, suit ids {REAL_SUIT_IDS.start}..{TRANSFER_SUIT_IDS.stop - 1}")
+          f"{len(made)} real suits, suit ids {REAL_SUIT_IDS.start}..{TRANSFER_SUIT_IDS.stop - 1}, {items} item rows with "
+          f"unique ids")
     for year, ops, text in seasons:
         folder = year_dir(year)
         assets = ["assets/cars.json"] + (["assets/suits.json"] if suits(year) else [])
