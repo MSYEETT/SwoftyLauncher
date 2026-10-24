@@ -48,7 +48,7 @@ An experimental feature applies only when `"features"` in `swofty/assets.json` l
 native/build.sh
 ```
 
-Runs `re/tools/bindgen.py`, then cross-compiles the three DLLs with zig for `x86_64-windows-gnu` into `native/build/` and copies them to `native/dist/` with `features.json`. safetyhook, Zydis and zstd 1.5.7 are vendored in `third_party/` with their licences. safetyhook carries one local change, marked `Swofty:` in `trap_threads`: it keeps an ntdll page executable while it patches it. The build is deterministic.
+Runs `re/tools/bindgen.py`, then cross-compiles the three DLLs with zig for `x86_64-windows-gnu` into `native/build/` and copies them to `native/dist/` with `features.json`. safetyhook, Zydis, zstd 1.5.7 and stb_image 2.30 are vendored in `third_party/` with their licences, and `third_party/titillium-web/` holds the SIL OFL licence of the overlay font. `tools/hud_font_sdf.py` regenerates the overlay font atlas (`src/core/hud_font_data.hpp`, `src/core/hud_font_atlas.hpp`) from Titillium Web SemiBold at a pinned google/fonts commit. safetyhook carries one local change, marked `Swofty:` in `trap_threads`: it keeps an ntdll page executable while it patches it. The build is deterministic.
 
 The launcher takes the files from `loader/` beside its `bin/` folder in a release, from `native/dist/` in a checkout, or from the folder named by `SWOFTY_LOADER_DIR`.
 
