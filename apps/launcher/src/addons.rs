@@ -1440,7 +1440,7 @@ impl Shell {
                         self.addons.scroll.clone(),
                         cx.processor(move |this, i, _, cx| {
                             let p = palette(cx);
-                            match this.addons.list_items.get(i).cloned() {
+                            let item = match this.addons.list_items.get(i).cloned() {
                                 Some(AddonListItem::Heading { group, first, empty }) => {
                                     this.group_heading(group, first, empty, p, cx)
                                 }
@@ -1454,7 +1454,8 @@ impl Shell {
                                 }
                                 Some(AddonListItem::Detail(id)) => this.addon_detail(&id, true, p, cx),
                                 None => div().into_any_element(),
-                            }
+                            };
+                            div().w_full().child(item).into_any_element()
                         }),
                     )
                     .flex_1()

@@ -951,11 +951,12 @@ impl Shell {
                             scroll.clone(),
                             cx.processor(|this, i, _, cx| {
                                 let p = crate::theme::palette(cx);
-                                this.news_scroll
+                                let row = this
+                                    .news_scroll
                                     .release_indices
                                     .get(i)
-                                    .map(|&pi| changelog_row(&this.news.posts[pi], i == 0, p))
-                                    .unwrap_or_else(|| div().into_any_element())
+                                    .map(|&pi| changelog_row(&this.news.posts[pi], i == 0, p));
+                                div().w_full().children(row).into_any_element()
                             }),
                         )
                         .flex_1()
