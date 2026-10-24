@@ -1075,21 +1075,28 @@ impl Wrapper {
         self.child.as_mut()?.try_wait().ok().flatten()
     }
 
+    /// The wrapper's error starts at its last `swofty: ` line, and an error
+    /// over several lines leads with what failed: the reason runs from there
+    /// to the end (else it is the last line), and the lines before it are
+    /// echoed.
     fn failure(&self, status: ExitStatus, when: &str) -> anyhow::Error {
         let mut lines = tail(&self.log, TAIL_LINES);
-        let reason = lines
-            .pop()
-            .map(|l| l.strip_prefix("swofty: ").map(str::to_owned).unwrap_or(l));
+        let from = lines
+            .iter()
+            .rposition(|l| l.starts_with("swofty: "))
+            .unwrap_or(lines.len().saturating_sub(1));
+        let reason = lines.split_off(from).join("\n");
         for l in &lines {
             say("wrapper", l);
         }
-        match reason {
-            Some(r) => anyhow::anyhow!("the wrapper exited ({status}) {when}: {r}"),
-            None => anyhow::anyhow!(
+        if reason.is_empty() {
+            return anyhow::anyhow!(
                 "the wrapper exited ({status}) {when} without output; see {}",
                 self.log.display()
-            ),
+            );
         }
+        let reason = reason.strip_prefix("swofty: ").unwrap_or(&reason);
+        anyhow::anyhow!("the wrapper exited ({status}) {when}: {reason}")
     }
 }
 
@@ -1841,6 +1848,43 @@ mod tests {
             w.failure(status, "before the game started").to_string(),
             "the wrapper exited (exit status: 3) before the game started: \
              version.dll already exists in the game folder; run swofty restore"
+        );
+        std::fs::remove_dir_all(log.ancestors().nth(2).unwrap()).ok();
+    }
+
+    #[test]
+    fn an_error_over_several_lines_leads_with_what_failed() {
+        let log = temp_log("lines");
+        let child = spawn_logged(
+            Command::new("sh").args([
+                "-c",
+                "echo 'downloading offline play 0.3.11 from https://x'; \
+                 echo '[info] rolled the profile'\"'\"'s game files back'; \
+                 echo 'swofty: downloading the offline play extension: offline play 0.3.11: could not download \
+                 https://x/v0.3.11/f1op_hook.dll: io: received corrupt message of type InvalidContentType' >&2; \
+                 echo 'or download it yourself from https://x/v0.3.11 and run `swofty offline install <folder>`' >&2; \
+                 exit 1",
+            ]),
+            &log,
+        )
+        .unwrap();
+        let mut w = Wrapper {
+            child: Some(child),
+            log: log.clone(),
+            timeout: DIRECT_START_TIMEOUT,
+        };
+        let status = loop {
+            if let Some(s) = w.exited() {
+                break s;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        assert_eq!(
+            w.failure(status, "before the game started").to_string(),
+            "the wrapper exited (exit status: 1) before the game started: downloading the offline play extension: \
+             offline play 0.3.11: could not download https://x/v0.3.11/f1op_hook.dll: io: received corrupt message \
+             of type InvalidContentType\n\
+             or download it yourself from https://x/v0.3.11 and run `swofty offline install <folder>`"
         );
         std::fs::remove_dir_all(log.ancestors().nth(2).unwrap()).ok();
     }
