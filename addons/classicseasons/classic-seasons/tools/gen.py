@@ -200,6 +200,7 @@ def season_manifest(core, year, assets):
                        f"Time Trial. Cars by fanfreluche.",
         "license": core["license"],
         "icon": "icon.png",
+        "category": "seasons",
         "kind": ["database", "files"],
         "compat": {**core["compat"], "launcher": SEASON_LAUNCHER},
         "requires": core["requires"] + [{"id": core["id"], "version": f">={core['version']}"}],

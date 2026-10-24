@@ -7,6 +7,7 @@
  "description": "The F1 2024 season for Classic Seasons: its cars, teams and drivers in Grand Prix and Time Trial. Cars by fanfreluche.",
  "license": "AGPL-3.0-or-later",
  "icon": "icon.png",
+ "category": "seasons",
  "kind": [
   "database",
   "files"
