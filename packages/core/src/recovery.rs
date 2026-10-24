@@ -254,10 +254,17 @@ pub struct Restored {
 /// back to the baseline.
 pub fn restore(data: &Path, game: &Game) -> Result<Restored> {
     let Some(lock) = SessionLock::try_acquire(data)? else {
-        return Err(Error::Other(
-            "a modded session is still running or rolling back; close F1 25 and try again".into(),
-        ));
+        return Err(Error::Other(SESSION_HELD.into()));
     };
+    let out = restore_locked(&lock, data, game)?;
+    drop(lock);
+    Ok(out)
+}
+
+pub const SESSION_HELD: &str = "a modded session is still running or rolling back; close F1 25 and try again";
+
+/// [`restore`] under a session lock the caller holds.
+pub fn restore_locked(_lock: &SessionLock, data: &Path, game: &Game) -> Result<Restored> {
     let mut out = Restored::default();
     if crate::offline::restore_pending(data)? {
         out.notes.push("offline play staging".into());
@@ -269,7 +276,6 @@ pub fn restore(data: &Path, game: &Game) -> Result<Restored> {
         Blocked::clear(data)?;
     }
     out.left = Installer::new(data, game).restore()?;
-    drop(lock);
     Ok(out)
 }
 

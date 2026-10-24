@@ -42,6 +42,7 @@ pub mod saves;
 pub mod send_logs;
 pub mod session;
 pub mod settings;
+pub mod setup;
 pub mod steam;
 pub mod steam_client;
 pub mod stock;
