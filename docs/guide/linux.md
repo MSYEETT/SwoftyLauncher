@@ -30,7 +30,9 @@ You can now start the modded game with either Steam's **Play** button or the lau
 1. Open **Swofty Launcher for F1 25** from the app menu, or `bin/swofty-launcher` in the install folder. The status line next to **Play** reads **Ready** when the launcher has found the game.
 2. [Install your addons](/using/addons) and [mods](/using/mods), then pick a [profile](/using/profiles).
 3. Press **Play**.
-4. On your first launch, you'll see the **Modded play runs offline** dialog. Select **Accept and launch**. For details, see [Offline play](/reference/safety).
+4. On your first Play, the launcher opens a one-time setup. Say whether your game folder holds mods Swofty didn't add, then select **I understand**. Select **Verify game files in Steam**, wait for Steam to finish, then select **I've verified, continue**. On the EA app copy, repair the game in the EA app instead.
+5. On your first launch, you'll see the **Modded play runs offline** dialog. Select **Accept and launch**. For details, see [Offline play](/reference/safety).
+6. The first launch after the setup can take 5 to 8 minutes. Don't press Play in Steam or the EA app while it runs.
 
 If Steam is closed, the launcher starts it and waits for it to sign in first; see [Steam](/reference/launch#steam).
 

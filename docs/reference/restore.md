@@ -21,6 +21,8 @@ The **baseline** records original game files. The **journal** records changes so
 | `$DATA/state/blocked.json` | Files of unknown origin that stopped the last launch |
 | `$DATA/state/not-stock.json` | Game files that don't match Steam's copy, which stopped the last launch, with each file's measured path, found size, Steam's size and modified time |
 | `$DATA/state/recovered.json` | The last recovery, for the launcher to announce |
+| `$DATA/state/setup.json` | The one-time setup: its version, the player's answer about other mods, when the game folder was put back, when the setup finished, and whether the first-launch notice was shown |
+| `$DATA/baseline-retired/` | The baselines the setup moved aside, until the setup finishes |
 
 ## Checking against Steam
 
@@ -33,6 +35,17 @@ Steam keeps a manifest for each installed depot in `<steam>/depotcache/<depot>_<
 - Each original the install backs up for the first time is compared with Steam's copy before it is copied.
 
 A file that doesn't match, other than an EA AntiCheat launcher file, stops the session before anything is built or changed and writes `state/not-stock.json`. The launcher opens a **Your game files have been edited** modal that says how many files changed, names the first six, and lists the fix: **Verify game files in Steam** (`steam://validate/3059520`), or add mods through the Simplified Importer. `swofty run` and `swofty apply` print the same link. Files Steam doesn't list are not checked. A game folder outside Steam is not checked. Without a readable manifest for every installed depot, the check is skipped and the launch log says why.
+
+## The one-time setup
+
+Modded play waits for the setup in `swofty_core::setup`. The launcher opens it on Play, and `swofty setup` runs it from the command line.
+
+1. The player says whether the game folder holds mods Swofty didn't add.
+2. `setup::reset` takes the session lock and restores the game folder as `swofty restore` does. It then moves `$DATA/baseline` to `$DATA/baseline-retired` and deletes `$DATA/cache/overlay`. A restore that fails stops the reset before anything moves.
+3. The player verifies the game files in Steam or repairs them in the EA app.
+4. `setup::finish` records the setup as done and deletes `$DATA/baseline-retired`.
+
+The next install records each original again as it first sees it, checked against Steam's manifests when they can be read. Raising `setup::VERSION` sends every player through the setup again. `swofty run --apply` and every install refuse to start until the setup is done.
 
 ## Recovery rules
 

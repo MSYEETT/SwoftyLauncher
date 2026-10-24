@@ -210,6 +210,16 @@ The build skips a DB Editor addon's change that no longer matches the game datab
 Commands that read the game database take `--game <dir>` after `db`.
 `--package <id>` and `swofty db packages` still work, as older names of `--addon <id>` and `swofty db addons`.
 
+## `swofty setup`
+
+| Command | Purpose |
+|---|---|
+| `swofty setup status` | Show whether the one-time setup before modded play is done |
+| `swofty setup reset [--other-mods]` | Restore the game folder and start the record of original game files over |
+| `swofty setup done` | Finish the setup after verifying the game files in Steam or repairing them in the EA app |
+
+`swofty run --apply` and `swofty apply` refuse to start until the setup is done. See [The one-time setup](/reference/restore#the-one-time-setup).
+
 ## `swofty offline`
 
 | Command | Purpose |
