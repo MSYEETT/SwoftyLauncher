@@ -973,6 +973,7 @@ mod tests {
             "inline bool slider(",
             "bool list(",
             "inline void draw_toasts(",
+            "inline bool text_field(",
         ] {
             assert!(OVERLAY_UI_HEADER.contains(name), "{name}");
         }
