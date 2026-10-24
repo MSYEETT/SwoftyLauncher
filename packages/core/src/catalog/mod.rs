@@ -3,6 +3,7 @@
 //! downloads checked against the size and SHA-256 the registry lists.
 
 pub mod publishers;
+pub mod requires;
 pub mod search;
 pub mod stars;
 
@@ -12,10 +13,10 @@ use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use semver::VersionReq;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::manifest::{AddonManifest, Category};
+use crate::manifest::{AddonManifest, Category, Requirement};
 use crate::store::Store;
 use crate::{Error, Result, io_err};
 
@@ -108,6 +109,22 @@ pub struct Version {
     pub native: bool,
     #[serde(default)]
     pub yanked: bool,
+    /// The `requires` of the version's `swofty.json`, when the registry lists them.
+    #[serde(
+        default,
+        deserialize_with = "listed_requires",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub requires: Option<Vec<Requirement>>,
+}
+
+/// A `requires` list the launcher can't read counts as unlisted, so the
+/// install reads the download's `swofty.json` instead.
+fn listed_requires<'de, D: Deserializer<'de>>(
+    d: D,
+) -> std::result::Result<Option<Vec<Requirement>>, D::Error> {
+    let raw = Option::<serde_json::Value>::deserialize(d)?;
+    Ok(raw.and_then(|v| serde_json::from_value(v).ok()))
 }
 
 impl Version {
@@ -488,10 +505,13 @@ pub fn download(v: &Version, to: &Path, progress: &dyn Fn(Stage)) -> Result<()> 
     save(body.with_config().limit(DOWNLOAD_LIMIT).reader(), v, to, progress)
 }
 
-/// Downloads `v` of `addon`, checks it and installs it into `store`.
-pub fn install(store: &Store, addon: &Addon, v: &Version, progress: &dyn Fn(Stage)) -> Result<AddonManifest> {
+fn downloads_dir(store: &Store) -> Result<PathBuf> {
     let dir = store.root.join(CACHE_DIR).join("downloads");
     std::fs::create_dir_all(&dir).map_err(io_err(&dir))?;
+    Ok(dir)
+}
+
+fn file_name(addon: &Addon, v: &Version) -> String {
     let safe: String = addon
         .id
         .chars()
@@ -503,21 +523,7 @@ pub fn install(store: &Store, addon: &Addon, v: &Version, progress: &dyn Fn(Stag
             }
         })
         .collect();
-    let path = dir.join(format!("{safe}-{}.zip", v.version));
-    let result = download(v, &path, progress).and_then(|()| {
-        let _one = INSTALLING.lock().unwrap_or_else(|e| e.into_inner());
-        progress(Stage::Installing);
-        store.install_addon(&path)
-    });
-    std::fs::remove_file(&path).ok();
-    let m = result?;
-    if m.id != addon.id {
-        return Err(Error::Other(format!(
-            "the registry lists {}, the download installed {}",
-            addon.id, m.id
-        )));
-    }
-    Ok(m)
+    format!("{safe}-{}.zip", v.version)
 }
 
 #[cfg(test)]
@@ -536,6 +542,7 @@ mod tests {
             changelog: String::new(),
             native: false,
             yanked: false,
+            requires: None,
         }
     }
 

@@ -93,6 +93,8 @@ pub enum Error {
     #[error("{}", .0.text())]
     Blocked(app_control::Block),
     #[error("{0}")]
+    Requires(catalog::requires::Refusal),
+    #[error("{0}")]
     Other(String),
 }
 
