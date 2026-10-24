@@ -16,7 +16,9 @@ You'll also see a panel on the home screen confirming you launched with Swofty L
 
 ## What's listed
 
-**ADDON SETTINGS** lists a tile for every enabled addon, mod and track in the active profile. Each tile shows its name, author and version. Addons come first, then mods, then tracks.
+**ADDON SETTINGS** lists a tile for every enabled addon, mod and track in the active profile, in columns of three. Addons come first, then mods, then tracks. Each tile shows its name; the highlighted tile also shows its author, version and description.
+
+Three columns fit on screen. When there are more, moving past the right edge slides the row along by a column, and moving left slides it back. Coming back from an addon's page returns to the tile you opened, with the row slid to show it.
 
 ## Change a setting
 
