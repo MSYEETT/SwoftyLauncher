@@ -150,7 +150,10 @@ json.dump({'schema': 1, 'profile': 'wine-test',
            'addons': [{'id': 'example.sample-mod', 'dlls': ['t_assets.dll'], 'options': []}],
            'plugins': ['addons/example.sample-mod/native/t_assets.dll']},
           open(os.path.join(root, 'settings.json'), 'w'))
-json.dump({'features': ['file', 'telemetry']}, open(os.path.join(root, 'assets.json'), 'w'))
+json.dump({'features': ['file', 'telemetry', 'overlay']}, open(os.path.join(root, 'assets.json'), 'w'))
+json.dump({'schema': 1, 'when': '2026-10-24 02:52:26', 'present_hr': '0x887a0005', 'removed_reason': '0x887a0006',
+           'after_draw_ms': 4900, 'swapchain_by': 'sl.dlss_g.dll <- sl.interposer.dll <- F1_25.exe'},
+          open(os.path.join(root, 'overlay-gpu-removed.json'), 'w'))
 EOF
     gl_level=; gl_rate=
     [[ $mode == gamelog_off ]] && gl_level=off
@@ -159,7 +162,7 @@ EOF
     [[ $mode == trigger || $mode == vm ]] && gl_channels=default,verbose
     SWOFTY_RESOLVE=$resolve SWOFTY_TEST_ASSETS=$([[ $mode == assets ]] && echo 1) SWOFTY_GAME_LOG=$gl_level SWOFTY_GAME_LOG_RATE=$gl_rate SWOFTY_GAME_LOG_CHANNELS=$gl_channels SWOFTY_TEST_REQUESTS=${req:+Z:${req//\//\\}} SWOFTY_TEST_ITEMS=$ITEMS \
         "${PIN[@]}" xvfb-run -a wine "$OUT/game/F1_25.exe" $mode || status=1
-    rm -rf "$OUT/game/swofty/session.json" "$OUT/game/swofty/settings.json" "$OUT/game/swofty/assets.json" \
+    rm -rf "$OUT/game/swofty/session.json" "$OUT/game/swofty/settings.json" "$OUT/game/swofty/assets.json" "$OUT/game/swofty/overlay-gpu-removed.json" \
         "$OUT/game/swofty/addons/example.sample-mod"
     echo "---- $LOG ($mode)"
     grep -v '  section ' "$LOG"
@@ -297,6 +300,8 @@ EOF
         once "plugins: the loose copy of a listed plugin is skipped" 'addon t_assets\.dll: settings\.json lists it in an addon folder, the copy in .*[\]swofty[\]addons is skipped'
         once "plugins: the plugin initialises" 'addon t_assets\.dll: SwoftyAddonInit returned 1 \(ok\)'
         check "assets: available follows the features" '\[t_assets\] available: group 1, erp 1, db 1, lang 1, file 1, sound 0'
+        once "overlay: a recorded GPU removal keeps the overlay off" '\[overlay\] off: swofty/overlay-gpu-removed\.json records the GPU removed 4\.9 s after the overlay drew \(2026-10-24 02:52:26, present 0x887a0005, reason 0x887a0006, swapchain by sl\.dlss_g\.dll <- sl\.interposer\.dll <- F1_25\.exe\); the overlay stays off while that file exists'
+        count "overlay: the present hook does not arm after a recorded removal" 0 '\[overlay\] (present hook armed|swapchain creation hooked)'
         once "assets: register_group during plugin init" "$api register_group asset_groups/t_assets/t\.assetgroup -> ok[[:space:]]*\$"
         once "assets: put_resource during plugin init" "$api put_resource eaid://t_assets/t\.tif\.image -> ok[[:space:]]*\$"
         once "assets: db_set by key is late at the window stage" "$api db_set entrants\.teams\.team\.t_assets = 1 -> late: the core loaded at the window stage"
