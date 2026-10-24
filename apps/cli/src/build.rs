@@ -163,6 +163,31 @@ fn common_root<'a>(paths: impl Iterator<Item = &'a String>) -> String {
 /// way that are provably ours are cleared and the install is tried once
 /// more; anything else stops it untouched, with what a restore would do.
 pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn Fn(&str)) -> Result<()> {
+    if swofty_core::compat::write_blocker(&g.dir).is_some() {
+        bail!("{}", swofty_core::compat::write_blocked_text(&g.dir));
+    }
+    install_checked(store, profile, g, session, out).map_err(|e| denied(e, &g.dir))
+}
+
+/// Names the game folder and the fix when Windows refused a write in it.
+fn denied(e: anyhow::Error, game: &Path) -> anyhow::Error {
+    let refused = e.chain().any(|c| match c.downcast_ref::<swofty_core::Error>() {
+        Some(swofty_core::Error::Io { path, source }) => {
+            source.kind() == std::io::ErrorKind::PermissionDenied && path.starts_with(game)
+        }
+        _ => false,
+    });
+    if !refused {
+        return e;
+    }
+    anyhow::anyhow!(
+        "{e}. Windows refused to let Swofty change files in {}; run Swofty Launcher as administrator, \
+         or move F1 25 to a folder outside Program Files",
+        game.display()
+    )
+}
+
+fn install_checked(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn Fn(&str)) -> Result<()> {
     crate::setup::gate(store)?;
     Blocked::clear(&store.root).ok();
     stock::Report::clear(&store.root).ok();
@@ -369,6 +394,32 @@ mod tests {
     use swofty_core::manifest::AddonManifest;
 
     use super::*;
+
+    #[test]
+    fn names_the_game_folder_when_windows_refuses_a_write() {
+        let game = Path::new("/games/F1 25");
+        let refused = swofty_core::Error::Io {
+            path: game.join("2025_asset_groups/ui_package/databases.erp"),
+            source: std::io::Error::from(std::io::ErrorKind::PermissionDenied),
+        };
+        let text = denied(anyhow::Error::from(refused), game).to_string();
+        assert!(
+            text.ends_with(
+                "Windows refused to let Swofty change files in /games/F1 25; run Swofty Launcher as \
+                 administrator, or move F1 25 to a folder outside Program Files"
+            ),
+            "{text}"
+        );
+        let elsewhere = swofty_core::Error::Io {
+            path: "/data/cache/x".into(),
+            source: std::io::Error::from(std::io::ErrorKind::PermissionDenied),
+        };
+        assert!(
+            !denied(anyhow::Error::from(elsewhere), game)
+                .to_string()
+                .contains("administrator")
+        );
+    }
 
     struct Writer(AddonManifest);
 
