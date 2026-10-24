@@ -1,12 +1,16 @@
-"""Which suit each team-season and each driver of 2016 to 2021 wears.
+"""Which suit each team-season and each driver of 2016 to 2023 wears.
 
-A real suit is a mod's suit (data/real_suits.json "suits", built by build_real_suits.py into this addon's suits/) or a
+A real suit is a mod's suit or F1 23's own 2022 and 2023 kit (data/real_suits.json "suits", "mod" "f1_23"; both built
+by build_real_suits.py into this addon's suits/) or a
 stock F1 25 suit of a season in "stock_seasons" (the team's <year>-<stock team> suit and its drivers'
 <year>-<stock team>_<driver> suits). A team-season takes the real team suit of its own season, else the one of the
 nearest season with the same team name in data/seasons.json, the earlier season on a tie, else its generated suit
 (build_suits.py). Only team suits decide the season. Every driver of the team-season wears that season's kit: his own
 suit of that season and team when there is one, else that season's team suit. "suit": {"source": "<label>" |
 "generated"} on a team overrides the team's choice.
+
+2022 and 2023 (F1_23_YEARS) choose only among the built F1 23 suits, the other seasons never take one; a 2022 or 2023
+look with none keeps its seat's stock kit.
 
 Labels: a mod's team suit is cs<yy>-<stock team> of its own season, a mod's driver suit cs<yy>-<base folder>, both the
 length of the base label they replace. A generated suit is cg<yy>-<stock team>, or cg<yy>-<key> padded with "_" to the
@@ -21,6 +25,9 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = json.loads((ROOT / "data" / "seasons.json").read_text())
 REAL = json.loads((ROOT / "data" / "real_suits.json").read_text())
 SUIT_YEARS = range(2016, 2022)
+F1_23_YEARS = range(2022, 2024)
+REAL_YEARS = range(SUIT_YEARS.start, F1_23_YEARS.stop)
+F1_23 = "f1_23"
 GENERATED = "generated"
 
 
@@ -79,7 +86,8 @@ def built():
 def pick(year, team, driver=None, made=None):
     """made: the labels of the built mod suits (built()); a mod suit that is not built is not a choice."""
     made = built() if made is None else made
-    usable = [e for e in real() if e["team"] == team["name"] and (e["kind"] == "stock" or e["label"] in made)]
+    usable = [e for e in real() if e["team"] == team["name"] and (e["kind"] == "stock" or e["label"] in made)
+              and (e.get("mod") == F1_23) == (year in F1_23_YEARS)]
     source = team.get("suit", {}).get("source")
     if source == GENERATED:
         return None

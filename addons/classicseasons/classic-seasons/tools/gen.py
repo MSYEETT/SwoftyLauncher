@@ -18,9 +18,10 @@ classic entrant list uses, so every season races on the f1_26 worlds.
 The pit lane reads a team's pit stop times from the pit_lane.pit_times row whose team names it, so each season team
 copies its stock team's row.
 
-Suits of 2016 to 2021 (suit_sources.py): each driver's look wears the suit and gloves suit_sources.pick chooses, a
-real suit (a mod's, built by build_real_suits.py into this addon's suits/, or a stock F1 25 one) or the team's
-generated suit (build_suits.py, the season's suits/meta.json), and a mod driver suit's helmet. The core addon copies
+Suits of 2016 to 2023 (suit_sources.py): each driver's look wears the suit and gloves suit_sources.pick chooses, a
+real suit (a mod's or F1 23's, built by build_real_suits.py into this addon's suits/, or a stock F1 25 one) or, for
+2016 to 2021, the team's generated suit (build_suits.py, the season's suits/meta.json), and a real driver suit's
+helmet. A 2022 or 2023 look with no built F1 23 suit keeps its seat's stock kit, as 2024 does. The core addon copies
 each built mod suit's suit, gloves and helmet rows from its base under its label, with item ids REAL_SUIT_IDS and
 HELMET_IDS, and ships its archives (assets/suits.json). A season copies its generated suits' rows; every team-season of
 SUIT_YEARS takes the next id of SUIT_IDS, in season and team order, whether its suit is generated or not. The stock
@@ -146,14 +147,16 @@ def real_rows(m, item_id, helmet_id):
     colours = {f: "0" for f in COLOUR_FIELDS}
     folder = f"[CHARACTER_PACKAGE]/drivers/male/{label}"
     stem = m["stem"]
+    logos = {k: f"eaid://[CHARACTER_PACKAGE]/{m[k]}" for k in ("logos_model", "glove_logos_model") if k in m}
     ops = [{"op": "add-row", "table": SUITS, "from": f"{SUITS}.Suit[_metadata_={base}]",
             "set": {"_metadata_": label, "asset_group": f"asset_groups/{folder}/{stem}.assetgroup",
                     "feet_model": f"eaid://{folder}/idf/{stem}",
-                    "logos_model_override_pattern": f"eaid://{folder}/idf/{stem}_body_logos",
+                    "logos_model_override_pattern": logos.get("logos_model", f"eaid://{folder}/idf/{stem}_body_logos"),
                     "material_override": label, "id": str(item_id), **colours}},
            {"op": "add-row", "table": GLOVES, "from": f"{GLOVES}.Gloves[_metadata_={base}]",
             "set": {"_metadata_": label, "asset_group": f"asset_groups/{folder}/{stem}.assetgroup",
-                    "logos_model": f"eaid://{folder}/idf/{stem}_glove_logos", "material_override": label,
+                    "logos_model": logos.get("glove_logos_model", f"eaid://{folder}/idf/{stem}_glove_logos"),
+                    "material_override": label,
                     "id": str(item_id), **colours}}]
     if m["helmet"]:
         ops.append({"op": "add-row", "table": HELMETS, "from": f"{HELMETS}.Helmet[_metadata_={base}]",
@@ -293,7 +296,7 @@ def build():
 
             for position, (driver, number) in enumerate(team["drivers"]):
                 seat, helmet, suit_look, gloves = placeholder_look(folder, position, driver)
-                if year in SUIT_YEARS:
+                if year in suit_sources.REAL_YEARS:
                     choice = suit_sources.pick(year, team, driver, set(made))
                     if choice:
                         suit_look = gloves = choice["label"]
