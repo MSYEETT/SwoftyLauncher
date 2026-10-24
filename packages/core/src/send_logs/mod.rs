@@ -436,6 +436,12 @@ impl Bundle {
                 r.title(),
                 r.files.join(", ")
             ));
+            if let Some(c) = &r.cause {
+                s.push_str(&format!(
+                    "  found: {} (the [loader] lines in state/wrapper-run.log say more)\n",
+                    c.what()
+                ));
+            }
         }
         if let Some(f) = crate::launch::Failure::read(&store.root) {
             s.push_str(&format!("  last launch: {} ({})\n", f.title(), f.headline()));

@@ -69,6 +69,93 @@ pub struct Report {
     pub game: PathBuf,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub launcher: Option<PathBuf>,
+    /// In game: what the session found keeping version.dll out of the game.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cause: Option<Box<Cause>>,
+}
+
+/// What kept version.dll from running in the game, from what the session
+/// found once the loader missed it (see `loader_check`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Cause {
+    /// Smart App Control blocked it (`seen`: a Code Integrity event says
+    /// so), or is on and nothing else explains the miss.
+    SmartAppControl { seen: bool },
+    /// An App Control (WDAC) policy other than Smart App Control blocked it.
+    Policy { name: Option<String> },
+    /// F1_25.exe runs with Code integrity guard: Microsoft-signed DLLs only.
+    SignedOnly,
+    /// Microsoft Defender blocked it: a detection or an attack surface
+    /// reduction rule.
+    Defender,
+    /// The registry lists version.dll as a KnownDLL.
+    KnownDll,
+    /// The game holds a version.dll from another folder and not the game
+    /// folder's (`prefer_system32`: its exploit protection asks for that).
+    OtherCopy { path: String, prefer_system32: bool },
+}
+
+impl Cause {
+    pub fn what(&self) -> String {
+        match self {
+            Self::SmartAppControl { seen: true } => format!("Smart App Control blocked {PROXY}"),
+            Self::SmartAppControl { seen: false } => {
+                format!("Smart App Control is on and most likely blocked {PROXY}")
+            }
+            Self::Policy { name } => format!(
+                "a Windows App Control policy{} blocked {PROXY}",
+                name.as_ref().map(|n| format!(" ({n})")).unwrap_or_default()
+            ),
+            Self::SignedOnly => format!(
+                "Exploit protection lets F1_25.exe load only Microsoft-signed DLLs, so Windows refused {PROXY}"
+            ),
+            Self::Defender => format!("Microsoft Defender blocked {PROXY}"),
+            Self::KnownDll => format!(
+                "{PROXY} is listed under KnownDLLs, so Windows loads its own copy instead of the game folder's"
+            ),
+            Self::OtherCopy {
+                path,
+                prefer_system32: true,
+            } => format!(
+                "the game loaded {path} instead of the game folder's {PROXY}: Exploit protection makes F1_25.exe \
+                 prefer System32 DLLs"
+            ),
+            Self::OtherCopy { path, .. } => format!(
+                "the game loaded {path} instead of the game folder's {PROXY}. Security software on this PC most \
+                 likely redirected it"
+            ),
+        }
+    }
+
+    /// The fix, when it is not the antivirus one.
+    fn fix(&self, game: &Path) -> Option<String> {
+        Some(match self {
+            Self::SmartAppControl { .. } => "To fix it, close F1 25, turn off Smart App Control in Windows \
+                 Security > App & browser control > Smart App Control settings, then launch again."
+                .to_owned(),
+            Self::Policy { .. } => format!(
+                "To fix it, close F1 25, ask whoever manages this PC to allow {PROXY} in the game folder ({}), \
+                 then launch again.",
+                game.display()
+            ),
+            Self::SignedOnly
+            | Self::OtherCopy {
+                prefer_system32: true,
+                ..
+            } => "To fix it, close F1 25, remove the F1_25.exe settings in Windows Security > App & browser \
+                 control > Exploit protection > Program settings, then launch again."
+                .to_owned(),
+            Self::KnownDll => format!(
+                "To fix it, close F1 25, remove {PROXY} from HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\\
+                 Session Manager\\KnownDLLs in the registry, restart Windows, then launch again."
+            ),
+            Self::OtherCopy { .. } => "To fix it, close F1 25, turn off your antivirus's DLL or behaviour \
+                 protection for F1_25.exe (a folder exclusion is often not enough), then launch again."
+                .to_owned(),
+            Self::Defender => return None,
+        })
+    }
 }
 
 impl Report {
@@ -82,6 +169,7 @@ impl Report {
             removed: false,
             game: game.to_path_buf(),
             launcher: launcher_dir(),
+            cause: None,
         }
     }
 
@@ -116,19 +204,27 @@ impl Report {
         let names = names(&self.files);
         let one = self.files.len() <= 1;
         let it = if one { "it" } else { "them" };
-        let what = match self.stage {
-            Stage::BeforeLaunch => {
+        let cause = self
+            .cause
+            .as_deref()
+            .filter(|_| self.stage == Stage::InGame && !self.removed);
+        let what = match (self.stage, cause) {
+            (Stage::BeforeLaunch, _) => {
                 format!("F1 25 was not started: an antivirus most likely deleted or quarantined {names}.")
             }
-            Stage::InGame if self.removed => format!(
+            (Stage::InGame, _) if self.removed => format!(
                 "F1 25 is running without mods: {names} {} removed from the game folder. An antivirus most likely deleted or quarantined {it}.",
                 if one { "was" } else { "were" }
             ),
-            Stage::InGame => {
+            (Stage::InGame, Some(c)) => format!("F1 25 is running without mods: {}.", c.what()),
+            (Stage::InGame, None) => {
                 format!("F1 25 is running without mods. An antivirus most likely blocked {names}.")
             }
         };
-        format!("{what} {}", self.fix())
+        let fix = cause
+            .and_then(|c| c.fix(&self.game))
+            .unwrap_or_else(|| self.fix());
+        format!("{what} {fix}")
     }
 
     fn fix(&self) -> String {
@@ -484,6 +580,7 @@ mod tests {
             removed: false,
             game: PathBuf::from(r"C:\Steam\steamapps\common\F1 25"),
             launcher: Some(PathBuf::from(r"C:\Programs\SwoftyLauncher")),
+            cause: None,
         };
         assert_eq!(
             r.text(),
@@ -504,6 +601,121 @@ mod tests {
             "F1 25 is running without mods. An antivirus most likely blocked version.dll. To fix it"
         ));
         assert_eq!(r.title(), "Mods did not load");
+    }
+
+    #[test]
+    fn names_what_kept_the_loader_out_when_the_session_found_it() {
+        let mut r = Report {
+            at: 1.0,
+            stage: Stage::InGame,
+            files: vec!["version.dll".into()],
+            removed: false,
+            game: PathBuf::from(r"E:\SteamLibrary\steamapps\common\F1 25"),
+            launcher: Some(PathBuf::from(r"C:\Programs\SwoftyLauncher")),
+            cause: None,
+        };
+        let fallback = r.text();
+        assert!(fallback.starts_with(
+            "F1 25 is running without mods. An antivirus most likely blocked version.dll. To fix it, close F1 25, \
+             restore it in Windows Security"
+        ));
+        let text = |r: &mut Report, cause: Cause| {
+            r.cause = Some(Box::new(cause));
+            r.text()
+        };
+        assert_eq!(
+            text(&mut r, Cause::SmartAppControl { seen: true }),
+            "F1 25 is running without mods: Smart App Control blocked version.dll. To fix it, close F1 25, turn \
+             off Smart App Control in Windows Security > App & browser control > Smart App Control settings, then \
+             launch again."
+        );
+        assert!(
+            text(&mut r, Cause::SmartAppControl { seen: false }).starts_with(
+                "F1 25 is running without mods: Smart App Control is on and most likely blocked"
+            )
+        );
+        assert_eq!(
+            text(
+                &mut r,
+                Cause::Policy {
+                    name: Some("Contoso".into())
+                }
+            ),
+            "F1 25 is running without mods: a Windows App Control policy (Contoso) blocked version.dll. To fix \
+             it, close F1 25, ask whoever manages this PC to allow version.dll in the game folder \
+             (E:\\SteamLibrary\\steamapps\\common\\F1 25), then launch again."
+        );
+        let signed = text(&mut r, Cause::SignedOnly);
+        assert!(
+            signed.contains("load only Microsoft-signed DLLs")
+                && signed.contains("Exploit protection > Program settings"),
+            "{signed}"
+        );
+        assert_eq!(
+            text(&mut r, Cause::Defender),
+            "F1 25 is running without mods: Microsoft Defender blocked version.dll. To fix it, close F1 25, \
+             restore it in Windows Security > Virus & threat protection > Protection history, add exclusions for \
+             the game folder (E:\\SteamLibrary\\steamapps\\common\\F1 25) and the launcher folder \
+             (C:\\Programs\\SwoftyLauncher), then launch again."
+        );
+        let known = text(&mut r, Cause::KnownDll);
+        assert!(
+            known.contains(r"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\KnownDLLs"),
+            "{known}"
+        );
+        assert_eq!(
+            text(
+                &mut r,
+                Cause::OtherCopy {
+                    path: r"C:\WINDOWS\SYSTEM32\VERSION.dll".into(),
+                    prefer_system32: false
+                }
+            ),
+            "F1 25 is running without mods: the game loaded C:\\WINDOWS\\SYSTEM32\\VERSION.dll instead of the game \
+             folder's version.dll. Security software on this PC most likely redirected it. To fix it, close F1 25, \
+             turn off your antivirus's DLL or behaviour protection for F1_25.exe (a folder exclusion is often not \
+             enough), then launch again."
+        );
+        let prefer = text(
+            &mut r,
+            Cause::OtherCopy {
+                path: r"C:\WINDOWS\SYSTEM32\VERSION.dll".into(),
+                prefer_system32: true,
+            },
+        );
+        assert!(
+            prefer.contains("Exploit protection makes F1_25.exe prefer System32 DLLs. To fix it"),
+            "{prefer}"
+        );
+        r.removed = true;
+        assert!(
+            r.text()
+                .starts_with("F1 25 is running without mods: version.dll was removed")
+        );
+        r.cause = None;
+        r.removed = false;
+        assert_eq!(r.text(), fallback);
+        assert_eq!(r.title(), "Mods did not load");
+    }
+
+    #[test]
+    fn a_report_keeps_its_cause_and_reads_one_without() {
+        let mut r = Report::new(
+            Stage::InGame,
+            vec!["version.dll".into()],
+            Path::new("/games/F1 25"),
+        );
+        r.cause = Some(Box::new(Cause::OtherCopy {
+            path: r"C:\WINDOWS\SYSTEM32\VERSION.dll".into(),
+            prefer_system32: false,
+        }));
+        let json = serde_json::to_value(&r).unwrap();
+        assert_eq!(json["cause"]["kind"], "other_copy");
+        assert_eq!(serde_json::from_value::<Report>(json).unwrap(), r);
+        let old = r#"{"at":1.0,"stage":"in_game","files":["version.dll"],"game":"/games/F1 25"}"#;
+        assert_eq!(serde_json::from_str::<Report>(old).unwrap().cause, None);
+        r.cause = None;
+        assert!(serde_json::to_value(&r).unwrap().get("cause").is_none());
     }
 
     #[test]

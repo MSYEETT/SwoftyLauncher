@@ -1099,6 +1099,27 @@ fn says_when_the_mod_loader_never_attached() {
         summary.contains("\nMod loader\n  last launch: Mods did not load (version.dll)\n"),
         "{summary}"
     );
+    assert!(!summary.contains("  found: "), "{summary}");
+    let mut blocked = crate::quarantine::Report::new(
+        crate::quarantine::Stage::InGame,
+        vec!["version.dll".into()],
+        &game,
+    );
+    blocked.cause = Some(Box::new(crate::quarantine::Cause::SmartAppControl { seen: true }));
+    blocked.write(&store.root).unwrap();
+    let summary = summary_of(&Bundle::collect_with(
+        &store,
+        &report(&game),
+        Limits::default(),
+        "x",
+    ));
+    assert!(
+        summary.contains(
+            "\n  last launch: Mods did not load (version.dll)\n  found: Smart App Control blocked version.dll \
+             (the [loader] lines in state/wrapper-run.log say more)\n"
+        ),
+        "{summary}"
+    );
     std::fs::remove_dir_all(&root).ok();
 }
 
