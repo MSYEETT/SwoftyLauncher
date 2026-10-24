@@ -81,6 +81,23 @@ When the EA app doesn't come up, the launch stops with one of these messages:
 
 `swofty doctor` shows whether the EA app runs and how the link reaches it, in its `ea app` and `ea app hand-off` rows. `swofty run --direct` starts an EA app copy through Proton instead, without the EA app. `swofty game launch` hands the EA app the launch link for the copy as it's installed, without your profile or offline play.
 
+## Game files changed outside Swofty
+
+Before a modded session builds anything, the launcher checks the Steam copy against Steam's list of the files it installed. When files were changed outside Swofty, usually by a mod copied into the game folder by hand, F1 25 is not started and nothing in the game folder is changed. [Checking against Steam](/reference/restore#checking-against-steam) lists what the check compares.
+
+The launcher opens **Your game files have been edited**. It says how many files changed, names the first six, and shows the fix:
+
+1. Select **Verify game files in Steam**. It opens `steam://validate/3059520`, Steam's **Verify integrity of game files** for F1 25, which puts Steam's copies back. In Steam, it's under right-click F1 25 > **Properties** > **Installed Files**.
+2. When Steam has finished, select **Play** again.
+
+**What to do** on the play bar reopens the modal. An EA app copy is not checked against a list of the EA app's files; see [Repair the game files](/using/game-copies#repair-the-game-files).
+
+`swofty run` and `swofty apply` stop with the same fix and the same link:
+
+```text
+swofty: common.erp, ferrari.erp, force_india.erp and 49 more files are not the copy Steam installed, usually after a mod was copied into the game folder by hand; nothing in the game folder was changed; verify the game files in Steam to put them back (open steam://validate/3059520, or F1 25 > Properties > Installed Files > Verify integrity of game files), then try again
+```
+
 ## Linux: the Steam wrapper
 
 Set Steam's launch option to `swofty run -- %command%` so its Play button starts Swofty Launcher for F1 25. The launcher uses your configured Proton version and records session logs.

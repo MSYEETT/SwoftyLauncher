@@ -57,6 +57,19 @@ An added folder that no longer has the game shows as **Folder not found** in the
 
 To turn this off, select the arrow next to **Play** and clear **Start Steam automatically** or **Start the EA app automatically**. One setting covers both stores.
 
+## Repair the game files
+
+Each store puts its own game files back:
+
+| Copy | Repair |
+|---|---|
+| Steam | **Verify game files in Steam** in the launcher opens `steam://validate/3059520`, Steam's **Verify integrity of game files** for F1 25. In Steam, it's under right-click F1 25 > **Properties** > **Installed Files** |
+| EA app | **EA app** > **Library** > **F1 25** > **Manage** > **Repair**. The EA app has no link that starts a repair |
+
+When files in the Steam copy were changed outside Swofty, the launch stops and **Your game files have been edited** offers **Verify game files in Steam**. See [Game files changed outside Swofty](/reference/launch#game-files-changed-outside-swofty).
+
+An EA app copy is not checked against a list of its files. When the launcher finds files in its folder that it didn't put there, the same modal shows the EA app's repair steps instead.
+
 ## The EA app copy on Linux
 
 On Linux, the launcher hands the EA app a launch link through a command you set. Set `ea_launch_command` under `"launch"` in `$DATA/config.json`, with `{url}` where the link goes. This example is for a script whose `run` starts the EA app in its Proton prefix and whose `wine` runs a program in the running EA app's prefix:

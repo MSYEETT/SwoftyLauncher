@@ -52,12 +52,12 @@ To fix it:
 
 ## If your game files aren't the ones Steam installed
 
-Before a modded session builds anything, the launcher checks the game against Steam's record of the files it installed. If a file was changed outside the launcher, for example by another mod tool or a manual install, F1 25 is not started and a **Your game files have been edited** modal names the files and lists the fix.
+Before a modded session builds anything, the launcher checks the game against Steam's record of the files it installed. If a file was changed outside the launcher, for example by another mod tool or a manual install, F1 25 is not started and a **Your game files have been edited** modal says how many files changed, names the first six, and lists the fix.
 
 To fix it:
 
-1. In Steam, right-click F1 25 → **Properties** → **Installed Files** → **Verify integrity of game files**.
-2. Press **Play** again.
+1. Select **Verify game files in Steam** in the modal. Steam checks F1 25 and puts its own copies back. In Steam, it's under right-click F1 25 → **Properties** → **Installed Files** → **Verify integrity of game files**.
+2. When Steam has finished, press **Play** again.
 
 The next launch checks the game again and continues once it matches Steam's copy.
 

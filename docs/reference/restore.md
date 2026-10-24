@@ -32,7 +32,7 @@ Steam keeps a manifest for each installed depot in `<steam>/depotcache/<depot>_<
 - Before the check, a stale `EAAntiCheat.GameServiceLauncher.exe.bak` an interrupted session left is cleared: a backup that is Steam's copy is put back over the live exe, and a backup that is not is set aside under `swofty/offline-recovery/` while a Steam-verified live exe is kept. This step is skipped while a session is pending.
 - Each original the install backs up for the first time is compared with Steam's copy before it is copied.
 
-A file that doesn't match, other than an EA AntiCheat launcher file, stops the session before anything is built or changed and writes `state/not-stock.json`. The launcher opens a **Your game files have been edited** modal that names the files and lists the fix: verify the game files in Steam, or add mods through the Simplified Importer. Files Steam doesn't list are not checked. A game folder outside Steam is not checked. Without a readable manifest for every installed depot, the check is skipped and the launch log says why.
+A file that doesn't match, other than an EA AntiCheat launcher file, stops the session before anything is built or changed and writes `state/not-stock.json`. The launcher opens a **Your game files have been edited** modal that says how many files changed, names the first six, and lists the fix: **Verify game files in Steam** (`steam://validate/3059520`), or add mods through the Simplified Importer. `swofty run` and `swofty apply` print the same link. Files Steam doesn't list are not checked. A game folder outside Steam is not checked. Without a readable manifest for every installed depot, the check is skipped and the launch log says why.
 
 ## Recovery rules
 
