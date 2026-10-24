@@ -462,6 +462,13 @@ impl Bundle {
         }
         if let Some(f) = crate::launch::Failure::read(&store.root) {
             s.push_str(&format!("  last launch: {} ({})\n", f.title(), f.headline()));
+            if let crate::launch::Cause::Blocked(b) = &f.cause {
+                s.push_str(&format!(
+                    "  blocked: {} (os error {})\n",
+                    b.program.display(),
+                    b.code
+                ));
+            }
         }
         if loader.is_empty() {
             s.push_str("  No loader log was found\n");

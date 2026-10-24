@@ -1164,6 +1164,31 @@ fn says_when_the_mod_loader_never_attached() {
 }
 
 #[test]
+fn names_a_program_windows_blocked() {
+    let root = tmp("blocked");
+    let (store, game) = fake_data(&root);
+    let cli = std::path::Path::new(r"C:\Swofty\bin\swofty.exe");
+    let block = crate::app_control::Block::from_code(cli, 4551).unwrap();
+    crate::launch::Failure::new(crate::launch::Cause::Blocked(block))
+        .write(&store.root)
+        .unwrap();
+    let summary = summary_of(&Bundle::collect_with(
+        &store,
+        &report(&game),
+        Limits::default(),
+        "x",
+    ));
+    assert!(
+        summary.contains(
+            "\nMod loader\n  last launch: Windows blocked a Swofty program (Smart App Control or an app \
+             control policy blocked swofty.exe)\n  blocked: C:\\Swofty\\bin\\swofty.exe (os error 4551)\n"
+        ),
+        "{summary}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
 fn sends_the_newest_addon_logs() {
     let root = tmp("addon-logs");
     let (store, game) = fake_data(&root);

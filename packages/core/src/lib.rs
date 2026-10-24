@@ -1,6 +1,7 @@
 pub use swofty_addon::{GAME_ID, asset, builder, launcher, manifest, ops, view};
 
 pub mod activation;
+pub mod app_control;
 pub mod baseline;
 pub mod build;
 pub mod builtin;
@@ -89,6 +90,8 @@ pub enum Error {
         stock::STEAM_VERIFY_URL
     )]
     NotStock(Vec<String>),
+    #[error("{}", .0.text())]
+    Blocked(app_control::Block),
     #[error("{0}")]
     Other(String),
 }

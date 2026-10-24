@@ -12,6 +12,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
+use crate::app_control::Block;
 use crate::quarantine::ATTACHED;
 use crate::{Result, io_err, read_json, write_json};
 
@@ -46,6 +47,8 @@ pub enum Cause {
     },
     /// The game closed itself cleanly before its window, with no other copy.
     ClosedEarly { after: f64 },
+    /// Windows refused to start one of Swofty's programs.
+    Blocked(Block),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -85,19 +88,23 @@ impl Failure {
     }
 
     pub fn title(&self) -> &'static str {
-        match self.cause {
+        match &self.cause {
             Cause::AlreadyRunning { .. } => "F1 25 is already running",
             Cause::SecondCopy { .. } => "F1 25 was opened twice",
             Cause::ClosedEarly { .. } => "F1 25 closed as it started",
+            Cause::Blocked(b) => b.title(),
         }
     }
 
     /// One line for the launcher's status bar.
-    pub fn headline(&self) -> &'static str {
-        match self.cause {
-            Cause::AlreadyRunning { .. } => "F1 25 was already running, so the modded copy was not started",
-            Cause::SecondCopy { .. } => "another copy of F1 25 was running, so the modded copy closed",
-            Cause::ClosedEarly { .. } => "F1 25 closed itself before its window opened",
+    pub fn headline(&self) -> String {
+        match &self.cause {
+            Cause::AlreadyRunning { .. } => {
+                "F1 25 was already running, so the modded copy was not started".into()
+            }
+            Cause::SecondCopy { .. } => "another copy of F1 25 was running, so the modded copy closed".into(),
+            Cause::ClosedEarly { .. } => "F1 25 closed itself before its window opened".into(),
+            Cause::Blocked(b) => b.headline(),
         }
     }
 
@@ -107,7 +114,7 @@ impl Failure {
         } else {
             "Close F1 25 and check that no F1_25.exe process is left"
         };
-        match self.cause {
+        match &self.cause {
             Cause::AlreadyRunning { pid } => format!(
                 "The modded session was not started: another copy of F1 25 is running (process {pid}), \
                  and F1 25 runs one copy at a time. {close}, then press Play again."
@@ -124,6 +131,7 @@ impl Failure {
                  error. No other copy of F1 25 was running. Press Play again. If it keeps closing, use \
                  Send Logs to Developers right after it happens."
             ),
+            Cause::Blocked(b) => b.text(),
         }
     }
 }
@@ -361,6 +369,26 @@ mod tests {
         Failure::clear(&root).unwrap();
         assert_eq!(Failure::read(&root), None);
         Failure::clear(&root).unwrap();
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_blocked_program_names_itself_and_round_trips() {
+        let root = std::env::temp_dir().join(format!("swofty-launch-blocked-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("state")).unwrap();
+        let block = Block::from_code(Path::new(r"C:\Swofty\bin\swofty.exe"), 4551).unwrap();
+        let f = Failure {
+            at: 1_792_594_036.5,
+            cause: Cause::Blocked(block.clone()),
+        };
+        assert_eq!(f.title(), "Windows blocked a Swofty program");
+        assert_eq!(f.headline(), block.headline());
+        assert_eq!(f.text(), block.text());
+        f.write(&root).unwrap();
+        assert_eq!(Failure::read(&root), Some(f));
+        let text = std::fs::read_to_string(Failure::path(&root)).unwrap();
+        assert!(text.contains("\"kind\": \"blocked\""), "{text}");
+        assert!(text.contains("\"code\": 4551"), "{text}");
         std::fs::remove_dir_all(&root).ok();
     }
 }

@@ -22,6 +22,7 @@ use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 
+use crate::app_control::Block;
 use crate::baseline::{DepotHashes, sha256_file, sha256_opt};
 use crate::{Error, Result, io_err, read_json, with_retry, write_json};
 
@@ -517,6 +518,14 @@ fn command_for(program: &Path, exec: Exec) -> Command {
     }
 }
 
+/// A tool that would not start; one Windows refused says what blocked it.
+fn start_error(program: &Path, e: std::io::Error) -> Error {
+    match Block::of(program, &e) {
+        Some(b) => Error::Blocked(b),
+        None => Error::Other(format!("could not start {}: {e}", program.display())),
+    }
+}
+
 /// Explain an exit that came from the system loader rather than the tool: a C
 /// library older than the build needs, or a missing shared library.
 fn loader_hint(program: &Path, status: std::process::ExitStatus) -> &'static str {
@@ -587,7 +596,7 @@ pub fn probe(game: &Path, a: &Artifacts) -> Result<Probe> {
     let out = command(&a.probe)?
         .arg(game.join(crate::GAME_EXE))
         .output()
-        .map_err(|e| Error::Other(format!("could not start {}: {e}", a.probe.display())))?;
+        .map_err(|e| start_error(&a.probe, e))?;
     let report = String::from_utf8_lossy(&out.stdout).trim().to_owned();
     match out.status.code() {
         Some(0) => Ok(Probe {
@@ -725,7 +734,7 @@ pub fn stage(game: &Path, a: &Artifacts, journal: &Path) -> Result<Vec<String>> 
         .arg("--journal")
         .arg(journal)
         .output()
-        .map_err(|e| Error::Other(format!("could not start {}: {e}", a.prelaunch.display())))?;
+        .map_err(|e| start_error(&a.prelaunch, e))?;
     if !out.status.success() {
         return Err(Error::Other(format!(
             "offline play staging failed: {}{}",

@@ -20,6 +20,8 @@ use swofty_addon::launcher::{
 use swofty_addon::manifest::{AddonManifest, Launcher};
 use swofty_addon::view::{Body, Button, Effect, Event, Notice, SectionSpec, Style, Tone, View};
 
+use crate::app_control::Block;
+
 type Result<T> = swofty_addon::Result<T>;
 
 pub const LOG_FILE: &str = "helper.log";
@@ -309,9 +311,10 @@ impl HelperAddon {
             use std::os::windows::process::CommandExt;
             command.creation_flags(0x0800_0000);
         }
-        let mut child = command
-            .spawn()
-            .map_err(|e| format!("could not start {}: {e}", program.display()))?;
+        let mut child = command.spawn().map_err(|e| match Block::of(&program, &e) {
+            Some(b) => format!("could not start: {}", b.text()),
+            None => format!("could not start {}: {e}", program.display()),
+        })?;
         let (stdin, stdout) = match (child.stdin.take(), child.stdout.take()) {
             (Some(i), Some(o)) => (i, o),
             _ => return Err("has no pipes".into()),
