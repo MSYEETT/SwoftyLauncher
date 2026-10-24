@@ -132,11 +132,6 @@ def build_season(year, src_zip, out_dir, game):
             for folder in FOLDERS:
                 cameras.move_cockpit(loaded[folder], pkg, camera["up"], camera["forward"])
             report["cockpit_camera"] = camera
-        pod = SEASONS.get(year, {}).get("pod_camera")
-        if pod:
-            for folder in FOLDERS:
-                cameras.pod_near_clip(loaded[folder], pkg, pod["near_clip"])
-            report["pod_camera"] = pod
         report["handling_positions"] = sum(handling.use_handling_positions(loaded[f]) for f in FOLDERS)
 
         shipped = set()
@@ -213,8 +208,6 @@ def build_extra(year, team, downloads, out_dir, game):
     season = SEASONS.get(year, {})
     if season.get("cockpit_camera"):
         cameras.move_cockpit(e, extra, season["cockpit_camera"]["up"], season["cockpit_camera"]["forward"])
-    if season.get("pod_camera"):
-        cameras.pod_near_clip(e, extra, season["pod_camera"]["near_clip"])
     handling.use_handling_positions(e)
     known = {r.name.split("?")[0] for r in e.res}
     common = out_dir / "teams" / "common.erp" if own_common else game / STOCK_COMMON

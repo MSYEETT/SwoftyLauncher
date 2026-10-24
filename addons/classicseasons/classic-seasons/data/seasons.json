@@ -39,7 +39,6 @@
   "seasons": [
     {
       "year": 2016,
-      "pod_camera": { "near_clip": 0.6 },
       "halo": false,
       "cockpit_camera": { "up": 0.04, "forward": 0.06 },
       "teams": [
@@ -58,7 +57,6 @@
     },
     {
       "year": 2017,
-      "pod_camera": { "near_clip": 0.6 },
       "halo": false,
       "teams": [
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "colour": "#00d2be", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]] },
@@ -75,7 +73,6 @@
     },
     {
       "year": 2018,
-      "pod_camera": { "near_clip": 0.6 },
       "teams": [
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "colour": "#00d2be", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]] },
         { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "colour": "#dc0000", "drivers": [["sebastian_vettel", 5], ["kimi_raikkonen", 7]] },
@@ -91,7 +88,6 @@
     },
     {
       "year": 2019,
-      "pod_camera": { "near_clip": 0.8 },
       "teams": [
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "colour": "#00d2be", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]], "team_wear": ["#c0c6c9", "#111111", "#00d2be"] },
         { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "colour": "#dc0000", "drivers": [["sebastian_vettel", 5], ["charles_leclerc", 16]] },
@@ -107,7 +103,6 @@
     },
     {
       "year": 2020,
-      "pod_camera": { "near_clip": 0.6 },
       "teams": [
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "colour": "#00d2be", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]], "team_wear": ["#111111", "#00d2be", "#c0c6c9"] },
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "colour": "#1e41ff", "drivers": [["max_verstappen", 33], ["alex_albon", 23]] },
@@ -123,7 +118,6 @@
     },
     {
       "year": 2021,
-      "pod_camera": { "near_clip": 0.6 },
       "teams": [
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "colour": "#00d2be", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]], "team_wear": ["#111111", "#00d2be", "#c0c6c9"] },
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "colour": "#0600ef", "drivers": [["max_verstappen", 33], ["sergio_perez", 11]] },
@@ -139,7 +133,6 @@
     },
     {
       "year": 2022,
-      "pod_camera": { "near_clip": 0.6 },
       "teams": [
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "colour": "#1e5bc6", "drivers": [["max_verstappen", 1], ["sergio_perez", 11]] },
         { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "colour": "#ed1c24", "drivers": [["charles_leclerc", 16], ["carlos_sainz-jr", 55]] },
@@ -155,7 +148,6 @@
     },
     {
       "year": 2023,
-      "pod_camera": { "near_clip": 0.6 },
       "teams": [
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "colour": "#3671c6", "drivers": [["max_verstappen", 1], ["sergio_perez", 11]] },
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "colour": "#6cd3bf", "drivers": [["lewis_hamilton", 44], ["george_russell", 63]] },
@@ -171,7 +163,6 @@
     },
     {
       "year": 2024,
-      "pod_camera": { "near_clip": 0.6 },
       "teams": [
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "colour": "#3671c6", "drivers": [["max_verstappen", 1], ["sergio_perez", 11]] },
         { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "colour": "#ff8000", "drivers": [["lando_norris", 4], ["oscar_piastri", 81]] },
