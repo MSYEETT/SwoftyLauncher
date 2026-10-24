@@ -213,6 +213,37 @@ fn a_kill_between_any_two_steps_rolls_back_to_the_baseline() {
 }
 
 #[test]
+fn an_install_the_free_space_cannot_hold_changes_nothing() {
+    let f = Fixture::new("space");
+    let original = f.snapshot();
+    let game = f.game("1");
+    let short = Installer {
+        free_space: |_| Some(1),
+        ..Installer::new(&f.data, &game)
+    };
+    let err = short.apply(&f.maps_plan()).unwrap_err();
+    assert!(
+        matches!(err, swofty_core::Error::NoSpace { free: 1, .. }),
+        "{err}"
+    );
+    assert!(err.to_string().starts_with("not enough free space on "), "{err}");
+    assert!(err.to_string().contains(" GB, 0.0 GB free"), "{err}");
+    assert_eq!(f.snapshot(), original);
+    assert!(Journal::open(&f.data).unwrap().is_empty());
+    assert!(
+        !f.data.join("baseline/objects").exists(),
+        "no original was backed up"
+    );
+
+    let roomy = Installer {
+        free_space: |_| Some(u64::MAX),
+        ..Installer::new(&f.data, &game)
+    };
+    roomy.apply(&f.maps_plan()).unwrap();
+    assert_eq!(f.read(UI), "ui-B");
+}
+
+#[test]
 fn a_game_update_in_between_never_restores_old_originals() {
     let f = Fixture::new("update");
     let game1 = f.game("1");

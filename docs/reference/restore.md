@@ -58,6 +58,10 @@ Restore replaced files from backups. Remove files and empty folders created by t
 
 If a file has unexpected contents, leave it alone and report it. Never restore files from an old game build over a newer one.
 
+## Free space
+
+Before an install backs up or copies anything, it adds up what it writes on each volume: on the game folder's, the files it copies less the files they replace; on the data folder's, the originals it backs up for the first time and 2 KB per file for the journal and the other state files. Both folders on one volume count together. When a volume has less free space than that, the install stops with `not enough free space on <drive>: this profile needs about <X> GB, <Y> GB free`, in GB of 1024³ bytes. A write that fails on a full volume during the install stops it with the same message, and the session rolls back.
+
 ## Sessions
 
 The `swofty run` wrapper holds `session.lock` from before it installs the profile until the offline play staging and the profile are rolled back. It rolls back when the game exits for any reason, on an error, and on a stop signal. A direct `swofty run` waits for the wrapper to exit and rolls back anything the wrapper left.

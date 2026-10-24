@@ -12,6 +12,7 @@ pub mod conflicts;
 pub mod copies;
 pub mod crash;
 pub mod dbedit;
+pub mod disk;
 pub mod ea_app;
 pub mod erpbuild;
 pub mod exe_version;
@@ -97,8 +98,19 @@ pub enum Error {
     Blocked(app_control::Block),
     #[error("{0}")]
     Requires(catalog::requires::Refusal),
+    #[error("{}", no_space(drive, *need, *free))]
+    NoSpace { drive: String, need: u64, free: u64 },
     #[error("{0}")]
     Other(String),
+}
+
+fn no_space(drive: &str, need: u64, free: u64) -> String {
+    let colon = if drive.ends_with(':') { "" } else { ":" };
+    format!(
+        "not enough free space on {drive}{colon} this profile needs about {} GB, {} GB free",
+        disk::gb(need),
+        disk::gb(free)
+    )
 }
 
 fn leftovers(found: &[install::Conflict]) -> String {

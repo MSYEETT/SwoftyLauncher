@@ -176,7 +176,13 @@ pub struct Installer<'a> {
     pub depot: &'a dyn DepotHashes,
     pub stop_after: Option<usize>,
     pub session: bool,
+    pub free_space: fn(&Path) -> Option<u64>,
 }
+
+/// Room on the data folder's volume per file an install places, for the
+/// journal, `placed.json` and the hash cache, each rewritten through a
+/// temporary copy.
+const STATE_PER_FILE: u64 = 2048;
 
 fn rel_parts(rel: &str) -> Vec<String> {
     let parts: Vec<&str> = rel.split('/').collect();
@@ -290,6 +296,7 @@ impl<'a> Installer<'a> {
             depot: &(),
             stop_after: None,
             session: false,
+            free_space: crate::disk::free_space,
         }
     }
 
@@ -588,8 +595,59 @@ impl<'a> Installer<'a> {
         if plan.is_vanilla() {
             return Ok(());
         }
-        let objects = self.objects();
         let loaded = self.baseline()?;
+        let space = self.space(plan, &loaded);
+        for (dir, v, need) in &space {
+            if let Some(free) = (self.free_space)(dir).filter(|free| need > free) {
+                return Err(Error::NoSpace {
+                    drive: v.name.clone(),
+                    need: *need,
+                    free,
+                });
+            }
+        }
+        self.place(plan, hashes, loaded).map_err(|e| self.full(e, &space))
+    }
+
+    /// The bytes an install of `plan` writes on each volume: its copies, less
+    /// the files they replace, on the game folder's; the originals it backs
+    /// up for the first time and its state files on the data folder's.
+    fn space(&self, plan: &Plan, baseline: &Baseline) -> Vec<(PathBuf, crate::disk::Volume, u64)> {
+        let size = |p: &Path| std::fs::metadata(p).map_or(0, |m| m.len());
+        let (mut game, mut data) = (0, 0);
+        for (rel, src) in &plan.data {
+            let now = size(&self.path(rel));
+            game += size(src).saturating_sub(now);
+            if !baseline.files.contains_key(rel) {
+                data += now;
+            }
+        }
+        for src in plan.added.values().chain(plan.loader.values()) {
+            game += size(src);
+        }
+        data += (plan.data.len() + plan.added.len() + plan.loader.len()) as u64 * STATE_PER_FILE;
+        crate::disk::volumes([(self.game.dir.as_path(), game), (self.data, data)])
+    }
+
+    /// A write that failed on a full volume, as the volume and the room the
+    /// install needed there.
+    fn full(&self, e: Error, space: &[(PathBuf, crate::disk::Volume, u64)]) -> Error {
+        let Error::Io { path, source } = &e else {
+            return e;
+        };
+        let on = crate::disk::volume(path).filter(|_| crate::disk::is_full(source));
+        match on.and_then(|on| space.iter().find(|(_, v, _)| v.id == on.id)) {
+            Some((dir, v, need)) => Error::NoSpace {
+                drive: v.name.clone(),
+                need: *need,
+                free: (self.free_space)(dir).unwrap_or(0),
+            },
+            None => e,
+        }
+    }
+
+    fn place(&self, plan: &Plan, hashes: &mut Hashes, loaded: Baseline) -> Result<()> {
+        let objects = self.objects();
         let mut baseline = loaded.clone();
         let mut placed = Placed::load(self.data)?;
         let mut after = BTreeMap::new();
@@ -887,6 +945,52 @@ mod tests {
         );
         assert_eq!(Source::detect(&root.join("bare/F1 25")), Source::Unknown);
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_full_volume_is_named_with_what_the_install_needed_there() {
+        let root = std::env::temp_dir().join(format!("swofty-full-{}", std::process::id()));
+        let game = Game {
+            dir: root.join("game"),
+            user_reg: None,
+            identity: Identity {
+                build_id: "1".into(),
+                exe_sha256: String::new(),
+            },
+        };
+        let inst = Installer {
+            free_space: |_| Some(5 << 20),
+            ..Installer::new(&root, &game)
+        };
+        let space = crate::disk::volumes([(game.dir.as_path(), 3 << 30)]);
+        let v = space[0].1.clone();
+        let full = |source: std::io::Error| Error::Io {
+            path: root.join("state/journal/x.json.tmp"),
+            source,
+        };
+        match inst.full(full(std::io::ErrorKind::StorageFull.into()), &space) {
+            Error::NoSpace { drive, need, free } => {
+                assert_eq!((drive, need, free), (v.name, 3 << 30, 5 << 20))
+            }
+            e => panic!("{e}"),
+        }
+        assert!(matches!(
+            inst.full(full(std::io::ErrorKind::PermissionDenied.into()), &space),
+            Error::Io { .. }
+        ));
+        assert!(matches!(
+            inst.full(full(std::io::ErrorKind::StorageFull.into()), &[]),
+            Error::Io { .. }
+        ));
+        let shown = Error::NoSpace {
+            drive: "C:".into(),
+            need: 3 << 30,
+            free: 1 << 29,
+        };
+        assert_eq!(
+            shown.to_string(),
+            "not enough free space on C: this profile needs about 3.0 GB, 0.5 GB free"
+        );
     }
 
     #[test]
