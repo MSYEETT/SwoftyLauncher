@@ -342,6 +342,9 @@ jobs:
       - name: Wine test
         run: native/test/run_wine_test.sh
 
+      - name: Overlay toolkit Wine test
+        run: native/test/run_toolkit_test.sh
+
       # Without work/exe/F1_25.exe it runs the synthetic packed image only.
       - name: Binding resolver Wine test
         run: native/test/run_bind_test.sh
