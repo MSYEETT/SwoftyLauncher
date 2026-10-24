@@ -6,6 +6,7 @@ use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::{Context, Result, bail};
 use clap::Args;
+use swofty_core::app_control::Block;
 use swofty_core::crash::{Event, LogScan, Symbols, fatal_name};
 use swofty_core::install::{Game, Installer, PROXY, Source};
 use swofty_core::launch;
@@ -77,7 +78,7 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
         .or_else(|| wrapped.then(|| std::env::current_dir().ok()).flatten());
     let g = crate::build::game(store, explicit)?;
     if wrapped {
-        return wrapper(store, profile, &args, &g);
+        return wrapper(store, profile, &args, &g).inspect_err(|e| note_blocked(store, e));
     }
     crate::build::supported(&g)?;
     let game = g.dir.clone();
@@ -136,7 +137,7 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     let loader = game.join(LOADER_LOG);
     let before = LogMark::read(&loader);
     let asked = now_secs();
-    let mut wrapper = launch(store, &game, args.direct, mode)?;
+    let mut wrapper = launch(store, &game, args.direct, mode).inspect_err(|e| note_blocked(store, e))?;
     let started = Instant::now();
     let dir = loop {
         if let Some(d) = store
@@ -702,7 +703,7 @@ fn play(
         if let Some(path) = &library_path {
             c.env("LD_LIBRARY_PATH", path);
         }
-        Ok(c.spawn()?)
+        start(&mut c)
     };
     let copies_before: Vec<u32> = game_processes().iter().map(|g| g.pid).collect();
     let launched = SystemTime::now();
@@ -1093,10 +1094,36 @@ fn spawn_logged(c: &mut Command, log: &Path) -> Result<Child> {
         std::fs::create_dir_all(dir)?;
     }
     let out = std::fs::File::create(log).with_context(|| log.display().to_string())?;
-    Ok(c.stdin(Stdio::null())
-        .stdout(out.try_clone()?)
-        .stderr(out)
-        .spawn()?)
+    start(c.stdin(Stdio::null()).stdout(out.try_clone()?).stderr(out))
+}
+
+/// Start `c`; a program Windows refused to start is an error that says what
+/// blocked it.
+fn start(c: &mut Command) -> Result<Child> {
+    c.spawn()
+        .map_err(|e| match Block::of(Path::new(c.get_program()), &e) {
+            Some(b) => swofty_core::Error::Blocked(b).into(),
+            None => e.into(),
+        })
+}
+
+/// A program Windows refused to start: the log names it and the code, and
+/// the launcher and Send Logs get it as the launch's failure.
+fn note_blocked(store: &Store, e: &anyhow::Error) {
+    let Some(swofty_core::Error::Blocked(b)) = e.downcast_ref::<swofty_core::Error>() else {
+        return;
+    };
+    say(
+        "warning",
+        &format!(
+            "Windows refused to start {} (os error {})",
+            b.program.display(),
+            b.code
+        ),
+    );
+    if let Err(e) = launch::Failure::new(launch::Cause::Blocked(b.clone())).write(&store.root) {
+        info(&format!("could not record it for the launcher: {e}"));
+    }
 }
 
 const STEAMVR_START_TIMEOUT: Duration = Duration::from_secs(90);
@@ -1790,6 +1817,25 @@ mod tests {
              version.dll already exists in the game folder; run swofty restore"
         );
         std::fs::remove_dir_all(log.ancestors().nth(2).unwrap()).ok();
+    }
+
+    #[test]
+    fn a_blocked_start_is_recorded_for_the_launcher() {
+        let root = std::env::temp_dir().join(format!("swofty-run-{}-blocked", std::process::id()));
+        let store = Store::new(&root);
+        let missing = start(&mut Command::new(root.join("no-such-program"))).unwrap_err();
+        assert!(missing.downcast_ref::<std::io::Error>().is_some(), "{missing}");
+        note_blocked(&store, &missing);
+        assert_eq!(launch::Failure::read(&root), None);
+        let block = Block::from_code(&root.join("f1op-probe.exe"), 4551).unwrap();
+        let blocked = anyhow::Error::from(swofty_core::Error::Blocked(block.clone()));
+        assert_eq!(blocked.to_string(), block.text());
+        note_blocked(&store, &blocked.context("staging offline play"));
+        assert_eq!(
+            launch::Failure::read(&root).map(|f| f.cause),
+            Some(launch::Cause::Blocked(block))
+        );
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
