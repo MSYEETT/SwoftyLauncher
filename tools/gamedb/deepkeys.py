@@ -5,7 +5,9 @@ The database stores FNV-1a 64 hashes of key paths, so a key no catalogue names
 is found by hashing candidate paths `<row>.<w1>[.<w2>[.<w3>]]` and testing them
 against the file's key set. Each level draws words from vocabularies:
 
-  exe            identifiers in F1_25.exe (`strings -n 5`)
+  exe            identifiers in F1_25.exe (`strings -n 5`) and the formats words
+  formats        identifiers F1_25.exe builds with printf, such as colour_%u_default,
+                 each integer conversion expanded over 0..31
   catalog        path segments of tools/gamedb/catalog/keys.tsv.gz, names.txt,
                  compositions.txt and packages/core/src/activation/row_keys.txt.gz
   containers     the catalog segments that are not a key's last segment
@@ -37,6 +39,11 @@ P = np.uint64(gamedb.FNV_PRIME)
 PINV = np.uint64(gamedb.FNV_PRIME_INV)
 DB_REL = os.path.join('game_package', 'gamedatabases', 'gamedatabases.2025.bin')
 WORD = re.compile(rb'[A-Za-z_][A-Za-z0-9_]{1,127}')
+CONVERSION = rb'%0?\d*(?:\.\d+)?(?:I64|I32|hh|ll|h|l|z|j|t)?[diuxX]'
+FORMAT = re.compile(rb'(?:[A-Za-z0-9_]|' + CONVERSION + rb')+')
+SPEC = re.compile(CONVERSION)
+FORMAT_TOP = 32
+FORMAT_MAX_SPECS = 2
 IDENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 ROW_INDEX = re.compile(r'_(\d+|N)$')
 SELECTOR = re.compile(r'^(.*?)\[([^=\]]+)=([^\]]*)\](.*)$')
@@ -121,14 +128,44 @@ def probe(prefixes, words, targets):
     return hits
 
 
+def exe_strings(exe):
+    try:
+        return subprocess.run(['strings', '-n', '5', exe], capture_output=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return open(exe, 'rb').read()
+
+
+def format_number(spec, n):
+    zero, width, prec = re.match(rb'%(0?)(\d*)(?:\.(\d+))?', spec).groups()
+    if width and not zero and not prec:
+        return None
+    text = {b'x': '%x', b'X': '%X'}.get(spec[-1:], '%d') % n
+    return text.rjust(max(int(width or 0), int(prec or 0)), '0').encode()
+
+
+def format_words(out):
+    words = set()
+    for token in FORMAT.findall(out):
+        specs = SPEC.findall(token)
+        if not 1 <= len(specs) <= FORMAT_MAX_SPECS or len(token) > 128:
+            continue
+        pieces = SPEC.split(token)
+        names = [pieces[0]]
+        for spec, after in zip(specs, pieces[1:]):
+            choices = [format_number(spec, n) for n in range(FORMAT_TOP)]
+            if None in choices:
+                names = []
+                break
+            names = [n + c + after for n in names for c in choices]
+        words.update(n for n in names if WORD.fullmatch(n))
+    return words
+
+
 def exe_words(exe, cache):
     if cache and os.path.exists(cache):
         return set(open(cache, 'rb').read().split())
-    try:
-        out = subprocess.run(['strings', '-n', '5', exe], capture_output=True, check=True).stdout
-    except (OSError, subprocess.CalledProcessError):
-        out = open(exe, 'rb').read()
-    words = set(WORD.findall(out))
+    out = exe_strings(exe)
+    words = set(WORD.findall(out)) | format_words(out)
     if cache:
         with open(cache, 'wb') as f:
             f.write(b'\n'.join(sorted(words)) + b'\n')
@@ -193,11 +230,11 @@ class Vocab:
     def source(self, s):
         if s in self.cache:
             return self.cache[s]
-        if s == 'exe':
+        if s in ('exe', 'formats'):
             exe = self.args.exe or (os.path.join(self.args.game, 'F1_25.exe') if self.args.game else None)
             if not exe or not os.path.exists(exe):
-                sys.exit('the exe vocabulary needs --exe or --game')
-            words = exe_words(exe, self.args.exe_cache)
+                sys.exit('the %s vocabulary needs --exe or --game' % s)
+            words = exe_words(exe, self.args.exe_cache) if s == 'exe' else format_words(exe_strings(exe))
         elif s == 'catalog':
             words = catalog_words()
         elif s == 'containers':

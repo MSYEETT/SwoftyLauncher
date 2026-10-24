@@ -70,7 +70,8 @@ Names it cannot reach stay unnamed. Adding names to `names.txt` and rerunning na
 
 | Vocabulary | Words |
 |---|---|
-| `exe` | Identifiers in `F1_25.exe` (`strings -n 5`, about 340,000) |
+| `exe` | Identifiers in `F1_25.exe` (`strings -n 5`, about 340,000) and the `formats` words |
+| `formats` | Identifiers `F1_25.exe` prints from a format string with one or two integer conversions (`%u`, `%d`, `%i`, `%x`, `%02d`), each conversion expanded to 0..31: `colour_%u_default` gives `colour_0_default` to `colour_31_default` |
 | `catalog` | Path segments of the key catalogue, `names.txt`, `compositions.txt` and `row_keys.txt.gz` |
 | `containers` | The `catalog` segments that come before another segment |
 | `labels` | Identifier values of the database's id records: row labels and references to them |
@@ -101,5 +102,5 @@ car_setup.presets.vehicle_package_setups_7: 420 key(s) found, 0 of them already 
 {ai,player}.{balanced,max_downforce,max_speed,med_downforce,med_speed}.{ballast,brake_bd_factor_front,...}
 ```
 
-Without `--braces` it prints one key per line and marks the ones the catalogue already names. `--exe-cache <file>` keeps the exe's word list between runs. To catalogue the keys found, add the line to `tools/gamedb/compositions.txt` and regenerate `row_keys.txt.gz` ([Key names](/reference/ops/database#key-names)) and the catalogue.
+Without `--braces` it prints one key per line and marks the ones the catalogue already names. `--exe-cache <file>` keeps the `exe` word list between runs; a cache written before the `formats` words joined it lacks them. To catalogue the keys found, add the line to `tools/gamedb/compositions.txt` and regenerate `row_keys.txt.gz` ([Key names](/reference/ops/database#key-names)) and the catalogue.
 
