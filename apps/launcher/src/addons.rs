@@ -15,7 +15,7 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::conflicts::{self, Pair, Report};
 use swofty_core::import::{self, Route};
-use swofty_core::manifest::{Category, Kind, MANIFEST_FILE};
+use swofty_core::manifest::{Category, ExperimentalFeature, Kind, MANIFEST_FILE};
 use swofty_core::profile::VANILLA;
 
 use crate::library::{AddonItem, Changes, Source, plural};
@@ -1706,11 +1706,15 @@ impl Shell {
                                     .text_color(p.text_muted)
                                     .child(m.source.label()),
                             )
-                            .children(
-                                swofty_core::overlay_guard::effects(man)
-                                    .into_iter()
-                                    .map(|e| effect_tag(e, p)),
-                            )
+                            .children(swofty_core::overlay_guard::effects(man).into_iter().map(|e| {
+                                if e == ExperimentalFeature::Overlay.effect()
+                                    && !self.library.profile.overlay_on(&id)
+                                {
+                                    effect_tag("Overlay off", p)
+                                } else {
+                                    effect_tag(e, p)
+                                }
+                            }))
                             .when(!man.experimental_features.is_empty(), |d| {
                                 let features = experimental_labels(m);
                                 d.child(
@@ -1965,6 +1969,29 @@ impl Shell {
                     )
                 })
         });
+        let overlay = swofty_core::overlay_guard::draws_over_the_game(man).then(|| {
+            let draws = self.library.profile.overlay_on(id);
+            let id = id.to_owned();
+            h_flex()
+                .gap(px(8.))
+                .items_center()
+                .child(self.toggle(
+                    format!("overlay-{id}"),
+                    draws && !self.vanilla(),
+                    cx,
+                    move |this, on, window, cx| this.update_profile(window, cx, |p| p.set_overlay(&id, on)),
+                ))
+                .child(
+                    div()
+                        .min_w_0()
+                        .text_color(if draws { p.text } else { p.text_muted })
+                        .child(if draws {
+                            "On"
+                        } else {
+                            "Off. The addon runs but draws nothing over the game."
+                        }),
+                )
+        });
         let facts = v_flex()
             .child(fact("Status", div().text_color(status_color).child(status), p))
             .when_some(order_line, |d, line| d.child(fact("Load order", line, p)))
@@ -1984,6 +2011,7 @@ impl Shell {
                 ))
                 .child(fact("Experimental features", experimental_labels(m), p))
             })
+            .when_some(overlay, |d, row| d.child(fact("Overlay", row, p)))
             .when_some(man.shader.as_ref(), |d, s| {
                 d.child(fact("Look", s.lut.clone(), p))
             })
