@@ -26,9 +26,12 @@ pub const CACHE_DIR: &str = "cache/registry";
 pub const CATALOG_FILE: &str = "catalog.json";
 pub const LOG_FILE: &str = "state/registry.log";
 pub const TIMEOUT: Duration = Duration::from_secs(10);
-pub const DOWNLOAD_LIMIT: u64 = 300 * 1024 * 1024;
+pub const DOWNLOAD_LIMIT: u64 = 4 * 1024 * 1024 * 1024;
 const CATALOG_LIMIT: u64 = 16 * 1024 * 1024;
-const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+/// The least time a download's body gets.
+const DOWNLOAD_FLOOR: Duration = Duration::from_secs(30 * 60);
+/// The slowest average a download may run at, in bytes a second (1 Mbit/s).
+const DOWNLOAD_RATE: u64 = 128 * 1024;
 const LOG_LIMIT: u64 = 512 * 1024;
 
 static INSTALLING: Mutex<()> = Mutex::new(());
@@ -463,15 +466,20 @@ pub fn verify(v: &Version, len: u64, sha256: &str) -> Result<()> {
     Ok(())
 }
 
-/// Copies `reader` to `to`, refusing more bytes than `v` lists, then checks
-/// the size and SHA-256.
-pub fn save(mut reader: impl Read, v: &Version, to: &Path, progress: &dyn Fn(Stage)) -> Result<()> {
+fn within_limit(v: &Version) -> Result<()> {
     if v.size > DOWNLOAD_LIMIT {
         return Err(Error::Other(format!(
             "{} bytes is over the {DOWNLOAD_LIMIT}-byte download limit",
             v.size
         )));
     }
+    Ok(())
+}
+
+/// Copies `reader` to `to`, refusing more bytes than `v` lists, then checks
+/// the size and SHA-256.
+pub fn save(mut reader: impl Read, v: &Version, to: &Path, progress: &dyn Fn(Stage)) -> Result<()> {
+    within_limit(v)?;
     let mut file = std::fs::File::create(to).map_err(io_err(to))?;
     let mut hash = Sha256::new();
     let mut buf = vec![0; 64 * 1024];
@@ -500,9 +508,47 @@ pub fn save(mut reader: impl Read, v: &Version, to: &Path, progress: &dyn Fn(Sta
     verify(v, len, &digest)
 }
 
+/// How long the body of a `size`-byte download may take: [`DOWNLOAD_RATE`]
+/// on average, and never less than [`DOWNLOAD_FLOOR`].
+pub fn body_timeout(size: u64) -> Duration {
+    DOWNLOAD_FLOOR.max(Duration::from_secs(size.div_ceil(DOWNLOAD_RATE)))
+}
+
+/// Downloads `v` to `to`, following redirects to where the registry keeps the
+/// file, and checks it with [`save`]. The body streams to disk.
 pub fn download(v: &Version, to: &Path, progress: &dyn Fn(Stage)) -> Result<()> {
-    let mut body = get(&v.url, DOWNLOAD_TIMEOUT).map_err(|t| Error::Other(t.to_string()))?;
-    save(body.with_config().limit(DOWNLOAD_LIMIT).reader(), v, to, progress)
+    within_limit(v)?;
+    let url = &v.url;
+    let response = ureq::get(url)
+        .header("User-Agent", agent_name())
+        .config()
+        .timeout_resolve(Some(Duration::from_secs(15)))
+        .timeout_connect(Some(Duration::from_secs(15)))
+        .timeout_send_request(Some(Duration::from_secs(30)))
+        .timeout_recv_response(Some(Duration::from_secs(60)))
+        .timeout_recv_body(Some(body_timeout(v.size)))
+        .http_status_as_error(false)
+        .build()
+        .call()
+        .map_err(|e| Error::Other(format!("{url}: {e}")))?;
+    let status = response.status().as_u16();
+    if status >= 400 {
+        return Err(Error::Other(format!("{url}: HTTP {status}")));
+    }
+    let encoded = response.headers().contains_key("content-encoding");
+    let sent = response
+        .headers()
+        .get("content-length")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.trim().parse::<u64>().ok());
+    if let Some(sent) = sent.filter(|s| !encoded && *s != v.size) {
+        return Err(Error::Other(format!(
+            "{url}: the server sends {sent} bytes, the registry lists {}",
+            v.size
+        )));
+    }
+    let mut body = response.into_body();
+    save(body.with_config().limit(v.size + 1).reader(), v, to, progress)
 }
 
 fn downloads_dir(store: &Store) -> Result<PathBuf> {
@@ -662,6 +708,138 @@ mod tests {
         v.size = DOWNLOAD_LIMIT + 1;
         assert!(save(&b""[..], &v, &to, &|_| {}).is_err());
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    struct Served {
+        url: String,
+        requests: std::sync::Arc<Mutex<Vec<String>>>,
+    }
+
+    /// An HTTP server on a free local port that answers each connection with
+    /// the next of `answers` and keeps every request head it reads.
+    fn serve(answers: Vec<Vec<u8>>) -> Served {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let requests = std::sync::Arc::new(Mutex::new(Vec::new()));
+        let seen = requests.clone();
+        std::thread::spawn(move || {
+            for answer in answers {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    return;
+                };
+                let mut head = Vec::new();
+                let mut byte = [0u8; 1];
+                while !head.ends_with(b"\r\n\r\n") && stream.read(&mut byte).is_ok_and(|n| n == 1) {
+                    head.push(byte[0]);
+                }
+                seen.lock()
+                    .unwrap()
+                    .push(String::from_utf8_lossy(&head).into_owned());
+                stream.write_all(&answer).ok();
+            }
+        });
+        Served { url, requests }
+    }
+
+    fn ok(body: &[u8], length: bool) -> Vec<u8> {
+        let mut out = b"HTTP/1.1 200 OK\r\nContent-Type: application/zip\r\nConnection: close\r\n".to_vec();
+        if length {
+            out.extend(format!("Content-Length: {}\r\n", body.len()).into_bytes());
+        }
+        out.extend(b"\r\n");
+        out.extend(body);
+        out
+    }
+
+    fn sha256_hex(data: &[u8]) -> String {
+        Sha256::digest(data).iter().map(|b| format!("{b:02x}")).collect()
+    }
+
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("swofty-catalog-{name}-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn header<'a>(head: &'a str, name: &str) -> Option<&'a str> {
+        head.lines().find_map(|l| {
+            let (k, v) = l.split_once(':')?;
+            k.trim().eq_ignore_ascii_case(name).then(|| v.trim())
+        })
+    }
+
+    #[test]
+    fn follows_the_registry_redirect_to_the_cdn() {
+        let body = b"PK fake addon bytes".repeat(1000);
+        let cdn = serve(vec![ok(&body, true)]);
+        let location = format!("{}/addons/x/1.0.0/k/x-1.0.0.swoftyaddon", cdn.url);
+        let registry = serve(vec![
+            format!(
+                "HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            )
+            .into_bytes(),
+        ]);
+        let dir = scratch("redirect");
+        let to = dir.join("x.zip");
+        let mut v = version("1.0.0", None);
+        v.url = format!("{}/v1/addons/x/versions/1.0.0/download", registry.url);
+        v.size = body.len() as u64;
+        v.sha256 = sha256_hex(&body);
+        download(&v, &to, &|_| {}).unwrap();
+        assert_eq!(std::fs::read(&to).unwrap(), body);
+        let first = registry.requests.lock().unwrap()[0].clone();
+        assert!(
+            first.starts_with("GET /v1/addons/x/versions/1.0.0/download "),
+            "{first}"
+        );
+        let second = cdn.requests.lock().unwrap()[0].clone();
+        assert!(
+            second.starts_with("GET /addons/x/1.0.0/k/x-1.0.0.swoftyaddon "),
+            "{second}"
+        );
+        assert_eq!(header(&second, "user-agent"), Some(agent_name()));
+        assert_eq!(header(&second, "host"), cdn.url.strip_prefix("http://"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn refuses_downloads_over_the_limit_or_longer_than_listed() {
+        let dir = scratch("limits");
+        let to = dir.join("x.zip");
+        let mut v = version("1.0.0", None);
+        v.url = "http://127.0.0.1:9/never-called".into();
+        v.size = DOWNLOAD_LIMIT + 1;
+        let over = download(&v, &to, &|_| {}).unwrap_err();
+        assert!(over.to_string().contains("download limit"), "{over}");
+        v.size = DOWNLOAD_LIMIT;
+        assert!(within_limit(&v).is_ok());
+
+        let body = b"0123456789".repeat(10);
+        v.size = 50;
+        v.sha256 = sha256_hex(&body[..50]);
+        let declared = serve(vec![ok(&body, true)]);
+        v.url = format!("{}/d", declared.url);
+        let told = download(&v, &to, &|_| {}).unwrap_err();
+        assert!(told.to_string().contains("the server sends 100 bytes"), "{told}");
+
+        let streamed = serve(vec![ok(&body, false)]);
+        v.url = format!("{}/d", streamed.url);
+        let long = download(&v, &to, &|_| {}).unwrap_err();
+        assert!(long.to_string().contains("larger than the 50 bytes"), "{long}");
+
+        let exact = serve(vec![ok(&body[..50], false)]);
+        v.url = format!("{}/d", exact.url);
+        download(&v, &to, &|_| {}).unwrap();
+        assert_eq!(std::fs::read(&to).unwrap(), &body[..50]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn gives_large_downloads_time_by_size() {
+        assert_eq!(body_timeout(0), DOWNLOAD_FLOOR);
+        assert_eq!(body_timeout(200 * 1024 * 1024), DOWNLOAD_FLOOR);
+        assert_eq!(body_timeout(1024 * 1024 * 1024), Duration::from_secs(8192));
+        assert_eq!(body_timeout(DOWNLOAD_LIMIT), Duration::from_secs(32768));
     }
 
     #[test]
