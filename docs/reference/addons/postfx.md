@@ -74,7 +74,7 @@ The header is in the SDK at `packages/sdk/include/swofty/postfx.hlsli`; the buil
 | `scene(uv)` | The picture at `uv` (0 to 1), filtered. |
 | `scene_at(pixel)` | The picture at a pixel, clamped to the edges. |
 | `scene_depth(uv)` | The game's depth buffer at `uv`, as stored (`eaid://ego_package/gbuffer_depth_stencil.image`): 1 at the camera, falling towards 0 with distance. 0 everywhere when `has_depth()` is false. |
-| `has_depth()` | Whether the depth buffer was readable for this frame. |
+| `has_depth()` | Whether the depth buffer was readable for this frame. It is false while passes run at Present. |
 | `swofty_depth_size` | The depth buffer's size in pixels. It is the render resolution, which is below the picture's with upscaling on. |
 | `option(i)` | The pass's `options[i]`, 0 when not set. |
 | `to_linear(c)`, `from_linear(c)` | Decode the picture to linear light and encode it back: sRGB in SDR, PQ in HDR10, unchanged in scRGB. In linear light 1 is SDR white, and 80 nits in HDR. |
@@ -117,15 +117,22 @@ The compiled passes are installed as `swofty/postfx/00.dxil` onwards, and `swoft
 
 ## In game
 
-- `swofty/loader.log` shows `[postfx] 1 pass(es) wait for the game's tonemap`, `[postfx] My Vignette's pass vignette is ready`, then `[postfx] the picture now goes through 1 pass(es) before the HUD` once the race renders.
-- Every 10 s for the first minute, the log counts the frames the passes ran on and the frames they skipped: `[postfx] last 10 s: passes ran on 598 frame(s); 0 tonemap list(s) also drew UI and 0 left no back buffer to draw on, so passes skipped them`. Loading screens draw their UI in the same list as the tonemap, so passes skip them.
+- `swofty/loader.log` shows `[postfx] 1 pass(es) wait for the game's tonemap`, `[postfx] My Vignette's pass vignette is ready`, then `[postfx] the picture now goes through 1 pass(es) before the HUD` once the race renders, and `[postfx] passes now run at Present on a snapshot of the picture before the HUD (queue 0000000066737380), so every frame gets them`.
+- Every 60 s for the first 30 minutes, the log counts the frames presented and the snapshots taken: `[postfx] last 60 s at Present: 3852 frame(s); snapshots before the HUD: 3171 in the game's lists, 182 between them; 0 frame(s) without one`. Frames without a snapshot show the game's own picture; loading screens are most of them.
+- With Frame Generation on, or unknown, in the game's settings, passes run on the split instead: `[postfx] swapchain 0000000062296D50: passes stay before the HUD, as frame generation is on or unknown in the game's settings`. Every 10 s for the first minute, the log then counts the frames the passes ran on and the frames they skipped: `[postfx] last 10 s: passes ran on 598 frame(s); 0 tonemap list(s) also drew UI and 0 left no back buffer to draw on, so passes skipped them`.
 - With HDR on, the back buffer is R10G10B10A2 and holds PQ: `[postfx] passes run on the game's 1908x1028 picture (format 24)`, and `swofty_encoding` is `SWOFTY_POSTFX_HDR10`. A pass that works in `to_linear`/`from_linear` looks the same in SDR and HDR.
-- With Frame Generation, the game keeps a HUD-less copy of the picture, `eaid://ego_package/hudless_backbuffer.image`; the passes' result goes into it too: `[postfx] the game's HUD-less copy of the picture gets the passes too, for Frame Generation`.
+- With Frame Generation, the game keeps a HUD-less copy of the picture, `eaid://ego_package/hudless_backbuffer.image`; on the split, the passes' result goes into it too: `[postfx] the game's HUD-less copy of the picture gets the passes too, for Frame Generation`.
 - A pass whose pipeline cannot be made is turned off: `[postfx] My Vignette's pass vignette is off: its pipeline could not be made`.
 - The core measures each pass's GPU time. A pass whose average over 120 frames stays above `budget_ms` three times in a row is turned off: `[postfx] My Vignette's pass vignette is off: it took 2.410 ms of GPU time a frame, over its 1.50 ms budget`.
 - A `swofty/postfx.off` file in the game folder turns every pass off within a second, and removing it turns them on again. `SWOFTY_POSTFX=0` in the game's environment turns them off for the session.
-- `SWOFTY_POSTFX_CAPTURE=<folder>` writes the picture before and after the passes, without the HUD; `SWOFTY_FRAME_CAPTURE` writes the presented frame with the HUD ([logging switches](/reference/std/logging)).
+- `SWOFTY_POSTFX_CAPTURE=<folder>` writes the picture before and after the passes six times in the first minute, and once more each time a `swofty/postfx.capture` file appears in the game folder. At Present the pictures hold the HUD, and `postfx-NN-hudless.ppm` holds the snapshot before it; on the split they are without the HUD. `SWOFTY_FRAME_CAPTURE` writes the presented frame with the HUD ([logging switches](/reference/std/logging)).
 
 ## How it works
 
-The game tonemaps the 3D picture into `eaid://ego_package/tonemap_output.image`, grades and encodes it into the back buffer at the end of one command list, and draws the HUD into the back buffer from the next list on. The core marks the list in which `tonemap_output.image` goes from written to read. When that list leaves the back buffer as a render target and draws no UI, the core submits a list of its own right after it on the same queue: it copies the back buffer, runs each pass between two textures of its own, and copies the result back into the back buffer and the HUD-less copy. The HUD lists then run as the game submitted them. The core's list never changes the game's lists or their state.
+The game tonemaps the 3D picture into `eaid://ego_package/tonemap_output.image`, grades and encodes it into the back buffer, then draws the HUD into the back buffer. On some frames, and on most in garages, the picture and the HUD are in one command list.
+
+Every frame, the core copies the back buffer into a snapshot of its own between the picture and the HUD. Where the game moves `eaid://ego_package/hudless_backbuffer.image` out of UAV while the back buffer is a render target, the copy goes into the game's list just before that barrier. Where a list in which `tonemap_output.image` goes from written to read ends with the back buffer still a render target, the core submits a copy list right after it on the same queue. Both add copies and barriers only, so the game's pipeline state stays as it was.
+
+At Present, the core submits a list on the swapchain's queue: each pass runs on a copy of the snapshot, between two textures of its own, and a merge adds what the passes changed to the presented back buffer wherever it still matches the snapshot. The HUD keeps the game's colours, and so does the picture under translucent HUD panels.
+
+With Frame Generation on, the core marks the list in which `tonemap_output.image` goes from written to read. When that list leaves the back buffer as a render target and draws no UI, the core submits a list of its own right after it on the same queue: it copies the back buffer, runs each pass, and copies the result back into the back buffer and the HUD-less copy. The HUD lists then run as the game submitted them. Frames where the game draws the picture and the HUD in one list keep the game's picture.
