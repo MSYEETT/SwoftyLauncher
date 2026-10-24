@@ -51,14 +51,53 @@ inline bool available()
 }
 
 // Queue a toast. text is the main line, detail an optional second line. seconds is rounded to 2, 3, 4,
-// 5, 6, 8, 10, 12, 15, 20 or 30. ok once queued; invalid for empty text; unavailable on an older core or
-// a build where the message system did not resolve. UTF-8, each string capped at 200 bytes.
-inline Result toast(std::string_view text, std::string_view detail = {}, float seconds = 4.0f)
+// 5, 6, 8, 10, 12, 15, 20 or 30. icon is empty for the default or a race flag icon: generic, diagonal,
+// black, checkpoint, chequered, fast_lap, formation_lap, pp_icon, red, safety_car, virtual_safety_car,
+// virtual_safety_car_green, flag_rival_won. ok once queued; invalid for empty text or an unknown icon;
+// unavailable on an older core or a build where the message system did not resolve. UTF-8, each string
+// capped at 200 bytes.
+inline Result toast(std::string_view text, std::string_view detail = {}, float seconds = 4.0f,
+                    std::string_view icon = {})
 {
     auto t = detail::table();
     if (!t)
         return Result::unavailable;
-    return detail::result(t->toast(std::string(text).c_str(), std::string(detail).c_str(), seconds));
+    return detail::result(
+        t->toast(std::string(text).c_str(), std::string(detail).c_str(), seconds, std::string(icon).c_str()));
+}
+
+// Write one HUD data leaf, e.g. "ui_menu_data.hud_lap_description_string". Only leaves under
+// ui_menu_data.hud_* and view_model_data.hud* are accepted (invalid otherwise). The write is queued and
+// applied on the flow thread; a later write to the same path replaces a queued one.
+inline Result set(std::string_view path, std::string_view text)
+{
+    auto t = detail::table();
+    if (!t)
+        return Result::unavailable;
+    std::string v(text);
+    return detail::result(t->set(std::string(path).c_str(), SWOFTY_HUD_TEXT, v.c_str()));
+}
+
+inline Result set(std::string_view path, bool value)
+{
+    auto t = detail::table();
+    if (!t)
+        return Result::unavailable;
+    int32_t v = value;
+    return detail::result(t->set(std::string(path).c_str(), SWOFTY_HUD_BOOL, &v));
+}
+
+inline Result set(std::string_view path, int32_t value)
+{
+    auto t = detail::table();
+    if (!t)
+        return Result::unavailable;
+    return detail::result(t->set(std::string(path).c_str(), SWOFTY_HUD_INT, &value));
+}
+
+inline Result set(std::string_view path, const char *text)
+{
+    return set(path, std::string_view(text ? text : ""));
 }
 
 inline const char *name(Result r)
