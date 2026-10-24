@@ -1,7 +1,7 @@
+#include "d3d12_hooks.hpp"
 #include "perf.hpp"
 #include "runtime.hpp"
 
-#include <safetyhook.hpp>
 #include <swofty/mixin.hpp>
 
 #include <d3d12.h>
@@ -26,7 +26,6 @@
 
 namespace {
 
-using CreateDeviceFn = HRESULT(WINAPI *)(IUnknown *, D3D_FEATURE_LEVEL, REFIID, void **);
 using SerializeRootFn = HRESULT(WINAPI *)(const D3D12_ROOT_SIGNATURE_DESC *, D3D_ROOT_SIGNATURE_VERSION, ID3DBlob **,
                                           ID3DBlob **);
 
@@ -143,7 +142,6 @@ public:
 
 enum : uint8_t { W_TONEMAP = 1, W_BACK = 2, W_HUDLESS = 4, W_UI = 8, W_DEPTH = 16 };
 
-safetyhook::InlineHook h_setname, h_barrier, h_exec;
 using Watched = PtrSet<1024>;
 std::atomic<Watched *> watched{new Watched};
 std::vector<std::pair<Watched *, ULONGLONG>> retired_tables;
@@ -709,7 +707,7 @@ bool run(ID3D12CommandQueue *q, ID3D12Resource *res, D3D12_RESOURCE_STATES state
         return false;
     }
     ID3D12CommandList *lists[] = {l};
-    h_exec.call<void>(q, 1u, lists);
+    d3d12hooks::exec_original(q, 1u, lists);
     s.fence_value = ++fence_next;
     q->Signal(fence, s.fence_value);
     if (s.capture) {
@@ -747,7 +745,7 @@ void log_diag(ID3D12GraphicsCommandList *list, const Mark &m)
     }
 }
 
-HRESULT STDMETHODCALLTYPE setname_hook(ID3D12Object *o, LPCWSTR name)
+void on_setname(ID3D12Object *o, LPCWSTR name)
 {
     static const uint32_t probe = perf::probe("core", "postfx SetName");
     if (name) {
@@ -774,10 +772,9 @@ HRESULT STDMETHODCALLTYPE setname_hook(ID3D12Object *o, LPCWSTR name)
         if (bits)
             watch(res, bits);
     }
-    return h_setname.call<HRESULT>(o, name);
 }
 
-void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, const D3D12_RESOURCE_BARRIER *barriers)
+bool on_barrier(ID3D12GraphicsCommandList *list, UINT n, const D3D12_RESOURCE_BARRIER *barriers)
 {
     static const uint32_t probe = perf::probe("core", "postfx ResourceBarrier");
     if (barriers && n && !broken) {
@@ -786,10 +783,8 @@ void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, con
         for (UINT i = 0; i < n && !look; i++)
             look = barriers[i].Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION &&
                    watched_bits(barriers[i].Transition.pResource);
-        if (!look) {
-            perf::Pause game;
-            return h_barrier.call<void>(list, n, barriers);
-        }
+        if (!look)
+            return false;
         static const uint32_t marking = perf::probe("core", "postfx ResourceBarrier (watched)");
         perf::Scope m_scope(marking);
         std::lock_guard<std::recursive_mutex> g(lock);
@@ -829,10 +824,10 @@ void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, con
             }
         }
     }
-    h_barrier.call<void>(list, n, barriers);
+    return false;
 }
 
-void STDMETHODCALLTYPE exec_hook(ID3D12CommandQueue *q, UINT n, ID3D12CommandList *const *lists)
+bool on_exec(ID3D12CommandQueue *q, UINT n, ID3D12CommandList *const *lists)
 {
     static const uint32_t probe = perf::probe("core", "postfx ExecuteCommandLists");
     perf::Scope p(probe);
@@ -894,13 +889,11 @@ void STDMETHODCALLTYPE exec_hook(ID3D12CommandQueue *q, UINT n, ID3D12CommandLis
             depth_res = later_depth;
             depth_state = later_depth_state;
         }
-        perf::Pause game;
-        h_exec.call<void>(q, n, lists);
-        return;
+        return false;
     }
     {
         perf::Pause game;
-        h_exec.call<void>(q, split + 1, lists);
+        d3d12hooks::exec_original(q, split + 1, lists);
     }
     {
         std::lock_guard<std::recursive_mutex> g(lock);
@@ -912,18 +905,8 @@ void STDMETHODCALLTYPE exec_hook(ID3D12CommandQueue *q, UINT n, ID3D12CommandLis
     }
     if (split + 1 < n) {
         perf::Pause game;
-        h_exec.call<void>(q, n - split - 1, lists + split + 1);
+        d3d12hooks::exec_original(q, n - split - 1, lists + split + 1);
     }
-}
-
-bool install(safetyhook::InlineHook &h, void *target, void *detour, const char *what)
-{
-    auto made = safetyhook::InlineHook::create(target, detour);
-    if (!made) {
-        swofty::log("[postfx] hooking %s at %p failed; post-processing is off", what, target);
-        return false;
-    }
-    h = std::move(*made);
     return true;
 }
 
@@ -973,39 +956,12 @@ void postfx_setup()
     }
     if (GetEnvironmentVariableA("SWOFTY_POSTFX_CAPTURE", v, sizeof v) && v[0])
         capture_dir = v;
-    HMODULE d3d12 = LoadLibraryA("d3d12.dll");
-    auto create = d3d12 ? reinterpret_cast<CreateDeviceFn>(GetProcAddress(d3d12, "D3D12CreateDevice")) : nullptr;
-    if (!create) {
-        swofty::log("[postfx] d3d12.dll!D3D12CreateDevice is unavailable; post-processing is off");
-        return;
-    }
-    ID3D12Device *dev = nullptr;
-    ID3D12Resource *buf = nullptr;
-    ID3D12CommandAllocator *alloc = nullptr;
-    ID3D12GraphicsCommandList *list = nullptr;
-    ID3D12CommandQueue *q = nullptr;
-    bool hooked = false;
-    if (SUCCEEDED(create(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dev)))) {
-        device = dev;
-        buf = buffer(D3D12_HEAP_TYPE_UPLOAD, 256, D3D12_RESOURCE_STATE_GENERIC_READ);
-        device = nullptr;
-        D3D12_COMMAND_QUEUE_DESC qd{};
-        qd.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-        if (buf && SUCCEEDED(dev->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&alloc))) &&
-            SUCCEEDED(dev->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, alloc, nullptr, IID_PPV_ARGS(&list))) &&
-            SUCCEEDED(dev->CreateCommandQueue(&qd, IID_PPV_ARGS(&q))))
-            hooked = install(h_setname, (*reinterpret_cast<void ***>(buf))[6], reinterpret_cast<void *>(&setname_hook),
-                             "ID3D12Resource::SetName") &&
-                     install(h_barrier, (*reinterpret_cast<void ***>(list))[26],
-                             reinterpret_cast<void *>(&barrier_hook), "ID3D12GraphicsCommandList::ResourceBarrier") &&
-                     install(h_exec, (*reinterpret_cast<void ***>(q))[10], reinterpret_cast<void *>(&exec_hook),
-                             "ID3D12CommandQueue::ExecuteCommandLists");
-    }
-    release(q);
-    release(list);
-    release(alloc);
-    release(buf);
-    release(dev);
+    d3d12hooks::on_setname(on_setname);
+    d3d12hooks::on_barrier(on_barrier);
+    d3d12hooks::on_exec(on_exec);
+    bool hooked = d3d12hooks::arm_device();
+    if (!hooked)
+        swofty::log("[postfx] the core's D3D12 device hooks did not arm; post-processing is off");
     if (hooked)
         swofty::log("[postfx] %zu pass(es) wait for the game's tonemap%s%s", passes.size(),
                     capture_dir.empty() ? "" : "; captures go to ", capture_dir.c_str());

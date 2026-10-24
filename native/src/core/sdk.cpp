@@ -274,8 +274,9 @@ void ready()
     events_setup();
     hud_setup();
     focus_setup();
-    grade_setup();
+    // postfx only observes barriers, and grade replaces some batches, so postfx subscribes first.
     postfx_setup();
+    grade_setup();
     telemetry_setup();
     perf::start();
 }
