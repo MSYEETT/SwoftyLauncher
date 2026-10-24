@@ -44,6 +44,8 @@ The page shows what each import became. **Details** lists every change.
 
 Drop a track zip on the launcher without unpacking it. It becomes a track addon in the **Tracks** category; turn it on to add the track to Grand Prix track selection. You can turn on any number of tracks in one profile.
 
+A track whose package doesn't say which track it replaces or copies can't be used. The launcher warns when you import it, marks its addon **Track left out** on the Addons page, and leaves it out when you play; the rest of the profile still loads. Import a fixed version, or ask the track's author for one.
+
 [How tracks are installed](/reference/installing-tracks) covers what turning a track on changes.
 
 ## Mods from an earlier version

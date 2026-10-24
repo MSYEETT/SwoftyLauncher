@@ -69,7 +69,13 @@ The importer recognises a track package by a `manifest.json` with a `track_code`
 | `copy_directories` | `source` folders in the package and their `destination` in the game |
 | `ui.images_file`, `ui.minimap_file` | Menu artwork and minimap files |
 
-`activation` needs `copy_from_track`, `copy_slot` or both, each naming a stock track. A package with neither stops the build with `<code>: manifest.json needs activation.copy_from_track (or copy_slot) naming a stock track to clone`.
+`activation` needs `copy_from_track`, `copy_slot` or both, each naming a stock track. A build leaves out a package with neither, or with a `manifest.json` that doesn't read, and builds the rest of the profile. It warns:
+
+```
+Portimao (mod.portimao): track Portimao is left out; its manifest.json doesn't say which track it replaces or copies. Import a fixed version, or ask its author for one
+```
+
+A race weekend set to a track the build leaves out races at its stock track again, with a warning. Importing or installing such a package shows the same warning, and the Addons page marks its addon **Track left out**.
 
 An override `path` is relative to the row. A segment of it can name a sub-row by number (`TyreData_0`), every sub-row (`TyreData_*`) or the one sub-row whose field matches (`Name[field=value]`, as in [Selecting rows](/reference/ops/database#selecting-rows)). A selector that matches more than one sub-row fails the build.
 
