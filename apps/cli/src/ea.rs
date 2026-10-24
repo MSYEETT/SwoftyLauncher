@@ -17,6 +17,8 @@ const APP_START_TIMEOUT: Duration = Duration::from_secs(90);
 // under Proton one sent a second after EADesktop.exe appeared never arrived.
 const APP_SETTLE: Duration = Duration::from_secs(10);
 const HANDOFF_TIMEOUT: Duration = Duration::from_secs(180);
+#[cfg(not(windows))]
+const SERVER_STOP_TIMEOUT: Duration = Duration::from_secs(30);
 const PRESS_PLAY_TIMEOUT: Duration = Duration::from_secs(600);
 const HANDOFF_LOG: &str = "ea_handoff.log";
 
@@ -99,6 +101,57 @@ pub fn ensure(store: &Store, opted_out: bool) -> Result<()> {
             None => say("ea app", "detected: closed; the launch link starts it"),
         },
     }
+    Ok(())
+}
+
+/// Wine reads a prefix's user.reg only when its wineserver starts, and the
+/// EA app's wineserver also runs F1 25. So the version.dll override goes into
+/// the EA app's prefix while the EA app is closed, and stays there: without
+/// Swofty's version.dll in the game folder Wine loads its own.
+#[cfg(not(windows))]
+pub fn dll_setting(store: &Store, g: &Game, opted_out: bool) -> Result<()> {
+    use swofty_core::install::{add_override, has_override};
+    let Some((reg, pfx)) = g.user_reg.as_deref().and_then(|r| Some((r, r.parent()?))) else {
+        return Ok(());
+    };
+    if has_override(&std::fs::read_to_string(reg)?) {
+        return Ok(());
+    }
+    if let Some(server) = ea_app::prefix_server(pfx) {
+        if !store.config().launch.start_store || opted_out {
+            bail!(
+                "close the EA app and press Play again: Wine loads Swofty's version.dll in F1 25 only when the EA \
+                 app starts after Swofty sets it up in the EA app's prefix"
+            );
+        }
+        say(
+            "ea app",
+            "closing the EA app so Wine loads Swofty's version.dll in F1 25; it starts again with the setting",
+        );
+        stop_process(server)?;
+        let since = Instant::now();
+        while ea_app::prefix_server(pfx).is_some() || ea_app::running() {
+            if since.elapsed() >= SERVER_STOP_TIMEOUT {
+                bail!(
+                    "the EA app didn't close within {} s; close it and press Play again",
+                    SERVER_STOP_TIMEOUT.as_secs()
+                );
+            }
+            std::thread::sleep(steam_client::POLL_INTERVAL);
+        }
+    }
+    if let Some(out) = add_override(&std::fs::read_to_string(reg)?) {
+        std::fs::write(reg, out)?;
+    }
+    say(
+        "ea app",
+        &format!("{} has Wine load Swofty's version.dll in F1 25", reg.display()),
+    );
+    Ok(())
+}
+
+#[cfg(windows)]
+pub fn dll_setting(_: &Store, _: &Game, _: bool) -> Result<()> {
     Ok(())
 }
 

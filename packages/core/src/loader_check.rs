@@ -12,7 +12,7 @@ use std::time::{Duration, SystemTime};
 
 use crate::GAME_EXE;
 use crate::baseline::sha256_file;
-use crate::install::{OVERRIDE_HEADER, PROXY};
+use crate::install::{PROXY, has_override};
 use crate::process::{GameProcess, same_folder};
 use crate::quarantine::Cause;
 use crate::session::LOADER_LOG;
@@ -190,7 +190,7 @@ pub fn collect(game: &Path, placed: Option<&str>, since: SystemTime, user_reg: O
             .is_ok_and(|t| t >= since),
         wine_override: user_reg
             .filter(|_| !cfg!(windows))
-            .map(|r| std::fs::read_to_string(r).is_ok_and(|t| t.contains(OVERRIDE_HEADER))),
+            .map(|r| std::fs::read_to_string(r).is_ok_and(|t| has_override(&t))),
         ..Findings::default()
     };
     let running = crate::process::game_processes();
@@ -1619,7 +1619,10 @@ mod tests {
         let reg = dir.join("user.reg");
         std::fs::write(
             &reg,
-            format!("WINE REGISTRY Version 2\n\n{OVERRIDE_HEADER}\n\"version\"=\"native,builtin\"\n"),
+            format!(
+                "WINE REGISTRY Version 2\n\n{}\n\"version\"=\"native,builtin\"\n",
+                crate::install::OVERRIDE_HEADER
+            ),
         )
         .unwrap();
         let placed = sha256_file(&game.join(PROXY)).unwrap();
@@ -1639,7 +1642,14 @@ mod tests {
         assert_eq!(f.wine_override, (!cfg!(windows)).then_some(true));
         std::fs::write(game.join("swofty/loader.prev.log"), "moved aside").unwrap();
         std::fs::write(game.join(PROXY), b"changed").unwrap();
-        std::fs::write(&reg, "WINE REGISTRY Version 2\n").unwrap();
+        std::fs::write(
+            &reg,
+            format!(
+                "WINE REGISTRY Version 2\n\n{} 1792606023\n#time=1dd6186fa06f04c\n",
+                crate::install::OVERRIDE_HEADER
+            ),
+        )
+        .unwrap();
         let f = collect(&game, Some(&placed), before, Some(&reg));
         assert!(f.rotated);
         assert!(matches!(

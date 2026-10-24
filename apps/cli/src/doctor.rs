@@ -58,6 +58,15 @@ pub fn report(store: &Store, session: Option<&Game>) -> (Vec<String>, bool) {
         row("ea app hand-off", handoff);
         if let Some(p) = &config.launch.ea_prefix {
             row("ea app prefix", p.display().to_string());
+            let reg = ea_app::prefix_user_reg(p).and_then(|r| std::fs::read_to_string(r).ok());
+            row(
+                "ea app dll override",
+                match reg {
+                    Some(t) if swofty_core::install::has_override(&t) => "present".into(),
+                    Some(_) => "absent".into(),
+                    None => "no user.reg in the prefix".into(),
+                },
+            );
         }
     }
     if let Some(g) = session {
@@ -148,11 +157,10 @@ pub fn report(store: &Store, session: Option<&Game>) -> (Vec<String>, bool) {
         match game.prefix() {
             Some(pfx) => {
                 let reg = std::fs::read_to_string(pfx.join("user.reg")).unwrap_or_default();
-                let key = "[Software\\\\Wine\\\\AppDefaults\\\\F1_25.exe\\\\DllOverrides]";
                 row("prefix", pfx.display().to_string());
                 row(
                     "dll override",
-                    if reg.contains(key) {
+                    if swofty_core::install::has_override(&reg) {
                         "present".into()
                     } else {
                         "absent".into()

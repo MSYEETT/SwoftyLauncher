@@ -115,7 +115,12 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     // and declining means the game is not launched.
     crate::offline::gate(store, std::io::stdin().is_terminal())?;
     match crate::ea::store_start(Source::detect(&game), args.direct) {
-        crate::ea::StoreStart::EaApp => crate::ea::ensure(store, args.no_start_store)?,
+        crate::ea::StoreStart::EaApp => {
+            if args.apply {
+                crate::ea::dll_setting(store, &g, args.no_start_store)?;
+            }
+            crate::ea::ensure(store, args.no_start_store)?
+        }
         crate::ea::StoreStart::Steam => ensure_steam(store, &game, args.no_start_store)?,
     }
     let id = format!("{:x}{:x}", std::process::id(), (now_secs() * 1e6) as u64);

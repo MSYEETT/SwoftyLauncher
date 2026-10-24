@@ -205,6 +205,83 @@ fn remove_section(text: &str, header: &str) -> Option<String> {
     Some(out)
 }
 
+fn override_section(text: &str) -> Option<std::ops::Range<usize>> {
+    let start = text.find(OVERRIDE_HEADER)?;
+    let end = text[start..].find("\n[").map_or(text.len(), |i| start + i);
+    Some(start..end)
+}
+
+fn version_value(line: &str) -> Option<&str> {
+    let (name, value) = line.split_once('=')?;
+    let name = name.trim().trim_matches('"').trim_start_matches('*');
+    name.eq_ignore_ascii_case("version")
+        .then(|| value.trim().trim_matches('"'))
+}
+
+/// Whether a prefix's user.reg has F1_25.exe load a native version.dll
+/// first. A section for F1_25.exe without a version.dll value leaves Wine
+/// on its builtin one.
+pub fn has_override(text: &str) -> bool {
+    override_section(text).is_some_and(|s| {
+        text[s]
+            .lines()
+            .skip(1)
+            .filter_map(version_value)
+            .any(|v| v.starts_with('n'))
+    })
+}
+
+/// user.reg with the version.dll override, in F1_25.exe's section when the
+/// prefix has one; None when that section already sets version.dll.
+pub fn add_override(text: &str) -> Option<String> {
+    let Some(s) = override_section(text) else {
+        let mut out = text.to_owned();
+        if !out.ends_with('\n') && !out.is_empty() {
+            out.push('\n');
+        }
+        out.push_str(&format!("\n{OVERRIDE_HEADER}\n{OVERRIDE_VALUE}\n"));
+        return Some(out);
+    };
+    if text[s.clone()]
+        .lines()
+        .skip(1)
+        .any(|l| version_value(l).is_some())
+    {
+        return None;
+    }
+    let mut at = text[s.clone()].find('\n').map_or(s.end, |i| s.start + i + 1);
+    while text[at..s.end].starts_with('#') {
+        at = text[at..s.end].find('\n').map_or(s.end, |i| at + i + 1);
+    }
+    let sep = if at == text.len() && !text.ends_with('\n') {
+        "\n"
+    } else {
+        ""
+    };
+    Some(format!("{}{sep}{OVERRIDE_VALUE}\n{}", &text[..at], &text[at..]))
+}
+
+/// user.reg without the version.dll override, and without F1_25.exe's
+/// section when nothing else is set in it; None when the section sets other
+/// DLLs but not version.dll.
+fn remove_override(text: &str) -> Option<String> {
+    let s = override_section(text)?;
+    let lines = || text[s.clone()].lines().skip(1).map(str::trim);
+    if !lines().any(|l| !l.is_empty() && !l.starts_with('#') && version_value(l).is_none()) {
+        return remove_section(text, OVERRIDE_HEADER);
+    }
+    if !lines().any(|l| version_value(l).is_some()) {
+        return None;
+    }
+    let kept: String = text[s.clone()]
+        .split_inclusive('\n')
+        .enumerate()
+        .filter(|(i, l)| *i == 0 || version_value(l).is_none())
+        .map(|(_, l)| l)
+        .collect();
+    Some(format!("{}{kept}{}", &text[..s.start], &text[s.end..]))
+}
+
 impl<'a> Installer<'a> {
     pub fn new(data: &'a Path, game: &'a Game) -> Self {
         Self {
@@ -302,7 +379,7 @@ impl<'a> Installer<'a> {
                 Op::RegistryOverride => {
                     let path = PathBuf::from(&e.path);
                     let text = std::fs::read_to_string(&path).map_err(io_err(&path))?;
-                    if let Some(out) = remove_section(&text, OVERRIDE_HEADER) {
+                    if let Some(out) = remove_override(&text) {
                         std::fs::write(&path, out).map_err(io_err(&path))?;
                     }
                 }
@@ -390,7 +467,7 @@ impl<'a> Installer<'a> {
             let path = PathBuf::from(&reg);
             if let Some(out) = std::fs::read_to_string(&path)
                 .ok()
-                .and_then(|t| remove_section(&t, OVERRIDE_HEADER))
+                .and_then(|t| remove_override(&t))
             {
                 std::fs::write(&path, out).map_err(io_err(&path))?;
                 notes.push("removed the version.dll override from the Proton prefix".to_owned());
@@ -614,11 +691,14 @@ impl<'a> Installer<'a> {
                 let text = std::fs::read_to_string(reg).map_err(io_err(reg))?;
                 let name = reg.display().to_string();
                 let ours = placed.registry.as_deref() == Some(name.as_str());
-                (!text.contains(OVERRIDE_HEADER) || ours).then_some((reg, name, text))
+                match add_override(&text) {
+                    Some(out) => Some((reg, name, text, out)),
+                    None => ours.then(|| (reg, name, text.clone(), text)),
+                }
             }
             _ => None,
         };
-        if let Some((_, name, _)) = &registry {
+        if let Some((_, name, _, _)) = &registry {
             placed.registry = Some(name.clone());
         }
         placed.save(self.data)?;
@@ -660,15 +740,8 @@ impl<'a> Installer<'a> {
             hashes.wrote(&path, &after[rel.as_str()]);
             j.done(i)?;
         }
-        if let Some((reg, name, text)) = registry {
+        if let Some((reg, name, text, out)) = registry {
             let before = objects.put_file(reg)?;
-            let mut out = text.clone();
-            if !text.contains(OVERRIDE_HEADER) {
-                if !out.ends_with('\n') && !out.is_empty() {
-                    out.push('\n');
-                }
-                out.push_str(&format!("\n{OVERRIDE_HEADER}\n{OVERRIDE_VALUE}\n"));
-            }
             let i = j.begin(
                 Op::RegistryOverride,
                 &name,
@@ -705,7 +778,7 @@ impl<'a> Installer<'a> {
         }
         if let Some(reg) = &self.game.user_reg
             && let Ok(text) = std::fs::read_to_string(reg)
-            && let Some(out) = remove_section(&text, OVERRIDE_HEADER)
+            && let Some(out) = remove_override(&text)
         {
             self.objects().put_file(reg)?;
             std::fs::write(reg, out).map_err(io_err(reg))?;
@@ -747,7 +820,7 @@ impl<'a> Installer<'a> {
             }
         }
         if let Some(reg) = &self.game.user_reg
-            && std::fs::read_to_string(reg).is_ok_and(|t| t.contains(OVERRIDE_HEADER))
+            && std::fs::read_to_string(reg).is_ok_and(|t| has_override(&t))
         {
             out.push(Drift::RegistryOverride);
         }
@@ -826,6 +899,71 @@ mod tests {
             remove_section(&middle, OVERRIDE_HEADER).unwrap(),
             format!("{orig}\n[Other] 2\n\"x\"=\"y\"\n")
         );
+    }
+
+    #[test]
+    fn an_empty_section_gets_the_override_and_loses_it_again() {
+        let orig = format!(
+            "WINE REGISTRY Version 2\n\n{OVERRIDE_HEADER} 1792606023\n#time=1dd6186fa06f04c\n\n[Other] 2\n\"x\"=\"y\"\n"
+        );
+        assert!(!has_override(&orig));
+        let with = add_override(&orig).unwrap();
+        assert_eq!(
+            with,
+            format!(
+                "WINE REGISTRY Version 2\n\n{OVERRIDE_HEADER} 1792606023\n#time=1dd6186fa06f04c\n{OVERRIDE_VALUE}\n\n[Other] 2\n\"x\"=\"y\"\n"
+            )
+        );
+        assert!(has_override(&with));
+        assert_eq!(add_override(&with), None);
+        assert_eq!(
+            remove_override(&with).unwrap(),
+            "WINE REGISTRY Version 2\n\n[Other] 2\n\"x\"=\"y\"\n"
+        );
+        assert_eq!(
+            remove_override(&orig).unwrap(),
+            "WINE REGISTRY Version 2\n\n[Other] 2\n\"x\"=\"y\"\n"
+        );
+    }
+
+    #[test]
+    fn the_override_joins_and_leaves_a_section_with_other_dlls() {
+        let orig = format!("WINE REGISTRY Version 2\n\n{OVERRIDE_HEADER} 5\n\"d3d11\"=\"native\"\n");
+        let with = add_override(&orig).unwrap();
+        assert_eq!(
+            with,
+            format!(
+                "WINE REGISTRY Version 2\n\n{OVERRIDE_HEADER} 5\n{OVERRIDE_VALUE}\n\"d3d11\"=\"native\"\n"
+            )
+        );
+        assert!(has_override(&with));
+        assert_eq!(remove_override(&with).unwrap(), orig);
+        assert_eq!(remove_override(&orig), None);
+        let header_only = format!("WINE REGISTRY Version 2\n\n{OVERRIDE_HEADER}");
+        assert_eq!(
+            add_override(&header_only).unwrap(),
+            format!("{header_only}\n{OVERRIDE_VALUE}\n")
+        );
+    }
+
+    #[test]
+    fn a_version_value_of_the_prefix_is_left_alone() {
+        for (value, native) in [
+            ("\"version\"=\"native,builtin\"", true),
+            ("\"*version\"=\"n,b\"", true),
+            ("\"Version\"=\"builtin\"", false),
+            ("\"version\"=\"\"", false),
+        ] {
+            let text = format!("WINE REGISTRY Version 2\n\n{OVERRIDE_HEADER} 5\n{value}\n");
+            assert_eq!(has_override(&text), native, "{value}");
+            assert_eq!(add_override(&text), None, "{value}");
+        }
+        let fresh = add_override("WINE REGISTRY Version 2\n").unwrap();
+        assert_eq!(
+            fresh,
+            format!("WINE REGISTRY Version 2\n\n{OVERRIDE_HEADER}\n{OVERRIDE_VALUE}\n")
+        );
+        assert_eq!(remove_override(&fresh).unwrap(), "WINE REGISTRY Version 2\n");
     }
 
     #[test]

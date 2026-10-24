@@ -426,6 +426,22 @@ pub fn prefix_user_reg(setting: &Path) -> Option<PathBuf> {
         .find(|p| p.is_file())
 }
 
+/// The wineserver running the Wine prefix `pfx`. Wine names the server's
+/// folder after the prefix folder's device and inode, and the server works
+/// in it.
+#[cfg(not(windows))]
+pub fn prefix_server(pfx: &Path) -> Option<u32> {
+    use std::os::unix::fs::MetadataExt;
+    let meta = std::fs::metadata(pfx).ok()?;
+    let folder = format!("server-{:x}-{:x}", meta.dev(), meta.ino());
+    std::fs::read_dir("/proc").ok()?.flatten().find_map(|e| {
+        let pid = e.file_name().to_str()?.parse().ok()?;
+        let comm = std::fs::read_to_string(e.path().join("comm")).ok()?;
+        let cwd = std::fs::read_link(e.path().join("cwd")).ok()?;
+        (comm.trim_end() == "wineserver" && cwd.file_name()? == folder.as_str()).then_some(pid)
+    })
+}
+
 pub const NO_HANDOFF_LINUX: &str = "this is the EA app's copy of F1 25, and on Linux Swofty starts it through the EA app with \
      the launch.ea_launch_command setting: a command that hands {url} to the EA app in its Wine prefix. Set it in \
      config.json (see Playing the EA app copy in the docs), or switch to another copy";
