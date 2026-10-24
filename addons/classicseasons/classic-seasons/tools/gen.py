@@ -24,8 +24,9 @@ real suit (a mod's or F1 23's, built by build_real_suits.py into this addon's su
 helmet. A 2022 or 2023 look with no built F1 23 suit keeps its seat's stock kit, as 2024 does. The core addon copies
 each built mod suit's suit, gloves and helmet rows from its base under its label, with item ids REAL_SUIT_IDS and
 HELMET_IDS, and ships its archives (assets/suits.json). A season copies its generated suits' rows; every team-season of
-SUIT_YEARS takes the next id of SUIT_IDS, in season and team order, whether its suit is generated or not. The stock
-suit and gloves ids are 448 to 973, the helmet ids 315 to 867.
+SUIT_YEARS takes the next id of SUIT_IDS, in season and team order, whether its suit is generated or not. The suits of
+mods converted by suit_transfer.py (a "transfer" mod) take TRANSFER_SUIT_IDS, the ids after SUIT_IDS, in
+data/real_suits.json order. The stock suit and gloves ids are 448 to 973, the helmet ids 315 to 867.
 
 Every customisation item row holds colour_1_default to colour_4_default (tag 11), which the catalogue does not name.
 Game_Build_CustomisationCatalogue reads all four at boot, and a copy without them crashes the game in
@@ -69,9 +70,12 @@ HOST_MODE = "swofty_f1"
 SETUP_ROW = "entrants.entrant_setup_modes.entrant_setup_mode"
 SETUP_PRESETS = "car_setup.presets.vehicle_package_setups"
 SEASON_LAUNCHER = ">=1.3.6"
-REAL_SUIT_IDS = range(974, 974 + len(suit_sources.REAL["suits"]))
+DIRECT_SUITS = [e for e in suit_sources.REAL["suits"] if "transfer" not in suit_sources.REAL["mods"][e["mod"]]]
+TRANSFERRED_SUITS = [e for e in suit_sources.REAL["suits"] if "transfer" in suit_sources.REAL["mods"][e["mod"]]]
+REAL_SUIT_IDS = range(974, 974 + len(DIRECT_SUITS))
 SUIT_IDS = range(REAL_SUIT_IDS.stop, REAL_SUIT_IDS.stop + sum(len(s["teams"]) for s in json.loads(
     (ROOT / "data" / "seasons.json").read_text())["seasons"] if s["year"] in SUIT_YEARS))
+TRANSFER_SUIT_IDS = range(SUIT_IDS.stop, SUIT_IDS.stop + len(TRANSFERRED_SUITS))
 HELMET_IDS = range(868, 868 + sum(1 for e in suit_sources.REAL["suits"] if e.get("helmet")))
 HELMETS = "customisation.custom_avatar.helmets"
 COLOUR_FIELDS = [f"colour_{n}_default" for n in range(1, 5)]
@@ -221,7 +225,7 @@ def build():
 
     made = {m["label"]: m for m in real_suits()}
     helmet_ids = iter(HELMET_IDS)
-    for item_id, entry in zip(REAL_SUIT_IDS, suit_sources.REAL["suits"]):
+    for item_id, entry in [*zip(REAL_SUIT_IDS, DIRECT_SUITS), *zip(TRANSFER_SUIT_IDS, TRANSFERRED_SUITS)]:
         helmet_id = next(helmet_ids) if entry.get("helmet") else None
         m = made.get(suit_sources.mod_label(entry))
         if m:
@@ -377,7 +381,7 @@ def build():
     write_json(ROOT / "lang" / "core.json", {"schema_version": 1, "ops": core_text})
     write_native_seasons([year for year, _, _ in seasons])
     print(f"core: {len(core_ops)} db ops, {len(core_text)} strings, looks {LOOK_STAT_BASE}..{look_stat - 1}, "
-          f"{len(made)} real suits, suit ids {REAL_SUIT_IDS.start}..{SUIT_IDS.stop - 1}")
+          f"{len(made)} real suits, suit ids {REAL_SUIT_IDS.start}..{TRANSFER_SUIT_IDS.stop - 1}")
     for year, ops, text in seasons:
         folder = year_dir(year)
         assets = ["assets/cars.json"] + (["assets/suits.json"] if suits(year) else [])
