@@ -22,7 +22,7 @@ use crate::erpbuild::{ErpBuild, Resized, SliceMerge, reads, unsupported, writes}
 use crate::install::{Game, LOADER_DIR, Plan};
 use crate::launcher::BuildCx;
 use crate::manifest::{AddonManifest, Strength, relative_inside};
-use crate::map::TrackPackage;
+use crate::map::{TrackPackage, Unusable};
 use crate::owned;
 use crate::placed::Placed;
 use crate::planner::{
@@ -74,21 +74,30 @@ pub fn original(data: &Path, game: &Game, rel: &str) -> PathBuf {
     }
 }
 
-pub fn track_packages(store: &Store, ops: Vec<Op>) -> Result<Vec<(PathBuf, TrackPackage, Origin)>> {
+pub type TrackPackages = (Vec<(PathBuf, TrackPackage, Origin)>, Vec<(Origin, Unusable)>);
+
+/// The packages `track.add` ops add, and the ones a build leaves out.
+pub fn track_packages(store: &Store, ops: Vec<Op>) -> Result<TrackPackages> {
     let mut out: Vec<(PathBuf, TrackPackage, Origin)> = Vec::new();
+    let mut left_out = Vec::new();
     for op in ops {
         let AssetOp::Track(TrackOp::Add { source }) = op.op else {
             continue;
         };
         let dir = source.resolve(&source_dir(store, &op.origin.addon, source.root))?;
-        let path = dir.join(crate::map::MANIFEST_FILE);
-        let pkg = TrackPackage::parse(&std::fs::read(&path).map_err(io_err(&path))?)?;
+        let pkg = match crate::map::read_package(&dir) {
+            Ok(pkg) => pkg,
+            Err(why) => {
+                left_out.push((op.origin, why));
+                continue;
+            }
+        };
         if out.iter().any(|(_, p, _)| p.track_code == pkg.track_code) {
             return Err(Error::Map(format!("track {} is added twice", pkg.track_code)));
         }
         out.push((dir, pkg, op.origin));
     }
-    Ok(out)
+    Ok((out, left_out))
 }
 
 pub fn screen_files(order: &[&AddonManifest], addons_dir: &Path) -> Result<BTreeMap<String, PathBuf>> {
@@ -650,7 +659,21 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             ));
         }
     }
-    let tracks = track_packages(store, planner.take_tracks())?;
+    let (tracks, left_out) = track_packages(store, planner.take_tracks())?;
+    for (origin, why) in &left_out {
+        let name = addons
+            .get(&origin.addon)
+            .map_or(origin.addon.as_str(), |m| m.name.as_str());
+        built
+            .warnings
+            .push(crate::tracks::left_out_line(name, &origin.addon, why));
+        planner.add_lenient(&origin.addon, name);
+    }
+    let left_codes: Vec<&str> = left_out
+        .iter()
+        .filter_map(|(_, why)| why.code.as_deref())
+        .filter(|c| !tracks.iter().any(|(_, p, _)| p.track_code == *c))
+        .collect();
     let maps: Vec<(PathBuf, TrackPackage)> = tracks.iter().map(|(d, p, _)| (d.clone(), p.clone())).collect();
     let mods: Vec<SessionMod> = planner
         .take_items()
@@ -770,6 +793,10 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         built.lines.extend(db_report.lines);
         built.warnings.extend(db_report.warnings);
         built.warnings.extend(planner.take_skipped());
+        if !left_codes.is_empty() {
+            let weekends = crate::tracks::restore_weekends(&mut db, &Gvdb::parse(&shipped)?, &left_codes);
+            built.warnings.extend(weekends);
+        }
         stock_removals = planner.take_stock_removals();
         for (id, n) in &stock_removals {
             let name = addons.get(id).map_or(id.as_str(), |m| m.name.as_str());
@@ -2909,5 +2936,134 @@ mod tests {
             )])
         );
         assert!(screen_files(&[&m, &m], Path::new("/addons")).is_err());
+    }
+
+    #[test]
+    fn leaves_out_a_track_package_without_a_base_track() {
+        use swofty_formats::gvdb::Record;
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-left-out-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        let weekend = "schedule.activities.activity_race_weekend_0.track";
+        let records = vec![
+            Record::new("tracks._Track_instancecount_", 0, "1"),
+            Record::new("tracks.Track_0._metadata_", 2, "melbourne"),
+            Record::new("tracks.Track_0.laps", 0, "58"),
+            Record::new(
+                "schedule.activities._activity_race_weekend_instancecount_",
+                0,
+                "1",
+            ),
+            Record::new(
+                "schedule.activities.activity_race_weekend_0._metadata_",
+                2,
+                "rw_melbourne",
+            ),
+            Record::new(weekend, 2, "melbourne"),
+            Record::new("entrants.teams._team_instancecount_", 0, "1"),
+            Record::new("entrants.teams.team_0._metadata_", 2, "mclaren_26"),
+            Record::new("entrants.teams.team_0.stat_id", 0, "100"),
+        ];
+        std::fs::write(dir.join(GVDB), Gvdb { records }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir: dir.clone(),
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let addon = |id: &str, name: &str, ops: &str, track: Option<&str>| {
+            let src = root.join("src").join(id);
+            std::fs::create_dir_all(&src).unwrap();
+            std::fs::write(
+                src.join("swofty.json"),
+                format!(
+                    r#"{{ "schema_version": 1, "id": "{id}", "name": "{name}", "version": "1.0.0", "author": "t",
+                         "compat": {{ "game": "f1_25" }}, "operations": {{ "assets": ["ops.json"] }} }}"#
+                ),
+            )
+            .unwrap();
+            std::fs::write(
+                src.join("ops.json"),
+                format!(r#"{{ "schema_version": 1, "ops": [{ops}] }}"#),
+            )
+            .unwrap();
+            if let Some(manifest) = track {
+                std::fs::create_dir_all(src.join("track")).unwrap();
+                std::fs::write(src.join("track/manifest.json"), manifest).unwrap();
+            }
+            store.install_addon(&src).unwrap();
+        };
+        addon(
+            "mod.portimao",
+            "Portimao",
+            r#"{"op":"track.add","source":"track"},
+               {"op":"db.set","select":"tracks.Track[_metadata_=portimao]","field":"laps","value":"66"}"#,
+            Some(r#"{ "track_code": "portimao", "track_name": "Portimao", "erp": "portimao.erp" }"#),
+        );
+        addon(
+            "t.calendar",
+            "Calendar",
+            r#"{"op":"db.set","select":"schedule.activities.activity_race_weekend[_metadata_=rw_melbourne]","field":"track","value":"portimao"},
+               {"op":"db.set","select":"entrants.teams.team[_metadata_=mclaren_26]","field":"stat_id","value":"7"}"#,
+            None,
+        );
+        let left_out = "Portimao (mod.portimao): track Portimao is left out; its manifest.json doesn't say which track it replaces or copies. Import a fixed version, or ask its author for one";
+        let restored =
+            "race weekend rw_melbourne: races at melbourne again; track portimao is left out of this build";
+
+        store
+            .update_profile("default", |p| p.set_enabled("t.calendar", true))
+            .unwrap();
+        let without = build(&store, "default", &game).unwrap();
+        assert!(
+            !without.warnings.iter().any(|w| w.contains("left out")),
+            "{:?}",
+            without.warnings
+        );
+        let out = Gvdb::parse(&std::fs::read(&without.plan.data[GVDB]).unwrap()).unwrap();
+        assert_eq!(out.get_text(weekend).as_deref(), Some("portimao"));
+
+        store
+            .update_profile("default", |p| p.set_enabled("mod.portimao", true))
+            .unwrap();
+        for pass in ["built", "reused"] {
+            let built = build(&store, "default", &game).unwrap();
+            let reused = built.lines.iter().any(|l| l.ends_with("reusing it"));
+            assert_eq!(reused, pass == "reused");
+            let warnings = &built.warnings;
+            assert!(warnings.iter().any(|w| w == left_out), "{pass}: {warnings:?}");
+            assert!(warnings.iter().any(|w| w == restored), "{pass}: {warnings:?}");
+            assert!(
+                warnings
+                    .iter()
+                    .any(|w| w.starts_with("Portimao: change skipped: ") && w.contains("portimao")),
+                "{pass}: {warnings:?}"
+            );
+            let out = Gvdb::parse(&std::fs::read(&built.plan.data[GVDB]).unwrap()).unwrap();
+            assert_eq!(out.get_text(weekend).as_deref(), Some("melbourne"), "{pass}");
+            assert_eq!(
+                out.get_text("tracks.Track_0.laps").as_deref(),
+                Some("58"),
+                "{pass}"
+            );
+            assert_eq!(
+                out.get_text("tracks._Track_instancecount_").as_deref(),
+                Some("1"),
+                "{pass}"
+            );
+            assert_eq!(
+                out.get_text("entrants.teams.team_0.stat_id").as_deref(),
+                Some("7"),
+                "{pass}"
+            );
+            let plan: serde_json::Value = crate::read_json(&built.overlay.join(PLAN_FILE)).unwrap();
+            assert_eq!(plan["tracks"], serde_json::json!([]), "{pass}");
+        }
+        std::fs::remove_dir_all(&root).ok();
     }
 }

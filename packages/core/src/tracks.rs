@@ -11,7 +11,7 @@ use swofty_formats::gvdb::{Gvdb, Record};
 use swofty_formats::hash::fnv1a64;
 
 use crate::launcher::{ProfileTrack, ProfileTracks};
-use crate::map::TrackPackage;
+use crate::map::Unusable;
 use crate::store::Store;
 use crate::{Result, io_err};
 
@@ -209,42 +209,120 @@ pub fn is_track_addon(dir: &Path, m: &AddonManifest) -> bool {
     tracks > 0
 }
 
+// The package folders an addon's `track.add` ops in its op files name.
+fn added_dirs(store: &Store, id: &str, m: &AddonManifest) -> Vec<PathBuf> {
+    let dir = store.addons_dir().join(id);
+    let mut out = Vec::new();
+    for rel in &m.operations.assets {
+        let Some(file) = std::fs::read(dir.join(rel))
+            .ok()
+            .and_then(|d| serde_json::from_slice(&d).ok())
+            .and_then(|doc| OpFile::from_value(doc, FileKind::Assets).ok())
+        else {
+            continue;
+        };
+        for op in file.ops {
+            if let AssetOp::Track(TrackOp::Add { source }) = op
+                && let Ok(d) = source.resolve(&crate::build::source_dir(store, id, source.root))
+            {
+                out.push(d);
+            }
+        }
+    }
+    out
+}
+
 /// The tracks installed addons add with `track.add`, named from their
 /// packages, by addon id; the first addon to add a track keeps it. Ops or
 /// packages that don't read are skipped.
 pub fn installed(store: &Store) -> Vec<PlanTrack> {
     let mut out: Vec<PlanTrack> = Vec::new();
     for (id, m) in store.addons().unwrap_or_default() {
-        let dir = store.addons_dir().join(&id);
-        for rel in &m.operations.assets {
-            let Some(file) = std::fs::read(dir.join(rel))
-                .ok()
-                .and_then(|d| serde_json::from_slice(&d).ok())
-                .and_then(|doc| OpFile::from_value(doc, FileKind::Assets).ok())
-            else {
+        for dir in added_dirs(store, &id, &m) {
+            let Ok(pkg) = crate::map::read_package(&dir) else {
                 continue;
             };
-            for op in file.ops {
-                let AssetOp::Track(TrackOp::Add { source }) = op else {
-                    continue;
-                };
-                let Some(pkg) = source
-                    .resolve(&crate::build::source_dir(store, &id, source.root))
-                    .ok()
-                    .and_then(|d| std::fs::read(d.join(crate::map::MANIFEST_FILE)).ok())
-                    .and_then(|b| TrackPackage::parse(&b).ok())
-                else {
-                    continue;
-                };
-                if out.iter().any(|t| t.code == pkg.track_code) {
-                    continue;
-                }
-                out.push(PlanTrack {
-                    name: pkg.track_name.filter(|n| !n.trim().is_empty()),
-                    addon: Some(id.clone()),
-                    code: pkg.track_code,
-                });
+            if out.iter().any(|t| t.code == pkg.track_code) {
+                continue;
             }
+            out.push(PlanTrack {
+                name: pkg.track_name.filter(|n| !n.trim().is_empty()),
+                addon: Some(id.clone()),
+                code: pkg.track_code,
+            });
+        }
+    }
+    out
+}
+
+/// The track packages an addon's op files add that builds leave out.
+pub fn unusable(store: &Store, id: &str, m: &AddonManifest) -> Vec<Unusable> {
+    added_dirs(store, id, m)
+        .iter()
+        .filter_map(|d| crate::map::read_package(d).err())
+        .collect()
+}
+
+pub fn left_out_line(addon: &str, id: &str, why: &Unusable) -> String {
+    match addon == id {
+        true => format!("{id}: {}", why.text()),
+        false => format!("{addon} ({id}): {}", why.text()),
+    }
+}
+
+/// A [`left_out_line`] for each track package `m`'s op files add that builds leave out.
+pub fn left_out_lines(store: &Store, m: &AddonManifest) -> Vec<String> {
+    unusable(store, &m.id, m)
+        .iter()
+        .map(|u| left_out_line(&m.name, &m.id, u))
+        .collect()
+}
+
+/// Puts each race weekend at a track a build left out back at its stock
+/// track, and says so; a weekend the game doesn't ship is only named.
+pub(crate) fn restore_weekends(db: &mut Gvdb, shipped: &Gvdb, left_out: &[&str]) -> Vec<String> {
+    let text = |db: &Gvdb, path: &str| db.get_text(path).map(|t| t.trim().to_owned());
+    let count = |db: &Gvdb, table: &str| {
+        let (container, row) = table.rsplit_once('.').expect("a table path");
+        db.instance_count(container, row).unwrap_or(0)
+    };
+    let mut gone: Option<Vec<&str>> = None;
+    let mut out = Vec::new();
+    for i in 0..count(db, ACTIVITIES) {
+        let path = format!("{ACTIVITIES}_{i}.track");
+        let Some(code) = text(db, &path).filter(|c| left_out.contains(&c.as_str())) else {
+            continue;
+        };
+        let gone = gone.get_or_insert_with(|| {
+            let have: Vec<String> = (0..count(db, TRACKS))
+                .filter_map(|t| text(db, &format!("{TRACKS}_{t}._metadata_")))
+                .collect();
+            left_out
+                .iter()
+                .copied()
+                .filter(|c| !have.iter().any(|h| h == c))
+                .collect()
+        });
+        if !gone.contains(&code.as_str()) {
+            continue;
+        }
+        let weekend = text(db, &format!("{ACTIVITIES}_{i}._metadata_")).unwrap_or_else(|| i.to_string());
+        let stock = shipped
+            .get(&path)
+            .filter(|r| !left_out.contains(&r.text().trim()))
+            .cloned();
+        match stock {
+            Some(r) => {
+                let to = r.text().trim().to_owned();
+                if db.set(&path, r.value, Some(r.tag)).is_ok() {
+                    out.push(format!(
+                        "race weekend {weekend}: races at {to} again; track {code} is left out of this build"
+                    ));
+                }
+            }
+            None => out.push(format!(
+                "race weekend {weekend}: races at {code}, which is left out of this build; set its track in Race weekends"
+            )),
         }
     }
     out
@@ -375,6 +453,11 @@ mod tests {
         addon("mod.twice", add, Some(like("okayama", "Again")));
         addon("mod.unread", add, None);
         addon("mod.other", r#"{"schema_version":1,"ops":[]}"#, None);
+        addon(
+            "mod.portimao",
+            add,
+            Some(r#"{ "track_code": "portimao", "track_name": "Portimao", "erp": "portimao.erp" }"#.into()),
+        );
         let found = installed(&store);
         assert_eq!(
             found,
@@ -391,6 +474,68 @@ mod tests {
                 },
             ]
         );
+        let addons = store.addons().unwrap();
+        let bad = |id: &str| unusable(&store, id, &addons[id]);
+        assert!(bad("mod.okayama").is_empty() && bad("mod.other").is_empty());
+        assert_eq!(bad("mod.unread")[0].why, "it has no manifest.json");
+        let portimao = bad("mod.portimao");
+        assert_eq!(portimao.len(), 1);
+        assert_eq!(portimao[0].why, crate::map::NO_BASE_TRACK);
+        assert_eq!(
+            left_out_line("Portimao", "mod.portimao", &portimao[0]),
+            "Portimao (mod.portimao): track Portimao is left out; its manifest.json doesn't say which track \
+             it replaces or copies. Import a fixed version, or ask its author for one"
+        );
+        assert!(
+            left_out_line("mod.portimao", "mod.portimao", &portimao[0]).starts_with("mod.portimao: track ")
+        );
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn weekends_at_a_left_out_track_go_back_to_their_stock_track() {
+        let weekend = |i: usize, label: &str, track: &str| {
+            [
+                rec(&format!("{ACTIVITIES}_{i}._metadata_"), label),
+                rec(&format!("{ACTIVITIES}_{i}.track"), track),
+            ]
+        };
+        let mut shipped = db();
+        shipped
+            .set(
+                "schedule.activities._activity_race_weekend_instancecount_",
+                "2",
+                None,
+            )
+            .unwrap();
+        shipped.records.extend(weekend(1, "rw_okayama", "okayama"));
+        let mut built = shipped.clone();
+        built
+            .set(
+                "schedule.activities._activity_race_weekend_instancecount_",
+                "4",
+                None,
+            )
+            .unwrap();
+        built
+            .set(&format!("{ACTIVITIES}_0.track"), "portimao", None)
+            .unwrap();
+        built.records.extend(weekend(2, "rw_added", "portimao"));
+        built.records.extend(weekend(3, "rw_other", "monza"));
+        let warnings = restore_weekends(&mut built, &shipped, &["portimao", "okayama"]);
+        assert_eq!(
+            warnings,
+            [
+                "race weekend suzuka: races at suzuka again; track portimao is left out of this build",
+                "race weekend rw_added: races at portimao, which is left out of this build; set its track in Race weekends",
+            ]
+        );
+        let track = |i: usize| built.get_text(&format!("{ACTIVITIES}_{i}.track")).unwrap();
+        assert_eq!(
+            [track(0), track(1), track(2), track(3)],
+            ["suzuka", "okayama", "portimao", "monza"]
+        );
+        let mut untouched = shipped.clone();
+        assert!(restore_weekends(&mut untouched, &shipped, &["monza"]).is_empty());
     }
 }

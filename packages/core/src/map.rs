@@ -9,6 +9,34 @@ use crate::{Error, Result, io_err};
 
 pub const MANIFEST_FILE: &str = "manifest.json";
 const ART_DIR: &str = ".art";
+pub const NO_BASE_TRACK: &str = "its manifest.json doesn't say which track it replaces or copies";
+const FIX: &str = "Import a fixed version, or ask its author for one";
+
+/// A track package builds leave out, and why, in words for players.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Unusable {
+    pub code: Option<String>,
+    pub name: Option<String>,
+    pub why: String,
+}
+
+impl Unusable {
+    fn unnamed(why: String) -> Self {
+        Self {
+            code: None,
+            name: None,
+            why,
+        }
+    }
+
+    pub fn text(&self) -> String {
+        let track = match &self.name {
+            Some(name) => format!("track {name}"),
+            None => "its track".to_owned(),
+        };
+        format!("{track} is left out; {}. {FIX}", self.why)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrackPackage {
@@ -145,6 +173,30 @@ impl TrackPackage {
             tag: None,
         };
         self.activation.track_overrides.iter().map(track).collect()
+    }
+}
+
+pub fn read_package(dir: &Path) -> std::result::Result<TrackPackage, Unusable> {
+    let json = std::fs::read(dir.join(MANIFEST_FILE)).map_err(|e| {
+        Unusable::unnamed(match e.kind() {
+            std::io::ErrorKind::NotFound => format!("it has no {MANIFEST_FILE}"),
+            _ => format!("its {MANIFEST_FILE} can't be read: {e}"),
+        })
+    })?;
+    let pkg: TrackPackage = serde_json::from_slice(&json)
+        .map_err(|e| Unusable::unnamed(format!("its {MANIFEST_FILE} doesn't read: {e}")))?;
+    let unusable = |why: String| Unusable {
+        code: Some(pkg.track_code.clone()),
+        name: Some(pkg.display_name().to_owned()),
+        why,
+    };
+    if pkg.activation.base_track().is_none() {
+        return Err(unusable(NO_BASE_TRACK.to_owned()));
+    }
+    match pkg.validate() {
+        Ok(()) => Ok(pkg),
+        Err(Error::Map(e)) => Err(unusable(format!("its {MANIFEST_FILE} is invalid: {e}"))),
+        Err(e) => Err(unusable(e.to_string())),
     }
 }
 
@@ -357,6 +409,60 @@ pub(crate) mod tests {
                 "{e}"
             );
         }
+    }
+
+    #[test]
+    fn says_why_a_package_is_left_out() {
+        let dir = std::env::temp_dir().join(format!("swofty-map-unusable-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let read = |manifest: Option<&str>| {
+            std::fs::remove_file(dir.join(MANIFEST_FILE)).ok();
+            if let Some(m) = manifest {
+                std::fs::write(dir.join(MANIFEST_FILE), m).unwrap();
+            }
+            read_package(&dir)
+        };
+        assert_eq!(read(Some(OKAYAMA_LIKE)).unwrap().track_code, "testring");
+        let no_base = read(Some(
+            r#"{ "track_code": "portimao", "track_name": "Portimao", "erp": "portimao.erp" }"#,
+        ))
+        .unwrap_err();
+        assert_eq!(
+            no_base,
+            Unusable {
+                code: Some("portimao".into()),
+                name: Some("Portimao".into()),
+                why: NO_BASE_TRACK.into(),
+            }
+        );
+        assert_eq!(
+            no_base.text(),
+            "track Portimao is left out; its manifest.json doesn't say which track it replaces or copies. \
+             Import a fixed version, or ask its author for one"
+        );
+        let unnamed = read(Some(r#"{ "track_code": "portimao", "erp": "portimao.erp" }"#)).unwrap_err();
+        assert_eq!(unnamed.name.as_deref(), Some("portimao"));
+        let escaping = read(Some(&OKAYAMA_LIKE.replace("testring.erp", "../x.erp"))).unwrap_err();
+        assert_eq!(escaping.code.as_deref(), Some("testring"));
+        assert_eq!(
+            escaping.why,
+            "its manifest.json is invalid: ../x.erp must be a relative path inside the package"
+        );
+        let broken = read(Some("{")).unwrap_err();
+        assert_eq!((broken.code, broken.name), (None, None));
+        assert!(
+            broken.why.starts_with("its manifest.json doesn't read: "),
+            "{}",
+            broken.why
+        );
+        let missing = read(None).unwrap_err();
+        assert_eq!(missing.why, "it has no manifest.json");
+        assert_eq!(
+            missing.text(),
+            "its track is left out; it has no manifest.json. Import a fixed version, or ask its author for one"
+        );
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

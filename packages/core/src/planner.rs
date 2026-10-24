@@ -246,6 +246,14 @@ impl<'a> Planner<'a> {
         self
     }
 
+    /// Skips `id`'s failing database ops from now on: an addon whose track a
+    /// build leaves out has ops on that track's rows.
+    pub fn add_lenient(&mut self, id: &str, name: &str) {
+        self.lenient
+            .entry(id.to_owned())
+            .or_insert_with(|| name.to_owned());
+    }
+
     pub fn route(&self, kind: Kind) -> Route {
         match self.delivery(kind) {
             Route::Runtime if kind == Kind::Erp && self.removals > 0 => Route::Build,
