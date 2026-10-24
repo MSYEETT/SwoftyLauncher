@@ -8,7 +8,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::install::Game;
+use crate::install::{Game, Source};
+use crate::journal::Journal;
 use crate::recovery::{Restored, SESSION_HELD, SessionLock};
 use crate::{Error, Result, read_json, with_retry, write_json};
 
@@ -48,22 +49,57 @@ pub fn done(data: &Path) -> bool {
     read(data).is_some_and(|s| s.version >= VERSION && s.done_at.is_some())
 }
 
+/// What [`reset`] did: the restore, and why the game folder could not be put
+/// back from the old record when it could not.
+#[derive(Debug, Default)]
+pub struct Reset {
+    pub restored: Restored,
+    pub unrestored: Option<String>,
+}
+
 /// Put the game folder back as `swofty restore` does, then start the record of
 /// original game files over: the baselines move to [`RETIRED`] and the built
 /// overlays are dropped. The player verifies the game files next.
-pub fn reset(data: &Path, game: &Game, other_mods: bool) -> Result<Restored> {
+///
+/// When the old record can't put the folder back, a copy the store can verify
+/// is reset anyway: the unfinished journals move to [`RETIRED`] with the old
+/// record, Swofty's own files are removed against an empty record, and
+/// verifying the game files puts back the rest. A copy no store can verify
+/// keeps its record and the error is returned.
+pub fn reset(data: &Path, game: &Game, other_mods: bool) -> Result<Reset> {
     let Some(lock) = SessionLock::try_acquire(data)? else {
         return Err(Error::Other(SESSION_HELD.into()));
     };
-    let restored = crate::recovery::restore_locked(&lock, data, game)?;
-    let baseline = data.join("baseline");
+    let first = match crate::recovery::restore_locked(&lock, data, game) {
+        Err(e) if Source::detect(&game.dir) == Source::Unknown => return Err(e),
+        r => r,
+    };
     let retired = data.join(RETIRED);
+    if retired.exists() {
+        with_retry(&retired, || std::fs::remove_dir_all(&retired))?;
+    }
+    let baseline = data.join("baseline");
     if baseline.is_dir() {
-        if retired.exists() {
-            with_retry(&retired, || std::fs::remove_dir_all(&retired))?;
-        }
         with_retry(&baseline, || std::fs::rename(&baseline, &retired))?;
     }
+    let out = match first {
+        Ok(restored) => Reset {
+            restored,
+            unrestored: None,
+        },
+        Err(e) => {
+            let journals = Journal::dir(data);
+            if journals.is_dir() {
+                std::fs::create_dir_all(&retired).map_err(crate::io_err(&retired))?;
+                let to = retired.join("journal");
+                with_retry(&journals, || std::fs::rename(&journals, &to))?;
+            }
+            Reset {
+                restored: crate::recovery::restore_locked(&lock, data, game)?,
+                unrestored: Some(e.to_string()),
+            }
+        }
+    };
     let overlays = data.join("cache/overlay");
     if overlays.is_dir() {
         with_retry(&overlays, || std::fs::remove_dir_all(&overlays))?;
@@ -79,7 +115,7 @@ pub fn reset(data: &Path, game: &Game, other_mods: bool) -> Result<Restored> {
         },
     )?;
     drop(lock);
-    Ok(restored)
+    Ok(out)
 }
 
 /// The first launch after the setup builds every addon again and backs up the
@@ -195,6 +231,60 @@ mod tests {
         .unwrap();
         assert!(!done(&data));
         assert!(finish(&data).is_err());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    fn broken_record(data: &Path, g: &Game) {
+        let mut b = crate::baseline::Baseline::new(&g.identity);
+        b.files.insert(
+            "game.erp".into(),
+            crate::baseline::FileRecord {
+                size: 4,
+                sha256: "f".repeat(64),
+                source: crate::baseline::Source::FirstSight,
+            },
+        );
+        b.save(data).unwrap();
+        std::fs::write(g.dir.join("game.erp"), "mod!").unwrap();
+        std::fs::write(g.dir.join(crate::install::PROXY), "proxy").unwrap();
+        std::fs::create_dir_all(Journal::dir(data)).unwrap();
+        std::fs::write(Journal::dir(data).join("stuck.json"), "{}").unwrap();
+    }
+
+    #[test]
+    fn a_store_copy_is_reset_when_the_old_record_cannot_put_it_back() {
+        let root = temp("broken-ea");
+        let data = root.join("data");
+        let g = game(&root);
+        std::fs::create_dir_all(g.dir.join("__Installer")).unwrap();
+        std::fs::write(g.dir.join("__Installer/installerdata.xml"), "<DiPManifest/>").unwrap();
+        broken_record(&data, &g);
+
+        let r = reset(&data, &g, true).unwrap();
+        assert!(!Journal::dir(&data).exists(), "unfinished journals are set aside");
+        assert!(data.join(RETIRED).join("journal").is_dir());
+        assert!(r.unrestored.is_some());
+        assert!(!data.join("baseline").exists());
+        assert!(data.join(RETIRED).is_dir());
+        assert!(
+            !g.dir.join(crate::install::PROXY).exists(),
+            "Swofty's own files are removed"
+        );
+        assert_eq!(std::fs::read_to_string(g.dir.join("game.erp")).unwrap(), "mod!");
+        assert!(read(&data).is_some_and(|s| s.other_mods && s.done_at.is_none()));
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_copy_no_store_can_verify_keeps_its_record_when_it_cannot_be_put_back() {
+        let root = temp("broken-unknown");
+        let data = root.join("data");
+        let g = game(&root);
+        broken_record(&data, &g);
+        std::fs::remove_dir_all(Journal::dir(&data)).unwrap();
+        assert!(reset(&data, &g, false).is_err());
+        assert!(data.join("baseline").is_dir());
+        assert!(read(&data).is_none());
         std::fs::remove_dir_all(&root).ok();
     }
 

@@ -46,7 +46,12 @@ pub fn command(store: &Store, cmd: SetupCommand) -> Result<()> {
         }
         SetupCommand::Reset { other_mods, game } => {
             let g = crate::build::game(store, game)?;
-            let done = setup::reset(&store.root, &g, other_mods)?;
+            let reset = setup::reset(&store.root, &g, other_mods)?;
+            if let Some(why) = &reset.unrestored {
+                println!("not put back from the old record: {why}");
+                println!("the old record and any unfinished changes were set aside");
+            }
+            let done = reset.restored;
             for n in &done.notes {
                 println!("restored: {n}");
             }
