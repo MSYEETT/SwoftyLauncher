@@ -180,6 +180,16 @@ static void test_guard()
     CHECK(fg_in({"swofty_core.dll", "sl.interposer.dll", "F1_25.exe"}).empty(), "a plain creation stack has no frame generation");
     CHECK(fg_in({"swofty_core.dll", "nvngx_dlssg.dll", "sl.dlss_g.dll", "F1_25.exe"}) == "nvngx_dlssg.dll",
           "the innermost frame generation module is named");
+    CHECK(fg_in({"sl.dlss_g.dll", "sl.interposer.dll", "F1_25.exe"}).empty() &&
+              streamline_in({"sl.dlss_g.dll", "sl.interposer.dll", "F1_25.exe"}),
+          "streamline's frame generation hook alone is not a frame generation swapchain");
+    std::string hw = "<x>\n\t<antialiasing taa=\"true\" dlss=\"false\" />\n\t<frame_gen mode=\"0\" />\n\t"
+                     "<multi_frame_gen value=\"0\" />\n</x>";
+    FgSetting fs = fg_setting(hw);
+    CHECK(fs.known && fs.mode == 0 && fs.multi == 0 && !fs.on(), "frame_gen mode 0 reads as off");
+    fs = fg_setting("<frame_gen mode=\"1\" /><multi_frame_gen value=\"2\" />");
+    CHECK(fs.known && fs.mode == 1 && fs.multi == 2 && fs.on(), "frame_gen mode 1 reads as on");
+    CHECK(fg_setting("<frame_gen />").on() && fg_setting("").on(), "a missing frame_gen mode reads as on");
     CHECK(chain({"swofty_core.dll", "dxgi.dll", "sl.interposer.dll", "sl.interposer.dll", "", "F1_25.exe", "KERNEL32.DLL"},
                 "swofty_core.dll", "dxgi.dll") == "sl.interposer.dll <- F1_25.exe <- KERNEL32.DLL",
           "the caller chain drops the core, the implementation, repeats and unknown frames");

@@ -95,6 +95,7 @@ The core draws the overlay only where it knows the drawing is ordered with the g
 | A swapchain the game created after the core loaded | Draws, on the command queue the swapchain was created with |
 | A swapchain created before the core hooked swapchain creation | Doesn't draw on it |
 | A swapchain that a frame generation module (DLSS Frame Generation, FSR or XeSS frame generation) created or presents | Doesn't draw on it |
+| A swapchain created through Streamline's frame generation hook (`sl.dlss_g.dll`, every NVIDIA Streamline build of F1 25) | Draws while the game's `hardware_settings_config.xml` has `frame_gen mode="0"`; stops for the session once it reads anything else |
 | The GPU still holds the previous frames' overlay work | Skips drawing that frame |
 | The GPU was removed within 10 s of an overlay draw | Stops, and writes `swofty/overlay-gpu-removed.json` |
 | `swofty/overlay-gpu-removed.json` exists at launch | Off for the session: `available()` is `false` and `on_paint` returns `unavailable` |

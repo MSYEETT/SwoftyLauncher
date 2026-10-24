@@ -192,6 +192,7 @@ struct Chain {
     void *sc = nullptr;
     ID3D12CommandQueue *queue = nullptr;
     std::string how, by, fg;
+    bool streamline = false;
     bool told = false;
 };
 
@@ -498,8 +499,63 @@ std::string fg_caller(void *caller)
         return last_fg;
     std::string name = module_of(caller);
     last = caller;
-    last_fg = hud::guard::fg_module(name) ? name : std::string();
+    last_fg = hud::guard::fg_module(name) && !hud::guard::streamline_hook(name) ? name : std::string();
     return last_fg;
+}
+
+struct FgWatch {
+    std::wstring path;
+    FILETIME at{};
+    ULONGLONG checked = 0;
+    hud::guard::FgSetting now;
+    bool tripped = false, told = false;
+} fg_watch;
+
+std::wstring hardware_settings_path()
+{
+    using GetFolder = HRESULT(WINAPI *)(HWND, int, HANDLE, DWORD, LPWSTR);
+    HMODULE shell = GetModuleHandleW(L"shell32.dll");
+    if (!shell)
+        shell = LoadLibraryW(L"shell32.dll");
+    auto get = shell ? reinterpret_cast<GetFolder>(GetProcAddress(shell, "SHGetFolderPathW")) : nullptr;
+    wchar_t docs[MAX_PATH] = {};
+    if (!get || FAILED(get(nullptr, 0x0005, nullptr, 0, docs)))
+        return {};
+    return std::wstring(docs) + L"\\My Games\\F1 25\\hardwaresettings\\hardware_settings_config.xml";
+}
+
+bool frame_gen_off(ULONGLONG now)
+{
+    FgWatch &w = fg_watch;
+    if (w.tripped)
+        return false;
+    if (w.checked && now - w.checked < 2000)
+        return !w.now.on();
+    w.checked = now;
+    if (w.path.empty())
+        w.path = hardware_settings_path();
+    WIN32_FILE_ATTRIBUTE_DATA fa{};
+    if (w.path.empty() || !GetFileAttributesExW(w.path.c_str(), GetFileExInfoStandard, &fa)) {
+        w.now = {};
+    } else if (CompareFileTime(&fa.ftLastWriteTime, &w.at) || !w.told) {
+        w.at = fa.ftLastWriteTime;
+        w.now = hud::guard::fg_setting(runtime::read_file(w.path, 1 << 20));
+    }
+    bool off = !w.now.on();
+    if (!w.told) {
+        w.told = true;
+        swofty::log("[overlay] the game's hardware settings (%s) have frame generation %s (frame_gen mode %d, "
+                    "multi_frame_gen %d)",
+                    runtime::narrow(w.path).c_str(), !w.now.known ? "unknown" : off ? "off" : "on", w.now.mode,
+                    w.now.multi);
+    } else if (!off) {
+        swofty::log("[overlay] the game's hardware settings now have frame generation %s (frame_gen mode %d); the "
+                    "overlay stops drawing for this session",
+                    w.now.known ? "on" : "unknown", w.now.mode);
+    }
+    if (!off)
+        w.tripped = true;
+    return off;
 }
 
 void flush_stats(ULONGLONG now)
@@ -540,9 +596,10 @@ void draw_frame(IDXGISwapChain3 *sc, void *caller)
             }
             return;
         }
-        if (it->fg.empty() && !pfg.empty())
+        bool fg_was = !it->fg.empty();
+        if (!fg_was && !pfg.empty())
             it->fg = pfg + " (calls Present)";
-        fresh = !it->told;
+        fresh = !it->told || (!fg_was && !it->fg.empty());
         it->told = true;
         c = *it;
     }
@@ -550,6 +607,14 @@ void draw_frame(IDXGISwapChain3 *sc, void *caller)
         if (fresh)
             swofty::log("[overlay] frame generation (%s) owns swapchain %p; the overlay does not draw on it",
                         c.fg.c_str(), static_cast<void *>(sc));
+        return;
+    }
+    if (c.streamline && !frame_gen_off(GetTickCount64())) {
+        if (!fg_watch.told || fresh)
+            swofty::log("[overlay] swapchain %p was created through Streamline's frame generation hook "
+                        "(sl.dlss_g.dll) and frame generation is not off in the game's settings; the overlay does not "
+                        "draw on it",
+                        static_cast<void *>(sc));
         return;
     }
     if (!renderer.ready) {
@@ -649,6 +714,7 @@ void captured(const char *how, IUnknown *device, void *sc, UINT w, UINT h, DXGI_
     c.how = how;
     c.by = by;
     c.fg = hud::guard::fg_in(mods);
+    c.streamline = hud::guard::streamline_in(mods);
     if (qd.Type != D3D12_COMMAND_LIST_TYPE_DIRECT && c.fg.empty())
         c.fg = "a non-direct present queue";
     {
@@ -663,7 +729,9 @@ void captured(const char *how, IUnknown *device, void *sc, UINT w, UINT h, DXGI_
     swofty::log("[overlay] swapchain %p created through %s on queue %p (type %d, %ux%u, format %d, %u buffer(s)); "
                 "created by %s%s%s",
                 sc, how, static_cast<void *>(q), int(qd.Type), w, h, int(fmt), buffers, by.c_str(),
-                c.fg.empty() ? "" : "; frame generation: ", c.fg.c_str());
+                c.fg.empty() ? (c.streamline ? "; through Streamline's frame generation hook" : "")
+                             : "; frame generation: ",
+                c.fg.c_str());
 }
 
 HMODULE impl_create, impl_hwnd, impl_core, impl_comp;

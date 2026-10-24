@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -54,12 +55,53 @@ inline bool fg_module(std::string_view path)
     return false;
 }
 
+inline bool streamline_hook(std::string_view path)
+{
+    return same_name(base_name(path), "sl.dlss_g.dll");
+}
+
 inline std::string fg_in(const std::vector<std::string> &modules)
 {
     for (auto &m : modules)
-        if (fg_module(m))
+        if (fg_module(m) && !streamline_hook(m))
             return std::string(base_name(m));
     return {};
+}
+
+inline bool streamline_in(const std::vector<std::string> &modules)
+{
+    for (auto &m : modules)
+        if (streamline_hook(m))
+            return true;
+    return false;
+}
+
+inline bool xml_int(const std::string &text, const char *element, const char *attr, int &out)
+{
+    size_t at = text.find(std::string("<") + element + " ");
+    if (at == std::string::npos)
+        return false;
+    size_t end = text.find('>', at);
+    std::string key = std::string(" ") + attr + "=\"";
+    size_t k = text.find(key, at);
+    if (k == std::string::npos || k > end)
+        return false;
+    out = atoi(text.c_str() + k + key.size());
+    return true;
+}
+
+struct FgSetting {
+    bool known = false;
+    int mode = -1, multi = -1;
+    bool on() const { return !known || mode != 0; }
+};
+
+inline FgSetting fg_setting(const std::string &hardware_settings)
+{
+    FgSetting f;
+    f.known = xml_int(hardware_settings, "frame_gen", "mode", f.mode);
+    xml_int(hardware_settings, "multi_frame_gen", "value", f.multi);
+    return f;
 }
 
 inline std::string chain(const std::vector<std::string> &modules, std::string_view skip_a, std::string_view skip_b)
