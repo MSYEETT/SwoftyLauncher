@@ -10,11 +10,13 @@ ITEMS=
 grep -qa '\[items\] ownership check hooked' ../dist/swofty/addons/core/swofty_core.dll && ITEMS=1
 export ZIG_GLOBAL_CACHE_DIR=$PWD/../build/zig-cache ZIG_LOCAL_CACHE_DIR=$PWD/../build/zig-cache
 PIN=(taskset -c 2-7,10,11,14-31 nice -n 10)
-rm -rf "$OUT/game" "$OUT/stages" "$OUT/packed"
-mkdir -p "$OUT/game" "$OUT/stages" "$OUT/packed"
+rm -rf "$OUT/game" "$OUT/stages" "$OUT/packed" "$OUT/filled"
+mkdir -p "$OUT/game" "$OUT/stages" "$OUT/packed" "$OUT/filled"
 "${PIN[@]}" zig cc -target x86_64-windows-gnu -O2 -o "$OUT/game/F1_25.exe" fake_game.c -lversion -luser32 &
 "${PIN[@]}" zig cc -target x86_64-windows-gnu -O2 -DPACKED_TEST -o "$OUT/packed/F1_25.exe" fake_game.c -lversion -luser32 &
+"${PIN[@]}" zig cc -target x86_64-windows-gnu -O2 -o "$OUT/filled/F1_25.exe" fake_filled_iat.c -luser32 &
 cp -r ../dist/. "$OUT/game/"
+cp -r ../dist/. "$OUT/filled/"
 mkdir -p "$OUT/game/swofty/mods/core"
 mv "$OUT/game/swofty/addons/core/swofty_gamelog.dll" "$OUT/game/swofty/addons/core/log_channels.tsv" "$OUT/game/swofty/mods/core/"
 for m in addons/t_*.cpp; do
@@ -666,4 +668,19 @@ for mode in packed packed_never packed_plain; do
         ;;
     esac
 done
+echo "==== filled"
+LOG=$OUT/filled/swofty/loader.log
+SWOFTY_EARLY_STAGE=1 "${PIN[@]}" xvfb-run -a wine "$OUT/filled/F1_25.exe" || status=1
+echo "---- $LOG (filled)"
+grep -v '  section ' "$LOG"
+check "filled: the exe's import table lacks the early slot" "trigger: game IAT slot KERNEL32!CreateMutexW not found or not writable; the exe's import table is filled at load"
+once "filled: a breakpoint on the entry of KERNEL32!CreateMutexW" 'trigger armed: breakpoint on the entry of KERNEL32!CreateMutexW at [0-9A-Fa-f]+, early stage'
+once "filled: a breakpoint on the entry of KERNELBASE!CreateMutexW" 'trigger armed: breakpoint on the entry of KERNELBASE!CreateMutexW at [0-9A-Fa-f]+, early stage'
+count "filled: another mutex skips the early trigger" 2 "early trigger skipped: KERNEL32!CreateMutexW from [0-9A-Fa-f]+ \(\.text\) name 'swofty filled-iat test'"
+once "filled: the early trigger fires at the breakpoint" "trigger: KERNEL32!CreateMutexW from [0-9A-Fa-f]+ \(\.text\) name 'Codemasters F1 25' on thread .*loading addons now \(early stage\)"
+count "filled: both entries are restored" 2 'trigger disarmed: KERNEL(32|BASE)!CreateMutexW entry restored'
+once "filled: RegisterClassExW is found in the filled table" 'trigger armed: game IAT slot USER32!RegisterClassExW at [0-9A-Fa-f]+ \(was [0-9A-Fa-f]+\), in the import table the exe filled at load'
+once "filled: CreateWindowExW is found in the filled table" 'trigger armed: game IAT slot USER32!CreateWindowExW at [0-9A-Fa-f]+ \(was [0-9A-Fa-f]+\), in the import table the exe filled at load'
+once "filled: the window stage runs at RegisterClassExW" 'stage: window \(USER32!RegisterClassExW from [0-9A-Fa-f]+ \(\.text\)\), addons were loaded at the early stage'
+count "filled: the fallback watcher leaves the window stage to the armed slots" 0 'waiting for a visible main window for the window stage'
 exit $status
