@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use serde_json::{Value, json};
 
 use crate::manifest::AddonManifest;
-use crate::session::{LOADER_LOG, PERF_LOG};
+use crate::session::{LOADER_FALLBACK, LOADER_LOG, PERF_LOG};
 use crate::store::Store;
 use crate::{Error, GAME_EXE, Result};
 
@@ -339,6 +339,13 @@ impl Bundle {
                 }
             }
         }
+        let fallback = store.root.join(LOADER_FALLBACK);
+        if !sessions
+            .first()
+            .is_some_and(|d| same_contents(&fallback, &d.join("loader.log")))
+        {
+            loader.extend(loader_line(LOADER_FALLBACK, &fallback));
+        }
         for (id, log) in helper_logs(store) {
             c.file(format!("addons/{id}/{}", crate::helper::LOG_FILE), &log, None);
         }
@@ -671,14 +678,23 @@ fn modified(path: &Path) -> Option<std::time::SystemTime> {
 }
 
 /// Whether a session's loader.log shows the loader running. One with only the
-/// offline play stub's lines means version.dll never loaded in the game.
-fn loader_line(label: &str, log: &Path) -> Option<String> {
-    let head = read_head(log, LOADER_HEAD).ok()?;
-    let state = match crate::quarantine::attached(&String::from_utf8_lossy(&head))? {
-        true => "mod loader attached",
-        false => "mod loader never attached (version.dll not loaded; antivirus suspected)",
+/// offline play stub's lines means version.dll never loaded in the game. A
+/// loader the game folder refused logged to the data folder, and says why.
+fn loader_line(label: &str, log: &Path) -> Vec<String> {
+    let Ok(head) = read_head(log, LOADER_HEAD) else {
+        return Vec::new();
     };
-    Some(format!("  {label:40} {state}"))
+    let head = String::from_utf8_lossy(&head);
+    let state = match crate::quarantine::attached(&head) {
+        Some(true) => "mod loader attached",
+        Some(false) => "mod loader never attached (version.dll not loaded; antivirus suspected)",
+        None => return Vec::new(),
+    };
+    let mut out = vec![format!("  {label:40} {state}")];
+    out.extend(
+        crate::quarantine::refused(&head).map(|why| format!("  {:40} logged in the data folder: {why}", "")),
+    );
+    out
 }
 
 /// Which addons draw over the game, and what each session's `[overlay]` lines say.
@@ -860,7 +876,30 @@ fn game_files_section(store: &Store, game: Option<&Path>) -> String {
     for line in eac {
         s.push_str(&format!("  {line}\n"));
     }
+    if let Some(line) = game
+        .and_then(crate::compat::virtual_store)
+        .and_then(|v| virtualised(&v))
+    {
+        s.push_str(&format!("  {line}\n"));
+    }
     s
+}
+
+/// The game files Windows virtualised for this user. A process it redirects
+/// writes them to the VirtualStore, where F1 25 never reads them.
+fn virtualised(copy: &Path) -> Option<String> {
+    const SHOWN: usize = 6;
+    let files = files_under(copy, 6);
+    let names: Vec<&str> = files.iter().take(SHOWN).map(|(rel, _)| rel.as_str()).collect();
+    (!files.is_empty()).then(|| {
+        format!(
+            "Windows keeps {} file(s) written to the game folder in {}, where F1 25 doesn't read them: {}{}",
+            files.len(),
+            copy.display(),
+            names.join(", "),
+            if files.len() > SHOWN { ", ..." } else { "" }
+        )
+    })
 }
 
 fn eac_files(game: &Path) -> Vec<String> {

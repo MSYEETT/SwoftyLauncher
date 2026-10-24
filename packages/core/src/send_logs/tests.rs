@@ -1095,6 +1095,73 @@ fn finds_a_crash_report_kept_in_a_session_folder() {
 }
 
 #[test]
+fn sends_the_loaders_fallback_log_and_says_why_it_was_used() {
+    let root = tmp("fallback");
+    let (store, game) = fake_data(&root);
+    let fallback = "2026-10-24 16:34:40.020 [ 1416] swofty loader (version.dll proxy) attached, pid 24676\r\n\
+         2026-10-24 16:34:40.020 [ 1416] log: C:\\Program Files\\EA Games\\F1 25\\swofty\\loader.log could not be \
+         opened (error 5); this is the fallback log C:\\Users\\id\\AppData\\Local\\Swofty\\state\\loader-fallback.log\r\n\
+         2026-10-24 16:34:40.021 [ 1416] process: user id (S-1-5-21-1-2-3-1001), medium integrity, not elevated, \
+         UAC virtualization off, __COMPAT_LAYER=(unset)\r\n";
+    put(&store.root.join(LOADER_FALLBACK), fallback);
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "x");
+    assert!(names(&bundle.zip().unwrap()).contains(LOADER_FALLBACK));
+    let why = "logged in the data folder: C:\\Program Files\\EA Games\\F1 25\\swofty\\loader.log could not be \
+               opened (error 5); the game runs as user id (S-1-5-21-1-2-3-1001), medium integrity, not elevated, UAC \
+               virtualization off, __COMPAT_LAYER=(unset)\n";
+    let summary = summary_of(&bundle);
+    assert!(
+        summary.contains(&format!(
+            "\nMod loader\n  state/loader-fallback.log                mod loader attached\n  {:40} {why}",
+            ""
+        )),
+        "{summary}"
+    );
+    put(&store.sessions_dir().join("20261020-090000/loader.log"), fallback);
+    let summary = summary_of(&Bundle::collect_with(
+        &store,
+        &report(&game),
+        Limits::default(),
+        "x",
+    ));
+    assert!(
+        summary.contains(&format!(
+            "\nMod loader\n  sessions/20261020-090000                 mod loader attached\n  {:40} {why}",
+            ""
+        )),
+        "the live fallback is the newest session's, so the session's line stands for it: {summary}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn names_the_game_files_windows_virtualised() {
+    let root = tmp("virtualised");
+    let copy = root.join("VirtualStore/Program Files/EA Games/F1 25");
+    assert_eq!(virtualised(&copy), None);
+    for rel in [
+        "version.dll",
+        "EAAntiCheat.GameServiceLauncher.exe",
+        "swofty/addons/core/swofty_core.dll",
+    ] {
+        put(&copy.join(rel), "x");
+    }
+    let line = virtualised(&copy).unwrap();
+    assert!(
+        line.starts_with("Windows keeps 3 file(s) written to the game folder in "),
+        "{line}"
+    );
+    assert!(
+        line.ends_with(
+            ", where F1 25 doesn't read them: EAAntiCheat.GameServiceLauncher.exe, swofty/addons/core/swofty_core.dll, \
+             version.dll"
+        ),
+        "{line}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
 fn says_when_the_mod_loader_never_attached() {
     let root = tmp("noloader");
     let (store, game) = fake_data(&root);
