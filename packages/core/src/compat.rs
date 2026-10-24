@@ -249,7 +249,12 @@ pub fn write_blocker(game: &Path) -> Option<std::path::PathBuf> {
 
 /// Why a modded session can't put its files in `game`, and what to do.
 pub fn write_blocked_text(game: &Path) -> String {
-    if cfg!(windows) {
+    write_blocked_text_for(game, cfg!(windows))
+}
+
+/// [`write_blocked_text`] as Windows, or another system, puts it.
+pub fn write_blocked_text_for(game: &Path, windows: bool) -> String {
+    if windows {
         format!(
             "F1 25 is installed in {}, a folder Windows lets only administrators change, so Swofty \
              can't add your mods there. Run Swofty Launcher as administrator, or move F1 25 to a \
@@ -341,7 +346,10 @@ mod shell {
         if !arg.is_empty() && !arg.contains([' ', '\t', '"']) {
             return arg.to_owned();
         }
-        format!("\"{}\"", arg.replace('"', "\\\""))
+        let mut inner = arg.replace('"', "\\\"");
+        let trailing = inner.chars().rev().take_while(|&c| c == '\\').count();
+        inner.push_str(&"\\".repeat(trailing));
+        format!("\"{inner}\"")
     }
 
     pub fn relaunch_elevated() -> Result<(), String> {
@@ -391,6 +399,7 @@ mod shell {
         assert_eq!(quote("run"), "run");
         assert_eq!(quote("C:\\Program Files\\F1 25"), "\"C:\\Program Files\\F1 25\"");
         assert_eq!(quote(""), "\"\"");
+        assert_eq!(quote("C:\\My Games\\"), "\"C:\\My Games\\\\\"");
     }
 }
 

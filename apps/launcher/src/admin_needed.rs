@@ -23,7 +23,7 @@ fn move_hint(source: Source) -> &'static str {
 
 pub(crate) fn text(dir: &Path, source: Source, windows: bool) -> String {
     if !windows {
-        return format!("{}.", compat::write_blocked_text(dir));
+        return format!("{}.", compat::write_blocked_text_for(dir, false));
     }
     let mut text = format!(
         "F1 25 is installed in {}, a folder Windows lets only administrators change, so Swofty can't \
