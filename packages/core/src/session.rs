@@ -11,6 +11,8 @@ use crate::update::UpdateConfig;
 
 pub const DEFAULT_WINEDEBUG: &str = "+timestamp,+pid,+tid,+loaddll,fixme-all";
 pub const LOADER_LOG: &str = "swofty/loader.log";
+/// Where in the data folder the loader logs when the game folder refuses `LOADER_LOG`.
+pub const LOADER_FALLBACK: &str = "state/loader-fallback.log";
 pub const LOADER_MARK: &str = "loader_mark.json";
 pub const PERF_LOG: &str = "swofty/perf.log";
 

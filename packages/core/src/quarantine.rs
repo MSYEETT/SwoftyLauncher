@@ -27,6 +27,9 @@ pub const REFUSED_EXIT: u8 = 225;
 pub const ATTACHED: &str = "(version.dll proxy) attached";
 /// The offline play stub's line when it has the game image and resumes it.
 const PATCHING: &str = "game image at ";
+/// The loader's line in its fallback log naming the game folder's log it
+/// could not open.
+const REFUSED: &str = " could not be opened (error ";
 /// A second look at the placed DLLs this long after they were written: a
 /// scanner often removes a file only once it has been closed.
 pub const RECHECK_AFTER: Duration = Duration::from_secs(2);
@@ -355,13 +358,46 @@ pub fn attached(text: &str) -> Option<bool> {
     (!text.trim().is_empty()).then_some(false)
 }
 
+/// Why the loader wrote its fallback log: the game folder's log it could not
+/// open, with the error, and the rights the game runs with.
+pub fn refused(fallback: &str) -> Option<String> {
+    let mut lines = fallback.lines();
+    let log = lines.find(|l| l.contains(REFUSED))?;
+    let log = &log[log.find("log: ")? + "log: ".len()..];
+    let log = &log[..log.find(';').unwrap_or(log.len())];
+    let rights = lines
+        .find_map(|l| Some(&l[l.find("process: ")? + "process: ".len()..]))
+        .map(|p| format!("; the game runs as {}", p.trim_end()))
+        .unwrap_or_default();
+    Some(format!("{log}{rights}"))
+}
+
+/// What the session says when the loader attached but logs to its fallback,
+/// for a launcher that runs as administrator or not.
+pub fn refused_text(elevated: bool) -> String {
+    let fix = if elevated {
+        "close F1 25 and the EA app, then press Play again: Swofty Launcher then starts the EA app as \
+         administrator too"
+    } else {
+        "close F1 25 and the EA app, run Swofty Launcher as administrator, then press Play again, or move F1 25 \
+         to a folder outside Program Files"
+    };
+    format!(
+        "F1 25 can't change files in its folder, so addons that save files there, such as the Career Mode \
+         Editor, don't work. To fix it, {fix}."
+    )
+}
+
 /// Follows the game folder's loader.log after the game starts. The stub
 /// writes its lines first; the loader moves them to loader.prev.log when it
 /// attaches and starts a fresh log with its attach line, so a log still
-/// equal to the one from before the launch says nothing.
+/// equal to the one from before the launch says nothing. A loader the game
+/// folder refuses logs to the fallback in the data folder instead, which a
+/// session starts without.
 pub struct AttachWatch {
     log: PathBuf,
     before: Option<LogMark>,
+    fallback: Option<PathBuf>,
     started: Instant,
     patched: Option<Instant>,
     next: Instant,
@@ -373,10 +409,18 @@ impl AttachWatch {
         Self {
             log,
             before,
+            fallback: None,
             started: now,
             patched: None,
             next: now,
             state: Attach::Waiting,
+        }
+    }
+
+    pub fn with_fallback(self, fallback: PathBuf) -> Self {
+        Self {
+            fallback: Some(fallback),
+            ..self
         }
     }
 
@@ -420,6 +464,11 @@ impl AttachWatch {
     }
 
     fn read(&mut self, now: Instant) -> Option<bool> {
+        if let Some(fallback) = self.fallback.as_ref().and_then(|f| std::fs::read(f).ok())
+            && attached(&String::from_utf8_lossy(&fallback)) == Some(true)
+        {
+            return Some(true);
+        }
         let text = std::fs::read(&self.log).ok()?;
         let text = String::from_utf8_lossy(&text);
         if self.patched.is_none() && text.contains(PATCHING) {
@@ -440,6 +489,11 @@ mod tests {
                         01:12:13.901 [stub] [offline] game image at 0x140000000, patching\n";
     const LOADED: &str =
         "2026-10-20 21:16:05.789 [ 2548] swofty loader (version.dll proxy) attached, pid 14088\n";
+    const FALLBACK: &str = "2026-10-24 16:34:40.020 [ 1416] swofty loader (version.dll proxy) attached, pid 24676\r\n\
+         2026-10-24 16:34:40.020 [ 1416] log: C:\\Program Files\\EA Games\\F1 25\\swofty\\loader.log could not be \
+         opened (error 5); this is the fallback log C:\\Users\\id\\AppData\\Local\\Swofty\\state\\loader-fallback.log\r\n\
+         2026-10-24 16:34:40.021 [ 1416] process: user id (S-1-5-21-1-2-3-1001), medium integrity, not elevated, \
+         UAC virtualization off, __COMPAT_LAYER=(unset)\r\n";
 
     fn temp(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("swofty-quarantine-{name}-{}", std::process::id()));
@@ -556,6 +610,39 @@ mod tests {
         assert_eq!(w.poll(t0 + Duration::from_secs(4)), Attach::Attached);
         assert_eq!(w.ended(t0 + Duration::from_secs(600)), Attach::Attached);
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn sees_the_loader_attach_in_its_fallback_log() {
+        let dir = temp("watch-fallback");
+        let log = dir.join("loader.log");
+        let fallback = dir.join("loader-fallback.log");
+        std::fs::write(&log, LOADED).unwrap();
+        let t0 = Instant::now();
+        let mut plain = AttachWatch::new(log.clone(), LogMark::read(&log), t0);
+        let mut w = AttachWatch::new(log.clone(), LogMark::read(&log), t0).with_fallback(fallback.clone());
+        assert_eq!(w.poll(t0), Attach::Waiting);
+        std::fs::write(&fallback, FALLBACK).unwrap();
+        assert_eq!(w.poll(t0 + Duration::from_secs(2)), Attach::Attached);
+        let late = t0 + Duration::from_secs(1) + ATTACH_WINDOW_NO_STUB;
+        assert_eq!(plain.poll(late), Attach::Missed);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn says_why_the_loader_logged_to_its_fallback() {
+        assert_eq!(
+            refused(FALLBACK).as_deref(),
+            Some(
+                "C:\\Program Files\\EA Games\\F1 25\\swofty\\loader.log could not be opened (error 5); the game runs as \
+                 user id (S-1-5-21-1-2-3-1001), medium integrity, not elevated, UAC virtualization off, \
+                 __COMPAT_LAYER=(unset)"
+            )
+        );
+        assert_eq!(refused(LOADED), None);
+        assert_eq!(refused(STUB), None);
+        assert!(refused_text(true).ends_with("starts the EA app as administrator too."));
+        assert!(refused_text(false).contains("run Swofty Launcher as administrator"));
     }
 
     #[test]

@@ -17,8 +17,8 @@ use swofty_core::process::{
 use swofty_core::quarantine::{self, Attach, AttachWatch, Stage};
 use swofty_core::recovery::{Scope, SessionLock};
 use swofty_core::session::{
-    Config, DEFAULT_WINEDEBUG, LOADER_LOG, LOADER_MARK, LaunchMode, LaunchRequest, LogMark, PERF_LOG,
-    RUNTIME_LIBS_DIR, STOP_FILE, SessionEnd, SessionRecord, game_args, is_compat_layer, parse_cpu_list,
+    Config, DEFAULT_WINEDEBUG, LOADER_FALLBACK, LOADER_LOG, LOADER_MARK, LaunchMode, LaunchRequest, LogMark,
+    PERF_LOG, RUNTIME_LIBS_DIR, STOP_FILE, SessionEnd, SessionRecord, game_args, is_compat_layer, parse_cpu_list,
     parse_steam_command, request_stop, written_since,
 };
 use swofty_core::steam_client::{self, Ready, Report, State, Wait};
@@ -609,6 +609,10 @@ fn play(
     let loader = game.join(LOADER_LOG);
     let before = LogMark::read(&loader);
     std::fs::write(dir.join(LOADER_MARK), serde_json::to_vec(&before)?)?;
+    let fallback = store.root.join(LOADER_FALLBACK);
+    for stale in [fallback.clone(), fallback.with_extension("prev.log")] {
+        std::fs::remove_file(stale).ok();
+    }
     let latest = store.sessions_dir().join("latest");
     std::fs::remove_file(&latest).ok();
     link(&dir, &latest);
@@ -753,7 +757,9 @@ fn play(
         say("info", &format!("starting F1 25 in VR ({})", extra.join(" ")));
     }
     let usage = swofty_core::usage::Session::start(&store.root);
-    let mut watch = placed_loader.then(|| AttachWatch::new(loader.clone(), before.clone(), Instant::now()));
+    let new_watch =
+        || AttachWatch::new(loader.clone(), before.clone(), Instant::now()).with_fallback(fallback.clone());
+    let mut watch = placed_loader.then(new_watch);
     let placed = quarantine::placed_dlls(&store.root)
         .unwrap_or_default()
         .into_iter()
@@ -778,14 +784,18 @@ fn play(
         false => None,
     };
     if ea.is_some() {
-        watch = placed_loader.then(|| AttachWatch::new(loader.clone(), before.clone(), Instant::now()));
+        watch = placed_loader.then(new_watch);
     }
+    let verdict = |state: Attach| match state {
+        Attach::Missed => missed(),
+        Attach::Attached => note_refused(&fallback),
+        Attach::Waiting => {}
+    };
     let tick = || {
         if let Some(w) = watch.as_mut()
             && w.state() == Attach::Waiting
-            && w.poll(Instant::now()) == Attach::Missed
         {
-            missed();
+            verdict(w.poll(Instant::now()));
         }
     };
     let (code, unread) = match ea {
@@ -800,12 +810,11 @@ fn play(
     };
     if let Some(w) = watch.as_mut()
         && w.state() == Attach::Waiting
-        && w.ended(Instant::now()) == Attach::Missed
     {
-        missed();
+        verdict(w.ended(Instant::now()));
     }
     wait_relaunched(game, &copies_before, code, launched.elapsed().unwrap_or_default());
-    keep_game_logs(game, &dir, before.as_ref(), launched);
+    keep_game_logs(game, &fallback, &dir, before.as_ref(), launched);
     let loader = std::fs::read(dir.join("loader.log"))
         .ok()
         .map(|b| launch::LoaderSeen::scan(&String::from_utf8_lossy(&b)));
@@ -1031,10 +1040,36 @@ fn report_blocked(store: &Store, report: &quarantine::Report) {
     }
 }
 
-fn keep_game_logs(game: &Path, dir: &Path, before: Option<&LogMark>, launched: SystemTime) {
+/// The loader attached but could not log in the game folder: say why, and
+/// what that breaks.
+fn note_refused(fallback: &Path) {
+    let Some(why) = std::fs::read(fallback)
+        .ok()
+        .and_then(|b| quarantine::refused(&String::from_utf8_lossy(&b)))
+    else {
+        return;
+    };
+    say(
+        "loader",
+        &format!(
+            "version.dll attached, but its log could not go in the game folder: {why}. The log is in {}",
+            fallback.display()
+        ),
+    );
+    say(
+        "warning",
+        &quarantine::refused_text(swofty_core::compat::elevated()),
+    );
+}
+
+/// The session's loader.log: the game folder's when the loader wrote it,
+/// else its fallback in the data folder, which a session starts without.
+fn keep_game_logs(game: &Path, fallback: &Path, dir: &Path, before: Option<&LogMark>, launched: SystemTime) {
     let loader = game.join(LOADER_LOG);
     if LogMark::replaced(&loader, before) {
         std::fs::copy(&loader, dir.join("loader.log")).ok();
+    } else if fallback.is_file() {
+        std::fs::copy(fallback, dir.join("loader.log")).ok();
     }
     let perf = game.join(PERF_LOG);
     if written_since(&perf, launched) {
@@ -2049,14 +2084,23 @@ mod tests {
         std::fs::write(&perf, "Swofty Launcher performance report\nold\n").unwrap();
         touch(&perf, launched - Duration::from_secs(600));
         let before = LogMark::read(&loader);
-        keep_game_logs(&game, &session, before.as_ref(), launched);
+        let fallback = dir.join(LOADER_FALLBACK);
+        keep_game_logs(&game, &fallback, &session, before.as_ref(), launched);
         assert!(!session.join("loader.log").exists());
         assert!(!session.join("perf.log").exists());
+
+        std::fs::create_dir_all(fallback.parent().unwrap()).unwrap();
+        std::fs::write(&fallback, "attached in the data folder\n").unwrap();
+        keep_game_logs(&game, &fallback, &session, before.as_ref(), launched);
+        assert_eq!(
+            std::fs::read_to_string(session.join("loader.log")).unwrap(),
+            "attached in the data folder\n"
+        );
 
         std::fs::write(&loader, "fresh\n").unwrap();
         std::fs::write(&perf, "Swofty Launcher performance report\nnew\n").unwrap();
         touch(&perf, launched + Duration::from_secs(1));
-        keep_game_logs(&game, &session, before.as_ref(), launched);
+        keep_game_logs(&game, &fallback, &session, before.as_ref(), launched);
         assert_eq!(
             std::fs::read_to_string(session.join("loader.log")).unwrap(),
             "fresh\n"

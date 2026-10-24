@@ -62,6 +62,8 @@ When the mods did not load and `version.dll` is still in the game folder, the la
 - Code Integrity and Microsoft Defender events since the game started
 - the antivirus registered with Windows
 
+When the loader runs but the game can't create its log in the game folder, the log is in `state\loader-fallback.log` in the data folder instead. The session then counts the mods as loaded, and its `[warning]` line in `state\wrapper-run.log` says what to do.
+
 The **Mods did not load** dialog then names what it found and its fix, for example turning off Smart App Control, or an antivirus's DLL protection for `F1_25.exe`. The details are under `[loader]` in `state\wrapper-run.log`, which [Send Logs](/using/send-logs) includes.
 
 ## If Windows blocks the launcher
