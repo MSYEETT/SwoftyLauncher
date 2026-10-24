@@ -1,0 +1,240 @@
+{
+ "schema_version": 1,
+ "ops": [
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/kimi_raikkonen.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/kimi_raikkonen.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/kimi_raikkonen.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/kimi_raikkonen.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/kimi_raikkonen.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/kimi_raikkonen.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/kimi_raikkonen.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/kimi_raikkonen.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/sebastian_vettel.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/sebastian_vettel.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/sebastian_vettel.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/sebastian_vettel.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/sebastian_vettel.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/sebastian_vettel.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/sebastian_vettel.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/sebastian_vettel.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/romain_grosjean.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/romain_grosjean.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/romain_grosjean.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/romain_grosjean.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/romain_grosjean.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/romain_grosjean.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/romain_grosjean.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/romain_grosjean.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/daniil_kvyat.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/daniil_kvyat.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/daniil_kvyat.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/daniil_kvyat.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/daniil_kvyat.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/daniil_kvyat.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/daniil_kvyat.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/daniil_kvyat.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/antonio_giovinazzi.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/antonio_giovinazzi.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/antonio_giovinazzi.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/antonio_giovinazzi.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/antonio_giovinazzi.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/antonio_giovinazzi.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/antonio_giovinazzi.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/antonio_giovinazzi.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/nicholas_latifi.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/nicholas_latifi.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/nicholas_latifi.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/nicholas_latifi.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/nicholas_latifi.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/nicholas_latifi.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/nicholas_latifi.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/nicholas_latifi.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/mick_schumacher.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/mick_schumacher.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/mick_schumacher.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/mick_schumacher.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/mick_schumacher.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/mick_schumacher.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/mick_schumacher.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/mick_schumacher.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/nikita_mazepin.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/nikita_mazepin.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/nikita_mazepin.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/nikita_mazepin.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/nikita_mazepin.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/nikita_mazepin.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/nikita_mazepin.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/nikita_mazepin.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/nyck_de-vries.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/nyck_de-vries.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/nyck_de-vries.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/nyck_de-vries.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/nyck_de-vries.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/nyck_de-vries.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/nyck_de-vries.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/nyck_de-vries.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/robert_kubica.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/robert_kubica.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/robert_kubica.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/robert_kubica.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/character_package/heads/male_driver/robert_kubica/textures/robert_kubica_head_d.tif.2025.mipmaps",
+   "target": "character_package/heads/male_driver/robert_kubica/textures/robert_kubica_head_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/character_package/heads/male_driver/robert_kubica/textures/robert_kubica_head_n.tif.2025.mipmaps",
+   "target": "character_package/heads/male_driver/robert_kubica/textures/robert_kubica_head_n.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/character_package/heads/male_driver/robert_kubica/textures/robert_kubica_head_s.tif.2025.mipmaps",
+   "target": "character_package/heads/male_driver/robert_kubica/textures/robert_kubica_head_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/robert_kubica.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/robert_kubica.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/robert_kubica.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/robert_kubica.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
+  }
+ ]
+}

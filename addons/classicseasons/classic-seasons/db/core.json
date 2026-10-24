@@ -289,25 +289,25 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=sebastian_vettel]",
    "field": "head",
-   "value": "male_ls553"
+   "value": "sebastian_vettel"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=kimi_raikkonen]",
    "field": "head",
-   "value": "male_ls161"
+   "value": "kimi_raikkonen"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=daniil_kvyat]",
    "field": "head",
-   "value": "male_ls807"
+   "value": "daniil_kvyat"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=romain_grosjean]",
    "field": "head",
-   "value": "male_ls356"
+   "value": "romain_grosjean"
   },
   {
    "op": "set",
@@ -331,37 +331,37 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=antonio_giovinazzi]",
    "field": "head",
-   "value": "male_ls515"
+   "value": "antonio_giovinazzi"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=robert_kubica]",
    "field": "head",
-   "value": "male_ls347"
+   "value": "robert_kubica"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=nicholas_latifi]",
    "field": "head",
-   "value": "male_ls533"
+   "value": "nicholas_latifi"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=mick_schumacher]",
    "field": "head",
-   "value": "male_ls192"
+   "value": "mick_schumacher"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=nikita_mazepin]",
    "field": "head",
-   "value": "male_ls265"
+   "value": "nikita_mazepin"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=nyck_de-vries]",
    "field": "head",
-   "value": "male_ls343"
+   "value": "nyck_de-vries"
   },
   {
    "op": "add-row",
