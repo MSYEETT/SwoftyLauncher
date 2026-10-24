@@ -156,16 +156,48 @@ std::string fg_caller(void *caller)
     return last_fg;
 }
 
+struct PresentSeen {
+    void *sc, *caller;
+    DWORD tid;
+};
+
+std::mutex present_lock;
+std::vector<PresentSeen> present_seen;
+ULONGLONG present_since;
+unsigned present_count;
+
+void count_present(IDXGISwapChain3 *sc, void *caller)
+{
+    DWORD tid = GetCurrentThreadId();
+    ULONGLONG now = GetTickCount64();
+    std::lock_guard<std::mutex> g(present_lock);
+    present_count++;
+    if (!present_since)
+        present_since = now;
+    bool fresh = present_seen.size() < 32 &&
+                 std::none_of(present_seen.begin(), present_seen.end(), [&](const PresentSeen &p) {
+                     return p.sc == sc && p.caller == caller && p.tid == tid;
+                 });
+    if (fresh) {
+        present_seen.push_back({sc, caller, tid});
+        swofty::log("[d3d12] Present on swapchain %p from %s (%p) on thread %lu", static_cast<void *>(sc),
+                    module_of(caller).c_str(), caller, tid);
+    }
+    if (now - present_since >= 60000) {
+        swofty::log("[d3d12] last %llu s: %u present(s), %.1f per second",
+                    static_cast<unsigned long long>((now - present_since) / 1000), present_count,
+                    present_count * 1000.0 / double(now - present_since));
+        present_since = now;
+        present_count = 0;
+    }
+}
+
 HRESULT STDMETHODCALLTYPE present_hook(IDXGISwapChain3 *sc, UINT sync, UINT flags)
 {
+    if (!(flags & DXGI_PRESENT_TEST))
+        count_present(sc, __builtin_return_address(0));
     if (!(flags & DXGI_PRESENT_TEST) && presents.n.load() && !in_present.exchange(true)) {
         void *caller = __builtin_return_address(0);
-        static void *seen;
-        if (seen != sc) {
-            seen = sc;
-            swofty::log("[d3d12] Present on swapchain %p from %s on thread %lu", static_cast<void *>(sc),
-                        module_of(caller).c_str(), GetCurrentThreadId());
-        }
         std::string pfg = fg_caller(caller);
         Swapchain c;
         bool known = false;
