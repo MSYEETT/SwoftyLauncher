@@ -81,14 +81,15 @@ At load it registers one box per season with `swofty::era::add_box` (`swofty/era
 | Nyck de Vries | `nyck_de-vries` | 2023 | More Driver Models |
 | Robert Kubica | `robert_kubica` | 2019 | F1 25 Kubica Face Mod (Cap On) |
 
-The stock database has an `entrants.animation.driver_heads.driver_head` row for each of these heads, and each driver's row names it in `head`. The row's `model_path` is `eaid://[CHARACTER_PACKAGE]/heads/male_driver/<head>/idf/<head>_rig_head_morph_v1`, and its asset group path formats give two groups. The stock game ships neither archive:
+The stock database has an `entrants.animation.driver_heads.driver_head` row for each of these heads. The row's `model_path` is `eaid://[CHARACTER_PACKAGE]/heads/male_driver/<head>/idf/<head>_rig_head_morph_v1`, and its asset group path formats give two groups named after the row's label. The stock manifest lists the groups of the stock labels, so the core never registers an addon's group under them, and a player's game folder can hold other files at their archive paths. Each head ships under its own label `cs_<head>`:
 
-- `2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/<head>.erp`: the model, materials and textures.
-- `2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/<head>.erp`: the facial morph clips.
+- `db/core.json` adds a `cs_<head>` row copied from the stock `<head>` row and sets the driver's `head` to it.
+- `2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_<head>.erp`: the model, materials and textures.
+- `2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_<head>.erp`: the facial morph clips.
 
 Kubica's head also has three `.2025.mipmaps` textures in `character_package/heads/male_driver/robert_kubica/textures/`. The More Driver Models heads hold their textures in the heads archive.
 
-`assets/heads.json` adds each file with `file.put` and registers both groups with `group.register`, with `lando_norris`'s groups as templates. `tools/heads.py` reads the zips named in `data/heads.json` from the downloads folder. It fails when a target exists in the game folder, or when no driver in `data/seasons.json` has the head.
+`assets/heads.json` adds each file with `file.put` and registers both `cs_<head>` groups with `group.register`, with `lando_norris`'s groups as templates. `tools/heads.py` reads the zips named in `data/heads.json` from the downloads folder. It fails when `--game` is not the F1 25 folder, when a target exists in it, or when no driver in `data/seasons.json` has the head.
 
 ```sh
 python3 tools/heads.py --downloads ~/Downloads --game <F1 25>

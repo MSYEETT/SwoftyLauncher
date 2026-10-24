@@ -43,6 +43,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import heads
 import suit_sources
 from layout import (ROOT, SUIT_YEARS, asset_ops, built, extra_package, real_suit_asset_ops, real_suits, suit_asset_ops,
                     suits, year_dir)
@@ -52,6 +53,8 @@ STOCK = json.loads((ROOT / "data" / "stock_looks.json").read_text())
 DRIVER_FIELDS = json.loads((ROOT / "data" / "driver_fields.json").read_text())
 SETUP_PRESET_FIELDS = json.loads((ROOT / "data" / "setup_preset_fields.json").read_text())
 TEAM_COLOURS = json.loads((ROOT / "data" / "team_colours.json").read_text())
+REAL_HEADS = json.loads((ROOT / "data" / "heads.json").read_text())["heads"]
+HEAD_ROWS = "entrants.animation.driver_heads"
 
 CATEGORY = "options_system.options.multiplayer.options_folder_2.option[_metadata_=category]"
 CATEGORY_FIELDS = ["_metadata_", "confirmation_dialogue", "description_override", "game_value", "is_default", "loc_tag",
@@ -106,6 +109,10 @@ def placeholder_look(folder, position, driver, year):
     helmet_from = STOCK["looks"][own] if own else STOCK["looks"][seat]
     suit_from = STOCK["looks"][seat]
     return seat, helmet_from["helmet"], suit_from["suit"], suit_from["gloves"]
+
+
+def head_label(head):
+    return heads.label(head) if head in REAL_HEADS else head
 
 
 def colour(hex_rgb):
@@ -222,6 +229,10 @@ def build():
     suit_ids = iter(SUIT_IDS)
     seasons = []
 
+    for head in REAL_HEADS:
+        ops.append({"op": "add-row", "table": HEAD_ROWS, "from": f"{HEAD_ROWS}.driver_head[_metadata_={head}]",
+                    "set": {"_metadata_": heads.label(head)}})
+
     for driver_stat, (label, d) in enumerate(DATA["new_drivers"].items(), DRIVER_STAT_BASE):
         base = f"lng_cs_driver_{label}"
         ops.append({"op": "add-row", "table": "entrants.drivers",
@@ -229,13 +240,14 @@ def build():
                     "set": {"_metadata_": label, "first_name": base + "_first", "last_name": base + "_last",
                             "full_name": base + "_full", "last_name_standard": "", "initials": d["initials"],
                             "nationality": d["nationality"],
-                            "head": d["head"], "audio_name": "DefaultName", "expression_label": "",
+                            "head": head_label(d["head"]), "audio_name": "DefaultName", "expression_label": "",
                             "stat_id": str(driver_stat)}})
         text += [lang(base + "_first", d["first"]), lang(base + "_last", d["last"].upper()),
                  lang(base + "_full", f"{d['first']} {d['last'].upper()}")]
 
     for label, head in DATA["head_overrides"].items():
-        ops.append({"op": "set", "select": f"entrants.drivers.driver[_metadata_={label}]", "field": "head", "value": head})
+        ops.append({"op": "set", "select": f"entrants.drivers.driver[_metadata_={label}]", "field": "head",
+                    "value": head_label(head)})
 
     for label in list(DATA["new_drivers"]) + DATA["holders_for"]:
         ops.append({"op": "add-row", "table": "driver_statistics.driver_statistics",

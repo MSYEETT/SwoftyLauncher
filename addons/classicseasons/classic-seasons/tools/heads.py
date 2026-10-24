@@ -2,16 +2,19 @@
 """Ship the real driver heads of data/heads.json: copy each head's files out of its mod zip into heads/ (not committed)
 and write assets/heads.json, the asset ops that put them in the game folder.
 
-The stock database already has an entrants.animation.driver_heads.driver_head row for each of these labels, and the
-driver rows' head field names it. The row's asset_group_path_format and face_morph_asset_group_path_format pick the
-asset groups animation_package/scenes/cinematics/drivers/heads/<head> and .../morph_poses/<head>, and model_path names
-eaid://[CHARACTER_PACKAGE]/heads/male_driver/<head>/idf/<head>_rig_head_morph_v1, which the heads archive holds. The
-stock game ships neither archive. A head whose textures stream also has .mipmaps files under
-character_package/heads/male_driver/<head>/textures/.
+The stock database has an entrants.animation.driver_heads.driver_head row for each of these heads, and its
+asset_group_path_format and face_morph_asset_group_path_format pick the groups
+animation_package/scenes/cinematics/drivers/heads/<label> and .../morph_poses/<label> of the row's label. The stock
+manifest lists those groups, so the core never registers an addon's group under them, and a player's game folder may
+hold other files at their archive paths. Each head therefore ships under its own label cs_<head> (label()): gen.py adds
+a cs_<head> row copied from the stock <head> row, whose model_path,
+eaid://[CHARACTER_PACKAGE]/heads/male_driver/<head>/idf/<head>_rig_head_morph_v1, the heads archive holds. The two
+archives go to heads/cs_<head>.erp and morph_poses/cs_<head>.erp, and both groups are registered with group.register,
+with lando_norris's groups as templates. A head whose textures stream also has .mipmaps files under
+character_package/heads/male_driver/<head>/textures/, put at their own paths.
 
-Each head goes in as files the game does not have: the tool fails when a target exists in --game. Its two groups are
-registered with group.register (the core skips a group the stock manifest already lists), with lando_norris's groups
-as templates. A head label must be the head of a driver in data/seasons.json (head_overrides or new_drivers).
+The tool fails when --game is not the F1 25 folder or a target exists in it. A head must be the head of a driver in
+data/seasons.json (head_overrides or new_drivers).
 """
 
 import argparse
@@ -29,8 +32,16 @@ SCENES = "animation_package/scenes/cinematics/drivers"
 TEMPLATE = "lando_norris"
 
 
+def label(head):
+    return f"cs_{head}"
+
+
 def archives(head):
     return [f"2025_asset_groups/{SCENES}/{kind}/{head}.erp" for kind in ("heads", "morph_poses")]
+
+
+def target(rel, head):
+    return rel if rel not in archives(head) else rel.replace(f"/{head}.erp", f"/{label(head)}.erp")
 
 
 def wanted(rel, head):
@@ -72,10 +83,10 @@ def extract(downloads, source, head):
 def asset_ops(heads):
     ops = []
     for head, files in heads.items():
-        ops += [{"op": "file.put", "source": f"heads/{rel}", "target": rel} for rel in files]
+        ops += [{"op": "file.put", "source": f"heads/{rel}", "target": target(rel, head)} for rel in files]
         for kind in ("heads", "morph_poses"):
-            ops.append({"op": "group.register", "group": f"asset_groups/{SCENES}/{kind}/{head}.assetgroup",
-                        "erp": f"2025_asset_groups/{SCENES}/{kind}/{head}.erp",
+            ops.append({"op": "group.register", "group": f"asset_groups/{SCENES}/{kind}/{label(head)}.assetgroup",
+                        "erp": f"2025_asset_groups/{SCENES}/{kind}/{label(head)}.erp",
                         "template": f"asset_groups/{SCENES}/{kind}/{TEMPLATE}.assetgroup"})
     return {"schema_version": 1, "ops": ops}
 
@@ -93,10 +104,11 @@ def main():
         shutil.rmtree(OUT)
     heads = {head: extract(args.downloads, data["sources"][key], head) for head, key in data["heads"].items()}
     game = Path(args.game)
-    if game.is_dir():
-        stock = [rel for files in heads.values() for rel in files if (game / rel).exists()]
-        if stock:
-            sys.exit(f"these replace game files: {', '.join(stock)}")
+    if not (game / "F1_25.exe").is_file():
+        sys.exit(f"--game {game} is not the F1 25 folder")
+    stock = [target(rel, head) for head, files in heads.items() for rel in files if (game / target(rel, head)).exists()]
+    if stock:
+        sys.exit(f"these replace game files: {', '.join(stock)}")
     OPS.parent.mkdir(parents=True, exist_ok=True)
     OPS.write_text(json.dumps(asset_ops(heads), indent=1) + "\n")
     size = sum((OUT / rel).stat().st_size for files in heads.values() for rel in files)

@@ -173,6 +173,86 @@
  "ops": [
   {
    "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=kimi_raikkonen]",
+   "set": {
+    "_metadata_": "cs_kimi_raikkonen"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=sebastian_vettel]",
+   "set": {
+    "_metadata_": "cs_sebastian_vettel"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=romain_grosjean]",
+   "set": {
+    "_metadata_": "cs_romain_grosjean"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=daniil_kvyat]",
+   "set": {
+    "_metadata_": "cs_daniil_kvyat"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=antonio_giovinazzi]",
+   "set": {
+    "_metadata_": "cs_antonio_giovinazzi"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=nicholas_latifi]",
+   "set": {
+    "_metadata_": "cs_nicholas_latifi"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=mick_schumacher]",
+   "set": {
+    "_metadata_": "cs_mick_schumacher"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=nikita_mazepin]",
+   "set": {
+    "_metadata_": "cs_nikita_mazepin"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=nyck_de-vries]",
+   "set": {
+    "_metadata_": "cs_nyck_de-vries"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=robert_kubica]",
+   "set": {
+    "_metadata_": "cs_robert_kubica"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.drivers",
    "from": "entrants.drivers.driver[_metadata_=lando_norris]",
    "set": {
@@ -289,25 +369,25 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=sebastian_vettel]",
    "field": "head",
-   "value": "sebastian_vettel"
+   "value": "cs_sebastian_vettel"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=kimi_raikkonen]",
    "field": "head",
-   "value": "kimi_raikkonen"
+   "value": "cs_kimi_raikkonen"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=daniil_kvyat]",
    "field": "head",
-   "value": "daniil_kvyat"
+   "value": "cs_daniil_kvyat"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=romain_grosjean]",
    "field": "head",
-   "value": "romain_grosjean"
+   "value": "cs_romain_grosjean"
   },
   {
    "op": "set",
@@ -331,37 +411,37 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=antonio_giovinazzi]",
    "field": "head",
-   "value": "antonio_giovinazzi"
+   "value": "cs_antonio_giovinazzi"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=robert_kubica]",
    "field": "head",
-   "value": "robert_kubica"
+   "value": "cs_robert_kubica"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=nicholas_latifi]",
    "field": "head",
-   "value": "nicholas_latifi"
+   "value": "cs_nicholas_latifi"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=mick_schumacher]",
    "field": "head",
-   "value": "mick_schumacher"
+   "value": "cs_mick_schumacher"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=nikita_mazepin]",
    "field": "head",
-   "value": "nikita_mazepin"
+   "value": "cs_nikita_mazepin"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=nyck_de-vries]",
    "field": "head",
-   "value": "nyck_de-vries"
+   "value": "cs_nyck_de-vries"
   },
   {
    "op": "add-row",
