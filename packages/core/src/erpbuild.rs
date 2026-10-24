@@ -142,6 +142,31 @@ fn check_scene(uri: &str, data: &[u8]) -> std::result::Result<(), String> {
     }
 }
 
+pub fn stale_stats_in(file: &ErpFile) -> Result<Vec<String>> {
+    let mut out = Vec::new();
+    for r in file.erp.resources.iter().filter(|r| r.has_stats()) {
+        if file.load(r)?.stale_stats()? {
+            out.push(r.name.clone());
+        }
+    }
+    Ok(out)
+}
+
+pub fn stale_stats_message(who: &str, resources: &[String], fix: &str) -> String {
+    let first = resources.first().map_or("", |r| {
+        let path = r.split('?').next().unwrap_or(r);
+        path.rsplit('/').next().unwrap_or(path)
+    });
+    let what = match resources.len() {
+        1 => format!("its {first} doesn't match the size header the game reads with it"),
+        n => format!(
+            "its {first} and {} more file(s) don't match the size headers the game reads with them",
+            n - 1
+        ),
+    };
+    format!("{who} crashes F1 25: {what}, so the game overruns its memory when it loads that track. {fix}")
+}
+
 fn write_archive(out: &Path, rel: &str, archive: Archive) -> Result<()> {
     let Archive { file, slots } = archive;
     let path = out.join(rel);
@@ -643,6 +668,22 @@ impl<'a> ErpBuild<'a> {
         std::mem::take(&mut self.notes)
     }
 
+    // The resources the ops left with a bxml fragment its TSMD stats no longer
+    // describe, with the origin that last wrote each.
+    pub fn stale_stats(&self) -> Result<Vec<(String, String)>> {
+        let mut out = Vec::new();
+        for (rel, archive) in &self.erps {
+            for slot in &archive.slots {
+                let Slot::Owned(r) = slot else { continue };
+                if r.stale_stats()? {
+                    let origin = self.writers.get(&(rel.clone(), r.name.clone()));
+                    out.push((origin.cloned().unwrap_or_default(), r.name.clone()));
+                }
+            }
+        }
+        Ok(out)
+    }
+
     fn patch(
         &mut self,
         erp: &str,
@@ -942,6 +983,127 @@ mod tests {
             resources,
         }
         .to_bytes()
+    }
+
+    fn spline(gates: &str) -> swofty_formats::bxml::Document {
+        use swofty_formats::bxml::{Document, Element, Kind};
+        let gate = |id: usize| Element {
+            kind: Kind::Element,
+            pad: 0,
+            name: b"gate".to_vec(),
+            attrs: vec![(b"name".to_vec(), format!("{gates}_{id:03}").into_bytes())],
+            children: Vec::new(),
+            end_pad: 0,
+        };
+        Document {
+            root: Element {
+                kind: Kind::Element,
+                pad: 0,
+                name: b"track".to_vec(),
+                attrs: Vec::new(),
+                children: (0..3).map(gate).collect(),
+                end_pad: 0,
+            },
+            tail: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn a_replaced_bxml_fragment_needs_tsmd_stats_that_match_it() {
+        let root = std::env::temp_dir().join(format!("swofty-erpbuild-tsmd-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let (game, addon) = (root.join("game"), root.join("addon"));
+        std::fs::create_dir_all(game.join("tracks")).unwrap();
+        std::fs::create_dir_all(addon.join("ai")).unwrap();
+        const SPLINE: &str = "eaid://environment_package/tracks/bahrain/ai/bahrain_ai_track.aispline";
+        let stock = spline("ai_gate_track");
+        let fragment = |raw: Vec<u8>| Fragment {
+            name: *b"temp",
+            offset: 0,
+            size: raw.len() as u64,
+            flags: 0,
+            compression: STORED,
+            packed: raw.len() as u64,
+            raw,
+        };
+        let mut res = Resource {
+            name: SPLINE.into(),
+            kind: erp::kind("AISplineData").unwrap(),
+            unk: vec![0; 6],
+            fragments: vec![fragment(stock.to_bytes()), fragment(stock.string_stats(1))],
+            hash: [0; 16],
+        };
+        res.hash = res.content_hash().unwrap();
+        let mut header = [0u8; HEADER_LEN];
+        header[..4].copy_from_slice(MAGIC);
+        header[4..8].copy_from_slice(&4u32.to_le_bytes());
+        let mut archive = Erp {
+            header,
+            version: 4,
+            resources: vec![res],
+        };
+        std::fs::write(game.join("tracks/bahrain_common.erp"), archive.to_bytes()).unwrap();
+        assert!(
+            stale_stats_in(&ErpFile::open(&game.join("tracks/bahrain_common.erp")).unwrap())
+                .unwrap()
+                .is_empty()
+        );
+        let edited = spline("ai_gate_track_edited_by_hand");
+        std::fs::write(addon.join("ai/line.aispline"), edited.to_bytes()).unwrap();
+        std::fs::write(addon.join("ai/line.tsmd"), edited.string_stats(1)).unwrap();
+        let original = |rel: &str| game.join(rel);
+        let resolve = |s: &Source| Ok(s.resolve(&addon)?);
+        let replace = |fragment: usize, source: &str| {
+            erp_ops(&format!(
+                r#"{{"schema_version":1,"ops":[{{"op":"replace-resource","erp":"tracks/bahrain_common.erp","resource":"{SPLINE}","fragment":{fragment},"source":"{source}"}}]}}"#
+            ))
+            .remove(0)
+        };
+
+        let mut b = ErpBuild::new(&original);
+        b.apply_for(&replace(0, "ai/line.aispline"), "kizi.ai", &resolve)
+            .unwrap();
+        assert_eq!(
+            b.stale_stats().unwrap(),
+            [("kizi.ai".to_owned(), SPLINE.to_owned())]
+        );
+
+        b.apply_for(&replace(1, "ai/line.tsmd"), "kizi.ai", &resolve)
+            .unwrap();
+        assert!(b.stale_stats().unwrap().is_empty());
+
+        let mut b = ErpBuild::new(&original);
+        b.apply_for(&replace(1, "ai/line.tsmd"), "kizi.ai", &resolve)
+            .unwrap();
+        assert_eq!(b.stale_stats().unwrap().len(), 1);
+
+        archive.resources[0].set_fragment(0, &edited.to_bytes()).unwrap();
+        std::fs::write(root.join("broken.erp"), archive.to_bytes()).unwrap();
+        assert_eq!(
+            stale_stats_in(&ErpFile::open(&root.join("broken.erp")).unwrap()).unwrap(),
+            [SPLINE]
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn the_stale_stats_message_names_the_file_and_the_fix() {
+        let spline = "eaid://environment_package/tracks/bahrain/ai/bahrain_ai_track.aispline".to_owned();
+        assert_eq!(
+            stale_stats_message(
+                "More AI",
+                std::slice::from_ref(&spline),
+                "Turn More AI off in this profile."
+            ),
+            "More AI crashes F1 25: its bahrain_ai_track.aispline doesn't match the size header the game reads \
+             with it, so the game overruns its memory when it loads that track. Turn More AI off in this profile."
+        );
+        let quadtree = "eaid://t/x.trackspacespline?context=quadtree".to_owned();
+        assert_eq!(
+            stale_stats_message("Sepang", &[quadtree, spline], "Fix."),
+            "Sepang crashes F1 25: its x.trackspacespline and 1 more file(s) don't match the size headers the game \
+             reads with them, so the game overruns its memory when it loads that track. Fix."
+        );
     }
 
     #[test]

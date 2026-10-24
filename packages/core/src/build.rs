@@ -1042,6 +1042,23 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         for w in erps.check_ui(&name)? {
             built.warnings.push(format!("ui: {w}"));
         }
+        let mut stale = erps.stale_stats()?;
+        for p in &prebuilt {
+            let found = crate::erpbuild::stale_stats_in(&swofty_formats::erp::ErpFile::open(&p.path)?)?;
+            stale.extend(found.into_iter().map(|r| (p.origin.clone(), r)));
+        }
+        if let Some((origin, _)) = stale.first() {
+            let who = name(origin);
+            let files: Vec<String> = stale
+                .iter()
+                .filter(|(o, _)| o == origin)
+                .map(|(_, r)| r.clone())
+                .collect();
+            let fix = format!("Turn {who} off in this profile.");
+            return Err(Error::Other(crate::erpbuild::stale_stats_message(
+                &who, &files, &fix,
+            )));
+        }
         mipmaps = erps.take_mipmaps();
         if let Some(note) = planner.route_note(Kind::Erp) {
             built.lines.push(format!("erp: {note}"));
@@ -2584,6 +2601,98 @@ mod tests {
         let built = build(&store, "default", &game).unwrap();
         let whole = store.addons_dir().join("t.pack").join("whole.erp");
         (built, root, whole)
+    }
+
+    #[test]
+    fn a_resource_edit_that_leaves_stale_tsmd_stats_stops_the_build() {
+        use swofty_formats::bxml::{Document, Element, Kind};
+        use swofty_formats::erp::{Erp, Fragment, HEADER_LEN, MAGIC, Resource, STORED};
+        let root = std::env::temp_dir().join(format!("swofty-build-tsmd-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        let erp = "2025_asset_groups/environment_package/tracks/bahrain/wep/bahrain_common.erp";
+        std::fs::create_dir_all(dir.join(erp).parent().unwrap()).unwrap();
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        std::fs::write(dir.join(GVDB), Gvdb { records: Vec::new() }.to_bytes()).unwrap();
+        let spline = |gate: &str| Document {
+            root: Element {
+                kind: Kind::Element,
+                pad: 0,
+                name: b"track".to_vec(),
+                attrs: vec![(b"name".to_vec(), gate.as_bytes().to_vec())],
+                children: Vec::new(),
+                end_pad: 0,
+            },
+            tail: Vec::new(),
+        };
+        let fragment = |raw: Vec<u8>| Fragment {
+            name: *b"temp",
+            offset: 0,
+            size: raw.len() as u64,
+            flags: 0x10,
+            compression: STORED,
+            packed: raw.len() as u64,
+            raw,
+        };
+        let res = "eaid://environment_package/tracks/bahrain/ai/bahrain_ai_track.aispline";
+        let mut header = [0u8; HEADER_LEN];
+        header[..4].copy_from_slice(MAGIC);
+        header[4..8].copy_from_slice(&3u32.to_le_bytes());
+        let stock = spline("default");
+        let bytes = Erp {
+            header,
+            version: 3,
+            resources: vec![Resource {
+                name: res.into(),
+                kind: swofty_formats::erp::kind("AISplineData").unwrap(),
+                unk: vec![0; 4],
+                fragments: vec![fragment(stock.to_bytes()), fragment(stock.string_stats(1))],
+                hash: [0; 16],
+            }],
+        }
+        .to_bytes();
+        std::fs::write(dir.join(erp), bytes).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let src = root.join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(
+            src.join("swofty.json"),
+            r#"{ "schema_version": 1, "id": "t.ai", "name": "More Aggressive AI", "version": "1.0.0", "author": "t",
+                 "compat": { "game": "f1_25" }, "operations": { "erp": ["ops.json"] } }"#,
+        )
+        .unwrap();
+        std::fs::write(
+            src.join("ops.json"),
+            format!(
+                r#"{{ "schema_version": 1, "ops": [{{"op":"replace-resource","erp":"{erp}","resource":"{res}","fragment":0,"source":"line.aispline"}}] }}"#
+            ),
+        )
+        .unwrap();
+        std::fs::write(
+            src.join("line.aispline"),
+            spline("a racing line edited by hand").to_bytes(),
+        )
+        .unwrap();
+        store.install_addon(&src).unwrap();
+        store
+            .update_profile("default", |p| p.set_enabled("t.ai", true))
+            .unwrap();
+        let Err(e) = build(&store, "default", &game) else {
+            panic!("the build should stop");
+        };
+        assert_eq!(
+            e.to_string(),
+            "More Aggressive AI crashes F1 25: its bahrain_ai_track.aispline doesn't match the size header the \
+             game reads with it, so the game overruns its memory when it loads that track. Turn More Aggressive AI \
+             off in this profile."
+        );
+        std::fs::remove_dir_all(&root).ok();
     }
 
     fn fragments(path: &Path) -> Vec<(String, Vec<u8>)> {

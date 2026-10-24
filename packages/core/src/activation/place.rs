@@ -276,6 +276,16 @@ pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {
             input.pkg.erp
         )));
     }
+    let stale = crate::erpbuild::stale_stats_in(&file)?;
+    if !stale.is_empty() {
+        let who = input.pkg.display_name();
+        let fix = format!(
+            "Turn {who} off in this profile, and set any race weekend that uses it back to another track."
+        );
+        return Err(Error::Other(crate::erpbuild::stale_stats_message(
+            who, &stale, &fix,
+        )));
+    }
     let mut placement = Placement {
         dir: out.clone(),
         ..Placement::default()
@@ -503,6 +513,80 @@ mod tests {
             shipped_name("a/b/c.tif.mipmaps").len(),
             12 + 1 + "c.tif.mipmaps".len()
         );
+    }
+
+    #[test]
+    fn a_package_with_stale_tsmd_stats_is_refused() {
+        use swofty_formats::bxml::{Document, Element, Kind};
+        use swofty_formats::erp::{Erp, Fragment, HEADER_LEN, MAGIC, STORED};
+        let dir = std::env::temp_dir().join(format!("swofty-place-tsmd-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let pkg = TrackPackage::parse(crate::map::tests::OKAYAMA_LIKE.as_bytes()).unwrap();
+        let line = |gate: &str| Document {
+            root: Element {
+                kind: Kind::Element,
+                pad: 0,
+                name: b"track".to_vec(),
+                attrs: vec![(b"name".to_vec(), gate.as_bytes().to_vec())],
+                children: Vec::new(),
+                end_pad: 0,
+            },
+            tail: Vec::new(),
+        };
+        let fragment = |raw: Vec<u8>| Fragment {
+            name: *b"temp",
+            offset: 0,
+            size: raw.len() as u64,
+            flags: 0x10,
+            compression: STORED,
+            packed: raw.len() as u64,
+            raw,
+        };
+        let resource = |name: &str, kind: &str, fragments: Vec<Fragment>| Resource {
+            name: name.into(),
+            kind: swofty_formats::erp::kind(kind).unwrap(),
+            unk: vec![0; 4],
+            fragments,
+            hash: [0; 16],
+        };
+        let mut header = [0u8; HEADER_LEN];
+        header[..4].copy_from_slice(MAGIC);
+        header[4..8].copy_from_slice(&3u32.to_le_bytes());
+        let bytes = Erp {
+            header,
+            version: 3,
+            resources: vec![
+                resource(&world_eaid("testring", "common"), "WEP", vec![fragment(vec![0])]),
+                resource(
+                    "eaid://environment_package/tracks/testring/ai/testring_ai_track.aispline",
+                    "AISplineData",
+                    vec![
+                        fragment(line("a longer racing line").to_bytes()),
+                        fragment(line("default").string_stats(1)),
+                    ],
+                ),
+            ],
+        }
+        .to_bytes();
+        std::fs::write(dir.join(&pkg.erp), bytes).unwrap();
+        let input = PlaceInput {
+            pkg: &pkg,
+            dir: &dir,
+            game: &dir,
+            slot: None,
+            cars: 22,
+        };
+        let Err(e) = place(&input, &dir.join("cache")) else {
+            panic!("the package should be refused");
+        };
+        assert_eq!(
+            e.to_string(),
+            "Test Ring crashes F1 25: its testring_ai_track.aispline doesn't match the size header the game reads \
+             with it, so the game overruns its memory when it loads that track. Turn Test Ring off in this profile, \
+             and set any race weekend that uses it back to another track."
+        );
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
