@@ -9,6 +9,7 @@ use swofty_core::copies::{self, Found, GameCopy};
 use swofty_core::crash::{LogScan, StartFailure, Symbols, fatal_name};
 use swofty_core::install::{Game, Source};
 use swofty_core::launch;
+use swofty_core::overlay_guard::OverlayOff;
 use swofty_core::process::{GameProcess, game_processes};
 use swofty_core::quarantine;
 use swofty_core::recovery::{self, Blocked, Notice, Scope, SessionLock};
@@ -79,9 +80,10 @@ pub struct Probe {
     pub blocked: Option<Blocked>,
     pub blocked_at: Option<f64>,
     pub launch_failed: Option<launch::Failure>,
+    pub overlay_off: Option<OverlayOff>,
 }
 
-pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>) -> Probe {
+pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>, copy: Option<&Path>) -> Probe {
     let processes = game_processes();
     let (requests, merged) = merge_requests(store, processes.is_empty(), seen);
     Probe {
@@ -96,6 +98,7 @@ pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>) -> Probe
         blocked: Blocked::read(&store.root),
         blocked_at: blocked_at(&store.root),
         launch_failed: launch::Failure::read(&store.root),
+        overlay_off: copy.and_then(OverlayOff::read),
         launch_stage: std::fs::read_to_string(store.root.join(steam_client::STAGE_FILE))
             .ok()
             .map(|s| s.trim().to_owned())

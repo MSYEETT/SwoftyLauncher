@@ -16,6 +16,7 @@ use gpui_kit::*;
 use swofty_core::crash::StartFailure;
 use swofty_core::install::Source;
 use swofty_core::launch;
+use swofty_core::overlay_guard::OverlayOff;
 use swofty_core::process::{GameProcess, stop_game_in};
 use swofty_core::quarantine;
 use swofty_core::recovery::{self, Blocked, Notice};
@@ -110,6 +111,8 @@ pub struct Shell {
     pub(crate) notice: Option<String>,
     pub(crate) blocked: Option<Blocked>,
     pub(crate) game_edited: Option<Edited>,
+    pub(crate) overlay_off: Option<OverlayOff>,
+    pub(crate) overlay_off_seen: f64,
     pub(crate) recovered_seen: f64,
     pub(crate) mods_blocked_seen: f64,
     pub(crate) not_stock_seen: f64,
@@ -335,15 +338,15 @@ impl Shell {
             .detach();
         let poll = cx.spawn_in(window, async move |this, cx| {
             loop {
-                let Ok((store, rediscover, seen)) = this.update(cx, |s, _| {
+                let Ok((store, rediscover, seen, copy)) = this.update(cx, |s, _| {
                     let r = std::mem::take(&mut s.rediscover);
-                    (s.store.clone(), r, s.requests)
+                    (s.store.clone(), r, s.requests, s.panel_install().map(|i| i.dir))
                 }) else {
                     break;
                 };
                 let probe = cx
                     .background_executor()
-                    .spawn(async move { game::probe(&store, rediscover, seen) })
+                    .spawn(async move { game::probe(&store, rediscover, seen, copy.as_deref()) })
                     .await;
                 if this
                     .update_in(cx, |s, window, cx| s.apply(probe, window, cx))
@@ -397,6 +400,8 @@ impl Shell {
             notice: None,
             blocked: None,
             game_edited: None,
+            overlay_off: None,
+            overlay_off_seen: 0.0,
             recovered_seen,
             mods_blocked_seen,
             not_stock_seen,
@@ -563,6 +568,22 @@ impl Shell {
         }
         self.processes = probe.processes;
         self.attribute();
+        self.overlay_off = probe.overlay_off;
+        if let Some(off) = self
+            .overlay_off
+            .as_ref()
+            .filter(|o| o.at > self.overlay_off_seen && self.processes.is_empty())
+        {
+            self.overlay_off_seen = off.at;
+            if !self
+                .store
+                .config()
+                .news_seen
+                .contains(&crate::overlay_off::seen_key(off))
+            {
+                self.show_overlay_off(window, cx);
+            }
+        }
         if let Some(launch) = self.launch.as_mut() {
             launch.saw_game |= self.owners.iter().any(|o| !matches!(o, Owner::Other(_)));
             launch.stage = probe.launch_stage;

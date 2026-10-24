@@ -100,4 +100,4 @@ The core draws the overlay only where it knows the drawing is ordered with the g
 | The GPU was removed within 10 s of an overlay draw | Stops, and writes `swofty/overlay-gpu-removed.json` |
 | `swofty/overlay-gpu-removed.json` exists at launch | Off for the session: `available()` is `false` and `on_paint` returns `unavailable` |
 
-Deleting `swofty/overlay-gpu-removed.json` turns the overlay back on at the next launch. Colours are not converted for HDR output.
+Deleting `swofty/overlay-gpu-removed.json` turns the overlay back on at the next launch. The launcher shows a notice while the file exists, with **Turn the overlay back on**, which deletes it; `swofty overlay reset` does the same. Rollback and Restore game folder keep the file. Colours are not converted for HDR output.

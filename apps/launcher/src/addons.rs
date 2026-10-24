@@ -163,6 +163,22 @@ fn experimental_labels(m: &AddonItem) -> String {
         .join(", ")
 }
 
+/// A tag for what an addon does in game, as "Draws over the game".
+fn effect_tag(label: &'static str, p: Palette) -> Div {
+    div()
+        .h(px(16.))
+        .px(px(5.))
+        .flex()
+        .items_center()
+        .flex_shrink_0()
+        .rounded(px(3.))
+        .border_1()
+        .border_color(p.border)
+        .text_size(px(10.5))
+        .text_color(p.text_muted)
+        .child(label)
+}
+
 /// The icon an addon without its own shows: a race track for tracks, a palette for shader
 /// packs, else a box.
 fn fallback_icon(m: &AddonItem, size: f32, p: Palette) -> Div {
@@ -1690,6 +1706,11 @@ impl Shell {
                                     .text_color(p.text_muted)
                                     .child(m.source.label()),
                             )
+                            .children(
+                                swofty_core::overlay_guard::effects(man)
+                                    .into_iter()
+                                    .map(|e| effect_tag(e, p)),
+                            )
                             .when(!man.experimental_features.is_empty(), |d| {
                                 let features = experimental_labels(m);
                                 d.child(
@@ -1956,7 +1977,12 @@ impl Shell {
             })
             .when(!man.kind.is_empty(), |d| d.child(fact("Type", Type::list(m), p)))
             .when(!man.experimental_features.is_empty(), |d| {
-                d.child(fact("Experimental features", experimental_labels(m), p))
+                d.child(fact(
+                    "In game",
+                    swofty_core::overlay_guard::effects(man).join(", "),
+                    p,
+                ))
+                .child(fact("Experimental features", experimental_labels(m), p))
             })
             .when_some(man.shader.as_ref(), |d, s| {
                 d.child(fact("Look", s.lut.clone(), p))

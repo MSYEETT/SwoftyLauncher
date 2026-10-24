@@ -29,7 +29,7 @@ Type in the search box on the left to search names, ids, authors and description
 | Source | Built in, DB Editor, Imported, Installed. Imported addons come from the [Simplified Importer](/using/mods). |
 | State | On, Off, Has conflicts, Update available |
 
-Under its name, each row shows the addon's category, its types and a tag with its source. An addon that turns on an experimental feature of the game's core, such as the [overlay](/reference/std/overlay) or a [shader pack](/reference/addons/shader-packs)'s look, also has a **Uses experimental features** tag, and its panel lists the features. Each value shows how many addons match. **Clear** removes every filter. An open panel closes when its addon no longer matches.
+Under its name, each row shows the addon's category, its types and a tag with its source. An addon that turns on an experimental feature of the game's core, such as the [overlay](/reference/std/overlay) or a [shader pack](/reference/addons/shader-packs)'s look, also has a **Uses experimental features** tag, and its panel lists the features. Tags also say what the addon does in game: **Draws over the game** (the overlay) and **Changes the picture** (a shader pack's look). Its panel lists them under **In game**. Each value shows how many addons match. **Clear** removes every filter. An open panel closes when its addon no longer matches.
 
 On a window less than 760 pixels tall, the install cards shrink to one row.
 
@@ -102,3 +102,12 @@ Add `--profile <name>` to work on a profile other than the active one. For an ad
 - [DB Editor](/using/db-editor): change the game database and save it as an addon.
 - [Profiles](/using/profiles): keep different sets of addons apart.
 - To make an addon, see [Addons](/reference/addons/) in the developer docs.
+
+## The in-game overlay is off
+
+When the graphics card stops responding within 10 s of an addon drawing over the game, the game stops and Swofty turns the in-game overlay off for that copy of the game. The launcher then shows **The in-game overlay is off**, naming the addons on in the profile that draw over the game. The addons keep running, and nothing they draw over the game shows.
+
+- **Turn the overlay back on** draws it again from the next launch.
+- **Keep it off** closes the notice. The play bar keeps **The in-game overlay is off**, and **Details** opens the notice again.
+
+`swofty overlay status` and `swofty overlay reset` do the same from the command line. See [`swofty overlay`](/reference/cli#swofty-overlay).
