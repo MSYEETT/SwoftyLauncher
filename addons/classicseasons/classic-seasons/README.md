@@ -6,6 +6,8 @@ Classic Seasons is ten addons in `addons/classicseasons/`. This folder is the sh
 
 Cars: fanfreluche (Fanfreluche aka totolab), "F1 <year> cars for F1 25", used with permission.
 
+Suits: "F1 2016 - suits mod" (author unknown) and "2018 Redbull for F1 25" (author unknown), used with permission.
+
 The car archives are not in the repository. The built packages, each season's `.swoftyaddon` with its cars and the shared addon's, are on the `classic-seasons-<version>` release; install the shared addon and any seasons through the launcher.
 
 ## Layout
@@ -23,12 +25,16 @@ The car archives are not in the repository. The built packages, each season's `.
 | `tools/build_incardriver.py` | Per-season in-car driver archives (2016-2021), in the season addon's `cars/incardriver/` |
 | `tools/logos.py`, `tools/frontend.py` | Team logo arrays (`erp/logos/`) and name backdrops (`erp/frontend/`) |
 | `tools/tiles.py` | Season box art (`erp/tiles/`): one `tiles_solo_6x6` slice per season from `art/tiles/src/<year>.dds` |
-| `tools/build_suits.py` | Team suits and gloves of 2016 to 2021, in the season addon's `suits/`, and their contact sheets |
+| `data/real_suits.json` | Real suits from mods: each one's season, team, driver, base suit and archives |
+| `tools/suit_sources.py` | The suit each team-season and driver of 2016 to 2021 wears |
+| `tools/build_real_suits.py` | The real suits from mods, relabelled, in `suits/`, and their contact sheet `art/suits/real.png` |
+| `tools/build_suits.py` | Generated team suits and gloves of 2016 to 2021, in the season addon's `suits/`, and the season contact sheets |
 | `art/suits/<year>.png` | Half-size contact sheet of a season's suits; the full one is the season addon's `suits/preview.png` |
 | `tools/bcn.py`, `tools/suitgeo.py` | BC1, BC3, BC5 and BC7 textures and `.mipmaps` levels; mesh streams, decal slots and the suit renders, used by `build_suits.py` |
 | `native/` | The plugin that adds the picker boxes |
 | `../classic-seasons-<year>/cars/` | Built car archives of a season (not committed) |
-| `../classic-seasons-<year>/suits/` | Built suit archives of a season, their `meta.json` and `preview.png` (not committed) |
+| `suits/` | Built real suit archives, their `.mipmaps` sidecars, `meta.json` and `preview.png` (not committed) |
+| `../classic-seasons-<year>/suits/` | Built generated suit archives of a season, their `meta.json` and `preview.png` (not committed) |
 | `data/setup_preset_fields.json` | The 421 keys of a `car_setup.presets` row, copied for every season package |
 | `tools/team_colours.py` | Writes `data/team_colours.json`: three team-wear colours per team, sampled from its car's paint texture (`<folder>_paint_d.tif`, or `_paint_c.tif` when `paint_d` is an 8 px placeholder), or the team's `team_wear` hex list in `data/seasons.json`; `--sheet <png>` draws a swatch sheet |
 
@@ -46,7 +52,7 @@ Each season:
 - A `car_setup.presets` row for each vehicle package (`cs_<year>_vehicle_package`, `cx_<year>_vehicle_package`), copied from `f1_2025_vehicle_package`: the game looks up the AI and player car setups by package name.
 - A `pit_lane.pit_times` row per team, copied from its stock team.
 - Driver looks `<year>-cs_<key>_<driver>` (stat ids from 420, numbered across every season) and pool entrants `cs<year>-<driver>`.
-- 2016 to 2021, for each team with a built suit: a `customisation.custom_avatar.suits` row and a `customisation.custom_avatar.gloves` row labelled with the suit's label, copies of the base suit's rows with the suit's asset group, models and `material_override`. Every team-season of 2016 to 2021 has an item id of `SUIT_IDS` in `tools/gen.py`, in season and team order: 974 to 1034. The stock suit and gloves ids are 448 to 973. Each copy sets `colour_1_default` to `colour_4_default` to `0`, and the season file's `fields` map lists those four keys for suit, gloves and helmet rows. The team's driver looks wear the suit and gloves. A team without a built suit keeps the placeholder kit of `data/stock_looks.json`.
+- 2016 to 2021: each driver look wears the suit and gloves of [Suits](#suits). A season copies the suit and gloves rows of each generated suit it ships, and the shared addon those of each real suit from a mod, with its helmet row. The copies are labelled with the suit's label and take the base suit's rows with the suit's asset group, models and `material_override`. Item ids (`tools/gen.py`): `REAL_SUIT_IDS` for the real suits, 974 up in `data/real_suits.json` order; `SUIT_IDS` for the generated ones, the next ids, one per team-season of 2016 to 2021 in season and team order; `HELMET_IDS`, 868 up, for the helmets. The stock ids are 448 to 973 for suits and gloves and 315 to 867 for helmets. Each suit and gloves copy sets `colour_1_default` to `colour_4_default` to `0`, a helmet copy the base helmet's values, and the file's `fields` map lists the four keys for suit, gloves and helmet rows.
 
 New drivers (Nasr, Gutiérrez, Vandoorne, Hartley, Sirotkin, Haryanto) use driver stat ids 225 to 230.
 
@@ -81,7 +87,34 @@ The years build independently, so `--years` ranges can run in parallel. `build_c
 
 ## Suits
 
-F1 25 has no suits for 2016 to 2021. `build_suits.py` builds one suit per team-season from an F1 25 team suit (the base) and the team's car:
+A team-season of 2016 to 2021 wears, first found:
+
+1. the real team suit of its own season;
+2. the real team suit of the nearest season with the same team name in `data/seasons.json` (Force India and Racing Point are different teams), the earlier season on a tie;
+3. its generated suit.
+
+A real suit is a mod's suit in `data/real_suits.json` that `build_real_suits.py` has built, or a stock F1 25 suit of a season in its `stock_seasons` (2024: `2024-<stock team>` and `2024-<stock team>_<driver>`). A driver also weighs the real suits of the same driver at the same team name: the nearest season wins, a driver's own suit wins a tie with a team suit, and the earlier season wins after that. A mod driver suit brings its helmet. `"suit": {"source": "<label>"}` or `"source": "generated"` on a team in `data/seasons.json` sets the suit of the team and its drivers. The season contact sheets name the suit of every team and driver.
+
+### Real suits
+
+`build_real_suits.py --game <F1 25> --mods <folder holding the extracted mods>` builds each mod suit of `data/real_suits.json` into `suits/`:
+
+- The label is `cs<yy>-<stock team>` (a team suit) or `cs<yy>-<stock team>_<driver slot>` (a driver suit), `<yy>` the suit's season. It has the length of the base label it replaces, `2025-<stock team>` or `2025-<stock team>_<driver slot>`.
+- The archive holds every resource of the mod archive whose name holds the base label (a driver suit: the base team label), renamed byte for byte. The stock base archive holds the shared resources, and the asset group lists it first.
+- A `.mipmaps` sidecar the mod ships, that holds the levels its texture names and that differs from the stock file goes to `suits/sidecars/` under the relabelled path. A sidecar the mod does not ship keeps its stock path when the texture's levels are the stock ones; otherwise the texture keeps only its embedded levels.
+- A helmet archive takes the suit archive's copy of each resource both hold.
+- `art/suits/real.png` shows each real suit's front and back render, `livery_v2_d` and `logo_01_d`.
+
+| Mod archive | Season, team, driver | Label |
+|---|---|---|
+| F1 2016 - suits mod, `team_livery/2025-<team>/2025-<team>.erp` (10 teams) | 2016, the team the archive replaces | `cs16-<team>` |
+| 2018 Redbull for F1 25, `team_livery/2025-redbull` | 2018 Red Bull Racing | `cs18-redbull` |
+| 2018 Redbull for F1 25, `drivers/male/2025-redbull_max_verstappen` | 2018 Red Bull Racing, Max Verstappen | `cs18-redbull_max_verstappen` |
+| 2018 Redbull for F1 25, `drivers/male/2025-redbull_yuki_tsunoda` | 2018 Red Bull Racing, Daniel Ricciardo | `cs18-redbull_yuki_tsunoda` |
+
+### Generated suits
+
+`build_suits.py` builds one suit per team-season that wears no real suit, from an F1 25 team suit (the base) and the team's car:
 
 | Field of the team's `suit` in `data/seasons.json` | Default |
 |---|---|
@@ -90,7 +123,7 @@ F1 25 has no suits for 2016 to 2021. `build_suits.py` builds one suit per team-s
 | `colours` | The team's `team_wear` in `data/seasons.json`, else its `team_wear` colours in `data/team_colours.json`; without them, three colours from the car's `paint_d` and opaque `decal_da` texels: the most common, then the most common that differ from those before |
 | `sponsors` | The largest separate shapes of the car's `decal_da`, as `[x, y, w, h]` rectangles in pixels of the 2048 atlas |
 
-- The suit's label is `cs<yy>-<stock team>`, or `cs<yy>-<key>` padded with `_` to the base label's length for a team with its own `key` (2016 Manor: `cs16-manor_`). It has the base label's length.
+- The suit's label is `cg<yy>-<stock team>`, or `cg<yy>-<key>` padded with `_` to the base label's length for a team with its own `key` (2016 Manor: `cg16-manor_`). It has the base label's length.
 - The suit archive holds every resource of the base archive whose name holds the base label, renamed byte for byte. The shared body, glove and template resources stay in the stock base archive, which the suit's asset group lists before the suit archive.
 - `livery_v2_d` (2048), `boots_d` (1024 by 512) and `glove_d` (1024) are the design's `_m` masks painted with the colours, as the game paints a customisable suit: white, then colour 1 by red, colour 2 by green and colour 3 by blue. The boots take darker colours.
 - `logo_01_d` (1024) and `glove_logo_d` (512) are new decal atlases. Each decal of the base suit's logo meshes keeps its place on the body. Its atlas rectangle, the second texture coordinate pair of the decal mesh, gets the team logo (the two largest torso decals, and the largest near-square one), a sponsor, or nothing. A logo on a background of similar lightness turns white or black. The team logo is the brand art of `art/logos/<brand>/` or the stock team's mark from `teams.driver_select_team_logos`.
@@ -98,6 +131,7 @@ F1 25 has no suits for 2016 to 2021. `build_suits.py` builds one suit per team-s
 - The contact sheet (`suits/preview.png`, and `art/suits/<year>.png` at half size) shows each team's front and back render (the male body, boots, gloves and decals), the painted `livery_v2_d` and the `logo_01_d` atlas with its decal rectangles: blue for the team logo, yellow for a sponsor, grey for an empty one.
 
 ```sh
+python3 tools/build_real_suits.py --game <F1 25> --mods <folder holding the extracted mods>
 python3 tools/build_suits.py --game <F1 25> --years 2016-2021 [--cars <folder holding classic-seasons-<year>/cars>]
 python3 tools/gen.py
 ```
