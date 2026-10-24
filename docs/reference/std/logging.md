@@ -88,6 +88,7 @@ These environment variables change what swofty_core and the loader log. Set them
 | `SWOFTY_RESOLVE=scan` | Finds every binding by scanning for its pattern and leaves the scan cache off. Without it, swofty_core checks each pattern at its address on the analysed build first, and keeps the addresses it scanned for in `swofty/cache/scan-cache.tsv` |
 | `SWOFTY_PERF=1` | Adds `[perf]` lines: every screen open, each career flow from Entering to its next state, the game log's volume every 10 seconds, each Career Editor section pass, and every hitch in the performance report. Screen opens of 50 ms or more are logged without it |
 | `SWOFTY_PROFILE=0` | Turns the performance report off |
+| `SWOFTY_FRAME_CAPTURE=<folder>` | Writes the presented frame, overlay included, to `<folder>\frame-NNNN.png` every `SWOFTY_FRAME_CAPTURE_EVERY` seconds (default 10). Under Proton, give a Windows path such as `Z:\mnt\work\shots`. It arms the overlay's present hook even when no addon turns the overlay on, and captures only swapchains the overlay would draw on |
 | `SWOFTY_PERF_HITCH_MS=<ms>` | The frame time the performance report counts as a hitch. Default 50 |
 | `SWOFTY_PERF_SLOW_CALL_MS=<ms>` | The time a single hook or callback takes before the performance report lists it as a slow call. Default 8 |
 
