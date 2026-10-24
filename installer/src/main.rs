@@ -1,5 +1,6 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod existing;
 mod running;
 mod shortcut;
 
@@ -25,6 +26,7 @@ const ACCENT: Color32 = Color32::from_rgb(0x8b, 0x7f, 0xd6);
 const ACCENT_HOVER: Color32 = Color32::from_rgb(0xa1, 0x96, 0xe6);
 const ON_ACCENT: Color32 = Color32::from_rgb(0xf8, 0xf6, 0xff);
 const ERROR: Color32 = Color32::from_rgb(0xf0, 0x6d, 0x78);
+const HEIGHT: f32 = 340.0;
 
 enum Stage {
     Ready,
@@ -58,6 +60,8 @@ impl Progress for Reporter {
 struct Installer {
     folder: String,
     desktop: bool,
+    existing: existing::Existing,
+    height: f32,
     stage: Arc<Mutex<Stage>>,
 }
 
@@ -65,15 +69,15 @@ impl Installer {
     fn new(cc: &eframe::CreationContext) -> Self {
         cc.egui_ctx.set_theme(egui::Theme::Dark);
         cc.egui_ctx.set_visuals_of(egui::Theme::Dark, visuals());
-        let parent = if cfg!(windows) {
-            dirs::data_local_dir().map(|d| d.join("Programs"))
-        } else {
-            dirs::home_dir()
-        };
-        let folder = parent.unwrap_or_default().join(FOLDER_NAME);
+        let existing = existing::Existing::find();
+        let folder = existing
+            .root()
+            .map_or_else(existing::default_root, Path::to_path_buf);
         Self {
             folder: folder.display().to_string(),
             desktop: true,
+            existing,
+            height: HEIGHT,
             stage: Arc::new(Mutex::new(Stage::Ready)),
         }
     }
@@ -95,6 +99,13 @@ impl Installer {
     fn start(&mut self, ctx: &egui::Context) {
         let root = match resolve(&self.folder) {
             Ok(root) => root,
+            Err(e) => {
+                *self.stage.lock().unwrap() = Stage::Failed(e);
+                return;
+            }
+        };
+        let moving = match self.existing.planned(&root) {
+            Ok(moving) => moving,
             Err(e) => {
                 *self.stage.lock().unwrap() = Stage::Failed(e);
                 return;
@@ -122,7 +133,7 @@ impl Installer {
         let desktop = self.desktop;
         std::thread::spawn(move || {
             let stage = match running::clear(&root, close, &reporter)
-                .and_then(|()| install(&root, desktop, &reporter))
+                .and_then(|()| install(&root, desktop, moving.as_ref(), &reporter))
                 .and_then(|exe| launch(&exe))
             {
                 Ok(()) => Stage::Launched,
@@ -146,14 +157,15 @@ impl eframe::App for Installer {
                 (true, None, None, None)
             }
         };
-        egui::CentralPanel::default_margins()
+        let bottom = egui::CentralPanel::default_margins()
             .frame(egui::Frame::new().fill(BACKGROUND).inner_margin(Margin::same(24)))
             .show(ui, |ui| {
                 ui.label(RichText::new("Swofty Launcher").size(22.0).strong().color(TEXT));
                 ui.label(RichText::new("Installs the latest release for F1 25 and opens it.").color(MUTED));
                 ui.add_space(18.0);
-                ui.label(RichText::new("Install to").color(MUTED));
                 ui.add_enabled_ui(!working, |ui| {
+                    self.existing.list(ui, &mut self.folder);
+                    ui.label(RichText::new("Install to").color(MUTED));
                     ui.horizontal(|ui| {
                         let browse = 84.0;
                         let width = ui.available_width() - browse - ui.spacing().item_spacing.x;
@@ -172,6 +184,7 @@ impl eframe::App for Installer {
                     ui.label(RichText::new(running::placement(&self.folder)).color(MUTED));
                     ui.add_space(6.0);
                     ui.checkbox(&mut self.desktop, "Add a desktop shortcut");
+                    self.existing.status(ui, &self.folder);
                 });
                 ui.add_space(18.0);
                 if let Some((root, why)) = open {
@@ -216,7 +229,14 @@ impl eframe::App for Installer {
                     ui.add_space(10.0);
                     ui.label(RichText::new(error).color(ERROR));
                 }
-            });
+                ui.min_rect().bottom()
+            })
+            .inner;
+        let height = (bottom + 24.0).max(HEIGHT).round();
+        if height != self.height {
+            self.height = height;
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(540.0, height)));
+        }
     }
 }
 
@@ -271,9 +291,18 @@ fn resolve(folder: &str) -> Result<PathBuf, String> {
     std::path::absolute(&path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-fn install(root: &Path, desktop: bool, progress: &Reporter) -> Result<PathBuf, String> {
+fn install(
+    root: &Path,
+    desktop: bool,
+    moving: Option<&existing::Move>,
+    progress: &Reporter,
+) -> Result<PathBuf, String> {
     let release = update::fetch_latest(Duration::from_secs(30))
         .map_err(|e| format!("Could not find the latest release: {e}"))?;
+    if let Some(moving) = moving {
+        progress.report(0.0, "Moving your install");
+        moving.run(desktop)?;
+    }
     std::fs::create_dir_all(root).map_err(|e| format!("Could not create {}: {e}", root.display()))?;
     let install = Install {
         root: root.to_path_buf(),
@@ -312,7 +341,7 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_title("Swofty Launcher Installer")
             .with_app_id("net.swofty.ModLauncher.Installer")
-            .with_inner_size([540.0, 340.0])
+            .with_inner_size([540.0, HEIGHT])
             .with_resizable(false)
             .with_icon(icon),
         centered: true,
