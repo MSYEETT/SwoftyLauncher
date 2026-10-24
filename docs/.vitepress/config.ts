@@ -292,6 +292,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
                   { text: "Storage", link: "/reference/std/storage", icon: "file" },
                   { text: "Career", link: "/reference/std/career", icon: "file" },
                   { text: "Popup", link: "/reference/std/popup", icon: "file" },
+                  { text: "Race HUD", link: "/reference/std/hud", icon: "file" },
                   { text: "Strings", link: "/reference/std/strings", icon: "file" },
                   { text: "Career contents", link: "/reference/std/career-content", icon: "file" },
                   { text: "Characters", link: "/reference/std/characters", icon: "file" },
