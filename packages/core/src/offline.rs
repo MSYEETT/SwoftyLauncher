@@ -781,6 +781,11 @@ pub fn restore(journal: &Path, force: bool) -> Result<Vec<String>> {
     // restore` can be re-run once the locker (usually an antivirus) lets go.
     let mut done = Vec::new();
     let mut failures = Vec::new();
+    let renamed: Vec<&str> = lines
+        .iter()
+        .filter(|e| e.op == "rename")
+        .map(|e| e.from.as_str())
+        .collect();
     for e in lines.iter().rev() {
         match e.op.as_str() {
             "meta" => {}
@@ -791,6 +796,10 @@ pub fn restore(journal: &Path, force: bool) -> Result<Vec<String>> {
                 }
                 if !force {
                     match sha256_file(to) {
+                        // A game repair or update put its own file back over
+                        // the staged one; the rename that parked the original
+                        // decides what happens to it.
+                        Ok(have) if have != e.sha256 && renamed.contains(&e.to.as_str()) => continue,
                         Ok(have) if have != e.sha256 => {
                             failures.push(format!(
                                 "{}: changed since staging (digest mismatch); left in place",
@@ -813,11 +822,30 @@ pub fn restore(journal: &Path, force: bool) -> Result<Vec<String>> {
             "rename" => {
                 let (from, to) = (Path::new(&e.from), Path::new(&e.to));
                 if !to.exists() {
-                    failures.push(format!("staged backup is missing: {}", e.to));
+                    if from.exists() {
+                        done.push(format!(
+                            "{} was put back by a game repair or update; nothing to restore",
+                            e.from
+                        ));
+                    } else {
+                        failures.push(format!("staged backup is missing: {}", e.to));
+                    }
                     continue;
                 }
                 if from.exists() && !force {
-                    failures.push(format!("{}: already exists; left as is", e.from));
+                    match (sha256_file(from), sha256_file(to)) {
+                        (Ok(have), Ok(parked)) if have == parked => {
+                            match with_retry(to, || std::fs::remove_file(to)) {
+                                Ok(()) => done.push(format!(
+                                    "{} was put back by a game repair or update; removed its identical backup {}",
+                                    e.from, e.to
+                                )),
+                                Err(err) => failures.push(err.to_string()),
+                            }
+                        }
+                        (Err(err), _) | (_, Err(err)) => failures.push(err.to_string()),
+                        _ => failures.push(format!("{}: already exists; left as is", e.from)),
+                    }
                     continue;
                 }
                 match with_retry(from, || std::fs::rename(to, from)) {
@@ -1283,6 +1311,105 @@ mod tests {
         assert!(!parked.exists());
         assert!(!hook.exists());
 
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    /// A game folder staged the way the extension stages it: the anti-cheat
+    /// launcher parked as `.bak`, the stub in its place and the hook dropped,
+    /// with the journal that records it.
+    fn staged(d: &Path) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
+        let game = d.join("game");
+        std::fs::create_dir_all(game.join("swofty/mods/core")).unwrap();
+        let launcher = game.join(EAC_EXE);
+        let parked = game.join(EAC_BAK);
+        let hook = game.join("swofty/mods/core/f1op_hook.dll");
+        std::fs::write(&launcher, "genuine").unwrap();
+        std::fs::rename(&launcher, &parked).unwrap();
+        std::fs::write(&launcher, "stub").unwrap();
+        std::fs::write(&hook, "hook").unwrap();
+        let journal = d.join("state/offline/staging.jsonl");
+        std::fs::create_dir_all(journal.parent().unwrap()).unwrap();
+        let lines = [
+            serde_json::json!({"op": "meta", "game_dir": "x", "created_utc": "", "schema_version": "1"}),
+            serde_json::json!({"op": "rename", "from": launcher.display().to_string(), "to": parked.display().to_string(), "source": "", "sha256": ""}),
+            serde_json::json!({"op": "copy", "from": "", "to": launcher.display().to_string(), "source": "stub", "sha256": sha256_file(&launcher).unwrap()}),
+            serde_json::json!({"op": "copy", "from": "", "to": hook.display().to_string(), "source": "hook", "sha256": sha256_file(&hook).unwrap()}),
+        ];
+        let text: Vec<String> = lines.iter().map(serde_json::Value::to_string).collect();
+        std::fs::write(&journal, text.join("\n") + "\n").unwrap();
+        (journal, launcher, parked, hook)
+    }
+
+    #[test]
+    fn an_ea_app_repair_that_put_the_launcher_back_counts_as_restored() {
+        let d = temp("ea-repair");
+        let (journal, launcher, parked, hook) = staged(&d);
+        std::fs::write(&launcher, "genuine, repaired").unwrap();
+        std::fs::remove_file(&parked).unwrap();
+        let done = restore(&journal, false).unwrap();
+        assert!(
+            done.iter()
+                .any(|l| l.ends_with("was put back by a game repair or update; nothing to restore")),
+            "{done:?}"
+        );
+        assert_eq!(std::fs::read_to_string(&launcher).unwrap(), "genuine, repaired");
+        assert!(!hook.exists());
+        assert!(restore_pending(&d).unwrap());
+        assert!(!journal.exists());
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn a_steam_verify_that_left_an_identical_backup_counts_as_restored() {
+        let d = temp("steam-verify");
+        let (journal, launcher, parked, _) = staged(&d);
+        std::fs::write(&launcher, "genuine").unwrap();
+        let done = restore(&journal, false).unwrap();
+        assert!(
+            done.iter().any(|l| l.contains("removed its identical backup")),
+            "{done:?}"
+        );
+        assert_eq!(std::fs::read_to_string(&launcher).unwrap(), "genuine");
+        assert!(!parked.exists());
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn a_backup_that_differs_from_the_repaired_launcher_still_stops_the_restore() {
+        let d = temp("differing-backup");
+        let (journal, launcher, parked, _) = staged(&d);
+        std::fs::write(&launcher, "a newer genuine launcher").unwrap();
+        let err = restore(&journal, false).unwrap_err().to_string();
+        assert!(err.contains("already exists; left as is"), "{err}");
+        assert!(!err.contains("digest mismatch"), "{err}");
+        assert_eq!(
+            std::fs::read_to_string(&launcher).unwrap(),
+            "a newer genuine launcher"
+        );
+        assert_eq!(std::fs::read_to_string(&parked).unwrap(), "genuine");
+
+        restore(&journal, true).unwrap();
+        assert_eq!(std::fs::read_to_string(&launcher).unwrap(), "genuine");
+        assert!(!parked.exists());
+
+        std::fs::write(&parked, "a leftover backup").unwrap();
+        std::fs::remove_file(&journal).unwrap();
+        let notes = heal_stale_backup(&d.join("game"), &journal).unwrap();
+        assert!(!parked.exists(), "{notes:?}");
+        assert!(launcher.exists(), "{notes:?}");
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn a_launcher_and_backup_both_gone_still_stop_the_restore() {
+        let d = temp("both-gone");
+        let (journal, launcher, parked, _) = staged(&d);
+        std::fs::remove_file(&launcher).unwrap();
+        std::fs::remove_file(&parked).unwrap();
+        let err = restore(&journal, false).unwrap_err().to_string();
+        assert!(err.contains("staged backup is missing"), "{err}");
+        assert!(restore_pending(&d).is_err());
+        assert!(journal.exists());
         std::fs::remove_dir_all(&d).ok();
     }
 
