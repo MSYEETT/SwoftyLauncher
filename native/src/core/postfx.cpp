@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cwchar>
 #include <cwctype>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -82,36 +83,38 @@ struct Target {
 // The game names short-lived UI resources all the time, so once half the slots hold keys the writer
 // copies the live keys into a new table and publishes it, which keeps probe runs short. A replaced
 // table is freed a few seconds later, long after any reader that loaded it has returned.
-template <size_t N> class PtrSet {
-    static_assert((N & (N - 1)) == 0, "a power of two");
-    std::atomic<uintptr_t> key[N] = {};
-    std::atomic<uint8_t> on[N] = {};
+class PtrSet {
+    size_t mask;
+    std::unique_ptr<std::atomic<uintptr_t>[]> key;
+    std::unique_ptr<std::atomic<uint8_t>[]> on;
     size_t used = 0, live = 0;
 
-    static size_t hash(uintptr_t k) { return size_t((k * 0x9E3779B97F4A7C15ull) >> 40) & (N - 1); }
+    size_t hash(uintptr_t k) const { return size_t((k * 0x9E3779B97F4A7C15ull) >> 40) & mask; }
 
     size_t find(uintptr_t k, bool claim)
     {
-        for (size_t i = hash(k), n = 0; n < N; i = (i + 1) & (N - 1), n++) {
+        for (size_t i = hash(k), n = 0; n <= mask; i = (i + 1) & mask, n++) {
             uintptr_t v = key[i].load(std::memory_order_acquire);
             if (v == k)
                 return i;
             if (v == 0) {
                 if (!claim)
-                    return N;
+                    return mask + 1;
                 key[i].store(k, std::memory_order_release);
                 used++;
                 return i;
             }
         }
-        return N;
+        return mask + 1;
     }
 
 public:
+    explicit PtrSet(size_t n) : mask(n - 1), key(new std::atomic<uintptr_t>[n]()), on(new std::atomic<uint8_t>[n]()) {}
+
     uint8_t get(const void *p) const
     {
         uintptr_t k = uintptr_t(p);
-        for (size_t i = hash(k), n = 0; n < N; i = (i + 1) & (N - 1), n++) {
+        for (size_t i = hash(k), n = 0; n <= mask; i = (i + 1) & mask, n++) {
             uintptr_t v = key[i].load(std::memory_order_acquire);
             if (v == k)
                 return on[i].load(std::memory_order_acquire);
@@ -120,23 +123,21 @@ public:
         }
         return 0;
     }
-    bool contains(const void *p) const { return get(p) != 0; }
-    bool half_full() const { return used * 2 >= N; }
-    bool reclaimable() const { return live * 4 < N; }
-    bool set(const void *p, uint8_t bits)
+    size_t size() const { return mask + 1; }
+    size_t count() const { return live; }
+    bool half_full() const { return used * 2 >= mask + 1; }
+    void set(const void *p, uint8_t bits)
     {
         size_t i = find(uintptr_t(p), bits != 0);
-        if (i == N)
-            return bits == 0;
+        if (i > mask)
+            return;
         uint8_t was = on[i].load(std::memory_order_relaxed);
         live += (!was && bits) - (was && !bits);
         on[i].store(bits, std::memory_order_release);
-        return true;
     }
-    void erase(const void *p) { set(p, 0); }
     template <class F> void each(F f) const
     {
-        for (size_t i = 0; i < N; i++) {
+        for (size_t i = 0; i <= mask; i++) {
             uintptr_t k = key[i].load(std::memory_order_relaxed);
             uint8_t b = on[i].load(std::memory_order_relaxed);
             if (k && b)
@@ -148,21 +149,14 @@ public:
 enum : uint8_t { W_TONEMAP = 1, W_BACK = 2, W_HUDLESS = 4, W_UI = 8, W_DEPTH = 16 };
 
 // The few resources the passes key on and the game's many UI images live in separate tables, so UI
-// churn can never push the tonemap or the back buffers out. A table is rebuilt only when most of its
-// keys are dead; a table full of live keys keeps what it has and says once that it dropped some.
-template <size_t N> class Table {
-    std::atomic<PtrSet<N> *> cur{new PtrSet<N>};
-    std::vector<std::pair<PtrSet<N> *, ULONGLONG>> retired;
+// churn can never push the tonemap or the back buffers out. Freed resources leave dead slots behind,
+// so once half a table's slots are taken it is rebuilt from its live keys, at least four times as
+// large as they are; a lookup for an unwatched resource, nearly every barrier, stays a probe or two.
+template <size_t MIN> class Table {
+    std::atomic<PtrSet *> cur{new PtrSet(MIN)};
+    std::vector<std::pair<PtrSet *, ULONGLONG>> retired;
     const char *what;
-    bool told = false;
-
-    void dropped(size_t n)
-    {
-        if (n && !told) {
-            told = true;
-            swofty::log("[postfx] the %s table is full; %zu resource(s) are no longer watched", what, n);
-        }
-    }
+    size_t told = MIN;
 
 public:
     explicit Table(const char *name) : what(name) {}
@@ -171,24 +165,27 @@ public:
 
     void put(const void *p, uint8_t bits)
     {
-        PtrSet<N> *w = cur.load(std::memory_order_relaxed);
-        if (!bits || !w->half_full() || !w->reclaimable()) {
-            if (!w->set(p, bits))
-                dropped(1);
+        PtrSet *w = cur.load(std::memory_order_relaxed);
+        if (!bits || !w->half_full()) {
+            w->set(p, bits);
             return;
         }
-        auto *fresh = new PtrSet<N>;
-        size_t lost = 0;
+        size_t n = MIN;
+        while (n < (w->count() + 1) * 4)
+            n *= 2;
+        auto *fresh = new PtrSet(n);
         w->each([&](const void *k, uint8_t b) {
-            if (k != p && !fresh->set(k, b))
-                lost++;
+            if (k != p)
+                fresh->set(k, b);
         });
-        if (!fresh->set(p, bits))
-            lost++;
-        dropped(lost);
+        fresh->set(p, bits);
+        if (n > told) {
+            told = n;
+            swofty::log("[postfx] the %s table grew to %zu slots for %zu live resource(s)", what, n, fresh->count());
+        }
         cur.store(fresh, std::memory_order_release);
         ULONGLONG now = GetTickCount64();
-        std::erase_if(retired, [&](const std::pair<PtrSet<N> *, ULONGLONG> &r) {
+        std::erase_if(retired, [&](const std::pair<PtrSet *, ULONGLONG> &r) {
             if (now - r.second < 5000)
                 return false;
             delete r.first;
@@ -199,7 +196,7 @@ public:
 };
 
 Table<256> key_watched("key resource");
-Table<8192> ui_watched("UI");
+Table<4096> ui_watched("UI");
 
 uint8_t watched_bits(const void *p)
 {
