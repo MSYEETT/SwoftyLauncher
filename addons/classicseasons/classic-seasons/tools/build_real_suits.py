@@ -16,7 +16,11 @@ A helmet archive takes the suit archive's copy of every resource both hold (the 
 stock suit textures). The build fails when a relabelled archive names a resource that neither it nor its stock base archive holds or names,
 or when two built archives hold different resources of one name.
 
-    python3 tools/build_real_suits.py --game <F1 25> --mods <folder holding the extracted mods>
+F1 23's own 2022 and 2023 kit (entries with "mod": "f1_23") builds from --f1-23 on F1 25 bases (f1_23_suits.py); the
+build makes every real suit it has a source for and drops the rest from suits/.
+
+    python3 tools/build_real_suits.py --game <F1 25> --mods <folder holding the extracted mods> --f1-23 <F1 23> \
+        [--logos f1-23|base]
 """
 
 import argparse
@@ -35,8 +39,9 @@ sys.path[:0] = [str(HERE), str(ROOT.parents[2] / "tools")]
 
 import bcn
 import erpw
+import f1_23_suits
 import suit_sources
-from build_suits import contact_sheet, kit_textures, render, team_meshes
+from build_suits import contact_sheet, kit_textures, render, surface, team_meshes
 from carperf import kind
 
 OUT = ROOT / "suits"
@@ -144,7 +149,7 @@ def paths(entry):
                 "group": f"asset_groups/{TEAMS}/{label}/{label}.assetgroup",
                 "base_erp": f"2025_asset_groups/{TEAMS}/{base}/{base}.erp",
                 "template": f"asset_groups/{TEAMS}/{base}/{base}.assetgroup"}
-    stem = Path(entry["erp"]).stem
+    stem = Path(entry["erp"]).stem if "erp" in entry else entry["base"].split("_", 1)[1]
     out = {"stem": stem}
     for key, name in (("", stem), ("helmet_", f"{stem}_helmet")):
         out[key + "target"] = f"2025_asset_groups/{DRIVERS}/{label}/{name}.erp"
@@ -172,12 +177,73 @@ def check_models(e, entry, p):
         raise SystemExit(f"{label}: no {missing}")
 
 
-def build(game, mods):
+def tokens(entry, label):
+    base = entry["base"]
+    old = base if "driver" not in entry else base[:len(base) - len(base.split("_", 1)[1]) - 1]
+    return old, label[:len(old)]
+
+
+def build_f1_23(game, f1_23, entry, label, logos, db, team, report, textures=True):
+    p = paths({**entry, "label": label})
+    old, new = tokens(entry, label)
+    stem = p.get("stem", label)
+    sources = f1_23_suits.f1_23_archives(f1_23, entry)
+    meta = {k: entry[k] for k in ("season", "team", "driver", "mod", "base") if k in entry}
+    meta.update(p, label=label, f1_23_source=entry["source"], sidecars=[], helmet=bool(entry.get("helmet")),
+                textures="f1-23" if textures else "base", logos=logos if textures else "base")
+    archives, suit = {}, None
+    for key in ("", "helmet_") if entry.get("helmet") else ("",):
+        base_erp = Path(game) / p[key + "base_erp"]
+        e, _ = relabel(base_erp, base_erp, old, new, None, {}, game, report)
+        if textures:
+            n = f1_23_suits.swap_textures(e, entry, label, stem, sources["helmet" if key else "suit"], f1_23, report)
+            report.append(f"{label}{' helmet' if key else ''}: {n} textures from F1 23 {entry['source']}")
+        if not key and textures and logos == "f1-23":
+            lm, n = f1_23_suits.take_logos(e, sources["suit"][0], entry, label, stem)
+            meta.update(lm)
+            report.append(f"{label}: {n} logo mesh records from F1 23")
+        for shared in (team or {}, suit or {}):
+            e.res = [shared.get(r.name, r) for r in e.res]
+        missing = f1_23_suits.unresolved(e, erpw.Erp(str(base_erp)))
+        if missing:
+            raise SystemExit(f"{label}: names {len(missing)} resource(s) neither archive holds: {missing[:4]}")
+        if not key:
+            suit = {r.name: r for r in e.res}
+        archives[key] = e
+    if entry.get("helmet"):
+        meta["helmet_colours"] = db.helmet_colours(entry["base"])
+    return archives, meta
+
+
+def build(game, mods, f1_23=None, logos="f1-23"):
     if OUT.exists():
         shutil.rmtree(OUT)
     SIDECARS.mkdir(parents=True)
-    report, built, owners = [], [], {}
+    report, built, owners, teams = [], [], {}, {}
+    db = f1_23_suits.Db(game) if f1_23 else None
     for entry in [e for e in suit_sources.real() if e["kind"] == "mod"]:
+        if entry["mod"] == suit_sources.F1_23:
+            if not f1_23:
+                continue
+            archives, meta = build_f1_23(game, f1_23, entry, entry["label"], logos, db,
+                                         teams.get((entry["season"], entry["team"])), report)
+            if "driver" not in entry:
+                teams[(entry["season"], entry["team"])] = {r.name: r for r in archives[""].res}
+            for key, e in archives.items():
+                for r in e.res:
+                    h = digest(e, r)
+                    if owners.setdefault(r.name, (h, entry["label"]))[0] != h:
+                        raise SystemExit(f"{r.name}: {entry['label']} and {owners[r.name][1]} differ")
+                source = f"suits/{entry['label']}/{Path(meta[key + 'target']).name}"
+                (ROOT / source).parent.mkdir(parents=True, exist_ok=True)
+                e.to_file(str(ROOT / source))
+                meta[key + "source"] = source
+            built.append(meta)
+            print(f"{entry['label']}: {entry['season']} {entry['team']}{' ' + entry['driver'] if 'driver' in entry else ''} "
+                  f"from F1 23 {entry['source']} ({entry['base']}, logos {meta['logos']})", flush=True)
+            continue
+        if not mods:
+            continue
         mod = suit_sources.REAL["mods"][entry["mod"]]
         root = Path(mods) / mod["folder"]
         files = {}
@@ -226,10 +292,48 @@ def build(game, mods):
     return built
 
 
+def f1_23_preview(game, f1_23, built):
+    for season in sorted({m["season"] for m in built}):
+        rows = []
+        for m in [m for m in built if m["season"] == season]:
+            entry = suit_sources.by_label(m["label"])
+            sources = f1_23_suits.f1_23_archives(f1_23, entry)["helmet" if m["helmet"] else "suit"]
+            e = erpw.Erp(str(ROOT / m["source"]))
+            team_base = m["base"].split("_", 1)[0]
+            e_base = erpw.Erp(str(Path(game) / f"2025_asset_groups/{TEAMS}/{team_base}/{team_base}.erp"))
+            if "driver" in m:
+                pairs = f1_23_suits.prefixes(entry, m["label"], m["stem"])
+                meshes = personal_meshes(m["label"], m["stem"])
+                for key, name in (("logos", "logos_model"), ("glove_logos", "glove_logos_model")):
+                    if name in m:
+                        meshes[key] = f"eaid://character_package/{m[name]}.idf"
+            else:
+                pairs = f1_23_suits.prefixes(entry, m["label"], m["label"])
+                meshes = team_meshes(m["label"])
+            prefixes = [ours for ours, _ in pairs]
+            tex = kit_textures(e, prefixes, [game])
+            views = render(e_base, e, meshes, tex)
+            shown = {}
+            for part in ("livery_v2_d", "logo_01_d", "glove_d", "helmet_d"):
+                for ours, theirs in pairs:
+                    name = f"{ours}{part}.tif.image"
+                    if any(r.name == name for r in e.res):
+                        shown[part] = (f1_23_suits.f1_23_texture(sources, theirs + f"{part}.tif.image", f1_23),
+                                       bcn.top_level(surface(e, name), [game]))
+                        break
+            caption = (f"{m['season']} {m['team']}" + (f" · {m['driver']}" if "driver" in m else "") +
+                       f"  ·  {m['label']}  ·  base {m['base']}  ·  F1 23 {m['f1_23_source']}"
+                       f"  ·  logos {m['logos']}" + ("" if m["helmet"] or "driver" not in m else "  ·  stock helmet"))
+            rows.append((caption, views, shown))
+            print(f"preview {m['label']}", flush=True)
+        f1_23_suits.sheet(f"Classic Seasons {season}: F1 23 suits", rows, OUT / f"f1-23-{season}.png",
+                          ROOT / "art" / "suits" / f"{season}.png")
+
+
 def preview(game, built):
     roots = [SIDECARS, game]
     rows = []
-    for m in built:
+    for m in [m for m in built if m["mod"] != suit_sources.F1_23]:
         e = erpw.Erp(str(ROOT / m["source"]))
         e_base = erpw.Erp(str(Path(game) / m["base_erp"]))
         if "driver" in m:
@@ -257,10 +361,17 @@ def preview(game, built):
 def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument("--game", required=True, type=Path)
-    ap.add_argument("--mods", required=True, type=Path)
+    ap.add_argument("--mods", type=Path)
+    ap.add_argument("--f1-23", type=Path)
+    ap.add_argument("--logos", choices=("f1-23", "base"), default="f1-23")
     a = ap.parse_args(argv[1:])
-    built = build(a.game, a.mods)
-    preview(a.game, built)
+    if not (a.mods or a.f1_23):
+        ap.error("give --mods, --f1-23 or both")
+    built = build(a.game, a.mods, a.f1_23, a.logos)
+    if a.mods:
+        preview(a.game, built)
+    if a.f1_23:
+        f1_23_preview(a.game, a.f1_23, [m for m in built if m["mod"] == suit_sources.F1_23])
 
 
 if __name__ == "__main__":
