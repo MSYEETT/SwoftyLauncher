@@ -11,7 +11,7 @@ description: Show your text in the race HUD's own notification from native code 
 |---|---|
 | Header | `swofty/hud.hpp` |
 | Namespace | `swofty::hud` |
-| Table | `SwoftyHud`, from the core's `SwoftyCoreHud` export |
+| Table | `SwoftyHud` version 1, from the core's `SwoftyCoreHud` export; later fields are appended |
 | Feature | `popup` (stable) |
 | API version | 8, feature-detected |
 | Thread | `toast`: any. The toast is posted on the flow thread |

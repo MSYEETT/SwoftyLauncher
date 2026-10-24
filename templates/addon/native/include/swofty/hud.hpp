@@ -13,7 +13,8 @@
 // drawn. toast() queues from any thread; the core posts it on the game's flow thread.
 //
 // Feature detection: the table is read only when the running swofty_core.dll exports SwoftyCoreHud, so
-// an addon built against this header also loads on an older core and sees available() false there.
+// an addon built against this header also loads on an older core and sees available() false there. The
+// table is versioned (SWOFTY_HUD_VERSION); version 1 holds available, toast and set.
 
 namespace swofty::hud {
 
@@ -29,6 +30,8 @@ inline const SwoftyHud *table()
     HMODULE core = GetModuleHandleW(L"swofty_core.dll");
     auto get = core ? reinterpret_cast<const SwoftyHud *(*)()>(GetProcAddress(core, "SwoftyCoreHud")) : nullptr;
     const SwoftyHud *t = get ? get() : nullptr;
+    if (t && t->version < 1)
+        t = nullptr;
     found = t;
     return t;
 }

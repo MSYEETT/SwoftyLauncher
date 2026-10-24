@@ -353,7 +353,7 @@ void apply_set(const Set &q)
                     ok ? "" : " (the parent node did not resolve)");
 }
 
-const SwoftyHud hud_table = {api_available, api_toast, api_set};
+const SwoftyHud hud_table = {SWOFTY_HUD_VERSION, api_available, api_toast, api_set};
 
 unsigned toast_test_every;
 uint64_t toast_test_next;
