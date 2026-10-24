@@ -94,7 +94,7 @@ A frame holds up to 131,072 vertices across every paint callback; primitives pas
 
 ## Callbacks
 
-Your callback, `fn`, has the signature `void(SwoftyPaint *paint, void *user)`. Use the draw calls, `size` and `measure` only inside a paint callback, passing that callback's `paint` handle. To draw a texture, first call `load_image` outside paint. The id then stays loaded for the lifetime of the process.
+Your callback, `fn`, has the signature `void(SwoftyPaint *paint, void *user)`. Use the draw calls, `size` and `measure` only inside a paint callback, passing that callback's `paint` handle. To draw a texture, first call `load_image` outside paint. The id then stays loaded for the lifetime of the process. The build copies an image into the game folder only when its file or folder is listed in `files` on your `operations.native` entry, for example `{ "dll": "native/my_plugin.dll", "files": ["images"] }`; see [files in the game folder](/reference/addons/native-plugins#files-in-the-game-folder).
 
 ## Example
 
