@@ -62,6 +62,27 @@ When the mods did not load and `version.dll` is still in the game folder, the la
 
 The **Mods did not load** dialog then names what it found and its fix, for example turning off Smart App Control, or an antivirus's DLL protection for `F1_25.exe`. The details are under `[loader]` in `state\wrapper-run.log`, which [Send Logs](/using/send-logs) includes.
 
+## If Windows blocks the launcher
+
+Smart App Control on Windows 11, and app control policies on work or school PCs, block programs that aren't code-signed. The launcher's programs aren't code-signed. When Windows blocks one as you press **Play**, a **Could not launch F1 25** notification names the program, such as `swofty.exe`, and the error code. When it blocks one later in the launch, a **Windows blocked a Swofty program** dialog does the same, and F1 25 is not started.
+
+| Error | Blocked by |
+|---|---|
+| 4551, 577 | Smart App Control or an app control policy |
+| 4556 to 4559, 4580 to 4582 | Smart App Control |
+| 1260, 786 | A Windows policy set by whoever manages the PC |
+| 225, 226 | An antivirus, see [If the mods don't load](#if-the-mods-don-t-load) |
+
+Smart App Control has no exceptions for single apps. To use the launcher, turn it off:
+
+1. Open **Windows Security** > **App & browser control** > **Smart App Control settings**.
+2. Select **Off**.
+3. Press **Play** again.
+
+On some versions of Windows, Smart App Control can only be turned back on by resetting Windows. Microsoft Defender Antivirus keeps protecting the PC with it off. To keep Smart App Control on, play F1 25 from Steam, without mods.
+
+If Smart App Control is already off, a policy set by whoever manages the PC blocked the program. They can allow the launcher folder and the game folder.
+
 ## If your game files aren't the ones Steam installed
 
 Before a modded session builds anything, the launcher checks the game against Steam's record of the files it installed. If a file was changed outside the launcher, for example by another mod tool or a manual install, F1 25 is not started and a **Your game files have been edited** modal says how many files changed, names the first six, and lists the fix.
