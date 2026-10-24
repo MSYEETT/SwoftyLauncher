@@ -93,6 +93,8 @@ python3 tools/heads.py --downloads ~/Downloads --game <F1 25>
 
 More Driver Models' Sebastian Vettel, Mick Schumacher, Nicholas Latifi and Nyck de Vries name `.sampler` resources and head textures they do not hold, so they keep generic heads.
 
+A suit entry in `data/real_suits.json` with `"off": true` is left out. The 18 converted 2017 driver suits whose F1 25 base wears its team's glove, livery and boots textures crash the Grand Prix team picker, so those drivers wear their team's converted 2017 suit.
+
 ## Helmets
 
 `data/helmets.json` gives drivers of a season their helmet of that season from a mod's textures: 21 drivers of 2016 from 2016 Helmets (Fernando Alonso's texture there is Jenson Button's helmet, so he keeps his stock one). F1 25's helmet shells share one texture layout, and each entry's base is an F1 25 look whose shell is the brand on the helmet.
