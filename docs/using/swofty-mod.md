@@ -36,6 +36,8 @@ If the game build isn't recognised, the **ADDON SETTINGS** entry may be unavaila
 
 SwoftyMod splits the era picker of **Grand Prix** and **Time Trial** into two rows. The top row, **Built In**, holds the game's own eras, such as F1 2026 and F2 2026. The bottom row, **Addons**, holds the eras that addons add. Each row scrolls sideways on its own; press **Up** or **Down** to move between them.
 
+Some addons, such as imported season mods, replace this menu with their own copy. When SwoftyMod can't edit that copy, the menu stays as the addon made it, without the Addons row, while the addon is on. The build shows a warning that names the addon.
+
 ## Next
 
 - [Addons](/using/addons#change-its-settings): the same settings in the launcher.

@@ -71,6 +71,8 @@ if (!swofty::era::available())
 
 `available()` is true when the running `swofty_core.dll` exports `SwoftyCoreEra` and its era picker hooks are not off. An addon built against this header also loads on an older core and sees `available()` false and `add_box()` returning `unavailable` there. `count()` returns how many boxes every addon has registered.
 
+An addon can replace the era picker's menu with its own copy, as some imported season mods do. When the launcher can't edit that copy, it leaves it as it is and warns at build time, naming the addon. While that addon is on, the menu has no Addons row and the boxes don't show there; `available()` and `add_box()` return what they would otherwise.
+
 ## Logs
 
 The core logs to `swofty/loader.log` with the `[era]` prefix: each registration, the hooks, the first builds of the picker (`era select: N stock box(es), M addon box(es) of K registered`), each skipped box and each narrowing.
