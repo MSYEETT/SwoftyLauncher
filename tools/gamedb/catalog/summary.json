@@ -2,16 +2,16 @@
  "db": "gamedatabases.2025.bin",
  "db_bytes": 19341077,
  "records": 742857,
- "named_records": 587053,
- "unnamed_records": 155804,
+ "named_records": 594125,
+ "unnamed_records": 148732,
  "unnamed_by_type": {
   "float": 41298,
   "bool": 23314,
   "int": 23123,
   "id": 20279,
   "string": 17390,
-  "t11": 11507,
   "curve": 5011,
+  "t11": 4435,
   "time": 4337,
   "t7": 3469,
   "enum": 3298,
@@ -44,7 +44,7 @@
  "table_instances": 11209,
  "rows": 60782,
  "named_tables": 823,
- "schema_keys": 17027,
+ "schema_keys": 17067,
  "schema_keys_exe_path": 1888,
  "schema_keys_exe_leaf": 13302,
  "exe_names": 8286,
@@ -66,7 +66,7 @@
   "proven": 39
  },
  "key_evidence": {
-  "inferred": 12889,
+  "inferred": 12929,
   "proven": 4138
  }
 }

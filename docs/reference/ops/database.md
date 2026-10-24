@@ -69,7 +69,7 @@ The game crashes on any key it reads that is missing; see [Missing keys](/refere
 
 ### Key names
 
-The database stores a hash of each key's path, not the path, so the build can't list a row's keys. It probes the source row with the launcher's key catalogue, `row_keys.txt.gz`: every key path found under each row shape of the stock database, generated from the identifier strings in `F1_25.exe`, `tools/gamedb/names.txt`, the key catalogue and the run-time compositions in `tools/gamedb/compositions.txt`, such as `player.driver.preloaded` on entrant setup modes. A row shape is a row path with its row numbers written `_N`: `entrants.entrant_setup_modes.entrant_setup_mode_N`.
+The database stores a hash of each key's path, not the path, so the build can't list a row's keys. It probes the source row with the launcher's key catalogue, `row_keys.txt.gz`: every key path found under each row shape of the stock database, generated from the identifier strings in `F1_25.exe`, its printf format strings with each integer conversion expanded to 0..31 (`colour_%u_default` gives `colour_0_default` to `colour_31_default`), `tools/gamedb/names.txt`, the key catalogue and the run-time compositions in `tools/gamedb/compositions.txt`, such as `player.driver.preloaded` on entrant setup modes. A row shape is a row path with its row numbers written `_N`: `entrants.entrant_setup_modes.entrant_setup_mode_N`.
 
 The file's `fields` map, keyed by `table` as written or its resolved path and the row name, adds names the catalogue lacks. Every listed field must exist on the source row:
 
@@ -124,7 +124,7 @@ An `unlockable_se_livery` row added to an `unlockable_content.unlockable_items.u
 | Rows labelled with a name built from the source | A folder name, the label plus a suffix, a field value | Vehicle packages: `car_setup.presets.vehicle_package_setups_N`, labelled with the package folder `f1_2025_vehicle_package`, the first folder of `resource_path` |
 | Values elsewhere that name the source | Other rows hold the source's label or `stat_id` | Vehicles: `entrants.entrant_lists.entrant_list_N.entrant_N.vehicle`, `showroom.vehicle_offsets.vehicle_offset_N.vehicle`, `showroom.vehicles_history.vehicle_history_N.vehicle`. Vehicle packages: `entrants.vehicles.vehicle_N.vehicle_package` |
 | Game files named after the source | Paths built from the label or a field | Vehicle packages: the car template's `CarPhysics2.baseVtfAsset` and `Tyres` defaults name `eaid://f1_2025_vehicle_package/...`. Vehicles: per-track AI data at `environment_package/tracks/<track>/ai/<ai_package_folder>/<asset_filename>/` |
-| Keys of the source the catalogue does not name | Paths the exe builds at run time | Car setup presets: 420 keys per row. Game setup modes: 11 keys under `championship_won_cutscene` and `tyre_regulations`, which the `swofty_f1` copy lacked until `addons/swoftymod/db/core.json` listed them in a `fields` list. Both are in the catalogue from launcher 1.4.0 |
+| Keys of the source the catalogue does not name | Paths the exe builds at run time | Car setup presets: 420 keys per row. Game setup modes: 11 keys under `championship_won_cutscene` and `tyre_regulations`, which the `swofty_f1` copy lacked until `addons/swoftymod/db/core.json` listed them in a `fields` list. Both are in the catalogue from launcher 1.4.0. Customisation items: `colour_1_default` to `colour_4_default`; see [Colour defaults of customisation items](#colour-defaults-of-customisation-items) |
 
 ### Car setups of a vehicle package
 
@@ -148,6 +148,26 @@ Each stock row holds these 420 keys and its `_metadata_`. A copy of `f1_2025` wi
 | All 421 keys | The copy drives its source's setups |
 
 Launchers before 1.4.0 copy only the catalogued `_metadata_`; give the op a `fields` list of the 421 keys for them.
+
+### Colour defaults of customisation items
+
+Every row of these tables holds the four keys `colour_1_default`, `colour_2_default`, `colour_3_default` and `colour_4_default`, of tag 11 (colour). No row holds a `colour_0_default` or a `colour_5_default`.
+
+| Table | Rows |
+|---|---|
+| `customisation.custom_avatar.suits.Suit_N` | 362 |
+| `customisation.custom_avatar.gloves.Gloves_N` | 362 |
+| `customisation.custom_avatar.helmets.Helmet_N` | 279 |
+| `customisation.custom_avatar.tops.Tops_N` | 360 |
+| `customisation.custom_avatar.trousers.Trousers_N` | 110 |
+| `customisation.custom_avatar.casual_footwear.CasualFootWear_N` | 49 |
+| `customisation.custom_avatar.casual_headwear.CasualHeadwear_N` | 94 |
+| `customisation.custom_avatar.eyewear.Eyewear_N` | 29 |
+
+- Most stock rows hold empty text, which the game parses with `atoi` as 0. Customisable designs hold signed 32-bit ARGB numbers, such as `-1710619` (`#e5e5e5`).
+- At boot, `Sess_Apply_ContentAvailability` calls `Game_Build_CustomisationCatalogue` (`0x1414059c0`). It builds the four names from the format string `colour_%u_default` and reads each of them on every row with `Gdb_Get_FieldInt`, with no check for a missing key (`0x1414078f2` to `0x1414078fa` for gloves, the same for the other tables). A row that lacks any of the four crashes the game at boot with an access violation at `F1_25.exe+0x14078fa`.
+- A customisable suit design gives an AI driver's suit its colours from `colour_1_default` to `colour_3_default`. An AI driver in `tier01_livery76` wears its `#e5e5e5`, `#0e3858` and `#ffb43f` (`-1710619`, `-15845288`, `-19393`).
+- `add-row` copies the four keys of any of these rows, empty text included, and swofty_core applies a copied empty value as the game's 0. Launcher 1.4.0 and earlier copy them only from a `fields` list, and on the runtime route their swofty_core ignores the empty values: `edit … ignored: an int needs integer text (the game parses it with atoi), got ''`.
 
 ### The side-data check
 
@@ -236,7 +256,7 @@ swofty db deps "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1
 
 ### Keys the catalogue does not name
 
-A key whose path only the exe builds stays out of the catalogue until `tools/gamedb/compositions.txt` lists it, and `add-row` then copies it without a `fields` list. `tools/gamedb/deepkeys.py` finds such keys under a row; see [Finding unnamed keys](/reference/gamedb/tools#finding-unnamed-keys).
+A key whose path only the exe builds stays out of the catalogue until `tools/gamedb/compositions.txt` lists it, and `add-row` then copies it without a `fields` list. A name the exe prints from one format string with one or two integer conversions, such as `colour_%u_default`, needs no line there for `add-row`: the `row_keys` generator expands the exe's format strings. `tools/gamedb/catalog.py` does not, and names such a key only from a `compositions.txt` line. `tools/gamedb/deepkeys.py` finds such keys under a row; see [Finding unnamed keys](/reference/gamedb/tools#finding-unnamed-keys).
 
 ## Selecting rows
 

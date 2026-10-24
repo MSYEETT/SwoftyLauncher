@@ -19,3 +19,9 @@ ai_vehicle_package_config.driver_parameter_maps.{alongside_awareness,alongside_s
 # race0_length_requirement and its siblings, and add-row copies such as swofty_f1 missed all 11 keys.
 championship_won_cutscene.{camera,scene,subscene,useManager}
 tyre_regulations.{allow_strategy_mandatory_stop_check,allow_strategy_valid_laps_check,pitstop_threshold,race0_length_requirement,race1_length_requirement,race2_length_requirement,tyre_setup_enabled}
+
+# 'colour_%u_default' on avatar items: customisation.custom_avatar.<category>.<Item>_N for suits.Suit, gloves.Gloves,
+# helmets.Helmet, tops.Tops, trousers.Trousers, casual_footwear.CasualFootWear, casual_headwear.CasualHeadwear and
+# eyewear.Eyewear. Game_Build_CustomisationCatalogue (0x1414059c0) reads all four per row with Gdb_Get_FieldInt and
+# no null check, so a copy without them crashes boot.
+colour_{1,2,3,4}_default

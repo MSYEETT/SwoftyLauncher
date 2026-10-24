@@ -11,12 +11,12 @@ Every table family found in `gamedatabases.2025.bin`, generated from the databas
 | | |
 |---|---|
 | Records | 742,857 |
-| Records with a known name | 587,053 |
+| Records with a known name | 594,125 |
 | Table families | 2,080 |
 | Families with a full path | 823 |
 | Table instances | 11,209 |
 | Rows | 60,782 |
-| Schema keys (`Table_N.field` form) | 17,027 |
+| Schema keys (`Table_N.field` form) | 17,067 |
 | Names the exe reads | 8,286 |
 | Exe names with no match in the DB | 3,874 |
 | Full key hashes held as exe immediates | 1,098 |
@@ -226,25 +226,25 @@ Every table family found in `gamedatabases.2025.bin`, generated from the databas
 | `content_sets.content_set_N.vehicle_package_override_N` | Rows of vehicle package override under content set *(inferred)* | 1 × 4 | 1 | 3 |  | 3 | vehicle\_package\_override, vehicle\_package\_override, vehicle\_package\_override |
 | `crowds.excitement_N` | Rows of excitement under crowds *(inferred)* | 1 | 1 | 18 |  | 18 | excitement |
 | `currencies.currency_definitions.CurrencyDefinition_N` | Rows of currency definition under currency definitions *(inferred)* | 10 | 10 | 4 |  | 4 | Cash, BronzeToken, SilverToken |
-| `customisation.custom_avatar.casual_footwear.CasualFootWear_N` | Livery, helmet, suit and other customisation items *(inferred)* | 49 | 49 | 9 |  | 9 | sparco\_sl17\_sparco\_sl17\_black\_r…, sparco\_sl17\_sparco\_sl17\_black\_w…, sparco\_torque\_sparco\_torque\_bla… |
-| `customisation.custom_avatar.casual_headwear.CasualHeadwear_N` | Livery, helmet, suit and other customisation items *(inferred)* | 94 | 94 | 11 |  | 11 | cap\_01\_alpinestars\_ageless\_curv…, cap\_01\_alpinestars\_ageless\_curv…, cap\_01\_alpinestars\_ageless\_curv… |
-| `customisation.custom_avatar.eyewear.Eyewear_N` | Livery, helmet, suit and other customisation items *(inferred)* | 29 | 29 | 10 |  | 10 | sunglasses\_aviator\_01\_generic\_s…, sunglasses\_aviator\_01\_generic\_s…, sunglasses\_aviator\_01\_generic\_s… |
+| `customisation.custom_avatar.casual_footwear.CasualFootWear_N` | Livery, helmet, suit and other customisation items *(inferred)* | 49 | 49 | 13 |  | 9 | sparco\_sl17\_sparco\_sl17\_black\_r…, sparco\_sl17\_sparco\_sl17\_black\_w…, sparco\_torque\_sparco\_torque\_bla… |
+| `customisation.custom_avatar.casual_headwear.CasualHeadwear_N` | Livery, helmet, suit and other customisation items *(inferred)* | 94 | 94 | 15 |  | 11 | cap\_01\_alpinestars\_ageless\_curv…, cap\_01\_alpinestars\_ageless\_curv…, cap\_01\_alpinestars\_ageless\_curv… |
+| `customisation.custom_avatar.eyewear.Eyewear_N` | Livery, helmet, suit and other customisation items *(inferred)* | 29 | 29 | 14 |  | 10 | sunglasses\_aviator\_01\_generic\_s…, sunglasses\_aviator\_01\_generic\_s…, sunglasses\_aviator\_01\_generic\_s… |
 | `customisation.custom_avatar.folder_N` | Livery, helmet, suit and other customisation items *(inferred)* | 11 | 11 | 0 |  | 0 |  |
-| `customisation.custom_avatar.gloves.Gloves_N` | Livery, helmet, suit and other customisation items *(inferred)* | 362 | 362 | 10 |  | 10 | 2023-f2-artgp, 2023-f2-artgp\_theo\_pourchaire, 2023-f2-artgp\_victor\_martins |
-| `customisation.custom_avatar.helmets.Helmet_N` | Livery, helmet, suit and other customisation items *(inferred)* | 279 | 279 | 12 |  | 12 | classic-button01\_jenson\_button, classic-coulthard01\_david\_coult…, classic-massa01\_felipe\_massa |
+| `customisation.custom_avatar.gloves.Gloves_N` | Livery, helmet, suit and other customisation items *(inferred)* | 362 | 362 | 14 |  | 10 | 2023-f2-artgp, 2023-f2-artgp\_theo\_pourchaire, 2023-f2-artgp\_victor\_martins |
+| `customisation.custom_avatar.helmets.Helmet_N` | Livery, helmet, suit and other customisation items *(inferred)* | 279 | 279 | 16 |  | 12 | classic-button01\_jenson\_button, classic-coulthard01\_david\_coult…, classic-massa01\_felipe\_massa |
 | `customisation.custom_avatar.podium_emotes.PodiumEmote_N` | Livery, helmet, suit and other customisation items *(inferred)* | 52 | 52 | 8 |  | 8 | Default, Emote01, Emote02 |
 | `customisation.custom_avatar.poses.Pose_N` | Livery, helmet, suit and other customisation items *(inferred)* | 59 | 59 | 5 |  | 5 | Pose01, Pose02, Pose03 |
-| `customisation.custom_avatar.suits.Suit_N` | Livery, helmet, suit and other customisation items *(inferred)* | 362 | 362 | 11 |  | 11 | 2023-f2-artgp, 2023-f2-artgp\_theo\_pourchaire, 2023-f2-artgp\_victor\_martins |
-| `customisation.custom_avatar.tops.Tops_N` | Livery, helmet, suit and other customisation items *(inferred)* | 360 | 360 | 9 |  | 9 | hoodie\_01\_alphaindustries\_basic…, hoodie\_01\_alphaindustries\_basic…, hoodie\_01\_alphaindustries\_basic… |
-| `customisation.custom_avatar.trousers.Trousers_N` | Livery, helmet, suit and other customisation items *(inferred)* | 110 | 110 | 9 |  | 9 | joggers\_01\_alphaindustries\_bigl…, joggers\_01\_alphaindustries\_bigl…, joggers\_01\_alphaindustries\_bigl… |
+| `customisation.custom_avatar.suits.Suit_N` | Livery, helmet, suit and other customisation items *(inferred)* | 362 | 362 | 15 |  | 11 | 2023-f2-artgp, 2023-f2-artgp\_theo\_pourchaire, 2023-f2-artgp\_victor\_martins |
+| `customisation.custom_avatar.tops.Tops_N` | Livery, helmet, suit and other customisation items *(inferred)* | 360 | 360 | 13 |  | 9 | hoodie\_01\_alphaindustries\_basic…, hoodie\_01\_alphaindustries\_basic…, hoodie\_01\_alphaindustries\_basic… |
+| `customisation.custom_avatar.trousers.Trousers_N` | Livery, helmet, suit and other customisation items *(inferred)* | 110 | 110 | 13 |  | 9 | joggers\_01\_alphaindustries\_bigl…, joggers\_01\_alphaindustries\_bigl…, joggers\_01\_alphaindustries\_bigl… |
 | `customisation.custom_avatar.victory_vos.VictoryVO_N` | Livery, helmet, suit and other customisation items *(inferred)* | 23 | 23 | 5 |  | 5 | Victory03, Victory30, Victory45 |
 | `customisation.custom_decal_sets.decal_groups.DecalGroup_N` | Livery, helmet, suit and other customisation items *(inferred)* | 128 | 128 | 6 |  | 6 | slingshot\_fuel, jingshen, painite |
 | `customisation.custom_decal_sets.decal_sets.DecalSet_N` | Livery, helmet, suit and other customisation items *(inferred)* | 746 | 746 | 8 |  | 8 | slingshot\_fuel, avax, shark |
 | `customisation.custom_decal_sets.folder_N` | Livery, helmet, suit and other customisation items *(inferred)* | 2 | 2 | 0 |  | 0 |  |
-| `customisation.custom_driver_numbers.driver_numbers.DriverNumber_N` | Livery, helmet, suit and other customisation items *(inferred)* | 25 | 25 | 6 |  | 6 | DriverNumber00, DriverNumber01, DriverNumber02 |
+| `customisation.custom_driver_numbers.driver_numbers.DriverNumber_N` | Livery, helmet, suit and other customisation items *(inferred)* | 25 | 25 | 10 |  | 6 | DriverNumber00, DriverNumber01, DriverNumber02 |
 | `customisation.custom_driver_numbers.folder_N` | Livery, helmet, suit and other customisation items *(inferred)* | 1 | 1 | 0 |  | 0 |  |
 | `customisation.custom_liveries.folder_N` | Livery, helmet, suit and other customisation items *(inferred)* | 1 | 1 | 0 |  | 0 |  |
-| `customisation.custom_liveries.liveries.Livery_N` | Livery, helmet, suit and other customisation items *(inferred)* | 98 | 98 | 11 |  | 11 | livery\_unassigned\_livery18, livery\_tier02\_livery99, livery\_tier03\_livery44 |
+| `customisation.custom_liveries.liveries.Livery_N` | Livery, helmet, suit and other customisation items *(inferred)* | 98 | 98 | 15 |  | 11 | livery\_unassigned\_livery18, livery\_tier02\_livery99, livery\_tier03\_livery44 |
 | `customisation.custom_paint_finishes.paint_finish_N` | Livery, helmet, suit and other customisation items *(inferred)* | 4 | 4 | 4 |  | 4 | matte, gloss, metallic |
 | `customisation.custom_personal_stickers.folder_N` | Livery, helmet, suit and other customisation items *(inferred)* | 1 | 1 | 0 |  | 0 |  |
 | `customisation.custom_personal_stickers.personal_stickers.PersonalSticker_N` | Livery, helmet, suit and other customisation items *(inferred)* | 36 | 36 | 5 |  | 5 | PersonalSticker01, PersonalSticker03, PersonalSticker04 |
