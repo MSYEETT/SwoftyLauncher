@@ -154,6 +154,10 @@ SOFTWARE.
 
 Python is Copyright (c) 2001 Python Software Foundation; All Rights Reserved.
 
+## DirectX Shader Compiler
+
+Releases include `dxc/`: dxc, dxcompiler and dxil built by `.github/workflows/dxc.yml` from <https://github.com/microsoft/DirectXShaderCompiler> at the tag in `tools/dxc/version`. They compile addons' post-process passes. `dxc/LICENSE.txt` (University of Illinois/NCSA Open Source License, with MIT-licensed parts) and `dxc/ThirdPartyNotices.txt` are copied from that tag.
+
 ## Discord logo
 
 `apps/launcher/assets/discord.svg` is the Discord logo from Simple Icons, <https://simpleicons.org/>, released under CC0 1.0. Discord and the Discord logo are trademarks of Discord Inc.

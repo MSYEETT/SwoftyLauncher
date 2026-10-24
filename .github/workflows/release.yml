@@ -151,12 +151,18 @@ jobs:
           name: native
           path: native
 
+      - name: Fetch dxc
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: tools/dxc/fetch.sh dxc-linux-x86_64.tar.gz
+
       - name: Package
         run: |
           out="swofty-launcher-$TAG-linux-x86_64"
           mkdir -p "$out/bin" "$out/loader" "$out/share/applications" "$out/share/icons/hicolor/256x256/apps" "$out/share/icons/hicolor/512x512/apps" "$out/share/icons/hicolor/scalable/apps"
           cp target/release/swofty target/release/swofty-launcher dist/swofty-ui/swofty-ui "$out/bin/"
           cp -r native/dist/. "$out/loader/"
+          if [ -d dxc ]; then cp -r dxc "$out/dxc"; fi
           cp apps/launcher/assets/net.swofty.ModLauncher.desktop tools/swofty-ui/res/net.swofty.SwoftyUI.desktop "$out/share/applications/"
           cp apps/launcher/assets/icon-256.png "$out/share/icons/hicolor/256x256/apps/net.swofty.ModLauncher.png"
           cp apps/launcher/assets/icon-512.png "$out/share/icons/hicolor/512x512/apps/net.swofty.ModLauncher.png"
@@ -240,6 +246,12 @@ jobs:
           name: native
           path: native
 
+      - name: Fetch dxc
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: tools/dxc/fetch.sh dxc-windows-x86_64.tar.gz
+
       - name: Package
         shell: pwsh
         run: |
@@ -247,6 +259,7 @@ jobs:
           New-Item -ItemType Directory -Force "$out/bin", "$out/loader" | Out-Null
           Copy-Item target/release/swofty.exe, target/release/swofty-launcher.exe, dist/swofty-ui/swofty-ui.exe "$out/bin/"
           Copy-Item -Recurse native/dist/* "$out/loader/"
+          if (Test-Path dxc) { Copy-Item -Recurse dxc "$out/dxc" }
           Copy-Item LICENSE, README.md, THIRD_PARTY.md "$out/"
           Compress-Archive -Path $out -DestinationPath "$out.zip"
 

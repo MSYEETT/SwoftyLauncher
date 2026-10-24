@@ -8,9 +8,10 @@ use swofty_core::update::{self, Install};
 
 use crate::{FOLDER_NAME, MUTED, shortcut};
 
-const RELEASE: [&str; 7] = [
+const RELEASE: [&str; 8] = [
     "bin",
     "loader",
+    "dxc",
     "share",
     "addons",
     "LICENSE",
@@ -587,6 +588,7 @@ mod tests {
         write(&root.join("bin").join(update::exe("swofty")), "cli");
         write(&root.join("loader/version.dll"), "proxy");
         write(&root.join("loader/swofty_core.dll"), "core");
+        write(&root.join("dxc/bin").join(update::exe("dxc")), "dxc");
         write(&root.join("share/icons/hicolor/256x256/apps/icon.png"), "icon");
         write(&root.join("LICENSE"), "license");
         write(&root.join("README.md"), "readme");
@@ -760,7 +762,7 @@ mod tests {
         write(&from.join("notes.txt"), "mine");
         write(&from.join("Swofty/profiles/default.json"), "{}");
         let names = |m: &Move| -> Vec<String> { m.entries.iter().map(|e| e.display().to_string()).collect() };
-        let release_only = ["bin", "loader", "share", "LICENSE", "README.md"];
+        let release_only = ["bin", "loader", "dxc", "share", "LICENSE", "README.md"];
         let absolute = plan(&from, &to, &from.join("Swofty")).unwrap();
         assert_eq!(names(&absolute), release_only);
         assert_eq!(
