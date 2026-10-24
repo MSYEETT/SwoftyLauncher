@@ -5,6 +5,7 @@
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::dialog::DialogFooter;
+use gpui_kit::component::notification::Notification;
 use gpui_kit::component::spinner::Spinner;
 use gpui_kit::component::{Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
@@ -132,6 +133,7 @@ impl SetupWizard {
             .child(
                 h_flex()
                     .gap(px(10.))
+                    .items_stretch()
                     .child(choice(
                         "setup-mods-yes",
                         "Yes, there are other mods",
@@ -559,7 +561,34 @@ fn choice(
         )
 }
 
+pub(crate) const FIRST_LAUNCH: &str = "First launch can take 5 to 8 minutes. Don't press Play in the EA app or \
+                                       Steam yourself during this time.";
+
 impl Shell {
+    /// Shown by the first Play after the setup, which builds every addon again.
+    /// Launching records that the player saw it.
+    pub(crate) fn first_launch_notice(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let shell = cx.entity().downgrade();
+        let store = self.store.clone();
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let (shell, store) = (shell.clone(), store.clone());
+            alert
+                .width(px(480.))
+                .title("Notice")
+                .description(FIRST_LAUNCH)
+                .ok_text("Launch")
+                .show_cancel(true)
+                .on_ok(move |_, window, cx| {
+                    if let Err(e) = setup::record_notice(&store.root) {
+                        window.push_notification(Notification::error(e.to_string()), cx);
+                        return false;
+                    }
+                    shell.update(cx, |s, cx| s.play(window, cx)).ok();
+                    true
+                })
+        });
+    }
+
     /// The one-time setup, opened by Play until it is done. Finishing it
     /// presses Play again.
     pub(crate) fn open_setup(&mut self, window: &mut Window, cx: &mut Context<Self>) {

@@ -31,6 +31,9 @@ pub struct Setup {
     pub reset_at: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub done_at: Option<u64>,
+    /// The player saw the notice that the first launch after the setup is slow.
+    #[serde(default)]
+    pub noticed: bool,
 }
 
 fn path(data: &Path) -> PathBuf {
@@ -72,10 +75,25 @@ pub fn reset(data: &Path, game: &Game, other_mods: bool) -> Result<Restored> {
             other_mods,
             reset_at: crate::update::now_secs(),
             done_at: None,
+            noticed: false,
         },
     )?;
     drop(lock);
     Ok(restored)
+}
+
+/// The first launch after the setup builds every addon again and backs up the
+/// original game files, which takes minutes, so Play shows a notice first.
+pub fn first_launch(data: &Path) -> bool {
+    read(data).is_some_and(|s| s.done_at.is_some() && !s.noticed)
+}
+
+pub fn record_notice(data: &Path) -> Result<()> {
+    if let Some(mut setup) = read(data) {
+        setup.noticed = true;
+        write_json(&path(data), &setup)?;
+    }
+    Ok(())
 }
 
 /// The player verified the game files: modded play may start, and the old
@@ -135,9 +153,13 @@ mod tests {
         assert_eq!((s.version, s.other_mods, s.done_at), (VERSION, true, None));
         assert!(!done(&data));
 
+        assert!(!first_launch(&data));
         finish(&data).unwrap();
         assert!(done(&data));
         assert!(!data.join(RETIRED).exists());
+        assert!(first_launch(&data));
+        record_notice(&data).unwrap();
+        assert!(!first_launch(&data));
         std::fs::remove_dir_all(&root).ok();
     }
 
@@ -167,6 +189,7 @@ mod tests {
                 other_mods: false,
                 reset_at: 1,
                 done_at: Some(2),
+                noticed: false,
             },
         )
         .unwrap();

@@ -663,6 +663,10 @@ impl Shell {
             self.confirm_offline_play(window, cx);
             return;
         }
+        if swofty_core::setup::first_launch(&self.store.root) {
+            self.first_launch_notice(window, cx);
+            return;
+        }
         self.notice = None;
         self.blocked = None;
         self.game_edited = None;
