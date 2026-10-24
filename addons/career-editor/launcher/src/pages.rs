@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 
 use crate::App;
 use crate::host::Host;
-use crate::live::{Bridge, Live};
+use crate::live::{Bridge, GameBuild, Live};
 use crate::store::{Entry, now_ms};
 use crate::ui::*;
 use crate::undo::{Undo, inverse};
@@ -203,10 +203,7 @@ fn common_notices(app: &App, live: &Live, anytime_page: bool) -> Vec<Value> {
         return n;
     }
     match live.bridge {
-        Bridge::Missing => n.push(notice(
-            "The game is running but its editor plugin hasn't written a snapshot. Check that this profile has Career Mode Editor on, then restart the game.",
-            "warn",
-        )),
+        Bridge::Missing => n.push(notice(&missing_text(live.build.as_ref()), "warn")),
         Bridge::Stale => n.push(notice(
             &format!(
                 "The game plugin stopped answering (last snapshot {}). Edits are paused.",
@@ -216,19 +213,37 @@ fn common_notices(app: &App, live: &Live, anytime_page: bool) -> Vec<Value> {
         )),
         Bridge::Live => {
             if !live.career() {
-                n.push(notice("No career loaded. Load a My Team or Driver Career save in the game.", "accent"));
+                n.push(notice(
+                    "No career loaded. Load a My Team or Driver Career save in the game.",
+                    "accent",
+                ));
             } else if anytime_page {
                 if !live.anytime() {
-                    let why = live.status()["why_anytime"].as_str().unwrap_or("the game is busy");
+                    let why = live.status()["why_anytime"]
+                        .as_str()
+                        .unwrap_or("the game is busy");
                     n.push(notice(&format!("Edits wait: {why}."), "warn"));
                 }
             } else if !live.safe() {
                 let why = live.why().unwrap_or_else(|| "the game is busy".into());
-                n.push(notice(&format!("Edits wait: {why}. Queued edits apply as soon as Team HQ is idle."), "warn"));
+                n.push(notice(
+                    &format!("Edits wait: {why}. Queued edits apply as soon as Team HQ is idle."),
+                    "warn",
+                ));
             }
         }
     }
     n
+}
+
+fn missing_text(build: Option<&GameBuild>) -> String {
+    match build {
+        Some(b) if b.unsupported => format!(
+            "This F1 25{} isn't a game version the mods were made for, so the editor's game plugin can't start. Update the game in Steam or the EA app.",
+            b.version.as_ref().map_or_else(String::new, |v| format!(" ({v})"))
+        ),
+        _ => "The game is running but its editor plugin hasn't written a snapshot. Check that this profile has Career Mode Editor on, then restart the game.".into(),
+    }
 }
 
 fn frame(app: &App, live: &Live, subtitle: String, blocks: Vec<Value>, anytime_page: bool) -> Value {
@@ -3496,5 +3511,37 @@ mod weather_form_tests {
         );
         assert!(weather_point(&v, 2, 0).is_err());
         assert_eq!(weather_point(&v, 3, 53).unwrap(), None);
+    }
+}
+
+#[cfg(test)]
+mod missing_notice_tests {
+    use super::*;
+
+    #[test]
+    fn a_missing_snapshot_on_an_unsupported_build_says_so() {
+        let old = GameBuild {
+            version: Some("1.0.136.6820".into()),
+            unsupported: true,
+        };
+        assert_eq!(
+            missing_text(Some(&old)),
+            "This F1 25 (1.0.136.6820) isn't a game version the mods were made for, so the editor's game plugin can't start. Update the game in Steam or the EA app."
+        );
+        let supported = GameBuild {
+            version: Some("1.0.141.7865".into()),
+            unsupported: false,
+        };
+        for b in [Some(&supported), None] {
+            assert!(
+                missing_text(b)
+                    .starts_with("The game is running but its editor plugin hasn't written a snapshot.")
+            );
+        }
+        let unknown = GameBuild {
+            version: None,
+            unsupported: true,
+        };
+        assert!(missing_text(Some(&unknown)).starts_with("This F1 25 isn't a game version"));
     }
 }

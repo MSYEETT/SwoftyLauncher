@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use serde_json::{Value, json};
 
 use host::Host;
-use live::{Bridge, Live};
+use live::{Bridge, GameBuild, Live};
 use store::Store;
 
 const API: u64 = 1;
@@ -32,6 +32,7 @@ pub struct App {
     logged_state: Option<String>,
     logged_disagree: bool,
     logged_error: Option<String>,
+    game_build: Option<(String, GameBuild)>,
 }
 
 pub fn log(line: std::fmt::Arguments) {
@@ -55,6 +56,7 @@ impl App {
             logged_state: None,
             logged_disagree: false,
             logged_error: None,
+            game_build: None,
         }
     }
 
@@ -137,6 +139,33 @@ impl App {
         bridge
     }
 
+    /// Asked once per game run, and only while the game runs without a snapshot.
+    fn game_build(&mut self, host: &mut Host, run: String) -> GameBuild {
+        if let Some((r, b)) = &self.game_build
+            && *r == run
+        {
+            return b.clone();
+        }
+        let mut text = |m: &str| {
+            host.call(m, Value::Null)
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_owned))
+        };
+        let key = text("game_build_key");
+        let version = text("game_exe_version");
+        let sets = text("game_dir").map_or_else(Vec::new, |d| {
+            live::binding_builds(&PathBuf::from(d).join("swofty/addons/core"))
+        });
+        let unsupported = live::unsupported_build(key.as_deref(), &sets);
+        log(format_args!(
+            "game build {key:?} version {version:?}: {} binding set(s), unsupported {unsupported}",
+            sets.len()
+        ));
+        let b = GameBuild { version, unsupported };
+        self.game_build = Some((run, b.clone()));
+        b
+    }
+
     pub fn live(&mut self, host: &mut Host) -> Live {
         self.locate(host);
         self.store.collect_acks();
@@ -147,13 +176,17 @@ impl App {
         }
         self.note(status.as_ref());
         let snap = self.store.snapshot().clone();
-        Live::new(
+        let mut live = Live::new(
             status,
             &snap,
             known,
             self.store.snap_error.clone(),
             self.closed_since,
-        )
+        );
+        if live.running == Some(true) && live.bridge == Bridge::Missing {
+            live.build = Some(self.game_build(host, format!("{:?}/{:?}", live.game_session, live.pid)));
+        }
+        live
     }
 
     fn tick(&mut self, host: &mut Host) {
