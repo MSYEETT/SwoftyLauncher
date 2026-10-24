@@ -32,6 +32,7 @@ const REGIONS: &str = "eaid://ui_package/region_loading.uiconfig";
 const TOOLTIPS: &str = "eaid://ui_package/databases/tool_tips.uidb";
 const UI_DATA: &str = "eaid://ui_package/databases/ui_data.uidb";
 const MESSAGES: &str = "eaid://ui_package/message_data/onlineservices_messages.uimsg";
+const HUD_MESSAGES: &str = "eaid://ui_package/message_data/hud_messages.uimsg";
 const PERSISTENT_UI: &str = "eaid://ui_package/screens/persistent.ui";
 
 pub const ERPS: &[&str] = &[
@@ -307,6 +308,7 @@ pub fn build(
         &dst_f,
         vec![
             (MESSAGES, Box::new(|d| patch::messages(d, lang))),
+            (HUD_MESSAGES, Box::new(patch::hud_messages)),
             (
                 PERSISTENT_UI,
                 Box::new(|d| {

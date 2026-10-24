@@ -3,7 +3,6 @@ mod db;
 mod doctor;
 mod ea;
 mod offline;
-mod overlay;
 mod postfx;
 mod recover;
 mod run;
@@ -103,11 +102,6 @@ enum Command {
         about = "The one-time setup before modded play: put the game folder back, verify it, then play"
     )]
     Setup(setup::SetupCommand),
-    #[command(
-        subcommand,
-        about = "The in-game overlay: whether the core turned it off after the GPU stopped responding, and turning it back on"
-    )]
-    Overlay(overlay::OverlayCommand),
     #[command(subcommand, about = "Show and change addon settings in the profile")]
     Settings(SettingsCommand),
     #[command(subcommand, about = "List and delete profiles")]
@@ -454,7 +448,6 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Addons(cmd) => addons(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Offline(cmd) => offline::command(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Setup(cmd) => setup::command(&store, cmd).map(|_| ExitCode::SUCCESS),
-        Command::Overlay(cmd) => overlay::command(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Settings(cmd) => settings(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Profile(cmd) => profiles(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Db { game, cmd } => db::command(&store, &profile, game, cmd),
@@ -543,6 +536,13 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
                 };
                 println!("{id:32} {:10} {state:9} {}", m.version.to_string(), m.name);
             }
+            for u in store.unreadable_addons() {
+                let version = u.version.as_deref().unwrap_or("?");
+                println!(
+                    "{:32} {version:10} {:9} {}: it {}",
+                    u.id, "unusable", u.name, u.reason
+                );
+            }
         }
         AddonsCommand::Install { path } => {
             for result in store.install_addons(&path) {
@@ -552,6 +552,17 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
                     println!("warning: {line}");
                 }
             }
+        }
+        AddonsCommand::Enable { id } if let Some(u) = unreadable(store, &id) => {
+            bail!("{}", u.line())
+        }
+        AddonsCommand::Disable { id, .. } if unreadable(store, &id).is_some() => {
+            store.update_profile(profile, |p| p.set_enabled(&id, false))?;
+            println!("disabled {id} in profile {profile}");
+        }
+        AddonsCommand::Remove { id, .. } if unreadable(store, &id).is_some() => {
+            store.remove_addon(&id)?;
+            println!("removed {id}");
         }
         AddonsCommand::Enable { id }
         | AddonsCommand::Disable { id, .. }
@@ -577,6 +588,10 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn unreadable(store: &Store, id: &str) -> Option<swofty_core::store::Unreadable> {
+    store.unreadable_addons().into_iter().find(|u| u.id == id)
 }
 
 fn confirm_saves(w: &SavesWarning, verb: &str, yes: bool) -> Result<()> {

@@ -1,0 +1,30 @@
+{
+  "sources": {
+    "more_driver_models": {
+      "zip": "More Driver Models.zip",
+      "root": "F1 25",
+      "title": "More Driver Models",
+      "version": "v1.2",
+      "author": null
+    },
+    "kubica_face_mod": {
+      "zip": "F1 25 Kubica Face Mod.zip",
+      "root": "Cap On/F1 25",
+      "title": "F1 25 Kubica Face Mod",
+      "version": "Cap On",
+      "author": "unknown"
+    }
+  },
+  "heads": {
+    "kimi_raikkonen": "more_driver_models",
+    "sebastian_vettel": "more_driver_models",
+    "romain_grosjean": "more_driver_models",
+    "daniil_kvyat": "more_driver_models",
+    "antonio_giovinazzi": "more_driver_models",
+    "nicholas_latifi": "more_driver_models",
+    "mick_schumacher": "more_driver_models",
+    "nikita_mazepin": "more_driver_models",
+    "nyck_de-vries": "more_driver_models",
+    "robert_kubica": "kubica_face_mod"
+  }
+}

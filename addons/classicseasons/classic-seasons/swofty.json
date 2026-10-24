@@ -2,10 +2,12 @@
   "schema_version": 1,
   "id": "swofty.classic-seasons",
   "name": "Classic Seasons",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": "Swofty",
-  "description": "Classic Seasons core: the season boxes in Grand Prix and Time Trial, team logos and the drivers the seasons share. Add the F1 2016 to F1 2024 season addons you want on top.",
+  "description": "Classic Seasons core: season boxes in Grand Prix and Time Trial, team logos, suits and the shared drivers with their real heads. Add the F1 2016 to F1 2024 seasons on top.",
   "license": "AGPL-3.0-or-later",
+  "icon": "icon.png",
+  "category": "seasons",
   "kind": [
     "database",
     "erp",
@@ -17,7 +19,7 @@
     "game_builds": [
       ">=25251167"
     ],
-    "launcher": ">=1.3.6"
+    "launcher": ">=1.5.1"
   },
   "requires": [
     {
@@ -30,7 +32,9 @@
       "db/core.json"
     ],
     "assets": [
-      "lang/core.json"
+      "lang/core.json",
+      "assets/heads.json",
+      "assets/suits.json"
     ],
     "native": [
       {

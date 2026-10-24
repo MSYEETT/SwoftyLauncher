@@ -71,6 +71,12 @@ Select **Remove** in the addon's panel and confirm. Removing an addon deletes it
 
 Removing a DB Editor addon deletes its changes. To keep them, select **Export** › **Share addon (.zip)** in the [DB Editor](/using/db-editor) first.
 
+## Addons that can't be used
+
+An addon made for a newer Swofty Launcher, or one whose `swofty.json` is damaged, is listed under **Can't be used** with the reason, such as "It needs a newer Swofty Launcher (unknown field `hud`)". The launcher leaves it out of builds, and **Remove** deletes it. The rest of your addons work as before. Installing such an addon is refused with the same reason.
+
+A profile saved by a newer launcher keeps the settings this launcher doesn't know, and saves them back unchanged.
+
 ## Built-in addons
 
 | Addon | What it does |
@@ -102,12 +108,3 @@ Add `--profile <name>` to work on a profile other than the active one. For an ad
 - [DB Editor](/using/db-editor): change the game database and save it as an addon.
 - [Profiles](/using/profiles): keep different sets of addons apart.
 - To make an addon, see [Addons](/reference/addons/) in the developer docs.
-
-## The in-game overlay is off
-
-When the graphics card stops responding within 10 s of an addon drawing over the game, the game stops and Swofty turns the in-game overlay off for that copy of the game. The launcher then shows **The in-game overlay is off**, naming the addons on in the profile that draw over the game. The addons keep running, and nothing they draw over the game shows.
-
-- **Turn the overlay back on** draws it again from the next launch.
-- **Keep it off** closes the notice. The play bar keeps **The in-game overlay is off**, and **Details** opens the notice again.
-
-`swofty overlay status` and `swofty overlay reset` do the same from the command line. See [`swofty overlay`](/reference/cli#swofty-overlay).

@@ -334,6 +334,27 @@ typedef struct SwoftyPopup {
     int (*show)(const char *title, const char *body);
 } SwoftyPopup;
 
+/* Race HUD (swofty/hud.hpp), table version 1. Not part of SwoftyApi: the table comes from the core's
+   SwoftyCoreHud export, so an addon built against this header also loads on an older core. Fields are only
+   ever appended; version is the number of the last layout the core fills, so check it before calling a
+   field added after version 1.
+   Version 1: available; toast shows text (and an optional second line, detail) in the race HUD's central
+   notification for about seconds, rounded to 2, 3, 4, 5, 6, 8, 10, 12, 15, 20 or 30, with icon NULL/"" for
+   the default or a race_flags name (generic, diagonal, black, checkpoint, chequered, fast_lap,
+   formation_lap, pp_icon, red, safety_car, virtual_safety_car, virtual_safety_car_green, flag_rival_won);
+   set writes one HUD data leaf under ui_menu_data.hud_* or view_model_data.hud*: type SWOFTY_HUD_TEXT with
+   a const char *, SWOFTY_HUD_BOOL or SWOFTY_HUD_INT with a const int32_t *. Strings are UTF-8, copied and
+   capped at 200 bytes. */
+#define SWOFTY_API_HUD 1
+#define SWOFTY_HUD_VERSION 1
+enum { SWOFTY_HUD_TEXT = 0, SWOFTY_HUD_BOOL = 1, SWOFTY_HUD_INT = 2 };
+typedef struct SwoftyHud {
+    uint32_t version;
+    int (*available)(void);
+    int (*toast)(const char *text, const char *detail, float seconds, const char *icon);
+    int (*set)(const char *path, uint32_t type, const void *value);
+} SwoftyHud;
+
 /* Runtime string overrides (API v8): the localised text a lng_* key resolves to, changed while the
    game runs. language NULL or "*" means every language; otherwise a language code (eng, fre, ...)
    that applies while it is the game's current language and wins over "*". The text is UTF-8 and is

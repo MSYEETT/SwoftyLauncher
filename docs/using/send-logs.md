@@ -42,7 +42,6 @@ The logs go to the developers' Discord as one zip file, `swofty-logs-<username>-
 | `conflicts.json` | From the active profile's last build: each pair of addons that change the same thing, which one wins, and the records, resources, files and text they both change |
 | `config.json` | The launcher's settings |
 | `game/career-editor/snapshot.json` | The Career Mode Editor's snapshot, when the game folder has one |
-| `game/overlay-gpu-removed.json` | The core's record that the graphics card stopped responding after the overlay drew, when the game folder has one |
 
 The logs can include folder paths with your computer's user name, your hardware, and your installed mods and profiles. Passwords, tokens and keys in `config.json`, in addon settings and in each session's `env.txt` are replaced with `[redacted]`. Each file is cut to its last 5 MB, and the whole zip holds at most 40 MB before compression.
 

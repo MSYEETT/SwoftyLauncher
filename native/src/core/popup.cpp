@@ -4,10 +4,14 @@
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 
+#include <algorithm>
 #include <atomic>
+#include <cmath>
+#include <cstring>
 #include <deque>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include "perf.hpp"
 
@@ -28,8 +32,15 @@
 // Every construct passes through the wrap below, which records the system pointer (the game
 // constructs messages from boot on, the online-services wait box first). Requests queue from any
 // thread and are shown from the flow tick.
+//
+// Toasts go through the same system as hud_main messages, the queue the race HUD's central
+// notification (hud_notifications_dynamic, F1HM bound to #ui_messages.hud_main_queue.hud_main) draws.
+// The launcher adds swofty_toast_<seconds> to hud_messages.uimsg: literal (localise false) message and
+// sub_message attributes and a fixed msg_duration per id, so a toast picks the id nearest its duration.
 
 std::string settings_addon(const void *from, std::string &dll);
+void *ui_vm_message_system();
+bool ui_vm_set_path(const std::string &path, int type, const void *value);
 
 namespace {
 
@@ -77,6 +88,27 @@ struct Request {
     std::string title, body, by;
 };
 
+struct Toast {
+    std::string text, detail, icon, by;
+    unsigned seconds;
+};
+
+struct Set {
+    std::string path, text, by;
+    int type;
+    int32_t number;
+};
+
+constexpr const char *ICONS[] = {"generic",  "diagonal",           "black",       "checkpoint",
+                                 "chequered", "fast_lap",           "formation_lap", "pp_icon",
+                                 "red",      "safety_car",         "virtual_safety_car",
+                                 "virtual_safety_car_green", "flag_rival_won"};
+constexpr const char *SET_PREFIXES[] = {"ui_menu_data.hud_", "view_model_data.hud.", "view_model_data.hud_"};
+constexpr size_t MAX_SETS = 64;
+
+constexpr unsigned TOAST_SECONDS[] = {2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 30};
+constexpr size_t MAX_TOASTS = 8, MAX_TOAST_TEXT = 200;
+
 uintptr_t a_construct, a_set_attr, a_release, a_make_str;
 const void *id_vt;
 safetyhook::InlineHook h_construct;
@@ -84,7 +116,11 @@ std::atomic<void *> sys;
 std::atomic<bool> live, own_missing;
 std::mutex queue_lock;
 std::deque<Request> queue;
-std::atomic<size_t> pending;
+std::atomic<size_t> pending, toasts_pending;
+std::deque<Toast> toasts;
+std::atomic<bool> toast_missing;
+std::deque<Set> sets;
+std::atomic<size_t> sets_pending;
 
 uintptr_t rel32(uintptr_t at)
 {
@@ -150,6 +186,35 @@ void show(void *s, const Request &r)
                 ok ? "" : " (an attribute was refused; the popup may show empty text)");
 }
 
+unsigned toast_seconds(float want)
+{
+    unsigned best = TOAST_SECONDS[0];
+    for (unsigned n : TOAST_SECONDS)
+        if (std::fabs(float(n) - want) < std::fabs(float(best) - want))
+            best = n;
+    return best;
+}
+
+void show_toast(void *s, const Toast &t)
+{
+    char id[32];
+    snprintf(id, sizeof id, "swofty_toast_%u", t.seconds);
+    Handle h = open(s, id);
+    if (!h.msg) {
+        if (!toast_missing.exchange(true))
+            swofty::log("[hud] toast from %s dropped: the game has no '%s' message (the launcher's UI build adds the "
+                        "swofty_toast_* HUD messages)",
+                        t.by.c_str(), id);
+        return;
+    }
+    bool ok = set(h, "message", t.text) && set(h, "sub_message", t.detail);
+    if (!t.icon.empty())
+        ok = set(h, "flag", "#overrides.osd.race_flags." + t.icon) && ok;
+    reinterpret_cast<Release_t *>(a_release)(&h);
+    swofty::log("[hud] toast shown for %s as '%s'%s%s: \"%.80s\"%s", t.by.c_str(), id, t.icon.empty() ? "" : " icon ",
+                t.icon.c_str(), t.text.c_str(), ok ? "" : " (an attribute was refused; the toast may show empty text)");
+}
+
 int api_available()
 {
     return live && runtime::enabled("popup", nullptr);
@@ -199,6 +264,173 @@ int api_show(const char *title, const char *body)
 
 const SwoftyPopup table = {api_available, api_show};
 
+int toast_enqueue(std::string text, std::string detail, float seconds, std::string icon, const std::string &by)
+{
+    if (text.empty()) {
+        swofty::log("[hud] toast by %s refused: empty text", by.c_str());
+        return SWOFTY_ASSET_INVALID;
+    }
+    if (!icon.empty() && std::none_of(std::begin(ICONS), std::end(ICONS), [&](const char *i) { return icon == i; })) {
+        swofty::log("[hud] toast by %s refused: unknown icon '%.40s'", by.c_str(), icon.c_str());
+        return SWOFTY_ASSET_INVALID;
+    }
+    if (!api_available()) {
+        swofty::log("[hud] toast by %s: unavailable (%s)", by.c_str(),
+                    runtime::enabled("popup", nullptr) ? "the message system did not resolve on this build"
+                                                       : "the popup feature is off");
+        return SWOFTY_ASSET_UNAVAILABLE;
+    }
+    if (text.size() > MAX_TOAST_TEXT)
+        text.resize(MAX_TOAST_TEXT);
+    if (detail.size() > MAX_TOAST_TEXT)
+        detail.resize(MAX_TOAST_TEXT);
+    unsigned n = toast_seconds(seconds > 0 ? seconds : 4.0f);
+    std::lock_guard<std::mutex> g(queue_lock);
+    if (toasts.size() >= MAX_TOASTS) {
+        swofty::log("[hud] toast queue full (%zu); dropping the oldest toast, from %s", toasts.size(),
+                    toasts.front().by.c_str());
+        toasts.pop_front();
+    }
+    toasts.push_back({std::move(text), std::move(detail), std::move(icon), by, n});
+    toasts_pending = toasts.size();
+    swofty::log("[hud] toast queued by %s for %us: \"%.80s\"", by.c_str(), n, toasts.back().text.c_str());
+    return SWOFTY_ASSET_OK;
+}
+
+int api_toast(const char *text, const char *detail, float seconds, const char *icon)
+{
+    return toast_enqueue(text ? text : "", detail ? detail : "", seconds, icon ? icon : "",
+                         who(__builtin_return_address(0)));
+}
+
+int set_enqueue(std::string path, int type, std::string text, int32_t number, const std::string &by)
+{
+    if (!path.empty() && path[0] == '#')
+        path.erase(0, 1);
+    bool listed = std::any_of(std::begin(SET_PREFIXES), std::end(SET_PREFIXES),
+                              [&](const char *p) { return path.rfind(p, 0) == 0 && path.size() > strlen(p); });
+    if (!listed || path.find_first_of(" []") != std::string::npos || path.back() == '.' || type < 0 || type > 2) {
+        swofty::log("[hud] set by %s refused: '%.120s' is not a hud_* leaf (ui_menu_data.hud_*, view_model_data.hud*)",
+                    by.c_str(), path.c_str());
+        return SWOFTY_ASSET_INVALID;
+    }
+    if (!api_available())
+        return SWOFTY_ASSET_UNAVAILABLE;
+    if (text.size() > MAX_TOAST_TEXT)
+        text.resize(MAX_TOAST_TEXT);
+    std::lock_guard<std::mutex> g(queue_lock);
+    for (auto &q : sets)
+        if (q.path == path) {
+            q = {path, std::move(text), by, type, number};
+            return SWOFTY_ASSET_OK;
+        }
+    if (sets.size() >= MAX_SETS) {
+        swofty::log("[hud] set queue full (%zu); dropping the oldest, from %s", sets.size(), sets.front().by.c_str());
+        sets.pop_front();
+    }
+    sets.push_back({std::move(path), std::move(text), by, type, number});
+    sets_pending = sets.size();
+    return SWOFTY_ASSET_OK;
+}
+
+int api_set(const char *path, uint32_t type, const void *value)
+{
+    std::string by = who(__builtin_return_address(0));
+    if (!path || !value)
+        return SWOFTY_ASSET_INVALID;
+    if (type == 0)
+        return set_enqueue(path, 0, static_cast<const char *>(value), 0, by);
+    return set_enqueue(path, int(type), "", *static_cast<const int32_t *>(value), by);
+}
+
+void apply_set(const Set &q)
+{
+    bool ok = q.type == 0 ? ui_vm_set_path(q.path, 0, q.text.c_str()) : ui_vm_set_path(q.path, q.type, &q.number);
+    static std::atomic<int> told;
+    if (!ok || told.fetch_add(1) < 16)
+        swofty::log("[hud] set %s by %s: %s = %s%s", ok ? "applied" : "failed", q.by.c_str(), q.path.c_str(),
+                    q.type == 0 ? ("\"" + q.text.substr(0, 60) + "\"").c_str() : std::to_string(q.number).c_str(),
+                    ok ? "" : " (the parent node did not resolve)");
+}
+
+const SwoftyHud hud_table = {SWOFTY_HUD_VERSION, api_available, api_toast, api_set};
+
+unsigned toast_test_every;
+uint64_t toast_test_next;
+unsigned toast_test_count;
+
+void toast_test_tick()
+{
+    if (!toast_test_every)
+        return;
+    uint64_t now = GetTickCount64();
+    if (now < toast_test_next)
+        return;
+    toast_test_next = now + uint64_t(toast_test_every) * 1000;
+    char text[64], detail[64];
+    snprintf(text, sizeof text, "SWOFTY TOAST %u", ++toast_test_count);
+    const char *icon = ICONS[(toast_test_count - 1) % (sizeof ICONS / sizeof *ICONS)];
+    snprintf(detail, sizeof detail, "core test, icon %s", icon);
+    toast_enqueue(text, detail, 4.0f, icon, "SWOFTY_TOAST_TEST");
+}
+
+std::string set_test_text;
+uint64_t set_test_next;
+std::vector<Set> dev_sets;
+
+void set_test_tick()
+{
+    if (set_test_text.empty())
+        return;
+    uint64_t now = GetTickCount64();
+    if (now < set_test_next)
+        return;
+    set_test_next = now + 5000;
+    int32_t off = 0;
+    set_enqueue("ui_menu_data.hud_lap_number_visible", 1, "", off, "SWOFTY_HUD_SET_TEST");
+    set_enqueue("ui_menu_data.hud_lap_description_loc_tag", 1, "", off, "SWOFTY_HUD_SET_TEST");
+    set_enqueue("ui_menu_data.hud_lap_description_string", 0, set_test_text, 0, "SWOFTY_HUD_SET_TEST");
+    set_enqueue("ui_menu_data.hud_total_lap_count_visible", 1, "", off, "SWOFTY_HUD_SET_TEST");
+    set_enqueue("ui_menu_data.hud_top_left_position_visible", 1, "", off, "SWOFTY_HUD_SET_TEST");
+}
+
+void dev_set_parse(const std::string &spec)
+{
+    size_t at = 0;
+    while (at < spec.size()) {
+        size_t end = spec.find(';', at);
+        std::string item = spec.substr(at, end == std::string::npos ? std::string::npos : end - at);
+        at = end == std::string::npos ? spec.size() : end + 1;
+        size_t eq = item.find('=');
+        if (item.size() < 3 || item[1] != ':' || eq == std::string::npos)
+            continue;
+        Set q{item.substr(2, eq - 2), item.substr(eq + 1), "SWOFTY_HUD_DEV_SET", 0, 0};
+        q.type = item[0] == 'b' ? 1 : item[0] == 'i' ? 2 : 0;
+        if (q.type)
+            q.number = int32_t(atoi(q.text.c_str()));
+        dev_sets.push_back(q);
+        swofty::log("[hud] SWOFTY_HUD_DEV_SET: %s = %s every 5 s (dev switch, any path)", q.path.c_str(), q.text.c_str());
+    }
+}
+
+void dev_set_tick()
+{
+    static uint64_t next;
+    if (dev_sets.empty())
+        return;
+    uint64_t now = GetTickCount64();
+    if (now < next)
+        return;
+    next = now + 5000;
+    for (auto &q : dev_sets)
+        apply_set(q);
+}
+
+}
+
+extern "C" __declspec(dllexport) const SwoftyHud *SwoftyCoreHud(void)
+{
+    return &hud_table;
 }
 
 namespace runtime {
@@ -211,6 +443,11 @@ const SwoftyPopup *popup_table()
 int popup_show(const std::string &title, const std::string &body, const std::string &by)
 {
     return enqueue(title, body, by);
+}
+
+int hud_toast(const std::string &text, const std::string &detail, float seconds, const std::string &by)
+{
+    return toast_enqueue(text, detail, seconds, "", by);
 }
 
 void popup_setup()
@@ -244,6 +481,20 @@ void popup_setup()
     }
     h_construct = std::move(*r);
     live = true;
+    char every[16] = {};
+    if (GetEnvironmentVariableA("SWOFTY_TOAST_TEST", every, sizeof every) && atoi(every) > 0) {
+        toast_test_every = unsigned(atoi(every));
+        toast_test_next = GetTickCount64() + uint64_t(toast_test_every) * 1000;
+        swofty::log("[hud] SWOFTY_TOAST_TEST: a test toast every %us", toast_test_every);
+    }
+    char dev[512] = {};
+    if (GetEnvironmentVariableA("SWOFTY_HUD_DEV_SET", dev, sizeof dev) && dev[0])
+        dev_set_parse(dev);
+    char lap[128] = {};
+    if (GetEnvironmentVariableA("SWOFTY_HUD_SET_TEST", lap, sizeof lap) && lap[0]) {
+        set_test_text = lap;
+        swofty::log("[hud] SWOFTY_HUD_SET_TEST: the lap counter shows \"%s\", lap totals and the top-left position tower hide (set every 5 s)", lap);
+    }
     swofty::log("[popup] setup: live; construct base+0x%llx, set attribute base+0x%llx, release base+0x%llx, id vtable "
                 "base+0x%llx",
                 (unsigned long long)(a_construct - base), (unsigned long long)(a_set_attr - base),
@@ -252,22 +503,53 @@ void popup_setup()
 
 void popup_tick()
 {
-    if (!pending.load(std::memory_order_relaxed))
+    toast_test_tick();
+    set_test_tick();
+    dev_set_tick();
+    if (sets_pending.load(std::memory_order_relaxed)) {
+        std::deque<Set> now_sets;
+        {
+            std::lock_guard<std::mutex> g(queue_lock);
+            now_sets.swap(sets);
+            sets_pending = 0;
+        }
+        static const uint32_t set_probe = perf::probe("core", "hud set");
+        perf::Scope p(set_probe);
+        for (auto &q : now_sets) {
+            perf::Pause game;
+            apply_set(q);
+        }
+    }
+    if (!pending.load(std::memory_order_relaxed) && !toasts_pending.load(std::memory_order_relaxed))
         return;
     void *s = sys.load();
+    if (!s && (s = ui_vm_message_system())) {
+        void *was = nullptr;
+        if (sys.compare_exchange_strong(was, s))
+            swofty::log("[popup] message system %p from the UI system (no message constructed yet)", s);
+        else
+            s = was;
+    }
     if (!s)
         return;
     static const uint32_t probe = perf::probe("core", "popup show");
     perf::Scope p(probe);
     std::deque<Request> now;
+    std::deque<Toast> now_toasts;
     {
         std::lock_guard<std::mutex> g(queue_lock);
         now.swap(queue);
+        now_toasts.swap(toasts);
         pending = 0;
+        toasts_pending = 0;
     }
     for (auto &r : now) {
         perf::Pause game;
         show(s, r);
+    }
+    for (auto &t : now_toasts) {
+        perf::Pause game;
+        show_toast(s, t);
     }
 }
 

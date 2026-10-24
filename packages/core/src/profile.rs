@@ -17,8 +17,8 @@ pub fn valid_name(name: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
+/// Fields a newer launcher wrote are kept in `unknown` and written back unchanged.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(deny_unknown_fields)]
 pub struct Profile {
     pub schema_version: u32,
     pub name: String,
@@ -32,14 +32,17 @@ pub struct Profile {
     pub applied: BTreeMap<String, BTreeMap<String, serde_json::Value>>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub state: BTreeMap<String, serde_json::Value>,
+    #[serde(flatten, default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub unknown: BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(deny_unknown_fields)]
 pub struct ProfileAddon {
     pub id: String,
     #[serde(default = "enabled")]
     pub enabled: bool,
+    #[serde(flatten, default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub unknown: BTreeMap<String, serde_json::Value>,
 }
 
 fn enabled() -> bool {
@@ -56,6 +59,7 @@ impl Profile {
             options: BTreeMap::new(),
             applied: BTreeMap::new(),
             state: BTreeMap::new(),
+            unknown: BTreeMap::new(),
         };
         p.normalise();
         p
@@ -70,7 +74,18 @@ impl Profile {
             options: BTreeMap::new(),
             applied: BTreeMap::new(),
             state: BTreeMap::new(),
+            unknown: BTreeMap::new(),
         }
+    }
+
+    /// The fields a newer launcher wrote that this one keeps without using, as `name` or
+    /// `addons[id].name`.
+    pub fn unknown_fields(&self) -> Vec<String> {
+        let mut out: Vec<String> = self.unknown.keys().cloned().collect();
+        for a in &self.addons {
+            out.extend(a.unknown.keys().map(|k| format!("addons[{}].{k}", a.id)));
+        }
+        out
     }
 
     pub fn is_vanilla(&self) -> bool {
@@ -93,6 +108,7 @@ impl Profile {
             ProfileAddon {
                 id: CORE_ID.into(),
                 enabled: true,
+                unknown: BTreeMap::new(),
             },
         );
     }
@@ -145,6 +161,7 @@ impl Profile {
             None => self.addons.push(ProfileAddon {
                 id: id.into(),
                 enabled: on,
+                unknown: BTreeMap::new(),
             }),
         }
         Ok(())

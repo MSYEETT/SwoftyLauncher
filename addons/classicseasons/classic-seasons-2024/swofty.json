@@ -1,11 +1,13 @@
 {
  "schema_version": 1,
  "id": "swofty.classic-seasons-2024",
- "name": "Classic Seasons: F1 2024",
- "version": "0.3.0",
+ "name": "Classic Seasons: F1 2024 GP/TT Addon",
+ "version": "0.4.0",
  "author": "Swofty",
  "description": "The F1 2024 season for Classic Seasons: its cars, teams and drivers in Grand Prix and Time Trial. Cars by fanfreluche.",
  "license": "AGPL-3.0-or-later",
+ "icon": "icon.png",
+ "category": "seasons",
  "kind": [
   "database",
   "files"
@@ -15,7 +17,7 @@
   "game_builds": [
    ">=25251167"
   ],
-  "launcher": ">=1.3.6"
+  "launcher": ">=1.5.1"
  },
  "requires": [
   {
@@ -24,7 +26,7 @@
   },
   {
    "id": "swofty.classic-seasons",
-   "version": ">=0.3.0"
+   "version": ">=0.4.0"
   }
  ],
  "operations": {

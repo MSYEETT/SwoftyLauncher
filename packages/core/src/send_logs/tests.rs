@@ -1421,14 +1421,14 @@ fn names_the_overlay_addons_and_whether_the_overlay_drew() {
     );
     put(
         &store.root.join("sessions/20261019-090000/loader.log"),
-        "1 [overlay] off: swofty/overlay-gpu-removed.json records the GPU removed 4.8 s after the overlay drew\n",
+        "1 [overlay] api: kizi.pitlane on_paint -> ok (token 1)\n\
+         2 [overlay] drawing on swapchain 0000000012345678 with the DIRECT queue 00000000AAAA\n\
+         3 [overlay] first overlay frame submitted: 96 vertices\n\
+         4 [overlay] the GPU was removed (present 0x887a0005, reason 0x887a0006) 4.8 s after the overlay last drew \
+         (swapchain by F1_25.exe); the overlay stops drawing\n",
     );
-    let record = "{\n  \"schema\": 1,\n  \"when\": \"2026-10-24 02:39:47\",\n  \"present_hr\": \"0x887a0005\",\n  \
-                  \"removed_reason\": \"0x887a0006\",\n  \"after_draw_ms\": 4812,\n  \"swapchain_by\": \"F1_25.exe\"\n}\n";
-    put(&game.join("swofty/overlay-gpu-removed.json"), record);
     let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261021-091500");
     let zip = bundle.zip().unwrap();
-    assert_eq!(entry(&zip, "game/overlay-gpu-removed.json"), record);
     let summary = summary_of(&bundle);
     let overlay = summary
         .split_once("\nOverlay\n")
@@ -1440,11 +1440,6 @@ fn names_the_overlay_addons_and_whether_the_overlay_drew() {
         lines[0],
         "  Addons that draw over the game: Manual Pit Lane (kizi.pitlane)"
     );
-    assert_eq!(
-        lines[1],
-        "  Kept off: game/overlay-gpu-removed.json says the GPU was removed 4.8 s after the overlay drew \
-         (2026-10-24 02:39:47, present 0x887a0005, reason 0x887a0006, swapchain by F1_25.exe)"
-    );
     assert!(
         lines.contains(
             &"  sessions/20261020-090000                 drew on 2560x1440, 4 buffer(s), format 24; on_paint by kizi.pitlane"
@@ -1452,8 +1447,12 @@ fn names_the_overlay_addons_and_whether_the_overlay_drew() {
         "{overlay}"
     );
     assert!(
-        lines.iter().any(|l| l
-            .starts_with("  sessions/20261019-090000                 off (swofty/overlay-gpu-removed.json")),
+        lines.contains(
+            &"  sessions/20261019-090000                 drew on 0000000012345678 with the DIRECT queue 00000000AAAA; \
+              on_paint by kizi.pitlane; the GPU was \
+              removed (present 0x887a0005, reason 0x887a0006) 4.8 s after the overlay last drew (swapchain by \
+              F1_25.exe); the overlay stops drawing"
+        ),
         "{overlay}"
     );
     assert!(

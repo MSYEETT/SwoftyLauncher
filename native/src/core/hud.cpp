@@ -3,6 +3,8 @@
 #include "hud_drawlist.hpp"
 #include "hud_guard.hpp"
 #include "hud_png.hpp"
+#include "perf.hpp"
+#include "d3d12_hooks.hpp"
 
 #include <safetyhook.hpp>
 #include <swofty/mixin.hpp>
@@ -69,8 +71,7 @@ std::string addon_image(const Caller &c, const char *file, std::string &why)
 // its work runs after the game's frame and before the present on the same queue. Swapchains that a
 // frame-generation module created or presents are left alone. A ring of command lists behind one
 // fence replaces any wait in Present: a frame whose slot is still on the GPU is skipped. A device
-// removal within 10 s of an overlay draw is recorded in swofty/overlay-gpu-removed.json, which keeps
-// the overlay off on later launches.
+// removal stops the overlay for the rest of the session.
 
 struct Vertex {
     float x, y;
@@ -160,45 +161,32 @@ constexpr UINT MAX_VERTS = 1u << 18;
 constexpr UINT SLOTS = 3;
 constexpr ULONGLONG STATS_MS = 60000;
 
-std::string module_of(const void *addr, HMODULE *mod = nullptr)
+using d3d12hooks::module_of;
+
+bool kill_has(const std::string &list, const char *what)
 {
-    HMODULE m = nullptr;
-    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                            reinterpret_cast<LPCWSTR>(addr), &m) ||
-        !m)
-        return {};
-    if (mod)
-        *mod = m;
-    char path[MAX_PATH] = {};
-    DWORD n = GetModuleFileNameA(m, path, MAX_PATH);
-    return std::string(hud::guard::base_name(std::string_view(path, n)));
+    std::string l = "," + runtime::lower(list) + ",";
+    for (auto &c : l)
+        if (c == ' ' || c == ';')
+            c = ',';
+    return l.find(std::string(",") + what + ",") != std::string::npos;
 }
 
-std::string self_module()
+bool killed(const char *what)
 {
-    static std::string name = module_of(reinterpret_cast<const void *>(&module_of));
-    return name;
+    static std::string list = [] {
+        char v[256] = {};
+        DWORD n = GetEnvironmentVariableA("SWOFTY_OVERLAY_KILL", v, sizeof v);
+        std::string out = n && n < sizeof v ? std::string(v, n) : std::string();
+        for (auto &x : runtime::config()["overlay_kill"].a)
+            if (x.type == json::Value::Str)
+                out += "," + x.s;
+        return out;
+    }();
+    return kill_has(list, "all") || kill_has(list, what);
 }
 
-std::string now_text()
-{
-    SYSTEMTIME t;
-    GetLocalTime(&t);
-    char b[32];
-    snprintf(b, sizeof b, "%04u-%02u-%02u %02u:%02u:%02u", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
-    return b;
-}
-
-struct Chain {
-    void *sc = nullptr;
-    ID3D12CommandQueue *queue = nullptr;
-    std::string how, by, fg;
-    bool streamline = false;
-    bool told = false;
-};
-
-std::mutex chains_lock;
-std::vector<Chain> chains;
+std::vector<std::pair<void *, bool>> told;
 std::vector<void *> unknown_told;
 
 struct Pso {
@@ -214,32 +202,75 @@ struct Slot {
 
 struct Renderer {
     ID3D12Device *dev = nullptr;
-    ID3D12RootSignature *root = nullptr;
-    ID3DBlob *vs = nullptr, *ps = nullptr;
+    ID3D12RootSignature *root = nullptr, *comp_root = nullptr;
+    ID3DBlob *vs = nullptr, *ps = nullptr, *cvs = nullptr, *cps = nullptr;
+    ID3D12PipelineState *geo = nullptr;
     std::vector<Pso> psos;
-    ID3D12DescriptorHeap *rtv_heap = nullptr;
-    UINT rtv_inc = 0;
+    ID3D12DescriptorHeap *rtv_heap = nullptr, *srv_heap = nullptr;
+    UINT rtv_inc = 0, srv_inc = 0;
     Slot slots[SLOTS];
     UINT next = 0;
     ID3D12Resource *vbuf = nullptr;
     uint8_t *vmap = nullptr;
     ID3D12Fence *fence = nullptr;
     UINT64 fence_val = 0;
+    ID3D12Resource *layer = nullptr;
+    UINT layer_w = 0, layer_h = 0;
+    D3D12_RESOURCE_STATES layer_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    std::vector<std::pair<UINT64, ID3D12Resource *>> graveyard;
+    ID3D12QueryHeap *ts_heap = nullptr;
+    ID3D12Resource *ts_buf = nullptr;
+    UINT64 ts_freq = 0;
+    double gpu_ms = 0;
+    unsigned gpu_n = 0;
     bool ready = false;
     bool failed = false;
 
+    static constexpr DXGI_FORMAT LAYER_FMT = DXGI_FORMAT_R8G8B8A8_UNORM;
+
     bool compile(pD3DCompile fn, const char *entry, const char *model, ID3DBlob **out)
     {
-        static const char hlsl[] = "cbuffer C:register(b0){float2 inv;}"
-                                   "struct I{float2 p:POSITION;float4 c:COLOR;};"
-                                   "struct O{float4 p:SV_POSITION;float4 c:COLOR;};"
-                                   "O VS(I i){O o;o.p=float4(i.p.x*inv.x-1.0,1.0-i.p.y*inv.y,0,1);o.c=i.c;return o;}"
-                                   "float4 PS(O i):SV_TARGET{return i.c;}";
+        static const char hlsl[] =
+            "cbuffer C:register(b0){float2 inv;}"
+            "struct I{float2 p:POSITION;float4 c:COLOR;};"
+            "struct O{float4 p:SV_POSITION;float4 c:COLOR;};"
+            "O VS(I i){O o;o.p=float4(i.p.x*inv.x-1.0,1.0-i.p.y*inv.y,0,1);o.c=i.c;return o;}"
+            "float4 PS(O i):SV_TARGET{return float4(i.c.rgb*i.c.a,i.c.a);}"
+            "Texture2D L:register(t0);"
+            "cbuffer K:register(b1){uint mode;float white;}"
+            "float4 CVS(uint id:SV_VertexID):SV_POSITION{float2 t=float2((id<<1)&2,id&2);"
+            "return float4(t*float2(2,-2)+float2(-1,1),0,1);}"
+            "float3 lin(float3 c){return c<=0.04045?c/12.92:pow((c+0.055)/1.055,2.4);}"
+            "float3 pq(float3 n){float3 y=pow(max(n/10000.0,0),0.1593017578125);"
+            "return pow((0.8359375+18.8515625*y)/(1+18.6875*y),78.84375);}"
+            "float4 CPS(float4 p:SV_POSITION):SV_TARGET{float4 v=L.Load(int3(p.xy,0));if(v.a<=0.0)discard;"
+            "float3 c=v.rgb/v.a;"
+            "if(mode==1){float3 l=lin(c);l=float3(dot(l,float3(0.6274040,0.3292820,0.0433136)),"
+            "dot(l,float3(0.0690970,0.9195400,0.0113612)),dot(l,float3(0.0163916,0.0880132,0.8955950)));c=pq(l*white);}"
+            "else if(mode==2){c=lin(c)*(white/80.0);}"
+            "return float4(c*v.a,v.a);}";
         ID3DBlob *err = nullptr;
         HRESULT hr = fn(hlsl, sizeof hlsl - 1, nullptr, nullptr, nullptr, entry, model, 0, 0, out, &err);
-        if (err)
+        if (err) {
+            if (FAILED(hr))
+                swofty::log("[overlay] %s: %.*s", entry, int(err->GetBufferSize()),
+                            static_cast<const char *>(err->GetBufferPointer()));
             err->Release();
+        }
         return SUCCEEDED(hr) && *out;
+    }
+
+    ID3D12RootSignature *make_sig(const D3D12_ROOT_SIGNATURE_DESC &rs)
+    {
+        ID3DBlob *blob = nullptr, *rserr = nullptr;
+        ID3D12RootSignature *sig = nullptr;
+        HRESULT hr = d3d12_serialize_root(&rs, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &rserr);
+        if (rserr)
+            rserr->Release();
+        if (SUCCEEDED(hr))
+            hr = dev->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&sig));
+        release(blob);
+        return SUCCEEDED(hr) ? sig : nullptr;
     }
 
     bool make_root()
@@ -250,7 +281,8 @@ struct Renderer {
             swofty::log("[overlay] d3dcompiler_47.dll!D3DCompile is unavailable; overlay rendering off");
             return false;
         }
-        if (!compile(compile_fn, "VS", "vs_5_0", &vs) || !compile(compile_fn, "PS", "ps_5_0", &ps)) {
+        if (!compile(compile_fn, "VS", "vs_5_0", &vs) || !compile(compile_fn, "PS", "ps_5_0", &ps) ||
+            !compile(compile_fn, "CVS", "vs_5_0", &cvs) || !compile(compile_fn, "CPS", "ps_5_0", &cps)) {
             swofty::log("[overlay] overlay shader compilation failed");
             return false;
         }
@@ -262,29 +294,38 @@ struct Renderer {
         rs.NumParameters = 1;
         rs.pParameters = &rp;
         rs.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-        ID3DBlob *blob = nullptr, *rserr = nullptr;
-        HRESULT hr = d3d12_serialize_root(&rs, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &rserr);
-        if (rserr)
-            rserr->Release();
-        if (SUCCEEDED(hr))
-            hr = dev->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&root));
-        release(blob);
-        return SUCCEEDED(hr);
+        root = make_sig(rs);
+        D3D12_DESCRIPTOR_RANGE range{};
+        range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        range.NumDescriptors = 1;
+        D3D12_ROOT_PARAMETER cp[2]{};
+        cp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+        cp[0].Constants.ShaderRegister = 1;
+        cp[0].Constants.Num32BitValues = 2;
+        cp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        cp[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        cp[1].DescriptorTable.NumDescriptorRanges = 1;
+        cp[1].DescriptorTable.pDescriptorRanges = &range;
+        cp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        D3D12_ROOT_SIGNATURE_DESC crs{};
+        crs.NumParameters = 2;
+        crs.pParameters = cp;
+        comp_root = make_sig(crs);
+        return root && comp_root && (geo = make_pso(LAYER_FMT, false));
     }
 
-    ID3D12PipelineState *pso_for(DXGI_FORMAT fmt)
+    ID3D12PipelineState *make_pso(DXGI_FORMAT fmt, bool composite)
     {
-        for (auto &p : psos)
-            if (p.fmt == fmt)
-                return p.pso;
         D3D12_INPUT_ELEMENT_DESC layout[] = {
             {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
             {"COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 8, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
         D3D12_GRAPHICS_PIPELINE_STATE_DESC pd{};
-        pd.pRootSignature = root;
-        pd.VS = {vs->GetBufferPointer(), vs->GetBufferSize()};
-        pd.PS = {ps->GetBufferPointer(), ps->GetBufferSize()};
-        pd.InputLayout = {layout, 2};
+        pd.pRootSignature = composite ? comp_root : root;
+        ID3DBlob *v = composite ? cvs : vs, *p = composite ? cps : ps;
+        pd.VS = {v->GetBufferPointer(), v->GetBufferSize()};
+        pd.PS = {p->GetBufferPointer(), p->GetBufferSize()};
+        if (!composite)
+            pd.InputLayout = {layout, 2};
         pd.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         pd.NumRenderTargets = 1;
         pd.RTVFormats[0] = fmt;
@@ -294,7 +335,7 @@ struct Renderer {
         pd.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
         auto &rt = pd.BlendState.RenderTarget[0];
         rt.BlendEnable = TRUE;
-        rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+        rt.SrcBlend = D3D12_BLEND_ONE;
         rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
         rt.BlendOp = D3D12_BLEND_OP_ADD;
         rt.SrcBlendAlpha = D3D12_BLEND_ONE;
@@ -302,13 +343,40 @@ struct Renderer {
         rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
         rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
         ID3D12PipelineState *pso = nullptr;
-        if (FAILED(dev->CreateGraphicsPipelineState(&pd, IID_PPV_ARGS(&pso))))
-            return nullptr;
-        psos.push_back({fmt, pso});
+        return SUCCEEDED(dev->CreateGraphicsPipelineState(&pd, IID_PPV_ARGS(&pso))) ? pso : nullptr;
+    }
+
+    ID3D12PipelineState *pso_for(DXGI_FORMAT fmt)
+    {
+        for (auto &p : psos)
+            if (p.fmt == fmt)
+                return p.pso;
+        ID3D12PipelineState *pso = make_pso(fmt, true);
+        if (pso)
+            psos.push_back({fmt, pso});
         return pso;
     }
 
-    bool make_resources()
+    ID3D12Resource *buffer(D3D12_HEAP_TYPE type, UINT64 size, D3D12_RESOURCE_STATES state)
+    {
+        D3D12_HEAP_PROPERTIES hp{};
+        hp.Type = type;
+        D3D12_RESOURCE_DESC rd{};
+        rd.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        rd.Width = size;
+        rd.Height = 1;
+        rd.DepthOrArraySize = 1;
+        rd.MipLevels = 1;
+        rd.Format = DXGI_FORMAT_UNKNOWN;
+        rd.SampleDesc.Count = 1;
+        rd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        ID3D12Resource *r = nullptr;
+        return SUCCEEDED(dev->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &rd, state, nullptr, IID_PPV_ARGS(&r)))
+                   ? r
+                   : nullptr;
+    }
+
+    bool make_resources(ID3D12CommandQueue *q)
     {
         for (auto &s : slots) {
             if (FAILED(dev->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&s.alloc))))
@@ -321,26 +389,30 @@ struct Renderer {
             return false;
         D3D12_DESCRIPTOR_HEAP_DESC hd{};
         hd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-        hd.NumDescriptors = SLOTS;
+        hd.NumDescriptors = SLOTS * 2;
         if (FAILED(dev->CreateDescriptorHeap(&hd, IID_PPV_ARGS(&rtv_heap))))
             return false;
         rtv_inc = dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-        D3D12_HEAP_PROPERTIES up{};
-        up.Type = D3D12_HEAP_TYPE_UPLOAD;
-        D3D12_RESOURCE_DESC rd{};
-        rd.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-        rd.Width = UINT64(sizeof(Vertex)) * MAX_VERTS * SLOTS;
-        rd.Height = 1;
-        rd.DepthOrArraySize = 1;
-        rd.MipLevels = 1;
-        rd.Format = DXGI_FORMAT_UNKNOWN;
-        rd.SampleDesc.Count = 1;
-        rd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-        if (FAILED(dev->CreateCommittedResource(&up, D3D12_HEAP_FLAG_NONE, &rd, D3D12_RESOURCE_STATE_GENERIC_READ,
-                                                nullptr, IID_PPV_ARGS(&vbuf))))
+        D3D12_DESCRIPTOR_HEAP_DESC sd{};
+        sd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        sd.NumDescriptors = SLOTS;
+        sd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        if (FAILED(dev->CreateDescriptorHeap(&sd, IID_PPV_ARGS(&srv_heap))))
             return false;
+        srv_inc = dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        vbuf = buffer(D3D12_HEAP_TYPE_UPLOAD, UINT64(sizeof(Vertex)) * MAX_VERTS * SLOTS, D3D12_RESOURCE_STATE_GENERIC_READ);
         D3D12_RANGE none{0, 0};
-        return SUCCEEDED(vbuf->Map(0, &none, reinterpret_cast<void **>(&vmap)));
+        if (!vbuf || FAILED(vbuf->Map(0, &none, reinterpret_cast<void **>(&vmap))))
+            return false;
+        D3D12_QUERY_HEAP_DESC qd{};
+        qd.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+        qd.Count = SLOTS * 2;
+        if (SUCCEEDED(q->GetTimestampFrequency(&ts_freq)) && ts_freq &&
+            SUCCEEDED(dev->CreateQueryHeap(&qd, IID_PPV_ARGS(&ts_heap))))
+            ts_buf = buffer(D3D12_HEAP_TYPE_READBACK, SLOTS * 16, D3D12_RESOURCE_STATE_COPY_DEST);
+        if (!ts_buf)
+            release(ts_heap);
+        return true;
     }
 
     std::vector<ID3D12CommandQueue *> queues;
@@ -363,62 +435,169 @@ struct Renderer {
     {
         if (FAILED(q->GetDevice(IID_PPV_ARGS(&dev))))
             return false;
-        if (!make_root() || !make_resources())
+        if (!make_root() || !make_resources(q))
             return false;
         ready = true;
         return true;
     }
 
+    void bury()
+    {
+        UINT64 done = fence->GetCompletedValue();
+        for (size_t i = 0; i < graveyard.size();)
+            if (graveyard[i].first <= done) {
+                graveyard[i].second->Release();
+                graveyard[i] = graveyard.back();
+                graveyard.pop_back();
+            } else {
+                i++;
+            }
+    }
+
+    bool ensure_layer(UINT w, UINT h)
+    {
+        if (layer && layer_w == w && layer_h == h)
+            return true;
+        if (layer)
+            graveyard.push_back({fence_val, layer});
+        layer = nullptr;
+        D3D12_HEAP_PROPERTIES hp{};
+        hp.Type = D3D12_HEAP_TYPE_DEFAULT;
+        D3D12_RESOURCE_DESC rd{};
+        rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        rd.Width = w;
+        rd.Height = h;
+        rd.DepthOrArraySize = 1;
+        rd.MipLevels = 1;
+        rd.Format = LAYER_FMT;
+        rd.SampleDesc.Count = 1;
+        rd.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+        D3D12_CLEAR_VALUE cv{};
+        cv.Format = LAYER_FMT;
+        if (FAILED(dev->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &rd,
+                                                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &cv, IID_PPV_ARGS(&layer))))
+            return false;
+        layer_w = w;
+        layer_h = h;
+        layer_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        return true;
+    }
+
+    void read_timestamps(UINT slot)
+    {
+        if (!ts_buf || !slots[slot].done_at)
+            return;
+        D3D12_RANGE r{SIZE_T(slot) * 16, SIZE_T(slot) * 16 + 16};
+        uint64_t *t = nullptr;
+        if (FAILED(ts_buf->Map(0, &r, reinterpret_cast<void **>(&t))) || !t)
+            return;
+        uint64_t a = t[slot * 2], b = t[slot * 2 + 1];
+        D3D12_RANGE none{0, 0};
+        ts_buf->Unmap(0, &none);
+        if (b > a) {
+            gpu_ms += double(b - a) * 1000.0 / double(ts_freq);
+            gpu_n++;
+        }
+    }
+
+    static void transition(ID3D12GraphicsCommandList *l, ID3D12Resource *r, D3D12_RESOURCE_STATES from,
+                           D3D12_RESOURCE_STATES to)
+    {
+        D3D12_RESOURCE_BARRIER b{};
+        b.Transition.pResource = r;
+        b.Transition.StateBefore = from;
+        b.Transition.StateAfter = to;
+        b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        l->ResourceBarrier(1, &b);
+    }
+
     enum Outcome { drawn, busy, broken };
 
     Outcome render(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, DXGI_FORMAT fmt, UINT width, UINT height,
-                   const std::vector<Vertex> &verts)
+                   const std::vector<Vertex> &verts, UINT mode, float white)
     {
         Slot &s = slots[next];
         if (fence->GetCompletedValue() < s.done_at)
             return busy;
+        bury();
+        read_timestamps(next);
+        size_t n = std::min<size_t>(verts.size(), MAX_VERTS);
+        float x0 = float(width), y0 = float(height), x1 = 0, y1 = 0;
+        for (size_t i = 0; i < n; i++) {
+            x0 = std::min(x0, verts[i].x), y0 = std::min(y0, verts[i].y);
+            x1 = std::max(x1, verts[i].x), y1 = std::max(y1, verts[i].y);
+        }
+        D3D12_RECT box{LONG(std::max(0.0f, std::floor(x0) - 1)), LONG(std::max(0.0f, std::floor(y0) - 1)),
+                       LONG(std::min(float(width), std::ceil(x1) + 1)), LONG(std::min(float(height), std::ceil(y1) + 1))};
+        if (box.right <= box.left || box.bottom <= box.top)
+            return drawn;
         ID3D12PipelineState *pso = pso_for(fmt);
-        if (!pso)
+        if (!pso || !ensure_layer(width, height))
             return broken;
         ID3D12Resource *buf = nullptr;
         if (FAILED(sc->GetBuffer(sc->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&buf))) || !buf)
             return broken;
-        size_t n = std::min<size_t>(verts.size(), MAX_VERTS);
         size_t base = size_t(next) * MAX_VERTS * sizeof(Vertex);
         memcpy(vmap + base, verts.data(), n * sizeof(Vertex));
-        if (FAILED(s.alloc->Reset()) || FAILED(s.list->Reset(s.alloc, pso))) {
+        if (FAILED(s.alloc->Reset()) || FAILED(s.list->Reset(s.alloc, geo))) {
             buf->Release();
             return broken;
         }
-        D3D12_CPU_DESCRIPTOR_HANDLE rtv = rtv_heap->GetCPUDescriptorHandleForHeapStart();
-        rtv.ptr += SIZE_T(next) * rtv_inc;
+        ID3D12GraphicsCommandList *l = s.list;
+        if (ts_heap)
+            l->EndQuery(ts_heap, D3D12_QUERY_TYPE_TIMESTAMP, next * 2);
+        D3D12_CPU_DESCRIPTOR_HANDLE rtv = rtv_heap->GetCPUDescriptorHandleForHeapStart(), lrtv = rtv;
+        rtv.ptr += SIZE_T(next) * 2 * rtv_inc;
+        lrtv.ptr += (SIZE_T(next) * 2 + 1) * rtv_inc;
         dev->CreateRenderTargetView(buf, nullptr, rtv);
-        D3D12_RESOURCE_BARRIER b{};
-        b.Transition.pResource = buf;
-        b.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-        b.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-        b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-        s.list->ResourceBarrier(1, &b);
-        s.list->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
+        dev->CreateRenderTargetView(layer, nullptr, lrtv);
+        D3D12_CPU_DESCRIPTOR_HANDLE srv = srv_heap->GetCPUDescriptorHandleForHeapStart();
+        srv.ptr += SIZE_T(next) * srv_inc;
+        dev->CreateShaderResourceView(layer, nullptr, srv);
+        D3D12_GPU_DESCRIPTOR_HANDLE gsrv = srv_heap->GetGPUDescriptorHandleForHeapStart();
+        gsrv.ptr += UINT64(next) * srv_inc;
+        if (layer_state != D3D12_RESOURCE_STATE_RENDER_TARGET)
+            transition(l, layer, layer_state, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        layer_state = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        const float clear[4] = {0, 0, 0, 0};
+        l->OMSetRenderTargets(1, &lrtv, FALSE, nullptr);
+        l->ClearRenderTargetView(lrtv, clear, 1, &box);
         D3D12_VIEWPORT vp{0, 0, float(width), float(height), 0, 1};
-        D3D12_RECT sr{0, 0, LONG(width), LONG(height)};
-        s.list->RSSetViewports(1, &vp);
-        s.list->RSSetScissorRects(1, &sr);
-        s.list->SetGraphicsRootSignature(root);
+        l->RSSetViewports(1, &vp);
+        l->RSSetScissorRects(1, &box);
+        l->SetGraphicsRootSignature(root);
         float inv[2] = {2.0f / float(width ? width : 1), 2.0f / float(height ? height : 1)};
-        s.list->SetGraphicsRoot32BitConstants(0, 2, inv, 0);
-        s.list->SetPipelineState(pso);
-        s.list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        l->SetGraphicsRoot32BitConstants(0, 2, inv, 0);
+        l->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         D3D12_VERTEX_BUFFER_VIEW vbv{vbuf->GetGPUVirtualAddress() + base, UINT(n * sizeof(Vertex)), sizeof(Vertex)};
-        s.list->IASetVertexBuffers(0, 1, &vbv);
-        s.list->DrawInstanced(UINT(n), 1, 0, 0);
-        std::swap(b.Transition.StateBefore, b.Transition.StateAfter);
-        s.list->ResourceBarrier(1, &b);
-        if (FAILED(s.list->Close())) {
+        l->IASetVertexBuffers(0, 1, &vbv);
+        l->DrawInstanced(UINT(n), 1, 0, 0);
+        D3D12_RESOURCE_BARRIER two[2]{};
+        two[0].Transition = {layer, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_STATE_RENDER_TARGET,
+                             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE};
+        two[1].Transition = {buf, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_STATE_PRESENT,
+                             D3D12_RESOURCE_STATE_RENDER_TARGET};
+        l->ResourceBarrier(2, two);
+        layer_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        l->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
+        l->SetGraphicsRootSignature(comp_root);
+        l->SetDescriptorHeaps(1, &srv_heap);
+        uint32_t k[2] = {mode, 0};
+        memcpy(&k[1], &white, 4);
+        l->SetGraphicsRoot32BitConstants(0, 2, k, 0);
+        l->SetGraphicsRootDescriptorTable(1, gsrv);
+        l->SetPipelineState(pso);
+        l->DrawInstanced(3, 1, 0, 0);
+        transition(l, buf, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+        if (ts_heap) {
+            l->EndQuery(ts_heap, D3D12_QUERY_TYPE_TIMESTAMP, next * 2 + 1);
+            l->ResolveQueryData(ts_heap, D3D12_QUERY_TYPE_TIMESTAMP, next * 2, 2, ts_buf, UINT64(next) * 16);
+        }
+        if (FAILED(l->Close())) {
             buf->Release();
             return broken;
         }
-        ID3D12CommandList *lists[] = {s.list};
+        ID3D12CommandList *lists[] = {l};
         q->ExecuteCommandLists(1, lists);
         q->Signal(fence, ++fence_val);
         s.done_at = fence_val;
@@ -430,6 +609,7 @@ struct Renderer {
     void shutdown()
     {
         release(rtv_heap);
+        release(srv_heap);
         release(vbuf);
         vmap = nullptr;
         for (auto &s : slots) {
@@ -440,9 +620,19 @@ struct Renderer {
         for (auto &p : psos)
             release(p.pso);
         psos.clear();
+        for (auto &g : graveyard)
+            g.second->Release();
+        graveyard.clear();
+        release(layer);
+        release(geo);
+        release(ts_heap);
+        release(ts_buf);
         release(root);
+        release(comp_root);
         release(vs);
         release(ps);
+        release(cvs);
+        release(cps);
         release(dev);
         ready = false;
     }
@@ -459,10 +649,6 @@ struct Stats {
     unsigned drawn = 0, busy = 0;
 } stats;
 
-using Present_t = HRESULT(STDMETHODCALLTYPE *)(IDXGISwapChain3 *, UINT, UINT);
-
-safetyhook::InlineHook h_present, h_create, h_create_hwnd, h_create_core, h_create_comp;
-thread_local int creating;
 
 void device_lost(HRESULT present_hr)
 {
@@ -478,30 +664,10 @@ void device_lost(HRESULT present_hr)
                     last ? "more than 10 s after the overlay last drew" : "and the overlay had not drawn");
         return;
     }
-    hud::guard::Removal r;
-    r.when = now_text();
-    r.present_hr = uint32_t(present_hr);
-    r.reason = uint32_t(reason);
-    r.after_draw_ms = now - last;
-    r.swapchain_by = drawn_by;
-    bool saved = runtime::write_file(runtime::under_swofty(hud::guard::REMOVED_FILE), hud::guard::removal_json(r));
-    swofty::log("[overlay] the GPU was removed (present 0x%08lx, reason 0x%08lx) %.1f s after the overlay last drew; "
-                "the overlay stops drawing%s",
+    swofty::log("[overlay] the GPU was removed (present 0x%08lx, reason 0x%08lx) %.1f s after the overlay last drew "
+                "(swapchain by %s); the overlay stops drawing",
                 static_cast<unsigned long>(present_hr), static_cast<unsigned long>(reason), double(now - last) / 1000,
-                saved ? " and stays off on later launches while swofty/overlay-gpu-removed.json exists"
-                      : "; writing swofty/overlay-gpu-removed.json failed");
-}
-
-std::string fg_caller(void *caller)
-{
-    static void *last;
-    static std::string last_fg;
-    if (caller == last)
-        return last_fg;
-    std::string name = module_of(caller);
-    last = caller;
-    last_fg = hud::guard::fg_module(name) && !hud::guard::streamline_hook(name) ? name : std::string();
-    return last_fg;
+                drawn_by.c_str());
 }
 
 struct FgWatch {
@@ -566,8 +732,12 @@ void flush_stats(ULONGLONG now)
     if (now - stats.since < STATS_MS)
         return;
     if (stats.drawn || stats.busy)
-        swofty::log("[overlay] last %llu s: %u frame(s) drawn, %u skipped while the GPU still held the slot",
-                    static_cast<unsigned long long>((now - stats.since) / 1000), stats.drawn, stats.busy);
+        swofty::log("[overlay] last %llu s: %u frame(s) drawn, %u skipped while the GPU still held the slot; GPU %.3f ms "
+                    "per drawn frame (%u timed)",
+                    static_cast<unsigned long long>((now - stats.since) / 1000), stats.drawn, stats.busy,
+                    renderer.gpu_n ? renderer.gpu_ms / renderer.gpu_n : 0.0, renderer.gpu_n);
+    renderer.gpu_ms = 0;
+    renderer.gpu_n = 0;
     stats = {now, 0, 0};
 }
 
@@ -753,12 +923,69 @@ void capture_step(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const DXGI_SWAP_CH
 }
 
 void paint_frame(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const std::vector<hud::Paintsub> &subs,
-                 const DXGI_SWAP_CHAIN_DESC &desc, ULONGLONG now);
+                 const DXGI_SWAP_CHAIN_DESC &desc, ULONGLONG now, UINT color_space);
 
-void draw_frame(IDXGISwapChain3 *sc, void *caller)
+int game_hdr_mode()
+{
+    static std::wstring path;
+    static FILETIME at{};
+    static ULONGLONG checked;
+    static int mode = -1;
+    ULONGLONG now = GetTickCount64();
+    if (checked && now - checked < 2000)
+        return mode;
+    checked = now;
+    if (path.empty())
+        path = hardware_settings_path();
+    WIN32_FILE_ATTRIBUTE_DATA fa{};
+    if (!path.empty() && GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fa) &&
+        CompareFileTime(&fa.ftLastWriteTime, &at)) {
+        at = fa.ftLastWriteTime;
+        mode = hud::guard::hdr_mode(runtime::read_file(path, 1 << 20));
+    }
+    return mode;
+}
+
+float paper_white()
+{
+    static float nits = [] {
+        char v[32] = {};
+        DWORD n = GetEnvironmentVariableA("SWOFTY_OVERLAY_NITS", v, sizeof v);
+        float f = n && n < sizeof v ? float(atof(v)) : 0;
+        return f >= 80 && f <= 1000 ? f : 350.0f;
+    }();
+    return nits;
+}
+
+UINT output_mode(IDXGISwapChain3 *sc, DXGI_FORMAT fmt, UINT color_space)
+{
+    int game = color_space == hud::guard::COLOR_SPACE_UNSET && fmt == DXGI_FORMAT_R10G10B10A2_UNORM ? game_hdr_mode() : -1;
+    auto out = hud::guard::output_for(int(fmt), color_space, game);
+    static void *told_sc;
+    static unsigned told_out = ~0u;
+    if (told_sc != sc || told_out != out) {
+        told_sc = sc;
+        told_out = out;
+        static const char *names[] = {"SDR", "HDR10 (BT.2020 PQ)", "scRGB (linear)"};
+        char why[96];
+        if (color_space != hud::guard::COLOR_SPACE_UNSET)
+            snprintf(why, sizeof why, "colour space %u from SetColorSpace1", color_space);
+        else if (game >= 0)
+            snprintf(why, sizeof why, "no SetColorSpace1 seen; the game's hdr mode is %d", game);
+        else
+            snprintf(why, sizeof why, "no SetColorSpace1 seen");
+        swofty::log("[overlay] swapchain %p output: %s, paper white %.0f nits (format %d, %s)",
+                    static_cast<void *>(sc), names[out], double(paper_white()), int(fmt), why);
+    }
+    return out;
+}
+
+void draw_frame(IDXGISwapChain3 *sc, const d3d12hooks::Swapchain *known, void *)
 {
     if (off.load() || renderer.failed)
         return;
+    static const uint32_t probe = perf::probe("core", "overlay present");
+    perf::Scope timed(probe);
     std::vector<hud::Paintsub> subs;
     if (implemented) {
         std::lock_guard<std::mutex> g(reg_lock);
@@ -766,28 +993,20 @@ void draw_frame(IDXGISwapChain3 *sc, void *caller)
     }
     if (subs.empty() && !cap.on)
         return;
-    std::string pfg = fg_caller(caller);
-    Chain c;
-    bool fresh = false;
-    {
-        std::lock_guard<std::mutex> g(chains_lock);
-        auto it = std::find_if(chains.begin(), chains.end(), [&](const Chain &x) { return x.sc == sc; });
-        if (it == chains.end()) {
-            if (std::find(unknown_told.begin(), unknown_told.end(), sc) == unknown_told.end()) {
-                unknown_told.push_back(sc);
-                swofty::log("[overlay] swapchain %p was created before the overlay hooked swapchain creation, so its "
-                            "present queue is unknown; the overlay does not draw on it",
-                            static_cast<void *>(sc));
-            }
-            return;
+    if (!known) {
+        if (std::find(unknown_told.begin(), unknown_told.end(), sc) == unknown_told.end()) {
+            unknown_told.push_back(sc);
+            swofty::log("[overlay] swapchain %p was created before the core hooked swapchain creation, so its "
+                        "present queue is unknown; the overlay does not draw on it",
+                        static_cast<void *>(sc));
         }
-        bool fg_was = !it->fg.empty();
-        if (!fg_was && !pfg.empty())
-            it->fg = pfg + " (calls Present)";
-        fresh = !it->told || (!fg_was && !it->fg.empty());
-        it->told = true;
-        c = *it;
+        return;
     }
+    const d3d12hooks::Swapchain &c = *known;
+    std::pair<void *, bool> seen{sc, !c.fg.empty()};
+    bool fresh = std::find(told.begin(), told.end(), seen) == told.end();
+    if (fresh)
+        told.push_back(seen);
     if (!c.fg.empty()) {
         if (fresh)
             swofty::log("[overlay] frame generation (%s) owns swapchain %p; the overlay does not draw on it",
@@ -840,22 +1059,28 @@ void draw_frame(IDXGISwapChain3 *sc, void *caller)
                     desc.BufferDesc.Height, int(desc.BufferDesc.Format), desc.BufferCount, c.by.c_str());
     }
     ULONGLONG now = GetTickCount64();
-    if (!subs.empty())
-        paint_frame(sc, c.queue, subs, desc, now);
-    if (cap.on)
+    if (!subs.empty() && !killed("paint"))
+        paint_frame(sc, c.queue, subs, desc, now, c.color_space_set ? c.color_space : hud::guard::COLOR_SPACE_UNSET);
+    if (cap.on && !killed("capture"))
         capture_step(sc, c.queue, desc, now);
 }
 
 void paint_frame(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const std::vector<hud::Paintsub> &subs,
-                 const DXGI_SWAP_CHAIN_DESC &desc, ULONGLONG now)
+                 const DXGI_SWAP_CHAIN_DESC &desc, ULONGLONG now, UINT color_space)
 {
+    static const uint32_t paint_probe = perf::probe("core", "overlay paint callbacks");
     hud::Frame frame;
+    perf::Scope painting(paint_probe);
     hud::build(subs, frame, float(desc.BufferDesc.Width), float(desc.BufferDesc.Height));
     std::vector<Vertex> verts = tessellate(frame);
     flush_stats(now);
     if (verts.empty())
         return;
-    switch (renderer.render(sc, q, desc.BufferDesc.Format, desc.BufferDesc.Width, desc.BufferDesc.Height, verts)) {
+    static const uint32_t probe = perf::probe("core", "overlay record");
+    perf::Scope timed(probe);
+    UINT mode = killed("hdr") ? 0 : output_mode(sc, desc.BufferDesc.Format, color_space);
+    switch (renderer.render(sc, q, desc.BufferDesc.Format, desc.BufferDesc.Width, desc.BufferDesc.Height, verts, mode,
+                            paper_white())) {
     case Renderer::drawn:
         if (!stats.drawn && !last_draw_ms.load())
             swofty::log("[overlay] first overlay frame submitted: %zu vertices", verts.size());
@@ -873,118 +1098,10 @@ void paint_frame(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const std::vector<h
     }
 }
 
-std::atomic<bool> drawing;
-
-HRESULT STDMETHODCALLTYPE present_hook(IDXGISwapChain3 *sc, UINT sync, UINT flags)
+void presented(IDXGISwapChain3 *, HRESULT hr)
 {
-    if (!(flags & DXGI_PRESENT_TEST) && !drawing.exchange(true)) {
-        draw_frame(sc, __builtin_return_address(0));
-        drawing.store(false);
-    }
-    HRESULT hr = h_present.call<HRESULT>(sc, sync, flags);
     if ((hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) && armed.load())
         device_lost(hr);
-    return hr;
-}
-
-void captured(const char *how, IUnknown *device, void *sc, UINT w, UINT h, DXGI_FORMAT fmt, UINT buffers, HMODULE impl)
-{
-    void *frames[48];
-    USHORT n = RtlCaptureStackBackTrace(0, 48, frames, nullptr);
-    std::vector<std::string> mods;
-    for (USHORT i = 0; i < n; i++)
-        mods.push_back(module_of(frames[i]));
-    char impl_path[MAX_PATH] = {};
-    DWORD impl_n = impl ? GetModuleFileNameA(impl, impl_path, MAX_PATH) : 0;
-    std::string impl_name(hud::guard::base_name(std::string_view(impl_path, impl_n)));
-    std::string by = hud::guard::chain(mods, self_module(), impl_name);
-    ID3D12CommandQueue *q = nullptr;
-    if (!device || FAILED(device->QueryInterface(IID_PPV_ARGS(&q))) || !q) {
-        swofty::log("[overlay] swapchain %p (%s, by %s) was not created on a D3D12 command queue; the overlay ignores it",
-                    sc, how, by.c_str());
-        return;
-    }
-    D3D12_COMMAND_QUEUE_DESC qd = q->GetDesc();
-    q->Release();
-    Chain c;
-    c.sc = sc;
-    c.queue = q;
-    c.how = how;
-    c.by = by;
-    c.fg = hud::guard::fg_in(mods);
-    c.streamline = hud::guard::streamline_in(mods);
-    if (qd.Type != D3D12_COMMAND_LIST_TYPE_DIRECT && c.fg.empty())
-        c.fg = "a non-direct present queue";
-    {
-        std::lock_guard<std::mutex> g(chains_lock);
-        auto it = std::find_if(chains.begin(), chains.end(), [&](const Chain &x) { return x.sc == sc; });
-        if (it != chains.end())
-            *it = c;
-        else
-            chains.push_back(c);
-        unknown_told.erase(std::remove(unknown_told.begin(), unknown_told.end(), sc), unknown_told.end());
-    }
-    swofty::log("[overlay] swapchain %p created through %s on queue %p (type %d, %ux%u, format %d, %u buffer(s)); "
-                "created by %s%s%s",
-                sc, how, static_cast<void *>(q), int(qd.Type), w, h, int(fmt), buffers, by.c_str(),
-                c.fg.empty() ? (c.streamline ? "; through Streamline's frame generation hook" : "")
-                             : "; frame generation: ",
-                c.fg.c_str());
-}
-
-HMODULE impl_create, impl_hwnd, impl_core, impl_comp;
-
-HRESULT STDMETHODCALLTYPE create_hook(IDXGIFactory *f, IUnknown *dev, DXGI_SWAP_CHAIN_DESC *d, IDXGISwapChain **out)
-{
-    creating++;
-    HRESULT hr = h_create.call<HRESULT>(f, dev, d, out);
-    if (--creating == 0 && SUCCEEDED(hr) && out && *out && d)
-        captured("IDXGIFactory::CreateSwapChain", dev, *out, d->BufferDesc.Width, d->BufferDesc.Height,
-                 d->BufferDesc.Format, d->BufferCount, impl_create);
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE create_hwnd_hook(IDXGIFactory2 *f, IUnknown *dev, HWND wnd, const DXGI_SWAP_CHAIN_DESC1 *d,
-                                           const DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fs, IDXGIOutput *o,
-                                           IDXGISwapChain1 **out)
-{
-    creating++;
-    HRESULT hr = h_create_hwnd.call<HRESULT>(f, dev, wnd, d, fs, o, out);
-    if (--creating == 0 && SUCCEEDED(hr) && out && *out && d)
-        captured("CreateSwapChainForHwnd", dev, *out, d->Width, d->Height, d->Format, d->BufferCount, impl_hwnd);
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE create_core_hook(IDXGIFactory2 *f, IUnknown *dev, IUnknown *wnd,
-                                           const DXGI_SWAP_CHAIN_DESC1 *d, IDXGIOutput *o, IDXGISwapChain1 **out)
-{
-    creating++;
-    HRESULT hr = h_create_core.call<HRESULT>(f, dev, wnd, d, o, out);
-    if (--creating == 0 && SUCCEEDED(hr) && out && *out && d)
-        captured("CreateSwapChainForCoreWindow", dev, *out, d->Width, d->Height, d->Format, d->BufferCount, impl_core);
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE create_comp_hook(IDXGIFactory2 *f, IUnknown *dev, const DXGI_SWAP_CHAIN_DESC1 *d,
-                                           IDXGIOutput *o, IDXGISwapChain1 **out)
-{
-    creating++;
-    HRESULT hr = h_create_comp.call<HRESULT>(f, dev, d, o, out);
-    if (--creating == 0 && SUCCEEDED(hr) && out && *out && d)
-        captured("CreateSwapChainForComposition", dev, *out, d->Width, d->Height, d->Format, d->BufferCount,
-                 impl_comp);
-    return hr;
-}
-
-bool install(safetyhook::InlineHook &h, void *target, void *detour, const char *what)
-{
-    auto made = safetyhook::InlineHook::create(target, detour);
-    if (!made) {
-        swofty::log("[overlay] hooking %s at %p failed", what, target);
-        return false;
-    }
-    h = std::move(*made);
-    return true;
 }
 
 bool resolve_d3d12()
@@ -1001,127 +1118,13 @@ bool resolve_d3d12()
     return false;
 }
 
-bool hook_factory(void **vt)
-{
-    struct Want {
-        int slot;
-        safetyhook::InlineHook *h;
-        void *detour;
-        HMODULE *impl;
-        const char *what;
-        bool required;
-    } wants[] = {
-        {15, &h_create_hwnd, reinterpret_cast<void *>(&create_hwnd_hook), &impl_hwnd, "CreateSwapChainForHwnd", true},
-        {10, &h_create, reinterpret_cast<void *>(&create_hook), &impl_create, "CreateSwapChain", false},
-        {16, &h_create_core, reinterpret_cast<void *>(&create_core_hook), &impl_core, "CreateSwapChainForCoreWindow",
-         false},
-        {24, &h_create_comp, reinterpret_cast<void *>(&create_comp_hook), &impl_comp, "CreateSwapChainForComposition",
-         false},
-    };
-    std::vector<void *> done;
-    std::string armed_list;
-    for (auto &w : wants) {
-        void *target = vt[w.slot];
-        if (std::find(done.begin(), done.end(), target) != done.end()) {
-            swofty::log("[overlay] IDXGIFactory %s shares its code with another hooked slot; not hooked twice", w.what);
-            continue;
-        }
-        module_of(target, w.impl);
-        if (!install(*w.h, target, w.detour, w.what)) {
-            if (w.required)
-                return false;
-            continue;
-        }
-        done.push_back(target);
-        char b[64];
-        snprintf(b, sizeof b, "%s%s (vt+0x%x)", armed_list.empty() ? "" : ", ", w.what, unsigned(w.slot * 8));
-        armed_list += b;
-    }
-    swofty::log("[overlay] swapchain creation hooked on the DXGI factory (%s, in %s)", armed_list.c_str(),
-                module_of(vt[15]).c_str());
-    return true;
-}
-
 bool arm()
 {
     if (!resolve_d3d12())
         return false;
-    WNDCLASSEXW wc{};
-    wc.cbSize = sizeof wc;
-    wc.lpfnWndProc = DefWindowProcW;
-    wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpszClassName = L"SwoftyOverlayProbe";
-    RegisterClassExW(&wc);
-    HWND wnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_OVERLAPPEDWINDOW, 0, 0, 64, 64, nullptr, nullptr,
-                               wc.hInstance, nullptr);
-    if (!wnd) {
-        swofty::log("[overlay] could not make a probe window to read the swapchain vtable");
-        UnregisterClassW(wc.lpszClassName, wc.hInstance);
-        return false;
-    }
-    ID3D12Device *dev = nullptr;
-    ID3D12CommandQueue *q = nullptr;
-    IDXGIFactory4 *factory = nullptr;
-    IDXGISwapChain1 *swap1 = nullptr;
-    IDXGISwapChain3 *swap = nullptr;
-    bool ok = false;
-    do {
-        if (FAILED(d3d12_create_device(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dev))))
-            break;
-        D3D12_COMMAND_QUEUE_DESC qd{};
-        qd.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-        if (FAILED(dev->CreateCommandQueue(&qd, IID_PPV_ARGS(&q))))
-            break;
-        if (FAILED(dxgi_create_factory(IID_PPV_ARGS(&factory))))
-            break;
-        DXGI_SWAP_CHAIN_DESC1 sd{};
-        sd.BufferCount = 2;
-        sd.Width = 64;
-        sd.Height = 64;
-        sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-        sd.SampleDesc.Count = 1;
-        if (FAILED(factory->CreateSwapChainForHwnd(q, wnd, &sd, nullptr, nullptr, &swap1)))
-            break;
-        if (FAILED(swap1->QueryInterface(IID_PPV_ARGS(&swap))))
-            break;
-        void **sc_vt = *reinterpret_cast<void ***>(swap);
-        void **f_vt = *reinterpret_cast<void ***>(factory);
-        ok = hook_factory(f_vt) &&
-             install(h_present, sc_vt[8], reinterpret_cast<void *>(&present_hook), "IDXGISwapChain::Present");
-        if (ok)
-            swofty::log("[overlay] present hook armed: Present (vt+0x40) on the D3D12 swapchain (in %s); the overlay "
-                        "draws only on swapchains created after this point, on their creation queue",
-                        module_of(sc_vt[8]).c_str());
-    } while (false);
-    release(swap);
-    release(swap1);
-    release(factory);
-    release(q);
-    release(dev);
-    DestroyWindow(wnd);
-    UnregisterClassW(wc.lpszClassName, wc.hInstance);
-    return ok;
-}
-
-bool blocked_by_removal()
-{
-    std::wstring path = runtime::under_swofty(hud::guard::REMOVED_FILE);
-    uint64_t size = 0;
-    if (!runtime::file_size(path, &size))
-        return false;
-    hud::guard::Removal r;
-    if (hud::guard::parse_removal(runtime::read_file(path, 1 << 16), r))
-        swofty::log("[overlay] off: swofty/%s records the GPU removed %.1f s after the overlay drew (%s, present %s, "
-                    "reason %s, swapchain by %s); the overlay stays off while that file exists",
-                    hud::guard::REMOVED_FILE, double(r.after_draw_ms) / 1000, r.when.c_str(),
-                    hud::guard::hex32(r.present_hr).c_str(), hud::guard::hex32(r.reason).c_str(),
-                    r.swapchain_by.c_str());
-    else
-        swofty::log("[overlay] off: swofty/%s exists (unreadable); the overlay stays off while that file exists",
-                    hud::guard::REMOVED_FILE);
-    return true;
+    d3d12hooks::on_present(draw_frame);
+    d3d12hooks::on_presented(presented);
+    return d3d12hooks::arm_swapchain();
 }
 
 // ----- SwoftyOverlay table ----------------------------------------------------------------------
@@ -1239,16 +1242,15 @@ const SwoftyOverlay table = {ov_available,  ov_on_paint, ov_remove,  ov_size,   
 
 void setup()
 {
+    if (killed("all")) {
+        swofty::log("[overlay] off: SWOFTY_OVERLAY_KILL or \"overlay_kill\" in swofty/assets.json lists all");
+        return;
+    }
     capture_setup();
     bool on = gate_on();
     if (!on && !cap.on) {
         swofty::log("[overlay] the overlay feature is experimental and off; the HUD present hook is not armed");
         return;
-    }
-    if (on && blocked_by_removal()) {
-        if (!cap.on)
-            return;
-        on = false;
     }
     if (!on)
         swofty::log("[overlay] the overlay is off; the present hook arms for SWOFTY_FRAME_CAPTURE only");

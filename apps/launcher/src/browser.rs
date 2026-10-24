@@ -32,7 +32,7 @@ use swofty_core::update::current_version;
 use crate::addons::{FILTERS_W, Type, ago, facet_row};
 use crate::library::{Source, plural};
 use crate::news::format_date;
-use crate::pages::{GUTTER, badge, label, stat, tag};
+use crate::pages::{GUTTER, TRACK, badge, label, stat, tag, tile};
 use crate::play_bar::link;
 use crate::shell::{Page, PlayState, Shell};
 use crate::theme::{Palette, SCROLLBAR_GAP, ScrollArea};
@@ -47,6 +47,12 @@ const CARD_W: f32 = 300.;
 const GAP: f32 = 14.;
 const SIDE_W: f32 = 340.;
 const AUTHORS_SHOWN: usize = 8;
+const TILE_MIN: f32 = 220.;
+const TILE_ART: f32 = 96.;
+const TILE_FACES: usize = 4;
+const ALL_FACES: usize = 8;
+const FACE: f32 = 40.;
+const HELMET: &[u8] = include_bytes!("../assets/helmet.svg");
 const NATIVE: &str = "Runs code in the game";
 const VERIFYING: u8 = 1;
 const INSTALLING: u8 = 2;
@@ -377,6 +383,86 @@ fn tab_label(tab: Tab) -> &'static str {
     }
 }
 
+/// The categories the landing shows a tile for, Other last.
+fn shelves() -> impl Iterator<Item = Tab> {
+    Category::ALL
+        .into_iter()
+        .map(|c| Some(Some(c)))
+        .chain([Some(None)])
+}
+
+fn shelf_tint(tab: Tab, p: Palette) -> Hsla {
+    let hue = match tab {
+        None => return p.accent,
+        Some(None) => return p.text_muted,
+        Some(Some(Category::Seasons)) => 38.,
+        Some(Some(Category::Tracks)) => 145.,
+        Some(Some(Category::Cars)) => 2.,
+        Some(Some(Category::Helmets)) => 205.,
+        Some(Some(Category::Shaders)) => 320.,
+    };
+    Hsla {
+        h: hue / 360.,
+        ..p.accent
+    }
+}
+
+fn shelf_glyph(tab: Tab, size: f32, color: Hsla) -> AnyElement {
+    let icon = match tab {
+        Some(Some(Category::Tracks)) => {
+            return svg()
+                .data(TRACK)
+                .size(px(size))
+                .text_color(color)
+                .into_any_element();
+        }
+        Some(Some(Category::Helmets)) => {
+            return svg()
+                .data(HELMET)
+                .size(px(size))
+                .text_color(color)
+                .into_any_element();
+        }
+        None => IconName::LayoutGrid,
+        Some(None) => IconName::Shapes,
+        Some(Some(Category::Seasons)) => IconName::CalendarRange,
+        Some(Some(Category::Cars)) => IconName::Car,
+        Some(Some(Category::Shaders)) => IconName::Palette,
+    };
+    Icon::new(icon)
+        .size(px(size))
+        .text_color(color)
+        .into_any_element()
+}
+
+/// How many tiles a landing row of `width` holds: 6, 3, 2 or 1, so the rows come out even.
+fn shelf_columns(width: f32) -> usize {
+    [6, 3, 2]
+        .into_iter()
+        .find(|&n| n as f32 * TILE_MIN + (n - 1) as f32 * GAP <= width)
+        .unwrap_or(1)
+}
+
+/// How many icons fit on a tile `width` wide, beside its glyph and a count of the rest.
+fn tile_faces(width: f32) -> usize {
+    let room = width - 28. - 64. - 40.;
+    (1 + ((room - FACE) / (FACE - 8.)).floor().max(0.) as usize).min(TILE_FACES)
+}
+
+/// The addons in `tab`, most starred first.
+fn shelved(addons: &[Addon], tab: Tab, stars: impl Fn(&Addon) -> u64) -> Vec<&Addon> {
+    let mut found: Vec<&Addon> = addons
+        .iter()
+        .filter(|a| tab.is_none_or(|t| a.category() == t))
+        .collect();
+    found.sort_by(|a, b| {
+        stars(b)
+            .cmp(&stars(a))
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    found
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Op {
     Catalog,
@@ -520,6 +606,7 @@ pub(crate) struct Browser {
     star_gen: u64,
     sort: Sort,
     search_sort: Option<Sort>,
+    landing: bool,
     tab: Tab,
     facets: BTreeSet<Facet>,
     hide_code: bool,
@@ -575,6 +662,7 @@ impl Browser {
             star_gen: 0,
             sort: Sort::Stars,
             search_sort: None,
+            landing: true,
             tab: None,
             facets: BTreeSet::new(),
             hide_code: false,
@@ -633,6 +721,11 @@ impl Browser {
                 })
                 .ok();
         });
+    }
+
+    /// Whether the category tiles show: nothing chosen, searched or filtered.
+    fn on_landing(&self, searching: bool) -> bool {
+        self.landing && self.tab.is_none() && !searching && self.facets.is_empty() && !self.hide_code
     }
 }
 
@@ -1545,11 +1638,30 @@ impl Shell {
     fn clear_filters(&mut self, cx: &mut Context<Self>) {
         let b = &mut self.browser;
         b.facets.clear();
-        b.tab = None;
         b.hide_code = false;
         b.search_sort = None;
         b.clear_search(cx);
         cx.notify();
+    }
+
+    fn shelve(&mut self, tab: Tab, cx: &mut Context<Self>) {
+        let b = &mut self.browser;
+        if b.landing || b.tab != tab {
+            b.smooth.cancel();
+            b.scroll.set_offset(Point::default());
+        }
+        b.landing = false;
+        b.tab = tab;
+        cx.notify();
+    }
+
+    fn show_categories(&mut self, cx: &mut Context<Self>) {
+        let b = &mut self.browser;
+        b.landing = true;
+        b.tab = None;
+        b.smooth.cancel();
+        b.scroll.set_offset(Point::default());
+        self.clear_filters(cx);
     }
 
     pub(crate) fn browser_page(&mut self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
@@ -1850,7 +1962,7 @@ impl Shell {
     fn filter_column(&self, matched: &[(&Addon, Option<u32>)], p: Palette, cx: &mut Context<Self>) -> Div {
         let b = &self.browser;
         let query = b.search.read(cx).value().trim().to_owned();
-        let active = !b.facets.is_empty() || b.tab.is_some() || b.hide_code || !query.is_empty();
+        let active = !b.facets.is_empty() || b.hide_code || !query.is_empty();
         let count = |f: &Facet| {
             matched
                 .iter()
@@ -1972,11 +2084,7 @@ impl Shell {
     }
 
     fn category_bar(&self, matched: &[(&Addon, Option<u32>)], p: Palette, cx: &mut Context<Self>) -> Div {
-        let tabs: Vec<Tab> = [None]
-            .into_iter()
-            .chain(Category::ALL.into_iter().map(|c| Some(Some(c))))
-            .chain([Some(None)])
-            .collect();
+        let tabs: Vec<Tab> = [None].into_iter().chain(shelves()).collect();
         let pills: Vec<AnyElement> = tabs
             .into_iter()
             .map(|tab| {
@@ -2017,14 +2125,40 @@ impl Shell {
                             .text_color(if on { p.text_muted } else { p.text_placeholder })
                             .child(n.to_string()),
                     )
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.browser.tab = tab;
-                        cx.notify();
-                    }))
+                    .on_click(cx.listener(move |this, _, _, cx| this.shelve(tab, cx)))
                     .into_any_element()
             })
             .collect();
-        h_flex().gap(px(6.)).flex_wrap().children(pills)
+        let back = h_flex()
+            .id("browser-categories")
+            .h(px(28.))
+            .px(px(8.))
+            .ml(px(-8.))
+            .gap(px(6.))
+            .flex_shrink_0()
+            .rounded(px(5.))
+            .cursor_pointer()
+            .text_size(px(13.))
+            .text_color(p.text_muted)
+            .hover(move |s| s.bg(p.hover).text_color(p.text))
+            .child(Icon::new(IconName::ArrowLeft).size(px(14.)))
+            .child("Categories")
+            .tooltip(|window, cx| Tooltip::new("Back to the category tiles").build(window, cx))
+            .on_click(cx.listener(|this, _, _, cx| this.show_categories(cx)));
+        h_flex()
+            .gap(px(6.))
+            .flex_wrap()
+            .child(back)
+            .child(
+                div()
+                    .flex_shrink_0()
+                    .w(px(1.))
+                    .h(px(14.))
+                    .mx(px(4.))
+                    .my(px(7.))
+                    .bg(p.border),
+            )
+            .children(pills)
     }
 
     fn sort_button(&self, sort: Sort, searching: bool, cx: &mut Context<Self>) -> impl IntoElement + use<> {
@@ -2085,6 +2219,13 @@ impl Shell {
         } else {
             plural(shown.len(), "addon", "addons")
         };
+        let landing = !self.browser.addons.is_empty() && self.browser.on_landing(!query.is_empty());
+        let width = self.content_width - FILTERS_W - 20.;
+        if landing {
+            let filters = self.filter_column(&matched, p, cx);
+            let tiles = self.landing(width, p, cx);
+            return self.browser_columns(filters, self.landing_bar(p), self.scroll_area(tiles, cx));
+        }
         let bar = h_flex()
             .pb(px(14.))
             .gap(px(12.))
@@ -2106,8 +2247,8 @@ impl Shell {
                     .child(self.sort_button(sort, !query.is_empty(), cx)),
             );
         let filters = self.filter_column(&matched, p, cx);
-        let width = self.content_width - FILTERS_W - 20.;
         let found = self.creators_found(&query, p, cx);
+        let bare = query.is_empty() && self.browser.facets.is_empty() && !self.browser.hide_code;
         let body = if shown.is_empty() && found.is_some() {
             self.scroll_area(
                 v_flex()
@@ -2124,6 +2265,8 @@ impl Shell {
                 cx,
             )
             .into_any_element()
+        } else if shown.is_empty() && bare && !self.browser.addons.is_empty() && self.browser.tab.is_some() {
+            self.empty_shelf(self.browser.tab, p, cx)
         } else if shown.is_empty() {
             let (title, body, action) = if self.browser.addons.is_empty() {
                 (
@@ -2168,6 +2311,10 @@ impl Shell {
             )
             .into_any_element()
         };
+        self.browser_columns(filters, bar, body)
+    }
+
+    fn browser_columns(&self, filters: Div, bar: Div, body: impl IntoElement) -> AnyElement {
         h_flex()
             .flex_1()
             .min_h_0()
@@ -2183,6 +2330,323 @@ impl Shell {
                     .h_full()
                     .child(bar.pr(px(GUTTER)))
                     .child(body),
+            )
+            .into_any_element()
+    }
+
+    fn landing_bar(&self, p: Palette) -> Div {
+        h_flex()
+            .pb(px(14.))
+            .gap(px(12.))
+            .flex_shrink_0()
+            .child(
+                h_flex()
+                    .h(px(28.))
+                    .flex_1()
+                    .min_w_0()
+                    .items_center()
+                    .text_size(px(15.))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child("Browse by category"),
+            )
+            .child(
+                h_flex()
+                    .h(px(28.))
+                    .flex_shrink_0()
+                    .items_center()
+                    .text_size(px(12.))
+                    .text_color(p.text_placeholder)
+                    .child(plural(self.browser.addons.len(), "addon", "addons")),
+            )
+    }
+
+    fn landing(&self, width: f32, p: Palette, cx: &mut Context<Self>) -> Stateful<Div> {
+        let tabs: Vec<Tab> = shelves().collect();
+        let columns = shelf_columns(width);
+        let tile_w = ((width - GAP * (columns - 1) as f32) / columns as f32).floor() - 1.;
+        let rows: Vec<AnyElement> = tabs
+            .chunks(columns)
+            .map(|chunk| {
+                h_flex()
+                    .flex_shrink_0()
+                    .gap(px(GAP))
+                    .children(chunk.iter().map(|t| self.shelf_tile(*t, tile_w, p, cx)))
+                    .into_any_element()
+            })
+            .collect();
+        v_flex()
+            .id("browser-landing")
+            .pb(px(24.))
+            .gap(px(GAP))
+            .children(rows)
+            .child(self.all_tile(width - 1., p, cx))
+    }
+
+    fn has_icon(&self, a: &Addon) -> bool {
+        a.icon
+            .as_ref()
+            .is_some_and(|u| self.browser.icons.contains_key(u))
+    }
+
+    /// Up to `n` of `addons`' icons, overlapping, ringed in `ring`; the ones with
+    /// an icon of their own first, then a count of the rest.
+    fn faces(&self, addons: &[&Addon], n: usize, ring: Hsla, p: Palette) -> Div {
+        let mut picked: Vec<&Addon> = addons.to_vec();
+        picked.sort_by_key(|a| !self.has_icon(a));
+        let rest = addons.len().saturating_sub(n);
+        h_flex()
+            .flex_shrink_0()
+            .items_center()
+            .children(picked.into_iter().take(n).enumerate().map(|(i, a)| {
+                div()
+                    .p(px(2.))
+                    .rounded(px(FACE * 0.22 + 2.))
+                    .bg(ring)
+                    .when(i > 0, |d| d.ml(px(-12.)))
+                    .child(self.catalog_icon(a, FACE, p))
+            }))
+            .when(rest > 0, |d| {
+                d.child(
+                    div()
+                        .ml(px(6.))
+                        .h(px(24.))
+                        .px(px(8.))
+                        .flex()
+                        .items_center()
+                        .rounded(px(12.))
+                        .bg(ring.blend(p.text.opacity(0.07)))
+                        .text_size(px(12.))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(p.text_muted)
+                        .child(format!("+{rest}")),
+                )
+            })
+    }
+
+    fn shelf_tile(&self, tab: Tab, width: f32, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+        let addons = shelved(&self.browser.addons, tab, |a| self.browser.stars_of(a));
+        let n = addons.len();
+        let empty = n == 0;
+        let tint = shelf_tint(tab, p);
+        let band = if empty {
+            p.surface
+        } else {
+            p.surface.blend(tint.opacity(0.13))
+        };
+        let slot = div()
+            .size(px(FACE + 4.))
+            .rounded(px(10.))
+            .border_1()
+            .border_dashed()
+            .border_color(p.border)
+            .flex()
+            .items_center()
+            .justify_center()
+            .child(shelf_glyph(tab, 20., p.text_placeholder));
+        let art = h_flex()
+            .relative()
+            .h(px(TILE_ART))
+            .w_full()
+            .px(px(14.))
+            .flex_shrink_0()
+            .items_center()
+            .overflow_hidden()
+            .rounded_t(px(11.))
+            .bg(band)
+            .border_b_1()
+            .border_color(if empty {
+                p.border_variant
+            } else {
+                tint.opacity(0.18)
+            })
+            .child(
+                div()
+                    .absolute()
+                    .right(px(-10.))
+                    .bottom(px(-18.))
+                    .child(shelf_glyph(
+                        tab,
+                        TILE_ART + 8.,
+                        if empty {
+                            p.text_placeholder.opacity(0.1)
+                        } else {
+                            tint.opacity(0.22)
+                        },
+                    )),
+            )
+            .map(|d| {
+                if empty {
+                    d.child(slot)
+                } else {
+                    d.child(self.faces(&addons, tile_faces(width), band, p))
+                }
+            });
+        v_flex()
+            .id(SharedString::from(format!("browser-shelf-{}", tab_label(tab))))
+            .w(px(width))
+            .flex_none()
+            .rounded(px(12.))
+            .border_1()
+            .border_color(if empty { p.border_variant } else { p.border })
+            .bg(p.surface)
+            .cursor_pointer()
+            .hover(move |s| {
+                if empty {
+                    s.bg(p.hover)
+                } else {
+                    s.bg(p.hover).border_color(tint.opacity(0.75))
+                }
+            })
+            .child(art)
+            .child(
+                h_flex()
+                    .px(px(14.))
+                    .py(px(12.))
+                    .gap(px(10.))
+                    .items_center()
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .gap(px(2.))
+                            .child(
+                                div()
+                                    .text_size(px(15.))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(if empty { p.text_muted } else { p.text })
+                                    .truncate()
+                                    .child(tab_label(tab)),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(12.))
+                                    .text_color(p.text_placeholder)
+                                    .truncate()
+                                    .child(if empty {
+                                        "No addons yet".to_owned()
+                                    } else {
+                                        plural(n, "addon", "addons")
+                                    }),
+                            ),
+                    )
+                    .child(
+                        Icon::new(IconName::ChevronRight)
+                            .size(px(16.))
+                            .text_color(p.text_placeholder),
+                    ),
+            )
+            .on_click(cx.listener(move |this, _, _, cx| this.shelve(tab, cx)))
+            .into_any_element()
+    }
+
+    fn all_tile(&self, width: f32, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+        let addons = shelved(&self.browser.addons, None, |a| self.browser.stars_of(a));
+        let tint = shelf_tint(None, p);
+        let band = p.surface.blend(tint.opacity(0.08));
+        let shown = (((width - 380.) / (FACE - 8.)).floor().max(0.) as usize).min(ALL_FACES);
+        let creators = publishers::by_publisher(&self.browser.addons).len();
+        let mut about = plural(addons.len(), "addon", "addons");
+        if creators > 0 {
+            about.push_str(&format!(" from {}", plural(creators, "creator", "creators")));
+        }
+        h_flex()
+            .id("browser-shelf-all")
+            .w(px(width))
+            .flex_none()
+            .px(px(16.))
+            .py(px(14.))
+            .gap(px(14.))
+            .items_center()
+            .rounded(px(12.))
+            .border_1()
+            .border_color(p.border)
+            .bg(band)
+            .cursor_pointer()
+            .hover(move |s| s.border_color(tint.opacity(0.75)))
+            .child(
+                div()
+                    .size(px(FACE + 4.))
+                    .flex_shrink_0()
+                    .rounded(px(10.))
+                    .bg(tint.opacity(0.16))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .child(shelf_glyph(None, 20., tint)),
+            )
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(2.))
+                    .child(
+                        div()
+                            .text_size(px(15.))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child("All addons"),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(12.))
+                            .text_color(p.text_placeholder)
+                            .truncate()
+                            .child(about),
+                    ),
+            )
+            .when(shown > 0, |d| d.child(self.faces(&addons, shown, band, p)))
+            .child(
+                Icon::new(IconName::ChevronRight)
+                    .size(px(16.))
+                    .text_color(p.text_placeholder),
+            )
+            .on_click(cx.listener(|this, _, _, cx| this.shelve(None, cx)))
+            .into_any_element()
+    }
+
+    fn empty_shelf(&self, tab: Tab, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+        v_flex()
+            .flex_1()
+            .items_center()
+            .justify_center()
+            .gap(px(8.))
+            .pb(px(48.))
+            .child(tile(44., p).child(shelf_glyph(tab, 22., p.text_muted)))
+            .child(
+                div()
+                    .pt(px(8.))
+                    .text_size(px(15.))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(format!("Nothing in {} yet", tab_label(tab))),
+            )
+            .child(
+                div()
+                    .max_w(px(400.))
+                    .text_center()
+                    .text_size(px(13.))
+                    .line_height(px(19.))
+                    .text_color(p.text_muted)
+                    .child("Addons published in this category show here."),
+            )
+            .child(
+                h_flex()
+                    .pt(px(8.))
+                    .gap(px(8.))
+                    .child(
+                        Button::new("browser-shelf-empty-all")
+                            .outline()
+                            .small()
+                            .icon(IconName::LayoutGrid)
+                            .label("All addons")
+                            .on_click(cx.listener(|this, _, _, cx| this.shelve(None, cx))),
+                    )
+                    .child(
+                        Button::new("browser-shelf-empty-back")
+                            .ghost()
+                            .small()
+                            .icon(IconName::ArrowLeft)
+                            .label("Categories")
+                            .on_click(cx.listener(|this, _, _, cx| this.show_categories(cx))),
+                    ),
             )
             .into_any_element()
     }
@@ -2897,9 +3361,10 @@ impl Shell {
 
 #[cfg(test)]
 mod tests {
-    use super::{Event, Job, Progress, Stage, compact, host, size_text};
+    use super::{Event, Job, Progress, Stage, compact, host, shelf_columns, shelved, size_text, tile_faces};
     use swofty_core::catalog::requires::{Plan, Step};
     use swofty_core::catalog::{Addon, Version};
+    use swofty_core::manifest::Category;
 
     fn step(id: &str, size: u64) -> Step {
         let addon: Addon =
@@ -2942,6 +3407,48 @@ mod tests {
         job.track("root", Event::Stage(Stage::Installing));
         assert_eq!(job.item(), None);
         assert_eq!(job.progress().long(None), "Installing…");
+    }
+
+    #[test]
+    fn shelves_addons_by_category_most_starred_first() {
+        let addon = |id: &str, category: Option<&str>, stars: u64| -> Addon {
+            serde_json::from_value(serde_json::json!({
+                "id": id, "name": id, "category": category, "stars": stars
+            }))
+            .unwrap()
+        };
+        let addons = [
+            addon("a", Some("seasons"), 1),
+            addon("b", Some("seasons"), 9),
+            addon("c", None, 3),
+            addon("d", Some("gameplay"), 5),
+            addon("e", Some("liveries"), 0),
+        ];
+        let ids = |tab| -> Vec<String> {
+            shelved(&addons, tab, |a| a.stars)
+                .into_iter()
+                .map(|a| a.id.clone())
+                .collect()
+        };
+        assert_eq!(ids(Some(Some(Category::Seasons))), ["b", "a"]);
+        assert_eq!(ids(Some(Some(Category::Cars))), ["e"]);
+        assert_eq!(ids(Some(None)), ["d", "c"]);
+        assert!(ids(Some(Some(Category::Tracks))).is_empty());
+        assert_eq!(ids(None), ["b", "d", "c", "a", "e"]);
+    }
+
+    #[test]
+    fn lays_out_even_rows_of_tiles() {
+        assert_eq!(shelf_columns(2000.), 6);
+        assert_eq!(shelf_columns(1390.), 6);
+        assert_eq!(shelf_columns(1386.), 3);
+        assert_eq!(shelf_columns(924.), 3);
+        assert_eq!(shelf_columns(508.), 2);
+        assert_eq!(shelf_columns(300.), 1);
+        assert_eq!(tile_faces(329.), 4);
+        assert_eq!(tile_faces(299.), 4);
+        assert_eq!(tile_faces(247.), 3);
+        assert_eq!(tile_faces(120.), 1);
     }
 
     #[test]

@@ -9,10 +9,13 @@ The **Addon Browser** page lists the addons creators publish to Swofty Launcher.
 
 ## Find an addon
 
-- **Categories:** All, Seasons, Tracks, Cars, Helmets and Other, with how many addons each holds.
-- **Search:** matches names, ids, creators, categories, types and descriptions, and tolerates one typo in longer words. `author:<name>` and `category:<name>` narrow it down. Creators that match show above the addons.
+The page opens on a tile for each category: Seasons, Tracks, Cars, Helmets, Shaders and Other. Each tile shows how many addons the category holds and the icons of its most starred addons. Other holds the addons without a category. A category with no addons yet shows **No addons yet**.
+
+Select a tile for that category's addons, or **All addons** below the tiles for every addon. Above the addons, the category bar switches between All and each category, and **Categories** goes back to the tiles and clears the search and filters.
+
+- **Search:** matches names, ids, creators, categories, types and descriptions, and tolerates one typo in longer words. `author:<name>` and `category:<name>` narrow it down. Creators that match show above the addons. A search from the tiles covers every category, and a search inside a category covers that category.
 - **Sort:** Most stars, Most downloads, Trending (downloads in the last 30 days), Recently updated, Newest and Name. While you search, the order is Best match.
-- **Filters:** type, state (installed, not installed, update available, starred by you, works with this launcher), creator, and **Hide addons that run code**.
+- **Filters:** type, state (installed, not installed, update available, starred by you, works with this launcher), creator, and **Hide addons that run code**. A filter chosen on the tiles applies to every category.
 
 Select an addon for its description, a 30-day downloads chart, its file size and checksum, the launcher version it needs, and every version's changelog. **More from** lists the same creator's other addons.
 

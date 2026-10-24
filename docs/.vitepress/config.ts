@@ -171,6 +171,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
           {
             text: "Releases",
             items: [
+              { text: "1.5.2", link: "/releases/1.5.2" },
               { text: "1.5.1", link: "/releases/1.5.1" },
               { text: "1.5.0", link: "/releases/1.5.0" },
               { text: "1.4.0", link: "/releases/1.4.0" },
@@ -293,6 +294,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
                   { text: "Storage", link: "/reference/std/storage", icon: "file" },
                   { text: "Career", link: "/reference/std/career", icon: "file" },
                   { text: "Popup", link: "/reference/std/popup", icon: "file" },
+                  { text: "Race HUD", link: "/reference/std/hud", icon: "file" },
                   { text: "Strings", link: "/reference/std/strings", icon: "file" },
                   { text: "Career contents", link: "/reference/std/career-content", icon: "file" },
                   { text: "Characters", link: "/reference/std/characters", icon: "file" },

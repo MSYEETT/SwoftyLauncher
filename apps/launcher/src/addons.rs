@@ -229,6 +229,8 @@ enum AddonListItem {
         position: Option<usize>,
     },
     Detail(String),
+    BrokenHeading,
+    Broken(usize),
 }
 
 pub(crate) struct AddonsPage {
@@ -1359,6 +1361,17 @@ impl Shell {
                 empty: true,
             });
         }
+        let needle = query.trim().to_lowercase();
+        let broken: Vec<usize> = (0..self.library.broken.len())
+            .filter(|&i| {
+                let u = &self.library.broken[i];
+                needle.is_empty() || u.name.to_lowercase().contains(&needle) || u.id.contains(&needle)
+            })
+            .collect();
+        if !broken.is_empty() {
+            children.push(AddonListItem::BrokenHeading);
+            children.extend(broken.into_iter().map(AddonListItem::Broken));
+        }
         if self.addons.list_items != children {
             let old = &self.addons.list_items;
             let prefix = old.iter().zip(&children).take_while(|(a, b)| a == b).count();
@@ -1469,6 +1482,13 @@ impl Shell {
                                     this.list_row(m, position, fade, p, cx)
                                 }
                                 Some(AddonListItem::Detail(id)) => this.addon_detail(&id, true, p, cx),
+                                Some(AddonListItem::BrokenHeading) => v_flex()
+                                    .px(px(12.))
+                                    .pt(px(14.))
+                                    .pb(px(6.))
+                                    .child(label("CAN'T BE USED", p))
+                                    .into_any_element(),
+                                Some(AddonListItem::Broken(i)) => this.broken_row(i, p, cx),
                                 None => div().into_any_element(),
                             };
                             div().w_full().child(item).into_any_element()
@@ -1533,6 +1553,73 @@ impl Shell {
             .drag_over::<DraggedAddon>(move |s, _, _, _| s.bg(p.hover))
             .on_drop(
                 cx.listener(move |this, d: &DraggedAddon, window, cx| this.drop_into(&d.id, on, window, cx)),
+            )
+            .into_any_element()
+    }
+
+    /// An installed addon this launcher can't read: its name, why, and Remove.
+    fn broken_row(&self, i: usize, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+        let Some(u) = self.library.broken.get(i) else {
+            return div().into_any_element();
+        };
+        let (id, name) = (u.id.clone(), u.name.clone());
+        let reason = format!("{}.", crate::update::sentence(&format!("it {}", u.reason)));
+        h_flex()
+            .id(SharedString::from(format!("broken-{id}")))
+            .min_h(px(54.))
+            .px(px(14.))
+            .py(px(8.))
+            .gap(px(12.))
+            .border_t_1()
+            .border_color(p.border_variant)
+            .child(div().w(px(14.)).flex_shrink_0())
+            .child(div().w(px(18.)).flex_shrink_0())
+            .child(badge(IconName::TriangleAlert, 28., p).text_color(p.warning))
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(2.))
+                    .child(
+                        h_flex()
+                            .gap(px(6.))
+                            .items_baseline()
+                            .child(
+                                div()
+                                    .min_w_0()
+                                    .text_size(px(14.))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(p.text_muted)
+                                    .truncate()
+                                    .child(name.clone()),
+                            )
+                            .when_some(u.version.clone(), |d, v| {
+                                d.child(
+                                    div()
+                                        .flex_shrink_0()
+                                        .text_size(px(12.))
+                                        .text_color(p.text_placeholder)
+                                        .child(v),
+                                )
+                            }),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(12.))
+                            .line_height(px(17.))
+                            .text_color(p.warning)
+                            .child(reason),
+                    ),
+            )
+            .child(
+                Button::new(SharedString::from(format!("broken-remove-{id}")))
+                    .ghost()
+                    .small()
+                    .icon(IconName::Trash)
+                    .label("Remove")
+                    .on_click(
+                        cx.listener(move |this, _, window, cx| this.remove_addon(&id, &name, window, cx)),
+                    ),
             )
             .into_any_element()
     }
@@ -2442,6 +2529,7 @@ mod tests {
             .map(|id| ProfileAddon {
                 id: (*id).into(),
                 enabled: true,
+                unknown: Default::default(),
             })
             .collect()
     }

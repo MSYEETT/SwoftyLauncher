@@ -191,6 +191,13 @@ static void test_guard()
     fs = fg_setting("<frame_gen mode=\"1\" /><multi_frame_gen value=\"2\" />");
     CHECK(fs.known && fs.mode == 1 && fs.multi == 2 && fs.on(), "frame_gen mode 1 reads as on");
     CHECK(fg_setting("<frame_gen />").on() && fg_setting("").on(), "a missing frame_gen mode reads as on");
+    CHECK(hdr_mode("<resolution>\n\t\t\t<hdr mode=\"1\" peakNits=\"1000\" />") == 1 && hdr_mode("<x/>") == -1,
+          "the game's hdr mode reads from hardware settings");
+    CHECK(output_for(24, 12, 0) == HDR10_PQ && output_for(24, 0, 1) == SDR && output_for(24, COLOR_SPACE_UNSET, 1) == HDR10_PQ &&
+              output_for(24, COLOR_SPACE_UNSET, 0) == SDR && output_for(24, COLOR_SPACE_UNSET, -1) == SDR,
+          "a 10-bit swapchain is HDR10 from SetColorSpace1, or from the game's hdr mode when no colour space was set");
+    CHECK(output_for(10, COLOR_SPACE_UNSET, 0) == SCRGB && output_for(10, 12, 0) == HDR10_PQ && output_for(28, 12, 1) == SDR,
+          "fp16 is scRGB unless PQ was set, and 8-bit is SDR");
     CHECK(chain({"swofty_core.dll", "dxgi.dll", "sl.interposer.dll", "sl.interposer.dll", "", "F1_25.exe", "KERNEL32.DLL"},
                 "swofty_core.dll", "dxgi.dll") == "sl.interposer.dll <- F1_25.exe <- KERNEL32.DLL",
           "the caller chain drops the core, the implementation, repeats and unknown frames");
@@ -198,17 +205,6 @@ static void test_guard()
     CHECK(!removal_after_draw(5000, 0), "a removal with no overlay draw is not attributed");
     CHECK(removal_after_draw(15000, 10000), "a removal 5 s after a draw is attributed");
     CHECK(removal_after_draw(20000, 10000) && !removal_after_draw(20001, 10000), "the window is 10 s");
-    Removal r;
-    r.when = "2026-10-24 02:52:26";
-    r.present_hr = 0x887a0005;
-    r.reason = 0x887a0006;
-    r.after_draw_ms = 4900;
-    r.swapchain_by = "sl.interposer.dll <- F1_25.exe \"q\"";
-    Removal back;
-    CHECK(parse_removal(removal_json(r), back) && back.when == r.when && back.present_hr == r.present_hr &&
-              back.reason == r.reason && back.after_draw_ms == r.after_draw_ms && back.swapchain_by == r.swapchain_by,
-          "the removal record round-trips");
-    CHECK(!parse_removal("not json", back) && !parse_removal("{}", back), "a record without a schema does not parse");
 }
 
 static void test_png(const char *out)

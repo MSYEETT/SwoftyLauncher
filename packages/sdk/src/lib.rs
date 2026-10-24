@@ -19,6 +19,7 @@ pub const LANG_HEADER: &str = include_str!("../include/swofty/lang.hpp");
 pub const CHARACTERS_HEADER: &str = include_str!("../include/swofty/characters.hpp");
 pub const CAREER_WIZARD_HEADER: &str = include_str!("../include/swofty/career_wizard.hpp");
 pub const ERA_HEADER: &str = include_str!("../include/swofty/era.hpp");
+pub const HUD_HEADER: &str = include_str!("../include/swofty/hud.hpp");
 
 pub const CAREER_START_PICK: u32 = 0;
 pub const CAREER_START_NEW: u32 = 1;
@@ -552,6 +553,27 @@ pub struct SwoftyEraBox {
     pub order: i32,
 }
 
+pub const HUD_VERSION: u32 = 1;
+pub const HUD_TEXT: u32 = 0;
+pub const HUD_BOOL: u32 = 1;
+pub const HUD_INT: u32 = 2;
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SwoftyHud {
+    pub version: u32,
+    pub available: Option<unsafe extern "C" fn() -> c_int>,
+    pub toast: Option<
+        unsafe extern "C" fn(
+            text: *const c_char,
+            detail: *const c_char,
+            seconds: f32,
+            icon: *const c_char,
+        ) -> c_int,
+    >,
+    pub set: Option<unsafe extern "C" fn(path: *const c_char, kind: u32, value: *const c_void) -> c_int>,
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct SwoftyEra {
@@ -690,6 +712,8 @@ mod tests {
         assert_eq!(std::mem::size_of::<SwoftyCareerStart>(), 80);
         assert_eq!(std::mem::offset_of!(SwoftyCareerStart, route), 16);
         assert_eq!(std::mem::size_of::<SwoftyPopup>(), 16);
+        assert_eq!(std::mem::size_of::<SwoftyHud>(), 32);
+        assert_eq!(std::mem::offset_of!(SwoftyHud, toast), 16);
         assert_eq!(std::mem::size_of::<SwoftyCareerContentDesc>(), 72);
         assert_eq!(std::mem::offset_of!(SwoftyCareerContentDesc, car_group), 64);
         assert_eq!(std::mem::size_of::<SwoftyCareerContentInfo>(), 352);
@@ -850,6 +874,10 @@ mod tests {
         assert_eq!(
             include_str!("../../../templates/addon/native/include/swofty/era.hpp"),
             ERA_HEADER
+        );
+        assert_eq!(
+            include_str!("../../../templates/addon/native/include/swofty/hud.hpp"),
+            HUD_HEADER
         );
     }
 

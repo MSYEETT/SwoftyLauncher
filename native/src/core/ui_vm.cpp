@@ -1,6 +1,7 @@
 #include <windows.h>
 
 #include <swofty/game.hpp>
+#include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 #include <swofty/ui.hpp>
 
@@ -402,6 +403,59 @@ void load_addons(const std::wstring &settings_path)
     }
 }
 
+}
+
+bool ui_vm_set_path(const std::string &path, int type, const void *value)
+{
+    if (!g_Vm_Registry.address() || !a_path)
+        return false;
+    void *reg = *g_Vm_Registry;
+    if (!reg)
+        return false;
+    auto *root = *reinterpret_cast<uint8_t **>(static_cast<uint8_t *>(reg) + 8);
+    if (!root)
+        return false;
+    size_t dot = path.find_last_of('.');
+    if (dot == std::string::npos || dot == 0 || dot + 1 >= path.size())
+        return false;
+    std::string leaf = path.substr(dot + 1);
+    void **node = reinterpret_cast<Path_t *>(a_path)(reg, root + 8, path.substr(0, dot).c_str());
+    if (!node || !*node)
+        return false;
+    void *parent = static_cast<uint8_t *>(*node) + 8;
+    switch (type) {
+    case 0: {
+        NeStr *s = nullptr;
+        Ne_Make_StrFromCStr(&s, static_cast<const char *>(value), 0, 0);
+        Vm_Set_String(reg, parent, leaf.c_str(), &s, 1);
+        Ne_Make_StrFromCStr(&s, nullptr, 0, 0);
+        return true;
+    }
+    case 1: {
+        uint8_t v = *static_cast<const int32_t *>(value) != 0;
+        Vm_Set_Bool(reg, parent, leaf.c_str(), &v, 1);
+        return true;
+    }
+    case 2: {
+        if (!a_setint)
+            return false;
+        int64_t v = *static_cast<const int32_t *>(value);
+        reinterpret_cast<SetInt_t *>(a_setint)(reg, parent, leaf.c_str(), &v, 1);
+        return true;
+    }
+    }
+    return false;
+}
+
+void *ui_vm_message_system()
+{
+    if (!ui_system || !swofty::mem::readable(ui_system, sizeof(void *)) || !*ui_system)
+        return nullptr;
+    void *sys = *ui_system;
+    void **vt = *static_cast<void ***>(sys);
+    if (!swofty::mem::readable(vt + 0x58 / 8, sizeof(void *)) || !swofty::mem::in_image(uintptr_t(vt[0x58 / 8])))
+        return nullptr;
+    return reinterpret_cast<Getter_t *>(vt[0x58 / 8])(sys);
 }
 
 bool ui_vm_init(uintptr_t module_base, const std::wstring &swofty_dir)

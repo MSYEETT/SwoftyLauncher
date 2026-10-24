@@ -8,7 +8,7 @@ use swofty_core::manifest::{AddonManifest, Category};
 use swofty_core::ops::ErpOp;
 use swofty_core::profile::{Profile, VANILLA};
 use swofty_core::registry::{Host, Registry};
-use swofty_core::store::Store;
+use swofty_core::store::{Store, Unreadable};
 use swofty_core::view::SectionSpec;
 
 pub struct AddonItem {
@@ -245,6 +245,8 @@ pub struct Library {
     /// packages and track addons together.
     pub tracks_page: Option<usize>,
     pub error: Option<String>,
+    /// Installed addons this launcher can't read, with why.
+    pub broken: Vec<Unreadable>,
     pub loaded: Instant,
 }
 
@@ -327,6 +329,7 @@ impl Library {
             sections,
             registry,
             error,
+            broken: store.unreadable_addons(),
             loaded: Instant::now(),
         }
     }

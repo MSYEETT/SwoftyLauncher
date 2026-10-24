@@ -573,6 +573,24 @@
    "player.max_speed.brake_bd_factor_front",
    "player.max_speed.brake_bd_factor_rear",
    "player.max_speed.brake_bm_input_end"
+  ],
+  "customisation.custom_avatar.suits.Suit": [
+   "colour_1_default",
+   "colour_2_default",
+   "colour_3_default",
+   "colour_4_default"
+  ],
+  "customisation.custom_avatar.gloves.Gloves": [
+   "colour_1_default",
+   "colour_2_default",
+   "colour_3_default",
+   "colour_4_default"
+  ],
+  "customisation.custom_avatar.helmets.Helmet": [
+   "colour_1_default",
+   "colour_2_default",
+   "colour_3_default",
+   "colour_4_default"
   ]
  },
  "ops": [
@@ -635,7 +653,10 @@
     "display_name_short": "lng_cs_team_16_mercedes",
     "display_name_super_short": "lng_cs_team_16_mercedes",
     "display_name_code": "MER",
-    "timing_tower_texture_path": "cs16_mercedes"
+    "timing_tower_texture_path": "cs16_mercedes",
+    "team_wear_primary_colour": "-6776680",
+    "team_wear_secondary_colour": "-16250872",
+    "team_wear_tertiary_colour": "-14145496"
    }
   },
   {
@@ -663,8 +684,8 @@
    "set": {
     "_metadata_": "2016-cs_mercedes_lewis_hamilton",
     "helmet": "2024-mercedes_lewis_hamilton",
-    "suit": "2025-mercedes_george_russell",
-    "gloves": "2025-mercedes_george_russell",
+    "suit": "cs16-mercedes",
+    "gloves": "cs16-mercedes",
     "linked_driver_stat_id": "lewis_hamilton",
     "available": "False",
     "stat_id": "420"
@@ -688,8 +709,8 @@
    "set": {
     "_metadata_": "2016-cs_mercedes_nico_rosberg",
     "helmet": "2025-mercedes_andrea-kimi_antonelli",
-    "suit": "2025-mercedes_andrea-kimi_antonelli",
-    "gloves": "2025-mercedes_andrea-kimi_antonelli",
+    "suit": "cs16-mercedes",
+    "gloves": "cs16-mercedes",
     "linked_driver_stat_id": "nico_rosberg",
     "available": "False",
     "stat_id": "421"
@@ -716,7 +737,10 @@
     "display_name_short": "lng_cs_team_16_redbull",
     "display_name_super_short": "lng_cs_team_16_redbull",
     "display_name_code": "RBR",
-    "timing_tower_texture_path": "cs16_redbull"
+    "timing_tower_texture_path": "cs16_redbull",
+    "team_wear_primary_colour": "-15194056",
+    "team_wear_secondary_colour": "-473048",
+    "team_wear_tertiary_colour": "-522200"
    }
   },
   {
@@ -744,8 +768,8 @@
    "set": {
     "_metadata_": "2016-cs_redbull_daniel_ricciardo",
     "helmet": "2024-tororosso_daniel_ricciardo",
-    "suit": "2025-redbull_max_verstappen",
-    "gloves": "2025-redbull_max_verstappen",
+    "suit": "cs16-redbull",
+    "gloves": "cs16-redbull",
     "linked_driver_stat_id": "daniel_ricciardo",
     "available": "False",
     "stat_id": "422"
@@ -769,8 +793,8 @@
    "set": {
     "_metadata_": "2016-cs_redbull_max_verstappen",
     "helmet": "2024-redbull_max_verstappen",
-    "suit": "2025-redbull_yuki_tsunoda",
-    "gloves": "2025-redbull_yuki_tsunoda",
+    "suit": "cs16-redbull",
+    "gloves": "cs16-redbull",
     "linked_driver_stat_id": "max_verstappen",
     "available": "False",
     "stat_id": "423"
@@ -797,7 +821,10 @@
     "display_name_short": "lng_cs_team_16_ferrari",
     "display_name_super_short": "lng_cs_team_16_ferrari",
     "display_name_code": "FER",
-    "timing_tower_texture_path": "cs16_ferrari"
+    "timing_tower_texture_path": "cs16_ferrari",
+    "team_wear_primary_colour": "-4716536",
+    "team_wear_secondary_colour": "-15198168",
+    "team_wear_tertiary_colour": "-1513240"
    }
   },
   {
@@ -825,8 +852,8 @@
    "set": {
     "_metadata_": "2016-cs_ferrari_sebastian_vettel",
     "helmet": "2025-ferrari_charles_leclerc",
-    "suit": "2025-ferrari_charles_leclerc",
-    "gloves": "2025-ferrari_charles_leclerc",
+    "suit": "cs16-ferrari",
+    "gloves": "cs16-ferrari",
     "linked_driver_stat_id": "sebastian_vettel",
     "available": "False",
     "stat_id": "424"
@@ -850,8 +877,8 @@
    "set": {
     "_metadata_": "2016-cs_ferrari_kimi_raikkonen",
     "helmet": "2025-ferrari_lewis_hamilton",
-    "suit": "2025-ferrari_lewis_hamilton",
-    "gloves": "2025-ferrari_lewis_hamilton",
+    "suit": "cs16-ferrari",
+    "gloves": "cs16-ferrari",
     "linked_driver_stat_id": "kimi_raikkonen",
     "available": "False",
     "stat_id": "425"
@@ -878,7 +905,10 @@
     "display_name_short": "lng_cs_team_16_williams",
     "display_name_super_short": "lng_cs_team_16_williams",
     "display_name_code": "WIL",
-    "timing_tower_texture_path": "cs16_williams"
+    "timing_tower_texture_path": "cs16_williams",
+    "team_wear_primary_colour": "-1513240",
+    "team_wear_secondary_colour": "-15194024",
+    "team_wear_tertiary_colour": "-8882056"
    }
   },
   {
@@ -906,8 +936,8 @@
    "set": {
     "_metadata_": "2016-cs_williams_felipe_massa",
     "helmet": "classic-massa01_felipe_massa",
-    "suit": "2025-williams_alex_albon",
-    "gloves": "2025-williams_alex_albon",
+    "suit": "cs16-williams",
+    "gloves": "cs16-williams",
     "linked_driver_stat_id": "felipe_massa",
     "available": "False",
     "stat_id": "426"
@@ -931,8 +961,8 @@
    "set": {
     "_metadata_": "2016-cs_williams_valtteri_bottas",
     "helmet": "2024-sauber_valtteri_bottas",
-    "suit": "2025-williams_carlos_sainz-jr",
-    "gloves": "2025-williams_carlos_sainz-jr",
+    "suit": "cs16-williams",
+    "gloves": "cs16-williams",
     "linked_driver_stat_id": "valtteri_bottas",
     "available": "False",
     "stat_id": "427"
@@ -959,7 +989,10 @@
     "display_name_short": "lng_cs_team_16_force_india",
     "display_name_super_short": "lng_cs_team_16_force_india",
     "display_name_code": "FIN",
-    "timing_tower_texture_path": "cs16_force_india"
+    "timing_tower_texture_path": "cs16_force_india",
+    "team_wear_primary_colour": "-16250872",
+    "team_wear_secondary_colour": "-2565928",
+    "team_wear_tertiary_colour": "-493560"
    }
   },
   {
@@ -987,8 +1020,8 @@
    "set": {
     "_metadata_": "2016-cs_force_india_sergio_perez",
     "helmet": "2024-redbull_sergio_perez",
-    "suit": "2025-forceindia_lance_stroll",
-    "gloves": "2025-forceindia_lance_stroll",
+    "suit": "cs16-forceindia",
+    "gloves": "cs16-forceindia",
     "linked_driver_stat_id": "sergio_perez",
     "available": "False",
     "stat_id": "428"
@@ -1012,8 +1045,8 @@
    "set": {
     "_metadata_": "2016-cs_force_india_nico_hulkenberg",
     "helmet": "2024-haas_nico_hulkenberg",
-    "suit": "2025-forceindia_fernando_alonso",
-    "gloves": "2025-forceindia_fernando_alonso",
+    "suit": "cs16-forceindia",
+    "gloves": "cs16-forceindia",
     "linked_driver_stat_id": "nico_hulkenberg",
     "available": "False",
     "stat_id": "429"
@@ -1040,7 +1073,10 @@
     "display_name_short": "lng_cs_team_16_lotus",
     "display_name_super_short": "lng_cs_team_16_lotus",
     "display_name_code": "REN",
-    "timing_tower_texture_path": "cs16_lotus"
+    "timing_tower_texture_path": "cs16_lotus",
+    "team_wear_primary_colour": "-473064",
+    "team_wear_secondary_colour": "-16250872",
+    "team_wear_tertiary_colour": "-9938920"
    }
   },
   {
@@ -1068,8 +1104,8 @@
    "set": {
     "_metadata_": "2016-cs_lotus_kevin_magnussen",
     "helmet": "2024-haas_kevin_magnussen",
-    "suit": "2025-renault_pierre_gasly",
-    "gloves": "2025-renault_pierre_gasly",
+    "suit": "cs16-renault",
+    "gloves": "cs16-renault",
     "linked_driver_stat_id": "kevin_magnussen",
     "available": "False",
     "stat_id": "430"
@@ -1093,8 +1129,8 @@
    "set": {
     "_metadata_": "2016-cs_lotus_jolyon_palmer",
     "helmet": "2025-renault_franco_colapinto",
-    "suit": "2025-renault_franco_colapinto",
-    "gloves": "2025-renault_franco_colapinto",
+    "suit": "cs16-renault",
+    "gloves": "cs16-renault",
     "linked_driver_stat_id": "jolyon_palmer",
     "available": "False",
     "stat_id": "431"
@@ -1121,7 +1157,10 @@
     "display_name_short": "lng_cs_team_16_toro_rosso",
     "display_name_super_short": "lng_cs_team_16_toro_rosso",
     "display_name_code": "STR",
-    "timing_tower_texture_path": "cs16_toro_rosso"
+    "timing_tower_texture_path": "cs16_toro_rosso",
+    "team_wear_primary_colour": "-15198120",
+    "team_wear_secondary_colour": "-9934744",
+    "team_wear_tertiary_colour": "-15198184"
    }
   },
   {
@@ -1149,8 +1188,8 @@
    "set": {
     "_metadata_": "2016-cs_toro_rosso_carlos_sainz-jr",
     "helmet": "2024-ferrari_carlos_sainz-jr",
-    "suit": "2025-tororosso_isack_hadjar",
-    "gloves": "2025-tororosso_isack_hadjar",
+    "suit": "cs16-tororosso",
+    "gloves": "cs16-tororosso",
     "linked_driver_stat_id": "carlos_sainz-jr",
     "available": "False",
     "stat_id": "432"
@@ -1174,8 +1213,8 @@
    "set": {
     "_metadata_": "2016-cs_toro_rosso_daniil_kvyat",
     "helmet": "2025-tororosso_liam_lawson",
-    "suit": "2025-tororosso_liam_lawson",
-    "gloves": "2025-tororosso_liam_lawson",
+    "suit": "cs16-tororosso",
+    "gloves": "cs16-tororosso",
     "linked_driver_stat_id": "daniil_kvyat",
     "available": "False",
     "stat_id": "433"
@@ -1202,7 +1241,10 @@
     "display_name_short": "lng_cs_team_16_sauber",
     "display_name_super_short": "lng_cs_team_16_sauber",
     "display_name_code": "SAU",
-    "timing_tower_texture_path": "cs16_sauber"
+    "timing_tower_texture_path": "cs16_sauber",
+    "team_wear_primary_colour": "-16242472",
+    "team_wear_secondary_colour": "-16250872",
+    "team_wear_tertiary_colour": "-14145496"
    }
   },
   {
@@ -1230,8 +1272,8 @@
    "set": {
     "_metadata_": "2016-cs_sauber_marcus_ericsson",
     "helmet": "2025-sauber_nico_hulkenberg",
-    "suit": "2025-sauber_nico_hulkenberg",
-    "gloves": "2025-sauber_nico_hulkenberg",
+    "suit": "cs16-sauber",
+    "gloves": "cs16-sauber",
     "linked_driver_stat_id": "marcus_ericsson",
     "available": "False",
     "stat_id": "434"
@@ -1255,8 +1297,8 @@
    "set": {
     "_metadata_": "2016-cs_sauber_felipe_nasr",
     "helmet": "2025-sauber_gabriel_bortoleto",
-    "suit": "2025-sauber_gabriel_bortoleto",
-    "gloves": "2025-sauber_gabriel_bortoleto",
+    "suit": "cs16-sauber",
+    "gloves": "cs16-sauber",
     "linked_driver_stat_id": "felipe_nasr",
     "available": "False",
     "stat_id": "435"
@@ -1283,7 +1325,10 @@
     "display_name_short": "lng_cs_team_16_mclaren",
     "display_name_super_short": "lng_cs_team_16_mclaren",
     "display_name_code": "MCL",
-    "timing_tower_texture_path": "cs16_mclaren"
+    "timing_tower_texture_path": "cs16_mclaren",
+    "team_wear_primary_colour": "-14141384",
+    "team_wear_secondary_colour": "-2619368",
+    "team_wear_tertiary_colour": "-9934744"
    }
   },
   {
@@ -1311,8 +1356,8 @@
    "set": {
     "_metadata_": "2016-cs_mclaren_fernando_alonso",
     "helmet": "2024-forceindia_fernando_alonso",
-    "suit": "2025-mclaren_oscar_piastri",
-    "gloves": "2025-mclaren_oscar_piastri",
+    "suit": "cs16-mclaren",
+    "gloves": "cs16-mclaren",
     "linked_driver_stat_id": "fernando_alonso",
     "available": "False",
     "stat_id": "436"
@@ -1336,8 +1381,8 @@
    "set": {
     "_metadata_": "2016-cs_mclaren_jenson_button",
     "helmet": "classic-button01_jenson_button",
-    "suit": "2025-mclaren_lando_norris",
-    "gloves": "2025-mclaren_lando_norris",
+    "suit": "cs16-mclaren",
+    "gloves": "cs16-mclaren",
     "linked_driver_stat_id": "jenson_button",
     "available": "False",
     "stat_id": "437"
@@ -1356,6 +1401,39 @@
   },
   {
    "op": "add-row",
+   "table": "customisation.custom_avatar.suits",
+   "from": "customisation.custom_avatar.suits.Suit[_metadata_=2025-sauber]",
+   "set": {
+    "_metadata_": "cg16-manor_",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cg16-manor_/cg16-manor_.assetgroup",
+    "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cg16-manor_/idf/cg16-manor__male",
+    "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cg16-manor_/idf/cg16-manor__body_logos_[GENDER]",
+    "material_override": "cg16-manor_",
+    "id": "1056",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.gloves",
+   "from": "customisation.custom_avatar.gloves.Gloves[_metadata_=2025-sauber]",
+   "set": {
+    "_metadata_": "cg16-manor_",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cg16-manor_/cg16-manor_.assetgroup",
+    "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cg16-manor_/idf/cg16-manor__glove_logos_[GENDER]",
+    "material_override": "cg16-manor_",
+    "id": "1056",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.teams",
    "from": "entrants.teams.team[_metadata_=sauber]",
    "set": {
@@ -1364,7 +1442,10 @@
     "display_name_short": "lng_cs_team_16_manor",
     "display_name_super_short": "lng_cs_team_16_manor",
     "display_name_code": "MRT",
-    "timing_tower_texture_path": "cs16_manor"
+    "timing_tower_texture_path": "cs16_manor",
+    "team_wear_primary_colour": "-501720",
+    "team_wear_secondary_colour": "-15173400",
+    "team_wear_tertiary_colour": "-16250872"
    }
   },
   {
@@ -1392,8 +1473,8 @@
    "set": {
     "_metadata_": "2016-cs_manor_pascal_wehrlein",
     "helmet": "2025-sauber_nico_hulkenberg",
-    "suit": "2025-sauber_nico_hulkenberg",
-    "gloves": "2025-sauber_nico_hulkenberg",
+    "suit": "cg16-manor_",
+    "gloves": "cg16-manor_",
     "linked_driver_stat_id": "pascal_wehrlein",
     "available": "False",
     "stat_id": "438"
@@ -1417,8 +1498,8 @@
    "set": {
     "_metadata_": "2016-cs_manor_rio_haryanto",
     "helmet": "2025-sauber_gabriel_bortoleto",
-    "suit": "2025-sauber_gabriel_bortoleto",
-    "gloves": "2025-sauber_gabriel_bortoleto",
+    "suit": "cg16-manor_",
+    "gloves": "cg16-manor_",
     "linked_driver_stat_id": "rio_haryanto",
     "available": "False",
     "stat_id": "439"
@@ -1445,7 +1526,10 @@
     "display_name_short": "lng_cs_team_16_haas",
     "display_name_super_short": "lng_cs_team_16_haas",
     "display_name_code": "HAA",
-    "timing_tower_texture_path": "cs16_haas"
+    "timing_tower_texture_path": "cs16_haas",
+    "team_wear_primary_colour": "-14145496",
+    "team_wear_secondary_colour": "-2565928",
+    "team_wear_tertiary_colour": "-2619352"
    }
   },
   {
@@ -1473,8 +1557,8 @@
    "set": {
     "_metadata_": "2016-cs_haas_romain_grosjean",
     "helmet": "2025-haas_esteban_ocon",
-    "suit": "2025-haas_esteban_ocon",
-    "gloves": "2025-haas_esteban_ocon",
+    "suit": "cs16-haas",
+    "gloves": "cs16-haas",
     "linked_driver_stat_id": "romain_grosjean",
     "available": "False",
     "stat_id": "440"
@@ -1498,8 +1582,8 @@
    "set": {
     "_metadata_": "2016-cs_haas_esteban_gutierrez",
     "helmet": "2025-haas_oliver_bearman",
-    "suit": "2025-haas_oliver_bearman",
-    "gloves": "2025-haas_oliver_bearman",
+    "suit": "cs16-haas",
+    "gloves": "cs16-haas",
     "linked_driver_stat_id": "esteban_gutierrez",
     "available": "False",
     "stat_id": "441"

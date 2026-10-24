@@ -111,7 +111,7 @@ See [Restoring the game](/using/profiles-and-restoring).
 
 | Command | Purpose |
 |---|---|
-| `swofty addons list` | List installed addons and whether they are enabled |
+| `swofty addons list` | List installed addons and whether they are enabled; an addon this launcher can't read is `unusable`, with the reason |
 | `swofty addons install <path>` | Install an addon folder, a `.swoftyaddon` file or a zip that holds an addon |
 | `swofty addons enable <id>` | Enable an addon |
 | `swofty addons disable <id> [--yes]` | Disable an addon; SwoftyMod cannot be disabled |
@@ -227,15 +227,6 @@ Commands that read the game database take `--game <dir>` after `db`.
 | `swofty setup done` | Finish the setup after verifying the game files in Steam or repairing them in the EA app |
 
 `swofty run --apply` and `swofty apply` refuse to start until the setup is done. See [The one-time setup](/reference/restore#the-one-time-setup).
-
-## `swofty overlay`
-
-| Command | Purpose |
-|---|---|
-| `swofty overlay status [--game <dir>]` | Show whether the in-game overlay is off and which addons in the profile draw over the game |
-| `swofty overlay reset [--game <dir>]` | Turn the overlay back on from the next launch: delete `swofty/overlay-gpu-removed.json` |
-
-The core writes `swofty/overlay-gpu-removed.json` in the game folder when the GPU is removed within 10 s of an overlay draw, and keeps the overlay off while it exists. Rollback, `swofty restore` and the launcher's clean-up keep the file. See [Overlay](/reference/std/overlay#when-the-overlay-draws).
 
 ## `swofty offline`
 

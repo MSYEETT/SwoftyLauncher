@@ -266,16 +266,6 @@ impl Shell {
         if let Some(row) = self.addon_update_status(state, status_row(), p, cx) {
             return row;
         }
-        if matches!(state, PlayState::Ready) && self.overlay_off.is_some() {
-            return row
-                .text_color(p.text_muted)
-                .child(dot(p.warning))
-                .child(div().min_w_0().truncate().child("The in-game overlay is off"))
-                .child(
-                    link("overlay-off-details", "Details", p)
-                        .on_click(cx.listener(|this, _, window, cx| this.show_overlay_off(window, cx))),
-                );
-        }
         let rebuild = !self.library.profile.is_vanilla() && !self.library.rebuild.is_empty();
         match state {
             PlayState::Running => row,
