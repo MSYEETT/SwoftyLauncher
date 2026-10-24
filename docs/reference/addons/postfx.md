@@ -73,6 +73,9 @@ The header is in the SDK at `packages/sdk/include/swofty/postfx.hlsli`; the buil
 |---|---|
 | `scene(uv)` | The picture at `uv` (0 to 1), filtered. |
 | `scene_at(pixel)` | The picture at a pixel, clamped to the edges. |
+| `scene_depth(uv)` | The game's depth buffer at `uv`, as stored (`eaid://ego_package/gbuffer_depth_stencil.image`): 1 at the camera, falling towards 0 with distance. 0 everywhere when `has_depth()` is false. |
+| `has_depth()` | Whether the depth buffer was readable for this frame. |
+| `swofty_depth_size` | The depth buffer's size in pixels. It is the render resolution, which is below the picture's with upscaling on. |
 | `option(i)` | The pass's `options[i]`, 0 when not set. |
 | `to_linear(c)`, `from_linear(c)` | Decode the picture to linear light and encode it back: sRGB in SDR, PQ in HDR10, unchanged in scRGB. In linear light 1 is SDR white, and 80 nits in HDR. |
 | `luminance(c)` | Rec. 709 luminance of a linear colour. |
