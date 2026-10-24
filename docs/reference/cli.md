@@ -268,7 +268,7 @@ To test an update, set `SWOFTY_UPDATE_PRETEND_VERSION=0.1.0`. The launcher and `
 swofty steam [--start]
 ```
 
-Shows whether Steam is running and signed in, with what the launcher read it from, and exits with an error when it isn't. With `--start`, it starts Steam when it's closed and waits up to 90 seconds for it to sign in, as **Play** does, without launching the game. See [Steam](/reference/launch#steam).
+Shows whether Steam is running and signed in, with what the launcher read it from, and whether Steam is verifying or updating F1 25's files. It exits with an error when Steam isn't running or signed in. With `--start`, it starts Steam when it's closed and waits up to 90 seconds for it to sign in, as **Play** does, without launching the game. See [Steam](/reference/launch#steam).
 
 ## `swofty game`
 
