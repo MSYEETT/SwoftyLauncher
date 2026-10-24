@@ -573,6 +573,24 @@
    "player.max_speed.brake_bd_factor_front",
    "player.max_speed.brake_bd_factor_rear",
    "player.max_speed.brake_bm_input_end"
+  ],
+  "customisation.custom_avatar.suits.Suit": [
+   "colour_1_default",
+   "colour_2_default",
+   "colour_3_default",
+   "colour_4_default"
+  ],
+  "customisation.custom_avatar.gloves.Gloves": [
+   "colour_1_default",
+   "colour_2_default",
+   "colour_3_default",
+   "colour_4_default"
+  ],
+  "customisation.custom_avatar.helmets.Helmet": [
+   "colour_1_default",
+   "colour_2_default",
+   "colour_3_default",
+   "colour_4_default"
   ]
  },
  "ops": [
@@ -615,7 +633,11 @@
     "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-mercedes/idf/cs21-mercedes_male",
     "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-mercedes/idf/cs21-mercedes_body_logos_[GENDER]",
     "material_override": "cs21-mercedes",
-    "id": "438"
+    "id": "1025",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -627,7 +649,11 @@
     "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-mercedes/cs21-mercedes.assetgroup",
     "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-mercedes/idf/cs21-mercedes_glove_logos_[GENDER]",
     "material_override": "cs21-mercedes",
-    "id": "438"
+    "id": "1025",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -724,7 +750,11 @@
     "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-redbull/idf/cs21-redbull_male",
     "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-redbull/idf/cs21-redbull_body_logos_[GENDER]",
     "material_override": "cs21-redbull",
-    "id": "439"
+    "id": "1026",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -736,7 +766,11 @@
     "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-redbull/cs21-redbull.assetgroup",
     "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-redbull/idf/cs21-redbull_glove_logos_[GENDER]",
     "material_override": "cs21-redbull",
-    "id": "439"
+    "id": "1026",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -833,7 +867,11 @@
     "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-ferrari/idf/cs21-ferrari_male",
     "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-ferrari/idf/cs21-ferrari_body_logos_[GENDER]",
     "material_override": "cs21-ferrari",
-    "id": "440"
+    "id": "1027",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -845,7 +883,11 @@
     "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-ferrari/cs21-ferrari.assetgroup",
     "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-ferrari/idf/cs21-ferrari_glove_logos_[GENDER]",
     "material_override": "cs21-ferrari",
-    "id": "440"
+    "id": "1027",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -942,7 +984,11 @@
     "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-mclaren/idf/cs21-mclaren_male",
     "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-mclaren/idf/cs21-mclaren_body_logos_[GENDER]",
     "material_override": "cs21-mclaren",
-    "id": "441"
+    "id": "1028",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -954,7 +1000,11 @@
     "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-mclaren/cs21-mclaren.assetgroup",
     "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-mclaren/idf/cs21-mclaren_glove_logos_[GENDER]",
     "material_override": "cs21-mclaren",
-    "id": "441"
+    "id": "1028",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -1051,7 +1101,11 @@
     "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-renault/idf/cs21-renault_male",
     "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-renault/idf/cs21-renault_body_logos_[GENDER]",
     "material_override": "cs21-renault",
-    "id": "442"
+    "id": "1029",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -1063,7 +1117,11 @@
     "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-renault/cs21-renault.assetgroup",
     "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-renault/idf/cs21-renault_glove_logos_[GENDER]",
     "material_override": "cs21-renault",
-    "id": "442"
+    "id": "1029",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -1160,7 +1218,11 @@
     "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-tororosso/idf/cs21-tororosso_male",
     "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-tororosso/idf/cs21-tororosso_body_logos_[GENDER]",
     "material_override": "cs21-tororosso",
-    "id": "443"
+    "id": "1030",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -1172,7 +1234,11 @@
     "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-tororosso/cs21-tororosso.assetgroup",
     "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-tororosso/idf/cs21-tororosso_glove_logos_[GENDER]",
     "material_override": "cs21-tororosso",
-    "id": "443"
+    "id": "1030",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -1269,7 +1335,11 @@
     "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-forceindia/idf/cs21-forceindia_male",
     "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-forceindia/idf/cs21-forceindia_body_logos_[GENDER]",
     "material_override": "cs21-forceindia",
-    "id": "444"
+    "id": "1031",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -1281,7 +1351,11 @@
     "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-forceindia/cs21-forceindia.assetgroup",
     "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-forceindia/idf/cs21-forceindia_glove_logos_[GENDER]",
     "material_override": "cs21-forceindia",
-    "id": "444"
+    "id": "1031",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -1378,7 +1452,11 @@
     "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-williams/idf/cs21-williams_male",
     "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-williams/idf/cs21-williams_body_logos_[GENDER]",
     "material_override": "cs21-williams",
-    "id": "445"
+    "id": "1032",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -1390,7 +1468,11 @@
     "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-williams/cs21-williams.assetgroup",
     "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-williams/idf/cs21-williams_glove_logos_[GENDER]",
     "material_override": "cs21-williams",
-    "id": "445"
+    "id": "1032",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -1487,7 +1569,11 @@
     "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-sauber/idf/cs21-sauber_male",
     "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-sauber/idf/cs21-sauber_body_logos_[GENDER]",
     "material_override": "cs21-sauber",
-    "id": "446"
+    "id": "1033",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -1499,7 +1585,11 @@
     "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-sauber/cs21-sauber.assetgroup",
     "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-sauber/idf/cs21-sauber_glove_logos_[GENDER]",
     "material_override": "cs21-sauber",
-    "id": "446"
+    "id": "1033",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -1596,7 +1686,11 @@
     "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-haas/idf/cs21-haas_male",
     "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-haas/idf/cs21-haas_body_logos_[GENDER]",
     "material_override": "cs21-haas",
-    "id": "447"
+    "id": "1034",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
@@ -1608,7 +1702,11 @@
     "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-haas/cs21-haas.assetgroup",
     "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-haas/idf/cs21-haas_glove_logos_[GENDER]",
     "material_override": "cs21-haas",
-    "id": "447"
+    "id": "1034",
+    "colour_1_default": "0",
+    "colour_2_default": "0",
+    "colour_3_default": "0",
+    "colour_4_default": "0"
    }
   },
   {
