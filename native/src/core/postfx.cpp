@@ -12,7 +12,6 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 // Post-process passes. The game tonemaps the 3D picture into eaid://ego_package/tonemap_output.image,
@@ -77,62 +76,59 @@ struct Target {
     UINT stride = 0;
 };
 
-// Pointers the barrier hook checks without the lock. Writers hold the lock; readers only load.
-// Erased keys leave a tombstone that a later insert reuses, and the table never moves.
+// Pointers the barrier hook checks without the lock. Writers hold the lock; readers only load. A key
+// keeps its slot for good and erase only clears its flag, so lookups never walk over tombstones; the
+// game reuses its command lists and named resources, so the tables stay small.
 template <size_t N> class PtrSet {
     static_assert((N & (N - 1)) == 0, "a power of two");
-    static constexpr uintptr_t EMPTY = 0, GONE = 1;
-    std::atomic<uintptr_t> slot[N] = {};
+    std::atomic<uintptr_t> key[N] = {};
+    std::atomic<uint8_t> on[N] = {};
 
     static size_t hash(uintptr_t k) { return size_t((k * 0x9E3779B97F4A7C15ull) >> 40) & (N - 1); }
 
-public:
-    bool contains(const void *p) const
+    size_t find(uintptr_t k, bool claim)
     {
-        uintptr_t k = uintptr_t(p);
         for (size_t i = hash(k), n = 0; n < N; i = (i + 1) & (N - 1), n++) {
-            uintptr_t v = slot[i].load(std::memory_order_acquire);
-            if (v == EMPTY)
-                return false;
+            uintptr_t v = key[i].load(std::memory_order_acquire);
             if (v == k)
-                return true;
-        }
-        return false;
-    }
-    bool insert(const void *p)
-    {
-        uintptr_t k = uintptr_t(p);
-        size_t reuse = N;
-        for (size_t i = hash(k), n = 0; n < N; i = (i + 1) & (N - 1), n++) {
-            uintptr_t v = slot[i].load(std::memory_order_relaxed);
-            if (v == k)
-                return true;
-            if (v == GONE && reuse == N)
-                reuse = i;
-            if (v == EMPTY) {
-                slot[reuse == N ? i : reuse].store(k, std::memory_order_release);
-                return true;
+                return i;
+            if (v == 0) {
+                if (!claim)
+                    return N;
+                key[i].store(k, std::memory_order_release);
+                return i;
             }
         }
-        if (reuse == N)
-            return false;
-        slot[reuse].store(k, std::memory_order_release);
+        return N;
+    }
+
+public:
+    uint8_t get(const void *p) const
+    {
+        uintptr_t k = uintptr_t(p);
+        for (size_t i = hash(k), n = 0; n < N; i = (i + 1) & (N - 1), n++) {
+            uintptr_t v = key[i].load(std::memory_order_acquire);
+            if (v == k)
+                return on[i].load(std::memory_order_acquire);
+            if (v == 0)
+                return 0;
+        }
+        return 0;
+    }
+    bool contains(const void *p) const { return get(p) != 0; }
+    bool set(const void *p, uint8_t bits)
+    {
+        size_t i = find(uintptr_t(p), bits != 0);
+        if (i == N)
+            return bits == 0;
+        on[i].store(bits, std::memory_order_release);
         return true;
     }
-    void erase(const void *p)
-    {
-        uintptr_t k = uintptr_t(p);
-        for (size_t i = hash(k), n = 0; n < N; i = (i + 1) & (N - 1), n++) {
-            uintptr_t v = slot[i].load(std::memory_order_relaxed);
-            if (v == EMPTY)
-                return;
-            if (v == k) {
-                slot[i].store(GONE, std::memory_order_release);
-                return;
-            }
-        }
-    }
+    bool insert(const void *p) { return set(p, 1); }
+    void erase(const void *p) { set(p, 0); }
 };
+
+enum : uint8_t { W_TONEMAP = 1, W_BACK = 2, W_HUDLESS = 4, W_UI = 8, W_DEPTH = 16 };
 
 safetyhook::InlineHook h_setname, h_barrier, h_exec;
 PtrSet<1024> watched;
@@ -140,13 +136,12 @@ PtrSet<4096> marked;
 std::atomic<bool> sets_full;
 std::recursive_mutex lock;
 std::vector<Pass> passes;
-std::unordered_set<ID3D12Resource *> tonemaps, backbuffers, hudlesses, ui_targets, depths;
 ID3D12Resource *depth_res;
 D3D12_RESOURCE_STATES depth_state;
 bool depth_logged;
 std::unordered_map<ID3D12Resource *, std::wstring> names;
 std::unordered_map<ID3D12GraphicsCommandList *, Mark> marks;
-bool diag_done, killed, broken, warned_busy, hudless_logged;
+bool diag_done, killed, broken, warned_busy, hudless_logged, saw_back;
 std::wstring off_file;
 
 ID3D12Device *device;
@@ -719,32 +714,24 @@ HRESULT STDMETHODCALLTYPE setname_hook(ID3D12Object *o, LPCWSTR name)
         perf::Scope p(probe);
         auto *res = reinterpret_cast<ID3D12Resource *>(o);
         std::lock_guard<std::recursive_mutex> g(lock);
-        if (tonemaps.erase(res) | backbuffers.erase(res) | hudlesses.erase(res) | ui_targets.erase(res) |
-            depths.erase(res)) {
+        if (watched.get(res)) {
             names.erase(res);
             watched.erase(res);
         }
         if (res == depth_res)
             depth_res = nullptr;
         bool tonemap = wcscmp(name, TONEMAP_NAME) == 0, back = wcscmp(name, BACKBUFFER_NAME) == 0;
-        if (wcscmp(name, HUDLESS_NAME) == 0)
-            hudlesses.insert(res);
-        if (wcscmp(name, DEPTH_NAME) == 0)
-            depths.insert(res);
-        if (wcsncmp(name, UI_PREFIX, wcslen(UI_PREFIX)) == 0)
-            ui_targets.insert(res);
+        uint8_t bits = (tonemap ? W_TONEMAP : 0) | (back ? W_BACK : 0) |
+                       (wcscmp(name, HUDLESS_NAME) == 0 ? W_HUDLESS : 0) |
+                       (wcscmp(name, DEPTH_NAME) == 0 ? W_DEPTH : 0) |
+                       (wcsncmp(name, UI_PREFIX, wcslen(UI_PREFIX)) == 0 ? W_UI : 0);
         if (tonemap || back || (!diag_done && wcsstr(name, L"eaid://")))
             names[res] = name;
-        if (tonemap)
-            tonemaps.insert(res);
-        if (back) {
-            if (backbuffers.empty())
-                swofty::log("[postfx] the game names its back buffers \"BackBuffer\"");
-            backbuffers.insert(res);
+        if (back && !saw_back) {
+            saw_back = true;
+            swofty::log("[postfx] the game names its back buffers \"BackBuffer\"");
         }
-        if ((tonemaps.count(res) || backbuffers.count(res) || hudlesses.count(res) || ui_targets.count(res) ||
-             depths.count(res)) &&
-            !watched.insert(res))
+        if (bits && !watched.set(res, bits))
             sets_full = true;
     }
     return h_setname.call<HRESULT>(o, name);
@@ -763,6 +750,8 @@ void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, con
             perf::Pause game;
             return h_barrier.call<void>(list, n, barriers);
         }
+        static const uint32_t marking = perf::probe("core", "postfx ResourceBarrier (watched)");
+        perf::Scope m_scope(marking);
         std::lock_guard<std::recursive_mutex> g(lock);
         Mark *m = nullptr;
         for (UINT i = 0; i < n; i++) {
@@ -770,7 +759,8 @@ void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, con
             if (b.Type != D3D12_RESOURCE_BARRIER_TYPE_TRANSITION)
                 continue;
             ID3D12Resource *r = b.Transition.pResource;
-            bool tonemap = tonemaps.count(r) != 0, back = backbuffers.count(r) != 0, depth = depths.count(r) != 0;
+            uint8_t c = watched.get(r);
+            bool tonemap = c & W_TONEMAP, back = c & W_BACK, depth = c & W_DEPTH;
             if (!m) {
                 auto it = marks.find(list);
                 if (it == marks.end() && !tonemap && !back && !depth)
@@ -783,9 +773,9 @@ void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, con
                 m->depth = r;
                 m->depth_state = b.Transition.StateAfter;
             }
-            if (ui_targets.count(r))
+            if (c & W_UI)
                 m->ui = true;
-            if (hudlesses.count(r)) {
+            if (c & W_HUDLESS) {
                 m->hudless = r;
                 m->hudless_state = b.Transition.StateAfter;
             }
