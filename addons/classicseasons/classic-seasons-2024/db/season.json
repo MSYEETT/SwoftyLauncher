@@ -607,6 +607,10 @@
     "display_name_super_short": "lng_cs_team_24_redbull",
     "display_name_code": "RBR",
     "timing_tower_texture_path": "cs24_redbull",
+    "primary_colour": "-13209146",
+    "ui_team_colour": "-13209146",
+    "secondary_colour": "-1525752",
+    "tertiary_colour": "-1566680",
     "team_wear_primary_colour": "-16246728",
     "team_wear_secondary_colour": "-1525752",
     "team_wear_tertiary_colour": "-1566680"
@@ -633,12 +637,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-redbull_max_verstappen]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-redbull_max_verstappen]",
    "set": {
     "_metadata_": "2024-cs_redbull_max_verstappen",
     "helmet": "2024-redbull_max_verstappen",
-    "suit": "2025-redbull_max_verstappen",
-    "gloves": "2025-redbull_max_verstappen",
+    "suit": "2024-redbull_max_verstappen",
+    "gloves": "2024-redbull_max_verstappen",
     "linked_driver_stat_id": "max_verstappen",
     "available": "False",
     "stat_id": "582"
@@ -658,12 +662,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-redbull_yuki_tsunoda]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-redbull_sergio_perez]",
    "set": {
     "_metadata_": "2024-cs_redbull_sergio_perez",
     "helmet": "2024-redbull_sergio_perez",
-    "suit": "2025-redbull_yuki_tsunoda",
-    "gloves": "2025-redbull_yuki_tsunoda",
+    "suit": "2024-redbull_sergio_perez",
+    "gloves": "2024-redbull_sergio_perez",
     "linked_driver_stat_id": "sergio_perez",
     "available": "False",
     "stat_id": "583"
@@ -691,6 +695,10 @@
     "display_name_super_short": "lng_cs_team_24_mclaren",
     "display_name_code": "MCL",
     "timing_tower_texture_path": "cs24_mclaren",
+    "primary_colour": "-32768",
+    "ui_team_colour": "-32768",
+    "secondary_colour": "-14145448",
+    "tertiary_colour": "-497656",
     "team_wear_primary_colour": "-15198184",
     "team_wear_secondary_colour": "-14145448",
     "team_wear_tertiary_colour": "-497656"
@@ -717,12 +725,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-mclaren_oscar_piastri]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-mclaren_lando_norris]",
    "set": {
     "_metadata_": "2024-cs_mclaren_lando_norris",
     "helmet": "2024-mclaren_lando_norris",
-    "suit": "2025-mclaren_oscar_piastri",
-    "gloves": "2025-mclaren_oscar_piastri",
+    "suit": "2024-mclaren_lando_norris",
+    "gloves": "2024-mclaren_lando_norris",
     "linked_driver_stat_id": "lando_norris",
     "available": "False",
     "stat_id": "584"
@@ -742,12 +750,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-mclaren_lando_norris]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-mclaren_oscar_piastri]",
    "set": {
     "_metadata_": "2024-cs_mclaren_oscar_piastri",
     "helmet": "2024-mclaren_oscar_piastri",
-    "suit": "2025-mclaren_lando_norris",
-    "gloves": "2025-mclaren_lando_norris",
+    "suit": "2024-mclaren_oscar_piastri",
+    "gloves": "2024-mclaren_oscar_piastri",
     "linked_driver_stat_id": "oscar_piastri",
     "available": "False",
     "stat_id": "585"
@@ -775,6 +783,10 @@
     "display_name_super_short": "lng_cs_team_24_ferrari",
     "display_name_code": "FER",
     "timing_tower_texture_path": "cs24_ferrari",
+    "primary_colour": "-1572819",
+    "ui_team_colour": "-1572819",
+    "secondary_colour": "-1513240",
+    "tertiary_colour": "-1525720",
     "team_wear_primary_colour": "-3667944",
     "team_wear_secondary_colour": "-1513240",
     "team_wear_tertiary_colour": "-1525720"
@@ -801,12 +813,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-ferrari_charles_leclerc]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-ferrari_charles_leclerc]",
    "set": {
     "_metadata_": "2024-cs_ferrari_charles_leclerc",
     "helmet": "2024-ferrari_charles_leclerc",
-    "suit": "2025-ferrari_charles_leclerc",
-    "gloves": "2025-ferrari_charles_leclerc",
+    "suit": "2024-ferrari_charles_leclerc",
+    "gloves": "2024-ferrari_charles_leclerc",
     "linked_driver_stat_id": "charles_leclerc",
     "available": "False",
     "stat_id": "586"
@@ -826,12 +838,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-ferrari_lewis_hamilton]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-ferrari_carlos_sainz-jr]",
    "set": {
     "_metadata_": "2024-cs_ferrari_carlos_sainz-jr",
     "helmet": "2024-ferrari_carlos_sainz-jr",
-    "suit": "2025-ferrari_lewis_hamilton",
-    "gloves": "2025-ferrari_lewis_hamilton",
+    "suit": "2024-ferrari_carlos_sainz-jr",
+    "gloves": "2024-ferrari_carlos_sainz-jr",
     "linked_driver_stat_id": "carlos_sainz-jr",
     "available": "False",
     "stat_id": "587"
@@ -859,6 +871,10 @@
     "display_name_super_short": "lng_cs_team_24_mercedes",
     "display_name_code": "MER",
     "timing_tower_texture_path": "cs24_mercedes",
+    "primary_colour": "-14158638",
+    "ui_team_colour": "-14158638",
+    "secondary_colour": "-7825256",
+    "tertiary_colour": "-5765096",
     "team_wear_primary_colour": "-16250872",
     "team_wear_secondary_colour": "-7825256",
     "team_wear_tertiary_colour": "-5765096"
@@ -885,12 +901,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-mercedes_george_russell]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-mercedes_lewis_hamilton]",
    "set": {
     "_metadata_": "2024-cs_mercedes_lewis_hamilton",
     "helmet": "2024-mercedes_lewis_hamilton",
-    "suit": "2025-mercedes_george_russell",
-    "gloves": "2025-mercedes_george_russell",
+    "suit": "2024-mercedes_lewis_hamilton",
+    "gloves": "2024-mercedes_lewis_hamilton",
     "linked_driver_stat_id": "lewis_hamilton",
     "available": "False",
     "stat_id": "588"
@@ -910,12 +926,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-mercedes_andrea-kimi_antonelli]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-mercedes_george_russell]",
    "set": {
     "_metadata_": "2024-cs_mercedes_george_russell",
     "helmet": "2024-mercedes_george_russell",
-    "suit": "2025-mercedes_andrea-kimi_antonelli",
-    "gloves": "2025-mercedes_andrea-kimi_antonelli",
+    "suit": "2024-mercedes_george_russell",
+    "gloves": "2024-mercedes_george_russell",
     "linked_driver_stat_id": "george_russell",
     "available": "False",
     "stat_id": "589"
@@ -943,6 +959,10 @@
     "display_name_super_short": "lng_cs_team_24_force_india",
     "display_name_code": "AMR",
     "timing_tower_texture_path": "cs24_force_india",
+    "primary_colour": "-14509711",
+    "ui_team_colour": "-14509711",
+    "secondary_colour": "-1517336",
+    "tertiary_colour": "-13092808",
     "team_wear_primary_colour": "-16250872",
     "team_wear_secondary_colour": "-1517336",
     "team_wear_tertiary_colour": "-13092808"
@@ -969,12 +989,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-forceindia_lance_stroll]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-forceindia_fernando_alonso]",
    "set": {
     "_metadata_": "2024-cs_force_india_fernando_alonso",
     "helmet": "2024-forceindia_fernando_alonso",
-    "suit": "2025-forceindia_lance_stroll",
-    "gloves": "2025-forceindia_lance_stroll",
+    "suit": "2024-forceindia_fernando_alonso",
+    "gloves": "2024-forceindia_fernando_alonso",
     "linked_driver_stat_id": "fernando_alonso",
     "available": "False",
     "stat_id": "590"
@@ -994,12 +1014,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-forceindia_fernando_alonso]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-forceindia_lance_stroll]",
    "set": {
     "_metadata_": "2024-cs_force_india_lance_stroll",
     "helmet": "2024-forceindia_lance_stroll",
-    "suit": "2025-forceindia_fernando_alonso",
-    "gloves": "2025-forceindia_fernando_alonso",
+    "suit": "2024-forceindia_lance_stroll",
+    "gloves": "2024-forceindia_lance_stroll",
     "linked_driver_stat_id": "lance_stroll",
     "available": "False",
     "stat_id": "591"
@@ -1027,6 +1047,10 @@
     "display_name_super_short": "lng_cs_team_24_lotus",
     "display_name_code": "ALP",
     "timing_tower_texture_path": "cs24_lotus",
+    "primary_colour": "-16739380",
+    "ui_team_colour": "-16739380",
+    "secondary_colour": "-1550184",
+    "tertiary_colour": "-1529672",
     "team_wear_primary_colour": "-15198184",
     "team_wear_secondary_colour": "-1550184",
     "team_wear_tertiary_colour": "-1529672"
@@ -1053,12 +1077,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-renault_pierre_gasly]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-renault_pierre_gasly]",
    "set": {
     "_metadata_": "2024-cs_lotus_pierre_gasly",
     "helmet": "2024-renault_pierre_gasly",
-    "suit": "2025-renault_pierre_gasly",
-    "gloves": "2025-renault_pierre_gasly",
+    "suit": "2024-renault_pierre_gasly",
+    "gloves": "2024-renault_pierre_gasly",
     "linked_driver_stat_id": "pierre_gasly",
     "available": "False",
     "stat_id": "592"
@@ -1078,12 +1102,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-renault_franco_colapinto]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-renault_esteban_ocon]",
    "set": {
     "_metadata_": "2024-cs_lotus_esteban_ocon",
     "helmet": "2024-renault_esteban_ocon",
-    "suit": "2025-renault_franco_colapinto",
-    "gloves": "2025-renault_franco_colapinto",
+    "suit": "2024-renault_esteban_ocon",
+    "gloves": "2024-renault_esteban_ocon",
     "linked_driver_stat_id": "esteban_ocon",
     "available": "False",
     "stat_id": "593"
@@ -1111,6 +1135,10 @@
     "display_name_super_short": "lng_cs_team_24_williams",
     "display_name_code": "WIL",
     "timing_tower_texture_path": "cs24_williams",
+    "primary_colour": "-10173185",
+    "ui_team_colour": "-10173185",
+    "secondary_colour": "-16234264",
+    "tertiary_colour": "-16242520",
     "team_wear_primary_colour": "-16246712",
     "team_wear_secondary_colour": "-16234264",
     "team_wear_tertiary_colour": "-16242520"
@@ -1137,12 +1165,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-williams_alex_albon]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-williams_alex_albon]",
    "set": {
     "_metadata_": "2024-cs_williams_alex_albon",
     "helmet": "2024-williams_alex_albon",
-    "suit": "2025-williams_alex_albon",
-    "gloves": "2025-williams_alex_albon",
+    "suit": "2024-williams_alex_albon",
+    "gloves": "2024-williams_alex_albon",
     "linked_driver_stat_id": "alex_albon",
     "available": "False",
     "stat_id": "594"
@@ -1162,12 +1190,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-williams_carlos_sainz-jr]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-williams_logan_sargeant]",
    "set": {
     "_metadata_": "2024-cs_williams_logan_sargeant",
     "helmet": "2024-williams_logan_sargeant",
-    "suit": "2025-williams_carlos_sainz-jr",
-    "gloves": "2025-williams_carlos_sainz-jr",
+    "suit": "2024-williams_logan_sargeant",
+    "gloves": "2024-williams_logan_sargeant",
     "linked_driver_stat_id": "logan_sargeant",
     "available": "False",
     "stat_id": "595"
@@ -1195,6 +1223,10 @@
     "display_name_super_short": "lng_cs_team_24_toro_rosso",
     "display_name_code": "RB",
     "timing_tower_texture_path": "cs24_toro_rosso",
+    "primary_colour": "-10054913",
+    "ui_team_colour": "-10054913",
+    "secondary_colour": "-1513240",
+    "tertiary_colour": "-2611160",
     "team_wear_primary_colour": "-16246616",
     "team_wear_secondary_colour": "-1513240",
     "team_wear_tertiary_colour": "-2611160"
@@ -1221,12 +1253,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-tororosso_isack_hadjar]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-tororosso_yuki_tsunoda]",
    "set": {
     "_metadata_": "2024-cs_toro_rosso_yuki_tsunoda",
     "helmet": "2024-tororosso_yuki_tsunoda",
-    "suit": "2025-tororosso_isack_hadjar",
-    "gloves": "2025-tororosso_isack_hadjar",
+    "suit": "2024-tororosso_yuki_tsunoda",
+    "gloves": "2024-tororosso_yuki_tsunoda",
     "linked_driver_stat_id": "yuki_tsunoda",
     "available": "False",
     "stat_id": "596"
@@ -1246,12 +1278,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-tororosso_liam_lawson]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-tororosso_daniel_ricciardo]",
    "set": {
     "_metadata_": "2024-cs_toro_rosso_daniel_ricciardo",
     "helmet": "2024-tororosso_daniel_ricciardo",
-    "suit": "2025-tororosso_liam_lawson",
-    "gloves": "2025-tororosso_liam_lawson",
+    "suit": "2024-tororosso_daniel_ricciardo",
+    "gloves": "2024-tororosso_daniel_ricciardo",
     "linked_driver_stat_id": "daniel_ricciardo",
     "available": "False",
     "stat_id": "597"
@@ -1279,6 +1311,10 @@
     "display_name_super_short": "lng_cs_team_24_sauber",
     "display_name_code": "SAU",
     "timing_tower_texture_path": "cs24_sauber",
+    "primary_colour": "-11345326",
+    "ui_team_colour": "-11345326",
+    "secondary_colour": "-16193528",
+    "tertiary_colour": "-16193528",
     "team_wear_primary_colour": "-15198184",
     "team_wear_secondary_colour": "-16193528",
     "team_wear_tertiary_colour": "-16193528"
@@ -1305,12 +1341,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-sauber_nico_hulkenberg]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-sauber_valtteri_bottas]",
    "set": {
     "_metadata_": "2024-cs_sauber_valtteri_bottas",
     "helmet": "2024-sauber_valtteri_bottas",
-    "suit": "2025-sauber_nico_hulkenberg",
-    "gloves": "2025-sauber_nico_hulkenberg",
+    "suit": "2024-sauber_valtteri_bottas",
+    "gloves": "2024-sauber_valtteri_bottas",
     "linked_driver_stat_id": "valtteri_bottas",
     "available": "False",
     "stat_id": "598"
@@ -1330,12 +1366,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-sauber_gabriel_bortoleto]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-sauber_guanyu_zhou]",
    "set": {
     "_metadata_": "2024-cs_sauber_guanyu_zhou",
     "helmet": "2024-sauber_guanyu_zhou",
-    "suit": "2025-sauber_gabriel_bortoleto",
-    "gloves": "2025-sauber_gabriel_bortoleto",
+    "suit": "2024-sauber_guanyu_zhou",
+    "gloves": "2024-sauber_guanyu_zhou",
     "linked_driver_stat_id": "guanyu_zhou",
     "available": "False",
     "stat_id": "599"
@@ -1363,6 +1399,10 @@
     "display_name_super_short": "lng_cs_team_24_haas",
     "display_name_code": "HAA",
     "timing_tower_texture_path": "cs24_haas",
+    "primary_colour": "-4801859",
+    "ui_team_colour": "-4801859",
+    "secondary_colour": "-1566696",
+    "tertiary_colour": "-15202280",
     "team_wear_primary_colour": "-1513240",
     "team_wear_secondary_colour": "-1566696",
     "team_wear_tertiary_colour": "-15202280"
@@ -1389,12 +1429,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-haas_esteban_ocon]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-haas_nico_hulkenberg]",
    "set": {
     "_metadata_": "2024-cs_haas_nico_hulkenberg",
     "helmet": "2024-haas_nico_hulkenberg",
-    "suit": "2025-haas_esteban_ocon",
-    "gloves": "2025-haas_esteban_ocon",
+    "suit": "2024-haas_nico_hulkenberg",
+    "gloves": "2024-haas_nico_hulkenberg",
     "linked_driver_stat_id": "nico_hulkenberg",
     "available": "False",
     "stat_id": "600"
@@ -1414,12 +1454,12 @@
   {
    "op": "add-row",
    "table": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]",
-   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-haas_oliver_bearman]",
+   "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2024-haas_kevin_magnussen]",
    "set": {
     "_metadata_": "2024-cs_haas_kevin_magnussen",
     "helmet": "2024-haas_kevin_magnussen",
-    "suit": "2025-haas_oliver_bearman",
-    "gloves": "2025-haas_oliver_bearman",
+    "suit": "2024-haas_kevin_magnussen",
+    "gloves": "2024-haas_kevin_magnussen",
     "linked_driver_stat_id": "kevin_magnussen",
     "available": "False",
     "stat_id": "601"

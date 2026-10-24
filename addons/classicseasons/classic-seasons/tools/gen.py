@@ -21,7 +21,8 @@ copies its stock team's row.
 Suits of 2016 to 2023 (suit_sources.py): each driver's look wears the suit and gloves suit_sources.pick chooses, a
 real suit (a mod's or F1 23's, built by build_real_suits.py into this addon's suits/, or a stock F1 25 one) or, for
 2016 to 2021, the team's generated suit (build_suits.py, the season's suits/meta.json), and a real driver suit's
-helmet. A 2022 or 2023 look with no built F1 23 suit keeps its seat's stock kit, as 2024 does. The core addon copies
+helmet. A 2022 or 2023 look with no built F1 23 suit keeps its seat's stock kit. A driver with a stock look of the
+season (<year>-<stock team>_<driver>, the 2024 grid) wears that look's suit, gloves and helmet. The core addon copies
 each built mod suit's suit, gloves and helmet rows from its base under its label, with item ids REAL_SUIT_IDS and
 HELMET_IDS, and ships its archives (assets/suits.json). A season copies its generated suits' rows; every team-season of
 SUIT_YEARS takes the next id of SUIT_IDS, in season and team order, whether its suit is generated or not. The suits of
@@ -42,15 +43,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import heads
 import suit_sources
-from layout import (ROOT, SUIT_YEARS, asset_ops, built, extra_package, real_suit_asset_ops, real_suits, suit_asset_ops,
-                    suits, year_dir)
+from layout import (ROOT, SUIT_YEARS, asset_ops, built, extra_package, helmet_asset_ops, helmets, real_suit_asset_ops,
+                    real_suits, suit_asset_ops, suits, year_dir)
 
 DATA = json.loads((ROOT / "data" / "seasons.json").read_text())
 STOCK = json.loads((ROOT / "data" / "stock_looks.json").read_text())
 DRIVER_FIELDS = json.loads((ROOT / "data" / "driver_fields.json").read_text())
 SETUP_PRESET_FIELDS = json.loads((ROOT / "data" / "setup_preset_fields.json").read_text())
 TEAM_COLOURS = json.loads((ROOT / "data" / "team_colours.json").read_text())
+REAL_HEADS = json.loads((ROOT / "data" / "heads.json").read_text())["heads"]
+HEAD_ROWS = "entrants.animation.driver_heads"
 
 CATEGORY = "options_system.options.multiplayer.options_folder_2.option[_metadata_=category]"
 CATEGORY_FIELDS = ["_metadata_", "confirmation_dialogue", "description_override", "game_value", "is_default", "loc_tag",
@@ -79,6 +83,8 @@ SUIT_IDS = range(REAL_SUIT_IDS.stop, REAL_SUIT_IDS.stop + sum(len(s["teams"]) fo
 TRANSFER_SUIT_IDS = range(SUIT_IDS.stop, SUIT_IDS.stop + len(TRANSFERRED_SUITS))
 HELMET_IDS = range(868, 868 + sum(1 for e in suit_sources.REAL["suits"] if e.get("helmet")))
 HELMETS = "customisation.custom_avatar.helmets"
+SEASON_HELMETS = json.loads((ROOT / "data" / "helmets.json").read_text())["helmets"]
+SEASON_HELMET_IDS = {(h["season"], h["driver"]): n for n, h in enumerate(SEASON_HELMETS, HELMET_IDS.stop)}
 STOCK_ITEM_IDS = {"suits": range(448, 974), "gloves": range(448, 974), "helmets": range(315, 868)}
 COLOUR_FIELDS = [f"colour_{n}_default" for n in range(1, 5)]
 SUITS = "customisation.custom_avatar.suits"
@@ -95,21 +101,31 @@ def look_label(year, folder, driver):
     return f"{year}-cs_{folder}_{driver}"
 
 
-def placeholder_look(folder, position, driver):
-    seat = STOCK["seat_looks"][DATA["folders"][folder]["team"]][str(position)]
+def placeholder_look(folder, position, driver, year):
+    team = DATA["folders"][folder]["team"]
+    period = STOCK["looks"].get(f"{year}-{team}_{driver}")
+    if period:
+        return f"{year}-{team}_{driver}", period["helmet"], period["suit"], period["gloves"]
+    seat = STOCK["seat_looks"][team][str(position)]
     own = STOCK["driver_looks"].get(driver)
     helmet_from = STOCK["looks"][own] if own else STOCK["looks"][seat]
     suit_from = STOCK["looks"][seat]
     return seat, helmet_from["helmet"], suit_from["suit"], suit_from["gloves"]
 
 
+def head_label(head):
+    return heads.label(head) if head in REAL_HEADS else head
+
+
 def colour(hex_rgb):
     return str((0xFF000000 | int(hex_rgb[1:], 16)) - (1 << 32))
 
 
-def team_wear(label):
+def team_colours(team, label):
     wear = TEAM_COLOURS[label]["team_wear"]
-    return {f"team_wear_{slot}_colour": colour(c) for slot, c in zip(("primary", "secondary", "tertiary"), wear)}
+    return {"primary_colour": colour(team["colour"]), "ui_team_colour": colour(team["colour"]),
+            "secondary_colour": colour(wear[1]), "tertiary_colour": colour(wear[2]),
+            **{f"team_wear_{slot}_colour": colour(c) for slot, c in zip(("primary", "secondary", "tertiary"), wear)}}
 
 
 def lang(key, value):
@@ -189,11 +205,20 @@ def real_rows(m, item_id, helmet_id):
     return ops
 
 
+def helmet_row(m):
+    folder = f"[CHARACTER_PACKAGE]/drivers/male/{m['label']}"
+    return {"op": "add-row", "table": HELMETS, "from": f"{HELMETS}.Helmet[_metadata_={m['base']}]",
+            "set": {"_metadata_": m["label"], "asset_group": f"asset_groups/{folder}/{m['stem']}_helmet.assetgroup",
+                    "attachments_model": f"eaid://{folder}/idf/{m['stem']}_helmet_attachments",
+                    "material_override": m["label"], "id": str(SEASON_HELMET_IDS[m["season"], m["driver"]]),
+                    **dict(zip(COLOUR_FIELDS, m["helmet_colours"]))}}
+
+
 def season_manifest(core, year, assets):
     return {
         "schema_version": 1,
         "id": f"{core['id']}-{year}",
-        "name": f"Classic Seasons: F1 {year} GP/TT Addon",
+        "name": f"F1 {year} GP/TT Addon",
         "version": core["version"],
         "author": core["author"],
         "description": f"The F1 {year} season for Classic Seasons: its cars, teams and drivers in Grand Prix and "
@@ -215,6 +240,10 @@ def build():
     suit_ids = iter(SUIT_IDS)
     seasons = []
 
+    for head in REAL_HEADS:
+        ops.append({"op": "add-row", "table": HEAD_ROWS, "from": f"{HEAD_ROWS}.driver_head[_metadata_={head}]",
+                    "set": {"_metadata_": heads.label(head)}})
+
     for driver_stat, (label, d) in enumerate(DATA["new_drivers"].items(), DRIVER_STAT_BASE):
         base = f"lng_cs_driver_{label}"
         ops.append({"op": "add-row", "table": "entrants.drivers",
@@ -222,13 +251,14 @@ def build():
                     "set": {"_metadata_": label, "first_name": base + "_first", "last_name": base + "_last",
                             "full_name": base + "_full", "last_name_standard": "", "initials": d["initials"],
                             "nationality": d["nationality"],
-                            "head": d["head"], "audio_name": "DefaultName", "expression_label": "",
+                            "head": head_label(d["head"]), "audio_name": "DefaultName", "expression_label": "",
                             "stat_id": str(driver_stat)}})
         text += [lang(base + "_first", d["first"]), lang(base + "_last", d["last"].upper()),
                  lang(base + "_full", f"{d['first']} {d['last'].upper()}")]
 
     for label, head in DATA["head_overrides"].items():
-        ops.append({"op": "set", "select": f"entrants.drivers.driver[_metadata_={label}]", "field": "head", "value": head})
+        ops.append({"op": "set", "select": f"entrants.drivers.driver[_metadata_={label}]", "field": "head",
+                    "value": head_label(head)})
 
     for label in list(DATA["new_drivers"]) + DATA["holders_for"]:
         ops.append({"op": "add-row", "table": "driver_statistics.driver_statistics",
@@ -260,6 +290,8 @@ def build():
         ops, text = [], []
         seasons.append((year, ops, text))
         text.append(lang(f"lng_cs_f1_{year}", f"F1 {year}"))
+        season_helmets = helmets(year)
+        ops += [helmet_row(m) for m in season_helmets.values()]
         cars = built(year)
         if cars:
             pkg = f"cs_{year}_vehicle_package"
@@ -307,7 +339,7 @@ def build():
                         "from": f"entrants.teams.team[_metadata_={stock['team']}]",
                         "set": {"_metadata_": label, "display_name": name_key, "display_name_short": name_key,
                                 "display_name_super_short": name_key, "display_name_code": team["code"],
-                                "timing_tower_texture_path": label, **team_wear(label)}})
+                                "timing_tower_texture_path": label, **team_colours(team, label)}})
             ops.append({"op": "add-row", "table": "pit_lane.pit_times",
                         "from": f"pit_lane.pit_times.team_pit_times[_metadata_={stock['team']}]",
                         "set": {"_metadata_": label, "team": label}})
@@ -319,7 +351,7 @@ def build():
                         "from": f"entrants.vehicles.vehicle[_metadata_={stock['vehicle']}]", "set": vehicle})
 
             for position, (driver, number) in enumerate(team["drivers"]):
-                seat, helmet, suit_look, gloves = placeholder_look(folder, position, driver)
+                seat, helmet, suit_look, gloves = placeholder_look(folder, position, driver, year)
                 if year in suit_sources.REAL_YEARS:
                     choice = suit_sources.pick(year, team, driver, set(made))
                     if choice:
@@ -327,6 +359,8 @@ def build():
                         helmet = choice["helmet_label"] if choice["helmet_label"] in made else helmet
                     elif suit:
                         suit_look = gloves = suit["label"]
+                if driver in season_helmets:
+                    helmet = season_helmets[driver]["label"]
                 look = look_label(year, key, driver)
                 ops.append({"op": "add-row", "table": LOOKS, "from": f"{LOOK_ROW}[_metadata_={seat}]",
                             "set": {"_metadata_": look, "helmet": helmet, "suit": suit_look, "gloves": gloves,
@@ -406,13 +440,14 @@ def build():
           f"unique ids")
     for year, ops, text in seasons:
         folder = year_dir(year)
-        assets = ["assets/cars.json"] + (["assets/suits.json"] if suits(year) else [])
+        assets = ["assets/cars.json"] + (["assets/suits.json"] if suits(year) else []) + \
+            (["assets/helmets.json"] if helmets(year) else [])
         write_json(folder / "swofty.json", season_manifest(core, year, assets))
         write_json(folder / "db" / "season.json",
                    {"schema_version": 1, "fields": {**fields, SETUP_PRESETS: SETUP_PRESET_FIELDS,
-                                                    **(ITEM_FIELDS if suits(year) else {})}, "ops": ops})
+                                                    **(ITEM_FIELDS if suits(year) or helmets(year) else {})}, "ops": ops})
         write_json(folder / "lang" / "season.json", {"schema_version": 1, "ops": text})
-        (folder / ".gitignore").write_text("cars/\nsuits/\n")
+        (folder / ".gitignore").write_text("cars/\nsuits/\nhelmets/\n")
         cars = built(year)
         if cars:
             write_json(folder / "assets" / "cars.json", asset_ops(year))
@@ -420,6 +455,10 @@ def build():
             write_json(folder / "assets" / "suits.json", suit_asset_ops(year))
         elif (folder / "assets" / "suits.json").exists():
             (folder / "assets" / "suits.json").unlink()
+        if helmets(year):
+            write_json(folder / "assets" / "helmets.json", helmet_asset_ops(year))
+        elif (folder / "assets" / "helmets.json").exists():
+            (folder / "assets" / "helmets.json").unlink()
         adds = sum(1 for o in ops if o["op"] == "add-row")
         print(f"{year}: {len(ops)} db ops ({adds} add-row), {len(text)} strings, cars {'built' if cars else 'missing'}, "
               f"{len(suits(year))} suits")

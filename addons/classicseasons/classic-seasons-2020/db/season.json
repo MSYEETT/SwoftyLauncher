@@ -634,6 +634,10 @@
     "display_name_super_short": "lng_cs_team_20_mercedes",
     "display_name_code": "MER",
     "timing_tower_texture_path": "cs20_mercedes",
+    "primary_colour": "-16723266",
+    "ui_team_colour": "-16723266",
+    "secondary_colour": "-8910824",
+    "tertiary_colour": "-12003112",
     "team_wear_primary_colour": "-15198184",
     "team_wear_secondary_colour": "-8910824",
     "team_wear_tertiary_colour": "-12003112"
@@ -718,6 +722,10 @@
     "display_name_super_short": "lng_cs_team_20_redbull",
     "display_name_code": "RBR",
     "timing_tower_texture_path": "cs20_redbull",
+    "primary_colour": "-14794241",
+    "ui_team_colour": "-14794241",
+    "secondary_colour": "-2619352",
+    "tertiary_colour": "-1525752",
     "team_wear_primary_colour": "-16250840",
     "team_wear_secondary_colour": "-2619352",
     "team_wear_tertiary_colour": "-1525752"
@@ -802,6 +810,10 @@
     "display_name_super_short": "lng_cs_team_20_mclaren",
     "display_name_code": "MCL",
     "timing_tower_texture_path": "cs20_mclaren",
+    "primary_colour": "-30976",
+    "ui_team_colour": "-30976",
+    "secondary_colour": "-15181672",
+    "tertiary_colour": "-497656",
     "team_wear_primary_colour": "-15198184",
     "team_wear_secondary_colour": "-15181672",
     "team_wear_tertiary_colour": "-497656"
@@ -919,6 +931,10 @@
     "display_name_super_short": "lng_cs_team_20_force_india",
     "display_name_code": "RPT",
     "timing_tower_texture_path": "cs20_force_india",
+    "primary_colour": "-682296",
+    "ui_team_colour": "-682296",
+    "secondary_colour": "-1513240",
+    "tertiary_colour": "-5723992",
     "team_wear_primary_colour": "-1537864",
     "team_wear_secondary_colour": "-1513240",
     "team_wear_tertiary_colour": "-5723992"
@@ -1003,6 +1019,10 @@
     "display_name_super_short": "lng_cs_team_20_lotus",
     "display_name_code": "REN",
     "timing_tower_texture_path": "cs20_lotus",
+    "primary_colour": "-2816",
+    "ui_team_colour": "-2816",
+    "secondary_colour": "-468984",
+    "tertiary_colour": "-16213784",
     "team_wear_primary_colour": "-15202280",
     "team_wear_secondary_colour": "-468984",
     "team_wear_tertiary_colour": "-16213784"
@@ -1087,6 +1107,10 @@
     "display_name_super_short": "lng_cs_team_20_ferrari",
     "display_name_code": "FER",
     "timing_tower_texture_path": "cs20_ferrari",
+    "primary_colour": "-2359296",
+    "ui_team_colour": "-2359296",
+    "secondary_colour": "-1513240",
+    "tertiary_colour": "-15198184",
     "team_wear_primary_colour": "-3667960",
     "team_wear_secondary_colour": "-1513240",
     "team_wear_tertiary_colour": "-15198184"
@@ -1117,8 +1141,8 @@
    "set": {
     "_metadata_": "2020-cs_ferrari_sebastian_vettel",
     "helmet": "2025-ferrari_charles_leclerc",
-    "suit": "cs17-ferrari_charles_leclerc",
-    "gloves": "cs17-ferrari_charles_leclerc",
+    "suit": "cs17-ferrari",
+    "gloves": "cs17-ferrari",
     "linked_driver_stat_id": "sebastian_vettel",
     "available": "False",
     "stat_id": "512"
@@ -1204,6 +1228,10 @@
     "display_name_super_short": "lng_cs_team_20_toro_rosso",
     "display_name_code": "AT",
     "timing_tower_texture_path": "cs20_toro_rosso",
+    "primary_colour": "-1",
+    "ui_team_colour": "-1",
+    "secondary_colour": "-1513240",
+    "tertiary_colour": "-1513240",
     "team_wear_primary_colour": "-16246744",
     "team_wear_secondary_colour": "-1513240",
     "team_wear_tertiary_colour": "-1513240"
@@ -1321,6 +1349,10 @@
     "display_name_super_short": "lng_cs_team_20_sauber",
     "display_name_code": "ARR",
     "timing_tower_texture_path": "cs20_sauber",
+    "primary_colour": "-6619136",
+    "ui_team_colour": "-6619136",
+    "secondary_colour": "-7862264",
+    "tertiary_colour": "-2611176",
     "team_wear_primary_colour": "-2565928",
     "team_wear_secondary_colour": "-7862264",
     "team_wear_tertiary_colour": "-2611176"
@@ -1405,6 +1437,10 @@
     "display_name_super_short": "lng_cs_team_20_haas",
     "display_name_code": "HAA",
     "timing_tower_texture_path": "cs20_haas",
+    "primary_colour": "-8882056",
+    "ui_team_colour": "-8882056",
+    "secondary_colour": "-2565928",
+    "tertiary_colour": "-1566664",
     "team_wear_primary_colour": "-15198184",
     "team_wear_secondary_colour": "-2565928",
     "team_wear_tertiary_colour": "-1566664"
@@ -1435,8 +1471,8 @@
    "set": {
     "_metadata_": "2020-cs_haas_romain_grosjean",
     "helmet": "2025-haas_esteban_ocon",
-    "suit": "cs17-haas_esteban_ocon",
-    "gloves": "cs17-haas_esteban_ocon",
+    "suit": "cs17-haas",
+    "gloves": "cs17-haas",
     "linked_driver_stat_id": "romain_grosjean",
     "available": "False",
     "stat_id": "518"
@@ -1460,8 +1496,8 @@
    "set": {
     "_metadata_": "2020-cs_haas_kevin_magnussen",
     "helmet": "2024-haas_kevin_magnussen",
-    "suit": "cs17-haas_oliver_bearman",
-    "gloves": "cs17-haas_oliver_bearman",
+    "suit": "cs17-haas",
+    "gloves": "cs17-haas",
     "linked_driver_stat_id": "kevin_magnussen",
     "available": "False",
     "stat_id": "519"
@@ -1489,6 +1525,10 @@
     "display_name_super_short": "lng_cs_team_20_williams",
     "display_name_code": "WIL",
     "timing_tower_texture_path": "cs20_williams",
+    "primary_colour": "-16743686",
+    "ui_team_colour": "-16743686",
+    "secondary_colour": "-16250872",
+    "tertiary_colour": "-16222008",
     "team_wear_primary_colour": "-460552",
     "team_wear_secondary_colour": "-16250872",
     "team_wear_tertiary_colour": "-16222008"

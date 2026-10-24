@@ -368,6 +368,9 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
     if let Some(reason) = swofty_core::compat::elevation_blocker(&g.dir) {
         bail!("{reason}");
     }
+    if swofty_core::compat::write_blocker(&g.dir).is_some() {
+        bail!("{}", swofty_core::compat::write_blocked_text(&g.dir));
+    }
     end_on_signals();
     let config: Config = std::fs::read(store.config_path())
         .ok()

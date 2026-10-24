@@ -53,8 +53,14 @@ Your addon needs a `swofty.json` at its root. This is where you give it a name, 
 | `cars` | Cars |
 | `helmets` | Helmets |
 | `shaders` | Shaders |
+| `career` | Career |
+| `ai` | AI |
+| `performance` | Performance |
+| `utility` | Utility |
 
-An addon without a category is listed as Uncategorised. `helmets` needs launcher 1.3.6 or later, and `shaders` 1.4.0 or later. DB Editor addons can't use `shaders`.
+An addon without a category is listed as Uncategorised. `helmets` needs launcher 1.3.6 or later, `shaders` 1.4.0 or later, and `career`, `ai`, `performance` and `utility` 1.5.3 or later. DB Editor addons can't use `shaders`.
+
+Launchers from 1.5.3 read a category they don't know as no category. Earlier launchers refuse the manifest; an addon that uses one of the 1.5.3 categories sets `compat.launcher` to `>=1.5.3`.
 
 Launchers from 1.3.6 read the categories of earlier launchers: `liveries` as `cars`, and `drivers-teams`, `database`, `gameplay`, `ui`, `audio`, `tools` and `other` as no category.
 

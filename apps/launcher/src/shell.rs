@@ -716,6 +716,10 @@ impl Shell {
             window.push_notification(Notification::info("Play when the conflict check finishes."), cx);
             return;
         }
+        if swofty_core::compat::write_blocker(&install.dir).is_some() {
+            self.show_admin_needed(&install, window, cx);
+            return;
+        }
         if !swofty_core::setup::done(&self.store.root) {
             self.open_setup(window, cx);
             return;

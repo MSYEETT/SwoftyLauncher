@@ -70,6 +70,17 @@ When files in the Steam copy were changed outside Swofty, the launch stops and *
 
 An EA app copy is not checked against a list of its files. When the launcher finds files in its folder that it didn't put there, the same modal shows the EA app's repair steps instead.
 
+## A game folder only administrators can change
+
+The EA app installs F1 25 in `C:\Program Files\EA Games\F1 25` by default, a folder Windows lets only administrators change. Swofty can't add your mods there while Swofty Launcher runs normally. **Play** then stops before it changes anything and shows **F1 25 needs administrator rights**, naming the folder:
+
+- **Restart as administrator** opens Swofty Launcher again with administrator rights, after Windows asks you to allow it, and closes this one. If you decline, this one stays open.
+- Or move F1 25 to a folder outside Program Files in the EA app, then press **Play** again.
+
+Close the EA app before you restart as administrator. The launcher then starts the EA app with administrator rights too. An EA app that is already open keeps the rights it started with, and F1 25 started from it can't write its logs in its folder. Restart as administrator from your own Windows account: an administrator account with a different user name has its own Swofty data folder.
+
+`swofty run --apply` and `swofty apply` stop with the same message. Steam library folders can be changed without administrator rights.
+
 ## The EA app copy on Linux
 
 On Linux, the launcher hands the EA app a launch link through a command you set. Set `ea_launch_command` under `"launch"` in `$DATA/config.json`, with `{url}` where the link goes. This example is for a script whose `run` starts the EA app in its Proton prefix and whose `wine` runs a program in the running EA app's prefix:

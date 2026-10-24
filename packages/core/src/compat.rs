@@ -210,6 +210,66 @@ pub fn elevation_blocker(game: &Path) -> Option<String> {
     Some(explain(&found, game))
 }
 
+/// The folder under the game folder a modded session writes in first.
+pub const FIRST_WRITE: &str = "2025_asset_groups/ui_package";
+
+/// The first of the game folder and [`FIRST_WRITE`] in it that this process
+/// can't create files in, such as a folder under Program Files that Windows
+/// lets only administrators change.
+pub fn unwritable_dir(game: &Path) -> Option<std::path::PathBuf> {
+    [game.to_path_buf(), game.join(FIRST_WRITE)]
+        .into_iter()
+        .find(|dir| dir.is_dir() && !can_create_in(dir))
+}
+
+fn can_create_in(dir: &Path) -> bool {
+    let probe = dir.join(format!(".swofty-write-check-{}", std::process::id()));
+    match std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&probe)
+    {
+        Ok(file) => {
+            drop(file);
+            std::fs::remove_file(&probe).ok();
+            true
+        }
+        Err(e) => !matches!(
+            e.kind(),
+            std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::ReadOnlyFilesystem
+        ),
+    }
+}
+
+/// The folder a modded session in `game` can't write in, when this process
+/// isn't elevated; None when it can, or when it runs as administrator.
+pub fn write_blocker(game: &Path) -> Option<std::path::PathBuf> {
+    unwritable_dir(game).filter(|_| !elevated())
+}
+
+/// Why a modded session can't put its files in `game`, and what to do.
+pub fn write_blocked_text(game: &Path) -> String {
+    write_blocked_text_for(game, cfg!(windows))
+}
+
+/// [`write_blocked_text`] as Windows, or another system, puts it.
+pub fn write_blocked_text_for(game: &Path, windows: bool) -> String {
+    if windows {
+        format!(
+            "F1 25 is installed in {}, a folder Windows lets only administrators change, so Swofty \
+             can't add your mods there. Run Swofty Launcher as administrator, or move F1 25 to a \
+             folder outside Program Files",
+            game.display()
+        )
+    } else {
+        format!(
+            "Swofty can't write in the F1 25 folder {}, so it can't add your mods there. Give your \
+             user write access to it",
+            game.display()
+        )
+    }
+}
+
 pub fn explain(found: &[AdminLayer], game: &Path) -> String {
     let mut names: Vec<&str> = found.iter().map(|l| l.name.as_str()).collect();
     names.dedup();
@@ -237,6 +297,120 @@ pub fn explain(found: &[AdminLayer], game: &Path) -> String {
             ""
         },
     )
+}
+
+#[cfg(windows)]
+mod shell {
+    use std::ffi::c_void;
+    use std::os::windows::ffi::OsStrExt;
+
+    #[repr(C)]
+    struct ShellExecuteInfoW {
+        size: u32,
+        mask: u32,
+        hwnd: *mut c_void,
+        verb: *const u16,
+        file: *const u16,
+        parameters: *const u16,
+        directory: *const u16,
+        show: i32,
+        instance: *mut c_void,
+        id_list: *mut c_void,
+        class: *const u16,
+        key_class: *mut c_void,
+        hot_key: u32,
+        icon_or_monitor: *mut c_void,
+        process: *mut c_void,
+    }
+
+    const SEE_MASK_NOCLOSEPROCESS: u32 = 0x40;
+    const SEE_MASK_NOASYNC: u32 = 0x100;
+    const SW_SHOWNORMAL: i32 = 1;
+    const ERROR_CANCELLED: i32 = 1223;
+
+    #[link(name = "shell32")]
+    unsafe extern "system" {
+        fn ShellExecuteExW(info: *mut ShellExecuteInfoW) -> i32;
+    }
+
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn CloseHandle(handle: *mut c_void) -> i32;
+    }
+
+    fn wide(s: &std::ffi::OsStr) -> Vec<u16> {
+        s.encode_wide().chain(std::iter::once(0)).collect()
+    }
+
+    fn quote(arg: &str) -> String {
+        if !arg.is_empty() && !arg.contains([' ', '\t', '"']) {
+            return arg.to_owned();
+        }
+        let mut inner = arg.replace('"', "\\\"");
+        let trailing = inner.chars().rev().take_while(|&c| c == '\\').count();
+        inner.push_str(&"\\".repeat(trailing));
+        format!("\"{inner}\"")
+    }
+
+    pub fn relaunch_elevated() -> Result<(), String> {
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        let args: Vec<String> = std::env::args().skip(1).map(|a| quote(&a)).collect();
+        let (verb, file) = (wide("runas".as_ref()), wide(exe.as_os_str()));
+        let parameters = wide(args.join(" ").as_ref());
+        let directory = std::env::current_dir().ok().map(|d| wide(d.as_os_str()));
+        let mut info = ShellExecuteInfoW {
+            size: std::mem::size_of::<ShellExecuteInfoW>() as u32,
+            mask: SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC,
+            hwnd: std::ptr::null_mut(),
+            verb: verb.as_ptr(),
+            file: file.as_ptr(),
+            parameters: parameters.as_ptr(),
+            directory: directory.as_ref().map_or(std::ptr::null(), |d| d.as_ptr()),
+            show: SW_SHOWNORMAL,
+            instance: std::ptr::null_mut(),
+            id_list: std::ptr::null_mut(),
+            class: std::ptr::null(),
+            key_class: std::ptr::null_mut(),
+            hot_key: 0,
+            icon_or_monitor: std::ptr::null_mut(),
+            process: std::ptr::null_mut(),
+        };
+        // SAFETY: every string the struct points at outlives the call, and the
+        // process handle it returns is closed once.
+        let ok = unsafe { ShellExecuteExW(&mut info) } != 0;
+        if !ok {
+            let e = std::io::Error::last_os_error();
+            return Err(if e.raw_os_error() == Some(ERROR_CANCELLED) {
+                "the administrator prompt was declined".to_owned()
+            } else {
+                e.to_string()
+            });
+        }
+        if !info.process.is_null() {
+            // SAFETY: the handle came from ShellExecuteExW with NOCLOSEPROCESS.
+            unsafe { CloseHandle(info.process) };
+        }
+        Ok(())
+    }
+
+    #[cfg(test)]
+    #[test]
+    fn quotes_arguments_with_spaces() {
+        assert_eq!(quote("run"), "run");
+        assert_eq!(quote("C:\\Program Files\\F1 25"), "\"C:\\Program Files\\F1 25\"");
+        assert_eq!(quote(""), "\"\"");
+        assert_eq!(quote("C:\\My Games\\"), "\"C:\\My Games\\\\\"");
+    }
+}
+
+/// Starts this program again as administrator, with the same arguments,
+/// through the Windows elevation prompt. Ok once the new process has started;
+/// the caller then exits.
+pub fn relaunch_elevated() -> Result<(), String> {
+    #[cfg(windows)]
+    return shell::relaunch_elevated();
+    #[cfg(not(windows))]
+    Err("restarting as administrator is only for Windows".to_owned())
 }
 
 #[cfg(test)]
@@ -377,6 +551,50 @@ mod tests {
     }
 
     #[cfg(not(windows))]
+    #[test]
+    #[cfg(unix)]
+    fn finds_a_game_folder_this_process_cannot_write_in() {
+        use std::os::unix::fs::PermissionsExt;
+        let game = std::env::temp_dir().join(format!("swofty-unwritable-{}", std::process::id()));
+        std::fs::remove_dir_all(&game).ok();
+        let ui = game.join(FIRST_WRITE);
+        std::fs::create_dir_all(&ui).unwrap();
+        assert_eq!(unwritable_dir(&game), None);
+        assert_eq!(write_blocker(&game), None);
+        let lock = |dir: &Path, mode: u32| {
+            std::fs::set_permissions(dir, std::fs::Permissions::from_mode(mode)).unwrap()
+        };
+        lock(&ui, 0o555);
+        let root_can_write = can_create_in(&ui);
+        if !root_can_write {
+            assert_eq!(unwritable_dir(&game), Some(ui.clone()));
+            assert_eq!(write_blocker(&game), Some(ui.clone()));
+            lock(&game, 0o555);
+            assert_eq!(unwritable_dir(&game), Some(game.clone()));
+            lock(&game, 0o755);
+        }
+        lock(&ui, 0o755);
+        assert_eq!(unwritable_dir(&game), None);
+        assert_eq!(
+            std::fs::read_dir(&ui).unwrap().count(),
+            0,
+            "the check leaves nothing behind"
+        );
+        assert_eq!(unwritable_dir(&game.join("missing")), None);
+        std::fs::remove_dir_all(&game).ok();
+    }
+
+    #[test]
+    fn names_the_folder_and_the_fix() {
+        let text = write_blocked_text(Path::new("/games/F1 25"));
+        assert!(text.contains("/games/F1 25"), "{text}");
+        if cfg!(windows) {
+            assert!(text.contains("Run Swofty Launcher as administrator"), "{text}");
+        } else {
+            assert!(text.contains("write access"), "{text}");
+        }
+    }
+
     #[test]
     fn never_blocks_off_windows() {
         assert!(elevation_blocker(Path::new("/games/F1 25")).is_none());
