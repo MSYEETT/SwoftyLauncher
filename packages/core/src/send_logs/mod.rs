@@ -1065,7 +1065,15 @@ fn addons_summary(store: &Store) -> Value {
         ),
         Err(e) => json!({ "error": e.to_string() }),
     };
+    let unreadable: Vec<Value> = store
+        .unreadable_addons()
+        .iter()
+        .map(|u| json!({ "id": u.id, "name": u.name, "version": u.version, "reason": u.reason }))
+        .collect();
     let mut out = json!({ "installed": installed, "profiles": profiles });
+    if !unreadable.is_empty() {
+        out["unreadable"] = Value::Array(unreadable);
+    }
     redact_json(&mut out);
     out
 }
@@ -1177,6 +1185,13 @@ fn addon_lines(store: &Store) -> String {
             Err(_) => n,
         })
         .collect();
+    let unreadable = store.unreadable_addons();
+    if !unreadable.is_empty() {
+        s.push_str("  Can't be used:\n");
+        for u in &unreadable {
+            s.push_str(&format!("        {}\n", u.line()));
+        }
+    }
     if !others.is_empty() {
         s.push_str(&format!("  Other profiles: {}\n", others.join(", ")));
     }

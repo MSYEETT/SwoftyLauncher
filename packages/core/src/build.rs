@@ -436,11 +436,21 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
 pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool) -> Result<Built> {
     let registry = store.registry()?;
     let addons = registry.manifests();
-    let p = store.profile(profile)?;
+    let mut p = store.profile(profile)?;
+    let mut skipped = Vec::new();
+    for u in store.unreadable_addons() {
+        if !addons.contains_key(&u.id) && p.enabled().any(|id| id == u.id) {
+            p.set_enabled(&u.id, false)?;
+            skipped.push(format!("{} is left out: it {}", u.name, u.reason));
+        }
+    }
     let resolved = resolve(&p, &addons)?;
     let mut built = Built {
         order: resolved.order.clone(),
-        warnings: resolved.warnings.clone(),
+        warnings: skipped
+            .into_iter()
+            .chain(resolved.warnings.iter().cloned())
+            .collect(),
         plan: Plan {
             profile: profile.into(),
             ..Plan::default()
@@ -2943,6 +2953,53 @@ mod tests {
                 .contains(&"features: the experimental overlay feature is on for Race Control".to_owned()),
             "{:?}",
             on.lines
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn an_enabled_addon_for_a_newer_launcher_is_left_out_with_a_warning() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-future-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        std::fs::write(dir.join(GVDB), Gvdb { records: Vec::new() }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let future = store.addons_dir().join("w3.hud");
+        std::fs::create_dir_all(&future).unwrap();
+        std::fs::write(
+            future.join(crate::manifest::MANIFEST_FILE),
+            r#"{ "schema_version": 1, "id": "w3.hud", "name": "Race HUD", "version": "0.1.0", "author": "t",
+                 "compat": { "game": "f1_25" }, "hud": { "widgets": [] } }"#,
+        )
+        .unwrap();
+        store
+            .update_profile("default", |p| p.set_enabled("w3.hud", true))
+            .unwrap();
+        let built = build(&store, "default", &game).unwrap();
+        assert!(!built.order.iter().any(|id| id == "w3.hud"), "{:?}", built.order);
+        assert!(
+            built.warnings.contains(
+                &"Race HUD is left out: it needs a newer Swofty Launcher (unknown field `hud`)".to_owned()
+            ),
+            "{:?}",
+            built.warnings
+        );
+        assert!(
+            store
+                .profile("default")
+                .unwrap()
+                .enabled()
+                .any(|id| id == "w3.hud")
         );
         std::fs::remove_dir_all(&root).ok();
     }

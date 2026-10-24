@@ -183,23 +183,43 @@ impl Store {
         Ok(notes)
     }
 
+    /// The installed addons this launcher can read. One it can't is left out with a warning;
+    /// [`unreadable_addons`](Self::unreadable_addons) lists them.
     pub fn addons(&self) -> Result<BTreeMap<String, AddonManifest>> {
+        Ok(self.scan_addons()?.0)
+    }
+
+    /// Installed addons this launcher can't read: made for a newer launcher, or damaged.
+    pub fn unreadable_addons(&self) -> Vec<Unreadable> {
+        self.scan_addons().map(|(_, bad)| bad).unwrap_or_default()
+    }
+
+    fn scan_addons(&self) -> Result<(BTreeMap<String, AddonManifest>, Vec<Unreadable>)> {
         let mut out = BTreeMap::from([(CORE_ID.to_owned(), core_manifest())]);
         for b in self.builtins.iter() {
             let m = b.addon.manifest();
             out.entry(m.id.clone()).or_insert_with(|| m.clone());
         }
+        let mut bad = Vec::new();
         for dir in subdirs(&self.addons_dir())? {
             if !dir.join(MANIFEST_FILE).is_file() {
                 continue;
             }
-            let m = AddonManifest::load(&dir)?;
+            let m = match AddonManifest::load(&dir) {
+                Ok(m) => m,
+                Err(e) => {
+                    let u = Unreadable::of(&dir, &e, &crate::update::current_version());
+                    warn_once(format!("skipped addon {}: it {}", u.id, u.reason));
+                    bad.push(u);
+                    continue;
+                }
+            };
             if self.is_builtin(&m.id) {
                 continue;
             }
             out.insert(m.id.clone(), m);
         }
-        Ok(out)
+        Ok((out, bad))
     }
 
     pub fn is_builtin(&self, id: &str) -> bool {
@@ -270,7 +290,14 @@ impl Store {
         if src.join(crate::dbedit::package::MARKER).is_file() {
             return crate::dbedit::package::install(self, src).map(|(p, _)| p.manifest);
         }
-        let m = AddonManifest::load(src)?;
+        let m = AddonManifest::load(src).map_err(|e| {
+            let u = Unreadable::of(src, &e, launcher);
+            if u.newer {
+                Error::Other(u.line())
+            } else {
+                Error::from(e)
+            }
+        })?;
         if self.is_builtin(&m.id) {
             return Err(Error::Other(format!("{} is built in", m.id)));
         }
@@ -368,6 +395,13 @@ impl Store {
         }
         let path = self.profiles_dir().join(format!("{name}.json"));
         let mut p = load_profile(&path)?.unwrap_or_else(|| Profile::new(name));
+        let unknown = p.unknown_fields();
+        if !unknown.is_empty() {
+            warn_once(format!(
+                "profile {name} has settings from a newer Swofty Launcher ({}); they are kept but not used",
+                unknown.join(", ")
+            ));
+        }
         p.normalise();
         self.adopt_builtins(&mut p);
         Ok(p)
@@ -626,6 +660,105 @@ impl Store {
 /// A saved profile. One that is damaged (not JSON at all) was set aside by
 /// [`crate::load_json`] and starts over empty, as a missing one does, so it
 /// cannot block a launch; the set-aside copy is kept for the player.
+/// An installed addon whose `swofty.json` this launcher can't read.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Unreadable {
+    /// The manifest's id when it has one, else the folder name.
+    pub id: String,
+    pub name: String,
+    pub version: Option<String>,
+    pub dir: PathBuf,
+    /// Why, after "it": "needs a newer Swofty Launcher (unknown field `hud`)".
+    pub reason: String,
+    /// Made for a newer launcher rather than damaged.
+    pub newer: bool,
+}
+
+impl Unreadable {
+    pub fn of(dir: &Path, err: &swofty_addon::Error, launcher: &semver::Version) -> Self {
+        let doc: Option<serde_json::Value> = std::fs::read(dir.join(MANIFEST_FILE))
+            .ok()
+            .and_then(|b| serde_json::from_slice(&b).ok());
+        let text = |k: &str| {
+            doc.as_ref()
+                .and_then(|d| d.get(k))
+                .and_then(|v| v.as_str())
+                .map(str::to_owned)
+                .filter(|s| !s.trim().is_empty())
+        };
+        let folder = dir
+            .file_name()
+            .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        let id = text("id")
+            .filter(|i| crate::manifest::valid_id(i))
+            .unwrap_or(folder);
+        let name = text("name").unwrap_or_else(|| id.clone());
+        let req = doc
+            .as_ref()
+            .and_then(|d| d.pointer("/compat/launcher"))
+            .and_then(|v| v.as_str())
+            .and_then(|r| semver::VersionReq::parse(r).ok())
+            .filter(|r| !r.matches(launcher));
+        let schema = doc
+            .as_ref()
+            .and_then(|d| d.get("schema_version"))
+            .and_then(|v| v.as_u64())
+            .filter(|v| *v > u64::from(crate::manifest::SCHEMA_VERSION));
+        let message = match err {
+            swofty_addon::Error::Json { source, .. } => source.to_string(),
+            other => other.to_string(),
+        };
+        let unknown = unknown_part(&message);
+        let reason = match (&req, &unknown) {
+            (Some(req), Some(u)) => format!("needs Swofty Launcher {req}; this is {launcher} ({u})"),
+            (Some(req), None) => format!("needs Swofty Launcher {req}; this is {launcher}"),
+            (None, Some(u)) => format!("needs a newer Swofty Launcher ({u})"),
+            (None, None) => match schema {
+                Some(v) => format!("needs a newer Swofty Launcher (schema_version {v})"),
+                None => format!("can't be read: {message}"),
+            },
+        };
+        Self {
+            newer: req.is_some() || unknown.is_some() || schema.is_some(),
+            version: text("version"),
+            dir: dir.to_path_buf(),
+            id,
+            name,
+            reason,
+        }
+    }
+
+    /// "Race HUD (w3.hud) needs a newer Swofty Launcher (unknown field `hud`)".
+    pub fn line(&self) -> String {
+        if self.name == self.id {
+            format!("{} {}", self.id, self.reason)
+        } else {
+            format!("{} ({}) {}", self.name, self.id, self.reason)
+        }
+    }
+}
+
+/// "unknown field `hud`" or "unknown value `postfx`" from a serde message.
+fn unknown_part(message: &str) -> Option<String> {
+    for (marker, word) in [("unknown field `", "field"), ("unknown variant `", "value")] {
+        if let Some(at) = message.find(marker) {
+            let rest = &message[at + marker.len()..];
+            let name = &rest[..rest.find('`')?];
+            return Some(format!("unknown {word} `{name}`"));
+        }
+    }
+    None
+}
+
+/// Prints a warning to stderr once per process.
+fn warn_once(text: String) {
+    static SEEN: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
+    let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
+    if seen.insert(text.clone()) {
+        eprintln!("swofty: warning: {text}");
+    }
+}
+
 fn load_profile(path: &Path) -> Result<Option<Profile>> {
     Ok(match crate::load_json(path)? {
         crate::Loaded::Found(p) => Some(p),
@@ -698,6 +831,115 @@ mod tests {
         store.save_profile(&p).unwrap();
         let plan = crate::resolver::resolve(&store.profile(DEFAULT_PROFILE).unwrap(), &addons).unwrap();
         assert_eq!(plan.order, [CORE_ID, m.id.as_str()]);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    fn put_addon(store: &Store, folder: &str, json: &str) -> PathBuf {
+        let dir = store.addons_dir().join(folder);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(MANIFEST_FILE), json).unwrap();
+        dir
+    }
+
+    #[test]
+    fn an_addon_for_a_newer_launcher_is_skipped_and_named() {
+        let root = tmp("future-addon");
+        let store = Store::new(&root);
+        put_addon(&store, "t.good", &manifest_json("t.good"));
+        put_addon(
+            &store,
+            "w3.hud",
+            r#"{"schema_version":1,"id":"w3.hud","name":"Race HUD","version":"0.1.0","author":"t",
+                "compat":{"game":"f1_25"},"hud":{"widgets":[]}}"#,
+        );
+        put_addon(
+            &store,
+            "t.look",
+            r#"{"schema_version":1,"id":"t.look","name":"Look","version":"1.0.0","author":"t",
+                "compat":{"game":"f1_25","launcher":">=9.0.0"},"experimental_features":["postfx"]}"#,
+        );
+        put_addon(&store, "t.broken", "{\"id\": 5}");
+        let addons = store.addons().unwrap();
+        assert!(addons.contains_key("t.good") && addons.contains_key(CORE_ID));
+        assert!(!addons.contains_key("w3.hud") && !addons.contains_key("t.look"));
+        let bad = store.unreadable_addons();
+        let lines: Vec<String> = bad.iter().map(Unreadable::line).collect();
+        let launcher = crate::update::current_version();
+        assert_eq!(
+            lines,
+            [
+                "t.broken can't be read: invalid type: integer `5`, expected a string at line 1 column 8"
+                    .to_owned(),
+                format!(
+                    "Look (t.look) needs Swofty Launcher >=9.0.0; this is {launcher} (unknown value `postfx`)"
+                ),
+                "Race HUD (w3.hud) needs a newer Swofty Launcher (unknown field `hud`)".to_owned(),
+            ]
+        );
+        assert_eq!(
+            bad.iter().map(|u| u.newer).collect::<Vec<_>>(),
+            [false, true, true]
+        );
+        assert_eq!(bad[2].version.as_deref(), Some("0.1.0"));
+
+        store
+            .update_profile(DEFAULT_PROFILE, |p| {
+                p.set_enabled("t.good", true)?;
+                p.set_enabled("w3.hud", true)
+            })
+            .unwrap();
+        let registry = store.registry().unwrap();
+        assert!(registry.get("t.good").is_some());
+        let err = store
+            .install_addon(&store.addons_dir().join("w3.hud"))
+            .unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Race HUD (w3.hud) needs a newer Swofty Launcher (unknown field `hud`)"
+        );
+        store.remove_addon("w3.hud").unwrap();
+        assert!(store.unreadable_addons().iter().all(|u| u.id != "w3.hud"));
+        assert!(
+            !store
+                .profile(DEFAULT_PROFILE)
+                .unwrap()
+                .addons
+                .iter()
+                .any(|a| a.id == "w3.hud")
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_profile_with_fields_from_a_newer_launcher_loads_and_keeps_them() {
+        let root = tmp("future-profile");
+        let store = Store::new(&root);
+        put_addon(&store, "t.good", &manifest_json("t.good"));
+        std::fs::create_dir_all(store.profiles_dir()).unwrap();
+        std::fs::write(
+            store.profiles_dir().join("default.json"),
+            r#"{"schema_version":2,"name":"default","addons":[{"id":"t.good","enabled":true,"pinned":true}],
+                "options":{},"overlay_off":["t.good"]}"#,
+        )
+        .unwrap();
+        let p = store.profile(DEFAULT_PROFILE).unwrap();
+        assert!(p.enabled().any(|id| id == "t.good"));
+        assert_eq!(p.unknown_fields(), ["overlay_off", "addons[t.good].pinned"]);
+        store
+            .update_profile(DEFAULT_PROFILE, |p| p.set_enabled("t.good", false))
+            .unwrap();
+        let saved: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(store.profiles_dir().join("default.json")).unwrap())
+                .unwrap();
+        assert_eq!(saved["overlay_off"], serde_json::json!(["t.good"]));
+        let good = saved["addons"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["id"] == "t.good")
+            .unwrap();
+        assert_eq!(good["pinned"], serde_json::json!(true));
+        assert_eq!(good["enabled"], serde_json::json!(false));
         std::fs::remove_dir_all(&root).ok();
     }
 
