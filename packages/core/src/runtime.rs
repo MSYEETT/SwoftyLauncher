@@ -189,6 +189,45 @@ fn lang_file(language: &str) -> String {
     }
 }
 
+/// Why `swofty_core.dll` ignores an edit of `value` as a record of `tag`, by the
+/// rule of its `check_text`; `Ok` when it applies it. Empty text is the game's 0,
+/// 0.0 or false for the scalar tags, as in the 7,007 stock colours that hold it.
+pub fn runtime_text(tag: u8, value: &str) -> std::result::Result<(), String> {
+    if value.is_empty() && matches!(tag, 0 | 1 | 5 | 11 | 12) {
+        return Ok(());
+    }
+    let integer = || {
+        let digits = value.strip_prefix(['-', '+']).unwrap_or(value);
+        !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())
+    };
+    match tag {
+        0 | 11 if !integer() => Err(format!(
+            "an int needs integer text (the game parses it with atoi), got {value:?}"
+        )),
+        0 | 11 if value.parse::<i32>().is_err() => Err(format!(
+            "{value:?} is outside the 32-bit int range the game stores"
+        )),
+        12 if !integer() => Err(format!(
+            "a t12 value needs integer text (the game parses it with strtoull), got {value:?}"
+        )),
+        12 if value.trim_start_matches(['-', '+']).parse::<u64>().is_err() => {
+            Err(format!("{value:?} is outside the unsigned 64-bit range"))
+        }
+        1 if !value
+            .parse::<f64>()
+            .is_ok_and(|v| v.is_finite() && v.abs() <= f32::MAX as f64) =>
+        {
+            Err(format!("{value:?} is not a finite 32-bit float"))
+        }
+        5 if !value.eq_ignore_ascii_case("true") && !value.eq_ignore_ascii_case("false") => {
+            Err(format!("a bool needs true or false, got {value:?}"))
+        }
+        10 | 15 | 16 => Err(format!("tag {tag} stores nothing")),
+        19.. => Err(format!("tag {tag} is not a type the core knows")),
+        _ => Ok(()),
+    }
+}
+
 pub fn db_edits(base: &Gvdb, built: &Gvdb) -> std::result::Result<Vec<DbEdit>, String> {
     let stock: HashMap<u64, _> = base.records.iter().map(|r| (r.key, r)).collect();
     let kept: std::collections::HashSet<u64> = built.records.iter().map(|r| r.key).collect();
@@ -212,6 +251,12 @@ pub fn db_edits(base: &Gvdb, built: &Gvdb) -> std::result::Result<Vec<DbEdit>, S
         }
         let value = String::from_utf8(r.value.clone())
             .map_err(|_| format!("record {:#018x} does not hold text", r.key))?;
+        runtime_text(r.tag, &value).map_err(|why| {
+            format!(
+                "swofty_core.dll would ignore record {:#018x} (tag {}): {why}",
+                r.key, r.tag
+            )
+        })?;
         edits.push(DbEdit {
             hash: format!("{:016x}", r.key),
             tag: r.tag,
@@ -751,5 +796,62 @@ mod tests {
         let mut empty = Runtime::new(vec![Kind::File]);
         empty.db(Vec::new());
         assert!(empty.finish(Path::new("/nonexistent")).unwrap().is_none());
+    }
+
+    #[test]
+    fn runtime_text_takes_what_the_core_applies() {
+        for (tag, value) in [
+            (11, ""),
+            (11, "-1710619"),
+            (0, ""),
+            (0, "+5"),
+            (1, ""),
+            (1, "0.1"),
+            (5, ""),
+            (5, "True"),
+            (12, ""),
+            (12, "-1"),
+            (2, ""),
+            (13, ""),
+        ] {
+            assert_eq!(runtime_text(tag, value), Ok(()), "tag {tag} {value:?}");
+        }
+        for (tag, value) in [
+            (11, "abc"),
+            (0, "1.5E+07"),
+            (0, "3000000000"),
+            (0, "-"),
+            (12, "-x"),
+            (12, "18446744073709551616"),
+            (1, "Level_0|DevelopmentLevel"),
+            (1, "inf"),
+            (5, "yes"),
+            (16, ""),
+        ] {
+            assert!(runtime_text(tag, value).is_err(), "tag {tag} {value:?}");
+        }
+    }
+
+    #[test]
+    fn database_edits_keep_empty_colours_and_refuse_text_the_core_ignores() {
+        let mut base = Gvdb::default();
+        base.records
+            .push(Record::new("gloves.Gloves_0.colour_1_default", 11, ""));
+        base.records.push(Record::new("modes.mode_0.prize", 0, "1.5E+07"));
+        let mut built = base.clone();
+        built
+            .records
+            .push(Record::new("gloves.Gloves_1.colour_1_default", 11, ""));
+        let edits = db_edits(&base, &built).unwrap();
+        assert_eq!(edits.len(), 1);
+        assert_eq!((edits[0].tag, edits[0].value.as_str()), (11, ""));
+        built
+            .records
+            .push(Record::new("modes.mode_1.prize", 0, "1.5E+07"));
+        let why = db_edits(&base, &built).unwrap_err();
+        assert!(
+            why.contains("swofty_core.dll would ignore record") && why.contains("\"1.5E+07\""),
+            "{why}"
+        );
     }
 }

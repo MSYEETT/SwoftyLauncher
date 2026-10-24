@@ -111,7 +111,7 @@ To see which runtime features your installed loader offers, look in `swofty/addo
 - If your `erp` build includes an `erp.remove-resource`, it goes into the game files: swofty_core cannot take a resource out of a stock archive. The build prints `erp: built into the game files; <n> resource removal(s) cannot apply at runtime`.
 - `erp.add-mipmaps` files go into the game folder through the journal on both routes, as a track's mip files do.
 - An `erp.overlay` archive is listed in `resource_erps` as it is on the runtime route, without its resources being read or written again. If one of its resources would change a target's stock layout, or the `erp` build takes the build route, each resource in it goes in as an `erp.put-resource` would, and the build prints `erp: <origin>: its overlay archive goes in resource by resource; ...` for the first case. An addon that writes the same overlay each time, such as one made when a mod is imported, keeps the build hash the same between launches.
-- If your `db` build removes records, writes a record of tag 10, 15 or 16, or writes one whose value is not text, it goes into the game file instead, with a warning.
+- If your `db` build removes records, writes a record of tag 10, 15 or 16, writes one whose value is not text, or writes text swofty_core ignores, it goes into the game file instead, with a warning. swofty_core ignores an int, colour or t12 that is not integer text (`1.5E+07`), an int outside the 32-bit range, a float that is not a finite 32-bit number, and a bool other than true or false. Empty text is the game's 0, 0.0 or false for those tags and applies.
 
 ## Order and conflicts
 
