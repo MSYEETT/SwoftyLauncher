@@ -273,6 +273,7 @@ void ready()
     lang_override_setup();
     events_setup();
     hud_setup();
+    focus_setup();
     grade_setup();
     telemetry_setup();
     perf::start();
