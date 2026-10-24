@@ -8,7 +8,7 @@
 //! (HKCU) or for all users (HKLM). This only reads it; the registry is never
 //! changed.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::GAME_EXE;
 
@@ -216,13 +216,19 @@ pub const FIRST_WRITE: &str = "2025_asset_groups/ui_package";
 /// The first of the game folder and [`FIRST_WRITE`] in it that this process
 /// can't create files in, such as a folder under Program Files that Windows
 /// lets only administrators change.
-pub fn unwritable_dir(game: &Path) -> Option<std::path::PathBuf> {
+pub fn unwritable_dir(game: &Path) -> Option<PathBuf> {
     [game.to_path_buf(), game.join(FIRST_WRITE)]
         .into_iter()
         .find(|dir| dir.is_dir() && !can_create_in(dir))
 }
 
 fn can_create_in(dir: &Path) -> bool {
+    can_create_in_with(dir, virtual_store)
+}
+
+/// A file Windows virtualised into the VirtualStore is one the game never
+/// sees, so it counts as one this process can't create.
+fn can_create_in_with(dir: &Path, store: impl Fn(&Path) -> Option<PathBuf>) -> bool {
     let probe = dir.join(format!(".swofty-write-check-{}", std::process::id()));
     match std::fs::OpenOptions::new()
         .write(true)
@@ -231,8 +237,9 @@ fn can_create_in(dir: &Path) -> bool {
     {
         Ok(file) => {
             drop(file);
+            let virtualised = store(&probe).is_some_and(|v| v.is_file());
             std::fs::remove_file(&probe).ok();
-            true
+            !virtualised
         }
         Err(e) => !matches!(
             e.kind(),
@@ -241,9 +248,26 @@ fn can_create_in(dir: &Path) -> bool {
     }
 }
 
+/// Where Windows keeps this user's copy of `path` when it virtualises a write
+/// to a folder only administrators can change, such as Program Files:
+/// `%LOCALAPPDATA%\VirtualStore` with the path's drive left out.
+pub fn virtual_store(path: &Path) -> Option<PathBuf> {
+    if !cfg!(windows) {
+        return None;
+    }
+    virtual_store_in(Path::new(&std::env::var_os("LOCALAPPDATA")?), path)
+}
+
+fn virtual_store_in(local: &Path, path: &Path) -> Option<PathBuf> {
+    let p = path.to_string_lossy();
+    let b = p.as_bytes();
+    (b.len() > 3 && b[0].is_ascii_alphabetic() && b[1] == b':' && matches!(b[2], b'\\' | b'/'))
+        .then(|| local.join("VirtualStore").join(&p[3..]))
+}
+
 /// The folder a modded session in `game` can't write in, when this process
 /// isn't elevated; None when it can, or when it runs as administrator.
-pub fn write_blocker(game: &Path) -> Option<std::path::PathBuf> {
+pub fn write_blocker(game: &Path) -> Option<PathBuf> {
     unwritable_dir(game).filter(|_| !elevated())
 }
 
@@ -582,6 +606,37 @@ mod tests {
         );
         assert_eq!(unwritable_dir(&game.join("missing")), None);
         std::fs::remove_dir_all(&game).ok();
+    }
+
+    #[test]
+    fn a_write_windows_virtualised_is_one_it_cannot_make() {
+        let dir = std::env::temp_dir().join(format!("swofty-virtualised-{}", std::process::id()));
+        let store = dir.join("VirtualStore");
+        std::fs::create_dir_all(&store).unwrap();
+        assert!(can_create_in_with(&dir, |_| None));
+        let shadow = |probe: &Path| {
+            let copy = store.join(probe.file_name()?);
+            std::fs::write(&copy, b"").ok()?;
+            Some(copy)
+        };
+        assert!(!can_create_in_with(&dir, shadow));
+        assert!(
+            !dir.join(format!(".swofty-write-check-{}", std::process::id()))
+                .exists()
+        );
+        assert_eq!(
+            virtual_store_in(
+                Path::new(r"C:\Users\id\AppData\Local"),
+                Path::new(r"C:\Program Files\EA Games\F1 25")
+            )
+            .map(|p| p.to_string_lossy().replace('/', "\\")),
+            Some(r"C:\Users\id\AppData\Local\VirtualStore\Program Files\EA Games\F1 25".to_owned())
+        );
+        assert_eq!(
+            virtual_store_in(Path::new("/local"), Path::new("/games/F1 25")),
+            None
+        );
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
