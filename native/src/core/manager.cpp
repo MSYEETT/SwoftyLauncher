@@ -57,6 +57,7 @@ void tile_route_commit();
 std::string load_stage();
 void career_setup();
 void popup_setup();
+void mfd_setup();
 void ready();
 void events_drop_module(void *module);
 void career_start_drop_module(void *module);
@@ -2173,6 +2174,8 @@ extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
         runtime::career_setup();
     if (!from)
         runtime::when_code_ready("popup: message system hook", runtime::popup_setup);
+    if (!from)
+        runtime::when_code_ready("mfd: development switch", runtime::mfd_setup);
     if (!waits(true))
         settle_core_sets();
     for (size_t i = from; i < settled; i++)

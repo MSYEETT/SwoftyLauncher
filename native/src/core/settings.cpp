@@ -10,6 +10,7 @@
 #include "swofty_api.h"
 
 bool ui_vm_set_path(const std::string &path, int type, const void *value);
+bool settings_command(uint32_t hash);
 
 namespace {
 
@@ -322,6 +323,23 @@ void settings_attach(SwoftyApi *a, const std::wstring &dir)
     loaded = true;
     api->log("[settings] %ls: profile '%s', %zu addon(s), %zu option(s), %zu command(s); requests file %ls", path.c_str(),
              profile.c_str(), addons.size(), count, commands.size(), requests.c_str());
+}
+
+size_t settings_mfd_rows()
+{
+    return mfd_rows.size();
+}
+
+bool settings_mfd_step(size_t row, int dir)
+{
+    if (row >= mfd_rows.size())
+        return false;
+    AcquireSRWLockExclusive(&lock);
+    const Option &o = addons[mfd_rows[row].addon].options[mfd_rows[row].option];
+    size_t n = o.states.size(), at = o.current < n ? o.current : 0;
+    std::string command = n ? o.states[(at + n + (dir < 0 ? n - 1 : 1)) % n].command : std::string();
+    ReleaseSRWLockExclusive(&lock);
+    return !command.empty() && settings_command(djb2(command));
 }
 
 std::string settings_addon(const void *from, std::string &dll)
