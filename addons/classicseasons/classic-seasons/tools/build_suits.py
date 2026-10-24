@@ -24,8 +24,9 @@ common ones that differ from those before. "suit": {"colours": ["#rrggbb", "#rrg
 sponsors, in order; without it the largest separate shapes of the atlas made of three or more parts are used, leaving
 out shapes on the atlas edge, solid shapes and mirrored copies.
 
-Writes classic-seasons-<year>/suits/<label>.erp and suits/meta.json, which gen.py reads, and art/suits/<year>.png, a
-contact sheet: front and back renders, the painted livery and the logo atlas of every team.
+Writes classic-seasons-<year>/suits/<label>.erp and suits/meta.json, which gen.py reads, and a contact sheet of the
+season: front and back renders, the painted livery and the logo atlas of every team, in suits/preview.png and at half
+size in art/suits/<year>.png.
 
     python3 tools/build_suits.py --game <F1 25> [--years 2016-2021] [--cars <folder holding classic-seasons-<year>/cars>]
 """
@@ -427,7 +428,7 @@ def font(size):
     return ImageFont.load_default()
 
 
-def contact_sheet(year, rows, out):
+def contact_sheet(year, rows, out, small):
     tw, th = 440, 640
     cw = 2 * tw + 2 * th + 60
     sheet = Image.new("RGB", (cw, 70 + len(rows) * (th + 60)), (30, 31, 35))
@@ -454,6 +455,12 @@ def contact_sheet(year, rows, out):
                                                      "empty": (110, 110, 110)}[slot["what"]])
         sheet.paste(lg.convert("RGB"), (60 + 2 * tw + th, y))
     sheet.save(out, optimize=True)
+    shrink(sheet).save(small, optimize=True)
+
+
+def shrink(sheet):
+    half = sheet.resize((sheet.width // 2, sheet.height // 2), Image.LANCZOS)
+    return half.quantize(256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
 
 
 def years_arg(text):
@@ -496,8 +503,8 @@ def main(argv):
         meta_path.write_text(json.dumps(meta, indent=1) + "\n")
         sheet = ROOT / "art" / "suits" / f"{year}.png"
         sheet.parent.mkdir(parents=True, exist_ok=True)
-        contact_sheet(year, rows, sheet)
-        print(f"{year}: {sheet}")
+        contact_sheet(year, rows, out / "preview.png", sheet)
+        print(f"{year}: {out / 'preview.png'}, {sheet}")
 
 
 if __name__ == "__main__":
