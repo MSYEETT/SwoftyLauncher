@@ -112,6 +112,18 @@ A real suit is a mod's suit in `data/real_suits.json` that `build_real_suits.py`
 | 2018 Redbull for F1 25, `drivers/male/2025-redbull_max_verstappen` | 2018 Red Bull Racing, Max Verstappen | `cs18-redbull_max_verstappen` |
 | 2018 Redbull for F1 25, `drivers/male/2025-redbull_yuki_tsunoda` | 2018 Red Bull Racing, Daniel Ricciardo | `cs18-redbull_yuki_tsunoda` |
 
+### F1 23 suits
+
+`build_real_suits.py --f1-23 <F1 23>` builds F1 23's own 2022 and 2023 kit into `suits/`: the 20 team suits and the 40 driver suits of `data/seasons.json`, each driver suit with its gloves and helmet. A 2022 or 2023 team-season chooses only among these, by the rules above; with none built, its looks keep their seats' stock kit, as 2024 does. The other seasons never take an F1 23 suit.
+
+- The base is the F1 25 2024 suit of the same team (else 2025): a team suit `2024-<stock team>`, a driver suit the same driver's `2024-<stock team>_<driver>`, else a teammate's whose helmet shell is the F1 23 one. The label is `cs<yy>` and the base label from its fifth character, as for a mod suit.
+- The base archive is relabelled byte for byte. Every material, bind and surface record is F1 25's.
+- Each texture of a kit part (suit, boots, gloves, glove logos, logo atlas, suit attachments, harness, cap, helmet, visor) takes F1 23's texture of the same part: its mip chain, archive levels and `.mipmaps` sidecar levels, all embedded in the archive with no sidecar, in the F1 25 surface header with F1 23's format, size and level count. F1 23 packs the largest one or two sidecar levels of its bigger textures with compression 7, which no tool here reads; such a chain starts at the largest LZ4 or stored level (`livery_v2_d` 1024 instead of 2048). A texture whose F1 23 aspect differs is resized to the F1 25 size. A texture F1 23 lacks keeps F1 25's.
+- A team texture a driver archive holds is the team suit's copy. A helmet archive takes the suit archive's copy of each resource both hold.
+- `--logos f1-23` (the default) takes F1 23's body and glove logo meshes, renamed byte for byte to `cs<yy>-`, with the base's binds. A driver on a teammate's base gets them under `cs<yy>-<stock team>_<driver>/idf/<driver>_body_logos`, which his suit and gloves rows name. `--logos base` keeps the base's logo meshes.
+- Helmet shells are byte for byte the same meshes in both games, so the helmet keeps the base's shell. 2022 Daniel Ricciardo (McLaren) and Sebastian Vettel (Aston Martin) wear Arai shells no F1 25 McLaren or Aston Martin driver has; their looks keep the stock helmet.
+- `art/suits/2022.png` and `art/suits/2023.png` show each F1 23 suit's front and back render and F1 23's and the built `livery_v2_d`, `logo_01_d`, `glove_d` and `helmet_d`.
+
 ### Generated suits
 
 `build_suits.py` builds one suit per team-season that wears no real suit, from an F1 25 team suit (the base) and the team's car:
@@ -131,7 +143,7 @@ A real suit is a mod's suit in `data/real_suits.json` that `build_real_suits.py`
 - The contact sheet (`suits/preview.png`, and `art/suits/<year>.png` at half size) shows each team's front and back render (the male body, boots, gloves and decals), the painted `livery_v2_d` and the `logo_01_d` atlas with its decal rectangles: blue for the team logo, yellow for a sponsor, grey for an empty one.
 
 ```sh
-python3 tools/build_real_suits.py --game <F1 25> --mods <folder holding the extracted mods>
+python3 tools/build_real_suits.py --game <F1 25> --mods <folder holding the extracted mods> --f1-23 <F1 23>
 python3 tools/build_suits.py --game <F1 25> --years 2016-2021 [--cars <folder holding classic-seasons-<year>/cars>]
 python3 tools/gen.py
 ```
