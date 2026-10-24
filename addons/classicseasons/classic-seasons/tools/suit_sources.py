@@ -4,9 +4,9 @@ A real suit is a mod's suit (data/real_suits.json "suits", built by build_real_s
 stock F1 25 suit of a season in "stock_seasons" (the team's <year>-<stock team> suit and its drivers'
 <year>-<stock team>_<driver> suits). A team-season takes the real team suit of its own season, else the one of the
 nearest season with the same team name in data/seasons.json, the earlier season on a tie, else its generated suit
-(build_suits.py). A driver also considers the real suits of the same driver at the same team name: the nearest season
-wins, a driver's own suit wins a tie with a team suit, and the earlier season wins after that. "suit": {"source":
-"<label>" | "generated"} on a team overrides the choice for the team and its drivers.
+(build_suits.py). Only team suits decide the season. Every driver of the team-season wears that season's kit: his own
+suit of that season and team when there is one, else that season's team suit. "suit": {"source": "<label>" |
+"generated"} on a team overrides the team's choice.
 
 Labels: a mod's team suit is cs<yy>-<stock team> of its own season, a mod's driver suit cs<yy>-<base folder>, both the
 length of the base label they replace. A generated suit is cg<yy>-<stock team>, or cg<yy>-<key> padded with "_" to the
@@ -79,16 +79,21 @@ def built():
 def pick(year, team, driver=None, made=None):
     """made: the labels of the built mod suits (built()); a mod suit that is not built is not a choice."""
     made = built() if made is None else made
+    usable = [e for e in real() if e["team"] == team["name"] and (e["kind"] == "stock" or e["label"] in made)]
     source = team.get("suit", {}).get("source")
     if source == GENERATED:
         return None
     if source:
-        return by_label(source)
-    found = [e for e in real() if e["team"] == team["name"] and e.get("driver") in (None, driver)
-             and (e["kind"] == "stock" or e["label"] in made)]
-    if not found:
-        return None
-    return min(found, key=lambda e: (abs(e["season"] - year), 0 if e.get("driver") else 1, e["season"]))
+        chosen = by_label(source)
+    else:
+        teams = [e for e in usable if "driver" not in e]
+        if not teams:
+            return None
+        chosen = min(teams, key=lambda e: (abs(e["season"] - year), e["season"]))
+    if driver is None:
+        return chosen
+    own = [e for e in usable if e.get("driver") == driver and e["season"] == chosen["season"]]
+    return own[0] if own else chosen
 
 
 def describe(entry):

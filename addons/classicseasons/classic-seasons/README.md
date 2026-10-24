@@ -93,7 +93,7 @@ A team-season of 2016 to 2021 wears, first found:
 2. the real team suit of the nearest season with the same team name in `data/seasons.json` (Force India and Racing Point are different teams), the earlier season on a tie;
 3. its generated suit.
 
-A real suit is a mod's suit in `data/real_suits.json` that `build_real_suits.py` has built, or a stock F1 25 suit of a season in its `stock_seasons` (2024: `2024-<stock team>` and `2024-<stock team>_<driver>`). A driver also weighs the real suits of the same driver at the same team name: the nearest season wins, a driver's own suit wins a tie with a team suit, and the earlier season wins after that. A mod driver suit brings its helmet. `"suit": {"source": "<label>"}` or `"source": "generated"` on a team in `data/seasons.json` sets the suit of the team and its drivers. The season contact sheets name the suit of every team and driver.
+A real suit is a mod's suit in `data/real_suits.json` that `build_real_suits.py` has built, or a stock F1 25 suit of a season in its `stock_seasons` (2024: `2024-<stock team>` and `2024-<stock team>_<driver>`). Only team suits decide the season. Every driver of the team-season wears that season's kit: his own suit of that season and team when there is one, else that season's team suit. A mod driver suit brings its helmet. `"suit": {"source": "<label>"}` or `"source": "generated"` on a team in `data/seasons.json` sets the team's suit. The season contact sheets name the suit of every team and driver.
 
 ### Real suits
 
