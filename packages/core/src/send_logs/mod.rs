@@ -16,6 +16,7 @@ pub use upload::{LogServer, SendError, Stage};
 pub const UNAVAILABLE: &str = "Sending logs isn't available in this build";
 pub const NAME_MIN: usize = 2;
 pub const NAME_MAX: usize = 32;
+pub const MESSAGE_MIN: usize = 10;
 pub const MESSAGE_MAX: usize = 1000;
 pub const FILE_CAP: u64 = 5 << 20;
 pub const TOTAL_CAP: u64 = 40 << 20;
@@ -27,6 +28,7 @@ const LOADER_HEAD: u64 = 16 << 10;
 pub const LOADER_DIR: &str = "swofty";
 pub const KEPT_DIR: &str = "logs";
 pub const KEPT: usize = 10;
+pub const LAUNCH_LOGS: [&str; 2] = ["state/launcher-run.log", "state/wrapper-run.log"];
 
 const REDACTED: &str = "[redacted]";
 const SESSION_DEPTH: usize = 3;
@@ -94,10 +96,19 @@ pub fn check_name(raw: &str) -> std::result::Result<String, String> {
 
 pub fn check_message(raw: &str) -> std::result::Result<String, String> {
     let message = raw.trim();
-    if message.chars().count() > MESSAGE_MAX {
-        return Err(format!("Keep it to {MESSAGE_MAX} characters"));
+    match message.chars().count() {
+        n if n < MESSAGE_MIN => Err(format!(
+            "Describe what went wrong in at least {MESSAGE_MIN} characters"
+        )),
+        n if n > MESSAGE_MAX => Err(format!("Keep it to {MESSAGE_MAX} characters")),
+        _ => Ok(message.to_owned()),
     }
-    Ok(message.to_owned())
+}
+
+/// Whether the data folder holds a launch log or a game session, the logs
+/// that show what happened when the game ran.
+pub fn has_session(store: &Store) -> bool {
+    LAUNCH_LOGS.iter().any(|l| store.root.join(l).is_file()) || !newest_sessions(store, 1).is_empty()
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -423,6 +434,12 @@ impl Bundle {
             line("Game folder", &dir.display().to_string());
         }
         line("Data folder", &store.root.display().to_string());
+        if !has_session(store) {
+            line(
+                "Game sessions",
+                "none found: no launch log in state/ and no session in sessions/",
+            );
+        }
         s.push_str("\nWhat went wrong\n");
         s.push_str(if self.message.is_empty() {
             "(not said)"

@@ -14,7 +14,11 @@ pub struct SendArgs {
         help = "Your Discord username, so the developers can reply (default: the last one used)"
     )]
     pub name: Option<String>,
-    #[arg(long, value_name = "TEXT", help = "What went wrong, up to 1000 characters")]
+    #[arg(
+        long,
+        value_name = "TEXT",
+        help = "What happened and what you were doing, 10 to 1000 characters (needed unless --dry-run)"
+    )]
     pub message: Option<String>,
     #[arg(
         long,
@@ -36,12 +40,20 @@ pub fn send_to(store: &Store, args: SendArgs, to: Option<LogServer>) -> Result<E
         .or(remembered)
         .context("pass --name <your Discord username> so the developers can reply")?;
     let name = send_logs::check_name(&raw).map_err(|e| anyhow!(e))?;
-    let message =
-        send_logs::check_message(args.message.as_deref().unwrap_or_default()).map_err(|e| anyhow!(e))?;
+    let message = match args.message.as_deref() {
+        Some(raw) => send_logs::check_message(raw).map_err(|e| anyhow!(e))?,
+        None if args.dry_run.is_some() => String::new(),
+        None => bail!("pass --message \"<what happened>\" so the developers know what went wrong"),
+    };
     if args.dry_run.is_none() && to.is_none() {
         bail!(
             "{}; add --dry-run to write the zip without sending it",
             send_logs::UNAVAILABLE
+        );
+    }
+    if !send_logs::has_session(store) {
+        eprintln!(
+            "swofty: we don't see a game launch in your logs yet; start the game and reproduce the problem first, then send logs"
         );
     }
     eprintln!("swofty: {}", Stage::Collecting);

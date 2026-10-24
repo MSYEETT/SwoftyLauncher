@@ -867,7 +867,7 @@ mod tests {
         std::fs::create_dir_all(&out).unwrap();
         let args = send_logs::SendArgs {
             name: None,
-            message: Some("  it froze  ".into()),
+            message: Some("  it froze on the grid  ".into()),
             dry_run: Some(Some(out.clone())),
         };
         assert_eq!(send_logs::send(&store, args).unwrap(), ExitCode::SUCCESS);
@@ -891,6 +891,22 @@ mod tests {
             dry_run: Some(None),
         };
         assert!(send_logs::send(&store, bad).is_err());
+        let unsaid = send_logs::SendArgs {
+            name: None,
+            message: None,
+            dry_run: Some(Some(out.join("unsaid.zip"))),
+        };
+        assert_eq!(send_logs::send(&store, unsaid).unwrap(), ExitCode::SUCCESS);
+        assert!(out.join("unsaid.zip").is_file());
+        let sending = |message: Option<&str>| send_logs::SendArgs {
+            name: None,
+            message: message.map(Into::into),
+            dry_run: None,
+        };
+        let err = send_logs::send_to(&store, sending(None), None).unwrap_err();
+        assert!(err.to_string().contains("pass --message"), "{err}");
+        let err = send_logs::send_to(&store, sending(Some("  it froze ")), None).unwrap_err();
+        assert!(err.to_string().contains("at least 10 characters"), "{err}");
         std::fs::remove_dir_all(&root).ok();
     }
 
@@ -953,7 +969,7 @@ mod tests {
         };
         let args = |name: &str| send_logs::SendArgs {
             name: Some(name.into()),
-            message: Some("it froze".into()),
+            message: Some("it froze on the grid".into()),
             dry_run: None,
         };
 

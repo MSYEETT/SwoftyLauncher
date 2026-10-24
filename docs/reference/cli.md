@@ -41,7 +41,7 @@ To read a finished session's summary, use `swofty logs [<session dir>]`. Leave o
 ### `swofty logs send`
 
 ```sh
-swofty logs send --name <username> [--message <text>] [--dry-run [<zip>]]
+swofty logs send --name <username> --message <text> [--dry-run [<zip>]]
 ```
 
 Sends your logs to the developers on Discord, like **Send Logs to Developers** in the launcher. [Send your logs to the developers](/using/send-logs) lists what the zip holds.
@@ -49,10 +49,10 @@ Sends your logs to the developers on Discord, like **Send Logs to Developers** i
 | Flag | Purpose |
 |---|---|
 | `--name <username>` | Your Discord username, 2 to 32 characters. Without it, the command uses the last username sent, from `config.json` `"discord_username"` |
-| `--message <text>` | What went wrong, up to 1000 characters |
+| `--message <text>` | What happened and what you were doing, 10 to 1000 characters. Needed unless `--dry-run` is given |
 | `--dry-run [<zip>]` | Write the zip to `<zip>` (a file or a folder; the current folder when left out), list its files, and send nothing |
 
-The command prints its progress and exits with an error when Discord can't be reached or refuses the upload, naming the HTTP status. A zip over 9 MB goes in several messages, labelled `part 1/3` and so on. Builds from source can't send; there, only `--dry-run` works.
+When the data folder has no launch log (`state/launcher-run.log`, `state/wrapper-run.log`) and no game session, the command warns that the logs show no game launch yet. The command prints its progress and exits with an error when Discord can't be reached or refuses the upload, naming the HTTP status. A zip over 9 MB goes in several messages, labelled `part 1/3` and so on. Builds from source can't send; there, only `--dry-run` works.
 
 Without `--dry-run`, the command keeps the zip in `$DATA/logs/swofty-logs-<username>-<time>.zip`, beside the launcher's, and removes all but the newest 10. After sending, it prints the zip's path and size. When sending fails, it prints the path before the error.
 

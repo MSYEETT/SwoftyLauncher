@@ -671,6 +671,16 @@ fn checks_the_name_and_message() {
     assert!(check_name("").is_err());
     assert!(check_name(&"x".repeat(32)).is_ok());
     assert!(check_name(&"x".repeat(33)).is_err());
+    assert_eq!(
+        check_message("  it froze on the grid  "),
+        Ok("it froze on the grid".into())
+    );
+    assert!(check_message("   ").is_err());
+    assert_eq!(
+        check_message("  it broke  "),
+        Err("Describe what went wrong in at least 10 characters".into())
+    );
+    assert!(check_message(&"m".repeat(MESSAGE_MIN)).is_ok());
     assert!(check_message(&"m".repeat(1000)).is_ok());
     assert!(check_message(&"m".repeat(1001)).is_err());
     assert_eq!(utc_stamp(0), "19700101-000000");
@@ -876,6 +886,36 @@ fn leaves_out_live_logs_the_newest_session_already_kept() {
     let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "x");
     assert!(bundle.entries.iter().any(|e| e.path == "game/perf.log"));
     assert!(summary_of(&bundle).contains("From sessions/20261020-090000/perf.log\n"));
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn says_when_there_is_no_launch_or_game_session() {
+    let root = tmp("nosession");
+    let store = Store::new(root.join("data"));
+    put(&store.sessions_dir().join("latest.txt"), "x");
+    put(&store.sessions_dir().join("orphaned-logs/loader.log"), "orphan\n");
+    put(&store.root.join("state/offline.log"), "offline line\n");
+    let collect = || {
+        summary_of(&Bundle::collect_with(
+            &store,
+            &report(&root),
+            Limits::default(),
+            "x",
+        ))
+    };
+    let none = "\nGame sessions    none found: no launch log in state/ and no session in sessions/\n";
+    assert!(!has_session(&store));
+    assert!(collect().contains(none), "{}", collect());
+    for launch in LAUNCH_LOGS {
+        put(&store.root.join(launch), "launch line\n");
+        assert!(has_session(&store), "{launch}");
+        assert!(!collect().contains("Game sessions"), "{}", collect());
+        std::fs::remove_file(store.root.join(launch)).unwrap();
+    }
+    put(&store.sessions_dir().join("20261020-090000/exit_code"), "0");
+    assert!(has_session(&store));
+    assert!(!collect().contains("Game sessions"), "{}", collect());
     std::fs::remove_dir_all(&root).ok();
 }
 
