@@ -941,7 +941,7 @@ bool on_exec(ID3D12CommandQueue *q, UINT n, ID3D12CommandList *const *lists)
                 tonemap_lists += m.tonemap;
                 if (m.target) {
                     back_lists++;
-                    if (dump_armed) {
+                    if (dump_armed && dump_seen.size() >= 8) {
                         log_dump(reinterpret_cast<ID3D12GraphicsCommandList *>(lists[i]), m);
                         dumps_left--;
                         dump_armed = false;
