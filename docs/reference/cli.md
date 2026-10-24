@@ -28,7 +28,7 @@ To stop following the logs while keeping the game running, press **Ctrl-C**. Whe
 
 On Linux, the [Steam launch option](/guide/linux) uses `swofty run -- %command%`.
 
-For a direct launch, you'll find the wrapper's output in `$DATA/state/wrapper-run.log`, and `swofty run` prints what the wrapper reports after the game exits. If the wrapper exits before the game starts or while it runs, `swofty run` prints the wrapper's last lines and its error, rolls back anything the wrapper left, then exits with an error itself. It stops waiting after 10 minutes, or after 2 minutes when Steam launches the game.
+For a direct launch, you'll find the wrapper's output in `$DATA/state/wrapper-run.log`, and `swofty run` prints what the wrapper reports after the game exits. If the wrapper exits before the game starts or while it runs, `swofty run` prints the wrapper's last lines and its error, rolls back anything the wrapper left, then exits with an error itself. It stops waiting once the wrapper has written nothing for 10 minutes, or after 2 minutes when Steam launches the game. An install that takes longer than 10 seconds writes `[info] installing: <copied> of <total> file(s) copied` every 10 seconds.
 
 Before anything else, `swofty run` and `swofty apply` roll back what an unfinished session left in the game folder and print `Recovered the game folder from an unfinished session` with what they put back and the `swofty doctor` report. If a session is still running or rolling back, they wait up to 2 minutes for it.
 

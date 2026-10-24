@@ -195,6 +195,7 @@ fn install_checked(store: &Store, profile: &str, g: &Game, session: bool, out: &
     let inst = Installer {
         session,
         depot: depots.as_ref().map_or(&() as &dyn DepotHashes, |d| d),
+        out,
         ..Installer::new(&store.root, g)
     };
     let built = build_profile(store, profile, g)?;

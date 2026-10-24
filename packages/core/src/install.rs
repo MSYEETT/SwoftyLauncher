@@ -176,13 +176,18 @@ pub struct Installer<'a> {
     pub depot: &'a dyn DepotHashes,
     pub stop_after: Option<usize>,
     pub session: bool,
+    /// Where a long install says how far it got.
+    pub out: &'a dyn Fn(&str),
     pub free_space: fn(&Path) -> Option<u64>,
 }
 
+const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_secs(10);
 /// Room on the data folder's volume per file an install places, for the
 /// journal, `placed.json` and the hash cache, each rewritten through a
 /// temporary copy.
 const STATE_PER_FILE: u64 = 2048;
+
+fn quiet(_: &str) {}
 
 fn rel_parts(rel: &str) -> Vec<String> {
     let parts: Vec<&str> = rel.split('/').collect();
@@ -296,6 +301,7 @@ impl<'a> Installer<'a> {
             depot: &(),
             stop_after: None,
             session: false,
+            out: &quiet,
             free_space: crate::disk::free_space,
         }
     }
@@ -800,7 +806,7 @@ impl<'a> Installer<'a> {
             .chain(&plan.loader)
             .map(|(rel, src)| (rel.as_str(), src))
             .collect();
-        let mut n = 0;
+        let (mut n, mut copied, mut told) = (0, 0, std::time::Instant::now());
         for i in 0..j.entries.len() {
             self.step(&mut n)?;
             let e = &j.entries[i];
@@ -831,8 +837,16 @@ impl<'a> Installer<'a> {
             }
             if matches!(e.op, Op::ReplaceFile | Op::CreateFile) {
                 hashes.wrote(&path, e.after.as_deref().expect("a placed file has after"));
+                copied += 1;
             }
             j.done(i)?;
+            if told.elapsed() >= PROGRESS_EVERY {
+                (self.out)(&format!(
+                    "installing: {copied} of {} file(s) copied",
+                    sources.len()
+                ));
+                told = std::time::Instant::now();
+            }
         }
         j.commit()
     }

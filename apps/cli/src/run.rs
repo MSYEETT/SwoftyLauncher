@@ -152,7 +152,7 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     let before = LogMark::read(&loader);
     let asked = now_secs();
     let mut wrapper = launch(store, &game, args.direct, mode).inspect_err(|e| note_blocked(store, e))?;
-    let started = Instant::now();
+    let mut silence = Silence::new();
     let dir = loop {
         if let Some(d) = store
             .latest_session()
@@ -170,10 +170,11 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
             settle(store, &g, &mut wrapper, None, false);
             return Err(err);
         }
-        if started.elapsed() > wrapper.timeout {
+        if silence.of(&wrapper.log) > wrapper.timeout {
             match &wrapper.child {
                 Some(_) => bail!(
-                    "the wrapper did not start the game within {} min and is still running; its output is in {}",
+                    "the wrapper has not started the game and has written nothing for {} min; it is still running, \
+                     and its output is in {}",
                     wrapper.timeout.as_secs() / 60,
                     wrapper.log.display()
                 ),
@@ -1090,6 +1091,33 @@ impl Wrapper {
                 self.log.display()
             ),
         }
+    }
+}
+
+/// How long the wrapper's log has gone without growing: an install of a
+/// large profile takes minutes, and says how far it got as it goes.
+struct Silence {
+    len: u64,
+    since: Instant,
+}
+
+impl Silence {
+    fn new() -> Self {
+        Self {
+            len: 0,
+            since: Instant::now(),
+        }
+    }
+
+    fn of(&mut self, log: &Path) -> Duration {
+        let len = std::fs::metadata(log).map_or(0, |m| m.len());
+        if len != self.len {
+            *self = Self {
+                len,
+                since: Instant::now(),
+            };
+        }
+        self.since.elapsed()
     }
 }
 
@@ -2075,6 +2103,20 @@ mod tests {
             end.reason,
             "the game's process was ended by signal 9, which leaves no exit code"
         );
+    }
+
+    #[test]
+    fn the_wait_for_the_wrapper_counts_from_its_last_output() {
+        let log = temp_log("silence");
+        std::fs::create_dir_all(log.parent().unwrap()).unwrap();
+        let mut silence = Silence::new();
+        std::thread::sleep(Duration::from_millis(30));
+        assert!(silence.of(&log) >= Duration::from_millis(30));
+        std::fs::write(&log, "[info] installing: 2000 of 7977 file(s) copied\n").unwrap();
+        assert!(silence.of(&log) < Duration::from_millis(30));
+        std::thread::sleep(Duration::from_millis(30));
+        assert!(silence.of(&log) >= Duration::from_millis(30));
+        std::fs::remove_dir_all(log.ancestors().nth(2).unwrap()).ok();
     }
 
     #[test]
