@@ -1,3 +1,4 @@
+#include "perf.hpp"
 #include "runtime.hpp"
 
 #include <safetyhook.hpp>
@@ -76,7 +77,67 @@ struct Target {
     UINT stride = 0;
 };
 
+// Pointers the barrier hook checks without the lock. Writers hold the lock; readers only load.
+// Erased keys leave a tombstone that a later insert reuses, and the table never moves.
+template <size_t N> class PtrSet {
+    static_assert((N & (N - 1)) == 0, "a power of two");
+    static constexpr uintptr_t EMPTY = 0, GONE = 1;
+    std::atomic<uintptr_t> slot[N] = {};
+
+    static size_t hash(uintptr_t k) { return size_t((k * 0x9E3779B97F4A7C15ull) >> 40) & (N - 1); }
+
+public:
+    bool contains(const void *p) const
+    {
+        uintptr_t k = uintptr_t(p);
+        for (size_t i = hash(k), n = 0; n < N; i = (i + 1) & (N - 1), n++) {
+            uintptr_t v = slot[i].load(std::memory_order_acquire);
+            if (v == EMPTY)
+                return false;
+            if (v == k)
+                return true;
+        }
+        return false;
+    }
+    bool insert(const void *p)
+    {
+        uintptr_t k = uintptr_t(p);
+        size_t reuse = N;
+        for (size_t i = hash(k), n = 0; n < N; i = (i + 1) & (N - 1), n++) {
+            uintptr_t v = slot[i].load(std::memory_order_relaxed);
+            if (v == k)
+                return true;
+            if (v == GONE && reuse == N)
+                reuse = i;
+            if (v == EMPTY) {
+                slot[reuse == N ? i : reuse].store(k, std::memory_order_release);
+                return true;
+            }
+        }
+        if (reuse == N)
+            return false;
+        slot[reuse].store(k, std::memory_order_release);
+        return true;
+    }
+    void erase(const void *p)
+    {
+        uintptr_t k = uintptr_t(p);
+        for (size_t i = hash(k), n = 0; n < N; i = (i + 1) & (N - 1), n++) {
+            uintptr_t v = slot[i].load(std::memory_order_relaxed);
+            if (v == EMPTY)
+                return;
+            if (v == k) {
+                slot[i].store(GONE, std::memory_order_release);
+                return;
+            }
+        }
+    }
+};
+
 safetyhook::InlineHook h_setname, h_barrier, h_exec;
+PtrSet<1024> watched;
+PtrSet<4096> marked;
+std::atomic<bool> sets_full;
 std::recursive_mutex lock;
 std::vector<Pass> passes;
 std::unordered_set<ID3D12Resource *> tonemaps, backbuffers, hudlesses, ui_targets, depths;
@@ -653,12 +714,16 @@ void log_diag(ID3D12GraphicsCommandList *list, const Mark &m)
 
 HRESULT STDMETHODCALLTYPE setname_hook(ID3D12Object *o, LPCWSTR name)
 {
+    static const uint32_t probe = perf::probe("core", "postfx SetName");
     if (name) {
+        perf::Scope p(probe);
         auto *res = reinterpret_cast<ID3D12Resource *>(o);
         std::lock_guard<std::recursive_mutex> g(lock);
         if (tonemaps.erase(res) | backbuffers.erase(res) | hudlesses.erase(res) | ui_targets.erase(res) |
-            depths.erase(res))
+            depths.erase(res)) {
             names.erase(res);
+            watched.erase(res);
+        }
         if (res == depth_res)
             depth_res = nullptr;
         bool tonemap = wcscmp(name, TONEMAP_NAME) == 0, back = wcscmp(name, BACKBUFFER_NAME) == 0;
@@ -677,13 +742,27 @@ HRESULT STDMETHODCALLTYPE setname_hook(ID3D12Object *o, LPCWSTR name)
                 swofty::log("[postfx] the game names its back buffers \"BackBuffer\"");
             backbuffers.insert(res);
         }
+        if ((tonemaps.count(res) || backbuffers.count(res) || hudlesses.count(res) || ui_targets.count(res) ||
+             depths.count(res)) &&
+            !watched.insert(res))
+            sets_full = true;
     }
     return h_setname.call<HRESULT>(o, name);
 }
 
 void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, const D3D12_RESOURCE_BARRIER *barriers)
 {
+    static const uint32_t probe = perf::probe("core", "postfx ResourceBarrier");
     if (barriers && n && !broken) {
+        perf::Scope p(probe);
+        bool look = sets_full.load(std::memory_order_relaxed) || marked.contains(list);
+        for (UINT i = 0; i < n && !look; i++)
+            look = barriers[i].Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION &&
+                   watched.contains(barriers[i].Transition.pResource);
+        if (!look) {
+            perf::Pause game;
+            return h_barrier.call<void>(list, n, barriers);
+        }
         std::lock_guard<std::recursive_mutex> g(lock);
         Mark *m = nullptr;
         for (UINT i = 0; i < n; i++) {
@@ -697,6 +776,8 @@ void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, con
                 if (it == marks.end() && !tonemap && !back && !depth)
                     continue;
                 m = &marks[list];
+                if (!marked.insert(list))
+                    sets_full = true;
             }
             if (depth) {
                 m->depth = r;
@@ -725,6 +806,8 @@ void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, con
 
 void STDMETHODCALLTYPE exec_hook(ID3D12CommandQueue *q, UINT n, ID3D12CommandList *const *lists)
 {
+    static const uint32_t probe = perf::probe("core", "postfx ExecuteCommandLists");
+    perf::Scope p(probe);
     UINT split = n;
     ID3D12Resource *res = nullptr, *hudless = nullptr, *later_depth = nullptr;
     D3D12_RESOURCE_STATES state{}, hudless_state{}, later_depth_state{};
@@ -762,6 +845,7 @@ void STDMETHODCALLTYPE exec_hook(ID3D12CommandQueue *q, UINT n, ID3D12CommandLis
                         later_depth_state = m.depth_state;
                     }
                 }
+                marked.erase(it->first);
                 marks.erase(it);
             }
         }
@@ -783,10 +867,14 @@ void STDMETHODCALLTYPE exec_hook(ID3D12CommandQueue *q, UINT n, ID3D12CommandLis
             depth_res = later_depth;
             depth_state = later_depth_state;
         }
+        perf::Pause game;
         h_exec.call<void>(q, n, lists);
         return;
     }
-    h_exec.call<void>(q, split + 1, lists);
+    {
+        perf::Pause game;
+        h_exec.call<void>(q, split + 1, lists);
+    }
     {
         std::lock_guard<std::recursive_mutex> g(lock);
         run(q, res, state, hudless, hudless_state);
@@ -795,8 +883,10 @@ void STDMETHODCALLTYPE exec_hook(ID3D12CommandQueue *q, UINT n, ID3D12CommandLis
             depth_state = later_depth_state;
         }
     }
-    if (split + 1 < n)
+    if (split + 1 < n) {
+        perf::Pause game;
         h_exec.call<void>(q, n - split - 1, lists + split + 1);
+    }
 }
 
 bool install(safetyhook::InlineHook &h, void *target, void *detour, const char *what)
