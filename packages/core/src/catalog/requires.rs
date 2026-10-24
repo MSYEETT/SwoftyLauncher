@@ -7,6 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Condvar, Mutex, MutexGuard};
 
 use semver::VersionReq;
 use serde::Deserialize;
@@ -525,6 +527,24 @@ pub enum Event<'a> {
 
 type Zips = RefCell<BTreeMap<(String, semver::Version), PathBuf>>;
 
+/// A download in the shared downloads folder that installs running at once use
+/// together: one of them downloads it while the others wait, and the last one
+/// done with it deletes it.
+#[derive(Default)]
+struct Shared {
+    users: usize,
+    busy: bool,
+    ready: bool,
+}
+
+static SHARED: Mutex<BTreeMap<PathBuf, Shared>> = Mutex::new(BTreeMap::new());
+static SHARED_CHANGED: Condvar = Condvar::new();
+static PART: AtomicU64 = AtomicU64::new(0);
+
+fn shared() -> MutexGuard<'static, BTreeMap<PathBuf, Shared>> {
+    SHARED.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 fn fetch(dir: &Path, zips: &Zips, addon: &Addon, v: &Version, progress: &dyn Fn(Event)) -> Result<PathBuf> {
     let key = (addon.id.clone(), v.version.clone());
     if let Some(path) = zips.borrow().get(&key) {
@@ -532,14 +552,61 @@ fn fetch(dir: &Path, zips: &Zips, addon: &Addon, v: &Version, progress: &dyn Fn(
     }
     let path = dir.join(file_name(addon, v));
     zips.borrow_mut().insert(key, path.clone());
+    let mut all = shared();
+    all.entry(path.clone()).or_default().users += 1;
+    loop {
+        let slot = all.get_mut(&path).expect("held while this install uses it");
+        if slot.ready {
+            return Ok(path);
+        }
+        if !slot.busy {
+            slot.busy = true;
+            break;
+        }
+        all = SHARED_CHANGED.wait(all).unwrap_or_else(|e| e.into_inner());
+    }
+    drop(all);
     progress(Event::Addon(addon, v));
-    download(v, &path, &|s| progress(Event::Stage(s)))?;
-    Ok(path)
+    let part = path.with_extension(format!(
+        "zip.part-{}-{}",
+        std::process::id(),
+        PART.fetch_add(1, Ordering::Relaxed)
+    ));
+    let result = download(v, &part, &|s| progress(Event::Stage(s)))
+        .and_then(|()| crate::with_retry(&path, || std::fs::rename(&part, &path)));
+    if result.is_err() {
+        std::fs::remove_file(&part).ok();
+    }
+    let mut all = shared();
+    if let Some(slot) = all.get_mut(&path) {
+        slot.busy = false;
+        slot.ready = result.is_ok();
+    }
+    SHARED_CHANGED.notify_all();
+    result.map(|()| path)
+}
+
+/// Lets go of the downloads one install used, deleting each that no other
+/// running install still uses.
+fn release(zips: Zips) {
+    let mut all = shared();
+    for path in zips.into_inner().into_values() {
+        let Some(slot) = all.get_mut(&path) else {
+            continue;
+        };
+        slot.users -= 1;
+        if slot.users == 0 {
+            all.remove(&path);
+            std::fs::remove_file(&path).ok();
+        }
+    }
+    SHARED_CHANGED.notify_all();
 }
 
 /// Downloads `v` of `addon` and every addon it requires that `store` lacks,
 /// checks each download, then installs them, requirements first. Returns the
-/// installed manifests in install order, `addon`'s last.
+/// manifests it installed in install order, `addon`'s last; a requirement
+/// another install put in place meanwhile is left out.
 pub fn install(
     store: &Store,
     catalog: &[Addon],
@@ -550,9 +617,7 @@ pub fn install(
     let dir = downloads_dir(store)?;
     let zips = Zips::default();
     let result = install_with(store, catalog, addon, v, &dir, &zips, progress);
-    for path in zips.into_inner().values() {
-        std::fs::remove_file(path).ok();
-    }
+    release(zips);
     result
 }
 
@@ -600,9 +665,17 @@ fn install_with(
     for s in &planned.steps {
         let path = zips.borrow()[&(s.addon.id.clone(), s.version.version.clone())].clone();
         progress(Event::Addon(&s.addon, &s.version));
-        progress(Event::Stage(Stage::Installing));
         let installed = {
             let _one = INSTALLING.lock().unwrap_or_else(|e| e.into_inner());
+            if s.addon.id != addon.id
+                && store
+                    .addons()?
+                    .get(&s.addon.id)
+                    .is_some_and(|m| m.version == s.version.version)
+            {
+                continue;
+            }
+            progress(Event::Stage(Stage::Installing));
             store.install_addon(&path)
         };
         let m = match installed {
@@ -629,6 +702,8 @@ fn install_with(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
 
     fn version(v: &str, requires: &[(&str, &str)]) -> Version {
@@ -1038,6 +1113,164 @@ mod tests {
         v.sha256 = crate::baseline::sha256_bytes(zip);
         v.url = format!("{base}{path}");
         v
+    }
+
+    /// Serves `files` from a thread per request, each answered after its
+    /// delay in milliseconds, and counts the requests for each path.
+    fn serve_timed(files: Vec<(String, Vec<u8>, u64)>) -> (String, Arc<Mutex<BTreeMap<String, usize>>>) {
+        use std::io::{BufRead, BufReader, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let files = Arc::new(files);
+        let hits = Arc::new(Mutex::new(BTreeMap::new()));
+        let counted = hits.clone();
+        std::thread::spawn(move || {
+            for mut stream in listener.incoming().flatten() {
+                let (files, hits) = (files.clone(), counted.clone());
+                std::thread::spawn(move || {
+                    let mut reader = BufReader::new(stream.try_clone().unwrap());
+                    let mut request = String::new();
+                    reader.read_line(&mut request).ok();
+                    let path = request.split_whitespace().nth(1).unwrap_or_default().to_owned();
+                    loop {
+                        let mut header = String::new();
+                        if reader.read_line(&mut header).unwrap_or(0) <= 2 {
+                            break;
+                        }
+                    }
+                    *hits.lock().unwrap().entry(path.clone()).or_insert(0) += 1;
+                    let found = files.iter().find(|(p, _, _)| *p == path);
+                    if let Some((_, _, ms)) = found {
+                        std::thread::sleep(std::time::Duration::from_millis(*ms));
+                    }
+                    let (status, body) = found.map_or((404, Vec::new()), |(_, b, _)| (200, b.clone()));
+                    let head = format!(
+                        "HTTP/1.1 {status} X\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        body.len()
+                    );
+                    stream.write_all(head.as_bytes()).ok();
+                    stream.write_all(&body).ok();
+                });
+            }
+        });
+        (base, hits)
+    }
+
+    #[test]
+    fn installs_at_once_share_a_requirement_download_and_install_it_once() {
+        let root = std::env::temp_dir().join(format!("swofty-requires-shared-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let store = Store::new(&root);
+        let a_zip = zipped("", &manifest("t.a", "1.0.0", &[("t.c", "^1")]));
+        let b_zip = zipped("", &manifest("t.b", "1.0.0", &[("t.c", "^1")]));
+        let c_zip = zipped("", &manifest("t.c", "1.0.0", &[]));
+        let (base, hits) = serve_timed(vec![
+            ("/a.zip".into(), a_zip.clone(), 300),
+            ("/b.zip".into(), b_zip.clone(), 300),
+            ("/c.zip".into(), c_zip.clone(), 300),
+        ]);
+        let a = addon(
+            "t.a",
+            vec![hosted(&base, "/a.zip", &a_zip, Some(&[("t.c", "^1")]))],
+        );
+        let b = addon(
+            "t.b",
+            vec![hosted(&base, "/b.zip", &b_zip, Some(&[("t.c", "^1")]))],
+        );
+        let c = addon("t.c", vec![hosted(&base, "/c.zip", &c_zip, Some(&[]))]);
+        let catalog = vec![a.clone(), b.clone(), c];
+        let installed = Arc::new(Mutex::new(Vec::new()));
+        let start = Arc::new(std::sync::Barrier::new(2));
+        let runs: Vec<_> = [a, b]
+            .into_iter()
+            .map(|target| {
+                let (store, catalog, start, installed) =
+                    (store.clone(), catalog.clone(), start.clone(), installed.clone());
+                std::thread::spawn(move || {
+                    start.wait();
+                    let current = RefCell::new(String::new());
+                    install(&store, &catalog, &target, &target.versions[0], &|e| match e {
+                        Event::Addon(a, _) => *current.borrow_mut() = a.id.clone(),
+                        Event::Stage(Stage::Installing) => {
+                            installed.lock().unwrap().push(current.borrow().clone())
+                        }
+                        _ => {}
+                    })
+                })
+            })
+            .collect();
+        let done: Vec<Vec<String>> = runs
+            .into_iter()
+            .map(|r| r.join().unwrap().unwrap().iter().map(|m| m.id.clone()).collect())
+            .collect();
+        assert!(
+            done.iter().any(|d| *d == ["t.c", "t.a"] || *d == ["t.a"]),
+            "{done:?}"
+        );
+        assert!(
+            done.iter().any(|d| *d == ["t.c", "t.b"] || *d == ["t.b"]),
+            "{done:?}"
+        );
+        assert_eq!(
+            done.iter().flatten().filter(|id| *id == "t.c").count(),
+            1,
+            "{done:?}"
+        );
+        let mut order = installed.lock().unwrap().clone();
+        order.sort();
+        assert_eq!(order, ["t.a", "t.b", "t.c"]);
+        assert_eq!(hits.lock().unwrap().get("/c.zip"), Some(&1));
+        let addons = store.addons().unwrap();
+        assert!(["t.a", "t.b", "t.c"].iter().all(|id| addons.contains_key(*id)));
+        let downloads = store.root.join(super::super::CACHE_DIR).join("downloads");
+        assert_eq!(std::fs::read_dir(&downloads).unwrap().count(), 0);
+        assert!(shared().keys().all(|p| !p.starts_with(&root)));
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_failed_install_leaves_a_shared_download_to_the_install_still_using_it() {
+        let root = std::env::temp_dir().join(format!("swofty-requires-failed-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let store = Store::new(&root);
+        let a_zip = zipped("", &manifest("t.a", "1.0.0", &[("t.c", "^1")]));
+        let z_zip = zipped("", &manifest("t.z", "1.0.0", &[("t.c", "^1")]));
+        let c_zip = zipped("", &manifest("t.c", "1.0.0", &[]));
+        let (base, _) = serve_timed(vec![
+            ("/a.zip".into(), a_zip.clone(), 600),
+            ("/c.zip".into(), c_zip.clone(), 100),
+        ]);
+        let a = addon(
+            "t.a",
+            vec![hosted(&base, "/a.zip", &a_zip, Some(&[("t.c", "^1")]))],
+        );
+        let z = addon(
+            "t.z",
+            vec![hosted(&base, "/z-missing.zip", &z_zip, Some(&[("t.c", "^1")]))],
+        );
+        let c = addon("t.c", vec![hosted(&base, "/c.zip", &c_zip, Some(&[]))]);
+        let catalog = vec![a.clone(), z.clone(), c];
+        let start = Arc::new(std::sync::Barrier::new(2));
+        let runs: Vec<_> = [a, z]
+            .into_iter()
+            .map(|target| {
+                let (store, catalog, start) = (store.clone(), catalog.clone(), start.clone());
+                std::thread::spawn(move || {
+                    start.wait();
+                    install(&store, &catalog, &target, &target.versions[0], &|_| {})
+                })
+            })
+            .collect();
+        let mut results: Vec<_> = runs.into_iter().map(|r| r.join().unwrap()).collect();
+        let z_result = results.pop().unwrap();
+        let a_result = results.pop().unwrap();
+        let err = z_result.unwrap_err().to_string();
+        assert!(err.contains("/z-missing.zip: HTTP 404"), "{err}");
+        let ids: Vec<String> = a_result.unwrap().iter().map(|m| m.id.clone()).collect();
+        assert_eq!(ids, ["t.c", "t.a"]);
+        let downloads = store.root.join(super::super::CACHE_DIR).join("downloads");
+        assert_eq!(std::fs::read_dir(&downloads).unwrap().count(), 0);
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
