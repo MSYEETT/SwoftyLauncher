@@ -3,6 +3,7 @@
 #include "hud_drawlist.hpp"
 #include "hud_guard.hpp"
 #include "hud_png.hpp"
+#include "perf.hpp"
 
 #include <safetyhook.hpp>
 #include <swofty/mixin.hpp>
@@ -185,7 +186,31 @@ struct Chain {
     std::string how, by, fg;
     bool streamline = false;
     bool told = false;
+    UINT color_space = 0;
 };
+
+bool kill_has(const std::string &list, const char *what)
+{
+    std::string l = "," + runtime::lower(list) + ",";
+    for (auto &c : l)
+        if (c == ' ' || c == ';')
+            c = ',';
+    return l.find(std::string(",") + what + ",") != std::string::npos;
+}
+
+bool killed(const char *what)
+{
+    static std::string list = [] {
+        char v[256] = {};
+        DWORD n = GetEnvironmentVariableA("SWOFTY_OVERLAY_KILL", v, sizeof v);
+        std::string out = n && n < sizeof v ? std::string(v, n) : std::string();
+        for (auto &x : runtime::config()["overlay_kill"].a)
+            if (x.type == json::Value::Str)
+                out += "," + x.s;
+        return out;
+    }();
+    return kill_has(list, "all") || kill_has(list, what);
+}
 
 std::mutex chains_lock;
 std::vector<Chain> chains;
@@ -204,32 +229,75 @@ struct Slot {
 
 struct Renderer {
     ID3D12Device *dev = nullptr;
-    ID3D12RootSignature *root = nullptr;
-    ID3DBlob *vs = nullptr, *ps = nullptr;
+    ID3D12RootSignature *root = nullptr, *comp_root = nullptr;
+    ID3DBlob *vs = nullptr, *ps = nullptr, *cvs = nullptr, *cps = nullptr;
+    ID3D12PipelineState *geo = nullptr;
     std::vector<Pso> psos;
-    ID3D12DescriptorHeap *rtv_heap = nullptr;
-    UINT rtv_inc = 0;
+    ID3D12DescriptorHeap *rtv_heap = nullptr, *srv_heap = nullptr;
+    UINT rtv_inc = 0, srv_inc = 0;
     Slot slots[SLOTS];
     UINT next = 0;
     ID3D12Resource *vbuf = nullptr;
     uint8_t *vmap = nullptr;
     ID3D12Fence *fence = nullptr;
     UINT64 fence_val = 0;
+    ID3D12Resource *layer = nullptr;
+    UINT layer_w = 0, layer_h = 0;
+    D3D12_RESOURCE_STATES layer_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    std::vector<std::pair<UINT64, ID3D12Resource *>> graveyard;
+    ID3D12QueryHeap *ts_heap = nullptr;
+    ID3D12Resource *ts_buf = nullptr;
+    UINT64 ts_freq = 0;
+    double gpu_ms = 0;
+    unsigned gpu_n = 0;
     bool ready = false;
     bool failed = false;
 
+    static constexpr DXGI_FORMAT LAYER_FMT = DXGI_FORMAT_R8G8B8A8_UNORM;
+
     bool compile(pD3DCompile fn, const char *entry, const char *model, ID3DBlob **out)
     {
-        static const char hlsl[] = "cbuffer C:register(b0){float2 inv;}"
-                                   "struct I{float2 p:POSITION;float4 c:COLOR;};"
-                                   "struct O{float4 p:SV_POSITION;float4 c:COLOR;};"
-                                   "O VS(I i){O o;o.p=float4(i.p.x*inv.x-1.0,1.0-i.p.y*inv.y,0,1);o.c=i.c;return o;}"
-                                   "float4 PS(O i):SV_TARGET{return i.c;}";
+        static const char hlsl[] =
+            "cbuffer C:register(b0){float2 inv;}"
+            "struct I{float2 p:POSITION;float4 c:COLOR;};"
+            "struct O{float4 p:SV_POSITION;float4 c:COLOR;};"
+            "O VS(I i){O o;o.p=float4(i.p.x*inv.x-1.0,1.0-i.p.y*inv.y,0,1);o.c=i.c;return o;}"
+            "float4 PS(O i):SV_TARGET{return float4(i.c.rgb*i.c.a,i.c.a);}"
+            "Texture2D L:register(t0);"
+            "cbuffer K:register(b1){uint mode;float white;}"
+            "float4 CVS(uint id:SV_VertexID):SV_POSITION{float2 t=float2((id<<1)&2,id&2);"
+            "return float4(t*float2(2,-2)+float2(-1,1),0,1);}"
+            "float3 lin(float3 c){return c<=0.04045?c/12.92:pow((c+0.055)/1.055,2.4);}"
+            "float3 pq(float3 n){float3 y=pow(max(n/10000.0,0),0.1593017578125);"
+            "return pow((0.8359375+18.8515625*y)/(1+18.6875*y),78.84375);}"
+            "float4 CPS(float4 p:SV_POSITION):SV_TARGET{float4 v=L.Load(int3(p.xy,0));if(v.a<=0.0)discard;"
+            "float3 c=v.rgb/v.a;"
+            "if(mode==1){float3 l=lin(c);l=float3(dot(l,float3(0.6274040,0.3292820,0.0433136)),"
+            "dot(l,float3(0.0690970,0.9195400,0.0113612)),dot(l,float3(0.0163916,0.0880132,0.8955950)));c=pq(l*white);}"
+            "else if(mode==2){c=lin(c)*(white/80.0);}"
+            "return float4(c*v.a,v.a);}";
         ID3DBlob *err = nullptr;
         HRESULT hr = fn(hlsl, sizeof hlsl - 1, nullptr, nullptr, nullptr, entry, model, 0, 0, out, &err);
-        if (err)
+        if (err) {
+            if (FAILED(hr))
+                swofty::log("[overlay] %s: %.*s", entry, int(err->GetBufferSize()),
+                            static_cast<const char *>(err->GetBufferPointer()));
             err->Release();
+        }
         return SUCCEEDED(hr) && *out;
+    }
+
+    ID3D12RootSignature *make_sig(const D3D12_ROOT_SIGNATURE_DESC &rs)
+    {
+        ID3DBlob *blob = nullptr, *rserr = nullptr;
+        ID3D12RootSignature *sig = nullptr;
+        HRESULT hr = d3d12_serialize_root(&rs, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &rserr);
+        if (rserr)
+            rserr->Release();
+        if (SUCCEEDED(hr))
+            hr = dev->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&sig));
+        release(blob);
+        return SUCCEEDED(hr) ? sig : nullptr;
     }
 
     bool make_root()
@@ -240,7 +308,8 @@ struct Renderer {
             swofty::log("[overlay] d3dcompiler_47.dll!D3DCompile is unavailable; overlay rendering off");
             return false;
         }
-        if (!compile(compile_fn, "VS", "vs_5_0", &vs) || !compile(compile_fn, "PS", "ps_5_0", &ps)) {
+        if (!compile(compile_fn, "VS", "vs_5_0", &vs) || !compile(compile_fn, "PS", "ps_5_0", &ps) ||
+            !compile(compile_fn, "CVS", "vs_5_0", &cvs) || !compile(compile_fn, "CPS", "ps_5_0", &cps)) {
             swofty::log("[overlay] overlay shader compilation failed");
             return false;
         }
@@ -252,29 +321,38 @@ struct Renderer {
         rs.NumParameters = 1;
         rs.pParameters = &rp;
         rs.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-        ID3DBlob *blob = nullptr, *rserr = nullptr;
-        HRESULT hr = d3d12_serialize_root(&rs, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &rserr);
-        if (rserr)
-            rserr->Release();
-        if (SUCCEEDED(hr))
-            hr = dev->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&root));
-        release(blob);
-        return SUCCEEDED(hr);
+        root = make_sig(rs);
+        D3D12_DESCRIPTOR_RANGE range{};
+        range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        range.NumDescriptors = 1;
+        D3D12_ROOT_PARAMETER cp[2]{};
+        cp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+        cp[0].Constants.ShaderRegister = 1;
+        cp[0].Constants.Num32BitValues = 2;
+        cp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        cp[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        cp[1].DescriptorTable.NumDescriptorRanges = 1;
+        cp[1].DescriptorTable.pDescriptorRanges = &range;
+        cp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        D3D12_ROOT_SIGNATURE_DESC crs{};
+        crs.NumParameters = 2;
+        crs.pParameters = cp;
+        comp_root = make_sig(crs);
+        return root && comp_root && (geo = make_pso(LAYER_FMT, false));
     }
 
-    ID3D12PipelineState *pso_for(DXGI_FORMAT fmt)
+    ID3D12PipelineState *make_pso(DXGI_FORMAT fmt, bool composite)
     {
-        for (auto &p : psos)
-            if (p.fmt == fmt)
-                return p.pso;
         D3D12_INPUT_ELEMENT_DESC layout[] = {
             {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
             {"COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 8, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
         D3D12_GRAPHICS_PIPELINE_STATE_DESC pd{};
-        pd.pRootSignature = root;
-        pd.VS = {vs->GetBufferPointer(), vs->GetBufferSize()};
-        pd.PS = {ps->GetBufferPointer(), ps->GetBufferSize()};
-        pd.InputLayout = {layout, 2};
+        pd.pRootSignature = composite ? comp_root : root;
+        ID3DBlob *v = composite ? cvs : vs, *p = composite ? cps : ps;
+        pd.VS = {v->GetBufferPointer(), v->GetBufferSize()};
+        pd.PS = {p->GetBufferPointer(), p->GetBufferSize()};
+        if (!composite)
+            pd.InputLayout = {layout, 2};
         pd.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         pd.NumRenderTargets = 1;
         pd.RTVFormats[0] = fmt;
@@ -284,7 +362,7 @@ struct Renderer {
         pd.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
         auto &rt = pd.BlendState.RenderTarget[0];
         rt.BlendEnable = TRUE;
-        rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+        rt.SrcBlend = D3D12_BLEND_ONE;
         rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
         rt.BlendOp = D3D12_BLEND_OP_ADD;
         rt.SrcBlendAlpha = D3D12_BLEND_ONE;
@@ -292,13 +370,40 @@ struct Renderer {
         rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
         rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
         ID3D12PipelineState *pso = nullptr;
-        if (FAILED(dev->CreateGraphicsPipelineState(&pd, IID_PPV_ARGS(&pso))))
-            return nullptr;
-        psos.push_back({fmt, pso});
+        return SUCCEEDED(dev->CreateGraphicsPipelineState(&pd, IID_PPV_ARGS(&pso))) ? pso : nullptr;
+    }
+
+    ID3D12PipelineState *pso_for(DXGI_FORMAT fmt)
+    {
+        for (auto &p : psos)
+            if (p.fmt == fmt)
+                return p.pso;
+        ID3D12PipelineState *pso = make_pso(fmt, true);
+        if (pso)
+            psos.push_back({fmt, pso});
         return pso;
     }
 
-    bool make_resources()
+    ID3D12Resource *buffer(D3D12_HEAP_TYPE type, UINT64 size, D3D12_RESOURCE_STATES state)
+    {
+        D3D12_HEAP_PROPERTIES hp{};
+        hp.Type = type;
+        D3D12_RESOURCE_DESC rd{};
+        rd.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        rd.Width = size;
+        rd.Height = 1;
+        rd.DepthOrArraySize = 1;
+        rd.MipLevels = 1;
+        rd.Format = DXGI_FORMAT_UNKNOWN;
+        rd.SampleDesc.Count = 1;
+        rd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        ID3D12Resource *r = nullptr;
+        return SUCCEEDED(dev->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &rd, state, nullptr, IID_PPV_ARGS(&r)))
+                   ? r
+                   : nullptr;
+    }
+
+    bool make_resources(ID3D12CommandQueue *q)
     {
         for (auto &s : slots) {
             if (FAILED(dev->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&s.alloc))))
@@ -311,26 +416,30 @@ struct Renderer {
             return false;
         D3D12_DESCRIPTOR_HEAP_DESC hd{};
         hd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-        hd.NumDescriptors = SLOTS;
+        hd.NumDescriptors = SLOTS * 2;
         if (FAILED(dev->CreateDescriptorHeap(&hd, IID_PPV_ARGS(&rtv_heap))))
             return false;
         rtv_inc = dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-        D3D12_HEAP_PROPERTIES up{};
-        up.Type = D3D12_HEAP_TYPE_UPLOAD;
-        D3D12_RESOURCE_DESC rd{};
-        rd.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-        rd.Width = UINT64(sizeof(Vertex)) * MAX_VERTS * SLOTS;
-        rd.Height = 1;
-        rd.DepthOrArraySize = 1;
-        rd.MipLevels = 1;
-        rd.Format = DXGI_FORMAT_UNKNOWN;
-        rd.SampleDesc.Count = 1;
-        rd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-        if (FAILED(dev->CreateCommittedResource(&up, D3D12_HEAP_FLAG_NONE, &rd, D3D12_RESOURCE_STATE_GENERIC_READ,
-                                                nullptr, IID_PPV_ARGS(&vbuf))))
+        D3D12_DESCRIPTOR_HEAP_DESC sd{};
+        sd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        sd.NumDescriptors = SLOTS;
+        sd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        if (FAILED(dev->CreateDescriptorHeap(&sd, IID_PPV_ARGS(&srv_heap))))
             return false;
+        srv_inc = dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        vbuf = buffer(D3D12_HEAP_TYPE_UPLOAD, UINT64(sizeof(Vertex)) * MAX_VERTS * SLOTS, D3D12_RESOURCE_STATE_GENERIC_READ);
         D3D12_RANGE none{0, 0};
-        return SUCCEEDED(vbuf->Map(0, &none, reinterpret_cast<void **>(&vmap)));
+        if (!vbuf || FAILED(vbuf->Map(0, &none, reinterpret_cast<void **>(&vmap))))
+            return false;
+        D3D12_QUERY_HEAP_DESC qd{};
+        qd.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+        qd.Count = SLOTS * 2;
+        if (SUCCEEDED(q->GetTimestampFrequency(&ts_freq)) && ts_freq &&
+            SUCCEEDED(dev->CreateQueryHeap(&qd, IID_PPV_ARGS(&ts_heap))))
+            ts_buf = buffer(D3D12_HEAP_TYPE_READBACK, SLOTS * 16, D3D12_RESOURCE_STATE_COPY_DEST);
+        if (!ts_buf)
+            release(ts_heap);
+        return true;
     }
 
     std::vector<ID3D12CommandQueue *> queues;
@@ -353,62 +462,169 @@ struct Renderer {
     {
         if (FAILED(q->GetDevice(IID_PPV_ARGS(&dev))))
             return false;
-        if (!make_root() || !make_resources())
+        if (!make_root() || !make_resources(q))
             return false;
         ready = true;
         return true;
     }
 
+    void bury()
+    {
+        UINT64 done = fence->GetCompletedValue();
+        for (size_t i = 0; i < graveyard.size();)
+            if (graveyard[i].first <= done) {
+                graveyard[i].second->Release();
+                graveyard[i] = graveyard.back();
+                graveyard.pop_back();
+            } else {
+                i++;
+            }
+    }
+
+    bool ensure_layer(UINT w, UINT h)
+    {
+        if (layer && layer_w == w && layer_h == h)
+            return true;
+        if (layer)
+            graveyard.push_back({fence_val, layer});
+        layer = nullptr;
+        D3D12_HEAP_PROPERTIES hp{};
+        hp.Type = D3D12_HEAP_TYPE_DEFAULT;
+        D3D12_RESOURCE_DESC rd{};
+        rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        rd.Width = w;
+        rd.Height = h;
+        rd.DepthOrArraySize = 1;
+        rd.MipLevels = 1;
+        rd.Format = LAYER_FMT;
+        rd.SampleDesc.Count = 1;
+        rd.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+        D3D12_CLEAR_VALUE cv{};
+        cv.Format = LAYER_FMT;
+        if (FAILED(dev->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &rd,
+                                                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &cv, IID_PPV_ARGS(&layer))))
+            return false;
+        layer_w = w;
+        layer_h = h;
+        layer_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        return true;
+    }
+
+    void read_timestamps(UINT slot)
+    {
+        if (!ts_buf || !slots[slot].done_at)
+            return;
+        D3D12_RANGE r{SIZE_T(slot) * 16, SIZE_T(slot) * 16 + 16};
+        uint64_t *t = nullptr;
+        if (FAILED(ts_buf->Map(0, &r, reinterpret_cast<void **>(&t))) || !t)
+            return;
+        uint64_t a = t[slot * 2], b = t[slot * 2 + 1];
+        D3D12_RANGE none{0, 0};
+        ts_buf->Unmap(0, &none);
+        if (b > a) {
+            gpu_ms += double(b - a) * 1000.0 / double(ts_freq);
+            gpu_n++;
+        }
+    }
+
+    static void transition(ID3D12GraphicsCommandList *l, ID3D12Resource *r, D3D12_RESOURCE_STATES from,
+                           D3D12_RESOURCE_STATES to)
+    {
+        D3D12_RESOURCE_BARRIER b{};
+        b.Transition.pResource = r;
+        b.Transition.StateBefore = from;
+        b.Transition.StateAfter = to;
+        b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        l->ResourceBarrier(1, &b);
+    }
+
     enum Outcome { drawn, busy, broken };
 
     Outcome render(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, DXGI_FORMAT fmt, UINT width, UINT height,
-                   const std::vector<Vertex> &verts)
+                   const std::vector<Vertex> &verts, UINT mode, float white)
     {
         Slot &s = slots[next];
         if (fence->GetCompletedValue() < s.done_at)
             return busy;
+        bury();
+        read_timestamps(next);
+        size_t n = std::min<size_t>(verts.size(), MAX_VERTS);
+        float x0 = float(width), y0 = float(height), x1 = 0, y1 = 0;
+        for (size_t i = 0; i < n; i++) {
+            x0 = std::min(x0, verts[i].x), y0 = std::min(y0, verts[i].y);
+            x1 = std::max(x1, verts[i].x), y1 = std::max(y1, verts[i].y);
+        }
+        D3D12_RECT box{LONG(std::max(0.0f, std::floor(x0) - 1)), LONG(std::max(0.0f, std::floor(y0) - 1)),
+                       LONG(std::min(float(width), std::ceil(x1) + 1)), LONG(std::min(float(height), std::ceil(y1) + 1))};
+        if (box.right <= box.left || box.bottom <= box.top)
+            return drawn;
         ID3D12PipelineState *pso = pso_for(fmt);
-        if (!pso)
+        if (!pso || !ensure_layer(width, height))
             return broken;
         ID3D12Resource *buf = nullptr;
         if (FAILED(sc->GetBuffer(sc->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&buf))) || !buf)
             return broken;
-        size_t n = std::min<size_t>(verts.size(), MAX_VERTS);
         size_t base = size_t(next) * MAX_VERTS * sizeof(Vertex);
         memcpy(vmap + base, verts.data(), n * sizeof(Vertex));
-        if (FAILED(s.alloc->Reset()) || FAILED(s.list->Reset(s.alloc, pso))) {
+        if (FAILED(s.alloc->Reset()) || FAILED(s.list->Reset(s.alloc, geo))) {
             buf->Release();
             return broken;
         }
-        D3D12_CPU_DESCRIPTOR_HANDLE rtv = rtv_heap->GetCPUDescriptorHandleForHeapStart();
-        rtv.ptr += SIZE_T(next) * rtv_inc;
+        ID3D12GraphicsCommandList *l = s.list;
+        if (ts_heap)
+            l->EndQuery(ts_heap, D3D12_QUERY_TYPE_TIMESTAMP, next * 2);
+        D3D12_CPU_DESCRIPTOR_HANDLE rtv = rtv_heap->GetCPUDescriptorHandleForHeapStart(), lrtv = rtv;
+        rtv.ptr += SIZE_T(next) * 2 * rtv_inc;
+        lrtv.ptr += (SIZE_T(next) * 2 + 1) * rtv_inc;
         dev->CreateRenderTargetView(buf, nullptr, rtv);
-        D3D12_RESOURCE_BARRIER b{};
-        b.Transition.pResource = buf;
-        b.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-        b.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-        b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-        s.list->ResourceBarrier(1, &b);
-        s.list->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
+        dev->CreateRenderTargetView(layer, nullptr, lrtv);
+        D3D12_CPU_DESCRIPTOR_HANDLE srv = srv_heap->GetCPUDescriptorHandleForHeapStart();
+        srv.ptr += SIZE_T(next) * srv_inc;
+        dev->CreateShaderResourceView(layer, nullptr, srv);
+        D3D12_GPU_DESCRIPTOR_HANDLE gsrv = srv_heap->GetGPUDescriptorHandleForHeapStart();
+        gsrv.ptr += UINT64(next) * srv_inc;
+        if (layer_state != D3D12_RESOURCE_STATE_RENDER_TARGET)
+            transition(l, layer, layer_state, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        layer_state = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        const float clear[4] = {0, 0, 0, 0};
+        l->OMSetRenderTargets(1, &lrtv, FALSE, nullptr);
+        l->ClearRenderTargetView(lrtv, clear, 1, &box);
         D3D12_VIEWPORT vp{0, 0, float(width), float(height), 0, 1};
-        D3D12_RECT sr{0, 0, LONG(width), LONG(height)};
-        s.list->RSSetViewports(1, &vp);
-        s.list->RSSetScissorRects(1, &sr);
-        s.list->SetGraphicsRootSignature(root);
+        l->RSSetViewports(1, &vp);
+        l->RSSetScissorRects(1, &box);
+        l->SetGraphicsRootSignature(root);
         float inv[2] = {2.0f / float(width ? width : 1), 2.0f / float(height ? height : 1)};
-        s.list->SetGraphicsRoot32BitConstants(0, 2, inv, 0);
-        s.list->SetPipelineState(pso);
-        s.list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        l->SetGraphicsRoot32BitConstants(0, 2, inv, 0);
+        l->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         D3D12_VERTEX_BUFFER_VIEW vbv{vbuf->GetGPUVirtualAddress() + base, UINT(n * sizeof(Vertex)), sizeof(Vertex)};
-        s.list->IASetVertexBuffers(0, 1, &vbv);
-        s.list->DrawInstanced(UINT(n), 1, 0, 0);
-        std::swap(b.Transition.StateBefore, b.Transition.StateAfter);
-        s.list->ResourceBarrier(1, &b);
-        if (FAILED(s.list->Close())) {
+        l->IASetVertexBuffers(0, 1, &vbv);
+        l->DrawInstanced(UINT(n), 1, 0, 0);
+        D3D12_RESOURCE_BARRIER two[2]{};
+        two[0].Transition = {layer, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_STATE_RENDER_TARGET,
+                             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE};
+        two[1].Transition = {buf, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_STATE_PRESENT,
+                             D3D12_RESOURCE_STATE_RENDER_TARGET};
+        l->ResourceBarrier(2, two);
+        layer_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        l->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
+        l->SetGraphicsRootSignature(comp_root);
+        l->SetDescriptorHeaps(1, &srv_heap);
+        uint32_t k[2] = {mode, 0};
+        memcpy(&k[1], &white, 4);
+        l->SetGraphicsRoot32BitConstants(0, 2, k, 0);
+        l->SetGraphicsRootDescriptorTable(1, gsrv);
+        l->SetPipelineState(pso);
+        l->DrawInstanced(3, 1, 0, 0);
+        transition(l, buf, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+        if (ts_heap) {
+            l->EndQuery(ts_heap, D3D12_QUERY_TYPE_TIMESTAMP, next * 2 + 1);
+            l->ResolveQueryData(ts_heap, D3D12_QUERY_TYPE_TIMESTAMP, next * 2, 2, ts_buf, UINT64(next) * 16);
+        }
+        if (FAILED(l->Close())) {
             buf->Release();
             return broken;
         }
-        ID3D12CommandList *lists[] = {s.list};
+        ID3D12CommandList *lists[] = {l};
         q->ExecuteCommandLists(1, lists);
         q->Signal(fence, ++fence_val);
         s.done_at = fence_val;
@@ -420,6 +636,7 @@ struct Renderer {
     void shutdown()
     {
         release(rtv_heap);
+        release(srv_heap);
         release(vbuf);
         vmap = nullptr;
         for (auto &s : slots) {
@@ -430,9 +647,19 @@ struct Renderer {
         for (auto &p : psos)
             release(p.pso);
         psos.clear();
+        for (auto &g : graveyard)
+            g.second->Release();
+        graveyard.clear();
+        release(layer);
+        release(geo);
+        release(ts_heap);
+        release(ts_buf);
         release(root);
+        release(comp_root);
         release(vs);
         release(ps);
+        release(cvs);
+        release(cps);
         release(dev);
         ready = false;
     }
@@ -451,7 +678,7 @@ struct Stats {
 
 using Present_t = HRESULT(STDMETHODCALLTYPE *)(IDXGISwapChain3 *, UINT, UINT);
 
-safetyhook::InlineHook h_present, h_create, h_create_hwnd, h_create_core, h_create_comp;
+safetyhook::InlineHook h_present, h_create, h_create_hwnd, h_create_core, h_create_comp, h_color_space;
 thread_local int creating;
 
 void device_lost(HRESULT present_hr)
@@ -548,8 +775,12 @@ void flush_stats(ULONGLONG now)
     if (now - stats.since < STATS_MS)
         return;
     if (stats.drawn || stats.busy)
-        swofty::log("[overlay] last %llu s: %u frame(s) drawn, %u skipped while the GPU still held the slot",
-                    static_cast<unsigned long long>((now - stats.since) / 1000), stats.drawn, stats.busy);
+        swofty::log("[overlay] last %llu s: %u frame(s) drawn, %u skipped while the GPU still held the slot; GPU %.3f ms "
+                    "per drawn frame (%u timed)",
+                    static_cast<unsigned long long>((now - stats.since) / 1000), stats.drawn, stats.busy,
+                    renderer.gpu_n ? renderer.gpu_ms / renderer.gpu_n : 0.0, renderer.gpu_n);
+    renderer.gpu_ms = 0;
+    renderer.gpu_n = 0;
     stats = {now, 0, 0};
 }
 
@@ -735,12 +966,34 @@ void capture_step(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const DXGI_SWAP_CH
 }
 
 void paint_frame(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const std::vector<hud::Paintsub> &subs,
-                 const DXGI_SWAP_CHAIN_DESC &desc, ULONGLONG now);
+                 const DXGI_SWAP_CHAIN_DESC &desc, ULONGLONG now, UINT color_space);
+
+UINT output_mode(DXGI_FORMAT fmt, UINT color_space)
+{
+    if (fmt == DXGI_FORMAT_R10G10B10A2_UNORM && color_space == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+        return 1;
+    if (fmt == DXGI_FORMAT_R16G16B16A16_FLOAT && color_space != DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+        return 2;
+    return 0;
+}
+
+float paper_white()
+{
+    static float nits = [] {
+        char v[32] = {};
+        DWORD n = GetEnvironmentVariableA("SWOFTY_OVERLAY_NITS", v, sizeof v);
+        float f = n && n < sizeof v ? float(atof(v)) : 0;
+        return f >= 80 && f <= 1000 ? f : 200.0f;
+    }();
+    return nits;
+}
 
 void draw_frame(IDXGISwapChain3 *sc, void *caller)
 {
     if (off.load() || renderer.failed)
         return;
+    static const uint32_t probe = perf::probe("core", "overlay present");
+    perf::Scope timed(probe);
     std::vector<hud::Paintsub> subs;
     if (implemented) {
         std::lock_guard<std::mutex> g(reg_lock);
@@ -749,6 +1002,12 @@ void draw_frame(IDXGISwapChain3 *sc, void *caller)
     if (subs.empty() && !cap.on)
         return;
     std::string pfg = fg_caller(caller);
+    static void *seen_sc;
+    if (seen_sc != sc) {
+        seen_sc = sc;
+        swofty::log("[overlay] Present on swapchain %p from %s on thread %lu", static_cast<void *>(sc),
+                    module_of(caller).c_str(), GetCurrentThreadId());
+    }
     Chain c;
     bool fresh = false;
     {
@@ -822,22 +1081,28 @@ void draw_frame(IDXGISwapChain3 *sc, void *caller)
                     desc.BufferDesc.Height, int(desc.BufferDesc.Format), desc.BufferCount, c.by.c_str());
     }
     ULONGLONG now = GetTickCount64();
-    if (!subs.empty())
-        paint_frame(sc, c.queue, subs, desc, now);
-    if (cap.on)
+    if (!subs.empty() && !killed("paint"))
+        paint_frame(sc, c.queue, subs, desc, now, c.color_space);
+    if (cap.on && !killed("capture"))
         capture_step(sc, c.queue, desc, now);
 }
 
 void paint_frame(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const std::vector<hud::Paintsub> &subs,
-                 const DXGI_SWAP_CHAIN_DESC &desc, ULONGLONG now)
+                 const DXGI_SWAP_CHAIN_DESC &desc, ULONGLONG now, UINT color_space)
 {
+    static const uint32_t paint_probe = perf::probe("core", "overlay paint callbacks");
     hud::Frame frame;
+    perf::Scope painting(paint_probe);
     hud::build(subs, frame, float(desc.BufferDesc.Width), float(desc.BufferDesc.Height));
     std::vector<Vertex> verts = tessellate(frame);
     flush_stats(now);
     if (verts.empty())
         return;
-    switch (renderer.render(sc, q, desc.BufferDesc.Format, desc.BufferDesc.Width, desc.BufferDesc.Height, verts)) {
+    static const uint32_t probe = perf::probe("core", "overlay record");
+    perf::Scope timed(probe);
+    UINT mode = killed("hdr") ? 0 : output_mode(desc.BufferDesc.Format, color_space);
+    switch (renderer.render(sc, q, desc.BufferDesc.Format, desc.BufferDesc.Width, desc.BufferDesc.Height, verts, mode,
+                            paper_white())) {
     case Renderer::drawn:
         if (!stats.drawn && !last_draw_ms.load())
             swofty::log("[overlay] first overlay frame submitted: %zu vertices", verts.size());
@@ -866,6 +1131,20 @@ HRESULT STDMETHODCALLTYPE present_hook(IDXGISwapChain3 *sc, UINT sync, UINT flag
     HRESULT hr = h_present.call<HRESULT>(sc, sync, flags);
     if ((hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) && armed.load())
         device_lost(hr);
+    return hr;
+}
+
+HRESULT STDMETHODCALLTYPE color_space_hook(IDXGISwapChain3 *sc, DXGI_COLOR_SPACE_TYPE cs)
+{
+    HRESULT hr = h_color_space.call<HRESULT>(sc, cs);
+    if (SUCCEEDED(hr)) {
+        std::lock_guard<std::mutex> g(chains_lock);
+        for (auto &c : chains)
+            if (c.sc == sc && c.color_space != UINT(cs)) {
+                c.color_space = UINT(cs);
+                swofty::log("[overlay] swapchain %p colour space %d", static_cast<void *>(sc), int(cs));
+            }
+    }
     return hr;
 }
 
@@ -1072,6 +1351,9 @@ bool arm()
         void **f_vt = *reinterpret_cast<void ***>(factory);
         ok = hook_factory(f_vt) &&
              install(h_present, sc_vt[8], reinterpret_cast<void *>(&present_hook), "IDXGISwapChain::Present");
+        if (ok && !install(h_color_space, sc_vt[38], reinterpret_cast<void *>(&color_space_hook),
+                           "IDXGISwapChain3::SetColorSpace1"))
+            swofty::log("[overlay] without the SetColorSpace1 hook the overlay treats every swapchain as SDR");
         if (ok)
             swofty::log("[overlay] present hook armed: Present (vt+0x40) on the D3D12 swapchain (in %s); the overlay "
                         "draws only on swapchains created after this point, on their creation queue",
@@ -1202,6 +1484,10 @@ const SwoftyOverlay table = {ov_available,  ov_on_paint, ov_remove,  ov_size,   
 
 void setup()
 {
+    if (killed("all")) {
+        swofty::log("[overlay] off: SWOFTY_OVERLAY_KILL or \"overlay_kill\" in swofty/assets.json lists all");
+        return;
+    }
     capture_setup();
     bool on = gate_on();
     if (!on && !cap.on) {
