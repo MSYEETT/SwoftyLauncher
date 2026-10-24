@@ -256,9 +256,11 @@ For menu changes, see [UI patches](/reference/ops/ui-patches). For the archive f
   "op": "set-material",
   "erp": "2025_asset_groups/f1_2025_vehicle_package/teams/redbull/wep/redbull.erp",
   "resource": "eaid://f1_2025_vehicle_package/teams/redbull/materials/redbull_paint.material",
-  "params": { "me_lacquerColour": [0.1, 1.0, 0.1], "me_lacquerRoughness": 0.05 }
+  "params": { "me_lacquerColour": [0.0, 1.0, 0.0], "me_flakesStrength": 1.0, "me_flakesColourInfluence": [1.0, 0.0, 1.0] }
 }
 ```
+
+On the 2025 Red Bull in a race, this turns the yellow paint green and the dark blue purple.
 
 List a material's constants and their current values with:
 
