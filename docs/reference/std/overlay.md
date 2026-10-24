@@ -88,9 +88,78 @@ Each paint callback starts with no clip, no transform and full opacity, whatever
 
 The C table reads a `SwoftyTextStyle` up to its `size` field.
 
+## Input and focus (v3)
+
+A core whose `SwoftyCoreOverlayVersion` returns 3 or more also has `input` and `focus`; `v3()` returns `true` there. The core subclasses the window the drawn swapchain presents to and folds its mouse, wheel, character and key messages into one snapshot per frame.
+
+| Call | Does |
+|---|---|
+| `v3()` | `true` when the core implements `input` and `focus` |
+| `input(paint)` | this frame's `Input` for the calling addon |
+| `focus(on)` | takes (`true`) or gives back (`false`) input focus for the calling addon; `late` when the focus is taken but the core has not hooked the game window yet, `invalid` when giving back a focus the addon does not hold |
+
+What an addon's `Input` holds depends on the focus:
+
+| Focus | `Input` |
+|---|---|
+| Nobody holds it | `x`, `y` (the cursor in framebuffer pixels), `keys_down` and `keys_pressed`. `focused` is 0 |
+| The addon holds it | everything: also `buttons`, `pressed`, `released` (`mouse::left`, `mouse::right`, `mouse::middle`), `wheel` (notches, positive away from the player) and up to 16 typed characters in `chars` (UTF-32, `char_count`). `focused` is 1 |
+| Another addon holds it | `x` and `y` are -1 and nothing else is set |
+
+`key_down(vk)`, `key_pressed(vk)`, `clicked(button)`, `held(button)` and `inside(x, y, w, h)` read an `Input`. Keys are Windows virtual-key codes; `keys_pressed` holds the keys that went down this frame, without auto-repeat.
+
+While an addon holds focus, the core keeps mouse moves, button presses, the wheel, typed characters, key presses and raw input (`WM_INPUT`) from the game and draws a cursor. Button and key releases and Alt key combinations still reach the game. The newest `focus(true)` wins. The focus goes back by itself when its addon has not painted for 2 s, and `swofty/loader.log` says so. Game controllers are not affected.
+
+## Toolkit
+
+`swofty/overlay_ui.hpp` (namespace `swofty::overlay::ui`) is a header-only immediate-mode toolkit built on the calls above. Keep one `State` per addon and make a `Ui` at the top of each paint callback. Rects are framebuffer pixels; the `Theme` sizes are for 1920×1080 and scale with `ui_scale()`.
+
+| Call | Does |
+|---|---|
+| `Ui(paint, state, theme = {})` | reads this frame's input and the UI scale |
+| `panel(ui, rect, title)` | a gradient panel with a title bar; returns the content rect |
+| `label(ui, rect, text, rgba = theme text, align = left \| middle)` | text aligned in a rect |
+| `button(ui, rect, text)` | `true` on the frame a click inside it is released inside it |
+| `toggle(ui, rect, text, &on)` | a labelled switch; `true` when clicked |
+| `slider(ui, rect, text, &value, lo, hi, fmt = "%.0f")` | a labelled track with the value printed with `fmt`; drag it or use the wheel over it; `true` while the value changes |
+| `list(ui, rect, id, count, item, &selected, &scroll)` | a clipped scrolling list; `item(i)` returns row `i`'s text; the wheel scrolls it and a click selects; `true` when the selection changes |
+| `toast(state, text, seconds = 3)` | queues a message; at most 5 are kept |
+| `draw_toasts(ui)` | draws the queue at the top right of the safe area, sliding in and fading out |
+
+Buttons, toggles, sliders and lists react only while the addon holds focus. A typical addon opens its panel and takes focus on a hotkey:
+
+```cpp [native/src/my_plugin.cpp]
+#include <swofty/overlay_ui.hpp>
+
+namespace ov = swofty::overlay;
+namespace ui = swofty::overlay::ui;
+
+static ui::State state;
+static bool open, assist = true;
+static float volume = 50;
+
+static void paint(SwoftyPaint *p, void *)
+{
+    ui::Ui u(p, state);
+    if (u.in.key_pressed(VK_F8)) {
+        open = !open;
+        ov::focus(open);
+    }
+    if (open) {
+        ov::Rect safe = ov::safe_area(p);
+        ov::Rect c = ui::panel(u, {safe.x, safe.y, u.u(420), u.u(220)}, "My addon");
+        ui::toggle(u, {c.x, c.y, c.w, u.u(40)}, "Assist", assist);
+        ui::slider(u, {c.x, c.y + u.u(48), c.w, u.u(52)}, "Volume", volume, 0, 100);
+        if (ui::button(u, {c.x, c.y + u.u(110), u.u(160), u.u(40)}, "Save"))
+            ui::toast(state, "Saved");
+    }
+    ui::draw_toasts(u);
+}
+```
+
 ## Limits
 
-A frame holds up to 131,072 vertices across every paint callback; primitives past that are dropped, and `swofty/loader.log` says so once. The core holds up to 255 loaded images. Each image uploads to the GPU once, the first frame after `load_image`; loading the same `id` again replaces it.
+A frame holds up to 131,072 vertices across every paint callback; primitives past that are dropped, and `swofty/loader.log` says so once. The core keeps the layouts of up to 512 recently drawn strings, so a string drawn every frame with the same style is laid out once. The core holds up to 255 loaded images. Each image uploads to the GPU once, the first frame after `load_image`; loading the same `id` again replaces it.
 
 ## Callbacks
 
