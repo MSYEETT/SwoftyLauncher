@@ -463,14 +463,14 @@ inline bool text_field(Ui &ui, const Rect &r, std::string_view id_text, std::str
         return best;
     };
     bool inside = ui.over(r);
-    bool editing = st.edit == id;
+    bool editing = st.edit == id, started = false;
     bool changed = false;
     uint64_t now = now_ms();
     if (inside && ui.in.clicked()) {
         if (!editing) {
             st.edit = id;
             st.edit_scroll = 0;
-            editing = true;
+            editing = started = true;
         }
         st.caret = st.anchor = caret_at(ui.in.x);
         st.blink = now;
@@ -483,7 +483,7 @@ inline bool text_field(Ui &ui, const Rect &r, std::string_view id_text, std::str
         st.caret = st.anchor = value.size();
         st.edit_scroll = 0;
         st.blink = now;
-        editing = true;
+        editing = started = true;
     }
     if (editing && st.active == 0 && ui.in.held() && inside)
         st.caret = caret_at(ui.in.x);
@@ -556,7 +556,8 @@ inline bool text_field(Ui &ui, const Rect &r, std::string_view id_text, std::str
         }
         if (ctrl && in.key_typed('V'))
             insert(clipboard_text());
-        if (in.key_pressed(VK_RETURN) || in.key_pressed(VK_ESCAPE) || in.key_pressed(VK_TAB) || in.pad_hit(pad::b)) {
+        if (!started &&
+            (in.key_pressed(VK_RETURN) || in.key_pressed(VK_ESCAPE) || in.key_pressed(VK_TAB) || in.pad_hit(pad::b))) {
             st.edit = 0;
             editing = false;
         }
