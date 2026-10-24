@@ -8,6 +8,7 @@ use gpui_kit::component::dialog::DialogFooter;
 use gpui_kit::component::input::{Input, InputEvent, InputState, Textarea, TextareaState};
 use gpui_kit::component::spinner::Spinner;
 use gpui_kit::component::{Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
+use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::send_logs::{self, Bundle, GameInfo, MESSAGE_MAX, Report, Stage};
 use swofty_core::store::Store;
@@ -35,6 +36,9 @@ const WHAT_IS_SENT: &str = "Your launcher and game logs. They can include folder
                             user name, your hardware, and your installed mods and profiles. Passwords and \
                             tokens in the launcher's settings are left out.";
 
+const NO_SESSION: &str = "We don't see a game launch in your logs yet. Press Play and reproduce the problem \
+                          first, then send logs.";
+
 #[derive(Clone, PartialEq)]
 enum Phase {
     Editing,
@@ -56,7 +60,8 @@ pub struct SendLogs {
     name: Entity<InputState>,
     message: Entity<TextareaState>,
     phase: Phase,
-    invalid: Option<String>,
+    tried: bool,
+    session: bool,
     stage: Arc<Mutex<Stage>>,
     _work: Option<Task<()>>,
     _poll: Option<Task<()>>,
@@ -72,29 +77,30 @@ impl SendLogs {
         });
         let message = cx.new(|cx| {
             TextareaState::new(window, cx)
-                .placeholder("Optional: what you were doing and what happened")
+                .placeholder("What happened? What were you doing when it went wrong?")
                 .rows(4)
         });
-        cx.subscribe(&name, |f: &mut Self, _, e: &InputEvent, cx| {
-            if matches!(e, InputEvent::Change) && f.invalid.take().is_some() {
-                cx.notify();
-            }
-        })
-        .detach();
-        cx.subscribe(&message, |f: &mut Self, _, e: &InputEvent, cx| {
+        cx.subscribe(&name, |_, _, e: &InputEvent, cx| {
             if matches!(e, InputEvent::Change) {
-                f.invalid = None;
                 cx.notify();
             }
         })
         .detach();
+        cx.subscribe(&message, |_, _, e: &InputEvent, cx| {
+            if matches!(e, InputEvent::Change) {
+                cx.notify();
+            }
+        })
+        .detach();
+        let session = send_logs::has_session(&store);
         Self {
             store,
             game,
             name,
             message,
             phase: Phase::Editing,
-            invalid: None,
+            tried: false,
+            session,
             stage: Arc::new(Mutex::new(Stage::Collecting)),
             _work: None,
             _poll: None,
@@ -105,21 +111,26 @@ impl SendLogs {
         self.phase == Phase::Working
     }
 
+    fn checks(&self, cx: &App) -> (Result<String, String>, Result<String, String>) {
+        (
+            send_logs::check_name(&self.name.read(cx).value()),
+            send_logs::check_message(&self.message.read(cx).value()),
+        )
+    }
+
+    fn ready(&self, cx: &App) -> bool {
+        matches!(self.checks(cx), (Ok(_), Ok(_)))
+    }
+
     fn submit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.working() || self.phase.done() {
             return;
         }
-        let name = send_logs::check_name(&self.name.read(cx).value());
-        let message = send_logs::check_message(&self.message.read(cx).value());
-        let (name, message) = match (name, message) {
-            (Ok(n), Ok(m)) => (n, m),
-            (Err(e), _) | (_, Err(e)) => {
-                self.invalid = Some(e);
-                cx.notify();
-                return;
-            }
+        let (Ok(name), Ok(message)) = self.checks(cx) else {
+            self.tried = true;
+            cx.notify();
+            return;
         };
-        self.invalid = None;
         self.phase = Phase::Working;
         if let Ok(mut s) = self.stage.lock() {
             *s = Stage::Collecting;
@@ -213,12 +224,7 @@ impl SendLogs {
                 .children(zip.map(|z| manual(z, also, p)))
         };
         match &self.phase {
-            Phase::Editing => self.invalid.clone().map(|e| {
-                row()
-                    .text_color(p.error)
-                    .child(Icon::new(IconName::CircleAlert).size(px(15.)))
-                    .child(text(e))
-            }),
+            Phase::Editing => None,
             Phase::Working => {
                 let stage = self.stage.lock().map(|s| s.to_string()).unwrap_or_default();
                 Some(
@@ -258,7 +264,7 @@ impl SendLogs {
         }
     }
 
-    fn footer(&self, form: Entity<Self>) -> DialogFooter {
+    fn footer(&self, form: Entity<Self>, cx: &App) -> DialogFooter {
         let close = |label: &'static str| {
             Button::new("send-logs-cancel")
                 .label(label)
@@ -288,7 +294,7 @@ impl SendLogs {
                                 (_, false) => "Save",
                             })
                             .loading(working)
-                            .disabled(working)
+                            .disabled(working || !self.ready(cx))
                             .on_click(move |_, window, cx| {
                                 form.update(cx, |f, cx| f.submit(window, cx));
                             }),
@@ -329,13 +335,40 @@ fn field(title: &'static str, hint: Option<SharedString>, p: Palette) -> Div {
         .children(hint.map(|h| div().text_size(px(12.)).text_color(p.text_placeholder).child(h)))
 }
 
+fn no_session(p: Palette) -> Div {
+    h_flex()
+        .gap(px(10.))
+        .items_start()
+        .p(px(12.))
+        .rounded(px(6.))
+        .bg(p.warning.opacity(0.08))
+        .border_1()
+        .border_color(p.warning.opacity(0.4))
+        .child(
+            Icon::new(IconName::TriangleAlert)
+                .size(px(15.))
+                .text_color(p.warning),
+        )
+        .child(div().flex_1().min_w_0().text_size(px(13.)).child(NO_SESSION))
+}
+
 impl Render for SendLogs {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let p = palette(cx);
         let locked = self.working() || self.phase.done();
         let count = self.message.read(cx).value().chars().count();
+        let (name, message) = self.checks(cx);
+        let hint = |check: Result<String, String>| {
+            check.err().filter(|_| !locked).map(|e| {
+                div()
+                    .text_size(px(12.))
+                    .text_color(if self.tried { p.error } else { p.text_muted })
+                    .child(e)
+            })
+        };
         v_flex()
             .gap(px(14.))
+            .when(!self.session && !self.phase.done(), |d| d.child(no_session(p)))
             .child(
                 v_flex()
                     .gap(px(6.))
@@ -344,7 +377,8 @@ impl Render for SendLogs {
                         Some("So the developers can reply".into()),
                         p,
                     ))
-                    .child(Input::new(&self.name).disabled(locked)),
+                    .child(Input::new(&self.name).disabled(locked))
+                    .children(hint(name)),
             )
             .child(
                 v_flex()
@@ -354,7 +388,8 @@ impl Render for SendLogs {
                         Some(format!("{count}/{MESSAGE_MAX}").into()),
                         p,
                     ))
-                    .child(Textarea::new(&self.message).h(px(96.)).disabled(locked)),
+                    .child(Textarea::new(&self.message).h(px(96.)).disabled(locked))
+                    .children(hint(message)),
             )
             .child(
                 h_flex()
@@ -401,11 +436,18 @@ impl Shell {
         let focus = std::cell::Cell::new(true);
         window.open_alert_dialog(cx, move |alert, window, cx| {
             if focus.replace(false) {
-                let name = form.read(cx).name.clone();
-                name.update(cx, |s, cx| s.focus(window, cx));
+                let (named, name, message) = {
+                    let f = form.read(cx);
+                    (f.checks(cx).0.is_ok(), f.name.clone(), f.message.clone())
+                };
+                if named {
+                    message.update(cx, |s, cx| s.focus(window, cx));
+                } else {
+                    name.update(cx, |s, cx| s.focus(window, cx));
+                }
             }
             let submit = form.clone();
-            let footer = form.read(cx).footer(form.clone());
+            let footer = form.read(cx).footer(form.clone(), cx);
             alert
                 .width(px(560.))
                 .title(label())

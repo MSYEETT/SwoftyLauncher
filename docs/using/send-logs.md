@@ -9,8 +9,10 @@ When something goes wrong, you can send your logs to the developers straight fro
 
 1. Select **Send Logs to Developers** at the bottom of the sidebar, above **ACTIVE PROFILE**.
 2. Enter your Discord username. The developers use it to reply to you.
-3. Optionally, describe what went wrong under **What went wrong?** (up to 1000 characters).
-4. Select **Send**.
+3. Under **What went wrong?**, describe what happened and what you were doing when it went wrong, in 10 to 1000 characters.
+4. Select **Send**. Until both fields are filled in, **Send** is greyed out and a hint under each field says what's missing.
+
+When your data folder has no launch log and no game session, the dialog warns: **We don't see a game launch in your logs yet. Press Play and reproduce the problem first, then send logs.** You can still send, and `summary.txt` then says that no game session was found.
 
 The dialog shows the progress, then **Sent — thanks!**. If the logs could not be sent, it shows the reason, such as no connection to Discord or the HTTP status Discord returned, and **Try again**. The launcher remembers your username for next time.
 
@@ -30,7 +32,7 @@ The logs go to the developers' Discord as one zip file, `swofty-logs-<username>-
 
 | In the zip | Contents |
 |---|---|
-| `summary.txt` | Your username and message, the launcher version, your operating system, CPU and memory, the game's version and folder, a summary of the latest crash report, the summary of the latest performance report, and the active profile's addons by name: those on in load order, then the rest, each with its version, id, where it came from (built in, DB Editor, imported from which mod file, or installed) and the settings changed from their defaults |
+| `summary.txt` | Your username and message, the launcher version, your operating system, CPU and memory, the game's version and folder, a line when no launch log or game session was found, a summary of the latest crash report, the summary of the latest performance report, and the active profile's addons by name: those on in load order, then the rest, each with its version, id, where it came from (built in, DB Editor, imported from which mod file, or installed) and the settings changed from their defaults |
 | `crash/crash-<time>.txt`, `crash/crash-<time>.dmp` | The newest crash report the game wrote and its minidump, when there is one. The minidump is left out, noted in the summary, when it is too big for the zip |
 | `game/loader.log`, `game/perf.log` | The loader log and the performance report of the game that's running |
 | `state/*.log` | The launcher's own logs, such as `launcher-run.log` and `wrapper-run.log` |
@@ -48,9 +50,9 @@ A bot in the developers' Discord reads each report with Anthropic's Claude API t
 ## From the command line
 
 ```sh
-swofty logs send --name <your Discord username> --message "What went wrong"
+swofty logs send --name <your Discord username> --message "What happened and what you were doing"
 ```
 
-The command keeps the zip in `$DATA/logs/` too and prints its path. To write the zip and list what it holds without sending it, add `--dry-run`. See [`swofty logs send`](/reference/cli#swofty-logs-send).
+`--message` takes 10 to 1000 characters, and the command stops without it unless you add `--dry-run`. When your data folder has no launch log and no game session, the command warns first. The command keeps the zip in `$DATA/logs/` too and prints its path. To write the zip and list what it holds without sending it, add `--dry-run`. See [`swofty logs send`](/reference/cli#swofty-logs-send).
 
 Builds from source don't include the developers' Discord address. There, the button reads **Save Logs**: it saves the zip to `$DATA/logs/` without sending it, then offers the same link to the zip. `swofty logs send` only works with `--dry-run`.
