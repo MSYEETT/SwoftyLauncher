@@ -2206,7 +2206,7 @@ fn weather(app: &App, live: &Live) -> Value {
         buttons.push(confirm(
             button("weather_clear", "Clear plan", "eraser", "outline"),
             "Clear the weekend's weather plan?",
-            "Unlocked sessions go back to the game's own forecast at the next rebuild.",
+            "Every session goes back to the game's own forecast at the next forecast build. A session that has started keeps its weather until it's loaded again.",
         ));
     }
     blocks.push(card_full(
@@ -2830,7 +2830,7 @@ fn click(app: &mut App, host: &mut Host, live: &Live, _section: &str, id: &str) 
             None,
         ),
         "weather_clear" => {
-            let mut args = json!({});
+            let mut args = json!({ "started": true });
             if let Some(w) = live
                 .section("weather")
                 .and_then(|w| w["default_weekend"].as_i64())

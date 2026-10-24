@@ -1037,6 +1037,10 @@ ce::OpResult op_plan_clear(const ce::Json &args)
                 return err("bad_args", "unknown session in sessions (p1 p2 p3 q ss r r2 r3)");
             mask |= static_cast<uint8_t>(1u << s);
         }
+    const ce::Json &st = args["started"];
+    if (st.type != ce::Json::Null && st.type != ce::Json::Bool)
+        return err("bad_args", "started must be a boolean");
+    bool with_started = st.type == ce::Json::Bool && st.b;
     auto it = g_plans.find(weekend);
     uint8_t had = 0;
     if (it != g_plans.end())
@@ -1046,7 +1050,7 @@ ce::OpResult op_plan_clear(const ce::Json &args)
     mask &= had;
     uint8_t kept = 0;
     for (int s = 0; s < kSessions; ++s)
-        if (((mask >> s) & 1) && weekend >= 0 && started(weekend, s)) {
+        if (!with_started && ((mask >> s) & 1) && weekend >= 0 && started(weekend, s)) {
             kept |= static_cast<uint8_t>(1u << s);
             mask &= static_cast<uint8_t>(~(1u << s));
         }

@@ -131,11 +131,14 @@ dataset as the game holds it afterwards, read back. It ends in `MISMATCH` if the
 hold the planned states (then the per-state intensity isn't written and `rebuilt` stays false).
 
 ### `weather.plan.clear`
-Args: `{ "weekend"?: int, "sessions"?: [key, ...] }`. Removes the plan for those sessions (all if
-`sessions` is omitted) of that weekend (default: the live one). Locked sessions are kept, and `kept` lists
-them. Sessions already rebuilt this weekend keep the planned dataset until the hub's next forecast rebuild,
-which then uses the game's own forecast again. Result `before`/`after` as for set. Undo:
-`weather.plan.set` with `before`.
+Args: `{ "weekend"?: int, "sessions"?: [key, ...], "started"?: bool }`. Removes the plan for those sessions
+(all if `sessions` is omitted) of that weekend (default: the live one). Locked sessions are kept, and `kept`
+lists them, unless `started` is true: then their plans are removed too. They stay locked, so
+`weather.plan.set` still refuses them. Sessions already rebuilt this weekend, started or not, keep the
+planned dataset until the next forecast build (the hub's refresh, or the session-time rebuild when a
+session is loaded again), which then uses the game's own forecast. The launcher's Clear plan sends
+`started: true`. Result `before`/`after` as for set. Undo:
+`weather.plan.set` with `before`, which fails with `session_locked` for a started session.
 
 ### `weather.seed.lock`
 Args: `{ "seed"?: u32 }`. Pins the realistic weather seed: the given seed, or the base seed the game is
