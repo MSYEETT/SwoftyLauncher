@@ -75,4 +75,4 @@ An addon can replace the era picker's menu with its own copy, as some imported s
 
 ## Logs
 
-The core logs to `swofty/loader.log` with the `[era]` prefix: each registration, the hooks, the first builds of the picker (`era select: N stock box(es), M addon box(es) of K registered`), each skipped box and each narrowing.
+The core logs to `swofty/loader.log` with the `[era]` prefix: each registration, the hooks, the first builds of the picker (`era select: N stock box(es), M addon box(es) of K registered`), each skipped box and each narrowing. The Grand Prix and Time Trial each have their own picker, and the Addons row belongs to the one built last: building the other clears the previous picker's Addons row and logs `detached the addon row from a previous view model`.

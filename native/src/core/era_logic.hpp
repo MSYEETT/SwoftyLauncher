@@ -6,7 +6,8 @@
 #include <vector>
 
 // Pure logic of the era picker addon row (era_picker.cpp): the box check, the box order, the image
-// default and the press guard. No game calls, so the unit test runs on the host.
+// default, the press guard and the links of the row's two node handles. No game calls, so the unit test
+// runs on the host.
 
 namespace runtime::era {
 
@@ -17,6 +18,9 @@ constexpr const char *IMAGE_ARRAY = "#overrides.home_screen.tiles_solo_6x6";
 constexpr size_t MAX_BOXES = 64;
 constexpr size_t LIST_NAME_MAX = 63;
 constexpr size_t TEXT_MAX = 255;
+constexpr size_t NODE_REFS = 0x24;
+constexpr size_t NODE_HOLDERS = 0x28;
+constexpr size_t HOLDER_PREV = 0x10;
 
 constexpr uint32_t djb2(const char *s)
 {
@@ -76,6 +80,31 @@ inline std::vector<Box> ordered(std::vector<Box> boxes)
         return a.order != b.order ? a.order < b.order : a.seq < b.seq;
     });
     return boxes;
+}
+
+struct Handle {
+    uint8_t *node;
+    void *next, *prev;
+};
+static_assert(offsetof(Handle, prev) == HOLDER_PREV);
+
+inline void link(Handle &h, uint8_t *node)
+{
+    h = {node, *reinterpret_cast<void **>(node + NODE_HOLDERS), nullptr};
+    if (h.next)
+        *reinterpret_cast<void **>(static_cast<uint8_t *>(h.next) + HOLDER_PREV) = &h;
+    *reinterpret_cast<void **>(node + NODE_HOLDERS) = &h;
+    __atomic_fetch_add(reinterpret_cast<int16_t *>(node + NODE_REFS), int16_t(1), __ATOMIC_SEQ_CST);
+}
+
+// clear (FeTile_Clear_EraTileSet_Thunk in game) unlinks and releases both handles from the nodes they still
+// hold, whichever view model those belong to, before the list handle is linked to this build's node.
+template <class Set, class Clear> void relink(Set &set, uint8_t *list, Clear clear)
+{
+    if (set.list.node || set.selected.node)
+        clear(set);
+    set = {};
+    link(set.list, list);
 }
 
 inline std::string press_refusal(bool same_view_model, bool nodes, size_t vector_tiles, size_t stock, size_t boxes)

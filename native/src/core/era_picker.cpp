@@ -28,7 +28,13 @@ std::string settings_addon(const void *from, std::string &dll);
 // Build (site_FeTile_EraTilesBuilt, rsi = the view model, after the last stock box): the stock tiles stay
 // in vm+0x690. The core keeps a second tile set laid out like it (era::Set) whose two handles hold the
 // addon_tiles list (Vm_GetOrCreate_ListChild under the VM root) and the selected_addon_tile reference
-// (Vm_Set_NodeRef). FeTile_Clear_EraTileSet_Thunk clears it before every rebuild of the same view model.
+// (Vm_Set_NodeRef). Each handle sits in its node's holder list and holds a reference. The Grand Prix and
+// Time Trial each build their own picker view model, and before every build FeTile_Clear_EraTileSet_Thunk
+// clears the set wherever its handles still hold nodes, another view model's too: it empties that
+// addon_tiles list and unlinks and releases both handles. A handle overwritten while still linked would
+// leave the old node's holder list running on into the new node's, so the game's teardown of the old view
+// model would release the new nodes as well, and tearing the new picker down then made a pure call on its
+// freed selected_addon_tile. A view model the game tears down unlinks and releases the handles itself.
 // FeTile_Add_EraTile adds each box while vm+0x698 points at addon_tiles, so its VM node lands in the
 // addon row and its Tile in the stock vector after the stock tiles, which the game frees with them.
 // Boxes whose entrant list the screen's mode does not offer under swofty_f1 are skipped with one log line.
@@ -91,14 +97,7 @@ constexpr size_t LIST_SLOTS = 32;
 constexpr size_t LIST_NAME = 0x28;
 constexpr int64_t ENTRANT_SETUP_SLOTS = 12;
 
-constexpr size_t NODE_HOLDERS = 0x28;
-constexpr size_t NODE_REFS = 0x24;
-constexpr size_t HOLDER_PREV = 0x10;
-
-struct Handle {
-    uint8_t *node;
-    void *next, *prev;
-};
+using logic::Handle;
 
 struct Set {
     void *vt0;
@@ -140,7 +139,7 @@ Narrowed narrowed[4];
 size_t narrowed_count;
 FeTile_Press_EraTile_t *press_orig;
 Game_F1WorldActivityContainer_SelectEntrantList_t *select_orig;
-uint32_t logged_builds, logged_narrow, logged_refused, logged_stale;
+uint32_t logged_builds, logged_narrow, logged_refused, logged_detached;
 
 template <class T> T at(const void *base, size_t off)
 {
@@ -225,15 +224,6 @@ void narrow(void *mode, const char *list)
     });
 }
 
-void link(Handle &h, uint8_t *node)
-{
-    h = {node, at<void *>(node, NODE_HOLDERS), nullptr};
-    if (h.next)
-        ref<void *>(h.next, HOLDER_PREV) = &h;
-    ref<void *>(node, NODE_HOLDERS) = &h;
-    __atomic_fetch_add(reinterpret_cast<int16_t *>(node + NODE_REFS), int16_t(1), __ATOMIC_SEQ_CST);
-}
-
 void *registry()
 {
     return *reinterpret_cast<void **>(b.registry);
@@ -261,16 +251,14 @@ uint8_t *addon_selection(uint8_t *vm)
 
 bool reset_set(uint8_t *vm, uint8_t *list)
 {
-    if (set.list.node && set.list.node == list && built.vm == vm)
-        reinterpret_cast<FeTile_Clear_EraTileSet_Thunk_t *>(b.clear)(&set);
-    else if (set.list.node && logged_stale++ < LOG_FIRST)
-        swofty::log("[era] the addon row of a previous view model was left as it was (its two nodes stay referenced)");
-    set = {};
-    link(set.list, list);
+    if ((set.list.node || set.selected.node) && (set.list.node != list || built.vm != vm) && logged_detached++ < LOG_FIRST)
+        swofty::log("[era] detached the addon row from a previous view model (its boxes there cleared, its two nodes "
+                    "unlinked and released)");
+    logic::relink(set, list, [](Set &s) { reinterpret_cast<FeTile_Clear_EraTileSet_Thunk_t *>(b.clear)(&s); });
     uint8_t *selected = addon_selection(vm);
     if (!selected)
         return false;
-    link(set.selected, selected);
+    logic::link(set.selected, selected);
     return true;
 }
 

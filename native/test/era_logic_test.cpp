@@ -1,5 +1,5 @@
 // Host unit test for the era picker logic (era_logic.hpp): the box check, the default title and image,
-// the box order and the press guard. run_events_test.sh builds and runs it.
+// the box order, the press guard and the addon row's handle links. run_events_test.sh builds and runs it.
 #include "../src/core/era_logic.hpp"
 
 #include <cstdio>
@@ -19,6 +19,89 @@ static void expect(bool ok, const std::string &what)
 static era::Box box(const char *list, const char *title = "", const char *image = "", int32_t order = 0)
 {
     return era::Box{list, title, image, order, "test", 0};
+}
+
+// A VM node as the game constructs a reference node (0x14083c570): its own handle at +0x8 heads its holder list.
+struct Node {
+    alignas(8) uint8_t mem[0x30] = {};
+    Node()
+    {
+        self() = {mem, nullptr, nullptr};
+        holders() = &self();
+        refs() = 2;
+    }
+    era::Handle &self() { return *reinterpret_cast<era::Handle *>(mem + 8); }
+    void *&holders() { return *reinterpret_cast<void **>(mem + era::NODE_HOLDERS); }
+    int16_t &refs() { return *reinterpret_cast<int16_t *>(mem + era::NODE_REFS); }
+};
+
+static Node &node_of(uint8_t *mem)
+{
+    return *reinterpret_cast<Node *>(mem);
+}
+
+struct Set {
+    era::Handle list, selected;
+};
+
+// The handle part of FeTile_Clear_EraTileSet_Thunk (0x14bd31910): unlink from the holder list, release.
+static void game_unlink(era::Handle &h)
+{
+    if (!h.node)
+        return;
+    auto *next = static_cast<era::Handle *>(h.next), *prev = static_cast<era::Handle *>(h.prev);
+    if (prev)
+        prev->next = next;
+    if (next)
+        next->prev = prev;
+    if (node_of(h.node).holders() == &h)
+        node_of(h.node).holders() = next;
+    node_of(h.node).refs()--;
+    h = {};
+}
+
+// The holder walk of the game's node teardown (0x1442b3e30): every holder but the node's own is cut loose
+// and releases the node it holds.
+static void game_teardown(Node &n)
+{
+    for (void *p = n.holders(); p;) {
+        auto *h = static_cast<era::Handle *>(p);
+        p = h->next;
+        h->next = h->prev = nullptr;
+        if (h == &n.self() || !h->node)
+            continue;
+        if (node_of(h->node).holders() == h)
+            node_of(h->node).holders() = nullptr;
+        node_of(h->node).refs()--;
+        h->node = nullptr;
+    }
+}
+
+static std::vector<era::Handle *> chain(Node &n)
+{
+    std::vector<era::Handle *> out;
+    for (void *p = n.holders(); p && out.size() < 16; p = static_cast<era::Handle *>(p)->next)
+        out.push_back(static_cast<era::Handle *>(p));
+    return out;
+}
+
+static bool consistent(Node &n)
+{
+    void *prev = nullptr;
+    for (era::Handle *h : chain(n)) {
+        if (h->prev != prev || h->node != n.mem)
+            return false;
+        prev = h;
+    }
+    return chain(n).size() < 16;
+}
+
+static bool holds(Node &n, const era::Handle &h)
+{
+    for (era::Handle *p : chain(n))
+        if (p == &h)
+            return true;
+    return false;
 }
 
 int main()
@@ -71,6 +154,68 @@ int main()
     expect(!era::press_refusal(true, false, 13, 11, 2).empty(), "a press without the addon nodes is refused");
     expect(!era::press_refusal(true, true, 11, 11, 0).empty(), "a press with no addon boxes is refused");
     expect(!era::press_refusal(true, true, 12, 11, 2).empty(), "a press with fewer tiles than the last build is refused");
+
+    {
+        Node a_list, a_sel, b_list, b_sel;
+        era::Handle a_ui{}, b_ui{};
+        era::link(a_ui, a_list.mem);
+        era::link(b_ui, b_list.mem);
+        int16_t a0 = a_list.refs(), as0 = a_sel.refs(), b0 = b_list.refs(), bs0 = b_sel.refs();
+        Set set{};
+        int clears = 0;
+        auto clear = [&](Set &s) {
+            game_unlink(s.list);
+            game_unlink(s.selected);
+            clears++;
+        };
+        auto build = [&](Node &list, Node &sel) {
+            era::relink(set, list.mem, clear);
+            era::link(set.selected, sel.mem);
+        };
+
+        build(a_list, a_sel);
+        expect(!clears && a_list.holders() == &set.list && a_sel.holders() == &set.selected && consistent(a_list) &&
+                   consistent(a_sel) && a_list.refs() == a0 + 1,
+               "the first build links the set at the head of A's holder lists");
+
+        build(b_list, b_sel);
+        expect(clears == 1, "a build for view model B clears the set that A's nodes still hold");
+        expect(!holds(a_list, set.list) && !holds(a_sel, set.selected) && consistent(a_list) && consistent(a_sel) &&
+                   chain(a_list).size() == 2 && a_list.refs() == a0 && a_sel.refs() == as0,
+               "A's nodes no longer reference the set and have their references back");
+        expect(b_list.holders() == &set.list && b_sel.holders() == &set.selected && consistent(b_list) &&
+                   consistent(b_sel) && b_list.refs() == b0 + 1 && b_sel.refs() == bs0 + 1,
+               "B's nodes hold the set once, with consistent holder lists");
+
+        game_teardown(a_list);
+        game_teardown(a_sel);
+        expect(set.list.node == b_list.mem && set.selected.node == b_sel.mem && b_sel.self().node == b_sel.mem &&
+                   consistent(b_list) && consistent(b_sel) && b_list.refs() == b0 + 1 && b_sel.refs() == bs0 + 1,
+               "tearing A down leaves B's nodes and the set alone");
+
+        build(b_list, b_sel);
+        expect(clears == 2 && chain(b_list).size() == 3 && consistent(b_list) && b_list.refs() == b0 + 1,
+               "a rebuild of B links the set once");
+
+        game_teardown(b_list);
+        game_teardown(b_sel);
+        expect(!set.list.node && !set.list.next && !set.selected.node && !set.selected.prev,
+               "tearing B down unlinks the set and releases its nodes");
+        Node c_list, c_sel;
+        build(c_list, c_sel);
+        expect(clears == 2 && consistent(c_list) && consistent(c_sel) && c_sel.holders() == &set.selected,
+               "a build after the game tore the set's nodes down links them without a clear");
+
+        Node old_a, old_b;
+        Set old{};
+        era::link(old.selected, old_a.mem);
+        old = {};
+        era::link(old.selected, old_b.mem);
+        int16_t ob = old_b.refs();
+        game_teardown(old_a);
+        expect(old_b.refs() < ob && !old_b.self().node,
+               "1.5.4's reset left A's holder list running into B's, so tearing A down released B's node");
+    }
 
     expect(era::ADDON_PRESS == 0x8fb68dffu && era::SELECT_PRESS == 0x2b0357au && era::ADDON_TILES == 0xf2614e2bu,
            "djb2 of addon_select_pressed, select_pressed and addon_tiles");
