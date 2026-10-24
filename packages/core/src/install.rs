@@ -11,6 +11,8 @@ use crate::{Error, Result, io_err, with_retry};
 
 pub const PROXY: &str = "version.dll";
 pub const LOADER_DIR: &str = "swofty";
+/// Files in the loader folder that restore keeps: the core's record that keeps the overlay off.
+pub const KEPT: &[&str] = &[crate::overlay_guard::REMOVED_FILE];
 pub const OVERRIDE_HEADER: &str = "[Software\\\\Wine\\\\AppDefaults\\\\F1_25.exe\\\\DllOverrides]";
 const OVERRIDE_VALUE: &str = "\"version\"=\"native,builtin\"";
 
@@ -774,7 +776,16 @@ impl<'a> Installer<'a> {
                     crate::move_file(&e.path(), &logs.join(e.file_name()))?;
                 }
             }
+            let kept: Vec<(PathBuf, Vec<u8>)> = KEPT
+                .iter()
+                .map(|name| loader.join(name))
+                .filter_map(|p| std::fs::read(&p).ok().map(|b| (p, b)))
+                .collect();
             with_retry(&loader, || std::fs::remove_dir_all(&loader))?;
+            for (path, bytes) in kept {
+                std::fs::create_dir_all(&loader).map_err(io_err(&loader))?;
+                std::fs::write(&path, bytes).map_err(io_err(&path))?;
+            }
         }
         if let Some(reg) = &self.game.user_reg
             && let Ok(text) = std::fs::read_to_string(reg)
@@ -807,6 +818,9 @@ impl<'a> Installer<'a> {
             }
         }
         for rel in [PROXY, LOADER_DIR] {
+            if rel == LOADER_DIR && only_kept(&self.path(rel)) {
+                continue;
+            }
             if self.path(rel).exists() && !baseline.files.contains_key(rel) {
                 out.push(Drift::Addition(rel.into()));
             }
@@ -842,6 +856,21 @@ impl<'a> Installer<'a> {
         }
         Ok(out)
     }
+}
+
+fn only_kept(dir: &Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return false;
+    };
+    let mut any = false;
+    for e in entries.flatten() {
+        let name = e.file_name();
+        if !e.file_type().is_ok_and(|t| t.is_file()) || !KEPT.iter().any(|k| name.to_str() == Some(k)) {
+            return false;
+        }
+        any = true;
+    }
+    any
 }
 
 fn remove_empty(dir: &Path) -> Result<bool> {

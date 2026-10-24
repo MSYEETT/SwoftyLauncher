@@ -329,3 +329,32 @@ fn a_kill_while_installing_maps_rolls_back_to_the_baseline() {
         assert_eq!(restarted.verify().unwrap(), [], "k={k}");
     }
 }
+
+#[test]
+fn the_overlay_off_record_survives_rollback_tidy_and_restore() {
+    let f = Fixture::new("overlay-off");
+    let original = f.snapshot();
+    let game = f.game("1");
+    let inst = Installer::new(&f.data, &game);
+    let record = "swofty/overlay-gpu-removed.json";
+
+    inst.apply(&f.plan("a")).unwrap();
+    write(&f.game.join(record), "{\"schema\": 1}");
+    write(&f.game.join("swofty/loader.log"), "log");
+    inst.apply(&Plan::vanilla()).unwrap();
+    assert_eq!(f.read(record), "{\"schema\": 1}");
+
+    assert_eq!(inst.tidy(&f.root.join("logs")).unwrap(), 1);
+    assert_eq!(f.read(record), "{\"schema\": 1}");
+    assert!(!f.game.join("swofty/loader.log").exists());
+    assert_eq!(inst.verify().unwrap(), []);
+
+    write(&f.game.join("swofty/stray.txt"), "x");
+    assert!(inst.verify().unwrap().contains(&Drift::Addition("swofty".into())));
+    assert_eq!(inst.restore().unwrap(), []);
+    assert_eq!(f.read(record), "{\"schema\": 1}");
+    assert!(!f.game.join("swofty/stray.txt").exists());
+
+    std::fs::remove_dir_all(f.game.join("swofty")).unwrap();
+    assert_eq!(f.snapshot(), original);
+}

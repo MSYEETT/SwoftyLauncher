@@ -214,6 +214,14 @@ impl ExperimentalFeature {
             Self::Shaders => "Shaders",
         }
     }
+
+    /// What it does in game, in the player's words.
+    pub fn effect(self) -> &'static str {
+        match self {
+            Self::Overlay => "Draws over the game",
+            Self::Shaders => "Changes the picture",
+        }
+    }
 }
 
 /// A colour look: a `.cube` 3D LUT graded in display colour, as a screenshot is, applied to
