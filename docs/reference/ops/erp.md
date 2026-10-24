@@ -149,13 +149,25 @@ warning: erp: eaid://ui_package/art/screens/career/rnd_overview.idf is resized, 
 
 Some resources hold binary XML (`\x01BXML`) in fragment 0 and its string stats in fragment 1: 120 bytes that start with `TSMD`. AI racing lines (`.aispline`), AI brake settings and car handling files (`.vtf`) are among them. The game sizes the memory it reads fragment 0 into from those stats, so fragment 0 with more or longer strings than its stats count crashes F1 25 when it loads.
 
-When a resource the build writes, or a resource in a ready `overlay` archive, has fragment 0 that its stats don't match, the build stops and Play doesn't start:
+When a resource the build writes has fragment 0 that its stats don't match, the build writes new stats from fragment 0, as the game's own tools do, and prints:
 
 ```text
-Example AI Pack crashes F1 25: its bahrain_ai_track.aispline and 19 more file(s) don't match the size headers the game reads with them, so the game overruns its memory when it loads that track. Turn Example AI Pack off in this profile.
+erp: fixed the size headers of 20 AI racing line(s) in Example AI Pack so F1 25 reads them safely
 ```
 
-To ship an edited fragment 0, replace fragment 1 with stats made from it too:
+A ready `overlay` archive with such a resource goes in resource by resource, and its resources get new stats the same way. The build prints:
+
+```text
+erp: example.pack: its overlay archive goes in resource by resource; 3 resource(s) in it need their size headers fixed
+```
+
+When fragment 0 starts as binary XML but doesn't parse, the build can't write its stats. It stops, and Play doesn't start:
+
+```text
+Example AI Pack would crash F1 25: its bahrain_ai_track.aispline doesn't match the size header the game reads with it, and the launcher can't read the file to fix the header. Turn Example AI Pack off in this profile.
+```
+
+To ship an edited fragment 0 that loads with other tools too, replace fragment 1 with stats made from it:
 
 ```sh
 python3 -c "import sys; sys.path.insert(0, 'tools'); import vtf; d = open(sys.argv[1], 'rb').read(); open(sys.argv[2], 'wb').write(vtf.tsmd(vtf.parse(d)))" line.aispline line.tsmd

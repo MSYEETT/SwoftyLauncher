@@ -46,7 +46,7 @@ Drop a track zip on the launcher without unpacking it. It becomes a track addon 
 
 [How tracks are installed](/reference/installing-tracks) covers what turning a track on changes.
 
-A track, or an addon that changes a track's AI racing line, whose files would crash F1 25 stops **Play** with a message that names it, such as `Test Ring crashes F1 25: …`. Turn it off in the profile to play. If a career's [Race weekends](/using/db-editor) entry uses that track, set the weekend back to another track first.
+When a track, or an addon that changes a track's AI racing line, ships files with size headers that don't match them, the launcher fixes the headers as it builds the profile. If it can't read a file to fix it, **Play** stops with a message that names the track or addon, such as `Test Ring would crash F1 25: …`. Turn it off in the profile to play. If a career's [Race weekends](/using/db-editor) entry uses that track, set the weekend back to another track first.
 
 ## Mods from an earlier version
 

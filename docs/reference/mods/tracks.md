@@ -95,13 +95,19 @@ The editor adds no text, so a new language key such as `lng_my_track_title` show
 
 ## Racing line and other binary XML
 
-The track archive's AI racing line, AI brake settings and splines hold binary XML with string stats beside it ([Binary XML with stats](/reference/ops/erp#binary-xml-with-stats)). When those stats don't match the data, the build stops and Play doesn't start:
+The track archive's AI racing line, AI brake settings and splines hold binary XML with string stats beside it ([Binary XML with stats](/reference/ops/erp#binary-xml-with-stats)). When those stats don't match the data, the build writes new stats into the track archive it installs and prints:
 
 ```text
-Test Ring crashes F1 25: its testring_ai_track.aispline doesn't match the size header the game reads with it, so the game overruns its memory when it loads that track. Turn Test Ring off in this profile, and set any race weekend that uses it back to another track.
+testring: fixed the size headers of 1 AI racing line(s) in Test Ring so F1 25 reads them safely
 ```
 
-Export the archive again from the tool that made it, so each resource carries the stats of its own data.
+When the data starts as binary XML but doesn't parse, the build stops, and Play doesn't start:
+
+```text
+Test Ring would crash F1 25: its testring_ai_track.aispline doesn't match the size header the game reads with it, and the launcher can't read the file to fix the header. Turn Test Ring off in this profile, and set any race weekend that uses it back to another track.
+```
+
+Export the archive from a tool that writes each resource's stats from its own data, so the package works with other tools too.
 
 ## Check the build
 
