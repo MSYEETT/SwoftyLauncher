@@ -2,6 +2,7 @@
 
 #include "hud_drawlist.hpp"
 #include "hud_guard.hpp"
+#include "hud_png.hpp"
 
 #include <safetyhook.hpp>
 #include <swofty/mixin.hpp>
@@ -570,17 +571,201 @@ void flush_stats(ULONGLONG now)
     stats = {now, 0, 0};
 }
 
+struct Capture {
+    bool on = false;
+    std::wstring dir;
+    ULONGLONG every_ms = 10000, last = 0;
+    unsigned count = 0;
+    bool pending = false;
+    std::atomic<bool> busy{false};
+    UINT64 done_at = 0;
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp{};
+    UINT width = 0, height = 0;
+    DXGI_FORMAT fmt = DXGI_FORMAT_UNKNOWN;
+    ID3D12CommandAllocator *alloc = nullptr;
+    ID3D12GraphicsCommandList *list = nullptr;
+    ID3D12Resource *buf = nullptr;
+    UINT64 size = 0;
+    bool failed = false;
+} cap;
+
+std::string env(const char *name)
+{
+    char v[1024] = {};
+    DWORD n = GetEnvironmentVariableA(name, v, sizeof v);
+    return n && n < sizeof v ? std::string(v, n) : std::string();
+}
+
+void capture_setup()
+{
+    std::string dir = env("SWOFTY_FRAME_CAPTURE");
+    if (dir.empty())
+        return;
+    std::string every = env("SWOFTY_FRAME_CAPTURE_EVERY");
+    double s = every.empty() ? 10 : atof(every.c_str());
+    cap.every_ms = ULONGLONG((s > 0.5 ? s : 0.5) * 1000);
+    std::replace(dir.begin(), dir.end(), '/', '\\');
+    while (!dir.empty() && dir.back() == '\\')
+        dir.pop_back();
+    cap.dir = runtime::wide(dir);
+    for (size_t i = cap.dir.find(L'\\', 3); i != std::wstring::npos; i = cap.dir.find(L'\\', i + 1))
+        CreateDirectoryW(cap.dir.substr(0, i).c_str(), nullptr);
+    CreateDirectoryW(cap.dir.c_str(), nullptr);
+    cap.on = true;
+    swofty::log("[capture] frame capture on: the composed frame every %.1f s to %s", double(cap.every_ms) / 1000,
+                dir.c_str());
+}
+
+DWORD WINAPI capture_write(void *)
+{
+    ULONGLONG t0 = GetTickCount64();
+    uint8_t *mapped = nullptr;
+    D3D12_RANGE all{0, SIZE_T(cap.size)};
+    std::string why;
+    if (FAILED(cap.buf->Map(0, &all, reinterpret_cast<void **>(&mapped))) || !mapped) {
+        why = "mapping the readback buffer failed";
+    } else {
+        std::vector<uint8_t> rgb;
+        bool ok = hud::png::to_rgb(hud::png::fmt_of(int(cap.fmt)), mapped + cap.fp.Offset, cap.fp.Footprint.RowPitch,
+                                   cap.width, cap.height, rgb);
+        D3D12_RANGE none{0, 0};
+        cap.buf->Unmap(0, &none);
+        if (!ok) {
+            why = "the back buffer format is not one the capture converts";
+        } else {
+            std::string png = hud::png::encode_rgb(rgb.data(), cap.width, cap.height);
+            wchar_t name[64];
+            _snwprintf(name, 64, L"\\frame-%04u.png", cap.count);
+            std::wstring path = cap.dir + name;
+            if (!runtime::write_file(path, png))
+                why = "writing " + runtime::narrow(path) + " failed";
+            else
+                swofty::log("[capture] wrote %s (%ux%u, format %d, %zu KB, %llu ms off the render thread)",
+                            runtime::narrow(path).c_str(), cap.width, cap.height, int(cap.fmt), png.size() / 1024,
+                            static_cast<unsigned long long>(GetTickCount64() - t0));
+        }
+    }
+    if (!why.empty())
+        swofty::log("[capture] frame %u: %s", cap.count, why.c_str());
+    cap.busy.store(false);
+    return 0;
+}
+
+void capture_step(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const DXGI_SWAP_CHAIN_DESC &desc, ULONGLONG now)
+{
+    if (cap.failed || cap.busy.load())
+        return;
+    if (cap.pending) {
+        if (renderer.fence->GetCompletedValue() < cap.done_at)
+            return;
+        cap.pending = false;
+        cap.busy.store(true);
+        HANDLE t = CreateThread(nullptr, 0, capture_write, nullptr, 0, nullptr);
+        if (t)
+            CloseHandle(t);
+        else
+            cap.busy.store(false);
+        return;
+    }
+    if (cap.last && now - cap.last < cap.every_ms)
+        return;
+    if (hud::png::fmt_of(int(desc.BufferDesc.Format)) == hud::png::Fmt::unknown) {
+        cap.failed = true;
+        swofty::log("[capture] back buffer format %d is not one the capture converts; capture off",
+                    int(desc.BufferDesc.Format));
+        return;
+    }
+    ID3D12Device *dev = renderer.dev;
+    if (!cap.alloc && (FAILED(dev->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cap.alloc))) ||
+                       FAILED(dev->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cap.alloc, nullptr,
+                                                     IID_PPV_ARGS(&cap.list))) ||
+                       FAILED(cap.list->Close()))) {
+        cap.failed = true;
+        swofty::log("[capture] making the capture command list failed; capture off");
+        return;
+    }
+    ID3D12Resource *bb = nullptr;
+    if (FAILED(sc->GetBuffer(sc->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&bb))) || !bb)
+        return;
+    D3D12_RESOURCE_DESC rd = bb->GetDesc();
+    UINT64 total = 0;
+    dev->GetCopyableFootprints(&rd, 0, 1, 0, &cap.fp, nullptr, nullptr, &total);
+    if (!cap.buf || cap.size < total) {
+        release(cap.buf);
+        D3D12_HEAP_PROPERTIES hp{};
+        hp.Type = D3D12_HEAP_TYPE_READBACK;
+        D3D12_RESOURCE_DESC bd{};
+        bd.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        bd.Width = total;
+        bd.Height = 1;
+        bd.DepthOrArraySize = 1;
+        bd.MipLevels = 1;
+        bd.Format = DXGI_FORMAT_UNKNOWN;
+        bd.SampleDesc.Count = 1;
+        bd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        if (FAILED(dev->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &bd, D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+                                                IID_PPV_ARGS(&cap.buf)))) {
+            bb->Release();
+            cap.failed = true;
+            swofty::log("[capture] making a %llu-byte readback buffer failed; capture off",
+                        static_cast<unsigned long long>(total));
+            return;
+        }
+        cap.size = total;
+    }
+    if (FAILED(cap.alloc->Reset()) || FAILED(cap.list->Reset(cap.alloc, nullptr))) {
+        bb->Release();
+        cap.failed = true;
+        return;
+    }
+    D3D12_RESOURCE_BARRIER b{};
+    b.Transition.pResource = bb;
+    b.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+    b.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+    b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    cap.list->ResourceBarrier(1, &b);
+    D3D12_TEXTURE_COPY_LOCATION dst{}, src{};
+    dst.pResource = cap.buf;
+    dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    dst.PlacedFootprint = cap.fp;
+    src.pResource = bb;
+    src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    src.SubresourceIndex = 0;
+    cap.list->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+    std::swap(b.Transition.StateBefore, b.Transition.StateAfter);
+    cap.list->ResourceBarrier(1, &b);
+    if (FAILED(cap.list->Close())) {
+        bb->Release();
+        cap.failed = true;
+        return;
+    }
+    ID3D12CommandList *lists[] = {cap.list};
+    q->ExecuteCommandLists(1, lists);
+    q->Signal(renderer.fence, ++renderer.fence_val);
+    bb->Release();
+    cap.done_at = renderer.fence_val;
+    cap.pending = true;
+    cap.last = now;
+    cap.count++;
+    cap.width = desc.BufferDesc.Width;
+    cap.height = desc.BufferDesc.Height;
+    cap.fmt = desc.BufferDesc.Format;
+}
+
+void paint_frame(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const std::vector<hud::Paintsub> &subs,
+                 const DXGI_SWAP_CHAIN_DESC &desc, ULONGLONG now);
+
 void draw_frame(IDXGISwapChain3 *sc, void *caller)
 {
     if (off.load() || renderer.failed)
         return;
     std::vector<hud::Paintsub> subs;
-    {
+    if (implemented) {
         std::lock_guard<std::mutex> g(reg_lock);
-        if (reg.count() == 0)
-            return;
         subs = reg.subs();
     }
+    if (subs.empty() && !cap.on)
+        return;
     std::string pfg = fg_caller(caller);
     Chain c;
     bool fresh = false;
@@ -654,14 +839,23 @@ void draw_frame(IDXGISwapChain3 *sc, void *caller)
                     static_cast<void *>(sc), "direct", static_cast<void *>(c.queue), desc.BufferDesc.Width,
                     desc.BufferDesc.Height, int(desc.BufferDesc.Format), desc.BufferCount, c.by.c_str());
     }
+    ULONGLONG now = GetTickCount64();
+    if (!subs.empty())
+        paint_frame(sc, c.queue, subs, desc, now);
+    if (cap.on)
+        capture_step(sc, c.queue, desc, now);
+}
+
+void paint_frame(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const std::vector<hud::Paintsub> &subs,
+                 const DXGI_SWAP_CHAIN_DESC &desc, ULONGLONG now)
+{
     hud::Frame frame;
     hud::build(subs, frame, float(desc.BufferDesc.Width), float(desc.BufferDesc.Height));
     std::vector<Vertex> verts = tessellate(frame);
-    ULONGLONG now = GetTickCount64();
     flush_stats(now);
     if (verts.empty())
         return;
-    switch (renderer.render(sc, c.queue, desc.BufferDesc.Format, desc.BufferDesc.Width, desc.BufferDesc.Height, verts)) {
+    switch (renderer.render(sc, q, desc.BufferDesc.Format, desc.BufferDesc.Width, desc.BufferDesc.Height, verts)) {
     case Renderer::drawn:
         if (!stats.drawn && !last_draw_ms.load())
             swofty::log("[overlay] first overlay frame submitted: %zu vertices", verts.size());
@@ -1045,13 +1239,20 @@ const SwoftyOverlay table = {ov_available,  ov_on_paint, ov_remove,  ov_size,   
 
 void setup()
 {
-    if (!gate_on()) {
+    capture_setup();
+    bool on = gate_on();
+    if (!on && !cap.on) {
         swofty::log("[overlay] the overlay feature is experimental and off; the HUD present hook is not armed");
         return;
     }
-    if (blocked_by_removal())
-        return;
-    implemented = true;
+    if (on && blocked_by_removal()) {
+        if (!cap.on)
+            return;
+        on = false;
+    }
+    if (!on)
+        swofty::log("[overlay] the overlay is off; the present hook arms for SWOFTY_FRAME_CAPTURE only");
+    implemented = on;
     if (arm())
         armed.store(true);
     else

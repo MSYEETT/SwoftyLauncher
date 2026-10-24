@@ -5,6 +5,7 @@
 
 #include "hud_drawlist.hpp"
 #include "hud_guard.hpp"
+#include "hud_png.hpp"
 
 #include <cstdio>
 #include <string>
@@ -210,7 +211,54 @@ static void test_guard()
     CHECK(!parse_removal("not json", back) && !parse_removal("{}", back), "a record without a schema does not parse");
 }
 
-int main()
+static void test_png(const char *out)
+{
+    using namespace hud::png;
+    uint32_t w = 97, h = 61;
+    std::vector<uint8_t> px(size_t(w) * h * 4);
+    for (uint32_t y = 0; y < h; y++)
+        for (uint32_t x = 0; x < w; x++) {
+            uint8_t *p = &px[(size_t(y) * w + x) * 4];
+            p[0] = uint8_t(x * 2), p[1] = uint8_t(y * 4), p[2] = uint8_t((x / 8 + y / 8) % 2 ? 255 : 0), p[3] = 255;
+        }
+    std::vector<uint8_t> rgb;
+    CHECK(to_rgb(Fmt::rgba8, px.data(), w * 4, w, h, rgb) && rgb.size() == size_t(w) * h * 3 && rgb[3] == 2 &&
+              rgb[size_t(w) * 3 + 1] == 4,
+          "rgba8 rows convert to rgb");
+    std::vector<uint8_t> bgra(px);
+    for (size_t i = 0; i < bgra.size(); i += 4)
+        std::swap(bgra[i], bgra[i + 2]);
+    std::vector<uint8_t> rgb2;
+    CHECK(to_rgb(Fmt::bgra8, bgra.data(), w * 4, w, h, rgb2) && rgb2 == rgb, "bgra8 converts to the same rgb");
+    uint32_t v = 1023u | (512u << 10) | (3u << 30);
+    std::vector<uint8_t> one;
+    CHECK(to_rgb(Fmt::rgb10a2, reinterpret_cast<uint8_t *>(&v), 4, 1, 1, one) && one[0] == 255 && one[1] == 128 &&
+              one[2] == 0,
+          "r10g10b10a2 keeps the top 8 bits");
+    uint16_t hf[4] = {0x3c00, 0x3800, 0x0000, 0x3c00};
+    CHECK(to_rgb(Fmt::rgba16f, reinterpret_cast<uint8_t *>(hf), 8, 1, 1, one) && one[0] == 255 && one[1] == 188 &&
+              one[2] == 0,
+          "scRGB half floats encode to sRGB");
+    CHECK(fmt_of(24) == Fmt::rgb10a2 && fmt_of(10) == Fmt::rgba16f && fmt_of(28) == Fmt::rgba8 &&
+              fmt_of(87) == Fmt::bgra8 && fmt_of(2) == Fmt::unknown,
+          "swapchain formats map to converters");
+    std::string png = encode_rgb(rgb.data(), w, h);
+    CHECK(png.compare(0, 8, std::string("\x89PNG\r\n\x1a\n", 8)) == 0 && png.find("IHDR") == 12 &&
+              png.find("IEND") != std::string::npos,
+          "the capture writes a PNG signature, IHDR and IEND");
+    if (!out)
+        return;
+    if (FILE *f = fopen(out, "wb")) {
+        fwrite(png.data(), 1, png.size(), f);
+        fclose(f);
+    }
+    if (FILE *f = fopen((std::string(out) + ".rgb").c_str(), "wb")) {
+        fwrite(rgb.data(), 1, rgb.size(), f);
+        fclose(f);
+    }
+}
+
+int main(int argc, char **argv)
 {
     test_measure();
     test_glyphs();
@@ -220,6 +268,7 @@ int main()
     test_build_dispatch();
     test_image_registry();
     test_guard();
+    test_png(argc > 1 ? argv[1] : nullptr);
     if (failures)
         printf("\n%d check(s) FAILED\n", failures);
     else
