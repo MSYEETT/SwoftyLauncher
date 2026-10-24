@@ -390,6 +390,7 @@ void set_test_tick()
     set_enqueue("ui_menu_data.hud_lap_number_visible", 1, "", off, "SWOFTY_HUD_SET_TEST");
     set_enqueue("ui_menu_data.hud_lap_description_loc_tag", 1, "", off, "SWOFTY_HUD_SET_TEST");
     set_enqueue("ui_menu_data.hud_lap_description_string", 0, set_test_text, 0, "SWOFTY_HUD_SET_TEST");
+    set_enqueue("ui_menu_data.hud_total_lap_count_visible", 1, "", off, "SWOFTY_HUD_SET_TEST");
 }
 
 void dev_set_parse(const std::string &spec)
@@ -491,7 +492,7 @@ void popup_setup()
     char lap[128] = {};
     if (GetEnvironmentVariableA("SWOFTY_HUD_SET_TEST", lap, sizeof lap) && lap[0]) {
         set_test_text = lap;
-        swofty::log("[hud] SWOFTY_HUD_SET_TEST: the lap counter shows \"%s\" (set every 5 s)", lap);
+        swofty::log("[hud] SWOFTY_HUD_SET_TEST: the lap counter shows \"%s\" and lap totals hide (set every 5 s)", lap);
     }
     swofty::log("[popup] setup: live; construct base+0x%llx, set attribute base+0x%llx, release base+0x%llx, id vtable "
                 "base+0x%llx",
