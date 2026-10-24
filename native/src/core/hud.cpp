@@ -81,10 +81,9 @@ std::string addon_image(const Caller &c, const char *file, std::string &why)
 }
 
 // ----- D3D12 present hook + minimal solid-geometry renderer -------------------------------------
-// The renderer draws the frame's filled rectangles, rectangle outlines, lines and text as solid-colour
-// triangles over the game's back buffer; text is the built-in font's pixel blocks (hud_font.hpp).
-// Image commands are recorded by the draw list but this build does not paint them (see
-// docs/design/native-libraries.md).
+// The renderer draws the draw list's batches (hud_drawlist.hpp): solid, image and SDF-text triangles,
+// one texture and one scissor rect per batch. Textures (the font atlas and the addons' images) upload
+// on the overlay's own command list the first frame after they load.
 //
 // It draws only on a swapchain whose creation it saw (the DXGI factory's CreateSwapChain* slots are
 // hooked before the game makes its window) and only on the queue that swapchain was created with, so
