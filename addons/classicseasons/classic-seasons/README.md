@@ -71,14 +71,10 @@ At load it registers one box per season with `swofty::era::add_box` (`swofty/era
 | Driver | Head | Seasons | Mod |
 |---|---|---|---|
 | Kimi Räikkönen | `kimi_raikkonen` | 2016 to 2021 | More Driver Models |
-| Sebastian Vettel | `sebastian_vettel` | 2016 to 2022 | More Driver Models |
 | Romain Grosjean | `romain_grosjean` | 2016 to 2020 | More Driver Models |
 | Daniil Kvyat | `daniil_kvyat` | 2016, 2017, 2019, 2020 | More Driver Models |
 | Antonio Giovinazzi | `antonio_giovinazzi` | 2019 to 2021 | More Driver Models |
-| Nicholas Latifi | `nicholas_latifi` | 2020 to 2022 | More Driver Models |
-| Mick Schumacher | `mick_schumacher` | 2021, 2022 | More Driver Models |
 | Nikita Mazepin | `nikita_mazepin` | 2021 | More Driver Models |
-| Nyck de Vries | `nyck_de-vries` | 2023 | More Driver Models |
 | Robert Kubica | `robert_kubica` | 2019 | F1 25 Kubica Face Mod (Cap On) |
 
 The stock database has an `entrants.animation.driver_heads.driver_head` row for each of these heads. The row's `model_path` is `eaid://[CHARACTER_PACKAGE]/heads/male_driver/<head>/idf/<head>_rig_head_morph_v1`, and its asset group path formats give two groups named after the row's label. The stock manifest lists the groups of the stock labels, so the core never registers an addon's group under them, and a player's game folder can hold other files at their archive paths. Each head ships under its own label `cs_<head>`:
@@ -93,6 +89,18 @@ Kubica's head also has three `.2025.mipmaps` textures in `character_package/head
 
 ```sh
 python3 tools/heads.py --downloads ~/Downloads --game <F1 25>
+```
+
+More Driver Models' Sebastian Vettel, Mick Schumacher, Nicholas Latifi and Nyck de Vries name `.sampler` resources and head textures they do not hold, so they keep generic heads.
+
+## Helmets
+
+`data/helmets.json` gives drivers of a season their helmet of that season from a mod's textures: 21 drivers of 2016 from 2016 Helmets (Fernando Alonso's texture there is Jenson Button's helmet, so he keeps his stock one). F1 25's helmet shells share one texture layout, and each entry's base is an F1 25 look whose shell is the brand on the helmet.
+
+`tools/build_helmets.py` relabels the base's helmet archive to `cs<yy>-<base look without its year>` and gives its `helmet_d`, `helmet_n` and `helmet_s` the mod's textures, every level in the archive. It writes the season addon's `helmets/` and `helmets/meta.json`; `gen.py` adds each helmet row (ids after the real suits' helmets), sets the driver's look of that season to it and writes `assets/helmets.json`, whose groups list the base helmet archive first.
+
+```sh
+python3 tools/build_helmets.py --downloads ~/Downloads --game <F1 25>
 ```
 
 ## Car archives

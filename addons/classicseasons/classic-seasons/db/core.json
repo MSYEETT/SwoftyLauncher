@@ -182,14 +182,6 @@
   {
    "op": "add-row",
    "table": "entrants.animation.driver_heads",
-   "from": "entrants.animation.driver_heads.driver_head[_metadata_=sebastian_vettel]",
-   "set": {
-    "_metadata_": "cs_sebastian_vettel"
-   }
-  },
-  {
-   "op": "add-row",
-   "table": "entrants.animation.driver_heads",
    "from": "entrants.animation.driver_heads.driver_head[_metadata_=romain_grosjean]",
    "set": {
     "_metadata_": "cs_romain_grosjean"
@@ -214,33 +206,9 @@
   {
    "op": "add-row",
    "table": "entrants.animation.driver_heads",
-   "from": "entrants.animation.driver_heads.driver_head[_metadata_=nicholas_latifi]",
-   "set": {
-    "_metadata_": "cs_nicholas_latifi"
-   }
-  },
-  {
-   "op": "add-row",
-   "table": "entrants.animation.driver_heads",
-   "from": "entrants.animation.driver_heads.driver_head[_metadata_=mick_schumacher]",
-   "set": {
-    "_metadata_": "cs_mick_schumacher"
-   }
-  },
-  {
-   "op": "add-row",
-   "table": "entrants.animation.driver_heads",
    "from": "entrants.animation.driver_heads.driver_head[_metadata_=nikita_mazepin]",
    "set": {
     "_metadata_": "cs_nikita_mazepin"
-   }
-  },
-  {
-   "op": "add-row",
-   "table": "entrants.animation.driver_heads",
-   "from": "entrants.animation.driver_heads.driver_head[_metadata_=nyck_de-vries]",
-   "set": {
-    "_metadata_": "cs_nyck_de-vries"
    }
   },
   {
@@ -369,7 +337,7 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=sebastian_vettel]",
    "field": "head",
-   "value": "cs_sebastian_vettel"
+   "value": "male_ls553"
   },
   {
    "op": "set",
@@ -423,13 +391,13 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=nicholas_latifi]",
    "field": "head",
-   "value": "cs_nicholas_latifi"
+   "value": "male_ls533"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=mick_schumacher]",
    "field": "head",
-   "value": "cs_mick_schumacher"
+   "value": "male_ls192"
   },
   {
    "op": "set",
@@ -441,7 +409,7 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=nyck_de-vries]",
    "field": "head",
-   "value": "cs_nyck_de-vries"
+   "value": "male_ls343"
   },
   {
    "op": "add-row",

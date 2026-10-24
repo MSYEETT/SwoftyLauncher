@@ -13,19 +13,27 @@ archives go to heads/cs_<head>.erp and morph_poses/cs_<head>.erp, and both group
 with lando_norris's groups as templates. A head whose textures stream also has .mipmaps files under
 character_package/heads/male_driver/<head>/textures/, put at their own paths.
 
-The tool fails when --game is not the F1 25 folder or a target exists in it. A head must be the head of a driver in
-data/seasons.json (head_overrides or new_drivers).
+The tool fails when --game is not the F1 25 folder or a target exists in it, and when a head's archives name a
+.sampler resource (an older format F1 25 1.0.141 has none of) or a resource under heads/male_driver/ they do not hold:
+the team picker's head preview crashes in Ne_LinkResolver_ResolveLinks on such a link. A head must be the head of a
+driver in data/seasons.json (head_overrides or new_drivers).
 """
 
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT.parents[2] / "tools"))
+
+import erpw
+
+EAID = re.compile(rb"eaid://[\x21-\x7e]+")
 OUT = ROOT / "heads"
 OPS = ROOT / "assets" / "heads.json"
 SCENES = "animation_package/scenes/cinematics/drivers"
@@ -80,6 +88,19 @@ def extract(downloads, source, head):
     return sorted(files)
 
 
+def broken_links(path):
+    e = erpw.Erp(str(path))
+    held = {r.name.split("?")[0] for r in e.res}
+    bad = set()
+    for r in e.res:
+        for i in range(len(r.frags)):
+            for m in EAID.finditer(e.frag_data(r, i)):
+                ref = m.group(0).decode()
+                if ref.endswith(".sampler") or ("/heads/male_driver/" in ref and ref.split("?")[0] not in held):
+                    bad.add(ref)
+    return sorted(bad)
+
+
 def asset_ops(heads):
     ops = []
     for head, files in heads.items():
@@ -103,6 +124,10 @@ def main():
     if OUT.exists():
         shutil.rmtree(OUT)
     heads = {head: extract(args.downloads, data["sources"][key], head) for head, key in data["heads"].items()}
+    for head in heads:
+        bad = [ref for rel in archives(head) for ref in broken_links(OUT / rel)]
+        if bad:
+            sys.exit(f"{head}: its archives name {len(bad)} resource(s) F1 25 does not have: {', '.join(bad[:3])}")
     game = Path(args.game)
     if not (game / "F1_25.exe").is_file():
         sys.exit(f"--game {game} is not the F1 25 folder")
