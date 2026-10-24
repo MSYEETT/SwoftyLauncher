@@ -4,7 +4,7 @@
   "name": "Classic Seasons",
   "version": "0.3.0",
   "author": "Swofty",
-  "description": "Classic Seasons core: the season boxes in Grand Prix and Time Trial, team logos and the drivers the seasons share. Add the F1 2016 to F1 2024 season addons you want on top. Suits from \"F1 2016 - suits mod\" and \"2018 Redbull for F1 25\" (authors unknown), used with permission.",
+  "description": "Classic Seasons core: the season boxes in Grand Prix and Time Trial, team logos, suits and the drivers the seasons share. Add the F1 2016 to F1 2024 season addons you want on top.",
   "license": "AGPL-3.0-or-later",
   "kind": [
     "database",
