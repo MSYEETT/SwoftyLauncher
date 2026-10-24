@@ -6,7 +6,7 @@ Classic Seasons is ten addons in `addons/classicseasons/`. This folder is the sh
 
 Cars: fanfreluche (Fanfreluche aka totolab), "F1 <year> cars for F1 25", used with permission.
 
-Suits: "F1 2016 - suits mod" (author unknown) and "2018 Redbull for F1 25" (author unknown), used with permission.
+Suits: "F1 2016 - suits mod" (author unknown), "2018 Redbull for F1 25" (author unknown), and the F1 2020 mods "2017 Suits for F1 2020" (author unknown) and "White Mercedes Driver Suits 1.01" (author unknown), used with permission.
 
 The car archives are not in the repository. The built packages, each season's `.swoftyaddon` with its cars and the shared addon's, are on the `classic-seasons-<version>` release; install the shared addon and any seasons through the launcher.
 
@@ -27,6 +27,8 @@ The car archives are not in the repository. The built packages, each season's `.
 | `tools/tiles.py` | Season box art (`erp/tiles/`): one `tiles_solo_6x6` slice per season from `art/tiles/src/<year>.dds` |
 | `data/real_suits.json` | Real suits from mods: each one's season, team, driver, base suit and archives |
 | `tools/suit_sources.py` | The suit each team-season and driver of 2016 to 2021 wears |
+| `tools/suit_transfer.py` | Converts the F1 2020 suit mods of `data/real_suits.json` to F1 25 suit mods for `build_real_suits.py` |
+| `art/suits/transfer/<season>-<stock team>.png` | A converted team: renders of the old and the F1 25 body, the old diffuse with its decals and the new `livery_v2_d`, for the team suit and each driver suit |
 | `tools/build_real_suits.py` | The real suits from mods, relabelled, in `suits/`, and their contact sheet `art/suits/real.png` |
 | `tools/build_suits.py` | Generated team suits and gloves of 2016 to 2021, in the season addon's `suits/`, and the season contact sheets |
 | `art/suits/<year>.png` | Half-size contact sheet of a season's suits; the full one is the season addon's `suits/preview.png` |
@@ -52,7 +54,7 @@ Each season:
 - A `car_setup.presets` row for each vehicle package (`cs_<year>_vehicle_package`, `cx_<year>_vehicle_package`), copied from `f1_2025_vehicle_package`: the game looks up the AI and player car setups by package name.
 - A `pit_lane.pit_times` row per team, copied from its stock team.
 - Driver looks `<year>-cs_<key>_<driver>` (stat ids from 420, numbered across every season) and pool entrants `cs<year>-<driver>`.
-- 2016 to 2021: each driver look wears the suit and gloves of [Suits](#suits). A season copies the suit and gloves rows of each generated suit it ships, and the shared addon those of each real suit from a mod, with its helmet row. The copies are labelled with the suit's label and take the base suit's rows with the suit's asset group, models and `material_override`. Item ids (`tools/gen.py`): `REAL_SUIT_IDS` for the real suits, 974 up in `data/real_suits.json` order; `SUIT_IDS` for the generated ones, the next ids, one per team-season of 2016 to 2021 in season and team order; `HELMET_IDS`, 868 up, for the helmets. The stock ids are 448 to 973 for suits and gloves and 315 to 867 for helmets. Each suit and gloves copy sets `colour_1_default` to `colour_4_default` to `0`, a helmet copy the base helmet's values, and the file's `fields` map lists the four keys for suit, gloves and helmet rows.
+- 2016 to 2021: each driver look wears the suit and gloves of [Suits](#suits). A season copies the suit and gloves rows of each generated suit it ships, and the shared addon those of each real suit from a mod, with its helmet row. The copies are labelled with the suit's label and take the base suit's rows with the suit's asset group, models and `material_override`. Item ids (`tools/gen.py`): `REAL_SUIT_IDS` for the real suits, 974 up in `data/real_suits.json` order; `SUIT_IDS` for the generated ones, the next ids, one per team-season of 2016 to 2021 in season and team order; `TRANSFER_SUIT_IDS` for the real suits of converted F1 2020 mods, the ids after `SUIT_IDS`, in `data/real_suits.json` order; `HELMET_IDS`, 868 up, for the helmets. The stock ids are 448 to 973 for suits and gloves and 315 to 867 for helmets. Each suit and gloves copy sets `colour_1_default` to `colour_4_default` to `0`, a helmet copy the base helmet's values, and the file's `fields` map lists the four keys for suit, gloves and helmet rows.
 
 New drivers (Nasr, Gutiérrez, Vandoorne, Hartley, Sirotkin, Haryanto) use driver stat ids 225 to 230.
 
@@ -111,6 +113,53 @@ A real suit is a mod's suit in `data/real_suits.json` that `build_real_suits.py`
 | 2018 Redbull for F1 25, `team_livery/2025-redbull` | 2018 Red Bull Racing | `cs18-redbull` |
 | 2018 Redbull for F1 25, `drivers/male/2025-redbull_max_verstappen` | 2018 Red Bull Racing, Max Verstappen | `cs18-redbull_max_verstappen` |
 | 2018 Redbull for F1 25, `drivers/male/2025-redbull_yuki_tsunoda` | 2018 Red Bull Racing, Daniel Ricciardo | `cs18-redbull_yuki_tsunoda` |
+| 2017 Suits for F1 2020, converted: `team_livery/2025-<team>` (10 teams) | 2017, the team | `cs17-<team>` |
+| 2017 Suits for F1 2020, converted: `drivers/male/2025-<team>_<slot>` (20 drivers) | 2017, the team, the driver ([table](#suits-from-f1-2020-mods)) | `cs17-<team>_<slot>` |
+| White Mercedes Driver Suits 1.01, converted: `team_livery/2025-mercedes` | 2019 Mercedes | `cs19-mercedes` |
+| White Mercedes Driver Suits 1.01, converted: `drivers/male/2025-mercedes_<slot>` | 2019 Mercedes, Lewis Hamilton and Valtteri Bottas | `cs19-mercedes_andrea-kimi_antonelli`, `cs19-mercedes_george_russell` |
+
+### Suits from F1 2020 mods
+
+A mod of `data/real_suits.json` with `transfer` is an F1 2020 suit mod: `transfer` is its folder under `--mods`, and `folder` the folder `suit_transfer.py` writes its F1 25 conversion to. Each of its suits names the F1 2020 archive it comes from (`from`: `2020-<team>`, the team suit archive, or `2020-<team>_<driver>`, the driver archive under `drivers/male/`) and the F1 25 archive it becomes (`base`, `erp`). `build_real_suits.py` then builds the converted archives like any other mod.
+
+- F1 2020's team suit archive (`2020_asset_groups/character_package/team_livery/<suit>/<suit>.erp`, zstd fragments, `.2020.mipmaps` sidecars) holds the old body `condition_scene/idf/driver_body_male.idf` (submeshes `livery`), the boots `<suit>_male.idf` (`boots`), the gloves `driver_gloves.idf` and the decal meshes `<suit>_body_logos_male.idf` and `<suit>_glove_logos_male.idf`. A driver archive holds the driver's decal meshes `<driver>_body_logos.idf` and `<driver>_glove_logos.idf`, boots `<driver>.idf`, usually its own `boots_d` and `glove_logo_d`, and copies of team textures. A texture comes from the driver archive's own, else its copy of the team's, else the team archive.
+- The old and F1 25 bodies share one model space: the arm and glove vertex buffers of both games are identical.
+- The old `livery_d` gets its decals baked in: each `livery_logo` triangle is drawn in its first texture coordinate pair (the body UV) with `logo_01_d` sampled at its second pair, alpha over the diffuse. `glove_d` gets the `gloves_logo` decals the same way.
+- `livery_v2_d` (2048): each texel of F1 25's `livery_v2` UV layout (`driver_body_v2_male.idf` in the team suit archive) takes the 3D point and normal under it and samples the baked old diffuse (bilinear) at the nearest point of the old `livery` surface whose normal has a dot product of at least 0.2 with it. A point more than 5 cm nearer wins regardless of normal.
+- A texel whose nearest point is more than 4 mm away, or whose old UV is more than 16 texels (or four times the island median) from the affine map from new to old UV fitted to its UV island's texels within 4 mm, takes that affine map, blended in up to 8 mm and twice the deviation. On these suits these are F1 25's cuffs, collar and zip. The median distance to the old surface is 1.4 mm, the 99th percentile 17 mm.
+- Texels outside every UV island take the nearest covered texel.
+- `boots_d` (1024 by 512): the same from the old boots to the `boots` submesh of `<base>_male.idf`, or of `<stem>.idf` for a driver suit.
+- `glove_d` (1024): the baked old glove diffuse. F1 2020 and F1 25 share the glove mesh and UVs.
+- A team suit's `logo_01_d` and `glove_logo_d` are transparent and its `logo_01_n` and `glove_logo_n` flat. A driver suit's own `livery_v2_d`, `boots_d` and `glove_d` carry the driver's decals; its copies of the team's `logo_01_*` and `glove_logo_*` are the converted team suit's. Every other texture, `livery_v2_n` and `livery_v2_s` included, keeps the F1 25 suit's.
+- The map from new texel to old UV depends only on the two meshes. It is cached in `--cache` (default `build/suit-transfer`) by a hash of both meshes and the constants.
+- A texture whose sidecar is missing from the mod uses its largest archive level. The White Mercedes mod ships no `glove_logo_d` sidecar: its glove decals come from the 64 px level.
+- A driver suit's base is the F1 25 suit of the same driver at the stock team, else the team's next free F1 25 driver suit in name order.
+- Of the stock F1 25 driver suits only Mercedes' have their own `livery_v2_d` and `glove_d`; the others wear the team's, and some the team's `boots_d`. A converted driver suit without its own texture gets a copy of its copy of the team texture and view under `drivers/male/<base>/textures/<stem>_<part>`, and the driver's materials (`drivers/male/<base>/materials/`) name it instead.
+
+The 2017 mod ships its suits in F1 2020's driver slots. The driver of each slot, by the name, flag and number on the suit and the helmet:
+
+| 2017 team | F1 2020 slot (`from`) | Driver | F1 25 base | Label |
+|---|---|---|---|---|
+| Mercedes | `2020-mercedes_lewis_hamilton` | Lewis Hamilton | `2025-mercedes_andrea-kimi_antonelli` | `cs17-mercedes_andrea-kimi_antonelli` |
+| Mercedes | `2020-mercedes_valtteri_bottas` | Valtteri Bottas | `2025-mercedes_george_russell` | `cs17-mercedes_george_russell` |
+| Red Bull Racing | `2020-redbull_alexander_albon` | Daniel Ricciardo | `2025-redbull_liam_lawson` | `cs17-redbull_liam_lawson` |
+| Red Bull Racing | `2020-redbull_max_verstappen` | Max Verstappen | `2025-redbull_max_verstappen` | `cs17-redbull_max_verstappen` |
+| Ferrari | `2020-ferrari_sebastian_vettel` | Sebastian Vettel | `2025-ferrari_charles_leclerc` | `cs17-ferrari_charles_leclerc` |
+| Ferrari | `2020-ferrari_charles_leclerc` | Kimi Räikkönen | `2025-ferrari_lewis_hamilton` | `cs17-ferrari_lewis_hamilton` |
+| Williams | `2020-williams_nicholas_latifi` | Felipe Massa | `2025-williams_alex_albon` | `cs17-williams_alex_albon` |
+| Williams | `2020-williams_george_russell` | Lance Stroll | `2025-williams_carlos_sainz-jr` | `cs17-williams_carlos_sainz-jr` |
+| Force India | `2020-forceindia_sergio_perez` | Sergio Pérez | `2025-forceindia_fernando_alonso` | `cs17-forceindia_fernando_alonso` |
+| Force India | `2020-forceindia_lance_stroll` | Esteban Ocon | `2025-forceindia_lance_stroll` | `cs17-forceindia_lance_stroll` |
+| Renault | `2020-renault_daniel_ricciardo` | Nico Hülkenberg | `2025-renault_franco_colapinto` | `cs17-renault_franco_colapinto` |
+| Renault | `2020-renault_esteban_ocon` | Jolyon Palmer | `2025-renault_jack_doohan` | `cs17-renault_jack_doohan` |
+| Toro Rosso | `2020-tororosso_pierre_gasly` | Carlos Sainz | `2025-tororosso_isack_hadjar` | `cs17-tororosso_isack_hadjar` |
+| Toro Rosso | `2020-tororosso_daniil_kvyat` | Daniil Kvyat | `2025-tororosso_liam_lawson` | `cs17-tororosso_liam_lawson` |
+| Sauber | `2020-sauber_kimi_raikkonen` | Marcus Ericsson | `2025-sauber_gabriel_bortoleto` | `cs17-sauber_gabriel_bortoleto` |
+| Sauber | `2020-sauber_antonio_giovinazzi` | Pascal Wehrlein | `2025-sauber_nico_hulkenberg` | `cs17-sauber_nico_hulkenberg` |
+| McLaren | `2020-mclaren_lando_norris` | Fernando Alonso | `2025-mclaren_lando_norris` | `cs17-mclaren_lando_norris` |
+| McLaren | `2020-mclaren_carlos_sainz-jr` | Stoffel Vandoorne | `2025-mclaren_oscar_piastri` | `cs17-mclaren_oscar_piastri` |
+| Haas | `2020-haas_romain_grosjean` | Romain Grosjean | `2025-haas_esteban_ocon` | `cs17-haas_esteban_ocon` |
+| Haas | `2020-haas_kevin_magnussen` | Kevin Magnussen | `2025-haas_oliver_bearman` | `cs17-haas_oliver_bearman` |
 
 ### F1 23 suits
 
@@ -143,12 +192,13 @@ A real suit is a mod's suit in `data/real_suits.json` that `build_real_suits.py`
 - The contact sheet (`suits/preview.png`, and `art/suits/<year>.png` at half size) shows each team's front and back render (the male body, boots, gloves and decals), the painted `livery_v2_d` and the `logo_01_d` atlas with its decal rectangles: blue for the team logo, yellow for a sponsor, grey for an empty one.
 
 ```sh
+python3 tools/suit_transfer.py --game <F1 25> --mods <folder holding the extracted mods> [--only <label>,...] [--cache <dir>]
 python3 tools/build_real_suits.py --game <F1 25> --mods <folder holding the extracted mods> --f1-23 <F1 23>
 python3 tools/build_suits.py --game <F1 25> --years 2016-2021 [--cars <folder holding classic-seasons-<year>/cars>]
 python3 tools/gen.py
 ```
 
-It needs numpy, Pillow, SciPy and lz4, `node` (BC7 decoding) and the season's built cars.
+It needs numpy, Pillow, SciPy and lz4, zstandard for `suit_transfer.py`, `node` (BC7 decoding) and the season's built cars.
 
 ## Packages
 
