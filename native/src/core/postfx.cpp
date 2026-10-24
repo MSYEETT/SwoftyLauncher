@@ -76,9 +76,10 @@ struct Target {
     UINT stride = 0;
 };
 
-// Pointers the barrier hook checks without the lock. Writers hold the lock; readers only load. A key
-// keeps its slot for good and erase only clears its flag, so lookups never walk over tombstones; the
-// game reuses its command lists and named resources, so the tables stay small.
+// The resources the barrier hook watches, read without the lock. Writers hold the lock; readers only
+// load. A key keeps its slot and erase only clears its bits, so lookups never walk over tombstones.
+// When the slots run out the writer copies the live keys into a new table and publishes it; old
+// tables stay allocated, as a reader may still hold one.
 template <size_t N> class PtrSet {
     static_assert((N & (N - 1)) == 0, "a power of two");
     std::atomic<uintptr_t> key[N] = {};
@@ -124,16 +125,41 @@ public:
         on[i].store(bits, std::memory_order_release);
         return true;
     }
-    bool insert(const void *p) { return set(p, 1); }
     void erase(const void *p) { set(p, 0); }
+    template <class F> void each(F f) const
+    {
+        for (size_t i = 0; i < N; i++) {
+            uintptr_t k = key[i].load(std::memory_order_relaxed);
+            uint8_t b = on[i].load(std::memory_order_relaxed);
+            if (k && b)
+                f(reinterpret_cast<const void *>(k), b);
+        }
+    }
 };
 
 enum : uint8_t { W_TONEMAP = 1, W_BACK = 2, W_HUDLESS = 4, W_UI = 8, W_DEPTH = 16 };
 
 safetyhook::InlineHook h_setname, h_barrier, h_exec;
-PtrSet<1024> watched;
-PtrSet<4096> marked;
-std::atomic<bool> sets_full;
+using Watched = PtrSet<1024>;
+std::atomic<Watched *> watched{new Watched};
+std::vector<Watched *> retired_tables;
+
+uint8_t watched_bits(const void *p)
+{
+    return watched.load(std::memory_order_acquire)->get(p);
+}
+
+void watch(const void *p, uint8_t bits)
+{
+    Watched *w = watched.load(std::memory_order_relaxed);
+    if (w->set(p, bits))
+        return;
+    auto *fresh = new Watched;
+    w->each([&](const void *k, uint8_t b) { fresh->set(k, b); });
+    fresh->set(p, bits);
+    retired_tables.push_back(w);
+    watched.store(fresh, std::memory_order_release);
+}
 std::recursive_mutex lock;
 std::vector<Pass> passes;
 ID3D12Resource *depth_res;
@@ -714,9 +740,9 @@ HRESULT STDMETHODCALLTYPE setname_hook(ID3D12Object *o, LPCWSTR name)
         perf::Scope p(probe);
         auto *res = reinterpret_cast<ID3D12Resource *>(o);
         std::lock_guard<std::recursive_mutex> g(lock);
-        if (watched.get(res)) {
+        if (watched_bits(res)) {
             names.erase(res);
-            watched.erase(res);
+            watch(res, 0);
         }
         if (res == depth_res)
             depth_res = nullptr;
@@ -731,8 +757,8 @@ HRESULT STDMETHODCALLTYPE setname_hook(ID3D12Object *o, LPCWSTR name)
             saw_back = true;
             swofty::log("[postfx] the game names its back buffers \"BackBuffer\"");
         }
-        if (bits && !watched.set(res, bits))
-            sets_full = true;
+        if (bits)
+            watch(res, bits);
     }
     return h_setname.call<HRESULT>(o, name);
 }
@@ -742,10 +768,10 @@ void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, con
     static const uint32_t probe = perf::probe("core", "postfx ResourceBarrier");
     if (barriers && n && !broken) {
         perf::Scope p(probe);
-        bool look = sets_full.load(std::memory_order_relaxed) || marked.contains(list);
+        bool look = false;
         for (UINT i = 0; i < n && !look; i++)
             look = barriers[i].Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION &&
-                   watched.contains(barriers[i].Transition.pResource);
+                   watched_bits(barriers[i].Transition.pResource);
         if (!look) {
             perf::Pause game;
             return h_barrier.call<void>(list, n, barriers);
@@ -759,15 +785,13 @@ void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, con
             if (b.Type != D3D12_RESOURCE_BARRIER_TYPE_TRANSITION)
                 continue;
             ID3D12Resource *r = b.Transition.pResource;
-            uint8_t c = watched.get(r);
+            uint8_t c = watched_bits(r);
             bool tonemap = c & W_TONEMAP, back = c & W_BACK, depth = c & W_DEPTH;
             if (!m) {
                 auto it = marks.find(list);
                 if (it == marks.end() && !tonemap && !back && !depth)
                     continue;
                 m = &marks[list];
-                if (!marked.insert(list))
-                    sets_full = true;
             }
             if (depth) {
                 m->depth = r;
@@ -835,7 +859,6 @@ void STDMETHODCALLTYPE exec_hook(ID3D12CommandQueue *q, UINT n, ID3D12CommandLis
                         later_depth_state = m.depth_state;
                     }
                 }
-                marked.erase(it->first);
                 marks.erase(it);
             }
         }
