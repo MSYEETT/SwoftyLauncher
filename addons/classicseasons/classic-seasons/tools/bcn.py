@@ -220,22 +220,28 @@ def sidecar(desc):
     return path, levels
 
 
+def read_level(full, entry):
+    _, comp, off, packed, size = entry
+    with open(full, "rb") as f:
+        f.seek(off)
+        raw = f.read(packed)
+    if comp == LZ4:
+        import lz4.block
+        raw = lz4.block.decompress(raw, uncompressed_size=size)
+    return raw
+
+
 def top_level(frags, game):
-    """The surface's largest level as RGBA: from the sidecar when it has levels, else the first embedded level."""
+    """The surface's largest level as RGBA: from the sidecar when it has levels (the first of the game folders in
+    game, a path or a list, that holds it), else the first embedded level."""
     fmt, w, h, levels = Surface.header(frags[0])
+    roots = [game] if isinstance(game, (str, Path)) else list(game or [])
     if len(frags) > 2 and frags[2] and frags[2][0]:
         path, side = sidecar(frags[2])
-        if side and game:
-            _, comp, off, packed, size = side[0]
-            full = Path(game) / path
-            with open(full, "rb") as f:
-                f.seek(off)
-                raw = f.read(packed)
-            if comp == LZ4:
-                import lz4.block
-                raw = lz4.block.decompress(raw, uncompressed_size=size)
+        found = [Path(r) / path for r in roots if (Path(r) / path).exists()]
+        if side and found:
             n = len(side)
-            return decode(fmt, raw, w << n, h << n)
+            return decode(fmt, read_level(found[0], side[0]), w << n, h << n)
     return decode(fmt, frags[1], w, h)
 
 

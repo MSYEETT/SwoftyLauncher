@@ -1,0 +1,37 @@
+{
+ "mods": {
+  "f1_2016_suits": {
+   "name": "F1 2016 - suits mod",
+   "author": null,
+   "folder": "F1 2016 - suits mod/F1 2016 - suits mod"
+  },
+  "redbull_2018": {
+   "name": "2018 Redbull for F1 25",
+   "author": null,
+   "folder": "2018 Redbull for F1 25/2018 Redbull for F1 25/F1 25"
+  }
+ },
+ "suits": [
+  {"season": 2016, "team": "Mercedes", "mod": "f1_2016_suits", "base": "2025-mercedes", "erp": "team_livery/2025-mercedes/2025-mercedes.erp"},
+  {"season": 2016, "team": "Red Bull Racing", "mod": "f1_2016_suits", "base": "2025-redbull", "erp": "team_livery/2025-redbull/2025-redbull.erp"},
+  {"season": 2016, "team": "Ferrari", "mod": "f1_2016_suits", "base": "2025-ferrari", "erp": "team_livery/2025-ferrari/2025-ferrari.erp"},
+  {"season": 2016, "team": "Williams", "mod": "f1_2016_suits", "base": "2025-williams", "erp": "team_livery/2025-williams/2025-williams.erp"},
+  {"season": 2016, "team": "Force India", "mod": "f1_2016_suits", "base": "2025-forceindia", "erp": "team_livery/2025-forceindia/2025-forceindia.erp"},
+  {"season": 2016, "team": "Renault", "mod": "f1_2016_suits", "base": "2025-renault", "erp": "team_livery/2025-renault/2025-renault.erp"},
+  {"season": 2016, "team": "Toro Rosso", "mod": "f1_2016_suits", "base": "2025-tororosso", "erp": "team_livery/2025-tororosso/2025-tororosso.erp"},
+  {"season": 2016, "team": "Sauber", "mod": "f1_2016_suits", "base": "2025-sauber", "erp": "team_livery/2025-sauber/2025-sauber.erp"},
+  {"season": 2016, "team": "McLaren", "mod": "f1_2016_suits", "base": "2025-mclaren", "erp": "team_livery/2025-mclaren/2025-mclaren.erp"},
+  {"season": 2016, "team": "Haas", "mod": "f1_2016_suits", "base": "2025-haas", "erp": "team_livery/2025-haas/2025-haas.erp"},
+  {"season": 2018, "team": "Red Bull Racing", "mod": "redbull_2018", "base": "2025-redbull",
+   "erp": "2025_asset_groups/character_package/team_livery/2025-redbull/2025-redbull.erp"},
+  {"season": 2018, "team": "Red Bull Racing", "driver": "max_verstappen", "mod": "redbull_2018", "base": "2025-redbull_max_verstappen",
+   "erp": "2025_asset_groups/character_package/drivers/male/2025-redbull_max_verstappen/max_verstappen.erp",
+   "helmet": "2025_asset_groups/character_package/drivers/male/2025-redbull_max_verstappen/max_verstappen_helmet.erp",
+   "helmet_colours": ["-27130", "-15345665", "-4129275", "0"]},
+  {"season": 2018, "team": "Red Bull Racing", "driver": "daniel_ricciardo", "mod": "redbull_2018", "base": "2025-redbull_yuki_tsunoda",
+   "erp": "2025_asset_groups/character_package/drivers/male/2025-redbull_yuki_tsunoda/yuki_tsunoda.erp",
+   "helmet": "2025_asset_groups/character_package/drivers/male/2025-redbull_yuki_tsunoda/yuki_tsunoda_helmet.erp",
+   "helmet_colours": ["-27130", "-15345665", "-4129275", "0"]}
+ ],
+ "stock_seasons": [2024]
+}
