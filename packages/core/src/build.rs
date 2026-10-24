@@ -21,7 +21,7 @@ use crate::conflicts::Report;
 use crate::erpbuild::{ErpBuild, Resized, SliceMerge, reads, unsupported, writes};
 use crate::install::{Game, LOADER_DIR, Plan};
 use crate::launcher::BuildCx;
-use crate::manifest::{AddonManifest, Strength, relative_inside};
+use crate::manifest::{AddonManifest, PassValue, PostFx, Strength, relative_inside};
 use crate::map::{TrackPackage, Unusable};
 use crate::owned;
 use crate::placed::Placed;
@@ -200,6 +200,26 @@ fn shader_look(m: &AddonManifest, p: &Profile) -> Result<(String, f64)> {
             .ok_or_else(|| Error::Other(format!("{}: shader strength {t} is not from 0 to 100", m.name)))?,
     };
     Ok((rel, strength))
+}
+
+/// The values a pass reads with `option(i)`, with `{{id}}` options filled from the profile's settings.
+fn pass_options(m: &AddonManifest, pass: &PostFx, p: &Profile) -> Result<Vec<f64>> {
+    pass.options
+        .iter()
+        .map(|v| match v {
+            PassValue::Number(n) => Ok(*n),
+            PassValue::Option(t) => {
+                let text = render_text(t, m, p)?;
+                match text.trim() {
+                    "true" => Ok(1.0),
+                    "false" => Ok(0.0),
+                    v => v.parse::<f64>().map_err(|_| {
+                        Error::Other(format!("{}: postfx option {t} is {v:?}, not a number", m.name))
+                    }),
+                }
+            }
+        })
+        .collect()
 }
 
 fn render_file(
@@ -536,6 +556,41 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             m.name,
             n = cube.size
         ));
+    }
+    let mut passes: Vec<(i32, usize, &AddonManifest, &PostFx)> = Vec::new();
+    for id in &resolved.order {
+        for pass in &addons[id].postfx {
+            passes.push((pass.order, passes.len(), &addons[id], pass));
+        }
+    }
+    passes.sort_by_key(|(order, at, ..)| (*order, *at));
+    for (_, _, m, pass) in passes {
+        let label = pass.label();
+        let options = pass_options(m, pass, &p)?;
+        let source = store.addons_dir().join(&m.id).join(&pass.shader);
+        let budget = pass.budget_ms.unwrap_or(1.5);
+        hasher.update(format!(
+            "postfx {} {} {options:?} {} {budget};",
+            m.id, pass.shader, pass.order
+        ));
+        match crate::postfx::compile(&source, &store.addon_cache_dir(&m.id).join("postfx")) {
+            Ok(dxil) => {
+                hasher.update(&dxil);
+                built.lines.push(format!(
+                    "postfx: {}'s pass {label} runs as pass {} after the tonemap ({} bytes of DXIL)",
+                    m.name,
+                    runtime.assets.postfx.len() + 1,
+                    dxil.len()
+                ));
+                runtime.postfx(dxil, &label, &m.name, options, budget);
+            }
+            Err(e) => {
+                hasher.update(format!("skipped {e};"));
+                built
+                    .warnings
+                    .push(format!("{}: pass {label} is skipped: {e}", m.name));
+            }
+        }
     }
     for id in &resolved.order {
         let m = &addons[id];
@@ -3084,6 +3139,57 @@ mod tests {
             );
             assert!(built.lines.contains(&line), "{:?}", built.lines);
         }
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn the_template_postfx_pass_compiles_into_the_build() {
+        if loader_dir().is_some() || crate::postfx::dxc().is_none() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-postfx-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        std::fs::write(dir.join(GVDB), Gvdb { records: Vec::new() }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let template = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../templates/postfx-pass");
+        let m = store.install_addon(&template).unwrap();
+        store
+            .update_profile("default", |p| p.set_enabled(&m.id, true))
+            .unwrap();
+        store
+            .update_profile("default", |p| {
+                p.set_option(&m, "saturation", serde_json::json!(40)).map(drop)
+            })
+            .unwrap();
+        let built = build(&store, "default", &game).unwrap();
+        let assets: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&built.plan.loader["swofty/assets.json"]).unwrap())
+                .unwrap();
+        assert_eq!(assets["features"], serde_json::json!(["postfx"]));
+        assert_eq!(
+            assets["postfx"],
+            serde_json::json!([{ "shader": "postfx/00.dxil", "name": "vignette", "addon": "Vignette Pass",
+                                 "options": [60.0, 40.0], "budget_ms": 1.5 }])
+        );
+        let dxil = std::fs::read(&built.plan.loader["swofty/postfx/00.dxil"]).unwrap();
+        assert!(dxil.starts_with(b"DXBC"));
+        assert!(
+            built
+                .lines
+                .iter()
+                .any(|l| l
+                    .starts_with("postfx: Vignette Pass's pass vignette runs as pass 1 after the tonemap")),
+            "{:?}",
+            built.lines
+        );
         std::fs::remove_dir_all(&root).ok();
     }
 

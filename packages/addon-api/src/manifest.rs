@@ -60,6 +60,9 @@ pub struct AddonManifest {
     /// A colour look applied to the game's picture, before the HUD draws.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shader: Option<Shader>,
+    /// Post-process passes run on the game's picture after its tonemap and before the HUD.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub postfx: Vec<PostFx>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -197,6 +200,8 @@ pub enum ExperimentalFeature {
     Overlay,
     /// Grading the game's picture with a [`Shader`] look.
     Shaders,
+    /// Running [`PostFx`] passes on the game's picture.
+    Postfx,
 }
 
 impl ExperimentalFeature {
@@ -205,6 +210,7 @@ impl ExperimentalFeature {
         match self {
             Self::Overlay => "overlay",
             Self::Shaders => "shaders",
+            Self::Postfx => "postfx",
         }
     }
 
@@ -212,6 +218,7 @@ impl ExperimentalFeature {
         match self {
             Self::Overlay => "Overlay",
             Self::Shaders => "Shaders",
+            Self::Postfx => "Post-processing",
         }
     }
 
@@ -244,6 +251,54 @@ pub enum Strength {
     Percent(f64),
     Option(String),
 }
+
+/// A post-process pass: an HLSL compute shader written against `swofty/postfx.hlsli`, which
+/// the launcher compiles to DXIL at build time.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PostFx {
+    /// The `.hlsl` file inside the addon.
+    pub shader: String,
+    /// The pass's name in the build output and the core's log. Defaults to the file's stem.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// Up to 16 values the shader reads with `option(i)`: numbers, or `{{id}}` naming a `db`
+    /// option whose value is a number or a toggle.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub options: Vec<PassValue>,
+    /// Where the pass runs among every addon's passes: lower runs first, and equal values keep
+    /// the load order.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub order: i32,
+    /// GPU milliseconds a frame past which the core turns the pass off. Defaults to 1.5.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub budget_ms: Option<f64>,
+}
+
+fn is_zero(v: &i32) -> bool {
+    *v == 0
+}
+
+impl PostFx {
+    pub fn label(&self) -> String {
+        self.name.clone().unwrap_or_else(|| {
+            Path::new(&self.shader)
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| self.shader.clone())
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum PassValue {
+    Number(f64),
+    Option(String),
+}
+
+/// Most values a pass reads with `option(i)`.
+pub const POSTFX_OPTIONS: usize = 16;
 
 /// The option ids a `{{id}}` template names, in order.
 pub fn placeholders(text: &str) -> Vec<&str> {
@@ -545,6 +600,10 @@ impl AddonManifest {
             self.validate_shader(s)
                 .or_else(|e| fail(format!("shader: {e}")))?;
         }
+        for (i, p) in self.postfx.iter().enumerate() {
+            self.validate_postfx(p)
+                .or_else(|e| fail(format!("postfx[{i}]: {e}")))?;
+        }
         if let Some(l) = &self.launcher {
             if l.program.is_empty() {
                 return fail("launcher.program names no program".into());
@@ -553,6 +612,47 @@ impl AddonManifest {
                 return fail(format!(
                     "launcher.imports: {e:?} must be an extension without the dot"
                 ));
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_postfx(&self, p: &PostFx) -> std::result::Result<(), String> {
+        if !self.experimental_features.contains(&ExperimentalFeature::Postfx) {
+            return Err("list \"postfx\" in experimental_features to use it".into());
+        }
+        if !relative_inside(&p.shader) {
+            return Err(format!(
+                "shader {} must be a relative path inside the addon",
+                p.shader
+            ));
+        }
+        if !p.shader.to_ascii_lowercase().ends_with(".hlsl") {
+            return Err(format!("shader {} must be a .hlsl file", p.shader));
+        }
+        if p.options.len() > POSTFX_OPTIONS {
+            return Err(format!(
+                "{} options is more than {POSTFX_OPTIONS}",
+                p.options.len()
+            ));
+        }
+        if let Some(b) = p.budget_ms
+            && !(b > 0.0 && b <= 16.0)
+        {
+            return Err(format!("budget_ms {b} is not above 0 and at most 16"));
+        }
+        for v in &p.options {
+            let PassValue::Option(t) = v else { continue };
+            let [id] = placeholders(t)[..] else {
+                return Err(format!("option {t:?} must be a number or one {{{{option}}}}"));
+            };
+            if !(t.trim().starts_with("{{") && t.trim().ends_with("}}")) {
+                return Err(format!("option {t:?} must be a number or one {{{{option}}}}"));
+            }
+            match self.options.iter().find(|o| o.id == id) {
+                None => return Err(format!("{{{{{id}}}}} names no option")),
+                Some(o) if o.binds != Binds::Db => return Err(format!("option {id} must bind db")),
+                Some(_) => {}
             }
         }
         Ok(())
@@ -926,6 +1026,56 @@ mod tests {
                 .unwrap()
                 .strength,
             None
+        );
+    }
+
+    #[test]
+    fn a_postfx_pass_is_checked_before_it_installs() {
+        let with = |postfx: &str, features: &str| {
+            AddonManifest::parse(&format!(
+                r#"{{ "schema_version": 1, "id": "author.fx", "name": "Fx", "version": "1.0.0", "author": "a",
+                    "experimental_features": {features}, "compat": {{ "game": "f1_25" }},
+                    "options": [{{ "id": "amount", "type": "slider", "min": 0, "max": 100, "step": 1, "default": 50, "binds": "db" }}],
+                    "postfx": {postfx} }}"#
+            ))
+            .map_err(|e| e.to_string())
+        };
+        let m = with(
+            r#"[{ "shader": "fx/grain.hlsl", "options": [0.5, "{{amount}}"], "order": -1 }]"#,
+            r#"["postfx"]"#,
+        )
+        .unwrap();
+        assert_eq!(m.postfx[0].label(), "grain");
+        assert_eq!(m.postfx[0].order, -1);
+        assert_eq!(ExperimentalFeature::Postfx.name(), "postfx");
+        let err = |postfx: &str| with(postfx, r#"["postfx"]"#).unwrap_err();
+        let at = |msg: &str| format!("invalid manifest: author.fx: postfx[0]: {msg}");
+        assert_eq!(
+            with(r#"[{ "shader": "fx/grain.hlsl" }]"#, "[]").unwrap_err(),
+            at(r#"list "postfx" in experimental_features to use it"#)
+        );
+        assert_eq!(
+            err(r#"[{ "shader": "../grain.hlsl" }]"#),
+            at("shader ../grain.hlsl must be a relative path inside the addon")
+        );
+        assert_eq!(
+            err(r#"[{ "shader": "fx/grain.fx" }]"#),
+            at("shader fx/grain.fx must be a .hlsl file")
+        );
+        assert_eq!(
+            err(r#"[{ "shader": "fx/g.hlsl", "options": ["{{nope}}"] }]"#),
+            at("{{nope}} names no option")
+        );
+        assert_eq!(
+            err(r#"[{ "shader": "fx/g.hlsl", "budget_ms": 0 }]"#),
+            at("budget_ms 0 is not above 0 and at most 16")
+        );
+        assert_eq!(
+            err(&format!(
+                r#"[{{ "shader": "fx/g.hlsl", "options": [{}] }}]"#,
+                vec!["1"; 17].join(",")
+            )),
+            at("17 options is more than 16")
         );
     }
 

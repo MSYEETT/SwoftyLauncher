@@ -31,6 +31,7 @@ pub mod paths;
 pub mod pkgedit;
 pub mod placed;
 pub mod planner;
+pub mod postfx;
 pub mod process;
 pub mod profile;
 pub mod quarantine;

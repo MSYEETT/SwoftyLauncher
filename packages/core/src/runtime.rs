@@ -17,6 +17,8 @@ const LANG_DIR: &str = "assets/lang";
 const OVERLAY_DIR: &str = "overlay";
 /// The active shader look's packed LUT, under `swofty/`.
 pub const SHADER_LUT: &str = "shaders/look.lut";
+/// The compiled post-process passes, under `swofty/`.
+pub const POSTFX_DIR: &str = "postfx";
 const NO_VALUE_TAGS: [u8; 3] = [10, 15, 16];
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -37,6 +39,20 @@ pub struct Assets {
     pub overlay: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shader: Option<ShaderLook>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub postfx: Vec<PostFxPass>,
+}
+
+/// A post-process pass the in-game core runs, in the order listed.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PostFxPass {
+    /// The DXIL container, relative to `swofty/`.
+    pub shader: String,
+    pub name: String,
+    pub addon: String,
+    /// The values the shader reads with `option(i)`.
+    pub options: Vec<f64>,
+    pub budget_ms: f64,
 }
 
 /// The look the in-game core grades the picture with.
@@ -125,6 +141,7 @@ pub struct Runtime {
     tables: BTreeMap<String, Lng>,
     defaults: BTreeMap<String, BTreeMap<String, String>>,
     look: Option<Vec<u8>>,
+    passes: Vec<Vec<u8>>,
 }
 
 fn argument_len(erp: &Erp) -> usize {
@@ -294,6 +311,18 @@ impl Runtime {
             addon: addon.into(),
         });
         self.look = Some(packed);
+    }
+
+    /// Adds a compiled post-process pass after the ones added before it.
+    pub fn postfx(&mut self, dxil: Vec<u8>, name: &str, addon: &str, options: Vec<f64>, budget_ms: f64) {
+        self.assets.postfx.push(PostFxPass {
+            shader: format!("{POSTFX_DIR}/{:02}.dxil", self.passes.len()),
+            name: name.into(),
+            addon: addon.into(),
+            options,
+            budget_ms,
+        });
+        self.passes.push(dxil);
     }
 
     fn place(&mut self, rel: String, src: PathBuf) -> Result<()> {
@@ -497,6 +526,14 @@ impl Runtime {
             std::fs::create_dir_all(dir).map_err(io_err(dir))?;
             std::fs::write(&path, packed).map_err(io_err(&path))?;
             self.place(SHADER_LUT.into(), path)?;
+        }
+        for (i, dxil) in std::mem::take(&mut self.passes).into_iter().enumerate() {
+            let rel = self.assets.postfx[i].shader.clone();
+            let path = out.join(SWOFTY).join(&rel);
+            let dir = path.parent().expect("has parent");
+            std::fs::create_dir_all(dir).map_err(io_err(dir))?;
+            std::fs::write(&path, dxil).map_err(io_err(&path))?;
+            self.place(rel, path)?;
         }
         let empty = Assets {
             features: self.assets.features.clone(),
