@@ -35,6 +35,7 @@ const SESSION_DEPTH: usize = 3;
 const MIN_TAIL: u64 = 64 << 10;
 const PERF_READ: u64 = 1 << 20;
 const DUMP_CAP: u64 = 24 << 20;
+const OVERLAY_READ: u64 = 32 << 20;
 
 /// Where the logs go: `SWOFTY_LOGS_URL` at run time, else the address baked in
 /// at build time, if any.
@@ -349,6 +350,15 @@ impl Bundle {
         {
             c.file("game/career-editor/snapshot.json".into(), &snapshot, None);
         }
+        if let Some(record) = report.game.dir.as_deref().map(crate::overlay_guard::path)
+            && record.is_file()
+        {
+            c.file(
+                format!("game/{}", crate::overlay_guard::REMOVED_FILE),
+                &record,
+                None,
+            );
+        }
         for log in state_logs(store) {
             let name = file_name(&log);
             c.file(format!("state/{name}"), &log, None);
@@ -475,6 +485,20 @@ impl Bundle {
         }
         for l in loader {
             s.push_str(l);
+            s.push('\n');
+        }
+        s.push_str("\nOverlay\n");
+        let mut logs = Vec::new();
+        if let Some(game) = &report.game.dir
+            && self.entries.iter().any(|e| e.path == "game/loader.log")
+        {
+            logs.push(("game/loader.log".to_owned(), game.join(LOADER_LOG)));
+        }
+        for dir in newest_sessions(store, SESSIONS) {
+            logs.push((format!("sessions/{}", file_name(&dir)), dir.join("loader.log")));
+        }
+        for l in overlay_lines(store, report.game.dir.as_deref(), &logs) {
+            s.push_str(&l);
             s.push('\n');
         }
         s.push_str("\nCrash\n");
@@ -664,6 +688,41 @@ fn loader_line(label: &str, log: &Path) -> Option<String> {
         false => "mod loader never attached (version.dll not loaded; antivirus suspected)",
     };
     Some(format!("  {label:40} {state}"))
+}
+
+/// Which addons draw over the game, whether the core keeps the overlay off, and what each
+/// session's `[overlay]` lines say.
+fn overlay_lines(store: &Store, game: Option<&Path>, logs: &[(String, PathBuf)]) -> Vec<String> {
+    let mut out = Vec::new();
+    let painters = crate::overlay_guard::painters(store, &store.active_profile());
+    let names: Vec<String> = painters
+        .iter()
+        .map(|(id, name)| format!("{name} ({id})"))
+        .collect();
+    out.push(format!(
+        "  Addons that draw over the game: {}",
+        if names.is_empty() {
+            "none on".to_owned()
+        } else {
+            names.join(", ")
+        }
+    ));
+    if let Some(off) = game.and_then(crate::overlay_guard::OverlayOff::read) {
+        out.push(format!(
+            "  Kept off: game/{} says {}",
+            crate::overlay_guard::REMOVED_FILE,
+            off.describe()
+        ));
+    }
+    for (label, log) in logs {
+        let Ok(head) = read_head(log, OVERLAY_READ) else {
+            continue;
+        };
+        let state = crate::overlay_guard::SessionOverlay::scan(&String::from_utf8_lossy(&head))
+            .map_or_else(|| "no [overlay] lines".to_owned(), |o| o.describe());
+        out.push(format!("  {label:40} {state}"));
+    }
+    out
 }
 
 fn newest_perf(live: Option<PathBuf>, sessions: &[PathBuf]) -> Option<(String, PathBuf)> {
@@ -969,6 +1028,7 @@ fn addons_summary(store: &Store) -> Value {
                         "category": m.category,
                         "kind": m.kind,
                         "origin": m.origin,
+                        "experimental_features": m.experimental_features,
                     })
                 })
                 .collect(),

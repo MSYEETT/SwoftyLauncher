@@ -32,16 +32,17 @@ The logs go to the developers' Discord as one zip file, `swofty-logs-<username>-
 
 | In the zip | Contents |
 |---|---|
-| `summary.txt` | Your username and message, the launcher version, your operating system, CPU and memory, the game's version and folder, a line when no launch log or game session was found, a summary of the latest crash report, the summary of the latest performance report, and the active profile's addons by name: those on in load order, then the rest, each with its version, id, where it came from (built in, DB Editor, imported from which mod file, or installed) and the settings changed from their defaults |
+| `summary.txt` | Your username and message, the launcher version, your operating system, CPU and memory, the game's version and folder, a line when no launch log or game session was found, the addons on in the profile that draw over the game and, for each session, whether the overlay drew and which addons drew, a summary of the latest crash report, the summary of the latest performance report, and the active profile's addons by name: those on in load order, then the rest, each with its version, id, where it came from (built in, DB Editor, imported from which mod file, or installed) and the settings changed from their defaults |
 | `crash/crash-<time>.txt`, `crash/crash-<time>.dmp` | The newest crash report the game wrote and its minidump, when there is one. The minidump is left out, noted in the summary, when it is too big for the zip |
 | `game/loader.log`, `game/perf.log` | The loader log and the performance report of the game that's running |
 | `state/*.log` | The launcher's own logs, such as `launcher-run.log` and `wrapper-run.log` |
 | `sessions/<time>/` | The logs and small files of your three latest game sessions, such as `loader.log`, `perf.log`, `env.txt`, `exit_code` and `end.json` |
 | `addons/<id>/helper.log` | Each addon helper's log |
-| `addons.json` | The id, name, version, source, category, types and origin of every installed addon, and each profile's addons with their names and settings |
+| `addons.json` | The id, name, version, source, category, types, origin and experimental features of every installed addon, and each profile's addons with their names and settings |
 | `conflicts.json` | From the active profile's last build: each pair of addons that change the same thing, which one wins, and the records, resources, files and text they both change |
 | `config.json` | The launcher's settings |
 | `game/career-editor/snapshot.json` | The Career Mode Editor's snapshot, when the game folder has one |
+| `game/overlay-gpu-removed.json` | The core's record that the graphics card stopped responding after the overlay drew, when the game folder has one |
 
 The logs can include folder paths with your computer's user name, your hardware, and your installed mods and profiles. Passwords, tokens and keys in `config.json`, in addon settings and in each session's `env.txt` are replaced with `[redacted]`. Each file is cut to its last 5 MB, and the whole zip holds at most 40 MB before compression.
 
