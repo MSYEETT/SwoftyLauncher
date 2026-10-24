@@ -71,15 +71,23 @@ pub enum Category {
     Cars,
     Helmets,
     Shaders,
+    Career,
+    Ai,
+    Performance,
+    Utility,
 }
 
 impl Category {
-    pub const ALL: [Category; 5] = [
+    pub const ALL: [Category; 9] = [
         Self::Seasons,
         Self::Tracks,
         Self::Cars,
         Self::Helmets,
         Self::Shaders,
+        Self::Career,
+        Self::Ai,
+        Self::Performance,
+        Self::Utility,
     ];
 
     /// Categories from earlier launchers that read as none.
@@ -100,18 +108,23 @@ impl Category {
             Self::Cars => "Cars",
             Self::Helmets => "Helmets",
             Self::Shaders => "Shaders",
+            Self::Career => "Career",
+            Self::Ai => "AI",
+            Self::Performance => "Performance",
+            Self::Utility => "Utility",
         }
     }
 
     /// Reads an optional category, taking `liveries` as cars and a
-    /// [retired](Category::RETIRED) one as none.
+    /// [retired](Category::RETIRED) or unknown one as none.
     pub fn read<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Option<Self>, D::Error> {
         use serde::de::IntoDeserializer;
-        match Option::<String>::deserialize(d)? {
-            Some(name) if Self::RETIRED.contains(&name.as_str()) => Ok(None),
-            Some(name) => Self::deserialize(name.into_deserializer()).map(Some),
-            None => Ok(None),
-        }
+        Ok(Option::<String>::deserialize(d)?.and_then(|name| {
+            Self::deserialize(IntoDeserializer::<serde::de::value::Error>::into_deserializer(
+                name,
+            ))
+            .ok()
+        }))
     }
 }
 
@@ -831,13 +844,11 @@ mod tests {
             let v = serde_json::to_value(c).unwrap();
             assert_eq!(serde_json::from_value::<Category>(v).unwrap(), c);
         }
-        for bad in [
-            r#""category": "maps","#,
-            r#""origin": { "tool": "x", "extra": 1 },"#,
-        ] {
-            let bad = GRID24.replace(r#""author": "swofty","#, &format!(r#""author": "swofty", {bad}"#));
-            assert!(AddonManifest::parse(&bad).is_err(), "{bad}");
-        }
+        let bad = GRID24.replace(
+            r#""author": "swofty","#,
+            r#""author": "swofty", "origin": { "tool": "x", "extra": 1 },"#,
+        );
+        assert!(AddonManifest::parse(&bad).is_err(), "{bad}");
     }
 
     #[test]
@@ -852,6 +863,10 @@ mod tests {
         assert_eq!(read(r#""liveries""#), Some(Category::Cars));
         assert_eq!(read(r#""tracks""#), Some(Category::Tracks));
         assert_eq!(read("null"), None);
+        assert_eq!(read(r#""maps""#), None);
+        assert_eq!(read(r#""career""#), Some(Category::Career));
+        assert_eq!(read(r#""ai""#), Some(Category::Ai));
+        assert_eq!(Category::Ai.label(), "AI");
         for c in Category::RETIRED {
             assert_eq!(read(&format!("{c:?}")), None, "{c}");
         }

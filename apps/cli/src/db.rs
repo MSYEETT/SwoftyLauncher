@@ -53,7 +53,7 @@ pub enum DbCommand {
         author: Option<String>,
         #[arg(long)]
         description: Option<String>,
-        #[arg(long, value_parser = category, help = "One of seasons, tracks, cars, helmets, uncategorised")]
+        #[arg(long, value_parser = category, help = "One of seasons, tracks, cars, helmets, career, ai, performance, utility, uncategorised")]
         category: Option<CategoryArg>,
     },
     #[command(about = "Search names, tables, keys, values and English text")]

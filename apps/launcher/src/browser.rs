@@ -50,7 +50,6 @@ const AUTHORS_SHOWN: usize = 8;
 const TILE_MIN: f32 = 220.;
 const TILE_ART: f32 = 96.;
 const TILE_FACES: usize = 4;
-const ALL_FACES: usize = 8;
 const FACE: f32 = 40.;
 const HELMET: &[u8] = include_bytes!("../assets/helmet.svg");
 const NATIVE: &str = "Runs code in the game";
@@ -400,6 +399,10 @@ fn shelf_tint(tab: Tab, p: Palette) -> Hsla {
         Some(Some(Category::Cars)) => 2.,
         Some(Some(Category::Helmets)) => 205.,
         Some(Some(Category::Shaders)) => 320.,
+        Some(Some(Category::Career)) => 280.,
+        Some(Some(Category::Ai)) => 175.,
+        Some(Some(Category::Performance)) => 85.,
+        Some(Some(Category::Utility)) => 245.,
     };
     Hsla {
         h: hue / 360.,
@@ -428,6 +431,10 @@ fn shelf_glyph(tab: Tab, size: f32, color: Hsla) -> AnyElement {
         Some(Some(Category::Seasons)) => IconName::CalendarRange,
         Some(Some(Category::Cars)) => IconName::Car,
         Some(Some(Category::Shaders)) => IconName::Palette,
+        Some(Some(Category::Career)) => IconName::Briefcase,
+        Some(Some(Category::Ai)) => IconName::Bot,
+        Some(Some(Category::Performance)) => IconName::Gauge,
+        Some(Some(Category::Utility)) => IconName::Wrench,
     };
     Icon::new(icon)
         .size(px(size))
@@ -435,9 +442,9 @@ fn shelf_glyph(tab: Tab, size: f32, color: Hsla) -> AnyElement {
         .into_any_element()
 }
 
-/// How many tiles a landing row of `width` holds: 6, 3, 2 or 1, so the rows come out even.
+/// How many tiles a landing row of `width` holds: 5, 2 or 1, so the rows come out even.
 fn shelf_columns(width: f32) -> usize {
-    [6, 3, 2]
+    [5, 2]
         .into_iter()
         .find(|&n| n as f32 * TILE_MIN + (n - 1) as f32 * GAP <= width)
         .unwrap_or(1)
@@ -2223,8 +2230,13 @@ impl Shell {
         let width = self.content_width - FILTERS_W - 20.;
         if landing {
             let filters = self.filter_column(&matched, p, cx);
-            let tiles = self.landing(width, p, cx);
-            return self.browser_columns(filters, self.landing_bar(p), self.scroll_area(tiles, cx));
+            let addons: Vec<&Addon> = shown.iter().map(|(a, _)| *a).collect();
+            let rows = self.card_rows(&addons, &query, width, p, cx);
+            let page = self
+                .landing(width, p, cx)
+                .child(self.all_heading(count, sort, p, cx))
+                .children(rows);
+            return self.browser_columns(filters, self.landing_bar(), self.scroll_area(page, cx));
         }
         let bar = h_flex()
             .pb(px(14.))
@@ -2334,30 +2346,40 @@ impl Shell {
             .into_any_element()
     }
 
-    fn landing_bar(&self, p: Palette) -> Div {
+    fn landing_bar(&self) -> Div {
+        h_flex().pb(px(14.)).flex_shrink_0().child(
+            h_flex()
+                .h(px(28.))
+                .flex_1()
+                .min_w_0()
+                .items_center()
+                .text_size(px(15.))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child("Browse by category"),
+        )
+    }
+
+    fn all_heading(&self, count: String, sort: Sort, p: Palette, cx: &mut Context<Self>) -> Div {
         h_flex()
-            .pb(px(14.))
+            .pt(px(10.))
             .gap(px(12.))
             .flex_shrink_0()
+            .items_center()
             .child(
-                h_flex()
-                    .h(px(28.))
+                div()
                     .flex_1()
                     .min_w_0()
-                    .items_center()
                     .text_size(px(15.))
                     .font_weight(FontWeight::SEMIBOLD)
-                    .child("Browse by category"),
+                    .child("All addons"),
             )
             .child(
-                h_flex()
-                    .h(px(28.))
-                    .flex_shrink_0()
-                    .items_center()
+                div()
                     .text_size(px(12.))
                     .text_color(p.text_placeholder)
-                    .child(plural(self.browser.addons.len(), "addon", "addons")),
+                    .child(count),
             )
+            .child(self.sort_button(sort, false, cx))
     }
 
     fn landing(&self, width: f32, p: Palette, cx: &mut Context<Self>) -> Stateful<Div> {
@@ -2379,7 +2401,6 @@ impl Shell {
             .pb(px(24.))
             .gap(px(GAP))
             .children(rows)
-            .child(self.all_tile(width - 1., p, cx))
     }
 
     fn has_icon(&self, a: &Addon) -> bool {
@@ -2536,70 +2557,6 @@ impl Shell {
                     ),
             )
             .on_click(cx.listener(move |this, _, _, cx| this.shelve(tab, cx)))
-            .into_any_element()
-    }
-
-    fn all_tile(&self, width: f32, p: Palette, cx: &mut Context<Self>) -> AnyElement {
-        let addons = shelved(&self.browser.addons, None, |a| self.browser.stars_of(a));
-        let tint = shelf_tint(None, p);
-        let band = p.surface.blend(tint.opacity(0.08));
-        let shown = (((width - 380.) / (FACE - 8.)).floor().max(0.) as usize).min(ALL_FACES);
-        let creators = publishers::by_publisher(&self.browser.addons).len();
-        let mut about = plural(addons.len(), "addon", "addons");
-        if creators > 0 {
-            about.push_str(&format!(" from {}", plural(creators, "creator", "creators")));
-        }
-        h_flex()
-            .id("browser-shelf-all")
-            .w(px(width))
-            .flex_none()
-            .px(px(16.))
-            .py(px(14.))
-            .gap(px(14.))
-            .items_center()
-            .rounded(px(12.))
-            .border_1()
-            .border_color(p.border)
-            .bg(band)
-            .cursor_pointer()
-            .hover(move |s| s.border_color(tint.opacity(0.75)))
-            .child(
-                div()
-                    .size(px(FACE + 4.))
-                    .flex_shrink_0()
-                    .rounded(px(10.))
-                    .bg(tint.opacity(0.16))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .child(shelf_glyph(None, 20., tint)),
-            )
-            .child(
-                v_flex()
-                    .flex_1()
-                    .min_w_0()
-                    .gap(px(2.))
-                    .child(
-                        div()
-                            .text_size(px(15.))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child("All addons"),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(12.))
-                            .text_color(p.text_placeholder)
-                            .truncate()
-                            .child(about),
-                    ),
-            )
-            .when(shown > 0, |d| d.child(self.faces(&addons, shown, band, p)))
-            .child(
-                Icon::new(IconName::ChevronRight)
-                    .size(px(16.))
-                    .text_color(p.text_placeholder),
-            )
-            .on_click(cx.listener(|this, _, _, cx| this.shelve(None, cx)))
             .into_any_element()
     }
 
@@ -3361,7 +3318,9 @@ impl Shell {
 
 #[cfg(test)]
 mod tests {
-    use super::{Event, Job, Progress, Stage, compact, host, shelf_columns, shelved, size_text, tile_faces};
+    use super::{
+        Event, Job, Progress, Stage, compact, host, shelf_columns, shelved, shelves, size_text, tile_faces,
+    };
     use swofty_core::catalog::requires::{Plan, Step};
     use swofty_core::catalog::{Addon, Version};
     use swofty_core::manifest::Category;
@@ -3439,12 +3398,16 @@ mod tests {
 
     #[test]
     fn lays_out_even_rows_of_tiles() {
-        assert_eq!(shelf_columns(2000.), 6);
-        assert_eq!(shelf_columns(1390.), 6);
-        assert_eq!(shelf_columns(1386.), 3);
-        assert_eq!(shelf_columns(924.), 3);
-        assert_eq!(shelf_columns(508.), 2);
-        assert_eq!(shelf_columns(300.), 1);
+        assert_eq!(shelf_columns(2000.), 5);
+        assert_eq!(shelf_columns(1156.), 5);
+        assert_eq!(shelf_columns(1155.), 2);
+        assert_eq!(shelf_columns(454.), 2);
+        assert_eq!(shelf_columns(453.), 1);
+        let tiles = shelves().count();
+        assert_eq!(tiles, 10);
+        for columns in [5, 2, 1] {
+            assert_eq!(tiles % columns, 0, "{columns}");
+        }
         assert_eq!(tile_faces(329.), 4);
         assert_eq!(tile_faces(299.), 4);
         assert_eq!(tile_faces(247.), 3);

@@ -189,7 +189,7 @@ A `<path>` is a dotted path, a selector path such as `entrants.drivers.driver[_m
 The new row has every key of the source row, nested tables included, with `--field` set to `<to>`, its own `_metadata_` label, and its own `stat_id` in a table of stat ids.
 The build adds it after the table's last row, after the addons before this one.
 `swofty db set`, `revert` and `get --addon` take selector paths into a copied row, such as `driver_statistics.driver_statistics.DriverStatisticsHolder[driver=romain_grosjean].StatisticsDataSet[_metadata_=default].Statistic[_metadata_=pace].evolution`.
-A `<category>` is one of `seasons`, `tracks`, `cars`, `helmets` and `uncategorised`.
+A `<category>` is one of `seasons`, `tracks`, `cars`, `helmets`, `career`, `ai`, `performance`, `utility` and `uncategorised`.
 A new DB Editor addon has no category and the origin tool `db-editor` in its `swofty.json`.
 `swofty db import` of a DB Editor addon zip creates a new addon with the zip's name, version, author, description, category and changes, and copies no other file.
 The new addon's id comes from its name.
