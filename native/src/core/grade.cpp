@@ -1,7 +1,7 @@
+#include "d3d12_hooks.hpp"
 #include "grade_math.hpp"
 #include "runtime.hpp"
 
-#include <safetyhook.hpp>
 #include <swofty/mixin.hpp>
 
 #include <d3d12.h>
@@ -23,8 +23,6 @@
 
 namespace {
 
-using CreateDeviceFn = HRESULT(WINAPI *)(IUnknown *, D3D_FEATURE_LEVEL, REFIID, void **);
-
 constexpr wchar_t TONEMAP_NAME[] = L"eaid://ego_package/aces_rrt_odt_lut.image";
 constexpr ULONGLONG REFRESH_MS = 2000, LAND_MS = 1000;
 
@@ -33,7 +31,6 @@ struct Tonemap {
     D3D12_RESOURCE_DESC desc;
 };
 
-safetyhook::InlineHook h_setname, h_barrier;
 std::recursive_mutex lock;
 std::vector<Tonemap> tonemaps;
 grade::Lut look;
@@ -272,7 +269,7 @@ bool same_shape(const D3D12_RESOURCE_DESC &a, const D3D12_RESOURCE_DESC &b)
 }
 
 // The game frees resources and reuses their addresses, so any SetName drops the old entry first.
-HRESULT STDMETHODCALLTYPE setname_hook(ID3D12Object *o, LPCWSTR name)
+void on_setname(ID3D12Object *o, LPCWSTR name)
 {
     if (name) {
         auto *res = reinterpret_cast<ID3D12Resource *>(o);
@@ -287,7 +284,6 @@ HRESULT STDMETHODCALLTYPE setname_hook(ID3D12Object *o, LPCWSTR name)
                 swofty::log("[shaders] the game's tonemap LUT has format %d, not RGBA16F; left alone", int(d.Format));
         }
     }
-    return h_setname.call<HRESULT>(o, name);
 }
 
 bool written_to_read(const D3D12_RESOURCE_BARRIER &b)
@@ -298,7 +294,7 @@ bool written_to_read(const D3D12_RESOURCE_BARRIER &b)
             (D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 }
 
-void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, const D3D12_RESOURCE_BARRIER *barriers)
+bool on_barrier(ID3D12GraphicsCommandList *list, UINT n, const D3D12_RESOURCE_BARRIER *barriers)
 {
     std::vector<D3D12_RESOURCE_BARRIER> changed;
     {
@@ -342,7 +338,7 @@ void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, con
                 D3D12_RESOURCE_BARRIER step = b;
                 step.Transition.StateBefore = state;
                 step.Transition.StateAfter = to;
-                h_barrier.call<void>(list, 1u, &step);
+                d3d12hooks::barrier_original(list, 1u, &step);
                 state = to;
             };
             if (reading) {
@@ -365,21 +361,12 @@ void STDMETHODCALLTYPE barrier_hook(ID3D12GraphicsCommandList *list, UINT n, con
             changed[i].Transition.StateBefore = state;
         }
     }
-    if (!changed.empty())
-        return h_barrier.call<void>(list, n, changed.data());
-    h_barrier.call<void>(list, n, barriers);
-}
-
-bool install(safetyhook::InlineHook &h, void *target, void *detour, const char *what)
-{
-    auto made = safetyhook::InlineHook::create(target, detour);
-    if (!made) {
-        swofty::log("[shaders] hooking %s at %p failed; the game's colours stay", what, target);
+    if (changed.empty())
         return false;
-    }
-    h = std::move(*made);
+    d3d12hooks::barrier_original(list, n, changed.data());
     return true;
 }
+
 
 }
 
@@ -405,42 +392,11 @@ void grade_setup()
     addon = s["addon"].str("an addon");
     std::wstring docs = documents();
     settings_path = docs + L"\\My Games\\F1 25\\hardwaresettings\\hardware_settings_config.xml";
-    HMODULE d3d12 = LoadLibraryA("d3d12.dll");
-    auto create = d3d12 ? reinterpret_cast<CreateDeviceFn>(GetProcAddress(d3d12, "D3D12CreateDevice")) : nullptr;
-    if (!create) {
-        swofty::log("[shaders] d3d12.dll!D3D12CreateDevice is unavailable; the game's colours stay");
-        return;
-    }
-    ID3D12Device *dev = nullptr;
-    ID3D12Resource *buffer = nullptr;
-    ID3D12CommandAllocator *alloc = nullptr;
-    ID3D12GraphicsCommandList *list = nullptr;
-    bool hooked = false;
-    if (SUCCEEDED(create(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dev)))) {
-        D3D12_HEAP_PROPERTIES heap{};
-        heap.Type = D3D12_HEAP_TYPE_UPLOAD;
-        D3D12_RESOURCE_DESC bd{};
-        bd.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-        bd.Width = 256;
-        bd.Height = 1;
-        bd.DepthOrArraySize = 1;
-        bd.MipLevels = 1;
-        bd.SampleDesc.Count = 1;
-        bd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-        if (SUCCEEDED(dev->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &bd, D3D12_RESOURCE_STATE_GENERIC_READ,
-                                                   nullptr, IID_PPV_ARGS(&buffer))) &&
-            SUCCEEDED(dev->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&alloc))) &&
-            SUCCEEDED(
-                dev->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, alloc, nullptr, IID_PPV_ARGS(&list))))
-            hooked = install(h_setname, (*reinterpret_cast<void ***>(buffer))[6],
-                             reinterpret_cast<void *>(&setname_hook), "ID3D12Resource::SetName") &&
-                     install(h_barrier, (*reinterpret_cast<void ***>(list))[26],
-                             reinterpret_cast<void *>(&barrier_hook), "ID3D12GraphicsCommandList::ResourceBarrier");
-    }
-    release(list);
-    release(alloc);
-    release(buffer);
-    release(dev);
+    d3d12hooks::on_setname(on_setname);
+    d3d12hooks::on_barrier(on_barrier);
+    bool hooked = d3d12hooks::arm_device();
+    if (!hooked)
+        swofty::log("[shaders] the core's D3D12 device hooks did not arm; the game's colours stay");
     if (hooked)
         swofty::log("[shaders] grading the picture with %s's look (%ux%ux%u) at %.0f%%; HDR setting read from %ls",
                     addon.c_str(), look.size, look.size, look.size, double(strength) * 100,
