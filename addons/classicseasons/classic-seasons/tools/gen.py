@@ -20,9 +20,13 @@ copies its stock team's row.
 
 A team with a suit built by build_suits.py (the season's suits/meta.json) gets a suit and a gloves row, copies of its
 base suit's rows under the suit's label, and its drivers' looks wear them. Every team-season of SUIT_YEARS takes the
-next item id of SUIT_IDS, in season and team order, whether its suit is built or not. The stock suit and gloves ids are
-448 to 973, and an id of 3000 crashes the game at boot (Sess_Apply_ContentAvailability), so SUIT_IDS stays below 1024:
-974 to 1023, then 437 to 447.
+next item id of SUIT_IDS (after the stock suit and gloves ids, 448 to 973), in season and team order, whether its suit
+is built or not.
+
+Every customisation item row holds colour_1_default to colour_4_default (tag 11), which the catalogue does not name.
+Game_Build_CustomisationCatalogue reads all four at boot, and a copy without them crashes the game in
+Sess_Apply_ContentAvailability. The season files list them in ITEM_FIELDS, and the suit and gloves copies set each to
+"0": the 2025 team suit and gloves rows hold "" in all four, and launchers up to 1.4.0 skip a copied "" for an int.
 """
 
 import json
@@ -58,9 +62,12 @@ HOST_MODE = "swofty_f1"
 SETUP_ROW = "entrants.entrant_setup_modes.entrant_setup_mode"
 SETUP_PRESETS = "car_setup.presets.vehicle_package_setups"
 SEASON_LAUNCHER = ">=1.3.6"
-SUIT_IDS = [*range(974, 1024), *range(437, 448)]
+SUIT_IDS = range(974, 1035)
+COLOUR_FIELDS = [f"colour_{n}_default" for n in range(1, 5)]
 SUITS = "customisation.custom_avatar.suits"
 GLOVES = "customisation.custom_avatar.gloves"
+ITEM_FIELDS = {f"{SUITS}.Suit": COLOUR_FIELDS, f"{GLOVES}.Gloves": COLOUR_FIELDS,
+               "customisation.custom_avatar.helmets.Helmet": COLOUR_FIELDS}
 
 
 def team_label(year, folder):
@@ -110,15 +117,16 @@ def write_json(path, data):
 
 def suit_rows(m, item_id):
     label, base = m["label"], m["base"]
+    colours = {f: "0" for f in COLOUR_FIELDS}
     pattern = f"eaid://[CHARACTER_PACKAGE]/team_livery/{label}/idf/{label}"
     group = f"asset_groups/[CHARACTER_PACKAGE]/team_livery/{label}/{label}.assetgroup"
     return [{"op": "add-row", "table": SUITS, "from": f"{SUITS}.Suit[_metadata_={base}]",
              "set": {"_metadata_": label, "asset_group": group, "feet_model": f"{pattern}_male",
                      "logos_model_override_pattern": f"{pattern}_body_logos_[GENDER]", "material_override": label,
-                     "id": str(item_id)}},
+                     "id": str(item_id), **colours}},
             {"op": "add-row", "table": GLOVES, "from": f"{GLOVES}.Gloves[_metadata_={base}]",
              "set": {"_metadata_": label, "asset_group": group, "logos_model": f"{pattern}_glove_logos_[GENDER]",
-                     "material_override": label, "id": str(item_id)}}]
+                     "material_override": label, "id": str(item_id), **colours}}]
 
 
 def season_manifest(core, year, assets):
@@ -314,7 +322,8 @@ def build():
         assets = ["assets/cars.json"] + (["assets/suits.json"] if suits(year) else [])
         write_json(folder / "swofty.json", season_manifest(core, year, assets))
         write_json(folder / "db" / "season.json",
-                   {"schema_version": 1, "fields": {**fields, SETUP_PRESETS: SETUP_PRESET_FIELDS}, "ops": ops})
+                   {"schema_version": 1, "fields": {**fields, SETUP_PRESETS: SETUP_PRESET_FIELDS,
+                                                    **(ITEM_FIELDS if suits(year) else {})}, "ops": ops})
         write_json(folder / "lang" / "season.json", {"schema_version": 1, "ops": text})
         (folder / ".gitignore").write_text("cars/\nsuits/\n")
         cars = built(year)
