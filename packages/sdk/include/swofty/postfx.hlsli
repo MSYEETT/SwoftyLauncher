@@ -19,9 +19,12 @@ cbuffer SwoftyPostFx : register(b0)
     uint swofty_encoding;
     uint swofty_pass;
     float4 swofty_options[4];
+    uint2 swofty_depth_size;
+    uint swofty_has_depth;
 };
 
 Texture2D<float4> swofty_scene : register(t0);
+Texture2D<float> swofty_depth : register(t1);
 RWTexture2D<float4> swofty_output : register(u0);
 SamplerState swofty_linear : register(s0);
 SamplerState swofty_point : register(s1);
@@ -39,6 +42,18 @@ float4 scene(float2 uv)
 float4 scene_at(int2 pixel)
 {
     return swofty_scene.Load(int3(clamp(pixel, int2(0, 0), int2(swofty_size) - 1), 0));
+}
+
+// The game's depth buffer at uv, as stored: 1 at the near plane, falling towards 0 in the distance.
+// 0 everywhere when the depth buffer is not available (has_depth() is false).
+float scene_depth(float2 uv)
+{
+    return swofty_depth.SampleLevel(swofty_point, uv, 0);
+}
+
+bool has_depth()
+{
+    return swofty_has_depth != 0;
 }
 
 float3 srgb_to_linear(float3 c)
