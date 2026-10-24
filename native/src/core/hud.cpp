@@ -679,10 +679,14 @@ void draw_frame(IDXGISwapChain3 *sc, void *caller)
     }
 }
 
+std::atomic<bool> drawing;
+
 HRESULT STDMETHODCALLTYPE present_hook(IDXGISwapChain3 *sc, UINT sync, UINT flags)
 {
-    if (!(flags & DXGI_PRESENT_TEST))
+    if (!(flags & DXGI_PRESENT_TEST) && !drawing.exchange(true)) {
         draw_frame(sc, __builtin_return_address(0));
+        drawing.store(false);
+    }
     HRESULT hr = h_present.call<HRESULT>(sc, sync, flags);
     if ((hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) && armed.load())
         device_lost(hr);
