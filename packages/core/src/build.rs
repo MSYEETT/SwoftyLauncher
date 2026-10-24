@@ -868,6 +868,13 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                     .lines
                     .push(format!("{}: world {alias} stands in with {to}", pkg.track_code));
             }
+            if !placement.repaired.is_empty() {
+                built.lines.push(format!(
+                    "{}: {}",
+                    pkg.track_code,
+                    crate::erpbuild::repaired_note(pkg.display_name(), &placement.repaired)
+                ));
+            }
             built
                 .warnings
                 .extend(placement.notes.iter().map(|n| format!("{}: {n}", pkg.track_code)));
@@ -986,10 +993,15 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                     source,
                 }) if runtime_route => {
                     let path = resolve(source)?;
+                    let stale =
+                        crate::erpbuild::stale_stats_in(&swofty_formats::erp::ErpFile::open(&path)?)?.len();
                     let fits = match merged_later(&slices, at, targets, &path)? {
                         Some(why) => Err(why),
                         None if targets.iter().any(|t| !crate::erpbuild::served_at_runtime(t)) => {
                             Err("the in-game loader patches only archives under 2025_asset_groups".to_owned())
+                        }
+                        None if stale > 0 => {
+                            Err(format!("{stale} resource(s) in it need their size headers fixed"))
                         }
                         None => overlay_fits(&path, targets, &base)?,
                     };
@@ -1042,22 +1054,29 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         for w in erps.check_ui(&name)? {
             built.warnings.push(format!("ui: {w}"));
         }
-        let mut stale = erps.stale_stats()?;
-        for p in &prebuilt {
-            let found = crate::erpbuild::stale_stats_in(&swofty_formats::erp::ErpFile::open(&p.path)?)?;
-            stale.extend(found.into_iter().map(|r| (p.origin.clone(), r)));
-        }
-        if let Some((origin, _)) = stale.first() {
+        let stats = erps.repair_stats();
+        let by_origin = |list: &[(String, String)]| {
+            let mut out: Vec<(String, Vec<String>)> = Vec::new();
+            for (origin, r) in list {
+                match out.iter_mut().find(|(o, _)| o == origin) {
+                    Some((_, rs)) => rs.push(r.clone()),
+                    None => out.push((origin.clone(), vec![r.clone()])),
+                }
+            }
+            out
+        };
+        if let Some((origin, files)) = by_origin(&stats.broken).first() {
             let who = name(origin);
-            let files: Vec<String> = stale
-                .iter()
-                .filter(|(o, _)| o == origin)
-                .map(|(_, r)| r.clone())
-                .collect();
             let fix = format!("Turn {who} off in this profile.");
-            return Err(Error::Other(crate::erpbuild::stale_stats_message(
-                &who, &files, &fix,
+            return Err(Error::Other(crate::erpbuild::unrepairable_message(
+                &who, files, &fix,
             )));
+        }
+        for (origin, files) in by_origin(&stats.repaired) {
+            built.lines.push(format!(
+                "erp: {}",
+                crate::erpbuild::repaired_note(&name(&origin), &files)
+            ));
         }
         mipmaps = erps.take_mipmaps();
         if let Some(note) = planner.route_note(Kind::Erp) {
@@ -2604,7 +2623,7 @@ mod tests {
     }
 
     #[test]
-    fn a_resource_edit_that_leaves_stale_tsmd_stats_stops_the_build() {
+    fn a_resource_edit_that_leaves_stale_tsmd_stats_gets_them_rebuilt() {
         use swofty_formats::bxml::{Document, Element, Kind};
         use swofty_formats::erp::{Erp, Fragment, HEADER_LEN, MAGIC, Resource, STORED};
         let root = std::env::temp_dir().join(format!("swofty-build-tsmd-{}", std::process::id()));
@@ -2674,22 +2693,42 @@ mod tests {
             ),
         )
         .unwrap();
-        std::fs::write(
-            src.join("line.aispline"),
-            spline("a racing line edited by hand").to_bytes(),
-        )
-        .unwrap();
+        let edited = spline("a racing line edited by hand");
+        std::fs::write(src.join("line.aispline"), edited.to_bytes()).unwrap();
         store.install_addon(&src).unwrap();
         store
             .update_profile("default", |p| p.set_enabled("t.ai", true))
             .unwrap();
+        let built = build(&store, "default", &game).unwrap();
+        assert!(
+            built.lines.iter().any(|l| l
+                == "erp: fixed the size headers of 1 AI racing line(s) in More Aggressive AI so F1 25 reads them safely"),
+            "{:?}",
+            built.lines
+        );
+        assert!(
+            !built
+                .warnings
+                .iter()
+                .any(|w| w.contains("aispline") || w.contains("size header"))
+        );
+        if let Some(path) = built.plan.data.get(erp) {
+            let f = swofty_formats::erp::ErpFile::open(path).unwrap();
+            let r = f.load(f.erp.find(res).unwrap()).unwrap();
+            assert_eq!(r.fragments[1].data().unwrap(), edited.string_stats(1));
+        }
+
+        let mut cut = edited.to_bytes();
+        cut.truncate(cut.len() - 3);
+        std::fs::write(src.join("line.aispline"), cut).unwrap();
+        store.install_addon(&src).unwrap();
         let Err(e) = build(&store, "default", &game) else {
             panic!("the build should stop");
         };
         assert_eq!(
             e.to_string(),
-            "More Aggressive AI crashes F1 25: its bahrain_ai_track.aispline doesn't match the size header the \
-             game reads with it, so the game overruns its memory when it loads that track. Turn More Aggressive AI \
+            "More Aggressive AI would crash F1 25: its bahrain_ai_track.aispline doesn't match the size header the \
+             game reads with it, and the launcher can't read the file to fix the header. Turn More Aggressive AI \
              off in this profile."
         );
         std::fs::remove_dir_all(&root).ok();

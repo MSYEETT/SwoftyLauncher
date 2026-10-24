@@ -136,6 +136,7 @@ pub struct Placement {
     pub aliases: BTreeMap<String, String>,
     pub mips: usize,
     pub grid: Option<grid::Extension>,
+    pub repaired: Vec<String>,
     pub notes: Vec<String>,
 }
 
@@ -267,7 +268,6 @@ fn stamp(input: &PlaceInput) -> Result<String> {
 
 pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {
     let code = &input.pkg.track_code;
-    let out = cache.join(stamp(input)?);
     let file = ErpFile::open(&input.dir.join(&input.pkg.erp))?;
     let common = world_eaid(code, "common");
     if !file.erp.resources.iter().any(|r| r.name == common) {
@@ -276,18 +276,24 @@ pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {
             input.pkg.erp
         )));
     }
-    let stale = crate::erpbuild::stale_stats_in(&file)?;
-    if !stale.is_empty() {
+    let (fixed, broken) = crate::erpbuild::repair_stats_in(&file)?;
+    if !broken.is_empty() {
         let who = input.pkg.display_name();
         let fix = format!(
             "Turn {who} off in this profile, and set any race weekend that uses it back to another track."
         );
-        return Err(Error::Other(crate::erpbuild::stale_stats_message(
-            who, &stale, &fix,
+        return Err(Error::Other(crate::erpbuild::unrepairable_message(
+            who, &broken, &fix,
         )));
     }
+    let stamp = stamp(input)?;
+    let out = cache.join(match fixed.is_empty() {
+        true => stamp,
+        false => format!("{stamp}-stats"),
+    });
     let mut placement = Placement {
         dir: out.clone(),
+        repaired: fixed.iter().map(|(_, r)| r.name.clone()).collect(),
         ..Placement::default()
     };
     let shipped: BTreeMap<String, PathBuf> = input
@@ -337,6 +343,9 @@ pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {
         }
     }
     placement.mips = repointed.len();
+    for (i, res) in fixed {
+        repointed.entry(i).or_insert(res);
+    }
     match extend_grid(&file, code, input.cars) {
         Ok(Some((i, res, ext))) => {
             repointed.insert(i, res);
@@ -516,7 +525,7 @@ mod tests {
     }
 
     #[test]
-    fn a_package_with_stale_tsmd_stats_is_refused() {
+    fn a_package_with_stale_tsmd_stats_is_repaired_or_refused() {
         use swofty_formats::bxml::{Document, Element, Kind};
         use swofty_formats::erp::{Erp, Fragment, HEADER_LEN, MAGIC, STORED};
         let dir = std::env::temp_dir().join(format!("swofty-place-tsmd-{}", std::process::id()));
@@ -553,23 +562,22 @@ mod tests {
         let mut header = [0u8; HEADER_LEN];
         header[..4].copy_from_slice(MAGIC);
         header[4..8].copy_from_slice(&3u32.to_le_bytes());
-        let bytes = Erp {
-            header,
-            version: 3,
-            resources: vec![
-                resource(&world_eaid("testring", "common"), "WEP", vec![fragment(vec![0])]),
-                resource(
-                    "eaid://environment_package/tracks/testring/ai/testring_ai_track.aispline",
-                    "AISplineData",
-                    vec![
-                        fragment(line("a longer racing line").to_bytes()),
-                        fragment(line("default").string_stats(1)),
-                    ],
-                ),
-            ],
-        }
-        .to_bytes();
-        std::fs::write(dir.join(&pkg.erp), bytes).unwrap();
+        let spline = "eaid://environment_package/tracks/testring/ai/testring_ai_track.aispline";
+        let archive = |data: Vec<u8>| {
+            Erp {
+                header,
+                version: 3,
+                resources: vec![
+                    resource(&world_eaid("testring", "common"), "WEP", vec![fragment(vec![0])]),
+                    resource(
+                        spline,
+                        "AISplineData",
+                        vec![fragment(data), fragment(line("default").string_stats(1))],
+                    ),
+                ],
+            }
+            .to_bytes()
+        };
         let input = PlaceInput {
             pkg: &pkg,
             dir: &dir,
@@ -577,14 +585,27 @@ mod tests {
             slot: None,
             cars: 22,
         };
+        let edited = line("a longer racing line");
+        std::fs::write(dir.join(&pkg.erp), archive(edited.to_bytes())).unwrap();
+        let placement = place(&input, &dir.join("cache")).unwrap();
+        assert_eq!(placement.repaired, [spline]);
+        assert!(placement.dir.to_string_lossy().ends_with("-stats"));
+        let placed = ErpFile::open(&placement.dir.join(&placement.archive)).unwrap();
+        let res = placed.load(placed.erp.find(spline).unwrap()).unwrap();
+        assert_eq!(res.fragments[1].data().unwrap(), edited.string_stats(1));
+        assert!(crate::erpbuild::stale_stats_in(&placed).unwrap().is_empty());
+
+        let mut cut = line("default").to_bytes();
+        cut.truncate(cut.len() - 3);
+        std::fs::write(dir.join(&pkg.erp), archive(cut)).unwrap();
         let Err(e) = place(&input, &dir.join("cache")) else {
             panic!("the package should be refused");
         };
         assert_eq!(
             e.to_string(),
-            "Test Ring crashes F1 25: its testring_ai_track.aispline doesn't match the size header the game reads \
-             with it, so the game overruns its memory when it loads that track. Turn Test Ring off in this profile, \
-             and set any race weekend that uses it back to another track."
+            "Test Ring would crash F1 25: its testring_ai_track.aispline doesn't match the size header the game \
+             reads with it, and the launcher can't read the file to fix the header. Turn Test Ring off in this \
+             profile, and set any race weekend that uses it back to another track."
         );
         std::fs::remove_dir_all(&dir).ok();
     }

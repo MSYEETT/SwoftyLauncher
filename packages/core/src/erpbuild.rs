@@ -110,6 +110,12 @@ fn fail(msg: impl Into<String>) -> Error {
     Error::Resolve(msg.into())
 }
 
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct StatsRepair {
+    pub repaired: Vec<(String, String)>,
+    pub broken: Vec<(String, String)>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Resized {
     pub erp: String,
@@ -152,19 +158,57 @@ pub fn stale_stats_in(file: &ErpFile) -> Result<Vec<String>> {
     Ok(out)
 }
 
-pub fn stale_stats_message(who: &str, resources: &[String], fix: &str) -> String {
-    let first = resources.first().map_or("", |r| {
-        let path = r.split('?').next().unwrap_or(r);
-        path.rsplit('/').next().unwrap_or(path)
-    });
+// The resources of `file` with stale TSMD stats: rewritten, by index, and the names
+// of those whose stats cannot be rewritten.
+pub type ArchiveRepair = (Vec<(usize, Resource)>, Vec<String>);
+
+pub fn repair_stats_in(file: &ErpFile) -> Result<ArchiveRepair> {
+    let (mut fixed, mut broken) = (Vec::new(), Vec::new());
+    for (i, r) in file
+        .erp
+        .resources
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| r.has_stats())
+    {
+        let mut res = file.load(r)?;
+        match res.repair_stats() {
+            Ok(true) => fixed.push((i, res)),
+            Ok(false) => {}
+            Err(_) => broken.push(r.name.clone()),
+        }
+    }
+    Ok((fixed, broken))
+}
+
+fn file_name(uri: &str) -> &str {
+    let path = uri.split('?').next().unwrap_or(uri);
+    path.rsplit('/').next().unwrap_or(path)
+}
+
+pub fn repaired_note(who: &str, resources: &[String]) -> String {
+    let what = match resources.iter().all(|r| r.ends_with(".aispline")) {
+        true => "AI racing line(s)",
+        false => "file(s)",
+    };
+    format!(
+        "fixed the size headers of {} {what} in {who} so F1 25 reads them safely",
+        resources.len()
+    )
+}
+
+pub fn unrepairable_message(who: &str, resources: &[String], fix: &str) -> String {
+    let first = resources.first().map_or("", |r| file_name(r));
     let what = match resources.len() {
-        1 => format!("its {first} doesn't match the size header the game reads with it"),
+        1 => format!(
+            "its {first} doesn't match the size header the game reads with it, and the launcher can't read the file to fix the header"
+        ),
         n => format!(
-            "its {first} and {} more file(s) don't match the size headers the game reads with them",
+            "its {first} and {} more file(s) don't match the size headers the game reads with them, and the launcher can't read the files to fix the headers",
             n - 1
         ),
     };
-    format!("{who} crashes F1 25: {what}, so the game overruns its memory when it loads that track. {fix}")
+    format!("{who} would crash F1 25: {what}. {fix}")
 }
 
 fn write_archive(out: &Path, rel: &str, archive: Archive) -> Result<()> {
@@ -668,20 +712,23 @@ impl<'a> ErpBuild<'a> {
         std::mem::take(&mut self.notes)
     }
 
-    // The resources the ops left with a bxml fragment its TSMD stats no longer
-    // describe, with the origin that last wrote each.
-    pub fn stale_stats(&self) -> Result<Vec<(String, String)>> {
-        let mut out = Vec::new();
-        for (rel, archive) in &self.erps {
-            for slot in &archive.slots {
+    // Rewrites the TSMD stats of every resource the ops left with a bxml fragment its
+    // stats no longer describe, with the origin that last wrote each.
+    pub fn repair_stats(&mut self) -> StatsRepair {
+        let mut out = StatsRepair::default();
+        for (rel, archive) in &mut self.erps {
+            for slot in &mut archive.slots {
                 let Slot::Owned(r) = slot else { continue };
-                if r.stale_stats()? {
-                    let origin = self.writers.get(&(rel.clone(), r.name.clone()));
-                    out.push((origin.cloned().unwrap_or_default(), r.name.clone()));
+                let origin = self.writers.get(&(rel.clone(), r.name.clone()));
+                let at = (origin.cloned().unwrap_or_default(), r.name.clone());
+                match r.repair_stats() {
+                    Ok(true) => out.repaired.push(at),
+                    Ok(false) => {}
+                    Err(_) => out.broken.push(at),
                 }
             }
         }
-        Ok(out)
+        out
     }
 
     fn patch(
@@ -1009,7 +1056,7 @@ mod tests {
     }
 
     #[test]
-    fn a_replaced_bxml_fragment_needs_tsmd_stats_that_match_it() {
+    fn the_build_rewrites_stale_tsmd_stats_of_a_replaced_bxml_fragment() {
         let root = std::env::temp_dir().join(format!("swofty-erpbuild-tsmd-{}", std::process::id()));
         std::fs::remove_dir_all(&root).ok();
         let (game, addon) = (root.join("game"), root.join("addon"));
@@ -1049,8 +1096,12 @@ mod tests {
                 .is_empty()
         );
         let edited = spline("ai_gate_track_edited_by_hand");
+        let mut cut = edited.to_bytes();
+        cut.truncate(cut.len() - 3);
+        std::fs::write(addon.join("ai/stock.aispline"), stock.to_bytes()).unwrap();
         std::fs::write(addon.join("ai/line.aispline"), edited.to_bytes()).unwrap();
         std::fs::write(addon.join("ai/line.tsmd"), edited.string_stats(1)).unwrap();
+        std::fs::write(addon.join("ai/cut.aispline"), cut).unwrap();
         let original = |rel: &str| game.join(rel);
         let resolve = |s: &Source| Ok(s.resolve(&addon)?);
         let replace = |fragment: usize, source: &str| {
@@ -1059,50 +1110,76 @@ mod tests {
             ))
             .remove(0)
         };
+        let build = |ops: &[(usize, &str)]| {
+            let mut b = ErpBuild::new(&original);
+            for (fragment, source) in ops {
+                b.apply_for(&replace(*fragment, source), "kizi.ai", &resolve)
+                    .unwrap();
+            }
+            let repair = b.repair_stats();
+            let stats = b
+                .resources()
+                .find(|(_, r, _, _)| r.name == SPLINE)
+                .map(|(_, r, _, _)| r.fragments[1].data().unwrap());
+            (repair, stats, b.repair_stats())
+        };
+        let at = vec![("kizi.ai".to_owned(), SPLINE.to_owned())];
 
-        let mut b = ErpBuild::new(&original);
-        b.apply_for(&replace(0, "ai/line.aispline"), "kizi.ai", &resolve)
-            .unwrap();
-        assert_eq!(
-            b.stale_stats().unwrap(),
-            [("kizi.ai".to_owned(), SPLINE.to_owned())]
-        );
+        let (repair, stats, again) = build(&[(0, "ai/line.aispline")]);
+        assert_eq!(repair.repaired, at);
+        assert_eq!(stats.unwrap(), edited.string_stats(1));
+        assert_eq!(again, StatsRepair::default());
 
-        b.apply_for(&replace(1, "ai/line.tsmd"), "kizi.ai", &resolve)
-            .unwrap();
-        assert!(b.stale_stats().unwrap().is_empty());
+        let (repair, stats, _) = build(&[(0, "ai/stock.aispline")]);
+        assert_eq!(repair, StatsRepair::default());
+        assert_eq!(stats.unwrap(), stock.string_stats(1));
 
-        let mut b = ErpBuild::new(&original);
-        b.apply_for(&replace(1, "ai/line.tsmd"), "kizi.ai", &resolve)
-            .unwrap();
-        assert_eq!(b.stale_stats().unwrap().len(), 1);
+        let (repair, _, _) = build(&[(0, "ai/line.aispline"), (1, "ai/line.tsmd")]);
+        assert_eq!(repair, StatsRepair::default());
+
+        let (repair, stats, _) = build(&[(1, "ai/line.tsmd")]);
+        assert_eq!(repair.repaired, at);
+        assert_eq!(stats.unwrap(), stock.string_stats(1));
+
+        let (repair, _, _) = build(&[(0, "ai/cut.aispline")]);
+        assert_eq!(repair.broken, at);
 
         archive.resources[0].set_fragment(0, &edited.to_bytes()).unwrap();
         std::fs::write(root.join("broken.erp"), archive.to_bytes()).unwrap();
-        assert_eq!(
-            stale_stats_in(&ErpFile::open(&root.join("broken.erp")).unwrap()).unwrap(),
-            [SPLINE]
-        );
+        let file = ErpFile::open(&root.join("broken.erp")).unwrap();
+        assert_eq!(stale_stats_in(&file).unwrap(), [SPLINE]);
+        let (fixed, broken) = repair_stats_in(&file).unwrap();
+        assert_eq!((fixed.len(), fixed[0].0, broken.len()), (1, 0, 0));
+        assert_eq!(fixed[0].1.fragments[1].data().unwrap(), edited.string_stats(1));
         std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
-    fn the_stale_stats_message_names_the_file_and_the_fix() {
-        let spline = "eaid://environment_package/tracks/bahrain/ai/bahrain_ai_track.aispline".to_owned();
+    fn the_stats_notes_name_the_files_and_the_fix() {
+        let spline = |t: &str| format!("eaid://environment_package/tracks/{t}/ai/{t}_ai_track.aispline");
+        let lines: Vec<String> = (0..20).map(|i| spline(&format!("t{i}"))).collect();
         assert_eq!(
-            stale_stats_message(
-                "More AI",
-                std::slice::from_ref(&spline),
-                "Turn More AI off in this profile."
-            ),
-            "More AI crashes F1 25: its bahrain_ai_track.aispline doesn't match the size header the game reads \
-             with it, so the game overruns its memory when it loads that track. Turn More AI off in this profile."
+            repaired_note("More AI", &lines),
+            "fixed the size headers of 20 AI racing line(s) in More AI so F1 25 reads them safely"
         );
         let quadtree = "eaid://t/x.trackspacespline?context=quadtree".to_owned();
         assert_eq!(
-            stale_stats_message("Sepang", &[quadtree, spline], "Fix."),
-            "Sepang crashes F1 25: its x.trackspacespline and 1 more file(s) don't match the size headers the game \
-             reads with them, so the game overruns its memory when it loads that track. Fix."
+            repaired_note("Sepang", &[quadtree.clone(), spline("x")]),
+            "fixed the size headers of 2 file(s) in Sepang so F1 25 reads them safely"
+        );
+        assert_eq!(
+            unrepairable_message(
+                "More AI",
+                &[spline("bahrain")],
+                "Turn More AI off in this profile."
+            ),
+            "More AI would crash F1 25: its bahrain_ai_track.aispline doesn't match the size header the game \
+             reads with it, and the launcher can't read the file to fix the header. Turn More AI off in this profile."
+        );
+        assert_eq!(
+            unrepairable_message("Sepang", &[quadtree, spline("x")], "Fix."),
+            "Sepang would crash F1 25: its x.trackspacespline and 1 more file(s) don't match the size headers the \
+             game reads with them, and the launcher can't read the files to fix the headers. Fix."
         );
     }
 
