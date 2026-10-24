@@ -55,6 +55,7 @@ import bcn
 import erpw
 import suitgeo
 from carperf import kind
+import suit_sources
 from layout import SUIT_ROOT, SUIT_YEARS, year_dir
 
 DATA = json.loads((ROOT / "data" / "seasons.json").read_text())
@@ -84,15 +85,6 @@ def rgbhex(c):
 def luma(c):
     c = np.asarray(c, np.float32)
     return float((0.299 * c[..., 0] + 0.587 * c[..., 1] + 0.114 * c[..., 2]).mean()) / 255
-
-
-def label_for(year, team, base):
-    stock = DATA["folders"][team["folder"]]["team"]
-    key = team.get("key", team["folder"])
-    name = f"cs{year % 100:02d}-{stock if key == team['folder'] else key}"
-    if len(name) > len(base):
-        raise SystemExit(f"{year} {key}: label {name} is longer than its base {base}")
-    return name.ljust(len(base), "_")
 
 
 def surface(e, name):
@@ -374,31 +366,52 @@ def design_masks(game, design):
     return {"livery_v2_d": mask(suit, "livery_v2"), "boots_d": mask(suit, "boots"), "glove_d": mask(gloves, "glove")}
 
 
-def render(e_base, base, livery, boots, glove, logo, glogo, label_e, label):
+def team_meshes(label):
+    return {"feet": f"eaid://{LIVERY}/{label}/idf/{label}_male.idf",
+            "logos": f"eaid://{LIVERY}/{label}/idf/{label}_body_logos_male.idf",
+            "glove_logos": f"eaid://{LIVERY}/{label}/idf/{label}_glove_logos_male.idf"}
+
+
+def render(e_base, e_kit, meshes, tex):
     views = []
     body = suitgeo.lod0(e_base, BODY)
     gl = suitgeo.lod0(e_base, GLOVES)
-    feet = suitgeo.lod0(label_e, f"eaid://{LIVERY}/{label}/idf/{label}_male.idf")
-    logos = suitgeo.lod0(label_e, f"eaid://{LIVERY}/{label}/idf/{label}_body_logos_male.idf")
-    glogos = suitgeo.lod0(label_e, f"eaid://{LIVERY}/{label}/idf/{label}_glove_logos_male.idf")
+    feet = suitgeo.lod0(e_kit, meshes["feet"])
+    logos = suitgeo.lod0(e_kit, meshes["logos"])
+    glogos = suitgeo.lod0(e_kit, meshes["glove_logos"])
     for back in (False, True):
         v = suitgeo.View(640, 440, back)
-        for e, m, part, tex, blend in ((e_base, body, "livery_v2", livery, False), (label_e, feet, "boots", boots, False),
-                                       (e_base, gl, "gloves", glove, False),
-                                       (label_e, logos, "livery_v2_logo", logo, True),
-                                       (label_e, glogos, "gloves_logo", glogo, True)):
+        for e, m, part, key, blend in ((e_base, body, "livery_v2", "livery_v2_d", False),
+                                       (e_kit, feet, "boots", "boots_d", False),
+                                       (e_base, gl, "gloves", "glove_d", False),
+                                       (e_kit, logos, "livery_v2_logo", "logo_01_d", True),
+                                       (e_kit, glogos, "gloves_logo", "glove_logo_d", True)):
             i = suitgeo.submesh(e, m, part)
-            v.draw(suitgeo.stream(e, m, i, 1), suitgeo.stream(e, m, i, 5), suitgeo.triangles(e, m, i), tex,
+            if i is None or tex.get(key) is None:
+                continue
+            v.draw(suitgeo.stream(e, m, i, 1), suitgeo.stream(e, m, i, 5), suitgeo.triangles(e, m, i), tex[key],
                    bias=0.004 if blend else 0.0, blend=blend)
         views.append(v.image((52, 54, 60)))
     return views
+
+
+def kit_textures(e, prefixes, roots):
+    out = {}
+    names = {r.name for r in e.res}
+    for part in ("livery_v2_d", "boots_d", "glove_d", "logo_01_d", "glove_logo_d"):
+        for prefix in prefixes:
+            name = f"{prefix}{part}.tif.image"
+            if name in names:
+                out[part] = bcn.top_level(surface(e, name), roots)
+                break
+    return out
 
 
 def build_team(game, cars, year, team, logos):
     suit = team.get("suit", {})
     stock = DATA["folders"][team["folder"]]["team"]
     base = suit.get("base", f"2025-{stock}")
-    label = label_for(year, team, base)
+    label = suit_sources.generated_label(year, team, base)
     base_erp = Path(game) / "2025_asset_groups" / LIVERY / base / f"{base}.erp"
     car = erpw.Erp(str(car_archive(cars, year, team)))
     wear = team.get("team_wear") or \
@@ -422,7 +435,7 @@ def build_team(game, cars, year, team, logos):
     textures = {"livery_v2_d": livery, "boots_d": boots, "glove_d": glove, "logo_01_d": logo, "glove_logo_d": glogo,
                 "logo_01_n": None, "glove_logo_n": None}
     e = suit_archive(base_erp, base, label, textures)
-    views = render(e_base, base, livery, boots, glove, logo, glogo, e, label)
+    views = render(e_base, e, team_meshes(label), textures)
     meta = {"label": label, "base": base, "design": design, "colours": [rgbhex(c) for c in colours],
             "sponsors": len(extra), "logo_slots": plan, "glove_slots": gplan}
     return label, e, meta, views, livery, logo
@@ -437,17 +450,18 @@ def font(size):
     return ImageFont.load_default()
 
 
-def contact_sheet(year, rows, out, small):
+def contact_sheet(title, rows, out, small):
     tw, th = 440, 640
     cw = 2 * tw + 2 * th + 60
-    sheet = Image.new("RGB", (cw, 70 + len(rows) * (th + 60)), (30, 31, 35))
+    sheet = Image.new("RGB", (cw, 70 + len(rows) * (th + 84)), (30, 31, 35))
     d = ImageDraw.Draw(sheet)
-    d.text((20, 18), f"Classic Seasons F1 {year}: team suits (front, back, livery_v2_d, logo_01_d)", fill=(235, 235, 235),
-           font=font(26))
+    d.text((20, 18), f"{title} (front, back, livery_v2_d, logo_01_d)", fill=(235, 235, 235), font=font(26))
     for n, (team, meta, views, livery, logo) in enumerate(rows):
-        y = 70 + n * (th + 60)
-        d.text((20, y + 4), f"{team['name']}  ·  {meta['label']}  ·  base {meta['base']}  ·  design {meta['design']}",
+        y = 70 + n * (th + 84)
+        d.text((20, y + 4), f"{team['name']}  ·  {meta['label']}  ·  base {meta['base']}  ·  {meta['design']}",
                fill=(220, 220, 220), font=font(20))
+        if meta.get("drivers"):
+            d.text((20, y + th + 44), "  ·  ".join(meta["drivers"]), fill=(170, 200, 255), font=font(16))
         for k, c in enumerate(meta["colours"]):
             d.rectangle((cw - 40 - 34 * (3 - k), y + 2, cw - 40 - 34 * (3 - k) + 28, y + 30), fill=c, outline=(200, 200, 200))
         y += 40
@@ -470,6 +484,27 @@ def contact_sheet(year, rows, out, small):
 def shrink(sheet):
     half = sheet.resize((sheet.width // 2, sheet.height // 2), Image.LANCZOS)
     return half.quantize(256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+
+
+def real_row(game, team, choice, drivers):
+    label = choice["label"]
+    if choice["kind"] == "mod":
+        meta = next(m for m in json.loads((ROOT / "suits" / "meta.json").read_text())["suits"] if m["label"] == label)
+        e = erpw.Erp(str(ROOT / meta["source"]))
+        e_base = erpw.Erp(str(Path(game) / meta["base_erp"]))
+        roots = [ROOT / "suits" / "sidecars", game]
+        what = suit_sources.REAL["mods"][choice["mod"]]["name"]
+    else:
+        e = e_base = erpw.Erp(str(Path(game) / "2025_asset_groups" / LIVERY / label / f"{label}.erp"))
+        roots = [game]
+        what = "F1 25"
+    tex = kit_textures(e, [f"eaid://{LIVERY}/{label}/textures/{label}_"], roots)
+    views = render(e_base, e, team_meshes(label), tex)
+    logo = tex.get("logo_01_d")
+    if logo is None:
+        logo = np.zeros((1024, 1024, 4), np.uint8)
+    return team, {"label": label, "base": choice.get("base", label), "design": f"real, {what} {choice['season']}",
+                  "colours": [], "logo_slots": [], "drivers": drivers}, views, tex["livery_v2_d"], logo
 
 
 def years_arg(text):
@@ -501,18 +536,29 @@ def main(argv):
             key = team.get("key", team["folder"])
             if a.teams and key not in a.teams.split(","):
                 continue
+            choice = suit_sources.pick(year, team)
+            drivers = [f"{d}: {suit_sources.describe(suit_sources.pick(year, team, d))}" for d, _ in team["drivers"]]
+            if choice:
+                meta["suits"].pop(key, None)
+                rows.append(real_row(a.game, team, choice, drivers))
+                print(f"{year} {key}: {suit_sources.describe(choice)}")
+                continue
             label, e, m, views, livery, logo = build_team(a.game, a.cars, year, team, logos)
             e.to_file(str(out / f"{label}.erp"))
             meta["suits"][key] = m
-            rows.append((team, m, views, livery, logo))
+            rows.append((team, {**m, "design": f"generated, design {m['design']}", "drivers": drivers}, views, livery,
+                         logo))
             print(f"{year} {key}: {label} from {m['base']}, {m['design']}, {' '.join(m['colours'])}, "
                   f"{sum(s['what'] != 'empty' for s in m['logo_slots'])}/{len(m['logo_slots'])} decals filled")
+        for stale in out.glob("*.erp"):
+            if stale.stem not in {m["label"] for m in meta["suits"].values()}:
+                stale.unlink()
         meta["suits"] = {t.get("key", t["folder"]): meta["suits"][t.get("key", t["folder"])]
                          for t in seasons[year]["teams"] if t.get("key", t["folder"]) in meta["suits"]}
         meta_path.write_text(json.dumps(meta, indent=1) + "\n")
         sheet = ROOT / "art" / "suits" / f"{year}.png"
         sheet.parent.mkdir(parents=True, exist_ok=True)
-        contact_sheet(year, rows, out / "preview.png", sheet)
+        contact_sheet(f"Classic Seasons F1 {year}: team suits", rows, out / "preview.png", sheet)
         print(f"{year}: {out / 'preview.png'}, {sheet}")
 
 
