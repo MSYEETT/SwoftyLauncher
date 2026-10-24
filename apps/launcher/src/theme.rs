@@ -1,3 +1,4 @@
+use gpui_kit::component::scroll::ScrollbarMode;
 use gpui_kit::component::{Theme, ThemeMode};
 use gpui_kit::{Anchor, App, Global, Hsla, hsla, px, rgb};
 
@@ -112,6 +113,10 @@ pub fn init(cx: &mut App) {
         t.window_border = p.border;
         t.switch = p.switch_off;
         t.switch_thumb = p.text;
+        t.scrollbar_mode = ScrollbarMode::Always;
+        t.scrollbar = hsla(0., 0., 0., 0.);
+        t.scrollbar_thumb = p.switch_off;
+        t.scrollbar_thumb_hover = p.text_placeholder;
         t.success = p.success;
         t.warning = p.warning;
         t.danger = p.error;
