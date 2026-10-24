@@ -615,7 +615,10 @@
     "display_name_short": "lng_cs_team_19_mercedes",
     "display_name_super_short": "lng_cs_team_19_mercedes",
     "display_name_code": "MER",
-    "timing_tower_texture_path": "cs19_mercedes"
+    "timing_tower_texture_path": "cs19_mercedes",
+    "team_wear_primary_colour": "-6776680",
+    "team_wear_secondary_colour": "-16250872",
+    "team_wear_tertiary_colour": "-9930632"
    }
   },
   {
@@ -696,7 +699,10 @@
     "display_name_short": "lng_cs_team_19_ferrari",
     "display_name_super_short": "lng_cs_team_19_ferrari",
     "display_name_code": "FER",
-    "timing_tower_texture_path": "cs19_ferrari"
+    "timing_tower_texture_path": "cs19_ferrari",
+    "team_wear_primary_colour": "-1570808",
+    "team_wear_secondary_colour": "-15198184",
+    "team_wear_tertiary_colour": "-3618616"
    }
   },
   {
@@ -777,7 +783,10 @@
     "display_name_short": "lng_cs_team_19_redbull",
     "display_name_super_short": "lng_cs_team_19_redbull",
     "display_name_code": "RBR",
-    "timing_tower_texture_path": "cs19_redbull"
+    "timing_tower_texture_path": "cs19_redbull",
+    "team_wear_primary_colour": "-16246744",
+    "team_wear_secondary_colour": "-2619352",
+    "team_wear_tertiary_colour": "-1529848"
    }
   },
   {
@@ -858,7 +867,10 @@
     "display_name_short": "lng_cs_team_19_mclaren",
     "display_name_super_short": "lng_cs_team_19_mclaren",
     "display_name_code": "MCL",
-    "timing_tower_texture_path": "cs19_mclaren"
+    "timing_tower_texture_path": "cs19_mclaren",
+    "team_wear_primary_colour": "-16242600",
+    "team_wear_secondary_colour": "-493560",
+    "team_wear_tertiary_colour": "-15198184"
    }
   },
   {
@@ -939,7 +951,10 @@
     "display_name_short": "lng_cs_team_19_lotus",
     "display_name_super_short": "lng_cs_team_19_lotus",
     "display_name_code": "REN",
-    "timing_tower_texture_path": "cs19_lotus"
+    "timing_tower_texture_path": "cs19_lotus",
+    "team_wear_primary_colour": "-15202280",
+    "team_wear_secondary_colour": "-468984",
+    "team_wear_tertiary_colour": "-468984"
    }
   },
   {
@@ -1020,7 +1035,10 @@
     "display_name_short": "lng_cs_team_19_toro_rosso",
     "display_name_super_short": "lng_cs_team_19_toro_rosso",
     "display_name_code": "STR",
-    "timing_tower_texture_path": "cs19_toro_rosso"
+    "timing_tower_texture_path": "cs19_toro_rosso",
+    "team_wear_primary_colour": "-16246648",
+    "team_wear_secondary_colour": "-1562584",
+    "team_wear_tertiary_colour": "-9910088"
    }
   },
   {
@@ -1101,7 +1119,10 @@
     "display_name_short": "lng_cs_team_19_force_india",
     "display_name_super_short": "lng_cs_team_19_force_india",
     "display_name_code": "RPT",
-    "timing_tower_texture_path": "cs19_force_india"
+    "timing_tower_texture_path": "cs19_force_india",
+    "team_wear_primary_colour": "-485176",
+    "team_wear_secondary_colour": "-16242616",
+    "team_wear_tertiary_colour": "-2561832"
    }
   },
   {
@@ -1182,7 +1203,10 @@
     "display_name_short": "lng_cs_team_19_sauber",
     "display_name_super_short": "lng_cs_team_19_sauber",
     "display_name_code": "ARR",
-    "timing_tower_texture_path": "cs19_sauber"
+    "timing_tower_texture_path": "cs19_sauber",
+    "team_wear_primary_colour": "-2565928",
+    "team_wear_secondary_colour": "-7862264",
+    "team_wear_tertiary_colour": "-14145464"
    }
   },
   {
@@ -1263,7 +1287,10 @@
     "display_name_short": "lng_cs_team_19_haas",
     "display_name_super_short": "lng_cs_team_19_haas",
     "display_name_code": "HAA",
-    "timing_tower_texture_path": "cs19_haas"
+    "timing_tower_texture_path": "cs19_haas",
+    "team_wear_primary_colour": "-16250872",
+    "team_wear_secondary_colour": "-7833528",
+    "team_wear_tertiary_colour": "-5719864"
    }
   },
   {
@@ -1344,7 +1371,10 @@
     "display_name_short": "lng_cs_team_19_williams",
     "display_name_super_short": "lng_cs_team_19_williams",
     "display_name_code": "WIL",
-    "timing_tower_texture_path": "cs19_williams"
+    "timing_tower_texture_path": "cs19_williams",
+    "team_wear_primary_colour": "-16209672",
+    "team_wear_secondary_colour": "-460552",
+    "team_wear_tertiary_colour": "-15202280"
    }
   },
   {

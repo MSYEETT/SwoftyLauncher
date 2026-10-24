@@ -31,6 +31,7 @@ DATA = json.loads((ROOT / "data" / "seasons.json").read_text())
 STOCK = json.loads((ROOT / "data" / "stock_looks.json").read_text())
 DRIVER_FIELDS = json.loads((ROOT / "data" / "driver_fields.json").read_text())
 SETUP_PRESET_FIELDS = json.loads((ROOT / "data" / "setup_preset_fields.json").read_text())
+TEAM_COLOURS = json.loads((ROOT / "data" / "team_colours.json").read_text())
 
 CATEGORY = "options_system.options.multiplayer.options_folder_2.option[_metadata_=category]"
 CATEGORY_FIELDS = ["_metadata_", "confirmation_dialogue", "description_override", "game_value", "is_default", "loc_tag",
@@ -67,6 +68,15 @@ def placeholder_look(folder, position, driver):
     helmet_from = STOCK["looks"][own] if own else STOCK["looks"][seat]
     suit_from = STOCK["looks"][seat]
     return seat, helmet_from["helmet"], suit_from["suit"], suit_from["gloves"]
+
+
+def colour(hex_rgb):
+    return str((0xFF000000 | int(hex_rgb[1:], 16)) - (1 << 32))
+
+
+def team_wear(label):
+    wear = TEAM_COLOURS[label]["team_wear"]
+    return {f"team_wear_{slot}_colour": colour(c) for slot, c in zip(("primary", "secondary", "tertiary"), wear)}
 
 
 def lang(key, value):
@@ -191,7 +201,7 @@ def build():
                         "from": f"entrants.teams.team[_metadata_={stock['team']}]",
                         "set": {"_metadata_": label, "display_name": name_key, "display_name_short": name_key,
                                 "display_name_super_short": name_key, "display_name_code": team["code"],
-                                "timing_tower_texture_path": label}})
+                                "timing_tower_texture_path": label, **team_wear(label)}})
             ops.append({"op": "add-row", "table": "pit_lane.pit_times",
                         "from": f"pit_lane.pit_times.team_pit_times[_metadata_={stock['team']}]",
                         "set": {"_metadata_": label, "team": label}})

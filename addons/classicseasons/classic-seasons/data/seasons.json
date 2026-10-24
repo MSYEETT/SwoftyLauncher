@@ -43,14 +43,14 @@
       "halo": false,
       "cockpit_camera": { "up": 0.04, "forward": 0.06 },
       "teams": [
-        { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["nico_rosberg", 6]] },
+        { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["nico_rosberg", 6]], "team_wear": ["#c0c6c9", "#111111", "#00d2be"] },
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "drivers": [["daniel_ricciardo", 3], ["max_verstappen", 33]] },
         { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "drivers": [["sebastian_vettel", 5], ["kimi_raikkonen", 7]] },
         { "folder": "williams",    "name": "Williams",        "code": "WIL", "drivers": [["felipe_massa", 19], ["valtteri_bottas", 77]] },
         { "folder": "force_india", "name": "Force India",     "code": "FIN", "drivers": [["sergio_perez", 11], ["nico_hulkenberg", 27]] },
         { "folder": "lotus",       "name": "Renault",         "code": "REN", "drivers": [["kevin_magnussen", 20], ["jolyon_palmer", 30]] },
-        { "folder": "toro_rosso",  "name": "Toro Rosso",      "code": "STR", "drivers": [["carlos_sainz-jr", 55], ["daniil_kvyat", 26]] },
-        { "folder": "sauber",      "name": "Sauber",          "code": "SAU", "drivers": [["marcus_ericsson", 9], ["felipe_nasr", 12]] },
+        { "folder": "toro_rosso",  "name": "Toro Rosso",      "code": "STR", "drivers": [["carlos_sainz-jr", 55], ["daniil_kvyat", 26]], "team_wear": ["#1a2a6c", "#d0202a", "#c0c0c0"] },
+        { "folder": "sauber",      "name": "Sauber",          "code": "SAU", "drivers": [["marcus_ericsson", 9], ["felipe_nasr", 12]], "team_wear": ["#1e3c96", "#f5d000", "#ffffff"] },
         { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "drivers": [["fernando_alonso", 14], ["jenson_button", 22]] },
         { "folder": "sauber",      "name": "Manor",           "code": "MRT", "drivers": [["pascal_wehrlein", 94], ["rio_haryanto", 88]], "key": "manor", "car": "sauber.erp" },
         { "folder": "haas",        "name": "Haas",            "code": "HAA", "drivers": [["romain_grosjean", 8], ["esteban_gutierrez", 21]] }
@@ -63,14 +63,14 @@
       "teams": [
         { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]] },
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "drivers": [["daniel_ricciardo", 3], ["max_verstappen", 33]] },
-        { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "drivers": [["sebastian_vettel", 5], ["kimi_raikkonen", 7]] },
-        { "folder": "williams",    "name": "Williams",        "code": "WIL", "drivers": [["felipe_massa", 19], ["lance_stroll", 18]] },
+        { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "drivers": [["sebastian_vettel", 5], ["kimi_raikkonen", 7]], "team_wear": ["#e8000b", "#ffffff", "#111111"] },
+        { "folder": "williams",    "name": "Williams",        "code": "WIL", "drivers": [["felipe_massa", 19], ["lance_stroll", 18]], "team_wear": ["#ffffff", "#0b2240", "#d4202a"] },
         { "folder": "force_india", "name": "Force India",     "code": "FIN", "drivers": [["sergio_perez", 11], ["esteban_ocon", 31]] },
         { "folder": "lotus",       "name": "Renault",         "code": "REN", "drivers": [["nico_hulkenberg", 27], ["jolyon_palmer", 30]] },
         { "folder": "toro_rosso",  "name": "Toro Rosso",      "code": "STR", "drivers": [["carlos_sainz-jr", 55], ["daniil_kvyat", 26]] },
         { "folder": "sauber",      "name": "Sauber",          "code": "SAU", "drivers": [["marcus_ericsson", 9], ["pascal_wehrlein", 94]] },
-        { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "drivers": [["fernando_alonso", 14], ["stoffel_vandoorne", 2]] },
-        { "folder": "haas",        "name": "Haas",            "code": "HAA", "drivers": [["romain_grosjean", 8], ["kevin_magnussen", 20]] }
+        { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "drivers": [["fernando_alonso", 14], ["stoffel_vandoorne", 2]], "team_wear": ["#ff7a00", "#1a1a1a", "#ffffff"] },
+        { "folder": "haas",        "name": "Haas",            "code": "HAA", "drivers": [["romain_grosjean", 8], ["kevin_magnussen", 20]], "team_wear": ["#8a8d8f", "#1a1a1a", "#c8102e"] }
       ]
     },
     {
@@ -82,7 +82,7 @@
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "drivers": [["daniel_ricciardo", 3], ["max_verstappen", 33]] },
         { "folder": "lotus",       "name": "Renault",         "code": "REN", "drivers": [["nico_hulkenberg", 27], ["carlos_sainz-jr", 55]] },
         { "folder": "haas",        "name": "Haas",            "code": "HAA", "drivers": [["romain_grosjean", 8], ["kevin_magnussen", 20]] },
-        { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "drivers": [["fernando_alonso", 14], ["stoffel_vandoorne", 2]] },
+        { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "drivers": [["fernando_alonso", 14], ["stoffel_vandoorne", 2]], "team_wear": ["#ff8000", "#1a3a78", "#111111"] },
         { "folder": "force_india", "name": "Force India",     "code": "FIN", "drivers": [["sergio_perez", 11], ["esteban_ocon", 31]] },
         { "folder": "sauber",      "name": "Sauber",          "code": "SAU", "drivers": [["marcus_ericsson", 9], ["charles_leclerc", 16]] },
         { "folder": "toro_rosso",  "name": "Toro Rosso",      "code": "STR", "drivers": [["pierre_gasly", 10], ["brendon_hartley", 28]] },
@@ -93,10 +93,10 @@
       "year": 2019,
       "pod_camera": { "near_clip": 0.8 },
       "teams": [
-        { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]] },
+        { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]], "team_wear": ["#c0c6c9", "#111111", "#00d2be"] },
         { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "drivers": [["sebastian_vettel", 5], ["charles_leclerc", 16]] },
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "drivers": [["max_verstappen", 33], ["pierre_gasly", 10]] },
-        { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "drivers": [["carlos_sainz-jr", 55], ["lando_norris", 4]] },
+        { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "drivers": [["carlos_sainz-jr", 55], ["lando_norris", 4]], "team_wear": ["#ff8000", "#0a2858", "#111111"] },
         { "folder": "lotus",       "name": "Renault",         "code": "REN", "drivers": [["daniel_ricciardo", 3], ["nico_hulkenberg", 27]] },
         { "folder": "toro_rosso",  "name": "Toro Rosso",      "code": "STR", "drivers": [["daniil_kvyat", 26], ["alex_albon", 23]] },
         { "folder": "force_india", "name": "Racing Point",    "code": "RPT", "drivers": [["sergio_perez", 11], ["lance_stroll", 18]] },
@@ -109,9 +109,9 @@
       "year": 2020,
       "pod_camera": { "near_clip": 0.6 },
       "teams": [
-        { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]] },
+        { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]], "team_wear": ["#111111", "#00d2be", "#c0c6c9"] },
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "drivers": [["max_verstappen", 33], ["alex_albon", 23]] },
-        { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "drivers": [["carlos_sainz-jr", 55], ["lando_norris", 4]] },
+        { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "drivers": [["carlos_sainz-jr", 55], ["lando_norris", 4]], "team_wear": ["#ff8000", "#1858a0", "#111111"] },
         { "folder": "force_india", "name": "Racing Point",    "code": "RPT", "drivers": [["sergio_perez", 11], ["lance_stroll", 18]] },
         { "folder": "lotus",       "name": "Renault",         "code": "REN", "drivers": [["daniel_ricciardo", 3], ["esteban_ocon", 31]] },
         { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "drivers": [["sebastian_vettel", 5], ["charles_leclerc", 16]] },
@@ -125,10 +125,10 @@
       "year": 2021,
       "pod_camera": { "near_clip": 0.6 },
       "teams": [
-        { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]] },
+        { "folder": "mercedes",    "name": "Mercedes",        "code": "MER", "drivers": [["lewis_hamilton", 44], ["valtteri_bottas", 77]], "team_wear": ["#111111", "#00d2be", "#c0c6c9"] },
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "drivers": [["max_verstappen", 33], ["sergio_perez", 11]] },
         { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "drivers": [["charles_leclerc", 16], ["carlos_sainz-jr", 55]] },
-        { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "drivers": [["lando_norris", 4], ["daniel_ricciardo", 3]] },
+        { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "drivers": [["lando_norris", 4], ["daniel_ricciardo", 3]], "team_wear": ["#ff8000", "#1858a0", "#111111"] },
         { "folder": "lotus",       "name": "Alpine",          "code": "ALP", "drivers": [["fernando_alonso", 14], ["esteban_ocon", 31]] },
         { "folder": "toro_rosso",  "name": "AlphaTauri",      "code": "AT",  "drivers": [["pierre_gasly", 10], ["yuki_tsunoda", 22]] },
         { "folder": "force_india", "name": "Aston Martin",    "code": "AMR", "drivers": [["sebastian_vettel", 5], ["lance_stroll", 18]] },
