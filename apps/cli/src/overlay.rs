@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 use swofty_core::overlay_guard::{self, OverlayOff};
 use swofty_core::store::Store;
@@ -20,6 +20,10 @@ pub enum OverlayCommand {
         #[arg(long, help = crate::GAME_HELP)]
         game: Option<PathBuf>,
     },
+    #[command(about = "Let an addon draw over the game again in the profile")]
+    Enable { id: String },
+    #[command(about = "Stop an addon drawing over the game in the profile; the addon stays on")]
+    Disable { id: String },
 }
 
 pub fn command(store: &Store, profile: &str, cmd: OverlayCommand) -> Result<()> {
@@ -41,6 +45,9 @@ pub fn command(store: &Store, profile: &str, cmd: OverlayCommand) -> Result<()> 
             for (id, name) in painters {
                 println!("draws over the game in {profile}: {name} ({id})");
             }
+            for (id, name) in overlay_guard::switched_off(store, profile) {
+                println!("drawing turned off in {profile}: {name} ({id})");
+            }
         }
         OverlayCommand::Reset { game } => {
             let dir = crate::build::game_dir(store, game)?;
@@ -53,6 +60,23 @@ pub fn command(store: &Store, profile: &str, cmd: OverlayCommand) -> Result<()> 
                 println!("overlay: already on (no GPU-removed record in {})", dir.display());
             }
         }
+        OverlayCommand::Enable { id } => switch(store, profile, &id, true)?,
+        OverlayCommand::Disable { id } => switch(store, profile, &id, false)?,
     }
+    Ok(())
+}
+
+fn switch(store: &Store, profile: &str, id: &str, on: bool) -> Result<()> {
+    let addons = store.addons()?;
+    let m = addons.get(id).with_context(|| format!("{id} is not installed"))?;
+    if !overlay_guard::draws_over_the_game(m) {
+        bail!("{} does not draw over the game", m.name);
+    }
+    store.update_profile(profile, |p| p.set_overlay(id, on))?;
+    println!(
+        "{} {} over the game in {profile}; it applies from the next launch",
+        m.name,
+        if on { "draws" } else { "no longer draws" }
+    );
     Ok(())
 }

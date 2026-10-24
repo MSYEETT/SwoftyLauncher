@@ -226,6 +226,8 @@ Commands that read the game database take `--game <dir>` after `db`.
 |---|---|
 | `swofty overlay status [--game <dir>]` | Show whether the in-game overlay is off and which addons in the profile draw over the game |
 | `swofty overlay reset [--game <dir>]` | Turn the overlay back on from the next launch: delete `swofty/overlay-gpu-removed.json` |
+| `swofty overlay disable <id>` | Stop an addon drawing over the game in the profile; the addon stays on |
+| `swofty overlay enable <id>` | Let the addon draw over the game again |
 
 The core writes `swofty/overlay-gpu-removed.json` in the game folder when the GPU is removed within 10 s of an overlay draw, and keeps the overlay off while it exists. Rollback, `swofty restore` and the launcher's clean-up keep the file. See [Overlay](/reference/std/overlay#when-the-overlay-draws).
 
