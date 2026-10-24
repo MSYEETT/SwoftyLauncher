@@ -58,6 +58,25 @@ def suit_asset_ops(year):
     return {"schema_version": 1, "ops": ops}
 
 
+def real_suits():
+    path = ROOT / "suits" / "meta.json"
+    if not path.exists():
+        return []
+    return [m for m in json.loads(path.read_text())["suits"] if (ROOT / m["source"]).exists()]
+
+
+def real_suit_asset_ops():
+    ops = []
+    for m in real_suits():
+        for key in ("", "helmet_") if m["helmet"] else ("",):
+            ops.append({"op": "file.put", "source": m[key + "source"], "target": m[key + "target"]})
+            ops.append({"op": "group.register", "group": m[key + "group"], "erps": [m[key + "base_erp"], m[key + "target"]],
+                        "template": m[key + "template"]})
+        for rel in m["sidecars"]:
+            ops.append({"op": "file.put", "source": f"suits/sidecars/{rel}", "target": rel})
+    return {"schema_version": 1, "ops": ops}
+
+
 def meta(year):
     path = cars_dir(year) / "meta.json"
     return json.loads(path.read_text()) if path.exists() else None
