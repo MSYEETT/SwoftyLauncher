@@ -9,6 +9,7 @@ use clap::Args;
 use swofty_core::crash::{Event, LogScan, Symbols, fatal_name};
 use swofty_core::install::{Game, Installer, PROXY, Source};
 use swofty_core::launch;
+use swofty_core::loader_check;
 use swofty_core::process::{
     descends_from, game_processes, game_running_in, games_in, steamvr_running, stop_game_in, stop_process,
 };
@@ -518,7 +519,7 @@ fn run_loop(
             return Ok(ExitCode::FAILURE);
         }
         rebuild_if_needed(store, &profile, &game);
-        let code = play(store, args, config, request, &game, installed, restarted)?;
+        let code = play(store, args, config, request, g, installed, restarted)?;
         let relaunch = match store.merge_requests(&profile, true) {
             Ok(Some(m)) => {
                 for c in &m.changed {
@@ -570,10 +571,11 @@ fn play(
     args: &RunArgs,
     config: &Config,
     request: &LaunchRequest,
-    game: &Path,
+    g: &Game,
     installed: Option<Instant>,
     restarted: bool,
 ) -> Result<i32> {
+    let game = g.dir.as_path();
     let placed_loader = check_loader(store, game, installed).map_err(Refused)?;
     // The profile build and the offline play download before the first
     // start can take minutes, time enough for F1 25 to be started from
@@ -720,11 +722,23 @@ fn play(
     }
     let usage = swofty_core::usage::Session::start(&store.root);
     let mut watch = placed_loader.then(|| AttachWatch::new(loader.clone(), before.clone(), Instant::now()));
-    // The antivirus explanation is a Windows one; under Proton a loader
-    // that does not attach is a prefix or override problem instead.
+    let placed = quarantine::placed_dlls(&store.root)
+        .unwrap_or_default()
+        .into_iter()
+        .find_map(|(rel, sha)| rel.eq_ignore_ascii_case(PROXY).then_some(sha));
     let missed = || {
+        let found = loader_check::collect(game, placed.as_deref(), launched, g.user_reg.as_deref());
+        say(
+            "loader",
+            "version.dll did not attach to F1 25; what the session found:",
+        );
+        for line in found.lines(game) {
+            say("loader", &format!("  {line}"));
+        }
+        // The antivirus explanation is a Windows one; under Proton a loader
+        // that does not attach is a prefix or override problem instead.
         if cfg!(windows) {
-            loader_missed(store, game);
+            loader_missed(store, game, found.cause(game));
         }
     };
     let ea = match args.via_ea {
@@ -929,10 +943,23 @@ fn check_loader(
 }
 
 /// The game is running but the loader never attached: say so, and whether
-/// version.dll is gone from the game folder by now.
-fn loader_missed(store: &Store, game: &Path) {
+/// version.dll is gone from the game folder by now or what else the session
+/// found keeping it out.
+fn loader_missed(store: &Store, game: &Path, cause: Option<quarantine::Cause>) {
     let mut report = quarantine::Report::new(Stage::InGame, vec![PROXY.to_owned()], game);
     report.removed = !game.join(PROXY).is_file();
+    report.cause = cause.filter(|_| !report.removed).map(Box::new);
+    say(
+        "loader",
+        &format!(
+            "  found: {}",
+            match &report.cause {
+                Some(c) => c.what(),
+                None if report.removed => format!("{PROXY} was removed from the game folder"),
+                None => "nothing that explains it".into(),
+            }
+        ),
+    );
     report_blocked(store, &report);
 }
 
@@ -2048,10 +2075,22 @@ mod tests {
         assert_eq!(report.game, m.game.dir);
         assert_eq!(refused(&m.store, report.at - 1.0), Some(report.clone()));
         assert_eq!(refused(&m.store, report.at + 1.0), None);
-        loader_missed(&m.store, &m.game.dir);
+        loader_missed(&m.store, &m.game.dir, Some(quarantine::Cause::Defender));
         let report = quarantine::Report::read(&m.store.root).unwrap();
         assert!(report.stage == Stage::InGame && report.removed);
+        assert_eq!(report.cause, None);
         assert_eq!(refused(&m.store, 0.0), None);
+        std::fs::write(m.game.dir.join(PROXY), "proxy").unwrap();
+        loader_missed(&m.store, &m.game.dir, Some(quarantine::Cause::Defender));
+        let report = quarantine::Report::read(&m.store.root).unwrap();
+        assert!(!report.removed && report.cause.as_deref() == Some(&quarantine::Cause::Defender));
+        assert!(
+            report
+                .text()
+                .starts_with("F1 25 is running without mods: Microsoft Defender blocked version.dll."),
+            "{}",
+            report.text()
+        );
     }
 
     #[test]

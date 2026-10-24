@@ -50,6 +50,18 @@ To fix it:
 3. Add exclusions for the game folder and the launcher folder (`%LOCALAPPDATA%\Programs\SwoftyLauncher`).
 4. Press **Play** again.
 
+### If version.dll stays in the game folder but doesn't load
+
+When the mods did not load and `version.dll` is still in the game folder, the launcher checks what kept it out of the game:
+
+- which `version.dll` the running game loaded, and from which folder
+- the DLL load policies on `F1_25.exe`, such as Exploit protection's Code integrity guard
+- whether `version.dll` is listed under KnownDLLs, and whether Smart App Control is on
+- Code Integrity and Microsoft Defender events since the game started
+- the antivirus registered with Windows
+
+The **Mods did not load** dialog then names what it found and its fix, for example turning off Smart App Control, or an antivirus's DLL protection for `F1_25.exe`. The details are under `[loader]` in `state\wrapper-run.log`, which [Send Logs](/using/send-logs) includes.
+
 ## If your game files aren't the ones Steam installed
 
 Before a modded session builds anything, the launcher checks the game against Steam's record of the files it installed. If a file was changed outside the launcher, for example by another mod tool or a manual install, F1 25 is not started and a **Your game files have been edited** modal names the files and lists the fix.
