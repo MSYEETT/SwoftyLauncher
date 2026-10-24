@@ -124,6 +124,7 @@ The compiled passes are installed as `swofty/postfx/00.dxil` onwards, and `swoft
 - A pass whose pipeline cannot be made is turned off: `[postfx] My Vignette's pass vignette is off: its pipeline could not be made`.
 - The core measures each pass's GPU time. A pass whose average over 120 frames stays above `budget_ms` three times in a row is turned off: `[postfx] My Vignette's pass vignette is off: it took 2.410 ms of GPU time a frame, over its 1.50 ms budget`.
 - A `swofty/postfx.off` file in the game folder turns every pass off within a second, and removing it turns them on again. `SWOFTY_POSTFX=0` in the game's environment turns them off for the session.
+- `SWOFTY_POSTFX_CAPTURE=<folder>` writes the picture before and after the passes, without the HUD; `SWOFTY_FRAME_CAPTURE` writes the presented frame with the HUD ([logging switches](/reference/std/logging)).
 
 ## How it works
 
