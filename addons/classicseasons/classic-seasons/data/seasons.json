@@ -47,13 +47,13 @@
         { "folder": "redbull",     "name": "Red Bull Racing", "code": "RBR", "colour": "#1e41ff", "drivers": [["daniel_ricciardo", 3], ["max_verstappen", 33]] },
         { "folder": "ferrari",     "name": "Ferrari",         "code": "FER", "colour": "#dc0000", "drivers": [["sebastian_vettel", 5], ["kimi_raikkonen", 7]] },
         { "folder": "williams",    "name": "Williams",        "code": "WIL", "colour": "#ffffff", "drivers": [["felipe_massa", 19], ["valtteri_bottas", 77]] },
-        { "folder": "force_india", "name": "Force India",     "code": "FIN", "colour": "#ff8000", "drivers": [["sergio_perez", 11], ["nico_hulkenberg", 27]] },
+        { "folder": "force_india", "name": "Force India",     "code": "FIN", "colour": "#c0c0c0", "drivers": [["sergio_perez", 11], ["nico_hulkenberg", 27]] },
         { "folder": "lotus",       "name": "Renault",         "code": "REN", "colour": "#fff500", "drivers": [["kevin_magnussen", 20], ["jolyon_palmer", 30]] },
         { "folder": "toro_rosso",  "name": "Toro Rosso",      "code": "STR", "colour": "#469bff", "drivers": [["carlos_sainz-jr", 55], ["daniil_kvyat", 26]], "team_wear": ["#1a2a6c", "#d0202a", "#c0c0c0"] },
         { "folder": "sauber",      "name": "Sauber",          "code": "SAU", "colour": "#006eff", "drivers": [["marcus_ericsson", 9], ["felipe_nasr", 12]], "team_wear": ["#1e3c96", "#f5d000", "#ffffff"] },
-        { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "colour": "#5f5f6e", "drivers": [["fernando_alonso", 14], ["jenson_button", 22]] },
+        { "folder": "mclaren",     "name": "McLaren",         "code": "MCL", "colour": "#ff8000", "drivers": [["fernando_alonso", 14], ["jenson_button", 22]] },
         { "folder": "sauber",      "name": "Manor",           "code": "MRT", "colour": "#f85828", "drivers": [["pascal_wehrlein", 94], ["rio_haryanto", 88]], "key": "manor", "car": "sauber.erp" },
-        { "folder": "haas",        "name": "Haas",            "code": "HAA", "colour": "#b6babd", "drivers": [["romain_grosjean", 8], ["esteban_gutierrez", 21]] }
+        { "folder": "haas",        "name": "Haas",            "code": "HAA", "colour": "#828282", "drivers": [["romain_grosjean", 8], ["esteban_gutierrez", 21]] }
       ]
     },
     {
