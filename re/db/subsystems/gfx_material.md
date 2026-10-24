@@ -13,6 +13,10 @@ Evidence: file-format analysis only; no exe addresses. Every claim below holds o
 
 No F1 23 blob parses as F1 25 or the reverse, so `parse25` and `parse23` also tell the two formats apart. 75 F1 23 UI materials (`core_assets_ui.erp`, `main_front_end.erp`) hold a second zstd frame inside the frag; decompress it first. The resource is one frag. All integers are little-endian u32.
 
+## Resource version
+
+The ERP index entry of a material holds a u32 version right after the 16-byte type name (`unk` in `tools/erpw.py`). It is 2 on every stock F1 25 material and 1 on F1 23 materials. F1 25 parses both: `Asset_MaterialFactory_Parse` (0x143c0dc80, L1) reads the F1 25 layout when the version is 2 and the F1 23 layout for any other version. The F1 23 path copies each record's `size` from the value blob without a bounds check (memcpy call at 0x143c0e531). An F1 25 material labelled version 1 hands it record 8's `type` as a size: in More Driver Models' `head.material` (51 records) that is 0x40003 (float4), and the copy runs 256 KB past a 6 KB material, faulting at F1_25.exe+0x53784bb when the material sits at the end of committed memory. `tools/gfx_material.py convert-erp` and the Classic Seasons `tools/heads.py` write version 2 on F1 25 materials.
+
 ## F1 25 layout
 
 ```
@@ -94,4 +98,4 @@ Stock values per vehicle and track shader, and the constants checked in a race: 
 
 ## Open
 - No runtime test yet: a converted 2023 suit and helmet in F1 25.
-- The exe side (material loader, HeapIndex patching, static sampler table) is not catalogued.
+- The exe side beyond the parser (HeapIndex patching, static sampler table) is not catalogued.
