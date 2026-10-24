@@ -17,6 +17,7 @@ mod play_bar;
 mod reveal;
 mod sections;
 mod send_logs;
+mod setup;
 mod shell;
 mod tasks;
 mod theme;

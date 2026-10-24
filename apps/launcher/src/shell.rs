@@ -655,6 +655,10 @@ impl Shell {
             window.push_notification(Notification::info("Play when the conflict check finishes."), cx);
             return;
         }
+        if !swofty_core::setup::done(&self.store.root) {
+            self.open_setup(window, cx);
+            return;
+        }
         if !swofty_core::offline::is_accepted(&self.store.root) {
             self.confirm_offline_play(window, cx);
             return;
