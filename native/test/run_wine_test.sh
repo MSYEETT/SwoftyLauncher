@@ -150,7 +150,8 @@ json.dump({'schema': 1, 'profile': 'wine-test',
            'addons': [{'id': 'example.sample-mod', 'dlls': ['t_assets.dll'], 'options': []}],
            'plugins': ['addons/example.sample-mod/native/t_assets.dll']},
           open(os.path.join(root, 'settings.json'), 'w'))
-json.dump({'features': ['file', 'telemetry']}, open(os.path.join(root, 'assets.json'), 'w'))
+json.dump({'features': ['file', 'telemetry'], 'overlay_off': ['example.sample-mod']},
+          open(os.path.join(root, 'assets.json'), 'w'))
 EOF
     gl_level=; gl_rate=
     [[ $mode == gamelog_off ]] && gl_level=off
@@ -297,6 +298,8 @@ EOF
         once "plugins: the loose copy of a listed plugin is skipped" 'addon t_assets\.dll: settings\.json lists it in an addon folder, the copy in .*[\]swofty[\]addons is skipped'
         once "plugins: the plugin initialises" 'addon t_assets\.dll: SwoftyAddonInit returned 1 \(ok\)'
         check "assets: available follows the features" '\[t_assets\] available: group 1, erp 1, db 1, lang 1, file 1, sound 0'
+        once "overlay: on_paint from an addon in overlay_off is refused" '\[overlay\] api: example\.sample-mod on_paint -> unavailable \(turned off for this addon in the launcher\)'
+        check "overlay: an addon in overlay_off sees the overlay unavailable" '\[t_assets\] overlay available 0 on_paint unavailable'
         once "assets: register_group during plugin init" "$api register_group asset_groups/t_assets/t\.assetgroup -> ok[[:space:]]*\$"
         once "assets: put_resource during plugin init" "$api put_resource eaid://t_assets/t\.tif\.image -> ok[[:space:]]*\$"
         once "assets: db_set by key is late at the window stage" "$api db_set entrants\.teams\.team\.t_assets = 1 -> late: the core loaded at the window stage"

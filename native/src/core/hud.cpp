@@ -1253,14 +1253,15 @@ int ov_available()
 int ov_on_paint(SwoftyPaintFn fn, void *user, uint32_t *token)
 {
     Caller c = caller(__builtin_return_address(0));
+    if (hud::listed(overlay_off(), owner_of(c))) {
+        swofty::log("[overlay] api: %s on_paint -> unavailable (turned off for this addon in the launcher)",
+                    owner_of(c).c_str());
+        return SWOFTY_ASSET_UNAVAILABLE;
+    }
     if (!implemented || !gate_on())
         return SWOFTY_ASSET_UNAVAILABLE;
     if (!fn)
         return SWOFTY_ASSET_INVALID;
-    if (hud::listed(overlay_off(), owner_of(c))) {
-        swofty::log("[overlay] api: %s on_paint -> unavailable (turned off for this addon)", owner_of(c).c_str());
-        return SWOFTY_ASSET_UNAVAILABLE;
-    }
     uint32_t t;
     {
         std::lock_guard<std::mutex> g(reg_lock);
@@ -1611,6 +1612,11 @@ void setup()
     if (!on)
         swofty::log("[overlay] the overlay is off; the present hook arms for SWOFTY_FRAME_CAPTURE only");
     implemented = on;
+    if (on) {
+        renderer.font_tried = true;
+        if (!hud::img::grey(hud::font::ATLAS_PNG, hud::font::ATLAS_PNG_SIZE, renderer.font_px))
+            swofty::log("[overlay] decoding the built-in font atlas failed; text draws nothing");
+    }
     if (arm())
         armed.store(true);
     else
