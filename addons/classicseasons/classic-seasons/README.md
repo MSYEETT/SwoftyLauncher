@@ -46,7 +46,7 @@ Each season:
 - A `car_setup.presets` row for each vehicle package (`cs_<year>_vehicle_package`, `cx_<year>_vehicle_package`), copied from `f1_2025_vehicle_package`: the game looks up the AI and player car setups by package name.
 - A `pit_lane.pit_times` row per team, copied from its stock team.
 - Driver looks `<year>-cs_<key>_<driver>` (stat ids from 420, numbered across every season) and pool entrants `cs<year>-<driver>`.
-- 2016 to 2021, for each team with a built suit: a `customisation.custom_avatar.suits` row and a `customisation.custom_avatar.gloves` row labelled with the suit's label, copies of the base suit's rows with the suit's asset group, models and `material_override`. Every team-season of 2016 to 2021 has an item id from 4000, in season and team order. The team's driver looks wear the suit and gloves. A team without a built suit keeps the placeholder kit of `data/stock_looks.json`.
+- 2016 to 2021, for each team with a built suit: a `customisation.custom_avatar.suits` row and a `customisation.custom_avatar.gloves` row labelled with the suit's label, copies of the base suit's rows with the suit's asset group, models and `material_override`. Every team-season of 2016 to 2021 has an item id of `SUIT_IDS` in `tools/gen.py`, in season and team order: 974 to 1023, then 437 to 447. The stock suit and gloves ids are 448 to 973. The team's driver looks wear the suit and gloves. A team without a built suit keeps the placeholder kit of `data/stock_looks.json`.
 
 New drivers (Nasr, Gutiérrez, Vandoorne, Hartley, Sirotkin, Haryanto) use driver stat ids 225 to 230.
 
@@ -87,7 +87,7 @@ F1 25 has no suits for 2016 to 2021. `build_suits.py` builds one suit per team-s
 |---|---|
 | `base` | `2025-<stock team>`, the stock team of the team's `folder` |
 | `design` | `tier01_livery76`, a customisable suit design whose panel masks paint the suit |
-| `colours` | Three colours from the car's `paint_d` and opaque `decal_da` texels: the most common, then the most common that differ from those before |
+| `colours` | The team's `team_wear` colours in `data/team_colours.json`; without them, three colours from the car's `paint_d` and opaque `decal_da` texels: the most common, then the most common that differ from those before |
 | `sponsors` | The largest separate shapes of the car's `decal_da`, as `[x, y, w, h]` rectangles in pixels of the 2048 atlas |
 
 - The suit's label is `cs<yy>-<stock team>`, or `cs<yy>-<key>` padded with `_` to the base label's length for a team with its own `key` (2016 Manor: `cs16-manor_`). It has the base label's length.

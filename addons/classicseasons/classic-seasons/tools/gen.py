@@ -19,8 +19,10 @@ The pit lane reads a team's pit stop times from the pit_lane.pit_times row whose
 copies its stock team's row.
 
 A team with a suit built by build_suits.py (the season's suits/meta.json) gets a suit and a gloves row, copies of its
-base suit's rows under the suit's label, and its drivers' looks wear them. Every team-season of SUIT_YEARS has an id
-from SUIT_ID_BASE, in season and team order, whether its suit is built or not.
+base suit's rows under the suit's label, and its drivers' looks wear them. Every team-season of SUIT_YEARS takes the
+next item id of SUIT_IDS, in season and team order, whether its suit is built or not. The stock suit and gloves ids are
+448 to 973, and an id of 3000 crashes the game at boot (Sess_Apply_ContentAvailability), so SUIT_IDS stays below 1024:
+974 to 1023, then 437 to 447.
 """
 
 import json
@@ -56,7 +58,7 @@ HOST_MODE = "swofty_f1"
 SETUP_ROW = "entrants.entrant_setup_modes.entrant_setup_mode"
 SETUP_PRESETS = "car_setup.presets.vehicle_package_setups"
 SEASON_LAUNCHER = ">=1.3.6"
-SUIT_ID_BASE = 4000
+SUIT_IDS = [*range(974, 1024), *range(437, 448)]
 SUITS = "customisation.custom_avatar.suits"
 GLOVES = "customisation.custom_avatar.gloves"
 
@@ -140,7 +142,7 @@ def build():
     core = json.loads((ROOT / "swofty.json").read_text())
     ops, text = [], []
     look_stat = LOOK_STAT_BASE
-    suit_id = SUIT_ID_BASE
+    suit_ids = iter(SUIT_IDS)
     seasons = []
 
     for driver_stat, (label, d) in enumerate(DATA["new_drivers"].items(), DRIVER_STAT_BASE):
@@ -218,10 +220,9 @@ def build():
             key = team.get("key", folder)
             stock = DATA["folders"][folder]
             suit = made.get(key)
+            item_id = next(suit_ids) if year in SUIT_YEARS else None
             if suit:
-                ops += suit_rows(suit, suit_id)
-            if year in SUIT_YEARS:
-                suit_id += 1
+                ops += suit_rows(suit, item_id)
             label = team_label(year, key)
             name_key = f"lng_cs_team_{yy:02d}_{key}"
             ops.append({"op": "add-row", "table": "entrants.teams",
@@ -307,7 +308,7 @@ def build():
     write_json(ROOT / "lang" / "core.json", {"schema_version": 1, "ops": core_text})
     write_native_seasons([year for year, _, _ in seasons])
     print(f"core: {len(core_ops)} db ops, {len(core_text)} strings, looks {LOOK_STAT_BASE}..{look_stat - 1}, "
-          f"suit ids {SUIT_ID_BASE}..{suit_id - 1}")
+          f"{len(SUIT_IDS) - len(list(suit_ids))} suit ids")
     for year, ops, text in seasons:
         folder = year_dir(year)
         assets = ["assets/cars.json"] + (["assets/suits.json"] if suits(year) else [])
