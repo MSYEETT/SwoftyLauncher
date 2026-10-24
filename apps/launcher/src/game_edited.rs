@@ -1,6 +1,7 @@
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::dialog::DialogFooter;
+use gpui_kit::component::notification::Notification;
 use gpui_kit::component::{Icon, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
@@ -36,11 +37,71 @@ impl Edited {
         matches!(self, Self::Leftovers(_))
     }
 
-    fn why(&self) -> &'static str {
+    fn why(&self, repair: &Repair) -> String {
         match self {
-            Self::NotStock(_) => "It found game files that aren't the copy Steam installed",
-            Self::Leftovers(_) => "It found files in the F1 25 folder that it didn't put there",
+            Self::NotStock(r) => {
+                let (changed, them) = match r.files.len() {
+                    1 => ("1 game file was".to_owned(), "it"),
+                    n => (format!("{n} game files were"), "them"),
+                };
+                format!(
+                    "{changed} changed outside Swofty, so it stopped before changing anything. \
+                     This usually happens when a mod is copied into the game folder by hand. {} \
+                     restores {them}, and then Play works.",
+                    repair.restores
+                )
+            }
+            Self::Leftovers(_) => "Swofty keeps F1 25 fully restorable: it only changes files it owns and \
+                                   undoes them when you quit. It found files in the F1 25 folder that it \
+                                   didn't put there, so it stopped before touching anything. Files edited \
+                                   by another tool or copied in by hand break that and can crash the game."
+                .to_owned(),
         }
+    }
+
+    fn open(&self, repair: &Repair) -> Option<Open> {
+        repair.open.filter(|_| !self.leftovers())
+    }
+}
+
+/// How the copy's store puts its own files back: Steam opens its check from
+/// a link, the EA app only by hand.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Repair {
+    pub(crate) title: &'static str,
+    pub(crate) how: &'static str,
+    pub(crate) restores: &'static str,
+    pub(crate) open: Option<Open>,
+}
+
+/// The button that starts the repair, and the step text that goes with it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct Open {
+    pub(crate) label: &'static str,
+    pub(crate) url: &'static str,
+    pub(crate) how: &'static str,
+}
+
+pub(crate) fn repair(source: Source) -> Repair {
+    match source {
+        Source::EaApp => Repair {
+            title: "Repair the game in the EA app",
+            how: "EA app > Library > F1 25 > Manage > Repair, then press Play again.",
+            restores: "Repairing the game in the EA app",
+            open: None,
+        },
+        _ => Repair {
+            title: "Verify the game files in Steam",
+            how: "Steam > right-click F1 25 > Properties > Installed Files > Verify integrity of game \
+                  files, then press Play again.",
+            restores: "Verifying the game files in Steam",
+            open: (source == Source::Steam).then_some(Open {
+                label: "Verify game files in Steam",
+                url: stock::STEAM_VERIFY_URL,
+                how: "Select Verify game files in Steam below, then press Play again when Steam has \
+                      finished. It's also in Steam > right-click F1 25 > Properties > Installed Files.",
+            }),
+        },
     }
 }
 
@@ -69,13 +130,8 @@ fn illustration(p: Palette) -> impl IntoElement {
         .child(div().relative().child(game_art(48., 48.)).child(badge))
 }
 
-fn heading(edited: &Edited, p: Palette) -> impl IntoElement {
-    let why = format!(
-        "Swofty keeps F1 25 fully restorable: it only changes files it owns and undoes them when \
-         you quit. {}, so it stopped before touching anything. Files edited by another tool or \
-         copied in by hand break that and can crash the game.",
-        edited.why()
-    );
+fn heading(edited: &Edited, repair: &Repair, p: Palette) -> impl IntoElement {
+    let why = edited.why(repair);
     v_flex()
         .items_center()
         .gap(px(6.))
@@ -177,25 +233,33 @@ fn step(n: u32, title: &'static str, body: &'static str, p: Palette) -> impl Int
         )
 }
 
-fn steps(edited: &Edited, source: Source, p: Palette) -> impl IntoElement {
-    let (verify, how) = verify_steps(source);
+fn steps(edited: &Edited, repair: &Repair, p: Palette) -> impl IntoElement {
+    let leftovers = edited.leftovers();
+    let first = if leftovers { 2 } else { 1 };
     v_flex()
         .gap(px(9.))
         .child(label("WHAT TO DO", p))
+        .when(leftovers, |d| {
+            d.child(step(
+                1,
+                "A mod was copied into the game folder",
+                "If you put mod files in the F1 25 folder by hand, take them back out.",
+                p,
+            ))
+        })
         .child(step(
-            1,
-            "A mod was copied into the game folder",
-            "If you put mod files in the F1 25 folder by hand, take them back out.",
+            first,
+            repair.title,
+            edited.open(repair).map_or(repair.how, |o| o.how),
             p,
         ))
-        .child(step(2, verify, how, p))
         .child(step(
-            3,
+            first + 1,
             "Add mods the safe way",
             "Use the Simplified Importer below to add a mod as an addon Swofty installs and removes cleanly.",
             p,
         ))
-        .when(edited.leftovers(), |d| {
+        .when(leftovers, |d| {
             d.child(step(
                 4,
                 "Or restore the game folder",
@@ -203,21 +267,6 @@ fn steps(edited: &Edited, source: Source, p: Palette) -> impl IntoElement {
                 p,
             ))
         })
-}
-
-/// How the active copy's store checks the game files.
-pub(crate) fn verify_steps(source: Source) -> (&'static str, &'static str) {
-    match source {
-        Source::EaApp => (
-            "Repair the game in the EA app",
-            "EA app > Library > F1 25 > the three dots > Repair, then press Play again.",
-        ),
-        _ => (
-            "Verify the game files in Steam",
-            "Steam > right-click F1 25 > Properties > Installed Files > Verify integrity of game \
-             files, then press Play again.",
-        ),
-    }
 }
 
 fn discord_link(p: Palette) -> Stateful<Div> {
@@ -237,7 +286,7 @@ fn discord_link(p: Palette) -> Stateful<Div> {
         .on_click(|_, _, cx| cx.open_url(INVITE))
 }
 
-fn footer(shell: WeakEntity<Shell>, leftovers: bool, p: Palette) -> DialogFooter {
+fn footer(shell: WeakEntity<Shell>, leftovers: bool, open: Option<Open>, p: Palette) -> DialogFooter {
     let importer = shell.clone();
     let restore = shell.clone();
     DialogFooter::new()
@@ -272,9 +321,34 @@ fn footer(shell: WeakEntity<Shell>, leftovers: bool, p: Palette) -> DialogFooter
                             }),
                     )
                 })
+                .when_some(open, |d, open| {
+                    d.child(
+                        Button::new("game-edited-repair")
+                            .primary()
+                            .h(px(36.))
+                            .px(px(14.))
+                            .icon(IconName::ShieldCheck)
+                            .label(open.label)
+                            .on_click(move |_, window, cx| {
+                                cx.open_url(open.url);
+                                window.close_dialog(cx);
+                                window.push_notification(
+                                    Notification::info("Press Play again when Steam has finished.")
+                                        .title("Steam is verifying F1 25"),
+                                    cx,
+                                );
+                            }),
+                    )
+                })
                 .child(
                     Button::new("game-edited-close")
-                        .map(|b| if leftovers { b.ghost() } else { b.primary() })
+                        .map(|b| {
+                            if leftovers || open.is_some() {
+                                b.ghost()
+                            } else {
+                                b.primary()
+                            }
+                        })
                         .h(px(36.))
                         .px(px(14.))
                         .label("Close")
@@ -286,21 +360,22 @@ fn footer(shell: WeakEntity<Shell>, leftovers: bool, p: Palette) -> DialogFooter
 impl Shell {
     /// The modal for a launch stopped because the game files were edited: files
     /// that aren't Steam's copy, or files Swofty did not put in the folder. It
-    /// lists the files and what to do; the Leftovers case also offers Restore
-    /// game folder. The play bar reopens it from [`Shell::game_edited`].
+    /// lists the files and what to do; the NotStock case on a Steam copy also
+    /// offers Verify game files in Steam, the Leftovers case Restore game
+    /// folder. The play bar reopens it from [`Shell::game_edited`].
     pub(crate) fn show_game_edited(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(edited) = self.game_edited.clone() else {
             return;
         };
         let shell = cx.entity().downgrade();
         let p = palette(cx);
-        let source = self.install.as_ref().map_or(Source::Steam, |i| i.source);
+        let repair = repair(self.install.as_ref().map_or(Source::Steam, |i| i.source));
         window.open_alert_dialog(cx, move |alert, window, _| {
             let (shell, edited) = (shell.clone(), edited.clone());
             let vh = f32::from(window.viewport_size().height);
             let top = ((vh - 660.) / 2.).max(12.);
             alert
-                .width(px(620.))
+                .width(px(680.))
                 .margin_top(px(top))
                 .child(
                     v_flex()
@@ -310,11 +385,83 @@ impl Shell {
                         .max_h(px((vh - 112.).max(300.)))
                         .overflow_y_scroll()
                         .child(illustration(p))
-                        .child(heading(&edited, p))
+                        .child(heading(&edited, &repair, p))
                         .child(files_box(&edited, p))
-                        .child(steps(&edited, source, p)),
+                        .child(steps(&edited, &repair, p)),
                 )
-                .footer(footer(shell, edited.leftovers(), p))
+                .footer(footer(shell, edited.leftovers(), edited.open(&repair), p))
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Edited, repair};
+    use swofty_core::install::Source;
+    use swofty_core::recovery::Blocked;
+    use swofty_core::stock;
+
+    fn not_stock(n: usize) -> Edited {
+        let files = (0..n).map(|i| format!("2025_asset_groups/f{i}.erp")).collect();
+        Edited::NotStock(stock::Report::new(files, std::path::Path::new("/games/F1 25")))
+    }
+
+    fn leftovers() -> Edited {
+        Edited::Leftovers(Blocked {
+            game: "/games/F1 25".into(),
+            files: Vec::new(),
+        })
+    }
+
+    #[test]
+    fn a_steam_copy_opens_steams_verify() {
+        let r = repair(Source::Steam);
+        let open = not_stock(52).open(&r).unwrap();
+        assert_eq!(open.url, "steam://validate/3059520");
+        assert_eq!(open.label, "Verify game files in Steam");
+    }
+
+    #[test]
+    fn an_ea_app_copy_gets_the_repair_steps_and_no_button() {
+        let r = repair(Source::EaApp);
+        assert_eq!(r.open, None);
+        assert_eq!(not_stock(52).open(&r), None);
+        assert!(r.how.starts_with("EA app > Library > F1 25 > Manage > Repair"));
+        assert!(
+            not_stock(52)
+                .why(&r)
+                .contains("Repairing the game in the EA app restores them")
+        );
+    }
+
+    #[test]
+    fn a_folder_outside_steam_gets_no_button() {
+        assert_eq!(repair(Source::Unknown).open, None);
+    }
+
+    #[test]
+    fn files_in_the_way_offer_restore_not_verify() {
+        assert_eq!(leftovers().open(&repair(Source::Steam)), None);
+    }
+
+    #[test]
+    fn the_message_counts_the_files_and_names_the_cause() {
+        let r = repair(Source::Steam);
+        let why = not_stock(52).why(&r);
+        assert!(
+            why.starts_with("52 game files were changed outside Swofty"),
+            "{why}"
+        );
+        assert!(
+            why.contains("a mod is copied into the game folder by hand"),
+            "{why}"
+        );
+        assert!(
+            why.contains("Verifying the game files in Steam restores them, and then Play works."),
+            "{why}"
+        );
+        let one = not_stock(1).why(&r);
+        assert!(one.starts_with("1 game file was changed"), "{one}");
+        assert!(one.contains("restores it,"), "{one}");
     }
 }
