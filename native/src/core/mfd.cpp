@@ -33,7 +33,9 @@ constexpr uint32_t djb2c(const char *s)
     return h;
 }
 
-constexpr uint32_t OSD_MFD = djb2c("osd_mfd"), OSD_MAIN = djb2c("osd_main"), ADDONS = djb2c("swofty_addons_panel");
+constexpr uint32_t OSD_MFD = djb2c("osd_mfd"), OSD_MAIN = djb2c("osd_main");
+uint32_t test_panel = djb2c("swofty_addons_panel");
+std::string test_panel_name = "swofty_addons_panel";
 
 using Open_t = uint64_t(void *system, uint32_t mfd, uint32_t group, uint32_t panel, uint8_t activate);
 
@@ -53,11 +55,11 @@ void update_hook(void *system)
         uint64_t now = GetTickCount64();
         if (now >= next_open) {
             next_open = now + 1000ull * test_every;
-            uint64_t r = reinterpret_cast<Open_t *>(a_open)(system, OSD_MFD, OSD_MAIN, ADDONS, 1);
+            uint64_t r = reinterpret_cast<Open_t *>(a_open)(system, OSD_MFD, OSD_MAIN, test_panel, 1);
             static int told;
             if (told++ < 4)
-                swofty::log("[mfd] SWOFTY_MFD_TEST: opened swofty_addons_panel in osd_main of osd_mfd (result %llu)",
-                            (unsigned long long)r);
+                swofty::log("[mfd] SWOFTY_MFD_TEST: opened %s in osd_main of osd_mfd (result %llu)",
+                            test_panel_name.c_str(), (unsigned long long)r);
         }
     }
     h_update.call<void>(system);
@@ -75,6 +77,11 @@ void mfd_setup()
     char every[16] = {};
     if (GetEnvironmentVariableA("SWOFTY_MFD_TEST_EVERY", every, sizeof every) && atoi(every) > 0)
         test_every = unsigned(atoi(every));
+    char panel[64] = {};
+    if (GetEnvironmentVariableA("SWOFTY_MFD_TEST_PANEL", panel, sizeof panel) && panel[0]) {
+        test_panel_name = panel;
+        test_panel = djb2c(panel);
+    }
     if (test_mode.empty())
         return;
     uintptr_t base = swofty::api->module_base();
