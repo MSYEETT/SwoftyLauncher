@@ -6,7 +6,7 @@ Classic Seasons is ten addons in `addons/classicseasons/`. This folder is the sh
 
 Cars: fanfreluche (Fanfreluche aka totolab), "F1 <year> cars for F1 25", used with permission.
 
-Suits: JaapVer12 (2016 race suits) and Dromodf (2018 Red Bull suits), used with permission.
+Suits: Dromodf (2018 Red Bull suits), used with permission.
 
 Code Creation and Asset Importing: Swofty. Supported by AMO Motorsport (https://discord.gg/amocommunity).
 
@@ -54,7 +54,7 @@ Each season:
 
 - `game_setup.scenarios` row `cs_f1_<year>` (setup mode `swofty_f1`, swofty.core's host setup mode for addon boxes), entrant list `cs_f1_<year>` (a copy of `f1_2025`, 20 entrants, or of `f1_2026` with the 2025 season, leaderboard and UI path for 22), team standings `cs_f1_teams_<year>`. A 22-car season sets `swofty_f1`'s `max_entrants` to 22.
 - `list-append` of `cs_f1_<year>` onto the `swofty_f1` entrant setup mode's `entrant_lists` and `selectable_entrant_lists`, and onto the 2025 and 2026 content sets.
-- Teams and vehicles `cs<yy>_<key>` (`key` defaults to the team's `folder`). A team's `team_wear_primary_colour`, `team_wear_secondary_colour` and `team_wear_tertiary_colour` come from `data/team_colours.json`. Vehicle package `cs_<year>`, and `cx_<year>` for a team with its own car archive.
+- Teams and vehicles `cs<yy>_<key>` (`key` defaults to the team's `folder`). A team's `primary_colour` and `ui_team_colour` (the timing tower and menus) are its `colour` in `data/seasons.json`: F1's broadcast colour of that season for 2018 to 2024, and one picked from the livery for 2016 and 2017. `secondary_colour` and `tertiary_colour` are the second and third, and `team_wear_primary_colour`, `team_wear_secondary_colour` and `team_wear_tertiary_colour` all three, of its colours in `data/team_colours.json`. Vehicle package `cs_<year>`, and `cx_<year>` for a team with its own car archive.
 - A `car_setup.presets` row for each vehicle package (`cs_<year>_vehicle_package`, `cx_<year>_vehicle_package`), copied from `f1_2025_vehicle_package`: the game looks up the AI and player car setups by package name.
 - A `pit_lane.pit_times` row per team, copied from its stock team.
 - Driver looks `<year>-cs_<key>_<driver>` (stat ids from 420, numbered across every season) and pool entrants `cs<year>-<driver>`.

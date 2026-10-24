@@ -107,9 +107,11 @@ def colour(hex_rgb):
     return str((0xFF000000 | int(hex_rgb[1:], 16)) - (1 << 32))
 
 
-def team_wear(label):
+def team_colours(team, label):
     wear = TEAM_COLOURS[label]["team_wear"]
-    return {f"team_wear_{slot}_colour": colour(c) for slot, c in zip(("primary", "secondary", "tertiary"), wear)}
+    return {"primary_colour": colour(team["colour"]), "ui_team_colour": colour(team["colour"]),
+            "secondary_colour": colour(wear[1]), "tertiary_colour": colour(wear[2]),
+            **{f"team_wear_{slot}_colour": colour(c) for slot, c in zip(("primary", "secondary", "tertiary"), wear)}}
 
 
 def lang(key, value):
@@ -193,7 +195,7 @@ def season_manifest(core, year, assets):
     return {
         "schema_version": 1,
         "id": f"{core['id']}-{year}",
-        "name": f"Classic Seasons: F1 {year} GP/TT Addon",
+        "name": f"F1 {year} GP/TT Addon",
         "version": core["version"],
         "author": core["author"],
         "description": f"The F1 {year} season for Classic Seasons: its cars, teams and drivers in Grand Prix and "
@@ -307,7 +309,7 @@ def build():
                         "from": f"entrants.teams.team[_metadata_={stock['team']}]",
                         "set": {"_metadata_": label, "display_name": name_key, "display_name_short": name_key,
                                 "display_name_super_short": name_key, "display_name_code": team["code"],
-                                "timing_tower_texture_path": label, **team_wear(label)}})
+                                "timing_tower_texture_path": label, **team_colours(team, label)}})
             ops.append({"op": "add-row", "table": "pit_lane.pit_times",
                         "from": f"pit_lane.pit_times.team_pit_times[_metadata_={stock['team']}]",
                         "set": {"_metadata_": label, "team": label}})
