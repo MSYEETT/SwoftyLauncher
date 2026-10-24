@@ -794,3 +794,139 @@ fn an_addon_era_picker_swofty_cannot_edit_is_left_as_it_is() {
     std::fs::remove_dir_all(&out).ok();
     assert!(e.unwrap_err().to_string().contains("does not round-trip"));
 }
+
+fn named<'a>(n: &'a swofty_formats::pkg::Node, name: &str) -> Option<&'a swofty_formats::pkg::Node> {
+    use swofty_core::ui::node::NodeExt;
+    if n.is_node() && n.name() == name {
+        return Some(n);
+    }
+    match n {
+        swofty_formats::pkg::Node::Arr(a) => a.items.iter().find_map(|c| named(c, name)),
+        swofty_formats::pkg::Node::Obj(o) => o.items.iter().find_map(|(_, c)| named(c, name)),
+        _ => None,
+    }
+}
+
+fn event_signals(n: &swofty_formats::pkg::Node, event: &str) -> Vec<(String, String)> {
+    use swofty_core::ui::node::{EVENTS, NodeExt, ObjExt};
+    n.slot(EVENTS)
+        .unwrap()
+        .iter()
+        .filter(|e| e.o().unwrap().str_at("eventName").unwrap() == event)
+        .flat_map(|e| e.o().unwrap().at("signals").unwrap().a().unwrap().clone())
+        .map(|s| {
+            let o = s.o().unwrap().clone();
+            (
+                o.str_at("to_object_name").unwrap().to_owned(),
+                o.str_at("to_pin_name").unwrap().to_owned(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn addon_settings_scrolls_sideways_and_shows_details_on_the_focused_tile() {
+    use swofty_core::ui::node::{CHILDREN, NodeExt, ObjExt};
+    let Some(game) = std::env::var_os("F1_25_DIR").map(PathBuf::from) else {
+        eprintln!("F1_25_DIR is not set; skipping");
+        return;
+    };
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/menu_session.json");
+    let mut v: serde_json::Value = serde_json::from_slice(&std::fs::read(fixture).unwrap()).unwrap();
+    let extra = v["addons"][1].clone();
+    for i in 0..10 {
+        let mut a = extra.clone();
+        a["id"] = format!("test.addon_{i}").into();
+        a["name"] = format!("Addon {i}").into();
+        v["addons"].as_array_mut().unwrap().push(a);
+    }
+    let settings: SessionSettings = serde_json::from_value(v).unwrap();
+    let out = std::env::temp_dir().join(format!("swofty-scroll-{}", std::process::id()));
+    std::fs::remove_dir_all(&out).ok();
+    let built = swofty_core::ui::build(&settings, &|rel| game.join(rel), &|_, _| None, &out, false).unwrap();
+    let pkg = swofty_formats::pkg::Pkg::parse(
+        &std::fs::read(
+            built
+                .screens
+                .iter()
+                .find(|(rel, _)| rel.ends_with("/swofty_settings.ui"))
+                .unwrap()
+                .1,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let home = named(&pkg.root, "swofty_settings").unwrap();
+    let cols: Vec<_> = home
+        .slot(CHILDREN)
+        .unwrap()
+        .iter()
+        .filter(|c| c.is_node() && c.name().starts_with("col_"))
+        .collect();
+    assert!(cols.len() > 3, "{} columns", cols.len());
+    let col = |c: usize| format!("swofty_settings.col_{c}");
+    for (ci, column) in cols.iter().enumerate() {
+        for t in column.slot(CHILDREN).unwrap().iter().filter(|t| t.is_node()) {
+            let info = t.child("info").unwrap();
+            let visible = info
+                .props()
+                .unwrap()
+                .at("visible")
+                .unwrap()
+                .o()
+                .unwrap()
+                .at("value")
+                .unwrap();
+            assert!(matches!(&visible.v().unwrap().value, swofty_formats::pkg::Value::Raw(b) if b == &[0]));
+            let path = format!("{}.{}.info", col(ci), t.name());
+            assert!(
+                event_signals(t, "focused").contains(&(path.clone(), "show".into())),
+                "{}",
+                t.name()
+            );
+            assert!(
+                event_signals(t, "unfocused").contains(&(path, "hide".into())),
+                "{}",
+                t.name()
+            );
+            let right = event_signals(t, "navRight");
+            if ci + 1 < cols.len() && ci + 1 >= 3 {
+                assert!(
+                    right.contains(&(col(ci - 2), "hide".into())),
+                    "{}: {right:?}",
+                    t.name()
+                );
+            } else {
+                assert!(
+                    right.iter().all(|(_, pin)| pin != "hide"),
+                    "{}: {right:?}",
+                    t.name()
+                );
+            }
+            if ci > 0 {
+                assert!(
+                    event_signals(t, "navLeft").contains(&(col(ci - 1), "show".into())),
+                    "{}",
+                    t.name()
+                );
+            }
+        }
+    }
+    let restore = home.child("restore_focus").unwrap();
+    let last = cols.len() - 1;
+    let tile = cols[last]
+        .slot(CHILDREN)
+        .unwrap()
+        .iter()
+        .find(|t| t.is_node())
+        .unwrap()
+        .name()
+        .to_owned();
+    let back = event_signals(restore, &tile);
+    for c in 0..cols.len() {
+        let pin = if c + 3 <= last { "hide" } else { "show" };
+        assert!(back.contains(&(col(c), pin.into())), "{tile} col_{c}: {back:?}");
+    }
+    assert_eq!(back.last().unwrap().1, "focus");
+    std::fs::remove_dir_all(&out).ok();
+}

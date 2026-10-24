@@ -15,6 +15,9 @@ pub const ADJUST_TOOLTIP: &str = "swofty_adjust";
 const TAG_STYLE: &str = "18_regular_upper_part_neg";
 const LIGHT_TAG: &str = "17_regular_uber";
 const SETTINGS_ICON: &str = "ui_package/art/textures/options/o_category/";
+/// Columns of tiles ADDON SETTINGS keeps on screen; past them the row
+/// scrolls by hiding the column at the other edge, which the stacker closes up.
+const VISIBLE_COLUMNS: usize = 3;
 
 pub struct TileStyle {
     pub rows: usize,
@@ -691,7 +694,16 @@ fn tile(src: &Sources, style: &TileStyle, parent: &str, name: &str, row: usize, 
         true,
     )?;
     info.a_mut()?[LAYOUT] = layout_path(style.attach);
-    set_bool(&mut info, "visible", true)?;
+    // Like the stock SETTINGS tiles, the details show only on the focused tile.
+    set_bool(&mut info, "visible", false)?;
+    let info_path = format!("{parent}.{name}.info");
+    add_events(
+        &mut t,
+        vec![
+            event("focused", vec![sig(&info_path, "show", "focused")]),
+            event("unfocused", vec![sig(&info_path, "hide", "unfocused")]),
+        ],
+    )?;
     for c in info.slot_mut(CHILDREN)? {
         match c.name() {
             "title" => rename(c, "by")?,
@@ -745,12 +757,14 @@ fn build_home(src: &Sources, style: &TileStyle, flow: &[Entry]) -> Result<Node> 
             )?;
             block.slot_mut(CHILDREN)?.push(t);
             col.push(path.clone());
-            keyed.push((path, tname));
+            keyed.push((path, tname, c));
         }
         cols.push(col);
         kids.push(block);
     }
     let first_block = kids.len() - cols.len();
+    let scrolls = cols.len() > VISIBLE_COLUMNS;
+    let column = |c: usize| format!("{HOME}.col_{c}");
     for (ci, col) in cols.iter().enumerate() {
         for (ri, _) in col.iter().enumerate() {
             let mut evs = Vec::new();
@@ -762,17 +776,19 @@ fn build_home(src: &Sources, style: &TileStyle, flow: &[Entry]) -> Result<Node> 
             }
             if ci > 0 {
                 let left = &cols[ci - 1];
-                evs.push(event(
-                    "navLeft",
-                    vec![sig(&left[ri.min(left.len() - 1)], "focus", "navLeft")],
-                ));
+                let mut sigs = vec![sig(&left[ri.min(left.len() - 1)], "focus", "navLeft")];
+                if scrolls {
+                    sigs.push(sig(&column(ci - 1), "show", "navLeft"));
+                }
+                evs.push(event("navLeft", sigs));
             }
             if ci + 1 < cols.len() {
                 let right = &cols[ci + 1];
-                evs.push(event(
-                    "navRight",
-                    vec![sig(&right[ri.min(right.len() - 1)], "focus", "navRight")],
-                ));
+                let mut sigs = vec![sig(&right[ri.min(right.len() - 1)], "focus", "navRight")];
+                if scrolls && ci + 1 >= VISIBLE_COLUMNS {
+                    sigs.push(sig(&column(ci + 1 - VISIBLE_COLUMNS), "hide", "navRight"));
+                }
+                evs.push(event("navRight", sigs));
             }
             let t = &mut kids[first_block + ci].slot_mut(CHILDREN)?;
             let tname = format!("t{}", ci * style.rows + ri);
@@ -785,20 +801,23 @@ fn build_home(src: &Sources, style: &TileStyle, flow: &[Entry]) -> Result<Node> 
     }
     let first = keyed
         .first()
-        .map(|(p, _)| p[HOME.len() + 1..].to_owned())
+        .map(|(p, _, _)| p[HOME.len() + 1..].to_owned())
         .ok_or_else(|| err("ADDON SETTINGS has nothing to list"))?;
-    finish_home(scr, fr, kids, &keyed, &first)
+    finish_home(scr, fr, kids, &keyed, cols.len(), &first)
 }
 
+/// The home screen's tiles are `keyed` as (path, name, column) in `columns`
+/// columns. Coming back to a tile scrolls the row so the tile is on screen.
 fn finish_home(
     scr: Node,
     fr: Frame,
     mut kids: Vec<Node>,
-    keyed: &[(String, String)],
+    keyed: &[(String, String, usize)],
+    columns: usize,
     first: &str,
 ) -> Result<Node> {
     let last = format!("{STATE}.last");
-    for (_, key) in keyed {
+    for (_, key, _) in keyed {
         kids.push(node(
             &format!("remember_{key}"),
             "UIDS",
@@ -817,7 +836,18 @@ fn finish_home(
         vec![("dbEntry", prop(s(&last), None))],
         keyed
             .iter()
-            .map(|(path, key)| event(key, vec![sig(path, "focus", key)]))
+            .map(|(path, key, column)| {
+                let mut sigs = Vec::new();
+                if columns > VISIBLE_COLUMNS {
+                    let shown = column.saturating_sub(VISIBLE_COLUMNS - 1);
+                    sigs.extend((0..columns).map(|c| {
+                        let pin = if c < shown { "hide" } else { "show" };
+                        sig(&format!("{HOME}.col_{c}"), pin, key)
+                    }));
+                }
+                sigs.push(sig(path, "focus", key));
+                event(key, sigs)
+            })
             .collect(),
         &[],
         &[],
