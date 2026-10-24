@@ -398,13 +398,13 @@ bool settings_command(uint32_t hash)
     ReleaseSRWLockExclusive(&lock);
     if (o)
         api->log("[settings] %s.%s = %s", m->id.c_str(), o->id.c_str(), o->states[c.state].text.c_str());
-    for (size_t k = 0; o && k < mfd_rows.size(); k++)
-        if (mfd_rows[k].addon == c.addon && mfd_rows[k].option == c.option)
-            ui_vm_set_path("ui_menu_data.swofty.m" + std::to_string(k), 0, o->states[c.state].text.c_str());
     else if (m)
         api->log("[settings] %s: %s from the next launch", m->id.c_str(), c.state ? "enabled" : "disabled");
     else
         api->log("[settings] restart requested: relaunch = true");
+    for (size_t k = 0; o && k < mfd_rows.size(); k++)
+        if (mfd_rows[k].addon == c.addon && mfd_rows[k].option == c.option)
+            ui_vm_set_path("ui_menu_data.swofty.m" + std::to_string(k), 0, o->states[c.state].text.c_str());
     DWORD err = write_requests(text);
     ReleaseSRWLockExclusive(&io);
     if (err)
