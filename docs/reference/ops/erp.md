@@ -262,6 +262,12 @@ For menu changes, see [UI patches](/reference/ops/ui-patches). For the archive f
 
 On the 2025 Red Bull in a race, this turns the yellow paint green and the dark blue purple.
 
+A value can come from a `db` [option](/reference/addons/manifest#options): <span v-pre>`"{{id}}"`</span> as the whole value, or as an item of a list. The option's value is read as one or more numbers separated by spaces or commas, and a toggle reads as 1 or 0. A choice can hold a colour, such as `"0 1 0"`:
+
+```json
+"params": { "me_lacquerColour": "{{coat}}", "me_flakesStrength": "{{flakes}}" }
+```
+
 List a material's constants and their current values with:
 
 ```sh
