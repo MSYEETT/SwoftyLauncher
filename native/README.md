@@ -12,7 +12,7 @@ The in-game half of Swofty Launcher for F1 25. `native/build.sh` writes it to `n
 | `swofty/addons/core/log_channels.tsv` | `src/gamelog/log_channels.tsv` | The engine's log channels, for the game log filter. |
 | `swofty/addons/core/features.json` | `FEATURES` in `src/core/stage.cpp` | The runtime asset features of this core, each `stable` or `experimental`. |
 
-Everything logs to `<game>/swofty/loader.log`. Plugins get the C ABI in `packages/sdk/include/swofty_api.h` and the C++ helpers in `packages/sdk/include/swofty/mixin.hpp`. The generated game headers are in `include/swofty/game/`.
+Everything logs to `<game>/swofty/loader.log`, or to `%LOCALAPPDATA%\Swofty\state\loader-fallback.log` when the game can't create that file. Plugins get the C ABI in `packages/sdk/include/swofty_api.h` and the C++ helpers in `packages/sdk/include/swofty/mixin.hpp`. The generated game headers are in `include/swofty/game/`.
 
 ## Core
 
@@ -77,6 +77,12 @@ native/test/run_scan_test.sh
 ```
 
 Checks the loader's scan against a byte-by-byte scan and the scan cache format on the host. With `work/exe/F1_25.exe` and a built `native/dist/`, it also checks that every binding matches at its KB address and has exactly one hit there, and prints the scan timings.
+
+```sh
+native/test/run_log_fallback_test.sh
+```
+
+Runs a stand-in `F1_25.exe` under Wine with `native/dist/version.dll`, first with a writable `swofty/` and then with one the game can't create files in. It checks that the loader logs in the game folder when it can, and otherwise writes `%LOCALAPPDATA%\Swofty\state\loader-fallback.log` with its attach line, the refused path and error, and the game's user, integrity level, elevation, UAC virtualization and `__COMPAT_LAYER`. CI runs it on every push.
 
 ```sh
 native/test/run_runtime_assets_test.sh

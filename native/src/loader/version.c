@@ -1,5 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <sddl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1364,24 +1365,101 @@ static void capture_sections(void)
     }
 }
 
-static void open_log(void)
+static wchar_t log_path[MAX_PATH * 2], refused_path[MAX_PATH * 2];
+static DWORD refused_error;
+
+static HANDLE open_rotated(const wchar_t *dir, const wchar_t *name, int tries, DWORD *error)
 {
-    wchar_t dir[MAX_PATH * 2], path[MAX_PATH * 2], prev[MAX_PATH * 2];
-    swprintf(dir, MAX_PATH * 2, L"%ls\\swofty", game_dir);
+    wchar_t prev[MAX_PATH * 2];
     CreateDirectoryW(dir, NULL);
-    swprintf(path, MAX_PATH * 2, L"%ls\\loader.log", dir);
-    swprintf(prev, MAX_PATH * 2, L"%ls\\loader.prev.log", dir);
+    swprintf(log_path, MAX_PATH * 2, L"%ls\\%ls.log", dir, name);
+    swprintf(prev, MAX_PATH * 2, L"%ls\\%ls.prev.log", dir, name);
     /* The hook also appends to this file and may hold it open; a failed rotation is fine, we append in place.
        FILE_SHARE_DELETE lets the next run rotate even while we hold it. */
-    MoveFileExW(path, prev, MOVEFILE_REPLACE_EXISTING);
+    MoveFileExW(log_path, prev, MOVEFILE_REPLACE_EXISTING);
+    HANDLE h = INVALID_HANDLE_VALUE;
     /* The hook appends to the same file and briefly holds it during its own startup; retry past that window. */
-    for (int tries = 0; tries < 20; tries++) {
-        log_file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
-                               OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-        if (log_file != INVALID_HANDLE_VALUE)
+    while (tries-- > 0) {
+        h = CreateFileW(log_path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+                        OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        *error = h == INVALID_HANDLE_VALUE ? GetLastError() : 0;
+        if (h != INVALID_HANDLE_VALUE)
             break;
         Sleep(100);
     }
+    return h;
+}
+
+/* A game started from an EA app without the rights to change its folder (C:\Program Files\EA Games) cannot
+   create its log there. The log then goes to the launcher's data folder, %LOCALAPPDATA%\Swofty\state, where
+   the session and Send Logs look for it. */
+static void open_log(void)
+{
+    wchar_t dir[MAX_PATH * 2];
+    swprintf(dir, MAX_PATH * 2, L"%ls\\swofty", game_dir);
+    log_file = open_rotated(dir, L"loader", 20, &refused_error);
+    if (log_file != INVALID_HANDLE_VALUE)
+        return;
+    wcscpy(refused_path, log_path);
+    DWORD n = GetEnvironmentVariableW(L"LOCALAPPDATA", dir, MAX_PATH);
+    if (!n || n >= MAX_PATH)
+        return;
+    wcscat(dir, L"\\Swofty");
+    CreateDirectoryW(dir, NULL);
+    wcscat(dir, L"\\state");
+    DWORD error;
+    log_file = open_rotated(dir, L"loader-fallback", 1, &error);
+}
+
+static const char *integrity_name(DWORD rid)
+{
+    return rid >= SECURITY_MANDATORY_SYSTEM_RID   ? "system"
+           : rid >= SECURITY_MANDATORY_HIGH_RID   ? "high"
+           : rid >= SECURITY_MANDATORY_MEDIUM_RID ? "medium"
+           : rid >= SECURITY_MANDATORY_LOW_RID    ? "low"
+                                                  : "untrusted";
+}
+
+/* What a report needs to tell why the game folder refused the log: the error, and the rights the game runs
+   with next to the launcher's. */
+static void log_refused(void)
+{
+    slog("log: %ls could not be opened (error %lu); this is the fallback log %ls", refused_path, refused_error,
+         log_path);
+    char level[16] = "unknown", sid[192] = "unknown", name[64] = "(unset)", layers[256] = "(unset)";
+    TOKEN_ELEVATION_TYPE type = 0;
+    DWORD virt = 0, n;
+    HANDLE t;
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &t)) {
+        union {
+            TOKEN_MANDATORY_LABEL label;
+            TOKEN_USER user;
+            BYTE raw[256];
+        } info;
+        if (GetTokenInformation(t, TokenIntegrityLevel, &info, sizeof info, &n)) {
+            PSID s = info.label.Label.Sid;
+            snprintf(level, sizeof level, "%s", integrity_name(*GetSidSubAuthority(s, *GetSidSubAuthorityCount(s) - 1)));
+        }
+        GetTokenInformation(t, TokenElevationType, &type, sizeof type, &n);
+        GetTokenInformation(t, TokenVirtualizationEnabled, &virt, sizeof virt, &n);
+        char *text;
+        if (GetTokenInformation(t, TokenUser, &info, sizeof info, &n) && ConvertSidToStringSidA(info.user.User.Sid, &text)) {
+            snprintf(sid, sizeof sid, "%s", text);
+            LocalFree(text);
+        }
+        CloseHandle(t);
+    }
+    DWORD k = GetEnvironmentVariableA("USERNAME", name, sizeof name);
+    if (!k || k >= sizeof name)
+        strcpy(name, "(unset)");
+    k = GetEnvironmentVariableA("__COMPAT_LAYER", layers, sizeof layers);
+    if (!k || k >= sizeof layers)
+        strcpy(layers, k ? "(too long)" : "(unset)");
+    slog("process: user %s (%s), %s integrity, %s, UAC virtualization %s, __COMPAT_LAYER=%s", name, sid, level,
+         type == TokenElevationTypeFull      ? "elevated"
+         : type == TokenElevationTypeLimited ? "not elevated (an administrator's limited token)"
+                                             : "not elevated",
+         virt ? "on" : "off", layers);
 }
 
 /* Hook trampolines must sit within 2 GB of the code they patch. On a build whose core loads at the window
@@ -1500,6 +1578,8 @@ BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID reserved)
     if (real)
         GetModuleFileNameW(real, real_path, MAX_PATH);
     slog("swofty loader (version.dll proxy) attached, pid %lu", GetCurrentProcessId());
+    if (refused_error)
+        log_refused();
     slog("log: %s", log_async ? "asynchronous writer (batched, crash lines flush at once; SWOFTY_LOG_SYNC=1 writes each line synchronously)"
                               : "synchronous, one write per line");
     slog("host: %ls", exe_path);

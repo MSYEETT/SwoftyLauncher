@@ -7,6 +7,8 @@ description: Write to swofty/loader.log from a plugin with swofty::log, and conf
 
 You'll find everything the loader, swofty_core and plugins write in `swofty/loader.log` in the game folder. Watch it live in the launcher while the game runs, or use `swofty logs` for a summary of a past session's logs and crashes.
 
+When the game can't create `swofty/loader.log`, the loader writes the log to `%LOCALAPPDATA%\Swofty\state\loader-fallback.log` instead. Its second line names the file it couldn't open and the Windows error, and the third the rights the game runs with: the user, the integrity level, whether it's elevated, UAC virtualization and `__COMPAT_LAYER`. The session copies it to its folder as `loader.log`.
+
 | | |
 |---|---|
 | Header | `swofty/mixin.hpp` |
