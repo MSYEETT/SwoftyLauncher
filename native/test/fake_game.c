@@ -813,11 +813,42 @@ static int packed_main(const char *mode)
     return fails != 0;
 }
 
+/* nearfull / nopool: take every free 64 KB slot within 2 GB of the image before the core loads, the way the
+   game's own allocations have by the window stage on a build whose core loads there. nopool first gives
+   back the hook pool the loader reserved at attach. */
+static int exhaust_near(int release_pool)
+{
+    wchar_t path[MAX_PATH];
+    GetModuleFileNameW(NULL, path, MAX_PATH);
+    wcscpy(wcsrchr(path, L'\\') + 1, L"version.dll");
+    HMODULE loader = GetModuleHandleW(path);
+    int (*take)(uintptr_t *, size_t *) = loader ? (void *)GetProcAddress(loader, "SwoftyLoaderHookPool") : NULL;
+    uintptr_t pool = 0;
+    size_t pool_size = 0;
+    if (release_pool && take && take(&pool, &pool_size))
+        VirtualFree((void *)pool, 0, MEM_RELEASE);
+    uintptr_t base = (uintptr_t)GetModuleHandleW(NULL);
+    const IMAGE_NT_HEADERS *nt = (const IMAGE_NT_HEADERS *)(base + ((const IMAGE_DOS_HEADER *)base)->e_lfanew);
+    uintptr_t lo = base - 0x80010000ULL, hi = base + nt->OptionalHeader.SizeOfImage + 0x80010000ULL;
+    MEMORY_BASIC_INFORMATION m;
+    int taken = 0;
+    for (uintptr_t p = lo; p < hi && VirtualQuery((void *)p, &m, sizeof m); p = (uintptr_t)m.BaseAddress + m.RegionSize) {
+        uintptr_t a = (p + 0xFFFF) & ~(uintptr_t)0xFFFF, e = (uintptr_t)m.BaseAddress + m.RegionSize;
+        e = (e < hi ? e : hi + 0xFFFF) & ~(uintptr_t)0xFFFF;
+        if (m.State == MEM_FREE && a < e && VirtualAlloc((void *)a, e - a, MEM_RESERVE, PAGE_NOACCESS))
+            taken++;
+    }
+    printf("      reserved %d free region(s) within 2 GB of the image%s\n", taken,
+           release_pool ? (pool ? ", after releasing the loader's hook pool" : ", the loader had no hook pool") : "");
+    return taken;
+}
+
 int main(int argc, char **argv)
 {
     int fallback = argc > 1 && !strcmp(argv[1], "fallback"), vm = argc > 1 && !strcmp(argv[1], "vm");
     int session = argc > 1 && !strcmp(argv[1], "session"), settings = argc > 1 && !strncmp(argv[1], "settings", 8);
     int stages = argc > 1 && !strcmp(argv[1], "stages");
+    int nopool = argc > 1 && !strcmp(argv[1], "nopool");
     setvbuf(stdout, NULL, _IONBF, 0);
     fake_log_gate.hashes[0x22222222 % 373] = 0xbeef;
     for (int i = 0; i < 40; i++)
@@ -851,6 +882,8 @@ int main(int argc, char **argv)
            "IAT trigger armed on USER32!RegisterClassExW and CreateWindowExW before the window exists");
     if (stages)
         stage_early();
+    if (nopool || (argc > 1 && !strcmp(argv[1], "nearfull")))
+        expect(exhaust_near(nopool) > 0, "the address space within 2 GB of the image is taken before the core loads");
     ATOM(WINAPI * rc)(const WNDCLASSEXW *) = fallback ? (void *)real_rc : (void *)__imp_RegisterClassExW;
     HWND(WINAPI * cw)(DWORD, LPCWSTR, LPCWSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID) =
         fallback ? (void *)real_cw : (void *)__imp_CreateWindowExW;
@@ -870,6 +903,11 @@ int main(int argc, char **argv)
            "IAT slots restored after the trigger");
     if (stages)
         return stage_window(w);
+    if (nopool) {
+        printf("%s (%d failure(s))\n", fails ? "FAILED" : "ALL PASSED", fails);
+        DestroyWindow(w);
+        return fails != 0;
+    }
 
     run_build(1, 1);
     if (fallback)

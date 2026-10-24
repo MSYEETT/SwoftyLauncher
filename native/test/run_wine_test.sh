@@ -102,7 +102,7 @@ count() {
     if [[ $n == "$2" ]]; then echo "ok  : $1"; else echo "FAIL: $1 (logged $n times, want $2)"; status=1; fi
 }
 CACHE=$OUT/game/swofty/cache/scan-cache.tsv
-for mode in trigger fallback vm settings settings_local session gamelog_off assets; do
+for mode in trigger fallback vm settings settings_local session gamelog_off assets nearfull nopool; do
     echo "==== $mode"
     stale=
     [[ $mode == vm ]] && stale=$(python3 - "$CACHE" <<'EOF'
@@ -196,6 +196,23 @@ EOF
     fi
     case $mode in
     trigger)
+        once "hook pool: the loader reserves it next to the image at attach" 'hook pool: 2048 KB reserved at [0-9A-Fa-f]+ \((above|below) the image\)'
+        once "hook pool: the core adopts it" '\[core\] hook pool: 2048 KB at 0x[0-9a-f]+ \(base[-+]0x[0-9a-f]+\), reserved at loader attach'
+        ;;
+    nearfull)
+        once "hook pool: the core adopts it with the space around the image taken" '\[core\] hook pool: 2048 KB at 0x[0-9a-f]+ \(base[-+]0x[0-9a-f]+\), reserved at loader attach'
+        check "hook pool: sites install from it" 'site site_FeHome_AfterCareerCall at 0x[0-9a-f]+ \(base\+0x[0-9a-f]+\) installed'
+        check "hook pool: redirects install from it" '\[core\] redirect [^ ]+ at 0x[0-9a-f]+ \(base\+0x[0-9a-f]+\) installed'
+        count "hook pool: no install misses memory" 0 'did not allocate'
+        ;;
+    nopool)
+        once "hook pool: the core says when the loader has none" '\[core\] hook pool: the loader reserved none at attach'
+        check "hook pool: without it an install names the missing memory and the bytes" '\[core\] (site|wrap|redirect) on [A-Za-z_]+ at 0x[0-9a-f]+: the (trampoline|stub|jump stub) did not allocate: no free memory within 2 GB of the target'
+        once "hook pool: the free-region map is logged once" '\[core\]   within 2 GB of 0x[0-9a-f]+: [0-9]+ free region\(s\), 0 whole 64 KB slot\(s\)'
+        ;;
+    esac
+    case $mode in
+    trigger)
         once "scan cache: the first run starts without one" '\[core\] scan cache: none yet for this exe \(key [0-9a-f]{16}\)'
         check "scan cache: the addresses the scans found are saved" '\[core\] scan cache: [1-9][0-9]* address\(es\) saved to swofty[\]cache[\]scan-cache\.tsv'
         count "resolve: an exe other than the KB build never uses the KB addresses" 0 'at the KB address'
@@ -228,7 +245,7 @@ EOF
     fi
     case $mode in
     trigger)
-        check "events: flow-tick hook installed" '\[events\] Vm_Update_FlowStateMachine hooked at base\+0x4423ce0'
+        check "events: flow-tick hook installed" '\[events\] Vm_Update_FlowStateMachine hooked at base\+0x[0-9a-f]+'
         check "events: setup reports the onFrame tick live" '\[events\] setup: live; onFrame armed'
         once "events: first flow tick fires with dt 0" '\[events\] flow tick 1 observed, dt 0\.0'
         once "events: second flow tick fires" '\[events\] flow tick 2 observed'
@@ -328,7 +345,7 @@ EOF
         once "items: key without 0x skipped" "\\[items\\] skipping owned_items entry key 'f01d03c7'"
         once "items: ownership check hooked" '\[items\] ownership check hooked at base\+0x[0-9a-f]+'
         once "items: mod key logged once" '\[items\] reporting mod item 0xf01d03c7 \(se_livery 22, rmdesigns\.alphatauri-orlen-livery\) as owned'
-    elif [[ $ITEMS ]]; then
+    elif [[ $ITEMS && $mode != nopool ]]; then
         check "items: no owned_items, nothing hooked" '\[items\] no "owned_items" in settings\.json'
         count "items: nothing reported" 0 '\[items\] reporting'
     fi
