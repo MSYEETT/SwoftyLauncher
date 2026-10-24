@@ -26,6 +26,7 @@ The car archives are not in the repository. The built packages, each season's `.
 | `native/` | The plugin that adds the picker boxes |
 | `../classic-seasons-<year>/cars/` | Built car archives of a season (not committed) |
 | `data/setup_preset_fields.json` | The 421 keys of a `car_setup.presets` row, copied for every season package |
+| `tools/team_colours.py` | Writes `data/team_colours.json`: three team-wear colours per team, sampled from its car's paint texture (`<folder>_paint_d.tif`, or `_paint_c.tif` when `paint_d` is an 8 px placeholder), or the team's `team_wear` hex list in `data/seasons.json`; `--sheet <png>` draws a swatch sheet |
 
 ## Rows
 
@@ -37,7 +38,7 @@ Each season:
 
 - `game_setup.scenarios` row `cs_f1_<year>` (setup mode `swofty_f1`, swofty.core's host setup mode for addon boxes), entrant list `cs_f1_<year>` (a copy of `f1_2025`, 20 entrants, or of `f1_2026` with the 2025 season, leaderboard and UI path for 22), team standings `cs_f1_teams_<year>`. A 22-car season sets `swofty_f1`'s `max_entrants` to 22.
 - `list-append` of `cs_f1_<year>` onto the `swofty_f1` entrant setup mode's `entrant_lists` and `selectable_entrant_lists`, and onto the 2025 and 2026 content sets.
-- Teams and vehicles `cs<yy>_<key>` (`key` defaults to the team's `folder`), vehicle package `cs_<year>`, and `cx_<year>` for a team with its own car archive.
+- Teams and vehicles `cs<yy>_<key>` (`key` defaults to the team's `folder`). A team's `team_wear_primary_colour`, `team_wear_secondary_colour` and `team_wear_tertiary_colour` come from `data/team_colours.json`. Vehicle package `cs_<year>`, and `cx_<year>` for a team with its own car archive.
 - A `car_setup.presets` row for each vehicle package (`cs_<year>_vehicle_package`, `cx_<year>_vehicle_package`), copied from `f1_2025_vehicle_package`: the game looks up the AI and player car setups by package name.
 - A `pit_lane.pit_times` row per team, copied from its stock team.
 - Driver looks `<year>-cs_<key>_<driver>` (stat ids from 420, numbered across every season) and pool entrants `cs<year>-<driver>`.
