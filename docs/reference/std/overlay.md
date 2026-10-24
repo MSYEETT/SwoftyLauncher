@@ -99,4 +99,10 @@ The core draws the overlay only where it knows the drawing is ordered with the g
 | The GPU still holds the previous frames' overlay work | Skips drawing that frame |
 | The GPU was removed | Stops for the rest of the session; an `[overlay]` line says how long after the overlay last drew |
 
-Colours are not converted for HDR output.
+Colours are `0xRRGGBBAA` in sRGB. On HDR output the core converts them, so overlay white matches the game's own HUD white (350 nits by default, `SWOFTY_OVERLAY_NITS` to change it):
+
+| Back buffer | Output |
+|---|---|
+| R10G10B10A2 with the HDR10 colour space (`SetColorSpace1`), or with no colour space set while the game's `hardware_settings_config.xml` has `hdr mode` above 0 | BT.2020 PQ |
+| R16G16B16A16_FLOAT | Linear scRGB |
+| Anything else | sRGB as given |

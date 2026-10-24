@@ -925,13 +925,25 @@ void capture_step(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const DXGI_SWAP_CH
 void paint_frame(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const std::vector<hud::Paintsub> &subs,
                  const DXGI_SWAP_CHAIN_DESC &desc, ULONGLONG now, UINT color_space);
 
-UINT output_mode(DXGI_FORMAT fmt, UINT color_space)
+int game_hdr_mode()
 {
-    if (fmt == DXGI_FORMAT_R10G10B10A2_UNORM && color_space == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
-        return 1;
-    if (fmt == DXGI_FORMAT_R16G16B16A16_FLOAT && color_space != DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
-        return 2;
-    return 0;
+    static std::wstring path;
+    static FILETIME at{};
+    static ULONGLONG checked;
+    static int mode = -1;
+    ULONGLONG now = GetTickCount64();
+    if (checked && now - checked < 2000)
+        return mode;
+    checked = now;
+    if (path.empty())
+        path = hardware_settings_path();
+    WIN32_FILE_ATTRIBUTE_DATA fa{};
+    if (!path.empty() && GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fa) &&
+        CompareFileTime(&fa.ftLastWriteTime, &at)) {
+        at = fa.ftLastWriteTime;
+        mode = hud::guard::hdr_mode(runtime::read_file(path, 1 << 20));
+    }
+    return mode;
 }
 
 float paper_white()
@@ -940,9 +952,32 @@ float paper_white()
         char v[32] = {};
         DWORD n = GetEnvironmentVariableA("SWOFTY_OVERLAY_NITS", v, sizeof v);
         float f = n && n < sizeof v ? float(atof(v)) : 0;
-        return f >= 80 && f <= 1000 ? f : 200.0f;
+        return f >= 80 && f <= 1000 ? f : 350.0f;
     }();
     return nits;
+}
+
+UINT output_mode(IDXGISwapChain3 *sc, DXGI_FORMAT fmt, UINT color_space)
+{
+    int game = color_space == hud::guard::COLOR_SPACE_UNSET && fmt == DXGI_FORMAT_R10G10B10A2_UNORM ? game_hdr_mode() : -1;
+    auto out = hud::guard::output_for(int(fmt), color_space, game);
+    static void *told_sc;
+    static unsigned told_out = ~0u;
+    if (told_sc != sc || told_out != out) {
+        told_sc = sc;
+        told_out = out;
+        static const char *names[] = {"SDR", "HDR10 (BT.2020 PQ)", "scRGB (linear)"};
+        char why[96];
+        if (color_space != hud::guard::COLOR_SPACE_UNSET)
+            snprintf(why, sizeof why, "colour space %u from SetColorSpace1", color_space);
+        else if (game >= 0)
+            snprintf(why, sizeof why, "no SetColorSpace1 seen; the game's hdr mode is %d", game);
+        else
+            snprintf(why, sizeof why, "no SetColorSpace1 seen");
+        swofty::log("[overlay] swapchain %p output: %s, paper white %.0f nits (format %d, %s)",
+                    static_cast<void *>(sc), names[out], double(paper_white()), int(fmt), why);
+    }
+    return out;
 }
 
 void draw_frame(IDXGISwapChain3 *sc, const d3d12hooks::Swapchain *known, void *)
@@ -1025,7 +1060,7 @@ void draw_frame(IDXGISwapChain3 *sc, const d3d12hooks::Swapchain *known, void *)
     }
     ULONGLONG now = GetTickCount64();
     if (!subs.empty() && !killed("paint"))
-        paint_frame(sc, c.queue, subs, desc, now, c.color_space);
+        paint_frame(sc, c.queue, subs, desc, now, c.color_space_set ? c.color_space : hud::guard::COLOR_SPACE_UNSET);
     if (cap.on && !killed("capture"))
         capture_step(sc, c.queue, desc, now);
 }
@@ -1043,7 +1078,7 @@ void paint_frame(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const std::vector<h
         return;
     static const uint32_t probe = perf::probe("core", "overlay record");
     perf::Scope timed(probe);
-    UINT mode = killed("hdr") ? 0 : output_mode(desc.BufferDesc.Format, color_space);
+    UINT mode = killed("hdr") ? 0 : output_mode(sc, desc.BufferDesc.Format, color_space);
     switch (renderer.render(sc, q, desc.BufferDesc.Format, desc.BufferDesc.Width, desc.BufferDesc.Height, verts, mode,
                             paper_white())) {
     case Renderer::drawn:

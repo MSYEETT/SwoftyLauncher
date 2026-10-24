@@ -16,6 +16,7 @@ struct Swapchain {
     std::string how, by, fg;
     bool streamline = false;
     UINT color_space = 0;
+    bool color_space_set = false;
 };
 
 using PresentFn = void (*)(IDXGISwapChain3 *sc, const Swapchain *known, void *caller);

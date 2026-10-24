@@ -45,6 +45,7 @@ template <class T> void release(T *&p)
 
 std::mutex lock;
 std::vector<Swapchain> chains;
+std::vector<std::pair<void *, UINT>> pending_color_space;
 
 safetyhook::InlineHook h_present, h_resize, h_resize1, h_color_space, h_create, h_create_hwnd, h_create_core,
     h_create_comp, h_exec, h_barrier, h_setname;
@@ -88,6 +89,13 @@ void captured(const char *how, IUnknown *device, void *sc, UINT w, UINT h, DXGI_
         c.fg = "a non-direct present queue";
     {
         std::lock_guard<std::mutex> g(lock);
+        auto pend = std::find_if(pending_color_space.begin(), pending_color_space.end(),
+                                 [&](const std::pair<void *, UINT> &x) { return x.first == sc; });
+        if (pend != pending_color_space.end()) {
+            c.color_space = pend->second;
+            c.color_space_set = true;
+            pending_color_space.erase(pend);
+        }
         auto it = std::find_if(chains.begin(), chains.end(), [&](const Swapchain &x) { return x.sc == sc; });
         if (it != chains.end())
             *it = c;
@@ -248,13 +256,26 @@ HRESULT STDMETHODCALLTYPE resize1_hook(IDXGISwapChain3 *sc, UINT count, UINT w, 
 HRESULT STDMETHODCALLTYPE color_space_hook(IDXGISwapChain3 *sc, DXGI_COLOR_SPACE_TYPE cs)
 {
     HRESULT hr = h_color_space.call<HRESULT>(sc, cs);
-    if (SUCCEEDED(hr)) {
-        std::lock_guard<std::mutex> g(lock);
-        for (auto &c : chains)
-            if (c.sc == sc && c.color_space != UINT(cs)) {
-                c.color_space = UINT(cs);
-                swofty::log("[d3d12] swapchain %p colour space %d", static_cast<void *>(sc), int(cs));
-            }
+    std::lock_guard<std::mutex> g(lock);
+    auto it = std::find_if(chains.begin(), chains.end(), [&](const Swapchain &x) { return x.sc == sc; });
+    if (it == chains.end()) {
+        auto pend = std::find_if(pending_color_space.begin(), pending_color_space.end(),
+                                 [&](const std::pair<void *, UINT> &x) { return x.first == sc; });
+        if (SUCCEEDED(hr)) {
+            if (pend != pending_color_space.end())
+                pend->second = UINT(cs);
+            else if (pending_color_space.size() < 16)
+                pending_color_space.push_back({sc, UINT(cs)});
+        }
+        swofty::log("[d3d12] SetColorSpace1(%d) on swapchain %p before its creation was recorded -> 0x%08lx",
+                    int(cs), static_cast<void *>(sc), static_cast<unsigned long>(hr));
+    } else if (SUCCEEDED(hr) && (!it->color_space_set || it->color_space != UINT(cs))) {
+        it->color_space = UINT(cs);
+        it->color_space_set = true;
+        swofty::log("[d3d12] swapchain %p colour space %d", static_cast<void *>(sc), int(cs));
+    } else if (FAILED(hr)) {
+        swofty::log("[d3d12] SetColorSpace1(%d) on swapchain %p failed: 0x%08lx", int(cs), static_cast<void *>(sc),
+                    static_cast<unsigned long>(hr));
     }
     return hr;
 }

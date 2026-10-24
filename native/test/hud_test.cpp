@@ -191,6 +191,13 @@ static void test_guard()
     fs = fg_setting("<frame_gen mode=\"1\" /><multi_frame_gen value=\"2\" />");
     CHECK(fs.known && fs.mode == 1 && fs.multi == 2 && fs.on(), "frame_gen mode 1 reads as on");
     CHECK(fg_setting("<frame_gen />").on() && fg_setting("").on(), "a missing frame_gen mode reads as on");
+    CHECK(hdr_mode("<resolution>\n\t\t\t<hdr mode=\"1\" peakNits=\"1000\" />") == 1 && hdr_mode("<x/>") == -1,
+          "the game's hdr mode reads from hardware settings");
+    CHECK(output_for(24, 12, 0) == HDR10_PQ && output_for(24, 0, 1) == SDR && output_for(24, COLOR_SPACE_UNSET, 1) == HDR10_PQ &&
+              output_for(24, COLOR_SPACE_UNSET, 0) == SDR && output_for(24, COLOR_SPACE_UNSET, -1) == SDR,
+          "a 10-bit swapchain is HDR10 from SetColorSpace1, or from the game's hdr mode when no colour space was set");
+    CHECK(output_for(10, COLOR_SPACE_UNSET, 0) == SCRGB && output_for(10, 12, 0) == HDR10_PQ && output_for(28, 12, 1) == SDR,
+          "fp16 is scRGB unless PQ was set, and 8-bit is SDR");
     CHECK(chain({"swofty_core.dll", "dxgi.dll", "sl.interposer.dll", "sl.interposer.dll", "", "F1_25.exe", "KERNEL32.DLL"},
                 "swofty_core.dll", "dxgi.dll") == "sl.interposer.dll <- F1_25.exe <- KERNEL32.DLL",
           "the caller chain drops the core, the implementation, repeats and unknown frames");
