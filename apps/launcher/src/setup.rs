@@ -121,6 +121,17 @@ impl SetupWizard {
     }
 
     fn mods(&self, p: Palette, cx: &mut Context<Self>) -> Div {
+        let replaced = match self.install.source {
+            Source::Unknown => {
+                "Take them out of the game folder by hand: this copy can't be verified. Keep their \
+                                downloads to add them back as addons."
+                    .to_owned()
+            }
+            source => format!(
+                "{} replaces them with the game's own files. Keep their downloads to add them back as addons.",
+                crate::game_edited::repair(source).restores
+            ),
+        };
         v_flex()
             .gap(px(12.))
             .child(illustration(IconName::FolderSearch, p))
@@ -137,8 +148,7 @@ impl SetupWizard {
                     .child(choice(
                         "setup-mods-yes",
                         "Yes, there are other mods",
-                        "Verifying the game files replaces them with the game's own. Keep their downloads to \
-                         add them back as addons.",
+                        replaced,
                         self.other_mods == Some(true),
                         p,
                     )
@@ -158,15 +168,22 @@ impl SetupWizard {
 
     fn verify(&self, p: Palette) -> Div {
         let repair = crate::game_edited::repair(self.install.source);
-        let intro = match self.other_mods {
-            Some(true) => {
-                "Swofty put back the files it changed and records the game's original files again. \
-                           Verifying now replaces the other mods with the game's own files."
+        let intro = match (self.install.source, self.other_mods) {
+            (Source::Unknown, _) => {
+                "Swofty put back the files it changed and records the game's original files \
+                                     again from what is in the game folder next."
+                    .to_owned()
             }
-            _ => {
-                "Swofty put back the files it changed and records the game's original files again. \
-                  Verifying makes sure every game file is the store's own copy."
-            }
+            (_, Some(true)) => format!(
+                "Swofty put back the files it changed and records the game's original files again. {} now \
+                 replaces the other mods with the game's own files.",
+                repair.restores
+            ),
+            _ => format!(
+                "Swofty put back the files it changed and records the game's original files again. {} makes \
+                 sure every game file is the store's own copy.",
+                repair.restores
+            ),
         };
         let first = match self.install.source {
             Source::Steam => (
@@ -417,7 +434,7 @@ fn illustration(icon: IconName, p: Palette) -> impl IntoElement {
         .child(div().relative().child(game_art(48., 48.)).child(badge))
 }
 
-fn heading(title: &'static str, body: &'static str, p: Palette) -> impl IntoElement {
+fn heading(title: &'static str, body: impl Into<SharedString>, p: Palette) -> impl IntoElement {
     v_flex()
         .items_center()
         .gap(px(6.))
@@ -437,7 +454,7 @@ fn heading(title: &'static str, body: &'static str, p: Palette) -> impl IntoElem
                 .text_size(px(13.))
                 .line_height(px(19.))
                 .text_color(p.text_muted)
-                .child(body),
+                .child(body.into()),
         )
 }
 
@@ -510,7 +527,7 @@ fn callout(icon: IconName, text: &'static str, p: Palette) -> impl IntoElement {
 fn choice(
     id: &'static str,
     title: &'static str,
-    body: &'static str,
+    body: impl Into<SharedString>,
     chosen: bool,
     p: Palette,
 ) -> Stateful<Div> {
@@ -557,7 +574,7 @@ fn choice(
                 .text_size(px(12.))
                 .line_height(px(18.))
                 .text_color(p.text_muted)
-                .child(body),
+                .child(body.into()),
         )
 }
 
