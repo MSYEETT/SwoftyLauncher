@@ -10,7 +10,7 @@ A small window that installs the latest Swofty Launcher release and opens it.
 
 Run `SwoftyLauncherInstaller.exe` on Windows, or `SwoftyLauncherInstaller` on Linux and Steam Deck, choose a folder and select **Install**.
 
-The installer downloads the latest release from GitHub, checks it against the release's `SHA256SUMS`, extracts it into the folder, adds a Start menu or app menu entry and, if ticked, a desktop shortcut, then opens the launcher. Running it again on the same folder updates that install. After the first install the launcher updates itself.
+The installer downloads the latest release from GitHub, checks it against the release's `SHA256SUMS`, extracts it into the folder, adds a Start menu or app menu entry and, if ticked, a desktop shortcut, then opens the launcher. Running it again on the same folder updates that install. If the launcher is open from that folder, the installer offers to close it first. While F1 25 is running, it doesn't install. After the first install the launcher updates itself.
 
 Default folders:
 
