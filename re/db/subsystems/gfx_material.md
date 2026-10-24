@@ -88,6 +88,10 @@ Validation:
 
 CLI: `python3 tools/gfx_material.py dump <erp> <name>`, `convert <f1_23.erp> <dir>`, `convert-erp <f1_23.erp> <out.erp> [--drop-samplers]`, `catalog <F1 25>/2025_asset_groups` (regenerates the catalog).
 
+## Constant values
+
+Stock values per vehicle and track shader, and the constants checked in a race: [`gfx_material_constants.md`](gfx_material_constants.md).
+
 ## Open
 - No runtime test yet: a converted 2023 suit and helmet in F1 25.
 - The exe side (material loader, HeapIndex patching, static sampler table) is not catalogued.
