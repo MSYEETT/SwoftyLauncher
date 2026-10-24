@@ -664,8 +664,8 @@
    "set": {
     "_metadata_": "2021-cs_mercedes_lewis_hamilton",
     "helmet": "2024-mercedes_lewis_hamilton",
-    "suit": "2024-mercedes_lewis_hamilton",
-    "gloves": "2024-mercedes_lewis_hamilton",
+    "suit": "cs19-mercedes_andrea-kimi_antonelli",
+    "gloves": "cs19-mercedes_andrea-kimi_antonelli",
     "linked_driver_stat_id": "lewis_hamilton",
     "available": "False",
     "stat_id": "522"
@@ -689,8 +689,8 @@
    "set": {
     "_metadata_": "2021-cs_mercedes_valtteri_bottas",
     "helmet": "2024-sauber_valtteri_bottas",
-    "suit": "2024-mercedes",
-    "gloves": "2024-mercedes",
+    "suit": "cs19-mercedes_george_russell",
+    "gloves": "cs19-mercedes_george_russell",
     "linked_driver_stat_id": "valtteri_bottas",
     "available": "False",
     "stat_id": "523"

@@ -664,8 +664,8 @@
    "set": {
     "_metadata_": "2020-cs_mercedes_lewis_hamilton",
     "helmet": "2024-mercedes_lewis_hamilton",
-    "suit": "cs16-mercedes",
-    "gloves": "cs16-mercedes",
+    "suit": "cs19-mercedes_andrea-kimi_antonelli",
+    "gloves": "cs19-mercedes_andrea-kimi_antonelli",
     "linked_driver_stat_id": "lewis_hamilton",
     "available": "False",
     "stat_id": "502"
@@ -689,8 +689,8 @@
    "set": {
     "_metadata_": "2020-cs_mercedes_valtteri_bottas",
     "helmet": "2024-sauber_valtteri_bottas",
-    "suit": "cs16-mercedes",
-    "gloves": "cs16-mercedes",
+    "suit": "cs19-mercedes_george_russell",
+    "gloves": "cs19-mercedes_george_russell",
     "linked_driver_stat_id": "valtteri_bottas",
     "available": "False",
     "stat_id": "503"
@@ -832,8 +832,8 @@
    "set": {
     "_metadata_": "2020-cs_mclaren_carlos_sainz-jr",
     "helmet": "2024-ferrari_carlos_sainz-jr",
-    "suit": "cs16-mclaren",
-    "gloves": "cs16-mclaren",
+    "suit": "cs17-mclaren",
+    "gloves": "cs17-mclaren",
     "linked_driver_stat_id": "carlos_sainz-jr",
     "available": "False",
     "stat_id": "506"
@@ -857,8 +857,8 @@
    "set": {
     "_metadata_": "2020-cs_mclaren_lando_norris",
     "helmet": "2024-mclaren_lando_norris",
-    "suit": "cs16-mclaren",
-    "gloves": "cs16-mclaren",
+    "suit": "cs17-mclaren",
+    "gloves": "cs17-mclaren",
     "linked_driver_stat_id": "lando_norris",
     "available": "False",
     "stat_id": "507"
@@ -1033,8 +1033,8 @@
    "set": {
     "_metadata_": "2020-cs_lotus_daniel_ricciardo",
     "helmet": "2024-tororosso_daniel_ricciardo",
-    "suit": "cs16-renault",
-    "gloves": "cs16-renault",
+    "suit": "cs17-renault",
+    "gloves": "cs17-renault",
     "linked_driver_stat_id": "daniel_ricciardo",
     "available": "False",
     "stat_id": "510"
@@ -1058,8 +1058,8 @@
    "set": {
     "_metadata_": "2020-cs_lotus_esteban_ocon",
     "helmet": "2024-renault_esteban_ocon",
-    "suit": "cs16-renault",
-    "gloves": "cs16-renault",
+    "suit": "cs17-renault",
+    "gloves": "cs17-renault",
     "linked_driver_stat_id": "esteban_ocon",
     "available": "False",
     "stat_id": "511"
@@ -1117,8 +1117,8 @@
    "set": {
     "_metadata_": "2020-cs_ferrari_sebastian_vettel",
     "helmet": "2025-ferrari_charles_leclerc",
-    "suit": "cs16-ferrari",
-    "gloves": "cs16-ferrari",
+    "suit": "cs17-ferrari_charles_leclerc",
+    "gloves": "cs17-ferrari_charles_leclerc",
     "linked_driver_stat_id": "sebastian_vettel",
     "available": "False",
     "stat_id": "512"
@@ -1142,8 +1142,8 @@
    "set": {
     "_metadata_": "2020-cs_ferrari_charles_leclerc",
     "helmet": "2024-ferrari_charles_leclerc",
-    "suit": "cs16-ferrari",
-    "gloves": "cs16-ferrari",
+    "suit": "cs17-ferrari",
+    "gloves": "cs17-ferrari",
     "linked_driver_stat_id": "charles_leclerc",
     "available": "False",
     "stat_id": "513"
@@ -1435,8 +1435,8 @@
    "set": {
     "_metadata_": "2020-cs_haas_romain_grosjean",
     "helmet": "2025-haas_esteban_ocon",
-    "suit": "cs16-haas",
-    "gloves": "cs16-haas",
+    "suit": "cs17-haas_esteban_ocon",
+    "gloves": "cs17-haas_esteban_ocon",
     "linked_driver_stat_id": "romain_grosjean",
     "available": "False",
     "stat_id": "518"
@@ -1460,8 +1460,8 @@
    "set": {
     "_metadata_": "2020-cs_haas_kevin_magnussen",
     "helmet": "2024-haas_kevin_magnussen",
-    "suit": "cs16-haas",
-    "gloves": "cs16-haas",
+    "suit": "cs17-haas_oliver_bearman",
+    "gloves": "cs17-haas_oliver_bearman",
     "linked_driver_stat_id": "kevin_magnussen",
     "available": "False",
     "stat_id": "519"
@@ -1519,8 +1519,8 @@
    "set": {
     "_metadata_": "2020-cs_williams_george_russell",
     "helmet": "2024-mercedes_george_russell",
-    "suit": "cs16-williams",
-    "gloves": "cs16-williams",
+    "suit": "cs17-williams",
+    "gloves": "cs17-williams",
     "linked_driver_stat_id": "george_russell",
     "available": "False",
     "stat_id": "520"
@@ -1544,8 +1544,8 @@
    "set": {
     "_metadata_": "2020-cs_williams_nicholas_latifi",
     "helmet": "2025-williams_carlos_sainz-jr",
-    "suit": "cs16-williams",
-    "gloves": "cs16-williams",
+    "suit": "cs17-williams",
+    "gloves": "cs17-williams",
     "linked_driver_stat_id": "nicholas_latifi",
     "available": "False",
     "stat_id": "521"
