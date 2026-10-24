@@ -117,6 +117,7 @@ bool career_start_live();
 void popup_setup();
 void popup_tick();
 int popup_show(const std::string &title, const std::string &body, const std::string &by);
+int hud_toast(const std::string &text, const std::string &detail, float seconds, const std::string &by);
 const SwoftyCareerContent *career_content_table();
 std::vector<CoreMixins> career_content_mixins();
 void career_content_commit();

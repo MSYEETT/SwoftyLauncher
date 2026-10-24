@@ -5,6 +5,7 @@
 #include <swofty/mixin.hpp>
 
 #include <atomic>
+#include <cmath>
 #include <deque>
 #include <mutex>
 #include <string>
@@ -28,8 +29,14 @@
 // Every construct passes through the wrap below, which records the system pointer (the game
 // constructs messages from boot on, the online-services wait box first). Requests queue from any
 // thread and are shown from the flow tick.
+//
+// Toasts go through the same system as hud_main messages, the queue the race HUD's central
+// notification (hud_notifications_dynamic, F1HM bound to #ui_messages.hud_main_queue.hud_main) draws.
+// The launcher adds swofty_toast_<seconds> to hud_messages.uimsg: literal (localise false) message and
+// sub_message attributes and a fixed msg_duration per id, so a toast picks the id nearest its duration.
 
 std::string settings_addon(const void *from, std::string &dll);
+void *ui_vm_message_system();
 
 namespace {
 
@@ -77,6 +84,14 @@ struct Request {
     std::string title, body, by;
 };
 
+struct Toast {
+    std::string text, detail, by;
+    unsigned seconds;
+};
+
+constexpr unsigned TOAST_SECONDS[] = {2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 30};
+constexpr size_t MAX_TOASTS = 8, MAX_TOAST_TEXT = 200;
+
 uintptr_t a_construct, a_set_attr, a_release, a_make_str;
 const void *id_vt;
 safetyhook::InlineHook h_construct;
@@ -84,7 +99,9 @@ std::atomic<void *> sys;
 std::atomic<bool> live, own_missing;
 std::mutex queue_lock;
 std::deque<Request> queue;
-std::atomic<size_t> pending;
+std::atomic<size_t> pending, toasts_pending;
+std::deque<Toast> toasts;
+std::atomic<bool> toast_missing;
 
 uintptr_t rel32(uintptr_t at)
 {
@@ -150,6 +167,33 @@ void show(void *s, const Request &r)
                 ok ? "" : " (an attribute was refused; the popup may show empty text)");
 }
 
+unsigned toast_seconds(float want)
+{
+    unsigned best = TOAST_SECONDS[0];
+    for (unsigned n : TOAST_SECONDS)
+        if (std::fabs(float(n) - want) < std::fabs(float(best) - want))
+            best = n;
+    return best;
+}
+
+void show_toast(void *s, const Toast &t)
+{
+    char id[32];
+    snprintf(id, sizeof id, "swofty_toast_%u", t.seconds);
+    Handle h = open(s, id);
+    if (!h.msg) {
+        if (!toast_missing.exchange(true))
+            swofty::log("[hud] toast from %s dropped: the game has no '%s' message (the launcher's UI build adds the "
+                        "swofty_toast_* HUD messages)",
+                        t.by.c_str(), id);
+        return;
+    }
+    bool ok = set(h, "message", t.text) && set(h, "sub_message", t.detail);
+    reinterpret_cast<Release_t *>(a_release)(&h);
+    swofty::log("[hud] toast shown for %s as '%s': \"%.80s\"%s", t.by.c_str(), id, t.text.c_str(),
+                ok ? "" : " (an attribute was refused; the toast may show empty text)");
+}
+
 int api_available()
 {
     return live && runtime::enabled("popup", nullptr);
@@ -199,6 +243,65 @@ int api_show(const char *title, const char *body)
 
 const SwoftyPopup table = {api_available, api_show};
 
+int toast_enqueue(std::string text, std::string detail, float seconds, const std::string &by)
+{
+    if (text.empty()) {
+        swofty::log("[hud] toast by %s refused: empty text", by.c_str());
+        return SWOFTY_ASSET_INVALID;
+    }
+    if (!api_available()) {
+        swofty::log("[hud] toast by %s: unavailable (%s)", by.c_str(),
+                    runtime::enabled("popup", nullptr) ? "the message system did not resolve on this build"
+                                                       : "the popup feature is off");
+        return SWOFTY_ASSET_UNAVAILABLE;
+    }
+    if (text.size() > MAX_TOAST_TEXT)
+        text.resize(MAX_TOAST_TEXT);
+    if (detail.size() > MAX_TOAST_TEXT)
+        detail.resize(MAX_TOAST_TEXT);
+    unsigned n = toast_seconds(seconds > 0 ? seconds : 4.0f);
+    std::lock_guard<std::mutex> g(queue_lock);
+    if (toasts.size() >= MAX_TOASTS) {
+        swofty::log("[hud] toast queue full (%zu); dropping the oldest toast, from %s", toasts.size(),
+                    toasts.front().by.c_str());
+        toasts.pop_front();
+    }
+    toasts.push_back({std::move(text), std::move(detail), by, n});
+    toasts_pending = toasts.size();
+    swofty::log("[hud] toast queued by %s for %us: \"%.80s\"", by.c_str(), n, toasts.back().text.c_str());
+    return SWOFTY_ASSET_OK;
+}
+
+int api_toast(const char *text, const char *detail, float seconds)
+{
+    return toast_enqueue(text ? text : "", detail ? detail : "", seconds, who(__builtin_return_address(0)));
+}
+
+const SwoftyHud hud_table = {api_available, api_toast};
+
+unsigned toast_test_every;
+uint64_t toast_test_next;
+unsigned toast_test_count;
+
+void toast_test_tick()
+{
+    if (!toast_test_every)
+        return;
+    uint64_t now = GetTickCount64();
+    if (now < toast_test_next)
+        return;
+    toast_test_next = now + uint64_t(toast_test_every) * 1000;
+    char text[64], detail[64];
+    snprintf(text, sizeof text, "SWOFTY TOAST %u", ++toast_test_count);
+    snprintf(detail, sizeof detail, "core test, every %us", toast_test_every);
+    toast_enqueue(text, detail, 4.0f, "SWOFTY_TOAST_TEST");
+}
+
+}
+
+extern "C" __declspec(dllexport) const SwoftyHud *SwoftyCoreHud(void)
+{
+    return &hud_table;
 }
 
 namespace runtime {
@@ -211,6 +314,11 @@ const SwoftyPopup *popup_table()
 int popup_show(const std::string &title, const std::string &body, const std::string &by)
 {
     return enqueue(title, body, by);
+}
+
+int hud_toast(const std::string &text, const std::string &detail, float seconds, const std::string &by)
+{
+    return toast_enqueue(text, detail, seconds, by);
 }
 
 void popup_setup()
@@ -244,6 +352,12 @@ void popup_setup()
     }
     h_construct = std::move(*r);
     live = true;
+    char every[16] = {};
+    if (GetEnvironmentVariableA("SWOFTY_TOAST_TEST", every, sizeof every) && atoi(every) > 0) {
+        toast_test_every = unsigned(atoi(every));
+        toast_test_next = GetTickCount64() + uint64_t(toast_test_every) * 1000;
+        swofty::log("[hud] SWOFTY_TOAST_TEST: a test toast every %us", toast_test_every);
+    }
     swofty::log("[popup] setup: live; construct base+0x%llx, set attribute base+0x%llx, release base+0x%llx, id vtable "
                 "base+0x%llx",
                 (unsigned long long)(a_construct - base), (unsigned long long)(a_set_attr - base),
@@ -252,22 +366,37 @@ void popup_setup()
 
 void popup_tick()
 {
-    if (!pending.load(std::memory_order_relaxed))
+    toast_test_tick();
+    if (!pending.load(std::memory_order_relaxed) && !toasts_pending.load(std::memory_order_relaxed))
         return;
     void *s = sys.load();
+    if (!s && (s = ui_vm_message_system())) {
+        void *was = nullptr;
+        if (sys.compare_exchange_strong(was, s))
+            swofty::log("[popup] message system %p from the UI system (no message constructed yet)", s);
+        else
+            s = was;
+    }
     if (!s)
         return;
     static const uint32_t probe = perf::probe("core", "popup show");
     perf::Scope p(probe);
     std::deque<Request> now;
+    std::deque<Toast> now_toasts;
     {
         std::lock_guard<std::mutex> g(queue_lock);
         now.swap(queue);
+        now_toasts.swap(toasts);
         pending = 0;
+        toasts_pending = 0;
     }
     for (auto &r : now) {
         perf::Pause game;
         show(s, r);
+    }
+    for (auto &t : now_toasts) {
+        perf::Pause game;
+        show_toast(s, t);
     }
 }
 

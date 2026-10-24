@@ -1,6 +1,7 @@
 #include <windows.h>
 
 #include <swofty/game.hpp>
+#include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 #include <swofty/ui.hpp>
 
@@ -402,6 +403,17 @@ void load_addons(const std::wstring &settings_path)
     }
 }
 
+}
+
+void *ui_vm_message_system()
+{
+    if (!ui_system || !swofty::mem::readable(ui_system, sizeof(void *)) || !*ui_system)
+        return nullptr;
+    void *sys = *ui_system;
+    void **vt = *static_cast<void ***>(sys);
+    if (!swofty::mem::readable(vt + 0x58 / 8, sizeof(void *)) || !swofty::mem::in_image(uintptr_t(vt[0x58 / 8])))
+        return nullptr;
+    return reinterpret_cast<Getter_t *>(vt[0x58 / 8])(sys);
 }
 
 bool ui_vm_init(uintptr_t module_base, const std::wstring &swofty_dir)

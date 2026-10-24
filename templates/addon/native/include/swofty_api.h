@@ -334,6 +334,16 @@ typedef struct SwoftyPopup {
     int (*show)(const char *title, const char *body);
 } SwoftyPopup;
 
+/* Race HUD (swofty/hud.hpp). Not part of SwoftyApi: the table comes from the core's SwoftyCoreHud export,
+   so an addon built against this header also loads on an older core. toast shows text (and an optional
+   second line, detail) in the race HUD's central notification for about seconds; the core rounds it to
+   2, 3, 4, 5, 6, 8, 10, 12, 15, 20 or 30. UTF-8, copied, each string capped at 200 bytes. */
+#define SWOFTY_API_HUD 1
+typedef struct SwoftyHud {
+    int (*available)(void);
+    int (*toast)(const char *text, const char *detail, float seconds);
+} SwoftyHud;
+
 /* Runtime string overrides (API v8): the localised text a lng_* key resolves to, changed while the
    game runs. language NULL or "*" means every language; otherwise a language code (eng, fre, ...)
    that applies while it is the game's current language and wins over "*". The text is UTF-8 and is
