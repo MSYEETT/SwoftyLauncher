@@ -34,7 +34,7 @@ The logs go to the developers' Discord as one zip file, `swofty-logs-<username>-
 | `crash/crash-<time>.txt`, `crash/crash-<time>.dmp` | The newest crash report the game wrote and its minidump, when there is one. The minidump is left out, noted in the summary, when it is too big for the zip |
 | `game/loader.log`, `game/perf.log` | The loader log and the performance report of the game that's running |
 | `state/*.log` | The launcher's own logs, such as `launcher-run.log` and `wrapper-run.log` |
-| `sessions/<time>/` | The logs and small files of your three latest game sessions, such as `loader.log`, `perf.log`, `env.txt` and `exit_code` |
+| `sessions/<time>/` | The logs and small files of your three latest game sessions, such as `loader.log`, `perf.log`, `env.txt`, `exit_code` and `end.json` |
 | `addons/<id>/helper.log` | Each addon helper's log |
 | `addons.json` | The id, name, version, source, category, types and origin of every installed addon, and each profile's addons with their names and settings |
 | `conflicts.json` | From the active profile's last build: each pair of addons that change the same thing, which one wins, and the records, resources, files and text they both change |

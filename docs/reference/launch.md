@@ -105,6 +105,17 @@ You'll find session logs in `$DATA/sessions/<id>/`. Run `swofty logs` for the la
 
 If Proton can't create the game process, you'll see `Proton could not start the game process (CreateProcess error N)` instead of an exit code in `swofty run`, `swofty logs` and the launcher.
 
+Each session's `end.json` says how the game ended, with its exit code (`null` when the session couldn't read it) and the reason:
+
+| `end` | When |
+|---|---|
+| `quit` | The game exited with code 0. |
+| `crash` | The game exited with a crash code (`0xC0000000` and up, other than -1), or `loader.log` shows an unhandled exception before the exit. |
+| `stopped` | **Stop** in the launcher, `swofty run --restart` or a stop signal to the wrapper closed the game. |
+| `unknown` | Anything else, such as -1 with no unhandled exception, or an EA app launch with no exit code. F1 25's crash handler exits with -1, and the game also leaves -1 when it fails while closing. |
+
+The launcher shows a crash for `crash`, and for `unknown` with a non-zero exit code. It doesn't show one after **Stop**.
+
 When the game exits, however it exits, the session puts the game folder back to vanilla. To check, run `swofty verify`. See [Restoring the game](/using/profiles-and-restoring) for the cases that need `swofty restore`.
 
 ## Next

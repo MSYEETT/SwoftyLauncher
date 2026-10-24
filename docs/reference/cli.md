@@ -10,7 +10,7 @@ swofty run
 
 Run this to launch F1 25 and follow its logs. Modded play is [offline](/reference/safety) only. When Steam is closed, `swofty run` starts it and waits up to 90 seconds for it to sign in; see [Steam](/reference/launch#steam).
 
-When you leave the game, you'll get a summary with the exit code and any crash details. `swofty run` exits once the session's game files are rolled back.
+When you leave the game, you'll get a summary with the exit code, how the game ended and any crash details. `swofty run` exits once the session's game files are rolled back.
 
 To stop following the logs while keeping the game running, press **Ctrl-C**. When Steam launched the game, `swofty run` exits right away. For a direct launch, it keeps waiting to roll the game files back when the game exits; press **Ctrl-C** again to leave now, and the next start rolls them back.
 
