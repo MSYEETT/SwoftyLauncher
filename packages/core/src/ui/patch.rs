@@ -636,6 +636,47 @@ pub fn messages(data: &[u8], text: bool) -> Result<Vec<u8>> {
     })
 }
 
+pub const TOAST_PREFIX: &str = "swofty_toast_";
+pub const TOAST_SECONDS: &[u32] = &[2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 30];
+const TOAST_TEMPLATE: &str = "teammate_entering_pit";
+const TOAST_FLAG: &str = "#overrides.osd.race_flags.generic";
+
+fn toast_attribute(name: &str, value: Node) -> Node {
+    obj(vec![
+        ("localise", boolv(false)),
+        ("value", value),
+        ("name", s(name)),
+        ("dbEntry", s("")),
+    ])
+}
+
+pub fn hud_messages(data: &[u8]) -> Result<Vec<u8>> {
+    edit(data, |p| {
+        let list = root_obj(p)?.at_mut("messages")?.a_mut()?;
+        let Some(template) = by_message_id(list, TOAST_TEMPLATE).cloned() else {
+            return Err(err(format!("the HUD messages have no {TOAST_TEMPLATE}")));
+        };
+        for &n in TOAST_SECONDS {
+            let id = format!("{TOAST_PREFIX}{n}");
+            if by_message_id(list, &id).is_some() {
+                continue;
+            }
+            let mut m = template.clone();
+            let o = m.o_mut()?;
+            set_str(o, "id", &id)?;
+            *o.at_mut("attributes")?.a_mut()? = vec![
+                toast_attribute("message", s("")),
+                toast_attribute("sub_message", s("")),
+                toast_attribute("msg_duration", f32v(n as f32)),
+                toast_attribute("flag", s(TOAST_FLAG)),
+                toast_attribute("enabled_in_spectator", boolv(true)),
+            ];
+            list.push(m);
+        }
+        Ok(())
+    })
+}
+
 fn multichoice(p: &mut swofty_formats::pkg::Pkg) -> Result<&mut Node> {
     let scr = first_screen(p)?;
     if scr.name() != "persistent" {
@@ -1044,6 +1085,69 @@ mod tests {
         assert_eq!(options[0].o().unwrap().str_at("response").unwrap(), "ok");
         let twice = by_id(&messages(&messages(&messages_file(), false).unwrap(), false).unwrap());
         assert_eq!(twice.iter().filter(|(id, _)| id == MESSAGE_ID).count(), 1);
+    }
+
+    fn hud_message(id: &str) -> Node {
+        obj(vec![
+            ("id", s(id)),
+            ("type", s("hud_main")),
+            ("playerFilter", s("exclusive")),
+            ("priority", u32v(2)),
+            (
+                "attributes",
+                arr(vec![toast_attribute("message", s(&format!("lng_{id}")))]),
+            ),
+            ("options", arr(vec![])),
+            ("queue", s("hud_main_queue")),
+        ])
+    }
+
+    #[test]
+    fn toasts_are_hud_main_messages_with_literal_text_and_a_fixed_duration() {
+        let stock = Pkg {
+            name: [0; 4],
+            root: obj(vec![(
+                "messages",
+                arr(vec![hud_message("drs_enabled"), hud_message(TOAST_TEMPLATE)]),
+            )]),
+            vca: Vec::new(),
+            layout: None,
+        }
+        .to_bytes()
+        .unwrap();
+        let ours = by_id(&hud_messages(&stock).unwrap());
+        assert_eq!(ours.len(), 2 + TOAST_SECONDS.len());
+        for (i, &n) in TOAST_SECONDS.iter().enumerate() {
+            let (id, m) = &ours[2 + i];
+            assert_eq!(id, &format!("{TOAST_PREFIX}{n}"));
+            let o = m.o().unwrap();
+            assert_eq!(o.str_at("type").unwrap(), "hud_main");
+            assert_eq!(o.str_at("queue").unwrap(), "hud_main_queue");
+            let attrs = o.at("attributes").unwrap().a().unwrap();
+            let names: Vec<&str> = attrs
+                .iter()
+                .map(|a| a.o().unwrap().str_at("name").unwrap())
+                .collect();
+            assert_eq!(
+                names,
+                [
+                    "message",
+                    "sub_message",
+                    "msg_duration",
+                    "flag",
+                    "enabled_in_spectator"
+                ]
+            );
+            for a in attrs {
+                let a = a.o().unwrap();
+                assert_eq!(canonical(a.get("localise").unwrap()), canonical(&boolv(false)));
+            }
+            let duration = attrs[2].o().unwrap().get("value").unwrap();
+            assert_eq!(canonical(duration), canonical(&f32v(n as f32)));
+        }
+        assert_eq!(canonical(&ours[0].1), canonical(&hud_message("drs_enabled")));
+        let twice = by_id(&hud_messages(&hud_messages(&stock).unwrap()).unwrap());
+        assert_eq!(twice.len(), ours.len());
     }
 
     fn routes_file() -> Vec<u8> {
