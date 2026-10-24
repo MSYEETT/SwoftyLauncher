@@ -4,6 +4,7 @@
 #include "hud_guard.hpp"
 #include "hud_png.hpp"
 #include "perf.hpp"
+#include "d3d12_hooks.hpp"
 
 #include <safetyhook.hpp>
 #include <swofty/mixin.hpp>
@@ -160,34 +161,7 @@ constexpr UINT MAX_VERTS = 1u << 18;
 constexpr UINT SLOTS = 3;
 constexpr ULONGLONG STATS_MS = 60000;
 
-std::string module_of(const void *addr, HMODULE *mod = nullptr)
-{
-    HMODULE m = nullptr;
-    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                            reinterpret_cast<LPCWSTR>(addr), &m) ||
-        !m)
-        return {};
-    if (mod)
-        *mod = m;
-    char path[MAX_PATH] = {};
-    DWORD n = GetModuleFileNameA(m, path, MAX_PATH);
-    return std::string(hud::guard::base_name(std::string_view(path, n)));
-}
-
-std::string self_module()
-{
-    static std::string name = module_of(reinterpret_cast<const void *>(&module_of));
-    return name;
-}
-
-struct Chain {
-    void *sc = nullptr;
-    ID3D12CommandQueue *queue = nullptr;
-    std::string how, by, fg;
-    bool streamline = false;
-    bool told = false;
-    UINT color_space = 0;
-};
+using d3d12hooks::module_of;
 
 bool kill_has(const std::string &list, const char *what)
 {
@@ -212,8 +186,7 @@ bool killed(const char *what)
     return kill_has(list, "all") || kill_has(list, what);
 }
 
-std::mutex chains_lock;
-std::vector<Chain> chains;
+std::vector<std::pair<void *, bool>> told;
 std::vector<void *> unknown_told;
 
 struct Pso {
@@ -676,10 +649,6 @@ struct Stats {
     unsigned drawn = 0, busy = 0;
 } stats;
 
-using Present_t = HRESULT(STDMETHODCALLTYPE *)(IDXGISwapChain3 *, UINT, UINT);
-
-safetyhook::InlineHook h_present, h_create, h_create_hwnd, h_create_core, h_create_comp, h_color_space;
-thread_local int creating;
 
 void device_lost(HRESULT present_hr)
 {
@@ -699,18 +668,6 @@ void device_lost(HRESULT present_hr)
                 "(swapchain by %s); the overlay stops drawing",
                 static_cast<unsigned long>(present_hr), static_cast<unsigned long>(reason), double(now - last) / 1000,
                 drawn_by.c_str());
-}
-
-std::string fg_caller(void *caller)
-{
-    static void *last;
-    static std::string last_fg;
-    if (caller == last)
-        return last_fg;
-    std::string name = module_of(caller);
-    last = caller;
-    last_fg = hud::guard::fg_module(name) && !hud::guard::streamline_hook(name) ? name : std::string();
-    return last_fg;
 }
 
 struct FgWatch {
@@ -988,7 +945,7 @@ float paper_white()
     return nits;
 }
 
-void draw_frame(IDXGISwapChain3 *sc, void *caller)
+void draw_frame(IDXGISwapChain3 *sc, const d3d12hooks::Swapchain *known, void *)
 {
     if (off.load() || renderer.failed)
         return;
@@ -1001,34 +958,20 @@ void draw_frame(IDXGISwapChain3 *sc, void *caller)
     }
     if (subs.empty() && !cap.on)
         return;
-    std::string pfg = fg_caller(caller);
-    static void *seen_sc;
-    if (seen_sc != sc) {
-        seen_sc = sc;
-        swofty::log("[overlay] Present on swapchain %p from %s on thread %lu", static_cast<void *>(sc),
-                    module_of(caller).c_str(), GetCurrentThreadId());
-    }
-    Chain c;
-    bool fresh = false;
-    {
-        std::lock_guard<std::mutex> g(chains_lock);
-        auto it = std::find_if(chains.begin(), chains.end(), [&](const Chain &x) { return x.sc == sc; });
-        if (it == chains.end()) {
-            if (std::find(unknown_told.begin(), unknown_told.end(), sc) == unknown_told.end()) {
-                unknown_told.push_back(sc);
-                swofty::log("[overlay] swapchain %p was created before the overlay hooked swapchain creation, so its "
-                            "present queue is unknown; the overlay does not draw on it",
-                            static_cast<void *>(sc));
-            }
-            return;
+    if (!known) {
+        if (std::find(unknown_told.begin(), unknown_told.end(), sc) == unknown_told.end()) {
+            unknown_told.push_back(sc);
+            swofty::log("[overlay] swapchain %p was created before the core hooked swapchain creation, so its "
+                        "present queue is unknown; the overlay does not draw on it",
+                        static_cast<void *>(sc));
         }
-        bool fg_was = !it->fg.empty();
-        if (!fg_was && !pfg.empty())
-            it->fg = pfg + " (calls Present)";
-        fresh = !it->told || (!fg_was && !it->fg.empty());
-        it->told = true;
-        c = *it;
+        return;
     }
+    const d3d12hooks::Swapchain &c = *known;
+    std::pair<void *, bool> seen{sc, !c.fg.empty()};
+    bool fresh = std::find(told.begin(), told.end(), seen) == told.end();
+    if (fresh)
+        told.push_back(seen);
     if (!c.fg.empty()) {
         if (fresh)
             swofty::log("[overlay] frame generation (%s) owns swapchain %p; the overlay does not draw on it",
@@ -1120,132 +1063,10 @@ void paint_frame(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const std::vector<h
     }
 }
 
-std::atomic<bool> drawing;
-
-HRESULT STDMETHODCALLTYPE present_hook(IDXGISwapChain3 *sc, UINT sync, UINT flags)
+void presented(IDXGISwapChain3 *, HRESULT hr)
 {
-    if (!(flags & DXGI_PRESENT_TEST) && !drawing.exchange(true)) {
-        draw_frame(sc, __builtin_return_address(0));
-        drawing.store(false);
-    }
-    HRESULT hr = h_present.call<HRESULT>(sc, sync, flags);
     if ((hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) && armed.load())
         device_lost(hr);
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE color_space_hook(IDXGISwapChain3 *sc, DXGI_COLOR_SPACE_TYPE cs)
-{
-    HRESULT hr = h_color_space.call<HRESULT>(sc, cs);
-    if (SUCCEEDED(hr)) {
-        std::lock_guard<std::mutex> g(chains_lock);
-        for (auto &c : chains)
-            if (c.sc == sc && c.color_space != UINT(cs)) {
-                c.color_space = UINT(cs);
-                swofty::log("[overlay] swapchain %p colour space %d", static_cast<void *>(sc), int(cs));
-            }
-    }
-    return hr;
-}
-
-void captured(const char *how, IUnknown *device, void *sc, UINT w, UINT h, DXGI_FORMAT fmt, UINT buffers, HMODULE impl)
-{
-    void *frames[48];
-    USHORT n = RtlCaptureStackBackTrace(0, 48, frames, nullptr);
-    std::vector<std::string> mods;
-    for (USHORT i = 0; i < n; i++)
-        mods.push_back(module_of(frames[i]));
-    char impl_path[MAX_PATH] = {};
-    DWORD impl_n = impl ? GetModuleFileNameA(impl, impl_path, MAX_PATH) : 0;
-    std::string impl_name(hud::guard::base_name(std::string_view(impl_path, impl_n)));
-    std::string by = hud::guard::chain(mods, self_module(), impl_name);
-    ID3D12CommandQueue *q = nullptr;
-    if (!device || FAILED(device->QueryInterface(IID_PPV_ARGS(&q))) || !q) {
-        swofty::log("[overlay] swapchain %p (%s, by %s) was not created on a D3D12 command queue; the overlay ignores it",
-                    sc, how, by.c_str());
-        return;
-    }
-    D3D12_COMMAND_QUEUE_DESC qd = q->GetDesc();
-    q->Release();
-    Chain c;
-    c.sc = sc;
-    c.queue = q;
-    c.how = how;
-    c.by = by;
-    c.fg = hud::guard::fg_in(mods);
-    c.streamline = hud::guard::streamline_in(mods);
-    if (qd.Type != D3D12_COMMAND_LIST_TYPE_DIRECT && c.fg.empty())
-        c.fg = "a non-direct present queue";
-    {
-        std::lock_guard<std::mutex> g(chains_lock);
-        auto it = std::find_if(chains.begin(), chains.end(), [&](const Chain &x) { return x.sc == sc; });
-        if (it != chains.end())
-            *it = c;
-        else
-            chains.push_back(c);
-        unknown_told.erase(std::remove(unknown_told.begin(), unknown_told.end(), sc), unknown_told.end());
-    }
-    swofty::log("[overlay] swapchain %p created through %s on queue %p (type %d, %ux%u, format %d, %u buffer(s)); "
-                "created by %s%s%s",
-                sc, how, static_cast<void *>(q), int(qd.Type), w, h, int(fmt), buffers, by.c_str(),
-                c.fg.empty() ? (c.streamline ? "; through Streamline's frame generation hook" : "")
-                             : "; frame generation: ",
-                c.fg.c_str());
-}
-
-HMODULE impl_create, impl_hwnd, impl_core, impl_comp;
-
-HRESULT STDMETHODCALLTYPE create_hook(IDXGIFactory *f, IUnknown *dev, DXGI_SWAP_CHAIN_DESC *d, IDXGISwapChain **out)
-{
-    creating++;
-    HRESULT hr = h_create.call<HRESULT>(f, dev, d, out);
-    if (--creating == 0 && SUCCEEDED(hr) && out && *out && d)
-        captured("IDXGIFactory::CreateSwapChain", dev, *out, d->BufferDesc.Width, d->BufferDesc.Height,
-                 d->BufferDesc.Format, d->BufferCount, impl_create);
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE create_hwnd_hook(IDXGIFactory2 *f, IUnknown *dev, HWND wnd, const DXGI_SWAP_CHAIN_DESC1 *d,
-                                           const DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fs, IDXGIOutput *o,
-                                           IDXGISwapChain1 **out)
-{
-    creating++;
-    HRESULT hr = h_create_hwnd.call<HRESULT>(f, dev, wnd, d, fs, o, out);
-    if (--creating == 0 && SUCCEEDED(hr) && out && *out && d)
-        captured("CreateSwapChainForHwnd", dev, *out, d->Width, d->Height, d->Format, d->BufferCount, impl_hwnd);
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE create_core_hook(IDXGIFactory2 *f, IUnknown *dev, IUnknown *wnd,
-                                           const DXGI_SWAP_CHAIN_DESC1 *d, IDXGIOutput *o, IDXGISwapChain1 **out)
-{
-    creating++;
-    HRESULT hr = h_create_core.call<HRESULT>(f, dev, wnd, d, o, out);
-    if (--creating == 0 && SUCCEEDED(hr) && out && *out && d)
-        captured("CreateSwapChainForCoreWindow", dev, *out, d->Width, d->Height, d->Format, d->BufferCount, impl_core);
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE create_comp_hook(IDXGIFactory2 *f, IUnknown *dev, const DXGI_SWAP_CHAIN_DESC1 *d,
-                                           IDXGIOutput *o, IDXGISwapChain1 **out)
-{
-    creating++;
-    HRESULT hr = h_create_comp.call<HRESULT>(f, dev, d, o, out);
-    if (--creating == 0 && SUCCEEDED(hr) && out && *out && d)
-        captured("CreateSwapChainForComposition", dev, *out, d->Width, d->Height, d->Format, d->BufferCount,
-                 impl_comp);
-    return hr;
-}
-
-bool install(safetyhook::InlineHook &h, void *target, void *detour, const char *what)
-{
-    auto made = safetyhook::InlineHook::create(target, detour);
-    if (!made) {
-        swofty::log("[overlay] hooking %s at %p failed", what, target);
-        return false;
-    }
-    h = std::move(*made);
-    return true;
 }
 
 bool resolve_d3d12()
@@ -1262,111 +1083,13 @@ bool resolve_d3d12()
     return false;
 }
 
-bool hook_factory(void **vt)
-{
-    struct Want {
-        int slot;
-        safetyhook::InlineHook *h;
-        void *detour;
-        HMODULE *impl;
-        const char *what;
-        bool required;
-    } wants[] = {
-        {15, &h_create_hwnd, reinterpret_cast<void *>(&create_hwnd_hook), &impl_hwnd, "CreateSwapChainForHwnd", true},
-        {10, &h_create, reinterpret_cast<void *>(&create_hook), &impl_create, "CreateSwapChain", false},
-        {16, &h_create_core, reinterpret_cast<void *>(&create_core_hook), &impl_core, "CreateSwapChainForCoreWindow",
-         false},
-        {24, &h_create_comp, reinterpret_cast<void *>(&create_comp_hook), &impl_comp, "CreateSwapChainForComposition",
-         false},
-    };
-    std::vector<void *> done;
-    std::string armed_list;
-    for (auto &w : wants) {
-        void *target = vt[w.slot];
-        if (std::find(done.begin(), done.end(), target) != done.end()) {
-            swofty::log("[overlay] IDXGIFactory %s shares its code with another hooked slot; not hooked twice", w.what);
-            continue;
-        }
-        module_of(target, w.impl);
-        if (!install(*w.h, target, w.detour, w.what)) {
-            if (w.required)
-                return false;
-            continue;
-        }
-        done.push_back(target);
-        char b[64];
-        snprintf(b, sizeof b, "%s%s (vt+0x%x)", armed_list.empty() ? "" : ", ", w.what, unsigned(w.slot * 8));
-        armed_list += b;
-    }
-    swofty::log("[overlay] swapchain creation hooked on the DXGI factory (%s, in %s)", armed_list.c_str(),
-                module_of(vt[15]).c_str());
-    return true;
-}
-
 bool arm()
 {
     if (!resolve_d3d12())
         return false;
-    WNDCLASSEXW wc{};
-    wc.cbSize = sizeof wc;
-    wc.lpfnWndProc = DefWindowProcW;
-    wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpszClassName = L"SwoftyOverlayProbe";
-    RegisterClassExW(&wc);
-    HWND wnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_OVERLAPPEDWINDOW, 0, 0, 64, 64, nullptr, nullptr,
-                               wc.hInstance, nullptr);
-    if (!wnd) {
-        swofty::log("[overlay] could not make a probe window to read the swapchain vtable");
-        UnregisterClassW(wc.lpszClassName, wc.hInstance);
-        return false;
-    }
-    ID3D12Device *dev = nullptr;
-    ID3D12CommandQueue *q = nullptr;
-    IDXGIFactory4 *factory = nullptr;
-    IDXGISwapChain1 *swap1 = nullptr;
-    IDXGISwapChain3 *swap = nullptr;
-    bool ok = false;
-    do {
-        if (FAILED(d3d12_create_device(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dev))))
-            break;
-        D3D12_COMMAND_QUEUE_DESC qd{};
-        qd.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-        if (FAILED(dev->CreateCommandQueue(&qd, IID_PPV_ARGS(&q))))
-            break;
-        if (FAILED(dxgi_create_factory(IID_PPV_ARGS(&factory))))
-            break;
-        DXGI_SWAP_CHAIN_DESC1 sd{};
-        sd.BufferCount = 2;
-        sd.Width = 64;
-        sd.Height = 64;
-        sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-        sd.SampleDesc.Count = 1;
-        if (FAILED(factory->CreateSwapChainForHwnd(q, wnd, &sd, nullptr, nullptr, &swap1)))
-            break;
-        if (FAILED(swap1->QueryInterface(IID_PPV_ARGS(&swap))))
-            break;
-        void **sc_vt = *reinterpret_cast<void ***>(swap);
-        void **f_vt = *reinterpret_cast<void ***>(factory);
-        ok = hook_factory(f_vt) &&
-             install(h_present, sc_vt[8], reinterpret_cast<void *>(&present_hook), "IDXGISwapChain::Present");
-        if (ok && !install(h_color_space, sc_vt[38], reinterpret_cast<void *>(&color_space_hook),
-                           "IDXGISwapChain3::SetColorSpace1"))
-            swofty::log("[overlay] without the SetColorSpace1 hook the overlay treats every swapchain as SDR");
-        if (ok)
-            swofty::log("[overlay] present hook armed: Present (vt+0x40) on the D3D12 swapchain (in %s); the overlay "
-                        "draws only on swapchains created after this point, on their creation queue",
-                        module_of(sc_vt[8]).c_str());
-    } while (false);
-    release(swap);
-    release(swap1);
-    release(factory);
-    release(q);
-    release(dev);
-    DestroyWindow(wnd);
-    UnregisterClassW(wc.lpszClassName, wc.hInstance);
-    return ok;
+    d3d12hooks::on_present(draw_frame);
+    d3d12hooks::on_presented(presented);
+    return d3d12hooks::arm_swapchain();
 }
 
 // ----- SwoftyOverlay table ----------------------------------------------------------------------
