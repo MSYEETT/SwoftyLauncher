@@ -95,6 +95,11 @@ bool all_digits(const std::string &s, size_t from)
 std::string check_text(const Edit &e, int tag)
 {
     const std::string &t = e.value;
+    // Gdb_HashMap_Insert parses empty text as 0 (atoi for tags 0 and 11, strtoull for 12), 0.0 (atof for 1) or
+    // false (_stricmp against "true" for 5), the same record the stock load makes from it. 7,007 stock colours
+    // hold ''.
+    if (t.empty() && e.kind == json::Value::Str && (tag == 0 || tag == 1 || tag == 5 || tag == 11 || tag == 12))
+        return {};
     switch (tag) {
     case 0:
     case 11: {
