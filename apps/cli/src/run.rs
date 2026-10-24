@@ -1315,6 +1315,15 @@ pub fn steam_check(store: &Store, start: bool) -> Result<ExitCode> {
     }
     let status = steam_client::status();
     say("steam", &format!("detected: {status}"));
+    if let Some(g) = swofty_core::steam::find_game() {
+        say(
+            "steam",
+            &match swofty_core::steam::busy(&g) {
+                Some(state) => format!("F1 25: Steam is {state} its files"),
+                None => "F1 25: Steam isn't changing its files".to_owned(),
+            },
+        );
+    }
     Ok(if status.state.usable() {
         ExitCode::SUCCESS
     } else {

@@ -110,10 +110,48 @@ const CHANGING: u64 = 0x100
     | 0x40_0000
     | 0x80_0000;
 
-/// What Steam is doing to the game's files, from the `StateFlags` of its app
-/// manifest: "verifying" while it validates them, "updating" while it
-/// changes them any other way, None when it leaves them alone.
+/// What Steam is doing to the game's files: "verifying" while it validates
+/// them, "updating" while it changes them any other way, None when it leaves
+/// them alone. Steam keeps the `StateFlags` of the app manifest as they were
+/// while it verifies, so a running Steam's content log, which records every
+/// state change, is read first.
 pub fn busy(install: &GameInstall) -> Option<&'static str> {
+    let running = crate::steam_client::status().state != crate::steam_client::State::Stopped;
+    running
+        .then(|| log_busy(&install.steam_root.join("logs/content_log.txt")))
+        .flatten()
+        .or_else(|| manifest_busy(install))
+}
+
+/// The game's last state in Steam's content log: busy while an update runs,
+/// and verifying when the update is a check of the installed files.
+fn log_busy(log: &Path) -> Option<&'static str> {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut file = std::fs::File::open(log).ok()?;
+    let len = file.metadata().ok()?.len();
+    file.seek(SeekFrom::Start(len.saturating_sub(256 * 1024))).ok()?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes).ok()?;
+    let text = String::from_utf8_lossy(&bytes);
+    let last = |what: &str| {
+        let key = format!("AppID {STEAM_APP_ID} {what} : ");
+        text.lines()
+            .rev()
+            .find_map(|l| l.split_once(key.as_str()).map(|(_, state)| state.to_owned()))
+    };
+    if !last("state changed")?.contains("Update Running") {
+        return None;
+    }
+    Some(
+        if last("App update changed").is_some_and(|u| u.contains("Verifying")) {
+            "verifying"
+        } else {
+            "updating"
+        },
+    )
+}
+
+fn manifest_busy(install: &GameInstall) -> Option<&'static str> {
     let acf = read_vdf(
         &install
             .library
@@ -330,6 +368,40 @@ mod tests {
         std::fs::remove_dir_all(root.join("userdata")).unwrap();
         assert_eq!(save_dir(&root), None);
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn reads_what_steam_does_to_the_game_from_its_content_log() {
+        let dir = std::env::temp_dir().join(format!("swofty-content-log-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let log = dir.join("content_log.txt");
+        let at = |lines: &[&str]| {
+            std::fs::write(&log, lines.join("\n") + "\n").unwrap();
+            log_busy(&log)
+        };
+        let shader = [
+            "[2026-10-24 12:48:43] AppID 3059520 Shader update changed : Running Update,Reconfiguring,",
+            "[2026-10-24 12:48:45] AppID 3059520 state changed : Fully Installed,Update Queued,",
+            "[2026-10-24 12:48:45] AppID 3059520 state changed : Fully Installed,",
+        ];
+        assert_eq!(at(&shader), None);
+        let verify = [
+            "[2026-10-24 15:23:18] Start validating appID 3059520 on BuildID 25251167",
+            "[2026-10-24 15:23:18] AppID 3059520 state changed : Fully Installed,Update Queued,Update Running,",
+            "[2026-10-24 15:23:18] AppID 228980 state changed : Fully Installed,Update Running,",
+            "[2026-10-24 15:23:18] AppID 3059520 App update changed : Running Update,Verifying Installed,",
+        ];
+        assert_eq!(at(&verify), Some("verifying"));
+        let mut done = verify.to_vec();
+        done.push("[2026-10-24 15:31:02] AppID 3059520 App update changed : None");
+        done.push("[2026-10-24 15:31:02] AppID 3059520 state changed : Fully Installed,");
+        assert_eq!(at(&done), None);
+        let mut update = done.clone();
+        update.push("[2026-10-24 16:00:00] AppID 3059520 state changed : Fully Installed,Update Running,");
+        update.push("[2026-10-24 16:00:01] AppID 3059520 App update changed : Running Update,Downloading,");
+        assert_eq!(at(&update), Some("updating"));
+        assert_eq!(log_busy(&dir.join("missing.txt")), None);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
