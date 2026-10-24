@@ -1,17 +1,13 @@
 #pragma once
 #include <cstdint>
-#include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <string_view>
 #include <vector>
 
-#include "json.hpp"
-
 namespace hud::guard {
 
 constexpr uint64_t REMOVED_AFTER_DRAW_MS = 10000;
-constexpr const char *REMOVED_FILE = "overlay-gpu-removed.json";
 
 inline constexpr std::string_view FG_MODULES[] = {
     "sl.dlss_g.dll",
@@ -123,56 +119,6 @@ inline std::string chain(const std::vector<std::string> &modules, std::string_vi
 inline bool removal_after_draw(uint64_t now_ms, uint64_t last_draw_ms)
 {
     return last_draw_ms && now_ms >= last_draw_ms && now_ms - last_draw_ms <= REMOVED_AFTER_DRAW_MS;
-}
-
-struct Removal {
-    std::string when;
-    uint32_t present_hr = 0, reason = 0;
-    uint64_t after_draw_ms = 0;
-    std::string swapchain_by;
-};
-
-inline std::string hex32(uint32_t v)
-{
-    char b[16];
-    snprintf(b, sizeof b, "0x%08x", unsigned(v));
-    return b;
-}
-
-inline std::string json_str(std::string_view s)
-{
-    std::string out = "\"";
-    for (char c : s) {
-        if (c == '"' || c == '\\')
-            out += '\\', out += c;
-        else if (static_cast<unsigned char>(c) < 0x20)
-            out += ' ';
-        else
-            out += c;
-    }
-    return out + "\"";
-}
-
-inline std::string removal_json(const Removal &r)
-{
-    return "{\n  \"schema\": 1,\n  \"when\": " + json_str(r.when) + ",\n  \"present_hr\": " +
-           json_str(hex32(r.present_hr)) + ",\n  \"removed_reason\": " + json_str(hex32(r.reason)) +
-           ",\n  \"after_draw_ms\": " + std::to_string(r.after_draw_ms) + ",\n  \"swapchain_by\": " +
-           json_str(r.swapchain_by) + "\n}\n";
-}
-
-inline bool parse_removal(const std::string &text, Removal &out)
-{
-    json::Value v;
-    if (!json::parse(text, v) || v.type != json::Value::Obj || v["schema"].type != json::Value::Num)
-        return false;
-    auto hex = [](const json::Value &x) { return x.type == json::Value::Str ? uint32_t(strtoul(x.s.c_str(), nullptr, 16)) : 0u; };
-    out.when = v["when"].type == json::Value::Str ? v["when"].s : "";
-    out.present_hr = hex(v["present_hr"]);
-    out.reason = hex(v["removed_reason"]);
-    out.after_draw_ms = v["after_draw_ms"].type == json::Value::Num ? uint64_t(v["after_draw_ms"].n) : 0;
-    out.swapchain_by = v["swapchain_by"].type == json::Value::Str ? v["swapchain_by"].s : "";
-    return true;
 }
 
 }

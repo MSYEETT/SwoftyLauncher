@@ -69,8 +69,7 @@ std::string addon_image(const Caller &c, const char *file, std::string &why)
 // its work runs after the game's frame and before the present on the same queue. Swapchains that a
 // frame-generation module created or presents are left alone. A ring of command lists behind one
 // fence replaces any wait in Present: a frame whose slot is still on the GPU is skipped. A device
-// removal within 10 s of an overlay draw is recorded in swofty/overlay-gpu-removed.json, which keeps
-// the overlay off on later launches.
+// removal stops the overlay for the rest of the session.
 
 struct Vertex {
     float x, y;
@@ -178,15 +177,6 @@ std::string self_module()
 {
     static std::string name = module_of(reinterpret_cast<const void *>(&module_of));
     return name;
-}
-
-std::string now_text()
-{
-    SYSTEMTIME t;
-    GetLocalTime(&t);
-    char b[32];
-    snprintf(b, sizeof b, "%04u-%02u-%02u %02u:%02u:%02u", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
-    return b;
 }
 
 struct Chain {
@@ -478,18 +468,10 @@ void device_lost(HRESULT present_hr)
                     last ? "more than 10 s after the overlay last drew" : "and the overlay had not drawn");
         return;
     }
-    hud::guard::Removal r;
-    r.when = now_text();
-    r.present_hr = uint32_t(present_hr);
-    r.reason = uint32_t(reason);
-    r.after_draw_ms = now - last;
-    r.swapchain_by = drawn_by;
-    bool saved = runtime::write_file(runtime::under_swofty(hud::guard::REMOVED_FILE), hud::guard::removal_json(r));
-    swofty::log("[overlay] the GPU was removed (present 0x%08lx, reason 0x%08lx) %.1f s after the overlay last drew; "
-                "the overlay stops drawing%s",
+    swofty::log("[overlay] the GPU was removed (present 0x%08lx, reason 0x%08lx) %.1f s after the overlay last drew "
+                "(swapchain by %s); the overlay stops drawing",
                 static_cast<unsigned long>(present_hr), static_cast<unsigned long>(reason), double(now - last) / 1000,
-                saved ? " and stays off on later launches while swofty/overlay-gpu-removed.json exists"
-                      : "; writing swofty/overlay-gpu-removed.json failed");
+                drawn_by.c_str());
 }
 
 std::string fg_caller(void *caller)
@@ -1105,25 +1087,6 @@ bool arm()
     return ok;
 }
 
-bool blocked_by_removal()
-{
-    std::wstring path = runtime::under_swofty(hud::guard::REMOVED_FILE);
-    uint64_t size = 0;
-    if (!runtime::file_size(path, &size))
-        return false;
-    hud::guard::Removal r;
-    if (hud::guard::parse_removal(runtime::read_file(path, 1 << 16), r))
-        swofty::log("[overlay] off: swofty/%s records the GPU removed %.1f s after the overlay drew (%s, present %s, "
-                    "reason %s, swapchain by %s); the overlay stays off while that file exists",
-                    hud::guard::REMOVED_FILE, double(r.after_draw_ms) / 1000, r.when.c_str(),
-                    hud::guard::hex32(r.present_hr).c_str(), hud::guard::hex32(r.reason).c_str(),
-                    r.swapchain_by.c_str());
-    else
-        swofty::log("[overlay] off: swofty/%s exists (unreadable); the overlay stays off while that file exists",
-                    hud::guard::REMOVED_FILE);
-    return true;
-}
-
 // ----- SwoftyOverlay table ----------------------------------------------------------------------
 
 int ov_available()
@@ -1244,11 +1207,6 @@ void setup()
     if (!on && !cap.on) {
         swofty::log("[overlay] the overlay feature is experimental and off; the HUD present hook is not armed");
         return;
-    }
-    if (on && blocked_by_removal()) {
-        if (!cap.on)
-            return;
-        on = false;
     }
     if (!on)
         swofty::log("[overlay] the overlay is off; the present hook arms for SWOFTY_FRAME_CAPTURE only");
