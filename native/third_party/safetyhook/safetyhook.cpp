@@ -84,6 +84,16 @@ std::expected<Allocation, Allocator::Error> Allocator::allocate_near(
     return internal_allocate_near(desired_addresses, size, max_distance);
 }
 
+void Allocator::adopt(uint8_t* address, size_t size) {
+    std::scoped_lock lock{m_mutex};
+    auto& memory = m_memory.emplace_back(new Memory);
+    memory->address = address;
+    memory->size = size;
+    memory->freelist = std::make_unique<FreeNode>();
+    memory->freelist->start = address;
+    memory->freelist->end = address + size;
+}
+
 void Allocator::free(uint8_t* address, size_t size) {
     std::scoped_lock lock{m_mutex};
     return internal_free(address, size);
@@ -232,7 +242,7 @@ std::expected<uint8_t*, Allocator::Error> Allocator::allocate_nearby_memory(
 
     // Search backwards from the desired_address.
     for (auto p = desired_address; p > search_start && in_range(p, desired_addresses, max_distance);
-         p = align_down(mbi.address - 1, si.allocation_granularity)) {
+         p = align_down((mbi.is_free ? p : mbi.address) - 1, si.allocation_granularity)) {
         auto result = vm_query(p);
 
         if (!result) {
@@ -247,16 +257,6 @@ std::expected<uint8_t*, Allocator::Error> Allocator::allocate_nearby_memory(
 
         if (auto allocation_address = attempt_allocation(p); allocation_address != nullptr) {
             return allocation_address;
-        }
-
-        // Swofty: the walk enters each free region at one position (just below the previous busy
-        // region) and skips the whole region when that single attempt misses, even when the region
-        // has room elsewhere. Retry once at the region's highest fitting address before skipping it.
-        auto top = align_down(mbi.address + mbi.size - size, si.allocation_granularity);
-        if (top > p) {
-            if (auto allocation_address = attempt_allocation(top); allocation_address != nullptr) {
-                return allocation_address;
-            }
         }
     }
 
@@ -274,7 +274,11 @@ std::expected<uint8_t*, Allocator::Error> Allocator::allocate_nearby_memory(
             continue;
         }
 
-        if (auto allocation_address = attempt_allocation(p); allocation_address != nullptr) {
+        // Swofty: a free region that starts off the allocation granularity (after an image or a mapping whose
+        // size is not a multiple of 64 KB) was tried at its unaligned start, which VirtualAlloc rounds down into
+        // the busy region below, and then skipped whole.
+        if (auto allocation_address = attempt_allocation(align_up(p, si.allocation_granularity));
+            allocation_address != nullptr) {
             return allocation_address;
         }
     }
@@ -506,8 +510,10 @@ std::expected<void, InlineHook::Error> InlineHook::setup(
 
     if (auto e9_result = e9_hook(allocator); !e9_result) {
 #if SAFETYHOOK_ARCH_X86_64
+        // Swofty: ff_hook only stands in for an e9 trampoline that found no memory within 2 GB, and it refuses
+        // any ip-relative instruction, so when it fails too the e9 error is the one that names the cause.
         if (auto ff_result = ff_hook(allocator); !ff_result) {
-            return ff_result;
+            return e9_result;
         }
 #elif SAFETYHOOK_ARCH_X86_32
         return e9_result;

@@ -343,6 +343,12 @@ public:
     [[nodiscard]] std::expected<Allocation, Error> allocate_near(
         const std::vector<uint8_t*>& desired_addresses, size_t size, size_t max_distance = 0x7FFF'FFFF);
 
+    /// @brief Swofty: hands the allocator committed RWX memory it serves allocations from before it
+    /// searches the address space, and releases with the allocator.
+    /// @param address The start of the memory (the base of its reservation).
+    /// @param size The size of the memory.
+    void adopt(uint8_t* address, size_t size);
+
 protected:
     friend Allocation;
 
