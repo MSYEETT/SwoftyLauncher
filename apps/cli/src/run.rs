@@ -114,6 +114,9 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     // Modded sessions run without EA AntiCheat: the terms are accepted once,
     // and declining means the game is not launched.
     crate::offline::gate(store, std::io::stdin().is_terminal())?;
+    if args.apply {
+        crate::setup::gate(store)?;
+    }
     match crate::ea::store_start(Source::detect(&game), args.direct) {
         crate::ea::StoreStart::EaApp => {
             if args.apply {

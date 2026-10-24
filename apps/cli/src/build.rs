@@ -163,6 +163,7 @@ fn common_root<'a>(paths: impl Iterator<Item = &'a String>) -> String {
 /// way that are provably ours are cleared and the install is tried once
 /// more; anything else stops it untouched, with what a restore would do.
 pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn Fn(&str)) -> Result<()> {
+    crate::setup::gate(store)?;
     Blocked::clear(&store.root).ok();
     stock::Report::clear(&store.root).ok();
     let depots = check_stock(store, g, out)?;
@@ -481,6 +482,10 @@ mod tests {
         }
 
         fn install(&self, log: &RefCell<Vec<String>>) -> Result<()> {
+            if !swofty_core::setup::done(&self.store.root) {
+                swofty_core::setup::reset(&self.store.root, &self.game, false)?;
+                swofty_core::setup::finish(&self.store.root)?;
+            }
             install(&self.store, "default", &self.game, true, &|l| {
                 log.borrow_mut().push(l.to_owned())
             })
