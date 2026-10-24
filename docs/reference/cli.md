@@ -157,6 +157,14 @@ These commands come from the built-in Team Simplified addon. Use them to manage 
 
 `swofty profile delete` follows the same rules as the launcher's [Delete a profile](/using/profiles#delete-a-profile). It refuses `vanilla`, your only profile, any profile while F1 25 runs, and a profile with an open journal in the game folder; run `swofty restore` to close the journal. When you delete the active profile, `default` (or the first remaining profile) becomes active first.
 
+## `swofty postfx`
+
+```sh
+swofty postfx compile <addon dir> [--out <dir>]
+```
+
+Compiles the addon's [post-process passes](./addons/postfx) with dxc the way the build does, without installing the addon. Each pass prints `ok` with its DXIL size, or `FAIL` with dxc's whole output. `--out` also writes each pass's DXIL as `<name>.dxil`. The exit code is 1 when a pass fails or dxc is missing.
+
 ## `swofty db`
 
 These commands work on DB Editor addons. A DB Editor addon is a data addon of game database changes in `$DATA/addons/<id>/`, with its changes in `dbedit.json`. Its id starts with `dbedit.`.

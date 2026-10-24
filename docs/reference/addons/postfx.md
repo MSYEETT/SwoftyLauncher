@@ -14,7 +14,7 @@ Start from [`templates/postfx-pass`](https://github.com/Swofty-Developments/Swof
 | Manifest | `postfx`, `"experimental_features": ["postfx"]` |
 | Feature | `postfx`: experimental, on while an addon lists it in `experimental_features` |
 | Launcher | Not in a release yet; an earlier launcher rejects the manifest |
-| Build | Needs dxc: `SWOFTY_DXC`, `dxc/dxc` next to the launcher, or `dxc` on `PATH` |
+| Build | dxc from `SWOFTY_DXC`, the launcher's `dxc/` folder, or `PATH` |
 | Picture | The game's encoded picture: sRGB in SDR, PQ or scRGB in HDR |
 
 ## The manifest
@@ -84,6 +84,19 @@ The header is in the SDK at `packages/sdk/include/swofty/postfx.hlsli`; the buil
 A pass reads the result of the pass before it. The output is the picture's own format, so values outside 0 to 1 clip in SDR.
 
 ## Build
+
+Launcher releases include dxc in a `dxc/` folder beside `bin/`, built from the open-source DirectX Shader Compiler with its DXIL validator. `SWOFTY_DXC` names another dxc, and without either the build uses `dxc` on `PATH`. A pass must compile to signed DXIL; dxc without its validator (`dxil.dll`, `libdxil.so`) beside it writes unsigned DXIL, which the build refuses.
+
+To check a pass while writing it, compile the addon's passes the way the build does. The command prints dxc's errors and warnings in full and exits non-zero when a pass fails:
+
+```sh
+swofty postfx compile path/to/my-addon [--out dxil/]
+```
+
+```text
+dxc: /home/me/SwoftyLauncher/dxc/bin/dxc
+ok    vignette (fx/vignette.hlsl): 5984 bytes of signed DXIL
+```
 
 The build compiles each pass with `dxc -T cs_6_0 -E main -HV 2021 -O3` and keeps the DXIL in the addon's cache, so an unchanged pass is not compiled again. It prints one line per pass:
 

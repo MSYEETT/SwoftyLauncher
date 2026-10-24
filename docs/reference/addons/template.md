@@ -73,7 +73,7 @@ Use this template for a [post-process pass](./postfx): a vignette with saturatio
 | `fx/vignette.hlsl` | The pass. |
 | `README.md` | How to change the pass, and install steps. |
 
-The build compiles the pass with dxc; see [Build](./postfx#build).
+The build compiles the pass with the launcher's dxc; see [Build](./postfx#build).
 
 ```sh
 swofty addons install .
