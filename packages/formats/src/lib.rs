@@ -5,6 +5,7 @@ pub mod gvdb;
 pub mod hash;
 pub mod lng;
 pub mod lz4;
+pub mod material;
 pub mod nefs;
 pub mod pe;
 pub mod pkg;

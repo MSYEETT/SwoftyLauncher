@@ -254,7 +254,8 @@ pub fn reads(op: &ErpOp) -> Vec<&str> {
         | ErpOp::ReplaceResource { erp, .. }
         | ErpOp::AddResource { erp, .. }
         | ErpOp::RemoveResource { erp, .. }
-        | ErpOp::MergeSlices { erp, .. } => vec![erp.as_str()],
+        | ErpOp::MergeSlices { erp, .. }
+        | ErpOp::SetMaterial { erp, .. } => vec![erp.as_str()],
         ErpOp::Overlay { erps, .. } => erps.iter().map(String::as_str).collect(),
         ErpOp::AddMipmaps { .. } => Vec::new(),
     }
@@ -269,7 +270,8 @@ pub fn writes(op: &ErpOp) -> Vec<&str> {
         | ErpOp::CopyResource { erp, .. }
         | ErpOp::RemoveResource { erp, .. }
         | ErpOp::PatchPkg { erp, .. }
-        | ErpOp::MergeSlices { erp, .. } => vec![erp.as_str()],
+        | ErpOp::MergeSlices { erp, .. }
+        | ErpOp::SetMaterial { erp, .. } => vec![erp.as_str()],
         ErpOp::Overlay { erps, .. } => erps.iter().map(String::as_str).collect(),
         ErpOp::AddMipmaps { .. } => Vec::new(),
     }
@@ -363,7 +365,8 @@ impl<'a> ErpBuild<'a> {
         let written = match op {
             ErpOp::PatchPkg { erp, resource, .. }
             | ErpOp::ReplaceResource { erp, resource, .. }
-            | ErpOp::AddResource { erp, resource, .. } => Some((erp, resource.as_str())),
+            | ErpOp::AddResource { erp, resource, .. }
+            | ErpOp::SetMaterial { erp, resource, .. } => Some((erp, resource.as_str())),
             ErpOp::CopyResource {
                 erp,
                 resource,
@@ -454,6 +457,26 @@ impl<'a> ErpBuild<'a> {
             } => {
                 let path = resolve(source)?;
                 self.copy(&path, resource, erp, rename.as_deref().unwrap_or(resource), true)
+            }
+            ErpOp::SetMaterial {
+                erp,
+                resource,
+                params,
+            } => {
+                let e = self.erp(erp)?;
+                let i = e.find(resource).map_err(|err| fail(format!("{erp}: {err}")))?;
+                let res = e.owned(i)?;
+                let mut body = res
+                    .fragments
+                    .first()
+                    .ok_or_else(|| fail(format!("{resource}: no fragment 0")))?
+                    .data()?;
+                for (name, value) in params {
+                    swofty_formats::material::set(&mut body, name, &value.values())
+                        .map_err(|err| fail(format!("{erp}: {resource}: {err}")))?;
+                }
+                res.set_fragment(0, &body)
+                    .map_err(|err| fail(format!("{erp}: {err}")))
             }
             ErpOp::ReplaceResource {
                 erp,

@@ -200,6 +200,29 @@ pub enum ErpOp {
         resource: String,
         source: Source,
     },
+    /// Sets constants of a `.material` resource in place: a number for a scalar, a list for a
+    /// vector, written as the material declares them.
+    SetMaterial {
+        erp: String,
+        resource: String,
+        params: BTreeMap<String, MaterialValue>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum MaterialValue {
+    Scalar(f64),
+    Vector(Vec<f64>),
+}
+
+impl MaterialValue {
+    pub fn values(&self) -> Vec<f64> {
+        match self {
+            Self::Scalar(v) => vec![*v],
+            Self::Vector(v) => v.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
