@@ -118,6 +118,15 @@ pub fn reset(data: &Path, game: &Game, other_mods: bool) -> Result<Reset> {
     Ok(out)
 }
 
+/// Whether the launch checks this copy's game files against its store's own
+/// list: a Steam copy whose depot manifests can be read. Such a copy skips
+/// the verify when the player says no other mods are in the folder.
+pub fn store_checks(game_dir: &Path) -> bool {
+    crate::steam::find_game()
+        .filter(|i| crate::copies::same_dir(&i.dir, game_dir))
+        .is_some_and(|i| crate::stock::Depots::load(&i).is_ok())
+}
+
 /// The first launch after the setup builds every addon again and backs up the
 /// original game files, which takes minutes, so Play shows a notice first.
 pub fn first_launch(data: &Path) -> bool {

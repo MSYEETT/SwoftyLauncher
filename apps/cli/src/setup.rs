@@ -62,7 +62,13 @@ pub fn command(store: &Store, cmd: SetupCommand) -> Result<()> {
                 println!("not restored: {d}");
             }
             println!("the record of original game files starts over");
-            println!("{}", verify_step(Source::detect(&g.dir)));
+            if !other_mods && reset.unrestored.is_none() && setup::store_checks(&g.dir) {
+                println!(
+                    "the launch checks every game file against Steam's own list, so there's nothing to verify"
+                );
+            } else {
+                println!("{}", verify_step(Source::detect(&g.dir)));
+            }
             println!("then run `swofty setup done`");
             Ok(())
         }

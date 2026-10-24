@@ -44,6 +44,8 @@ pub(crate) struct SetupWizard {
     error: Option<String>,
     opened_verify: bool,
     unrestored: Option<String>,
+    /// Steam's file list can check this copy at launch, once known.
+    checks: Option<bool>,
     steam_busy: Option<&'static str>,
     _work: Option<Task<()>>,
     _poll: Option<Task<()>>,
@@ -66,10 +68,33 @@ impl SetupWizard {
             error: None,
             opened_verify: false,
             unrestored: None,
+            checks: None,
             steam_busy: None,
             _work: None,
             _poll: None,
         }
+    }
+
+    fn probe(&mut self, cx: &mut Context<Self>) {
+        let dir = self.install.dir.clone();
+        cx.spawn(async move |this, cx| {
+            let checks = cx
+                .background_executor()
+                .spawn(async move { setup::store_checks(&dir) })
+                .await;
+            this.update(cx, |w, cx| {
+                w.checks = Some(checks);
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// No other mods on a copy the launch checks against Steam's list:
+    /// nothing is left to verify.
+    fn skips_verify(&self) -> bool {
+        self.other_mods == Some(false) && self.checks == Some(true) && self.unrestored.is_none()
     }
 
     fn reset(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -83,17 +108,23 @@ impl SetupWizard {
             let result = cx
                 .background_executor()
                 .spawn(async move {
-                    let g = Game::locate(&store.root, dir).map_err(|e| e.to_string())?;
-                    setup::reset(&store.root, &g, other_mods)
+                    let g = Game::locate(&store.root, dir.clone()).map_err(|e| e.to_string())?;
+                    let unrestored = setup::reset(&store.root, &g, other_mods)
                         .map(|r| r.unrestored)
-                        .map_err(|e| e.to_string())
+                        .map_err(|e| e.to_string())?;
+                    Ok::<_, String>((unrestored, setup::store_checks(&dir)))
                 })
                 .await;
-            this.update(cx, |w, cx| {
+            this.update_in(cx, |w, window, cx| {
                 w.working = false;
                 match result {
-                    Ok(unrestored) => {
+                    Ok((unrestored, checks)) => {
                         w.unrestored = unrestored;
+                        w.checks = Some(checks);
+                        if w.skips_verify() {
+                            w.finish(window, cx);
+                            return;
+                        }
                         w.step = Step::Verify;
                     }
                     Err(e) => w.error = Some(format!("Swofty couldn't put the game folder back: {e}")),
@@ -203,7 +234,20 @@ impl SetupWizard {
                     .child(choice(
                         "setup-mods-no",
                         "No, only Swofty's",
-                        "Swofty still checks the game files once, so it starts from a clean copy of F1 25.",
+                        match (self.install.source, self.checks) {
+                            (Source::Steam, Some(true)) => {
+                                "Swofty checks every game file against Steam's own list when you launch."
+                            }
+                            (Source::Steam, Some(false)) => {
+                                "Swofty can't read Steam's file list for this copy, so you'll verify the game \
+                                 files once."
+                            }
+                            (Source::EaApp, _) => {
+                                "Swofty can't check the EA app's game files itself, so you'll repair the game \
+                                 once."
+                            }
+                            _ => "Swofty checks the game files once, so it starts from a clean copy of F1 25.",
+                        },
                         self.other_mods == Some(false),
                         p,
                     )
@@ -226,6 +270,18 @@ impl SetupWizard {
                  replaces the other mods with the game's own files.",
                 repair.restores
             ),
+            _ if self.skips_verify() => "Swofty put back the files it changed. The launch checks every game file \
+                                         against Steam's own list, so there's nothing to verify."
+                .to_owned(),
+            (Source::EaApp, _) => "Swofty put back the files it changed. It can't check the EA app's game \
+                                   files itself, so repairing the game is the only way to be sure they're the \
+                                   game's own."
+                .to_owned(),
+            (Source::Steam, _) if self.checks == Some(false) => {
+                "Swofty put back the files it changed. It can't read Steam's file list for this copy, so \
+                 verifying is the only way to be sure the game files are Steam's own."
+                    .to_owned()
+            }
             _ => format!(
                 "Swofty put back the files it changed and records the game's original files again. {} makes \
                  sure every game file is the store's own copy.",
@@ -418,7 +474,11 @@ impl SetupWizard {
                                 Source::EaApp => "I've repaired, continue",
                                 Source::Unknown => "Continue",
                             })
-                            .disabled(steam && (!self.opened_verify || self.steam_busy.is_some()))
+                            .disabled(
+                                steam
+                                    && !self.skips_verify()
+                                    && (!self.opened_verify || self.steam_busy.is_some()),
+                            )
                             .on_click(move |_, window, cx| {
                                 wizard.update(cx, |w, cx| w.finish(window, cx));
                             }),
@@ -468,8 +528,9 @@ fn welcome(p: Palette) -> Div {
                 ))
                 .child(step(
                     2,
-                    "Verify your game files",
-                    "So Swofty starts from a clean copy of F1 25.",
+                    "Check your game files",
+                    "Steam's file list checks them, or you verify or repair them once, so Swofty starts \
+                     from a clean copy of F1 25.",
                     p,
                 ))
                 .child(step(
@@ -685,7 +746,11 @@ impl Shell {
             return;
         };
         let shell = cx.entity().downgrade();
-        let wizard = cx.new(|_| SetupWizard::new(self.store.clone(), install, shell));
+        let wizard = cx.new(|cx| {
+            let mut w = SetupWizard::new(self.store.clone(), install, shell);
+            w.probe(cx);
+            w
+        });
         window.open_alert_dialog(cx, move |alert, window, cx| {
             let p = palette(cx);
             let vh = f32::from(window.viewport_size().height);
