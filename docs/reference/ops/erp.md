@@ -145,6 +145,29 @@ The game reads a scene from whichever archive loads it first. When the build res
 warning: erp: eaid://ui_package/art/screens/career/rnd_overview.idf is resized, but 2025_asset_groups/ui_package/flow_team_hq.erp also carries it and keeps the stock copy; replace it there too, or the game may show either one
 ```
 
+## Binary XML with stats
+
+Some resources hold binary XML (`\x01BXML`) in fragment 0 and its string stats in fragment 1: 120 bytes that start with `TSMD`. AI racing lines (`.aispline`), AI brake settings and car handling files (`.vtf`) are among them. The game sizes the memory it reads fragment 0 into from those stats, so fragment 0 with more or longer strings than its stats count crashes F1 25 when it loads.
+
+When a resource the build writes, or a resource in a ready `overlay` archive, has fragment 0 that its stats don't match, the build stops and Play doesn't start:
+
+```text
+Example AI Pack crashes F1 25: its bahrain_ai_track.aispline and 19 more file(s) don't match the size headers the game reads with them, so the game overruns its memory when it loads that track. Turn Example AI Pack off in this profile.
+```
+
+To ship an edited fragment 0, replace fragment 1 with stats made from it too:
+
+```sh
+python3 -c "import sys; sys.path.insert(0, 'tools'); import vtf; d = open(sys.argv[1], 'rb').read(); open(sys.argv[2], 'wb').write(vtf.tsmd(vtf.parse(d)))" line.aispline line.tsmd
+```
+
+```json
+[
+  { "op": "replace-resource", "erp": "2025_asset_groups/environment_package/tracks/bahrain/wep/bahrain_common.erp", "resource": "eaid://environment_package/tracks/bahrain/ai/bahrain_ai_track.aispline", "fragment": 0, "source": "ai/line.aispline" },
+  { "op": "replace-resource", "erp": "2025_asset_groups/environment_package/tracks/bahrain/wep/bahrain_common.erp", "resource": "eaid://environment_package/tracks/bahrain/ai/bahrain_ai_track.aispline", "fragment": 1, "source": "ai/line.tsmd" }
+]
+```
+
 ## Mip files
 
 A texture (`GfxSurfaceRes`) with three fragments keeps the rest of its mip chain in a loose file. Fragment 2 starts with a length byte and that file's path, relative to the game folder, such as `f1_safetycar_package/safety_car_2/textures/safety_car_2_decal_da.tif.mipmaps`.

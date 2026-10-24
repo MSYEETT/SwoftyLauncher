@@ -46,6 +46,8 @@ Drop a track zip on the launcher without unpacking it. It becomes a track addon 
 
 [How tracks are installed](/reference/installing-tracks) covers what turning a track on changes.
 
+A track, or an addon that changes a track's AI racing line, whose files would crash F1 25 stops **Play** with a message that names it, such as `Test Ring crashes F1 25: …`. Turn it off in the profile to play. If a career's [Race weekends](/using/db-editor) entry uses that track, set the weekend back to another track first.
+
 ## Mods from an earlier version
 
 Before 1.3.0, mods lived in a library on a **Mods** page. The first time 1.3.0 starts, the Simplified Importer converts every mod in that library into an addon, in each profile's order and with the same switches. A dialog lists each mod with a tick when it converts or a cross and the reason when it can't. A large library may convert over more than one start; **Convert now** on the Simplified Importer page converts the rest.
