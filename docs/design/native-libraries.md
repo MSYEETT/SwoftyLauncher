@@ -102,9 +102,22 @@ the texture is multiplied by a tint (`0xffffffff` for none).
 You can call `on_paint`, `remove` and `load_image` at any time. Draw calls, though, are valid only
 inside a paint callback, using that callback's `paint` handle.
 
-`native/src/core/hud.cpp` hooks the DXGI factory's `CreateSwapChain`, `CreateSwapChainForHwnd`,
-`CreateSwapChainForCoreWindow` and `CreateSwapChainForComposition` and the swapchain's `Present`. It
-records each swapchain's creation queue and the modules on the creation call stack, and draws only on
+The core's D3D12 and DXGI hooks live in one layer, `native/src/core/d3d12_hooks.{hpp,cpp}`. Features
+subscribe to it instead of hooking the same entry points:
+
+| Call | Does |
+|---|---|
+| `arm_swapchain()` | Hooks the DXGI factory's `CreateSwapChain`, `CreateSwapChainForHwnd`, `CreateSwapChainForCoreWindow` and `CreateSwapChainForComposition`, and the swapchain's `Present`, `ResizeBuffers`, `ResizeBuffers1` and `SetColorSpace1`. Once per process |
+| `arm_device()` | Hooks `ID3D12Object::SetName`, `ID3D12GraphicsCommandList::ResourceBarrier` and `ID3D12CommandQueue::ExecuteCommandLists`. Once per process |
+| `on_present(fn)` | `fn(swapchain, known, caller)` before the original `Present`, one present at a time. `known` is the swapchain's creation record (queue, caller chain, frame generation, Streamline, colour space), or null for a swapchain created before `arm_swapchain` |
+| `on_presented(fn)` | `fn(swapchain, hr)` after the original `Present` |
+| `on_resize(fn)` | `fn(swapchain)` before `ResizeBuffers` and `ResizeBuffers1` |
+| `on_exec(fn)` / `on_barrier(fn)` | Observers in subscription order. One that returns `true` has made the call itself through `exec_original` / `barrier_original`, and the rest are skipped |
+| `on_setname(fn)` | `fn(object, name)` before the original `SetName` |
+
+The overlay (`hud.cpp`) and shader packs (`grade.cpp`) subscribe to it.
+
+The overlay records each swapchain's creation queue and the modules on the creation call stack, and draws only on
 swapchains it saw created, on their creation queue, when no frame generation module created or
 presents them. A swapchain whose creation passed through Streamline's frame generation hook
 (`sl.dlss_g.dll`) is drawn on only while the game's hardware settings have `frame_gen mode="0"`. Submissions use a ring of three command lists behind one fence and never wait in
