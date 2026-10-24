@@ -8,6 +8,7 @@ pub const MIXIN_HEADER: &str = include_str!("../include/swofty/mixin.hpp");
 pub const ASSETS_HEADER: &str = include_str!("../include/swofty/assets.hpp");
 pub const EVENTS_HEADER: &str = include_str!("../include/swofty/events.hpp");
 pub const OVERLAY_HEADER: &str = include_str!("../include/swofty/overlay.hpp");
+pub const OVERLAY_UI_HEADER: &str = include_str!("../include/swofty/overlay_ui.hpp");
 pub const TELEMETRY_HEADER: &str = include_str!("../include/swofty/telemetry.hpp");
 pub const DB_HEADER: &str = include_str!("../include/swofty/db.hpp");
 pub const STORAGE_HEADER: &str = include_str!("../include/swofty/storage.hpp");
@@ -792,7 +793,8 @@ mod tests {
             "} SwoftyCareerState;",
             "#define SWOFTY_EVENT_SESSION_START \"session.start\"",
             "#define SWOFTY_TELEMETRY_VERSION 1",
-            "#define SWOFTY_OVERLAY_VERSION 2",
+            "#define SWOFTY_OVERLAY_VERSION 3",
+            "} SwoftyInput;",
             "} SwoftyTextStyle;",
             "SWOFTY_DB_BOOL = 5",
             "} SwoftyTelemetryFeed;",
@@ -831,6 +833,10 @@ mod tests {
         assert_eq!(
             include_str!("../../../templates/addon/native/include/swofty/overlay.hpp"),
             OVERLAY_HEADER
+        );
+        assert_eq!(
+            include_str!("../../../templates/addon/native/include/swofty/overlay_ui.hpp"),
+            OVERLAY_UI_HEADER
         );
         assert_eq!(
             include_str!("../../../templates/addon/native/include/swofty/telemetry.hpp"),
@@ -953,8 +959,22 @@ mod tests {
             "void push_clip(",
             "Rect safe_area(",
             "float ui_scale(",
+            "inline bool v3()",
+            "inline Input input(",
+            "inline Result focus(",
         ] {
             assert!(OVERLAY_HEADER.contains(name), "{name}");
+        }
+        for name in [
+            "namespace swofty::overlay::ui {",
+            "inline Rect panel(",
+            "inline bool button(",
+            "inline bool toggle(",
+            "inline bool slider(",
+            "bool list(",
+            "inline void draw_toasts(",
+        ] {
+            assert!(OVERLAY_UI_HEADER.contains(name), "{name}");
         }
         for name in [
             "namespace swofty::telemetry {",
