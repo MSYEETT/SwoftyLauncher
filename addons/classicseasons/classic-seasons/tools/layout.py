@@ -5,7 +5,9 @@ classic-seasons-<year>, whose cars/ holds the built archives (not committed). A 
 archive instead of the season zip (a season's eleventh team, shipped in another team's slot) goes in a second package,
 cx_<year>_vehicle_package, under that slot's folder, so its per-track AI data is the slot's. A season of 2016 to 2021
 also ships its team suits (build_suits.py) from suits/ (not committed): each suit archive gets an asset group that
-lists its stock base suit's archive first, which holds the shared body and glove meshes. A season with helmets in
+lists its stock base suit's archive first, which holds the shared body and glove meshes. A real driver suit's group
+(the core's suits/) depends on its base driver's stock team group, which holds the body and glove models: without it
+the grid's driver-in-car shot misses the glove model and the race crashes on the grid. A season with helmets in
 data/helmets.json ships them (build_helmets.py) from helmets/ (not committed), each group listing its base helmet's
 archive first.
 """
@@ -89,8 +91,12 @@ def real_suit_asset_ops():
     for m in real_suits():
         for key in ("", "helmet_") if m["helmet"] else ("",):
             ops.append({"op": "file.put", "source": m[key + "source"], "target": m[key + "target"]})
-            ops.append({"op": "group.register", "group": m[key + "group"], "erps": [m[key + "base_erp"], m[key + "target"]],
-                        "template": m[key + "template"]})
+            group = {"op": "group.register", "group": m[key + "group"], "erps": [m[key + "base_erp"], m[key + "target"]],
+                     "template": m[key + "template"]}
+            if "driver" in m and not key:
+                team = m["base"].split("_", 1)[0]
+                group["deps"] = [f"asset_groups/{SUIT_ROOT}/{team}/{team}.assetgroup"]
+            ops.append(group)
         for rel in m["sidecars"]:
             ops.append({"op": "file.put", "source": f"suits/sidecars/{rel}", "target": rel})
     return {"schema_version": 1, "ops": ops}
