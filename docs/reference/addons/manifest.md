@@ -168,6 +168,21 @@ To give players settings they can change, declare them in `options`. They'll app
 | `values` | array | Supply 1 to 16 values for a choice. Each is a string; use `{ "value", "label" }` to show a different name. |
 | `binds` | string | `native` — the [engine plugin](./native-plugins#settings) reads the value while the game runs; `db` — the value is built into the game files, so a change needs a rebuild. |
 
+## hud
+
+`hud.mfd` puts some of your options on an ADDONS page of the race MFD, after the game's own pages.
+
+```json
+"hud": { "mfd": { "title": "PIT LANE", "rows": ["limiter", "mode"] } }
+```
+
+| Field | Type | Value |
+|---|---|---|
+| `mfd.title` | string? | The page title, 1 to 32 characters. Defaults to the addon's `name`. The page does not show it yet. |
+| `mfd.rows` | array | 1 to 8 option ids of this addon, in page order. Each must be a `toggle` or `choice` option whose label is at most 32 characters. |
+
+Each row shows the option's label and its current value. The launcher builds the page into the game's UI files when the addon is on; the core updates a row whenever the option changes. Rows from every addon with `hud.mfd` share the one page, at most 8 in all, in load order. Changing a value from the MFD is not built yet: players change the options in ADDON SETTINGS or on the **Addons** page.
+
 ## operations
 
 Put your data edits in `operations`: the build applies them to the game's files, or the game applies them in memory while it boots. [Operations](/reference/data/operations) explains what each field changes. Write source paths relative to your addon folder, using `/`, and target paths relative to the game folder.
