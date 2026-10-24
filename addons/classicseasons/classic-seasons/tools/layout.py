@@ -5,7 +5,9 @@ classic-seasons-<year>, whose cars/ holds the built archives (not committed). A 
 archive instead of the season zip (a season's eleventh team, shipped in another team's slot) goes in a second package,
 cx_<year>_vehicle_package, under that slot's folder, so its per-track AI data is the slot's. A season of 2016 to 2021
 also ships its team suits (build_suits.py) from suits/ (not committed): each suit archive gets an asset group that
-lists its stock base suit's archive first, which holds the shared body and glove meshes.
+lists its stock base suit's archive first, which holds the shared body and glove meshes. A season with helmets in
+data/helmets.json ships them (build_helmets.py) from helmets/ (not committed), each group listing its base helmet's
+archive first.
 """
 
 import json
@@ -55,6 +57,23 @@ def suit_asset_ops(year):
         base, template = suit_paths(m["base"])
         ops.append({"op": "file.put", "source": f"suits/{m['label']}.erp", "target": target})
         ops.append({"op": "group.register", "group": group, "erps": [base, target], "template": template})
+    return {"schema_version": 1, "ops": ops}
+
+
+def helmets(year):
+    path = year_dir(year) / "helmets" / "meta.json"
+    if not path.exists():
+        return {}
+    built = json.loads(path.read_text())["helmets"]
+    return {m["driver"]: m for m in built if (year_dir(year) / m["source"]).exists()}
+
+
+def helmet_asset_ops(year):
+    ops = []
+    for m in helmets(year).values():
+        ops.append({"op": "file.put", "source": m["source"], "target": m["target"]})
+        ops.append({"op": "group.register", "group": m["group"], "erps": [m["base_erp"], m["target"]],
+                    "template": m["template"]})
     return {"schema_version": 1, "ops": ops}
 
 

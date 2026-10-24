@@ -45,8 +45,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import heads
 import suit_sources
-from layout import (ROOT, SUIT_YEARS, asset_ops, built, extra_package, real_suit_asset_ops, real_suits, suit_asset_ops,
-                    suits, year_dir)
+from layout import (ROOT, SUIT_YEARS, asset_ops, built, extra_package, helmet_asset_ops, helmets, real_suit_asset_ops,
+                    real_suits, suit_asset_ops, suits, year_dir)
 
 DATA = json.loads((ROOT / "data" / "seasons.json").read_text())
 STOCK = json.loads((ROOT / "data" / "stock_looks.json").read_text())
@@ -83,6 +83,8 @@ SUIT_IDS = range(REAL_SUIT_IDS.stop, REAL_SUIT_IDS.stop + sum(len(s["teams"]) fo
 TRANSFER_SUIT_IDS = range(SUIT_IDS.stop, SUIT_IDS.stop + len(TRANSFERRED_SUITS))
 HELMET_IDS = range(868, 868 + sum(1 for e in suit_sources.REAL["suits"] if e.get("helmet")))
 HELMETS = "customisation.custom_avatar.helmets"
+SEASON_HELMETS = json.loads((ROOT / "data" / "helmets.json").read_text())["helmets"]
+SEASON_HELMET_IDS = {(h["season"], h["driver"]): n for n, h in enumerate(SEASON_HELMETS, HELMET_IDS.stop)}
 STOCK_ITEM_IDS = {"suits": range(448, 974), "gloves": range(448, 974), "helmets": range(315, 868)}
 COLOUR_FIELDS = [f"colour_{n}_default" for n in range(1, 5)]
 SUITS = "customisation.custom_avatar.suits"
@@ -203,6 +205,15 @@ def real_rows(m, item_id, helmet_id):
     return ops
 
 
+def helmet_row(m):
+    folder = f"[CHARACTER_PACKAGE]/drivers/male/{m['label']}"
+    return {"op": "add-row", "table": HELMETS, "from": f"{HELMETS}.Helmet[_metadata_={m['base']}]",
+            "set": {"_metadata_": m["label"], "asset_group": f"asset_groups/{folder}/{m['stem']}_helmet.assetgroup",
+                    "attachments_model": f"eaid://{folder}/idf/{m['stem']}_helmet_attachments",
+                    "material_override": m["label"], "id": str(SEASON_HELMET_IDS[m["season"], m["driver"]]),
+                    **dict(zip(COLOUR_FIELDS, m["helmet_colours"]))}}
+
+
 def season_manifest(core, year, assets):
     return {
         "schema_version": 1,
@@ -279,6 +290,8 @@ def build():
         ops, text = [], []
         seasons.append((year, ops, text))
         text.append(lang(f"lng_cs_f1_{year}", f"F1 {year}"))
+        season_helmets = helmets(year)
+        ops += [helmet_row(m) for m in season_helmets.values()]
         cars = built(year)
         if cars:
             pkg = f"cs_{year}_vehicle_package"
@@ -346,6 +359,8 @@ def build():
                         helmet = choice["helmet_label"] if choice["helmet_label"] in made else helmet
                     elif suit:
                         suit_look = gloves = suit["label"]
+                if driver in season_helmets:
+                    helmet = season_helmets[driver]["label"]
                 look = look_label(year, key, driver)
                 ops.append({"op": "add-row", "table": LOOKS, "from": f"{LOOK_ROW}[_metadata_={seat}]",
                             "set": {"_metadata_": look, "helmet": helmet, "suit": suit_look, "gloves": gloves,
@@ -425,13 +440,14 @@ def build():
           f"unique ids")
     for year, ops, text in seasons:
         folder = year_dir(year)
-        assets = ["assets/cars.json"] + (["assets/suits.json"] if suits(year) else [])
+        assets = ["assets/cars.json"] + (["assets/suits.json"] if suits(year) else []) + \
+            (["assets/helmets.json"] if helmets(year) else [])
         write_json(folder / "swofty.json", season_manifest(core, year, assets))
         write_json(folder / "db" / "season.json",
                    {"schema_version": 1, "fields": {**fields, SETUP_PRESETS: SETUP_PRESET_FIELDS,
-                                                    **(ITEM_FIELDS if suits(year) else {})}, "ops": ops})
+                                                    **(ITEM_FIELDS if suits(year) or helmets(year) else {})}, "ops": ops})
         write_json(folder / "lang" / "season.json", {"schema_version": 1, "ops": text})
-        (folder / ".gitignore").write_text("cars/\nsuits/\n")
+        (folder / ".gitignore").write_text("cars/\nsuits/\nhelmets/\n")
         cars = built(year)
         if cars:
             write_json(folder / "assets" / "cars.json", asset_ops(year))
@@ -439,6 +455,10 @@ def build():
             write_json(folder / "assets" / "suits.json", suit_asset_ops(year))
         elif (folder / "assets" / "suits.json").exists():
             (folder / "assets" / "suits.json").unlink()
+        if helmets(year):
+            write_json(folder / "assets" / "helmets.json", helmet_asset_ops(year))
+        elif (folder / "assets" / "helmets.json").exists():
+            (folder / "assets" / "helmets.json").unlink()
         adds = sum(1 for o in ops if o["op"] == "add-row")
         print(f"{year}: {len(ops)} db ops ({adds} add-row), {len(text)} strings, cars {'built' if cars else 'missing'}, "
               f"{len(suits(year))} suits")
