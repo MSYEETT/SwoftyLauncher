@@ -71,5 +71,5 @@ void on_pit_entry()
 ## Testing
 
 - `SWOFTY_TOAST_TEST=<seconds>` makes the core post a test toast (`SWOFTY TOAST <n>`) every that many seconds, cycling through the icons, with a `[hud]` log line each time.
-- `SWOFTY_HUD_SET_TEST=<text>` shows `<text>` in the lap counter, set every 5 s.
+- `SWOFTY_HUD_SET_TEST=<text>` writes `<text>` to the lap counter description and hides the lap number and lap total, every 5 s through `set`. The lap counter widget is not on screen in a benchmark race, so the writes show only in the `[hud] set applied` log lines there.
 - `SWOFTY_HUD_DEV_SET=b:<path>=1;s:<path>=<text>;i:<path>=<n>` sets any registry leaf every 5 s. It is a development switch and skips the path check.
