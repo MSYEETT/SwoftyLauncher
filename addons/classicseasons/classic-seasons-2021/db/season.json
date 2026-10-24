@@ -607,6 +607,31 @@
   },
   {
    "op": "add-row",
+   "table": "customisation.custom_avatar.suits",
+   "from": "customisation.custom_avatar.suits.Suit[_metadata_=2025-mercedes]",
+   "set": {
+    "_metadata_": "cs21-mercedes",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-mercedes/cs21-mercedes.assetgroup",
+    "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-mercedes/idf/cs21-mercedes_male",
+    "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-mercedes/idf/cs21-mercedes_body_logos_[GENDER]",
+    "material_override": "cs21-mercedes",
+    "id": "438"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.gloves",
+   "from": "customisation.custom_avatar.gloves.Gloves[_metadata_=2025-mercedes]",
+   "set": {
+    "_metadata_": "cs21-mercedes",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-mercedes/cs21-mercedes.assetgroup",
+    "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-mercedes/idf/cs21-mercedes_glove_logos_[GENDER]",
+    "material_override": "cs21-mercedes",
+    "id": "438"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.teams",
    "from": "entrants.teams.team[_metadata_=mercedes]",
    "set": {
@@ -646,8 +671,8 @@
    "set": {
     "_metadata_": "2021-cs_mercedes_lewis_hamilton",
     "helmet": "2024-mercedes_lewis_hamilton",
-    "suit": "2025-mercedes_george_russell",
-    "gloves": "2025-mercedes_george_russell",
+    "suit": "cs21-mercedes",
+    "gloves": "cs21-mercedes",
     "linked_driver_stat_id": "lewis_hamilton",
     "available": "False",
     "stat_id": "522"
@@ -671,8 +696,8 @@
    "set": {
     "_metadata_": "2021-cs_mercedes_valtteri_bottas",
     "helmet": "2024-sauber_valtteri_bottas",
-    "suit": "2025-mercedes_andrea-kimi_antonelli",
-    "gloves": "2025-mercedes_andrea-kimi_antonelli",
+    "suit": "cs21-mercedes",
+    "gloves": "cs21-mercedes",
     "linked_driver_stat_id": "valtteri_bottas",
     "available": "False",
     "stat_id": "523"
@@ -687,6 +712,31 @@
     "driver": "valtteri_bottas",
     "driver_customisation": "2021-cs_mercedes_valtteri_bottas",
     "car_number": "77"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.suits",
+   "from": "customisation.custom_avatar.suits.Suit[_metadata_=2025-redbull]",
+   "set": {
+    "_metadata_": "cs21-redbull",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-redbull/cs21-redbull.assetgroup",
+    "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-redbull/idf/cs21-redbull_male",
+    "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-redbull/idf/cs21-redbull_body_logos_[GENDER]",
+    "material_override": "cs21-redbull",
+    "id": "439"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.gloves",
+   "from": "customisation.custom_avatar.gloves.Gloves[_metadata_=2025-redbull]",
+   "set": {
+    "_metadata_": "cs21-redbull",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-redbull/cs21-redbull.assetgroup",
+    "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-redbull/idf/cs21-redbull_glove_logos_[GENDER]",
+    "material_override": "cs21-redbull",
+    "id": "439"
    }
   },
   {
@@ -730,8 +780,8 @@
    "set": {
     "_metadata_": "2021-cs_redbull_max_verstappen",
     "helmet": "2024-redbull_max_verstappen",
-    "suit": "2025-redbull_max_verstappen",
-    "gloves": "2025-redbull_max_verstappen",
+    "suit": "cs21-redbull",
+    "gloves": "cs21-redbull",
     "linked_driver_stat_id": "max_verstappen",
     "available": "False",
     "stat_id": "524"
@@ -755,8 +805,8 @@
    "set": {
     "_metadata_": "2021-cs_redbull_sergio_perez",
     "helmet": "2024-redbull_sergio_perez",
-    "suit": "2025-redbull_yuki_tsunoda",
-    "gloves": "2025-redbull_yuki_tsunoda",
+    "suit": "cs21-redbull",
+    "gloves": "cs21-redbull",
     "linked_driver_stat_id": "sergio_perez",
     "available": "False",
     "stat_id": "525"
@@ -771,6 +821,31 @@
     "driver": "sergio_perez",
     "driver_customisation": "2021-cs_redbull_sergio_perez",
     "car_number": "11"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.suits",
+   "from": "customisation.custom_avatar.suits.Suit[_metadata_=2025-ferrari]",
+   "set": {
+    "_metadata_": "cs21-ferrari",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-ferrari/cs21-ferrari.assetgroup",
+    "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-ferrari/idf/cs21-ferrari_male",
+    "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-ferrari/idf/cs21-ferrari_body_logos_[GENDER]",
+    "material_override": "cs21-ferrari",
+    "id": "440"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.gloves",
+   "from": "customisation.custom_avatar.gloves.Gloves[_metadata_=2025-ferrari]",
+   "set": {
+    "_metadata_": "cs21-ferrari",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-ferrari/cs21-ferrari.assetgroup",
+    "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-ferrari/idf/cs21-ferrari_glove_logos_[GENDER]",
+    "material_override": "cs21-ferrari",
+    "id": "440"
    }
   },
   {
@@ -814,8 +889,8 @@
    "set": {
     "_metadata_": "2021-cs_ferrari_charles_leclerc",
     "helmet": "2024-ferrari_charles_leclerc",
-    "suit": "2025-ferrari_charles_leclerc",
-    "gloves": "2025-ferrari_charles_leclerc",
+    "suit": "cs21-ferrari",
+    "gloves": "cs21-ferrari",
     "linked_driver_stat_id": "charles_leclerc",
     "available": "False",
     "stat_id": "526"
@@ -839,8 +914,8 @@
    "set": {
     "_metadata_": "2021-cs_ferrari_carlos_sainz-jr",
     "helmet": "2024-ferrari_carlos_sainz-jr",
-    "suit": "2025-ferrari_lewis_hamilton",
-    "gloves": "2025-ferrari_lewis_hamilton",
+    "suit": "cs21-ferrari",
+    "gloves": "cs21-ferrari",
     "linked_driver_stat_id": "carlos_sainz-jr",
     "available": "False",
     "stat_id": "527"
@@ -855,6 +930,31 @@
     "driver": "carlos_sainz-jr",
     "driver_customisation": "2021-cs_ferrari_carlos_sainz-jr",
     "car_number": "55"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.suits",
+   "from": "customisation.custom_avatar.suits.Suit[_metadata_=2025-mclaren]",
+   "set": {
+    "_metadata_": "cs21-mclaren",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-mclaren/cs21-mclaren.assetgroup",
+    "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-mclaren/idf/cs21-mclaren_male",
+    "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-mclaren/idf/cs21-mclaren_body_logos_[GENDER]",
+    "material_override": "cs21-mclaren",
+    "id": "441"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.gloves",
+   "from": "customisation.custom_avatar.gloves.Gloves[_metadata_=2025-mclaren]",
+   "set": {
+    "_metadata_": "cs21-mclaren",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-mclaren/cs21-mclaren.assetgroup",
+    "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-mclaren/idf/cs21-mclaren_glove_logos_[GENDER]",
+    "material_override": "cs21-mclaren",
+    "id": "441"
    }
   },
   {
@@ -898,8 +998,8 @@
    "set": {
     "_metadata_": "2021-cs_mclaren_lando_norris",
     "helmet": "2024-mclaren_lando_norris",
-    "suit": "2025-mclaren_oscar_piastri",
-    "gloves": "2025-mclaren_oscar_piastri",
+    "suit": "cs21-mclaren",
+    "gloves": "cs21-mclaren",
     "linked_driver_stat_id": "lando_norris",
     "available": "False",
     "stat_id": "528"
@@ -923,8 +1023,8 @@
    "set": {
     "_metadata_": "2021-cs_mclaren_daniel_ricciardo",
     "helmet": "2024-tororosso_daniel_ricciardo",
-    "suit": "2025-mclaren_lando_norris",
-    "gloves": "2025-mclaren_lando_norris",
+    "suit": "cs21-mclaren",
+    "gloves": "cs21-mclaren",
     "linked_driver_stat_id": "daniel_ricciardo",
     "available": "False",
     "stat_id": "529"
@@ -939,6 +1039,31 @@
     "driver": "daniel_ricciardo",
     "driver_customisation": "2021-cs_mclaren_daniel_ricciardo",
     "car_number": "3"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.suits",
+   "from": "customisation.custom_avatar.suits.Suit[_metadata_=2025-renault]",
+   "set": {
+    "_metadata_": "cs21-renault",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-renault/cs21-renault.assetgroup",
+    "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-renault/idf/cs21-renault_male",
+    "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-renault/idf/cs21-renault_body_logos_[GENDER]",
+    "material_override": "cs21-renault",
+    "id": "442"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.gloves",
+   "from": "customisation.custom_avatar.gloves.Gloves[_metadata_=2025-renault]",
+   "set": {
+    "_metadata_": "cs21-renault",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-renault/cs21-renault.assetgroup",
+    "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-renault/idf/cs21-renault_glove_logos_[GENDER]",
+    "material_override": "cs21-renault",
+    "id": "442"
    }
   },
   {
@@ -982,8 +1107,8 @@
    "set": {
     "_metadata_": "2021-cs_lotus_fernando_alonso",
     "helmet": "2024-forceindia_fernando_alonso",
-    "suit": "2025-renault_pierre_gasly",
-    "gloves": "2025-renault_pierre_gasly",
+    "suit": "cs21-renault",
+    "gloves": "cs21-renault",
     "linked_driver_stat_id": "fernando_alonso",
     "available": "False",
     "stat_id": "530"
@@ -1007,8 +1132,8 @@
    "set": {
     "_metadata_": "2021-cs_lotus_esteban_ocon",
     "helmet": "2024-renault_esteban_ocon",
-    "suit": "2025-renault_franco_colapinto",
-    "gloves": "2025-renault_franco_colapinto",
+    "suit": "cs21-renault",
+    "gloves": "cs21-renault",
     "linked_driver_stat_id": "esteban_ocon",
     "available": "False",
     "stat_id": "531"
@@ -1023,6 +1148,31 @@
     "driver": "esteban_ocon",
     "driver_customisation": "2021-cs_lotus_esteban_ocon",
     "car_number": "31"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.suits",
+   "from": "customisation.custom_avatar.suits.Suit[_metadata_=2025-tororosso]",
+   "set": {
+    "_metadata_": "cs21-tororosso",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-tororosso/cs21-tororosso.assetgroup",
+    "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-tororosso/idf/cs21-tororosso_male",
+    "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-tororosso/idf/cs21-tororosso_body_logos_[GENDER]",
+    "material_override": "cs21-tororosso",
+    "id": "443"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.gloves",
+   "from": "customisation.custom_avatar.gloves.Gloves[_metadata_=2025-tororosso]",
+   "set": {
+    "_metadata_": "cs21-tororosso",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-tororosso/cs21-tororosso.assetgroup",
+    "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-tororosso/idf/cs21-tororosso_glove_logos_[GENDER]",
+    "material_override": "cs21-tororosso",
+    "id": "443"
    }
   },
   {
@@ -1066,8 +1216,8 @@
    "set": {
     "_metadata_": "2021-cs_toro_rosso_pierre_gasly",
     "helmet": "2024-renault_pierre_gasly",
-    "suit": "2025-tororosso_isack_hadjar",
-    "gloves": "2025-tororosso_isack_hadjar",
+    "suit": "cs21-tororosso",
+    "gloves": "cs21-tororosso",
     "linked_driver_stat_id": "pierre_gasly",
     "available": "False",
     "stat_id": "532"
@@ -1091,8 +1241,8 @@
    "set": {
     "_metadata_": "2021-cs_toro_rosso_yuki_tsunoda",
     "helmet": "2024-tororosso_yuki_tsunoda",
-    "suit": "2025-tororosso_liam_lawson",
-    "gloves": "2025-tororosso_liam_lawson",
+    "suit": "cs21-tororosso",
+    "gloves": "cs21-tororosso",
     "linked_driver_stat_id": "yuki_tsunoda",
     "available": "False",
     "stat_id": "533"
@@ -1107,6 +1257,31 @@
     "driver": "yuki_tsunoda",
     "driver_customisation": "2021-cs_toro_rosso_yuki_tsunoda",
     "car_number": "22"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.suits",
+   "from": "customisation.custom_avatar.suits.Suit[_metadata_=2025-forceindia]",
+   "set": {
+    "_metadata_": "cs21-forceindia",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-forceindia/cs21-forceindia.assetgroup",
+    "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-forceindia/idf/cs21-forceindia_male",
+    "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-forceindia/idf/cs21-forceindia_body_logos_[GENDER]",
+    "material_override": "cs21-forceindia",
+    "id": "444"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.gloves",
+   "from": "customisation.custom_avatar.gloves.Gloves[_metadata_=2025-forceindia]",
+   "set": {
+    "_metadata_": "cs21-forceindia",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-forceindia/cs21-forceindia.assetgroup",
+    "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-forceindia/idf/cs21-forceindia_glove_logos_[GENDER]",
+    "material_override": "cs21-forceindia",
+    "id": "444"
    }
   },
   {
@@ -1150,8 +1325,8 @@
    "set": {
     "_metadata_": "2021-cs_force_india_sebastian_vettel",
     "helmet": "2025-forceindia_lance_stroll",
-    "suit": "2025-forceindia_lance_stroll",
-    "gloves": "2025-forceindia_lance_stroll",
+    "suit": "cs21-forceindia",
+    "gloves": "cs21-forceindia",
     "linked_driver_stat_id": "sebastian_vettel",
     "available": "False",
     "stat_id": "534"
@@ -1175,8 +1350,8 @@
    "set": {
     "_metadata_": "2021-cs_force_india_lance_stroll",
     "helmet": "2024-forceindia_lance_stroll",
-    "suit": "2025-forceindia_fernando_alonso",
-    "gloves": "2025-forceindia_fernando_alonso",
+    "suit": "cs21-forceindia",
+    "gloves": "cs21-forceindia",
     "linked_driver_stat_id": "lance_stroll",
     "available": "False",
     "stat_id": "535"
@@ -1191,6 +1366,31 @@
     "driver": "lance_stroll",
     "driver_customisation": "2021-cs_force_india_lance_stroll",
     "car_number": "18"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.suits",
+   "from": "customisation.custom_avatar.suits.Suit[_metadata_=2025-williams]",
+   "set": {
+    "_metadata_": "cs21-williams",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-williams/cs21-williams.assetgroup",
+    "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-williams/idf/cs21-williams_male",
+    "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-williams/idf/cs21-williams_body_logos_[GENDER]",
+    "material_override": "cs21-williams",
+    "id": "445"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.gloves",
+   "from": "customisation.custom_avatar.gloves.Gloves[_metadata_=2025-williams]",
+   "set": {
+    "_metadata_": "cs21-williams",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-williams/cs21-williams.assetgroup",
+    "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-williams/idf/cs21-williams_glove_logos_[GENDER]",
+    "material_override": "cs21-williams",
+    "id": "445"
    }
   },
   {
@@ -1234,8 +1434,8 @@
    "set": {
     "_metadata_": "2021-cs_williams_george_russell",
     "helmet": "2024-mercedes_george_russell",
-    "suit": "2025-williams_alex_albon",
-    "gloves": "2025-williams_alex_albon",
+    "suit": "cs21-williams",
+    "gloves": "cs21-williams",
     "linked_driver_stat_id": "george_russell",
     "available": "False",
     "stat_id": "536"
@@ -1259,8 +1459,8 @@
    "set": {
     "_metadata_": "2021-cs_williams_nicholas_latifi",
     "helmet": "2025-williams_carlos_sainz-jr",
-    "suit": "2025-williams_carlos_sainz-jr",
-    "gloves": "2025-williams_carlos_sainz-jr",
+    "suit": "cs21-williams",
+    "gloves": "cs21-williams",
     "linked_driver_stat_id": "nicholas_latifi",
     "available": "False",
     "stat_id": "537"
@@ -1275,6 +1475,31 @@
     "driver": "nicholas_latifi",
     "driver_customisation": "2021-cs_williams_nicholas_latifi",
     "car_number": "6"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.suits",
+   "from": "customisation.custom_avatar.suits.Suit[_metadata_=2025-sauber]",
+   "set": {
+    "_metadata_": "cs21-sauber",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-sauber/cs21-sauber.assetgroup",
+    "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-sauber/idf/cs21-sauber_male",
+    "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-sauber/idf/cs21-sauber_body_logos_[GENDER]",
+    "material_override": "cs21-sauber",
+    "id": "446"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.gloves",
+   "from": "customisation.custom_avatar.gloves.Gloves[_metadata_=2025-sauber]",
+   "set": {
+    "_metadata_": "cs21-sauber",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-sauber/cs21-sauber.assetgroup",
+    "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-sauber/idf/cs21-sauber_glove_logos_[GENDER]",
+    "material_override": "cs21-sauber",
+    "id": "446"
    }
   },
   {
@@ -1318,8 +1543,8 @@
    "set": {
     "_metadata_": "2021-cs_sauber_kimi_raikkonen",
     "helmet": "2025-sauber_nico_hulkenberg",
-    "suit": "2025-sauber_nico_hulkenberg",
-    "gloves": "2025-sauber_nico_hulkenberg",
+    "suit": "cs21-sauber",
+    "gloves": "cs21-sauber",
     "linked_driver_stat_id": "kimi_raikkonen",
     "available": "False",
     "stat_id": "538"
@@ -1343,8 +1568,8 @@
    "set": {
     "_metadata_": "2021-cs_sauber_antonio_giovinazzi",
     "helmet": "2025-sauber_gabriel_bortoleto",
-    "suit": "2025-sauber_gabriel_bortoleto",
-    "gloves": "2025-sauber_gabriel_bortoleto",
+    "suit": "cs21-sauber",
+    "gloves": "cs21-sauber",
     "linked_driver_stat_id": "antonio_giovinazzi",
     "available": "False",
     "stat_id": "539"
@@ -1359,6 +1584,31 @@
     "driver": "antonio_giovinazzi",
     "driver_customisation": "2021-cs_sauber_antonio_giovinazzi",
     "car_number": "99"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.suits",
+   "from": "customisation.custom_avatar.suits.Suit[_metadata_=2025-haas]",
+   "set": {
+    "_metadata_": "cs21-haas",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-haas/cs21-haas.assetgroup",
+    "feet_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-haas/idf/cs21-haas_male",
+    "logos_model_override_pattern": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-haas/idf/cs21-haas_body_logos_[GENDER]",
+    "material_override": "cs21-haas",
+    "id": "447"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.gloves",
+   "from": "customisation.custom_avatar.gloves.Gloves[_metadata_=2025-haas]",
+   "set": {
+    "_metadata_": "cs21-haas",
+    "asset_group": "asset_groups/[CHARACTER_PACKAGE]/team_livery/cs21-haas/cs21-haas.assetgroup",
+    "logos_model": "eaid://[CHARACTER_PACKAGE]/team_livery/cs21-haas/idf/cs21-haas_glove_logos_[GENDER]",
+    "material_override": "cs21-haas",
+    "id": "447"
    }
   },
   {
@@ -1402,8 +1652,8 @@
    "set": {
     "_metadata_": "2021-cs_haas_mick_schumacher",
     "helmet": "2025-haas_esteban_ocon",
-    "suit": "2025-haas_esteban_ocon",
-    "gloves": "2025-haas_esteban_ocon",
+    "suit": "cs21-haas",
+    "gloves": "cs21-haas",
     "linked_driver_stat_id": "mick_schumacher",
     "available": "False",
     "stat_id": "540"
@@ -1427,8 +1677,8 @@
    "set": {
     "_metadata_": "2021-cs_haas_nikita_mazepin",
     "helmet": "2025-haas_oliver_bearman",
-    "suit": "2025-haas_oliver_bearman",
-    "gloves": "2025-haas_oliver_bearman",
+    "suit": "cs21-haas",
+    "gloves": "cs21-haas",
     "linked_driver_stat_id": "nikita_mazepin",
     "available": "False",
     "stat_id": "541"

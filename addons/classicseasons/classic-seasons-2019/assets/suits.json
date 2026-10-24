@@ -1,0 +1,145 @@
+{
+ "schema_version": 1,
+ "ops": [
+  {
+   "op": "file.put",
+   "source": "suits/cs19-mercedes.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs19-mercedes/cs19-mercedes.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs19-mercedes/cs19-mercedes.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-mercedes/2025-mercedes.erp",
+    "2025_asset_groups/character_package/team_livery/cs19-mercedes/cs19-mercedes.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-mercedes/2025-mercedes.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs19-ferrari.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs19-ferrari/cs19-ferrari.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs19-ferrari/cs19-ferrari.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-ferrari/2025-ferrari.erp",
+    "2025_asset_groups/character_package/team_livery/cs19-ferrari/cs19-ferrari.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-ferrari/2025-ferrari.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs19-redbull.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs19-redbull/cs19-redbull.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs19-redbull/cs19-redbull.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-redbull/2025-redbull.erp",
+    "2025_asset_groups/character_package/team_livery/cs19-redbull/cs19-redbull.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-redbull/2025-redbull.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs19-mclaren.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs19-mclaren/cs19-mclaren.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs19-mclaren/cs19-mclaren.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-mclaren/2025-mclaren.erp",
+    "2025_asset_groups/character_package/team_livery/cs19-mclaren/cs19-mclaren.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-mclaren/2025-mclaren.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs19-renault.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs19-renault/cs19-renault.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs19-renault/cs19-renault.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-renault/2025-renault.erp",
+    "2025_asset_groups/character_package/team_livery/cs19-renault/cs19-renault.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-renault/2025-renault.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs19-tororosso.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs19-tororosso/cs19-tororosso.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs19-tororosso/cs19-tororosso.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-tororosso/2025-tororosso.erp",
+    "2025_asset_groups/character_package/team_livery/cs19-tororosso/cs19-tororosso.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-tororosso/2025-tororosso.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs19-forceindia.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs19-forceindia/cs19-forceindia.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs19-forceindia/cs19-forceindia.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-forceindia/2025-forceindia.erp",
+    "2025_asset_groups/character_package/team_livery/cs19-forceindia/cs19-forceindia.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-forceindia/2025-forceindia.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs19-sauber.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs19-sauber/cs19-sauber.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs19-sauber/cs19-sauber.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-sauber/2025-sauber.erp",
+    "2025_asset_groups/character_package/team_livery/cs19-sauber/cs19-sauber.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-sauber/2025-sauber.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs19-haas.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs19-haas/cs19-haas.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs19-haas/cs19-haas.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-haas/2025-haas.erp",
+    "2025_asset_groups/character_package/team_livery/cs19-haas/cs19-haas.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-haas/2025-haas.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs19-williams.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs19-williams/cs19-williams.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs19-williams/cs19-williams.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-williams/2025-williams.erp",
+    "2025_asset_groups/character_package/team_livery/cs19-williams/cs19-williams.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-williams/2025-williams.assetgroup"
+  }
+ ]
+}

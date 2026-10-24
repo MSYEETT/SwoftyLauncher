@@ -1,0 +1,159 @@
+{
+ "schema_version": 1,
+ "ops": [
+  {
+   "op": "file.put",
+   "source": "suits/cs16-mercedes.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-mercedes/cs16-mercedes.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-mercedes/cs16-mercedes.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-mercedes/2025-mercedes.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-mercedes/cs16-mercedes.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-mercedes/2025-mercedes.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-redbull.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-redbull/cs16-redbull.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-redbull/cs16-redbull.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-redbull/2025-redbull.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-redbull/cs16-redbull.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-redbull/2025-redbull.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-ferrari.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-ferrari/cs16-ferrari.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-ferrari/cs16-ferrari.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-ferrari/2025-ferrari.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-ferrari/cs16-ferrari.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-ferrari/2025-ferrari.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-williams.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-williams/cs16-williams.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-williams/cs16-williams.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-williams/2025-williams.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-williams/cs16-williams.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-williams/2025-williams.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-forceindia.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-forceindia/cs16-forceindia.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-forceindia/cs16-forceindia.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-forceindia/2025-forceindia.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-forceindia/cs16-forceindia.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-forceindia/2025-forceindia.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-renault.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-renault/cs16-renault.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-renault/cs16-renault.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-renault/2025-renault.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-renault/cs16-renault.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-renault/2025-renault.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-tororosso.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-tororosso/cs16-tororosso.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-tororosso/cs16-tororosso.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-tororosso/2025-tororosso.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-tororosso/cs16-tororosso.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-tororosso/2025-tororosso.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-sauber.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-sauber/cs16-sauber.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-sauber/cs16-sauber.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-sauber/2025-sauber.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-sauber/cs16-sauber.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-sauber/2025-sauber.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-mclaren.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-mclaren/cs16-mclaren.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-mclaren/cs16-mclaren.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-mclaren/2025-mclaren.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-mclaren/cs16-mclaren.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-mclaren/2025-mclaren.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-manor_.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-manor_/cs16-manor_.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-manor_/cs16-manor_.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-sauber/2025-sauber.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-manor_/cs16-manor_.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-sauber/2025-sauber.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-haas.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-haas/cs16-haas.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-haas/cs16-haas.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-haas/2025-haas.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-haas/cs16-haas.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-haas/2025-haas.assetgroup"
+  }
+ ]
+}

@@ -33,7 +33,8 @@
   ],
   "assets": [
    "lang/season.json",
-   "assets/cars.json"
+   "assets/cars.json",
+   "assets/suits.json"
   ]
  }
 }
