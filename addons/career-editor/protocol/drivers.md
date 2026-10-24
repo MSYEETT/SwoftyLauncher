@@ -312,6 +312,47 @@ Status: implemented; needs in-game proof. Test: swap two AI drivers on different
 check the Team HQ grid / standings driver list, save, reload the career, advance to the next weekend
 and load into a session.
 
+### Free agents in My Team (not supported)
+
+In My Team the op refuses a teamless driver (`no_team`), and the page leaves free agents, including
+Driver Manager's drivers, out of the Swap Seats lists. A My Team free-agent signing needs these, and
+none of them is traced:
+
+- **Contract records.** My Team seats come from `DriverContractsMyTeamComponent`: a signing goes
+  from `pendingDriverContracts` (+0x790) and `decidedDriverContracts` (+0x7b0) into
+  `pendingDriverMoves` (+0x7d8), and `Career_Process_PendingDriverMoves` (0x140db18e0, vtable
+  +0x188) moves the processed moves into `lastSeasonsSignings` (+0x7f0). A reported My Team career
+  shows the player's team's career-start signings there (`oldTeamStatId` 16383, `accepted`). A free
+  agent written into a seat has no record, and the driver he replaces keeps his. No path that writes
+  these records is known.
+- **The processor rebuilds the grid from the records.** Read from its decompile, not traced in game:
+  it takes each team's car from the current rows, writes every entrant row teamless (team, vehicle,
+  registry value, livery and badge 0x3fff0000, seat value 0xffff0012, at 0x140db39f0), then seats
+  only the drivers in `pendingDriverMoves` through `Career_Assign_EntrantTeamSlot` (a team's third
+  driver gets no car) and then `reserve_drivers` (+0x850, "Creating contract for reserve driver %s on
+  team %s"). For the player's team it counts the signed drivers and can force a purchase ("Player has
+  %i drivers signed", "Searching for a driver to force the player to purchase"). A seat the editor
+  gives a free agent without a record would not survive its next run, and where the released driver
+  goes then depends on his record.
+- **Racing number.** `Career_Assign_EntrantTeamSlot` calls `Career_DriverNumbers_CheckExisting`
+  (0x140c01c30) when the incoming row's car number (+0x83) is 0xff. The op keeps the row's own
+  number byte.
+- **When a signing applies.** The processor's slot is likely the season-change hook (L0). Whether
+  Team HQ's driver market seats a free agent at once or at the season change is unknown.
+
+The in-game check that settles it, on a backed-up My Team save with
+`SWOFTY_GAME_LOG_CHANNELS=default,DRIVERMOVES*,DRIVER_NUMBERS`:
+1. Sign an F2 free agent for the player's team through Team HQ's driver market. Note when he takes
+   the seat (at once, at the next weekend or at the season change). Keep the editor snapshot from
+   before and after (`drivers` rows of both drivers, and `contracts`: `pending`, `decided`,
+   `pendingMoves`, `lastSeasonSignings`) and every `processPendingDriverMoves` and `DRIVER_NUMBERS`
+   line.
+2. Repeat with an AI team's seat if the market offers one, then advance through a season change and
+   keep the same.
+
+That gives the record shapes and the order a My Team replace has to follow, or shows that it has to
+queue a contract and wait for the season change.
+
 ## Bindings
 
 | KB name | VA | level | use |

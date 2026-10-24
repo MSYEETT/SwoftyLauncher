@@ -21,7 +21,7 @@ Load a career and go to Team HQ. The **Career Editor** page shows the game, the 
 |---|---|
 | Overview | Status, recent edits and backups |
 | Team | Cash, resource points, renown, sponsor loyalty, cost cap refunds and facilities (My Team); the driver's resource points (Driver Career) |
-| Drivers | Ratings, seat swaps and contract money |
+| Drivers | Ratings, seat swaps and contract money. Swap Seats moves free agents into race seats in Driver Career only |
 | R&D | Complete, fit, unlock, refund or reset upgrades |
 | Season | Calendar rounds and points adjustments |
 | Weather | Weather for each session of a weekend, and the weather seed |

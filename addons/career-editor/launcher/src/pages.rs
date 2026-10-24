@@ -1056,7 +1056,7 @@ fn swap_card(live: &Live) -> Value {
         opts.push(json!({ "value": d["driverStatId"].to_string(), "label": label }));
     }
     let help = if my_team {
-        "Applies now, mid-season: each driver takes the other's team, car and seat through the game's own driver-move path. Contracts keep the team they were signed with. Your own seat is locked."
+        "Applies now, mid-season: each driver takes the other's team, car and seat through the game's own driver-move path. Contracts keep the team they were signed with. Free agents, such as drivers made with Driver Manager, can't take a seat in My Team yet. Your own seat is locked."
     } else {
         "Applies now, mid-season, through the game's own Driver Career signing path. Two race drivers trade seats. A free agent takes a race seat the way the game signs one: the seat's driver is released (contract ended) and becomes a free agent, and the game re-assigns the team's R&D. Your own seat is locked."
     };
@@ -3543,5 +3543,41 @@ mod missing_notice_tests {
             unsupported: true,
         };
         assert!(missing_text(Some(&unknown)).starts_with("This F1 25 isn't a game version"));
+    }
+}
+
+#[cfg(test)]
+mod swap_card_tests {
+    use super::*;
+
+    #[test]
+    fn my_team_swaps_leave_free_agents_out_and_say_why() {
+        let driver = |id: u32, team: Value, car: bool| json!({ "driverStatId": id, "name": format!("d{id}"), "team": team, "seat": { "hasCar": car }, "player": false });
+        let redbull = json!({ "teamStatId": 2, "name": "redbull" });
+        let snap = |mode: &str| {
+            json!({
+                "written": now_ms(),
+                "status": { "game": "running", "career": true, "mode": mode, "safe": true },
+                "bridge": { "ops": [{ "name": "drivers.swap" }] },
+                "sections": { "drivers": { "drivers": [
+                    driver(9, redbull.clone(), true), driver(30, redbull.clone(), false), driver(208, Value::Null, false)
+                ] } },
+            })
+        };
+        let card = |mode: &str| {
+            let live = Live::new(None, &snap(mode), true, None, None);
+            serde_json::to_string(&swap_card(&live)).unwrap()
+        };
+        let my_team = card("my_team");
+        assert!(
+            my_team.contains("D9 · Red Bull Racing · race seat")
+                && my_team.contains("D30 · Red Bull Racing · reserve")
+        );
+        assert!(!my_team.contains("D208"));
+        assert!(my_team.contains(
+            "Free agents, such as drivers made with Driver Manager, can't take a seat in My Team yet."
+        ));
+        let career = card("driver_career");
+        assert!(career.contains("D208 · Free agent") && !career.contains("D30 "));
     }
 }
