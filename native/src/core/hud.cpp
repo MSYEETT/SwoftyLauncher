@@ -3,6 +3,7 @@
 #include "hud_drawlist.hpp"
 #include "hud_font_atlas.hpp"
 #include "hud_image.hpp"
+#include "hud_input.hpp"
 #include "hud_guard.hpp"
 #include "hud_png.hpp"
 #include "perf.hpp"
@@ -14,6 +15,7 @@
 #include <d3d12.h>
 #include <d3dcompiler.h>
 #include <dxgi1_6.h>
+#include <windowsx.h>
 
 #include <algorithm>
 #include <atomic>
@@ -1030,6 +1032,169 @@ void capture_step(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const DXGI_SWAP_CH
     cap.fmt = desc.BufferDesc.Format;
 }
 
+// ----- input --------------------------------------------------------------------------------------
+// The core subclasses the window the drawn swapchain presents to. Mouse, wheel, character and key
+// messages are queued for the overlay; while an addon holds input focus the button-down, wheel,
+// character, key-down and raw input messages do not reach the game (ups always do, so no key sticks).
+
+constexpr ULONGLONG FOCUS_TIMEOUT_MS = 2000;
+
+std::mutex in_lock;
+std::vector<hud::input::Event> in_events;
+hud::input::Snapshot in_snap, frame_snap;
+hud::input::Focus in_focus, frame_focus;
+std::atomic<bool> focus_held;
+std::atomic<WNDPROC> game_proc;
+std::atomic<HWND> game_wnd;
+std::atomic<unsigned> blocked_msgs, blocked_raw;
+hud::input::Utf16 utf16;
+
+LRESULT CALLBACK input_proc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
+{
+    using hud::input::Ev;
+    bool held = focus_held.load(std::memory_order_relaxed);
+    hud::input::Event e{};
+    bool record = true, block = false;
+    float x = float(GET_X_LPARAM(lp)), y = float(GET_Y_LPARAM(lp));
+    switch (msg) {
+    case WM_MOUSEMOVE:
+        e = {Ev::move, 0, x, y};
+        block = held;
+        break;
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONDBLCLK:
+        e = {Ev::down, SWOFTY_MOUSE_LEFT, x, y};
+        block = held;
+        break;
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONDBLCLK:
+        e = {Ev::down, SWOFTY_MOUSE_RIGHT, x, y};
+        block = held;
+        break;
+    case WM_MBUTTONDOWN:
+    case WM_MBUTTONDBLCLK:
+        e = {Ev::down, SWOFTY_MOUSE_MIDDLE, x, y};
+        block = held;
+        break;
+    case WM_LBUTTONUP:
+        e = {Ev::up, SWOFTY_MOUSE_LEFT, x, y};
+        break;
+    case WM_RBUTTONUP:
+        e = {Ev::up, SWOFTY_MOUSE_RIGHT, x, y};
+        break;
+    case WM_MBUTTONUP:
+        e = {Ev::up, SWOFTY_MOUSE_MIDDLE, x, y};
+        break;
+    case WM_MOUSEWHEEL:
+        e = {Ev::wheel, 0, float(GET_WHEEL_DELTA_WPARAM(wp)) / WHEEL_DELTA, 0};
+        block = held;
+        break;
+    case WM_CHAR:
+        e = {Ev::chr, utf16.push(uint32_t(wp)), 0, 0};
+        record = e.a != 0;
+        block = held;
+        break;
+    case WM_KEYDOWN:
+        e = {Ev::key_down, uint32_t(wp) & 0xff, 0, 0};
+        block = held;
+        break;
+    case WM_KEYUP:
+    case WM_SYSKEYUP:
+        e = {Ev::key_up, uint32_t(wp) & 0xff, 0, 0};
+        break;
+    case WM_SYSKEYDOWN:
+        e = {Ev::key_down, uint32_t(wp) & 0xff, 0, 0};
+        break;
+    case WM_INPUT:
+        record = false;
+        if (held) {
+            blocked_raw.fetch_add(1, std::memory_order_relaxed);
+            return DefWindowProcW(w, msg, wp, lp);
+        }
+        break;
+    default:
+        record = false;
+    }
+    if (record) {
+        std::lock_guard<std::mutex> g(in_lock);
+        if (in_events.size() < 1024)
+            in_events.push_back(e);
+    }
+    if (block) {
+        blocked_msgs.fetch_add(1, std::memory_order_relaxed);
+        return 0;
+    }
+    return CallWindowProcW(game_proc.load(), w, msg, wp, lp);
+}
+
+void hook_window(HWND wnd)
+{
+    if (!wnd || game_wnd.load() || killed("input"))
+        return;
+    WNDPROC prev = reinterpret_cast<WNDPROC>(GetWindowLongPtrW(wnd, GWLP_WNDPROC));
+    if (!prev)
+        return;
+    game_proc.store(prev);
+    game_wnd.store(wnd);
+    SetWindowLongPtrW(wnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&input_proc));
+    swofty::log("[overlay] input: window %p subclassed (procedure %p); addons can read the mouse and keyboard and "
+                "take input focus",
+                static_cast<void *>(wnd), reinterpret_cast<void *>(prev));
+}
+
+void input_frame(const std::vector<hud::Paintsub> &subs, float fb_w, float fb_h, ULONGLONG now)
+{
+    HWND wnd = game_wnd.load();
+    RECT rc{};
+    float sx = 1, sy = 1;
+    if (wnd && GetClientRect(wnd, &rc) && rc.right > 0 && rc.bottom > 0) {
+        sx = fb_w / float(rc.right);
+        sy = fb_h / float(rc.bottom);
+    }
+    std::string expired;
+    {
+        std::lock_guard<std::mutex> g(in_lock);
+        hud::input::fold(in_snap, in_events, sx, sy);
+        in_events.clear();
+        for (const auto &s : subs)
+            in_focus.painted(s.owner, now);
+        std::string owner = in_focus.owner;
+        if (in_focus.expire(now, FOCUS_TIMEOUT_MS))
+            expired = owner;
+        focus_held.store(in_focus.held());
+        frame_snap = in_snap;
+        frame_focus = in_focus;
+    }
+    if (!expired.empty())
+        swofty::log("[overlay] input: %s held focus but has not painted for %llu ms; focus released", expired.c_str(),
+                    static_cast<unsigned long long>(FOCUS_TIMEOUT_MS));
+    static ULONGLONG reported;
+    if (now - reported >= 60000) {
+        unsigned m = blocked_msgs.exchange(0), r = blocked_raw.exchange(0);
+        if (m || r)
+            swofty::log("[overlay] input: last %llu s: %u window message(s) and %u raw input message(s) kept from the "
+                        "game while an addon held focus",
+                        static_cast<unsigned long long>(reported ? (now - reported) / 1000 : 60), m, r);
+        reported = now;
+    }
+}
+
+void draw_cursor(hud::Frame &f)
+{
+    if (!frame_focus.held() || frame_snap.x < 0)
+        return;
+    hud::reset_state(f);
+    float s = std::max(0.75f, hud::ui_scale(f)), x = frame_snap.x, y = frame_snap.y;
+    const float m[6] = {s, 0, 0, s, x, y};
+    hud::push_transform(f, m);
+    const float tip[] = {0, 0, 0, 17, 12.5f, 12.5f};
+    const float tail[] = {3.2f, 13.5f, 6.4f, 12.2f, 10.2f, 20.5f, 7.0f, 21.8f};
+    hud::polygon(f, tail, 4, 0xffffffffu);
+    hud::polygon(f, tip, 3, 0xffffffffu);
+    hud::polyline(f, tip, 3, 1.2f, 0x000000ffu, SWOFTY_POLYLINE_CLOSED);
+    hud::pop_transform(f);
+}
+
 void paint_frame(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const std::vector<hud::Paintsub> &subs,
                  const DXGI_SWAP_CHAIN_DESC &desc, ULONGLONG now, UINT color_space);
 
@@ -1159,6 +1324,8 @@ void draw_frame(IDXGISwapChain3 *sc, const d3d12hooks::Swapchain *known, void *)
                         static_cast<void *>(sc), unsigned(desc.BufferUsage));
         return;
     }
+    if (fresh && implemented)
+        hook_window(desc.OutputWindow);
     if (fresh) {
         drawn_by = c.by;
         swofty::log("[overlay] drawing on swapchain %p with the %s queue %p it was created with (%ux%u, format %d, %u "
@@ -1179,7 +1346,9 @@ void paint_frame(IDXGISwapChain3 *sc, ID3D12CommandQueue *q, const std::vector<h
     static const uint32_t paint_probe = perf::probe("core", "overlay paint callbacks");
     static hud::Frame frame;
     perf::Scope painting(paint_probe);
+    input_frame(subs, float(desc.BufferDesc.Width), float(desc.BufferDesc.Height), now);
     hud::build(subs, frame, float(desc.BufferDesc.Width), float(desc.BufferDesc.Height), overlay_off());
+    draw_cursor(frame);
     const std::vector<Vertex> &verts = frame.verts;
     flush_stats(now);
     if (frame.dropped && !dropped_told) {
@@ -1564,6 +1733,43 @@ float ov_ui_scale(const SwoftyPaint *paint)
     return paint ? hud::ui_scale(*reinterpret_cast<const hud::Frame *>(paint)) : 1.0f;
 }
 
+int ov_input(const SwoftyPaint *paint, SwoftyInput *out)
+{
+    if (!implemented || !gate_on())
+        return SWOFTY_ASSET_UNAVAILABLE;
+    if (!paint || !out || out->size < offsetof(SwoftyInput, x))
+        return SWOFTY_ASSET_INVALID;
+    SwoftyInput full{};
+    full.size = sizeof full;
+    hud::input::view(frame_snap, frame_focus, reinterpret_cast<const hud::Frame *>(paint)->owner, full);
+    uint32_t size = out->size;
+    memcpy(out, &full, std::min<size_t>(size, sizeof full));
+    out->size = size;
+    return SWOFTY_ASSET_OK;
+}
+
+int ov_focus(int on)
+{
+    Caller c = caller(__builtin_return_address(0));
+    if (!implemented || !gate_on())
+        return SWOFTY_ASSET_UNAVAILABLE;
+    std::string who = owner_of(c), before;
+    bool changed;
+    {
+        std::lock_guard<std::mutex> g(in_lock);
+        before = in_focus.owner;
+        changed = in_focus.take(who, on != 0, GetTickCount64());
+        focus_held.store(in_focus.held());
+    }
+    if (changed && before != (on ? who : std::string()))
+        swofty::log("[overlay] api: %s focus %s -> ok%s%s", who.c_str(), on ? "on" : "off",
+                    on && !before.empty() && before != who ? " (taken from " : "",
+                    on && !before.empty() && before != who ? (before + ")").c_str() : "");
+    if (!game_wnd.load())
+        return SWOFTY_ASSET_LATE;
+    return changed ? SWOFTY_ASSET_OK : SWOFTY_ASSET_INVALID;
+}
+
 const SwoftyOverlay table = {ov_available,
                              ov_on_paint,
                              ov_remove,
@@ -1595,7 +1801,9 @@ const SwoftyOverlay table = {ov_available,
                              ov_push_opacity,
                              ov_pop_opacity,
                              ov_safe_area,
-                             ov_ui_scale};
+                             ov_ui_scale,
+                             ov_input,
+                             ov_focus};
 
 void setup()
 {

@@ -126,9 +126,10 @@ typedef struct SwoftyPaint SwoftyPaint;
 typedef void (*SwoftyPaintFn)(SwoftyPaint *paint, void *user);
 
 /* Overlay v2: the SwoftyOverlay entries after image() exist when the running swofty_core.dll exports
-   SwoftyCoreOverlayVersion and it returns 2 or more (swofty/overlay.hpp checks). A text style is read
-   up to its size field, so later fields can be added. */
-#define SWOFTY_OVERLAY_VERSION 2
+   SwoftyCoreOverlayVersion and it returns 2 or more (swofty/overlay.hpp checks); the v3 entries after
+   ui_scale() exist when it returns 3 or more. A text style and an input snapshot are read and written
+   up to their size field, so later fields can be added. */
+#define SWOFTY_OVERLAY_VERSION 3
 
 enum {
     SWOFTY_TEXT_LEFT = 0x00,
@@ -148,6 +149,26 @@ enum {
 enum {
     SWOFTY_POLYLINE_CLOSED = 1,
 };
+
+enum {
+    SWOFTY_MOUSE_LEFT = 1,
+    SWOFTY_MOUSE_RIGHT = 2,
+    SWOFTY_MOUSE_MIDDLE = 4,
+};
+
+typedef struct SwoftyInput {
+    uint32_t size;
+    uint32_t focused;
+    float x, y;
+    float wheel;
+    uint32_t buttons;
+    uint32_t pressed;
+    uint32_t released;
+    uint32_t char_count;
+    uint32_t chars[16];
+    uint8_t keys_down[32];
+    uint8_t keys_pressed[32];
+} SwoftyInput;
 
 typedef struct SwoftyTextStyle {
     uint32_t size;
@@ -205,6 +226,9 @@ typedef struct SwoftyOverlay {
     void (*pop_opacity)(SwoftyPaint *paint);
     void (*safe_area)(const SwoftyPaint *paint, float *x, float *y, float *w, float *h);
     float (*ui_scale)(const SwoftyPaint *paint);
+    /* v3 */
+    int (*input)(const SwoftyPaint *paint, SwoftyInput *out);
+    int (*focus)(int on);
 } SwoftyOverlay;
 
 #define SWOFTY_TELEMETRY_VERSION 1

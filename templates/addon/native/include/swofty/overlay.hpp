@@ -18,7 +18,8 @@
 // v2 calls (rounded rects, gradients, circles, arcs, polylines, styled text, image UVs and
 // nine-slice, clip/transform/opacity stacks, safe area, UI scale) need a core that exports
 // SwoftyCoreOverlayVersion; v2() says whether it does. On an older core the shape calls fall back
-// to the nearest v1 call and the rest draw nothing.
+// to the nearest v1 call and the rest draw nothing. v3 calls (input, focus) need version 3; v3()
+// says whether the core has them.
 
 namespace swofty::overlay {
 
@@ -33,21 +34,30 @@ inline const SwoftyOverlay *table()
     return api && api->version >= 5 ? api->overlay : nullptr;
 }
 
-inline const SwoftyOverlay *table2()
+inline uint32_t core_version()
 {
     static std::atomic<int> found{-1};
-    auto t = table();
-    if (!t)
-        return nullptr;
     int f = found.load();
     if (f < 0) {
         using VersionFn = uint32_t (*)(void);
         HMODULE core = GetModuleHandleW(L"swofty_core.dll");
         auto fn = core ? reinterpret_cast<VersionFn>(GetProcAddress(core, "SwoftyCoreOverlayVersion")) : nullptr;
-        f = fn && fn() >= 2 ? 1 : 0;
+        f = fn ? int(fn()) : 1;
         found = f;
     }
-    return f ? t : nullptr;
+    return uint32_t(f);
+}
+
+inline const SwoftyOverlay *table2()
+{
+    auto t = table();
+    return t && core_version() >= 2 ? t : nullptr;
+}
+
+inline const SwoftyOverlay *table3()
+{
+    auto t = table();
+    return t && core_version() >= 3 ? t : nullptr;
 }
 
 inline Result result(int r)
@@ -71,6 +81,12 @@ inline bool available()
 inline bool v2()
 {
     return detail::table2() != nullptr;
+}
+
+// The core implements the v3 calls (input and focus).
+inline bool v3()
+{
+    return detail::table3() != nullptr;
 }
 
 // Register a per-frame paint callback. The token identifies it for remove; pass nullptr to
@@ -461,5 +477,57 @@ struct OpacityScope {
     OpacityScope(const OpacityScope &) = delete;
     OpacityScope &operator=(const OpacityScope &) = delete;
 };
+
+// ----- v3: input ----------------------------------------------------------------------------------
+
+namespace mouse {
+constexpr uint32_t left = SWOFTY_MOUSE_LEFT, right = SWOFTY_MOUSE_RIGHT, middle = SWOFTY_MOUSE_MIDDLE;
+}
+
+// This frame's input for the calling addon. While nobody holds focus every addon gets the cursor
+// position and key states (for hotkeys); the addon holding focus also gets buttons, wheel and typed
+// text; while another addon holds focus, x and y are -1 and nothing else is set. Positions are
+// framebuffer pixels.
+struct Input : SwoftyInput {
+    Input()
+        : SwoftyInput{}
+    {
+        size = sizeof(SwoftyInput);
+        x = y = -1;
+    }
+
+    bool key_down(uint32_t vk) const { return vk < 256 && (keys_down[vk >> 3] >> (vk & 7) & 1); }
+
+    bool key_pressed(uint32_t vk) const { return vk < 256 && (keys_pressed[vk >> 3] >> (vk & 7) & 1); }
+
+    bool clicked(uint32_t button = mouse::left) const { return (pressed & button) != 0; }
+
+    bool held(uint32_t button = mouse::left) const { return (buttons & button) != 0; }
+
+    bool inside(float rx, float ry, float rw, float rh) const
+    {
+        return x >= rx && y >= ry && x < rx + rw && y < ry + rh;
+    }
+};
+
+inline Input input(const Paint *paint)
+{
+    Input in;
+    if (auto t = detail::table3())
+        t->input(paint, &in);
+    return in;
+}
+
+// Take (true) or give back (false) input focus for the calling addon. While an addon holds it the
+// core keeps mouse buttons, the wheel, typed text and key presses from the game and draws a cursor;
+// the focus goes back by itself when the addon stops painting for 2 s. late: the focus is taken but
+// the core has not hooked the game window yet.
+inline Result focus(bool on)
+{
+    auto t = detail::table3();
+    if (!t)
+        return Result::unavailable;
+    return detail::result(t->focus(on ? 1 : 0));
+}
 
 }

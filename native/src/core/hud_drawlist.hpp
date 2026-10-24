@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "hud_font.hpp"
@@ -85,6 +86,42 @@ struct Line {
     float width;
 };
 
+struct Quad {
+    float x0, y0, x1, y1, u0, v0, u1, v1;
+};
+
+struct LaidLine {
+    float width;
+    uint32_t first, count;
+};
+
+// A string laid out at one style: glyph quads relative to their line's pen origin on the baseline.
+struct Layout {
+    std::vector<Quad> quads;
+    std::vector<LaidLine> lines;
+    uint64_t used = 0;
+};
+
+constexpr size_t TEXT_CACHE_MAX = 512;
+constexpr uint64_t TEXT_CACHE_KEEP = 120;
+
+struct TextCache {
+    std::unordered_map<std::string, Layout> map;
+    uint64_t frame = 0;
+    uint64_t hits = 0, misses = 0;
+    std::string key;
+
+    void trim()
+    {
+        if (map.size() <= TEXT_CACHE_MAX)
+            return;
+        for (auto it = map.begin(); it != map.end();)
+            it = frame - it->second.used > TEXT_CACHE_KEEP ? map.erase(it) : std::next(it);
+        if (map.size() > TEXT_CACHE_MAX)
+            map.clear();
+    }
+};
+
 struct Frame {
     float width = 0, height = 0;
     std::vector<Vertex> verts;
@@ -100,6 +137,8 @@ struct Frame {
     std::vector<Pt> path, local, ring_in, ring_out;
     std::vector<uint32_t> cols;
     std::vector<Line> lines;
+    TextCache text_cache;
+    std::string owner;
 };
 
 inline void reset_state(Frame &f)
@@ -120,6 +159,8 @@ inline void begin(Frame &f, float width, float height)
     f.verts.clear();
     f.batches.clear();
     f.dropped = 0;
+    f.text_cache.frame++;
+    f.text_cache.trim();
     reset_state(f);
 }
 
@@ -495,21 +536,15 @@ inline uint32_t sdf_mode(float dilate, float soft)
     return SDF | d << 8 | s << 16;
 }
 
-inline void glyph_run(Frame &f, const TextStyle &s, std::string_view text, float top, float x, float dx, float dy,
-                      uint32_t col, uint32_t mode)
+inline void lay_out(const TextStyle &s, std::string_view text, std::vector<Line> &lines, Layout &out)
 {
-    float step = line_step(s);
-    bool snap = f.xform.plain();
+    layout(s, text, lines);
+    out.quads.clear();
+    out.lines.clear();
     const float iw = 1.0f / float(font::ATLAS_W), ih = 1.0f / float(font::ATLAS_H);
-    for (size_t li = 0; li < f.lines.size(); li++) {
-        const Line &l = f.lines[li];
-        uint32_t h = s.align & 0x0f;
-        float pen = x - (h == SWOFTY_TEXT_CENTER ? l.width * 0.5f : h == SWOFTY_TEXT_RIGHT ? l.width : 0) + dx;
-        float base = top + float(li) * step + font::BASELINE * s.px + dy;
-        if (snap) {
-            pen = std::round(pen + f.xform.e) - f.xform.e;
-            base = std::round(base + f.xform.f) - f.xform.f;
-        }
+    for (const Line &l : lines) {
+        LaidLine ll{l.width, uint32_t(out.quads.size()), 0};
+        float pen = 0;
         uint32_t prev = 0;
         for (size_t i = l.begin; i < l.end;) {
             uint32_t cp = font::decode(text, i);
@@ -521,16 +556,56 @@ inline void glyph_run(Frame &f, const TextStyle &s, std::string_view text, float
             const font::Glyph *g = font::glyph(cp);
             if (!g)
                 continue;
-            if (g->u1 > g->u0 && g->v1 > g->v0 && reserve(f, 6, TEX_FONT)) {
-                Pt p[4];
-                rect_points(f.xform, pen + g->x0 * s.px, base + g->y0 * s.px, (g->x1 - g->x0) * s.px,
-                            (g->y1 - g->y0) * s.px, p);
-                float u[4] = {g->u0 * iw, g->u1 * iw, g->u1 * iw, g->u0 * iw};
-                float v[4] = {g->v0 * ih, g->v0 * ih, g->v1 * ih, g->v1 * ih};
-                for (int k : {0, 1, 3, 1, 2, 3})
-                    vtx(f, p[k].x, p[k].y, col, u[k], v[k], mode);
-            }
+            if (g->u1 > g->u0 && g->v1 > g->v0)
+                out.quads.push_back({pen + g->x0 * s.px, g->y0 * s.px, pen + g->x1 * s.px, g->y1 * s.px, g->u0 * iw,
+                                     g->v0 * ih, g->u1 * iw, g->v1 * ih});
             pen += g->advance * s.px;
+        }
+        ll.count = uint32_t(out.quads.size()) - ll.first;
+        out.lines.push_back(ll);
+    }
+}
+
+inline const Layout &cached_layout(Frame &f, const TextStyle &s, std::string_view text)
+{
+    TextCache &c = f.text_cache;
+    c.key.assign(text);
+    const float params[4] = {s.px, s.tracking, s.max_width, s.line_height};
+    c.key.append(reinterpret_cast<const char *>(params), sizeof params);
+    auto [it, fresh] = c.map.try_emplace(c.key);
+    if (fresh) {
+        c.misses++;
+        lay_out(s, text, f.lines, it->second);
+    } else {
+        c.hits++;
+    }
+    it->second.used = c.frame;
+    return it->second;
+}
+
+inline void glyph_run(Frame &f, const TextStyle &s, const Layout &lay, float top, float x, float dx, float dy,
+                      uint32_t col, uint32_t mode)
+{
+    float step = line_step(s);
+    bool snap = f.xform.plain();
+    uint32_t h = s.align & 0x0f;
+    for (size_t li = 0; li < lay.lines.size(); li++) {
+        const LaidLine &l = lay.lines[li];
+        float pen = x - (h == SWOFTY_TEXT_CENTER ? l.width * 0.5f : h == SWOFTY_TEXT_RIGHT ? l.width : 0) + dx;
+        float base = top + float(li) * step + font::BASELINE * s.px + dy;
+        if (snap) {
+            pen = std::round(pen + f.xform.e) - f.xform.e;
+            base = std::round(base + f.xform.f) - f.xform.f;
+        }
+        if (!l.count || !reserve(f, size_t(l.count) * 6, TEX_FONT))
+            continue;
+        for (uint32_t q = l.first; q < l.first + l.count; q++) {
+            const Quad &g = lay.quads[q];
+            Pt p[4];
+            rect_points(f.xform, pen + g.x0, base + g.y0, g.x1 - g.x0, g.y1 - g.y0, p);
+            float u[4] = {g.u0, g.u1, g.u1, g.u0}, v[4] = {g.v0, g.v0, g.v1, g.v1};
+            for (int k : {0, 1, 3, 1, 2, 3})
+                vtx(f, p[k].x, p[k].y, col, u[k], v[k], mode);
         }
     }
 }
@@ -539,8 +614,8 @@ inline void text(Frame &f, float x, float y, const TextStyle &s, std::string_vie
 {
     if (s.px <= 0 || text.empty() || clipped_out(f))
         return;
-    layout(s, text, f.lines);
-    float height = s.px + float(f.lines.size() - 1) * line_step(s);
+    const Layout &lay = cached_layout(f, s, text);
+    float height = s.px + float(lay.lines.size() - 1) * line_step(s);
     uint32_t v = s.align & 0xf0;
     float top = v == SWOFTY_TEXT_MIDDLE     ? y - height * 0.5f
                 : v == SWOFTY_TEXT_BASELINE ? y - font::BASELINE * s.px
@@ -550,12 +625,12 @@ inline void text(Frame &f, float x, float y, const TextStyle &s, std::string_vie
     float per_px = scale > 0 ? 1.0f / (2 * font::SPREAD * scale) : 0;
     bool outline = s.outline_px > 0 && rgba_visible(s.outline_rgba);
     if (rgba_visible(s.shadow_rgba))
-        glyph_run(f, s, text, top, x, s.shadow_dx, s.shadow_dy, pack(s.shadow_rgba, f.opacity),
+        glyph_run(f, s, lay, top, x, s.shadow_dx, s.shadow_dy, pack(s.shadow_rgba, f.opacity),
                   sdf_mode(outline ? s.outline_px * per_px : 0, s.shadow_blur));
     if (outline)
-        glyph_run(f, s, text, top, x, 0, 0, pack(s.outline_rgba, f.opacity), sdf_mode(s.outline_px * per_px, 0));
+        glyph_run(f, s, lay, top, x, 0, 0, pack(s.outline_rgba, f.opacity), sdf_mode(s.outline_px * per_px, 0));
     if (rgba_visible(s.rgba))
-        glyph_run(f, s, text, top, x, 0, 0, pack(s.rgba, f.opacity), sdf_mode(0, 0));
+        glyph_run(f, s, lay, top, x, 0, 0, pack(s.rgba, f.opacity), sdf_mode(0, 0));
 }
 
 inline void text(Frame &f, float x, float y, float font_size, uint32_t rgba, std::string_view s)
@@ -907,6 +982,7 @@ inline void build(const std::vector<Paintsub> &subs, Frame &f, float width, floa
     for (const auto &s : subs)
         if (s.fn && !listed(off, s.owner)) {
             reset_state(f);
+            f.owner = s.owner;
             s.fn(reinterpret_cast<SwoftyPaint *>(&f), s.user);
         }
 }

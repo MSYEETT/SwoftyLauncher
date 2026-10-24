@@ -9,6 +9,7 @@
 #include "hud_font_atlas.hpp"
 #include "hud_guard.hpp"
 #include "hud_image.hpp"
+#include "hud_input.hpp"
 #include "hud_png.hpp"
 
 #include <array>
@@ -392,6 +393,73 @@ static void test_cap()
     CHECK(f.verts.size() <= hud::MAX_VERTS && f.dropped == 10, "primitives past the vertex cap are dropped and counted");
 }
 
+
+static void test_text_cache()
+{
+    hud::Frame f = frame();
+    hud::TextStyle st;
+    st.px = 24;
+    hud::text(f, 10, 10, st, "Lap 12 / 57");
+    std::vector<hud::Vertex> first = f.verts;
+    CHECK(f.text_cache.misses == 1 && f.text_cache.hits == 0, "the first draw of a string lays it out");
+    hud::begin(f, 1920, 1080);
+    hud::text(f, 10, 10, st, "Lap 12 / 57");
+    bool same = f.verts.size() == first.size();
+    for (size_t i = 0; same && i < first.size(); i++)
+        same = f.verts[i].x == first[i].x && f.verts[i].y == first[i].y && f.verts[i].u == first[i].u;
+    CHECK(f.text_cache.hits == 1 && same, "a cached layout draws the same vertices");
+    st.px = 25;
+    hud::text(f, 10, 10, st, "Lap 12 / 57");
+    CHECK(f.text_cache.misses == 2, "another size is another layout");
+    for (int i = 0; i < int(hud::TEXT_CACHE_MAX) + 50; i++)
+        hud::text(f, 0, 0, st, std::to_string(i));
+    for (uint64_t k = 0; k < hud::TEXT_CACHE_KEEP + 2; k++)
+        hud::begin(f, 1920, 1080);
+    CHECK(f.text_cache.map.size() <= hud::TEXT_CACHE_MAX, "the cache drops layouts unused for a while once it is full");
+}
+
+static void test_input()
+{
+    using namespace hud::input;
+    Snapshot s;
+    std::vector<Event> ev = {{Ev::move, 0, 100, 50},  {Ev::down, SWOFTY_MOUSE_LEFT, 110, 60}, {Ev::wheel, 0, 1, 0},
+                             {Ev::wheel, 0, 1, 0},     {Ev::chr, 'a', 0, 0},                   {Ev::chr, 0x1b, 0, 0},
+                             {Ev::key_down, 0x77, 0, 0}, {Ev::key_down, 0x77, 0, 0}};
+    fold(s, ev, 2, 2);
+    CHECK(s.x == 220 && s.y == 120, "client positions scale to framebuffer pixels");
+    CHECK(s.buttons == SWOFTY_MOUSE_LEFT && s.pressed == SWOFTY_MOUSE_LEFT && s.wheel == 2, "presses and wheel notches fold");
+    CHECK(s.chars.size() == 1 && s.chars[0] == 'a', "control characters are not text");
+    CHECK(bit(s.keys_pressed, 0x77) && bit(s.keys_down, 0x77), "a key press is an edge and a held key");
+    fold(s, {{Ev::up, SWOFTY_MOUSE_LEFT, 110, 60}}, 1, 1);
+    CHECK(s.buttons == 0 && s.released == SWOFTY_MOUSE_LEFT && s.pressed == 0 && s.wheel == 0 && s.chars.empty(),
+          "edges, wheel and text last one frame; held state carries over");
+    CHECK(!bit(s.keys_pressed, 0x77) && bit(s.keys_down, 0x77), "a key held into the next frame is not pressed again");
+    fold(s, {{Ev::key_down, 0x77, 0, 0}}, 1, 1);
+    CHECK(!bit(s.keys_pressed, 0x77), "auto-repeat of a held key is not a new press");
+    Utf16 u;
+    CHECK(u.push(0xd83c) == 0 && u.push(0xdfce) == 0x1f3ce && u.push('x') == 'x', "surrogate pairs join into one code point");
+    Focus f;
+    CHECK(f.take("a", true, 0) && f.held() && f.owner == "a", "an addon takes focus");
+    CHECK(!f.take("b", false, 10) && f.owner == "a", "another addon cannot release it");
+    CHECK(f.take("b", true, 20) && f.owner == "b", "taking focus moves it to the newest taker");
+    f.painted("b", 1000);
+    CHECK(!f.expire(2500, 2000) && f.expire(3001, 2000) && !f.held(), "focus lapses after 2 s without a paint");
+    s.chars = {'q'};
+    s.wheel = 1;
+    s.buttons = SWOFTY_MOUSE_LEFT;
+    SwoftyInput in{};
+    in.size = sizeof in;
+    view(s, f, "a", in);
+    CHECK(!in.focused && in.x == 110 && in.buttons == 0 && in.char_count == 0 && in.wheel == 0 && in.size == sizeof in,
+          "without focus an addon sees the cursor and keys only");
+    f.take("a", true, 0);
+    view(s, f, "a", in);
+    CHECK(in.focused && in.buttons == SWOFTY_MOUSE_LEFT && in.char_count == 1 && in.chars[0] == 'q' && in.wheel == 1,
+          "the focus holder sees buttons, wheel and text");
+    view(s, f, "b", in);
+    CHECK(!in.focused && in.x == -1 && in.keys_down[0x77 >> 3] == 0, "other addons see nothing while one holds focus");
+}
+
 static void test_registry()
 {
     hud::Registry reg;
@@ -722,6 +790,8 @@ int main(int argc, char **argv)
     test_layout_helpers();
     test_nine_slice();
     test_cap();
+    test_text_cache();
+    test_input();
     test_registry();
     test_build_dispatch();
     test_image_registry();
