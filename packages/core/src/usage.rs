@@ -2,7 +2,9 @@
 //!
 //! Release builds report, every five minutes while the launcher is open and
 //! during each modded session, which launcher version is running on which
-//! kind of system, and how each session ended. A report carries a random id
+//! kind of system, and how each session ended: quit, crash, stopped by the
+//! player, or unknown, with the exit code when the session could read it.
+//! A report carries a random id
 //! made for this install and nothing that identifies the player. Nothing is
 //! sent until the offline play terms, which say so, are accepted; builds from
 //! source have no address to send to.
@@ -14,6 +16,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
+
+use crate::session::SessionEnd;
 
 pub const INTERVAL: Duration = Duration::from_secs(300);
 const TIMEOUT: Duration = Duration::from_secs(10);
@@ -102,6 +106,10 @@ pub struct Event {
     pub exit_code: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub seconds: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub crash_code: Option<u32>,
 }
 
 impl Event {
@@ -114,6 +122,22 @@ impl Event {
             session: None,
             exit_code: None,
             seconds: None,
+            end: None,
+            crash_code: None,
+        }
+    }
+
+    /// A session's last report. Servers before `end` was added require an
+    /// integer exit code, so a code the session could not read goes as -1,
+    /// the value they always had for it.
+    pub fn session_end(install: &str, session: &str, seconds: u64, end: &SessionEnd) -> Self {
+        Self {
+            session: Some(session.to_owned()),
+            exit_code: Some(end.exit_code.unwrap_or(-1)),
+            seconds: Some(seconds),
+            end: Some(end.end.as_str()),
+            crash_code: end.crash_code,
+            ..Self::new("session_end", install)
         }
     }
 }
@@ -208,14 +232,9 @@ impl Session {
         Some(session)
     }
 
-    pub fn end(self, exit_code: i32) {
+    pub fn end(self, end: &SessionEnd) {
         self.stop.store(true, Ordering::Relaxed);
-        let event = Event {
-            session: Some(self.id.clone()),
-            exit_code: Some(exit_code),
-            seconds: Some(self.started.elapsed().as_secs()),
-            ..Event::new("session_end", &self.install)
-        };
+        let event = Event::session_end(&self.install, &self.id, self.started.elapsed().as_secs(), end);
         send(&self.url, &event, END_TIMEOUT);
     }
 }
@@ -226,6 +245,7 @@ mod tests {
     use std::net::TcpListener;
 
     use super::*;
+    use crate::session::Ending;
 
     fn temp(name: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("swofty-usage-{name}-{}", std::process::id()));
@@ -254,18 +274,21 @@ mod tests {
 
     #[test]
     fn events_carry_only_what_the_server_reads() {
-        let event = Event {
-            session: Some("0123456789abcdef".into()),
+        let crash = SessionEnd {
+            end: Ending::Crash,
             exit_code: Some(-1),
-            seconds: Some(42),
-            ..Event::new("session_end", &"a".repeat(32))
+            crash_code: Some(0xc000_0005),
+            reason: "the mod loader saw an unhandled exception".into(),
         };
+        let event = Event::session_end(&"a".repeat(32), "0123456789abcdef", 42, &crash);
         let json: serde_json::Value = serde_json::to_value(&event).unwrap();
         let mut keys: Vec<&str> = json.as_object().unwrap().keys().map(String::as_str).collect();
         keys.sort_unstable();
         assert_eq!(
             keys,
             [
+                "crash_code",
+                "end",
                 "exit_code",
                 "install",
                 "kind",
@@ -275,9 +298,49 @@ mod tests {
                 "version"
             ]
         );
+        assert_eq!(
+            (&json["end"], &json["exit_code"], &json["crash_code"]),
+            (&"crash".into(), &(-1).into(), &0xc000_0005u32.into())
+        );
         let launcher = serde_json::to_value(Event::new("launcher", &"b".repeat(32))).unwrap();
         assert_eq!(launcher.as_object().unwrap().len(), 4);
         assert_eq!(launcher["os"], os());
+    }
+
+    #[test]
+    fn an_unread_exit_code_goes_as_minus_one_beside_its_end() {
+        let unknown = SessionEnd {
+            end: Ending::Unknown,
+            exit_code: None,
+            crash_code: None,
+            reason: "the EA app started F1 25".into(),
+        };
+        let json = serde_json::to_value(Event::session_end(
+            &"a".repeat(32),
+            "0123456789abcdef",
+            7,
+            &unknown,
+        ))
+        .unwrap();
+        assert_eq!(
+            (&json["exit_code"], &json["end"]),
+            (&(-1).into(), &"unknown".into())
+        );
+        assert!(json.get("crash_code").is_none());
+        assert!(json.get("reason").is_none());
+        let stopped = SessionEnd {
+            end: Ending::Stopped,
+            exit_code: Some(1),
+            ..unknown
+        };
+        let json = serde_json::to_value(Event::session_end(
+            &"a".repeat(32),
+            "0123456789abcdef",
+            7,
+            &stopped,
+        ))
+        .unwrap();
+        assert_eq!((&json["exit_code"], &json["end"]), (&1.into(), &"stopped".into()));
     }
 
     #[test]

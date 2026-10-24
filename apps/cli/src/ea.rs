@@ -285,8 +285,9 @@ pub struct Started {
 
 /// Until every game of this copy started since the launch has closed. Only
 /// the game the EA app started for the session, and games that are this
-/// copy's, are closed on a stop.
-pub fn wait(game: &Path, before: &[u32], started: Started, mut tick: impl FnMut()) -> i32 {
+/// copy's, are closed on a stop. The EA app owns the game's process, so its
+/// exit code is not the session's to read.
+pub fn wait(game: &Path, before: &[u32], started: Started, mut tick: impl FnMut()) {
     let mut asked = false;
     loop {
         let running: Vec<GameProcess> = game_processes()
@@ -312,7 +313,6 @@ pub fn wait(game: &Path, before: &[u32], started: Started, mut tick: impl FnMut(
     if let Some(mut c) = started.handoff {
         std::thread::spawn(move || c.wait().ok());
     }
-    0
 }
 
 #[cfg(test)]

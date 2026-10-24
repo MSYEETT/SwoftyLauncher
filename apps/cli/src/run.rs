@@ -16,7 +16,8 @@ use swofty_core::quarantine::{self, Attach, AttachWatch, Stage};
 use swofty_core::recovery::{Scope, SessionLock};
 use swofty_core::session::{
     Config, DEFAULT_WINEDEBUG, LOADER_LOG, LOADER_MARK, LaunchMode, LaunchRequest, LogMark, PERF_LOG,
-    RUNTIME_LIBS_DIR, game_args, parse_cpu_list, parse_steam_command, written_since,
+    RUNTIME_LIBS_DIR, STOP_FILE, SessionEnd, SessionRecord, game_args, parse_cpu_list, parse_steam_command,
+    request_stop, written_since,
 };
 use swofty_core::steam_client::{self, Ready, Report, State, Wait};
 use swofty_core::store::Store;
@@ -98,6 +99,7 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
                 ),
             ));
         }
+        request_stop(&store.root);
         stop_game_in(&game).ok();
         while game_running_in(&game) {
             std::thread::sleep(Duration::from_millis(500));
@@ -742,12 +744,15 @@ fn play(
             missed();
         }
     };
-    let code = if let Some(started) = ea {
-        crate::ea::wait(game, &copies_before, started, tick)
-    } else {
-        wait_game(&mut spawn(target, "game_stdout.log")?, tick)?
-            .code()
-            .unwrap_or(-1)
+    let (code, unread) = match ea {
+        Some(started) => {
+            crate::ea::wait(game, &copies_before, started, tick);
+            (None, EA_UNREAD.to_owned())
+        }
+        None => {
+            let status = wait_game(&mut spawn(target, "game_stdout.log")?, tick)?;
+            (status.code(), why_no_code(status))
+        }
     };
     if let Some(w) = watch.as_mut()
         && w.state() == Attach::Waiting
@@ -756,20 +761,49 @@ fn play(
         missed();
     }
     wait_relaunched(game, &copies_before, code, launched.elapsed().unwrap_or_default());
+    keep_game_logs(game, &dir, before.as_ref(), launched);
+    let loader = std::fs::read(dir.join("loader.log"))
+        .ok()
+        .map(|b| launch::LoaderSeen::scan(&String::from_utf8_lossy(&b)));
+    let stopped = if dir.join(STOP_FILE).exists() {
+        Some("Stop in the launcher closed F1 25")
+    } else if ending() {
+        Some("the wrapper was asked to stop and closed F1 25")
+    } else {
+        None
+    };
+    let end = SessionEnd::resolve(code, &unread, stopped, loader.as_ref());
+    say(
+        "info",
+        &format!("session end: {}, {}", end.end.as_str(), end.reason),
+    );
     if let Some(usage) = usage {
-        usage.end(code);
+        usage.end(&end);
     }
+    let code = end.exit_code.unwrap_or(-1);
+    end.write(&dir)?;
     std::fs::write(dir.join("exit_code"), format!("{code}\n"))?;
     std::fs::write(dir.join("game_end"), format!("{}\n", now_secs()))?;
-    keep_game_logs(game, &dir, before.as_ref(), launched);
     for g in game_processes()
         .into_iter()
         .filter(|g| descends_from(g.pid, std::process::id()))
     {
         stop_process(g.pid).ok();
     }
-    note_failed_launch(store, &dir, code, launched.elapsed().unwrap_or_default());
+    note_failed_launch(store, loader, code, launched.elapsed().unwrap_or_default());
     Ok(code)
+}
+
+const EA_UNREAD: &str =
+    "the EA app started F1 25, so the session has no handle on the game to read its exit code";
+
+/// Why an exit status carries no code.
+fn why_no_code(status: ExitStatus) -> String {
+    #[cfg(unix)]
+    if let Some(signal) = std::os::unix::process::ExitStatusExt::signal(&status) {
+        return format!("the game's process was ended by signal {signal}, which leaves no exit code");
+    }
+    format!("the game's process ended without an exit code ({status})")
 }
 
 const RESTART_WAIT: Duration = Duration::from_secs(15);
@@ -786,8 +820,8 @@ const RELAUNCH_CAP: Duration = Duration::from_secs(12 * 3600);
 /// game files are rolled back. A launch that failed quickly gets longer for
 /// the relaunch to appear. Another copy's game is not waited for, and only
 /// a game that is this copy's is closed.
-fn wait_relaunched(game: &Path, before: &[u32], code: i32, ran: Duration) {
-    let settle = if code != 0 && ran < SHORT_RUN {
+fn wait_relaunched(game: &Path, before: &[u32], code: Option<i32>, ran: Duration) {
+    let settle = if code.is_some_and(|c| c != 0) && ran < SHORT_RUN {
         RELAUNCH_AFTER_FAILURE
     } else {
         RELAUNCH_SETTLE
@@ -864,10 +898,7 @@ fn already_running(store: &Store, pid: u32, then: &str) -> anyhow::Error {
 /// After the game exits: a clean exit before its window is a launch that
 /// failed, which the session says and records instead of passing it off as
 /// a normal quit.
-fn note_failed_launch(store: &Store, dir: &Path, code: i32, ran: Duration) {
-    let loader = std::fs::read(dir.join("loader.log"))
-        .ok()
-        .map(|b| launch::LoaderSeen::scan(&String::from_utf8_lossy(&b)));
+fn note_failed_launch(store: &Store, loader: Option<launch::LoaderSeen>, code: i32, ran: Duration) {
     let ours = loader.and_then(|l| l.pid).filter(|_| cfg!(windows));
     let Some(cause) = launch::classify(code, ran, loader.as_ref(), || other_copies(ours)) else {
         return;
@@ -1511,11 +1542,15 @@ impl Follow {
             (Some(a), Some(b)) => format!("{:.1}s", b - a),
             _ => "?".into(),
         };
+        let end = SessionRecord::read(&self.dir)
+            .end
+            .map(|e| format!(" ({})", e.end.as_str()))
+            .unwrap_or_default();
         println!();
         say(
             "info",
             &format!(
-                "game exited with code {code} after {dur}; logs in {}",
+                "game exited with code {code} after {dur}{end}; logs in {}",
                 self.dir.display()
             ),
         );
@@ -1925,6 +1960,22 @@ mod tests {
         assert!(!Cli::parse_from(["swofty"]).run.no_start_store);
         assert!(Cli::parse_from(["swofty", "--no-start-steam"]).run.no_start_store);
         assert!(Cli::parse_from(["swofty", "--no-start-store"]).run.no_start_store);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_game_ended_by_a_signal_has_no_exit_code_and_says_why() {
+        let status = Command::new("sh").args(["-c", "kill -9 $$"]).status().unwrap();
+        assert_eq!(status.code(), None);
+        let end = SessionEnd::resolve(status.code(), &why_no_code(status), None, None);
+        assert_eq!(
+            (end.end, end.exit_code),
+            (swofty_core::session::Ending::Unknown, None)
+        );
+        assert_eq!(
+            end.reason,
+            "the game's process was ended by signal 9, which leaves no exit code"
+        );
     }
 
     #[test]
