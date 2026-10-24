@@ -420,6 +420,7 @@ mod tests {
             name: *b"TEST",
             root,
             vca: Vec::new(),
+            layout: None,
         }
         .to_bytes()
         .unwrap()
@@ -490,13 +491,12 @@ mod tests {
     }
 
     #[test]
-    fn an_addon_era_picker_that_does_not_round_trip_is_left_as_it_is() {
+    fn an_addon_era_picker_that_cannot_be_read_is_left_as_it_is() {
         let root = std::env::temp_dir().join(format!("swofty-era-skip-{}", std::process::id()));
         std::fs::remove_dir_all(&root).ok();
-        let mut odd = ui();
-        odd.extend_from_slice(&[0; 4]);
-        assert!(Pkg::parse(&odd).is_ok());
-        assert_ne!(Pkg::parse(&odd).unwrap().to_bytes().unwrap(), odd);
+        let full = ui();
+        let odd = full[..full.len() / 2].to_vec();
+        let why = Pkg::parse(&odd).unwrap_err().to_string();
         let game = root.join("game");
         for rel in era::ARCHIVES {
             archive(&game, rel, &odd);
@@ -519,19 +519,19 @@ mod tests {
                 w.contains("the era picker boxes there are off while it's on"),
                 "{w}"
             );
-            assert!(w.contains("fragment 1 does not round-trip"), "{w}");
+            assert!(w.contains(&why), "{w}");
         }
 
         let stock = |_: &str, _: &str| None;
         let e = era_rows(&input, &stock, &out, &mut Vec::new(), &mut Vec::new()).unwrap_err();
-        assert!(e.to_string().contains("fragment 1 does not round-trip"), "{e}");
+        assert!(e.to_string().contains(&why), "{e}");
 
         let world_only = |erp: &str, res: &str| {
             (erp.ends_with(era::ARCHIVES[0]) && res == era::UI).then(|| MOD.to_owned())
         };
         let mut warnings = Vec::new();
         let e = era_rows(&input, &world_only, &out, &mut Vec::new(), &mut warnings).unwrap_err();
-        assert!(e.to_string().contains("fragment 1 does not round-trip"), "{e}");
+        assert!(e.to_string().contains(&why), "{e}");
         assert_eq!(warnings.len(), 1, "{warnings:?}");
         assert!(warnings[0].contains(era::ARCHIVES[0]), "{warnings:?}");
         std::fs::remove_dir_all(&root).ok();
