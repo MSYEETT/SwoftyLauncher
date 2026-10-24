@@ -131,6 +131,67 @@ pub(crate) fn windows_tool(_: &str, _: &[&str]) -> Option<String> {
     None
 }
 
+/// A Windows tool's output, or why there is none: it could not start,
+/// failed (its first error line), or did not finish `within` and was ended.
+#[cfg(windows)]
+pub(crate) fn windows_tool_within(
+    program: &str,
+    args: &[&str],
+    within: std::time::Duration,
+) -> std::result::Result<String, String> {
+    use std::io::Read;
+    use std::os::windows::process::CommandExt;
+    use std::process::Stdio;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let mut child = std::process::Command::new(program)
+        .args(args)
+        .creation_flags(CREATE_NO_WINDOW)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("{program} did not start ({e})"))?;
+    fn drain(pipe: Option<impl Read + Send + 'static>) -> std::thread::JoinHandle<Vec<u8>> {
+        std::thread::spawn(move || {
+            let mut data = Vec::new();
+            if let Some(mut p) = pipe {
+                p.read_to_end(&mut data).ok();
+            }
+            data
+        })
+    }
+    let (out, err) = (drain(child.stdout.take()), drain(child.stderr.take()));
+    let until = std::time::Instant::now() + within;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) if std::time::Instant::now() < until => {
+                std::thread::sleep(std::time::Duration::from_millis(20))
+            }
+            Ok(None) => {
+                child.kill().ok();
+                child.wait().ok();
+                return Err(format!("{program} gave no answer within {} s", within.as_secs()));
+            }
+            Err(e) => return Err(format!("{program}: {e}")),
+        }
+    };
+    let out = String::from_utf8_lossy(&out.join().unwrap_or_default()).into_owned();
+    if status.success() {
+        return Ok(out);
+    }
+    let err = String::from_utf8_lossy(&err.join().unwrap_or_default()).into_owned();
+    let first = err
+        .lines()
+        .chain(out.lines())
+        .map(str::trim)
+        .find(|l| !l.is_empty());
+    Err(match first {
+        Some(line) => line.to_owned(),
+        None => format!("{program} failed ({status})"),
+    })
+}
+
 /// The settings on the exes a modded session in `game` starts.
 pub fn session_admin_layers(game: &Path) -> Vec<AdminLayer> {
     SESSION_EXES

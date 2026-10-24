@@ -19,6 +19,7 @@ pub mod import;
 pub mod install;
 pub mod journal;
 pub mod launch;
+pub mod loader_check;
 pub mod managed;
 pub mod map;
 pub mod offline;
