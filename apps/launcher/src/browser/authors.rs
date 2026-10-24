@@ -1176,6 +1176,9 @@ impl Shell {
                 tag("Installed", p).text_color(p.success).into_any_element()
             }
             Offer::TooOld => tag("Needs a newer launcher", p).into_any_element(),
+            Offer::Blocked => tag("Missing requirements", p)
+                .text_color(p.warning)
+                .into_any_element(),
         }
     }
 

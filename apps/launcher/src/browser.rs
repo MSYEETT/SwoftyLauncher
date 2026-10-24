@@ -7,8 +7,7 @@ pub(crate) use authors::View;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::path::Path;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use gpui_kit::assets::IconName;
@@ -23,6 +22,7 @@ use gpui_kit::component::{ActiveTheme, Disableable, Icon, Sizable, WindowExt, h_
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::catalog::publishers::{self, Creator, Profile};
+use swofty_core::catalog::requires::{self, Event, Have, Plan};
 use swofty_core::catalog::search::Query;
 use swofty_core::catalog::stars::{self, Stars};
 use swofty_core::catalog::{self, Addon, Stage, Trouble, Update};
@@ -146,47 +146,112 @@ impl Progress {
         }
     }
 
-    fn long(self) -> String {
+    /// What it's doing, naming `item` when that's a requirement, not the addon itself.
+    fn long(self, item: Option<&str>) -> String {
         match self {
             Self::Downloading { done, size, rate } => {
-                let mut text = format!(
-                    "Downloading {} of {} · {:.0}%",
+                let mut text = match item {
+                    Some(item) => format!("Downloading {item} · "),
+                    None => "Downloading ".to_owned(),
+                };
+                text.push_str(&format!(
+                    "{} of {} · {:.0}%",
                     size_text(done),
                     size_text(size),
                     self.fraction() * 100.
-                );
+                ));
                 if rate > 0. {
                     text.push_str(&format!(" · {}/s", size_text(rate as u64)));
                 }
                 text
             }
-            Self::Verifying => "Verifying the download's size and SHA-256…".into(),
-            Self::Installing => "Installing…".into(),
+            Self::Verifying => match item {
+                Some(item) => format!("Verifying {item}'s size and SHA-256…"),
+                None => "Verifying the download's size and SHA-256…".into(),
+            },
+            Self::Installing => match item {
+                Some(item) => format!("Installing {item}…"),
+                None => "Installing…".into(),
+            },
         }
     }
 }
 
-struct Job {
-    bytes: Arc<AtomicU64>,
-    stage: Arc<AtomicU8>,
+/// An install's downloads so far: every addon it fetches, requirements included.
+#[derive(Default)]
+struct Tally {
+    finished: u64,
+    current: u64,
     size: u64,
+    stage: u8,
+    item: Option<String>,
+    also: Vec<String>,
+}
+
+#[derive(Clone)]
+struct Job {
+    tally: Arc<Mutex<Tally>>,
     started: Instant,
 }
 
 impl Job {
+    fn new(size: u64) -> Self {
+        Self {
+            tally: Arc::new(Mutex::new(Tally {
+                size,
+                ..Tally::default()
+            })),
+            started: Instant::now(),
+        }
+    }
+
+    fn tally(&self) -> std::sync::MutexGuard<'_, Tally> {
+        self.tally.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     fn progress(&self) -> Progress {
-        match self.stage.load(Ordering::Relaxed) {
+        let t = self.tally();
+        match t.stage {
             VERIFYING => Progress::Verifying,
             INSTALLING => Progress::Installing,
             _ => {
-                let done = self.bytes.load(Ordering::Relaxed);
+                let done = t.finished + t.current;
                 let secs = self.started.elapsed().as_secs_f64();
                 Progress::Downloading {
                     done,
-                    size: self.size,
+                    size: t.size.max(done),
                     rate: if secs > 0.3 { done as f64 / secs } else { 0. },
                 }
             }
+        }
+    }
+
+    /// The requirement it's on, when it isn't on the addon itself.
+    fn item(&self) -> Option<String> {
+        self.tally().item.clone()
+    }
+
+    /// The other addons it installs, once they're known.
+    fn also(&self) -> Vec<String> {
+        self.tally().also.clone()
+    }
+
+    fn track(&self, root: &str, e: Event) {
+        let mut t = self.tally();
+        match e {
+            Event::Planned(plan) => {
+                t.size = plan.size();
+                t.also = plan.also().iter().map(|s| s.label()).collect();
+            }
+            Event::Addon(a, _) => {
+                t.finished += t.current;
+                t.current = 0;
+                t.stage = 0;
+                t.item = (a.id != root).then(|| a.name.clone());
+            }
+            Event::Stage(Stage::Downloading(n)) => t.current = n,
+            Event::Stage(Stage::Verifying) => t.stage = VERIFYING,
+            Event::Stage(Stage::Installing) => t.stage = INSTALLING,
         }
     }
 }
@@ -199,6 +264,8 @@ enum Offer {
     TooOld,
     Working(Progress),
     Failed,
+    /// Not installed, and its requirements can't all be met.
+    Blocked,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -442,6 +509,7 @@ pub(crate) struct Browser {
     loading: BTreeSet<String>,
     working: HashMap<String, Job>,
     failed: HashMap<String, String>,
+    refused: BTreeSet<String>,
     batch: Option<Batch>,
     held: BTreeMap<String, (semver::Version, String)>,
     ticking: bool,
@@ -495,6 +563,7 @@ impl Browser {
             loading: BTreeSet::new(),
             working: HashMap::new(),
             failed: HashMap::new(),
+            refused: BTreeSet::new(),
             batch: None,
             held: BTreeMap::new(),
             ticking: false,
@@ -801,9 +870,63 @@ impl Shell {
         match (a.offered(&current_version()), self.installed_version(&a.id)) {
             (Some(v), Some(m)) if v.version > m => Offer::Update(m, v.version.clone()),
             (_, Some(m)) => Offer::Installed(m),
+            (Some(_), None) if matches!(self.requirements(a), Some(Err(_))) => Offer::Blocked,
             (Some(_), None) => Offer::Install,
             (None, None) => Offer::TooOld,
         }
+    }
+
+    /// What installing the version of `a` this launcher would get also
+    /// installs, from the requirements the registry lists; none when it doesn't
+    /// list them all.
+    fn requirements(&self, a: &Addon) -> Option<swofty_core::Result<Plan>> {
+        let launcher = current_version();
+        let v = a.offered(&launcher)?;
+        let builtin: BTreeSet<&str> = self
+            .library
+            .addons
+            .iter()
+            .filter(|x| x.source == Source::Builtin)
+            .map(|x| x.manifest.id.as_str())
+            .collect();
+        let have = Have::new(self.library.addons.iter().map(|x| &x.manifest), |id| {
+            builtin.contains(id)
+        });
+        requires::preview(a, v, &self.browser.addons, &have, &launcher)
+    }
+
+    /// The other addons installing `a` brings, as `Name 1.2.0`, and why it
+    /// can't be installed when the registry's requirements already say.
+    fn needs_of(&self, a: &Addon) -> (Vec<String>, Option<String>) {
+        if let Some(job) = self.browser.working.get(&a.id) {
+            return (job.also(), None);
+        }
+        if self.installed_version(&a.id).is_some() {
+            return (Vec::new(), None);
+        }
+        match self.requirements(a) {
+            Some(Ok(plan)) => (plan.also().iter().map(|s| s.label()).collect(), None),
+            Some(Err(e)) => (Vec::new(), Some(e.to_string())),
+            None => (Vec::new(), None),
+        }
+    }
+
+    /// A version's requirements as `Requires Name >=1.0.0, other.id`.
+    fn requires_text(&self, reqs: &[swofty_core::manifest::Requirement]) -> String {
+        let named: Vec<String> = reqs
+            .iter()
+            .map(|r| {
+                let name = self
+                    .browser
+                    .find(&r.id)
+                    .map_or(r.id.as_str(), |a| a.name.as_str());
+                match r.version == semver::VersionReq::STAR {
+                    true => name.to_owned(),
+                    false => format!("{name} {}", r.version),
+                }
+            })
+            .collect();
+        format!("Requires {}", named.join(", "))
     }
 
     pub(crate) fn install_from_catalog(&mut self, id: &str, cx: &mut Context<Self>) {
@@ -818,14 +941,23 @@ impl Shell {
         };
         let updating = self.installed_version(id).is_some();
         self.browser.failed.remove(id);
-        let job = Job {
-            bytes: Arc::new(AtomicU64::new(0)),
-            stage: Arc::new(AtomicU8::new(0)),
-            size: version.size,
-            started: Instant::now(),
+        self.browser.refused.remove(id);
+        let job = Job::new(version.size);
+        let preview: Vec<String> = match self.requirements(&addon) {
+            Some(Ok(plan)) => plan.also().iter().map(|s| s.addon.id.clone()).collect(),
+            _ => Vec::new(),
         };
-        let (bytes, stage) = (job.bytes.clone(), job.stage.clone());
-        self.browser.working.insert(addon.id.clone(), job);
+        let riders: Vec<String> = preview
+            .into_iter()
+            .filter(|d| {
+                !self.browser.working.contains_key(d)
+                    && !self.browser.batch.as_ref().is_some_and(|b| b.left.contains(d))
+            })
+            .collect();
+        for d in &riders {
+            self.browser.working.insert(d.clone(), job.clone());
+        }
+        self.browser.working.insert(addon.id.clone(), job.clone());
         catalog::log(
             &self.store.root,
             &format!(
@@ -838,46 +970,63 @@ impl Shell {
             ),
         );
         let store = self.store.clone();
+        let catalog_now = self.browser.addons.clone();
         let started = Instant::now();
         cx.spawn(async move |this, cx| {
-            let (job, v) = (addon.clone(), version.clone());
+            let (target, v) = (addon.clone(), version.clone());
             let result = cx
                 .background_executor()
                 .spawn(async move {
-                    catalog::install(&store, &job, &v, &|s| match s {
-                        Stage::Downloading(n) => bytes.store(n, Ordering::Relaxed),
-                        Stage::Verifying => stage.store(VERIFYING, Ordering::Relaxed),
-                        Stage::Installing => stage.store(INSTALLING, Ordering::Relaxed),
+                    catalog::requires::install(&store, &catalog_now, &target, &v, &|e| {
+                        job.track(&target.id, e)
                     })
                 })
                 .await;
             this.update(cx, |s, cx| {
                 s.browser.working.remove(&addon.id);
+                for d in &riders {
+                    s.browser.working.remove(d);
+                }
                 let took = started.elapsed();
                 let in_batch = s.browser.batch.as_mut().is_some_and(|b| b.left.remove(&addon.id));
                 let verb = if updating { "update" } else { "install" };
                 match result {
-                    Ok(m) => {
+                    Ok(done) => {
+                        let (m, also) = done.split_last().expect("an install ends with its addon");
                         let title = format!(
                             "{} {} {}",
                             if updating { "Updated" } else { "Installed" },
                             m.name,
                             m.version
                         );
-                        let detail = format!("{} · {}", size_text(version.size), addon.id);
+                        let also: Vec<String> =
+                            also.iter().map(|d| format!("{} {}", d.name, d.version)).collect();
+                        let mut detail = format!("{} · {}", size_text(version.size), addon.id);
+                        if !also.is_empty() {
+                            detail.push_str(&format!(" · also installed {}", also.join(", ")));
+                        }
                         s.record(Op::Install, true, title.clone(), detail, took);
                         s.reload(cx);
                         if in_batch {
                             if let Some(b) = s.browser.batch.as_mut() {
                                 b.updated.push(format!("{} {}", m.name, m.version));
                             }
-                        } else if s.page == Page::Browser {
-                            s.show_installed(&m.id, cx);
                         } else {
-                            s.browser.toasts.push(Notification::success(title));
+                            if s.page == Page::Browser {
+                                s.show_installed(&m.id, cx);
+                            }
+                            if !also.is_empty() {
+                                s.browser.toasts.push(
+                                    Notification::success(format!("Also installed {}", also.join(", ")))
+                                        .title(title),
+                                );
+                            } else if s.page != Page::Browser {
+                                s.browser.toasts.push(Notification::success(title));
+                            }
                         }
                     }
                     Err(e) => {
+                        let refused = matches!(e, swofty_core::Error::Requires(_));
                         let error = e.to_string();
                         s.record(
                             Op::Install,
@@ -887,14 +1036,21 @@ impl Shell {
                             took,
                         );
                         s.browser.failed.insert(addon.id.clone(), error.clone());
+                        if refused {
+                            s.browser.refused.insert(addon.id.clone());
+                        }
                         if in_batch {
                             if let Some(b) = s.browser.batch.as_mut() {
                                 b.failed.push((addon.name.clone(), error));
                             }
                         } else {
-                            s.browser.toasts.push(
-                                Notification::error(error).title(format!("Could not {verb} {}", addon.name)),
-                            );
+                            s.browser
+                                .toasts
+                                .push(Notification::error(error).title(if refused {
+                                    format!("Can't {verb} {}: missing requirements", addon.name)
+                                } else {
+                                    format!("Could not {verb} {}", addon.name)
+                                }));
                         }
                         s.reload(cx);
                     }
@@ -1258,6 +1414,13 @@ impl Shell {
             }
             Offer::TooOld => {
                 return button.outline().label("Needs a newer launcher").disabled(true);
+            }
+            Offer::Blocked => {
+                return button
+                    .outline()
+                    .icon(IconName::TriangleAlert)
+                    .label("Missing requirements")
+                    .disabled(true);
             }
             Offer::Working(progress) => {
                 return button
@@ -2095,6 +2258,8 @@ impl Shell {
         let offered = a.offered(&launcher).or_else(|| a.newest());
         let updating = self.catalog_update(&a.id).is_some();
         let failed = self.browser.failed.get(&a.id).cloned();
+        let (also, blocked) = self.needs_of(a);
+        let blocked = blocked.filter(|_| failed.is_none());
         let progress = self.browser.working.get(&a.id).map(Job::progress);
         let id = a.id.clone();
         let marks: Vec<(std::ops::Range<usize>, HighlightStyle)> = query
@@ -2195,15 +2360,23 @@ impl Shell {
                 h_flex()
                     .gap(px(10.))
                     .items_center()
-                    .child(
-                        div()
+                    .child({
+                        let version = offered.map(|v| format!("v{}", v.version)).unwrap_or_default();
+                        let line = div()
+                            .id(SharedString::from(format!("browser-card-also-{}", a.id)))
                             .flex_1()
                             .min_w_0()
                             .truncate()
                             .text_size(px(12.))
-                            .text_color(p.text_placeholder)
-                            .child(offered.map(|v| format!("v{}", v.version)).unwrap_or_default()),
-                    )
+                            .text_color(p.text_placeholder);
+                        if also.is_empty() {
+                            line.child(version)
+                        } else {
+                            let tip = format!("Also installs: {}", also.join(", "));
+                            line.child(format!("{version} · Also installs: {}", also.join(", ")))
+                                .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx))
+                        }
+                    })
                     .child(self.offer_button(a, format!("browser-offer-{}", a.id), cx)),
             )
             .when_some(progress, |d, pr| {
@@ -2231,6 +2404,19 @@ impl Shell {
                         .text_size(px(12.))
                         .text_color(p.error)
                         .child(Icon::new(IconName::CircleAlert).size(px(12.)))
+                        .child(div().flex_1().min_w_0().truncate().child(e))
+                        .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx)),
+                )
+            })
+            .when_some(blocked, |d, e| {
+                let tip = e.clone();
+                d.child(
+                    h_flex()
+                        .id(SharedString::from(format!("browser-blocked-{}", a.id)))
+                        .gap(px(6.))
+                        .text_size(px(12.))
+                        .text_color(p.warning)
+                        .child(Icon::new(IconName::TriangleAlert).size(px(12.)))
                         .child(div().flex_1().min_w_0().truncate().child(e))
                         .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx)),
                 )
@@ -2367,7 +2553,10 @@ impl Shell {
                     .children(homepage)
                     .child(self.offer_button(listed, "browser-detail-offer".into(), cx)),
             );
-        let working = self.browser.working.get(&a.id).map(Job::progress).map(|pr| {
+        let working = self.browser.working.get(&a.id).map(|job| {
+            let pr = job.progress();
+            let item = job.item();
+            let also = job.also();
             v_flex()
                 .gap(px(6.))
                 .p(px(12.))
@@ -2375,7 +2564,15 @@ impl Shell {
                 .border_1()
                 .border_color(p.accent.opacity(0.4))
                 .bg(p.accent.opacity(0.06))
-                .child(div().text_size(px(13.)).child(pr.long()))
+                .child(div().text_size(px(13.)).child(pr.long(item.as_deref())))
+                .when(!also.is_empty(), |d| {
+                    d.child(
+                        div()
+                            .text_size(px(12.))
+                            .text_color(p.text_muted)
+                            .child(format!("Also installing: {}", also.join(", "))),
+                    )
+                })
                 .child(
                     div()
                         .h(px(4.))
@@ -2408,7 +2605,9 @@ impl Shell {
                         .min_w_0()
                         .gap(px(2.))
                         .child(div().text_size(px(13.)).font_weight(FontWeight::SEMIBOLD).child(
-                            if installed.is_some() {
+                            if self.browser.refused.contains(&a.id) {
+                                "Missing requirements"
+                            } else if installed.is_some() {
                                 "The update failed"
                             } else {
                                 "The install failed"
@@ -2423,6 +2622,60 @@ impl Shell {
                         .icon(IconName::RotateCw)
                         .label("Retry")
                         .on_click(cx.listener(move |this, _, _, cx| this.install_from_catalog(&target, cx))),
+                )
+        });
+        let needs = (!self.browser.working.contains_key(&a.id)
+            && !self.browser.failed.contains_key(&a.id)
+            && installed.is_none())
+        .then(|| self.requirements(listed))
+        .flatten()
+        .and_then(|plan| match plan {
+            Ok(plan) if plan.also().is_empty() => None,
+            Ok(plan) => Some((
+                false,
+                "Also installs".to_owned(),
+                plan.also()
+                    .iter()
+                    .map(|s| match &s.replaces {
+                        Some(old) => format!("{} (replaces {old})", s.label()),
+                        None => s.label(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            )),
+            Err(e) => Some((true, "Missing requirements".to_owned(), e.to_string())),
+        })
+        .map(|(bad, title, text)| {
+            let tone = if bad { p.warning } else { p.accent };
+            h_flex()
+                .gap(px(10.))
+                .items_start()
+                .p(px(12.))
+                .rounded(px(8.))
+                .bg(tone.opacity(0.06))
+                .border_1()
+                .border_color(tone.opacity(0.4))
+                .child(
+                    Icon::new(if bad {
+                        IconName::TriangleAlert
+                    } else {
+                        IconName::Package
+                    })
+                    .size(px(15.))
+                    .text_color(tone),
+                )
+                .child(
+                    v_flex()
+                        .flex_1()
+                        .min_w_0()
+                        .gap(px(2.))
+                        .child(
+                            div()
+                                .text_size(px(13.))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(title),
+                        )
+                        .child(div().text_size(px(13.)).text_color(p.text_muted).child(text)),
                 )
         });
         let requirement = offered
@@ -2546,6 +2799,13 @@ impl Shell {
                             v.launcher.as_ref().map_or_else(String::new, |r| r.to_string())
                         )))
                     })
+                    .when_some(
+                        v.requires
+                            .as_ref()
+                            .filter(|r| !r.is_empty())
+                            .map(|r| self.requires_text(r)),
+                        |d, text| d.child(div().text_size(px(12.)).text_color(p.text_muted).child(text)),
+                    )
                     .child(
                         v_flex()
                             .text_size(px(13.))
@@ -2603,6 +2863,7 @@ impl Shell {
             .child(hero)
             .children(working)
             .children(failure)
+            .children(needs)
             .child(facts)
             .child(
                 h_flex()
@@ -2632,7 +2893,52 @@ impl Shell {
 
 #[cfg(test)]
 mod tests {
-    use super::{compact, host, size_text};
+    use super::{Event, Job, Progress, Stage, compact, host, size_text};
+    use swofty_core::catalog::requires::{Plan, Step};
+    use swofty_core::catalog::{Addon, Version};
+
+    fn step(id: &str, size: u64) -> Step {
+        let addon: Addon =
+            serde_json::from_value(serde_json::json!({ "id": id, "name": format!("{id} name") })).unwrap();
+        let version: Version = serde_json::from_value(serde_json::json!({
+            "version": "1.0.0", "size": size, "sha256": "", "url": ""
+        }))
+        .unwrap();
+        Step {
+            addon,
+            version,
+            replaces: None,
+        }
+    }
+
+    #[test]
+    fn tallies_every_download_of_an_install() {
+        let (dep, root) = (step("dep", 300), step("root", 100));
+        let job = Job::new(100);
+        job.track("root", Event::Addon(&root.addon, &root.version));
+        job.track("root", Event::Stage(Stage::Downloading(100)));
+        let plan = Plan {
+            steps: vec![dep.clone(), root.clone()],
+        };
+        job.track("root", Event::Planned(&plan));
+        assert_eq!(job.also(), ["dep name 1.0.0"]);
+        job.track("root", Event::Addon(&dep.addon, &dep.version));
+        job.track("root", Event::Stage(Stage::Downloading(200)));
+        assert_eq!(job.item().as_deref(), Some("dep name"));
+        let Progress::Downloading { done, size, .. } = job.progress() else {
+            panic!("still downloading");
+        };
+        assert_eq!((done, size), (300, 400));
+        assert!(
+            job.progress()
+                .long(job.item().as_deref())
+                .starts_with("Downloading dep name · ")
+        );
+        job.track("root", Event::Addon(&root.addon, &root.version));
+        job.track("root", Event::Stage(Stage::Installing));
+        assert_eq!(job.item(), None);
+        assert_eq!(job.progress().long(None), "Installing…");
+    }
 
     #[test]
     fn names_sizes_counts_and_hosts() {
