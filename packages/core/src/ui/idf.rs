@@ -299,6 +299,7 @@ mod tests {
             name: [0; 4],
             root: obj(vec![("scenelist", arr(vec![entry]))]),
             vca: Vec::new(),
+            layout: None,
         }
     }
 

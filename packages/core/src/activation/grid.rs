@@ -366,6 +366,7 @@ mod tests {
             name: *b"INST",
             root: layers.remove(1),
             vca: Vec::new(),
+            layout: None,
         };
         let bytes = pkg.to_bytes().unwrap();
         pkg = Pkg::parse(&bytes).unwrap();

@@ -326,6 +326,7 @@ mod tests {
                 Node::Arr(Arr::new(names.iter().map(|(n, i)| inst(n, *i)).collect())),
             )])),
             vca: Vec::new(),
+            layout: None,
         }
     }
 

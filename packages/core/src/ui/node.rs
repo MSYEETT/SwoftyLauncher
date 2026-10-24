@@ -822,6 +822,7 @@ pub fn ui_bytes(screens: Vec<Node>) -> Result<Vec<u8>> {
         name: [0; 4],
         root: obj(vec![("Screens", arr(screens))]),
         vca: Vec::new(),
+        layout: None,
     };
     Ok(p.to_bytes()?)
 }

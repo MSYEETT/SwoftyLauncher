@@ -25,3 +25,7 @@ Screens contain named nodes. References connect nodes to events, actions and lay
 Writers must keep key order, value alignment and node references valid. Unchanged resources should write back with identical bytes.
 
 Value tables are aligned by type: 16 bytes for `vec3`, `vec4`, `quat`, `woid`, `shnm` and `mat4`, 32 for `bbox`, 8 for 64-bit integers and 4 for the rest.
+
+## Layout
+
+The game's files hold the chunks breadth-first from the root, with no bytes between them, then the value tables, padded to 4 bytes at the end. Some mod tools edit a file in place: they leave a replaced chunk where it was, unreferenced, and append the new one after the last chunk, and they may leave the end unpadded. `pkg.rs` records that layout when it reads such a file and writes it back byte for byte while every chunk keeps its size. An edit that resizes a chunk writes the game's layout.

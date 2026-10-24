@@ -292,6 +292,49 @@ pub struct Pkg {
     pub name: Tag,
     pub root: Node,
     pub vca: Vec<Table>,
+    pub layout: Option<Layout>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Layout {
+    chunks: Vec<(u32, u32)>,
+    gaps: Vec<(u32, Vec<u8>)>,
+    end: u32,
+    tail: Vec<u8>,
+}
+
+impl Layout {
+    fn of(data: &[u8], chunks: Vec<(u32, u32)>, end: u32, tail: &[u8]) -> Option<Self> {
+        let canonical = chunks.first().is_some_and(|&(at, _)| at == 16)
+            && chunks.windows(2).all(|w| w[0].0 + w[0].1 == w[1].0)
+            && chunks
+                .last()
+                .is_some_and(|&(at, n)| (at + n).next_multiple_of(4) == end)
+            && data.len().is_multiple_of(4)
+            && tail.len() < 4
+            && tail.iter().all(|&b| b == 0);
+        if canonical {
+            return None;
+        }
+        let mut spans = chunks.clone();
+        spans.sort_unstable();
+        let (mut pos, mut gaps) = (16, Vec::new());
+        for &(at, n) in spans.iter().chain([&(end, 0)]) {
+            if at < pos {
+                return None;
+            }
+            if at > pos {
+                gaps.push((pos, data[pos as usize..at as usize].to_vec()));
+            }
+            pos = at + n;
+        }
+        Some(Self {
+            chunks,
+            gaps,
+            end,
+            tail: tail.to_vec(),
+        })
+    }
 }
 
 pub fn is_pkg(data: &[u8]) -> bool {
@@ -317,6 +360,7 @@ impl Pkg {
         }
         let n = u32_at(data, vca_off + 4)? as usize;
         let mut vca = Vec::with_capacity(n);
+        let mut tables_end = vca_off + 8 + 4 * n;
         for i in 0..n {
             let o = (u32_at(data, vca_off + 8 + 4 * i)? & OFFSET_MASK) as usize;
             let mut r = Reader::new(data, o);
@@ -338,25 +382,60 @@ impl Pkg {
                     });
                 }
             }
+            tables_end = tables_end.max(r.pos);
         }
         let parser = Parser { data, vca: &vca };
-        let root = parser.chunk((root_ref & OFFSET_MASK) as usize)?;
-        Ok(Self { name, root, vca })
+        let root_off = (root_ref & OFFSET_MASK) as usize;
+        let root = parser.chunk(root_off)?;
+        let layout = Layout::of(
+            data,
+            parser.chunks(root_off)?,
+            vca_off as u32,
+            &data[tables_end..],
+        );
+        Ok(Self {
+            name,
+            root,
+            vca,
+            layout,
+        })
     }
 
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        if let Some(out) = self.write(self.layout.as_ref())? {
+            return Ok(out);
+        }
+        Ok(self.write(None)?.expect("a canonical layout always fits"))
+    }
+
+    fn write(&self, layout: Option<&Layout>) -> Result<Option<Vec<u8>>> {
         let mut w = Writer {
             out: Vec::new(),
             vca: self.vca.clone(),
+            layout,
+            emitted: 0,
         };
         w.out.extend_from_slice(b"!pkg");
         w.out.extend_from_slice(&self.name);
         w.out.extend_from_slice(&[0; 8]);
+        if let Some(l) = layout {
+            w.out.resize(l.end as usize, 0);
+            for (at, gap) in &l.gaps {
+                w.out[*at as usize..*at as usize + gap.len()].copy_from_slice(gap);
+            }
+        }
         let mut queue = VecDeque::new();
-        let root_off = w.emit(&self.root, &mut queue)?;
+        let Some(root_off) = w.emit(&self.root, &mut queue)? else {
+            return Ok(None);
+        };
         while let Some((slot, node)) = queue.pop_front() {
-            let off = w.emit(node, &mut queue)?;
+            let Some(off) = w.emit(node, &mut queue)? else {
+                return Ok(None);
+            };
             put_u32(&mut w.out, slot, 0x8000_0000 | off as u32);
+        }
+        if layout.is_some_and(|l| l.chunks.len() != w.emitted) {
+            return Ok(None);
         }
         w.pad(4);
         let vca_off = w.out.len();
@@ -383,10 +462,13 @@ impl Pkg {
             block.extend_from_slice(&t.raw);
             w.out.extend_from_slice(&block);
         }
-        w.pad(4);
+        match layout {
+            Some(l) => w.out.extend_from_slice(&l.tail),
+            None => w.pad(4),
+        }
         put_u32(&mut w.out, 8, 0x8000_0000 | root_off as u32);
         put_u32(&mut w.out, 12, 0x8000_0000 | vca_off as u32);
-        Ok(w.out)
+        Ok(Some(w.out))
     }
 }
 
@@ -445,14 +527,44 @@ impl Parser<'_> {
             ))),
         }
     }
+
+    fn chunks(&self, root: usize) -> Result<Vec<(u32, u32)>> {
+        let mut out = Vec::new();
+        let mut queue = VecDeque::from([root]);
+        while let Some(o) = queue.pop_front() {
+            let h = u32_at(self.data, o + 4)?;
+            let (size, refs) = match &self.data[o..o + 4] {
+                b"!idi" => {
+                    let es = if h >> 24 == 1 { 12 } else { 8 };
+                    let n = (h & OFFSET_MASK) as usize;
+                    (8 + es * n, (0..n).map(|i| o + 8 + es * i + 4).collect())
+                }
+                b"!iar" => (12, Vec::new()),
+                _ => (
+                    8 + 4 * h as usize,
+                    (0..h as usize).map(|i| o + 8 + 4 * i).collect(),
+                ),
+            };
+            for p in refs {
+                let r = u32_at(self.data, p)?;
+                if r >> 24 == CHUNK {
+                    queue.push_back((r & OFFSET_MASK) as usize);
+                }
+            }
+            out.push((o as u32, size as u32));
+        }
+        Ok(out)
+    }
 }
 
-struct Writer {
+struct Writer<'l> {
     out: Vec<u8>,
     vca: Vec<Table>,
+    layout: Option<&'l Layout>,
+    emitted: usize,
 }
 
-impl Writer {
+impl Writer<'_> {
     fn pad(&mut self, align: usize) {
         while !self.out.len().is_multiple_of(align) {
             self.out.push(0);
@@ -478,16 +590,43 @@ impl Writer {
         Ok((t as u32) << 24 | off)
     }
 
-    fn emit<'n>(&mut self, node: &'n Node, queue: &mut VecDeque<(usize, &'n Node)>) -> Result<usize> {
-        let start = self.out.len();
+    fn place(&mut self, size: usize) -> Option<usize> {
+        let i = self.emitted;
+        self.emitted += 1;
+        match self.layout {
+            None => {
+                let start = self.out.len();
+                self.out.resize(start + size, 0);
+                Some(start)
+            }
+            Some(l) => l
+                .chunks
+                .get(i)
+                .filter(|&&(_, n)| n as usize == size)
+                .map(|&(at, _)| at as usize),
+        }
+    }
+
+    fn emit<'n>(&mut self, node: &'n Node, queue: &mut VecDeque<(usize, &'n Node)>) -> Result<Option<usize>> {
+        let size = match node {
+            Node::Obj(obj) => 8 + if obj.version == 1 { 12 } else { 8 } * obj.items.len(),
+            Node::Arr(arr) => 8 + 4 * arr.items.len(),
+            Node::Iar(_) => 12,
+            Node::Val(_) => return Err(Error::Format("a scalar cannot be a chunk".into())),
+        };
+        let Some(start) = self.place(size) else {
+            return Ok(None);
+        };
+        let table = start + 8;
         match node {
             Node::Obj(obj) => {
                 let es = if obj.version == 1 { 12 } else { 8 };
-                self.out.extend_from_slice(b"!idi");
-                self.out
-                    .extend_from_slice(&(obj.items.len() as u32 | (obj.version as u32) << 24).to_le_bytes());
-                let table = self.out.len();
-                self.out.resize(table + es * obj.items.len(), 0);
+                self.out[start..start + 4].copy_from_slice(b"!idi");
+                put_u32(
+                    &mut self.out,
+                    start + 4,
+                    obj.items.len() as u32 | (obj.version as u32) << 24,
+                );
                 let mut items: Vec<&(Val, Node)> = obj.items.iter().collect();
                 if obj.version == 1 {
                     items.sort_by_key(|(k, _)| fnv1a32(k.as_str().unwrap_or_default()));
@@ -509,11 +648,8 @@ impl Writer {
                 }
             }
             Node::Arr(arr) => {
-                self.out.extend_from_slice(&arr.tag);
-                self.out
-                    .extend_from_slice(&(arr.items.len() as u32).to_le_bytes());
-                let table = self.out.len();
-                self.out.resize(table + 4 * arr.items.len(), 0);
+                self.out[start..start + 4].copy_from_slice(&arr.tag);
+                put_u32(&mut self.out, start + 4, arr.items.len() as u32);
                 for (i, v) in arr.items.iter().enumerate() {
                     match v {
                         Node::Val(v) => {
@@ -525,12 +661,12 @@ impl Writer {
                 }
             }
             Node::Iar(raw) => {
-                self.out.extend_from_slice(b"!iar");
-                self.out.extend_from_slice(raw);
+                self.out[start..start + 4].copy_from_slice(b"!iar");
+                self.out[start + 4..start + 12].copy_from_slice(raw);
             }
-            Node::Val(_) => return Err(Error::Format("a scalar cannot be a chunk".into())),
+            Node::Val(_) => {}
         }
-        Ok(start)
+        Ok(Some(start))
     }
 }
 
@@ -555,6 +691,7 @@ mod tests {
             name: *b"test",
             root: Node::Obj(root),
             vca: Vec::new(),
+            layout: None,
         }
     }
 
@@ -562,6 +699,7 @@ mod tests {
     fn write_parse_write_is_identical() {
         let bytes = sample().to_bytes().unwrap();
         let back = Pkg::parse(&bytes).unwrap();
+        assert!(back.layout.is_none());
         assert_eq!(back.to_bytes().unwrap(), bytes);
         let screens = back
             .root
@@ -638,5 +776,69 @@ mod tests {
         let props = screens.items[0].as_arr().unwrap().items[0].as_obj().unwrap();
         let hashes: Vec<u32> = props.keys().map(fnv1a32).collect();
         assert!(hashes.windows(2).all(|w| w[0] <= w[1]));
+    }
+
+    fn edited_in_place() -> Vec<u8> {
+        let (s, chunk) = (|o: u32| o, |o: u32| 0x8000_0000 | o);
+        let mut d = b"!pkgtest".to_vec();
+        for v in [chunk(16), chunk(80)] {
+            d.extend(v.to_le_bytes());
+        }
+        let mut put = |tag: &[u8; 4], head: u32, refs: &[u32]| {
+            d.extend(tag);
+            d.extend(head.to_le_bytes());
+            refs.iter().for_each(|r| d.extend(r.to_le_bytes()));
+        };
+        put(b"!idi", 2, &[s(0), chunk(64), s(7), chunk(52)]);
+        put(b"!ili", 1, &[s(15)]);
+        put(b"!ili", 1, &[s(18)]);
+        put(b"!ili", 2, &[s(15), s(18)]);
+        put(b"!vca", 1, &[chunk(92)]);
+        let strings = b"\x05first\0\x06second\0\x01a\0\x01b\0";
+        put(b"!sbi", strings.len() as u32, &[]);
+        d.extend(strings);
+        d
+    }
+
+    fn list(p: &Pkg, key: &str) -> Vec<String> {
+        let items = &p.root.as_obj().unwrap().get(key).unwrap().as_arr().unwrap().items;
+        items
+            .iter()
+            .map(|v| v.as_val().unwrap().as_str().unwrap().to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn a_layout_from_an_in_place_editor_round_trips() {
+        let bytes = edited_in_place();
+        let pkg = Pkg::parse(&bytes).unwrap();
+        assert!(pkg.layout.is_some());
+        assert_eq!(
+            (list(&pkg, "first"), list(&pkg, "second")),
+            (vec!["a".into(), "b".into()], vec!["b".into()])
+        );
+        assert_eq!(pkg.to_bytes().unwrap(), bytes);
+
+        let mut renamed = pkg.clone();
+        let second = renamed.root.as_obj_mut().unwrap().get_mut("second").unwrap();
+        second.as_arr_mut().unwrap().items[0]
+            .as_val_mut()
+            .unwrap()
+            .set_str("c");
+        let out = renamed.to_bytes().unwrap();
+        assert_eq!(out[40..52], bytes[40..52]);
+        assert_eq!(list(&Pkg::parse(&out).unwrap(), "second"), ["c"]);
+
+        let mut grown = pkg;
+        let second = grown.root.as_obj_mut().unwrap().get_mut("second").unwrap();
+        second.as_arr_mut().unwrap().items.push(Node::Val(Val::str("c")));
+        let out = grown.to_bytes().unwrap();
+        let back = Pkg::parse(&out).unwrap();
+        assert!(back.layout.is_none());
+        assert_eq!(back.to_bytes().unwrap(), out);
+        assert_eq!(
+            (list(&back, "first"), list(&back, "second")),
+            (vec!["a".into(), "b".into()], vec!["b".into(), "c".into()])
+        );
     }
 }

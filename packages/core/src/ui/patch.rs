@@ -908,6 +908,7 @@ mod tests {
             name: [0; 4],
             root: obj(vec![("messages", arr(all))]),
             vca: Vec::new(),
+            layout: None,
         }
         .to_bytes()
         .unwrap()

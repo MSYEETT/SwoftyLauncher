@@ -900,6 +900,7 @@ mod tests {
                 Node::Arr(Arr::new(items)),
             )])),
             vca: Vec::new(),
+            layout: None,
         }
         .to_bytes()
         .unwrap()
@@ -1614,6 +1615,7 @@ mod tests {
                 Node::Arr(Arr::new(vec![Node::Obj(entry)])),
             )])),
             vca: Vec::new(),
+            layout: None,
         }
         .to_bytes()
         .unwrap()

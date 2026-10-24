@@ -1871,6 +1871,7 @@ mod tests {
             name: [0; 4],
             root,
             vca: Vec::new(),
+            layout: None,
         }
         .to_bytes()
         .unwrap()
