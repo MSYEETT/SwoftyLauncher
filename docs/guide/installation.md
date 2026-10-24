@@ -44,6 +44,19 @@ When Swofty Launcher, Swofty UI or the `swofty` command line is open from that f
 
 You only need the installer once. After that, open the launcher from the Start menu or app menu, and it [updates itself](/using/updating).
 
+### Update or move an existing install
+
+The installer finds the launcher you already have: in the default folder, in the folder the Start menu, app menu or desktop shortcut opens, and in the folder of a running launcher. **Install to** shows that folder, and **Install** updates it in place. With more than one install, choose one under **Installed in**.
+
+Choose another folder to move the install there. **Move your existing install from … to …** is ticked, and **Install** then:
+
+1. Moves `bin/`, `loader/`, `share/` and the other release files to the new folder, and checks them there.
+2. Deletes the old folder once it's empty. Files of your own in it stay.
+3. Points the Start menu or app menu entry at the new folder, along with the desktop shortcut if **Add a desktop shortcut** is ticked, and deletes shortcuts to the old folder.
+4. Installs the latest release in the new folder.
+
+Close the launcher and F1 25 before moving it. Your [data folder](#where-your-files-are-stored) stays where it is. Untick **Move your existing install** to install a second copy and keep the first.
+
 ## Install by hand
 
 1. Open [Releases](https://github.com/Swofty-Developments/SwoftyLauncher/releases).

@@ -19,7 +19,7 @@ If a check fails because you're offline, GitHub is down or GitHub's rate limit i
 
 If one part of an update fails, the other part still installs. If the launcher update fails, you'll see the error next to **Retry update** and the old launcher files stay in place. Select **Retry update**, or **Play without updating** to play the version you have. If only Simplified for Swofty fails, **Play** comes back with the error and **Try again** next to it. An update interrupted partway is rolled back the next time you start the launcher.
 
-Running the [installer](/guide/installation#install-with-the-installer) again on the same folder also installs the latest release.
+Running the [installer](/guide/installation#install-with-the-installer) again also installs the latest release. It finds your install and updates it in place, or [moves it](/guide/installation#update-or-move-an-existing-install) to another folder you choose.
 
 If you built from source or installed through Nix, the launcher can't replace its own files. A bar above **Play** names the new version and links to its release page, and **Play** stays available.
 
