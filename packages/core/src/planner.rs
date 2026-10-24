@@ -621,6 +621,15 @@ impl<'a> Planner<'a> {
         Ok(added)
     }
 
+    /// The addon whose write of the record `key` wins, the last in load order.
+    pub fn record_writer(&self, key: u64) -> Option<&str> {
+        self.writers
+            .get(&Target::Record(key))?
+            .iter()
+            .max_by_key(|w| self.ranks.iter().position(|o| o == *w))
+            .map(|w| w.addon.as_str())
+    }
+
     /// Lenient addons' changes the last `apply_db` could not apply.
     pub fn take_skipped(&mut self) -> Vec<String> {
         std::mem::take(&mut self.skipped)

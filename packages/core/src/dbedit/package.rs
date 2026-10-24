@@ -696,6 +696,15 @@ pub fn export_packages(store: &Store, game: &Game, packages: &[Package], out: &P
                 .push(crate::planner::stock_removals_line(name, report.stock_removals));
         }
     }
+    if let Ok(cat) = Catalog::open(store, game) {
+        for t in super::rows::trim_row_counts(&cat, &mut db) {
+            let by = packages.iter().rev().find(|p| p.edits.get(t.key).is_some());
+            export
+                .skipped
+                .push(t.line(by.map_or("database", |p| p.manifest.name.as_str())));
+            left_out += 1;
+        }
+    }
     let bytes = db.to_bytes();
     if bytes == stock {
         return Err(Error::Other(

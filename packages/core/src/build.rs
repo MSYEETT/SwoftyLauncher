@@ -797,6 +797,14 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             let weekends = crate::tracks::restore_weekends(&mut db, &Gvdb::parse(&shipped)?, &left_codes);
             built.warnings.extend(weekends);
         }
+        if let Ok(cat) = crate::dbedit::Catalog::open(store, game) {
+            for t in crate::dbedit::rows::trim_row_counts(&cat, &mut db) {
+                let by = planner
+                    .record_writer(t.key)
+                    .map_or("database", |id| addons.get(id).map_or(id, |m| m.name.as_str()));
+                built.warnings.push(t.line(by));
+            }
+        }
         stock_removals = planner.take_stock_removals();
         for (id, n) in &stock_removals {
             let name = addons.get(id).map_or(id.as_str(), |m| m.name.as_str());
@@ -2302,6 +2310,64 @@ mod tests {
         ] {
             assert_eq!(out.get_text(path).as_deref(), Some(want), "{path}");
         }
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_row_count_past_the_rows_there_stays_at_the_rows() {
+        use crate::dbedit::Catalog;
+        use crate::dbedit::package::Package;
+        use swofty_formats::gvdb::Record;
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-short-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        let list = "schedule.track_lists.track_event_list_0";
+        let count = format!("{list}._fixed_event_reference_instancecount_");
+        let mut records = vec![
+            Record::new("schedule.track_lists._track_event_list_instancecount_", 0, "1"),
+            Record::new(&format!("{list}._metadata_"), 2, "F1_2025_16"),
+            Record::new(&count, 0, "2"),
+        ];
+        for (i, e) in ["rw_bahrain", "rw_suzuka"].iter().enumerate() {
+            let row = format!("{list}.fixed_event_reference_{i}");
+            records.push(Record::new(&format!("{row}._metadata_"), 2, format!("ref_{e}")));
+            records.push(Record::new(&format!("{row}.event_name"), 4, *e));
+        }
+        let stock = Gvdb { records }.to_bytes();
+        std::fs::write(dir.join(GVDB), &stock).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir: dir.clone(),
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let cat = Catalog::load(&stock).unwrap();
+        let mut p = Package::create(&store, "2017 v2").unwrap();
+        let key = |p: &str| swofty_formats::hash::fnv1a64(p);
+        let second = format!("{list}.fixed_event_reference_1.event_name");
+        p.edits.set(&cat, key(&count), "4").unwrap();
+        p.edits.set(&cat, key(&second), "rw_bahrain").unwrap();
+        p.save(&store, &cat).unwrap();
+        store
+            .update_profile("default", |pr| pr.set_enabled(&p.id, true))
+            .unwrap();
+
+        let built = build(&store, "default", &game).unwrap();
+        assert!(
+            built.warnings.contains(&format!(
+                "2017 v2: {list}.fixed_event_reference has 2 rows, not 4; the count stays at 2 (the game crashes on rows that don't exist)"
+            )),
+            "{:?}",
+            built.warnings
+        );
+        let out = Gvdb::parse(&std::fs::read(&built.plan.data[GVDB]).unwrap()).unwrap();
+        assert_eq!(out.get_text(&count).as_deref(), Some("2"));
+        assert_eq!(out.get_text(&second).as_deref(), Some("rw_bahrain"));
         std::fs::remove_dir_all(&root).ok();
     }
 

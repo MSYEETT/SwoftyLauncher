@@ -4,6 +4,7 @@
 use std::collections::{BTreeMap, HashSet};
 
 use serde::{Deserialize, Serialize};
+use swofty_formats::gvdb::Gvdb;
 use swofty_formats::hash::{fnv1a64, fnv1a64_from};
 
 use super::Catalog;
@@ -209,6 +210,64 @@ pub(crate) fn check_table(cat: &Catalog, table: &str, field: &str) -> Result<(),
     Ok(())
 }
 
+/// A row count raised past the last row the database holds.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ShortTable {
+    /// The `_<word>_instancecount_` key.
+    pub key: u64,
+    /// `schedule.track_lists.track_event_list_19.fixed_event_reference`.
+    pub table: String,
+    pub count: u32,
+    pub rows: u32,
+}
+
+impl ShortTable {
+    /// The warning naming `by`, the addon that raised the count.
+    pub fn line(&self, by: &str) -> String {
+        format!(
+            "{by}: {} has {} rows, not {}; the count stays at {} (the game crashes on rows that don't exist)",
+            self.table, self.rows, self.count, self.rows
+        )
+    }
+}
+
+/// Lowers each row count `db` raises above stock to the rows `db` holds.
+/// The game reads rows 0 to count−1, and a row without keys crashes it.
+pub fn trim_row_counts(cat: &Catalog, db: &mut Gvdb) -> Vec<ShortTable> {
+    let keys: HashSet<u64> = db.records.iter().map(|r| r.key).collect();
+    let mut out = Vec::new();
+    for r in &mut db.records {
+        let Some(stock) = cat.record_by_key(r.key) else {
+            continue;
+        };
+        if stock.value.as_bytes() == r.value.as_slice() {
+            continue;
+        }
+        let Some((container, word)) = cat.instance_count(r.key) else {
+            continue;
+        };
+        let (Ok(from), Ok(count)) = (stock.value.trim().parse::<u32>(), r.text().trim().parse::<u32>())
+        else {
+            continue;
+        };
+        let missing = |i: u32| {
+            let row = cat.row_keys(container, word, i..i + 1);
+            !row.is_empty() && !row.iter().any(|(k, _)| keys.contains(k))
+        };
+        let Some(rows) = (from..count).find(|&i| missing(i)) else {
+            continue;
+        };
+        r.value = rows.to_string().into_bytes();
+        out.push(ShortTable {
+            key: r.key,
+            table: cat.table_path(container, word),
+            count,
+            rows,
+        });
+    }
+    out
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use std::collections::BTreeMap;
@@ -220,7 +279,7 @@ pub(crate) mod tests {
     use crate::ops::DbReport;
     use crate::rowkeys::{Names, RowKeys};
     use crate::store::Store;
-    use swofty_formats::gvdb::{Gvdb, Record};
+    use swofty_formats::gvdb::Record;
 
     pub(crate) const HOLDERS: &str = "driver_statistics.driver_statistics.DriverStatisticsHolder";
     const H: &str = "driver_statistics.driver_statistics";
@@ -687,6 +746,101 @@ pub(crate) mod tests {
             built.path(built.node_of_key(romain).unwrap()),
             format!("{HOLDERS}_4.StatisticsDataSet_0.Statistic_0.evolution")
         );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    const LISTS: &str = "schedule.track_lists";
+
+    fn calendar(events: &[&str]) -> Gvdb {
+        let list = format!("{LISTS}.track_event_list_0");
+        let mut r = vec![
+            Record::new(&format!("{LISTS}._track_event_list_instancecount_"), 0, "1"),
+            Record::new(&format!("{list}._metadata_"), 2, "F1_2025_16"),
+            Record::new(
+                &format!("{list}._fixed_event_reference_instancecount_"),
+                0,
+                events.len().to_string(),
+            ),
+        ];
+        for (i, e) in events.iter().enumerate() {
+            let row = format!("{list}.fixed_event_reference_{i}");
+            r.push(Record::new(&format!("{row}._metadata_"), 2, format!("ref_{e}")));
+            r.push(Record::new(&format!("{row}.event_name"), 4, *e));
+        }
+        Gvdb { records: r }
+    }
+
+    fn count_of(db: &Gvdb) -> Option<String> {
+        db.get_text(&format!(
+            "{LISTS}.track_event_list_0._fixed_event_reference_instancecount_"
+        ))
+    }
+
+    #[test]
+    fn row_counts_past_the_last_row_come_down_to_the_rows_there() {
+        let stock = calendar(&["rw_bahrain", "rw_suzuka"]);
+        let cat = Catalog::load(&stock.to_bytes()).unwrap();
+        let mut db = stock.clone();
+        let count = format!("{LISTS}.track_event_list_0._fixed_event_reference_instancecount_");
+        db.set(&count, "5", None).unwrap();
+        let row = format!("{LISTS}.track_event_list_0.fixed_event_reference_2");
+        db.set(&format!("{row}.event_name"), "rw_miami", Some(4)).unwrap();
+        let short = trim_row_counts(&cat, &mut db);
+        assert_eq!(
+            short,
+            vec![ShortTable {
+                key: fnv1a64(&count),
+                table: format!("{LISTS}.track_event_list_0.fixed_event_reference"),
+                count: 5,
+                rows: 3,
+            }]
+        );
+        assert_eq!(count_of(&db).as_deref(), Some("3"));
+        assert!(trim_row_counts(&cat, &mut db.clone()).is_empty());
+    }
+
+    #[test]
+    fn row_counts_with_their_rows_or_lowered_stay() {
+        let stock = calendar(&["rw_bahrain", "rw_suzuka"]);
+        let cat = Catalog::load(&stock.to_bytes()).unwrap();
+        let mut grown = calendar(&["rw_bahrain", "rw_suzuka", "rw_miami"]);
+        assert!(trim_row_counts(&cat, &mut grown).is_empty());
+        assert_eq!(count_of(&grown).as_deref(), Some("3"));
+        let mut cut = calendar(&["rw_bahrain"]);
+        assert!(trim_row_counts(&cat, &mut cut).is_empty());
+        assert_eq!(count_of(&cut).as_deref(), Some("1"));
+    }
+
+    #[test]
+    fn exported_game_files_keep_a_row_count_at_the_rows_there() {
+        let root = std::env::temp_dir().join(format!("swofty-dbrows-short-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let s = Store::new(root.clone());
+        let stock = calendar(&["rw_bahrain", "rw_suzuka"]);
+        let cat = Catalog::load(&stock.to_bytes()).unwrap();
+        let list = format!("{LISTS}.track_event_list_0");
+        let count = format!("{list}._fixed_event_reference_instancecount_");
+        let second = format!("{list}.fixed_event_reference_1.event_name");
+        let mut p = Package::create(&s, "2017 v2").unwrap();
+        p.edits.set(&cat, fnv1a64(&count), "20").unwrap();
+        p.edits.set(&cat, fnv1a64(&second), "rw_bahrain").unwrap();
+        p.save(&s, &cat).unwrap();
+        let game = game(&s, &stock);
+        let out = root.join("game.zip");
+        let done = package::export_game_files(&s, &game, &[p.id.clone()], &out).unwrap();
+        let short = ShortTable {
+            key: fnv1a64(&count),
+            table: format!("{list}.fixed_event_reference"),
+            count: 20,
+            rows: 2,
+        };
+        assert_eq!(done.skipped, vec![short.line("2017 v2")]);
+        let mut z = zip::ZipArchive::new(std::fs::File::open(&out).unwrap()).unwrap();
+        let mut bytes = Vec::new();
+        std::io::Read::read_to_end(&mut z.by_name(crate::build::GVDB).unwrap(), &mut bytes).unwrap();
+        let db = Gvdb::parse(&bytes).unwrap();
+        assert_eq!(count_of(&db).as_deref(), Some("2"));
+        assert_eq!(db.get_text(&second).as_deref(), Some("rw_bahrain"));
         std::fs::remove_dir_all(&root).ok();
     }
 }

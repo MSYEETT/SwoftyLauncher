@@ -256,3 +256,33 @@ fn core_db_ops_add_the_swofty_f1_modes_to_the_real_database() {
         Some("f1_2025")
     );
 }
+
+#[test]
+fn a_calendar_count_past_its_rows_comes_down_against_the_real_database() {
+    let Some(dir) = std::env::var_os("F1_25_DIR").map(PathBuf::from) else {
+        eprintln!("F1_25_DIR is not set; skipping");
+        return;
+    };
+    let Ok(data) = std::fs::read(dir.join("game_package/gamedatabases/gamedatabases.2025.bin")) else {
+        eprintln!("no gamedatabases.2025.bin under F1_25_DIR; skipping");
+        return;
+    };
+    let cat = swofty_core::dbedit::Catalog::load(&data).unwrap();
+    let mut db = Gvdb::parse(&data).unwrap();
+    let count = "schedule.track_lists.track_event_list_19._fixed_event_reference_instancecount_";
+    assert_eq!(db.get_text(count).as_deref(), Some("16"));
+    db.set(count, "20", None).unwrap();
+    let short = swofty_core::dbedit::rows::trim_row_counts(&cat, &mut db);
+    assert_eq!(
+        short
+            .iter()
+            .map(|t| (t.table.as_str(), t.count, t.rows))
+            .collect::<Vec<_>>(),
+        [(
+            "schedule.track_lists.track_event_list_19.fixed_event_reference",
+            20,
+            16
+        )]
+    );
+    assert_eq!(db.get_text(count).as_deref(), Some("16"));
+}

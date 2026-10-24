@@ -3780,7 +3780,7 @@
      "kind": "int",
      "min": 1,
      "max": 30,
-     "help": "The game reads this many events from the list. More events than the list has rows need new rows."
+     "help": "The game reads this many events from the list. More events need new rows; without them, the build keeps the count at the rows the list has."
     },
     {
      "id": "sort_by_date",
