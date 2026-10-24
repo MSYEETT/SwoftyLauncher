@@ -242,6 +242,20 @@ impl Store {
         &self.snap
     }
 
+    /// Point the mailbox at `dir`, this addon's folder in the game copy the
+    /// launcher names, and forget what was read from the one before.
+    pub fn set_mailbox(&mut self, dir: PathBuf) {
+        if self.mailbox.as_ref() == Some(&dir) {
+            return;
+        }
+        self.mailbox = Some(dir);
+        self.snap = Value::Null;
+        self.snap_key = None;
+        self.snap_error = None;
+        self.outbox_key = None;
+        self.viewer_at = 0;
+    }
+
     pub fn touch_viewer(&mut self) {
         let Some(dir) = &self.mailbox else { return };
         let now = now_ms();

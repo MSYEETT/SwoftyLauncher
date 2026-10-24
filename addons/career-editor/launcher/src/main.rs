@@ -58,13 +58,18 @@ impl App {
         }
     }
 
+    /// The launcher names the game copy that is running, or the one Play
+    /// uses, so the mailbox follows a switch between copies.
     fn locate(&mut self, host: &mut Host) {
-        if self.store.mailbox.is_none()
-            && let Ok(v) = host.call("addon_game_dir", Value::Null)
+        if let Ok(v) = host.call("addon_game_dir", Value::Null)
             && let Some(p) = v.as_str()
         {
-            self.store.mailbox = Some(PathBuf::from(p));
+            self.store.set_mailbox(PathBuf::from(p));
         }
+    }
+
+    fn running(&self) -> bool {
+        self.saw_running && self.closed_since.is_none()
     }
 
     fn game_status(&mut self, host: &mut Host) -> Option<Value> {
@@ -137,7 +142,9 @@ impl App {
         self.store.collect_acks();
         let status = self.game_status(host);
         let known = self.store.mailbox.is_some();
-        self.store.touch_viewer();
+        if self.running() {
+            self.store.touch_viewer();
+        }
         self.note(status.as_ref());
         let snap = self.store.snapshot().clone();
         Live::new(
@@ -151,7 +158,9 @@ impl App {
 
     fn tick(&mut self, host: &mut Host) {
         self.locate(host);
-        self.store.touch_viewer();
+        if self.running() {
+            self.store.touch_viewer();
+        }
         let mut changed = self.store.snapshot_changed();
         if self.store.outbox_changed() && self.store.collect_acks() > 0 {
             changed = true;
