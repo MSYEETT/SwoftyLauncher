@@ -2234,9 +2234,9 @@ impl Shell {
             let rows = self.card_rows(&addons, &query, width, p, cx);
             let page = self
                 .landing(width, p, cx)
-                .child(self.all_heading(count, sort, p, cx))
+                .child(self.all_heading(count, sort, width, p, cx))
                 .children(rows);
-            return self.browser_columns(filters, self.landing_bar(), self.scroll_area(page, cx));
+            return self.browser_columns(filters, div(), self.scroll_area(page, cx));
         }
         let bar = h_flex()
             .pb(px(14.))
@@ -2347,20 +2347,18 @@ impl Shell {
     }
 
     fn landing_bar(&self) -> Div {
-        h_flex().pb(px(14.)).flex_shrink_0().child(
-            h_flex()
-                .h(px(28.))
-                .flex_1()
-                .min_w_0()
-                .items_center()
-                .text_size(px(15.))
-                .font_weight(FontWeight::SEMIBOLD)
-                .child("Browse by category"),
-        )
+        h_flex()
+            .h(px(28.))
+            .flex_shrink_0()
+            .items_center()
+            .text_size(px(15.))
+            .font_weight(FontWeight::SEMIBOLD)
+            .child("Browse by category")
     }
 
-    fn all_heading(&self, count: String, sort: Sort, p: Palette, cx: &mut Context<Self>) -> Div {
+    fn all_heading(&self, count: String, sort: Sort, width: f32, p: Palette, cx: &mut Context<Self>) -> Div {
         h_flex()
+            .w(px(width - 1.))
             .pt(px(10.))
             .gap(px(12.))
             .flex_shrink_0()
@@ -2400,6 +2398,7 @@ impl Shell {
             .id("browser-landing")
             .pb(px(24.))
             .gap(px(GAP))
+            .child(self.landing_bar())
             .children(rows)
     }
 
