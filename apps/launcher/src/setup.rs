@@ -2,6 +2,8 @@
 //! Swofty didn't add, then verifying the game files so the originals Swofty
 //! records are the store's own. See `swofty_core::setup`.
 
+use std::time::Duration;
+
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::dialog::DialogFooter;
@@ -41,7 +43,10 @@ pub(crate) struct SetupWizard {
     working: bool,
     error: Option<String>,
     opened_verify: bool,
+    unrestored: Option<String>,
+    steam_busy: Option<&'static str>,
     _work: Option<Task<()>>,
+    _poll: Option<Task<()>>,
 }
 
 impl SetupWizard {
@@ -60,7 +65,10 @@ impl SetupWizard {
             working: false,
             error: None,
             opened_verify: false,
+            unrestored: None,
+            steam_busy: None,
             _work: None,
+            _poll: None,
         }
     }
 
@@ -77,14 +85,17 @@ impl SetupWizard {
                 .spawn(async move {
                     let g = Game::locate(&store.root, dir).map_err(|e| e.to_string())?;
                     setup::reset(&store.root, &g, other_mods)
-                        .map(|_| ())
+                        .map(|r| r.unrestored)
                         .map_err(|e| e.to_string())
                 })
                 .await;
             this.update(cx, |w, cx| {
                 w.working = false;
                 match result {
-                    Ok(()) => w.step = Step::Verify,
+                    Ok(unrestored) => {
+                        w.unrestored = unrestored;
+                        w.step = Step::Verify;
+                    }
                     Err(e) => w.error = Some(format!("Swofty couldn't put the game folder back: {e}")),
                 }
                 cx.notify();
@@ -94,7 +105,43 @@ impl SetupWizard {
         cx.notify();
     }
 
+    /// After Verify game files in Steam, keep reading what Steam is doing to
+    /// the game's files, so Continue waits for the verify to finish.
+    fn watch_steam(&mut self, cx: &mut Context<Self>) {
+        if self._poll.is_some() {
+            return;
+        }
+        let dir = self.install.dir.clone();
+        self._poll = Some(cx.spawn(async move |this, cx| {
+            loop {
+                cx.background_executor().timer(Duration::from_secs(1)).await;
+                let d = dir.clone();
+                let busy = cx
+                    .background_executor()
+                    .spawn(async move { steam_busy(&d) })
+                    .await;
+                let Ok(()) = this.update(cx, |w, cx| {
+                    if w.steam_busy != busy {
+                        w.steam_busy = busy;
+                        w.error = None;
+                        cx.notify();
+                    }
+                }) else {
+                    break;
+                };
+            }
+        }));
+    }
+
     fn finish(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(state) = steam_busy(&self.install.dir) {
+            self.steam_busy = Some(state);
+            self.error = Some(format!(
+                "Steam is still {state} F1 25. Wait for it to finish, then continue."
+            ));
+            cx.notify();
+            return;
+        }
         if let Err(e) = setup::finish(&self.store.root) {
             self.error = Some(e.to_string());
             cx.notify();
@@ -226,6 +273,16 @@ impl SetupWizard {
                         p,
                     )),
             )
+            .when_some(self.unrestored.as_ref(), |d, why| {
+                d.child(callout(
+                    IconName::Info,
+                    format!(
+                        "Swofty couldn't put every file back from its old record ({why}). {} puts them back.",
+                        repair.restores
+                    ),
+                    p,
+                ))
+            })
             .children(self.status(p))
     }
 
@@ -242,6 +299,14 @@ impl SetupWizard {
                             .min_w_0()
                             .child("Putting back the files Swofty changed…"),
                     ),
+            );
+        }
+        if let (Some(state), None) = (self.steam_busy, &self.error) {
+            return Some(
+                row()
+                    .text_color(p.text_muted)
+                    .child(Spinner::new().with_size(px(15.)))
+                    .child(div().flex_1().min_w_0().child(format!("Steam is {state} F1 25…"))),
             );
         }
         self.error.as_ref().map(|e| {
@@ -330,6 +395,7 @@ impl SetupWizard {
                                     cx.open_url(stock::STEAM_VERIFY_URL);
                                     opened.update(cx, |w, cx| {
                                         w.opened_verify = true;
+                                        w.watch_steam(cx);
                                         cx.notify();
                                     });
                                 }),
@@ -352,7 +418,7 @@ impl SetupWizard {
                                 Source::EaApp => "I've repaired, continue",
                                 Source::Unknown => "Continue",
                             })
-                            .disabled(steam && !self.opened_verify)
+                            .disabled(steam && (!self.opened_verify || self.steam_busy.is_some()))
                             .on_click(move |_, window, cx| {
                                 wizard.update(cx, |w, cx| w.finish(window, cx));
                             }),
@@ -365,6 +431,12 @@ impl SetupWizard {
             .child(discord_link("setup-discord", p))
             .child(buttons)
     }
+}
+
+fn steam_busy(dir: &std::path::Path) -> Option<&'static str> {
+    swofty_core::steam::find_game()
+        .filter(|i| swofty_core::copies::same_dir(&i.dir, dir))
+        .and_then(|i| swofty_core::steam::busy(&i))
 }
 
 impl Render for SetupWizard {
@@ -498,7 +570,7 @@ fn step(n: u32, title: &'static str, body: &'static str, p: Palette) -> impl Int
         )
 }
 
-fn callout(icon: IconName, text: &'static str, p: Palette) -> impl IntoElement {
+fn callout(icon: IconName, text: impl Into<SharedString>, p: Palette) -> impl IntoElement {
     h_flex()
         .gap(px(10.))
         .items_start()
@@ -520,7 +592,7 @@ fn callout(icon: IconName, text: &'static str, p: Palette) -> impl IntoElement {
                 .text_size(px(13.))
                 .line_height(px(19.))
                 .text_color(p.text)
-                .child(text),
+                .child(text.into()),
         )
 }
 
