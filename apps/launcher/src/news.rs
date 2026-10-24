@@ -19,7 +19,7 @@ use serde::Deserialize;
 
 use crate::pages::GUTTER;
 use crate::shell::{Page, Shell};
-use crate::theme::Palette;
+use crate::theme::{Palette, ScrollArea};
 use markdown::{Block, SITE, Span, safe_url};
 
 pub const FEED_URL: &str = "https://f1.swofty.net/news.json";
@@ -583,20 +583,24 @@ impl Shell {
                 .child(v_flex().w(px(side)).flex_shrink_0().min_h_0().child(changelogs))
         };
         let content = v_flex()
-            .id("news")
             .flex_1()
             .min_h_0()
             .px(px(GUTTER))
             .pt(px(4.))
             .pb(px(20.))
             .gap(px(16.))
-            .when(stacked, |d| d.overflow_y_scroll())
             .child(crate::discord::banner(short))
             .child(columns);
         v_flex()
             .size_full()
             .child(self.header(Page::News.label(), self.news.subtitle(), refresh, p))
-            .child(content)
+            .map(|d| {
+                if stacked {
+                    d.child(content.scroll_y("news"))
+                } else {
+                    d.child(content)
+                }
+            })
             .into_any_element()
     }
 

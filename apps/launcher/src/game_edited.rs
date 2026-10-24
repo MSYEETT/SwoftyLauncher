@@ -304,11 +304,8 @@ impl Shell {
                 .margin_top(px(top))
                 .child(
                     v_flex()
-                        .id("game-edited-body")
                         .gap(px(12.))
                         .pt(px(2.))
-                        .max_h(px((vh - 112.).max(300.)))
-                        .overflow_y_scroll()
                         .child(illustration(p))
                         .child(heading(&edited, p))
                         .child(files_box(&edited, p))

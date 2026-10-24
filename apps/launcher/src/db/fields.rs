@@ -15,7 +15,7 @@ use swofty_core::dbedit::{Backing, Kind, NodeId};
 use super::{Nav, bool_text, clean, hex, kind_of, type_name};
 use crate::pages::{fact, label};
 use crate::shell::Shell;
-use crate::theme::Palette;
+use crate::theme::{Palette, ScrollArea};
 
 #[derive(Clone)]
 pub(crate) struct Choice {
@@ -1486,10 +1486,9 @@ impl Shell {
         )
         .child(
             v_flex()
-                .id("db-key-body")
                 .flex_1()
                 .min_h_0()
-                .overflow_y_scroll()
+                .scroll_y("db-key-body")
                 .px(px(16.))
                 .py(px(14.))
                 .gap(px(18.))

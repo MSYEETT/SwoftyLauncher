@@ -35,7 +35,7 @@ use crate::news::format_date;
 use crate::pages::{GUTTER, badge, label, stat, tag};
 use crate::play_bar::link;
 use crate::shell::{Page, PlayState, Shell};
-use crate::theme::Palette;
+use crate::theme::{Palette, SCROLLBAR_GAP, ScrollArea};
 
 const STALE: Duration = Duration::from_secs(30 * 60);
 const TICK: Duration = Duration::from_secs(5 * 60);
@@ -1793,11 +1793,11 @@ impl Shell {
             )
             .child(
                 v_flex()
-                    .id("browser-filters")
                     .flex_1()
                     .min_h_0()
-                    .overflow_y_scroll()
+                    .scroll_y("browser-filters")
                     .gap(px(16.))
+                    .pr(px(SCROLLBAR_GAP))
                     .pb(px(8.))
                     .child(group("TYPE", types))
                     .child(group("STATE", states))
@@ -2005,11 +2005,18 @@ impl Shell {
             .flex_1()
             .min_h_0()
             .items_start()
-            .px(px(GUTTER))
+            .pl(px(GUTTER))
             .pb(px(20.))
             .gap(px(20.))
             .child(filters)
-            .child(v_flex().flex_1().min_w_0().h_full().child(bar).child(body))
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .h_full()
+                    .child(bar.pr(px(GUTTER)))
+                    .child(body),
+            )
             .into_any_element()
     }
 

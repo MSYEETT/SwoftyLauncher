@@ -25,7 +25,7 @@ use crate::game::Install;
 use crate::library::{AddonIcon, SectionItem, plural};
 use crate::pages::{GUTTER, badge, chevron, fact, label, monogram, names, stat, tag, tile};
 use crate::shell::{Page, Shell};
-use crate::theme::Palette;
+use crate::theme::{Palette, ScrollArea};
 
 pub(crate) type Shared = Arc<Mutex<Option<(f32, String)>>>;
 
@@ -708,10 +708,9 @@ impl Shell {
                 self.empty(section_icon, title.clone(), text.clone(), action, p)
             }
             Body::Blocks(blocks) => v_flex()
-                .id(SharedString::from(format!("section-{addon}-{id}")))
                 .flex_1()
                 .min_h_0()
-                .overflow_y_scroll()
+                .scroll_y(SharedString::from(format!("section-{addon}-{id}")))
                 .px(px(GUTTER))
                 .pt(px(4.))
                 .pb(px(24.))

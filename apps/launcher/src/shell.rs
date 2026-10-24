@@ -29,7 +29,7 @@ use crate::game::{self, Install, Launch, Owner, Probe};
 use crate::game_edited::Edited;
 use crate::library::{AddonIcon, Library};
 use crate::pages::{addon_icon, label};
-use crate::theme::{Palette, palette};
+use crate::theme::{Palette, SCROLLBAR_GAP, ScrollArea, palette};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Page {
@@ -1210,15 +1210,16 @@ impl Shell {
                 v_flex()
                     .flex_1()
                     .min_h_0()
+                    .mr(px(-SCROLLBAR_GAP))
                     .pt(px(if short { 4. } else { 12. }))
                     .gap(px(6.))
                     .child(label("ADDON PANELS", p).px(px(8.)))
                     .child(
                         v_flex()
-                            .id("panels")
                             .flex_1()
                             .min_h_0()
-                            .overflow_y_scroll()
+                            .scroll_y("panels")
+                            .pr(px(SCROLLBAR_GAP))
                             .gap(px(1.))
                             .children(self.panels(p, cx)),
                     ),

@@ -21,7 +21,7 @@ use swofty_core::profile::VANILLA;
 use crate::library::{AddonItem, Changes, Source, plural};
 use crate::pages::{GUTTER, addon_icon, badge, chevron, fact, label, logo, tag, track_badge};
 use crate::shell::{Page, Shell};
-use crate::theme::{Palette, palette};
+use crate::theme::{Palette, SCROLLBAR_GAP, ScrollArea, palette, scrollbar_y};
 
 const FADE: Duration = Duration::from_secs(4);
 pub(crate) const FILTERS_W: f32 = 226.;
@@ -1215,11 +1215,11 @@ impl Shell {
             )
             .child(
                 v_flex()
-                    .id("addon-filters")
                     .flex_1()
                     .min_h_0()
-                    .overflow_y_scroll()
+                    .scroll_y("addon-filters")
                     .gap(px(16.))
+                    .pr(px(SCROLLBAR_GAP))
                     .pb(px(8.))
                     .child(group("CATEGORY", categories, cx))
                     .child(group("TYPE", types, cx))
@@ -1361,6 +1361,7 @@ impl Shell {
                         .pb(px(6.))
                         .children(children),
                 )
+                .child(scrollbar_y(&self.addons.scroll))
                 .into_any_element()
         };
         v_flex()
@@ -1965,30 +1966,8 @@ impl Shell {
             Some(self.settings(man, p, cx).into_any_element())
         };
         let conflicts = self.conflicts_block(id, p, cx).into_any_element();
-        v_flex()
-            .id(SharedString::from(format!("detail-{id}")))
+        let body = v_flex()
             .gap(px(18.))
-            .map(|d| {
-                if inline {
-                    d.flex_shrink_0()
-                        .px(px(20.))
-                        .pt(px(14.))
-                        .pb(px(18.))
-                        .bg(p.surface)
-                        .border_t_1()
-                        .border_color(p.border_variant)
-                } else {
-                    d.w(px(DETAIL_W))
-                        .flex_shrink_0()
-                        .h_full()
-                        .overflow_y_scroll()
-                        .p(px(18.))
-                        .rounded(px(8.))
-                        .border_1()
-                        .border_color(p.border)
-                        .bg(p.surface)
-                }
-            })
             .when(!inline, |d| d.child(head))
             .when_some(man.description.clone(), |d, text| {
                 d.child(
@@ -2013,7 +1992,30 @@ impl Shell {
             .child(what)
             .child(conflicts)
             .children(settings)
-            .child(advanced)
+            .child(advanced);
+        let key = SharedString::from(format!("detail-{id}"));
+        if inline {
+            return body
+                .id(key)
+                .flex_shrink_0()
+                .px(px(20.))
+                .pt(px(14.))
+                .pb(px(18.))
+                .bg(p.surface)
+                .border_t_1()
+                .border_color(p.border_variant)
+                .into_any_element();
+        }
+        div()
+            .w(px(DETAIL_W))
+            .flex_shrink_0()
+            .h_full()
+            .rounded(px(8.))
+            .border_1()
+            .border_color(p.border)
+            .bg(p.surface)
+            .overflow_hidden()
+            .child(body.size_full().p(px(18.)).scroll_y(key))
             .into_any_element()
     }
 

@@ -15,7 +15,7 @@ use super::{LinkState, Load, Nav, bool_text, clean, icon_named, kind_of, swap_fi
 use crate::library::plural;
 use crate::pages::{GUTTER, badge, label};
 use crate::shell::Shell;
-use crate::theme::{Palette, palette};
+use crate::theme::{Palette, SCROLLBAR_GAP, ScrollArea, palette, scrollbar_y};
 
 const ROW_H: f32 = 40.;
 const NAME_W: f32 = 220.;
@@ -563,15 +563,20 @@ impl Shell {
                     .left_0()
                     .w(px(620.))
                     .max_h(px(440.))
-                    .overflow_y_scroll()
-                    .pb(px(6.))
                     .rounded(px(8.))
                     .border_1()
                     .border_color(p.border)
                     .bg(p.elevated)
                     .shadow_lg()
-                    .children(rows)
-                    .children(empty),
+                    .overflow_hidden()
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .scroll_y("db-hits-list")
+                            .pb(px(6.))
+                            .children(rows)
+                            .children(empty),
+                    ),
             )
             .with_priority(1)
         });
@@ -696,12 +701,12 @@ impl Shell {
                 .into_any_element(),
         );
         v_flex()
-            .id("db-nav")
             .w(px(220.))
             .flex_shrink_0()
             .h_full()
-            .overflow_y_scroll()
+            .scroll_y("db-nav")
             .gap(px(18.))
+            .pr(px(SCROLLBAR_GAP))
             .pb(px(12.))
             .children(sections)
     }
@@ -926,6 +931,7 @@ impl Shell {
             .overflow_hidden()
             .child(header)
             .child(list)
+            .child(scrollbar_y(&self.db.rows_scroll))
             .into_any_element()
     }
 
@@ -1284,10 +1290,9 @@ impl Shell {
         )
         .child(
             v_flex()
-                .id(SharedString::from(format!("db-row-body-{}-{row}", module.id)))
                 .flex_1()
                 .min_h_0()
-                .overflow_y_scroll()
+                .scroll_y(SharedString::from(format!("db-row-body-{}-{row}", module.id)))
                 .px(px(16.))
                 .py(px(14.))
                 .gap(px(22.))

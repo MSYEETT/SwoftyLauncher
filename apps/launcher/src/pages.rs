@@ -5,6 +5,7 @@ use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::notification::Notification;
+use gpui_kit::component::scroll::Scrollable;
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
@@ -16,7 +17,7 @@ use swofty_core::store::ProfileDeletion;
 
 use crate::library::{AddonIcon, ProfileItem, plural};
 use crate::shell::{Page, Prompt, Shell, SliderSlot};
-use crate::theme::{Palette, palette};
+use crate::theme::{Palette, ScrollArea, palette};
 
 pub(crate) const GUTTER: f32 = 28.;
 
@@ -292,12 +293,16 @@ impl Shell {
             .child(h_flex().gap(px(8.)).pb(px(2.)).child(actions))
     }
 
-    pub(crate) fn list(&self, id: impl Into<ElementId>, rows: Vec<AnyElement>, p: Palette) -> Stateful<Div> {
+    pub(crate) fn list(
+        &self,
+        id: impl Into<ElementId>,
+        rows: Vec<AnyElement>,
+        p: Palette,
+    ) -> Scrollable<Div> {
         v_flex()
-            .id(id)
             .flex_1()
             .min_h_0()
-            .overflow_y_scroll()
+            .scroll_y(id)
             .px(px(GUTTER))
             .pt(px(4.))
             .pb(px(24.))
@@ -704,10 +709,9 @@ impl Shell {
             .child(self.header(Page::Profiles.label(), subtitle, actions, p))
             .child(
                 div()
-                    .id("profiles")
                     .flex_1()
                     .min_h_0()
-                    .overflow_y_scroll()
+                    .scroll_y("profiles")
                     .px(px(GUTTER))
                     .pt(px(4.))
                     .pb(px(24.))
