@@ -1,0 +1,730 @@
+{
+ "schema_version": 1,
+ "ops": [
+  {
+   "op": "file.put",
+   "source": "suits/cs16-mercedes/cs16-mercedes.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-mercedes/cs16-mercedes.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-mercedes/cs16-mercedes.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-mercedes/2025-mercedes.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-mercedes/cs16-mercedes.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-mercedes/2025-mercedes.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-mercedes/textures/cs16-mercedes_boots_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-mercedes/textures/cs16-mercedes_boots_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-mercedes/textures/cs16-mercedes_cap_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-mercedes/textures/cs16-mercedes_cap_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-mercedes/textures/cs16-mercedes_glove_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-mercedes/textures/cs16-mercedes_glove_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-mercedes/textures/cs16-mercedes_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-mercedes/textures/cs16-mercedes_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-mercedes/textures/cs16-mercedes_suit_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-mercedes/textures/cs16-mercedes_suit_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-redbull/cs16-redbull.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-redbull/cs16-redbull.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-redbull/cs16-redbull.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-redbull/2025-redbull.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-redbull/cs16-redbull.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-redbull/2025-redbull.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-redbull/textures/cs16-redbull_glove_logo_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-redbull/textures/cs16-redbull_glove_logo_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-redbull/textures/cs16-redbull_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-redbull/textures/cs16-redbull_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-redbull/textures/cs16-redbull_logo_01_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-redbull/textures/cs16-redbull_logo_01_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-ferrari/cs16-ferrari.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-ferrari/cs16-ferrari.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-ferrari/cs16-ferrari.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-ferrari/2025-ferrari.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-ferrari/cs16-ferrari.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-ferrari/2025-ferrari.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-ferrari/textures/cs16-ferrari_cap_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-ferrari/textures/cs16-ferrari_cap_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-ferrari/textures/cs16-ferrari_cap_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-ferrari/textures/cs16-ferrari_cap_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-ferrari/textures/cs16-ferrari_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-ferrari/textures/cs16-ferrari_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-ferrari/textures/cs16-ferrari_livery_v2_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-ferrari/textures/cs16-ferrari_livery_v2_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-ferrari/textures/cs16-ferrari_suit_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-ferrari/textures/cs16-ferrari_suit_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-ferrari/textures/cs16-ferrari_suit_attachments_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-ferrari/textures/cs16-ferrari_suit_attachments_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-williams/cs16-williams.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-williams/cs16-williams.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-williams/cs16-williams.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-williams/2025-williams.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-williams/cs16-williams.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-williams/2025-williams.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-williams/textures/cs16-williams_cap_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-williams/textures/cs16-williams_cap_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-williams/textures/cs16-williams_cap_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-williams/textures/cs16-williams_cap_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-williams/textures/cs16-williams_glove_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-williams/textures/cs16-williams_glove_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-williams/textures/cs16-williams_glove_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-williams/textures/cs16-williams_glove_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-williams/textures/cs16-williams_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-williams/textures/cs16-williams_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-williams/textures/cs16-williams_livery_v2_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-williams/textures/cs16-williams_livery_v2_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-williams/textures/cs16-williams_suit_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-williams/textures/cs16-williams_suit_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-williams/textures/cs16-williams_suit_attachments_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-williams/textures/cs16-williams_suit_attachments_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-forceindia/cs16-forceindia.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-forceindia/cs16-forceindia.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-forceindia/cs16-forceindia.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-forceindia/2025-forceindia.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-forceindia/cs16-forceindia.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-forceindia/2025-forceindia.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_boots_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_boots_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_boots_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_boots_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_cap_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_cap_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_cap_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_cap_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_glove_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_glove_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_glove_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_glove_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_livery_v2_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_livery_v2_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_suit_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_suit_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_suit_attachments_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-forceindia/textures/cs16-forceindia_suit_attachments_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-renault/cs16-renault.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-renault/cs16-renault.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-renault/cs16-renault.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-renault/2025-renault.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-renault/cs16-renault.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-renault/2025-renault.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-renault/textures/cs16-renault_boots_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-renault/textures/cs16-renault_boots_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-renault/textures/cs16-renault_boots_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-renault/textures/cs16-renault_boots_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-renault/textures/cs16-renault_cap_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-renault/textures/cs16-renault_cap_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-renault/textures/cs16-renault_cap_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-renault/textures/cs16-renault_cap_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-renault/textures/cs16-renault_glove_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-renault/textures/cs16-renault_glove_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-renault/textures/cs16-renault_glove_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-renault/textures/cs16-renault_glove_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-renault/textures/cs16-renault_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-renault/textures/cs16-renault_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-renault/textures/cs16-renault_livery_v2_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-renault/textures/cs16-renault_livery_v2_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-renault/textures/cs16-renault_suit_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-renault/textures/cs16-renault_suit_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-renault/textures/cs16-renault_suit_attachments_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-renault/textures/cs16-renault_suit_attachments_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-tororosso/cs16-tororosso.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-tororosso/cs16-tororosso.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-tororosso/cs16-tororosso.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-tororosso/2025-tororosso.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-tororosso/cs16-tororosso.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-tororosso/2025-tororosso.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_boots_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_boots_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_cap_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_cap_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_cap_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_cap_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_glove_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_glove_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_glove_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_glove_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_livery_v2_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_livery_v2_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_suit_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_suit_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_suit_attachments_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-tororosso/textures/cs16-tororosso_suit_attachments_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-sauber/cs16-sauber.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-sauber/cs16-sauber.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-sauber/cs16-sauber.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-sauber/2025-sauber.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-sauber/cs16-sauber.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-sauber/2025-sauber.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-sauber/textures/cs16-sauber_cap_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-sauber/textures/cs16-sauber_cap_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-sauber/textures/cs16-sauber_cap_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-sauber/textures/cs16-sauber_cap_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-sauber/textures/cs16-sauber_glove_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-sauber/textures/cs16-sauber_glove_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-sauber/textures/cs16-sauber_glove_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-sauber/textures/cs16-sauber_glove_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-sauber/textures/cs16-sauber_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-sauber/textures/cs16-sauber_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-sauber/textures/cs16-sauber_livery_v2_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-sauber/textures/cs16-sauber_livery_v2_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-sauber/textures/cs16-sauber_suit_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-sauber/textures/cs16-sauber_suit_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-sauber/textures/cs16-sauber_suit_attachments_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-sauber/textures/cs16-sauber_suit_attachments_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-mclaren/cs16-mclaren.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-mclaren/cs16-mclaren.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-mclaren/cs16-mclaren.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-mclaren/2025-mclaren.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-mclaren/cs16-mclaren.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-mclaren/2025-mclaren.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-mclaren/textures/cs16-mclaren_cap_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-mclaren/textures/cs16-mclaren_cap_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-mclaren/textures/cs16-mclaren_cap_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-mclaren/textures/cs16-mclaren_cap_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-mclaren/textures/cs16-mclaren_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-mclaren/textures/cs16-mclaren_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-mclaren/textures/cs16-mclaren_livery_v2_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-mclaren/textures/cs16-mclaren_livery_v2_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-mclaren/textures/cs16-mclaren_suit_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-mclaren/textures/cs16-mclaren_suit_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-mclaren/textures/cs16-mclaren_suit_attachments_s.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-mclaren/textures/cs16-mclaren_suit_attachments_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs16-haas/cs16-haas.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs16-haas/cs16-haas.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs16-haas/cs16-haas.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-haas/2025-haas.erp",
+    "2025_asset_groups/character_package/team_livery/cs16-haas/cs16-haas.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-haas/2025-haas.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-haas/textures/cs16-haas_boots_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-haas/textures/cs16-haas_boots_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-haas/textures/cs16-haas_cap_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-haas/textures/cs16-haas_cap_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-haas/textures/cs16-haas_glove_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-haas/textures/cs16-haas_glove_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs16-haas/textures/cs16-haas_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs16-haas/textures/cs16-haas_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs18-redbull/cs18-redbull.erp",
+   "target": "2025_asset_groups/character_package/team_livery/cs18-redbull/cs18-redbull.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/team_livery/cs18-redbull/cs18-redbull.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/team_livery/2025-redbull/2025-redbull.erp",
+    "2025_asset_groups/character_package/team_livery/cs18-redbull/cs18-redbull.erp"
+   ],
+   "template": "asset_groups/character_package/team_livery/2025-redbull/2025-redbull.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_cap_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_cap_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_glove_logo_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_glove_logo_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_n.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_n.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_suit_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_suit_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs18-redbull_max_verstappen/max_verstappen.erp",
+   "target": "2025_asset_groups/character_package/drivers/male/cs18-redbull_max_verstappen/max_verstappen.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/drivers/male/cs18-redbull_max_verstappen/max_verstappen.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/drivers/male/2025-redbull_max_verstappen/max_verstappen.erp",
+    "2025_asset_groups/character_package/drivers/male/cs18-redbull_max_verstappen/max_verstappen.erp"
+   ],
+   "template": "asset_groups/character_package/drivers/male/2025-redbull_max_verstappen/max_verstappen.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs18-redbull_max_verstappen/max_verstappen_helmet.erp",
+   "target": "2025_asset_groups/character_package/drivers/male/cs18-redbull_max_verstappen/max_verstappen_helmet.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/drivers/male/cs18-redbull_max_verstappen/max_verstappen_helmet.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/drivers/male/2025-redbull_max_verstappen/max_verstappen_helmet.erp",
+    "2025_asset_groups/character_package/drivers/male/cs18-redbull_max_verstappen/max_verstappen_helmet.erp"
+   ],
+   "template": "asset_groups/character_package/drivers/male/2025-redbull_max_verstappen/max_verstappen_helmet.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_cap_d.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_cap_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_helmet_d.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_helmet_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_helmet_n.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_helmet_n.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_helmet_wing_d.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_helmet_wing_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_visor_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_visor_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_glove_logo_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_glove_logo_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_n.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_n.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_suit_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_suit_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_helmet_d.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_helmet_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_helmet_n.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_helmet_n.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_helmet_wing_d.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_helmet_wing_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_visor_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_max_verstappen/textures/max_verstappen_visor_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_n.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_n.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs18-redbull_yuki_tsunoda/yuki_tsunoda.erp",
+   "target": "2025_asset_groups/character_package/drivers/male/cs18-redbull_yuki_tsunoda/yuki_tsunoda.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/drivers/male/cs18-redbull_yuki_tsunoda/yuki_tsunoda.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/drivers/male/2025-redbull_yuki_tsunoda/yuki_tsunoda.erp",
+    "2025_asset_groups/character_package/drivers/male/cs18-redbull_yuki_tsunoda/yuki_tsunoda.erp"
+   ],
+   "template": "asset_groups/character_package/drivers/male/2025-redbull_yuki_tsunoda/yuki_tsunoda.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/cs18-redbull_yuki_tsunoda/yuki_tsunoda_helmet.erp",
+   "target": "2025_asset_groups/character_package/drivers/male/cs18-redbull_yuki_tsunoda/yuki_tsunoda_helmet.erp"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/character_package/drivers/male/cs18-redbull_yuki_tsunoda/yuki_tsunoda_helmet.assetgroup",
+   "erps": [
+    "2025_asset_groups/character_package/drivers/male/2025-redbull_yuki_tsunoda/yuki_tsunoda_helmet.erp",
+    "2025_asset_groups/character_package/drivers/male/cs18-redbull_yuki_tsunoda/yuki_tsunoda_helmet.erp"
+   ],
+   "template": "asset_groups/character_package/drivers/male/2025-redbull_yuki_tsunoda/yuki_tsunoda_helmet.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_yuki_tsunoda/textures/yuki_tsunoda_cap_d.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_yuki_tsunoda/textures/yuki_tsunoda_cap_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_yuki_tsunoda/textures/yuki_tsunoda_helmet_d.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_yuki_tsunoda/textures/yuki_tsunoda_helmet_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_yuki_tsunoda/textures/yuki_tsunoda_visor_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_yuki_tsunoda/textures/yuki_tsunoda_visor_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_glove_logo_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_glove_logo_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_n.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_n.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_suit_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_suit_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_yuki_tsunoda/textures/yuki_tsunoda_helmet_d.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_yuki_tsunoda/textures/yuki_tsunoda_helmet_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/drivers/male/cs18-redbull_yuki_tsunoda/textures/yuki_tsunoda_visor_attachments_d.tif.2025.mipmaps",
+   "target": "character_package/drivers/male/cs18-redbull_yuki_tsunoda/textures/yuki_tsunoda_visor_attachments_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_livery_v2_d.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_livery_v2_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "suits/sidecars/character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_n.tif.2025.mipmaps",
+   "target": "character_package/team_livery/cs18-redbull/textures/cs18-redbull_logo_01_n.tif.2025.mipmaps"
+  }
+ ]
+}
