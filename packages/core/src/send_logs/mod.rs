@@ -350,15 +350,6 @@ impl Bundle {
         {
             c.file("game/career-editor/snapshot.json".into(), &snapshot, None);
         }
-        if let Some(record) = report.game.dir.as_deref().map(crate::overlay_guard::path)
-            && record.is_file()
-        {
-            c.file(
-                format!("game/{}", crate::overlay_guard::REMOVED_FILE),
-                &record,
-                None,
-            );
-        }
         for log in state_logs(store) {
             let name = file_name(&log);
             c.file(format!("state/{name}"), &log, None);
@@ -497,7 +488,7 @@ impl Bundle {
         for dir in newest_sessions(store, SESSIONS) {
             logs.push((format!("sessions/{}", file_name(&dir)), dir.join("loader.log")));
         }
-        for l in overlay_lines(store, report.game.dir.as_deref(), &logs) {
+        for l in overlay_lines(store, &logs) {
             s.push_str(&l);
             s.push('\n');
         }
@@ -690,9 +681,8 @@ fn loader_line(label: &str, log: &Path) -> Option<String> {
     Some(format!("  {label:40} {state}"))
 }
 
-/// Which addons draw over the game, whether the core keeps the overlay off, and what each
-/// session's `[overlay]` lines say.
-fn overlay_lines(store: &Store, game: Option<&Path>, logs: &[(String, PathBuf)]) -> Vec<String> {
+/// Which addons draw over the game, and what each session's `[overlay]` lines say.
+fn overlay_lines(store: &Store, logs: &[(String, PathBuf)]) -> Vec<String> {
     let mut out = Vec::new();
     let painters = crate::overlay_guard::painters(store, &store.active_profile());
     let names: Vec<String> = painters
@@ -707,13 +697,6 @@ fn overlay_lines(store: &Store, game: Option<&Path>, logs: &[(String, PathBuf)])
             names.join(", ")
         }
     ));
-    if let Some(off) = game.and_then(crate::overlay_guard::OverlayOff::read) {
-        out.push(format!(
-            "  Kept off: game/{} says {}",
-            crate::overlay_guard::REMOVED_FILE,
-            off.describe()
-        ));
-    }
     for (label, log) in logs {
         let Ok(head) = read_head(log, OVERLAY_READ) else {
             continue;

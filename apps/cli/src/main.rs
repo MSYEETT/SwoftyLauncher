@@ -3,7 +3,6 @@ mod db;
 mod doctor;
 mod ea;
 mod offline;
-mod overlay;
 mod recover;
 mod run;
 mod send_logs;
@@ -102,11 +101,6 @@ enum Command {
         about = "The one-time setup before modded play: put the game folder back, verify it, then play"
     )]
     Setup(setup::SetupCommand),
-    #[command(
-        subcommand,
-        about = "The in-game overlay: whether the core turned it off after the GPU stopped responding, and turning it back on"
-    )]
-    Overlay(overlay::OverlayCommand),
     #[command(subcommand, about = "Show and change addon settings in the profile")]
     Settings(SettingsCommand),
     #[command(subcommand, about = "List and delete profiles")]
@@ -448,7 +442,6 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Addons(cmd) => addons(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Offline(cmd) => offline::command(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Setup(cmd) => setup::command(&store, cmd).map(|_| ExitCode::SUCCESS),
-        Command::Overlay(cmd) => overlay::command(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Settings(cmd) => settings(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Profile(cmd) => profiles(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Db { game, cmd } => db::command(&store, &profile, game, cmd),

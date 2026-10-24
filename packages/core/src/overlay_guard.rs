@@ -1,90 +1,8 @@
-//! The core's GPU-removed watchdog record, `<game>/swofty/overlay-gpu-removed.json`, and what a
-//! session's `loader.log` says about the in-game overlay.
+//! What addons do over the game, from their manifests, and what a session's `loader.log` says
+//! about the in-game overlay.
 
-use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
-
-use serde::Deserialize;
-
-use crate::install::LOADER_DIR;
 use crate::manifest::{AddonManifest, ExperimentalFeature};
 use crate::store::Store;
-use crate::{Result, io_err, with_retry};
-
-pub const REMOVED_FILE: &str = "overlay-gpu-removed.json";
-
-/// The fields `hud_guard.hpp`'s `removal_json` writes.
-#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
-#[serde(default)]
-pub struct Removal {
-    pub when: String,
-    pub present_hr: String,
-    pub removed_reason: String,
-    pub after_draw_ms: u64,
-    pub swapchain_by: String,
-}
-
-/// The overlay is off for a game copy: the core found the GPU removed within 10 s of an overlay
-/// draw and keeps the overlay off while the record exists.
-#[derive(Debug, Clone, PartialEq)]
-pub struct OverlayOff {
-    pub path: PathBuf,
-    pub at: f64,
-    pub removal: Option<Removal>,
-}
-
-pub fn path(game: &Path) -> PathBuf {
-    game.join(LOADER_DIR).join(REMOVED_FILE)
-}
-
-impl OverlayOff {
-    pub fn read(game: &Path) -> Option<Self> {
-        let path = path(game);
-        let meta = std::fs::metadata(&path).ok().filter(|m| m.is_file())?;
-        let at = meta
-            .modified()
-            .ok()
-            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-            .map_or(0.0, |d| d.as_secs_f64());
-        let removal = std::fs::read(&path)
-            .ok()
-            .and_then(|b| serde_json::from_slice::<Removal>(&b).ok());
-        Some(Self { path, at, removal })
-    }
-
-    pub fn describe(&self) -> String {
-        match &self.removal {
-            Some(r) => format!(
-                "the GPU was removed {:.1} s after the overlay drew ({}, present {}, reason {}, swapchain by {})",
-                r.after_draw_ms as f64 / 1000.0,
-                or_unknown(&r.when),
-                or_unknown(&r.present_hr),
-                or_unknown(&r.removed_reason),
-                or_unknown(&r.swapchain_by),
-            ),
-            None => format!("{} exists but could not be read", self.path.display()),
-        }
-    }
-}
-
-fn or_unknown(s: &str) -> &str {
-    if s.is_empty() { "unknown" } else { s }
-}
-
-/// Deletes the record, so the core draws the overlay again from the next launch. Returns whether
-/// there was one.
-pub fn reset(game: &Path) -> Result<bool> {
-    let path = path(game);
-    if !path.is_file() {
-        return Ok(false);
-    }
-    with_retry(&path, || std::fs::remove_file(&path))?;
-    let dir = game.join(LOADER_DIR);
-    if std::fs::read_dir(&dir).map_err(io_err(&dir))?.next().is_none() {
-        std::fs::remove_dir(&dir).ok();
-    }
-    Ok(true)
-}
 
 /// What an addon does in game, from its manifest, as the Addons page tags it.
 pub fn effects(m: &AddonManifest) -> Vec<&'static str> {
@@ -154,6 +72,7 @@ impl SessionOverlay {
             } else if rest.starts_with("first overlay frame submitted") {
                 s.drew = true;
             } else if let Some(on) = rest.strip_prefix("drawing on swapchain ") {
+                s.armed = true;
                 s.target.get_or_insert_with(|| clip(on, 120));
             } else if let Some(n) = drawn_frames(rest) {
                 s.frames += n;
@@ -263,13 +182,14 @@ mod tests {
     }
 
     #[test]
-    fn an_overlay_kept_off_by_the_record_says_so() {
-        let log = "1 [overlay] off: swofty/overlay-gpu-removed.json records the GPU removed 4.8 s after the overlay drew (x); the overlay stays off while that file exists\n";
+    fn an_overlay_feature_left_off_says_so() {
+        let log =
+            "1 [overlay] the overlay feature is experimental and off; the HUD present hook is not armed\n";
         let s = SessionOverlay::scan(log).unwrap();
         assert!(!s.drew);
         assert!(
             s.describe()
-                .starts_with("off (swofty/overlay-gpu-removed.json records")
+                .starts_with("off (the overlay feature is experimental and off")
         );
     }
 
@@ -281,38 +201,5 @@ mod tests {
         );
         let armed = SessionOverlay::scan("1 [overlay] present hook armed: Present (vt+0x40)\n").unwrap();
         assert_eq!(armed.describe(), "armed, never drew");
-    }
-
-    #[test]
-    fn the_record_is_read_and_reset() {
-        let game = std::env::temp_dir().join(format!("swofty-overlay-off-{}", std::process::id()));
-        std::fs::remove_dir_all(&game).ok();
-        assert_eq!(OverlayOff::read(&game), None);
-        assert!(!reset(&game).unwrap());
-        std::fs::create_dir_all(game.join(LOADER_DIR)).unwrap();
-        std::fs::write(
-            path(&game),
-            "{\n  \"schema\": 1,\n  \"when\": \"2026-10-24 02:39:47\",\n  \"present_hr\": \"0x887a0005\",\n  \
-             \"removed_reason\": \"0x887a0006\",\n  \"after_draw_ms\": 4812,\n  \"swapchain_by\": \"sl.interposer.dll <- F1_25.exe\"\n}\n",
-        )
-        .unwrap();
-        let off = OverlayOff::read(&game).unwrap();
-        assert_eq!(off.removal.as_ref().unwrap().after_draw_ms, 4812);
-        assert_eq!(
-            off.describe(),
-            "the GPU was removed 4.8 s after the overlay drew (2026-10-24 02:39:47, present 0x887a0005, \
-             reason 0x887a0006, swapchain by sl.interposer.dll <- F1_25.exe)"
-        );
-        assert!(reset(&game).unwrap());
-        assert!(!game.join(LOADER_DIR).exists());
-        std::fs::create_dir_all(game.join(LOADER_DIR)).unwrap();
-        std::fs::write(path(&game), "not json").unwrap();
-        assert!(
-            OverlayOff::read(&game)
-                .unwrap()
-                .describe()
-                .ends_with("exists but could not be read")
-        );
-        std::fs::remove_dir_all(&game).ok();
     }
 }

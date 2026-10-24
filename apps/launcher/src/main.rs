@@ -12,7 +12,6 @@ mod game_edited;
 mod importer;
 mod library;
 mod news;
-mod overlay_off;
 mod pages;
 mod play_bar;
 mod reveal;
