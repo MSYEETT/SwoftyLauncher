@@ -104,13 +104,10 @@ impl Installer {
                 return;
             }
         };
-        let moving = match self.existing.planned(&root) {
-            Ok(moving) => moving,
-            Err(e) => {
-                *self.stage.lock().unwrap() = Stage::Failed(e);
-                return;
-            }
-        };
+        if let Err(e) = self.existing.planned(&root) {
+            *self.stage.lock().unwrap() = Stage::Failed(e);
+            return;
+        }
         self.folder = root.display().to_string();
         if let Some(why) = running::game_block() {
             *self.stage.lock().unwrap() = Stage::Failed(why.into());
@@ -125,6 +122,13 @@ impl Installer {
     }
 
     fn run(&mut self, root: PathBuf, close: bool, ctx: &egui::Context) {
+        let moving = match self.existing.planned(&root) {
+            Ok(moving) => moving,
+            Err(e) => {
+                *self.stage.lock().unwrap() = Stage::Failed(e);
+                return;
+            }
+        };
         let reporter = Reporter {
             stage: self.stage.clone(),
             ctx: ctx.clone(),
