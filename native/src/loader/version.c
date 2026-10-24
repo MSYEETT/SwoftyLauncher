@@ -1212,6 +1212,56 @@ static void open_log(void)
     }
 }
 
+/* Hook trampolines must sit within 2 GB of the code they patch. On a build whose core loads at the window
+   stage the game has filled the address space around the image by then, so the pool is reserved here, at
+   attach, and the core takes it over (SwoftyLoaderHookPool). */
+#define HOOK_POOL_SIZE (2u << 20)
+#define HOOK_POOL_REACH 0x40000000ULL
+static uintptr_t hook_pool;
+
+static uintptr_t reserve_at(uintptr_t at)
+{
+    return (uintptr_t)VirtualAlloc((void *)at, HOOK_POOL_SIZE, MEM_RESERVE, PAGE_NOACCESS);
+}
+
+static void reserve_hook_pool(void)
+{
+    const IMAGE_NT_HEADERS *nt = (const IMAGE_NT_HEADERS *)(image_base + ((const IMAGE_DOS_HEADER *)image_base)->e_lfanew);
+    uintptr_t end = image_base + nt->OptionalHeader.SizeOfImage;
+    MEMORY_BASIC_INFORMATION m;
+    for (uintptr_t p = end; !hook_pool && p < end + HOOK_POOL_REACH && VirtualQuery((void *)p, &m, sizeof m);
+         p = (uintptr_t)m.BaseAddress + m.RegionSize) {
+        uintptr_t at = (p + 0xFFFF) & ~(uintptr_t)0xFFFF;
+        if (m.State == MEM_FREE && at + HOOK_POOL_SIZE <= (uintptr_t)m.BaseAddress + m.RegionSize)
+            hook_pool = reserve_at(at);
+    }
+    uintptr_t lo = image_base > HOOK_POOL_REACH + 0x10000 ? image_base - HOOK_POOL_REACH : 0x10000;
+    for (uintptr_t at = (image_base - HOOK_POOL_SIZE) & ~(uintptr_t)0xFFFF;
+         !hook_pool && at >= lo && at < image_base && VirtualQuery((void *)at, &m, sizeof m);) {
+        if (m.State == MEM_FREE && m.RegionSize >= HOOK_POOL_SIZE && (hook_pool = reserve_at(at)))
+            break;
+        uintptr_t next = ((m.State == MEM_FREE ? at + m.RegionSize : (uintptr_t)m.AllocationBase) - HOOK_POOL_SIZE) &
+                         ~(uintptr_t)0xFFFF;
+        at = next < at ? next : at - 0x10000;
+    }
+    if (hook_pool)
+        slog("hook pool: %u KB reserved at %p (%s the image) for the core's hook trampolines", HOOK_POOL_SIZE >> 10,
+             (void *)hook_pool, hook_pool >= end ? "above" : "below");
+    else
+        slog("hook pool: no free %u KB within 1 GB of the image at attach; the core searches for trampoline memory "
+             "itself", HOOK_POOL_SIZE >> 10);
+}
+
+__declspec(dllexport) int SwoftyLoaderHookPool(uintptr_t *at, size_t *size)
+{
+    uintptr_t p = (uintptr_t)InterlockedExchangePointer((void *volatile *)&hook_pool, NULL);
+    if (!p)
+        return 0;
+    *at = p;
+    *size = HOOK_POOL_SIZE;
+    return 1;
+}
+
 static void log_build(void)
 {
     const IMAGE_NT_HEADERS *nt = (const IMAGE_NT_HEADERS *)(image_base + ((const IMAGE_DOS_HEADER *)image_base)->e_lfanew);
@@ -1288,6 +1338,7 @@ BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID reserved)
         if (swofty_fwd[i] == (void *)fwd_missing)
             slog("  forward %s missing in the real dll (calls return 0)", fwd_names[i]);
     log_build();
+    reserve_hook_pool();
     attach_tick = GetTickCount();
     if (ea_diag) {
         SetEnvironmentVariableW(L"SWOFTY_EA_DIAG", L"1");

@@ -1440,114 +1440,154 @@ void chain(const Group &g, void *last)
             *g.handlers[i].m->orig = i + 1 < g.handlers.size() ? g.handlers[i + 1].m->handler : last;
 }
 
-/* install() used to collapse safetyhook's create()/enable() result to "MidHook failed"/"InlineHook
-   failed", hiding the real reason (allocation, decode, short jump). Player reports then only show the
-   summary. Format the whole error chain instead; the buffer is rewritten per failing install and read
-   immediately by the caller's log line. */
-static char hook_err[512];
+/* Hooks reach their trampolines with a 5-byte jump, so the trampolines must sit within 2 GB of the code.
+   The loader reserves a pool next to the image at attach (SwoftyLoaderHookPool); the core commits it and
+   hands it to safetyhook's global allocator, which serves every later trampoline and stub from it. On a
+   build whose core loads at the window stage the game has used the address space around the image by
+   then, and every site and short wrap failed with no memory in range. */
+std::shared_ptr<safetyhook::Allocator> hook_allocator;
+uintptr_t hook_pool;
 
-static const char *alloc_err_desc(const safetyhook::Allocator::Error &e)
+void adopt_hook_pool(void (*loader_fn)())
 {
-    return e == safetyhook::Allocator::Error::NO_MEMORY_IN_RANGE
-               ? "no free 64 KB window within 2 GB of the target and its relayed branches"
-               : "VirtualAlloc failed";
-}
-
-static const char *inline_err_desc(const safetyhook::InlineHook::Error &e)
-{
-    switch (e.type) {
-    case safetyhook::InlineHook::Error::BAD_ALLOCATION:
-        snprintf(hook_err, sizeof hook_err, "the trampoline did not allocate: %s", alloc_err_desc(e.allocator_error));
-        return hook_err;
-    case safetyhook::InlineHook::Error::FAILED_TO_DECODE_INSTRUCTION:
-        snprintf(hook_err, sizeof hook_err, "the instruction at base+0x%llx does not decode",
-                 (unsigned long long)rva((uintptr_t)e.ip));
-        return hook_err;
-    case safetyhook::InlineHook::Error::SHORT_JUMP_IN_TRAMPOLINE:
-        return "a short jump sits in the relayed bytes";
-    case safetyhook::InlineHook::Error::IP_RELATIVE_INSTRUCTION_OUT_OF_RANGE:
-        snprintf(hook_err, sizeof hook_err, "an ip-relative instruction at base+0x%llx cannot be relayed",
-                 (unsigned long long)rva((uintptr_t)e.ip));
-        return hook_err;
-    case safetyhook::InlineHook::Error::UNSUPPORTED_INSTRUCTION_IN_TRAMPOLINE:
-        snprintf(hook_err, sizeof hook_err, "an unsupported instruction at base+0x%llx sits in the relayed bytes",
-                 (unsigned long long)rva((uintptr_t)e.ip));
-        return hook_err;
-    case safetyhook::InlineHook::Error::FAILED_TO_UNPROTECT:
-        return "the target page did not unprotect";
-    case safetyhook::InlineHook::Error::NOT_ENOUGH_SPACE:
-        return "not enough space for the hook";
+    hook_allocator = safetyhook::Allocator::global();
+    HMODULE loader = nullptr;
+    GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                       reinterpret_cast<LPCWSTR>(loader_fn), &loader);
+    auto take = loader ? reinterpret_cast<int (*)(uintptr_t *, size_t *)>(
+                             reinterpret_cast<void *>(GetProcAddress(loader, "SwoftyLoaderHookPool")))
+                       : nullptr;
+    uintptr_t at = 0;
+    size_t size = 0;
+    if (!take || !take(&at, &size)) {
+        api->log("[core] hook pool: %s; trampolines come from safetyhook's own search near each hook",
+                 take ? "the loader reserved none at attach" : "this loader reserves none");
+        return;
     }
-    return "unknown InlineHook error";
-}
-
-static const char *mid_err_desc(const safetyhook::MidHook::Error &e)
-{
-    if (e.type == safetyhook::MidHook::Error::BAD_ALLOCATION) {
-        snprintf(hook_err, sizeof hook_err, "the stub did not allocate: %s", alloc_err_desc(e.allocator_error));
-        return hook_err;
+    if (!VirtualAlloc(reinterpret_cast<void *>(at), size, MEM_COMMIT, PAGE_EXECUTE_READWRITE)) {
+        api->log("[core] hook pool: committing %zu KB at 0x%llx failed, error %lu; trampolines come from "
+                 "safetyhook's own search near each hook", size >> 10, (unsigned long long)at, GetLastError());
+        VirtualFree(reinterpret_cast<void *>(at), 0, MEM_RELEASE);
+        return;
     }
-    snprintf(hook_err, sizeof hook_err, "the inline hook at the target failed: %s", inline_err_desc(e.inline_hook_error));
-    return hook_err;
+    hook_allocator->adopt(reinterpret_cast<uint8_t *>(at), size);
+    hook_pool = at;
+    long long off = (long long)(at - base);
+    api->log("[core] hook pool: %zu KB at 0x%llx (base%s0x%llx), reserved at loader attach; hook trampolines and "
+             "stubs come from it", size >> 10, (unsigned long long)at, off < 0 ? "-" : "+",
+             (unsigned long long)(off < 0 ? -off : off));
 }
 
-/* The allocator walks VirtualQuery regions within 2 GB of the hook target and tries one 64 KB window
-   per free region; "no memory within 2 GB" means every window was busy or too small. Log the map so a
-   player report shows what actually surrounds the game image (protectors reserve ranges next to it). */
-static void dump_free_regions_near(uintptr_t target)
+std::string target_bytes(uintptr_t at)
 {
+    std::string s;
+    char b[4];
+    for (int i = 0; i < 16; i++) {
+        snprintf(b, sizeof b, i ? " %02X" : "%02X", reinterpret_cast<const uint8_t *>(at)[i]);
+        s += b;
+    }
+    return s;
+}
+
+std::string where(const uint8_t *ip)
+{
+    char b[48];
+    uintptr_t a = reinterpret_cast<uintptr_t>(ip);
+    if (a >= base)
+        snprintf(b, sizeof b, "base+0x%llx", rva(a));
+    else
+        snprintf(b, sizeof b, "0x%llx", (unsigned long long)a);
+    return b;
+}
+
+const char *alloc_error(safetyhook::Allocator::Error e)
+{
+    return e == safetyhook::Allocator::Error::NO_MEMORY_IN_RANGE ? "no free memory within 2 GB of the target"
+                                                                  : "VirtualAlloc failed";
+}
+
+void dump_free_regions_near(uintptr_t target)
+{
+    static bool dumped;
+    if (dumped)
+        return;
+    dumped = true;
     SYSTEM_INFO si;
     GetSystemInfo(&si);
     uintptr_t lo = target > 0x80000000ULL ? target - 0x80000000ULL : (uintptr_t)si.lpMinimumApplicationAddress;
     uintptr_t hi = target + 0x80000000ULL;
-    int regions = 0, shown = 0;
-    unsigned long long free_total = 0;
+    int regions = 0, slots = 0, shown = 0;
     unsigned long long biggest = 0;
-    for (uintptr_t p = (lo + 0xFFFF) & ~0xFFFFULL; p < hi;) {
+    for (uintptr_t p = lo & ~(uintptr_t)0xFFF; p < hi;) {
         MEMORY_BASIC_INFORMATION m;
-        if (!VirtualQuery(reinterpret_cast<void *>(p), &m, sizeof m))
+        if (!VirtualQuery(reinterpret_cast<void *>(p), &m, sizeof m)) {
+            api->log("[core]   VirtualQuery failed at 0x%llx, error %lu", (unsigned long long)p, GetLastError());
             break;
+        }
         uintptr_t next = (uintptr_t)m.BaseAddress + m.RegionSize;
         if (m.State == MEM_FREE) {
+            uintptr_t first = (p + 0xFFFF) & ~(uintptr_t)0xFFFF;
+            int n = first < next ? (int)((next - first) >> 16) : 0;
             regions++;
-            free_total += m.RegionSize;
+            slots += n;
             biggest = m.RegionSize > biggest ? m.RegionSize : biggest;
             if (shown < 16) {
-                api->log("[core]   free region at 0x%llx size 0x%zx%s", (unsigned long long)m.BaseAddress,
-                         m.RegionSize, m.RegionSize >= si.dwAllocationGranularity ? "" : " (under one 64 KB slot)");
+                api->log("[core]   free 0x%llx..0x%llx (%llu KB, %d whole 64 KB slot(s))", (unsigned long long)p,
+                         (unsigned long long)next, (unsigned long long)(m.RegionSize >> 10), n);
                 shown++;
             }
         }
         p = next > p ? next : p + si.dwPageSize;
     }
-    api->log("[core]   %d free region(s), 0x%llx byte(s), largest 0x%llx within 2 GB of base+0x%llx", regions,
-             free_total, biggest, (unsigned long long)rva(target));
+    api->log("[core]   within 2 GB of 0x%llx: %d free region(s), %d whole 64 KB slot(s), largest %llu KB; hook pool %s",
+             (unsigned long long)target, regions, slots, biggest >> 10, hook_pool ? "adopted" : "none");
 }
 
-/* Hook stubs and trampolines must land within 2 GB of their targets, so they come from one shared
-   allocator whose blocks the address-space walk places near the game image. A build that fails to
-   find a window at install time (protector reservations around the image) drops every site and wrap,
-   so the pool is primed once at core init: if the priming walk fails it says so while the core can
-   still report it, instead of each mixin failing in isolation later. */
-static safetyhook::Allocation *hook_pool;
+} // namespace
 
-static void prime_hook_pool()
+namespace runtime {
+
+std::string hook_error(const safetyhook::InlineHook::Error &e)
 {
-    uintptr_t mid = base + 0x4000000; /* inside the code range, whatever the walk finds */
-    try {
-        auto pool = safetyhook::Allocator::global()->allocate_near({reinterpret_cast<uint8_t *>(mid)}, 1 << 20);
-        if (pool) {
-            hook_pool = new safetyhook::Allocation(std::move(*pool));
-            api->log("[core] hook pool: 1 MB at 0x%llx (base+0x%llx), every later stub and trampoline reuses it",
-                     (unsigned long long)hook_pool->address(),
-                     (unsigned long long)((uintptr_t)hook_pool->address() - base));
-        } else {
-            api->log("[core] hook pool: the priming allocation failed: %s", alloc_err_desc(pool.error()));
-            dump_free_regions_near(mid);
-        }
-    } catch (...) {
-        api->log("[core] hook pool: the priming allocation threw");
+    using E = safetyhook::InlineHook::Error;
+    switch (e.type) {
+    case E::BAD_ALLOCATION:
+        return std::string("the trampoline did not allocate: ") + alloc_error(e.allocator_error);
+    case E::FAILED_TO_DECODE_INSTRUCTION:
+        return "the instruction at " + where(e.ip) + " does not decode";
+    case E::SHORT_JUMP_IN_TRAMPOLINE:
+        return "a short jump at " + where(e.ip) + " sits in the relocated bytes";
+    case E::IP_RELATIVE_INSTRUCTION_OUT_OF_RANGE:
+        return "the ip-relative instruction at " + where(e.ip) + " cannot be relocated that far";
+    case E::UNSUPPORTED_INSTRUCTION_IN_TRAMPOLINE:
+        return "the instruction at " + where(e.ip) + " cannot be relocated";
+    case E::FAILED_TO_UNPROTECT:
+        return "the page at " + where(e.ip) + " did not unprotect";
+    case E::NOT_ENOUGH_SPACE:
+        return "not enough room for the jump at " + where(e.ip);
     }
+    return "unknown InlineHook error " + std::to_string((int)e.type);
+}
+
+std::string hook_error(const safetyhook::MidHook::Error &e)
+{
+    if (e.type == safetyhook::MidHook::Error::BAD_ALLOCATION)
+        return std::string("the stub did not allocate: ") + alloc_error(e.allocator_error);
+    return hook_error(e.inline_hook_error);
+}
+
+} // namespace runtime
+
+namespace {
+
+std::string install_error;
+
+const char *failed(std::string why, const Group &g, bool allocation)
+{
+    install_error = std::move(why) + "; bytes at the target: " + target_bytes(g.addr);
+    if (allocation)
+        dump_free_regions_near(g.addr);
+    return install_error.c_str();
 }
 
 const char *install(const Group &g)
@@ -1559,10 +1599,10 @@ const char *install(const Group &g)
     case SWOFTY_MIXIN_WRAP: {
         auto h = safetyhook::InlineHook::create(reinterpret_cast<void *>(g.addr), first, safetyhook::InlineHook::StartDisabled);
         if (!h)
-            return inline_err_desc(h.error());
+            return failed(runtime::hook_error(h.error()), g, h.error().type == safetyhook::InlineHook::Error::BAD_ALLOCATION);
         chain(g, h->original<void *>());
-        if (!h->enable())
-            return "the hook did not enable (thread trap or write failed)";
+        if (auto on = h->enable(); !on)
+            return failed("enabling it failed: " + runtime::hook_error(on.error()), g, false);
         inline_hooks.push_back(std::move(*h));
         inline_names.push_back(g.handlers[0].m->target);
         return nullptr;
@@ -1575,8 +1615,12 @@ const char *install(const Group &g)
             site_chains[s].push_back({reinterpret_cast<void (*)(SwoftyContext *)>(h.m->handler),
                                       perf::probe(perf::owner_of(h.m->handler), "site " + h.m->target)});
         auto h = safetyhook::MidHook::create(reinterpret_cast<void *>(g.addr), site_thunks[s]);
-        if (!h)
-            return mid_err_desc(h.error());
+        if (!h) {
+            auto &e = h.error();
+            bool alloc = e.type == safetyhook::MidHook::Error::BAD_ALLOCATION ||
+                         e.inline_hook_error.type == safetyhook::InlineHook::Error::BAD_ALLOCATION;
+            return failed(runtime::hook_error(e), g, alloc);
+        }
         mid_hooks.push_back(std::move(*h));
         return nullptr;
     }
@@ -1586,10 +1630,9 @@ const char *install(const Group &g)
     case SWOFTY_MIXIN_REDIRECT: {
         auto stub = safetyhook::Allocator::global()->allocate_near({reinterpret_cast<uint8_t *>(g.addr)}, 14);
         if (!stub) {
-            api->log("[core] redirect on %s: the stub did not allocate: %s", g.handlers[0].m->target.c_str(),
-                     alloc_err_desc(stub.error()));
+            install_error = std::string("the jump stub did not allocate: ") + alloc_error(stub.error());
             dump_free_regions_near(g.addr);
-            return "no memory within 2 GB of the call";
+            return install_error.c_str();
         }
         uint8_t jmp[14] = {0xFF, 0x25};
         memcpy(jmp + 6, &first, 8);
@@ -1966,6 +2009,7 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
 {
     api = a;
     base = a->module_base();
+    adopt_hook_pool(reinterpret_cast<void (*)()>(a->module_base));
     wchar_t path[MAX_PATH] = {};
     HMODULE self = nullptr;
     GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -2079,7 +2123,6 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     api->log("[core] build %s: %s (%s); code section %s entropy %.2f, reads %s", build_tag.c_str(),
              packed ? "packed" : "not packed", said.type == json::Value::Bool ? "the set says so" : "measured at init",
              cname, ce < 0 ? 0 : ce, reads(ce));
-    prime_hook_pool();
     {
         std::lock_guard<std::recursive_mutex> g(resolve_lock);
         for (auto &b : bindings)

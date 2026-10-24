@@ -17,3 +17,4 @@ EXPORTS
     VerLanguageNameW=fwd_VerLanguageNameW @15
     VerQueryValueA=fwd_VerQueryValueA @16
     VerQueryValueW=fwd_VerQueryValueW @17
+    SwoftyLoaderHookPool @18
