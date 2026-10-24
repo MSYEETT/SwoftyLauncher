@@ -152,7 +152,7 @@ impl Shell {
 
     fn tick_updates(&mut self, cx: &mut Context<Self>) {
         let now = update::now_secs();
-        let check_launcher = self.store.config().updates.check;
+        let check_launcher = false;
         let u = &self.updates;
         let addon_due = u.addon.probe_due(now);
         let launcher_due = check_launcher && u.launcher.probe_due(now);
