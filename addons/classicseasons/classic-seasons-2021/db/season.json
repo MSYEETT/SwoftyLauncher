@@ -773,8 +773,8 @@
    "set": {
     "_metadata_": "2021-cs_redbull_sergio_perez",
     "helmet": "2024-redbull_sergio_perez",
-    "suit": "2024-redbull_sergio_perez",
-    "gloves": "2024-redbull_sergio_perez",
+    "suit": "cs18-redbull",
+    "gloves": "cs18-redbull",
     "linked_driver_stat_id": "sergio_perez",
     "available": "False",
     "stat_id": "525"

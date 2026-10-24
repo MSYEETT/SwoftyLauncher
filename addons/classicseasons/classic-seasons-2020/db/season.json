@@ -664,8 +664,8 @@
    "set": {
     "_metadata_": "2020-cs_mercedes_lewis_hamilton",
     "helmet": "2024-mercedes_lewis_hamilton",
-    "suit": "2024-mercedes_lewis_hamilton",
-    "gloves": "2024-mercedes_lewis_hamilton",
+    "suit": "cs16-mercedes",
+    "gloves": "cs16-mercedes",
     "linked_driver_stat_id": "lewis_hamilton",
     "available": "False",
     "stat_id": "502"
@@ -857,8 +857,8 @@
    "set": {
     "_metadata_": "2020-cs_mclaren_lando_norris",
     "helmet": "2024-mclaren_lando_norris",
-    "suit": "2024-mclaren_lando_norris",
-    "gloves": "2024-mclaren_lando_norris",
+    "suit": "cs16-mclaren",
+    "gloves": "cs16-mclaren",
     "linked_driver_stat_id": "lando_norris",
     "available": "False",
     "stat_id": "507"
@@ -1142,8 +1142,8 @@
    "set": {
     "_metadata_": "2020-cs_ferrari_charles_leclerc",
     "helmet": "2024-ferrari_charles_leclerc",
-    "suit": "2024-ferrari_charles_leclerc",
-    "gloves": "2024-ferrari_charles_leclerc",
+    "suit": "cs16-ferrari",
+    "gloves": "cs16-ferrari",
     "linked_driver_stat_id": "charles_leclerc",
     "available": "False",
     "stat_id": "513"
@@ -1460,8 +1460,8 @@
    "set": {
     "_metadata_": "2020-cs_haas_kevin_magnussen",
     "helmet": "2024-haas_kevin_magnussen",
-    "suit": "2024-haas_kevin_magnussen",
-    "gloves": "2024-haas_kevin_magnussen",
+    "suit": "cs16-haas",
+    "gloves": "cs16-haas",
     "linked_driver_stat_id": "kevin_magnussen",
     "available": "False",
     "stat_id": "519"
