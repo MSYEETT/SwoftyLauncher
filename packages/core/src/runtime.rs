@@ -37,6 +37,9 @@ pub struct Assets {
     pub overlay: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shader: Option<ShaderLook>,
+    /// Addons the core does not let draw over the game, by id.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub overlay_off: Vec<String>,
 }
 
 /// The look the in-game core grades the picture with.
@@ -284,6 +287,14 @@ impl Runtime {
             self.assets.features.push(feature.to_owned());
         }
         self.enabled = true;
+    }
+
+    /// Keeps these addons from drawing over the game; it needs the file like a feature does.
+    pub fn overlay_off(&mut self, ids: Vec<String>) {
+        if !ids.is_empty() {
+            self.enabled = true;
+        }
+        self.assets.overlay_off = ids;
     }
 
     /// Grades the picture with a packed LUT at `strength`, from 0 to 1.

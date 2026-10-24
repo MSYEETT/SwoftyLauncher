@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -32,6 +32,9 @@ pub struct Profile {
     pub applied: BTreeMap<String, BTreeMap<String, serde_json::Value>>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub state: BTreeMap<String, serde_json::Value>,
+    /// Addons whose drawing over the game is turned off while they stay on.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub overlay_off: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -56,6 +59,7 @@ impl Profile {
             options: BTreeMap::new(),
             applied: BTreeMap::new(),
             state: BTreeMap::new(),
+            overlay_off: BTreeSet::new(),
         };
         p.normalise();
         p
@@ -70,6 +74,7 @@ impl Profile {
             options: BTreeMap::new(),
             applied: BTreeMap::new(),
             state: BTreeMap::new(),
+            overlay_off: BTreeSet::new(),
         }
     }
 
@@ -127,6 +132,25 @@ impl Profile {
         let addon = self.addons.remove(from);
         self.addons.insert(to, addon);
         Ok(())
+    }
+
+    /// Turns an addon's drawing over the game on or off without turning the addon off.
+    pub fn set_overlay(&mut self, id: &str, on: bool) -> crate::Result<()> {
+        if self.is_vanilla() {
+            return Err(crate::Error::Other(format!(
+                "{VANILLA} is built in and cannot be changed"
+            )));
+        }
+        if on {
+            self.overlay_off.remove(id);
+        } else {
+            self.overlay_off.insert(id.to_owned());
+        }
+        Ok(())
+    }
+
+    pub fn overlay_on(&self, id: &str) -> bool {
+        !self.overlay_off.contains(id)
     }
 
     pub fn set_enabled(&mut self, id: &str, on: bool) -> crate::Result<()> {

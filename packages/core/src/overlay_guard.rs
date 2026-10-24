@@ -102,12 +102,27 @@ pub fn draws_over_the_game(m: &AddonManifest) -> bool {
     m.experimental_features.contains(&ExperimentalFeature::Overlay)
 }
 
-/// The addons on in `profile` that draw over the game, as `(id, name)` in load order.
+/// The addons on in `profile` that draw over the game, as `(id, name)` in load order, leaving out
+/// those whose drawing is turned off.
 pub fn painters(store: &Store, profile: &str) -> Vec<(String, String)> {
     let (Ok(addons), Ok(p)) = (store.addons(), store.profile(profile)) else {
         return Vec::new();
     };
     p.enabled()
+        .filter(|id| p.overlay_on(id))
+        .filter_map(|id| addons.get(id))
+        .filter(|m| draws_over_the_game(m))
+        .map(|m| (m.id.clone(), m.name.clone()))
+        .collect()
+}
+
+/// The addons on in `profile` that list the overlay but have their drawing turned off.
+pub fn switched_off(store: &Store, profile: &str) -> Vec<(String, String)> {
+    let (Ok(addons), Ok(p)) = (store.addons(), store.profile(profile)) else {
+        return Vec::new();
+    };
+    p.enabled()
+        .filter(|id| !p.overlay_on(id))
         .filter_map(|id| addons.get(id))
         .filter(|m| draws_over_the_game(m))
         .map(|m| (m.id.clone(), m.name.clone()))

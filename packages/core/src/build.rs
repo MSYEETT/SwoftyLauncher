@@ -21,7 +21,7 @@ use crate::conflicts::Report;
 use crate::erpbuild::{ErpBuild, Resized, SliceMerge, reads, unsupported, writes};
 use crate::install::{Game, LOADER_DIR, Plan};
 use crate::launcher::BuildCx;
-use crate::manifest::{AddonManifest, Strength, relative_inside};
+use crate::manifest::{AddonManifest, ExperimentalFeature, Strength, relative_inside};
 use crate::map::{TrackPackage, Unusable};
 use crate::owned;
 use crate::placed::Placed;
@@ -496,10 +496,27 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     }
     let mut runtime = Runtime::new(planner.features());
     let mut experimental: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    let mut overlay_off = Vec::new();
     for id in &resolved.order {
         for f in &addons[id].experimental_features {
+            if *f == ExperimentalFeature::Overlay && !p.overlay_on(id) {
+                overlay_off.push(id);
+                continue;
+            }
             experimental.entry(f.name()).or_default().push(&addons[id].name);
         }
+    }
+    if !overlay_off.is_empty() {
+        hasher.update(format!("overlay_off {overlay_off:?};"));
+        built.lines.push(format!(
+            "features: drawing over the game is off for {}",
+            overlay_off
+                .iter()
+                .map(|id| addons[*id].name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+        runtime.overlay_off(overlay_off.iter().map(|id| (*id).clone()).collect());
     }
     for (feature, by) in &experimental {
         runtime.enable(feature);
@@ -2944,6 +2961,85 @@ mod tests {
             "{:?}",
             on.lines
         );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn an_addon_whose_overlay_is_off_is_listed_and_the_feature_goes_when_none_draw() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-overlay-off-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        std::fs::write(dir.join(GVDB), Gvdb { records: Vec::new() }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        for (id, name) in [("t.pit", "Pit Lane"), ("t.dnf", "Canned DNFs")] {
+            let src = root.join("src").join(id);
+            std::fs::create_dir_all(&src).unwrap();
+            std::fs::write(
+                src.join("swofty.json"),
+                format!(
+                    r#"{{ "schema_version": 1, "id": "{id}", "name": "{name}", "version": "1.0.0", "author": "t",
+                         "compat": {{ "game": "f1_25" }}, "experimental_features": ["overlay"] }}"#
+                ),
+            )
+            .unwrap();
+            store.install_addon(&src).unwrap();
+            store
+                .update_profile("default", |p| p.set_enabled(id, true))
+                .unwrap();
+        }
+        let assets = |built: &Built| {
+            built
+                .plan
+                .loader
+                .get("swofty/assets.json")
+                .map(|p| serde_json::from_slice::<serde_json::Value>(&std::fs::read(p).unwrap()).unwrap())
+                .unwrap()
+        };
+        let both = build(&store, "default", &game).unwrap();
+        assert_eq!(assets(&both)["features"], serde_json::json!(["overlay"]));
+        assert_eq!(assets(&both).get("overlay_off"), None);
+
+        store
+            .update_profile("default", |p| p.set_overlay("t.pit", false))
+            .unwrap();
+        let one = build(&store, "default", &game).unwrap();
+        assert_ne!(one.buildhash, both.buildhash);
+        assert_eq!(assets(&one)["features"], serde_json::json!(["overlay"]));
+        assert_eq!(assets(&one)["overlay_off"], serde_json::json!(["t.pit"]));
+        assert!(
+            one.lines
+                .contains(&"features: drawing over the game is off for Pit Lane".to_owned()),
+            "{:?}",
+            one.lines
+        );
+
+        store
+            .update_profile("default", |p| p.set_overlay("t.dnf", false))
+            .unwrap();
+        let none = build(&store, "default", &game).unwrap();
+        assert_eq!(assets(&none).get("features"), None);
+        assert_eq!(
+            assets(&none)["overlay_off"],
+            serde_json::json!(["t.pit", "t.dnf"])
+        );
+
+        store
+            .update_profile("default", |p| p.set_overlay("t.pit", true))
+            .unwrap();
+        let back = build(&store, "default", &game).unwrap();
+        assert_eq!(assets(&back)["overlay_off"], serde_json::json!(["t.dnf"]));
+        let saved = store.profile("default").unwrap();
+        assert!(saved.overlay_on("t.pit") && !saved.overlay_on("t.dnf"));
         std::fs::remove_dir_all(&root).ok();
     }
 

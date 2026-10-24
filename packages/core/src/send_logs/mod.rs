@@ -707,6 +707,16 @@ fn overlay_lines(store: &Store, game: Option<&Path>, logs: &[(String, PathBuf)])
             names.join(", ")
         }
     ));
+    let switched: Vec<String> = crate::overlay_guard::switched_off(store, &store.active_profile())
+        .iter()
+        .map(|(id, name)| format!("{name} ({id})"))
+        .collect();
+    if !switched.is_empty() {
+        out.push(format!(
+            "  Drawing turned off in the launcher: {}",
+            switched.join(", ")
+        ));
+    }
     if let Some(off) = game.and_then(crate::overlay_guard::OverlayOff::read) {
         out.push(format!(
             "  Kept off: game/{} says {}",
