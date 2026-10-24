@@ -756,4 +756,55 @@ mod tests {
         let mut bad = serde_json::json!({"ops": [{"op": "set", "value": "x", "when": {"livery": "nope"}}]});
         assert!(render_ops(&mut bad, &m, &p).is_err());
     }
+
+    #[test]
+    fn renders_material_values_from_options() {
+        use crate::asset::{AssetOp, FileKind, OpFile};
+        use crate::ops::ErpOp;
+        let m = AddonManifest::parse(
+            r#"{
+              "schema_version": 1, "id": "a.paint", "name": "Paint", "version": "1.0.0", "author": "a",
+              "compat": { "game": "f1_25" },
+              "options": [
+                { "id": "coat", "type": "choice", "default": "1 1 1", "binds": "db",
+                  "values": [{ "value": "1 1 1", "label": "Clear" }, { "value": "0, 1, 0", "label": "Green" }] },
+                { "id": "flakes", "type": "slider", "min": 0, "max": 1, "step": 0.25, "default": 0, "binds": "db" },
+                { "id": "matte", "type": "toggle", "default": false, "binds": "db" }
+              ]
+            }"#,
+        )
+        .unwrap();
+        let mut p = Profile::new("x");
+        p.set_option(&m, "coat", serde_json::json!("0, 1, 0")).unwrap();
+        p.set_option(&m, "flakes", serde_json::json!(0.75)).unwrap();
+        p.set_option(&m, "matte", serde_json::json!(true)).unwrap();
+        let mut doc = serde_json::json!({"schema_version": 1, "ops": [{
+            "op": "set-material", "erp": "a.erp", "resource": "eaid://a/paint.material",
+            "params": {
+                "me_lacquerColour": "{{coat}}",
+                "me_flakesStrength": "{{flakes}}",
+                "me_flakesColourInfluence": ["{{flakes}}", 0, "{{matte}}"],
+                "me_lacquerRoughness": 0.1
+            }
+        }]});
+        render_ops(&mut doc, &m, &p).unwrap();
+        let file = OpFile::from_value(doc, FileKind::Erp).unwrap();
+        let AssetOp::Erp(ErpOp::SetMaterial { params, .. }) = &file.ops[0] else {
+            panic!("{:?}", file.ops[0]);
+        };
+        let values = |k: &str| params[k].values().unwrap();
+        assert_eq!(values("me_lacquerColour"), [0.0, 1.0, 0.0]);
+        assert_eq!(values("me_flakesStrength"), [0.75]);
+        assert_eq!(values("me_flakesColourInfluence"), [0.75, 0.0, 1.0]);
+        assert_eq!(values("me_lacquerRoughness"), [0.1]);
+        p.set_option(&m, "coat", serde_json::json!("1 1 1")).unwrap();
+        let mut doc = serde_json::json!({"schema_version": 1, "ops": [{"op": "set-material", "erp": "a.erp", "resource": "r",
+            "params": {"me_x": "{{coat}} x"}}]});
+        render_ops(&mut doc, &m, &p).unwrap();
+        let file = OpFile::from_value(doc, FileKind::Erp).unwrap();
+        let AssetOp::Erp(ErpOp::SetMaterial { params, .. }) = &file.ops[0] else {
+            panic!();
+        };
+        assert_eq!(params["me_x"].values().unwrap_err(), "\"x\" is not a number");
+    }
 }

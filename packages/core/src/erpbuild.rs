@@ -472,7 +472,10 @@ impl<'a> ErpBuild<'a> {
                     .ok_or_else(|| fail(format!("{resource}: no fragment 0")))?
                     .data()?;
                 for (name, value) in params {
-                    swofty_formats::material::set(&mut body, name, &value.values())
+                    let values = value
+                        .values()
+                        .map_err(|err| fail(format!("{erp}: {resource}: {name}: {err}")))?;
+                    swofty_formats::material::set(&mut body, name, &values)
                         .map_err(|err| fail(format!("{erp}: {resource}: {err}")))?;
                 }
                 res.set_fragment(0, &body)

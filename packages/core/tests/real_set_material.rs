@@ -33,7 +33,7 @@ fn sets_a_car_paint_constant_and_keeps_the_rest_of_the_material() {
         params: BTreeMap::from([
             (
                 "me_lacquerColour".to_owned(),
-                MaterialValue::Vector(vec![0.1, 1.0, 0.1]),
+                MaterialValue::Text("0.1 1 0.1".into()),
             ),
             ("me_flakesStrength".to_owned(), MaterialValue::Scalar(0.5)),
         ]),
