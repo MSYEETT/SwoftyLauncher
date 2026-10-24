@@ -2173,7 +2173,7 @@ fn weather(app: &App, live: &Live) -> Value {
     let defaults = [
         (15, "light_rain", 50),
         (25, "heavy_rain", 85),
-        (40, "overcast", 30),
+        (40, "overcast", 0),
     ];
     let kinds = [
         json!({ "value": "off", "label": "Not used" }),
@@ -2189,7 +2189,7 @@ fn weather(app: &App, live: &Live) -> Value {
     }
     for (i, (_, _, intensity)) in defaults.iter().enumerate() {
         let n = i + 1;
-        fields.push(json!({ "slider": { "id": format!("p{n}_int"), "label": format!("Change {n} intensity"), "value": intensity, "min": 0, "max": 100, "step": 5, "unit": "%" } }));
+        fields.push(json!({ "slider": { "id": format!("p{n}_int"), "label": format!("Change {n} intensity"), "value": intensity, "min": 0, "max": 100, "step": 5, "unit": "%", "help": "0% leaves it to the game" } }));
     }
     fields.push(
         json!({ "toggle": { "id": "replace", "label": "Replace the weekend's whole plan", "value": false } }),
@@ -3132,25 +3132,7 @@ fn submit(app: &mut App, host: &mut Host, live: &Live, form: &str, ev: &Value) -
             let laps = int(&v["laps"]).unwrap_or(0);
             let mut timeline = Vec::new();
             for n in 1..=3 {
-                let kind = v[format!("p{n}_kind")].as_str().unwrap_or("off");
-                if kind == "off" {
-                    continue;
-                }
-                let at = v[format!("p{n}_at")].as_f64().unwrap_or(0.0);
-                let state = v[format!("p{n}_state")].as_str().unwrap_or("clear");
-                let intensity = v[format!("p{n}_int")].as_f64().unwrap_or(50.0) / 100.0;
-                let mut p = json!({ "state": state, "intensity": intensity });
-                match kind {
-                    "lap" => {
-                        if laps <= 0 {
-                            return Err("Set the race laps to plan by lap.".into());
-                        }
-                        p["at_lap"] = json!(at.max(1.0) as i64);
-                    }
-                    "minute" => p["at_minute"] = json!(at),
-                    _ => p["at_fraction"] = json!((at / 100.0).clamp(0.0, 1.0)),
-                }
-                timeline.push(p);
+                timeline.extend(weather_point(v, n, laps)?);
             }
             if timeline.is_empty() {
                 return Err("Add at least one weather change.".into());
@@ -3455,6 +3437,30 @@ fn submit(app: &mut App, host: &mut Host, live: &Live, form: &str, ev: &Value) -
     }
 }
 
+fn weather_point(v: &Value, n: usize, laps: i64) -> Result<Option<Value>, String> {
+    let kind = v[format!("p{n}_kind")].as_str().unwrap_or("off");
+    if kind == "off" {
+        return Ok(None);
+    }
+    let at = v[format!("p{n}_at")].as_f64().unwrap_or(0.0);
+    let mut p = json!({ "state": v[format!("p{n}_state")].as_str().unwrap_or("clear") });
+    let intensity = v[format!("p{n}_int")].as_f64().unwrap_or(50.0);
+    if intensity > 0.0 {
+        p["intensity"] = json!(intensity / 100.0);
+    }
+    match kind {
+        "lap" => {
+            if laps <= 0 {
+                return Err("Set the race laps to plan by lap.".into());
+            }
+            p["at_lap"] = json!(at.max(1.0) as i64);
+        }
+        "minute" => p["at_minute"] = json!(at),
+        _ => p["at_fraction"] = json!((at / 100.0).clamp(0.0, 1.0)),
+    }
+    Ok(Some(p))
+}
+
 pub fn summary(app: &mut App) -> Value {
     let snap = app.store.snapshot().clone();
     let written = snap["written"].as_u64().unwrap_or(0);
@@ -3470,4 +3476,25 @@ pub fn summary(app: &mut App) -> Value {
         items.push(format!("Round {r}/{n}"));
     }
     json!({ "label": "CAREER", "items": items })
+}
+
+#[cfg(test)]
+mod weather_form_tests {
+    use super::*;
+
+    #[test]
+    fn a_weather_change_at_zero_intensity_leaves_it_to_the_game() {
+        let v = json!({ "p1_kind": "percent", "p1_at": 33, "p1_state": "light_rain", "p1_int": 0,
+                        "p2_kind": "lap", "p2_at": 20, "p2_state": "heavy_rain", "p2_int": 85, "p3_kind": "off" });
+        assert_eq!(
+            weather_point(&v, 1, 0).unwrap(),
+            Some(json!({ "state": "light_rain", "at_fraction": 0.33 }))
+        );
+        assert_eq!(
+            weather_point(&v, 2, 53).unwrap(),
+            Some(json!({ "state": "heavy_rain", "intensity": 0.85, "at_lap": 20 }))
+        );
+        assert!(weather_point(&v, 2, 0).is_err());
+        assert_eq!(weather_point(&v, 3, 53).unwrap(), None);
+    }
 }
