@@ -78,12 +78,14 @@ struct Target {
 
 // The resources the barrier hook watches, read without the lock. Writers hold the lock; readers only
 // load. A key keeps its slot and erase only clears its bits, so lookups never walk over tombstones.
-// When the slots run out the writer copies the live keys into a new table and publishes it; old
-// tables stay allocated, as a reader may still hold one.
+// The game names short-lived UI resources all the time, so once half the slots hold keys the writer
+// copies the live keys into a new table and publishes it, which keeps probe runs short. A replaced
+// table is freed a few seconds later, long after any reader that loaded it has returned.
 template <size_t N> class PtrSet {
     static_assert((N & (N - 1)) == 0, "a power of two");
     std::atomic<uintptr_t> key[N] = {};
     std::atomic<uint8_t> on[N] = {};
+    size_t used = 0;
 
     static size_t hash(uintptr_t k) { return size_t((k * 0x9E3779B97F4A7C15ull) >> 40) & (N - 1); }
 
@@ -97,6 +99,7 @@ template <size_t N> class PtrSet {
                 if (!claim)
                     return N;
                 key[i].store(k, std::memory_order_release);
+                used++;
                 return i;
             }
         }
@@ -117,6 +120,7 @@ public:
         return 0;
     }
     bool contains(const void *p) const { return get(p) != 0; }
+    bool half_full() const { return used * 2 >= N; }
     bool set(const void *p, uint8_t bits)
     {
         size_t i = find(uintptr_t(p), bits != 0);
@@ -142,7 +146,7 @@ enum : uint8_t { W_TONEMAP = 1, W_BACK = 2, W_HUDLESS = 4, W_UI = 8, W_DEPTH = 1
 safetyhook::InlineHook h_setname, h_barrier, h_exec;
 using Watched = PtrSet<1024>;
 std::atomic<Watched *> watched{new Watched};
-std::vector<Watched *> retired_tables;
+std::vector<std::pair<Watched *, ULONGLONG>> retired_tables;
 
 uint8_t watched_bits(const void *p)
 {
@@ -152,13 +156,23 @@ uint8_t watched_bits(const void *p)
 void watch(const void *p, uint8_t bits)
 {
     Watched *w = watched.load(std::memory_order_relaxed);
-    if (w->set(p, bits))
+    if ((!bits || !w->half_full()) && w->set(p, bits))
         return;
     auto *fresh = new Watched;
-    w->each([&](const void *k, uint8_t b) { fresh->set(k, b); });
+    w->each([&](const void *k, uint8_t b) {
+        if (k != p)
+            fresh->set(k, b);
+    });
     fresh->set(p, bits);
-    retired_tables.push_back(w);
     watched.store(fresh, std::memory_order_release);
+    ULONGLONG now = GetTickCount64();
+    std::erase_if(retired_tables, [&](const std::pair<Watched *, ULONGLONG> &r) {
+        if (now - r.second < 5000)
+            return false;
+        delete r.first;
+        return true;
+    });
+    retired_tables.emplace_back(w, now);
 }
 std::recursive_mutex lock;
 std::vector<Pass> passes;
