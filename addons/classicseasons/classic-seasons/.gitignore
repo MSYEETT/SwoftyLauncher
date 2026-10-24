@@ -3,4 +3,4 @@ build/
 art/carperf/
 art/heads/
 art/tiles/*.png
-suits/
+/suits/
