@@ -4,6 +4,7 @@
 // measurement and the image id registry. Built and run by native/test/run_hud_test.sh.
 
 #include "hud_drawlist.hpp"
+#include "hud_guard.hpp"
 
 #include <cstdio>
 #include <string>
@@ -169,6 +170,36 @@ static void test_glyphs()
     CHECK(hud::glyphs("caf\xc3\xa9") == 4, "one glyph per codepoint, as measure counts");
 }
 
+static void test_guard()
+{
+    using namespace hud::guard;
+    CHECK(fg_module("sl.dlss_g.dll") && fg_module("C:\\Games\\F1 25\\NVNGX_DLSSG.DLL"), "dlss frame generation modules count");
+    CHECK(fg_module("amd_fidelityfx_dx12.dll") && fg_module("libxess_fg.dll"), "fsr and xess frame generation modules count");
+    CHECK(!fg_module("sl.interposer.dll") && !fg_module("nvngx_dlss.dll") && !fg_module("F1_25.exe"),
+          "the interposer, dlss super resolution and the game do not");
+    CHECK(fg_in({"swofty_core.dll", "sl.interposer.dll", "F1_25.exe"}).empty(), "a plain creation stack has no frame generation");
+    CHECK(fg_in({"swofty_core.dll", "nvngx_dlssg.dll", "sl.dlss_g.dll", "F1_25.exe"}) == "nvngx_dlssg.dll",
+          "the innermost frame generation module is named");
+    CHECK(chain({"swofty_core.dll", "dxgi.dll", "sl.interposer.dll", "sl.interposer.dll", "", "F1_25.exe", "KERNEL32.DLL"},
+                "swofty_core.dll", "dxgi.dll") == "sl.interposer.dll <- F1_25.exe <- KERNEL32.DLL",
+          "the caller chain drops the core, the implementation, repeats and unknown frames");
+    CHECK(chain({"swofty_core.dll"}, "swofty_core.dll", "") == "unknown", "an empty chain reads unknown");
+    CHECK(!removal_after_draw(5000, 0), "a removal with no overlay draw is not attributed");
+    CHECK(removal_after_draw(15000, 10000), "a removal 5 s after a draw is attributed");
+    CHECK(removal_after_draw(20000, 10000) && !removal_after_draw(20001, 10000), "the window is 10 s");
+    Removal r;
+    r.when = "2026-10-24 02:52:26";
+    r.present_hr = 0x887a0005;
+    r.reason = 0x887a0006;
+    r.after_draw_ms = 4900;
+    r.swapchain_by = "sl.interposer.dll <- F1_25.exe \"q\"";
+    Removal back;
+    CHECK(parse_removal(removal_json(r), back) && back.when == r.when && back.present_hr == r.present_hr &&
+              back.reason == r.reason && back.after_draw_ms == r.after_draw_ms && back.swapchain_by == r.swapchain_by,
+          "the removal record round-trips");
+    CHECK(!parse_removal("not json", back) && !parse_removal("{}", back), "a record without a schema does not parse");
+}
+
 int main()
 {
     test_measure();
@@ -178,6 +209,7 @@ int main()
     test_registry();
     test_build_dispatch();
     test_image_registry();
+    test_guard();
     if (failures)
         printf("\n%d check(s) FAILED\n", failures);
     else

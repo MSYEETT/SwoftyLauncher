@@ -19,6 +19,7 @@ std::string core_code_owner(uintptr_t addr);
 namespace runtime {
 std::string load_stage();
 void on_stage(void (*fn)(int));
+void hud_fatal();
 }
 
 // Crash log and crash reports. The crash log writes each fatal-class exception, the top-level filter
@@ -685,6 +686,8 @@ LONG CALLBACK veh(EXCEPTION_POINTERS *e)
     }
     leave();
     if (certain) {
+        if (code != EXCEPTION_STACK_OVERFLOW)
+            runtime::hud_fatal();
         if (at.empty() && code != EXCEPTION_STACK_OVERFLOW)
             at = where(ip);
         std::string why = abort ? "the game aborted itself (Ne_FatalAbort writes 0xDEADDEAD to address 1) at " + at

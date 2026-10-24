@@ -102,10 +102,15 @@ the texture is multiplied by a tint (`0xffffffff` for none).
 You can call `on_paint`, `remove` and `load_image` at any time. Draw calls, though, are valid only
 inside a paint callback, using that callback's `paint` handle.
 
-To implement this library, find and hook the Direct3D 12 swapchain present path (`d3d12core.dll`).
-There's no present hook in the knowledge base yet.
+`native/src/core/hud.cpp` hooks the DXGI factory's `CreateSwapChain`, `CreateSwapChainForHwnd`,
+`CreateSwapChainForCoreWindow` and `CreateSwapChainForComposition` and the swapchain's `Present`. It
+records each swapchain's creation queue and the modules on the creation call stack, and draws only on
+swapchains it saw created, on their creation queue, when no frame generation module created or
+presents them. Submissions use a ring of three command lists behind one fence and never wait in
+`Present`. A device removal within 10 s of an overlay draw writes `swofty/overlay-gpu-removed.json`,
+and the overlay stays off at launch while that file exists.
 
-Status: stub. `native/src/core/hud.cpp` returns `unavailable` and the draw calls do nothing.
+Status: rectangles, outlines, lines and text draw; `image()` draws nothing.
 
 ## 3. Telemetry
 

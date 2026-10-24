@@ -85,3 +85,18 @@ Then name your plugin in `operations.native` and list the overlay in `experiment
 While your addon is on, the build turns the overlay on for that profile, and the Addons page tags your addon **Uses experimental features**. Players install your addon and nothing else. This needs launcher 1.3.7 or later.
 
 Rectangles, outlines, lines and text draw. `image()` draws nothing yet. See [feature gates](/design/native-libraries#feature-gates).
+
+## When the overlay draws
+
+The core draws the overlay only where it knows the drawing is ordered with the game's own frame. Where it doesn't draw, paint callbacks don't run, and `swofty/loader.log` says why on an `[overlay]` line.
+
+| Case | Overlay |
+|---|---|
+| A swapchain the game created after the core loaded | Draws, on the command queue the swapchain was created with |
+| A swapchain created before the core hooked swapchain creation | Doesn't draw on it |
+| A swapchain that a frame generation module (DLSS Frame Generation, FSR or XeSS frame generation) created or presents | Doesn't draw on it |
+| The GPU still holds the previous frames' overlay work | Skips drawing that frame |
+| The GPU was removed within 10 s of an overlay draw | Stops, and writes `swofty/overlay-gpu-removed.json` |
+| `swofty/overlay-gpu-removed.json` exists at launch | Off for the session: `available()` is `false` and `on_paint` returns `unavailable` |
+
+Deleting `swofty/overlay-gpu-removed.json` turns the overlay back on at the next launch. Colours are not converted for HDR output.
