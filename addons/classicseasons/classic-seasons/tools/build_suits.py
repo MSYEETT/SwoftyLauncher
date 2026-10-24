@@ -18,9 +18,10 @@ Replaced textures, every level in the archive:
   glove_logo_n become flat.
 The other textures keep their stock `.mipmaps` sidecars.
 
-Colours are the team's team_wear colours in data/team_colours.json (tools/team_colours.py), or "suit": {"colours":
-["#rrggbb", "#rrggbb", "#rrggbb"]} in data/seasons.json. A team without either takes them from its car: paint_d and the
-opaque texels of decal_da, the most common colour first, then the most common ones that differ from those before.
+Colours are, first found: "suit": {"colours": ["#rrggbb", "#rrggbb", "#rrggbb"]} or "team_wear" of the team in
+data/seasons.json, or its team_wear colours in data/team_colours.json (tools/team_colours.py). A team with none of
+them takes them from its car: paint_d and the opaque texels of decal_da, the most common colour first, then the most
+common ones that differ from those before.
 "suit": {"sponsors": [[x, y, w, h], ...]} names the decal atlas rectangles (pixels of the 2048 atlas) to use as
 sponsors, in order; without it the largest separate shapes of the atlas made of three or more parts are used, leaving
 out shapes on the atlas edge, solid shapes and mirrored copies.
@@ -400,7 +401,8 @@ def build_team(game, cars, year, team, logos):
     label = label_for(year, team, base)
     base_erp = Path(game) / "2025_asset_groups" / LIVERY / base / f"{base}.erp"
     car = erpw.Erp(str(car_archive(cars, year, team)))
-    wear = TEAM_COLOURS.get(f"cs{year % 100:02d}_{team.get('key', team['folder'])}", {}).get("team_wear")
+    wear = team.get("team_wear") or \
+        TEAM_COLOURS.get(f"cs{year % 100:02d}_{team.get('key', team['folder'])}", {}).get("team_wear")
     colours = [hexrgb(c) for c in suit.get("colours") or wear] if suit.get("colours") or wear else \
         car_colours(car, team["folder"])
     design = suit.get("design", DESIGN)
