@@ -947,6 +947,15 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     });
     let mut mipmaps = BTreeMap::new();
     let mut built_over = BTreeSet::new();
+    let name = |origin: &str| match origin.split_once(" (") {
+        Some((id, item)) => match addons.get(id) {
+            Some(m) => format!("{} ({item}", m.name),
+            None => origin.to_owned(),
+        },
+        None => addons
+            .get(origin)
+            .map_or_else(|| origin.to_owned(), |m| m.name.clone()),
+    };
     if !erp_ops.is_empty() {
         let staged = built.plan.data.clone();
         let base = |rel: &str| {
@@ -1030,15 +1039,6 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         for n in erps.take_notes() {
             built.lines.push(format!("erp: {n}"));
         }
-        let name = |origin: &str| match origin.split_once(" (") {
-            Some((id, item)) => match addons.get(id) {
-                Some(m) => format!("{} ({item}", m.name),
-                None => origin.to_owned(),
-            },
-            None => addons
-                .get(origin)
-                .map_or_else(|| origin.to_owned(), |m| m.name.clone()),
-        };
         for w in erps.check_ui(&name)? {
             built.warnings.push(format!("ui: {w}"));
         }
@@ -1098,7 +1098,17 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             ));
             if menus {
                 let lang = planner.route(Kind::Lang) == Route::Runtime;
-                for (key, value) in build_menus(&mut built, &mut session, &resolve, lang)? {
+                let writer = |erp: &str, res: &str| {
+                    let targets = [
+                        Target::Resource {
+                            erp: erp.to_owned(),
+                            uri: res.to_owned(),
+                        },
+                        Target::File(erp.to_owned()),
+                    ];
+                    planner.last_writer(&targets).map(|o| name(&o.to_string()))
+                };
+                for (key, value) in build_menus(&mut built, &mut session, &resolve, &writer, lang)? {
                     planner.push(Op {
                         op: AssetOp::Lang(LangOp::Set {
                             language: "*".into(),
@@ -1536,10 +1546,19 @@ pub fn build_menus(
     built: &mut Built,
     session: &mut SessionSettings,
     original: &dyn Fn(&str) -> PathBuf,
+    writer: &crate::ui::Writer,
     lang: bool,
 ) -> Result<Vec<(String, String)>> {
     let input = |rel: &str| built.plan.data.get(rel).cloned().unwrap_or_else(|| original(rel));
-    let menus = crate::ui::build(session, &input, &built.overlay, lang)?;
+    let writer = |erp: &str, res: &str| {
+        built
+            .plan
+            .data
+            .contains_key(erp)
+            .then(|| writer(erp, res))
+            .flatten()
+    };
+    let menus = crate::ui::build(session, &input, &writer, &built.overlay, lang)?;
     built.lines.push(format!(
         "ui: ADDON SETTINGS with {} screen(s) under {LOADER_DIR}/ui, {} game archive(s) patched",
         menus.session.len(),
@@ -1552,6 +1571,7 @@ pub fn build_menus(
         ));
     }
     built.lines.extend(menus.lines);
+    built.warnings.extend(menus.warnings);
     built.plan.data.extend(menus.erps);
     for (rel, src) in menus.screens {
         if built.plan.loader.insert(rel.clone(), src).is_some() {

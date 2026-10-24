@@ -75,7 +75,7 @@ fn menus_match_the_prototype_byte_for_byte() {
     let Some((game, oracle)) = dirs() else { return };
     let out = std::env::temp_dir().join(format!("swofty-menus-{}", std::process::id()));
     std::fs::remove_dir_all(&out).ok();
-    let built = swofty_core::ui::build(&session(), &|rel| game.join(rel), &out, true).unwrap();
+    let built = swofty_core::ui::build(&session(), &|rel| game.join(rel), &|_, _| None, &out, true).unwrap();
     let mut bad = Vec::new();
     for (rel, path) in &built.erps {
         if swofty_core::ui::era::ARCHIVES.iter().any(|a| rel.ends_with(a)) {
@@ -168,7 +168,7 @@ fn menus_and_a_map_patch_one_databases_erp() {
     };
     built.plan.data.extend(map_ui.replaced.clone());
     let mut session = session();
-    build_menus(&mut built, &mut session, &resolve, true).unwrap();
+    build_menus(&mut built, &mut session, &resolve, &|_, _| None, true).unwrap();
     assert_eq!(built.plan.data[rel], out.join("overlay").join(rel));
     for (r, src) in &map_ui.replaced {
         if !swofty_core::ui::ERPS.iter().any(|e| r.ends_with(e)) {
@@ -247,7 +247,7 @@ fn stock_dialogs_keep_their_text() {
     };
     let out = std::env::temp_dir().join(format!("swofty-menus-dialogs-{}", std::process::id()));
     std::fs::remove_dir_all(&out).ok();
-    let built = swofty_core::ui::build(&session(), &|rel| game.join(rel), &out, true).unwrap();
+    let built = swofty_core::ui::build(&session(), &|rel| game.join(rel), &|_, _| None, &out, true).unwrap();
     let rel = "2025_asset_groups/ui_package/flow_persistent.erp";
     let report = resource_report(&built.erps[rel], &game.join(rel), &POPUP);
     assert!(report.is_empty(), "{rel} changed outside the popup:\n{report}");
@@ -369,7 +369,8 @@ fn the_core_build_adds_the_era_rows() {
     };
     let out = std::env::temp_dir().join(format!("swofty-menus-era-{}", std::process::id()));
     std::fs::remove_dir_all(&out).ok();
-    let built = swofty_core::ui::build(&session(), &|rel| stock(&game, rel), &out, true).unwrap();
+    let built =
+        swofty_core::ui::build(&session(), &|rel| stock(&game, rel), &|_, _| None, &out, true).unwrap();
     assert!(
         built
             .lines
@@ -637,7 +638,7 @@ fn the_core_build_adds_the_era_rows() {
         true => built.erps[rel].clone(),
         false => stock(&game, rel),
     };
-    let twice = swofty_core::ui::build(&session(), &input, &again, true).unwrap();
+    let twice = swofty_core::ui::build(&session(), &input, &|_, _| None, &again, true).unwrap();
     for rel in era::ARCHIVES {
         assert!(
             !twice.erps.contains_key(&format!("{}/{rel}", swofty_core::ui::UI)),
@@ -691,7 +692,7 @@ fn the_era_rows_keep_what_an_addon_put_in_the_same_archive() {
     };
     built.plan.data.insert(rel.clone(), addon.clone());
     let mut session = session();
-    build_menus(&mut built, &mut session, &|r| stock(&game, r), true).unwrap();
+    build_menus(&mut built, &mut session, &|r| stock(&game, r), &|_, _| None, true).unwrap();
     assert_eq!(built.plan.data[&rel], addon);
     let names: Vec<String> = Erp::parse(&std::fs::read(&addon).unwrap())
         .unwrap()
@@ -709,4 +710,87 @@ fn the_era_rows_keep_what_an_addon_put_in_the_same_archive() {
             .any(|l| l.contains("era picker gets Built In and Addons rows"))
     );
     std::fs::remove_dir_all(&out).ok();
+}
+
+#[test]
+fn an_addon_era_picker_swofty_cannot_edit_is_left_as_it_is() {
+    use swofty_core::build::{Built, build_menus};
+    use swofty_core::ui::era;
+    use swofty_formats::erp::{Entry, ErpFile};
+
+    let Some(game) = std::env::var_os("F1_25_DIR").map(PathBuf::from) else {
+        eprintln!("F1_25_DIR is not set; skipping");
+        return;
+    };
+    let out = std::env::temp_dir().join(format!("swofty-menus-era-odd-{}", std::process::id()));
+    std::fs::remove_dir_all(&out).ok();
+    let overlay = out.join("overlay");
+    let ui = |rel: &str| format!("{}/{rel}", swofty_core::ui::UI);
+    let (odd_rel, other) = (ui(era::ARCHIVES[1]), ui(era::ARCHIVES[0]));
+    let addon = out.join("addon").join(&odd_rel);
+    std::fs::create_dir_all(addon.parent().unwrap()).unwrap();
+    let file = ErpFile::open(&stock(&game, &odd_rel)).unwrap();
+    let mut res = file.load(file.erp.find(era::UI).unwrap()).unwrap();
+    let mut odd = res.fragments[era::UI_FRAGMENT].data().unwrap();
+    odd.extend_from_slice(&[0; 4]);
+    res.set_fragment(era::UI_FRAGMENT, &odd).unwrap();
+    let entries: Vec<Entry> = file
+        .erp
+        .resources
+        .iter()
+        .map(|r| match r.name == era::UI {
+            true => Entry::Owned(res.clone()),
+            false => Entry::Copy(r),
+        })
+        .collect();
+    file.write(entries, &addon).unwrap();
+
+    let mut built = Built {
+        overlay: overlay.clone(),
+        ..Built::default()
+    };
+    built.plan.data.insert(odd_rel.clone(), addon.clone());
+    let writer = |erp: &str, res: &str| (res == era::UI).then(|| format!("Season mod ({erp})"));
+    build_menus(&mut built, &mut session(), &|r| stock(&game, r), &writer, true).unwrap();
+    assert_eq!(built.plan.data[&odd_rel], addon);
+    assert_eq!(ui_of(&addon), odd);
+    assert_eq!(built.plan.data[&other], overlay.join(&other));
+    assert!(era::has_rows(&ui_of(&built.plan.data[&other])).unwrap());
+    let skipped: Vec<&String> = built
+        .warnings
+        .iter()
+        .filter(|w| w.contains("era picker"))
+        .collect();
+    assert_eq!(skipped.len(), 1, "{:?}", built.warnings);
+    assert!(
+        skipped[0].starts_with(&format!(
+            "ui: Season mod ({odd_rel}) has its own copy of the era picker in {},",
+            era::ARCHIVES[1]
+        )),
+        "{}",
+        skipped[0]
+    );
+    assert!(
+        built
+            .lines
+            .iter()
+            .any(|l| l.contains("era picker gets Built In and Addons rows in 1 archive(s)")),
+        "{:?}",
+        built.lines
+    );
+
+    let mut built = Built {
+        overlay: out.join("again"),
+        ..Built::default()
+    };
+    built.plan.data.insert(odd_rel.clone(), addon.clone());
+    let e = build_menus(
+        &mut built,
+        &mut session(),
+        &|r| stock(&game, r),
+        &|_, _| None,
+        true,
+    );
+    std::fs::remove_dir_all(&out).ok();
+    assert!(e.unwrap_err().to_string().contains("does not round-trip"));
 }
