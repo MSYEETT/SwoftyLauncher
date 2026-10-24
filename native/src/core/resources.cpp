@@ -12,6 +12,10 @@
 #include <unordered_map>
 #include <unordered_set>
 
+namespace runtime {
+std::string hook_error(const safetyhook::MidHook::Error &e);
+}
+
 namespace {
 
 const runtime::Sig S_SITE{"site_Asset_ResMap_AfterFindOrCreate", "4C 8B BC 24 80 00 00 00 84 C0 74 83", 0x3a67976};
@@ -978,8 +982,8 @@ void setup()
         return;
     auto h = safetyhook::MidHook::create(reinterpret_cast<void *>(at), site);
     if (!h) {
-        swofty::log("[assets] resources: first-reader trace site at base+0x%llx failed",
-                    (unsigned long long)(at - swofty::api->module_base()));
+        swofty::log("[assets] resources: first-reader trace site at base+0x%llx failed: %s",
+                    (unsigned long long)(at - swofty::api->module_base()), runtime::hook_error(h.error()).c_str());
         return;
     }
     site_hook = std::move(*h);

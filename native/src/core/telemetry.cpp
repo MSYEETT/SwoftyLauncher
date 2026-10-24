@@ -7,6 +7,10 @@
 #include <atomic>
 #include <mutex>
 
+namespace runtime {
+std::string hook_error(const safetyhook::MidHook::Error &e);
+}
+
 // Typed read access to live session and car state, and the shared-memory feed external tools
 // read. The table stays unavailable until the telemetry feature is on (experimental) and a
 // session is live. The per-frame tick, the session start and the results finalise are observed
@@ -189,8 +193,8 @@ void hook(safetyhook::MidHook &slot, const runtime::Sig &sig, safetyhook::MidHoo
         return;
     auto h = safetyhook::MidHook::create(reinterpret_cast<void *>(at), fn);
     if (!h) {
-        swofty::log("[telemetry] mid hook on %s at base+0x%llx failed", sig.what,
-                    (unsigned long long)(at - swofty::api->module_base()));
+        swofty::log("[telemetry] mid hook on %s at base+0x%llx failed: %s", sig.what,
+                    (unsigned long long)(at - swofty::api->module_base()), runtime::hook_error(h.error()).c_str());
         return;
     }
     slot = std::move(*h);

@@ -10,6 +10,10 @@
 #include "json.hpp"
 #include "perf.hpp"
 
+namespace runtime {
+std::string hook_error(const safetyhook::MidHook::Error &e);
+}
+
 bool ui_vm_init(uintptr_t module_base, const std::wstring &swofty_dir);
 bool ui_vm_attach(const std::string &screen);
 
@@ -706,7 +710,8 @@ void mid(safetyhook::MidHook &h, const Target &t, void (*fn)(safetyhook::Context
         return;
     auto r = safetyhook::MidHook::create(reinterpret_cast<void *>(at + t.anchor), fn);
     if (!r) {
-        swofty::log("[ui] %s: mid hook at base+0x%llx failed", what, (unsigned long long)(at + t.anchor - base));
+        swofty::log("[ui] %s: mid hook at base+0x%llx failed: %s", what, (unsigned long long)(at + t.anchor - base),
+                    runtime::hook_error(r.error()).c_str());
         return;
     }
     h = std::move(*r);

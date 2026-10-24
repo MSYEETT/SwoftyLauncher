@@ -11,6 +11,10 @@
 #include <utility>
 #include <vector>
 
+namespace runtime {
+std::string hook_error(const safetyhook::MidHook::Error &e);
+}
+
 std::string settings_addon(const void *from, std::string &dll);
 
 namespace {
@@ -180,10 +184,12 @@ safetyhook::MidHook mid(const runtime::Sig &s, void (*fn)(safetyhook::Context &)
         return {};
     auto h = safetyhook::MidHook::create(reinterpret_cast<void *>(at), fn);
     if (!h) {
-        swofty::log("[events] %s at base+0x%llx: MidHook failed", s.what, (unsigned long long)s.rva);
+        swofty::log("[events] %s at base+0x%llx: the hook failed: %s", s.what,
+                    (unsigned long long)(at - swofty::api->module_base()),
+                    runtime::hook_error(h.error()).c_str());
         return {};
     }
-    swofty::log("[events] %s hooked at base+0x%llx", s.what, (unsigned long long)s.rva);
+    swofty::log("[events] %s hooked at base+0x%llx", s.what, (unsigned long long)(at - swofty::api->module_base()));
     return std::move(*h);
 }
 
