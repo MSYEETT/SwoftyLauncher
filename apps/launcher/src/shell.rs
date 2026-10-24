@@ -646,6 +646,18 @@ impl Shell {
         cx.notify();
     }
 
+    /// The copy addon panels work with: the one a running game belongs to,
+    /// else the one Play uses.
+    pub(crate) fn panel_install(&self) -> Option<Install> {
+        self.owners
+            .iter()
+            .find_map(|o| match o {
+                Owner::Other(i) => Some(i.clone()),
+                _ => None,
+            })
+            .or_else(|| self.install.clone())
+    }
+
     fn attribute(&mut self) {
         self.owners = self
             .processes
