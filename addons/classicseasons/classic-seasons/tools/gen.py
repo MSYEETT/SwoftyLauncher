@@ -193,7 +193,7 @@ def season_manifest(core, year, assets):
     return {
         "schema_version": 1,
         "id": f"{core['id']}-{year}",
-        "name": f"Classic Seasons: F1 {year}",
+        "name": f"Classic Seasons: F1 {year} GP/TT Addon",
         "version": core["version"],
         "author": core["author"],
         "description": f"The F1 {year} season for Classic Seasons: its cars, teams and drivers in Grand Prix and "
