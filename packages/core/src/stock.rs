@@ -28,6 +28,9 @@ const METADATA: u32 = 0x1F48_12BE;
 const END: u32 = 0x32C4_15AB;
 const DIRECTORY: u32 = 0x40;
 
+/// Opens Steam's Verify integrity of game files for F1 25.
+pub const STEAM_VERIFY_URL: &str = "steam://validate/3059520";
+
 /// EA AntiCheat's launcher files sit in the game root as `EAAntiCheat.*`. EA
 /// rewrites the launcher exe and its dll on a normal start, so their sizes
 /// drift from Steam's. Modded sessions never use them, so a drifted one is
@@ -441,10 +444,10 @@ impl Report {
 
     pub fn text(&self) -> String {
         format!(
-            "F1 25 was not started. {} {} changed outside the launcher, and the launcher can't \
-             continue until the game is back to the files Steam installed. To fix it, open Steam, \
-             right-click F1 25 > Properties > Installed Files > Verify integrity of game files, \
-             then press Play again.",
+            "F1 25 was not started. {} {} changed outside the launcher, usually by a mod copied \
+             into the game folder by hand. Verifying the game files in Steam puts Steam's copies \
+             back: open {STEAM_VERIFY_URL}, or right-click F1 25 in Steam > Properties > Installed \
+             Files > Verify integrity of game files. Then press Play again.",
             names(&self.files),
             if self.files.len() == 1 { "was" } else { "were" }
         )

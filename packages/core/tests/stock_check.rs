@@ -108,6 +108,7 @@ fn a_broken_baseline_stops_until_the_game_is_verified_then_backs_up_steams_copy(
     let text = stock::Report::new(c.foreign, &f.game.dir).text();
     assert!(text.starts_with("F1 25 was not started. databases.erp was changed outside the launcher"));
     assert!(text.contains("Verify integrity of game files"));
+    assert!(text.contains(stock::STEAM_VERIFY_URL));
 
     f.write(DB, b"stock db");
     let c = stock::check(&f.data, &f.game, &d).unwrap();
@@ -234,6 +235,7 @@ fn a_new_original_is_checked_before_it_is_backed_up() {
         err.to_string()
             .contains("databases.erp is not the copy Steam installed")
     );
+    assert!(err.to_string().contains("open steam://validate/3059520"));
     assert!(
         !f.objects().has(&sha256_file(&f.game.dir.join(DB)).unwrap()),
         "nothing was backed up"
@@ -353,4 +355,12 @@ fn baseline_json(data: &Path) -> PathBuf {
         .map(|e| e.path().join("baseline.json"))
         .find(|p| p.is_file())
         .unwrap()
+}
+
+#[test]
+fn the_verify_link_opens_steams_check_for_f1_25() {
+    assert_eq!(
+        stock::STEAM_VERIFY_URL,
+        format!("steam://validate/{}", swofty_core::STEAM_APP_ID)
+    );
 }
