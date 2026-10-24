@@ -227,6 +227,7 @@ impl ExperimentalFeature {
         match self {
             Self::Overlay => "Draws over the game",
             Self::Shaders => "Changes the picture",
+            Self::Postfx => "Changes the picture",
         }
     }
 }
