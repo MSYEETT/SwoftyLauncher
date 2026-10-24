@@ -95,6 +95,41 @@ pub fn find_game_in(steam_root: &Path) -> Option<GameInstall> {
     })
 }
 
+const VALIDATING: u64 = 0x2_0000;
+// EAppState bits for a running update, uninstall or backup, and the stages of
+// a download: Steam is writing the game's files.
+const CHANGING: u64 = 0x100
+    | 0x400
+    | 0x800
+    | 0x1000
+    | 0x1_0000
+    | 0x4_0000
+    | 0x8_0000
+    | 0x10_0000
+    | 0x20_0000
+    | 0x40_0000
+    | 0x80_0000;
+
+/// What Steam is doing to the game's files, from the `StateFlags` of its app
+/// manifest: "verifying" while it validates them, "updating" while it
+/// changes them any other way, None when it leaves them alone.
+pub fn busy(install: &GameInstall) -> Option<&'static str> {
+    let acf = read_vdf(
+        &install
+            .library
+            .join("steamapps")
+            .join(format!("appmanifest_{STEAM_APP_ID}.acf")),
+    )?;
+    let flags: u64 = acf.path(&["AppState", "StateFlags"])?.str()?.parse().ok()?;
+    if flags & VALIDATING != 0 {
+        Some("verifying")
+    } else if flags & CHANGING != 0 {
+        Some("updating")
+    } else {
+        None
+    }
+}
+
 /// True when `dir` is a Steam copy of the game: it sits in a library's
 /// `steamapps/common` next to the app's manifest.
 pub fn in_steam_library(dir: &Path) -> bool {
@@ -239,6 +274,25 @@ mod tests {
         let g = find_game_in(&root).unwrap();
         assert_eq!(g.dir, lib.join("steamapps/common/F1 25"));
         assert_eq!(g.build_id, Some(25_251_167));
+        assert_eq!(busy(&g), None);
+        for (flags, state) in [
+            ("4", None),
+            ("6", None),
+            ("131076", Some("verifying")),
+            ("1030", Some("updating")),
+        ] {
+            std::fs::write(
+                lib.join("steamapps/appmanifest_3059520.acf"),
+                format!(r#""AppState" {{ "appid" "3059520" "installdir" "F1 25" "StateFlags" "{flags}" }}"#),
+            )
+            .unwrap();
+            assert_eq!(busy(&g), state, "{flags}");
+        }
+        std::fs::write(
+            lib.join("steamapps/appmanifest_3059520.acf"),
+            r#""AppState" { "appid" "3059520" "installdir" "F1 25" "buildid" "25251167" }"#,
+        )
+        .unwrap();
         assert!(g.prefix().unwrap().ends_with("compatdata/3059520/pfx"));
         assert!(in_steam_library(&g.dir));
         assert!(!in_steam_library(&root.join("steamapps/common/F1 25")));

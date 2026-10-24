@@ -117,6 +117,12 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     if args.apply {
         crate::setup::gate(store)?;
     }
+    if let Some(state) = swofty_core::steam::find_game()
+        .filter(|i| swofty_core::copies::same_dir(&i.dir, &game))
+        .and_then(|i| swofty_core::steam::busy(&i))
+    {
+        bail!("Steam is {state} F1 25; wait for it to finish, then press Play again");
+    }
     match crate::ea::store_start(Source::detect(&game), args.direct) {
         crate::ea::StoreStart::EaApp => {
             if args.apply {
