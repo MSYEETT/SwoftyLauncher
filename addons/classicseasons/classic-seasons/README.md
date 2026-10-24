@@ -62,6 +62,16 @@ New drivers (Nasr, Gutiérrez, Vandoorne, Hartley, Sirotkin, Haryanto) use drive
 
 With a season of more than ten teams, the shared addon adds a `track_data.track_layers` row for `swofty_f1` (seasons 2023 to 2025) with the `f1_26` worlds, which have an eleventh garage, and removes `swofty_f1` from the `f1` track layer.
 
+## Performance
+
+`data/performance.json` (tools/performance.py) holds, per season, each team's median qualifying gap to the fastest team in percent, each driver's median gap to his teammate, and each driver's pace rating on F1 25's 0 to 100 scale (10 points per 1 % of lap time, fitted to `data/stock_pace.json`, the stock ratings of the drivers who race in F1 25). The qualifying times come from the Jolpica F1 API, cached in `build/jolpica/`.
+
+```sh
+python3 tools/performance.py [--refresh]
+```
+
+Outside career, a car's pace comes from its handling file, not from the upgrade trees (`upgrades.2026.trees.*`).
+
 ## Plugin
 
 At load it registers one box per season with `swofty::era::add_box` (`swofty/era.hpp`): entrant list `cs_f1_<year>`, title `lng_cs_f1_<year>`, image `#overrides.home_screen.tiles_solo_6x6[cs_f1_<year>]`, in year order. swofty.core builds them in the Addons row of the Grand Prix and Time Trial era picker, skips a season that is not installed and narrows `swofty_f1` to the pressed season.
@@ -119,6 +129,7 @@ python3 tools/build_helmets.py --downloads ~/Downloads --game <F1 25>
 - Caps every non-livery texture and shipped sidecar at 1024 px.
 - Moves the cockpit camera of a season with `cockpit_camera` (`up` and `forward`, in metres) in `data/seasons.json`, and sets the TV pod cameras' near clip of a season with `pod_camera` (`near_clip`, in metres; stock 0.23 m on CamPod) (tools/cameras.py).
 - Turns off `UseModelPositions` in every handling file, so the wheels sit at the handling file's positions instead of the model's (tools/handling.py).
+- Sets every handling file to its team's pace (tools/pace.py): the stock 2025 teams' mean `F1Aero` wing coefficients, and per 1 % of the team's median qualifying gap to the season's fastest team (`data/performance.json`) front and rear lift multipliers 0.045 below 0.95 (no lower than 0.72), `Chassis` `Mass` 12 kg over 798 kg and body drag 2 % over the stock mean. `python3 tools/pace.py --years <range>` sets them on built cars.
 - Renames the tyre set (`shared/tyres/`) of a season with its own `common.erp` with the rest, and adds a `Tyres` override naming it (`tyre model`, `tyre wet model`, `material`, `wet material`) to every car and showroom model layer (tools/tyres.py). The car templates in `eaid://wote/types` name the stock tyre set.
 
 ```sh
