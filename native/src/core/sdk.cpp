@@ -274,6 +274,7 @@ void ready()
     events_setup();
     hud_setup();
     grade_setup();
+    postfx_setup();
     telemetry_setup();
     perf::start();
 }
