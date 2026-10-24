@@ -100,3 +100,5 @@ The launcher refuses modded launches while a replaced database file is in the ga
 ## When a change no longer applies
 
 A change to a row that's gone, such as a row a game update removed, is skipped when the profile builds. The launch log names the addon and the change.
+
+A row count above the rows its table has, such as **Events** on **Track lists** raised without new events, stays at the rows the table has when the profile builds, and in **Export game files**. The launch log names the addon and the table. The game reads every row up to the count, and a missing row crashes it at launch.
