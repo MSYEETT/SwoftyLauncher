@@ -6,8 +6,6 @@ Classic Seasons is ten addons in `addons/classicseasons/`. This folder is the sh
 
 Cars: fanfreluche (Fanfreluche aka totolab), "F1 <year> cars for F1 25", used with permission.
 
-Suits: Dromodf (2018 Red Bull suits), used with permission.
-
 Code Creation and Asset Importing: Swofty. Supported by AMO Motorsport (https://discord.gg/amocommunity).
 
 The car, suit and head archives are not in the repository. The built packages, each season's `.swoftyaddon` with its cars and the shared addon's, are on the `classic-seasons-<version>` release; install the shared addon and any seasons through the launcher.
