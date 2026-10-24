@@ -792,6 +792,8 @@ mod tests {
             "} SwoftyCareerState;",
             "#define SWOFTY_EVENT_SESSION_START \"session.start\"",
             "#define SWOFTY_TELEMETRY_VERSION 1",
+            "#define SWOFTY_OVERLAY_VERSION 2",
+            "} SwoftyTextStyle;",
             "SWOFTY_DB_BOOL = 5",
             "} SwoftyTelemetryFeed;",
         ] {
@@ -942,6 +944,15 @@ mod tests {
             "void text(",
             "Result load_image(",
             "Result image(",
+            "inline bool v2()",
+            "void rect_rounded(",
+            "void arc(",
+            "void polyline(",
+            "struct TextStyle",
+            "Result image_nine(",
+            "void push_clip(",
+            "Rect safe_area(",
+            "float ui_scale(",
         ] {
             assert!(OVERLAY_HEADER.contains(name), "{name}");
         }
