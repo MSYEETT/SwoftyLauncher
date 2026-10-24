@@ -130,6 +130,14 @@ pub struct SessionAddon {
     pub enable_commands: [String; 2],
     #[serde(default)]
     pub options: Vec<SessionOption>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mfd: Option<SessionMfd>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionMfd {
+    pub title: String,
+    pub rows: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -262,6 +270,10 @@ impl SessionSettings {
                             .collect(),
                     })
                     .collect(),
+                mfd: m.hud.as_ref().and_then(|h| h.mfd.as_ref()).map(|f| SessionMfd {
+                    title: f.title.clone().unwrap_or_else(|| m.name.clone()),
+                    rows: f.rows.clone(),
+                }),
             })
             .collect();
         let out = Self {

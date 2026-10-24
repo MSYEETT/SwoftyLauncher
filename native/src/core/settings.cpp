@@ -9,6 +9,8 @@
 #include "json.hpp"
 #include "swofty_api.h"
 
+bool ui_vm_set_path(const std::string &path, int type, const void *value);
+
 namespace {
 
 enum { SET = 1, ENABLE, RESTART };
@@ -45,6 +47,10 @@ struct Command {
     size_t addon, option, state;
 };
 
+struct MfdRow {
+    size_t addon, option;
+};
+
 struct Owner {
     int addon;
     std::string dll;
@@ -59,6 +65,7 @@ unsigned long long seq;
 std::string profile;
 std::wstring requests;
 std::vector<AddonSettings> addons;
+std::vector<MfdRow> mfd_rows;
 std::unordered_map<uint32_t, Command> commands;
 std::unordered_map<HMODULE, Owner> owners;
 std::set<std::string> warned;
@@ -297,6 +304,11 @@ void settings_attach(SwoftyApi *a, const std::wstring &dir)
             else
                 m.options.push_back(std::move(o)), count++;
         }
+        bool on = jm["enabled"].type == json::Value::Bool ? jm["enabled"].b : true;
+        for (auto &r : jm["mfd"]["rows"].a)
+            for (size_t j = 0; on && j < m.options.size(); j++)
+                if (m.options[j].id == r.str() && mfd_rows.size() < 8)
+                    mfd_rows.push_back({addons.size(), j});
         addons.push_back(std::move(m));
     }
     for (size_t i = 0; i < addons.size(); i++) {
@@ -386,6 +398,9 @@ bool settings_command(uint32_t hash)
     ReleaseSRWLockExclusive(&lock);
     if (o)
         api->log("[settings] %s.%s = %s", m->id.c_str(), o->id.c_str(), o->states[c.state].text.c_str());
+    for (size_t k = 0; o && k < mfd_rows.size(); k++)
+        if (mfd_rows[k].addon == c.addon && mfd_rows[k].option == c.option)
+            ui_vm_set_path("ui_menu_data.swofty.m" + std::to_string(k), 0, o->states[c.state].text.c_str());
     else if (m)
         api->log("[settings] %s: %s from the next launch", m->id.c_str(), c.state ? "enabled" : "disabled");
     else

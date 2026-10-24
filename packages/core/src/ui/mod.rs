@@ -2,6 +2,7 @@ pub mod catalog;
 pub mod check;
 pub mod era;
 pub mod idf;
+pub mod mfd;
 pub mod node;
 pub mod pages;
 pub mod patch;
@@ -14,7 +15,7 @@ use swofty_formats::erp::{Entry, ErpFile, Resource};
 use crate::builtin::CORE_ID;
 use crate::settings::{SessionScreen, SessionSettings, UI_DIR, screen_file};
 use crate::{Error, Result, io_err};
-use node::err;
+use node::{boolv, err, s, uidb_var};
 use pages::{ADJUST_TOOLTIP, HOME, Sources, TILES};
 use patch::Popup;
 
@@ -101,6 +102,7 @@ fn write_archive(
             .ok_or_else(|| err(format!("{name} has no fragment {index}")))?;
         let data = f(&frag.data()?)?;
         res.set_fragment(index, &data)?;
+        res.repair_stats()?;
         owned.insert(name.to_owned(), res);
     }
     let mut extra = Vec::new();
@@ -159,6 +161,36 @@ fn core_version(settings: &SessionSettings) -> String {
         .find(|m| m.id == CORE_ID)
         .map(|m| m.version.clone())
         .unwrap_or_else(|| crate::builtin::core_manifest().version.to_string())
+}
+
+pub struct MfdRow {
+    pub addon: String,
+    pub option: String,
+    pub label: String,
+    pub text: String,
+}
+
+pub fn mfd_rows(settings: &SessionSettings) -> Vec<MfdRow> {
+    let mut out = Vec::new();
+    for a in settings.addons.iter().filter(|a| a.enabled) {
+        let Some(m) = &a.mfd else { continue };
+        for id in &m.rows {
+            if let Some(o) = a.options.iter().find(|o| &o.id == id) {
+                out.push(MfdRow {
+                    addon: a.id.clone(),
+                    option: o.id.clone(),
+                    label: o.label.clone(),
+                    text: o
+                        .states
+                        .get(o.current)
+                        .map(|s| s.text.clone())
+                        .unwrap_or_default(),
+                });
+            }
+        }
+    }
+    out.truncate(swofty_addon::manifest::MFD_ROWS_MAX);
+    out
 }
 
 pub fn build(
@@ -243,7 +275,18 @@ pub fn build(
         .collect();
     let mut groups: Vec<&str> = vec![HOME, "fe_home.mod_menu"];
     groups.extend(pages.iter().map(|(_, s)| s.as_str()));
-    let state = pages::state_entries(&flow)?;
+    let mut state = pages::state_entries(&flow)?;
+    let mfd_rows = mfd_rows(settings);
+    if !mfd_rows.is_empty() {
+        state.push((
+            "mfd_enabled".to_owned(),
+            uidb_var("mfd_enabled", "bool", boolv(true)),
+        ));
+        for (k, r) in mfd_rows.iter().enumerate() {
+            let name = format!("m{k}");
+            state.push((name.clone(), uidb_var(&name, "uistring", s(&r.text))));
+        }
+    }
     let popup = Popup::for_version(&core_version(settings));
     let show_panel = panel_shown(settings);
 
@@ -251,34 +294,34 @@ pub fn build(
     let (src_p, dst_p) = erp("persistent.erp");
     let routes_out = std::cell::RefCell::new(Vec::new());
     let flows_out = std::cell::RefCell::new(Vec::new());
-    write_erp(
-        &src_p,
-        &dst_p,
-        vec![
-            (
-                ROUTES,
-                Box::new(|d| {
-                    let b = patch::routes(
-                        d,
-                        patch::route_groups(&pages),
-                        patch::screen_route_groups(&addon_groups),
-                    )?;
-                    *routes_out.borrow_mut() = b.clone();
-                    Ok(b)
-                }),
-            ),
-            (
-                FLOWS,
-                Box::new(|d| {
-                    let b = patch::flow_entries(d, OPTIONS_FLOW, &listed)?;
-                    *flows_out.borrow_mut() = b.clone();
-                    Ok(b)
-                }),
-            ),
-            (REGIONS, Box::new(|d| patch::regions(d, &listed))),
-            (GAME_ROUTES, Box::new(|d| patch::anchor_routes(d, &opened))),
-        ],
-    )?;
+    let mut persistent: Vec<(&str, Patch)> = vec![
+        (
+            ROUTES,
+            Box::new(|d| {
+                let b = patch::routes(
+                    d,
+                    patch::route_groups(&pages),
+                    patch::screen_route_groups(&addon_groups),
+                )?;
+                *routes_out.borrow_mut() = b.clone();
+                Ok(b)
+            }),
+        ),
+        (
+            FLOWS,
+            Box::new(|d| {
+                let b = patch::flow_entries(d, OPTIONS_FLOW, &listed)?;
+                *flows_out.borrow_mut() = b.clone();
+                Ok(b)
+            }),
+        ),
+        (REGIONS, Box::new(|d| patch::regions(d, &listed))),
+        (GAME_ROUTES, Box::new(|d| patch::anchor_routes(d, &opened))),
+    ];
+    if !mfd_rows.is_empty() {
+        persistent.push((mfd::METADATA, Box::new(mfd::metadata)));
+    }
+    write_erp(&src_p, &dst_p, persistent)?;
     let registered: BTreeMap<String, String> = listed.iter().map(|n| (n.clone(), FLOW.to_owned())).collect();
     problems.extend(check::routes(
         &routes_out.borrow(),
@@ -339,6 +382,36 @@ pub fn build(
     )?;
 
     let mut build = MenuBuild::default();
+    if !mfd_rows.is_empty() {
+        let rows: Vec<mfd::Row> = mfd_rows
+            .iter()
+            .enumerate()
+            .map(|(k, r)| mfd::Row {
+                label: r.label.clone(),
+                value: mfd::value_path(k),
+            })
+            .collect();
+        for rel in mfd::TEMPLATE_ERPS {
+            let (src, dst) = erp(rel);
+            write_erp(
+                &src,
+                &dst,
+                vec![(mfd::TEMPLATES, Box::new(|d| mfd::templates(d, &rows)))],
+            )?;
+            build.erps.insert(ui_file(rel), dst);
+        }
+        build.lines.push(format!(
+            "ADDONS MFD page: {} row(s) from {}",
+            mfd_rows.len(),
+            mfd_rows
+                .iter()
+                .map(|r| r.addon.as_str())
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
     let eras = era_rows(input, writer, out, &mut build.lines, &mut build.warnings)?;
     if lang {
         build.strings = popup.strings();
