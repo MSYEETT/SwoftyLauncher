@@ -45,6 +45,8 @@ The build also fills gaps in the archive:
 
 Each clone copies all source-row keys listed in `track_tables.json`, plus any keys named by your manifest's overrides. The table's `_<row>_instancecount_` grows by one.
 
+A database mod built from a whole game database sets the records it holds to its own copy's values. Where that is the game's own value of a record a track changes, the track's value stays, and a track list the mod rewrites keeps the tracks added to it.
+
 Some sub-table names in `F1_25.exe` exist only as strings built on the stack. To collect every name the game-DB readers use, including those stack-built names, use `tools/track_keys.py`.
 
 ## Menus

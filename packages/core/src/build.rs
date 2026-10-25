@@ -866,14 +866,31 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             .map(|r| r.key)
             .filter(|k| !stock.contains(k))
             .collect();
+        let shipped_db = Gvdb::parse(&shipped)?;
+        let track_changes = match maps.is_empty() {
+            true => Vec::new(),
+            false => crate::tracks::changed_records(&db, &shipped_db),
+        };
         let staged = (planner.route(Kind::Db) == Route::Runtime && planner.has_db()).then(|| db.clone());
         let mut db_report = crate::ops::DbReport::default();
         let added = planner.apply_db_report(&mut db, &stock, &tracked, &mut db_report)?;
         built.lines.extend(db_report.lines);
         built.warnings.extend(db_report.warnings);
         built.warnings.extend(planner.take_skipped());
+        let mut kept: BTreeMap<String, usize> = BTreeMap::new();
+        for key in crate::tracks::keep_changes(&mut db, &shipped_db, &track_changes) {
+            let by = planner
+                .record_writer(key)
+                .map_or("database", |id| addons.get(id).map_or(id, |m| m.name.as_str()));
+            *kept.entry(by.to_owned()).or_default() += 1;
+        }
+        for (by, n) in kept {
+            built.lines.push(format!(
+                "{by}: kept the tracks' changes to {n} database value(s) it sets back to the game's own"
+            ));
+        }
         if !left_codes.is_empty() {
-            let weekends = crate::tracks::restore_weekends(&mut db, &Gvdb::parse(&shipped)?, &left_codes);
+            let weekends = crate::tracks::restore_weekends(&mut db, &shipped_db, &left_codes);
             built.warnings.extend(weekends);
         }
         if let Ok(cat) = crate::dbedit::Catalog::open(store, game) {
@@ -2822,6 +2839,116 @@ mod tests {
         assert_eq!(out.get_text("tracks._Track_instancecount_").as_deref(), Some("2"));
         assert!(out.get("stock.key_0").is_none());
         assert!(out.get("mod.key_0").is_none());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn keeps_the_track_changes_a_whole_database_mod_carries_back() {
+        use swofty_formats::gvdb::Record;
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-trackkeep-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        let slot = dir.join(slot_file(SLOTS[0]));
+        std::fs::create_dir_all(slot.parent().unwrap()).unwrap();
+        std::fs::write(&slot, archive(&["eaid://ui_package/slot.uil"], 0)).unwrap();
+        let res = "tracks.track_resource.TrackResource_0";
+        let set = "track_data.game_setup.TrackDataSet_0";
+        let list = "content_sets.content_set_0.available_tracks_0.tracks";
+        let records = vec![
+            Record::new("tracks._Track_instancecount_", 0, "1"),
+            Record::new("tracks.Track_0._metadata_", 2, "melbourne"),
+            Record::new("tracks.Track_0.statId", 0, "5"),
+            Record::new("tracks.Track_0.track_resource", 2, "2019"),
+            Record::new("tracks.track_resource._TrackResource_instancecount_", 0, "1"),
+            Record::new(&format!("{res}._metadata_"), 2, "2019"),
+            Record::new(&format!("{res}.iblAssetGroupsRoot"), 2, "probes/"),
+            Record::new(&format!("{res}.iblKey"), 2, "key_2019.assetgroup"),
+            Record::new("track_data.game_setup._TrackDataSet_instancecount_", 0, "1"),
+            Record::new(&format!("{set}._metadata_"), 2, "f1"),
+            Record::new(&format!("{set}._TrackData_instancecount_"), 0, "1"),
+            Record::new(&format!("{set}.TrackData_0._metadata_"), 2, "melbourne"),
+            Record::new(&format!("{set}.TrackData_0.track"), 2, "melbourne"),
+            Record::new("content_sets._content_set_instancecount_", 0, "1"),
+            Record::new("content_sets.content_set_0._metadata_", 2, "2025"),
+            Record::new(
+                "content_sets.content_set_0._available_tracks_instancecount_",
+                0,
+                "1",
+            ),
+            Record::new(list, 13, "melbourne"),
+            Record::new("stock.key_0", 0, "0"),
+        ];
+        std::fs::write(dir.join(GVDB), Gvdb { records }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir: dir.clone(),
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let install = |id: &str, name: &str, ops: &str, track: bool| {
+            let src = root.join("src").join(id);
+            std::fs::create_dir_all(src.join("track")).unwrap();
+            std::fs::write(
+                src.join("swofty.json"),
+                format!(
+                    r#"{{ "schema_version": 1, "id": "{id}", "name": "{name}", "version": "1.0.0", "author": "t",
+                         "compat": {{ "game": "f1_25" }}, "operations": {{ "assets": ["ops.json"] }} }}"#
+                ),
+            )
+            .unwrap();
+            std::fs::write(
+                src.join("ops.json"),
+                format!(r#"{{ "schema_version": 1, "ops": [{ops}] }}"#),
+            )
+            .unwrap();
+            if track {
+                std::fs::write(
+                    src.join("track/manifest.json"),
+                    r#"{ "track_code": "testring", "track_name": "Test Ring", "erp": "testring.erp",
+                         "activation": { "copy_from_track": "melbourne", "copy_slot": "melbourne" } }"#,
+                )
+                .unwrap();
+                let world = "eaid://environment_package/tracks/testring/wep/testring_common.wep";
+                std::fs::write(src.join("track/testring.erp"), archive_of("WEP", &[world], 0)).unwrap();
+            }
+            store.install_addon(&src).unwrap();
+            store
+                .update_profile("default", |p| p.set_enabled(id, true))
+                .unwrap();
+        };
+        install(
+            "mod.testring",
+            "Test Ring",
+            r#"{"op":"track.add","source":"track"}"#,
+            true,
+        );
+        let put = |key: &str, ty: u8, value: &str| {
+            let hex: String = value.bytes().map(|b| format!("{b:02x}")).collect();
+            format!(r#"{{"op":"db.put-record","key":"{key}","type":{ty},"value":"{hex}"}}"#)
+        };
+        let ops = [
+            put(list, 13, "melbourne"),
+            put("tracks._Track_instancecount_", 0, "1"),
+            put("stock.key_0", 0, "7"),
+        ]
+        .join(",");
+        install("t.orlen", "Scuderia AlphaTauri ORLEN", &ops, false);
+
+        let built = build(&store, "default", &game).unwrap();
+        let line =
+            "Scuderia AlphaTauri ORLEN: kept the tracks' changes to 2 database value(s) it sets back to the \
+                    game's own"
+                .to_owned();
+        assert!(built.lines.contains(&line), "{:?}", built.lines);
+        let out = Gvdb::parse(&std::fs::read(&built.plan.data[GVDB]).unwrap()).unwrap();
+        assert_eq!(out.get_text(list).as_deref(), Some("melbourne,testring"));
+        assert_eq!(out.get_text("tracks._Track_instancecount_").as_deref(), Some("2"));
+        assert_eq!(out.get_text("stock.key_0").as_deref(), Some("7"));
         std::fs::remove_dir_all(&root).ok();
     }
 
