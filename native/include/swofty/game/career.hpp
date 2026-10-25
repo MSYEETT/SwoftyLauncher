@@ -295,10 +295,50 @@ static_assert(offsetof(DriverCareerContractsManagerComponent, contract_owner) ==
 static_assert(offsetof(DriverCareerContractsManagerComponent, career_time) == 0x358);
 
 struct DriverContract {
-    uint8_t _pad_0x0[0x50];
+    uint32_t team; // L2 experimental
+    uint8_t _pad_0x4[0x8];
+    uint16_t signed_day; // L2 experimental
+    uint8_t kind; // L2 experimental
+    uint8_t _pad_0xf[0x1];
+    uint16_t end_day; // L2 experimental
+    uint8_t state; // L2 experimental
+    uint8_t _pad_0x13[0x1];
+    uint32_t end_value; // L2 experimental
+    uint8_t _pad_0x18[0x14];
+    uint8_t active; // L2 experimental
+    uint8_t _pad_0x2d[0xb];
+    void *history_begin; // L2 experimental
+    void *history_end; // L2 experimental
+    uint8_t _pad_0x48[0x8];
     uint32_t driver; // L2 experimental
 };
+static_assert(offsetof(DriverContract, team) == 0x0);
+static_assert(offsetof(DriverContract, signed_day) == 0xc);
+static_assert(offsetof(DriverContract, kind) == 0xe);
+static_assert(offsetof(DriverContract, end_day) == 0x10);
+static_assert(offsetof(DriverContract, state) == 0x12);
+static_assert(offsetof(DriverContract, end_value) == 0x14);
+static_assert(offsetof(DriverContract, active) == 0x2c);
+static_assert(offsetof(DriverContract, history_begin) == 0x38);
+static_assert(offsetof(DriverContract, history_end) == 0x40);
 static_assert(offsetof(DriverContract, driver) == 0x50);
+
+struct DriverContractChangedMessage {
+    void **vtable; // L2 experimental
+    uint64_t reserved; // L2 experimental
+    uint32_t driver; // L2 experimental
+    uint8_t before[48]; // L2 experimental
+    uint8_t after[44]; // L2 experimental
+    uint8_t kind; // L2 experimental
+    uint8_t _pad_0x71[0x7];
+};
+static_assert(offsetof(DriverContractChangedMessage, vtable) == 0x0);
+static_assert(offsetof(DriverContractChangedMessage, reserved) == 0x8);
+static_assert(offsetof(DriverContractChangedMessage, driver) == 0x10);
+static_assert(offsetof(DriverContractChangedMessage, before) == 0x14);
+static_assert(offsetof(DriverContractChangedMessage, after) == 0x44);
+static_assert(offsetof(DriverContractChangedMessage, kind) == 0x70);
+static_assert(sizeof(DriverContractChangedMessage) == 0x78);
 
 struct DriverContractsMyTeamComponent {
     uint8_t _pad_0x0[0x798];
@@ -1174,6 +1214,7 @@ inline constexpr site<"site_Career_WeekendObjectiveType"> site_Career_WeekendObj
 inline constexpr vtable<"vt_Career_BankTransactionMessage", 2> vt_Career_BankTransactionMessage{}; // L2 experimental
 inline constexpr vtable<"vt_Career_Championship", 12> vt_Career_Championship{}; // L2 experimental
 inline constexpr vtable<"vt_Career_FacilityNode", 11> vt_Career_FacilityNode{}; // L2 experimental
+inline constexpr vtable<"vt_Career_MessageDriverContractChanged", 2> vt_Career_MessageDriverContractChanged{}; // L2 experimental
 inline constexpr vtable<"vt_Career_MessageDriverMoveConfirmed", 2> vt_Career_MessageDriverMoveConfirmed{}; // L2 experimental
 inline constexpr vtable<"vt_Career_MessageDriverMovesFinalised", 2> vt_Career_MessageDriverMovesFinalised{}; // L2 experimental
 inline constexpr vtable<"vt_Career_MessageDriverMovesFinalisedRecognition", 2> vt_Career_MessageDriverMovesFinalisedRecognition{}; // L2 experimental

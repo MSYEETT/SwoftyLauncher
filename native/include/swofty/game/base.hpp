@@ -34,6 +34,7 @@ struct DepartmentData;
 struct DriverCareerContractOwner;
 struct DriverCareerContractsManagerComponent;
 struct DriverContract;
+struct DriverContractChangedMessage;
 struct DriverContractsMyTeamComponent;
 struct DriverMoveConfirmedMessage;
 struct DriverMoveRecord;

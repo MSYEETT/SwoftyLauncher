@@ -7675,6 +7675,34 @@
    ]
   },
   {
+   "id": "career.message_driver_contract_changed",
+   "section": ".xtls",
+   "pattern": "8B 41 50 48 8B 0D ?? ?? ?? ?? 48 C7 44 24 28 00 00 00 00 48 8D 15 ?? ?? ?? ?? 48 89 54 24 20",
+   "match": "0x140d9de55",
+   "anchor": "0x16",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x13",
+    "len": 7
+   },
+   "target": "0x145696e60",
+   "kind": "data",
+   "names": [
+    "vt_Career_MessageDriverContractChanged"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-25",
+     "by": "ce-numbers",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/career-editor/native/src/drivers.cpp"
+   ]
+  },
+  {
    "id": "career.message_driver_moves_finalised",
    "section": ".xtls",
    "pattern": "4C 8B 35 ?? ?? ?? ?? 48 C7 44 24 78 00 00 00 00 48 8D 05",

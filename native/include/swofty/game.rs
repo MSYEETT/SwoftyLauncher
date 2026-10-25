@@ -429,10 +429,51 @@ const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponen
 
 #[repr(C)]
 pub struct DriverContract {
-    _pad_0x0: [u8; 0x50],
+    pub team: u32,
+    _pad_0x4: [u8; 0x8],
+    pub signed_day: u16,
+    pub kind: u8,
+    _pad_0xf: [u8; 0x1],
+    pub end_day: u16,
+    pub state: u8,
+    _pad_0x13: [u8; 0x1],
+    pub end_value: u32,
+    _pad_0x18: [u8; 0x14],
+    pub active: u8,
+    _pad_0x2d: [u8; 0xb],
+    pub history_begin: *mut c_void,
+    pub history_end: *mut c_void,
+    _pad_0x48: [u8; 0x8],
     pub driver: u32,
 }
+const _: () = assert!(core::mem::offset_of!(DriverContract, team) == 0x0);
+const _: () = assert!(core::mem::offset_of!(DriverContract, signed_day) == 0xc);
+const _: () = assert!(core::mem::offset_of!(DriverContract, kind) == 0xe);
+const _: () = assert!(core::mem::offset_of!(DriverContract, end_day) == 0x10);
+const _: () = assert!(core::mem::offset_of!(DriverContract, state) == 0x12);
+const _: () = assert!(core::mem::offset_of!(DriverContract, end_value) == 0x14);
+const _: () = assert!(core::mem::offset_of!(DriverContract, active) == 0x2c);
+const _: () = assert!(core::mem::offset_of!(DriverContract, history_begin) == 0x38);
+const _: () = assert!(core::mem::offset_of!(DriverContract, history_end) == 0x40);
 const _: () = assert!(core::mem::offset_of!(DriverContract, driver) == 0x50);
+
+#[repr(C)]
+pub struct DriverContractChangedMessage {
+    pub vtable: *mut *mut c_void,
+    pub reserved: u64,
+    pub driver: u32,
+    pub before: [u8; 48],
+    pub after: [u8; 44],
+    pub kind: u8,
+    _pad_0x71: [u8; 0x7],
+}
+const _: () = assert!(core::mem::offset_of!(DriverContractChangedMessage, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(DriverContractChangedMessage, reserved) == 0x8);
+const _: () = assert!(core::mem::offset_of!(DriverContractChangedMessage, driver) == 0x10);
+const _: () = assert!(core::mem::offset_of!(DriverContractChangedMessage, before) == 0x14);
+const _: () = assert!(core::mem::offset_of!(DriverContractChangedMessage, after) == 0x44);
+const _: () = assert!(core::mem::offset_of!(DriverContractChangedMessage, kind) == 0x70);
+const _: () = assert!(core::mem::size_of::<DriverContractChangedMessage>() == 0x78);
 
 #[repr(C)]
 pub struct DriverContractsMyTeamComponent {
@@ -3387,6 +3428,11 @@ pub mod bindings {
     };
     pub const vt_Career_FacilityNode: Binding = Binding {
         id: "vt_Career_FacilityNode",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Career_MessageDriverContractChanged: Binding = Binding {
+        id: "vt_Career_MessageDriverContractChanged",
         kind: "vtable",
         status: Status::Experimental,
     };
