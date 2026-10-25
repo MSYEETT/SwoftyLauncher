@@ -495,43 +495,7 @@
   },
   {
    "op": "list-append",
-   "select": "{914a6e85d007b644}2",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
    "select": "{914a6e85d007b644}3",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{914a6e85d007b644}4",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{914a6e85d007b644}5",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{914a6e85d007b644}7",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{914a6e85d007b644}8",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{914a6e85d007b644}9",
    "field": "game_setup_modes",
    "value": "swofty_f1"
   },
@@ -598,30 +562,6 @@
   {
    "op": "list-append",
    "select": "{aafff59123b34b80}3",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{e93041607d1b071c}0",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{e93041607d1b071c}1",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{e93041607d1b071c}2",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{e93041607d1b071c}3",
    "field": "game_setup_modes",
    "value": "swofty_f1"
   },

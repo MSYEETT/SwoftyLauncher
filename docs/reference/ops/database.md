@@ -301,7 +301,7 @@ SwoftyMod adds two rows labelled `swofty_f1`, copies of the stock `f1` rows, bef
 - a game setup mode in `game_setup.game_setup_modes`, with `stat_id` 20 and the `swofty_f1` entrant setup mode;
 - an entrant setup mode in `entrants.entrant_setup_modes`, with empty `entrant_lists` and `selectable_entrant_lists`.
 
-Every stock list of game setup modes that holds `f1` also holds `swofty_f1`. A SwoftyMod change that does not apply to the database is skipped with a warning. An addon adds its entrant lists to the mode with `list-append`:
+Every stock list of game setup modes that holds `f1` also holds `swofty_f1`, except the lists of the career championships, the ones with a `ComCareerSetup`. A SwoftyMod change that does not apply to the database is skipped with a warning. An addon adds its entrant lists to the mode with `list-append`:
 
 ```json
 { "op": "list-append", "select": "entrants.entrant_setup_modes.entrant_setup_mode[_metadata_=swofty_f1]",
