@@ -52,3 +52,5 @@ Edits queue while a session is loading, time is advancing or the game is in a me
 The game saves the edited career at its next save. The editor backs up your saves before the first edit of each game session; **History** restores a backup while the game is closed.
 
 Edits marked **Unsafe** write a value directly instead of through the game's own path. Contract money is one.
+
+Edits marked **Experimental** haven't been tested in the game yet. In My Team, **Free agent into a seat** is one: a free agent takes an AI or team-mate race seat now, and takes over that driver's contract records with the team. Back up your save before you use it.

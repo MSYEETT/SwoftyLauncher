@@ -485,46 +485,73 @@ no number) into Hadjar's VCARB seat; the snapshot and the race number line must 
 that no other driver holds, Hadjar keeps his. Save, reload and check again, then undo and check that
 Martins has no number and Hadjar has his seat and number back.
 
-### Free agents in My Team (not supported)
+### Free agents in My Team (experimental, `experimentalFreeAgent`)
 
-In My Team the op refuses a teamless driver (`no_team`), and the page leaves free agents, including
-Driver Manager's drivers, out of the Swap Seats lists. A My Team free-agent signing needs these, and
-none of them is traced:
+By default the op refuses a teamless driver in My Team (`no_team`). With `"experimentalFreeAgent": true`
+(default false) a free agent (a teamless entrant row) takes a race seat, as in a Driver Career replace,
+and takes over the seat's contract records. Untested in game; the launcher offers it only on the My Team
+**Free agent into a seat** card, marked experimental.
 
-- **Contract records.** My Team seats come from `DriverContractsMyTeamComponent`: a signing goes
-  from `pendingDriverContracts` (+0x790) and `decidedDriverContracts` (+0x7b0) into
-  `pendingDriverMoves` (+0x7d8), and `Career_Process_PendingDriverMoves` (0x140db18e0, vtable
-  +0x188) moves the processed moves into `lastSeasonsSignings` (+0x7f0). A reported My Team career
-  shows the player's team's career-start signings there (`oldTeamStatId` 16383, `accepted`). A free
-  agent written into a seat has no record, and the driver he replaces keeps his. No path that writes
-  these records is known.
-- **The processor rebuilds the grid from the records.** Read from its decompile, not traced in game:
-  it takes each team's car from the current rows, writes every entrant row teamless (team, vehicle,
-  registry value, livery and badge 0x3fff0000, seat value 0xffff0012, at 0x140db39f0), then seats
-  only the drivers in `pendingDriverMoves` through `Career_Assign_EntrantTeamSlot` (a team's third
-  driver gets no car) and then `reserve_drivers` (+0x850, "Creating contract for reserve driver %s on
-  team %s"). For the player's team it counts the signed drivers and can force a purchase ("Player has
-  %i drivers signed", "Searching for a driver to force the player to purchase"). A seat the editor
-  gives a free agent without a record would not survive its next run, and where the released driver
-  goes then depends on his record.
-- **Racing number.** `Career_Assign_EntrantTeamSlot` calls `Career_DriverNumbers_CheckExisting`
-  (0x140c01c30) with `DriverContractsMyTeamComponent.car_numbers` when the incoming row's car number
-  (+0x83) is 0xff. The op does the same after its writes (Race numbers, above).
-- **When a signing applies.** The processor's slot is likely the season-change hook (L0). Whether
-  Team HQ's driver market seats a free agent at once or at the season change is unknown.
+What the game does (static RE, 2026-10-25):
+- **No mid-season signing writes seats in My Team.** The only My Team code that writes entrant rows is
+  `Career_Process_PendingDriverMoves` (0x140db18e0, `DriverContractsMyTeamComponent` vtable +0x188).
+  That slot is the season-change hook in the four components that override it; the Driver Career one
+  (0x140d76570) runs the season's queued signings and clears the auctions. The processor writes every
+  row teamless and then seats only the drivers named in `pendingDriverMoves` (+0x7d0),
+  then `reserve_drivers`.
+- **Signings are records.** The contract window (0x140daec40, `my_team_contract_window_opened`) and the
+  forced signing (0x140dbd0a0, "Forcing driver %s onto the player's team, as the player didn't sign 2
+  drivers") build a 0x70-byte `ContractRecord`, post its messages (0x140db7660: vtables 0x145697010
+  and, for the player's team, 0x145697040) and push it onto `pendingDriverMoves` (0x140dabfb0). Nothing
+  is seated until the processor runs.
+- **The racing number.** `Career_Assign_EntrantTeamSlot` calls `Career_DriverNumbers_CheckExisting`
+  (0x140c01c30) when the incoming row's number (+0x83) is 0xff; a row that has a number keeps it.
 
-The in-game check that settles it, on a backed-up My Team save with
-`SWOFTY_GAME_LOG_CHANNELS=default,DRIVERMOVES*,DRIVER_NUMBERS`:
-1. Sign an F2 free agent for the player's team through Team HQ's driver market. Note when he takes
-   the seat (at once, at the next weekend or at the season change). Keep the editor snapshot from
-   before and after (`drivers` rows of both drivers, and `contracts`: `pending`, `decided`,
-   `pendingMoves`, `lastSeasonSignings`) and every `processPendingDriverMoves` and `DRIVER_NUMBERS`
-   line.
-2. Repeat with an AI team's seat if the market offers one, then advance through a season change and
-   keep the same.
+What the op does with the flag:
+1. One driver must be a free agent and the other a race driver (`no_seat` otherwise). The rows are
+   written as in a Driver Career replace: the free agent gets the seat's team, car, seat value and
+   position, the seat's driver becomes teamless (team, car, registry value, livery and badge 0x3fff0000,
+   seat value 0xffff0012). No move message is posted (My Team's processor posts none); the moves are
+   finalised against the line-up from before the op, as for other My Team swaps.
+2. Every record of the seat's driver with that team in `pendingDriverMoves`, `decidedDriverContracts`
+   and `lastSeasonsSignings` gets the free agent's driver key (`ContractRecord.driver`, +0x50), so the
+   records name the driver the rows seat and the processor seats him, not the released driver, at the
+   season change. Salary, days and clauses stay as signed. `pendingDriverContracts` (negotiations in
+   progress) is left alone. The op adds no record: when the seat's driver has no record for next season
+   yet, the free agent has none either, as the released driver would not have.
+3. Undo is the same op with the same `a`, `b` and the flag: the rows go back and the records are
+   renamed back.
 
-That gives the record shapes and the order a My Team replace has to follow, or shows that it has to
-queue a contract and wait for the season change.
+Log lines: `... (My Team, experimental free agent signing: 2 rows written, the seat's contract records
+taken over, moves finalised against the line-up before the swap; ...)` and
+`[career-editor] drivers.swap experimental: driver <free agent> took over <n> contract record(s) of driver <released> for team <t> (pendingDriverMoves, decidedDriverContracts, lastSeasonsSignings)`.
+
+In-game test, on a backed-up My Team save with
+`SWOFTY_GAME_LOG_CHANNELS=default,DRIVERMOVES*,DRIVER_NUMBERS` (keep the editor's `snapshot.json`
+`drivers` section, with `contracts`, before and after each step):
+1. In Team HQ, sign an F2 free agent into an AI team's race seat with **Free agent into a seat**. The
+   editor shows him in the seat and the old driver as a free agent; `contracts` shows the moved records
+   under his id. Check the Team HQ standings, driver list and driver market.
+2. Save, quit to the menu, reload the career. Both rows and records must be as after step 1.
+3. Load the next weekend's session: the free agent drives the car (check his number on the HUD).
+4. Undo from History on a copy: both drivers and the records go back.
+5. Play or simulate to the season change, keeping every `processPendingDriverMoves`,
+   `Creating contract for reserve driver` and `DRIVER_NUMBERS` line. After it, check who holds the seat.
+   If the free agent lost it, keep the logs: the processor then reads something other than these
+   records.
+6. Repeat step 1 with the player's own team's second seat, then go through a season change (the
+   "Player has %i drivers signed" and forced-purchase lines).
+
+### Free agents without an entrant row (Driver Career)
+
+A driver who is in the career's statistics table but has no entrant row (`otherDrivers`, for example a
+free agent who never had a seat in this career) can't be seated mid-season. The game's entrant writer
+only rewrites existing rows. The Driver Career signing (0x140d766b0) needs the incoming driver's row,
+and the retire path (0x140d958b0) leaves a retired driver's row in place, teamless. The only code that
+appends rows is the line-up builder 0x140c2a870 (`add [entity+0x2e8], 0x88`). It clears every row and
+builds the whole line-up again; the CareerSetupComponent paths that run it (0x140c2e560, 0x141fbfa10,
+0x14386f8d0) were not seen during a career. So the swap lists only drivers with a row, and the Swap
+seats card says why the others are missing.
 
 ## Bindings
 

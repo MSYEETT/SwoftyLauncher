@@ -706,6 +706,34 @@ void contracts_json(ce::Writer &w)
     w.end_object();
 }
 
+// Experimental (My Team, experimentalFreeAgent): the free agent takes over the seat's contract records.
+// My Team's processor (Career_Process_PendingDriverMoves, vtable +0x188, run at the season change)
+// writes every entrant row teamless and seats only the drivers named in pendingDriverMoves; the game's
+// own signings, the contract window (0x140daec40) and the forced signing (0x140dbd0a0), push records
+// there and seat nobody mid-season. Every record of the outgoing driver for the seat's team in
+// pendingDriverMoves, decidedDriverContracts and lastSeasonsSignings gets the free agent's driver key,
+// so the records name the driver the rows seat. Pending negotiations are left alone.
+size_t take_over_records(uintptr_t comp, uint32_t outgoing, uint32_t incoming, uint32_t team)
+{
+    using C = DriverContractsMyTeamComponent;
+    size_t n = 0;
+    for (uintptr_t list : {offsetof(C, pending_moves_begin), offsetof(C, decided_contracts_begin),
+                           offsetof(C, last_season_signings_begin)}) {
+        uintptr_t b;
+        size_t m;
+        if (!vec(comp + list, kRecSize, kMaxRecords, b, m))
+            continue;
+        for (size_t i = 0; i < m; ++i) {
+            uintptr_t rec = b + i * kRecSize;
+            if (key_at(rec + offsetof(ContractRecord, driver)) == (outgoing & 0xffff00ffu) &&
+                key_at(rec + offsetof(ContractRecord, new_team)) == (team & 0xffff00ffu) &&
+                wr(rec + offsetof(ContractRecord, driver), incoming))
+                ++n;
+        }
+    }
+    return n;
+}
+
 // ---------------------------------------------------------------------------
 // Line-up: the championship entity's entrant rows (entity+0x2e0..+0x2e8, 0x88 bytes each).
 //   +0x00 vtable, +0x08..+0x4b identity (+0x48 bit 0x10000000 = human), +0x50 driver key,
@@ -1858,13 +1886,18 @@ ce::OpResult op_swap(const ce::Json &args)
         return op_fail(op, "no_seat", "neither driver has a race seat");
     if (ta == tb && car_a == car_b)
         return op_fail(op, "same_team", "both drivers race for the same team; nothing to swap");
-    bool replace = false; // Driver Career: a teamless driver takes a race seat, the seat's driver is released
+    bool replace = false; // a teamless driver takes a race seat, the seat's driver is released
+    bool experimental = args["experimentalFreeAgent"].type == ce::Json::Bool && args["experimentalFreeAgent"].b;
     if (!sink.manager) {
-        if (free_a || free_b)
+        if ((free_a || free_b) && !(experimental && sink.my_team))
             return op_fail(op, "no_team",
                            std::string("driver ") + std::to_string(save_id(free_a ? a : b)) +
                                " has no team seat in this championship; in My Team swap two drivers who both "
-                               "have seats");
+                               "have seats (experimentalFreeAgent signs a free agent into a race seat)");
+        if ((free_a || free_b) && (free_a == free_b || !(free_a ? car_b : car_a)))
+            return op_fail(op, "no_seat", "a free agent signing in My Team takes a race seat: pick one free agent and "
+                                          "one race driver");
+        replace = free_a || free_b;
     } else {
         if ((free_a && car_a) || (free_b && car_b) || (!free_a && !car_a) || (!free_b && !car_b))
             return op_fail(op, "reserve_dc",
@@ -1946,7 +1979,7 @@ ce::OpResult op_swap(const ce::Json &args)
     uintptr_t baseline = reinterpret_cast<uintptr_t>(&before_lineup);
     bool wrote_a = apply_row(entity, sink, ra, ta, tb, reason_a, da, pos_b);
     bool contract_released = false;
-    if (wrote_a && replace && !release_contract(entity, sink, entrant_driver(rb.rec), contract_released))
+    if (wrote_a && replace && sink.manager && !release_contract(entity, sink, entrant_driver(rb.rec), contract_released))
         ce::log("drivers.swap WARNING the outgoing driver's contract could not be released");
     bool wrote_b = wrote_a && apply_row(entity, sink, rb, tb, new_b, reason_b, db, replace ? 0 : pos_a);
 
@@ -1991,7 +2024,9 @@ ce::OpResult op_swap(const ce::Json &args)
             "(%s; %zu other entrants unchanged, every team kept its cars, applied now)",
             save_id(a), sa, save_id(b), sb, save_id(a), na_t, save_id(b), nb_t,
             sink.renewal   ? "2 moves recorded"
-            : sink.my_team ? "My Team: 2 rows written, moves finalised against the line-up before the swap"
+            : sink.my_team ? (replace ? "My Team, experimental free agent signing: 2 rows written, the seat's contract "
+                                        "records taken over, moves finalised against the line-up before the swap"
+                                      : "My Team: 2 rows written, moves finalised against the line-up before the swap")
             : replace      ? (contract_released ? "Driver Career replace: incoming announced, outgoing contract released "
                                                   "and announced to no team"
                                                 : "Driver Career replace: incoming announced, outgoing announced to no "
@@ -2013,6 +2048,11 @@ ce::OpResult op_swap(const ce::Json &args)
         ce::log("drivers.swap finalised %llu line-up change(s) (MessageDriverMovesFinalised_upgrades, _recognition, "
                 "MessageDriverMovesFinalised)%s",
                 static_cast<unsigned long long>(finalised), finalise_ok ? "" : " FAILED");
+    if (replace && sink.my_team)
+        ce::log("drivers.swap experimental: driver %u took over %zu contract record(s) of driver %u for team %u "
+                "(pendingDriverMoves, decidedDriverContracts, lastSeasonsSignings)",
+                save_id(a), take_over_records(sink.my_team, entrant_driver(rb.rec), a, tb), save_id(entrant_driver(rb.rec)),
+                tb >> 16);
     return r;
 }
 
