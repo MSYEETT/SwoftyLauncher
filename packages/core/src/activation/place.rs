@@ -5,6 +5,7 @@ use md5::{Digest as _, Md5};
 use swofty_formats::erp::{Entry, ErpFile, Resource, STORED, ZSTD, compress};
 use swofty_formats::pkg::{Node, Pkg};
 
+use super::ailine::{self, Spacing};
 use super::grid;
 use crate::map::TrackPackage;
 use crate::{Error, Result, io_err};
@@ -22,7 +23,7 @@ pub const SLOTS: &[&str] = &[
     "invitational_image_18",
 ];
 const EAID: &str = "eaid://";
-const PLACEMENT_VERSION: u32 = 2;
+const PLACEMENT_VERSION: u32 = 3;
 const GRID_WORLD: &str = "f1_26_myteam";
 
 pub const WORLD_FALLBACKS: &[(&str, &[&str])] = &[
@@ -137,6 +138,7 @@ pub struct Placement {
     pub mips: usize,
     pub grid: Option<grid::Extension>,
     pub repaired: Vec<String>,
+    pub spaced: Vec<String>,
     pub notes: Vec<String>,
 }
 
@@ -276,12 +278,12 @@ pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {
             input.pkg.erp
         )));
     }
+    let who = input.pkg.display_name();
+    let fix = format!(
+        "Turn {who} off in this profile, and set any race weekend that uses it back to another track."
+    );
     let (fixed, broken) = crate::erpbuild::repair_stats_in(&file)?;
     if !broken.is_empty() {
-        let who = input.pkg.display_name();
-        let fix = format!(
-            "Turn {who} off in this profile, and set any race weekend that uses it back to another track."
-        );
         return Err(Error::Other(crate::erpbuild::unrepairable_message(
             who, &broken, &fix,
         )));
@@ -345,6 +347,35 @@ pub fn place(input: &PlaceInput, cache: &Path) -> Result<Placement> {
     placement.mips = repointed.len();
     for (i, res) in fixed {
         repointed.entry(i).or_insert(res);
+    }
+    for (i, r) in file.erp.resources.iter().enumerate() {
+        if r.kind() != "AISplineData" {
+            continue;
+        }
+        let (mut res, edited) = match repointed.remove(&i) {
+            Some(res) => (res, true),
+            None => (file.load(r)?, false),
+        };
+        match ailine::give_routes_space(&res.fragments[0].data()?) {
+            Spacing::Fine => {
+                if edited {
+                    repointed.insert(i, res);
+                }
+            }
+            Spacing::Fixed { doc, routes } => {
+                set_data(&mut res, 0, &doc.to_bytes())?;
+                if res.has_stats() {
+                    let stats = res.fragments[1].data()?;
+                    let version = u32::from_le_bytes(stats[4..8].try_into().expect("4 bytes"));
+                    set_data(&mut res, 1, &doc.string_stats(version))?;
+                }
+                placement.spaced.extend(routes);
+                repointed.insert(i, res);
+            }
+            Spacing::Unfixable(routes) => {
+                return Err(Error::Other(ailine::unfixable_message(who, &routes, &fix)));
+            }
+        }
     }
     match extend_grid(&file, code, input.cars) {
         Ok(Some((i, res, ext))) => {
@@ -606,6 +637,76 @@ mod tests {
             "Test Ring would crash F1 25: its testring_ai_track.aispline doesn't match the size header the game \
              reads with it, and the launcher can't read the file to fix the header. Turn Test Ring off in this \
              profile, and set any race weekend that uses it back to another track."
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_ai_pit_lane_without_space_changes_is_fixed_in_the_placed_archive() {
+        use swofty_formats::bxml::Document;
+        use swofty_formats::erp::{Erp, Fragment, HEADER_LEN, MAGIC, STORED};
+        let dir = std::env::temp_dir().join(format!("swofty-place-space-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let pkg = TrackPackage::parse(crate::map::tests::OKAYAMA_LIKE.as_bytes()).unwrap();
+        let fragment = |raw: Vec<u8>| Fragment {
+            name: *b"temp",
+            offset: 0,
+            size: raw.len() as u64,
+            flags: 0x10,
+            compression: STORED,
+            packed: raw.len() as u64,
+            raw,
+        };
+        let resource = |name: &str, kind: &str, fragments: Vec<Fragment>| Resource {
+            name: name.into(),
+            kind: swofty_formats::erp::kind(kind).unwrap(),
+            unk: vec![0; 4],
+            fragments,
+            hash: [0; 16],
+        };
+        let mut header = [0u8; HEADER_LEN];
+        header[..4].copy_from_slice(MAGIC);
+        header[4..8].copy_from_slice(&3u32.to_le_bytes());
+        let spline = "eaid://environment_package/tracks/testring/ai/testring_ai_track.aispline";
+        let line = ailine::tests::aispline(|_| (-4.1, 3.0), 7);
+        let bytes = Erp {
+            header,
+            version: 3,
+            resources: vec![
+                resource(&world_eaid("testring", "common"), "WEP", vec![fragment(vec![0])]),
+                resource(
+                    spline,
+                    "AISplineData",
+                    vec![fragment(line.to_bytes()), fragment(line.string_stats(1))],
+                ),
+            ],
+        }
+        .to_bytes();
+        std::fs::write(dir.join(&pkg.erp), bytes).unwrap();
+        let input = PlaceInput {
+            pkg: &pkg,
+            dir: &dir,
+            game: &dir,
+            slot: None,
+            cars: 22,
+        };
+        let placement = place(&input, &dir.join("cache")).unwrap();
+        assert_eq!(placement.spaced, ["pit"]);
+        assert!(placement.repaired.is_empty());
+        let placed = ErpFile::open(&placement.dir.join(&placement.archive)).unwrap();
+        let res = placed.load(placed.erp.find(spline).unwrap()).unwrap();
+        let data = res.fragments[0].data().unwrap();
+        assert_ne!(data, line.to_bytes());
+        assert_eq!(ailine::give_routes_space(&data), Spacing::Fine);
+        assert_eq!(
+            res.fragments[1].data().unwrap(),
+            Document::parse(&data).unwrap().string_stats(1)
+        );
+        assert!(crate::erpbuild::stale_stats_in(&placed).unwrap().is_empty());
+        assert_eq!(
+            ailine::fixed_note(pkg.display_name(), &placement.spaced),
+            "fixed the AI pit lane of Test Ring so F1 25 doesn't crash when an AI car drives it"
         );
         std::fs::remove_dir_all(&dir).ok();
     }

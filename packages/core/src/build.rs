@@ -988,6 +988,13 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                     crate::erpbuild::repaired_note(pkg.display_name(), &placement.repaired)
                 ));
             }
+            if !placement.spaced.is_empty() {
+                built.lines.push(format!(
+                    "{}: {}",
+                    pkg.track_code,
+                    crate::activation::ailine::fixed_note(pkg.display_name(), &placement.spaced)
+                ));
+            }
             built
                 .warnings
                 .extend(placement.notes.iter().map(|n| format!("{}: {n}", pkg.track_code)));
