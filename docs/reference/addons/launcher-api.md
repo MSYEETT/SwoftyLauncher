@@ -703,7 +703,7 @@ The cell shows busy until the effect comes back, as a form does. Flipping a swit
     { "facts": [ { "label": "Car number", "value": "#7" } ] } ] }
 ```
 
-The panel takes any [blocks](#views); their events reach your plugin as they do anywhere else on the page. It stays open while the view refreshes, so a form in it keeps working, and is hidden while its row isn't shown, such as during a search. Clicking an editable cell or a switch in a row edits it and doesn't open the panel.
+The panel takes any [blocks](#views); their events reach your plugin as they do anywhere else on the page. It stays open while the view refreshes, so a form in it keeps working, and is hidden while its row isn't shown, such as during a search. Clicking an editable cell or a switch in a row edits it and doesn't open the panel. *Since 1.6.0*, a form in a row's panel is set up when the panel opens and dropped when it closes, and values typed in it but not sent are lost on closing.
 
 An older launcher ignores `row_height`, `image`, `spans` and `detail`, and draws a switch cell as its text: set `"compat": { "launcher": ">=1.5.8" }` in `swofty.json`, or check `launcher` in `hello` and fall back.
 

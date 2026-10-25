@@ -444,15 +444,24 @@ fn sorted_rows(t: &Table, sort: Option<&(String, bool)>) -> Vec<usize> {
     order
 }
 
+/// Which table rows' details to walk into: `open(table id, row id)`.
+type OpenRows<'f> = &'f dyn Fn(&str, &str) -> bool;
+
 pub(crate) fn walk<'a>(blocks: &'a [Block], out: &mut Vec<&'a Block>) {
+    walk_open(blocks, out, &|_, _| true);
+}
+
+fn walk_open<'a>(blocks: &'a [Block], out: &mut Vec<&'a Block>, open: OpenRows) {
     for b in blocks {
         out.push(b);
         match b {
-            Block::Card(c) => walk(&c.blocks, out),
-            Block::Grid(g) => walk(&g.blocks, out),
+            Block::Card(c) => walk_open(&c.blocks, out, open),
+            Block::Grid(g) => walk_open(&g.blocks, out, open),
             Block::Table(t) => {
-                for r in &t.rows {
-                    walk(r.detail(), out);
+                for (i, r) in t.rows.iter().enumerate() {
+                    if open(t.id(), &r.id(i)) {
+                        walk_open(r.detail(), out, open);
+                    }
                 }
             }
             _ => {}
@@ -461,9 +470,14 @@ pub(crate) fn walk<'a>(blocks: &'a [Block], out: &mut Vec<&'a Block>) {
 }
 
 fn view_blocks(view: &View) -> Vec<&Block> {
+    view_blocks_open(view, &|_, _| true)
+}
+
+/// The view's blocks, walking into the details of the table rows `open` names.
+fn view_blocks_open<'a>(view: &'a View, open: OpenRows) -> Vec<&'a Block> {
     let mut out = Vec::new();
     match &view.body {
-        Body::Blocks(blocks) => walk(blocks, &mut out),
+        Body::Blocks(blocks) => walk_open(blocks, &mut out, open),
         Body::List { rows, .. } => {
             for r in rows {
                 walk(&r.detail, &mut out);
@@ -521,7 +535,15 @@ impl Shell {
             let key = format!("{prefix}{}", search_id(s, "list"));
             self.sync_search(&key, &addon, &section, s, window, cx);
         }
-        for b in view_blocks(&view) {
+        // A form in a table row's detail is set up only while the row is open: a long table can
+        // carry a form in every row.
+        let open_rows = self.table_rows.clone();
+        let open = |table: &str, row: &str| {
+            open_rows
+                .get(&format!("{prefix}table:{table}"))
+                .is_some_and(|o| o == row)
+        };
+        for b in view_blocks_open(&view, &open) {
             match b {
                 Block::Form(f) => self.sync_form(&addon, &section, f, generation, window, cx),
                 Block::Table(t) => {
