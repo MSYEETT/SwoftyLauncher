@@ -1,3 +1,4 @@
+pub mod career_select;
 pub mod catalog;
 pub mod check;
 pub mod era;
@@ -326,19 +327,31 @@ pub fn build(
         ],
     )?;
     let (src_h, dst_h) = erp("flow_frontend.erp");
-    write_erp(
-        &src_h,
-        &dst_h,
-        vec![(
-            FE_HOME,
-            Box::new(move |d| {
-                let d = patch::offline_panel(&patch::fe_home(d)?)?;
-                if show_panel { Ok(d) } else { patch::hide_panel(&d) }
-            }),
-        )],
-    )?;
+    let (mut career_lines, mut career_warnings) = (Vec::new(), Vec::new());
+    let career = career_row(&src_h, writer, &mut career_lines, &mut career_warnings)?;
+    let mut frontend: Vec<(&str, usize, Patch)> = vec![(
+        FE_HOME,
+        0,
+        Box::new(move |d| {
+            let d = patch::offline_panel(&patch::fe_home(d)?)?;
+            if show_panel { Ok(d) } else { patch::hide_panel(&d) }
+        }),
+    )];
+    if let Some((ui, type_ui, scene, templates)) = career {
+        frontend.push((career_select::UI, 0, Box::new(move |_| Ok(ui))));
+        frontend.push((career_select::TYPE_UI, 0, Box::new(move |_| Ok(type_ui))));
+        frontend.push((career_select::SCENE, 0, Box::new(move |_| Ok(scene))));
+        frontend.push((
+            career_select::TEMPLATES,
+            career_select::TEMPLATES_FRAGMENT,
+            Box::new(move |_| Ok(templates)),
+        ));
+    }
+    write_archive(&src_h, &dst_h, frontend, Vec::new())?;
 
     let mut build = MenuBuild::default();
+    build.lines.extend(career_lines);
+    build.warnings.extend(career_warnings);
     let eras = era_rows(input, writer, out, &mut build.lines, &mut build.warnings)?;
     if lang {
         build.strings = popup.strings();
@@ -367,6 +380,62 @@ pub fn build(
         });
     }
     Ok(build)
+}
+
+type CareerRow = (Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>);
+
+fn career_row(
+    src: &Path,
+    writer: &Writer,
+    lines: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+) -> Result<Option<CareerRow>> {
+    let ui = read_frag(src, career_select::UI, 0)?;
+    let type_ui = read_frag(src, career_select::TYPE_UI, 0)?;
+    let scene = read_frag(src, career_select::SCENE, 0)?;
+    let templates = read_frag(src, career_select::TEMPLATES, career_select::TEMPLATES_FRAGMENT)?;
+    let edit = career_select::taken(&ui, &scene, &templates).and_then(|taken| match taken {
+        true => Ok(None),
+        false => Ok(Some((
+            career_select::build_ui(&ui)?,
+            career_select::build_type_ui(&type_ui)?,
+            career_select::build_scene(&scene)?,
+            career_select::build_templates(&templates)?,
+        ))),
+    });
+    let edit = match edit {
+        Ok(edit) => edit,
+        Err(e) => {
+            let rel = ui_file(career_select::ARCHIVE);
+            let by = [
+                career_select::UI,
+                career_select::TYPE_UI,
+                career_select::SCENE,
+                career_select::TEMPLATES,
+            ]
+            .into_iter()
+            .find_map(|res| writer(&rel, res));
+            let Some(addon) = by else { return Err(e) };
+            warnings.push(format!(
+                "ui: {addon} has its own copy of the career content select, which Swofty can't edit; addon careers \
+                 follow the stock ones there while it's on ({e})"
+            ));
+            return Ok(None);
+        }
+    };
+    match edit {
+        Some(edit) => {
+            lines.push("ui: the career content select gets Built In and Addons rows".to_owned());
+            Ok(Some(edit))
+        }
+        None => {
+            lines.push(
+                "ui: the career content select already has an Addons row from another addon; left as it is"
+                    .to_owned(),
+            );
+            Ok(None)
+        }
+    }
 }
 
 fn era_rows(
@@ -463,6 +532,44 @@ fn era_rows(
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    #[ignore = "needs SWOFTY_STOCK_FLOW_FRONTEND, a stock flow_frontend.erp"]
+    fn the_career_content_select_gets_its_rows_within_the_loader_rules() {
+        let src = std::path::PathBuf::from(std::env::var_os("SWOFTY_STOCK_FLOW_FRONTEND").expect("set"));
+        let mut lines = Vec::new();
+        let mut warnings = Vec::new();
+        let (ui, type_ui, scene, templates) = career_row(&src, &|_, _| None, &mut lines, &mut warnings)
+            .unwrap()
+            .expect("a stock archive takes the rows");
+        let out = std::env::temp_dir().join(format!("swofty-career-row-{}", std::process::id()));
+        let dst = out.join("flow_frontend.erp");
+        write_archive(
+            &src,
+            &dst,
+            vec![
+                (career_select::UI, 0, Box::new(move |_| Ok(ui))),
+                (career_select::TYPE_UI, 0, Box::new(move |_| Ok(type_ui))),
+                (career_select::SCENE, 0, Box::new(move |_| Ok(scene))),
+                (
+                    career_select::TEMPLATES,
+                    career_select::TEMPLATES_FRAGMENT,
+                    Box::new(move |_| Ok(templates)),
+                ),
+            ],
+            Vec::new(),
+        )
+        .unwrap();
+        let name = ui_file(career_select::ARCHIVE);
+        let report = check::archive_files(&[(name.as_str(), src.as_path(), dst.as_path())]).unwrap();
+        let hard: Vec<String> = report.hard.iter().map(ToString::to_string).collect();
+        assert!(hard.is_empty(), "{hard:?}");
+        assert_eq!(
+            lines,
+            ["ui: the career content select gets Built In and Addons rows"]
+        );
+        std::fs::remove_dir_all(&out).ok();
+    }
     use super::*;
     use node::{arr, node, obj, s};
     use swofty_formats::erp::{Erp, Fragment, HEADER_LEN, MAGIC, Resource, STORED, kind};
