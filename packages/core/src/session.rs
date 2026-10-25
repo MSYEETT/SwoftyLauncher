@@ -344,6 +344,29 @@ pub fn is_compat_layer(name: &str) -> bool {
     name.eq_ignore_ascii_case(COMPAT_LAYER)
 }
 
+/// `WINEDLLOVERRIDES` with Wine loading a native version.dll first, so the
+/// loader in the game folder attaches whatever the prefix's registry holds:
+/// a prefix the launcher didn't find, a version value of its own, or a
+/// registry a wineserver wrote back over the launcher's. None when the value
+/// already names version.dll, which is left as the player set it.
+pub fn with_version_override(value: Option<&str>) -> Option<String> {
+    const OVERRIDE: &str = "version=n,b";
+    let names_version = |v: &str| {
+        v.split(';').any(|entry| {
+            let names = entry.split_once('=').map_or(entry, |(names, _)| names);
+            names.split(',').any(|n| {
+                let n = n.trim().trim_start_matches('*').to_ascii_lowercase();
+                n == "version" || n == "version.dll"
+            })
+        })
+    };
+    match value.map(str::trim).filter(|v| !v.is_empty()) {
+        Some(v) if names_version(v) => None,
+        Some(v) => Some(format!("{};{OVERRIDE}", v.trim_end_matches(';'))),
+        None => Some(OVERRIDE.to_owned()),
+    }
+}
+
 pub const SDL2_SONAME: &str = "libSDL2-2.0.so.0";
 pub const RUNTIME_LIBS_DIR: &str = "state/runtime-libs";
 
@@ -719,6 +742,29 @@ pub fn parse_steam_command(argv: &[String]) -> SteamCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wine_loads_a_native_version_dll_unless_the_player_set_one() {
+        assert_eq!(with_version_override(None).as_deref(), Some("version=n,b"));
+        assert_eq!(with_version_override(Some(" ")).as_deref(), Some("version=n,b"));
+        assert_eq!(
+            with_version_override(Some("dxgi=n;")).as_deref(),
+            Some("dxgi=n;version=n,b")
+        );
+        for set in [
+            "version=b",
+            "d3d11,Version=n",
+            "VERSION.DLL=n,b",
+            "*version=b",
+            "dinput8;version",
+        ] {
+            assert_eq!(with_version_override(Some(set)), None, "{set}");
+        }
+        assert_eq!(
+            with_version_override(Some("versions=n")).as_deref(),
+            Some("versions=n;version=n,b")
+        );
+    }
 
     #[test]
     fn config_keeps_console_flag() {

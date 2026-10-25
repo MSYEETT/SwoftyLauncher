@@ -56,7 +56,7 @@ The launcher takes the files from `loader/` beside its `bin/` folder in a releas
 
 ## Loading under Proton
 
-Wine uses its builtin `version.dll` unless the prefix overrides it for the game. The launcher writes `[Software\Wine\AppDefaults\F1_25.exe\DllOverrides] "version"="native,builtin"` into the prefix's `user.reg` for the session and journals it. Windows needs no override.
+Wine uses its builtin `version.dll` unless the prefix overrides it for the game. The launcher writes `[Software\Wine\AppDefaults\F1_25.exe\DllOverrides] "version"="native,builtin"` into the prefix's `user.reg` for the session and journals it. A Steam session also passes `WINEDLLOVERRIDES=version=n,b` to the game, unless `WINEDLLOVERRIDES` already names `version`, and logs whether the prefix has the override. Windows needs no override.
 
 ## Wine check
 

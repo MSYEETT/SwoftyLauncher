@@ -718,6 +718,37 @@ fn play(
         .chain(library_path.map(|p| ("LD_LIBRARY_PATH", p)))
         .map(|(k, v)| (k.to_owned(), v)),
     );
+    // The prefix's registry override is not always what Wine reads at start,
+    // so the session also names version.dll in WINEDLLOVERRIDES, which wins
+    // over the registry.
+    if proton.is_some() && placed_loader {
+        let prefix = match g.user_reg.as_deref() {
+            Some(reg)
+                if std::fs::read_to_string(reg).is_ok_and(|t| swofty_core::install::has_override(&t)) =>
+            {
+                format!("{} has the version.dll override", reg.display())
+            }
+            Some(reg) => format!("{} has no version.dll override", reg.display()),
+            None => "no Proton prefix found for this game folder".to_owned(),
+        };
+        let set = game_env.get("WINEDLLOVERRIDES").map(String::as_str);
+        match swofty_core::session::with_version_override(set) {
+            Some(v) => {
+                game_env.insert("WINEDLLOVERRIDES".to_owned(), v);
+                say(
+                    "info",
+                    &format!("wine: {prefix}; WINEDLLOVERRIDES loads the loader's version.dll"),
+                );
+            }
+            None => say(
+                "info",
+                &format!(
+                    "wine: {prefix}; WINEDLLOVERRIDES already names version.dll: {}",
+                    set.unwrap_or_default()
+                ),
+            ),
+        }
+    }
     let listed: String = game_env.iter().map(|(k, v)| format!("{k}={v}\n")).collect();
     std::fs::write(dir.join("env.txt"), listed)?;
     let spawn = |exe: &str, log: &str| -> Result<std::process::Child> {
