@@ -769,8 +769,14 @@ impl Shell {
                                 body.push_str(&format!("\n{line}"));
                             }
                         }
-                        window
-                            .push_notification(Notification::success(body).title("Exported game files"), cx);
+                        for line in &done.warnings {
+                            body.push_str(&format!("\n{line}"));
+                        }
+                        let note = match done.warnings.is_empty() {
+                            true => Notification::success(body),
+                            false => Notification::warning(body).autohide(false),
+                        };
+                        window.push_notification(note.title("Exported game files"), cx);
                     }
                     Err(e) => window.push_notification(Notification::error(e).title("Export failed"), cx),
                 })

@@ -3,12 +3,14 @@
 //! after every other addon, so the DB Editor reads them from its data file and
 //! checks them the way its build does, all but whether a head or kit is installed.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use serde::Deserialize;
+use swofty_formats::gvdb::Gvdb;
+use swofty_formats::hash::fnv1a64;
 
-use super::{Catalog, LinkSpec, modules, rows};
+use super::{Catalog, Edits, LinkSpec, modules, rows};
 use crate::store::Store;
 
 pub const ID: &str = "swofty.driver-manager";
@@ -17,6 +19,8 @@ pub const TABLES: [&str; 2] = [
     "entrants.drivers.driver",
     "entrants.entrant_lists.entrants.entrant",
 ];
+/// What the game reads when a value picks a Driver Manager driver a build doesn't add.
+pub const MISSING: &str = "the game would read a driver and entrant its database doesn't have";
 const FILE: &str = "drivers.json";
 const IDS: std::ops::RangeInclusive<u32> = 208..=253;
 const FIRST_LOOK: u32 = 366;
@@ -279,6 +283,34 @@ pub fn drivers_in(dir: &Path, cat: &Catalog) -> Vec<Driver> {
     out
 }
 
+/// Label → name of every driver in Driver Manager's data file, checked or not.
+pub fn names(store: &Store) -> HashMap<String, String> {
+    roster(&store.addon_data_dir(ID))
+        .iter()
+        .map(|d| (d.label(), d.name()))
+        .collect()
+}
+
+/// Whether `value` is a Driver Manager label: `dm_` and a driver id.
+pub fn is_label(value: &str) -> bool {
+    value
+        .strip_prefix("dm_")
+        .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+}
+
+/// The Driver Manager labels `edits` set values to, each once.
+pub fn picks(edits: &Edits) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for v in edits.edits.iter().filter_map(|e| e.value.as_deref()) {
+        for p in v.split(',').filter(|p| is_label(p)) {
+            if !out.iter().any(|o| o == p) {
+                out.push(p.to_owned());
+            }
+        }
+    }
+    out
+}
+
 /// The DB Editor's link to Driver Manager's page.
 pub fn link() -> LinkSpec {
     modules()
@@ -289,10 +321,69 @@ pub fn link() -> LinkSpec {
         .expect("modules.json links Driver Manager")
 }
 
+/// Why a database lacks rows a pick needs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Why {
+    /// Driver Manager is off in the profile.
+    Off,
+    /// Driver Manager built, without the driver.
+    NotAdded,
+    /// Exported game files, which have no Driver Manager drivers.
+    GameFiles,
+}
+
+/// A warning for each addon whose values in `picks`, (addon name, labels), pick
+/// Driver Manager drivers `db` has no driver and entrant rows for.
+pub fn warnings(
+    db: &Gvdb,
+    picks: &[(String, Vec<String>)],
+    names: &HashMap<String, String>,
+    why: Why,
+) -> Vec<String> {
+    let mut want: HashMap<u64, usize> = HashMap::new();
+    for (t, table) in TABLES.iter().enumerate() {
+        let (container, word) = table.rsplit_once('.').expect("a table path");
+        for i in 0..db.instance_count(container, word).unwrap_or(0) {
+            want.insert(fnv1a64(format!("{table}_{i}._metadata_")), t);
+        }
+    }
+    let mut have: [HashSet<String>; 2] = Default::default();
+    for r in &db.records {
+        if let Some(&t) = want.get(&r.key) {
+            have[t].insert(r.text().into_owned());
+        }
+    }
+    picks
+        .iter()
+        .filter_map(|(addon, labels)| {
+            let who: Vec<String> = labels
+                .iter()
+                .filter(|l| !have.iter().all(|h| h.contains(*l)))
+                .map(|l| match names.get(l) {
+                    Some(name) => format!("{name} ({l})"),
+                    None => l.clone(),
+                })
+                .collect();
+            let what = match who.len() {
+                1 => "a Driver Manager driver",
+                _ => "Driver Manager drivers",
+            };
+            let reason = match why {
+                Why::Off => format!("{what}, and Driver Manager is off in this profile"),
+                Why::NotAdded => {
+                    "which Driver Manager doesn't add (its page marks the drivers it leaves out)".into()
+                }
+                Why::GameFiles => format!("{what}, and game files hold no Driver Manager drivers"),
+            };
+            (!who.is_empty()).then(|| format!("{addon}: picks {}, {reason}; {MISSING}", who.join(", ")))
+        })
+        .collect()
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use swofty_formats::gvdb::{Gvdb, Record};
+    use swofty_formats::gvdb::Record;
 
     /// A stock database with one driver, entrant and grid seat, and the choices the fixture drivers pick.
     pub(crate) fn database() -> Gvdb {
@@ -414,6 +505,7 @@ pub(crate) mod tests {
         std::fs::create_dir_all(store.addons_dir().join(ID)).unwrap();
         std::fs::write(store.addons_dir().join(ID).join("swofty.json"), "{}").unwrap();
         assert_eq!(drivers(&store, &cat), got);
+        assert_eq!(names(&store).get("dm_210").map(String::as_str), Some("Bad Code"));
 
         std::fs::write(dir.join(FILE), "{\"drivers\": [{\"stat_id\": 208}]}").unwrap();
         assert!(
@@ -421,6 +513,45 @@ pub(crate) mod tests {
             "a file Driver Manager can't read adds nothing"
         );
         assert_eq!(link().addon.as_deref(), Some(ID));
+        assert!(is_label("dm_208") && !is_label("dm_") && !is_label("dm_2x") && !is_label("max"));
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn warns_about_picks_the_database_has_no_rows_for() {
+        let mut db = database();
+        let picks = vec![
+            ("Seats".to_owned(), vec!["dm_208".to_owned(), "dm_209".to_owned()]),
+            ("Other".to_owned(), Vec::new()),
+        ];
+        let names: HashMap<String, String> = [("dm_208".to_owned(), "Jacob Swofty".to_owned())].into();
+        assert_eq!(
+            warnings(&db, &picks, &names, Why::Off),
+            [
+                "Seats: picks Jacob Swofty (dm_208), dm_209, Driver Manager drivers, and Driver Manager is off in this profile; the game would read a driver and entrant its database doesn't have"
+            ]
+        );
+        for (i, table) in TABLES.iter().enumerate() {
+            let (container, word) = table.rsplit_once('.').unwrap();
+            db.set(&format!("{container}._{word}_instancecount_"), "2", None)
+                .unwrap();
+            db.records
+                .push(Record::new(&format!("{table}_1._metadata_"), 2, "dm_208"));
+            if i == 0 {
+                db.records
+                    .push(Record::new(&format!("{table}_1.stat_id"), 0, "208"));
+            }
+        }
+        assert_eq!(
+            warnings(&db, &picks, &names, Why::NotAdded),
+            [
+                "Seats: picks dm_209, which Driver Manager doesn't add (its page marks the drivers it leaves out); the game would read a driver and entrant its database doesn't have"
+            ]
+        );
+        assert!(
+            warnings(&db, &picks[..1], &names, Why::GameFiles)[0]
+                .contains("dm_209, a Driver Manager driver, and game files")
+        );
+        assert!(warnings(&db, &[("Seats".into(), vec!["dm_208".into()])], &names, Why::Off).is_empty());
     }
 }

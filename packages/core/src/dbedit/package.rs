@@ -68,6 +68,8 @@ pub struct GameExport {
     pub changes: usize,
     /// Changes that no longer apply, each naming its addon.
     pub skipped: Vec<String>,
+    /// Values the database has no rows for, such as Driver Manager drivers, each naming its addon.
+    pub warnings: Vec<String>,
     /// Size of the written zip.
     pub bytes: u64,
 }
@@ -705,6 +707,15 @@ pub fn export_packages(store: &Store, game: &Game, packages: &[Package], out: &P
                 .push(t.line(by.map_or("database", |p| p.manifest.name.as_str())));
             left_out += 1;
         }
+    }
+    let picks: Vec<(String, Vec<String>)> = packages
+        .iter()
+        .map(|p| (p.manifest.name.clone(), super::driver_manager::picks(&p.edits)))
+        .collect();
+    if picks.iter().any(|(_, p)| !p.is_empty()) {
+        let names = super::driver_manager::names(store);
+        export.warnings =
+            super::driver_manager::warnings(&db, &picks, &names, super::driver_manager::Why::GameFiles);
     }
     let bytes = db.to_bytes();
     if bytes == stock {

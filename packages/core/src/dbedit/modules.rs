@@ -946,6 +946,7 @@ mod tests {
         edits.set(&cat, key, "dm_208").unwrap();
         let after = lineups.view(&cat, &edits, None).unwrap();
         assert_eq!(after.rows[0].cells[seat].value, "dm_208");
+        assert_eq!(driver_manager::picks(&edits), ["dm_208"]);
         std::fs::remove_dir_all(&dir).ok();
     }
 

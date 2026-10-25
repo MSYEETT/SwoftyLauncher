@@ -170,6 +170,55 @@ fn category(s: &str) -> std::result::Result<CategoryArg, String> {
     }
 }
 
+/// Why `path` isn't in the game database when it names a Driver Manager driver's row.
+fn driver_row(store: &Store, cat: &Catalog, path: &str) -> Option<String> {
+    let label = path
+        .split(['[', ']', '=', '.'])
+        .find(|p| driver_manager::is_label(p))?;
+    Some(
+        match driver_manager::drivers(store, cat)
+            .iter()
+            .find(|d| d.label == label)
+        {
+            Some(d) => format!(
+                "{path}: Driver Manager adds {} ({label}) when the profile builds; edit the driver on the Driver Manager page",
+                d.name
+            ),
+            None => format!(
+                "{path}: {label} is a Driver Manager label, and Driver Manager doesn't add that driver"
+            ),
+        },
+    )
+}
+
+/// Notes on the Driver Manager drivers `value` picks: one Driver Manager doesn't add,
+/// or any while it's off in `profile`.
+fn driver_notes(store: &Store, cat: &Catalog, profile: &str, value: &str) -> Vec<String> {
+    let labels: Vec<&str> = value.split(',').filter(|v| driver_manager::is_label(v)).collect();
+    if labels.is_empty() {
+        return Vec::new();
+    }
+    let drivers = driver_manager::drivers(store, cat);
+    let on = store
+        .profile(profile)
+        .is_ok_and(|p| p.enabled().any(|id| id == driver_manager::ID));
+    labels
+        .into_iter()
+        .filter_map(|l| match drivers.iter().find(|d| d.label == l) {
+            Some(_) if on => None,
+            Some(d) => Some(format!(
+                "{l} is Driver Manager's {}, and Driver Manager is off in {profile}; {}",
+                d.name,
+                driver_manager::MISSING
+            )),
+            None => Some(format!(
+                "Driver Manager doesn't add {l}; {}",
+                driver_manager::MISSING
+            )),
+        })
+        .collect()
+}
+
 fn open(store: &Store, id: &str) -> Result<Package> {
     if !package::is_package(store, id) {
         bail!("no DB Editor addon named {id}; swofty db addons lists them");
@@ -289,7 +338,7 @@ pub fn command(store: &Store, profile: &str, game: Option<PathBuf>, cmd: DbComma
                 ids.join(", "),
                 got.bytes
             );
-            for s in &got.skipped {
+            for s in got.skipped.iter().chain(&got.warnings) {
                 println!("  {s}");
             }
         }
@@ -373,16 +422,25 @@ pub fn command(store: &Store, profile: &str, game: Option<PathBuf>, cmd: DbComma
                         );
                     }
                 }
-                (None, None) => bail!("{path}: not in the game database"),
+                (None, None) => match driver_row(store, &cat, &path) {
+                    Some(why) => bail!("{why}"),
+                    None => bail!("{path}: not in the game database"),
+                },
             }
         }
         DbCommand::Set { path, value, addon } => {
             let cat = catalog()?;
             edit(store, &cat, &addon, |p| {
-                let key = p.edits.resolve(&cat, &path).map_err(|e| anyhow!("{e}"))?;
+                let key = p
+                    .edits
+                    .resolve(&cat, &path)
+                    .map_err(|e| anyhow!(driver_row(store, &cat, &path).unwrap_or(e)))?;
                 p.edits.set(&cat, key, &value).map_err(|e| anyhow!("{path}: {e}"))
             })?;
             println!("{path} = {value} in {addon}");
+            for note in driver_notes(store, &cat, profile, &value) {
+                println!("  note: {note}");
+            }
         }
         DbCommand::CopyRow {
             table,
