@@ -1899,9 +1899,11 @@ mod tests {
                 "-c",
                 "echo 'downloading offline play 0.3.11 from https://x'; \
                  echo '[info] rolled the profile'\"'\"'s game files back'; \
-                 echo 'swofty: downloading the offline play extension: offline play 0.3.11: could not download \
-                 https://x/v0.3.11/f1op_hook.dll: io: received corrupt message of type InvalidContentType' >&2; \
-                 echo 'or download it yourself from https://x/v0.3.11 and run `swofty offline install <folder>`' >&2; \
+                 echo 'swofty: downloading the offline play extension: offline play 0.3.11: the download was \
+                 blocked on this PC or network, typically by antivirus HTTPS or web scanning, a VPN or proxy, a \
+                 network filter or a Wi-Fi login page; turning that off or trying another network fixes it' >&2; \
+                 echo '(could not download https://x/v0.3.11/f1op_hook.dll: io: received corrupt message of type \
+                 InvalidContentType)' >&2; \
                  exit 1",
             ]),
             &log,
@@ -1921,9 +1923,11 @@ mod tests {
         assert_eq!(
             w.failure(status, "before the game started").to_string(),
             "the wrapper exited (exit status: 1) before the game started: downloading the offline play extension: \
-             offline play 0.3.11: could not download https://x/v0.3.11/f1op_hook.dll: io: received corrupt message \
-             of type InvalidContentType\n\
-             or download it yourself from https://x/v0.3.11 and run `swofty offline install <folder>`"
+             offline play 0.3.11: the download was blocked on this PC or network, typically by antivirus HTTPS or \
+             web scanning, a VPN or proxy, a network filter or a Wi-Fi login page; turning that off or trying \
+             another network fixes it\n\
+             (could not download https://x/v0.3.11/f1op_hook.dll: io: received corrupt message of type \
+             InvalidContentType)"
         );
         std::fs::remove_dir_all(log.ancestors().nth(2).unwrap()).ok();
     }

@@ -186,14 +186,40 @@ pub fn ensure_extension(store: &Store) -> Result<Artifacts> {
             } else {
                 println!("offline play extension is not installed yet: {e}");
             }
-            match fetch(store) {
-                Ok(a) => Ok(a),
-                Err(err) => bail!(
-                    "{err:#}\nor download it yourself from {}/v{} and run `swofty offline install <folder>`",
-                    offline::base_url(),
-                    offline::EXTENSION_VERSION
-                ),
-            }
+            fetch(store)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_failed_download_leads_with_the_reason_and_offers_no_manual_download() {
+        let root = std::env::temp_dir().join(format!("swofty-cli-offline-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        // SAFETY: std serialises its own environment access, and nothing in this
+        // binary reads the environment from C.
+        unsafe { std::env::set_var("SWOFTY_OFFLINE_PLAY_BASE_URL", "http://127.0.0.1:1") };
+        let err = format!("{:#}", ensure_extension(&Store::new(&root)).unwrap_err());
+        let (reason, detail) = err.split_once('\n').unwrap();
+        assert!(
+            reason.starts_with(&format!(
+                "downloading the offline play extension: offline play {}: \
+                 the download was blocked on this PC or network",
+                offline::EXTENSION_VERSION
+            )),
+            "{err}"
+        );
+        assert!(
+            detail.starts_with("(could not download http://127.0.0.1:1/"),
+            "{err}"
+        );
+        assert!(
+            !err.contains("yourself") && !err.contains("offline install"),
+            "{err}"
+        );
+        std::fs::remove_dir_all(&root).ok();
     }
 }
