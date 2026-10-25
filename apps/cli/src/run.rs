@@ -18,8 +18,8 @@ use swofty_core::quarantine::{self, Attach, AttachWatch, Stage};
 use swofty_core::recovery::{Scope, SessionLock};
 use swofty_core::session::{
     Config, DEFAULT_WINEDEBUG, LOADER_FALLBACK, LOADER_LOG, LOADER_MARK, LaunchMode, LaunchRequest, LogMark,
-    PERF_LOG, RUNTIME_LIBS_DIR, STOP_FILE, SessionEnd, SessionRecord, game_args, is_compat_layer, parse_cpu_list,
-    parse_steam_command, request_stop, written_since,
+    PERF_LOG, RUNTIME_LIBS_DIR, STOP_FILE, SessionEnd, SessionRecord, game_args, is_compat_layer,
+    parse_cpu_list, parse_steam_command, request_stop, written_since,
 };
 use swofty_core::steam_client::{self, Ready, Report, State, Wait};
 use swofty_core::store::Store;
