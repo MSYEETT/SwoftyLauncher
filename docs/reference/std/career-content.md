@@ -13,7 +13,7 @@ A career content is a tile on the career content select (Career > Driver Career 
 | Namespace | `swofty::career::content`, plus `swofty::career::data_group` / `is` / `current_data_group` |
 | Table | `SwoftyApi::career_content` (`SwoftyCareerContent`) |
 | Feature | `career` |
-| API version | 8 (the `career_content` member), feature-detected (see [Availability](#availability)) |
+| API version | 8 (the `career_content` member), feature-detected (see [Availability](#availability)); `careers` and the Addons row: launcher 1.5.10 |
 | Thread | `add`: addon init. `data_group`, `is`, `current_data_group`: flow thread. Others: any |
 
 Every call that returns a `Result` uses the shared [result codes](./#result-codes).
@@ -138,5 +138,9 @@ The table has no API version of its own; its `SwoftyApi::career_content` member 
 #define MY_CONTENT_API 1
 #endif
 ```
+
+`careers` and the Addons row came with launcher 1.5.10. An older core reads the descriptor without `careers`: the content shows in Driver Career only, after the stock tiles in the one list. An addon that registers a content for My Team sets `"compat": { "launcher": ">=1.5.10" }` in its `swofty.json`.
+
+In My Team, a content gets its tile and its press. The gate and slot predicate hooks are the Driver Career ones (`Game_Career_IsDriverCareerMode`, `vt_Game_DriverCareerSlotPredicate`), and a My Team content's new-career path has not been run in game.
 
 The hooks rely on bindings that are L2 in the KB with an independent verify row each; the press path, the gate pass and the slot predicate were confirmed in game for the 2026 model only. The 2025 model also needs `FeTile_CareerDefaultItem_Populate`, whose verify row is still `partial`, so it is not exported yet and a 2025-model content turns off with `needs FeTile_CareerDefaultItem_Populate`.
