@@ -109,6 +109,8 @@ python3 tools/heads.py --downloads ~/Downloads --game <F1 25>
 
 More Driver Models' Sebastian Vettel, Mick Schumacher, Nicholas Latifi and Nyck de Vries archives have materials in an older format (`.sampler` resources, head textures under the driver's name). `tools/heads.py` replaces each such material with Kimi Räikkönen's of the same name, its texture folder code renamed (`repair_from` in `data/heads.json`).
 
+More Driver Models labels its F1 25 `eye`, `head` and `head_cutscene` materials with resource version 1, and a replaced material keeps the version of the one it replaces. F1 25 parses a material of any version but 2 as the F1 23 layout. `tools/heads.py` gives every material in the F1 25 layout version 2, changing only that version.
+
 A suit entry in `data/real_suits.json` with `"off": true` is left out. The 18 converted 2017 driver suits whose F1 25 base wears its team's glove, livery and boots textures crash the Grand Prix team picker, so those drivers wear their team's converted 2017 suit.
 
 ## Helmets

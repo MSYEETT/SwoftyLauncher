@@ -17,6 +17,13 @@ A head with `repair_from` in data/heads.json takes, for each of its materials th
 heads/male_driver/ resource its archive lacks, the same-named material of the donor head, with the donor's texture
 folder code (male_driver/serps_<code>/textures, the same length in every More Driver Models head) renamed to the head's.
 
+Every material in F1 25's layout gets resource version 2. F1 25 parses a material of any other version as F1 23's
+layout, and More Driver Models labels its F1 25 eye, head and head_cutscene materials version 1, as the repair leaves
+the materials it copies: the parse then copies 256 KB from a 6 KB head.material and crashes the session load (memcpy at
+F1_25.exe+0x53784bb, called from the material parser 0x143c0dc80). The relabel changes the version and no fragment: the
+game decompresses every fragment of compression code 3 to 0x3f as zstd, More Driver Models writes code 0x10, and
+erpw.set_frag stores a 0x10 fragment uncompressed, on which the game's decompressor spins and the session load never ends.
+
 The tool fails when --game is not the F1 25 folder or a target exists in it, and when a head's archives name a
 .sampler resource (an older format F1 25 1.0.141 has none of) or a resource under heads/male_driver/ they do not hold:
 the team picker's head preview crashes in Ne_LinkResolver_ResolveLinks on such a link. A head must be the head of a
@@ -28,6 +35,7 @@ import json
 import os
 import re
 import shutil
+import struct
 import sys
 import zipfile
 from pathlib import Path
@@ -36,6 +44,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT.parents[2] / "tools"))
 
 import erpw
+import gfx_material
 
 EAID = re.compile(rb"eaid://[\x21-\x7e]+")
 CODE = re.compile(rb"/heads/male_driver/(serps_[A-Za-z0-9]+)/textures/")
@@ -43,6 +52,8 @@ OUT = ROOT / "heads"
 OPS = ROOT / "assets" / "heads.json"
 SCENES = "animation_package/scenes/cinematics/drivers"
 TEMPLATE = "lando_norris"
+VERSION_25 = struct.pack("<I", 2)
+ZSTD_CODES = range(3, 0x40)
 
 
 def label(head):
@@ -93,6 +104,19 @@ def extract(downloads, source, head):
     return sorted(files)
 
 
+def frag(r, i):
+    f = r.frags[i]
+    return erpw.zstd_d(f.raw) if f.comp in ZSTD_CODES else f.raw
+
+
+def f1_25_layout(b):
+    try:
+        gfx_material.parse25(b, strict=False)
+    except (ValueError, IndexError, struct.error):
+        return False
+    return True
+
+
 def bad_refs(e, r, held):
     out = set()
     for i in range(len(r.frags)):
@@ -140,6 +164,17 @@ def repair(head, donor):
     return swapped
 
 
+def relabel(path):
+    e = erpw.Erp(str(path))
+    wrong = [r for r in e.res if r.type.rstrip(b"\0") == b"GfxMaterialRes" and r.unk[:4] != VERSION_25
+             and f1_25_layout(frag(r, 0))]
+    for r in wrong:
+        r.unk = VERSION_25 + r.unk[4:]
+    if wrong:
+        e.to_file(str(path))
+    return [r.name.rsplit("/", 1)[-1] for r in wrong]
+
+
 def asset_ops(heads):
     ops = []
     for head, files in heads.items():
@@ -166,6 +201,9 @@ def main():
     for head, donor in data.get("repair_from", {}).items():
         print(f"{head}: materials from {donor}: {', '.join(repair(head, donor))}")
     for head in heads:
+        relabelled = [name for rel in archives(head) for name in relabel(OUT / rel)]
+        if relabelled:
+            print(f"{head}: resource version 2 for {', '.join(relabelled)}")
         bad = [ref for rel in archives(head) for ref in broken_links(OUT / rel)]
         if bad:
             sys.exit(f"{head}: its archives name {len(bad)} resource(s) F1 25 does not have: {', '.join(bad[:3])}")
