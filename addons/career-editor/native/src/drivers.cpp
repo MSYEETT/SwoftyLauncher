@@ -13,6 +13,7 @@
 //   EntrantRecord, EntrantWriteData, CareerEntity   the championship line-up and its writer
 //   CareerDriverContractRenewalComponent, DriverMoveRecord   the game's move log
 //   DriverContractsMyTeamComponent, ContractRecord           My Team contract lists
+//   DriverCareerContractOwner, DriverContract, DriverContractChangedMessage   Driver Career contracts
 //
 // A rating edit rewrites the y of every point of the curve the getter uses (count and x kept, so
 // nothing is reallocated), then rebuilds lut[] and the end value with the game's own evaluator
@@ -31,6 +32,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -42,6 +44,7 @@
 
 #include "ce.hpp"
 #include "components.hpp"
+#include "lineup.hpp"
 
 using namespace swofty::game;
 
@@ -796,6 +799,9 @@ void moves_json(ce::Writer &w)
 // ---------------------------------------------------------------------------
 // Snapshot section "drivers".
 
+bool dc_contracts(std::unordered_map<uint32_t, uintptr_t> &out);
+void contract_json(ce::Writer &w, uintptr_t contract);
+
 void section(ce::Writer &w)
 {
     Comp c;
@@ -842,6 +848,8 @@ void section(ce::Writer &w)
     for (auto &e : ce::comp::entrants())
         seat[e.driver] = e;
     const Names &nm = names();
+    std::unordered_map<uint32_t, uintptr_t> contract;
+    bool dc = dc_contracts(contract);
 
     auto name_or_null = [&w](const std::unordered_map<uint32_t, std::string> &m, uint32_t key) {
         auto it = (key & 0xff) == 0 ? m.find(key >> 16) : m.end();
@@ -899,6 +907,11 @@ void section(ce::Writer &w)
             w.boolean(has_car(s->second.at));
             w.key("player");
             w.boolean(s->second.human);
+            if (dc) {
+                auto k = contract.find(key);
+                w.key("contract");
+                contract_json(w, k == contract.end() ? 0 : k->second);
+            }
             w.key("overall");
             float o = overall(c, key);
             if (std::isfinite(o))
@@ -1433,47 +1446,184 @@ constexpr uint32_t kNoSeatValue = 0xffff0012u; // EntrantRecord::const_ffff0012 
 constexpr size_t kContractSlot = 16;          // DriverCareerContractOwner slots {?, DriverContract *}
 
 using RegistryValueFn = uint32_t (*)(void *registry);
-using WeekendFn2 = uintptr_t (*)(void *self);
+
+// Every driver's DriverContract object, from DriverCareerContractOwner's slots.
+bool contract_objects(const MoveSink &sink, std::vector<uintptr_t> &out)
+{
+    out.clear();
+    uintptr_t owner =
+        sink.manager ? rdv<uintptr_t>(sink.manager + offsetof(DriverCareerContractsManagerComponent, contract_owner)) : 0;
+    uintptr_t b;
+    size_t n;
+    if (!owner || !vec(owner + offsetof(DriverCareerContractOwner, contracts_begin), kContractSlot, 4096, b, n))
+        return false;
+    for (size_t i = 0; i < n; ++i)
+        if (uintptr_t c = rdv<uintptr_t>(b + i * kContractSlot + sizeof(void *));
+            c && swofty::mem::readable(c, sizeof(DriverContract)))
+            out.push_back(c);
+    return true;
+}
+
+uintptr_t contract_of(const std::vector<uintptr_t> &objects, uint32_t driver)
+{
+    for (uintptr_t c : objects)
+        if (rdv<uint32_t>(c + offsetof(DriverContract, driver)) == driver)
+            return c;
+    return 0;
+}
+
+std::vector<ce::lineup::Contract> contract_views(const std::vector<uintptr_t> &objects)
+{
+    ce::comp::Entrant me;
+    uint32_t human = ce::comp::player(me) ? me.driver : kNoKey;
+    std::vector<ce::lineup::Contract> out;
+    for (uintptr_t c : objects) {
+        uint32_t d = rdv<uint32_t>(c + offsetof(DriverContract, driver));
+        out.push_back({d, rdv<uint32_t>(c + offsetof(DriverContract, team)),
+                       rdv<uint8_t>(c + offsetof(DriverContract, active)) != 0, d == human});
+    }
+    return out;
+}
+
+// The day and value the signing passes to Career_Set_DriverContractState.
+bool contract_clock(uintptr_t entity, const MoveSink &sink, uint16_t &day, uint32_t &value)
+{
+    uintptr_t time = rdv<uintptr_t>(sink.manager + offsetof(DriverCareerContractsManagerComponent, career_time));
+    uintptr_t registry = entity + offsetof(CareerEntity, component_registry);
+    uintptr_t vt = rdv<uintptr_t>(registry);
+    uintptr_t fn = vt ? rdv<uintptr_t>(vt + kVtRegistryValue) : 0;
+    if (!time || !swofty::mem::in_image(fn))
+        return false;
+    value = reinterpret_cast<RegistryValueFn>(fn)(reinterpret_cast<void *>(registry));
+    day = static_cast<uint16_t>(rdv<uint32_t>(time + offsetof(CareerTimeComponent, current_minutes)) / kMinutesPerDay);
+    return true;
+}
 
 bool release_contract(uintptr_t entity, const MoveSink &sink, uint32_t driver, bool &found)
 {
     found = false;
-    using M = DriverCareerContractsManagerComponent;
-    uintptr_t owner = rdv<uintptr_t>(sink.manager + offsetof(M, contract_owner));
-    uintptr_t time = rdv<uintptr_t>(sink.manager + offsetof(M, career_time));
-    uintptr_t b;
-    size_t n;
-    if (!owner || !time || !vec(owner + offsetof(DriverCareerContractOwner, contracts_begin), kContractSlot, 4096, b, n))
+    std::vector<uintptr_t> objects;
+    uint16_t day;
+    uint32_t value;
+    if (!contract_objects(sink, objects) || !contract_clock(entity, sink, day, value))
         return false;
-    uintptr_t contract = 0;
-    for (size_t i = 0; i < n && !contract; ++i) {
-        uintptr_t c = rdv<uintptr_t>(b + i * kContractSlot + sizeof(void *));
-        if (c && rdv<uint32_t>(c + offsetof(DriverContract, driver)) == driver)
-            contract = c;
-    }
+    uintptr_t contract = contract_of(objects, driver);
     if (!contract)
         return true;
-    uintptr_t registry = entity + offsetof(CareerEntity, component_registry);
-    uintptr_t vt = rdv<uintptr_t>(registry);
-    uintptr_t fn = vt ? rdv<uintptr_t>(vt + kVtRegistryValue) : 0;
-    if (!swofty::mem::in_image(fn))
-        return false;
-    uint32_t value = reinterpret_cast<RegistryValueFn>(fn)(reinterpret_cast<void *>(registry));
-    uint16_t day = static_cast<uint16_t>(rdv<uint32_t>(time + offsetof(CareerTimeComponent, current_minutes)) /
-                                         kMinutesPerDay);
     Career_Set_DriverContractState(reinterpret_cast<void *>(contract), day, kContractReleased, value);
     found = true;
     return true;
 }
 
+bool dc_contracts(std::unordered_map<uint32_t, uintptr_t> &out)
+{
+    out.clear();
+    MoveSink sink;
+    sink.manager = ce::mode() == ce::Mode::DriverCareer ? ce::comp::get(ce::comp::Id::DriverCareerContractsManager) : 0;
+    std::vector<uintptr_t> objects;
+    if (!contract_objects(sink, objects))
+        return false;
+    for (uintptr_t c : objects)
+        out[rdv<uint32_t>(c + offsetof(DriverContract, driver))] = c;
+    return true;
+}
+
+void contract_json(ce::Writer &w, uintptr_t contract)
+{
+    if (!contract) {
+        w.null();
+        return;
+    }
+    uint32_t team = rdv<uint32_t>(contract + offsetof(DriverContract, team));
+    w.begin_object();
+    w.key("teamStatId");
+    if ((team & 0xffff0000u) != kNoKey)
+        w.integer(team >> 16);
+    else
+        w.null();
+    w.key("active");
+    w.boolean(rdv<uint8_t>(contract + offsetof(DriverContract, active)) != 0);
+    w.end_object();
+}
+
+// The add-contract step of the Driver Career signing (0x140d77a70..0x140d77cbb). The offer gets the
+// signing day, the incoming driver's own contract ends (state 4 for the same team, 5 for another), and
+// when that leaves it inactive the offer is copied in, marked active and announced with
+// MessageDriverContractChanged {driver, record before, record after, offer kind}. The editor's offer is
+// the record of an active contract for the seat's team (lineup::terms_for).
+constexpr size_t kRecordSize = offsetof(DriverContract, active); // the contract record before the active byte
+constexpr uint8_t kContractRenewed = 4;
+constexpr uint8_t kContractLeft = 5;
+static_assert(kRecordSize == 0x2c && sizeof(DriverContractChangedMessage) == 0x78);
+
+struct Signing {
+    uint32_t driver = 0;
+    uintptr_t contract = 0;
+    uint8_t offer[kRecordSize] = {};
+};
+
+bool sign_contract(uintptr_t entity, const MoveSink &sink, const Signing &s)
+{
+    using C = DriverContract;
+    uint16_t day;
+    uint32_t value;
+    if (!contract_clock(entity, sink, day, value) || !writable(s.contract, offsetof(C, active) + 1) ||
+        !vt_Career_MessageDriverContractChanged.address())
+        return false;
+    uint8_t offer[kRecordSize];
+    std::memcpy(offer, s.offer, sizeof offer);
+    std::memcpy(offer + offsetof(C, signed_day), &day, sizeof day);
+    uint32_t team;
+    std::memcpy(&team, offer + offsetof(C, team), sizeof team);
+    bool same = ((rdv<uint32_t>(s.contract + offsetof(C, team)) ^ team) & 0xffff00ffu) == 0;
+    Career_Set_DriverContractState(reinterpret_cast<void *>(s.contract), day, same ? kContractRenewed : kContractLeft,
+                                   value);
+    if (rdv<uint8_t>(s.contract + offsetof(C, active)))
+        return false;
+    DriverContractChangedMessage m{};
+    m.vtable = vt_Career_MessageDriverContractChanged.get();
+    m.driver = rdv<uint32_t>(s.contract + offsetof(C, driver));
+    std::memcpy(m.before, reinterpret_cast<const void *>(s.contract), sizeof m.before);
+    std::memcpy(reinterpret_cast<void *>(s.contract), offer, sizeof offer);
+    wr<uint8_t>(s.contract + offsetof(C, active), 1);
+    std::memcpy(m.after, offer, sizeof m.after);
+    m.kind = offer[offsetof(C, kind)];
+    return swofty::career::post(&m) == swofty::career::Result::ok;
+}
+
+// Plans a signing before anything is written: the driver's own contract object and the record he
+// signs for `team`.
+const char *plan_signing(const std::vector<uintptr_t> &objects, uint32_t driver, uint32_t outgoing, uint32_t team,
+                         Signing &s)
+{
+    s.driver = driver;
+    s.contract = contract_of(objects, driver);
+    if (!s.contract)
+        return "the game keeps no contract for him";
+    if (!writable(s.contract, offsetof(DriverContract, active) + 1))
+        return "his contract is not writable";
+    int t = ce::lineup::terms_for(contract_views(objects), outgoing, team);
+    if (t < 0 || !rd(objects[t], s.offer))
+        return "no driver holds an active contract with that team to copy the terms from";
+    return nullptr;
+}
+
+std::vector<ce::lineup::Seat> seats_of(const std::vector<Row> &rows)
+{
+    std::vector<ce::lineup::Seat> out;
+    for (auto &r : rows)
+        out.push_back({entrant_driver(r.rec), r.rec.team_stat_id, r.rec.vehicle_ref});
+    return out;
+}
+
 // The end of every signing batch: the changed drivers between the current line-up and a baseline
 // (Career_Build_LineupChanges), posted as MessageDriverMovesFinalised_upgrades, _recognition, then
 // MessageDriverMovesFinalised. The _upgrades handler creates the team modifiers a newly seated
-// driver needs (the null-modifier crash of a bare swap) and moves the per-driver state. The Driver
-// Career signing compares with the weekend's line-up; My Team's processor with its own copy of the
-// line-up from before its writes (0x140db2f40, compared at 0x140db4e1d).
-constexpr uintptr_t kVtCurrentWeekend = 0xa0; // weekend source vtable slot returning the current weekend
-constexpr uintptr_t kWeekendEntrants = 0x18;  // TODO(struct): season lane Weekend: its start-of-weekend entrant vector object
+// driver needs (the null-modifier crash of a bare swap) and moves the per-driver state. The baseline
+// is the line-up from before the op's first write, as My Team's processor copies it (0x140db2f40,
+// compared at 0x140db4e1d). The Driver Career signing compares with the weekend's line-up instead,
+// which equals that copy only for the first signing batch of a weekend: against it a second edit in
+// the same weekend announces the first again, and a swap back announces nothing.
 
 // An entrant vector object as Career_Build_LineupChanges reads it (begin at +8, end at +0x10).
 struct EntrantVector {
@@ -1482,20 +1632,6 @@ struct EntrantVector {
     const EntrantRecord *end = nullptr;
     const EntrantRecord *capacity = nullptr;
 };
-
-uintptr_t weekend_lineup(const MoveSink &sink)
-{
-    using M = DriverCareerContractsManagerComponent;
-    uintptr_t src = rdv<uintptr_t>(sink.manager + offsetof(M, weekend_source));
-    uintptr_t vt = src ? rdv<uintptr_t>(src) : 0;
-    uintptr_t fn = vt ? rdv<uintptr_t>(vt + kVtCurrentWeekend) : 0;
-    if (!swofty::mem::in_image(fn))
-        return 0;
-    uintptr_t weekend = reinterpret_cast<WeekendFn2>(fn)(reinterpret_cast<void *>(src));
-    if (!weekend || !swofty::mem::readable(weekend + kWeekendEntrants, 3 * sizeof(void *)))
-        return 0;
-    return weekend + kWeekendEntrants;
-}
 
 bool finalise_moves(uintptr_t entity, uintptr_t baseline, uint64_t &changes)
 {
@@ -1621,15 +1757,34 @@ ce::OpResult op_swap(const ce::Json &args)
     }
 
     // In a Driver Career replace the incoming (teamless) driver goes first, then the seat's driver
-    // is released, as the game's signing orders it.
+    // is released, as the game's signing orders it. Results keep the caller's a and b.
+    const uint32_t arg_a = a, arg_b = b;
     if (replace && free_b) {
         std::swap(ra, rb);
         std::swap(a, b);
         std::swap(ta, tb);
         std::swap(car_a, car_b);
     }
+    // Driver Career: each driver who takes a race seat signs that seat's contract, as the game's signing
+    // does for its incoming driver; planned before anything is written.
+    std::vector<Signing> signings;
+    if (sink.manager) {
+        std::vector<uintptr_t> objects;
+        if (!contract_objects(sink, objects))
+            return op_fail(op, "no_contract", "the Driver Career contract list is unreadable; nothing written");
+        for (auto [d, out, team] : {std::tuple{a, b, tb}, std::tuple{b, a, ta}}) {
+            if (replace && d == b)
+                continue;
+            Signing s;
+            if (const char *why = plan_signing(objects, d, out, team, s))
+                return op_fail(op, "no_contract",
+                               "driver " + std::to_string(save_id(d)) + " can't sign for team " +
+                                   std::to_string(team >> 16) + ": " + why + "; nothing written");
+            signings.push_back(s);
+        }
+    }
     ce::OpResult r;
-    r.before = swap_json(rows, a, b);
+    r.before = swap_json(rows, arg_a, arg_b);
     char sa[96], sb[96];
     seat_text(sa, sizeof sa, ra);
     seat_text(sb, sizeof sb, rb);
@@ -1646,7 +1801,7 @@ ce::OpResult op_swap(const ce::Json &args)
     for (auto &row : rows)
         before.push_back(row.rec);
     EntrantVector before_lineup{nullptr, before.data(), before.data() + before.size(), before.data() + before.size()};
-    auto baseline = [&] { return sink.manager ? weekend_lineup(sink) : reinterpret_cast<uintptr_t>(&before_lineup); };
+    uintptr_t baseline = reinterpret_cast<uintptr_t>(&before_lineup);
     bool wrote_a = apply_row(entity, sink, ra, ta, tb, reason_a, da, pos_b);
     bool contract_released = false;
     if (wrote_a && replace && !release_contract(entity, sink, entrant_driver(rb.rec), contract_released))
@@ -1657,11 +1812,14 @@ ce::OpResult op_swap(const ce::Json &args)
     bool ok = wrote_a && wrote_b && entrant_rows(entity, now) && now.size() == rows.size();
     const Row *na = ok ? row_of(now, a) : nullptr, *nb = ok ? row_of(now, b) : nullptr;
     ok = ok && na && nb && na->at == ra.at && nb->at == rb.at;
+    std::string seats_lost;
     if (ok) {
         ok = row_matches(na->rec, ra.rec, da) && row_matches(nb->rec, rb.rec, db);
         for (size_t i = 0; ok && i < rows.size(); ++i)
             if (rows[i].at != ra.at && rows[i].at != rb.at && !same_row(rows[i]))
                 ok = false;
+        seats_lost = ce::lineup::seats_kept(seats_of(rows), seats_of(now));
+        ok = ok && seats_lost.empty();
     }
     uint64_t finalised = 0;
     bool finalise_ok = true;
@@ -1670,37 +1828,129 @@ ce::OpResult op_swap(const ce::Json &args)
         bool back_a = !wrote_a || apply_row(entity, sink, ra, tb, ta, car_a ? kReasonSigned : kReasonBenched, ua, pos_a);
         bool back_b = !wrote_b || apply_row(entity, sink, rb, new_b, tb, car_b ? kReasonSigned : kReasonBenched, ub, pos_b);
         if (!sink.renewal)
-            finalise_moves(entity, baseline(), finalised);
+            finalise_moves(entity, baseline, finalised);
         return op_fail(op, "write_failed",
-                       std::string("the entrant rows did not read back as swapped; ") +
+                       std::string(seats_lost.empty() ? "the entrant rows did not read back as swapped; "
+                                                      : "the swap would change the grid (" + seats_lost + "); ") +
                            (back_a && back_b ? "restored both rows" : "COULD NOT restore every row, reload the save") +
                            (contract_released ? " (the released contract stays released)" : ""));
     }
+    size_t signed_now = 0;
+    for (auto &s : signings) {
+        if (sign_contract(entity, sink, s))
+            ++signed_now;
+        else
+            ce::log("drivers.swap WARNING driver %u's contract for his new seat could not be signed", save_id(s.driver));
+    }
     if (!sink.renewal)
-        finalise_ok = finalise_moves(entity, baseline(), finalised);
+        finalise_ok = finalise_moves(entity, baseline, finalised);
     if (!finalise_ok)
         ce::log("drivers.swap WARNING the MessageDriverMovesFinalised messages could not be posted");
-    r.after = swap_json(now, a, b);
+    r.after = swap_json(now, arg_a, arg_b);
     r.ok = true;
     char na_t[96], nb_t[96];
     seat_text(na_t, sizeof na_t, *na);
     seat_text(nb_t, sizeof nb_t, *nb);
     ce::log("drivers.swap driver %u [%s] <-> driver %u [%s] -> driver %u [%s], driver %u [%s] "
-            "(%s; %zu other entrants unchanged, applied now)",
+            "(%s; %zu other entrants unchanged, every team kept its cars, applied now)",
             save_id(a), sa, save_id(b), sb, save_id(a), na_t, save_id(b), nb_t,
             sink.renewal   ? "2 moves recorded"
             : sink.my_team ? "My Team: 2 rows written, moves finalised against the line-up before the swap"
             : replace      ? (contract_released ? "Driver Career replace: incoming announced, outgoing contract released "
-                                                  "and announced to no team, moves finalised"
+                                                  "and announced to no team"
                                                 : "Driver Career replace: incoming announced, outgoing announced to no "
-                                                  "team (no contract found), moves finalised")
-                           : "Driver Career: 2 moves announced, moves finalised",
+                                                  "team (no contract found)")
+                           : "Driver Career: 2 moves announced",
             rows.size() - 2);
+    if (sink.manager)
+        ce::log("drivers.swap signed %zu/%zu seat contract(s) (MessageDriverContractChanged)", signed_now,
+                signings.size());
     if (!sink.renewal)
         ce::log("drivers.swap finalised %llu line-up change(s) (MessageDriverMovesFinalised_upgrades, _recognition, "
                 "MessageDriverMovesFinalised)%s",
                 static_cast<unsigned long long>(finalised), finalise_ok ? "" : " FAILED");
     return r;
+}
+
+// ---------------------------------------------------------------------------
+// Op drivers.contracts.repair (Driver Career): every AI race driver whose contract is not an active one
+// for the team he races for signs that team's contract, through the same add-contract step as a swap.
+
+bool contract_fits(uintptr_t contract, uint32_t team)
+{
+    return contract && rdv<uint8_t>(contract + offsetof(DriverContract, active)) &&
+           ((rdv<uint32_t>(contract + offsetof(DriverContract, team)) ^ team) & 0xffff00ffu) == 0;
+}
+
+std::string repair_json(const std::vector<Row> &rows, const std::vector<uint32_t> &which)
+{
+    std::vector<uintptr_t> objects;
+    MoveSink sink;
+    sink.manager = ce::comp::get(ce::comp::Id::DriverCareerContractsManager);
+    contract_objects(sink, objects);
+    ce::Writer w;
+    w.begin_object();
+    w.key("drivers");
+    w.begin_array();
+    for (uint32_t d : which) {
+        const Row *r = row_of(rows, d);
+        w.begin_object();
+        w.key("driverStatId");
+        w.integer(save_id(d));
+        w.key("teamStatId");
+        if (r && !teamless(r->rec))
+            w.integer(r->rec.team_stat_id >> 16);
+        else
+            w.null();
+        w.key("contract");
+        contract_json(w, contract_of(objects, d));
+        w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+    return w.text();
+}
+
+ce::OpResult op_contracts_repair(const ce::Json &)
+{
+    const char *op = "drivers.contracts.repair";
+    if (ce::mode() != ce::Mode::DriverCareer)
+        return op_fail(op, "wrong_mode", "contract repair is Driver Career only");
+    uintptr_t entity = ce::comp::entity();
+    MoveSink sink;
+    sink.manager = ce::comp::get(ce::comp::Id::DriverCareerContractsManager);
+    std::vector<Row> rows;
+    std::vector<uintptr_t> objects;
+    if (!entity || !sink.manager)
+        return op_fail(op, "no_component", "no championship entity or no DriverCareerContractsManagerComponent");
+    if (!entrant_rows(entity, rows) || !contract_objects(sink, objects))
+        return op_fail(op, "no_component", "entrant table or contract list unreadable");
+    std::vector<uint32_t> need;
+    for (auto &r : rows)
+        if (!(r.rec.ordinal_flags & kHumanBit) && !teamless(r.rec) && has_car(r.rec) &&
+            !contract_fits(contract_of(objects, entrant_driver(r.rec)), r.rec.team_stat_id))
+            need.push_back(entrant_driver(r.rec));
+    ce::OpResult res;
+    res.before = repair_json(rows, need);
+    std::string detail;
+    size_t fixed = 0;
+    for (uint32_t d : need) {
+        const Row *r = row_of(rows, d);
+        Signing s;
+        const char *why = plan_signing(objects, d, d, r->rec.team_stat_id, s);
+        bool ok = !why && sign_contract(entity, sink, s) && contract_fits(s.contract, r->rec.team_stat_id);
+        fixed += ok;
+        detail += (detail.empty() ? "" : ", ") + std::to_string(save_id(d)) + " (team " +
+                  std::to_string(r->rec.team_stat_id >> 16) + ") " + (ok ? "signed" : why ? why : "signing failed");
+    }
+    res.after = repair_json(rows, need);
+    res.ok = fixed == need.size();
+    if (!res.ok)
+        res.error = "write_failed: " + std::to_string(need.size() - fixed) + " of " + std::to_string(need.size()) +
+                    " race driver(s) still have no contract with their team: " + detail;
+    ce::log("drivers.contracts.repair %zu race driver(s) without a contract for their team, %zu signed%s%s", need.size(),
+            fixed, detail.empty() ? "" : ": ", detail.c_str());
+    return res;
 }
 
 // ---------------------------------------------------------------------------
@@ -1805,3 +2055,4 @@ CE_SECTION("drivers", section);
 CE_OP("drivers.ratings.set", op_ratings_set);
 CE_OP("drivers.contract.set", op_contract_set);
 CE_OP("drivers.swap", op_swap);
+CE_OP("drivers.contracts.repair", op_contracts_repair);
