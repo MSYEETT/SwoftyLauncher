@@ -153,16 +153,18 @@ fn set_data(res: &mut Resource, index: usize, data: &[u8]) -> Result<()> {
 }
 
 pub fn edit_vtf(res: &Resource, maps: &[ErsMap]) -> Result<Option<Resource>> {
-    let mut doc = Document::parse(&res.fragments[0].data()?)?;
+    let data = res.fragments[0].data()?;
+    let mut doc = Document::parse(&data)?;
     let mut changed = false;
     for m in maps {
         changed |= add_track(&mut doc.root, m)?;
     }
-    if !changed {
+    let bytes = doc.to_bytes();
+    if !changed || bytes == data {
         return Ok(None);
     }
     let mut out = res.clone();
-    set_data(&mut out, 0, &doc.to_bytes())?;
+    set_data(&mut out, 0, &bytes)?;
     if let Some(stats) = out.fragments.get(1) {
         let old = stats.data()?;
         let version = old

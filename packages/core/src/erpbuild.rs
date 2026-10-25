@@ -740,6 +740,25 @@ impl<'a> ErpBuild<'a> {
 
     // Rewrites the TSMD stats of every resource the ops left with a bxml fragment its
     // stats no longer describe, with the origin that last wrote each.
+    /// Puts `edit`'s copy in place of every resource the ops wrote that it
+    /// returns one for, and counts them.
+    pub fn edit_written(
+        &mut self,
+        mut edit: impl FnMut(&str, &Resource) -> Result<Option<Resource>>,
+    ) -> Result<usize> {
+        let mut n = 0;
+        for (rel, archive) in &mut self.erps {
+            for slot in &mut archive.slots {
+                let Slot::Owned(r) = slot else { continue };
+                if let Some(new) = edit(rel, r)? {
+                    *r = new;
+                    n += 1;
+                }
+            }
+        }
+        Ok(n)
+    }
+
     pub fn repair_stats(&mut self) -> StatsRepair {
         let mut out = StatsRepair::default();
         for (rel, archive) in &mut self.erps {

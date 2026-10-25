@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 use swofty_formats::gvdb::Gvdb;
 
 use crate::activation::db::{Registry, TrackHost, activate};
-use crate::activation::ers::{ErsMap, build_ers};
+use crate::activation::ers::{self, ErsMap, build_ers};
 use crate::activation::grid::grid_size;
 use crate::activation::place::{
     PlaceInput, SLOTS, place, slot_asset_group, slot_asset_root, slot_file, track_group,
@@ -1164,6 +1164,9 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                         None if stale > 0 => {
                             Err(format!("{stale} resource(s) in it need their size headers fixed"))
                         }
+                        None if !ers_maps.is_empty() && carries_handling(&path, targets)? => Err(
+                            "it carries car handling files, which get the tracks' ERS settings".to_owned(),
+                        ),
                         None => overlay_fits(&path, targets, &base)?,
                     };
                     match fits {
@@ -1198,6 +1201,18 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                 }
                 AssetOp::Warn { message } => built.warnings.push(format!("{}: {message}", op.origin)),
                 _ => {}
+            }
+        }
+        if !ers_maps.is_empty() {
+            let edited =
+                erps.edit_written(|rel, r| match rel.starts_with(ers::TEAMS) && r.kind() == "VTF" {
+                    true => ers::edit_vtf(r, &ers_maps),
+                    false => Ok(None),
+                })?;
+            if edited > 0 {
+                built.lines.push(format!(
+                    "ers: {edited} handling file(s) other addons change get the tracks' settings too"
+                ));
             }
         }
         for n in erps.take_notes() {
@@ -1511,6 +1526,16 @@ fn record_merge(built: &mut Built, planner: &mut Planner, origin: &Origin, m: Sl
             m.changed.iter().for_each(|&i| planner.replaced(slice(i), origin));
         }
     }
+}
+
+/// Whether the overlay archive at `path` holds a car handling file for one of
+/// the 2026 team archives in `targets`.
+fn carries_handling(path: &Path, targets: &[String]) -> Result<bool> {
+    if !targets.iter().any(|t| t.starts_with(ers::TEAMS)) {
+        return Ok(false);
+    }
+    let file = swofty_formats::erp::ErpFile::open(path)?;
+    Ok(file.erp.resources.iter().any(|r| r.kind() == "VTF"))
 }
 
 fn stage_erps(built: &mut Built, staged: &BTreeMap<String, PathBuf>, rels: Vec<String>) -> Result<()> {
@@ -2949,6 +2974,181 @@ mod tests {
         assert_eq!(out.get_text(list).as_deref(), Some("melbourne,testring"));
         assert_eq!(out.get_text("tracks._Track_instancecount_").as_deref(), Some("2"));
         assert_eq!(out.get_text("stock.key_0").as_deref(), Some("7"));
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn track_ers_settings_survive_an_addon_that_writes_the_handling_file() {
+        use swofty_formats::bxml::{Document, Element, Kind};
+        use swofty_formats::erp::{Erp, ErpFile, Fragment, HEADER_LEN, MAGIC, Resource, STORED};
+        use swofty_formats::gvdb::Record;
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-ers-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        let slot = dir.join(slot_file(SLOTS[0]));
+        std::fs::create_dir_all(slot.parent().unwrap()).unwrap();
+        std::fs::write(&slot, archive(&["eaid://ui_package/slot.uil"], 0)).unwrap();
+        let res = "tracks.track_resource.TrackResource_0";
+        let set = "track_data.game_setup.TrackDataSet_0";
+        let records = vec![
+            Record::new("tracks._Track_instancecount_", 0, "1"),
+            Record::new("tracks.Track_0._metadata_", 2, "melbourne"),
+            Record::new("tracks.Track_0.statId", 0, "5"),
+            Record::new("tracks.Track_0.track_resource", 2, "2019"),
+            Record::new("tracks.track_resource._TrackResource_instancecount_", 0, "1"),
+            Record::new(&format!("{res}._metadata_"), 2, "2019"),
+            Record::new(&format!("{res}.iblAssetGroupsRoot"), 2, "probes/"),
+            Record::new(&format!("{res}.iblKey"), 2, "key_2019.assetgroup"),
+            Record::new("track_data.game_setup._TrackDataSet_instancecount_", 0, "1"),
+            Record::new(&format!("{set}._metadata_"), 2, "f1"),
+            Record::new(&format!("{set}._TrackData_instancecount_"), 0, "1"),
+            Record::new(&format!("{set}.TrackData_0._metadata_"), 2, "melbourne"),
+            Record::new(&format!("{set}.TrackData_0.track"), 2, "melbourne"),
+        ];
+        std::fs::write(dir.join(GVDB), Gvdb { records }.to_bytes()).unwrap();
+        let el = |name: &str, attrs: &[(&str, &str)], children: Vec<Element>| Element {
+            kind: Kind::Element,
+            pad: 0,
+            name: name.as_bytes().to_vec(),
+            attrs: attrs
+                .iter()
+                .map(|(k, v)| (k.as_bytes().to_vec(), v.as_bytes().to_vec()))
+                .collect(),
+            children,
+            end_pad: 0,
+        };
+        let uri = "eaid://f1_2026_vehicle_package/teams/mclaren/handling/mclaren.vtf";
+        let handling = |deploy: &str| {
+            let doc = Document {
+                root: el(
+                    "VTF",
+                    &[],
+                    vec![el(
+                        "EnergyRecoverySystem",
+                        &[("numTrackSettingsTypes", "1")],
+                        vec![el(
+                            "TrackSettings",
+                            &[("name", "0")],
+                            vec![
+                                el("Track", &[("value", "melbourne")], Vec::new()),
+                                el("MediumDeployFactor", &[("value", deploy)], Vec::new()),
+                                el("OverrideDetectionLapProgress", &[("value", "0.8")], Vec::new()),
+                                el("OverrideActivationLapProgress", &[("value", "0.85")], Vec::new()),
+                            ],
+                        )],
+                    )],
+                ),
+                tail: Vec::new(),
+            };
+            let data = doc.to_bytes();
+            let mut header = [0u8; HEADER_LEN];
+            header[..4].copy_from_slice(MAGIC);
+            header[4..8].copy_from_slice(&3u32.to_le_bytes());
+            Erp {
+                header,
+                version: 3,
+                resources: vec![Resource {
+                    name: uri.into(),
+                    kind: swofty_formats::erp::kind("VTF").unwrap(),
+                    unk: vec![0; 4],
+                    fragments: vec![Fragment {
+                        name: *b"temp",
+                        offset: 0,
+                        size: data.len() as u64,
+                        flags: 0x10,
+                        compression: STORED,
+                        packed: data.len() as u64,
+                        raw: data,
+                    }],
+                    hash: [0; 16],
+                }],
+            }
+            .to_bytes()
+        };
+        let team = "2025_asset_groups/f1_2026_vehicle_package/teams/mclaren/wep/mclaren.erp";
+        std::fs::create_dir_all(dir.join(team).parent().unwrap()).unwrap();
+        std::fs::write(dir.join(team), handling("0.8")).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir: dir.clone(),
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let install = |id: &str, ops: &str, files: &[(&str, Vec<u8>)]| {
+            let src = root.join("src").join(id);
+            std::fs::create_dir_all(src.join("track")).unwrap();
+            std::fs::write(
+                src.join("swofty.json"),
+                format!(
+                    r#"{{ "schema_version": 1, "id": "{id}", "name": "{id}", "version": "1.0.0", "author": "t",
+                         "compat": {{ "game": "f1_25" }}, "operations": {{ "assets": ["ops.json"] }} }}"#
+                ),
+            )
+            .unwrap();
+            std::fs::write(
+                src.join("ops.json"),
+                format!(r#"{{ "schema_version": 1, "ops": [{ops}] }}"#),
+            )
+            .unwrap();
+            for (rel, data) in files {
+                std::fs::write(src.join(rel), data).unwrap();
+            }
+            store.install_addon(&src).unwrap();
+            store
+                .update_profile("default", |p| p.set_enabled(id, true))
+                .unwrap();
+        };
+        let world = "eaid://environment_package/tracks/testring/wep/testring_common.wep";
+        install(
+            "mod.testring",
+            r#"{"op":"track.add","source":"track"}"#,
+            &[
+                (
+                    "track/manifest.json",
+                    br#"{ "track_code": "testring", "track_name": "Test Ring", "erp": "testring.erp",
+                         "activation": { "copy_from_track": "melbourne", "copy_slot": "melbourne" },
+                         "ers": { "OverrideDetectionLapProgress": 0.91, "OverrideActivationLapProgress": 0.95 } }"#
+                        .to_vec(),
+                ),
+                ("track/testring.erp", archive_of("WEP", &[world], 0)),
+            ],
+        );
+        install(
+            "t.handling",
+            &format!(r#"{{"op":"erp.put-resource","erp":"{team}","resource":"{uri}","source":"h.erp"}}"#),
+            &[("h.erp", handling("0.5"))],
+        );
+
+        let built = build(&store, "default", &game).unwrap();
+        let line = "ers: 1 handling file(s) other addons change get the tracks' settings too".to_owned();
+        assert!(built.lines.contains(&line), "{:?}", built.lines);
+        let file = ErpFile::open(&built.plan.data[team]).unwrap();
+        let r = file.erp.resources.iter().find(|r| r.name == uri).unwrap();
+        let doc = Document::parse(&file.load(r).unwrap().fragments[0].data().unwrap()).unwrap();
+        let ers = doc.root.child(b"EnergyRecoverySystem").unwrap();
+        let value = |track: &str, key: &str| {
+            ers.children
+                .iter()
+                .find(|c| c.child(b"Track").and_then(|t| t.attr(b"value")) == Some(track.as_bytes()))
+                .and_then(|c| c.child(key.as_bytes()))
+                .and_then(|f| f.attr(b"value"))
+                .map(|v| String::from_utf8_lossy(v).into_owned())
+        };
+        assert_eq!(value("melbourne", "MediumDeployFactor").as_deref(), Some("0.5"));
+        assert_eq!(value("testring", "MediumDeployFactor").as_deref(), Some("0.5"));
+        assert_eq!(
+            value("testring", "OverrideDetectionLapProgress").as_deref(),
+            Some("0.91")
+        );
+        assert_eq!(
+            value("testring", "OverrideActivationLapProgress").as_deref(),
+            Some("0.95")
+        );
         std::fs::remove_dir_all(&root).ok();
     }
 
