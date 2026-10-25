@@ -972,7 +972,7 @@ impl Shell {
         if moved {
             self.cancel_scroll();
         }
-        self.db_leaving(page, cx);
+        self.db_page_change(page, cx);
         self.page = page;
         if let Page::Section(i) = page {
             self.fetch_views(Some(i), cx);

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow, bail};
 use clap::Subcommand;
 use swofty_core::dbedit::package::{self, Package};
-use swofty_core::dbedit::{Catalog, Edits, NodeId, NodeKind, RowCopy, deps, modules};
+use swofty_core::dbedit::{Catalog, Edits, NodeId, NodeKind, RowCopy, deps, driver_manager, modules};
 use swofty_core::manifest::Category;
 use swofty_core::store::Store;
 
@@ -338,7 +338,8 @@ pub fn command(store: &Store, profile: &str, game: Option<PathBuf>, cmd: DbComma
             }
         }
         DbCommand::Search { query, limit } => {
-            for h in catalog()?.search(&query, limit) {
+            let cat = catalog()?;
+            for h in cat.search_with(&query, limit, &driver_manager::drivers(store, &cat)) {
                 println!("{:<10} {}  {}", format!("{:?}", h.kind), h.title, h.detail);
             }
         }

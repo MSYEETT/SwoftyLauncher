@@ -4,6 +4,7 @@
 mod catalog;
 pub mod deps;
 pub mod draft;
+pub mod driver_manager;
 mod edits;
 mod ego;
 mod modules;

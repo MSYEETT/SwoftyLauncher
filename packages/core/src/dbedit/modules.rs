@@ -4,6 +4,7 @@ use std::sync::OnceLock;
 use serde::Deserialize;
 
 use super::catalog::plain;
+use super::driver_manager::{self, Driver};
 use super::{Catalog, Edits, NodeId, rows};
 use crate::ops::first_segment;
 use crate::tracks::PlanTrack;
@@ -171,7 +172,7 @@ pub struct RefSpec {
 
 /// A link out of a module: to an addon's launcher page (and tab), or a URL when the
 /// addon is not installed.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LinkSpec {
     pub label: String,
@@ -666,17 +667,19 @@ impl Module {
 
     /// Like `choices`, for the rows of one scope.
     pub fn choices_in(&self, catalog: &Catalog, field: usize, scope: Option<&str>) -> Vec<(String, String)> {
-        self.choices_with(catalog, field, scope, &[])
+        self.choices_with(catalog, field, scope, &[], &[])
     }
 
     /// Like `choices_in`, where the field picks a track also offering the
-    /// tracks track addons add, and naming a stock slot after the addon that fills it.
+    /// tracks track addons add, and naming a stock slot after the addon that fills it;
+    /// where it picks a driver or entrant, also offering the drivers Driver Manager adds.
     pub fn choices_with(
         &self,
         catalog: &Catalog,
         field: usize,
         scope: Option<&str>,
         tracks: &[PlanTrack],
+        drivers: &[Driver],
     ) -> Vec<(String, String)> {
         let Some(f) = self.fields.get(field) else {
             return Vec::new();
@@ -686,6 +689,13 @@ impl Module {
                 let mut names = ref_names(catalog, spec, scope);
                 if spec.rows == TRACK_ROWS {
                     add_tracks(&mut names, tracks);
+                }
+                if driver_manager::TABLES.contains(&spec.rows.as_str()) {
+                    for d in drivers {
+                        if !names.iter().any(|(l, _)| *l == d.label) {
+                            names.push((d.label.clone(), d.title()));
+                        }
+                    }
                 }
                 distinct(names)
             }
@@ -873,14 +883,70 @@ mod tests {
                 addon: Some("mod.okayama".into()),
             },
         ];
-        let with = weekends.choices_with(&cat, track, None, &added);
+        let with = weekends.choices_with(&cat, track, None, &added, &[]);
         let named = |v: &str| with.iter().find(|(c, _)| c == v).map(|(_, n)| n.as_str());
         assert_eq!(named("bahrain24"), Some("Sepang"));
         assert_eq!(named("okayama"), Some("okayama"));
         assert_eq!(with.len(), 4);
         let calendar = module("calendar").unwrap();
         let event = calendar.fields.iter().position(|f| f.id == "event_name").unwrap();
-        assert!(calendar.choices_with(&cat, event, None, &added).is_empty());
+        assert!(calendar.choices_with(&cat, event, None, &added, &[]).is_empty());
+    }
+
+    #[test]
+    fn driver_choices_offer_the_drivers_driver_manager_adds() {
+        use crate::dbedit::driver_manager::{self, tests};
+        let cat = Catalog::from_gvdb(tests::database(), String::new());
+        let dir = tests::temp("choices");
+        tests::fixture(&dir);
+        let drivers = driver_manager::drivers_in(&dir, &cat);
+        let lineups = module("lineups").unwrap();
+        let at = |m: &Module, id: &str| m.fields.iter().position(|f| f.id == id).unwrap();
+        let seat = at(lineups, "entrant_reference");
+        assert_eq!(
+            lineups.choices_with(&cat, seat, Some("f1_2026"), &[], &drivers),
+            [
+                ("max_verstappen".to_owned(), "max_verstappen".to_owned()),
+                ("dm_208".to_owned(), "Jacob Swofty (Driver Manager)".to_owned()),
+                (
+                    "dm_209".to_owned(),
+                    "Ret Ired (Driver Manager, retired)".to_owned()
+                ),
+            ]
+        );
+        assert_eq!(lineups.choices_in(&cat, seat, Some("f1_2026")).len(), 1);
+        for (m, field) in [
+            ("lineups", "driver"),
+            ("lineups", "entrant_driver"),
+            ("entrants", "driver"),
+            ("driver-looks", "linked_driver_stat_id"),
+            ("retirements-2025", "driver"),
+        ] {
+            let m = module(m).unwrap();
+            let choices = m.choices_with(&cat, at(m, field), None, &[], &drivers);
+            assert!(
+                choices.iter().any(|(v, _)| v == "dm_208"),
+                "{}.{field}: {choices:?}",
+                m.id
+            );
+        }
+        for (m, field) in [("drivers", "nationality"), ("race-weekends", "track")] {
+            let m = module(m).unwrap();
+            let choices = m.choices_with(&cat, at(m, field), None, &[], &drivers);
+            assert!(
+                !choices.iter().any(|(v, _)| v.starts_with("dm_")),
+                "{}.{field}",
+                m.id
+            );
+        }
+
+        let view = lineups.view(&cat, &Edits::default(), None).unwrap();
+        let key = view.rows[0].cells[seat].key.unwrap();
+        let mut edits = Edits::default();
+        edits.set(&cat, key, "dm_208").unwrap();
+        let after = lineups.view(&cat, &edits, None).unwrap();
+        assert_eq!(after.rows[0].cells[seat].value, "dm_208");
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

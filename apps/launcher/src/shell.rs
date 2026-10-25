@@ -1120,7 +1120,7 @@ impl Shell {
         if self.page != page {
             self.cancel_scroll();
         }
-        self.db_leaving(page, cx);
+        self.db_page_change(page, cx);
         self.page = page;
         if let Some(i) = self.open_section().filter(|i| !self.section_loaded(*i)) {
             self.fetch_views(Some(i), cx);
