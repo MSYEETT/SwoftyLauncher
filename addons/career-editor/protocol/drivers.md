@@ -73,7 +73,7 @@ ratings patch replaces it only if the player accepts that patch.
     }
   ],
   "otherDrivers": [
-    { "driverStatId": 120, "name": "some_f2_driver", "overall": 71, "values": [60, 70, 65, 72, 80] }
+    { "driverStatId": 120, "name": "some_f2_driver", "initials": "SFD", "overall": 71, "values": [60, 70, 65, 72, 80] }
   ],
   "progress": 0.31,
   "contracts": null,
@@ -87,7 +87,8 @@ ratings patch replaces it only if the player accepts that patch.
 - `drivers` lists the drivers in the championship line-up (every driver with an entrant row: race
   seats and reserves). `otherDrivers` lists the rest of the career's statistics table (free agents,
   F2 and other drivers) compactly: `values` holds the shown value of each statistic in `stats` order
-  (null when the driver has none). `drivers.ratings.set` accepts any driver from either list.
+  (null when the driver has none). `drivers.ratings.set` accepts any driver from either list, and
+  `drivers.freeAgent.add` gives a driver of `otherDrivers` an entrant row in Driver Career.
 - `seat.hasCar` is false for a reserve; `seat.position` is the seat order in the team (null when
   unset). `team` is null for a row with no team. `onGrid` is `seat.hasCar`; `player` is the human
   entrant.
@@ -417,7 +418,7 @@ team, or two reserves of one team), `no_seat` (neither has a car), `no_entrant` 
 in the line-up: listed under `otherDrivers`, with no entrant row and so no seat; the error text says
 so and points to the `drivers` list. The game's entrant writer only
 rewrites existing rows and never adds one; no row-creating path was found in the game's signing
-code), `refused` (the game has `disableDriverMoves` set), `busy` (the game is mid entrant
+code. In Driver Career `drivers.freeAgent.add` gives such a driver a row first), `refused` (the game has `disableDriverMoves` set), `busy` (the game is mid entrant
 update), `no_component` (no championship entity, or no component to move drivers with; the detail
 names the mode and the components it looked for), `bad_args`, `stale`.
 
@@ -542,16 +543,102 @@ In-game test, on a backed-up My Team save with
 6. Repeat step 1 with the player's own team's second seat, then go through a season change (the
    "Player has %i drivers signed" and forced-purchase lines).
 
-### Free agents without an entrant row (Driver Career)
+## Op `drivers.freeAgent.add`
 
-A driver who is in the career's statistics table but has no entrant row (`otherDrivers`, for example a
-free agent who never had a seat in this career) can't be seated mid-season. The game's entrant writer
-only rewrites existing rows. The Driver Career signing (0x140d766b0) needs the incoming driver's row,
-and the retire path (0x140d958b0) leaves a retired driver's row in place, teamless. The only code that
-appends rows is the line-up builder 0x140c2a870 (`add [entity+0x2e8], 0x88`). It clears every row and
-builds the whole line-up again; the CareerSetupComponent paths that run it (0x140c2e560, 0x141fbfa10,
-0x14386f8d0) were not seen during a career. So the swap lists only drivers with a row, and the Swap
-seats card says why the others are missing.
+Driver Career only. A driver in the career's statistics table with no entrant row (`otherDrivers`, for
+example a Driver Manager driver made after the career started) gets a teamless free-agent entrant row
+and a `DriverContract` object, laid out as the career setup makes them for a pool free agent. The save
+keeps both, and `drivers.swap` can then seat him.
+
+What the game does (static RE, 2026-10-26):
+- **Rows.** The game's entrant writer (`Career_Set_EntrantData_Thunk`) only rewrites existing rows. The
+  career setup (`Game_CareerSetup_ResetEntrants` 0x140c34960, the line-up builder 0x140c2a870 and the
+  CareerEntity loader 0x1407a00d0) posts the entrant begin message (vtable 0x14578d4e8), sets
+  `entrant_update_busy` (+0x2f8), fills the entity's entrant vector object and posts the end message
+  (vtable 0x14578d510, payload the vector object at entity +0x2d8). The vector object is
+  {allocator +0x2d8, begin +0x2e0, end +0x2e8, capacity +0x2f0}; the capacity is an element count.
+  0x140bd5100 (the setup's copy into it) grows it through the allocator's vtable +0x18
+  (`alloc(allocator, bytes, 8)`), copies each 0x88-byte row and frees the old buffer through +0x38
+  (`free(allocator, old begin)`, 0x140bd520d..0x140bd521c).
+- **A pool row** (`Sess_Parse_Entrant` 0x142452e60; Driver Manager pool rows have `team_position` -1
+  and `car_number` 255): vtable 0x145612e20, the id block +0x08..+0x47 from 0x1441207d0 (kind byte 1,
+  then three random 64-bit values, each stored twice at +0x10/+0x18, +0x20/+0x28, +0x30/+0x38, and a
+  zero u16 at +0x40), +0x48 the parser's running index (`ordinal_flags`), +0x50 the driver key, +0x54
+  the packed driver look (0x3fff0000 without one), team, car, registry value, livery and badge
+  0x3fff0000, +0x70 vtable 0x145612ed0, +0x78 0xffff0012, +0x80 0 (no position), +0x82 0xff, +0x83 the
+  number (0xff). The game's identity compare (0x1431146d0) matches AI rows by the +0x48 dword alone.
+- **Contracts.** The contract rebuild (0x140d78fa0, from `DriverCareerContractsManagerComponent`
+  0x140d78980) gives every row of the owner registry's vtable +0x1c8 list (every row of entity +0x2e0)
+  a 0x58-byte `DriverContract` (align 0x10) from the contract owner's allocator (+0x210): zeroed, that
+  allocator at +0x30 (the history's allocator), the driver key at +0x50. It pushes the slot
+  {allocator, contract} onto the owner's slot vector object {allocator +0x290, begin +0x298, end
+  +0x2a0, capacity +0x2a8} with 0x140d9dca0 (x1.5 growth through the slot allocator's vtable +0x18,
+  old buffer freed through +0x38). The contract loader (0x140d9e020) builds the same object for every
+  saved contract and fills the record (+0x00..+0x2b) and `active` only when `has_contract` was saved;
+  the saver (0x140d9ecd0) writes the driver, `has_contract`, the record when active, and the history
+  of every slot.
+- **The rows' save.** `Ent_Deserialise_EntrantVector` (0x142458f20) resizes the vector object to the
+  saved count, so an added row loads back. The vector's saver was not found statically.
+
+Args: `{ "driverStatId": 208, "dryRun": false }`: a driver of `otherDrivers` (in the statistics table,
+no entrant row). `dryRun` (optional, default false) runs every check, logs the template, and writes
+nothing (`after` equals `before`).
+
+Steps:
+1. Checks, before anything is written: Driver Career, the championship entity, the contracts manager
+   and its contract owner, not mid entrant update, the driver in the statistics table and without an
+   entrant row, both vector objects readable (count within the capacity, allocator vtables in the
+   image), and the driver's existing contract (if any) inactive.
+2. The template: the first untouched pool free agent of the line-up, a teamless AI row with no car,
+   registry value, livery or badge (0x3fff0000), seat value 0xffff0012, position 0, +0x82 0xff, no
+   number, the line-up's vtables, whose contract is inactive with a zero record (+0x00..+0x2f) and an
+   empty history. His contract's +0x30 and its slot's allocator must be the owner's +0x210 allocator
+   and his contract's +0x50 his driver key. Without such a driver the op refuses (`refused`).
+3. The contract (skipped when the driver already has an inactive one): 0x58 bytes, align 0x10, from
+   the owner's +0x210 allocator, zeroed, the allocator at +0x30 and the driver key at +0x50, pushed as
+   the slot {allocator, contract}, in place while the capacity allows, otherwise into a buffer of 1.5x
+   the count from the slot allocator, the old buffer freed, as 0x140d9dca0 does.
+4. The row: the template row with a new id block (as 0x1441207d0 lays it out), `ordinal_flags` = the
+   template's high byte and the highest running index of the line-up plus one (refused when another row
+   has it), the driver key at +0x50 and no driver look (+0x54 0x3fff0000), appended the same way to the
+   entity's vector object.
+5. `Career_Set_EntrantData_Thunk` with the new row's identity, its own data, position and number. It
+   rewrites the row unchanged and brackets the write with the entrant begin and end messages, the end
+   message carrying the vector object, as the setup brackets its rebuild.
+6. Verify: the line-up has one more row, every old row is byte-identical, the new row is the last row
+   and reads back as written, the contract list has one more contract (none when kept), the driver's
+   contract is the new one and reads back as created, and the entity is not mid update. Otherwise the
+   op drops the row and the contract again (the contract's memory goes back to its allocator), rewrites
+   the template row with its own data so the end message carries the restored line-up, and fails with
+   `write_failed`.
+
+Result `before` / `after`:
+
+```json
+{ "driverStatId": 208, "seat": { "hasCar": false, "position": null }, "contract": { "teamStatId": 0, "active": false } }
+```
+
+`seat` is null without an entrant row; `contract` is null without a contract object. The empty
+record's team is 0.
+
+Errors: `bad_args`, `wrong_mode`, `no_component`, `busy`, `unknown_driver` (not in the statistics
+table), `already_listed` (the driver has an entrant row), `refused` (no untouched free agent to copy,
+a contract layout other than the rebuild's, an active contract without a row, the line-up full or no
+free running index), `write_failed`.
+
+Undo: backup only (the History tab's save backups). No game path removes a row mid-career.
+
+Not set: the driver's look (+0x54, the packed `driver_customisation` of his Driver Manager entrant
+row; how `Ent_Pack_DriverCustomisation` packs it was not read), the current weekend's copy of the
+line-up (weekend +0x18), which the end message's listeners or the next weekend rebuild. Test T008
+(`re/tests/T008.md`) covers both.
+
+Log lines: first `[career-editor] drivers.freeAgent.add driver <id>: template free agent <id> ordinal_flags 0x<8 hex> driver_customisation 0x<8 hex> contract <0x58 bytes as hex>` (the template's +0x48, +0x54 and contract object as read), then with `dryRun` `... dry run, entrant index <n>, contract kept|to create; nothing written`, otherwise
+`[career-editor] drivers.freeAgent.add driver <id>: entrant row added [team 16383 car 0x3fff0000 pos -1, entrant index <n>, copied from free agent <id>], contract created|kept (inactive, zero record); <n> -> <n+1> rows, <c> -> <c+1> contracts, <n> other rows unchanged (Career_Set_EntrantData_Thunk announced the line-up)`.
+
+Modes: Driver Career. Runs only while `ce::safe()`.
+
+Status: implemented; needs in-game proof (T008).
 
 ## Bindings
 
@@ -564,7 +651,9 @@ seats card says why the others are missing.
 | `Career_Get_DriverStatBase_Thunk` | 0x1411471f0 | L2, no sig | evidence for the curve choice and the dynamic-stat rule |
 | `Career_Parse_CurveString` | 0x141157100 | L2, no sig | evidence for the lookup-table rebuild |
 | `Career_Serialise_DriverContractList` | 0x140da5610 | L2, no sig | evidence for the contract record layout |
-| `Career_Set_EntrantData_Thunk` | 0x1407b72e0 | L2, sig `career.set_entrant_data_thunk` | `drivers.swap`: rewrites one entrant row; `drivers.number.set`: rewrites a row with its new number |
+| `Career_Set_EntrantData_Thunk` | 0x1407b72e0 | L2, sig `career.set_entrant_data_thunk` | `drivers.swap`: rewrites one entrant row; `drivers.number.set`: rewrites a row with its new number; `drivers.freeAgent.add`: announces the added row |
+| `NeAllocatorVtbl` alloc / free | vtable +0x18 / +0x38 | L2 (struct) | `drivers.freeAgent.add`: the entrant vector's, the contract slots' and the contracts' allocators, called through their vtables |
+| `Game_CareerSetup_ResetEntrants`, 0x140bd5100, 0x140d78fa0, 0x140d9dca0, 0x140d9e020, 0x140d9ecd0, 0x1441207d0, 0x1431146d0 | | see the KB | evidence for `drivers.freeAgent.add`; not called |
 | `Career_DriverNumbers_CheckExisting` | 0x140c01c30 | L2, sig `career.driver_numbers_check_existing` | `drivers.swap`: gives a swapped driver whose row has a team and no number a free one |
 | `Career_DriverNumbers_AssignFree`, `Career_DriverNumbers_ApplyPlayerNumber`, `Career_Weekend_SetEntrantNumber` | 0x140c01280 / 0x140c00830 / 0x140af6800 | L1, no sig | evidence for `drivers.number.set`'s order; not called |
 | `Ent_Deserialise_EntrantVector`, `Ent_Serialise_EntrantRecord` | 0x142458f20 / 0x142458890 | L1, no sig | evidence that the save keeps +0x83 |
