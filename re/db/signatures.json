@@ -73483,6 +73483,34 @@
     }
    ],
    "used_by": []
+  },
+  {
+   "id": "game.career_dlc_select_view_model",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 49 89 07 48 8D 05 ?? ?? ?? ?? 49 89 87 60 02 00 00 48 8D 05 ?? ?? ?? ?? 49 89 87 68 02 00 00 48 8D 05 ?? ?? ?? ?? 49 89 87 98 02 00 00 66 41 C7 87 A8 03 00 00 00 06",
+   "match": "0x14164bc82",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x145738430",
+   "kind": "data",
+   "names": [
+    "vt_Game_CareerDLCSelectViewModel"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "career-row",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/career_content.cpp"
+   ]
   }
  ]
 }

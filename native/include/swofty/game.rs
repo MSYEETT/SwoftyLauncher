@@ -3517,6 +3517,11 @@ pub mod bindings {
         kind: "vtable",
         status: Status::Experimental,
     };
+    pub const vt_Game_CareerDLCSelectViewModel: Binding = Binding {
+        id: "vt_Game_CareerDLCSelectViewModel",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
     pub const vt_Game_CareerWizardSettingsSelectViewModel: Binding = Binding {
         id: "vt_Game_CareerWizardSettingsSelectViewModel",
         kind: "vtable",
