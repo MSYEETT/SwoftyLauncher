@@ -23,6 +23,9 @@ The car, suit and head archives are not in the repository. The built packages, e
 | `tools/build_cars.py` | Builds a season addon's `cars/` from the season zips, and an extra team's car (`car` in `data/seasons.json`) into `cars/extra/` |
 | `tools/carperf.py` | Shadow caster rebuild and texture cap, run by `build_cars.py` |
 | `tools/handling.py` | Handling files: wheel positions from the handling file, run by `build_cars.py` |
+| `tools/pace.py` | Handling files: each team's pace as chassis mass, run by `build_cars.py` |
+| `tools/overtake.py` | Handling files: the stock 2026 cars' overtake settings, run by `build_cars.py` |
+| `tools/aislots.py` | Measures the stock teams' per-track AI data into `data/ai_slots.json` and gives each season team a slot |
 | `tools/tyres.py` | `Tyres` overrides naming a season's tyre set, run by `build_cars.py` |
 | `tools/build_incardriver.py` | Per-season in-car driver archives (2016-2021), in the season addon's `cars/incardriver/` |
 | `tools/logos.py`, `tools/frontend.py` | Team logo arrays (`erp/logos/`) and name backdrops (`erp/frontend/`) |
@@ -55,7 +58,9 @@ Each season:
 - `game_setup.scenarios` row `cs_f1_<year>` (setup mode `swofty_f1`, swofty.core's host setup mode for addon boxes), entrant list `cs_f1_<year>` (a copy of `f1_2025`, 20 entrants, or of `f1_2026` with the 2025 season, leaderboard and UI path for 22), team standings `cs_f1_teams_<year>`. A 22-car season sets `swofty_f1`'s `max_entrants` to 22.
 - `list-append` of `cs_f1_<year>` onto the `swofty_f1` entrant setup mode's `entrant_lists` and `selectable_entrant_lists`, and onto the 2025 and 2026 content sets.
 - Teams and vehicles `cs<yy>_<key>` (`key` defaults to the team's `folder`). A team's `primary_colour` and `ui_team_colour` (the timing tower and menus) are its `colour` in `data/seasons.json`: F1's broadcast colour of that season for 2018 to 2024, and one picked from the livery for 2016 and 2017. `secondary_colour` and `tertiary_colour` are the second and third, and `team_wear_primary_colour`, `team_wear_secondary_colour` and `team_wear_tertiary_colour` all three, of its colours in `data/team_colours.json`. Vehicle package `cs_<year>`, and `cx_<year>` for a team with its own car archive.
-- A `car_setup.presets` row for each vehicle package (`cs_<year>_vehicle_package`, `cx_<year>_vehicle_package`), copied from `f1_2025_vehicle_package`: the game looks up the AI and player car setups by package name.
+- Each vehicle's `performance_tier` and `tyre_wear_scale` by its team's rank in the season (`aislots.ranked`): tiers 0, 1 and 2 for the first four, the next three and the rest, as the stock 2025 cars have them, and a tyre wear scale of 1.04 for the fastest team, 0.01 less per place, down to 0.95.
+- A team whose AI slot (see [Performance](#performance)) isn't its own `folder`: vehicle package `cs_<year>_<key>`, whose `resource_path` names the team's car archive, and the vehicle's `asset_filename` set to the slot.
+- A `car_setup.presets` row for each vehicle package (`cs_<year>_vehicle_package`, `cx_<year>_vehicle_package`, `cs_<year>_<key>_vehicle_package`), copied from `f1_2025_vehicle_package`: the game looks up the AI and player car setups by package name.
 - A `pit_lane.pit_times` row per team, copied from its stock team.
 - Driver looks `<year>-cs_<key>_<driver>` (stat ids from 420, numbered across every season) and pool entrants `cs<year>-<driver>`.
 - 2016 to 2021: each driver look wears the suit and gloves of [Suits](#suits). A season copies the suit and gloves rows of each generated suit it ships, and the shared addon those of each real suit from a mod, with its helmet row. The copies are labelled with the suit's label and take the base suit's rows with the suit's asset group, models and `material_override`. Item ids (`tools/gen.py`): `REAL_SUIT_IDS` for the real suits, 974 up in `data/real_suits.json` order; `SUIT_IDS` for the generated ones, the next ids, one per team-season of 2016 to 2021 in season and team order; `TRANSFER_SUIT_IDS` for the real suits of converted F1 2020 mods, the ids after `SUIT_IDS`, in `data/real_suits.json` order; `HELMET_IDS`, 868 up, for the helmets. The stock ids are 448 to 973 for suits and gloves and 315 to 867 for helmets. Each suit and gloves copy sets `colour_1_default` to `colour_4_default` to `0`, a helmet copy the base helmet's values, and the file's `fields` map lists the four keys for suit, gloves and helmet rows.
@@ -72,7 +77,13 @@ With a season of more than ten teams, the shared addon adds a `track_data.track_
 python3 tools/performance.py [--refresh]
 ```
 
-Outside career, a car's pace comes from its handling file, not from the upgrade trees (`upgrades.2026.trees.*`).
+Outside career, a car's pace comes from its handling file and its per-track AI data, not from the upgrade trees (`upgrades.2026.trees.*`).
+
+The AI reads a car's per-track data from `environment_package/tracks/<track>/ai/<ai_package_folder>/<asset_filename>/`: braking, cornering and throttle tables, the lap times of simulated sessions (`.vp_times`), and tyre wear, fuel and ERS use. The tables are kept per mass. `data/ai_slots.json` (tools/aislots.py) holds each stock 2025 team's mean lap-time gap to the fastest one at 800 kg over 28 tracks, from Red Bull's (0.03 %) to Toro Rosso's (0.47 %), and the lap time a kilogram costs (0.0308 %). Each season gives its teams these slots in the order of their real gaps, and teams past ten the slowest.
+
+```sh
+python3 tools/aislots.py [--game <F1 25 folder>]
+```
 
 ## Plugin
 
@@ -133,7 +144,8 @@ python3 tools/build_helmets.py --downloads ~/Downloads --game <F1 25>
 - Caps every non-livery texture and shipped sidecar at 1024 px.
 - Moves the cockpit camera of a season with `cockpit_camera` (`up` and `forward`, in metres) in `data/seasons.json`, and sets the TV pod cameras' near clip of a season with `pod_camera` (`near_clip`, in metres; stock 0.23 m on CamPod) (tools/cameras.py).
 - Turns off `UseModelPositions` in every handling file, so the wheels sit at the handling file's positions instead of the model's (tools/handling.py).
-- Sets every handling file to its team's pace (tools/pace.py): the stock 2025 teams' mean `F1Aero` wing coefficients, and per 1 % of the team's median qualifying gap to the season's fastest team (`data/performance.json`) front and rear lift multipliers 0.045 below 0.95 (no lower than 0.72), `Chassis` `Mass` 12 kg over 798 kg and body drag 2 % over the stock mean. `python3 tools/pace.py --years <range>` sets them on built cars.
+- Sets every handling file to its team's pace (tools/pace.py): the stock 2025 teams' mean `F1Aero` wing coefficients and body drag, front and rear lift multipliers of 0.95, and `Chassis` `Mass` 798 kg plus the team's median qualifying gap to the season's fastest team (`data/performance.json`), less its AI slot's head start, at 0.0308 % per kg. `python3 tools/pace.py --years <range>` sets them on built cars.
+- Gives every handling file's `EnergyRecoverySystem` the stock 2026 team's `TrackSettings` (overtake detection and activation per track), or McLaren's for a team the 2026 cars don't have (tools/overtake.py). `python3 tools/overtake.py --years <range>` adds them to built cars.
 - Renames the tyre set (`shared/tyres/`) of a season with its own `common.erp` with the rest, and adds a `Tyres` override naming it (`tyre model`, `tyre wet model`, `material`, `wet material`) to every car and showroom model layer (tools/tyres.py). The car templates in `eaid://wote/types` name the stock tyre set.
 
 ```sh
