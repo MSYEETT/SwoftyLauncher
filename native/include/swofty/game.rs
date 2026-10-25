@@ -78,6 +78,21 @@ pub struct RnDDepartmentConfig {
 }
 
 #[repr(C)]
+pub struct UiLayoutStep {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct UiSignal {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct UiTemplateRecord {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct UpgradeEffectDef {
     _opaque: [u8; 0],
 }
@@ -180,6 +195,15 @@ const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, time) == 0x2
 const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, flow) == 0x24);
 const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, check_funds) == 0x25);
 const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, category) == 0x28);
+
+#[repr(C)]
+pub struct CarNumberComponent {
+    _pad_0x0: [u8; 0x278],
+    pub entity: *mut CareerEntity,
+    _pad_0x280: [u8; 0x38],
+}
+const _: () = assert!(core::mem::offset_of!(CarNumberComponent, entity) == 0x278);
+const _: () = assert!(core::mem::size_of::<CarNumberComponent>() == 0x2b8);
 
 #[repr(C)]
 pub struct CareerBankComponent {
@@ -421,11 +445,14 @@ pub struct DriverCareerContractsManagerComponent {
     _pad_0x280: [u8; 0xd0],
     pub contract_owner: *mut DriverCareerContractOwner,
     pub career_time: *mut CareerTimeComponent,
+    _pad_0x360: [u8; 0x8],
+    pub car_numbers: *mut CarNumberComponent,
 }
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, weekend_source) == 0x270);
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, entity) == 0x278);
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, contract_owner) == 0x350);
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, career_time) == 0x358);
+const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, car_numbers) == 0x368);
 
 #[repr(C)]
 pub struct DriverContract {
@@ -477,7 +504,9 @@ const _: () = assert!(core::mem::size_of::<DriverContractChangedMessage>() == 0x
 
 #[repr(C)]
 pub struct DriverContractsMyTeamComponent {
-    _pad_0x0: [u8; 0x798],
+    _pad_0x0: [u8; 0x2e8],
+    pub car_numbers: *mut CarNumberComponent,
+    _pad_0x2f0: [u8; 0x4a8],
     pub pending_contracts_begin: *mut ContractRecord,
     _pad_0x7a0: [u8; 0x18],
     pub decided_contracts_begin: *mut ContractRecord,
@@ -488,6 +517,7 @@ pub struct DriverContractsMyTeamComponent {
     pub last_season_signings_begin: *mut ContractRecord,
     pub last_season_signings_end: *mut ContractRecord,
 }
+const _: () = assert!(core::mem::offset_of!(DriverContractsMyTeamComponent, car_numbers) == 0x2e8);
 const _: () =
     assert!(core::mem::offset_of!(DriverContractsMyTeamComponent, pending_contracts_begin) == 0x798);
 const _: () =
@@ -1547,6 +1577,7 @@ pub type Career_Create_SeasonWeekend_t =
     unsafe extern "C" fn(season: *mut c_void, index: u64, track: u8, name: *const c_char) -> *mut c_void;
 pub type Career_Decide_ContractNegotiation_t =
     unsafe extern "C" fn(state: *mut c_void, link: *mut u32) -> *mut u32;
+pub type Career_DriverNumbers_CheckExisting_t = unsafe extern "C" fn(car_numbers: *mut c_void, driver: u32);
 pub type Career_Eval_Curve_t = unsafe extern "C" fn(curve: *mut c_void, x: f32) -> f32;
 pub type Career_Get_CareerLengthDays_Thunk_t = unsafe extern "C" fn(time: *mut c_void) -> u32;
 pub type Career_Get_DriverOverallRating_t =
@@ -1858,6 +1889,11 @@ pub mod bindings {
     };
     pub const Career_Decide_ContractNegotiation: Binding = Binding {
         id: "Career_Decide_ContractNegotiation",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Career_DriverNumbers_CheckExisting: Binding = Binding {
+        id: "Career_DriverNumbers_CheckExisting",
         kind: "func",
         status: Status::Experimental,
     };
