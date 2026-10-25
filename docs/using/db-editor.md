@@ -32,6 +32,8 @@ Most of the database is read when a career, Grand Prix or other mode starts. A c
 
 Type in the search box at the top of the page, or press `Ctrl+F` or `/`. It searches driver, team and track names, table names, key paths, values and the game's English text. Pick a result to open it.
 
+With Driver Manager installed, search also finds its drivers by name, code and label, such as `dm_208`, under **Driver Manager drivers**. Picking one opens the **Driver Manager** page, or the **Drivers** page when Driver Manager is off.
+
 ## Pages
 
 | Group | Pages |
@@ -46,7 +48,15 @@ A page shows its rows in a table. Pages with a choice above the table, such as t
 
 **Calendar**, **Garage order** and **Line-ups** have **Move up** and **Move down** on each row.
 
-**Driver Manager** creates new drivers. The **Drivers** page links to it: it opens its page when it's installed, offers to turn it on when it's off, and opens its download page when it isn't installed.
+**Driver Manager** creates new drivers. The **Drivers**, **Entrants** and **Line-ups** pages link to it: the link opens its page when it's installed, offers to turn it on when it's off, and opens its download page when it isn't installed.
+
+## Driver Manager drivers
+
+Driver Manager adds its drivers when the profile builds. The DB Editor's pages don't list them as rows, and they can't be edited here: edit them on the **Driver Manager** page.
+
+With Driver Manager installed, the choices of a field that picks a driver or an entrant also list its drivers, after the game's, such as **Jacob Swofty (Driver Manager)**. These fields include a seat's **Entrant** and **Driver override** on **Line-ups**, an entrant's **Driver** on **Entrants**, **Driver** on **Driver looks** and on **Retirements**. A retired driver shows as **(Driver Manager, retired)**. A driver Driver Manager leaves out isn't listed, apart from one left out for a head or kit that isn't installed. Each driver's value is its label, `dm_` and its driver id, such as `dm_208`.
+
+A value that picks a Driver Manager driver needs Driver Manager on in the profile. When Driver Manager is off, or doesn't add the driver, the launch log names the addon and the driver. **Export game files** names them too: the game files have no Driver Manager drivers.
 
 ## Copy a row from someone else
 
