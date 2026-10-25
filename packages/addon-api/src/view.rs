@@ -322,6 +322,9 @@ pub struct Table {
     pub compact: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub empty: Option<String>,
+    /// Taller rows, such as for pictures in cells; never shorter than the default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub row_height: Option<f32>,
 }
 
 impl Table {
@@ -337,7 +340,13 @@ impl Table {
             search: None,
             compact: false,
             empty: None,
+            row_height: None,
         }
+    }
+
+    /// Whether clicking a row opens its detail panel.
+    pub fn has_detail(&self) -> bool {
+        self.rows.iter().any(|r| !r.detail().is_empty())
     }
 
     pub fn id(&self) -> &str {
@@ -349,6 +358,7 @@ impl Table {
             && self.sort.is_none()
             && self.search.is_none()
             && !self.compact
+            && self.row_height.is_none()
             && self.columns.iter().all(|c| matches!(c, Column::Name(_)))
             && self.rows.iter().all(
                 |r| matches!(r, TableRow::Cells(cells) if cells.iter().all(|c| matches!(c, Cell::Text(_)))),
@@ -434,6 +444,15 @@ pub struct RowSpec {
     pub cells: Vec<Cell>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tone: Option<Tone>,
+    /// The detail panel's title and subtitle; the title defaults to the first cell's text.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subtitle: Option<String>,
+    /// Blocks shown in a panel beside the table while the row is selected; a row with
+    /// detail is selected by clicking it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub detail: Vec<Block>,
 }
 
 impl TableRow {
@@ -455,6 +474,32 @@ impl TableRow {
         match self {
             Self::Cells(_) => None,
             Self::Spec(r) => r.tone,
+        }
+    }
+
+    pub fn detail(&self) -> &[Block] {
+        match self {
+            Self::Cells(_) => &[],
+            Self::Spec(r) => &r.detail,
+        }
+    }
+
+    /// The detail panel's title: the row's own, else its first cell's text.
+    pub fn title(&self) -> String {
+        match self {
+            Self::Spec(RowSpec { title: Some(t), .. }) => t.clone(),
+            _ => self
+                .cells()
+                .first()
+                .map(|c| c.text().to_owned())
+                .unwrap_or_default(),
+        }
+    }
+
+    pub fn subtitle(&self) -> Option<&str> {
+        match self {
+            Self::Spec(r) => r.subtitle.as_deref(),
+            Self::Cells(_) => None,
         }
     }
 }
@@ -480,6 +525,60 @@ pub struct CellSpec {
     pub bar: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub edit: Option<Field>,
+    /// A picture before the text, such as a portrait or a flag.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<CellImage>,
+    /// The text in pieces with their own weight and colour, drawn instead of `text`;
+    /// `text` still searches, sorts and shows on launchers without spans.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub spans: Vec<Span>,
+}
+
+/// A cell's picture: the absolute path of a PNG or JPEG under the addon's cache or data
+/// folder, or that with a size in pixels. Without a size it is a square as tall as the row
+/// allows; with one it fills that box, cropped to it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CellImage {
+    Path(PathBuf),
+    Sized {
+        path: PathBuf,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        width: Option<f32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        height: Option<f32>,
+    },
+}
+
+impl CellImage {
+    pub fn path(&self) -> &std::path::Path {
+        match self {
+            Self::Path(p) | Self::Sized { path: p, .. } => p,
+        }
+    }
+
+    /// The box's width and height, given the side of the default square.
+    pub fn size(&self, side: f32) -> (f32, f32) {
+        match self {
+            Self::Path(_) => (side, side),
+            Self::Sized { width, height, .. } => match (width, height) {
+                (Some(w), Some(h)) => (*w, *h),
+                (Some(w), None) => (*w, *w),
+                (None, Some(h)) => (*h, *h),
+                (None, None) => (side, side),
+            },
+        }
+    }
+}
+
+/// A piece of a cell's text.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Span {
+    pub text: String,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub bold: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tone: Option<Tone>,
 }
 
 impl Cell {
@@ -1455,6 +1554,54 @@ mod tests {
         );
         let again: Table = serde_json::from_value(serde_json::to_value(&t).unwrap()).unwrap();
         assert_eq!(again, t);
+    }
+
+    #[test]
+    fn table_rows_take_pictures_switches_spans_and_a_detail_panel() {
+        let t: Table = serde_json::from_value(serde_json::json!({
+            "id": "drivers",
+            "columns": ["On", "Driver", "Nationality"],
+            "row_height": 72,
+            "rows": [
+                { "id": "rai", "subtitle": "kimi_raikkonen",
+                  "cells": [
+                    { "text": "On", "edit": { "toggle": { "value": true } } },
+                    { "text": "Kimi RÄIKKÖNEN", "image": "/cache/kimi.png",
+                      "spans": [ { "text": "Kimi " }, { "text": "RÄIKKÖNEN", "bold": true } ] },
+                    { "text": "Finnish", "image": { "path": "/cache/flags/FI.png", "width": 20, "height": 14 } } ],
+                  "detail": [ { "facts": [ { "label": "Car number", "value": "#7" } ] } ] },
+                ["Off", "Nico Rosberg", "German"]
+            ]
+        }))
+        .unwrap();
+        assert!(!t.is_plain() && t.has_detail());
+        assert_eq!(t.row_height, Some(72.));
+        let (kimi, nico) = (&t.rows[0], &t.rows[1]);
+        assert!(matches!(
+            kimi.cells()[0].spec().edit,
+            Some(Field::Toggle(ToggleField { value: true, .. }))
+        ));
+        let name = kimi.cells()[1].spec();
+        assert_eq!(
+            name.image.as_ref().unwrap().path(),
+            std::path::Path::new("/cache/kimi.png")
+        );
+        assert_eq!(name.image.as_ref().unwrap().size(64.), (64., 64.));
+        assert!(!name.spans[0].bold && name.spans[1].bold);
+        assert_eq!(kimi.cells()[2].spec().image.unwrap().size(64.), (20., 14.));
+        // The text still searches and sorts; the panel is titled after the first cell.
+        assert_eq!(name.text, "Kimi RÄIKKÖNEN");
+        assert_eq!(kimi.title(), "On");
+        assert_eq!(kimi.subtitle(), Some("kimi_raikkonen"));
+        assert_eq!(kimi.detail().len(), 1);
+        assert!(nico.detail().is_empty() && nico.subtitle().is_none());
+        let again: Table = serde_json::from_value(serde_json::to_value(&t).unwrap()).unwrap();
+        assert_eq!(again, t);
+        // Rows without the new keys serialize as before.
+        assert_eq!(
+            serde_json::to_value(Table::plain(vec!["A".into()], vec![vec!["1".into()]])).unwrap(),
+            serde_json::json!({ "columns": ["A"], "rows": [["1"]] })
+        );
     }
 
     #[test]

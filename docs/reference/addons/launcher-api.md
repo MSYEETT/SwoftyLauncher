@@ -33,7 +33,7 @@ You can write the plugin in any language that reads and writes a line of JSON. T
 | [Views](#views) | The blocks a sidebar page is built from, and its events and effects |
 | [Dashboard blocks](#dashboard-blocks) | Hero, pills, tiles, meters, cards and grids |
 | [Forms](#forms) | Number, text, slider, select and toggle fields with an Apply button |
-| [Tables](#tables) | Sortable columns, searchable rows and editable cells |
+| [Tables](#tables) | Sortable columns, searchable rows, editable cells, pictures, switches and row details |
 | [Live pages](#live-pages) | `tick` from the launcher and `invalidate` from the plugin |
 | [Task lists](#task-lists) | A dialog that ticks off items while an event runs |
 | [The build reply](#the-build-reply) | Asset ops returned at build |
@@ -444,7 +444,7 @@ When you handle `event`, you receive one event and return one effect to tell the
 | A choice pick | `{ "choose": { "id": "livery", "index": 2 } }` |
 | A row reorder | `{ "move": { "row": "okayama.exmod", "to": 0 } }` |
 | A file-picker result | `{ "picked": { "id": "pick", "paths": ["/home/you/okayama.exmod"] } }` |
-| A form's Apply, a live field or an edited table cell *(1.0.10)* | `{ "submit": { "form": "finance", "values": { "cash": 15000000 }, "changed": ["cash"] } }`, plus `"row"` for a table cell ([Forms](#forms), [Tables](#tables)) |
+| A form's Apply, a live field or an edited table cell *(1.0.10)* | `{ "submit": { "form": "finance", "values": { "cash": 15000000 }, "changed": ["cash"] } }`, plus `"row"` for a table cell, and `true` or `false` for a switch cell *(1.5.8)* ([Forms](#forms), [Tables](#tables)) |
 | A search box, when it asks for events *(1.0.10)* | `{ "search": { "id": "drivers", "query": "ver" } }` ([Search](#search)) |
 | A tab click *(1.0.10)* | `{ "tab": { "id": "page", "tab": "drivers" } }` ([Tabs](#tabs)) |
 | Launcher start, once, to the first section of an addon whose manifest sets `launcher.startup` *(1.3.0)* | `{ "startup": {} }` |
@@ -665,10 +665,11 @@ How a form behaves:
 | `search` | A search box above the table ([Search](#search)). |
 | `compact` | `true` for shorter rows and smaller text. |
 | `empty` | The line shown when no row is left after a search (default `No matches`). |
+| `row_height` *(1.5.8)* | Taller rows in pixels, such as `72` for 64-pixel pictures. Never shorter than the default. |
 
 A **column** is a name, or `{ key, title, align, width, sort }`: `key` names the column in events and in `sort` (default: the title), `align` is `left` (default), `right` or `center`, `width` fixes its width in pixels (other columns share the rest), and `sort: true` makes the header clickable. A click sorts by that column, a second click reverses it. Sorting is numeric when both cells are numbers (commas allowed) and by text otherwise; give cells a `sort` key for formatted values such as `$12.4M`.
 
-A **row** is a list of cells, or `{ id, cells, tone }`: `id` names the row in events (default: its position in `rows`, from `"0"`), and `tone` colours its text. A **cell** is a string, or:
+A **row** is a list of cells, or `{ id, cells, tone, title, subtitle, detail }`: `id` names the row in events (default: its position in `rows`, from `"0"`), and `tone` colours its text. *Launcher 1.5.8* adds `detail`, blocks for a panel beside the table ([Row details](#row-details)), with `title` and `subtitle` for its header. A **cell** is a string, or:
 
 | Cell field | Does |
 |---|---|
@@ -677,7 +678,9 @@ A **row** is a list of cells, or `{ id, cells, tone }`: `id` names the row in ev
 | `sort` | A number or string to sort by instead of `text`. |
 | `pill` | `true` draws the text as a [pill](#pills) in `tone`. |
 | `bar` | `0.0` to `1.0`: a small bar before the text, in `tone` (`accent` when neutral). |
-| `edit` | Makes the cell editable: `{ "number": { value, min, max, step, unit } }` or `{ "text": { value, placeholder, max_len } }`. `value` defaults to the cell's text. |
+| `edit` | Makes the cell editable: `{ "number": { value, min, max, step, unit } }` or `{ "text": { value, placeholder, max_len } }`. `value` defaults to the cell's text. *1.5.8*: `{ "toggle": { value, disabled } }` draws a switch, with the cell's text after it when there is any. |
+| `image` *(1.5.8)* | A picture before the text: the absolute path of a PNG or JPEG under your plugin's `cache_dir` or `data_dir`, drawn as a square as tall as the row allows, or `{ path, width, height }` for a box of that size, such as `20` by `14` for a flag. The picture fills the box and is cropped to it. |
+| `spans` *(1.5.8)* | The text in pieces, `[{ text, bold, tone }]`, drawn in place of `text`, such as a surname in bold: `[{ "text": "Kimi " }, { "text": "RÄIKKÖNEN", "bold": true }]`. Keep `text` as the whole text: it is what search and sort use, and what an older launcher shows. |
 
 Click an editable cell to edit it. Enter or leaving the cell commits it, and Escape cancels. A committed value that differs fires:
 
@@ -685,7 +688,24 @@ Click an editable cell to edit it. Enter or leaving the cell commits it, and Esc
 { "submit": { "form": "drivers", "row": "ver", "values": { "pace": 96 }, "changed": ["pace"] } }
 ```
 
-The cell shows busy until the effect comes back, as a form does.
+The cell shows busy until the effect comes back, as a form does. Flipping a switch cell fires the same event with `true` or `false`, and the switch shows its new position until the effect comes back.
+
+### Row details {#row-details}
+
+*Launcher 1.5.8.* A row with `detail` opens a panel beside the table when it is clicked, as a row of the DB Editor does: the row is highlighted, and the panel shows the row's `title` (default: its first cell's text), its `subtitle` and its blocks, under a close button. Clicking the row again or the close button closes it; clicking another row shows that row instead. The panel is 380 pixels wide. When the table beside it would leave a column without a fixed `width` less than 96 pixels, the panel opens under its row instead, across the table.
+
+```json
+{ "id": "rai", "title": "Kimi RÄIKKÖNEN", "subtitle": "kimi_raikkonen",
+  "cells": [ "On", "Kimi RÄIKKÖNEN", "Finnish" ],
+  "detail": [
+    { "image": { "path": "…/cache/kimi.png", "width": 182, "height": 182 } },
+    { "form": { "id": "driver:rai", "live": true, "fields": [ { "toggle": { "id": "on", "label": "Driver model", "value": true } } ] } },
+    { "facts": [ { "label": "Car number", "value": "#7" } ] } ] }
+```
+
+The panel takes any [blocks](#views); their events reach your plugin as they do anywhere else on the page. It stays open while the view refreshes, so a form in it keeps working, and is hidden while its row isn't shown, such as during a search. Clicking an editable cell or a switch in a row edits it and doesn't open the panel.
+
+An older launcher ignores `row_height`, `image`, `spans` and `detail`, and draws a switch cell as its text: set `"compat": { "launcher": ">=1.5.8" }` in `swofty.json`, or check `launcher` in `hello` and fall back.
 
 ### Search {#search}
 

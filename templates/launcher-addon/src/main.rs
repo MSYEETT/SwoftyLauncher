@@ -121,14 +121,25 @@ impl Addon {
             .iter()
             .map(|r| {
                 let rating = r["rating"].as_f64().unwrap_or(0.0);
-                json!({ "id": r["id"], "cells": [
-                    r["name"],
+                let name = r["name"].as_str().unwrap_or_default();
+                let (first, last) = name.rsplit_once(' ').unwrap_or(("", name));
+                let active = r["active"] != false;
+                json!({ "id": r["id"], "subtitle": r["team"], "cells": [
+                    { "text": if active { "On" } else { "Off" }, "edit": { "toggle": { "value": active } } },
+                    // The surname in bold; `text` stays the whole name for search and sort.
+                    { "text": name, "spans": [ { "text": format!("{first} ") }, { "text": last, "bold": true } ] },
                     { "text": r["team"], "tone": "muted" },
                     { "text": format!("{rating}"), "bar": rating / 100.0,
                       "edit": { "number": { "min": 0, "max": 100, "step": 1 } } },
                     { "text": match r["form"].as_str() { Some("good") => "Strong", Some("warn") => "Patchy", Some("bad") => "Poor", _ => "Steady" },
                       "tone": r["form"], "pill": true }
-                ] })
+                  ],
+                  // Clicking the row opens this beside the table.
+                  "title": name,
+                  "detail": [
+                      { "stats": [ { "label": "Rating", "value": format!("{rating}") }, { "label": "Team", "value": r["team"] } ] },
+                      { "facts": [ { "label": "Driver id", "value": r["id"] }, { "label": "Active", "value": if active { "Yes" } else { "No" } } ] }
+                  ] })
             })
             .collect();
         let path_or = |p: &Option<String>| p.clone().unwrap_or_else(|| "Not found".into());
@@ -152,10 +163,11 @@ impl Addon {
         ];
         if self.tab == "drivers" {
             blocks.push(
-                json!({ "card": { "title": "Drivers", "subtitle": "Click a rating to edit it", "blocks": [
+                json!({ "card": { "title": "Drivers", "subtitle": "Click a rating to edit it, or a driver for details", "blocks": [
                 { "table": {
                     "id": "drivers",
                     "columns": [
+                        { "key": "active", "title": "Active", "width": 72 },
                         { "key": "name", "title": "Driver", "sort": true },
                         { "key": "team", "title": "Team", "sort": true },
                         { "key": "rating", "title": "Rating", "sort": true, "width": 150 },
@@ -224,16 +236,25 @@ impl Addon {
                     return Ok(json!({ "notice": format!("Saved {}", submit["changed"]) }));
                 }
                 (Some("drivers"), Some(row)) => {
-                    let rating = values["rating"]
-                        .as_u64()
-                        .ok_or("the rating is not a whole number")?;
+                    // A rating cell sends a number, the Active switch true or false.
+                    let (key, value) = match values["active"].as_bool() {
+                        Some(on) => ("active", json!(on)),
+                        None => (
+                            "rating",
+                            json!(
+                                values["rating"]
+                                    .as_u64()
+                                    .ok_or("the rating is not a whole number")?
+                            ),
+                        ),
+                    };
                     if let Some(r) = d["drivers"]
                         .as_array_mut()
                         .into_iter()
                         .flatten()
                         .find(|r| r["id"] == row)
                     {
-                        r["rating"] = json!(rating);
+                        r[key] = value;
                     }
                     self.save_dashboard(&d)?;
                     return Ok(json!("reload"));

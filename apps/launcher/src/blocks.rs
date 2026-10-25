@@ -18,7 +18,7 @@ use gpui_kit::*;
 use serde_json::{Map, Value};
 use swofty_core::view::{
     Align, Block, Body, Card, Cell, Choice, DropZone, Field, Fit, Form, Grid, Hero, Image as ImageBlock,
-    Meter, Pill, Search, SelectField, Table, Tabs, Tile, Tone, View,
+    Meter, Pill, Search, SelectField, Table, TableRow, Tabs, Tile, Tone, View,
 };
 
 use crate::pages::label;
@@ -27,6 +27,10 @@ use crate::shell::Shell;
 use crate::theme::Palette;
 
 const GAP: f32 = 16.;
+/// A table's detail panel, as wide as the DB Editor's, and the narrowest a column without a
+/// fixed width may get beside it before the panel opens under its row instead.
+const DETAIL_W: f32 = 380.;
+const DETAIL_COLUMN_MIN: f32 = 96.;
 const SELECT_MENU_H: f32 = 320.;
 const SELECT_HEADING_H: f32 = 26.;
 const SELECT_THUMB: f32 = 30.;
@@ -446,6 +450,11 @@ pub(crate) fn walk<'a>(blocks: &'a [Block], out: &mut Vec<&'a Block>) {
         match b {
             Block::Card(c) => walk(&c.blocks, out),
             Block::Grid(g) => walk(&g.blocks, out),
+            Block::Table(t) => {
+                for r in &t.rows {
+                    walk(r.detail(), out);
+                }
+            }
             _ => {}
         }
     }
@@ -1624,7 +1633,16 @@ impl Shell {
             .into_iter()
             .filter(|i| query.is_none_or(|q| Search::matches(q, t.rows[*i].cells().iter().map(Cell::text))))
             .collect();
-        let (row_h, text) = if t.compact { (30., 12.) } else { (36., 13.) };
+        let (base_h, text) = if t.compact { (30., 12.) } else { (36., 13.) };
+        let row_h = t.row_height.map_or(base_h, |h| h.max(base_h));
+        // The row whose detail is open, while it is still shown.
+        let selected = self.table_rows.get(&table_key).and_then(|id| {
+            order
+                .iter()
+                .map(|&i| (i, &t.rows[i]))
+                .find(|(i, r)| r.id(*i) == *id && !r.detail().is_empty())
+        });
+        let selected_id = selected.map(|(i, r)| r.id(i));
         let specs: Vec<_> = t.columns.iter().map(|c| c.spec()).collect();
         let sized = |d: Div, i: usize| -> Div {
             let spec = &specs[i];
@@ -1639,7 +1657,7 @@ impl Shell {
             }
         };
         let header = h_flex()
-            .h(px(row_h - 2.))
+            .h(px(base_h - 2.))
             .px(px(12.))
             .gap(px(12.))
             .border_b_1()
@@ -1648,10 +1666,11 @@ impl Shell {
                 let spec = &specs[i];
                 let column = c.key().to_owned();
                 let active = sort.as_ref().filter(|(k, _)| *k == column).map(|(_, d)| *d);
+                // A pencil for cells edited as text; a switch shows it can be flipped.
                 let editable = t.rows.iter().any(|r| {
-                    r.cells()
-                        .get(i)
-                        .is_some_and(|c| matches!(c, Cell::Spec(s) if s.edit.is_some()))
+                    r.cells().get(i).is_some_and(|c| {
+                        matches!(c, Cell::Spec(s) if s.edit.as_ref().is_some_and(|e| !matches!(e, Field::Toggle(_))))
+                    })
                 });
                 let head = sized(h_flex().gap(px(4.)), i)
                     .id(SharedString::from(format!("{table_key}/h/{i}")))
@@ -1695,18 +1714,46 @@ impl Shell {
                     head.into_any_element()
                 }
             }));
+        // The open row's detail goes beside the table when every column still fits, else under
+        // its row, where it was clicked.
+        let needed = 24.
+            + specs
+                .iter()
+                .map(|c| c.width.unwrap_or(DETAIL_COLUMN_MIN))
+                .sum::<f32>()
+            + 12. * specs.len().saturating_sub(1) as f32;
+        let beside = at.width - DETAIL_W - GAP >= needed;
         let rows: Vec<AnyElement> = order
             .iter()
             .enumerate()
-            .map(|(n, &ri)| {
+            .flat_map(|(n, &ri)| {
                 let row = &t.rows[ri];
                 let row_id = row.id(ri);
                 let row_tone = row.tone();
-                h_flex()
+                let opens = !row.detail().is_empty();
+                let open = selected_id.as_deref() == Some(row_id.as_str());
+                let (key, id) = (table_key.clone(), row_id.clone());
+                let line = h_flex()
+                    .id(SharedString::from(format!("{table_key}/r/{row_id}")))
                     .h(px(row_h))
                     .px(px(12.))
                     .gap(px(12.))
                     .when(n > 0, |d| d.border_t_1().border_color(p.border_variant))
+                    .when(open, |d| d.bg(p.selected))
+                    .when(opens && !open, |d| {
+                        d.cursor_pointer().hover(move |s| s.bg(p.hover))
+                    })
+                    .when(opens, |d| {
+                        // A click opens the row's detail, or closes it when it is open.
+                        d.on_click(cx.listener(move |this, _, _, cx| {
+                            if this.table_rows.get(&key) == Some(&id) {
+                                this.table_rows.remove(&key);
+                            } else {
+                                this.table_rows.insert(key.clone(), id.clone());
+                            }
+                            cx.notify();
+                        }))
+                    })
                     .children(
                         row.cells()
                             .iter()
@@ -1722,14 +1769,16 @@ impl Shell {
                                     t.columns[ci].key(),
                                     cell,
                                     row_tone,
-                                    text,
+                                    (text, row_h),
                                     p,
                                     cx,
                                 );
                                 sized(h_flex(), ci).child(content).into_any_element()
                             }),
                     )
-                    .into_any_element()
+                    .into_any_element();
+                let under = (open && !beside).then(|| self.row_detail(at, &table_key, row, None, p, cx));
+                std::iter::once(line).chain(under)
             })
             .collect();
         let empty = order.is_empty().then(|| {
@@ -1749,10 +1798,103 @@ impl Shell {
             .child(header)
             .children(rows)
             .children(empty);
+        let detail = selected
+            .filter(|_| beside)
+            .map(|(_, r)| self.row_detail(at, &table_key, r, Some(DETAIL_W), p, cx));
+        let table = match detail {
+            Some(detail) => h_flex()
+                .items_start()
+                .gap(px(GAP))
+                .child(div().flex_1().min_w_0().child(body))
+                .child(detail)
+                .into_any_element(),
+            None => body.into_any_element(),
+        };
         v_flex()
             .gap(px(10.))
             .children(search_key.and_then(|k| self.search_box(&k, p)))
-            .child(body)
+            .child(table)
+            .into_any_element()
+    }
+
+    /// A table row's detail panel: its title and subtitle, a close button and its blocks. A
+    /// `width` puts it beside the table; without one it fills the table under its row.
+    fn row_detail(
+        &self,
+        at: At,
+        table_key: &str,
+        row: &TableRow,
+        width: Option<f32>,
+        p: Palette,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let key = table_key.to_owned();
+        let inner = At {
+            width: width.unwrap_or(at.width) - 34.,
+            nested: false,
+            fill: false,
+            ..at
+        };
+        v_flex()
+            .map(|d| match width {
+                Some(w) => d
+                    .w(px(w))
+                    .flex_shrink_0()
+                    .rounded(px(8.))
+                    .border_1()
+                    .border_color(p.border_variant),
+                None => d.w_full().border_t_1().border_color(p.border_variant),
+            })
+            .bg(p.surface)
+            .overflow_hidden()
+            .child(
+                h_flex()
+                    .px(px(16.))
+                    .py(px(12.))
+                    .gap(px(10.))
+                    .border_b_1()
+                    .border_color(p.border_variant)
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .gap(px(2.))
+                            .child(
+                                div()
+                                    .text_size(px(15.))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .truncate()
+                                    .child(row.title()),
+                            )
+                            .when_some(row.subtitle().map(str::to_owned), |d, s| {
+                                d.child(
+                                    div()
+                                        .text_size(px(12.))
+                                        .text_color(p.text_muted)
+                                        .truncate()
+                                        .child(s),
+                                )
+                            }),
+                    )
+                    .child(
+                        Button::new(SharedString::from(format!("{table_key}/close")))
+                            .ghost()
+                            .small()
+                            .icon(IconName::X)
+                            .tooltip("Close")
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.table_rows.remove(&key);
+                                cx.notify();
+                            })),
+                    ),
+            )
+            .child(
+                v_flex()
+                    .px(px(16.))
+                    .py(px(14.))
+                    .gap(px(16.))
+                    .children(row.detail().iter().map(|b| self.block_at(inner, b, p, cx))),
+            )
             .into_any_element()
     }
 
@@ -1767,7 +1909,7 @@ impl Shell {
         column: &str,
         cell: &Cell,
         row_tone: Option<Tone>,
-        size: f32,
+        (size, row_h): (f32, f32),
         p: Palette,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -1788,21 +1930,103 @@ impl Shell {
                 .child(Input::new(&input).xsmall())
                 .into_any_element();
         }
-        let shown = self
-            .pending_cells
-            .get(&key)
-            .cloned()
-            .unwrap_or_else(|| c.text.clone());
-        let pending = self.pending_cells.contains_key(&key);
-        let text_el = div()
-            .min_w_0()
-            .truncate()
-            .text_size(px(size))
-            .text_color(if pending { p.text_muted } else { color })
-            .child(shown.clone());
+        // A switch cell keeps its pending state as "true" or "false", not as its text.
+        let toggle = match &c.edit {
+            Some(Field::Toggle(tf)) => Some(tf.clone()),
+            _ => None,
+        };
+        let pending = toggle.is_none() && self.pending_cells.contains_key(&key);
+        let shown = match pending {
+            true => self.pending_cells[&key].clone(),
+            false => c.text.clone(),
+        };
+        let text_el = match c.spans.is_empty() || pending {
+            true => div().child(shown.clone()),
+            // The spans as one text, each with its weight and colour.
+            false => {
+                let mut whole = String::new();
+                let mut marks = Vec::new();
+                for span in &c.spans {
+                    let start = whole.len();
+                    whole.push_str(&span.text);
+                    if span.bold || span.tone.is_some() {
+                        marks.push((
+                            start..whole.len(),
+                            HighlightStyle {
+                                font_weight: span.bold.then_some(FontWeight::BOLD),
+                                color: span.tone.map(|t| tone(t, p)),
+                                ..HighlightStyle::default()
+                            },
+                        ));
+                    }
+                }
+                div().child(StyledText::new(whole).with_highlights(marks))
+            }
+        }
+        .min_w_0()
+        .truncate()
+        .text_size(px(size))
+        .text_color(if pending { p.text_muted } else { color });
         let mut content = h_flex().gap(px(8.)).min_w_0();
         if spec.align == Align::Right {
             content = content.justify_end();
+        }
+        // A picture before the text: a square as tall as the row allows, or the cell's size.
+        if let Some(image) = &c.image {
+            let (w, h) = image.size((row_h - 8.).max(16.));
+            let (w, h) = (w.clamp(1., 512.), h.clamp(1., (row_h - 4.).max(1.)));
+            content = content.child(
+                div()
+                    .w(px(w))
+                    .h(px(h))
+                    .flex_shrink_0()
+                    .rounded(px(if h > 24. { 6. } else { 2. }))
+                    .overflow_hidden()
+                    .bg(p.elevated)
+                    .when_some(self.image_roots(at.addon).allow(image.path()), |d, path| {
+                        d.child(img(path).w(px(w)).h(px(h)).object_fit(ObjectFit::Cover))
+                    }),
+            );
+        }
+        if let Some(tf) = toggle {
+            let on = self.pending_cells.get(&key).map_or(tf.value, |v| v == "true");
+            let busy = self.busy.contains(&key);
+            let (addon, section, table, row, column, control) = (
+                at.addon.to_owned(),
+                at.section.to_owned(),
+                t.id().to_owned(),
+                row_id.to_owned(),
+                column.to_owned(),
+                key.clone(),
+            );
+            let switch = Switch::new(SharedString::from(format!("cell-{key}")))
+                .checked(on)
+                .small()
+                .disabled(busy || tf.disabled)
+                .on_change(cx.listener(move |this, on: &bool, window, cx| {
+                    this.pending_cells.insert(control.clone(), on.to_string());
+                    let mut values = Map::new();
+                    values.insert(column.clone(), Value::Bool(*on));
+                    let event = swofty_core::view::Event::Submit {
+                        form: table.clone(),
+                        row: Some(row.clone()),
+                        values,
+                        changed: vec![column.clone()],
+                    };
+                    this.send(&addon, &section, control.clone(), event, window, cx);
+                }));
+            // The switch's click stays in the cell, so it doesn't also open the row.
+            content = content.child(
+                div()
+                    .id(SharedString::from(format!("cell-hold-{key}")))
+                    .flex_shrink_0()
+                    .on_click(|_, _, cx| cx.stop_propagation())
+                    .child(switch),
+            );
+            if !shown.is_empty() {
+                content = content.child(text_el);
+            }
+            return content.into_any_element();
         }
         if let Some(f) = c.bar {
             content = content.child(div().w(px(56.)).flex_shrink_0().child(bar(
@@ -1851,6 +2075,8 @@ impl Shell {
             .cursor_pointer()
             .when(!busy, |d| d.hover(move |s| s.bg(p.hover)))
             .on_click(cx.listener(move |this, _, window, cx| {
+                // Editing the cell doesn't also open the row.
+                cx.stop_propagation();
                 if this.busy.contains(&key) {
                     return;
                 }

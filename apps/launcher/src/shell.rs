@@ -134,6 +134,8 @@ pub struct Shell {
     pub(crate) forms: HashMap<String, crate::blocks::FormSlot>,
     pub(crate) searches: HashMap<String, crate::blocks::SearchSlot>,
     pub(crate) sorts: HashMap<String, (String, bool)>,
+    /// The row whose detail panel is open, by table.
+    pub(crate) table_rows: HashMap<String, String>,
     pub(crate) cell: Option<crate::blocks::CellEdit>,
     pub(crate) pending_cells: HashMap<String, String>,
     pub(crate) content_width: f32,
@@ -421,6 +423,7 @@ impl Shell {
             forms: HashMap::new(),
             searches: HashMap::new(),
             sorts: HashMap::new(),
+            table_rows: HashMap::new(),
             cell: None,
             pending_cells: HashMap::new(),
             content_width: 900.,
