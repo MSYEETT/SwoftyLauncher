@@ -364,6 +364,27 @@ fn fetch_release(data: &Path, base: &str, version: &str, files: &[(&str, &str)])
     done
 }
 
+/// The reason given when the host could not be reached or its TLS failed. The
+/// common case is something on the PC or network answering on 443 in its place.
+const BLOCKED: &str = "the download was blocked on this PC or network, typically by antivirus HTTPS or web \
+     scanning, a VPN or proxy, a network filter or a Wi-Fi login page; turning that off or trying another \
+     network fixes it";
+
+/// A connection, DNS or TLS failure, as opposed to a reply from the host. A
+/// reply that isn't TLS (rustls `InvalidContentType`) arrives as `Io`.
+fn blocked(e: &ureq::Error) -> bool {
+    matches!(
+        e,
+        ureq::Error::Io(_)
+            | ureq::Error::Rustls(_)
+            | ureq::Error::Tls(_)
+            | ureq::Error::HostNotFound
+            | ureq::Error::ConnectionFailed
+            | ureq::Error::ConnectProxyFailed(_)
+            | ureq::Error::Timeout(_)
+    )
+}
+
 fn download(url: &str, to: &Path) -> std::result::Result<(), String> {
     let resp = ureq::get(url)
         .config()
@@ -372,7 +393,14 @@ fn download(url: &str, to: &Path) -> std::result::Result<(), String> {
         .http_status_as_error(false)
         .build()
         .call()
-        .map_err(|e| format!("could not download {url}: {e}"))?;
+        .map_err(|e| {
+            let what = format!("could not download {url}: {e}");
+            if blocked(&e) {
+                format!("{BLOCKED}\n({what})")
+            } else {
+                what
+            }
+        })?;
     let status = resp.status();
     if status == 404 {
         return Err(format!(
@@ -1172,8 +1200,41 @@ mod tests {
         let err = fetch_fake(&d, "http://127.0.0.1:1", &fake_release())
             .unwrap_err()
             .to_string();
-        assert!(err.contains("could not download"), "{err}");
+        let (reason, detail) = err.split_once('\n').unwrap();
+        assert_eq!(reason, format!("offline play 9.9.9: {BLOCKED}"));
+        assert!(
+            detail.starts_with("(could not download http://127.0.0.1:1/v9.9.9/"),
+            "{err}"
+        );
         assert_untouched(&d, &marker);
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn a_reply_that_is_not_tls_reads_as_a_blocked_download() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!(
+            "https://{}/v9.9.9/{}",
+            listener.local_addr().unwrap(),
+            REQUIRED[0]
+        );
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream.read_exact(&mut [0; 5]).ok();
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
+                .ok();
+            stream.read_to_end(&mut Vec::new()).ok();
+        });
+        let d = temp("not-tls");
+        let err = download(&url, &d.join(REQUIRED[0])).unwrap_err();
+        let (reason, detail) = err.split_once('\n').unwrap();
+        assert_eq!(reason, BLOCKED);
+        assert!(reason.starts_with("the download was blocked on this PC or network"));
+        assert!(detail.contains(&url), "{err}");
+        assert!(detail.contains("InvalidContentType"), "{err}");
+        assert!(!d.join(REQUIRED[0]).exists());
         std::fs::remove_dir_all(&d).ok();
     }
 
