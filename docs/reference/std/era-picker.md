@@ -52,7 +52,7 @@ The strings are copied. `add_box()` returns `ok` when the box is queued (or live
 
 ## The data side
 
-A box only selects an entrant list; the list itself must be in the game database, and in the entrant lists of the core's host setup mode, `swofty_f1`. The core adds `swofty_f1` (a game setup mode and its entrant setup mode) to every F1 mode except the careers. Your database operations then:
+A box only selects an entrant list; the list itself must be in the game database, and in the entrant lists of the core's host setup mode, `swofty_f1`. The core adds `swofty_f1` (a game setup mode and its entrant setup mode) to every F1 mode except the careers and Braking Point. Your database operations then:
 
 1. add the entrant list (`entrants.entrant_lists`), its teams and its drivers;
 2. `list-append` the entrant list onto the `swofty_f1` entrant setup mode's `entrant_lists` and `selectable_entrant_lists`;

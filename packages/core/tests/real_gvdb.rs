@@ -242,27 +242,21 @@ fn core_db_ops_add_the_swofty_f1_modes_to_the_real_database() {
                     == format!("{},{CORE_MODE}", String::from_utf8_lossy(&r.value))
         })
         .count();
-    assert_eq!(appended, 57);
+    assert_eq!(appended, 50);
 
-    let mut careers = 0;
-    for i in 0..count(&db, "championships", "Championship") {
+    let championships = count(&db, "championships", "Championship");
+    for i in 0..championships {
         let row = format!("championships.Championship_{i}");
-        if db
-            .get_text(&format!("{row}._ComCareerSetup_instancecount_"))
-            .is_none_or(|n| n == "0")
-        {
-            continue;
-        }
-        careers += 1;
         let modes = db
             .get_text(&format!("{row}.game_setup_modes"))
             .unwrap_or_default();
-        assert!(
-            !modes.split(',').any(|m| m == CORE_MODE),
-            "career championship {row} lists {CORE_MODE}: {modes}"
+        assert_eq!(
+            modes.split(',').count(),
+            1,
+            "championship {row} lists more than one setup mode: {modes}"
         );
     }
-    assert_eq!(careers, 14);
+    assert_eq!(championships, 21);
 
     let addon: DbOps = serde_json::from_str(&format!(
         r#"{{"schema_version":1,"ops":[

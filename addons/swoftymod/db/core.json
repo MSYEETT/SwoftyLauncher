@@ -483,24 +483,6 @@
   },
   {
    "op": "list-append",
-   "select": "{914a6e85d007b644}0",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{914a6e85d007b644}1",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{914a6e85d007b644}3",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
    "select": "{9c7be06936b6ac10}1",
    "field": "valid_game_setup_modes",
    "value": "swofty_f1"
@@ -562,30 +544,6 @@
   {
    "op": "list-append",
    "select": "{aafff59123b34b80}3",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{e93041607d1b071c}4",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{e93041607d1b071c}5",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{e93041607d1b071c}6",
-   "field": "game_setup_modes",
-   "value": "swofty_f1"
-  },
-  {
-   "op": "list-append",
-   "select": "{e93041607d1b071c}7",
    "field": "game_setup_modes",
    "value": "swofty_f1"
   },

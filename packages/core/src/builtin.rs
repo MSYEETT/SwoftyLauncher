@@ -108,7 +108,7 @@ mod tests {
             .iter()
             .filter(|op| matches!(op, DbOp::ListAppend { value, .. } if value == CORE_MODE))
             .count();
-        assert_eq!((lists, ops.len()), (57, 59));
+        assert_eq!((lists, ops.len()), (50, 52));
     }
 
     #[test]
