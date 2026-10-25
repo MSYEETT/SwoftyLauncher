@@ -2316,6 +2316,12 @@
           "link": "/reference/game/game#Game_Career_IsDriverCareerMode"
         },
         {
+          "name": "Game_CareerSetup_ResetEntrants",
+          "kind": "func",
+          "status": "experimental",
+          "link": "/reference/game/game#Game_CareerSetup_ResetEntrants"
+        },
+        {
           "name": "Game_CareerWizard_PushNextStep",
           "kind": "func",
           "status": "experimental",

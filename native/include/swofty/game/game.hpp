@@ -27,6 +27,8 @@ struct GameModeContext {
 };
 static_assert(offsetof(GameModeContext, championship_holder) == 0x88);
 
+using Game_CareerSetup_ResetEntrants_t = void(void *setup);
+inline constexpr fn<"Game_CareerSetup_ResetEntrants", Game_CareerSetup_ResetEntrants_t> Game_CareerSetup_ResetEntrants{}; // L2 experimental
 using Game_CareerWizard_PushNextStep_t = void(void *wizard);
 inline constexpr fn<"Game_CareerWizard_PushNextStep", Game_CareerWizard_PushNextStep_t> Game_CareerWizard_PushNextStep{}; // L2 experimental
 using Game_CareerWizard_StartsInF1_t = bool(void *entrants, void *wizard_data, const char *entrant_list);

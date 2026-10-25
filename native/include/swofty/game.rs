@@ -1679,6 +1679,7 @@ pub type FeTile_Press_EraTile_t =
     unsafe extern "C" fn(view_model: *mut c_void, command: *mut c_void) -> *mut c_char;
 pub type FeTile_Route_CareerItem_t =
     unsafe extern "C" fn(item: *mut HomeItem, out: *mut Action) -> *mut Action;
+pub type Game_CareerSetup_ResetEntrants_t = unsafe extern "C" fn(setup: *mut c_void);
 pub type Game_CareerWizard_PushNextStep_t = unsafe extern "C" fn(wizard: *mut c_void);
 pub type Game_CareerWizard_StartsInF1_t = unsafe extern "C" fn(
     entrants: *mut c_void,
@@ -2054,6 +2055,11 @@ pub mod bindings {
     };
     pub const FeTile_Route_CareerItem: Binding = Binding {
         id: "FeTile_Route_CareerItem",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_CareerSetup_ResetEntrants: Binding = Binding {
+        id: "Game_CareerSetup_ResetEntrants",
         kind: "func",
         status: Status::Experimental,
     };
