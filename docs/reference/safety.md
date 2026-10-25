@@ -15,6 +15,12 @@ The first time you press **Play**, you'll see the **Modded play runs offline** d
 
 Select **Accept and launch** to start the game. If you decline, nothing changes and the game won't launch. You only need to accept once; after that, **Play** launches directly.
 
+## The launch extension
+
+The first modded launch downloads the launch extension from swofty-developments.github.io into `$DATA/extensions/offline-play`. Each file is checked against the SHA-256 digest the launcher pins, after the download and again at every launch.
+
+When the download fails, the launch log (**View log** next to the error, or `$DATA/state/launcher-run.log`) names that folder and the address of each file. Save the files in the folder and launch again. `swofty offline install <folder>` installs them from another folder.
+
 ## Return to vanilla
 
 The session undoes its changes when the game exits, so the game folder is vanilla again after you play. To play online:

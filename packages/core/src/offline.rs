@@ -121,6 +121,24 @@ pub fn base_url() -> String {
     std::env::var("SWOFTY_OFFLINE_PLAY_BASE_URL").unwrap_or_else(|_| DEFAULT_BASE_URL.to_owned())
 }
 
+/// The host serves each release file at its own address and lists no folder.
+fn file_url(base: &str, version: &str, name: &str) -> String {
+    format!("{}/v{version}/{name}", base.trim_end_matches('/'))
+}
+
+/// What to do when the download fails: the address of each file this
+/// platform needs, and the folder they go in. The next launch checks them
+/// against the pins as it checks a download.
+pub fn by_hand(data: &Path, base: &str) -> String {
+    REQUIRED.iter().fold(
+        format!(
+            "or save these files in {}, then launch again:",
+            extension_dir(data).display()
+        ),
+        |text, name| format!("{text}\n  {}", file_url(base, EXTENSION_VERSION, name)),
+    )
+}
+
 // ---------------------------------------------------------------------------
 // Consent
 // ---------------------------------------------------------------------------
@@ -353,7 +371,7 @@ fn fetch_release(data: &Path, base: &str, version: &str, files: &[(&str, &str)])
     let done = files
         .iter()
         .try_for_each(|(name, digest)| {
-            let url = format!("{}/v{version}/{name}", base.trim_end_matches('/'));
+            let url = file_url(base, version, name);
             let to = staging.join(name);
             download(&url, &to).map_err(|e| Error::Other(format!("offline play {version}: {e}")))?;
             verify_digest(&to, name, digest)
@@ -1160,6 +1178,44 @@ mod tests {
         assert!(err.contains("digest mismatch"), "{err}");
         assert!(err.contains(&format!("/v9.9.9/{}", REQUIRED[1])), "{err}");
         assert_untouched(&d, &marker);
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn the_files_to_save_by_hand_are_ones_the_host_serves() {
+        let d = temp("by-hand");
+        let release = fake_release();
+        let base = serve(
+            release
+                .iter()
+                .map(|(n, b)| {
+                    (
+                        format!("/v{EXTENSION_VERSION}/{n}"),
+                        Reply::Body(b.clone().into_bytes()),
+                    )
+                })
+                .collect(),
+        );
+        let text = by_hand(&d, &format!("{base}/"));
+        let mut lines = text.lines();
+        assert_eq!(
+            lines.next().unwrap(),
+            format!(
+                "or save these files in {}, then launch again:",
+                extension_dir(&d).display()
+            )
+        );
+        let urls: Vec<&str> = lines.map(str::trim).collect();
+        assert_eq!(urls.len(), release.len(), "{text}");
+        for (url, (name, body)) in urls.iter().zip(&release) {
+            let got = ureq::get(*url)
+                .call()
+                .unwrap()
+                .into_body()
+                .read_to_string()
+                .unwrap();
+            assert_eq!(got, *body, "{url} is {name}");
+        }
         std::fs::remove_dir_all(&d).ok();
     }
 

@@ -92,11 +92,7 @@ fn status(store: &Store) -> Result<()> {
         }
         Err(e) => {
             println!("extension:      not usable: {e}");
-            println!(
-                "host:           {}/v{}",
-                offline::base_url(),
-                offline::EXTENSION_VERSION
-            );
+            println!("host:           {}", offline::base_url());
             println!("install with:   swofty offline fetch, or swofty offline install <downloaded folder>");
         }
     }
@@ -188,11 +184,11 @@ pub fn ensure_extension(store: &Store) -> Result<Artifacts> {
             }
             match fetch(store) {
                 Ok(a) => Ok(a),
-                Err(err) => bail!(
-                    "{err:#}\nor download it yourself from {}/v{} and run `swofty offline install <folder>`",
-                    offline::base_url(),
-                    offline::EXTENSION_VERSION
-                ),
+                Err(err) => {
+                    // Made now so the folder the error names can be opened.
+                    std::fs::create_dir_all(&dir).ok();
+                    bail!("{err:#}\n{}", offline::by_hand(&store.root, &offline::base_url()))
+                }
             }
         }
     }
