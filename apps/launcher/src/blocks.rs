@@ -27,6 +27,8 @@ use crate::shell::Shell;
 use crate::theme::Palette;
 
 const GAP: f32 = 16.;
+/// Tables with more rows than this draw only the rows in view.
+const LONG_TABLE: usize = 30;
 /// A table's detail panel, as wide as the DB Editor's, and the narrowest a column without a
 /// fixed width may get beside it before the panel opens under its row instead.
 const DETAIL_W: f32 = 380.;
@@ -1745,9 +1747,14 @@ impl Shell {
                 .sum::<f32>()
             + 12. * specs.len().saturating_sub(1) as f32;
         let beside = at.width - DETAIL_W - GAP >= needed;
+        // A long table draws the rows in and near the page's view and leaves room for the rest.
+        let shown = self.visible_rows(at, &table_key, order.len(), row_h, selected.is_some() && !beside);
+        let (above, below) = (shown.start, order.len() - shown.end);
         let rows: Vec<AnyElement> = order
             .iter()
             .enumerate()
+            .skip(shown.start)
+            .take(shown.len())
             .flat_map(|(n, &ri)| {
                 let row = &t.rows[ri];
                 let row_id = row.id(ri);
@@ -1818,7 +1825,19 @@ impl Shell {
                 d.rounded(px(6.)).border_1().border_color(p.border_variant)
             })
             .child(header)
-            .children(rows)
+            .child(
+                v_flex()
+                    .w_full()
+                    .relative()
+                    .child(self.rows_tracker(at, &table_key))
+                    .when(above > 0, |d| {
+                        d.child(div().flex_shrink_0().h(px(above as f32 * row_h)))
+                    })
+                    .children(rows)
+                    .when(below > 0, |d| {
+                        d.child(div().flex_shrink_0().h(px(below as f32 * row_h)))
+                    }),
+            )
             .children(empty);
         let detail = selected
             .filter(|_| beside)
@@ -1837,6 +1856,55 @@ impl Shell {
             .children(search_key.and_then(|k| self.search_box(&k, p)))
             .child(table)
             .into_any_element()
+    }
+
+    /// The rows of `n` worth drawing: those within the page's view, plus a few either side, for
+    /// a long table on a scrolled page whose rows are all `row_h` tall (`varied` when an open
+    /// row's detail sits under it). Every row on the first frame, before the rows' place is known.
+    fn visible_rows(&self, at: At, key: &str, n: usize, row_h: f32, varied: bool) -> std::ops::Range<usize> {
+        const OVERSCAN: usize = 8;
+        if varied || n <= LONG_TABLE {
+            return 0..n;
+        }
+        let Some((scroll, _)) = self.section_scrolls.get(&format!("{}/{}", at.addon, at.section)) else {
+            return 0..n;
+        };
+        let Some(top) = self.table_tops.borrow().get(key).copied() else {
+            return 0..n;
+        };
+        let view_h = f32::from(scroll.bounds().size.height);
+        if view_h <= 0. {
+            return 0..n;
+        }
+        // The view's top, from the rows' top.
+        let from = -f32::from(scroll.offset().y) - top;
+        let first = ((from / row_h).floor().max(0.) as usize)
+            .saturating_sub(OVERSCAN)
+            .min(n);
+        let last = (((from + view_h) / row_h).ceil().max(0.) as usize + OVERSCAN).min(n);
+        first..last.max(first)
+    }
+
+    /// An empty element over a table's rows that notes where they start in the page's scrolled
+    /// content, for `visible_rows` on the next frame.
+    fn rows_tracker(&self, at: At, key: &str) -> impl IntoElement {
+        let tops = self.table_tops.clone();
+        let scroll = self
+            .section_scrolls
+            .get(&format!("{}/{}", at.addon, at.section))
+            .map(|(s, _)| s.clone());
+        let key = key.to_owned();
+        canvas(
+            move |bounds, _, _| {
+                if let Some(scroll) = scroll {
+                    let top = bounds.origin.y - scroll.bounds().origin.y - scroll.offset().y;
+                    tops.borrow_mut().insert(key, f32::from(top));
+                }
+            },
+            |_, _, _, _| {},
+        )
+        .absolute()
+        .inset_0()
     }
 
     /// A table row's detail panel: its title and subtitle, a close button and its blocks. A

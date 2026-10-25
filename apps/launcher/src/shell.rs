@@ -136,6 +136,11 @@ pub struct Shell {
     pub(crate) sorts: HashMap<String, (String, bool)>,
     /// The row whose detail panel is open, by table.
     pub(crate) table_rows: HashMap<String, String>,
+    /// The scroll position and wheel motion of each addon page of blocks, by addon/section.
+    pub(crate) section_scrolls: HashMap<String, (ScrollHandle, crate::scroll::SmoothScroll)>,
+    /// Where each table's rows start in its page's scrolled content, from the last frame, so
+    /// a long table draws only the rows in view.
+    pub(crate) table_tops: Rc<std::cell::RefCell<HashMap<String, f32>>>,
     pub(crate) cell: Option<crate::blocks::CellEdit>,
     pub(crate) pending_cells: HashMap<String, String>,
     pub(crate) content_width: f32,
@@ -424,6 +429,8 @@ impl Shell {
             searches: HashMap::new(),
             sorts: HashMap::new(),
             table_rows: HashMap::new(),
+            section_scrolls: HashMap::new(),
+            table_tops: Rc::default(),
             cell: None,
             pending_cells: HashMap::new(),
             content_width: 900.,
