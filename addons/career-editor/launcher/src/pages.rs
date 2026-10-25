@@ -1058,7 +1058,7 @@ fn swap_card(live: &Live) -> Value {
     let help = if my_team {
         "Applies now, mid-season: each driver takes the other's team, car and seat through the game's own driver-move path. Contracts keep the team they were signed with. Free agents, such as drivers made with Driver Manager, can't take a seat in My Team yet. Your own seat is locked."
     } else {
-        "Applies now, mid-season, through the game's own Driver Career signing path. Two race drivers trade seats. A free agent takes a race seat the way the game signs one: the seat's driver is released (contract ended) and becomes a free agent, and the game re-assigns the team's R&D. Your own seat is locked."
+        "Applies now, mid-season, through the game's own Driver Career signing path. Two race drivers trade seats. A free agent takes a race seat the way the game signs one: the seat's driver is released (contract ended) and becomes a free agent, and the game re-assigns the team's R&D. Each driver who takes a seat signs that seat's contract. Your own seat is locked."
     };
     let blocks = vec![
         json!({ "form": { "id": "swap", "columns": 2, "apply": "Swap seats", "disabled": !live.can(op), "fields": [
@@ -1076,7 +1076,87 @@ fn swap_card(live: &Live) -> Value {
     )
 }
 
+// Driver Career: a race driver needs an active contract for the team he races for. The snapshot's
+// `contract` is null when the game keeps no contract object for him.
+fn needs_contract(d: &Value) -> bool {
+    d["player"] != true
+        && d["seat"]["hasCar"] == true
+        && !d["team"].is_null()
+        && d.get("contract").is_some()
+        && !(d["contract"]["active"] == true && d["contract"]["teamStatId"] == d["team"]["teamStatId"])
+}
+
+fn dc_contracts_card(live: &Live) -> Option<Value> {
+    let drivers = live.section("drivers")?["drivers"].as_array()?;
+    if !drivers.iter().any(|d| d.get("contract").is_some()) {
+        return None;
+    }
+    let op = "drivers.contracts.repair";
+    let missing: Vec<&Value> = drivers.iter().filter(|d| needs_contract(d)).collect();
+    if missing.is_empty() {
+        return Some(card(
+            "Contracts",
+            vec![text(
+                "Every race driver has a contract with the team he races for.",
+                "muted",
+            )],
+        ));
+    }
+    let rows: Vec<Value> = missing
+        .iter()
+        .map(|d| {
+            let c = &d["contract"];
+            let state = if c.is_null() {
+                "No contract kept".to_owned()
+            } else if c["active"] != true {
+                "Contract ended".to_owned()
+            } else {
+                format!(
+                    "Contract with {}",
+                    team_label(live, int(&c["teamStatId"]).unwrap_or(-1))
+                )
+            };
+            json!({ "cells": [
+                title_case(d["name"].as_str().unwrap_or("driver")),
+                d["team"]["name"].as_str().map_or_else(|| "—".into(), pretty_team),
+                { "text": state, "pill": true, "tone": "bad" }
+            ] })
+        })
+        .collect();
+    let blocks = vec![
+        json!({ "table": { "id": "dc_contracts", "columns": ["Driver", "Races for", "Contract"], "rows": rows, "compact": true } }),
+        text(
+            &form_help(live, op).unwrap_or_else(|| {
+                "These drivers race without a contract for their team, so the game's contract screens leave their seat out. Each signs the contract of a teammate's seat, through the game's own contract step.".into()
+            }),
+            "muted",
+        ),
+    ];
+    Some(card_full(
+        "Contracts",
+        Some("Race drivers without a contract for their team"),
+        vec![pill("Backup-only undo", "warn")],
+        if live.can(op) {
+            vec![button(
+                "repair_contracts",
+                "Sign their seat contracts",
+                "",
+                "primary",
+            )]
+        } else {
+            vec![]
+        },
+        blocks,
+    ))
+}
+
 fn contracts_card(live: &Live) -> Value {
+    if live.career()
+        && !live.my_team()
+        && let Some(c) = dc_contracts_card(live)
+    {
+        return c;
+    }
     let Some(c) = live
         .section("drivers")
         .map(|d| &d["contracts"])
@@ -2380,6 +2460,7 @@ fn op_label(op: &str) -> String {
         "bridge.ping" => "Ping".into(),
         "drivers.swap" => "Swap seats".into(),
         "drivers.contract.set" => "Contract".into(),
+        "drivers.contracts.repair" => "Sign seat contracts".into(),
         "economy.renown.set" => "Set renown".into(),
         "economy.renown.add" => "Add renown".into(),
         "economy.sponsor.loyalty.add" => "Sponsor loyalty".into(),
@@ -2753,6 +2834,16 @@ fn click(app: &mut App, host: &mut Host, live: &Live, _section: &str, id: &str) 
             live,
             "Load an AI team's R&D tree",
             vec![json!({ "op": "rnd.team_detail", "args": { "team": team } })],
+            None,
+        );
+    }
+    if id == "repair_contracts" {
+        return send(
+            app,
+            host,
+            live,
+            "Sign seat contracts",
+            vec![json!({ "op": "drivers.contracts.repair", "args": {} })],
             None,
         );
     }
@@ -3579,5 +3670,43 @@ mod swap_card_tests {
         ));
         let career = card("driver_career");
         assert!(career.contains("D208 · Free agent") && !career.contains("D30 "));
+    }
+
+    #[test]
+    fn driver_career_lists_race_drivers_without_a_seat_contract() {
+        let vcarb = json!({ "teamStatId": 482, "name": "racing_bulls" });
+        let driver = |id: u32, car: bool, contract: Value| json!({ "driverStatId": id, "name": format!("d{id}"), "team": vcarb, "seat": { "hasCar": car }, "player": false, "contract": contract });
+        let snap = |drivers: Vec<Value>| {
+            json!({
+                "written": now_ms(),
+                "status": { "game": "running", "career": true, "mode": "driver_career", "safe": true },
+                "bridge": { "ops": [{ "name": "drivers.contracts.repair" }] },
+                "sections": { "drivers": { "drivers": drivers } },
+            })
+        };
+        let render = |drivers: Vec<Value>| {
+            let live = Live::new(None, &snap(drivers), true, None, None);
+            serde_json::to_string(&contracts_card(&live)).unwrap()
+        };
+        let ok = json!({ "teamStatId": 482, "active": true });
+        let lost = render(vec![
+            driver(150, true, ok.clone()),
+            driver(174, true, json!({ "teamStatId": null, "active": false })),
+            driver(9, true, Value::Null),
+            driver(30, false, Value::Null),
+        ]);
+        assert!(
+            lost.contains("D174")
+                && lost.contains("Contract ended")
+                && lost.contains("D9")
+                && lost.contains("No contract kept")
+        );
+        assert!(!lost.contains("D150") && !lost.contains("D30") && lost.contains("repair_contracts"));
+        let fine = render(vec![driver(150, true, ok.clone()), driver(174, true, ok)]);
+        assert!(fine.contains("Every race driver has a contract") && !fine.contains("repair_contracts"));
+        let old = render(vec![
+            json!({ "driverStatId": 1, "team": vcarb, "seat": { "hasCar": true }, "player": false }),
+        ]);
+        assert!(old.contains("Contract edits are My Team only."));
     }
 }

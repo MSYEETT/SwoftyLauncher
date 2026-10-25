@@ -125,8 +125,19 @@ pub fn inverse(e: &Entry) -> Undo {
             let (Some(x), Some(y)) = (e.args["a"].as_i64(), e.args["b"].as_i64()) else {
                 return Undo::None("the drivers are missing");
             };
+            // Up to 0.2.5 a Driver Career replace listed the free agent as `a` whatever the args said,
+            // so each driver's team after the swap is found by id.
+            let team_after = |id: i64| {
+                [&a["a"], &a["b"]]
+                    .into_iter()
+                    .find(|d| d["driverStatId"].as_i64() == Some(id))
+                    .map(|d| d["teamStatId"].clone())
+            };
+            let (Some(tx), Some(ty)) = (team_after(x), team_after(y)) else {
+                return Undo::None("the seats after the swap are missing");
+            };
             Undo::Op(json!({ "op": "drivers.swap", "args": { "a": x, "b": y,
-                "expect": { "aTeamStatId": a["a"]["teamStatId"], "bTeamStatId": a["b"]["teamStatId"] } } }))
+                "expect": { "aTeamStatId": tx, "bTeamStatId": ty } } }))
         }
         "drivers.contract.set" => {
             let mut args = json!({ "driverStatId": e.args["driverStatId"], "list": e.args["list"].as_str().unwrap_or("decided") });
@@ -207,7 +218,8 @@ pub fn inverse(e: &Entry) -> Undo {
         | "facilities.complete"
         | "facilities.set_level"
         | "economy.sponsor.loyalty.add"
-        | "economy.costcap.refund" => Undo::BackupOnly,
+        | "economy.costcap.refund"
+        | "drivers.contracts.repair" => Undo::BackupOnly,
         "bridge.ping" => Undo::None("nothing to undo"),
         _ => Undo::None("no undo is defined for this edit"),
     }
@@ -233,6 +245,38 @@ mod tests {
             career: Some("dc-00d00000".into()),
             mode: "driver_career".into(),
         }
+    }
+
+    #[test]
+    fn a_driver_career_replace_undoes_with_each_drivers_team() {
+        // dar1us: Tsolov (174, free agent) into Hadjar's (149) VCARB seat; 0.2.5 reported the free agent as `a`
+        let mut e = entry(
+            "drivers.swap",
+            json!({ "a": 149, "b": 174, "expect": { "aTeamStatId": 482, "bTeamStatId": null } }),
+            Value::Null,
+        );
+        e.after = json!({ "a": { "driverStatId": 174, "teamStatId": 482 }, "b": { "driverStatId": 149, "teamStatId": null }, "appliedNow": true });
+        let Undo::Op(op) = inverse(&e) else {
+            panic!("no undo")
+        };
+        assert_eq!(
+            op["args"],
+            json!({ "a": 149, "b": 174, "expect": { "aTeamStatId": null, "bTeamStatId": 482 } })
+        );
+        e.after = json!({ "a": { "driverStatId": 149, "teamStatId": null }, "b": { "driverStatId": 174, "teamStatId": 482 }, "appliedNow": true });
+        let Undo::Op(op) = inverse(&e) else {
+            panic!("no undo")
+        };
+        assert_eq!(
+            op["args"]["expect"],
+            json!({ "aTeamStatId": null, "bTeamStatId": 482 })
+        );
+        e.after = Value::Null;
+        assert!(matches!(inverse(&e), Undo::None(_)));
+        assert!(matches!(
+            inverse(&entry("drivers.contracts.repair", json!({}), Value::Null)),
+            Undo::BackupOnly
+        ));
     }
 
     #[test]
