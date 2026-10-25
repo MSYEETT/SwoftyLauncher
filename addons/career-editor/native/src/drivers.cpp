@@ -41,6 +41,7 @@
 #include <swofty/mixin.hpp>
 
 #include "ce.hpp"
+#include "race_numbers.hpp"
 #include "components.hpp"
 
 using namespace swofty::game;
@@ -760,6 +761,17 @@ void seat_json(ce::Writer &w, uintptr_t row)
         w.null();
 }
 
+constexpr uint8_t kNoNumber = 0xff; // EntrantRecord::car_number of a row without a number
+
+void race_number_json(ce::Writer &w, uintptr_t row)
+{
+    EntrantRecord r{};
+    if (rd(row, r) && r.car_number != kNoNumber)
+        w.integer(r.car_number);
+    else
+        w.null();
+}
+
 void moves_json(ce::Writer &w)
 {
     w.key("recordedMoves");
@@ -881,6 +893,8 @@ void section(ce::Writer &w)
                 w.integer(num->second);
             else
                 w.null();
+            w.key("raceNumber");
+            race_number_json(w, s->second.at);
             uint32_t team = s->second.team;
             w.key("team");
             if ((team & 0xffff0000u) != kNoKey) {
@@ -1799,9 +1813,163 @@ ce::OpResult op_contract_set(const ce::Json &args)
     return r;
 }
 
+// ---------------------------------------------------------------------------
+// Op drivers.number.set: a driver's racing number, EntrantRecord::car_number (+0x83), which the save
+// keeps with the row (Ent_Deserialise_EntrantVector) and the weekend's copy of the line-up carries
+// into sessions. Written the way the game's own number writers do it (Career_DriverNumbers_AssignFree
+// 0x140c01280, Career_DriverNumbers_ApplyPlayerNumber 0x140c00830): Career_Set_EntrantData_Thunk with
+// the row's own data and position and the number as its flag, then the same byte on the matching row
+// of the weekend that the entity registry's vtable slot +0xa8 returns. A number is free when no other
+// row of the championship holds it, as the game's free-number list (Career_DriverNumbers_Add) counts.
+
+constexpr uintptr_t kVtCurrentWeekendOf = 0xa8; // entity component registry vtable slot: the current weekend
+constexpr uintptr_t kWeekendRowsBegin = 0x20;  // TODO(struct): Weekend: its line-up vector object at +0x18 {alloc, begin, end}
+constexpr uintptr_t kWeekendRowsEnd = 0x28;
+
+using CurrentWeekendFn = uintptr_t (*)(void *registry);
+
+// The current weekend's copy of a row, matched the way the game's identity compare (0x1431146d0)
+// matches it: the same human bit, and for AI rows the same ordinal_flags. 0 when there is none.
+uintptr_t weekend_row(uintptr_t entity, const EntrantRecord &row)
+{
+    uintptr_t registry = entity + offsetof(CareerEntity, component_registry);
+    uintptr_t vt = rdv<uintptr_t>(registry);
+    uintptr_t fn = vt ? rdv<uintptr_t>(vt + kVtCurrentWeekendOf) : 0;
+    if (!swofty::mem::in_image(fn))
+        return 0;
+    uintptr_t weekend = reinterpret_cast<CurrentWeekendFn>(fn)(reinterpret_cast<void *>(registry));
+    uintptr_t b = weekend ? rdv<uintptr_t>(weekend + kWeekendRowsBegin) : 0;
+    uintptr_t e = weekend ? rdv<uintptr_t>(weekend + kWeekendRowsEnd) : 0;
+    if (!b || e < b || (e - b) % kEntrantSize || (e - b) / kEntrantSize > kMaxEntrants)
+        return 0;
+    for (uintptr_t p = b; p < e; p += kEntrantSize) {
+        uint32_t v = rdv<uint32_t>(p + offsetof(EntrantRecord, ordinal_flags));
+        bool human = row.ordinal_flags & kHumanBit;
+        if (human ? (v & kHumanBit) != 0 : !(v & kHumanBit) && v == row.ordinal_flags)
+            return entrant_driver(rdv<EntrantRecord>(p)) == entrant_driver(row) ? p : 0;
+    }
+    return 0;
+}
+
+// Career_Set_EntrantData_Thunk rewrites the whole row from the data block; with the row's own data,
+// position and the new number only +0x83 changes. The human row matches by its human bit alone.
+bool write_number(uintptr_t entity, const Row &row, uint8_t number, bool &weekend)
+{
+    weekend = false;
+    if (entity_busy(entity) || (!(row.rec.ordinal_flags & kHumanBit) && !unique_identity(entity, row)))
+        return false;
+    uint8_t id[kIdentitySize];
+    std::memcpy(id, &row.rec, kIdentitySize);
+    EntrantWriteData d = entrant_data(row, row);
+    Career_Set_EntrantData_Thunk(reinterpret_cast<void *>(entity), id, reinterpret_cast<const uint32_t *>(&d),
+                                 row.rec.team_position, number);
+    if (uintptr_t w = weekend_row(entity, row.rec); w && wr(w + offsetof(EntrantRecord, car_number), number))
+        weekend = true;
+    return true;
+}
+
+std::string number_json(const std::vector<Row> &rows, uint32_t driver, uint32_t other)
+{
+    ce::Writer w;
+    w.begin_object();
+    for (uint32_t k : {driver, other}) {
+        if (k == kNoKey)
+            continue;
+        const Row *r = row_of(rows, k);
+        w.key(k == driver ? "driver" : "swappedWith");
+        w.begin_object();
+        w.key("driverStatId");
+        w.integer(save_id(k));
+        w.key("raceNumber");
+        if (r && r->rec.car_number != kNoNumber)
+            w.integer(r->rec.car_number);
+        else
+            w.null();
+        w.end_object();
+    }
+    w.end_object();
+    return w.text();
+}
+
+ce::OpResult op_number_set(const ce::Json &args)
+{
+    const char *op = "drivers.number.set";
+    const ce::Json &id = args["driverStatId"];
+    if (id.type != ce::Json::Num || id.n < 0 || id.n > 0xffff || id.n != std::floor(id.n))
+        return op_fail(op, "bad_args", "driverStatId must be an integer 0..65535");
+    uint32_t key = key_from_save(static_cast<uint32_t>(id.n));
+    uintptr_t entity = ce::comp::entity();
+    std::vector<Row> rows;
+    if (!entity || !entrant_rows(entity, rows))
+        return op_fail(op, "no_component", "no championship entity or entrant table unreadable");
+    if (entity_busy(entity))
+        return op_fail(op, "busy", "the game is in the middle of an entrant update");
+    std::vector<ce::numbers::Row> held;
+    for (auto &x : rows)
+        held.push_back({entrant_driver(x.rec), x.rec.car_number});
+    const ce::Json &num = args["number"];
+    ce::numbers::Plan plan = ce::numbers::plan(held, key, num.type == ce::Json::Num ? num.n : -1,
+                                               args["swap"].type == ce::Json::Bool && args["swap"].b);
+    if (!plan.error.empty()) {
+        size_t colon = plan.error.find(':');
+        return op_fail(op, plan.error.substr(0, colon).c_str(), plan.error.substr(colon + 2));
+    }
+    Row row = rows[plan.row];
+    uint8_t had = row.rec.car_number, want = static_cast<uint8_t>(num.n);
+    const ce::Json &ex = args["expect"];
+    if (ex.type == ce::Json::Num && ex.n != (had == kNoNumber ? -1.0 : had))
+        return op_fail(op, "stale", "his number changed since the launcher read it");
+    ce::OpResult r;
+    if (plan.unchanged) {
+        r.ok = true;
+        r.before = r.after = number_json(rows, key, kNoKey);
+        return r;
+    }
+    const Row *holder = plan.swap_with >= 0 ? &rows[plan.swap_with] : nullptr;
+    Row other = holder ? *holder : Row{};
+    uint32_t other_key = holder ? entrant_driver(other.rec) : kNoKey;
+    for (const Row *x : {&row, holder ? &other : nullptr})
+        if (x && ((x->rec.ordinal_flags & kHumanBit) ? ce::comp::humans() != 1 : !unique_identity(entity, *x)))
+            return op_fail(op, "refused", "an entrant row's identity is not unique in the line-up; nothing written");
+    r.before = number_json(rows, key, other_key);
+
+    bool week_a = false, week_b = false;
+    bool ok = write_number(entity, row, want, week_a);
+    ok = ok && (!holder || write_number(entity, other, had, week_b));
+    std::vector<Row> now;
+    ok = ok && entrant_rows(entity, now) && now.size() == rows.size();
+    for (size_t i = 0; ok && i < rows.size(); ++i) {
+        EntrantRecord expect = rows[i].rec;
+        if (rows[i].at == row.at)
+            expect.car_number = want;
+        else if (holder && rows[i].at == other.at)
+            expect.car_number = had;
+        ok = now[i].at == rows[i].at && std::memcmp(&now[i].rec, &expect, kEntrantSize) == 0;
+    }
+    if (!ok) {
+        bool wa, wb;
+        bool back = (!holder || write_number(entity, other, want, wb)) && write_number(entity, row, had, wa);
+        return op_fail(op, "write_failed",
+                       std::string("the entrant rows did not read back with the new number; ") +
+                           (back ? "restored the old numbers" : "COULD NOT restore every row, reload the save"));
+    }
+    r.after = number_json(now, key, other_key);
+    r.ok = true;
+    ce::log("drivers.number.set driver %u #%s -> #%u%s (Career_Set_EntrantData_Thunk, weekend row %s; %zu other "
+            "entrants unchanged)",
+            save_id(key), had == kNoNumber ? "none" : std::to_string(had).c_str(), want,
+            holder ? (", driver " + std::to_string(save_id(other_key)) + " #" + std::to_string(want) + " -> #" +
+                      std::to_string(had))
+                         .c_str()
+                   : "",
+            week_a && (!holder || week_b) ? "updated" : "not found", rows.size() - (holder ? 2 : 1));
+    return r;
+}
+
 } // namespace
 
 CE_SECTION("drivers", section);
 CE_OP("drivers.ratings.set", op_ratings_set);
+CE_OP("drivers.number.set", op_number_set);
 CE_OP("drivers.contract.set", op_contract_set);
 CE_OP("drivers.swap", op_swap);

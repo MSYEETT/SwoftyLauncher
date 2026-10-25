@@ -60,6 +60,7 @@ ratings patch replaces it only if the player accepts that patch.
       "name": "max_verstappen",
       "initials": "VER",
       "number": 1,
+      "raceNumber": 3,
       "team": { "teamStatId": 478, "name": "red_bull" },
       "seat": { "hasCar": true, "position": 0 },
       "onGrid": true,
@@ -94,6 +95,9 @@ ratings patch replaces it only if the player accepts that patch.
   `driver_statistics_info` (`StatisticInfo_N`), read with the db library's `string_at` / `int_at`.
   Anything that is not 1..63 bytes of printable UTF-8 is `null` (statistic names fall back to
   `stat_<infoStatId>`). `number` is the gamedb default number.
+- `raceNumber` is the racing number on the driver's entrant row (`EntrantRecord.car_number`, +0x83),
+  the number the car, the grid and the standings show in this career; null when the row has none
+  (0xff). `drivers.number.set` changes it.
 - `ratings` is keyed by statistic name. `value` is what the game shows (the game's own getter,
   clamped and rounded). `curve` is `"patched"`, `"base"` or `"dynamic"` (no curve). `base` is that
   curve's value at `progress`, one decimal (null for dynamic statistics). Op results add
@@ -179,6 +183,81 @@ at the old value instead). For dynamic statistics undo moves `dynamicLevel` back
 Modes: My Team and Driver Career. Runs only while `ce::safe()`.
 
 Status: implemented; needs in-game proof (log line `[career-editor] drivers.ratings.set ...`).
+
+## Op `drivers.number.set`
+
+Changes a driver's racing number now, in My Team and Driver Career, for AI drivers and the player.
+
+Where the number lives (static RE, 2026-10-25):
+- **The entrant row.** `EntrantRecord.car_number` (+0x83) of the championship entity's row is the
+  career's number. The save keeps it with the row: the CareerEntity loader (0x1407a00d0) reads the
+  rows with `Ent_Deserialise_EntrantVector` (0x142458f20), which restores +0x83 from each packed
+  record, and `Ent_Serialise_EntrantRecord` (0x142458890) packs it. The current weekend keeps its own
+  copy of the line-up (weekend +0x18 vector object, rows +0x20..+0x28), which sessions are built from.
+- **The game's own writers** change both: `Career_DriverNumbers_AssignFree` (0x140c01280) and
+  `Career_DriverNumbers_ApplyPlayerNumber` (0x140c00830), both `CarNumberComponent`, call
+  `Career_Set_EntrantData_Thunk` with the row's own data and position and the number as its flag
+  argument, then store the number at +0x83 of the identity-matching row of the weekend the entity
+  registry's vtable slot +0xa8 returns (`Career_Weekend_SetEntrantNumber` 0x140af6800).
+- **Uniqueness.** `Career_DriverNumbers_Add` (0x140c01550) builds the list of free numbers from the
+  candidates in `[CarNumberComponent+0x290]+0x1f8..+0x200`, minus every number held by a row of the
+  championship (all rows, teamless free agents included: the owner registry's vtable +0x1c8 returns
+  every row of entity +0x2e0). `Career_DriverNumbers_CheckExisting` (0x140c01c30), which the signings
+  and the career setup (0x140c2a870) call, keeps a row's number and only draws a free one for a row
+  with 0xff.
+- **The gamedb default** (`entrants.drivers` `car_number`, the snapshot's `number`) is not read
+  mid-career: the career setup takes the entrant lists' `car_number` into the rows once
+  (`Sess_Parse_Entrant`) and draws numbers for rows without one.
+- **`DriverNameOverrideComponent`** (vtable 0x145676610, the `driver_number_override` rule:
+  `Career_DriverNameOverride_GetNumber` 0x140b9a810) is a display override: number 1 for last
+  season's champion, or a per-driver number by game mode. Its only caller is the Choose Driver tile
+  builder (0x141bf7980), which shows it instead of the row's number. The op does not touch it.
+- **The player's number.** `CarNumberComponent`'s vtable slot +0x40 (0x140c00570) calls
+  `Career_DriverNumbers_ApplyPlayerNumber`: when the blueprint flag `player_car_number_replacement`
+  (+0x2b1) is set and the number chosen in the player's profile differs from the row's, it writes the
+  profile's number back over the player's row (and, with `preloaded_car_number_replacement` +0x2b0,
+  gives AI drivers holding it a free number). When that slot runs was not traced, so a number the op
+  gives the player may go back to the profile's number then; the in-game check covers it.
+
+Args:
+
+```json
+{ "driverStatId": 9, "number": 33, "swap": false, "expect": 1 }
+```
+
+- `driverStatId` (int, required): a driver with an entrant row (`drivers`, not `otherDrivers`).
+- `number` (int, required): 1..99.
+- `swap` (bool, optional, default false): when another row holds the number, that driver takes this
+  driver's old number. Without it such a number is refused (`taken`).
+- `expect` (int, optional): the `raceNumber` the launcher showed.
+
+The op writes each changed row with `Career_Set_EntrantData_Thunk` (the row's own data and position,
+the number as the flag) and then the weekend row's +0x83, as the game's writers do. It checks first
+that each AI row is the only row its identity matches (and that there is one human row), and after
+writing that every row of the table reads back byte-identical except the numbers it set; otherwise it
+writes the old numbers back and fails with `write_failed`. The rules are `numbers::plan`
+(`native/src/race_numbers.cpp`, host-tested in `native/test/race_numbers_test.cpp`).
+
+Result `before` / `after`:
+
+```json
+{ "driver": { "driverStatId": 9, "raceNumber": 33 }, "swappedWith": { "driverStatId": 12, "raceNumber": 1 } }
+```
+
+`swappedWith` only when the op swapped. Errors: `bad_args`, `bad_value`, `no_entrant`, `taken`
+(names the holder's `driverStatId`), `stale`, `busy`, `refused`, `no_component`, `write_failed`.
+
+Undo: `drivers.number.set` with the old number (`swap` when the edit swapped, so the other driver gets
+his number back). A driver who had no number before has no undo.
+
+Log line: `[career-editor] drivers.number.set driver <id> #<old> -> #<new>[, driver <id> #<new> -> #<old>] (Career_Set_EntrantData_Thunk, weekend row updated|not found; <n> other entrants unchanged)`.
+
+Modes: My Team and Driver Career. Runs only while `ce::safe()`.
+
+Status: implemented; needs in-game proof. Test: give an AI race driver a free number in Team HQ, check
+it on the Team HQ grid and standings, save and reload, check again, then load a session and check the
+car and the HUD. Repeat with a number another driver has (swap on), and with the player's own number
+across a reload.
 
 ## Op `drivers.contract.set`
 
@@ -364,7 +443,10 @@ queue a contract and wait for the season change.
 | `Career_Get_DriverStatBase_Thunk` | 0x1411471f0 | L2, no sig | evidence for the curve choice and the dynamic-stat rule |
 | `Career_Parse_CurveString` | 0x141157100 | L2, no sig | evidence for the lookup-table rebuild |
 | `Career_Serialise_DriverContractList` | 0x140da5610 | L2, no sig | evidence for the contract record layout |
-| `Career_Set_EntrantData_Thunk` | 0x1407b72e0 | L2, sig `career.set_entrant_data_thunk` | `drivers.swap`: rewrites one entrant row |
+| `Career_Set_EntrantData_Thunk` | 0x1407b72e0 | L2, sig `career.set_entrant_data_thunk` | `drivers.swap`: rewrites one entrant row; `drivers.number.set`: rewrites a row with its new number |
+| `Career_DriverNumbers_AssignFree`, `Career_DriverNumbers_ApplyPlayerNumber`, `Career_Weekend_SetEntrantNumber` | 0x140c01280 / 0x140c00830 / 0x140af6800 | L1, no sig | evidence for `drivers.number.set`'s order; not called |
+| `Ent_Deserialise_EntrantVector`, `Ent_Serialise_EntrantRecord` | 0x142458f20 / 0x142458890 | L1, no sig | evidence that the save keeps +0x83 |
+| `Career_DriverNameOverride_GetNumber` | 0x140b9a810 | L1, no sig | evidence: the Choose Driver display override, not the career's number |
 | `Career_Record_DriverMove` | 0x140d8f1f0 | L2, sig `career.record_driver_move` | `drivers.swap` (My Team): move log + driver-move message |
 | `vt_Career_MessageDriverMovesFinalised`, `…FinalisedUpgrades`, `…FinalisedRecognition` | 0x145696d10 / d20 / d30 | L2, sigs `career.message_driver_moves_finalised*` | finalise (Driver Career, My Team without a renewal component) |
 | `Career_Build_LineupChanges` | 0x142457a90 | L2, sig `career.build_lineup_changes` | finalise payload; reads only begin (+8) and end (+0x10) of both vector objects |

@@ -1016,6 +1016,82 @@ fn sponsors_card(live: &Live) -> Value {
     )
 }
 
+// The racing number on the driver's entrant row; a snapshot from before 0.2.6 only has the gamedb default.
+fn race_number(d: &Value) -> Option<i64> {
+    match d.get("raceNumber") {
+        Some(n) => int(n),
+        None => int(&d["number"]),
+    }
+}
+
+fn number_cell(d: &Value, editable: bool) -> Value {
+    let n = race_number(d);
+    let mut c = json!({ "text": n.map_or("—".into(), |n| n.to_string()), "sort": n.unwrap_or(0) });
+    if editable {
+        c["edit"] = json!({ "number": { "value": n.unwrap_or(0), "min": 1, "max": 99, "step": 1 } });
+    }
+    c
+}
+
+fn numbers_card(live: &Live) -> Value {
+    let op = "drivers.number.set";
+    let drivers = live
+        .section("drivers")
+        .and_then(|d| d["drivers"].as_array())
+        .cloned()
+        .unwrap_or_default();
+    let mut opts = vec![json!({ "value": "", "label": "Choose a driver…" })];
+    for d in &drivers {
+        let n = race_number(d).map_or_else(|| "no number".into(), |n| format!("#{n}"));
+        let team = d["team"]["name"]
+            .as_str()
+            .map_or_else(|| "no team".into(), pretty_team);
+        let you = if d["player"] == true { " (you)" } else { "" };
+        opts.push(json!({ "value": d["driverStatId"].to_string(),
+            "label": format!("{}{you} · {team} · {n}", title_case(d["name"].as_str().unwrap_or("driver"))) }));
+    }
+    let blocks = vec![
+        json!({ "form": { "id": "race_number", "columns": 3, "apply": "Set number", "disabled": !live.can(op), "fields": [
+            { "select": { "id": "driver", "label": "Driver", "value": "", "options": opts } },
+            { "number": { "id": "number", "label": "Race number", "value": 1, "min": 1, "max": 99, "step": 1 } },
+            { "toggle": { "id": "swap", "label": "If another driver has it, give him this driver's number", "value": false } }
+        ] } }),
+        text(
+            &form_help(live, op).unwrap_or_else(|| {
+                "The number on the car, the grid and the standings, saved with the career. Numbers are unique in the championship, so a number another driver has needs the swap. You can also click a number in the ratings table.".into()
+            }),
+            "muted",
+        ),
+    ];
+    card_full(
+        "Race numbers",
+        None,
+        vec![pill("Undo available", "good")],
+        vec![],
+        blocks,
+    )
+}
+
+fn number_op(live: &Live, id: i64, number: i64, swap: bool) -> Result<(String, Value), String> {
+    let d = live
+        .section("drivers")
+        .and_then(|d| d["drivers"].as_array())
+        .and_then(|a| a.iter().find(|d| d["driverStatId"].as_i64() == Some(id)).cloned())
+        .ok_or("that driver isn't in the snapshot any more")?;
+    if !(1..=99).contains(&number) {
+        return Err("Pick a number from 1 to 99.".into());
+    }
+    let mut args = json!({ "driverStatId": id, "number": number, "swap": swap });
+    if let Some(n) = race_number(&d) {
+        args["expect"] = json!(n);
+    }
+    let label = format!(
+        "{}: number {number}",
+        title_case(d["name"].as_str().unwrap_or("driver"))
+    );
+    Ok((label, json!({ "op": "drivers.number.set", "args": args })))
+}
+
 fn swap_card(live: &Live) -> Value {
     let op = "drivers.swap";
     let drivers = live
@@ -1596,6 +1672,7 @@ fn drivers(app: &App, live: &Live) -> Value {
 
     let op = "drivers.ratings.set";
     let editable = live.can(op);
+    let numbers = live.can("drivers.number.set");
     let mode = app.store.pref_str("rating_mode", "flat");
     let mut columns = vec![
         json!({ "key": "driver", "title": "Driver", "sort": true }),
@@ -1617,7 +1694,7 @@ fn drivers(app: &App, live: &Live) -> Value {
                 json!({ "text": if me { format!("{name} (you)") } else { name } }),
                 json!({ "text": x["team"]["name"].as_str().map_or_else(|| "—".into(), pretty_team),
                         "tone": if x["seat"]["hasCar"] == true { "neutral" } else { "muted" } }),
-                json!({ "text": opt(&x["number"]).unwrap_or_default(), "sort": int(&x["number"]).unwrap_or(0) }),
+                number_cell(x, numbers),
                 json!({ "text": ov.to_string(), "bar": ov as f64 / 100.0, "tone": if ov >= 90 { "good" } else if ov >= 80 { "accent" } else { "neutral" }, "sort": ov }),
             ];
             for s in &stat_names {
@@ -1661,6 +1738,7 @@ fn drivers(app: &App, live: &Live) -> Value {
         vec![],
         rb,
     ));
+    blocks.push(numbers_card(live));
     blocks.push(grid(json!([1, 1]), vec![swap_card(live), moves_card(live)]));
     blocks.push(contracts_card(live));
     frame(app, live, season_line(live), blocks, false)
@@ -2377,6 +2455,7 @@ fn op_label(op: &str) -> String {
         "weather.seed.lock" => "Pin weather seed".into(),
         "weather.seed.reroll" => "Reroll weather seed".into(),
         "weather.seed.unlock" => "Unpin weather seed".into(),
+        "drivers.number.set" => "Race number".into(),
         "bridge.ping" => "Ping".into(),
         "drivers.swap" => "Swap seats".into(),
         "drivers.contract.set" => "Contract".into(),
@@ -2991,6 +3070,22 @@ fn submit(app: &mut App, host: &mut Host, live: &Live, form: &str, ev: &Value) -
             app.store.set_pref("rating_mode", json!(m));
             Ok(json!("reload"))
         }
+        "ratings" if ch.iter().any(|c| c == "num") => {
+            let row = ev["submit"]["row"].as_str().ok_or("no row")?;
+            let id: i64 = row.parse().map_err(|_| "bad driver id")?;
+            let number = int(&v["num"]).ok_or("the number must be a whole number")?;
+            let (label, o) = number_op(live, id, number, false)?;
+            send(app, host, live, &label, vec![o], None)
+        }
+        "race_number" => {
+            let id: i64 = v["driver"]
+                .as_str()
+                .and_then(|x| x.parse().ok())
+                .ok_or("Choose a driver.")?;
+            let number = int(&v["number"]).ok_or("Enter a number from 1 to 99.")?;
+            let (label, o) = number_op(live, id, number, v["swap"] == true)?;
+            send(app, host, live, &label, vec![o], None)
+        }
         "ratings" => {
             let row = ev["submit"]["row"].as_str().ok_or("no row")?;
             let id: i64 = row.parse().map_err(|_| "bad driver id")?;
@@ -3543,6 +3638,45 @@ mod missing_notice_tests {
             unsupported: true,
         };
         assert!(missing_text(Some(&unknown)).starts_with("This F1 25 isn't a game version"));
+    }
+}
+
+#[cfg(test)]
+mod race_number_tests {
+    use super::*;
+
+    #[test]
+    fn a_race_number_edit_sends_the_number_the_driver_has() {
+        let snap = json!({
+            "written": now_ms(),
+            "status": { "game": "running", "career": true, "mode": "driver_career", "safe": true },
+            "bridge": { "ops": [{ "name": "drivers.number.set" }] },
+            "sections": { "drivers": { "drivers": [
+                { "driverStatId": 9, "name": "max_verstappen", "number": 1, "raceNumber": 3, "team": Value::Null, "seat": { "hasCar": true }, "player": false },
+                { "driverStatId": 30, "name": "d30", "number": 99, "raceNumber": Value::Null, "team": Value::Null, "seat": { "hasCar": false }, "player": false },
+                { "driverStatId": 40, "name": "d40", "number": 7, "team": Value::Null, "seat": { "hasCar": false }, "player": false }
+            ] } },
+        });
+        let live = Live::new(None, &snap, true, None, None);
+        let (label, o) = number_op(&live, 9, 33, true).unwrap();
+        assert_eq!(label, "Max Verstappen: number 33");
+        assert_eq!(
+            o,
+            json!({ "op": "drivers.number.set", "args": { "driverStatId": 9, "number": 33, "swap": true, "expect": 3 } })
+        );
+        let (_, o) = number_op(&live, 30, 12, false).unwrap();
+        assert!(o["args"].get("expect").is_none());
+        assert!(number_op(&live, 9, 0, false).is_err() && number_op(&live, 9, 100, false).is_err());
+        assert!(number_op(&live, 77, 5, false).is_err());
+        let drivers = live.section("drivers").unwrap()["drivers"]
+            .as_array()
+            .unwrap()
+            .clone();
+        assert_eq!(number_cell(&drivers[0], true)["edit"]["number"]["value"], 3);
+        assert_eq!(number_cell(&drivers[1], false), json!({ "text": "—", "sort": 0 }));
+        assert_eq!(number_cell(&drivers[2], false)["text"], "7");
+        let card = serde_json::to_string(&numbers_card(&live)).unwrap();
+        assert!(card.contains("Max Verstappen · no team · #3") && card.contains("D30 · no team · no number"));
     }
 }
 

@@ -69,6 +69,20 @@ pub fn inverse(e: &Entry) -> Undo {
             Undo::Op(json!({ "op": "drivers.ratings.set",
                               "args": { "driverStatId": id, "ratings": ratings, "mode": "restore", "expect": expect } }))
         }
+        "drivers.number.set" => {
+            let (Some(id), Some(now)) = (
+                e.args["driverStatId"].as_i64(),
+                a["driver"]["raceNumber"].as_i64(),
+            ) else {
+                return Undo::None("the number after the edit is missing");
+            };
+            let Some(old) = b["driver"]["raceNumber"].as_i64() else {
+                return Undo::None("the driver had no number before");
+            };
+            let swapped = !a["swappedWith"].is_null();
+            Undo::Op(json!({ "op": "drivers.number.set",
+                "args": { "driverStatId": id, "number": old, "swap": swapped, "expect": now } }))
+        }
         "rnd.fit" => {
             let fitted = e.args["fitted"].as_bool().unwrap_or(true);
             let mut args = e.args.clone();
@@ -274,5 +288,30 @@ mod tests {
             panic!("no undo");
         };
         assert_eq!(op["args"], json!({ "weekend": "rw_suzuka_26", "at": 2 }));
+    }
+
+    #[test]
+    fn a_race_number_goes_back_and_a_swap_swaps_back() {
+        let mut e = entry(
+            "drivers.number.set",
+            json!({ "driverStatId": 9, "number": 33 }),
+            json!({ "driver": { "driverStatId": 9, "raceNumber": 1 } }),
+        );
+        e.after = json!({ "driver": { "driverStatId": 9, "raceNumber": 33 } });
+        let Undo::Op(op) = inverse(&e) else {
+            panic!("no undo")
+        };
+        assert_eq!(
+            op["args"],
+            json!({ "driverStatId": 9, "number": 1, "swap": false, "expect": 33 })
+        );
+        e.before["swappedWith"] = json!({ "driverStatId": 12, "raceNumber": 33 });
+        e.after["swappedWith"] = json!({ "driverStatId": 12, "raceNumber": 1 });
+        let Undo::Op(op) = inverse(&e) else {
+            panic!("no undo")
+        };
+        assert_eq!(op["args"]["swap"], true);
+        e.before = json!({ "driver": { "driverStatId": 9, "raceNumber": null } });
+        assert!(matches!(inverse(&e), Undo::None(_)));
     }
 }
