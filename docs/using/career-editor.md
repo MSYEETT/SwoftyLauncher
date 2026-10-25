@@ -45,6 +45,10 @@ To race a modded track, import its zip on the **Mods** page, turn it on in the p
 
 A free agent without a number who takes a seat in **Swap Seats** gets a free one, as the game's own signings give, and the driver he replaces keeps his. Undoing the swap takes the new number back.
 
+## Driver Manager drivers in Driver Career
+
+A [Driver Manager](/using/driver-manager) driver made after a Driver Career started has no place in that career's line-up, so **Swap Seats** doesn't list him. In Driver Career, **Swap Seats** lists these drivers under **Add to line-up as free agent**. Adding one gives him a line-up place as a free agent, with no team, no car and no race number, and an empty contract, the way the game sets up the free agents of a new career. The career keeps him when it saves. He then shows in the driver lists, and **Swap Seats** can put him in a race seat. His Driver Manager look isn't set on the new line-up place. The edit has no undo; **History** restores a save backup. It's experimental.
+
 ## Edits
 
 Edits queue while a session is loading, time is advancing or the game is in a menu transition, and apply when Team HQ is idle. Weather edits apply at any time in a loaded career. Screens that are open when an edit applies show it the next time they open.
@@ -53,4 +57,4 @@ The game saves the edited career at its next save. The editor backs up your save
 
 Edits marked **Unsafe** write a value directly instead of through the game's own path. Contract money is one.
 
-Edits marked **Experimental** haven't been tested in the game yet. In My Team, **Free agent into a seat** is one: a free agent takes an AI or team-mate race seat now, and takes over that driver's contract records with the team. Back up your save before you use it.
+Edits marked **Experimental** haven't been tested in the game yet. In My Team, **Free agent into a seat** is one: a free agent takes an AI or team-mate race seat now, and takes over that driver's contract records with the team. In Driver Career, **Add to line-up as free agent** is another. Back up your save before you use either.

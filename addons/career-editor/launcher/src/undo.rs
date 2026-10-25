@@ -271,7 +271,8 @@ pub fn inverse(e: &Entry) -> Undo {
         | "facilities.set_level"
         | "economy.sponsor.loyalty.add"
         | "economy.costcap.refund"
-        | "drivers.contracts.repair" => Undo::BackupOnly,
+        | "drivers.contracts.repair"
+        | "drivers.freeAgent.add" => Undo::BackupOnly,
         "bridge.ping" => Undo::None("nothing to undo"),
         _ => Undo::None("no undo is defined for this edit"),
     }

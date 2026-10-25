@@ -1148,6 +1148,7 @@ fn swap_card(live: &Live) -> Value {
             "Drivers with no place in this championship's line-up (the Ratings table leaves them out) aren't listed: the game gives a driver a line-up place only when it builds a season's line-up.",
             "muted",
         ));
+        blocks.extend(late_free_agent_blocks(live));
     }
     card_full(
         "Swap seats",
@@ -1156,6 +1157,50 @@ fn swap_card(live: &Live) -> Value {
         vec![],
         blocks,
     )
+}
+
+// Driver Career: Driver Manager drivers made after the career started are in the statistics table
+// (`otherDrivers`, label `dm_<id>`) but have no line-up row; drivers.freeAgent.add gives one a
+// teamless row and a contract, as the career setup makes them for a pool free agent.
+fn late_free_agent_blocks(live: &Live) -> Vec<Value> {
+    let op = "drivers.freeAgent.add";
+    let late: Vec<Value> = live
+        .section("drivers")
+        .and_then(|d| d["otherDrivers"].as_array())
+        .map(|a| {
+            a.iter()
+                .filter(|d| d["name"].as_str().is_some_and(|n| n.starts_with("dm_")))
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default();
+    if late.is_empty() || !live.has_op(op) {
+        return vec![];
+    }
+    let mut opts = vec![json!({ "value": "", "label": "Choose a Driver Manager driver…" })];
+    for d in &late {
+        let label = d["name"].as_str().unwrap_or("driver");
+        let initials = d["initials"]
+            .as_str()
+            .map_or_else(String::new, |i| format!("{i} · "));
+        let overall = int(&d["overall"]).map_or_else(String::new, |o| format!(" · overall {o}"));
+        opts.push(
+            json!({ "value": d["driverStatId"].to_string(), "label": format!("{initials}{label}{overall}") }),
+        );
+    }
+    let mut blocks = vec![
+        json!({ "form": { "id": "free_agent_add", "columns": 1, "apply": "Add to line-up as free agent", "disabled": !live.can(op), "fields": [
+            { "select": { "id": "driver", "label": "Driver Manager driver without a line-up place", "value": "", "options": opts } }
+        ] } }),
+        text(
+            "Experimental, not tested in game yet: back up your save first. The driver joins the line-up as a free agent with no team, no car and no race number, and gets an empty contract, as the game makes them for the free agents of a new career. He then shows in the Driver list above and can take a race seat. His Driver Manager look isn't set on the new line-up place. There is no undo apart from the save backups.",
+            "muted",
+        ),
+    ];
+    if let Some(h) = form_help(live, op) {
+        blocks.push(text(&h, "muted"));
+    }
+    blocks
 }
 
 // Driver Career: a race driver needs an active contract for the team he races for. The snapshot's
@@ -2597,6 +2642,7 @@ fn op_label(op: &str) -> String {
         "drivers.swap" => "Swap seats".into(),
         "drivers.contract.set" => "Contract".into(),
         "drivers.contracts.repair" => "Sign seat contracts".into(),
+        "drivers.freeAgent.add" => "Add free agent".into(),
         "economy.renown.set" => "Set renown".into(),
         "economy.renown.add" => "Add renown".into(),
         "economy.sponsor.loyalty.add" => "Sponsor loyalty".into(),
@@ -3524,6 +3570,26 @@ fn submit(app: &mut App, host: &mut Host, live: &Live, form: &str, ev: &Value) -
                 None,
             )
         }
+        "free_agent_add" => {
+            let id: i64 = v["driver"]
+                .as_str()
+                .and_then(|x| x.parse().ok())
+                .ok_or("Choose a Driver Manager driver.")?;
+            let name = live
+                .section("drivers")
+                .and_then(|d| d["otherDrivers"].as_array())
+                .and_then(|a| a.iter().find(|d| d["driverStatId"].as_i64() == Some(id)))
+                .and_then(|d| d["name"].as_str().map(str::to_owned))
+                .ok_or("That driver isn't in the snapshot any more.")?;
+            send(
+                app,
+                host,
+                live,
+                &format!("Add {name} to the line-up as a free agent"),
+                vec![json!({ "op": "drivers.freeAgent.add", "args": { "driverStatId": id } })],
+                None,
+            )
+        }
         "free_agent" => {
             let id = |k: &str| v[k].as_str().and_then(|x| x.parse::<i64>().ok());
             let (Some(free), Some(seat)) = (id("free"), id("seat")) else {
@@ -3857,6 +3923,49 @@ mod race_number_tests {
         assert_eq!(number_cell(&drivers[2], false)["text"], "7");
         let card = serde_json::to_string(&numbers_card(&live)).unwrap();
         assert!(card.contains("Max Verstappen · no team · #3") && card.contains("D30 · no team · no number"));
+    }
+}
+
+#[cfg(test)]
+mod late_free_agent_tests {
+    use super::*;
+
+    fn live_with(others: Value, ops: Value) -> Live {
+        let snap = json!({
+            "written": now_ms(),
+            "status": { "game": "running", "career": true, "mode": "driver_career", "safe": true },
+            "bridge": { "ops": ops },
+            "sections": { "drivers": { "available": true, "drivers": [], "otherDrivers": others } }
+        });
+        Live::new(None, &snap, true, None, None)
+    }
+
+    #[test]
+    fn lists_only_driver_manager_drivers_without_a_row() {
+        let live = live_with(
+            json!([
+                { "driverStatId": 208, "name": "dm_208", "initials": "SWO", "overall": 71 },
+                { "driverStatId": 120, "name": "some_f2_driver", "overall": 60 }
+            ]),
+            json!([{ "name": "drivers.freeAgent.add" }]),
+        );
+        let text = serde_json::to_string(&late_free_agent_blocks(&live)).unwrap();
+        assert!(text.contains("SWO · dm_208 · overall 71"));
+        assert!(!text.contains("some_f2_driver"));
+        assert!(text.contains("\"id\":\"free_agent_add\""));
+    }
+
+    #[test]
+    fn hidden_without_the_op_or_without_late_drivers() {
+        let dm = json!([{ "driverStatId": 208, "name": "dm_208" }]);
+        assert!(late_free_agent_blocks(&live_with(dm, json!([]))).is_empty());
+        assert!(
+            late_free_agent_blocks(&live_with(
+                json!([{ "driverStatId": 120, "name": "some_f2_driver" }]),
+                json!([{ "name": "drivers.freeAgent.add" }])
+            ))
+            .is_empty()
+        );
     }
 }
 
