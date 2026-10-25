@@ -558,6 +558,48 @@ impl Shell {
             .map_or_else(|| id.to_owned(), |a| a.manifest.name.clone())
     }
 
+    /// The requirements of an addon that's on which stop Play, and those listed below it, which the build
+    /// loads first anyway.
+    fn needs(&self, m: &AddonItem) -> Vec<Need> {
+        if self.vanilla() || !m.enabled {
+            return Vec::new();
+        }
+        let order: HashMap<&str, usize> = self
+            .library
+            .profile
+            .enabled()
+            .enumerate()
+            .map(|(i, id)| (id, i))
+            .collect();
+        m.manifest
+            .requires
+            .iter()
+            .filter_map(|r| {
+                let need = |kind| Need {
+                    id: r.id.clone(),
+                    name: self.addon_name(&r.id),
+                    kind,
+                };
+                let Some(dep) = self.library.addons.iter().find(|a| a.manifest.id == r.id) else {
+                    return Some(need(NeedKind::Missing));
+                };
+                if !dep.enabled {
+                    return Some(need(NeedKind::Off));
+                }
+                if !r.version.matches(&dep.manifest.version) {
+                    return Some(need(NeedKind::Version {
+                        wanted: r.version.to_string(),
+                        found: dep.manifest.version.to_string(),
+                    }));
+                }
+                match (order.get(r.id.as_str()), order.get(m.manifest.id.as_str())) {
+                    (Some(dep_at), Some(at)) if dep_at > at => Some(need(NeedKind::Below)),
+                    _ => None,
+                }
+            })
+            .collect()
+    }
+
     fn matches_facet(&self, m: &AddonItem, f: Facet) -> bool {
         match f {
             Facet::Category(c) => m.category() == c,
@@ -1640,6 +1682,7 @@ impl Shell {
         let lost = pairs.iter().filter(|pr| pr.loser == id).count();
         let won = pairs.len() - lost;
         let kept = self.stock_removals(m);
+        let needs = self.needs(m);
         let trailing = if m.locked {
             h_flex()
                 .gap(px(5.))
@@ -1841,6 +1884,37 @@ impl Shell {
                                     })
                                     .build(window, cx)
                                 }),
+                        )
+                    })
+                    .when(!needs.is_empty(), |d| {
+                        let blocking: Vec<&Need> = needs.iter().filter(|n| n.blocks()).collect();
+                        let (icon, text, color, tip) = match blocking.as_slice() {
+                            [] => (
+                                IconName::Layers,
+                                match needs.as_slice() {
+                                    [one] => format!("Loads after {}", one.name),
+                                    many => format!("Loads after {}", plural(many.len(), "addon", "addons")),
+                                },
+                                p.text_muted,
+                                needs.iter().map(Need::line).collect::<Vec<_>>().join("\n"),
+                            ),
+                            shown => (
+                                IconName::TriangleAlert,
+                                match shown {
+                                    [one] => format!("Needs {}", one.name),
+                                    many => format!("Needs {}", plural(many.len(), "addon", "addons")),
+                                },
+                                p.warning,
+                                format!(
+                                    "{}\nPlay stops until every addon this one requires is on.",
+                                    shown.iter().map(|n| n.line()).collect::<Vec<_>>().join("\n")
+                                ),
+                            ),
+                        };
+                        d.child(
+                            pill(icon, text, color)
+                                .id(SharedString::from(format!("needs-{id}")))
+                                .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx)),
                         )
                     })
                     .when(!m.left_out.is_empty(), |d| {
@@ -2081,15 +2155,28 @@ impl Shell {
                 p,
             ))
             .when(!man.requires.is_empty(), |d| {
-                d.child(fact(
-                    "Requires",
-                    man.requires
-                        .iter()
-                        .map(|r| format!("{} {}", self.addon_name(&r.id), r.version))
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    p,
-                ))
+                let needs = self.needs(m);
+                let text = man
+                    .requires
+                    .iter()
+                    .map(|r| {
+                        let named = format!("{} {}", self.addon_name(&r.id), r.version);
+                        match needs.iter().find(|n| n.id == r.id).map(|n| &n.kind) {
+                            Some(NeedKind::Missing) => format!("{named} (not installed)"),
+                            Some(NeedKind::Off) => format!("{named} (off)"),
+                            Some(NeedKind::Version { found, .. }) => format!("{named} ({found} installed)"),
+                            Some(NeedKind::Below) => format!("{named} (loads first)"),
+                            None => named,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let color = if needs.iter().any(Need::blocks) {
+                    p.warning
+                } else {
+                    p.text
+                };
+                d.child(fact("Requires", div().text_color(color).child(text), p))
             })
             .when_some(man.license.clone(), |d, l| d.child(fact("License", l, p)))
             .when_some(man.homepage.clone(), |d, h| d.child(fact("Homepage", h, p)));
@@ -2515,6 +2602,38 @@ impl Shell {
             )
             .children(items)
             .into_any_element()
+    }
+}
+
+/// One of an addon's requirements that stops Play, or that the build loads before it though listed below it.
+struct Need {
+    id: String,
+    name: String,
+    kind: NeedKind,
+}
+
+enum NeedKind {
+    Missing,
+    Off,
+    Version { wanted: String, found: String },
+    Below,
+}
+
+impl Need {
+    fn blocks(&self) -> bool {
+        !matches!(self.kind, NeedKind::Below)
+    }
+
+    fn line(&self) -> String {
+        let name = &self.name;
+        match &self.kind {
+            NeedKind::Missing => format!("{name} isn't installed."),
+            NeedKind::Off => format!("{name} is off."),
+            NeedKind::Version { wanted, found } => format!("Needs {name} {wanted}; {found} is installed."),
+            NeedKind::Below => format!(
+                "{name} loads before this addon, which requires it, whatever their places in the list."
+            ),
+        }
     }
 }
 

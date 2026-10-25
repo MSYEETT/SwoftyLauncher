@@ -49,6 +49,8 @@ Addons that are on are listed first, in load order. When two addons change the s
 
 After a conflict check, a row that is on shows **Loses to** with the number of addons lower in the list that replace some of its changes, or **Wins over** with the number it replaces. The badges go away when an addon is turned on, turned off or moved, until the next check.
 
+An addon loads after every addon it requires, whatever their places in the list. A row that is on and listed above an addon it requires shows **Loads after** with that addon's name. A row that is on whose required addon isn't installed, is off, or has a version outside the range shows **Needs** with its name, and **Play** stops until that addon is on. The panel's **Requires** line says which.
+
 A row whose addon asks to remove records the game's database ships with shows a badge such as **12 removals skipped**. The build leaves those records in place, and the panel's **Conflicts** section says so. See [Removing stock records](/reference/ops/database#removing-stock-records).
 
 ## Check an addon
