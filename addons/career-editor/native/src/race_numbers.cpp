@@ -46,4 +46,34 @@ Plan plan(const std::vector<Row> &rows, uint32_t driver, double number, bool swa
     return p;
 }
 
+std::vector<uint32_t> unnumbered(const std::vector<Row> &rows, const std::vector<uint32_t> &moved)
+{
+    std::vector<uint32_t> out;
+    for (uint32_t d : moved)
+        for (auto &r : rows)
+            if (r.driver == d && r.team && r.number == kNone) {
+                out.push_back(d);
+                break;
+            }
+    return out;
+}
+
+std::string sole_holder(const std::vector<Row> &rows, uint32_t driver)
+{
+    const Row *own = nullptr;
+    for (auto &r : rows)
+        if (r.driver == driver)
+            own = &r;
+    if (!own)
+        return "he has no entrant row";
+    if (own->number == kNone)
+        return "he has no number";
+    if (own->number < 1 || own->number > 99)
+        return "his number " + std::to_string(own->number) + " is outside 1..99";
+    for (auto &r : rows)
+        if (&r != own && r.number == own->number)
+            return "number " + std::to_string(own->number) + " is on another entrant row too";
+    return {};
+}
+
 } // namespace ce::numbers

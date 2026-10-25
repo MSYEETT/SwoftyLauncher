@@ -150,8 +150,26 @@ pub fn inverse(e: &Entry) -> Undo {
             let (Some(tx), Some(ty)) = (team_after(x), team_after(y)) else {
                 return Undo::None("the seats after the swap are missing");
             };
-            Undo::Op(json!({ "op": "drivers.swap", "args": { "a": x, "b": y,
-                "expect": { "aTeamStatId": tx, "bTeamStatId": ty } } }))
+            let mut args = json!({ "a": x, "b": y, "expect": { "aTeamStatId": tx, "bTeamStatId": ty } });
+            // A free agent the swap gave his first number goes back to none when the undo releases him.
+            let side = |v: &Value, id: i64| {
+                [&v["a"], &v["b"]]
+                    .into_iter()
+                    .find(|d| d["driverStatId"].as_i64() == Some(id))
+                    .cloned()
+                    .unwrap_or(Value::Null)
+            };
+            let clear: Vec<i64> = [x, y]
+                .into_iter()
+                .filter(|&id| {
+                    let (was, now) = (side(b, id), side(a, id));
+                    was["teamStatId"].is_null() && was["raceNumber"].is_null() && now["raceNumber"].is_i64()
+                })
+                .collect();
+            if !clear.is_empty() {
+                args["clearNumbers"] = json!(clear);
+            }
+            Undo::Op(json!({ "op": "drivers.swap", "args": args }))
         }
         "drivers.contract.set" => {
             let mut args = json!({ "driverStatId": e.args["driverStatId"], "list": e.args["list"].as_str().unwrap_or("decided") });
@@ -291,6 +309,46 @@ mod tests {
             inverse(&entry("drivers.contracts.repair", json!({}), Value::Null)),
             Undo::BackupOnly
         ));
+    }
+
+    #[test]
+    fn undoing_a_replace_takes_back_the_free_agents_new_number() {
+        // free agent Martins (146, no number) into Hadjar's (149, #6) VCARB seat; the game gave Martins #12
+        let mut e = entry(
+            "drivers.swap",
+            json!({ "a": 146, "b": 149, "expect": { "aTeamStatId": null, "bTeamStatId": 482 } }),
+            json!({ "a": { "driverStatId": 146, "teamStatId": null, "raceNumber": null },
+                    "b": { "driverStatId": 149, "teamStatId": 482, "raceNumber": 6 }, "appliedNow": true }),
+        );
+        e.after = json!({ "a": { "driverStatId": 146, "teamStatId": 482, "raceNumber": 12 },
+                          "b": { "driverStatId": 149, "teamStatId": null, "raceNumber": 6 }, "appliedNow": true });
+        let Undo::Op(op) = inverse(&e) else {
+            panic!("no undo")
+        };
+        assert_eq!(
+            op["args"],
+            json!({ "a": 146, "b": 149, "expect": { "aTeamStatId": 482, "bTeamStatId": null }, "clearNumbers": [146] })
+        );
+        // a free agent who had a number keeps it, and so does a race driver numbered in a seat trade
+        e.before["a"]["raceNumber"] = json!(41);
+        e.after["a"]["raceNumber"] = json!(41);
+        let Undo::Op(op) = inverse(&e) else {
+            panic!("no undo")
+        };
+        assert!(op["args"].get("clearNumbers").is_none());
+        e.before["a"] = json!({ "driverStatId": 146, "teamStatId": 480, "raceNumber": null });
+        e.after["a"]["raceNumber"] = json!(12);
+        let Undo::Op(op) = inverse(&e) else {
+            panic!("no undo")
+        };
+        assert!(op["args"].get("clearNumbers").is_none());
+        // a 0.3.0 result without race numbers undoes as before
+        e.before = Value::Null;
+        e.after = json!({ "a": { "driverStatId": 146, "teamStatId": 482 }, "b": { "driverStatId": 149, "teamStatId": null } });
+        let Undo::Op(op) = inverse(&e) else {
+            panic!("no undo")
+        };
+        assert!(op["args"].get("clearNumbers").is_none());
     }
 
     #[test]

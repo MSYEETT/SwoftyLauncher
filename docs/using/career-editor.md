@@ -43,6 +43,8 @@ To race a modded track, import its zip on the **Mods** page, turn it on in the p
 
 **Drivers** sets a driver's race number, from 1 to 99, yours included: click the number in the ratings table, or use **Race numbers**. Each number belongs to one driver in the championship. To take a number another driver has, turn on the swap in **Race numbers**; he gets the old number. The number is saved with the career.
 
+A free agent without a number who takes a seat in **Swap Seats** gets a free one, as the game's own signings give, and the driver he replaces keeps his. Undoing the swap takes the new number back.
+
 ## Edits
 
 Edits queue while a session is loading, time is advancing or the game is in a menu transition, and apply when Team HQ is idle. Weather edits apply at any time in a loaded career. Screens that are open when an edit applies show it the next time they open.

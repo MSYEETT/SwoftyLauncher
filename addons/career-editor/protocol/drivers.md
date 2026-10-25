@@ -102,7 +102,8 @@ ratings patch replaces it only if the player accepts that patch.
   `stat_<infoStatId>`). `number` is the gamedb default number.
 - `raceNumber` is the racing number on the driver's entrant row (`EntrantRecord.car_number`, +0x83),
   the number the car, the grid and the standings show in this career; null when the row has none
-  (0xff). `drivers.number.set` changes it.
+  (0xff). `drivers.number.set` changes it; `drivers.swap` gives one to a driver who takes a seat without
+  one.
 - `ratings` is keyed by statistic name. `value` is what the game shows (the game's own getter,
   clamped and rounded). `curve` is `"patched"`, `"base"` or `"dynamic"` (no curve). `base` is that
   curve's value at `progress`, one decimal (null for dynamic statistics). Op results add
@@ -321,15 +322,16 @@ Swaps seats **now**, mid-season, with the game's own driver-move primitives in t
     lookups use returns null): the op follows My Team's own processor, `DriverContractsMyTeamComponent`
     vtable slot +0x188 (`Career_Process_PendingDriverMoves`, 0x140db18e0). That is the slot the
     Driver Career signing fills in its component. The processor posts no per-move message. The op
-    copies the line-up, runs `Career_Set_EntrantData_Thunk` for each driver, then finalises against
-    that copy, as the processor does (copy at 0x140db2f40, compare at 0x140db4e1d).
+    copies the line-up, runs `Career_Set_EntrantData_Thunk` for each driver, gives race numbers
+    (below), then finalises against that copy, as the processor does (copy at 0x140db2f40, compare at
+    0x140db4e1d).
   - Either way, both drivers must have a team (race seat or reserve); a teamless driver is refused
     (`no_team`).
 - **Driver Career** has no move log. The op follows the Driver Career signing
   (`DriverCareerContractsManagerComponent`, 0x140d766b0):
   - **Race driver ↔ race driver:** for each driver post `MessageDriverMoveConfirmed`
     (`DriverMoveConfirmedMessage`, reason 0) then `Career_Set_EntrantData_Thunk`; then each signs his
-    new seat's contract (below); then finalise.
+    new seat's contract (below); then race numbers (below); then finalise.
   - **Free agent (teamless entrant row) → race seat**, the game's "replace old driver" sequence:
     1. the free agent: `MessageDriverMoveConfirmed` {driver, old team none, new team = the seat's
        team, reason 0}, then `Career_Set_EntrantData_Thunk` with the seat's team, car, seat value and
@@ -340,7 +342,8 @@ Swaps seats **now**, mid-season, with the game's own driver-move primitives in t
        `Career_Set_EntrantData_Thunk` with team, car, driver registry value, livery and badge all
        0x3fff0000, seat value 0xffff0012, position 0. He is now a free agent exactly as the game makes
        one;
-    3. the free agent signs the seat's contract (below).
+    3. the free agent signs the seat's contract (below);
+    4. race numbers (below), then finalise.
   - **Seat contract**, the signing's add-contract step (0x140d77a70..0x140d77cbb), for every driver
     who takes a race seat: the offer is the 0x2c-byte record of the outgoing driver's contract while
     it is active for the seat's team, otherwise of another active contract for that team, with
@@ -369,10 +372,25 @@ Swaps seats **now**, mid-season, with the game's own driver-move primitives in t
     per race driver (0x14351ccb0 costs only drivers in race positions; the modifier list is created
     only through the finalise path for race-seat changes), and no game path was found that moves a
     reserve this way.
+- **Race numbers**, in both modes, after the contracts and before the finalise, where the Driver Career
+  signing gives them (0x140d7814e): each of the two drivers whose row now has a team and no number
+  (+0x83 0xff) gets one from `Career_DriverNumbers_CheckExisting(CarNumberComponent, driver)`. The
+  game's own replace keeps the released driver's number; in a replace the driver numbered is the free
+  agent, when he has none. The function draws a free number from the component's candidates
+  (`Career_DriverNumbers_AssignFree`, the list `Career_DriverNumbers_Add` builds) and writes it with
+  `Career_Set_EntrantData_Thunk` and on the matching entrant row of the current session (entity
+  registry vtable +0xa8 returns the Session). The component is the one the game
+  passes: `DriverCareerContractsManagerComponent.car_numbers` (+0x368) in Driver Career,
+  `DriverContractsMyTeamComponent.car_numbers` (+0x2e8, which `Career_Assign_EntrantTeamSlot` passes
+  for a row with 0xff) in My Team, accepted when its `entity` (+0x278) is the championship entity. The
+  op then re-reads the line-up: every row must be unchanged apart from those numbers, and each new
+  number must be 1..99 and on no other row (`numbers::unnumbered` and `numbers::sole_holder`,
+  host-tested in `native/test/race_numbers_test.cpp`). A failed check is logged as a WARNING; the swap
+  stays applied and `after` shows the numbers as they are.
 
 What follows the seat: team, car (vehicle keys, so livery and car), seat value, seat position. What
 stays with the driver: the row identity (driver appearance, helmet, suit), driver data, ratings,
-driver flag. The car number stays with the driver (EntrantRecord.car_number is written from the incoming driver's own value, as the game's own signing does); the seat value (+0x78) comes from the replaced seat.
+driver flag. The car number stays with the driver (EntrantRecord.car_number is written from the incoming driver's own value, as the game's own signing does), and a driver who takes a seat without one then gets a free one (Race numbers, above); the seat value (+0x78) comes from the replaced seat.
 
 Args:
 
@@ -385,6 +403,11 @@ Args:
   a reserve inside his own team). Driver Career: race seat ↔ race seat, and free agent (no team) ↔
   race seat.
 - `expect` (optional): the teams the launcher showed; a mismatch fails with `stale`.
+- `clearNumbers` (optional, list of `driverStatId`s): drivers whose race number goes back to none
+  after the swap. Only the driver a Driver Career replace releases may be listed; any other driver is
+  refused with `bad_args` before anything is written. The number is written the way
+  `drivers.number.set` writes one (`Career_Set_EntrantData_Thunk` with 0xff as the number, then the
+  weekend row). The launcher's undo of a replace sends it.
 
 Refused: `no_team` (My Team: a driver has no team), `reserve_dc` (Driver Career: a reserve),
 `no_contract` (Driver Career: a driver who would take a seat has no contract object, or nobody holds
@@ -414,10 +437,13 @@ Result `before` / `after` (`a` and `b` are the args' drivers; up to 0.2.5 a Driv
 listed the free agent as `a`):
 
 ```json
-{ "a": { "driverStatId": 12, "teamStatId": 1, "seat": { "vehicle": 65538, "hasCar": true, "position": 0 } },
-  "b": { "driverStatId": 40, "teamStatId": 3, "seat": { "vehicle": 196610, "hasCar": true, "position": 1 } },
+{ "a": { "driverStatId": 12, "teamStatId": 1, "seat": { "vehicle": 65538, "hasCar": true, "position": 0 }, "raceNumber": 4 },
+  "b": { "driverStatId": 40, "teamStatId": 3, "seat": { "vehicle": 196610, "hasCar": true, "position": 1 }, "raceNumber": 81 },
   "appliedNow": true }
 ```
+
+`raceNumber` (from 0.3.1) is the row's racing number, null for none; `after` has the numbers the op
+gave or cleared.
 
 Applies immediately (`appliedNow: true`); nothing is queued, so `pendingSwaps` stays empty.
 
@@ -430,7 +456,10 @@ re-derives its seat cache from them is what the in-game test has to show (see th
 Undo: `drivers.swap` with the same `a` and `b` (the swap is symmetric; it records two more moves).
 The launcher takes each driver's `expect` team from `after` by `driverStatId`. Undoing a Driver Career
 replace is a replace the other way: the released driver signs the seat's contract again (the one the
-free agent signed, or a teammate's), and the free agent's contract is released.
+free agent signed, or a teammate's), and the free agent's contract is released. A free agent the
+replace gave his first number (`before` team and `raceNumber` null, `after` `raceNumber` set) is
+listed in `clearNumbers` and goes back to no number. A race driver the op numbered keeps the
+number.
 
 Modes: My Team with a renewal component (move log + message), My Team without one (finalise only)
 and Driver Career (message + finalise). Runs only while `ce::safe()`.
@@ -438,14 +467,23 @@ and Driver Career (message + finalise). Runs only while `ce::safe()`.
 Log lines, Driver Career:
 `[career-editor] drivers.swap driver <A> [team <X> car 0x<cx> pos <p>] <-> driver <B> [...] -> driver <A> [team <Y> ...], driver <B> [team <X> ...] (Driver Career: 2 moves announced; <N> other entrants unchanged, every team kept its cars, applied now)`
 and for a free agent: `... (Driver Career replace: incoming announced, outgoing contract released and announced to no team; ...)` (the free agent is printed first; a teamless row shows `team 16383 car 0x3fff0000 pos -1`), each followed by
-`[career-editor] drivers.swap signed <n>/<m> seat contract(s) (MessageDriverContractChanged)` and
+`[career-editor] drivers.swap signed <n>/<m> seat contract(s) (MessageDriverContractChanged)`, then for
+each driver the op numbered
+`[career-editor] drivers.swap race number: driver <id> none -> #<n> (Career_DriverNumbers_CheckExisting; no other entrant holds it)`
+(a `WARNING` with the reason instead when the check fails or the component is missing), for each
+cleared number
+`[career-editor] drivers.swap race number: driver <id> #<n> -> none (clearNumbers, Career_Set_EntrantData_Thunk, weekend row updated|not found)`,
+and
 `[career-editor] drivers.swap finalised <n> line-up change(s) (MessageDriverMovesFinalised_upgrades, _recognition, MessageDriverMovesFinalised)`.
 My Team without a renewal component says `My Team: 2 rows written, moves finalised against the line-up before the swap`, followed by the same finalised line.
 My Team with one says `2 moves recorded` and posts no finalise.
 
 Status: implemented; needs in-game proof. Test: swap two AI drivers on different teams in Team HQ,
 check the Team HQ grid / standings driver list, save, reload the career, advance to the next weekend
-and load into a session.
+and load into a session. Race numbers: in a fresh Driver Career put free agent 146 (Victor Martins,
+no number) into Hadjar's VCARB seat; the snapshot and the race number line must give Martins a number
+that no other driver holds, Hadjar keeps his. Save, reload and check again, then undo and check that
+Martins has no number and Hadjar has his seat and number back.
 
 ### Free agents in My Team (not supported)
 
@@ -470,8 +508,8 @@ none of them is traced:
   gives a free agent without a record would not survive its next run, and where the released driver
   goes then depends on his record.
 - **Racing number.** `Career_Assign_EntrantTeamSlot` calls `Career_DriverNumbers_CheckExisting`
-  (0x140c01c30) when the incoming row's car number (+0x83) is 0xff. The op keeps the row's own
-  number byte.
+  (0x140c01c30) with `DriverContractsMyTeamComponent.car_numbers` when the incoming row's car number
+  (+0x83) is 0xff. The op does the same after its writes (Race numbers, above).
 - **When a signing applies.** The processor's slot is likely the season-change hook (L0). Whether
   Team HQ's driver market seats a free agent at once or at the season change is unknown.
 
@@ -500,6 +538,7 @@ queue a contract and wait for the season change.
 | `Career_Parse_CurveString` | 0x141157100 | L2, no sig | evidence for the lookup-table rebuild |
 | `Career_Serialise_DriverContractList` | 0x140da5610 | L2, no sig | evidence for the contract record layout |
 | `Career_Set_EntrantData_Thunk` | 0x1407b72e0 | L2, sig `career.set_entrant_data_thunk` | `drivers.swap`: rewrites one entrant row; `drivers.number.set`: rewrites a row with its new number |
+| `Career_DriverNumbers_CheckExisting` | 0x140c01c30 | L2, sig `career.driver_numbers_check_existing` | `drivers.swap`: gives a swapped driver whose row has a team and no number a free one |
 | `Career_DriverNumbers_AssignFree`, `Career_DriverNumbers_ApplyPlayerNumber`, `Career_Weekend_SetEntrantNumber` | 0x140c01280 / 0x140c00830 / 0x140af6800 | L1, no sig | evidence for `drivers.number.set`'s order; not called |
 | `Ent_Deserialise_EntrantVector`, `Ent_Serialise_EntrantRecord` | 0x142458f20 / 0x142458890 | L1, no sig | evidence that the save keeps +0x83 |
 | `Career_DriverNameOverride_GetNumber` | 0x140b9a810 | L1, no sig | evidence: the Choose Driver display override, not the career's number |
@@ -519,7 +558,8 @@ KB structs (re/db/structs, all fields L2, raised by ce-drivers): `DriverStatisti
 `DriverMoveRecord`, `EntrantWriteData`, `DriverCareerContractsManagerComponent`,
 `DriverMoveConfirmedMessage`, `DriverMovesFinalisedMessage`, `LineupChange`,
 `DriverCareerContractOwner`, `DriverContract`, `DriverContractChangedMessage`, and `EntrantRecord`
-(extended). Read from other lanes:
+(extended); `CarNumberComponent` and the `car_numbers` fields of both contracts components (raised by
+ce-swap-number). Read from other lanes:
 `CareerEntity` (economy), `CareerTimeComponent` (economy).
 
 Snapshot status: implemented; needs in-game proof (no log line; check `snapshot.json`).

@@ -1134,7 +1134,7 @@ fn swap_card(live: &Live) -> Value {
     let help = if my_team {
         "Applies now, mid-season: each driver takes the other's team, car and seat through the game's own driver-move path. Contracts keep the team they were signed with. Free agents, such as drivers made with Driver Manager, can't take a seat in My Team yet. Your own seat is locked."
     } else {
-        "Applies now, mid-season, through the game's own Driver Career signing path. Two race drivers trade seats. A free agent takes a race seat the way the game signs one: the seat's driver is released (contract ended) and becomes a free agent, and the game re-assigns the team's R&D. Each driver who takes a seat signs that seat's contract. Your own seat is locked."
+        "Applies now, mid-season, through the game's own Driver Career signing path. Two race drivers trade seats. A free agent takes a race seat the way the game signs one: the seat's driver is released (contract ended) and becomes a free agent, and the game re-assigns the team's R&D. Each driver who takes a seat signs that seat's contract, and one without a race number gets a free one. Your own seat is locked."
     };
     let blocks = vec![
         json!({ "form": { "id": "swap", "columns": 2, "apply": "Swap seats", "disabled": !live.can(op), "fields": [

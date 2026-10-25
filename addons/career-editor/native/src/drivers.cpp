@@ -14,6 +14,7 @@
 //   CareerDriverContractRenewalComponent, DriverMoveRecord   the game's move log
 //   DriverContractsMyTeamComponent, ContractRecord           My Team contract lists
 //   DriverCareerContractOwner, DriverContract, DriverContractChangedMessage   Driver Career contracts
+//   CarNumberComponent         the career's racing numbers, held by both contracts components
 //
 // A rating edit rewrites the y of every point of the curve the getter uses (count and x kept, so
 // nothing is reallocated), then rebuilds lut[] and the end value with the game's own evaluator
@@ -1336,6 +1337,11 @@ std::string swap_json(const std::vector<Row> &rows, uint32_t a, uint32_t b)
                 w.null();
             w.key("seat");
             seat_json(w, r->rec);
+            w.key("raceNumber");
+            if (r->rec.car_number != kNoNumber)
+                w.integer(r->rec.car_number);
+            else
+                w.null();
         }
         w.end_object();
     }
@@ -1449,6 +1455,14 @@ bool apply_row(uintptr_t entity, const MoveSink &sink, const Row &id_row, uint32
 bool teamless(const EntrantRecord &r)
 {
     return (r.team_stat_id & 0xffff0000u) == kNoKey;
+}
+
+std::vector<ce::numbers::Row> number_rows(const std::vector<Row> &rows)
+{
+    std::vector<ce::numbers::Row> out;
+    for (auto &x : rows)
+        out.push_back({entrant_driver(x.rec), x.rec.car_number, !teamless(x.rec)});
+    return out;
 }
 
 // Driver Career: release the outgoing driver's contract the way its signing does (state 3, the
@@ -1693,6 +1707,103 @@ bool row_matches(const EntrantRecord &now, const EntrantRecord &was, const Entra
            now.badge_stat_id == d.badge_stat_id && entrant_driver(now) == d.driver && same_identity(now, was);
 }
 
+// Racing numbers after a swap. The game's signings give a row that has a team and no number one with
+// Career_DriverNumbers_CheckExisting(CarNumberComponent, driver) after its entrant write: the Driver
+// Career signing after the seat contract (0x140d7814e, the component from manager +0x368), My Team's
+// Career_Assign_EntrantTeamSlot (0x140db7418, from DriverContractsMyTeamComponent +0x2e8). It draws
+// a free number from the component's candidates and writes it with Career_Set_EntrantData_Thunk and
+// on the current session's entrant row. A driver the undo of such a swap releases goes back to no number
+// (clearNumbers), written the way drivers.number.set writes a number.
+bool write_number(uintptr_t entity, const Row &row, uint8_t number, bool &weekend);
+
+uintptr_t car_numbers(uintptr_t entity)
+{
+    bool dc = ce::mode() == ce::Mode::DriverCareer;
+    uintptr_t owner =
+        ce::comp::get(dc ? ce::comp::Id::DriverCareerContractsManager : ce::comp::Id::DriverContractsMyTeam);
+    uintptr_t at = !owner ? 0
+                   : dc   ? owner + offsetof(DriverCareerContractsManagerComponent, car_numbers)
+                          : owner + offsetof(DriverContractsMyTeamComponent, car_numbers);
+    uintptr_t c = at ? rdv<uintptr_t>(at) : 0;
+    return c && swofty::mem::object_like(c) && rdv<uintptr_t>(c + offsetof(CarNumberComponent, entity)) == entity ? c
+                                                                                                                  : 0;
+}
+
+std::string number_text(uint8_t n)
+{
+    return n == kNoNumber ? "none" : "#" + std::to_string(n);
+}
+
+// Gives and clears the numbers, then checks that only those rows' numbers changed; `out` gets the
+// entrant rows afterwards.
+void swap_numbers(uintptr_t entity, const std::vector<uint32_t> &moved, const std::vector<uint32_t> &clear,
+                  std::vector<Row> &out)
+{
+    std::vector<Row> pre;
+    if (!entrant_rows(entity, pre)) {
+        ce::log("drivers.swap WARNING race numbers: the entrant table is unreadable; numbers unchanged");
+        return;
+    }
+    std::vector<uint32_t> need;
+    uintptr_t cn = 0;
+    for (uint32_t d : ce::numbers::unnumbered(number_rows(pre), moved)) {
+        if (!cn && !(cn = car_numbers(entity)))
+            ce::log("drivers.swap WARNING race numbers: driver %u keeps no number (no CarNumberComponent on the "
+                    "contracts component)",
+                    save_id(d));
+        else if (entity_busy(entity) || !unique_identity(entity, *row_of(pre, d)))
+            ce::log("drivers.swap WARNING race numbers: driver %u keeps no number (his entrant row can't be written)",
+                    save_id(d));
+        else {
+            Career_DriverNumbers_CheckExisting(reinterpret_cast<void *>(cn), d);
+            need.push_back(d);
+        }
+    }
+    std::vector<uint32_t> cleared;
+    bool weekend = true;
+    for (uint32_t d : clear) {
+        const Row *r = row_of(pre, d);
+        bool w = false;
+        if (!r || r->rec.car_number == kNoNumber)
+            continue;
+        if (write_number(entity, *r, kNoNumber, w)) {
+            cleared.push_back(d);
+            weekend = weekend && w;
+        } else
+            ce::log("drivers.swap WARNING race numbers: driver %u keeps %s (his entrant row can't be written)",
+                    save_id(d), number_text(r->rec.car_number).c_str());
+    }
+    if (!entrant_rows(entity, out) || out.size() != pre.size()) {
+        ce::log("drivers.swap WARNING race numbers: the entrant table is unreadable after the numbers");
+        out = pre;
+        return;
+    }
+    size_t others = 0;
+    for (size_t i = 0; i < pre.size(); ++i) {
+        uint32_t d = entrant_driver(pre[i].rec);
+        EntrantRecord expect = pre[i].rec;
+        if (std::find(need.begin(), need.end(), d) != need.end() ||
+            std::find(cleared.begin(), cleared.end(), d) != cleared.end())
+            expect.car_number = out[i].rec.car_number;
+        if (out[i].at != pre[i].at || std::memcmp(&out[i].rec, &expect, kEntrantSize) != 0)
+            ++others;
+    }
+    if (others)
+        ce::log("drivers.swap WARNING race numbers: %zu entrant row(s) changed beyond the numbers", others);
+    auto held = number_rows(out);
+    for (uint32_t d : need) {
+        std::string why = ce::numbers::sole_holder(held, d);
+        const Row *r = row_of(out, d);
+        ce::log("drivers.swap %srace number: driver %u none -> %s (Career_DriverNumbers_CheckExisting; %s)",
+                why.empty() ? "" : "WARNING ", save_id(d), number_text(r ? r->rec.car_number : kNoNumber).c_str(),
+                why.empty() ? "no other entrant holds it" : why.c_str());
+    }
+    for (uint32_t d : cleared)
+        ce::log("drivers.swap race number: driver %u %s -> none (clearNumbers, Career_Set_EntrantData_Thunk, "
+                "weekend row %s)",
+                save_id(d), number_text(row_of(pre, d)->rec.car_number).c_str(), weekend ? "updated" : "not found");
+}
+
 ce::OpResult op_swap(const ce::Json &args)
 {
     const char *op = "drivers.swap";
@@ -1779,6 +1890,23 @@ ce::OpResult op_swap(const ce::Json &args)
         std::swap(ta, tb);
         std::swap(car_a, car_b);
     }
+    // clearNumbers (the undo of a replace that numbered a free agent): the driver this replace
+    // releases goes back to no number.
+    std::vector<uint32_t> clear;
+    const ce::Json &jc = args["clearNumbers"];
+    if (jc.type != ce::Json::Null && jc.type != ce::Json::Arr)
+        return op_fail(op, "bad_args", "clearNumbers must be a list of driverStatIds");
+    for (auto &v : jc.a) {
+        if (!valid(v))
+            return op_fail(op, "bad_args", "clearNumbers must be a list of driverStatIds");
+        uint32_t k = key_from_save(static_cast<uint32_t>(v.n));
+        if (!replace || k != b)
+            return op_fail(op, "bad_args",
+                           "clearNumbers names driver " + std::to_string(save_id(k)) +
+                               ", who keeps a seat after this swap; only the driver a replace releases goes back "
+                               "to no number");
+        clear.push_back(k);
+    }
     // Driver Career: each driver who takes a race seat signs that seat's contract, as the game's signing
     // does for its incoming driver; planned before anything is written.
     std::vector<Signing> signings;
@@ -1856,12 +1984,6 @@ ce::OpResult op_swap(const ce::Json &args)
         else
             ce::log("drivers.swap WARNING driver %u's contract for his new seat could not be signed", save_id(s.driver));
     }
-    if (!sink.renewal)
-        finalise_ok = finalise_moves(entity, baseline, finalised);
-    if (!finalise_ok)
-        ce::log("drivers.swap WARNING the MessageDriverMovesFinalised messages could not be posted");
-    r.after = swap_json(now, arg_a, arg_b);
-    r.ok = true;
     char na_t[96], nb_t[96];
     seat_text(na_t, sizeof na_t, *na);
     seat_text(nb_t, sizeof nb_t, *nb);
@@ -1879,6 +2001,14 @@ ce::OpResult op_swap(const ce::Json &args)
     if (sink.manager)
         ce::log("drivers.swap signed %zu/%zu seat contract(s) (MessageDriverContractChanged)", signed_now,
                 signings.size());
+    std::vector<Row> numbered = now;
+    swap_numbers(entity, {a, b}, clear, numbered);
+    if (!sink.renewal)
+        finalise_ok = finalise_moves(entity, baseline, finalised);
+    if (!finalise_ok)
+        ce::log("drivers.swap WARNING the MessageDriverMovesFinalised messages could not be posted");
+    r.after = swap_json(numbered, arg_a, arg_b);
+    r.ok = true;
     if (!sink.renewal)
         ce::log("drivers.swap finalised %llu line-up change(s) (MessageDriverMovesFinalised_upgrades, _recognition, "
                 "MessageDriverMovesFinalised)%s",
@@ -2154,11 +2284,8 @@ ce::OpResult op_number_set(const ce::Json &args)
         return op_fail(op, "no_component", "no championship entity or entrant table unreadable");
     if (entity_busy(entity))
         return op_fail(op, "busy", "the game is in the middle of an entrant update");
-    std::vector<ce::numbers::Row> held;
-    for (auto &x : rows)
-        held.push_back({entrant_driver(x.rec), x.rec.car_number});
     const ce::Json &num = args["number"];
-    ce::numbers::Plan plan = ce::numbers::plan(held, key, num.type == ce::Json::Num ? num.n : -1,
+    ce::numbers::Plan plan = ce::numbers::plan(number_rows(rows), key, num.type == ce::Json::Num ? num.n : -1,
                                                args["swap"].type == ce::Json::Bool && args["swap"].b);
     if (!plan.error.empty()) {
         size_t colon = plan.error.find(':');

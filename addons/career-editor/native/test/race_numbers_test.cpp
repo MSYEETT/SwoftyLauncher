@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Host unit test for race_numbers.cpp: the checks drivers.number.set runs before it writes a number.
+// Host unit test for race_numbers.cpp: the checks drivers.number.set runs before it writes a number,
+// and the numbers drivers.swap gives and checks after a swap.
 #include <cstdio>
 #include <string>
 
@@ -36,6 +37,43 @@ int main() {
     CHECK(plan(rows, k(200), 50, true).error.empty());
     // a driver without an entrant row has no number
     CHECK(code(plan(rows, k(300), 50, false)) == "no_entrant");
+
+    // after a swap: a swapped driver whose row has a team and no number gets one from the game
+    const uint32_t martins = k(146), hadjar = k(149), lawson = k(150), tsolov = k(174);
+    // the in-game report: free agent Martins (no number) into Hadjar's (#6) VCARB seat; Hadjar is released
+    // and keeps #6, as the game's replace keeps the released driver's number
+    std::vector<Row> replaced = {{lawson, 30, true}, {martins, kNone, true}, {hadjar, 6, false}, {tsolov, 7, false}};
+    CHECK(unnumbered(replaced, {martins, hadjar}) == std::vector<uint32_t>{martins});
+    // a free agent who already has a number keeps it
+    replaced[1].number = 41;
+    CHECK(unnumbered(replaced, {martins, hadjar}).empty());
+    // the released driver without a number stays without one: he has no team
+    std::vector<Row> both = {{martins, kNone, true}, {hadjar, kNone, false}};
+    CHECK(unnumbered(both, {martins, hadjar}) == std::vector<uint32_t>{martins});
+    // two race drivers trading seats keep their numbers; one seated without a number (a 0.3.0 replace) gets one
+    std::vector<Row> traded = {{lawson, 30, true}, {martins, kNone, true}, {k(9), 1, true}};
+    CHECK(unnumbered(traded, {lawson, k(9)}).empty());
+    CHECK(unnumbered(traded, {k(9), martins}) == std::vector<uint32_t>{martins});
+    // only the swapped drivers, each once, in the swap's order
+    CHECK(unnumbered(traded, {}).empty());
+    CHECK(unnumbered({{martins, kNone, true}, {lawson, kNone, true}}, {lawson, martins}) ==
+          (std::vector<uint32_t>{lawson, martins}));
+    CHECK(unnumbered(traded, {k(300)}).empty());
+
+    // the number the game gave: 1..99 and no other row of the championship holds it, teamless rows included
+    std::vector<Row> given = {{lawson, 30, true}, {martins, 12, true}, {hadjar, 6, false}, {tsolov, 7, false}};
+    CHECK(sole_holder(given, martins).empty());
+    given[1].number = 7;
+    CHECK(sole_holder(given, martins) == "number 7 is on another entrant row too");
+    given[1].number = 6;
+    CHECK(sole_holder(given, martins) == "number 6 is on another entrant row too");
+    given[1].number = kNone;
+    CHECK(sole_holder(given, martins) == "he has no number");
+    given[1].number = 0;
+    CHECK(sole_holder(given, martins) == "his number 0 is outside 1..99");
+    given[1].number = 100;
+    CHECK(sole_holder(given, martins) == "his number 100 is outside 1..99");
+    CHECK(sole_holder(given, k(300)) == "he has no entrant row");
 
     std::printf("%s (%d failure(s))\n", fails ? "FAILED" : "ALL OK", fails);
     return fails ? 1 : 0;
