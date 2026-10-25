@@ -5,7 +5,7 @@ description: Add a separate career to F1 25, with its own tile on the career con
 
 # Career contents
 
-A career content is a tile on the career content select (Career > Driver Career) after the stock 2025 and 2026 tiles. It has its own save slots, filed under its own data group, so its careers never appear under the stock tiles and stock careers never appear under it. You register the content from your addon; the core builds the tile and owns every native step the stock code would refuse for a new career. The data side (the mode row, the championship, the entrant lists) comes from your addon's [database operations](/reference/ops/database).
+A career content is a tile on the career content select (Career > Driver Career or Career > My Team Career), in an Addons row under the Built In row that holds the stock 2025 and 2026 tiles. It has its own save slots, filed under its own data group, so its careers never appear under the stock tiles and stock careers never appear under it. You register the content from your addon; the core builds the tile and owns every native step the stock code would refuse for a new career. The data side (the mode row, the championship, the entrant lists) comes from your addon's [database operations](/reference/ops/database).
 
 | | |
 |---|---|
@@ -56,8 +56,17 @@ SWOFTY_ADDON(init)
 | `car_group` | The `stat_id` of the customisation car group the press selects; `-1` (default) takes what the model tile's press takes |
 | `badge` | The tile's notification value; `0` (default) shows no badge |
 | `entitlement` | Replaces the 2026 model's entitlement string (`f1_2026`); empty keeps it |
+| `careers` | Where the tile shows: `Career::driver` (default), `Career::my_team` or `Career::both`. The C field is a mask of `SWOFTY_CAREER_CONTENT_DRIVER` and `SWOFTY_CAREER_CONTENT_MY_TEAM`; a descriptor whose `size` ends before `careers` shows in Driver Career |
 
-`add()` returns `ok` when the content is queued (or live at once, if another addon's content already installed the hooks), `invalid` for a bad or duplicate descriptor (the log names the field), and `unavailable` on an older core, with the `career` feature off, or when the hooks could not be installed. Up to 8 contents can be registered; their tiles follow the stock ones in registration order (`button_3`, `button_4`, ...).
+`add()` returns `ok` when the content is queued (or live at once, if another addon's content already installed the hooks), `invalid` for a bad or duplicate descriptor (the log names the field), and `unavailable` on an older core, with the `career` feature off, or when the hooks could not be installed. Up to 8 contents can be registered; their tiles fill the Addons row in registration order.
+
+## The Addons row
+
+The content select lists the stock tiles under a red **Built In** label and the contents under an **Addons** label. The labels and the row show only when at least one content is ready for the career on screen; with none, the screen is the stock one. Down from the last Built In tile moves into the Addons row and Up from its first tile moves back, and the description under the rows follows the focused tile.
+
+The core takes the career from the route the career type screen ran to open the content select: `career_dlc_select_my_team` is My Team and `career_dlc_select_driver` is Driver Career (the `career.starting` pick, see [events](./events#flow-and-career-events)). The log line `[career] <career> content select: <n> stock tile(s), <n> content tile(s) in the Addons row` names it on each build.
+
+The row comes from the launcher's UI build, which adds a second spawner (`addon_buttons`, raising `addon_select_pressed` and `addon_focus_changed`) and the two labels to `fe_career_dlc_select.ui` and its scene, and the tile template `addon_tile_button_default` (a copy of `fe_tile_button_default` laid out in `addon_stacker_items`) to `fe_home.ui`, all in `flow_frontend.erp`. A game run without that build (an addon that owns those resources, or an older launcher) gets no Addons row: the core logs `no Addons row (<reason>)` and the content tiles follow the stock tiles in the one list.
 
 ## What the core does for a content
 
@@ -65,7 +74,8 @@ The core installs the tile, gate and slot predicate hooks as one core mixin set,
 
 | Hook | Binding | What it does for a content |
 |---|---|---|
-| Tile | `site_FeTile_CareerContentEnd` (site, end of `FeTile_Build_List` case 6) | appends `button_N` with `FeHome_Add_CareerTile`, then replaces its home item with a career content item built by `FeTile_Construct_CareerItem`: the model's route (`+0x178`, `driver_career`), your data group (`+0x180`) and suffix (`+0x188`), and a copy of the model's vtable whose populate sets your title and description and whose press selects your car group and calls the router |
+| Tile | `site_FeTile_CareerContentEnd` (site, end of `FeTile_Build_List` case 6) | appends `button_N` (numbered after the stock tiles) with `FeHome_Add_CareerTile` while the tile list's buttons node points at the view model's `addon_buttons` list, then replaces its home item with a career content item built by `FeTile_Construct_CareerItem`: the model's route (`+0x178`), your data group (`+0x180`) and suffix (`+0x188`), and a copy of the model's vtable whose populate sets your title and description and whose press selects your car group and calls the router. In the Addons row the tile's VM `type` is `addon_tile_button_default`. Sets `addon_buttons_visible` |
+| Addons row commands | `vt_Game_CareerDLCSelectViewModel` slot 10 (`Game_FECareerDLCSelectViewModel_OnCommandRaised`) | runs `addon_select_pressed` and `addon_focus_changed` as the stock `select_pressed` and `focus_changed` while the tile list's buttons node and item vector (view model `+0x2c8`) start at the Addons row |
 | Router | `FeTile_Route_CareerItem` (wrap, `swofty_core.dll (career tile route)`) | records the pressed tile's data group and fires `career.content.pressed` |
 | Gate | `Game_Career_IsDriverCareerMode` (wrap) | passes the mode championship whose `statId` (`+0x2a8`) is your mode's; the stock gate accepts only the 2025 and 2026 driver careers, so without this the new-career path reads through a null slot |
 | Slot predicate | `vt_Game_DriverCareerSlotPredicate` slot 2 | asked for your data group, a stock "no" for your mode's career becomes the predicate's own data-group check. Questions for other data groups keep the game's answer |

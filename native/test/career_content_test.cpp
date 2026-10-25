@@ -154,6 +154,25 @@ int main()
         d = desc1990();
         d.car_group = -2;
         expect(!content::check(d, none).empty(), "check: a car group below -1 is refused");
+        d = desc1990();
+        d.careers = content::CAREER_MY_TEAM;
+        expect(content::check(d, none).empty(), "check: a My Team content is accepted");
+        d.careers = content::CAREER_ALL;
+        expect(content::check(d, none).empty(), "check: a content for both careers is accepted");
+        d.careers = 0;
+        expect(!content::check(d, none).empty(), "check: a content for no career is refused");
+        d.careers = 4;
+        expect(!content::check(d, none).empty(), "check: an unknown career bit is refused");
+    }
+    {
+        expect(content::career_of(SWOFTY_CAREER_DRIVER) == content::CAREER_DRIVER, "career: a Driver Career pick is Driver Career");
+        expect(content::career_of(SWOFTY_CAREER_MY_TEAM) == content::CAREER_MY_TEAM, "career: a My Team pick is My Team");
+        expect(content::career_of(0) == content::CAREER_DRIVER, "career: no pick yet is Driver Career");
+        expect(content::stock_command(content::ADDON_SELECT_PRESSED) == content::SELECT_PRESSED,
+               "command: addon_select_pressed runs as select_pressed");
+        expect(content::stock_command(content::ADDON_FOCUS_CHANGED) == content::FOCUS_CHANGED,
+               "command: addon_focus_changed runs as focus_changed");
+        expect(content::stock_command(content::SELECT_PRESSED) == 0, "command: a stock command is left alone");
     }
     {
         Fake f;

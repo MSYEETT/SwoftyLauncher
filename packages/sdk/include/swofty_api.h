@@ -381,6 +381,11 @@ enum {
 };
 
 enum {
+    SWOFTY_CAREER_CONTENT_DRIVER = 1,
+    SWOFTY_CAREER_CONTENT_MY_TEAM = 2,
+};
+
+enum {
     SWOFTY_CAREER_CONTENT_QUEUED = 0,
     SWOFTY_CAREER_CONTENT_LIVE = 1,
     SWOFTY_CAREER_CONTENT_OFF = 2,
@@ -398,6 +403,7 @@ typedef struct SwoftyCareerContentDesc {
     const char *entitlement;
     int32_t car_group;
     uint32_t badge;
+    uint32_t careers;
 } SwoftyCareerContentDesc;
 
 typedef struct SwoftyCareerContentInfo {
