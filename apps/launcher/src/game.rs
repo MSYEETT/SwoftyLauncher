@@ -295,6 +295,24 @@ fn failure_line(log: &str) -> Option<String> {
         .map(|l| l.trim_end_matches(':').to_owned())
 }
 
+/// A failure as the play bar leads with it: a wrapper's error with its
+/// innermost cause first and what the wrapper was doing after it, and any
+/// other as it is.
+pub fn cause_first(failure: &str) -> String {
+    let Some(reason) = failure
+        .strip_prefix("the wrapper exited (")
+        .and_then(|rest| rest.split_once(") "))
+        .and_then(|(_, rest)| rest.split_once(": "))
+        .map(|(_, reason)| reason)
+    else {
+        return failure.to_owned();
+    };
+    match reason.rsplit_once(": ") {
+        Some((doing, cause)) if !cause.trim().is_empty() => format!("{cause} ({doing})"),
+        _ => reason.to_owned(),
+    }
+}
+
 fn cli_path(store: &Store) -> Option<PathBuf> {
     let name = if cfg!(windows) { "swofty.exe" } else { "swofty" };
     let beside = std::env::current_exe()
@@ -366,7 +384,7 @@ mod tests {
     use swofty_core::launch;
     use swofty_core::store::Store;
 
-    use super::{failure_line, not_started};
+    use super::{cause_first, failure_line, not_started};
 
     #[test]
     fn a_cli_that_does_not_start_says_so_in_the_launch_log() {
@@ -413,5 +431,51 @@ mod tests {
         );
         assert_eq!(failure_line("[info] starting\nexit\n").as_deref(), Some("exit"));
         assert_eq!(failure_line("\n"), None);
+    }
+
+    #[test]
+    fn a_wrapper_failure_leads_with_its_innermost_cause() {
+        let blocked = "the download was blocked on this PC or network, typically by antivirus HTTPS or web \
+                       scanning, a VPN or proxy, a network filter or a Wi-Fi login page; turning that off or trying \
+                       another network fixes it";
+        let log = format!(
+            "[info] building profile default\n\
+             [wrapper] downloading offline play 0.3.11 from https://x\n\
+             swofty: the wrapper exited (exit code: 1) before the game started: downloading the offline play \
+             extension: offline play 0.3.11: {blocked}\n\
+             (could not download https://x/v0.3.11/f1op_hook.dll: io: received corrupt message of type \
+             InvalidContentType)\n"
+        );
+        let failure = failure_line(&log).unwrap();
+        assert!(
+            failure.starts_with("the wrapper exited (exit code: 1)"),
+            "{failure}"
+        );
+        assert_eq!(
+            cause_first(&failure),
+            format!("{blocked} (downloading the offline play extension: offline play 0.3.11)")
+        );
+        assert_eq!(
+            cause_first(
+                "the wrapper exited (exit status: 3) before the game started: version.dll already exists in the \
+                 game folder; run swofty restore"
+            ),
+            "version.dll already exists in the game folder; run swofty restore"
+        );
+        assert_eq!(
+            cause_first(
+                "the wrapper exited (signal: 9 (SIGKILL)) while the game was running: installing profile default: \
+                 /games/F1 25/swofty/x.erp: Permission denied (os error 13)"
+            ),
+            "Permission denied (os error 13) (installing profile default: /games/F1 25/swofty/x.erp)"
+        );
+        for kept in [
+            r"the wrapper exited (exit code: 1) before the game started without output; see C:\Swofty\state\wrapper-run.log",
+            "the wrapper did not start within 10 min; check the Steam launch option (swofty doctor)",
+            "building profile default: reading x: missing",
+            "an antivirus removed mod files, so F1 25 was not started",
+        ] {
+            assert_eq!(cause_first(kept), kept);
+        }
     }
 }

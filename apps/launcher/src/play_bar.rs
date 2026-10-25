@@ -57,8 +57,9 @@ fn status_row() -> Div {
 }
 
 fn launch_failed(row: Div, text: impl std::fmt::Display, p: Palette) -> Div {
-    let text = SharedString::from(format!("Launch failed: {text}"));
-    let tip = text.clone();
+    let full = text.to_string();
+    let text = SharedString::from(format!("Launch failed: {}", game::cause_first(&full)));
+    let tip = SharedString::from(format!("Launch failed: {full}"));
     row.text_color(p.error)
         .child(Icon::new(IconName::CircleAlert).size(px(16.)))
         .child(
