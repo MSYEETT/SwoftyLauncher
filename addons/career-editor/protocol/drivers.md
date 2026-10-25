@@ -209,6 +209,28 @@ the `before` values. Runs only while `ce::safe()`.
 
 Status: implemented; needs in-game proof (log line `[career-editor] drivers.contract.set ...`).
 
+## Op `drivers.contracts.repair`
+
+Driver Career only. Every AI race driver (a team and a car) whose `contract` is not active for the
+team he races for signs that team's contract through the swap's add-contract step, with the record of
+another active contract for the team. It repairs careers where 0.2.5 or older seated a driver without
+a contract.
+
+Args: `{}`. Result `before` / `after`:
+
+```json
+{ "drivers": [ { "driverStatId": 174, "teamStatId": 482, "contract": { "teamStatId": null, "active": false } } ] }
+```
+
+`drivers` lists the race drivers that needed a contract, before and after. The op fails with
+`write_failed` (naming each driver and why) when one of them could not sign, for example when the game
+keeps no contract object for him; the others stay signed. `wrong_mode` outside Driver Career,
+`no_component` without the contracts component. Undo: backup only (the History tab's save backups).
+
+Log line: `[career-editor] drivers.contracts.repair <n> race driver(s) without a contract for their team, <k> signed: <id> (team <t>) signed, ...`.
+
+Status: implemented; needs in-game proof.
+
 ## Op `drivers.swap`
 
 Swaps seats **now**, mid-season, with the game's own driver-move primitives in the game's own order.
@@ -345,28 +367,6 @@ My Team with one says `2 moves recorded` and posts no finalise.
 Status: implemented; needs in-game proof. Test: swap two AI drivers on different teams in Team HQ,
 check the Team HQ grid / standings driver list, save, reload the career, advance to the next weekend
 and load into a session.
-
-## Op `drivers.contracts.repair`
-
-Driver Career only. Every AI race driver (a team and a car) whose `contract` is not active for the
-team he races for signs that team's contract through the swap's add-contract step, with the record of
-another active contract for the team. It repairs careers where 0.2.5 or older seated a driver without
-a contract.
-
-Args: `{}`. Result `before` / `after`:
-
-```json
-{ "drivers": [ { "driverStatId": 174, "teamStatId": 482, "contract": { "teamStatId": null, "active": false } } ] }
-```
-
-`drivers` lists the race drivers that needed a contract, before and after. The op fails with
-`write_failed` (naming each driver and why) when one of them could not sign, for example when the game
-keeps no contract object for him; the others stay signed. `wrong_mode` outside Driver Career,
-`no_component` without the contracts component. Undo: backup only (the History tab's save backups).
-
-Log line: `[career-editor] drivers.contracts.repair <n> race driver(s) without a contract for their team, <k> signed: <id> (team <t>) signed, ...`.
-
-Status: implemented; needs in-game proof.
 
 ### Free agents in My Team (not supported)
 
