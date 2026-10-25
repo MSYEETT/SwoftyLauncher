@@ -692,7 +692,7 @@ The cell shows busy until the effect comes back, as a form does. Flipping a swit
 
 ### Row details {#row-details}
 
-*Launcher 1.5.8.* A row with `detail` opens a panel beside the table when it is clicked, as a row of the DB Editor does: the row is highlighted, and the panel shows the row's `title` (default: its first cell's text), its `subtitle` and its blocks, under a close button. Clicking the row again or the close button closes it; clicking another row shows that row instead. The panel is 380 pixels wide. When the table beside it would leave a column without a fixed `width` less than 96 pixels, the panel opens under its row instead, across the table.
+*Launcher 1.5.8.* A row with `detail` opens a panel beside the table when it is clicked, as a row of the DB Editor does: the row is highlighted, and the panel shows the row's `title` (default: the text of its first cell that isn't a switch), its `subtitle` and its blocks, under a close button. Clicking the row again or the close button closes it; clicking another row shows that row instead. The panel is 380 pixels wide. When the table beside it would leave a column without a fixed `width` less than 96 pixels, the panel opens under its row instead, across the table.
 
 ```json
 { "id": "rai", "title": "Kimi RÄIKKÖNEN", "subtitle": "kimi_raikkonen",

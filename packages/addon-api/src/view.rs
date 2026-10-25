@@ -444,7 +444,8 @@ pub struct RowSpec {
     pub cells: Vec<Cell>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tone: Option<Tone>,
-    /// The detail panel's title and subtitle; the title defaults to the first cell's text.
+    /// The detail panel's title and subtitle; the title defaults to the text of the first cell
+    /// that isn't a switch.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -484,13 +485,15 @@ impl TableRow {
         }
     }
 
-    /// The detail panel's title: the row's own, else its first cell's text.
+    /// The detail panel's title: the row's own, else the text of its first cell that isn't a
+    /// switch.
     pub fn title(&self) -> String {
         match self {
             Self::Spec(RowSpec { title: Some(t), .. }) => t.clone(),
             _ => self
                 .cells()
-                .first()
+                .iter()
+                .find(|c| !matches!(c, Cell::Spec(s) if matches!(s.edit, Some(Field::Toggle(_)))))
                 .map(|c| c.text().to_owned())
                 .unwrap_or_default(),
         }
@@ -1589,9 +1592,11 @@ mod tests {
         assert_eq!(name.image.as_ref().unwrap().size(64.), (64., 64.));
         assert!(!name.spans[0].bold && name.spans[1].bold);
         assert_eq!(kimi.cells()[2].spec().image.unwrap().size(64.), (20., 14.));
-        // The text still searches and sorts; the panel is titled after the first cell.
+        // The text still searches and sorts; the panel is titled after the first cell that
+        // isn't a switch.
         assert_eq!(name.text, "Kimi RÄIKKÖNEN");
-        assert_eq!(kimi.title(), "On");
+        assert_eq!(kimi.title(), "Kimi RÄIKKÖNEN");
+        assert_eq!(nico.title(), "Off");
         assert_eq!(kimi.subtitle(), Some("kimi_raikkonen"));
         assert_eq!(kimi.detail().len(), 1);
         assert!(nico.detail().is_empty() && nico.subtitle().is_none());
