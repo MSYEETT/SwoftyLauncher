@@ -1289,7 +1289,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             .cloned()
             .collect();
     }
-    put_files(&mut built, store, game, mipmaps, file_ops, &built_over)?;
+    put_files(&mut built, store, game, mipmaps, file_ops, &built_over, &ers_maps)?;
     match loader_dir() {
         Some(dir) => {
             built.plan.loader = loader_files(&dir)?;
@@ -1693,6 +1693,7 @@ fn put_files(
     mipmaps: BTreeMap<String, PathBuf>,
     ops: Vec<Op>,
     built_over: &BTreeSet<String>,
+    ers_maps: &[ErsMap],
 ) -> Result<()> {
     let mips = mipmaps.len();
     let mut put: BTreeMap<String, (PathBuf, Option<Origin>)> =
@@ -1717,8 +1718,17 @@ fn put_files(
         baseline.as_ref().is_some_and(|b| b.files.contains_key(rel))
             || (game.dir.join(rel).is_file() && !left_over(store, game, rel))
     };
-    let (mut replaced, mut added) = (0, 0);
-    for (rel, (src, origin)) in put {
+    let (mut replaced, mut added, mut handling) = (0, 0, 0);
+    for (rel, (mut src, origin)) in put {
+        let car = !ers_maps.is_empty() && ers::is_car_archive(&rel);
+        if car && !built_over.contains(&rel) {
+            let out = built.overlay.join("ers").join(&rel);
+            let n = ers::edit_archive(&src, ers_maps, &out)?;
+            if n > 0 {
+                handling += n;
+                src = out;
+            }
+        }
         let is_stock = stock(&rel);
         if is_stock {
             replaced += 1;
@@ -1735,7 +1745,7 @@ fn put_files(
             true => &mut built.plan.data,
             false => &mut built.plan.added,
         };
-        if into.insert(rel.clone(), src).is_some() {
+        if into.insert(rel.clone(), src).is_some() && !car {
             return Err(Error::Other(match origin {
                 Some(o) => format!(
                     "{rel} is replaced twice: {o} puts the whole file, and an added track changes it too"
@@ -1747,6 +1757,11 @@ fn put_files(
     built
         .lines
         .push(format!("files: {replaced} game file(s) replaced, {added} added"));
+    if handling > 0 {
+        built.lines.push(format!(
+            "ers: {handling} handling file(s) in car archives addons put get the tracks' settings"
+        ));
+    }
     if mips > 0 {
         built
             .lines
@@ -3123,30 +3138,58 @@ mod tests {
             &format!(r#"{{"op":"erp.put-resource","erp":"{team}","resource":"{uri}","source":"h.erp"}}"#),
             &[("h.erp", handling("0.5"))],
         );
+        let season = "2025_asset_groups/cs_2019_vehicle_package/teams/mclaren/wep/mclaren.erp";
+        install(
+            "t.season",
+            &format!(r#"{{"op":"file.put","source":"cs.erp","target":"{season}"}}"#),
+            &[("cs.erp", handling("0.6"))],
+        );
 
         let built = build(&store, "default", &game).unwrap();
-        let line = "ers: 1 handling file(s) other addons change get the tracks' settings too".to_owned();
-        assert!(built.lines.contains(&line), "{:?}", built.lines);
-        let file = ErpFile::open(&built.plan.data[team]).unwrap();
-        let r = file.erp.resources.iter().find(|r| r.name == uri).unwrap();
-        let doc = Document::parse(&file.load(r).unwrap().fragments[0].data().unwrap()).unwrap();
-        let ers = doc.root.child(b"EnergyRecoverySystem").unwrap();
-        let value = |track: &str, key: &str| {
-            ers.children
+        for line in [
+            "ers: 1 handling file(s) other addons change get the tracks' settings too",
+            "ers: 1 handling file(s) in car archives addons put get the tracks' settings",
+        ] {
+            assert!(built.lines.contains(&line.to_owned()), "{:?}", built.lines);
+        }
+        let value = |archive: &Path, track: &str, key: &str| {
+            let file = ErpFile::open(archive).unwrap();
+            let r = file.erp.resources.iter().find(|r| r.name == uri).unwrap();
+            let doc = Document::parse(&file.load(r).unwrap().fragments[0].data().unwrap()).unwrap();
+            doc.root
+                .child(b"EnergyRecoverySystem")
+                .unwrap()
+                .children
                 .iter()
                 .find(|c| c.child(b"Track").and_then(|t| t.attr(b"value")) == Some(track.as_bytes()))
                 .and_then(|c| c.child(key.as_bytes()))
                 .and_then(|f| f.attr(b"value"))
                 .map(|v| String::from_utf8_lossy(v).into_owned())
         };
-        assert_eq!(value("melbourne", "MediumDeployFactor").as_deref(), Some("0.5"));
-        assert_eq!(value("testring", "MediumDeployFactor").as_deref(), Some("0.5"));
+        let car = &built.plan.data[team];
         assert_eq!(
-            value("testring", "OverrideDetectionLapProgress").as_deref(),
+            value(car, "melbourne", "MediumDeployFactor").as_deref(),
+            Some("0.5")
+        );
+        assert_eq!(
+            value(car, "testring", "MediumDeployFactor").as_deref(),
+            Some("0.5")
+        );
+        assert_eq!(
+            value(car, "testring", "OverrideDetectionLapProgress").as_deref(),
             Some("0.91")
         );
         assert_eq!(
-            value("testring", "OverrideActivationLapProgress").as_deref(),
+            value(car, "testring", "OverrideActivationLapProgress").as_deref(),
+            Some("0.95")
+        );
+        let car = &built.plan.added[season];
+        assert_eq!(
+            value(car, "melbourne", "MediumDeployFactor").as_deref(),
+            Some("0.6")
+        );
+        assert_eq!(
+            value(car, "testring", "OverrideActivationLapProgress").as_deref(),
             Some("0.95")
         );
         std::fs::remove_dir_all(&root).ok();
