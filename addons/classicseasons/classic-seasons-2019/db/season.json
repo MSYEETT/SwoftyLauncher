@@ -654,11 +654,34 @@
   },
   {
    "op": "add-row",
+   "table": "entrants.vehicles.vehicle_packages",
+   "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+   "set": {
+    "_metadata_": "cs_2019_mercedes",
+    "resource_path": "cs_2019_vehicle_package/teams/mercedes/wep/mercedes",
+    "blob_shadow_decal": "eaid://cs_2019_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+    "driver_animation_set": "cs_2019",
+    "has_cockpit_halo": "True"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "car_setup.presets",
+   "from": "car_setup.presets.vehicle_package_setups[_metadata_=f1_2025_vehicle_package]",
+   "set": {
+    "_metadata_": "cs_2019_mercedes_vehicle_package"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=mercedes_2025]",
    "set": {
     "_metadata_": "cs19_mercedes",
-    "vehicle_package": "cs_2019"
+    "performance_tier": "0",
+    "tyre_wear_scale": "1.04",
+    "vehicle_package": "cs_2019_mercedes",
+    "asset_filename": "redbull"
    }
   },
   {
@@ -742,11 +765,34 @@
   },
   {
    "op": "add-row",
+   "table": "entrants.vehicles.vehicle_packages",
+   "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+   "set": {
+    "_metadata_": "cs_2019_ferrari",
+    "resource_path": "cs_2019_vehicle_package/teams/ferrari/wep/ferrari",
+    "blob_shadow_decal": "eaid://cs_2019_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+    "driver_animation_set": "cs_2019",
+    "has_cockpit_halo": "True"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "car_setup.presets",
+   "from": "car_setup.presets.vehicle_package_setups[_metadata_=f1_2025_vehicle_package]",
+   "set": {
+    "_metadata_": "cs_2019_ferrari_vehicle_package"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=ferrari_2025]",
    "set": {
     "_metadata_": "cs19_ferrari",
-    "vehicle_package": "cs_2019"
+    "performance_tier": "0",
+    "tyre_wear_scale": "1.03",
+    "vehicle_package": "cs_2019_ferrari",
+    "asset_filename": "mclaren"
    }
   },
   {
@@ -830,11 +876,34 @@
   },
   {
    "op": "add-row",
+   "table": "entrants.vehicles.vehicle_packages",
+   "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+   "set": {
+    "_metadata_": "cs_2019_redbull",
+    "resource_path": "cs_2019_vehicle_package/teams/redbull/wep/redbull",
+    "blob_shadow_decal": "eaid://cs_2019_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+    "driver_animation_set": "cs_2019",
+    "has_cockpit_halo": "True"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "car_setup.presets",
+   "from": "car_setup.presets.vehicle_package_setups[_metadata_=f1_2025_vehicle_package]",
+   "set": {
+    "_metadata_": "cs_2019_redbull_vehicle_package"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=redbull_2025]",
    "set": {
     "_metadata_": "cs19_redbull",
-    "vehicle_package": "cs_2019"
+    "performance_tier": "0",
+    "tyre_wear_scale": "1.02",
+    "vehicle_package": "cs_2019_redbull",
+    "asset_filename": "ferrari"
    }
   },
   {
@@ -918,11 +987,34 @@
   },
   {
    "op": "add-row",
+   "table": "entrants.vehicles.vehicle_packages",
+   "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+   "set": {
+    "_metadata_": "cs_2019_mclaren",
+    "resource_path": "cs_2019_vehicle_package/teams/mclaren/wep/mclaren",
+    "blob_shadow_decal": "eaid://cs_2019_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+    "driver_animation_set": "cs_2019",
+    "has_cockpit_halo": "True"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "car_setup.presets",
+   "from": "car_setup.presets.vehicle_package_setups[_metadata_=f1_2025_vehicle_package]",
+   "set": {
+    "_metadata_": "cs_2019_mclaren_vehicle_package"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=mclaren_2025]",
    "set": {
     "_metadata_": "cs19_mclaren",
-    "vehicle_package": "cs_2019"
+    "performance_tier": "0",
+    "tyre_wear_scale": "1.01",
+    "vehicle_package": "cs_2019_mclaren",
+    "asset_filename": "mercedes"
    }
   },
   {
@@ -1006,11 +1098,34 @@
   },
   {
    "op": "add-row",
+   "table": "entrants.vehicles.vehicle_packages",
+   "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+   "set": {
+    "_metadata_": "cs_2019_lotus",
+    "resource_path": "cs_2019_vehicle_package/teams/lotus/wep/lotus",
+    "blob_shadow_decal": "eaid://cs_2019_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+    "driver_animation_set": "cs_2019",
+    "has_cockpit_halo": "True"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "car_setup.presets",
+   "from": "car_setup.presets.vehicle_package_setups[_metadata_=f1_2025_vehicle_package]",
+   "set": {
+    "_metadata_": "cs_2019_lotus_vehicle_package"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=lotus_2025]",
    "set": {
     "_metadata_": "cs19_lotus",
-    "vehicle_package": "cs_2019"
+    "performance_tier": "1",
+    "tyre_wear_scale": "1.00",
+    "vehicle_package": "cs_2019_lotus",
+    "asset_filename": "haas"
    }
   },
   {
@@ -1094,11 +1209,34 @@
   },
   {
    "op": "add-row",
+   "table": "entrants.vehicles.vehicle_packages",
+   "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+   "set": {
+    "_metadata_": "cs_2019_toro_rosso",
+    "resource_path": "cs_2019_vehicle_package/teams/toro_rosso/wep/toro_rosso",
+    "blob_shadow_decal": "eaid://cs_2019_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+    "driver_animation_set": "cs_2019",
+    "has_cockpit_halo": "True"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "car_setup.presets",
+   "from": "car_setup.presets.vehicle_package_setups[_metadata_=f1_2025_vehicle_package]",
+   "set": {
+    "_metadata_": "cs_2019_toro_rosso_vehicle_package"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=toro_rosso_2025]",
    "set": {
     "_metadata_": "cs19_toro_rosso",
-    "vehicle_package": "cs_2019"
+    "performance_tier": "2",
+    "tyre_wear_scale": "0.97",
+    "vehicle_package": "cs_2019_toro_rosso",
+    "asset_filename": "sauber"
    }
   },
   {
@@ -1215,11 +1353,34 @@
   },
   {
    "op": "add-row",
+   "table": "entrants.vehicles.vehicle_packages",
+   "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+   "set": {
+    "_metadata_": "cs_2019_force_india",
+    "resource_path": "cs_2019_vehicle_package/teams/force_india/wep/force_india",
+    "blob_shadow_decal": "eaid://cs_2019_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+    "driver_animation_set": "cs_2019",
+    "has_cockpit_halo": "True"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "car_setup.presets",
+   "from": "car_setup.presets.vehicle_package_setups[_metadata_=f1_2025_vehicle_package]",
+   "set": {
+    "_metadata_": "cs_2019_force_india_vehicle_package"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=force_india_2025]",
    "set": {
     "_metadata_": "cs19_force_india",
-    "vehicle_package": "cs_2019"
+    "performance_tier": "2",
+    "tyre_wear_scale": "0.96",
+    "vehicle_package": "cs_2019_force_india",
+    "asset_filename": "lotus"
    }
   },
   {
@@ -1336,11 +1497,34 @@
   },
   {
    "op": "add-row",
+   "table": "entrants.vehicles.vehicle_packages",
+   "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+   "set": {
+    "_metadata_": "cs_2019_sauber",
+    "resource_path": "cs_2019_vehicle_package/teams/sauber/wep/sauber",
+    "blob_shadow_decal": "eaid://cs_2019_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+    "driver_animation_set": "cs_2019",
+    "has_cockpit_halo": "True"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "car_setup.presets",
+   "from": "car_setup.presets.vehicle_package_setups[_metadata_=f1_2025_vehicle_package]",
+   "set": {
+    "_metadata_": "cs_2019_sauber_vehicle_package"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=sauber_2025]",
    "set": {
     "_metadata_": "cs19_sauber",
-    "vehicle_package": "cs_2019"
+    "performance_tier": "1",
+    "tyre_wear_scale": "0.98",
+    "vehicle_package": "cs_2019_sauber",
+    "asset_filename": "force_india"
    }
   },
   {
@@ -1424,11 +1608,34 @@
   },
   {
    "op": "add-row",
+   "table": "entrants.vehicles.vehicle_packages",
+   "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+   "set": {
+    "_metadata_": "cs_2019_haas",
+    "resource_path": "cs_2019_vehicle_package/teams/haas/wep/haas",
+    "blob_shadow_decal": "eaid://cs_2019_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+    "driver_animation_set": "cs_2019",
+    "has_cockpit_halo": "True"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "car_setup.presets",
+   "from": "car_setup.presets.vehicle_package_setups[_metadata_=f1_2025_vehicle_package]",
+   "set": {
+    "_metadata_": "cs_2019_haas_vehicle_package"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=haas_2025]",
    "set": {
     "_metadata_": "cs19_haas",
-    "vehicle_package": "cs_2019"
+    "performance_tier": "1",
+    "tyre_wear_scale": "0.99",
+    "vehicle_package": "cs_2019_haas",
+    "asset_filename": "williams"
    }
   },
   {
@@ -1512,11 +1719,34 @@
   },
   {
    "op": "add-row",
+   "table": "entrants.vehicles.vehicle_packages",
+   "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+   "set": {
+    "_metadata_": "cs_2019_williams",
+    "resource_path": "cs_2019_vehicle_package/teams/williams/wep/williams",
+    "blob_shadow_decal": "eaid://cs_2019_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+    "driver_animation_set": "cs_2019",
+    "has_cockpit_halo": "True"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "car_setup.presets",
+   "from": "car_setup.presets.vehicle_package_setups[_metadata_=f1_2025_vehicle_package]",
+   "set": {
+    "_metadata_": "cs_2019_williams_vehicle_package"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles",
    "from": "entrants.vehicles.vehicle[_metadata_=williams_2025]",
    "set": {
     "_metadata_": "cs19_williams",
-    "vehicle_package": "cs_2019"
+    "performance_tier": "2",
+    "tyre_wear_scale": "0.95",
+    "vehicle_package": "cs_2019_williams",
+    "asset_filename": "toro_rosso"
    }
   },
   {

@@ -6,14 +6,19 @@ OverrideActivationLapProgress), with the track's deploy and harvest settings. Th
 from the 2025 cars, whose EnergyRecoverySystem has no TrackSettings, so overtake mode never opens for them.
 `apply` gives every handling file of a season archive without TrackSettings the stock 2026 entries of its team, or
 McLaren's for a team the 2026 cars don't have. `stock_settings` reads those entries from the game folder, which has
-to hold the stock 2026 car archives.
+to hold the stock 2026 car archives. build_cars.py applies it on every build; run on its own, the tool applies it to
+built cars.
+
+    python3 tools/overtake.py [--years 2016-2024] [--game <F1 25 folder>]
 """
 
+import argparse
 import struct
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "tools"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import erpw
 import vtf
@@ -89,3 +94,29 @@ def apply(e, settings):
             e.set_frag(r, 1, vtf.tsmd(root, version))
         done += 1
     return done
+
+
+def main():
+    import pace
+    from layout import cars_dir
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--years", default=f"{min(pace.SEASONS)}-{max(pace.SEASONS)}")
+    ap.add_argument("--game", default="/mnt/gaming/SteamLibrary/steamapps/common/F1 25")
+    args = ap.parse_args()
+    settings = stock_settings(args.game)
+    for year in pace.parse_years(args.years):
+        main_teams, extra = pace.teams(year)
+        paths = [cars_dir(year) / "teams" / f / "wep" / f"{f}.erp" for f in main_teams]
+        if extra:
+            paths.append(cars_dir(year) / "extra" / "teams" / extra["folder"] / "wep" / f"{extra['folder']}.erp")
+        for path in paths:
+            e = erpw.Erp(str(path))
+            done = apply(e, settings)
+            if done:
+                e.to_file(str(path))
+            print(f"{year} {path.parent.parent.name}: {done} handling file(s) given overtake settings", flush=True)
+
+
+if __name__ == "__main__":
+    main()

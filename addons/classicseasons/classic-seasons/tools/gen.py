@@ -18,6 +18,12 @@ classic entrant list uses, so every season races on the f1_26 worlds.
 The pit lane reads a team's pit stop times from the pit_lane.pit_times row whose team names it, so each season team
 copies its stock team's row.
 
+A vehicle's asset_filename names both its car folder ([FILENAME] in its package's resource_path) and its per-track AI
+data. A team whose AI slot (aislots.assign) isn't its own folder gets a vehicle package of its own, cs_<year>_<key>,
+whose resource_path names its car's archive outright, with a car_setup.presets row, and its vehicle's asset_filename
+names the slot. Every vehicle sets performance_tier and tyre_wear_scale by its team's rank (aislots.ranked) instead of
+keeping the stock team's.
+
 Suits of 2016 to 2023 (suit_sources.py): each driver's look wears the suit and gloves suit_sources.pick chooses, a
 real suit (a mod's or F1 23's, built by build_real_suits.py into this addon's suits/, or a stock F1 25 one) or, for
 2016 to 2021, the team's generated suit (build_suits.py, the season's suits/meta.json), and a real driver suit's
@@ -43,6 +49,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import aislots
 import heads
 import ratings
 import suit_sources
@@ -346,9 +353,24 @@ def build():
                         "from": f"pit_lane.pit_times.team_pit_times[_metadata_={stock['team']}]",
                         "set": {"_metadata_": label, "team": label}})
             text.append(lang(name_key, team["name"]))
-            vehicle = {"_metadata_": label}
+            vehicle = {"_metadata_": label, **aislots.ranked(year, key)}
             if cars:
                 vehicle["vehicle_package"] = f"cx_{year}" if "car" in team else f"cs_{year}"
+                slot = aislots.assign(year)[key]
+                if slot != folder:
+                    own = f"cs_{year}_{key}"
+                    archive = extra_package(year) if "car" in team else pkg
+                    ops.append({"op": "add-row", "table": "entrants.vehicles.vehicle_packages",
+                                "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+                                "set": {"_metadata_": own, "resource_path": f"{archive}/teams/{folder}/wep/{folder}",
+                                        "blob_shadow_decal":
+                                            f"eaid://{shared}/shared/ao/materials/blobshadowdecal.material",
+                                        "driver_animation_set": animation,
+                                        "has_cockpit_halo": str(season.get("halo", True))}})
+                    ops.append({"op": "add-row", "table": "car_setup.presets",
+                                "from": f"{SETUP_PRESETS}[_metadata_=f1_2025_vehicle_package]",
+                                "set": {"_metadata_": f"{own}_vehicle_package"}})
+                    vehicle.update(vehicle_package=own, asset_filename=slot)
             ops.append({"op": "add-row", "table": "entrants.vehicles",
                         "from": f"entrants.vehicles.vehicle[_metadata_={stock['vehicle']}]", "set": vehicle})
 

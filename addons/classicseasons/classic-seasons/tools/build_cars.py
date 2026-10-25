@@ -10,8 +10,8 @@ stays on the stock files. A season with its own common.erp renames its tyre set 
 every car and showroom model layer gets a Tyres override naming it (tyres.py): the car templates name the stock
 tyre set, whose resources share their names with the zip's tyre set and its larger buffers. Each car then gets the
 frame-rate pass (carperf: shadow casters rebuilt from a lower LOD, non-livery textures and shipped sidecars capped
-at 1024 px), and its handling files take the wheel positions from themselves instead of the model (handling.py) and their aero and mass
-from the team's real qualifying gap (pace.py). The build checks that every renamed reference resolves inside the season's archives, writes
+at 1024 px), and its handling files take the wheel positions from themselves instead of the model (handling.py) their aero and mass
+from the team's real qualifying gap (pace.py), and their ERS the stock 2026 cars' overtake settings (overtake.py). The build checks that every renamed reference resolves inside the season's archives, writes
 them to the season addon's cars/ folder (layout.py), whose asset ops gen.py writes. A team with its own car archive in data/seasons.json ("car", a file in the downloads
 folder, shipped in the slot of the team named by "folder") gets the same passes in the season's second package
 (layout.py), with its shared references on the season's shared archive.
@@ -37,6 +37,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 import cameras
 import carperf
 import handling
+import overtake
 import pace
 import tyres
 from layout import FOLDERS, SOURCE, STOCK_COMMON, cars_dir, extra_package, package
@@ -142,6 +143,7 @@ def build_season(year, src_zip, out_dir, game):
         report["handling_positions"] = sum(handling.use_handling_positions(loaded[f]) for f in FOLDERS)
         report["pace"] = {key: pace.apply(loaded[folder], pace.values(year, key))
                           for folder, key in pace.teams(year)[0].items()}
+        report["overtake"] = sum(overtake.apply(loaded[f], overtake.stock_settings(game)) for f in FOLDERS)
 
         shipped = set()
         for key, e in loaded.items():
@@ -220,6 +222,7 @@ def build_extra(year, team, downloads, out_dir, game):
     if season.get("pod_camera"):
         cameras.pod_near_clip(e, extra, season["pod_camera"]["near_clip"])
     handling.use_handling_positions(e)
+    overtake.apply(e, overtake.stock_settings(game))
     pace.apply(e, pace.values(year, team["key"]))
     known = {r.name.split("?")[0] for r in e.res}
     common = out_dir / "teams" / "common.erp" if own_common else game / STOCK_COMMON
