@@ -4,8 +4,8 @@
 //
 // The F1 1990 contract skip (f1-1990 native/src/contract_skip.cpp), aimed at the real calendar. When
 // Career_Decide_ContractNegotiation picks the negotiation (link 0x5e3c3c2d: no contract, or it ends
-// this season) in a Progressive career whose team moves are follow_driver, with one human and
-// Career_Needs_DriverContract true, the player signs a one-season contract with the game's own
+// this season) in a Progressive career whose team moves are follow_driver, with one human, the
+// player signs a one-season contract with the game's own
 // Career_Build_DriverContract + Career_Sign_DriverContract (type 0, the screen's recommended target)
 // and the negotiation scene passes straight through (Intro and Outro skip, Update leaves at once):
 //   - no active contract (a new career, or a save from before its first contract): his real team of
@@ -18,19 +18,37 @@
 // moves are free from then on. A failed sign also leaves the stock scene. The mode is the career's
 // store entry (ProgressiveFollowMode); before the first Team HQ of a new career, which has none yet,
 // the profile option team_moves.
+//
+// Secret meetings (meetings_logic.hpp): a follow career's player gets none. Every Driver Career
+// meeting is made by Game_DriverContracts_OfferSecretMeeting, which the daily tick (through
+// Game_DriverContracts_AdvanceSecretMeeting, for a player whose contract ends this season, which a
+// follow career's one-season contracts always do) and the contracts screen's talks command call; in
+// a follow career with one human the wrap returns without making it, so no meeting, no calendar
+// day and no ProcessSMMessage (the inbox mail). The first few are logged one by one, and every Team
+// HQ logs the count since the last one. A meeting a save already has is declined at the Team HQ
+// (idle, no time advance) the way the secret meetings screen's decline command does it: reason 0,
+// then Game_DriverContracts_AdvanceSecretMeeting, which moves it to his previous meetings and offers
+// no next one through the wrap; his previous meetings are then freed the way the season change
+// (0x140d76570) frees them, each slot's NeAllocator free, and the list emptied. Choose careers keep
+// the stock meetings.
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstring>
 #include <string>
+#include <vector>
 
 #include <swofty/career.hpp>
 #include <swofty/career_content.hpp>
+#include <swofty/events.hpp>
 #include <swofty/game.hpp>
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
+
+#include "../meetings_logic.hpp"
 
 SWOFTY_SETTING(std::string_view, team_moves, "follow_driver");
 
@@ -53,6 +71,11 @@ struct RatingRange {
     int32_t recommended;
 };
 static_assert(sizeof(RatingRange) == 20);
+
+constexpr uintptr_t kCachedBegin = 0x408; // manager: next season's cached contracts, 0x38 entries
+constexpr size_t kCachedEntry = 0x38;
+constexpr uintptr_t kCachedKind = 0x2c;
+constexpr uintptr_t kCachedStat = 0x2e;
 
 bool g_skip = false;
 bool g_update_skipped = false;
@@ -119,6 +142,17 @@ uintptr_t contract_record(uintptr_t contracts, uint32_t driver)
         if (uintptr_t rec = rdv<uintptr_t>(p + 8); rec && same_key(rdv<uint32_t>(rec + offsetof(DriverContract, driver)), driver))
             return rec;
     return 0;
+}
+
+uint32_t cached_team(uintptr_t contracts, uint32_t driver)
+{
+    uintptr_t b = rdv<uintptr_t>(contracts + kCachedBegin), e = rdv<uintptr_t>(contracts + kCachedBegin + 8);
+    if (!b || e <= b || (e - b) % kCachedEntry || (e - b) / kCachedEntry > 256 || !swofty::mem::readable(b, e - b))
+        return kNoKey;
+    for (uintptr_t p = b; p < e; p += kCachedEntry)
+        if (rdv<uint8_t>(p + kCachedKind) == (driver & 0xff) && rdv<uint16_t>(p + kCachedStat) == (driver >> 16))
+            return rdv<uint32_t>(p + offsetof(DriverContract, team));
+    return kNoKey;
 }
 
 int follow_mode()
@@ -209,9 +243,17 @@ bool sign(uintptr_t contracts)
     int32_t target = recommended_target(base, contracts);
     std::memset(buf, 0, sizeof buf);
     Career_Build_DriverContract(reinterpret_cast<void *>(contracts), buf, driver, team, 0, target, 1);
+    uint32_t cached_before = cached_team(contracts, driver);
     Career_Sign_DriverContract(reinterpret_cast<void *>(contracts), buf, driver, kNoKey, 1);
-    bool ok = !Career_Needs_DriverContract(reinterpret_cast<void *>(contracts)) ||
-              rdv<uint8_t>(contract_record(contracts, driver) + offsetof(DriverContract, active)) != 0;
+    uintptr_t now = contract_record(contracts, driver);
+    bool now_active = now && rdv<uint8_t>(now + offsetof(DriverContract, active)) != 0;
+    uint32_t now_team = now ? rdv<uint32_t>(now + offsetof(DriverContract, team)) : kNoKey;
+    uint32_t cached = cached_team(contracts, driver);
+    bool ok = active ? same_key(cached, team) || (same_key(now_team, team) && now_active)
+                     : !Career_Needs_DriverContract(reinterpret_cast<void *>(contracts)) || now_active;
+    swofty::log("[progressive] follow: after the signing: contract team %u (%s), next season cached team %u (before: "
+                "%u)",
+                now_team >> 16, now_active ? "active" : "not active", cached >> 16, cached_before >> 16);
     swofty::log("[progressive] follow: signed driver %u with team %u (%s%s%s), rating %d, target %d, %d season(s), ends "
                 "%d: %s",
                 driver >> 16, team >> 16, why, year ? ", " : "", year ? std::to_string(year).c_str() : "", base, target,
@@ -219,6 +261,150 @@ bool sign(uintptr_t contracts)
                 rdv<int32_t>(reinterpret_cast<uintptr_t>(buf) + kContractEnd),
                 ok ? "signed or cached for the season change" : "NOT signed");
     return ok;
+}
+
+namespace mt = progressive::meetings;
+
+mt::Tally g_meetings;
+
+struct GameMem {
+    template <class T> bool read(uintptr_t a, T &v) const
+    {
+        return swofty::mem::read(a, v);
+    }
+};
+
+mt::Layout meeting_layout()
+{
+    return {offsetof(DriverCareerContractsManagerComponent, secret_meetings_begin),
+            offsetof(DriverCareerContractsManagerComponent, secret_meetings_end),
+            offsetof(DriverSecretMeetings, current),
+            offsetof(DriverSecretMeetings, driver),
+            offsetof(DriverSecretMeetings, previous_begin),
+            offsetof(DriverSecretMeetings, previous_end),
+            offsetof(SecretMeeting, id),
+            offsetof(SecretMeeting, reason),
+            offsetof(SecretMeeting, team)};
+}
+
+uint32_t humans()
+{
+    swofty::career::State cs{};
+    return swofty::career::state(&cs) == swofty::career::Result::ok ? cs.humans : 1;
+}
+
+bool no_meetings()
+{
+    return mt::suppress(swofty::career::is(kGroup), follow_mode(), humans());
+}
+
+bool writable(uintptr_t p, size_t n)
+{
+    MEMORY_BASIC_INFORMATION mbi{};
+    if (VirtualQuery(reinterpret_cast<const void *>(p), &mbi, sizeof mbi) != sizeof mbi)
+        return false;
+    if (mbi.State != MEM_COMMIT || (mbi.Protect & PAGE_GUARD))
+        return false;
+    DWORD w = PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+    if (!(mbi.Protect & w))
+        return false;
+    return p + n <= reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
+}
+
+struct Cleared {
+    int declined = 0;
+    int past = 0;
+};
+
+int clear_previous(uintptr_t record, uint32_t driver, const mt::Layout &l)
+{
+    uintptr_t begin = 0;
+    std::vector<mt::Past> past;
+    if (!mt::previous(GameMem{}, record, l, begin, past)) {
+        swofty::log("[progressive] follow: driver %u's past secret meetings could not be read; they stay until the "
+                    "season change",
+                    driver >> 16);
+        return 0;
+    }
+    if (past.empty())
+        return 0;
+    if (!writable(record + l.record_previous_end, sizeof(uintptr_t))) {
+        swofty::log("[progressive] follow: driver %u's past secret meetings are not writable; they stay until the "
+                    "season change",
+                    driver >> 16);
+        return 0;
+    }
+    int freed = 0;
+    for (const mt::Past &p : past) {
+        if (p.meeting && freed < mt::kLogFirst)
+            swofty::log("[progressive] follow: past secret meeting %s removed",
+                        (mt::describe(p.id, p.team, driver) + " (" + mt::reason_name(p.reason) + ")").c_str());
+        auto *alloc = reinterpret_cast<NeAllocator *>(p.allocator);
+        if (p.meeting && alloc && alloc->vtable && alloc->vtable->free)
+            reinterpret_cast<void (*)(NeAllocator *, void *)>(alloc->vtable->free)(alloc,
+                                                                                    reinterpret_cast<void *>(p.meeting));
+        ++freed;
+    }
+    *reinterpret_cast<uintptr_t *>(record + l.record_previous_end) = begin;
+    return freed;
+}
+
+Cleared clear_saved(uintptr_t contracts)
+{
+    mt::Layout l = meeting_layout();
+    Cleared n;
+    for (const mt::Current &c : mt::current(GameMem{}, contracts, l)) {
+        std::string what = mt::describe(c);
+        if (c.reason == mt::kOffered) {
+            if (!writable(c.meeting + l.meeting_reason, 1)) {
+                swofty::log("[progressive] follow: secret meeting %s from the save is not writable; it stays", what.c_str());
+                continue;
+            }
+            *reinterpret_cast<uint8_t *>(c.meeting + l.meeting_reason) = mt::kDeclined;
+        }
+        Game_DriverContracts_AdvanceSecretMeeting(reinterpret_cast<void *>(contracts), c.driver, 0);
+        uintptr_t now = rdv<uintptr_t>(c.record + l.record_current);
+        if (now == c.meeting)
+            swofty::log("[progressive] follow: secret meeting %s from the save declined; the game keeps it until the "
+                        "season change (his contract runs past this season)",
+                        what.c_str());
+        else
+            swofty::log("[progressive] follow: secret meeting %s from the save declined%s", what.c_str(),
+                        now ? "; the game made another one" : "");
+        ++n.declined;
+    }
+    for (uintptr_t r : mt::records(GameMem{}, contracts, l))
+        n.past += clear_previous(r, rdv<uint32_t>(r + l.record_driver), l);
+    return n;
+}
+
+void meetings_hub()
+{
+    if (!swofty::career::is(kGroup))
+        return;
+    int mode = follow_mode();
+    uint32_t h = humans();
+    if (!mt::suppress(true, mode, h)) {
+        g_meetings.take();
+        return;
+    }
+    auto contracts = reinterpret_cast<uintptr_t>(
+        swofty::career::component_by_desc(k_Career_DriverCareerContractsManagerComponentDesc.get()));
+    Cleared c = contracts ? clear_saved(contracts) : Cleared{};
+    int n = g_meetings.take();
+    swofty::log("[progressive] follow: Team HQ: %d secret meeting(s) suppressed since the last Team HQ (%d this "
+                "session); from the save %d pending declined, %d past removed",
+                n, g_meetings.total.load(), c.declined, c.past);
+}
+
+void on_career(const SwoftyEvent *ev, void *)
+{
+    if (!std::strcmp(ev->name, SWOFTY_EVENT_CAREER_UNLOADED)) {
+        g_meetings.reset();
+        return;
+    }
+    if (ev->a == 1 && static_cast<swofty::career::Mode>(ev->b) == swofty::career::Mode::driver_career)
+        meetings_hub();
 }
 
 } // namespace
@@ -238,7 +424,7 @@ SWOFTY_WRAP(Career_Decide_ContractNegotiation, uint32_t *, void *state, uint32_t
         return r;
     auto contracts = reinterpret_cast<uintptr_t>(
         swofty::career::component_by_desc(k_Career_DriverCareerContractsManagerComponentDesc.get()));
-    if (!contracts || !Career_Needs_DriverContract(reinterpret_cast<void *>(contracts)))
+    if (!contracts)
         return r;
     g_skip = sign(contracts);
     if (g_skip)
@@ -301,6 +487,28 @@ SWOFTY_WRAP(Career_ContractOutro_OnUpdate, uint32_t *, void *state, uint32_t *li
     g_skip = false;
     swofty::log("[progressive] follow: negotiation scene skipped");
     return link;
+}
+
+SWOFTY_WRAP(Game_DriverContracts_OfferSecretMeeting, void, void *contracts, const void *meeting, uint32_t team,
+            uint32_t driver, uint8_t reason, uint8_t notify)
+{
+    if (!no_meetings())
+        return orig(contracts, meeting, team, driver, reason, notify);
+    uint32_t id = meeting ? rdv<uint32_t>(reinterpret_cast<uintptr_t>(meeting) + offsetof(SecretMeeting, id)) : 0;
+    if (g_meetings.note())
+        swofty::log("[progressive] follow: secret meeting %s suppressed (%s)", mt::describe(id, team, driver).c_str(),
+                    notify ? "the player's secret meetings or contracts screen" : "the career's daily tick");
+}
+
+SWOFTY_ON_LOAD
+{
+    uint32_t token = 0;
+    for (const char *ev : {SWOFTY_EVENT_CAREER_HUB, SWOFTY_EVENT_CAREER_UNLOADED}) {
+        swofty::events::Result r = swofty::events::subscribe(ev, on_career, nullptr, &token);
+        if (r != swofty::events::Result::ok)
+            swofty::log("[progressive] follow: subscribe %s: %s; saved secret meetings are not declined at Team HQ", ev,
+                        swofty::events::name(r));
+    }
 }
 
 SWOFTY_ADDON()

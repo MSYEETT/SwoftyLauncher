@@ -11,6 +11,7 @@
 
 #include "../../../../native/src/core/json.hpp"
 #include "store.hpp"
+#include "store_logic.hpp"
 
 namespace pg::store {
 
@@ -74,6 +75,7 @@ bool load()
         x.mid_year = static_cast<int>(c["mid_year"].num());
         x.mid_round = static_cast<int>(c["mid_round"].num());
         x.mid_applied = c["mid_applied"].str();
+        x.mid_tracks = c["mid_tracks"].str();
         x.dev_year = static_cast<int>(c["dev_year"].num());
         x.dev_round = static_cast<int>(c["dev_round"].num(-1));
         x.dev_rounds = static_cast<int>(c["dev_rounds"].num());
@@ -109,6 +111,22 @@ bool load()
         }
         g_careers.push_back(x);
     }
+    for (size_t i = 0; i < g_careers.size(); ++i)
+        for (size_t j = 0; j < g_careers.size(); ++j) {
+            if (i == j || !progressive::match::split_of(g_careers[i], g_careers[j]))
+                continue;
+            swofty::log("[progressive] store: folding %s into %s (made at season %d of the same career: driver %u, "
+                        "start %d; applied season %d -> %d)",
+                        g_careers[j].key.c_str(), g_careers[i].key.c_str(), g_careers[j].created_season,
+                        g_careers[i].driver, g_careers[i].start, g_careers[i].applied_season,
+                        std::max(g_careers[i].applied_season, g_careers[j].applied_season));
+            progressive::match::fold(g_careers[i], g_careers[j]);
+            g_careers.erase(g_careers.begin() + static_cast<std::ptrdiff_t>(j));
+            if (j < i)
+                --i;
+            j = static_cast<size_t>(-1);
+            ++cleaned;
+        }
     g_loaded = true;
     swofty::log("[progressive] store: %zu career(s) in %s", g_careers.size(), kPath);
     if (cleaned)
@@ -132,7 +150,8 @@ bool save()
                       static_cast<unsigned long long>(c.used), c.team, c.season, c.dev_year, c.dev_round, c.dev_rounds,
                       c.mid_year, c.mid_round);
         out += b;
-        out += quoted(c.dev_applied) + ", \"mid_applied\": " + quoted(c.mid_applied) + "}";
+        out += quoted(c.dev_applied) + ", \"mid_applied\": " + quoted(c.mid_applied) +
+               ", \"mid_tracks\": " + quoted(c.mid_tracks) + "}";
     }
     out += "\n  ]\n}\n";
     swofty::storage::Result r = swofty::storage::write(kPath, out);
@@ -147,6 +166,11 @@ Career *find(const std::string &key)
         if (c.key == key)
             return &c;
     return nullptr;
+}
+
+std::deque<Career> &all()
+{
+    return g_careers;
 }
 
 std::vector<Career *> by_driver(uint32_t driver)

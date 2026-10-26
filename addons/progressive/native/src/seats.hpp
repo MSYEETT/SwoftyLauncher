@@ -60,11 +60,15 @@ bool season(uintptr_t entity, SeasonInfo &out);
 // Weekend.track_stat_id, the tracks.Track statId) and the next race: Season.current_weekend when
 // that weekend has not started (Weekend.progress_state 0), else the one after it (tails' history
 // engine reads the same). next is 1-based; weekends + 1 once the season's last race is done.
+// At a season break the new season's weekends can exist before its current weekend does: then
+// tracks are filled, current_ok is false and the caller decides the next race.
 struct Calendar {
     std::vector<int> tracks;
     int next = 1;
     uint32_t current = 0;
     uint32_t progress = 0;
+    bool current_ok = false;
+    bool started = false;
 };
 bool calendar(uintptr_t entity, Calendar &out);
 

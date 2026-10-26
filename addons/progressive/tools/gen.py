@@ -7,7 +7,9 @@ Writes data/years.json (per year and career team slot: line-up, vehicle row, loo
 db/career.json (mode, championship, shared components, data groups, schedule, official lists, content set),
 db/grid.json (career entrant list, driver pool list and entrants, per-year Choose Driver lists, pool looks) and
 lang/career.json. --jolpica refreshes data/participants.json, every driver who qualified per year and constructor,
-from Classic Seasons' qualifying cache. Each real team of 2016-2025 also gets its in-season development curve from
+from Classic Seasons' qualifying cache. --standings refreshes data/standings.json, the final constructors' and drivers'
+standings of 2015-2025 from the Jolpica cache (fetch_standings.py); each season gets the previous year's final order
+(`previous_standings`). Each real team of 2016-2025 also gets its in-season development curve from
 data/development.json (tools/development.py).
 
 Line-ups 2016-2024 are Classic Seasons' data/seasons.json; its emitted classic-seasons-<year>/db/season.json gives the
@@ -133,7 +135,7 @@ JOLPICA_TEAMS = {
     "force_india": "force_india", "racing_point": "force_india", "aston_martin": "force_india",
     "renault": "lotus", "alpine": "lotus", "toro_rosso": "toro_rosso", "alphatauri": "toro_rosso",
     "rb": "toro_rosso", "sauber": "sauber", "alfa": "sauber", "mclaren": "mclaren", "haas": "haas",
-    "manor": "manor",
+    "manor": "manor", "lotus_f1": "lotus",
 }
 JOLPICA_DRIVERS.update({"antonelli": "andrea-kimi_antonelli", "bortoleto": "gabriel_bortoleto",
                         "hadjar": "isack_hadjar"})
@@ -146,6 +148,7 @@ CIRCUIT_TRACKS = {
     "madring": 42, "hockenheimring": None, "sepang": None, "mugello": None, "nurburgring": None, "istanbul": None,
 }
 MIDSEASON_YEARS = range(2016, 2026)
+STANDINGS_YEARS = range(2015, 2026)
 PARTICIPANTS_2025 = {
     "redbull": {"max_verstappen": {"sessions": 24, "number": 1}, "yuki_tsunoda": {"sessions": 22, "number": 22},
                 "liam_lawson": {"sessions": 2, "number": 30}},
@@ -225,6 +228,46 @@ def rounds_from_jolpica(folder):
     return {"source": "Jolpica F1 API /<year>.json (calendar) and /<year>/results.json (race entries per round and "
                       "constructor), cached under /mnt/work/.progressive/jolpica",
             "not_in_game": NOT_IN_GAME, "years": out}
+
+
+def standings_from_jolpica(folder):
+    out, skipped = {}, {}
+    for year in STANDINGS_YEARS:
+        c = json.loads((folder / f"constructorStandings-{year}.json").read_text())["MRData"]
+        d = json.loads((folder / f"driverStandings-{year}.json").read_text())["MRData"]
+        cl = c["StandingsTable"]["StandingsLists"][0]["ConstructorStandings"]
+        dl = d["StandingsTable"]["StandingsLists"][0]["DriverStandings"]
+        teams = []
+        for x in cl:
+            cid = x["Constructor"]["constructorId"]
+            if cid not in JOLPICA_TEAMS:
+                raise SystemExit(f"{year}: Jolpica constructor {cid} has no entry in JOLPICA_TEAMS")
+            teams.append(JOLPICA_TEAMS[cid])
+        drivers = []
+        for x in dl:
+            jid = x["Driver"]["driverId"]
+            label = JOLPICA_DRIVERS.get(jid)
+            if label:
+                drivers.append(label)
+            else:
+                skipped.setdefault(str(year), []).append(jid)
+        out[str(year)] = {"constructors": teams, "drivers": drivers}
+    return {"source": "Jolpica F1 API /<year>/constructorStandings.json and /<year>/driverStandings.json (final "
+                      "standings), cached under /mnt/work/.progressive/jolpica (fetch_standings.py); drivers not in "
+                      "the game are left out", "not_in_game": skipped, "years": out}
+
+
+def add_previous_standings(years, standings):
+    for year in YEARS:
+        prev = standings["years"].get(str(year - 1))
+        if not prev:
+            continue
+        slots = []
+        for key in prev["constructors"]:
+            slot = SLOT_OF_CS_KEY[key]
+            if slot not in slots:
+                slots.append(slot)
+        years[str(year)]["previous_standings"] = {"year": year - 1, "slots": slots, "drivers": prev["drivers"]}
 
 
 def look_index(stock):
@@ -862,16 +905,22 @@ def main():
     ap.add_argument("--jolpica", type=Path)
     ap.add_argument("--rounds", type=Path, help="Jolpica cache with calendar-<year>.json and results-<year>-p<n>.json "
                                                 "(fetch_results.py); refreshes data/rounds.json")
+    ap.add_argument("--standings", type=Path, help="Jolpica cache with constructorStandings-<year>.json and "
+                                                   "driverStandings-<year>.json (fetch_standings.py); refreshes "
+                                                   "data/standings.json")
     args = ap.parse_args()
     if args.jolpica:
         write_json(ROOT / "data" / "participants.json", participants_from_jolpica(args.jolpica))
     if args.rounds:
         write_json(ROOT / "data" / "rounds.json", rounds_from_jolpica(args.rounds))
+    if args.standings:
+        write_json(ROOT / "data" / "standings.json", standings_from_jolpica(args.standings))
     participants = json.loads((ROOT / "data" / "participants.json").read_text())
     rounds = json.loads((ROOT / "data" / "rounds.json").read_text())
     stock = Stock(stockdb.Db(args.db))
     years, raced, new_drivers = build_years(stock, participants)
     add_development(years)
+    add_previous_standings(years, json.loads((ROOT / "data" / "standings.json").read_text()))
     pool = pool_rows(stock, years, raced, new_drivers)
     midseason(years, rounds, stock, pool)
     grid, ids = grid_ops(stock, years, pool)
@@ -914,6 +963,9 @@ def main():
                        "(`out` did not race meanwhile), move (`out` raced for another team), replace (`out` left). "
                        "The season's line-up (`teams`) is the start; `calendar` lists the real rounds",
             "changes_skipped": "real changes whose incoming driver is not in the game; the seat keeps its driver",
+            "previous_standings": "the previous year's final standings (data/standings.json, Jolpica): `slots` the "
+                                  "career team slots in constructors' order, `drivers` the drivers in game labels; "
+                                  "the season-start order of the career's standings",
         },
         "seasons": years,
         "pool": pool,

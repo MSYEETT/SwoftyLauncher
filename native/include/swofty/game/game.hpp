@@ -9,6 +9,24 @@ struct ChampionshipHolder {
 };
 static_assert(offsetof(ChampionshipHolder, entity) == 0x260);
 
+struct DriverSecretMeetings {
+    uint8_t _pad_0x0[0x10];
+    void *current_allocator; // L2 experimental
+    SecretMeeting *current; // L2 experimental
+    uint8_t _pad_0x20[0x8];
+    void *previous_begin; // L2 experimental
+    void *previous_end; // L2 experimental
+    uint8_t _pad_0x38[0x8];
+    uint32_t driver; // L2 experimental
+    uint8_t _pad_0x44[0x4];
+};
+static_assert(offsetof(DriverSecretMeetings, current_allocator) == 0x10);
+static_assert(offsetof(DriverSecretMeetings, current) == 0x18);
+static_assert(offsetof(DriverSecretMeetings, previous_begin) == 0x28);
+static_assert(offsetof(DriverSecretMeetings, previous_end) == 0x30);
+static_assert(offsetof(DriverSecretMeetings, driver) == 0x40);
+static_assert(sizeof(DriverSecretMeetings) == 0x48);
+
 struct GameManager {
     uint8_t _pad_0x0[0xc0];
     GameModeContext *mode_context; // L2 experimental
@@ -27,6 +45,18 @@ struct GameModeContext {
 };
 static_assert(offsetof(GameModeContext, championship_holder) == 0x88);
 
+struct SecretMeeting {
+    uint32_t id; // L2 experimental
+    uint8_t _pad_0x4[0x10];
+    uint8_t reason; // L2 experimental
+    uint8_t _pad_0x15[0xb];
+    uint32_t team; // L2 experimental
+};
+static_assert(offsetof(SecretMeeting, id) == 0x0);
+static_assert(offsetof(SecretMeeting, reason) == 0x14);
+static_assert(offsetof(SecretMeeting, team) == 0x20);
+static_assert(sizeof(SecretMeeting) == 0x24);
+
 using Game_CareerSetup_ResetEntrants_t = void(void *setup);
 inline constexpr fn<"Game_CareerSetup_ResetEntrants", Game_CareerSetup_ResetEntrants_t> Game_CareerSetup_ResetEntrants{}; // L2 experimental
 using Game_CareerWizard_PushNextStep_t = void(void *wizard);
@@ -35,8 +65,12 @@ using Game_CareerWizard_StartsInF1_t = bool(void *entrants, void *wizard_data, c
 inline constexpr fn<"Game_CareerWizard_StartsInF1", Game_CareerWizard_StartsInF1_t> Game_CareerWizard_StartsInF1{}; // L2 experimental
 using Game_Career_IsDriverCareerMode_t = bool(const void *championship);
 inline constexpr fn<"Game_Career_IsDriverCareerMode", Game_Career_IsDriverCareerMode_t> Game_Career_IsDriverCareerMode{}; // L2 experimental
+using Game_DriverContracts_AdvanceSecretMeeting_t = void(void *contracts, uint32_t driver, uint8_t notify);
+inline constexpr fn<"Game_DriverContracts_AdvanceSecretMeeting", Game_DriverContracts_AdvanceSecretMeeting_t> Game_DriverContracts_AdvanceSecretMeeting{}; // L2 experimental
 using Game_DriverContracts_BuildOffers_t = void(void *contracts, uint32_t driver);
 inline constexpr fn<"Game_DriverContracts_BuildOffers", Game_DriverContracts_BuildOffers_t> Game_DriverContracts_BuildOffers{}; // L2 experimental
+using Game_DriverContracts_OfferSecretMeeting_t = void(void *contracts, const void *meeting, uint32_t team, uint32_t driver, uint8_t reason, uint8_t notify);
+inline constexpr fn<"Game_DriverContracts_OfferSecretMeeting", Game_DriverContracts_OfferSecretMeeting_t> Game_DriverContracts_OfferSecretMeeting{}; // L2 experimental
 using Game_DriverSelectHeader_SetTabState_t = void(void *header, uint64_t tab, uint8_t content_visible, uint8_t enabled);
 inline constexpr fn<"Game_DriverSelectHeader_SetTabState", Game_DriverSelectHeader_SetTabState_t> Game_DriverSelectHeader_SetTabState{}; // L2 experimental
 using Game_EngineMgmt_AddGridPenalty_t = void(void *engine_management, const uint32_t *driver, uint32_t places, uint32_t reason);

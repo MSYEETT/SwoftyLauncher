@@ -431,7 +431,7 @@ void ten_team_years_close_slot_11()
     auto rows = career("lando_norris");
     int cadillac = slot_of("gm_cadillac_26");
     rows.push_back({902, g_data.slots[cadillac].team_stat, 2, true, false, season::kNoNumber});
-    season::Plan p = season::plan(g_data, 2017, rows, resolver(), false, nullptr, nullptr, true);
+    season::Plan p = season::plan(g_data, 2017, rows, resolver(), false, nullptr, nullptr, false, true);
     EXPECT(p.error.empty());
     EXPECT(p.closed[cadillac]);
     EXPECT(season::closed_slots(p) == 1);
@@ -445,11 +445,11 @@ void ten_team_years_close_slot_11()
     for (auto &l : p.looks)
         EXPECT(l.driver != lineup::kNone);
     for (int y = 2018; y <= 2025; ++y) {
-        season::Plan q = season::plan(g_data, y, rows, resolver(), false, nullptr, nullptr, true);
+        season::Plan q = season::plan(g_data, y, rows, resolver(), false, nullptr, nullptr, false, true);
         EXPECT(q.error.empty() && q.closed[cadillac] && seated_unique(q) == 20);
     }
     for (int y : {2016, 2026}) {
-        season::Plan q = season::plan(g_data, y, rows, resolver(), false, nullptr, nullptr, true);
+        season::Plan q = season::plan(g_data, y, rows, resolver(), false, nullptr, nullptr, false, true);
         EXPECT(q.error.empty() && !q.closed[cadillac] && seated_unique(q) == 22);
     }
 }
@@ -458,12 +458,12 @@ void ten_team_years_keep_the_players_slot()
 {
     int cadillac = slot_of("gm_cadillac_26");
     auto rows = career("valtteri_bottas");
-    season::Plan stay = season::plan(g_data, 2017, rows, resolver(), false, nullptr, nullptr, true);
+    season::Plan stay = season::plan(g_data, 2017, rows, resolver(), false, nullptr, nullptr, false, true);
     EXPECT(stay.error.empty());
     EXPECT(!stay.closed[cadillac]);
     EXPECT(seated_unique(stay) == 22);
     EXPECT(at(stay, cadillac + 1, 0) == id("valtteri_bottas") || at(stay, cadillac + 1, 1) == id("valtteri_bottas"));
-    season::Plan follow = season::plan(g_data, 2017, rows, resolver(), true, nullptr, nullptr, true);
+    season::Plan follow = season::plan(g_data, 2017, rows, resolver(), true, nullptr, nullptr, false, true);
     EXPECT(follow.error.empty());
     EXPECT(follow.player_moves);
     EXPECT(follow.closed[cadillac]);
@@ -478,7 +478,7 @@ void ten_team_years_bring_cadillac_back_in_2026()
     for (auto &r : rows)
         if (r.team == g_data.slots[cadillac].team_stat)
             free_agent(r);
-    season::Plan p = season::plan(g_data, 2026, rows, resolver(), false, nullptr, nullptr, true);
+    season::Plan p = season::plan(g_data, 2026, rows, resolver(), false, nullptr, nullptr, false, true);
     EXPECT(p.error.empty());
     EXPECT(!p.closed[cadillac]);
     EXPECT(seated_unique(p) == 22);
@@ -489,6 +489,68 @@ void ten_team_years_bring_cadillac_back_in_2026()
         if (m.to.slot == cadillac)
             EXPECT(m.from.slot < 0);
     EXPECT(!released(p, "sergio_perez") && !released(p, "valtteri_bottas"));
+}
+
+void season_start_standings_skip_a_closed_slot()
+{
+    int cadillac = slot_of("gm_cadillac_26");
+    std::array<bool, season::kSlots> closed{};
+    closed[cadillac] = true;
+    for (int y = 2017; y <= 2025; ++y) {
+        std::vector<int> order = season::start_slot_order(*g_data.year(y), closed);
+        EXPECT(order.size() == static_cast<size_t>(season::kSlots - 1));
+        EXPECT(std::find(order.begin(), order.end(), cadillac) == order.end());
+        std::vector<int> open = season::start_slot_order(*g_data.year(y));
+        open.erase(std::remove(open.begin(), open.end(), cadillac), open.end());
+        EXPECT(order == open);
+    }
+}
+
+void season_start_standings_follow_the_previous_year()
+{
+    const season::Year *y17 = g_data.year(2017);
+    EXPECT(y17 && y17->previous_year == 2016);
+    std::vector<int> order = season::start_slot_order(*y17);
+    std::vector<std::string> teams;
+    for (int s : order)
+        teams.push_back(g_data.slots[s].team);
+    std::vector<std::string> want = {"mercedes_26", "redbull_26", "ferrari_26", "forceindia_26", "williams_26",
+                                     "mclaren_26", "tororosso_26", "haas_26", "renault_26", "sauber_26",
+                                     "gm_cadillac_26"};
+    EXPECT(teams == want);
+
+    const season::Year *y16 = g_data.year(2016);
+    std::vector<int> o16 = season::start_slot_order(*y16);
+    EXPECT(o16.size() == static_cast<size_t>(season::kSlots));
+    EXPECT(g_data.slots[o16[0]].team == "mercedes_26" && g_data.slots[o16[2]].team == "williams_26");
+    EXPECT(g_data.slots[o16.back()].team == "haas_26");
+
+    auto rows = career("valtteri_bottas");
+    season::Plan p = season::plan(g_data, 2017, rows, resolver(), true);
+    std::vector<uint32_t> seated;
+    for (auto &s : p.target)
+        for (uint32_t d : s)
+            seated.push_back(d);
+    std::vector<uint32_t> drivers = season::start_driver_order(*y17, resolver(), seated);
+    EXPECT(drivers.size() == seated.size());
+    std::vector<uint32_t> want_first;
+    for (auto &label : y17->previous_drivers)
+        if (std::find(seated.begin(), seated.end(), id(label)) != seated.end())
+            want_first.push_back(id(label));
+    EXPECT(want_first.size() >= 18);
+    EXPECT(std::equal(want_first.begin(), want_first.end(), drivers.begin()));
+    for (size_t i = want_first.size(), k = 0; i < drivers.size(); ++i) {
+        while (k < seated.size() && std::find(want_first.begin(), want_first.end(), seated[k]) != want_first.end())
+            ++k;
+        EXPECT(k < seated.size() && drivers[i] == seated[k]);
+        ++k;
+    }
+    auto at_ = [&](uint32_t d) { return std::find(drivers.begin(), drivers.end(), d) - drivers.begin(); };
+    EXPECT(at_(id("lewis_hamilton")) < at_(id("daniel_ricciardo")));
+    EXPECT(at_(id("daniel_ricciardo")) < at_(id("sebastian_vettel")));
+    uint32_t stroll = id("lance_stroll");
+    EXPECT(at_(stroll) > at_(id("sergio_perez")));
+    EXPECT(at_(stroll) >= static_cast<long>(want_first.size()));
 }
 
 } // namespace
@@ -521,6 +583,8 @@ int main(int argc, char **argv)
     ten_team_years_close_slot_11();
     ten_team_years_keep_the_players_slot();
     ten_team_years_bring_cadillac_back_in_2026();
+    season_start_standings_follow_the_previous_year();
+    season_start_standings_skip_a_closed_slot();
     if (failures) {
         std::printf("season_logic_test: %d failure(s)\n", failures);
         return EXIT_FAILURE;

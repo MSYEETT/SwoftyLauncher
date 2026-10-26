@@ -73619,6 +73619,58 @@
    "used_by": [
     "addons/progressive/native/src/ui/cards.cpp"
    ]
+  },
+  {
+   "id": "game.driver_contracts_offer_secret_meeting",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC C8 00 00 00 48 89 CF 48 8B 81 A8 03 00 00",
+   "match": "0x140d7f530",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140d7f530",
+   "kind": "func_start",
+   "names": [
+    "Game_DriverContracts_OfferSecretMeeting"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "laneS",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/follow.cpp"
+   ]
+  },
+  {
+   "id": "game.driver_contracts_advance_secret_meeting",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC D8 00 00 00 48 89 CF",
+   "match": "0x140d80190",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140d80190",
+   "kind": "func_start",
+   "names": [
+    "Game_DriverContracts_AdvanceSecretMeeting"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "laneS",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/follow.cpp"
+   ]
   }
  ]
 }

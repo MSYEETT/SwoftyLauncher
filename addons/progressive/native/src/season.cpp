@@ -30,7 +30,7 @@
 // progressive_resume.dll).
 // The cars and looks are written while the option season_visuals is on (the default; experiment E1
 // showed a Team HQ rewrite of vehicle_ref and look in the next session).
-// ten_team_years (hidden, default off): a year with no team for career slot 11 (2017-2025) closes
+// ten_team_years (hidden, default on): a year with no team for career slot 11 (2017-2025) closes
 // the slot (season_logic.hpp): its drivers are released, so no row of its team has a car. A weekend
 // takes its entrants from the career rows with a car when it is (re)built (0x140af7680 ->
 // Weekend::start 0x140af0460, at a load and on entering a session not yet past session 1), so it
@@ -70,6 +70,7 @@
 #include "season_logic.hpp"
 #include "seats.hpp"
 #include "store.hpp"
+#include "store_logic.hpp"
 
 SWOFTY_SETTING(std::string_view, start_season, "2026");
 SWOFTY_SETTING(std::string_view, rnd_mode, "real_life");
@@ -77,7 +78,7 @@ SWOFTY_SETTING(std::string_view, team_moves, "follow_driver");
 SWOFTY_SETTING(bool, season_visuals, true);
 SWOFTY_SETTING(bool, season_development, true);
 SWOFTY_SETTING(bool, test_next_season, false);
-SWOFTY_SETTING(bool, ten_team_years, false);
+SWOFTY_SETTING(bool, ten_team_years, true);
 
 namespace pg {
 
@@ -192,44 +193,11 @@ store::Career *career_entry(const swofty::career::State &state, uint32_t season_
     bool fresh = g_new_career.exchange(false);
     int count = 0;
     std::vector<int> seen = seats_years(rows, count);
-    int past = 0;
-    for (int y : seen)
-        if (y < season::kLastYear && !past)
-            past = y;
-    auto shows = [&](const store::Career *c) {
-        int y = season::year_for(c->start, season_index + static_cast<uint32_t>(std::max(0, c->test_seasons)));
-        return std::find(seen.begin(), seen.end(), y) != seen.end();
-    };
-    auto latest = [](std::vector<store::Career *> cs) -> store::Career * {
-        store::Career *b = nullptr;
-        for (auto *c : cs)
-            if (!b || c->used >= b->used)
-                b = c;
-        return b;
-    };
-    store::Career *pick = nullptr;
-    std::string how;
-    if (fresh && !past) {
-        how = "new career from the Progressive wizard";
-    } else {
-        store::Career *s = store::by_seed(seed, driver);
-        if (s && (!past || shows(s))) {
-            pick = s;
-            how = "seed";
-        }
-        std::vector<store::Career *> same = store::by_driver(driver), fit;
-        for (auto *c : same)
-            if (past && shows(c))
-                fit.push_back(c);
-        if (!pick && !fit.empty()) {
-            pick = latest(fit);
-            how = "the seats show its year";
-        }
-        if (!pick && !past && !same.empty()) {
-            pick = latest(same);
-            how = "the driver's last used entry (the seats show no past year yet)";
-        }
-    }
+    int past = progressive::match::past_year(seen);
+    progressive::match::Pick m =
+        progressive::match::pick(store::all(), seed, driver, season_index, seen, fresh, setting_year());
+    store::Career *pick = m.index >= 0 ? &store::all()[static_cast<size_t>(m.index)] : nullptr;
+    std::string how = m.how;
     if (pick) {
         if (pick->seed != seed || how != "seed")
             swofty::log("[progressive] store: career %s (driver %u, season %u, seats %s, %d seats matched) is %s by "
@@ -245,7 +213,7 @@ store::Career *career_entry(const swofty::career::State &state, uint32_t season_
     c.key = store::free_key(seed, driver);
     c.driver = driver;
     c.seed = seed;
-    c.start = past ? std::max(season::kFirstYear, past - static_cast<int>(season_index)) : setting_year();
+    c.start = m.new_start;
     c.rnd = std::string(rnd_mode.get()) == "real_life" ? "real_life" : "hybrid";
     c.moves = std::string(team_moves.get());
     c.created_season = static_cast<int>(season_index);
@@ -254,7 +222,7 @@ store::Career *career_entry(const swofty::career::State &state, uint32_t season_
     store::save();
     swofty::log("[progressive] store: new entry %s for career %s (%s) at season %u: start %d (%s), R&D %s, team moves %s; "
                 "seats %s",
-                c.key.c_str(), state.key[0] ? state.key : "-", fresh ? how.c_str() : "no entry of this driver fits",
+                c.key.c_str(), state.key[0] ? state.key : "-", how.c_str(),
                 season_index, c.start, past ? "from the seats, which show a past year" : "the start season option",
                 c.rnd.c_str(), c.moves.c_str(), years_text(seen).c_str());
     return &added;
@@ -1426,6 +1394,14 @@ void season_hub(const swofty::career::State &state)
     bool new_season = c->applied_season != static_cast<int>(index);
     bool move_player = c->moves == "follow_driver";
     season::Resolve res = resolver();
+    Calendar cal;
+    bool read = calendar(e, cal);
+    if (read && !cal.tracks.empty() && midseason::tracks_text(cal.tracks) != c->mid_tracks) {
+        c->mid_tracks = midseason::tracks_text(cal.tracks);
+        store::save();
+        swofty::log("[progressive] mid-season: career calendar recorded (%zu races, tracks %s)", cal.tracks.size(),
+                    c->mid_tracks.c_str());
+    }
     const season::Year *yr = g_data.year(year);
     bool mid = yr && !yr->changes.empty();
     midseason::At at;
@@ -1435,31 +1411,37 @@ void season_hub(const swofty::career::State &state)
             int st = res.driver_stat(label);
             return st >= 0 && static_cast<uint32_t>(st) == player;
         };
-        Calendar cal;
-        if (calendar(e, cal) && !cal.tracks.empty()) {
-            at = midseason::at_round(g_data, year, cal.tracks, cal.next, is_player);
-            midseason::At opening = midseason::at_round(g_data, year, cal.tracks, 1, is_player);
-            log_schedule(*c, at, res, false);
-            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, &opening.line_up, ten_team_years);
-        } else if (c->mid_year == year) {
+        midseason::Timing t = midseason::timing(*yr, read, cal.tracks, cal.current_ok, cal.next,
+                                                 new_season || (read && !cal.started),
+                                                 midseason::split_tracks(c->mid_tracks), c->mid_year == year);
+        if (t.from != midseason::Timing::From::calendar) {
+            static std::string said;
+            std::string now = c->key + "|" + std::to_string(year) + "|" + t.how;
+            if (said != now) {
+                said = now;
+                swofty::log("[progressive] mid-season %d: %s", year, t.how.c_str());
+            }
+        }
+        if (t.from == midseason::Timing::From::record) {
             at = midseason::at_ids(g_data, year, c->mid_round, midseason::split_ids(c->mid_applied));
             log_schedule(*c, at, res, true);
-            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, nullptr, ten_team_years);
-        } else {
+            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, nullptr, !new_season,
+                             ten_team_years);
+        } else if (t.from == midseason::Timing::From::none) {
             mid = false;
-            static std::string warned;
-            if (warned != c->key + std::to_string(year)) {
-                warned = c->key + std::to_string(year);
-                swofty::log("[progressive] mid-season %d: the career calendar is unreadable and nothing is recorded; "
-                            "the season's line-up stands",
-                            year);
-            }
-            p = season::plan(g_data, year, view(rows), res, move_player, nullptr, nullptr, ten_team_years);
+            p = season::plan(g_data, year, view(rows), res, move_player, nullptr, nullptr, !new_season,
+                             ten_team_years);
+        } else {
+            at = midseason::at_round(g_data, year, t.tracks, t.next, is_player);
+            midseason::At opening = midseason::at_round(g_data, year, t.tracks, 1, is_player);
+            log_schedule(*c, at, res, false);
+            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, &opening.line_up, !new_season,
+                             ten_team_years);
         }
         for (auto &n : at.notes)
             p.notes.push_back("mid-season: " + n);
     } else {
-        p = season::plan(g_data, year, view(rows), res, move_player, nullptr, nullptr, ten_team_years);
+        p = season::plan(g_data, year, view(rows), res, move_player, nullptr, nullptr, !new_season, ten_team_years);
     }
     std::string mid_ids = mid ? midseason::ids_text(g_data.years[year], at.active) : std::string();
     auto record_mid = [&]() {
@@ -1535,6 +1517,230 @@ void season_hub(const swofty::career::State &state)
 }
 
 } // namespace pg
+
+namespace pg {
+
+// The season-start order of the standings. Career_Rebuild_ChampionshipStandings (0x140ae78f0) builds two
+// order lists per season with 0x140ae2d80 and hands them to Career_Rebuild_SeasonStandings as
+// order_a (u32 driver keys) and order_b (u32 team keys): the previous career season's final drivers'
+// (season +0x2a8) and constructors' (season +0x3b8) order, or for the first season the setup
+// entrant list (+0xe18). They are the tie order, so a season on 0 points is listed in them. In a
+// Progressive career, while no weekend of the season has started, both lists are replaced with the
+// real previous year's final order (data/years.json previous_standings, season_logic.hpp
+// start_slot_order / start_driver_order), allocated from the game's default allocator because the
+// callee frees them; the game's own lists are released as the callee would have. Once a weekend has
+// started the game's lists stay.
+namespace {
+
+std::atomic<int> g_order_logs{0};
+
+void *game_alloc(size_t bytes)
+{
+    void *alloc = nullptr;
+    uintptr_t vt = 0, fn = 0;
+    if (!g_Ne_DefaultAllocator.get() || !swofty::mem::read(reinterpret_cast<uintptr_t>(g_Ne_DefaultAllocator.get()), alloc) ||
+        !alloc || !swofty::mem::read(reinterpret_cast<uintptr_t>(alloc) + offsetof(NeAllocator, vtable), vt) ||
+        !swofty::mem::read(vt + offsetof(NeAllocatorVtbl, alloc), fn) || !fn)
+        return nullptr;
+    return reinterpret_cast<void *(*)(void *, uint64_t, uint64_t)>(fn)(alloc, bytes, alignof(uint32_t));
+}
+
+void *default_allocator()
+{
+    void *alloc = nullptr;
+    return g_Ne_DefaultAllocator.get() && swofty::mem::read(reinterpret_cast<uintptr_t>(g_Ne_DefaultAllocator.get()), alloc)
+               ? alloc
+               : nullptr;
+}
+
+void release(NeOptionalVec *v)
+{
+    if (!v || !v->engaged || !v->begin || !v->alloc)
+        return;
+    uintptr_t vt = 0, fn = 0;
+    if (!swofty::mem::read(reinterpret_cast<uintptr_t>(v->alloc) + offsetof(NeAllocator, vtable), vt) ||
+        !swofty::mem::read(vt + offsetof(NeAllocatorVtbl, free), fn) || !fn)
+        return;
+    reinterpret_cast<void (*)(void *, void *)>(fn)(v->alloc, v->begin);
+    v->begin = v->end = nullptr;
+    v->count = 0;
+}
+
+bool fill(NeOptionalVec &v, const std::vector<uint32_t> &keys)
+{
+    if (keys.empty())
+        return false;
+    auto *buf = static_cast<uint32_t *>(game_alloc(keys.size() * sizeof(uint32_t)));
+    if (!buf)
+        return false;
+    std::memcpy(buf, keys.data(), keys.size() * sizeof(uint32_t));
+    v.alloc = static_cast<NeAllocator *>(default_allocator());
+    v.begin = buf;
+    v.end = buf + keys.size();
+    v.count = keys.size();
+    v.engaged = 1;
+    return true;
+}
+
+int season_slot(uintptr_t season, bool &started)
+{
+    started = false;
+    uintptr_t e = entity();
+    uintptr_t champ = e ? championship(e) : 0;
+    Championship ch{};
+    if (!champ || !swofty::mem::read(champ, ch))
+        return -1;
+    auto b = reinterpret_cast<uintptr_t>(ch.seasons_begin), en = reinterpret_cast<uintptr_t>(ch.seasons_end);
+    int index = -1;
+    for (uintptr_t at = b; at && at < en && (at - b) / sizeof(ChampionshipSeasonEntry) < 64;
+         at += sizeof(ChampionshipSeasonEntry)) {
+        ChampionshipSeasonEntry entry{};
+        if (swofty::mem::read(at, entry) && reinterpret_cast<uintptr_t>(entry.season) == season) {
+            index = static_cast<int>((at - b) / sizeof(ChampionshipSeasonEntry));
+            break;
+        }
+    }
+    Season sn{};
+    if (index < 0 || !swofty::mem::read(season, sn))
+        return -1;
+    auto wb = reinterpret_cast<uintptr_t>(sn.weekends_begin), we = reinterpret_cast<uintptr_t>(sn.weekends_end);
+    for (uintptr_t at = wb; at && at < we && (at - wb) / sizeof(Weekend *) < 64; at += sizeof(Weekend *)) {
+        uintptr_t w = 0;
+        Weekend wk{};
+        if (swofty::mem::read(at, w) && w && swofty::mem::read(w, wk) && wk.progress_state != 0)
+            started = true;
+    }
+    return index;
+}
+
+} // namespace
+
+bool start_order(uintptr_t season, NeOptionalVec &drivers, NeOptionalVec &teams, std::string &why)
+{
+    if (!progressive_career() || !data() || !names::load()) {
+        why = "not a Progressive career";
+        return false;
+    }
+    store::Career *c = live_entry();
+    if (!c) {
+        why = "the career's store entry is not known yet";
+        return false;
+    }
+    bool started = false;
+    int index = season_slot(season, started);
+    if (index < 0) {
+        why = "the season is not in the current championship";
+        return false;
+    }
+    if (started) {
+        why = "a weekend of this season has started; the game's order stays";
+        return false;
+    }
+    int year = season::year_for(c->start, static_cast<uint32_t>(index + std::max(0, c->test_seasons)));
+    const season::Year *y = g_data.year(year);
+    if (!y || y->previous_slots.empty()) {
+        why = "years.json has no previous standings for " + std::to_string(year);
+        return false;
+    }
+    uintptr_t e = entity();
+    std::vector<Row> rows;
+    if (!e || !entrant_rows(e, rows)) {
+        why = "the line-up is unreadable";
+        return false;
+    }
+    std::vector<uint32_t> seated, team_keys;
+    std::map<uint32_t, uint32_t> key_of;
+    for (int i = 0; i < season::kSlots; ++i)
+        for (int k = 0; k < lineup::kSeats; ++k)
+            for (auto &r : rows)
+                if (has_car(r.rec) && !teamless(r.rec) && position_of(r.rec) == k &&
+                    season::slot_of_team(g_data, static_cast<int>(stat_of(r.rec.team_stat_id))) == i) {
+                    seated.push_back(stat_of(driver_of(r.rec)));
+                    key_of[stat_of(driver_of(r.rec))] = driver_of(r.rec);
+                }
+    for (auto &r : rows)
+        if (has_car(r.rec) && !teamless(r.rec) && !key_of.count(stat_of(driver_of(r.rec)))) {
+            seated.push_back(stat_of(driver_of(r.rec)));
+            key_of[stat_of(driver_of(r.rec))] = driver_of(r.rec);
+        }
+    std::vector<uint32_t> driver_keys;
+    for (uint32_t d : season::start_driver_order(*y, resolver(), seated))
+        driver_keys.push_back(key_of[d]);
+    std::string first;
+    std::array<bool, season::kSlots> closed{};
+    for (int i = 0; ten_team_years && i < season::kSlots; ++i) {
+        bool cars = false;
+        for (auto &r : rows)
+            cars = cars || (has_car(r.rec) && !teamless(r.rec) &&
+                            static_cast<int>(stat_of(r.rec.team_stat_id)) == g_data.slots[i].team_stat);
+        closed[i] = season::no_team(g_data, year, i) && !cars;
+    }
+    for (int slot : season::start_slot_order(*y, closed)) {
+        uint32_t key = static_cast<uint32_t>(g_data.slots[slot].team_stat) << 16;
+        for (auto &r : rows)
+            if (!teamless(r.rec) && stat_of(r.rec.team_stat_id) == stat_of(key)) {
+                key = r.rec.team_stat_id;
+                break;
+            }
+        team_keys.push_back(key);
+        if (first.size() < 120)
+            first += (first.empty() ? "" : ", ") + g_data.slots[slot].team;
+    }
+    if (!fill(drivers, driver_keys) || !fill(teams, team_keys)) {
+        release(&drivers);
+        release(&teams);
+        why = "no game allocator for the order lists";
+        return false;
+    }
+    if (g_order_logs++ < 24)
+        swofty::log("[progressive] standings: season %d starts in the real %d order: %zu driver(s) (%s first), %zu "
+                    "team(s): %s",
+                    year, y->previous_year, driver_keys.size(),
+                    driver_keys.empty() ? "-" : label_or(Kind::driver, stat_of(driver_keys[0])).c_str(),
+                    team_keys.size(), first.c_str());
+    return true;
+}
+
+// After the rebuild the constructors' table lists its initial order (season +0x490..+0x498, 8-byte
+// {u32 team key, u32} elements, the list 0x1413cf8a0 fills from order_b; read only) until a scored
+// session exists: logged so a test sees the order the screen will show.
+void log_start_order(uintptr_t season)
+{
+    constexpr uintptr_t kConstructorsInitial = 0x490;
+    uintptr_t b = 0, e = 0;
+    if (!swofty::mem::read(season + kConstructorsInitial, b) || !swofty::mem::read(season + kConstructorsInitial + 8, e) ||
+        !b || e <= b || (e - b) % 8 || (e - b) / 8 > 16 || !swofty::mem::readable(b, e - b))
+        return;
+    std::string out;
+    for (uintptr_t p = b; p < e; p += 8) {
+        uint32_t key = 0;
+        swofty::mem::read(p, key);
+        out += (out.empty() ? "" : ", ") + label_or(Kind::team, stat_of(key));
+    }
+    if (g_order_logs++ < 24)
+        swofty::log("[progressive] standings: constructors' start order in the game: %s", out.c_str());
+}
+
+} // namespace pg
+
+SWOFTY_WRAP(Career_Rebuild_SeasonStandings, void, void *season, void *order_a, void *order_b, void *extra_points,
+            void *extra_e)
+{
+    swofty::game::NeOptionalVec drivers{}, teams{};
+    std::string why;
+    if (!season || !order_a || !order_b || !pg::start_order(reinterpret_cast<uintptr_t>(season), drivers, teams, why)) {
+        static std::string last;
+        if (!why.empty() && why != "not a Progressive career" && why != last && pg::g_order_logs++ < 24) {
+            last = why;
+            swofty::log("[progressive] standings: the game's order stays (%s)", why.c_str());
+        }
+        return orig(season, order_a, order_b, extra_points, extra_e);
+    }
+    orig(season, &drivers, &teams, extra_points, extra_e);
+    pg::release(static_cast<swofty::game::NeOptionalVec *>(order_a));
+    pg::release(static_cast<swofty::game::NeOptionalVec *>(order_b));
+    pg::log_start_order(reinterpret_cast<uintptr_t>(season));
+}
 
 extern "C" __declspec(dllexport) int ProgressiveRndMode()
 {

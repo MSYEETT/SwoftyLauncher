@@ -447,12 +447,19 @@ pub struct DriverCareerContractsManagerComponent {
     pub career_time: *mut CareerTimeComponent,
     _pad_0x360: [u8; 0x8],
     pub car_numbers: *mut CarNumberComponent,
+    _pad_0x370: [u8; 0x38],
+    pub secret_meetings_begin: *mut c_void,
+    pub secret_meetings_end: *mut c_void,
 }
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, weekend_source) == 0x270);
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, entity) == 0x278);
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, contract_owner) == 0x350);
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, career_time) == 0x358);
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, car_numbers) == 0x368);
+const _: () =
+    assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, secret_meetings_begin) == 0x3a8);
+const _: () =
+    assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, secret_meetings_end) == 0x3b0);
 
 #[repr(C)]
 pub struct DriverContract {
@@ -583,6 +590,25 @@ const _: () = assert!(core::mem::offset_of!(DriverMovesFinalisedMessage, reserve
 const _: () = assert!(core::mem::offset_of!(DriverMovesFinalisedMessage, changes) == 0x10);
 const _: () = assert!(core::mem::offset_of!(DriverMovesFinalisedMessage, count) == 0x290);
 const _: () = assert!(core::mem::size_of::<DriverMovesFinalisedMessage>() == 0x298);
+
+#[repr(C)]
+pub struct DriverSecretMeetings {
+    _pad_0x0: [u8; 0x10],
+    pub current_allocator: *mut c_void,
+    pub current: *mut SecretMeeting,
+    _pad_0x20: [u8; 0x8],
+    pub previous_begin: *mut c_void,
+    pub previous_end: *mut c_void,
+    _pad_0x38: [u8; 0x8],
+    pub driver: u32,
+    _pad_0x44: [u8; 0x4],
+}
+const _: () = assert!(core::mem::offset_of!(DriverSecretMeetings, current_allocator) == 0x10);
+const _: () = assert!(core::mem::offset_of!(DriverSecretMeetings, current) == 0x18);
+const _: () = assert!(core::mem::offset_of!(DriverSecretMeetings, previous_begin) == 0x28);
+const _: () = assert!(core::mem::offset_of!(DriverSecretMeetings, previous_end) == 0x30);
+const _: () = assert!(core::mem::offset_of!(DriverSecretMeetings, driver) == 0x40);
+const _: () = assert!(core::mem::size_of::<DriverSecretMeetings>() == 0x48);
 
 #[repr(C)]
 pub struct EvolutionCurve {
@@ -1095,6 +1121,19 @@ const _: () = assert!(core::mem::offset_of!(Season, current_weekend) == 0x2a0);
 const _: () = assert!(core::mem::offset_of!(Season, standings_vtable) == 0x2a8);
 const _: () = assert!(core::mem::offset_of!(Season, completion_state) == 0x538);
 const _: () = assert!(core::mem::size_of::<Season>() == 0x550);
+
+#[repr(C)]
+pub struct SecretMeeting {
+    pub id: u32,
+    _pad_0x4: [u8; 0x10],
+    pub reason: u8,
+    _pad_0x15: [u8; 0xb],
+    pub team: u32,
+}
+const _: () = assert!(core::mem::offset_of!(SecretMeeting, id) == 0x0);
+const _: () = assert!(core::mem::offset_of!(SecretMeeting, reason) == 0x14);
+const _: () = assert!(core::mem::offset_of!(SecretMeeting, team) == 0x20);
+const _: () = assert!(core::mem::size_of::<SecretMeeting>() == 0x24);
 
 #[repr(C)]
 pub struct Session {
@@ -1691,7 +1730,17 @@ pub type Game_CareerWizard_StartsInF1_t = unsafe extern "C" fn(
     entrant_list: *const c_char,
 ) -> bool;
 pub type Game_Career_IsDriverCareerMode_t = unsafe extern "C" fn(championship: *const c_void) -> bool;
+pub type Game_DriverContracts_AdvanceSecretMeeting_t =
+    unsafe extern "C" fn(contracts: *mut c_void, driver: u32, notify: u8);
 pub type Game_DriverContracts_BuildOffers_t = unsafe extern "C" fn(contracts: *mut c_void, driver: u32);
+pub type Game_DriverContracts_OfferSecretMeeting_t = unsafe extern "C" fn(
+    contracts: *mut c_void,
+    meeting: *const c_void,
+    team: u32,
+    driver: u32,
+    reason: u8,
+    notify: u8,
+);
 pub type Game_DriverSelectHeader_SetTabState_t =
     unsafe extern "C" fn(header: *mut c_void, tab: u64, content_visible: u8, enabled: u8);
 pub type Game_EngineMgmt_AddGridPenalty_t =
@@ -2083,8 +2132,18 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_DriverContracts_AdvanceSecretMeeting: Binding = Binding {
+        id: "Game_DriverContracts_AdvanceSecretMeeting",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_DriverContracts_BuildOffers: Binding = Binding {
         id: "Game_DriverContracts_BuildOffers",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_DriverContracts_OfferSecretMeeting: Binding = Binding {
+        id: "Game_DriverContracts_OfferSecretMeeting",
         kind: "func",
         status: Status::Experimental,
     };

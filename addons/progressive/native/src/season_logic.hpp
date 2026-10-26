@@ -99,6 +99,9 @@ struct Year {
     std::vector<int> real_tracks;
     std::vector<std::string> circuits;
     std::vector<Change> changes;
+    int previous_year = 0;
+    std::vector<int> previous_slots;
+    std::vector<std::string> previous_drivers;
 };
 
 struct Slot {
@@ -214,6 +217,16 @@ inline bool parse(const std::string &text, Data &out, std::string &err)
                 if (!sd.driver.empty())
                     o.drivers.push_back(sd);
             }
+        }
+        const json::Value &prev = y["previous_standings"];
+        if (prev.type == json::Value::Obj) {
+            yr.previous_year = num(prev["year"], 0);
+            for (auto &v : prev["slots"].a)
+                if (int sl = num(v); sl >= 1 && sl <= kSlots)
+                    yr.previous_slots.push_back(sl - 1);
+            for (auto &v : prev["drivers"].a)
+                if (!v.str().empty())
+                    yr.previous_drivers.push_back(v.str());
         }
         for (auto &c : y["calendar"].a) {
             yr.real_tracks.push_back(num(c["track"]));
@@ -487,6 +500,10 @@ inline VehicleSet vehicle_for(const Data &d, const Resolve &r, int year, int slo
 // move_player (follow mode): when the player raced in the year (at the career's round, with `at`)
 // for another slot, he moves to his real seat and the real line-ups stand around him.
 // at: the year's line-up at the career's round (midseason_logic.hpp); the season's own otherwise.
+// The drivers of the year's mid-season changes never fill a seat (the filler slot of a 10-team
+// year, a seat the player's move left empty): a driver a change takes out sits out, and the one it
+// brings in comes from the free agents, so the fillers do not change with the changes. settled (the
+// season already applied): an empty seat keeps its present filler while he is still free.
 // opening: the line-up at the season's first race. The player's seat in his slot is fixed for the
 // year: his own seat when the season's line-up has him there, else the one the opening's fit takes
 // (the seat he holds in the career, lineup_logic.hpp rule 2).
@@ -494,7 +511,8 @@ inline VehicleSet vehicle_for(const Data &d, const Resolve &r, int year, int slo
 // D7 rule); when the player has no real seat it is skipped, along with the change that filled the
 // newcomer's old seat with the driver the player displaced.
 inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, const Resolve &r, bool move_player = false,
-                 const Year *at = nullptr, const Year *opening = nullptr, bool ten_teams = false)
+                 const Year *at = nullptr, const Year *opening = nullptr, bool settled = false,
+                 bool ten_teams = false)
 {
     Plan p;
     p.year = clamp_year(year);
@@ -617,10 +635,31 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
                               ") has no team in " + std::to_string(p.year) + "; it does not race and its drivers are "
                               "released");
     in.closed = p.closed;
+    for (int i = 0; i < kSlots; ++i)
+        for (int k = 0; i < kSlots && p.closed[i] && k < lineup::kSeats; ++k)
+            if (in.real[i][k] != lineup::kNone) {
+                p.notes.push_back("ten_team_years: driver " + std::to_string(in.real[i][k]) + " is listed at closed "
+                                  "career slot " + std::to_string(i + 1) + "; he does not race there");
+                in.real[i][k] = lineup::kNone;
+            }
+    std::vector<uint32_t> barred;
+    for (auto &c : base->changes)
+        for (const std::string *label : {&c.in, &c.out})
+            if (int s = r.driver_stat(*label); s >= 0)
+                barred.push_back(static_cast<uint32_t>(s));
     for (auto &pd : d.pool) {
         int s = r.driver_stat(pd.driver);
-        if (s >= 0 && usable(static_cast<uint32_t>(s)) && static_cast<uint32_t>(s) != p.player)
+        if (s >= 0 && usable(static_cast<uint32_t>(s)) && static_cast<uint32_t>(s) != p.player &&
+            std::find(barred.begin(), barred.end(), static_cast<uint32_t>(s)) == barred.end())
             in.pool.push_back(static_cast<uint32_t>(s));
+    }
+    lineup::Grid current = lineup::empty_grid();
+    if (settled) {
+        for (int i = 0; i < kSlots; ++i)
+            for (int k = 0; k < lineup::kSeats; ++k)
+                if (p.holder[i][k] >= 0)
+                    current[i][k] = rows[p.holder[i][k]].driver;
+        in.current = &current;
     }
     std::vector<uint32_t> rated(in.pool);
     for (const Year *yy : {y, base})
@@ -800,6 +839,40 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
             p.looks.push_back(l);
     }
     return p;
+}
+
+// The season-start order of the career's standings (all on 0 points): the constructors as the
+// previous year finished (data/years.json previous_standings, Jolpica), slots it does not list after
+// them in slot order, a closed slot (ten_team_years) left out; the drivers as the previous year
+// finished, the season's other drivers after them in the order given (the plan's seat order).
+inline std::vector<int> start_slot_order(const Year &y, const std::array<bool, kSlots> &closed = {})
+{
+    std::vector<int> out;
+    for (int s : y.previous_slots)
+        if (s >= 0 && s < kSlots && !closed[s] && std::find(out.begin(), out.end(), s) == out.end())
+            out.push_back(s);
+    for (int s = 0; s < kSlots; ++s)
+        if (!closed[s] && std::find(out.begin(), out.end(), s) == out.end())
+            out.push_back(s);
+    return out;
+}
+
+inline std::vector<uint32_t> start_driver_order(const Year &y, const Resolve &r, const std::vector<uint32_t> &season)
+{
+    std::vector<uint32_t> out;
+    for (auto &label : y.previous_drivers) {
+        int s = r.driver_stat(label);
+        if (s < 0)
+            continue;
+        auto d = static_cast<uint32_t>(s);
+        if (std::find(season.begin(), season.end(), d) != season.end() &&
+            std::find(out.begin(), out.end(), d) == out.end())
+            out.push_back(d);
+    }
+    for (uint32_t d : season)
+        if (std::find(out.begin(), out.end(), d) == out.end())
+            out.push_back(d);
+    return out;
 }
 
 } // namespace progressive::season

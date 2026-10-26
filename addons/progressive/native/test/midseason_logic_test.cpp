@@ -547,6 +547,148 @@ void ends_follow_the_player()
     EXPECT(in_slot(p, 1, "max_verstappen") && in_slot(p, 8, "daniil_kvyat") && in_slot(p, 3, "lewis_hamilton"));
 }
 
+// A season raced round by round on a career calendar, Hamilton (Mercedes every year) the player in
+// follow mode: the first apply chooses the fillers, later ones keep them; each round's plan feeds
+// the next. In swofty's 2017 rollover Button was a Manor filler, came in for Alonso at Monaco and
+// Alonso took his filler seat.
+struct Raced {
+    std::vector<season::Plan> plans;
+    std::vector<midseason::At> at;
+};
+
+Raced race_season(int year, const std::vector<int> &cal, bool live_ratings = false)
+{
+    season::Resolve r = resolver();
+    int round = 1;
+    if (live_ratings)
+        r.rating = [&round](uint32_t d) { return 60.0 + static_cast<double>((d * 7 + round * 13) % 30); };
+    auto seats = season_seats(year);
+    auto rows = rows_for(seats, "lewis_hamilton");
+    auto is = player_is("lewis_hamilton");
+    auto opening = midseason::at_round(g_data, year, cal, 1, is);
+    Raced out;
+    for (int n = 1; n <= static_cast<int>(cal.size()) + 1; ++n) {
+        round = n;
+        out.at.push_back(midseason::at_round(g_data, year, cal, n, is));
+        out.plans.push_back(season::plan(g_data, year, rows, r, true, &out.at.back().line_up, &opening.line_up, n > 1));
+        rows = after(out.plans.back(), rows);
+    }
+    return out;
+}
+
+void changes_leave_the_fillers_alone()
+{
+    for (int year = 2017; year <= 2025; ++year)
+        for (auto *cal : {&kTest, &kShort, &kLong}) {
+            Raced s = race_season(year, *cal);
+            const season::Year *y = g_data.year(year);
+            std::vector<uint32_t> changed;
+            for (auto &c : y->changes)
+                for (const std::string *l : {&c.in, &c.out})
+                    changed.push_back(st(*l));
+            for (size_t n = 0; n < s.plans.size(); ++n) {
+                const season::Plan &p = s.plans[n];
+                EXPECT(p.error.empty() && seated_once(p));
+                EXPECT(p.target[10] == s.plans[0].target[10]);
+                for (uint32_t d : p.target[10])
+                    EXPECT(std::find(changed.begin(), changed.end(), d) == changed.end());
+                const midseason::At &a = s.at[n];
+                for (int i : a.active) {
+                    const season::Change &c = y->changes[i];
+                    EXPECT(in_slot(p, c.slot + 1, c.in));
+                    bool moved_on = false;
+                    for (int j : a.active)
+                        moved_on = moved_on || y->changes[j].in == c.out;
+                    if (!moved_on)
+                        for (auto &t : p.target)
+                            for (uint32_t d : t)
+                                EXPECT(d != st(c.out));
+                }
+            }
+        }
+}
+
+void fillers_ignore_rating_drift()
+{
+    for (int year : {2017, 2021, 2025}) {
+        Raced s = race_season(year, kLong, true);
+        for (auto &p : s.plans)
+            EXPECT(p.target[10] == s.plans[0].target[10]);
+    }
+}
+
+void button_at_monaco_only()
+{
+    for (auto *cal : {&kTest, &kLong}) {
+        Raced s = race_season(2017, *cal);
+        int monaco = midseason::career_round(g_data.year(2017)->real_tracks, 6, *cal);
+        for (size_t n = 0; n < s.plans.size(); ++n) {
+            const season::Plan &p = s.plans[n];
+            bool button = in_slot(p, 4, "jenson_button"), alonso = false;
+            for (auto &t : p.target)
+                for (uint32_t d : t)
+                    alonso = alonso || d == st("fernando_alonso");
+            EXPECT(button == (static_cast<int>(n) + 1 == monaco));
+            EXPECT(alonso != button);
+            EXPECT(!button || in_slot(p, 4, "stoffel_vandoorne"));
+            for (auto &m : p.moves)
+                EXPECT(!(m.driver == st("fernando_alonso") && m.to.slot != 3));
+        }
+    }
+    for (auto *cal : {&kTest, &kLong}) {
+        Raced h = race_season(2020, *cal);
+        bool hulk = false;
+        for (auto &p : h.plans) {
+            hulk = hulk || in_slot(p, 5, "nico_hulkenberg");
+            EXPECT(!in_slot(p, 11, "nico_hulkenberg"));
+            if (in_slot(p, 5, "nico_hulkenberg"))
+                EXPECT(!in_slot(p, 5, "sergio_perez") || !in_slot(p, 5, "lance_stroll"));
+        }
+        EXPECT(hulk);
+        Raced b = race_season(2024, *cal);
+        bool ferrari = false, haas = false;
+        for (auto &p : b.plans) {
+            ferrari = ferrari || in_slot(p, 2, "oliver_bearman");
+            haas = haas || in_slot(p, 10, "oliver_bearman");
+            EXPECT(!in_slot(p, 11, "oliver_bearman"));
+            if (in_slot(p, 2, "oliver_bearman")) {
+                for (auto &t : p.target)
+                    for (uint32_t d : t)
+                        EXPECT(d != st("carlos_sainz-jr"));
+            }
+        }
+        EXPECT(ferrari && haas);
+    }
+}
+
+// swofty's 2017 rollover: the first Team HQ of the season could not read the calendar, so the apply
+// used the plain season line-up and the round-1 changes came a Team HQ later.
+void season_break_timing()
+{
+    using From = midseason::Timing::From;
+    const season::Year &y17 = *g_data.year(2017);
+    auto t = midseason::timing(y17, true, kTest, true, 2, false, {}, false);
+    EXPECT(t.from == From::calendar && t.next == 2 && t.tracks == kTest);
+    t = midseason::timing(y17, true, kTest, false, 1, true, {}, false);
+    EXPECT(t.from == From::this_season && t.next == 1 && t.tracks == kTest);
+    t = midseason::timing(y17, false, {}, false, 1, true, midseason::split_tracks("0,13,3"), false);
+    EXPECT(t.from == From::recorded && t.next == 1 && t.tracks == kTest);
+    auto a = midseason::at_round(g_data, 2017, t.tracks, t.next, player_is(""));
+    EXPECT(seat(a, 9, 1) == "antonio_giovinazzi" && seat(a, 4, 0) == "jenson_button");
+    t = midseason::timing(y17, false, {}, false, 1, true, {}, false);
+    EXPECT(t.from == From::real && t.next == 1 && t.tracks.size() == 20);
+    a = midseason::at_round(g_data, 2017, t.tracks, t.next, player_is(""));
+    EXPECT(seat(a, 9, 1) == "antonio_giovinazzi" && seat(a, 4, 0) == "fernando_alonso");
+    t = midseason::timing(y17, false, {}, false, 1, false, midseason::split_tracks("0,13,3"), true);
+    EXPECT(t.from == From::record);
+    t = midseason::timing(y17, false, {}, false, 1, false, midseason::split_tracks("0,13,3"), false);
+    EXPECT(t.from == From::none);
+    t = midseason::timing(y17, true, kTest, false, 1, false, {}, false);
+    EXPECT(t.from == From::none);
+    EXPECT(midseason::tracks_text(kTest) == "0,13,3");
+    EXPECT(midseason::split_tracks("").empty());
+}
+
 void recorded_ids_round_trip()
 {
     auto a = midseason::at_round(g_data, 2016, kLong, 4, player_is(""));
@@ -555,6 +697,36 @@ void recorded_ids_round_trip()
     auto b = midseason::at_ids(g_data, 2016, 4, midseason::split_ids(ids));
     EXPECT(seat(b, 4, 0) == "stoffel_vandoorne" && seat(b, 3, 1) == "daniil_kvyat");
     EXPECT(midseason::split_ids("").empty());
+}
+
+void ten_team_years_keep_changes_out_of_slot_11()
+{
+    for (int year = 2017; year <= 2025; ++year) {
+        auto seats = season_seats(year);
+        std::string player = seats[0][0];
+        auto rows = rows_for(seats, player);
+        auto is = player_is(player);
+        auto r = resolver();
+        auto opening = midseason::at_round(g_data, year, kLong, 1, is);
+        season::Plan first = season::plan(g_data, year, rows, r, true, &opening.line_up, &opening.line_up, false, true);
+        EXPECT(first.error.empty() && first.closed[10]);
+        auto now = after(first, rows);
+        for (int n = 1; n <= 25; ++n) {
+            auto at = midseason::at_round(g_data, year, kLong, n, is);
+            season::Plan p = season::plan(g_data, year, now, r, true, &at.line_up, &opening.line_up, true, true);
+            EXPECT(p.error.empty());
+            EXPECT(p.closed[10]);
+            EXPECT(p.target[10][0] == lineup::kNone && p.target[10][1] == lineup::kNone);
+            size_t seated = 0;
+            for (auto &sl : p.target)
+                for (uint32_t d : sl)
+                    seated += d != lineup::kNone;
+            EXPECT(seated == 20);
+            for (auto &m : p.moves)
+                EXPECT(m.to.slot != 10);
+            now = after(p, now);
+        }
+    }
 }
 
 } // namespace
@@ -580,7 +752,12 @@ int main(int argc, char **argv)
     changes_fill_an_empty_seat();
     ends_scale_to_the_season();
     ends_follow_the_player();
+    changes_leave_the_fillers_alone();
+    button_at_monaco_only();
+    fillers_ignore_rating_drift();
+    season_break_timing();
     recorded_ids_round_trip();
+    ten_team_years_keep_changes_out_of_slot_11();
     if (failures) {
         std::printf("midseason_logic_test: %d failure(s)\n", failures);
         return EXIT_FAILURE;
