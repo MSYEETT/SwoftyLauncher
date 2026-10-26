@@ -1,4 +1,5 @@
 import hashlib
+import importlib.util
 import json
 import struct
 import tempfile
@@ -110,6 +111,28 @@ class Heads(unittest.TestCase):
                          b"eaid://character_package_shared/heads/male_ea/cs_pal_356/textures/cs_pal_356_head_d.tif")
         self.assertEqual(heads.frag(image, 1), b"cs_pal_356")
         self.assertEqual(heads.frag(image, 2), side)
+
+    @unittest.skipUnless(importlib.util.find_spec("numpy"), "numpy is not installed")
+    def test_an_f1_2016_colour_map_gets_its_small_levels(self):
+        import bcn
+        import numpy as np
+        import zipfile
+        img = np.zeros((2048, 2048, 4), np.uint8)
+        img[...] = (200, 120, 60, 255)
+        raw = b"".join(bcn.encode(heads.FACE_FORMAT, lv) for lv in bcn.mip_chain(img)[:4])
+        zpath = Path(self.dir.name) / "face.zip"
+        with zipfile.ZipFile(zpath, "w") as z:
+            z.writestr("x_head_d.tga.mipmaps", raw)
+        heads.DATA["sources"]["test_face"] = {"zip": "face.zip", "root": ""}
+        try:
+            chain = heads.f1_2016_chain([self.dir.name], {"source": "test_face", "mipmaps": "x_head_d.tga.mipmaps"}, "x")
+        finally:
+            del heads.DATA["sources"]["test_face"]
+        sizes = bcn.level_sizes(heads.FACE_FORMAT, 2048, 2048, heads.FACE_LEVELS)
+        self.assertEqual(len(chain), sum(sizes))
+        self.assertEqual(chain[:len(raw)], raw)
+        smallest = bcn.decode(heads.FACE_FORMAT, chain[-sizes[-1]:], 4, 4)
+        self.assertTrue(np.all(np.abs(smallest[..., :3].astype(int) - (200, 120, 60)) <= 8))
 
     def test_head_rows(self):
         table = "entrants.animation.driver_heads"

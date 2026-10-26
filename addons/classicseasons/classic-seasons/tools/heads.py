@@ -34,7 +34,8 @@ A head with no stock row of its own label (`row_from` in data/heads.json) gets i
 the model_path of its heads archive, has_morph_data True and available_for_customisation False.
 
 A head of `faces` is a stock head (`base`: a scanned head under heads/male_driver/, or a generic one under
-heads/male_ea/) with the head_d surface of `face` in another archive (`archive`): both of the base's
+heads/male_ea/) with another face map: the head_d surface of `face` in another archive (`archive`), or an F1 2016
+colour map (`mipmaps`: raw BC1 levels 2048 to 256, largest first, to which the tool adds 128 to 4): both of the base's
 archives, read from the game folder (the baseline's copy of a file the launcher changed), with `base` renamed byte
 for byte to `code` (the same length) in every resource name and fragment. A surface's sidecar description (fragment 2)
 keeps naming the stock .mipmaps file. The face archive's head_d surface, 2048 px with all 10 levels in the archive and
@@ -77,6 +78,7 @@ OFF = DATA.get("off", {})
 SURFACE = b"GfxSurfaceRes"
 SRV = b"GfxSRVResource"
 FACE_LEVELS = 10
+FACE_FORMAT = 54
 ROW_TEMPLATE = "male_ls222"
 BASELINE = "~/.local/share/swofty/baseline/25251167-d873a1c8d204"
 PLACED = "~/.local/share/swofty/state/placed.json"
@@ -263,6 +265,32 @@ def rename(e, old, new):
                 put_frag(r, i, data.replace(old, new))
 
 
+def f1_2016_chain(downloads, face, head):
+    import bcn
+    with open_zip(downloads, DATA["sources"][face["source"]], head) as z:
+        raw = z.read(face["mipmaps"])
+    sizes = bcn.level_sizes(FACE_FORMAT, 2048, 2048, 4)
+    if len(raw) != sum(sizes):
+        sys.exit(f"{head}: {face['mipmaps']} is {len(raw)} bytes, not BC1 levels 2048 to 256")
+    level = bcn.decode(FACE_FORMAT, raw[sum(sizes[:3]):], 256, 256)
+    chain = [raw]
+    while level.shape[0] > 4:
+        level = bcn.downsample(level)
+        chain.append(bcn.encode(FACE_FORMAT, level))
+    return b"".join(chain)
+
+
+def embedded_surface(template, chain):
+    r = copy_res(template)
+    r.frags = r.frags[:2]
+    header = bytearray(frag(template, 0))
+    struct.pack_into("<3I", header, 8, FACE_FORMAT, 2048, 2048)
+    struct.pack_into("<I", header, 24, FACE_LEVELS)
+    put_frag(r, 0, bytes(header))
+    put_frag(r, 1, chain)
+    return r
+
+
 def face_surface(downloads, face, head):
     with open_zip(downloads, DATA["sources"][face["source"]], head) as z, tempfile.TemporaryDirectory() as d:
         path = Path(d) / "face.erp"
@@ -285,8 +313,9 @@ def build_face(stock, downloads, head):
     base, code = face["base"].encode(), face["code"].encode()
     if len(base) != len(code):
         sys.exit(f"{head}: {face['code']} is not as long as {face['base']}")
-    image = face_surface(downloads, face, head)
-    fmt, levels = struct.unpack_from("<10I", frag(image, 0))[2], FACE_LEVELS
+    image = face_surface(downloads, face, head) if "archive" in face else None
+    chain = f1_2016_chain(downloads, face, head) if "mipmaps" in face else None
+    levels = FACE_LEVELS
     files = []
     placed = 0
     for kind in ("heads", "morph_poses"):
@@ -297,11 +326,13 @@ def build_face(stock, downloads, head):
         rename(e, base, code)
         for i, r in enumerate(e.res):
             if r.name.endswith(f"/{face['code']}_head_d.tif.image") and r.type.rstrip(b"\0") == SURFACE:
-                copy = copy_res(image)
+                copy = copy_res(image) if image else embedded_surface(r, chain)
                 copy.name = r.name
                 e.res[i] = copy
                 placed += 1
-            elif r.name.endswith(f"/{face['code']}_head_d.tif") and r.type.rstrip(b"\0") == SRV:
+        fmt = struct.unpack_from("<10I", frag(image, 0))[2] if image else FACE_FORMAT
+        for r in e.res:
+            if r.name.endswith(f"/{face['code']}_head_d.tif") and r.type.rstrip(b"\0") == SRV:
                 srv = bytearray(frag(r, 0))
                 struct.pack_into("<I", srv, 4, fmt)
                 struct.pack_into("<I", srv, 12, levels)
@@ -340,7 +371,7 @@ def face_leftovers(head, game=None):
                     side = data[1:1 + data[0]].rstrip(b"\0").decode()
                     if game and face["base"] in side and not (Path(game) / side).is_file():
                         out.append(side)
-                elif base in data or base in r.name.encode() or face["face"].encode() in r.name.encode():
+                elif base in data or base in r.name.encode() or face.get("face", face["base"]).encode() in r.name.encode():
                     out.append(r.name)
             if r.name.endswith(f"/{face['code']}_head_d.tif.image") and len(r.frags) != 2:
                 out.append(f"{r.name} (a sidecar)")
@@ -391,7 +422,7 @@ def main():
             left = face_leftovers(head, game)
             if left:
                 sys.exit(f"{head}: {FACES[head]['base']} is still named in {', '.join(left[:3])}")
-            print(f"{head}: {FACES[head]['base']} as {FACES[head]['code']}, face from {FACES[head]['archive']}")
+            print(f"{head}: {FACES[head]['base']} as {FACES[head]['code']}, face from {FACES[head].get('archive') or FACES[head]['mipmaps']}")
         paths = [OUT / rel for rel in heads[head] if rel.endswith(".erp")]
         relabelled = [name for path in paths for name in relabel(path)]
         if relabelled:
