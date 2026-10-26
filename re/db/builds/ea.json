@@ -400,6 +400,9 @@
   "Career_Adjust_RpTeamWallet": {
    "match": "0x34f8740"
   },
+  "Career_Build_DriverContract": {
+   "match": "0xd74020"
+  },
   "Career_Build_LineupChanges": {
    "match": "0x2450e10"
   },
@@ -418,8 +421,35 @@
   "Career_Construct_RnDDeptCard": {
    "match": "0x1c74e80"
   },
+  "Career_ContractIntro_OnEnter": {
+   "match": "0x36b2860"
+  },
+  "Career_ContractIntro_OnUpdate": {
+   "match": "0x36b3000"
+  },
+  "Career_ContractOutro_OnEnter": {
+   "match": "0x36b3570"
+  },
+  "Career_ContractOutro_OnUpdate": {
+   "match": "0x36b3990"
+  },
+  "Career_ContractUpdate_OnEnter": {
+   "match": "0x36b19a0"
+  },
+  "Career_ContractUpdate_OnExit": {
+   "match": "0x36b2200"
+  },
+  "Career_ContractUpdate_OnUpdate": {
+   "match": "0x36b2040"
+  },
   "Career_Create_SeasonWeekend": {
    "match": "0xae49c0"
+  },
+  "Career_Decide_ContractNegotiation": {
+   "match": "0x2d4ba50"
+  },
+  "Career_DriverNumbers_CheckExisting": {
+   "match": "0xc005a0"
   },
   "Career_Eval_Curve": {
    "match": "0x44fd860"
@@ -435,6 +465,9 @@
   },
   "Career_Get_TeamRenownData": {
    "match": "0xf74760"
+  },
+  "Career_Needs_DriverContract": {
+   "match": "0xd7d2e0"
   },
   "Career_Post_UpgradeFittedRatio": {
    "match": "0x3520000"
@@ -466,6 +499,9 @@
   "Career_Set_UpgradesOwner": {
    "match": "0x351e820"
   },
+  "Career_Sign_DriverContract": {
+   "match": "0xd74240"
+  },
   "Career_Start_UpgradeDevelopment": {
    "match": "0x35075e0"
   },
@@ -486,6 +522,9 @@
    "match": "0x1bae090",
    "func_rva": "0x1bae090"
   },
+  "FeTile_Add_EraTile": {
+   "match": "0x1a675d0"
+  },
   "FeTile_Build_List": {
    "match": "0x1738350",
    "func_rva": "0x1738350"
@@ -493,15 +532,33 @@
   "FeTile_CareerDlcItem_Populate": {
    "match": "0x1720a30"
   },
+  "FeTile_Clear_EraTileSet_Thunk": {
+   "match": "0x1a69052"
+  },
   "FeTile_Construct_CareerItem": {
    "match": "0x171f750"
+  },
+  "FeTile_Is_EraScenarioAvailable_Thunk": {
+   "match": "0x1a690ec"
   },
   "FeTile_ItemBase_Populate": {
    "match": "0x1691f60",
    "func_rva": "0x1691f60"
   },
+  "FeTile_Press_EraTile": {
+   "match": "0x1a68910"
+  },
   "FeTile_Route_CareerItem": {
    "match": "0x171f9f0"
+  },
+  "Game_CareerActivities_AddActivity": {
+   "match": "0x1261f40"
+  },
+  "Game_CareerActivities_RemoveActivity": {
+   "match": "0x1262080"
+  },
+  "Game_CareerSetup_ResetEntrants": {
+   "match": "0xc2ebf0"
   },
   "Game_CareerWizard_PushNextStep": {
    "match": "0x385aa60"
@@ -512,14 +569,59 @@
   "Game_Career_IsDriverCareerMode": {
    "match": "0xa8ee83"
   },
+  "Game_ContractTeamSelect_OnEnter": {
+   "match": "0x36b4910"
+  },
+  "Game_ContractTeamSelect_OnExit": {
+   "match": "0x36b5a20"
+  },
+  "Game_ContractTeamSelect_OnUpdate": {
+   "match": "0x36b58e0"
+  },
+  "Game_DriverContracts_AdvanceSecretMeeting": {
+   "match": "0xd7a3e0"
+  },
+  "Game_DriverContracts_BuildOffers": {
+   "match": "0xd7b140"
+  },
+  "Game_DriverContracts_OfferSecretMeeting": {
+   "match": "0xd79780"
+  },
   "Game_DriverSelectHeader_SetTabState": {
    "match": "0x1a544d0"
+  },
+  "Game_EngineMgmt_AddGridPenalty": {
+   "match": "0x11ca990"
+  },
+  "Game_EngineMgmt_ApplySessionWear": {
+   "match": "0x11cb7b0"
   },
   "Game_EntrantsUi_BuildCharacterRef": {
    "match": "0x24eb0f0"
   },
   "Game_EntrantsUi_OnCharacterListLoaded": {
    "match": "0x24b4040"
+  },
+  "Game_F1WorldActivityContainer_SelectEntrantList": {
+   "match": "0x1a735f0"
+  },
+  "Game_Refresh_PerformanceComparison": {
+   "match": "0x188aee0"
+  },
+  "Game_Rnd_CalcUpgradeTypeProgress": {
+   "match": "0x3516460"
+  },
+  "Game_Rnd_FillVehicleUpgrades": {
+   "match": "0x1232f00"
+  },
+  "Game_SaveData_DeserialiseContainer": {
+   "match": "0x363f5a0"
+  },
+  "Game_SaveData_SerialiseContainer": {
+   "match": "0x363e200"
+  },
+  "Game_SaveData_WriteBag": {
+   "match": "0x3921150"
   },
   "Game_SeasonLength_ApplyPreset": {
    "match": "0xbc8930"
@@ -538,6 +640,9 @@
   },
   "Ne_Detach_ChildNode": {
    "match": "0x36423b0"
+  },
+  "Ne_Entity_FindComponent": {
+   "match": "0x3f87c90"
   },
   "Ne_Format_String": {
    "match": "0x41572e0"
@@ -558,8 +663,20 @@
   "Ne_Parse_Long": {
    "match": "0x3db14f3"
   },
+  "Ne_Play_FullscreenVideo": {
+   "match": "0x4162040"
+  },
   "Ne_Post_BusMessage": {
    "match": "0x39747b0"
+  },
+  "Ne_StringTable_Lookup": {
+   "match": "0x3917940"
+  },
+  "Sess_Build_GroupResult": {
+   "match": "0xaf8b90"
+  },
+  "Sess_Find_GroupRowPosition": {
+   "match": "0xaf7410"
   },
   "Sess_GameWeatherSystem_SetupSession": {
    "match": "0x38a4520"
@@ -567,15 +684,36 @@
   "Sess_GameWeatherSystem_UpdateRandomSeed": {
    "match": "0x38b52b0"
   },
+  "Sess_Record_GroupTimes": {
+   "match": "0xaf11f0"
+  },
   "Sess_Tod_BuildSessionDataset_Thunk": {
    "match": "0x4792960"
+  },
+  "Sess_TyreAllocation_OnSessionStart": {
+   "match": "0xbcab00"
+  },
+  "Sess_TyreClass_FromName": {
+   "match": "0x2e94be4"
+  },
+  "Sess_Tyres_ClosestAvailableCompound": {
+   "match": "0x2a34dcc"
   },
   "Sess_WeatherComponent_SetSystemRandomSeed": {
    "match": "0xbdcd50"
   },
+  "Sess_Weekend_Start": {
+   "match": "0xaeedd0"
+  },
+  "Vm_GetOrCreate_ListChild": {
+   "match": "0x42a6d50"
+  },
   "Vm_Set_Bool": {
    "match": "0x1691f60",
    "func_rva": "0x1691f60"
+  },
+  "Vm_Set_NodeRef": {
+   "match": "0x1a693a9"
   },
   "Vm_Set_String": {
    "match": "0x1691f60",
@@ -583,6 +721,9 @@
   },
   "Vm_Set_TabEnabled": {
    "match": "0x43133d0"
+  },
+  "g_Career_FlowLinkContinue": {
+   "match": "0x36b30b0"
   },
   "g_Career_RnDOverviewSelectedDept": {
    "match": "0x1c81034"
@@ -596,11 +737,17 @@
   "g_FeTile_SelectedCareerContent": {
    "match": "0x1720a31"
   },
+  "g_Game_FlowLinkStay": {
+   "match": "0x36b309a"
+  },
   "g_Game_Manager": {
    "match": "0xf9934"
   },
   "g_Game_MessageBus": {
    "match": "0x152043"
+  },
+  "g_Game_Root": {
+   "match": "0x267270"
   },
   "g_Ne_DefaultAllocator": {
    "match": "0x1c805d4"
@@ -608,6 +755,18 @@
   "g_Ne_LogGate": {
    "match": "0xaeedec",
    "func_rva": "0xaeedd0"
+  },
+  "g_Ne_StringTable": {
+   "match": "0x3640182"
+  },
+  "g_Sess_TyreRulesActive": {
+   "match": "0x2e7c230"
+  },
+  "g_Sess_TyreRulesMode": {
+   "match": "0x2e7c23f"
+  },
+  "g_Sess_TyreRulesSessionType": {
+   "match": "0x2e7c274"
   },
   "g_Vm_Registry": {
    "match": "0x1691f60",
@@ -709,8 +868,32 @@
   "k_Career_WeatherAndTimeOfDayComponentDesc": {
    "match": "0xb9c77f"
   },
+  "k_Game_TrackListComponentDesc": {
+   "match": "0x385aeba"
+  },
   "k_Gdb_StringXorKey": {
    "match": "0x20d520"
+  },
+  "k_Ne_BagCodecVtbl": {
+   "match": "0x29c7a89"
+  },
+  "k_Ne_CountingStreamVtbl": {
+   "match": "0x29c7a68"
+  },
+  "k_Ne_MemWriteStreamVtbl": {
+   "match": "0x29c7b3d"
+  },
+  "k_Ne_PropertyType_Bag": {
+   "match": "0x392134c"
+  },
+  "k_Ne_TypeChainEnd": {
+   "match": "0x3680072"
+  },
+  "k_Ne_TypeRoot": {
+   "match": "0x3680072"
+  },
+  "k_Sess_TyreComponentType": {
+   "match": "0x3680072"
   },
   "site_Career_ApplyUpgradeBlockNameDefault": {
    "match": "0xe0d5fd6"
@@ -1151,14 +1334,23 @@
   "site_FeTile_CareerContentEnd": {
    "match": "0x173bbf7"
   },
+  "site_FeTile_EraTilesBuilt": {
+   "match": "0x1a69c18"
+  },
   "site_Game_CareerContinue_DriverSlotTitle": {
    "match": "0x1a09c74"
   },
   "site_Game_CareerWizardConfirm_NextRoute": {
    "match": "0x1a1e15d"
   },
+  "site_Game_CareerWizard_BackRoute": {
+   "match": "0xae4ad0d"
+  },
   "site_Game_DriverSelectHeader_BuildTabs": {
    "match": "0x1a536e2"
+  },
+  "site_Game_DriverSelect_BackRoute": {
+   "match": "0x1a58dc4"
   },
   "site_Game_DriverSelect_BadgeFormat": {
    "match": "0x169fbf0"
@@ -1169,8 +1361,14 @@
   "site_Game_SaveData_ContainersChildren": {
    "match": "0x3641dd8"
   },
+  "site_Game_SaveData_ContainersCount": {
+   "match": "0x3641db3"
+  },
   "site_Game_SaveData_ContainersDone": {
    "match": "0x3641ebc"
+  },
+  "site_Game_SaveData_UnclaimedChild": {
+   "match": "0x36400eb"
   },
   "site_Game_TeamSelect_TeamLogoFormat": {
    "match": "0x1873df5"
@@ -1274,6 +1472,9 @@
   "site_Ne_HwXmlWriteCall": {
    "match": "0x4019d6e"
   },
+  "site_Ne_ReplayAfterRecord": {
+   "match": "0x45c799f"
+  },
   "site_Sess_AiVehicleRegisterCall": {
    "match": "0x603b5d",
    "func_rva": "0x600160"
@@ -1286,6 +1487,9 @@
   },
   "vt_Career_FacilityNode": {
    "match": "0xf9f6d2"
+  },
+  "vt_Career_MessageDriverContractChanged": {
+   "match": "0xd980a5"
   },
   "vt_Career_MessageDriverMoveConfirmed": {
    "match": "0xd895c6"
@@ -1314,8 +1518,23 @@
   "vt_Career_Weekend": {
    "match": "0xaece3f"
   },
+  "vt_Game_CareerDLCSelectViewModel": {
+   "match": "0x1646052"
+  },
+  "vt_Game_CareerWizardSettingsSelectViewModel": {
+   "match": "0x15da8e2"
+  },
+  "vt_Game_DriverCareerDriverSelectViewModel": {
+   "match": "0x15d9b6a"
+  },
   "vt_Game_DriverCareerSlotPredicate": {
    "match": "0x171fa6b"
+  },
+  "vt_Game_SaveDataRootContainer": {
+   "match": "0x3644b57"
+  },
+  "vt_Game_TrackListComponent": {
+   "match": "0xcfb775"
   }
  },
  "unresolvable": {}
