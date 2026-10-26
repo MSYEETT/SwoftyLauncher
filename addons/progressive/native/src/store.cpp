@@ -53,6 +53,7 @@ bool load()
         g_loaded = true;
         return true;
     }
+    int cleaned = 0;
     for (auto &c : j["careers"].a) {
         Career x;
         x.key = c["key"].str();
@@ -68,11 +69,41 @@ bool load()
         x.applied_year = static_cast<int>(c["applied_year"].num());
         x.test_seasons = static_cast<int>(c["test_seasons"].num());
         x.used = static_cast<uint64_t>(c["used"].num());
-        if (!x.key.empty())
-            g_careers.push_back(x);
+        if (x.key.empty())
+            continue;
+        if (!x.driver && x.applied_season < 0) {
+            swofty::log("[progressive] store: dropping %s: driver 0 and never applied (made at a load without a "
+                        "player row)",
+                        x.key.c_str());
+            ++cleaned;
+            continue;
+        }
+        Career *twin = nullptr;
+        for (auto &k : g_careers)
+            if (k.key == x.key || (k.driver == x.driver && k.start == x.start && k.rnd == x.rnd && k.moves == x.moves &&
+                                   k.applied_season == x.applied_season && k.applied_year == x.applied_year &&
+                                   k.test_seasons == x.test_seasons))
+                twin = &k;
+        if (twin) {
+            swofty::log("[progressive] store: merging %s into %s (%s: driver %u, start %d, R&D %s, team moves %s, "
+                        "applied season %d)",
+                        x.key.c_str(), twin->key.c_str(), twin->key == x.key ? "the same key" : "the same career state",
+                        x.driver, x.start, x.rnd.c_str(), x.moves.c_str(), x.applied_season);
+            if (twin->key == x.key && x.applied_season > twin->applied_season)
+                *twin = x;
+            else if (twin->key != x.key && x.seed && x.used >= twin->used) {
+                twin->seed = x.seed;
+                twin->used = x.used;
+            }
+            ++cleaned;
+            continue;
+        }
+        g_careers.push_back(x);
     }
     g_loaded = true;
     swofty::log("[progressive] store: %zu career(s) in %s", g_careers.size(), kPath);
+    if (cleaned)
+        save();
     return true;
 }
 
