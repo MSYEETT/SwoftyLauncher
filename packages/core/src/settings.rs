@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::manifest::{AddonManifest, Binds, CareerSetup, OptionType, ScreenOp};
+use crate::manifest::{AddonManifest, Binds, CareerSetup, HubTab, OptionType, ScreenOp};
 use crate::map::TrackPackage;
 use crate::owned::OwnedItem;
 use crate::profile::Profile;
@@ -132,6 +132,8 @@ pub struct SessionAddon {
     pub options: Vec<SessionOption>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub career_setup: Option<CareerSetup>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hub_tab: Option<HubTab>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -268,6 +270,7 @@ impl SessionSettings {
                     })
                     .collect(),
                 career_setup: m.career_setup.clone(),
+                hub_tab: m.hub_tab.clone(),
             })
             .collect();
         let out = Self {

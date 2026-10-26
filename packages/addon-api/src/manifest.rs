@@ -66,6 +66,64 @@ pub struct AddonManifest {
     /// A settings page in game between a Driver Career tile and the new-career wizard.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub career_setup: Option<CareerSetup>,
+    /// A settings tab in the career hub's laptop (Team HQ) for careers of one data group.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hub_tab: Option<HubTab>,
+}
+
+/// Most options a hub tab shows: one per cell of the laptop's stat grid.
+pub const HUB_TAB_OPTIONS: usize = 6;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct HubTab {
+    pub name: String,
+    pub title: String,
+    pub options: Vec<String>,
+    pub data_group: String,
+}
+
+impl HubTab {
+    pub fn template(&self) -> String {
+        format!("swofty_hub_{}", self.name)
+    }
+
+    pub fn view_model(&self) -> String {
+        format!("view_model_data.swofty_hub_{}", self.name)
+    }
+
+    fn validate(&self, options: &[AddonOption]) -> std::result::Result<(), String> {
+        if !valid_screen_name(&self.name) || self.name.len() > 40 {
+            return Err(format!(
+                "name {:?} must be [a-z0-9_], at most 40 characters",
+                self.name
+            ));
+        }
+        if self.title.trim().is_empty() {
+            return Err("title is empty".into());
+        }
+        if !valid_screen_name(&self.data_group) {
+            return Err(format!("data_group {:?} must be [a-z0-9_]", self.data_group));
+        }
+        if self.options.is_empty() || self.options.len() > HUB_TAB_OPTIONS {
+            return Err(format!("options must name 1 to {HUB_TAB_OPTIONS} options"));
+        }
+        own_options(&self.options, options)
+    }
+}
+
+fn own_options(ids: &[String], options: &[AddonOption]) -> std::result::Result<(), String> {
+    for (i, id) in ids.iter().enumerate() {
+        match options.iter().find(|o| &o.id == id) {
+            None => return Err(format!("option {id} is not one of the addon's options")),
+            Some(o) if o.hidden => return Err(format!("option {id} is hidden")),
+            Some(_) => {}
+        }
+        if ids[..i].contains(id) {
+            return Err(format!("option {id} is listed twice"));
+        }
+    }
+    Ok(())
 }
 
 /// The wizard screen a career setup page's CONFIRM opens unless `next` names another.
@@ -119,17 +177,7 @@ impl CareerSetup {
         if self.options.is_empty() {
             return Err("options names no option".into());
         }
-        for (i, id) in self.options.iter().enumerate() {
-            match options.iter().find(|o| &o.id == id) {
-                None => return Err(format!("option {id} is not one of the addon's options")),
-                Some(o) if o.hidden => return Err(format!("option {id} is hidden")),
-                Some(_) => {}
-            }
-            if self.options[..i].contains(id) {
-                return Err(format!("option {id} is listed twice"));
-            }
-        }
-        Ok(())
+        own_options(&self.options, options)
     }
 }
 
@@ -684,6 +732,10 @@ impl AddonManifest {
         if let Some(c) = &self.career_setup {
             c.validate(&self.options)
                 .or_else(|e| fail(format!("career_setup: {e}")))?;
+        }
+        if let Some(h) = &self.hub_tab {
+            h.validate(&self.options)
+                .or_else(|e| fail(format!("hub_tab: {e}")))?;
         }
         if let Some(s) = &self.shader {
             self.validate_shader(s)
@@ -1300,6 +1352,66 @@ mod tests {
             .is_err()
         );
         let hidden = with(r#"{ "route": "grid", "options": ["team_livery"] }"#)
+            .replace(r#""binds": "db" }]"#, r#""binds": "db", "hidden": true }]"#);
+        assert_eq!(
+            AddonManifest::parse(&hidden).unwrap_err().to_string(),
+            at("option team_livery is hidden")
+        );
+    }
+
+    #[test]
+    fn a_hub_tab_names_its_template_view_model_and_shown_options() {
+        let with = |tab: &str| {
+            GRID24.replace(
+                r#""operations": { "database": ["db/grid24.json"] }"#,
+                &format!(r#""operations": {{ "database": ["db/grid24.json"] }}, "hub_tab": {tab}"#),
+            )
+        };
+        let m = AddonManifest::parse(&with(
+            r#"{ "name": "progressive", "title": "Progressive Settings", "options": ["team_livery"],
+                 "data_group": "f1_career_progressive" }"#,
+        ))
+        .unwrap();
+        let h = m.hub_tab.as_ref().unwrap();
+        assert_eq!(h.template(), "swofty_hub_progressive");
+        assert_eq!(h.view_model(), "view_model_data.swofty_hub_progressive");
+        assert_eq!(
+            serde_json::to_value(&m).unwrap()["hub_tab"]["data_group"],
+            "f1_career_progressive"
+        );
+        let at = |m: &str| format!("invalid manifest: swofty.f1-2026-grid24: hub_tab: {m}");
+        let tab = |name: &str, title: &str, options: &str, group: &str| {
+            format!(
+                r#"{{ "name": "{name}", "title": "{title}", "options": {options}, "data_group": "{group}" }}"#
+            )
+        };
+        for (t, why) in [
+            (
+                tab("Pro", "T", r#"["team_livery"]"#, "g"),
+                r#"name "Pro" must be [a-z0-9_], at most 40 characters"#,
+            ),
+            (tab("p", " ", r#"["team_livery"]"#, "g"), "title is empty"),
+            (
+                tab("p", "T", r#"["team_livery"]"#, "a.b"),
+                r#"data_group "a.b" must be [a-z0-9_]"#,
+            ),
+            (tab("p", "T", "[]", "g"), "options must name 1 to 6 options"),
+            (
+                tab("p", "T", r#"["nope"]"#, "g"),
+                "option nope is not one of the addon's options",
+            ),
+            (
+                tab("p", "T", r#"["team_livery", "team_livery"]"#, "g"),
+                "option team_livery is listed twice",
+            ),
+        ] {
+            assert_eq!(
+                AddonManifest::parse(&with(&t)).unwrap_err().to_string(),
+                at(why),
+                "{t}"
+            );
+        }
+        let hidden = with(&tab("p", "T", r#"["team_livery"]"#, "g"))
             .replace(r#""binds": "db" }]"#, r#""binds": "db", "hidden": true }]"#);
         assert_eq!(
             AddonManifest::parse(&hidden).unwrap_err().to_string(),
