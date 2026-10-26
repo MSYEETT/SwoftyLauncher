@@ -143,6 +143,15 @@
       "binds": "native"
     },
     {
+      "id": "season_development",
+      "type": "toggle",
+      "label": "In-season development",
+      "description": "With Real life R&D, every team's car gains or loses pace through the season the way it did in that real season.",
+      "default": true,
+      "binds": "native",
+      "hidden": true
+    },
+    {
       "id": "test_calendar",
       "type": "choice",
       "label": "Developer: test calendar",

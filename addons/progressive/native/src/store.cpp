@@ -71,6 +71,10 @@ bool load()
         x.used = static_cast<uint64_t>(c["used"].num());
         x.team = static_cast<int>(c["team"].num(-1));
         x.season = static_cast<int>(c["season"].num(-1));
+        x.dev_year = static_cast<int>(c["dev_year"].num());
+        x.dev_round = static_cast<int>(c["dev_round"].num(-1));
+        x.dev_rounds = static_cast<int>(c["dev_rounds"].num());
+        x.dev_applied = c["dev_applied"].str();
         if (x.key.empty())
             continue;
         if (!x.driver && x.applied_season < 0) {
@@ -114,14 +118,16 @@ bool save()
     std::string out = "{\n  \"careers\": [";
     for (size_t i = 0; i < g_careers.size(); ++i) {
         const Career &c = g_careers[i];
-        char b[512];
+        char b[1024];
         std::snprintf(b, sizeof b,
                       "%s\n    {\"key\": %s, \"driver\": %u, \"seed\": %u, \"start\": %d, \"rnd\": %s, \"moves\": %s, "
                       "\"created_season\": %d, \"applied_season\": %d, \"applied_year\": %d, \"test_seasons\": %d, "
-                      "\"used\": %llu, \"team\": %d, \"season\": %d}",
+                      "\"used\": %llu, \"team\": %d, \"season\": %d, \"dev_year\": %d, \"dev_round\": %d, "
+                      "\"dev_rounds\": %d, \"dev_applied\": %s}",
                       i ? "," : "", quoted(c.key).c_str(), c.driver, c.seed, c.start, quoted(c.rnd).c_str(),
                       quoted(c.moves).c_str(), c.created_season, c.applied_season, c.applied_year, c.test_seasons,
-                      static_cast<unsigned long long>(c.used), c.team, c.season);
+                      static_cast<unsigned long long>(c.used), c.team, c.season, c.dev_year, c.dev_round, c.dev_rounds,
+                      quoted(c.dev_applied).c_str());
         out += b;
     }
     out += "\n  ]\n}\n";
