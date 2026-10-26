@@ -44,6 +44,14 @@ pub mod attr {
     pub const FINGERPRINT: u16 = 0x8028;
 }
 
+/// Registered comprehension-required attributes (0x0000-0x7FFF) a response may carry without
+/// failing the transaction; any other one does (RFC 8489 §6.3.3).
+const KNOWN_REQUIRED: &[u16] = &[
+    0x0001, 0x0006, 0x0008, 0x0009, 0x000A, 0x000C, 0x000D, 0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017,
+    0x0018, 0x0019, 0x001A, 0x001B, 0x001C, 0x001D, 0x001E, 0x0020, 0x0022, 0x0024, 0x0025, 0x0026, 0x0027,
+    0x002A,
+];
+
 /// REQUESTED-TRANSPORT value for UDP (protocol 17, then three reserved bytes).
 pub const TRANSPORT_UDP: [u8; 4] = [17, 0, 0, 0];
 
@@ -307,6 +315,14 @@ impl Message {
         }
         let code = u16::from(v[2] & 0x07) * 100 + u16::from(v[3]);
         Some((code, String::from_utf8_lossy(&v[4..]).into_owned()))
+    }
+
+    /// The first comprehension-required attribute this client doesn't know, if any.
+    pub fn unknown_required(&self) -> Option<u16> {
+        self.attrs
+            .iter()
+            .map(|(k, ..)| *k)
+            .find(|k| *k < 0x8000 && !KNOWN_REQUIRED.contains(k))
     }
 
     /// Whether MESSAGE-INTEGRITY is present and matches `key`.
@@ -579,6 +595,29 @@ mod tests {
         assert_eq!(m.error(), Some((438, "Stale".to_owned())));
         assert!(m.fingerprint_ok());
         assert_eq!(kind(&raw), Kind::Stun);
+    }
+
+    #[test]
+    fn unknown_comprehension_required_attributes_are_flagged() {
+        let tid = [1u8; 12];
+        let known = Builder::new(method::ALLOCATE, Class::Success, tid)
+            .u32(attr::LIFETIME, 600)
+            .attr(0x8030, b"optional")
+            .finish();
+        assert_eq!(Message::parse(&known).unwrap().unknown_required(), None);
+        let unknown = Builder::new(method::ALLOCATE, Class::Success, tid)
+            .u32(attr::LIFETIME, 600)
+            .attr(0x0030, b"required")
+            .finish();
+        assert_eq!(Message::parse(&unknown).unwrap().unknown_required(), Some(0x0030));
+        let after_integrity = Builder::new(method::ALLOCATE, Class::Success, tid)
+            .integrity(b"key")
+            .finish();
+        let mut tail = after_integrity.clone();
+        tail.extend_from_slice(&[0x00, 0x30, 0x00, 0x00]);
+        let len = (tail.len() - HEADER_LEN) as u16;
+        tail[2..4].copy_from_slice(&len.to_be_bytes());
+        assert_eq!(Message::parse(&tail).unwrap().unknown_required(), None);
     }
 
     #[test]
