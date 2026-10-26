@@ -3533,6 +3533,11 @@ pub mod bindings {
         kind: "vtable",
         status: Status::Experimental,
     };
+    pub const vt_Game_DriverCareerDriverSelectViewModel: Binding = Binding {
+        id: "vt_Game_DriverCareerDriverSelectViewModel",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
     pub const vt_Game_DriverCareerSlotPredicate: Binding = Binding {
         id: "vt_Game_DriverCareerSlotPredicate",
         kind: "vtable",
