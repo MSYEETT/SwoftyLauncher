@@ -18,16 +18,16 @@ static_assert(offsetof(NeAllocatorVtbl, alloc) == 0x18);
 static_assert(offsetof(NeAllocatorVtbl, free) == 0x38);
 
 struct NeBagCodec {
-    void **vtable; // L2 experimental
-    void *stream; // L2 experimental
+    void **vtable; // L3 stable
+    void *stream; // L3 stable
 };
 static_assert(offsetof(NeBagCodec, vtable) == 0x0);
 static_assert(offsetof(NeBagCodec, stream) == 0x8);
 
 struct NeCountingStream {
-    void **vtable; // L2 experimental
+    void **vtable; // L3 stable
     uint8_t _pad_0x8[0x20];
-    uint64_t count; // L2 experimental
+    uint64_t count; // L3 stable
 };
 static_assert(offsetof(NeCountingStream, vtable) == 0x0);
 static_assert(offsetof(NeCountingStream, count) == 0x28);
@@ -40,10 +40,10 @@ static_assert(offsetof(NeLogGate, channel_hashes) == 0x0);
 static_assert(offsetof(NeLogGate, enabled) == 0x5d4);
 
 struct NeMemWriteStream {
-    void **vtable; // L2 experimental
-    uint8_t *data; // L2 experimental
-    uint64_t capacity; // L2 experimental
-    uint64_t position; // L2 experimental
+    void **vtable; // L3 stable
+    uint8_t *data; // L3 stable
+    uint64_t capacity; // L3 stable
+    uint64_t position; // L3 stable
     uint64_t size; // L2 experimental
 };
 static_assert(offsetof(NeMemWriteStream, vtable) == 0x0);
@@ -75,18 +75,18 @@ static_assert(sizeof(NeOptionalVec) == 0x28);
 
 struct NePropertyTypeVtbl {
     uint8_t _pad_0x0[0x10];
-    void *id; // L2 experimental
+    void *id; // L3 stable
     uint8_t _pad_0x18[0x8];
-    void *key_offset; // L2 experimental
+    void *key_offset; // L3 stable
 };
 static_assert(offsetof(NePropertyTypeVtbl, id) == 0x10);
 static_assert(offsetof(NePropertyTypeVtbl, key_offset) == 0x20);
 
 struct NePropertyVtbl {
     uint8_t _pad_0x0[0x8];
-    void *type; // L2 experimental
+    void *type; // L3 stable
     uint8_t _pad_0x10[0x28];
-    void *value; // L2 experimental
+    void *value; // L3 stable
 };
 static_assert(offsetof(NePropertyVtbl, type) == 0x8);
 static_assert(offsetof(NePropertyVtbl, value) == 0x38);
@@ -102,16 +102,16 @@ static_assert(offsetof(NeSharedCtrl, weak) == 0xc);
 
 struct NeStreamVtbl {
     uint8_t _pad_0x0[0x48];
-    void *write; // L2 experimental
-    void *write_length; // L2 experimental
+    void *write; // L3 stable
+    void *write_length; // L3 stable
 };
 static_assert(offsetof(NeStreamVtbl, write) == 0x48);
 static_assert(offsetof(NeStreamVtbl, write_length) == 0x50);
 
 struct SaveDataContainer {
-    void **vtable; // L2 experimental
+    void **vtable; // L3 stable
     uint8_t _pad_0x8[0x78];
-    const char *name; // L2 experimental
+    const char *name; // L3 stable
     uint8_t _pad_0x88[0x78];
     uint8_t retain_unknown; // L2 experimental
     uint8_t _pad_0x101[0x7];
@@ -148,14 +148,14 @@ inline constexpr fn<"Ne_Play_FullscreenVideo", Ne_Play_FullscreenVideo_t> Ne_Pla
 using Ne_Post_BusMessage_t = uint64_t(void *bus, void *msg);
 inline constexpr fn<"Ne_Post_BusMessage", Ne_Post_BusMessage_t> Ne_Post_BusMessage{}; // L2 experimental
 using Ne_StringTable_Lookup_t = const char *(void *table, uint64_t hash);
-inline constexpr fn<"Ne_StringTable_Lookup", Ne_StringTable_Lookup_t> Ne_StringTable_Lookup{}; // L2 experimental
+inline constexpr fn<"Ne_StringTable_Lookup", Ne_StringTable_Lookup_t> Ne_StringTable_Lookup{}; // L3 stable
 inline constexpr data<"g_Ne_DefaultAllocator", void *> g_Ne_DefaultAllocator{}; // L2 experimental
 inline constexpr data<"g_Ne_LogGate", NeLogGate> g_Ne_LogGate{}; // L2 experimental
-inline constexpr data<"g_Ne_StringTable", void *> g_Ne_StringTable{}; // L2 experimental
-inline constexpr vtable<"k_Ne_BagCodecVtbl", 4> k_Ne_BagCodecVtbl{}; // L2 experimental
-inline constexpr vtable<"k_Ne_CountingStreamVtbl", 24> k_Ne_CountingStreamVtbl{}; // L2 experimental
-inline constexpr vtable<"k_Ne_MemWriteStreamVtbl", 33> k_Ne_MemWriteStreamVtbl{}; // L2 experimental
-inline constexpr data<"k_Ne_PropertyType_Bag", void *> k_Ne_PropertyType_Bag{}; // L2 experimental
+inline constexpr data<"g_Ne_StringTable", void *> g_Ne_StringTable{}; // L3 stable
+inline constexpr vtable<"k_Ne_BagCodecVtbl", 4> k_Ne_BagCodecVtbl{}; // L3 stable
+inline constexpr vtable<"k_Ne_CountingStreamVtbl", 24> k_Ne_CountingStreamVtbl{}; // L3 stable
+inline constexpr vtable<"k_Ne_MemWriteStreamVtbl", 33> k_Ne_MemWriteStreamVtbl{}; // L3 stable
+inline constexpr data<"k_Ne_PropertyType_Bag", void *> k_Ne_PropertyType_Bag{}; // L3 stable
 inline constexpr data<"k_Ne_TypeChainEnd", void *> k_Ne_TypeChainEnd{}; // L2 experimental
 inline constexpr data<"k_Ne_TypeRoot", void *> k_Ne_TypeRoot{}; // L2 experimental, NoOtiInfo.
 inline constexpr site<"site_Ne_Format_String_Entry"> site_Ne_Format_String_Entry{}; // L2 experimental

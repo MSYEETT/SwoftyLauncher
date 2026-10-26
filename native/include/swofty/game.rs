@@ -2381,7 +2381,7 @@ pub mod bindings {
     pub const Game_SaveData_DeserialiseContainer: Binding = Binding {
         id: "Game_SaveData_DeserialiseContainer",
         kind: "func",
-        status: Status::Experimental,
+        status: Status::Stable,
     };
     pub const Game_SaveData_SerialiseContainer: Binding = Binding {
         id: "Game_SaveData_SerialiseContainer",
@@ -2391,7 +2391,7 @@ pub mod bindings {
     pub const Game_SaveData_WriteBag: Binding = Binding {
         id: "Game_SaveData_WriteBag",
         kind: "func",
-        status: Status::Experimental,
+        status: Status::Stable,
     };
     pub const Game_SeasonLength_ApplyPreset: Binding = Binding {
         id: "Game_SeasonLength_ApplyPreset",
@@ -2471,7 +2471,7 @@ pub mod bindings {
     pub const Ne_StringTable_Lookup: Binding = Binding {
         id: "Ne_StringTable_Lookup",
         kind: "func",
-        status: Status::Experimental,
+        status: Status::Stable,
     };
     pub const Sess_Build_GroupResult: Binding = Binding {
         id: "Sess_Build_GroupResult",
@@ -2611,7 +2611,7 @@ pub mod bindings {
     pub const g_Ne_StringTable: Binding = Binding {
         id: "g_Ne_StringTable",
         kind: "data",
-        status: Status::Experimental,
+        status: Status::Stable,
     };
     pub const g_Sess_TyreRulesActive: Binding = Binding {
         id: "g_Sess_TyreRulesActive",
@@ -2806,22 +2806,22 @@ pub mod bindings {
     pub const k_Ne_BagCodecVtbl: Binding = Binding {
         id: "k_Ne_BagCodecVtbl",
         kind: "vtable",
-        status: Status::Experimental,
+        status: Status::Stable,
     };
     pub const k_Ne_CountingStreamVtbl: Binding = Binding {
         id: "k_Ne_CountingStreamVtbl",
         kind: "vtable",
-        status: Status::Experimental,
+        status: Status::Stable,
     };
     pub const k_Ne_MemWriteStreamVtbl: Binding = Binding {
         id: "k_Ne_MemWriteStreamVtbl",
         kind: "vtable",
-        status: Status::Experimental,
+        status: Status::Stable,
     };
     pub const k_Ne_PropertyType_Bag: Binding = Binding {
         id: "k_Ne_PropertyType_Bag",
         kind: "data",
-        status: Status::Experimental,
+        status: Status::Stable,
     };
     pub const k_Ne_TypeChainEnd: Binding = Binding {
         id: "k_Ne_TypeChainEnd",
@@ -3611,12 +3611,12 @@ pub mod bindings {
     pub const site_Game_SaveData_ContainersChildren: Binding = Binding {
         id: "site_Game_SaveData_ContainersChildren",
         kind: "site",
-        status: Status::Experimental,
+        status: Status::Stable,
     };
     pub const site_Game_SaveData_ContainersCount: Binding = Binding {
         id: "site_Game_SaveData_ContainersCount",
         kind: "site",
-        status: Status::Experimental,
+        status: Status::Stable,
     };
     pub const site_Game_SaveData_ContainersDone: Binding = Binding {
         id: "site_Game_SaveData_ContainersDone",
@@ -3626,7 +3626,7 @@ pub mod bindings {
     pub const site_Game_SaveData_UnclaimedChild: Binding = Binding {
         id: "site_Game_SaveData_UnclaimedChild",
         kind: "site",
-        status: Status::Experimental,
+        status: Status::Stable,
     };
     pub const site_Game_TeamSelect_TeamLogoFormat: Binding = Binding {
         id: "site_Game_TeamSelect_TeamLogoFormat",
@@ -3896,7 +3896,7 @@ pub mod bindings {
     pub const vt_Game_SaveDataRootContainer: Binding = Binding {
         id: "vt_Game_SaveDataRootContainer",
         kind: "vtable",
-        status: Status::Experimental,
+        status: Status::Stable,
     };
     pub const vt_Game_TrackListComponent: Binding = Binding {
         id: "vt_Game_TrackListComponent",
