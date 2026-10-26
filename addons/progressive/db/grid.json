@@ -2282,7 +2282,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_0",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs16_mercedes"
   },
   {
    "op": "set",
@@ -2324,7 +2324,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_0",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_mercedes_lewis_hamilton"
   },
   {
    "op": "set",
@@ -2342,7 +2342,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_1",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs16_mercedes"
   },
   {
    "op": "set",
@@ -2384,7 +2384,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_1",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_mercedes_nico_rosberg"
   },
   {
    "op": "set",
@@ -2402,7 +2402,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_2",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs16_ferrari"
   },
   {
    "op": "set",
@@ -2444,7 +2444,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_2",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_ferrari_sebastian_vettel"
   },
   {
    "op": "set",
@@ -2462,7 +2462,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_3",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs16_ferrari"
   },
   {
    "op": "set",
@@ -2504,7 +2504,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_3",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_ferrari_kimi_raikkonen"
   },
   {
    "op": "set",
@@ -2522,7 +2522,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_4",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs16_redbull"
   },
   {
    "op": "set",
@@ -2564,7 +2564,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_4",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_redbull_daniel_ricciardo"
   },
   {
    "op": "set",
@@ -2582,7 +2582,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_5",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs16_redbull"
   },
   {
    "op": "set",
@@ -2624,7 +2624,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_5",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_redbull_max_verstappen"
   },
   {
    "op": "set",
@@ -2642,7 +2642,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_6",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs16_mclaren"
   },
   {
    "op": "set",
@@ -2684,7 +2684,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_6",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_mclaren_fernando_alonso"
   },
   {
    "op": "set",
@@ -2702,7 +2702,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_7",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs16_mclaren"
   },
   {
    "op": "set",
@@ -2744,7 +2744,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_7",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_mclaren_jenson_button"
   },
   {
    "op": "set",
@@ -2762,7 +2762,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_8",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs16_force_india"
   },
   {
    "op": "set",
@@ -2804,7 +2804,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_8",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_force_india_sergio_perez"
   },
   {
    "op": "set",
@@ -2822,7 +2822,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_9",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs16_force_india"
   },
   {
    "op": "set",
@@ -2864,7 +2864,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_9",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_force_india_nico_hulkenberg"
   },
   {
    "op": "set",
@@ -2882,7 +2882,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_10",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs16_lotus"
   },
   {
    "op": "set",
@@ -2924,7 +2924,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_10",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_lotus_kevin_magnussen"
   },
   {
    "op": "set",
@@ -2942,7 +2942,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_11",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs16_lotus"
   },
   {
    "op": "set",
@@ -2984,7 +2984,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_11",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_lotus_jolyon_palmer"
   },
   {
    "op": "set",
@@ -3002,7 +3002,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_12",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs16_williams"
   },
   {
    "op": "set",
@@ -3044,7 +3044,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_12",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_williams_felipe_massa"
   },
   {
    "op": "set",
@@ -3062,7 +3062,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_13",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs16_williams"
   },
   {
    "op": "set",
@@ -3104,7 +3104,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_13",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_williams_valtteri_bottas"
   },
   {
    "op": "set",
@@ -3122,7 +3122,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_14",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs16_toro_rosso"
   },
   {
    "op": "set",
@@ -3164,7 +3164,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_14",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_toro_rosso_carlos_sainz-jr"
   },
   {
    "op": "set",
@@ -3182,7 +3182,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_15",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs16_toro_rosso"
   },
   {
    "op": "set",
@@ -3224,7 +3224,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_15",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_toro_rosso_daniil_kvyat"
   },
   {
    "op": "set",
@@ -3242,7 +3242,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_16",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs16_sauber"
   },
   {
    "op": "set",
@@ -3284,7 +3284,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_16",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_sauber_marcus_ericsson"
   },
   {
    "op": "set",
@@ -3302,7 +3302,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_17",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs16_sauber"
   },
   {
    "op": "set",
@@ -3344,7 +3344,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_17",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_sauber_felipe_nasr"
   },
   {
    "op": "set",
@@ -3362,7 +3362,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_18",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs16_haas"
   },
   {
    "op": "set",
@@ -3404,7 +3404,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_18",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_haas_romain_grosjean"
   },
   {
    "op": "set",
@@ -3422,7 +3422,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_19",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs16_haas"
   },
   {
    "op": "set",
@@ -3464,7 +3464,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_19",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_haas_esteban_gutierrez"
   },
   {
    "op": "set",
@@ -3482,7 +3482,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_20",
    "field": "vehicle",
-   "value": "gm_cadillac_2026"
+   "value": "cs16_manor"
   },
   {
    "op": "set",
@@ -3524,7 +3524,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_20",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_manor_pascal_wehrlein"
   },
   {
    "op": "set",
@@ -3542,7 +3542,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_21",
    "field": "vehicle",
-   "value": "gm_cadillac_2026"
+   "value": "cs16_manor"
   },
   {
    "op": "set",
@@ -3584,7 +3584,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2016].entrant_21",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2016-cs_manor_rio_haryanto"
   },
   {
    "op": "add-row",
@@ -3613,7 +3613,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_0",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs17_mercedes"
   },
   {
    "op": "set",
@@ -3655,7 +3655,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_0",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_mercedes_lewis_hamilton"
   },
   {
    "op": "set",
@@ -3673,7 +3673,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_1",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs17_mercedes"
   },
   {
    "op": "set",
@@ -3715,7 +3715,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_1",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_mercedes_valtteri_bottas"
   },
   {
    "op": "set",
@@ -3733,7 +3733,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_2",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs17_ferrari"
   },
   {
    "op": "set",
@@ -3775,7 +3775,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_2",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_ferrari_sebastian_vettel"
   },
   {
    "op": "set",
@@ -3793,7 +3793,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_3",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs17_ferrari"
   },
   {
    "op": "set",
@@ -3835,7 +3835,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_3",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_ferrari_kimi_raikkonen"
   },
   {
    "op": "set",
@@ -3853,7 +3853,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_4",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs17_redbull"
   },
   {
    "op": "set",
@@ -3895,7 +3895,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_4",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_redbull_daniel_ricciardo"
   },
   {
    "op": "set",
@@ -3913,7 +3913,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_5",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs17_redbull"
   },
   {
    "op": "set",
@@ -3955,7 +3955,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_5",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_redbull_max_verstappen"
   },
   {
    "op": "set",
@@ -3973,7 +3973,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_6",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs17_mclaren"
   },
   {
    "op": "set",
@@ -4015,7 +4015,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_6",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_mclaren_fernando_alonso"
   },
   {
    "op": "set",
@@ -4033,7 +4033,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_7",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs17_mclaren"
   },
   {
    "op": "set",
@@ -4075,7 +4075,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_7",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_mclaren_stoffel_vandoorne"
   },
   {
    "op": "set",
@@ -4093,7 +4093,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_8",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs17_force_india"
   },
   {
    "op": "set",
@@ -4135,7 +4135,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_8",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_force_india_sergio_perez"
   },
   {
    "op": "set",
@@ -4153,7 +4153,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_9",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs17_force_india"
   },
   {
    "op": "set",
@@ -4195,7 +4195,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_9",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_force_india_esteban_ocon"
   },
   {
    "op": "set",
@@ -4213,7 +4213,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_10",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs17_lotus"
   },
   {
    "op": "set",
@@ -4255,7 +4255,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_10",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_lotus_nico_hulkenberg"
   },
   {
    "op": "set",
@@ -4273,7 +4273,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_11",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs17_lotus"
   },
   {
    "op": "set",
@@ -4315,7 +4315,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_11",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_lotus_jolyon_palmer"
   },
   {
    "op": "set",
@@ -4333,7 +4333,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_12",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs17_williams"
   },
   {
    "op": "set",
@@ -4375,7 +4375,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_12",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_williams_felipe_massa"
   },
   {
    "op": "set",
@@ -4393,7 +4393,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_13",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs17_williams"
   },
   {
    "op": "set",
@@ -4435,7 +4435,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_13",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_williams_lance_stroll"
   },
   {
    "op": "set",
@@ -4453,7 +4453,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_14",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs17_toro_rosso"
   },
   {
    "op": "set",
@@ -4495,7 +4495,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_14",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_toro_rosso_carlos_sainz-jr"
   },
   {
    "op": "set",
@@ -4513,7 +4513,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_15",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs17_toro_rosso"
   },
   {
    "op": "set",
@@ -4555,7 +4555,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_15",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_toro_rosso_daniil_kvyat"
   },
   {
    "op": "set",
@@ -4573,7 +4573,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_16",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs17_sauber"
   },
   {
    "op": "set",
@@ -4615,7 +4615,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_16",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_sauber_marcus_ericsson"
   },
   {
    "op": "set",
@@ -4633,7 +4633,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_17",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs17_sauber"
   },
   {
    "op": "set",
@@ -4675,7 +4675,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_17",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_sauber_pascal_wehrlein"
   },
   {
    "op": "set",
@@ -4693,7 +4693,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_18",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs17_haas"
   },
   {
    "op": "set",
@@ -4735,7 +4735,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_18",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_haas_romain_grosjean"
   },
   {
    "op": "set",
@@ -4753,7 +4753,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_19",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs17_haas"
   },
   {
    "op": "set",
@@ -4795,7 +4795,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2017].entrant_19",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2017-cs_haas_kevin_magnussen"
   },
   {
    "op": "set",
@@ -4830,7 +4830,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_0",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs18_mercedes"
   },
   {
    "op": "set",
@@ -4872,7 +4872,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_0",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_mercedes_lewis_hamilton"
   },
   {
    "op": "set",
@@ -4890,7 +4890,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_1",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs18_mercedes"
   },
   {
    "op": "set",
@@ -4932,7 +4932,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_1",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_mercedes_valtteri_bottas"
   },
   {
    "op": "set",
@@ -4950,7 +4950,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_2",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs18_ferrari"
   },
   {
    "op": "set",
@@ -4992,7 +4992,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_2",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_ferrari_sebastian_vettel"
   },
   {
    "op": "set",
@@ -5010,7 +5010,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_3",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs18_ferrari"
   },
   {
    "op": "set",
@@ -5052,7 +5052,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_3",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_ferrari_kimi_raikkonen"
   },
   {
    "op": "set",
@@ -5070,7 +5070,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_4",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs18_redbull"
   },
   {
    "op": "set",
@@ -5112,7 +5112,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_4",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_redbull_daniel_ricciardo"
   },
   {
    "op": "set",
@@ -5130,7 +5130,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_5",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs18_redbull"
   },
   {
    "op": "set",
@@ -5172,7 +5172,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_5",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_redbull_max_verstappen"
   },
   {
    "op": "set",
@@ -5190,7 +5190,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_6",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs18_mclaren"
   },
   {
    "op": "set",
@@ -5232,7 +5232,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_6",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_mclaren_fernando_alonso"
   },
   {
    "op": "set",
@@ -5250,7 +5250,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_7",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs18_mclaren"
   },
   {
    "op": "set",
@@ -5292,7 +5292,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_7",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_mclaren_stoffel_vandoorne"
   },
   {
    "op": "set",
@@ -5310,7 +5310,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_8",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs18_force_india"
   },
   {
    "op": "set",
@@ -5352,7 +5352,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_8",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_force_india_sergio_perez"
   },
   {
    "op": "set",
@@ -5370,7 +5370,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_9",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs18_force_india"
   },
   {
    "op": "set",
@@ -5412,7 +5412,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_9",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_force_india_esteban_ocon"
   },
   {
    "op": "set",
@@ -5430,7 +5430,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_10",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs18_lotus"
   },
   {
    "op": "set",
@@ -5472,7 +5472,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_10",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_lotus_nico_hulkenberg"
   },
   {
    "op": "set",
@@ -5490,7 +5490,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_11",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs18_lotus"
   },
   {
    "op": "set",
@@ -5532,7 +5532,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_11",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_lotus_carlos_sainz-jr"
   },
   {
    "op": "set",
@@ -5550,7 +5550,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_12",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs18_williams"
   },
   {
    "op": "set",
@@ -5592,7 +5592,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_12",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_williams_lance_stroll"
   },
   {
    "op": "set",
@@ -5610,7 +5610,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_13",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs18_williams"
   },
   {
    "op": "set",
@@ -5652,7 +5652,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_13",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_williams_sergey_sirotkin"
   },
   {
    "op": "set",
@@ -5670,7 +5670,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_14",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs18_toro_rosso"
   },
   {
    "op": "set",
@@ -5712,7 +5712,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_14",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_toro_rosso_pierre_gasly"
   },
   {
    "op": "set",
@@ -5730,7 +5730,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_15",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs18_toro_rosso"
   },
   {
    "op": "set",
@@ -5772,7 +5772,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_15",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_toro_rosso_brendon_hartley"
   },
   {
    "op": "set",
@@ -5790,7 +5790,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_16",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs18_sauber"
   },
   {
    "op": "set",
@@ -5832,7 +5832,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_16",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_sauber_marcus_ericsson"
   },
   {
    "op": "set",
@@ -5850,7 +5850,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_17",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs18_sauber"
   },
   {
    "op": "set",
@@ -5892,7 +5892,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_17",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_sauber_charles_leclerc"
   },
   {
    "op": "set",
@@ -5910,7 +5910,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_18",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs18_haas"
   },
   {
    "op": "set",
@@ -5952,7 +5952,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_18",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_haas_romain_grosjean"
   },
   {
    "op": "set",
@@ -5970,7 +5970,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_19",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs18_haas"
   },
   {
    "op": "set",
@@ -6012,7 +6012,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2018].entrant_19",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2018-cs_haas_kevin_magnussen"
   },
   {
    "op": "set",
@@ -6047,7 +6047,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_0",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs19_mercedes"
   },
   {
    "op": "set",
@@ -6089,7 +6089,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_0",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_mercedes_lewis_hamilton"
   },
   {
    "op": "set",
@@ -6107,7 +6107,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_1",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs19_mercedes"
   },
   {
    "op": "set",
@@ -6149,7 +6149,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_1",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_mercedes_valtteri_bottas"
   },
   {
    "op": "set",
@@ -6167,7 +6167,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_2",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs19_ferrari"
   },
   {
    "op": "set",
@@ -6209,7 +6209,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_2",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_ferrari_sebastian_vettel"
   },
   {
    "op": "set",
@@ -6227,7 +6227,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_3",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs19_ferrari"
   },
   {
    "op": "set",
@@ -6269,7 +6269,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_3",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_ferrari_charles_leclerc"
   },
   {
    "op": "set",
@@ -6287,7 +6287,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_4",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs19_redbull"
   },
   {
    "op": "set",
@@ -6329,7 +6329,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_4",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_redbull_max_verstappen"
   },
   {
    "op": "set",
@@ -6347,7 +6347,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_5",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs19_redbull"
   },
   {
    "op": "set",
@@ -6389,7 +6389,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_5",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_redbull_pierre_gasly"
   },
   {
    "op": "set",
@@ -6407,7 +6407,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_6",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs19_mclaren"
   },
   {
    "op": "set",
@@ -6449,7 +6449,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_6",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_mclaren_carlos_sainz-jr"
   },
   {
    "op": "set",
@@ -6467,7 +6467,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_7",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs19_mclaren"
   },
   {
    "op": "set",
@@ -6509,7 +6509,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_7",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_mclaren_lando_norris"
   },
   {
    "op": "set",
@@ -6527,7 +6527,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_8",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs19_force_india"
   },
   {
    "op": "set",
@@ -6569,7 +6569,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_8",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_force_india_sergio_perez"
   },
   {
    "op": "set",
@@ -6587,7 +6587,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_9",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs19_force_india"
   },
   {
    "op": "set",
@@ -6629,7 +6629,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_9",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_force_india_lance_stroll"
   },
   {
    "op": "set",
@@ -6647,7 +6647,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_10",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs19_lotus"
   },
   {
    "op": "set",
@@ -6689,7 +6689,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_10",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_lotus_daniel_ricciardo"
   },
   {
    "op": "set",
@@ -6707,7 +6707,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_11",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs19_lotus"
   },
   {
    "op": "set",
@@ -6749,7 +6749,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_11",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_lotus_nico_hulkenberg"
   },
   {
    "op": "set",
@@ -6767,7 +6767,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_12",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs19_williams"
   },
   {
    "op": "set",
@@ -6809,7 +6809,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_12",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_williams_george_russell"
   },
   {
    "op": "set",
@@ -6827,7 +6827,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_13",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs19_williams"
   },
   {
    "op": "set",
@@ -6869,7 +6869,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_13",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_williams_robert_kubica"
   },
   {
    "op": "set",
@@ -6887,7 +6887,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_14",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs19_toro_rosso"
   },
   {
    "op": "set",
@@ -6929,7 +6929,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_14",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_toro_rosso_daniil_kvyat"
   },
   {
    "op": "set",
@@ -6947,7 +6947,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_15",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs19_toro_rosso"
   },
   {
    "op": "set",
@@ -6989,7 +6989,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_15",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_toro_rosso_alex_albon"
   },
   {
    "op": "set",
@@ -7007,7 +7007,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_16",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs19_sauber"
   },
   {
    "op": "set",
@@ -7049,7 +7049,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_16",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_sauber_kimi_raikkonen"
   },
   {
    "op": "set",
@@ -7067,7 +7067,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_17",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs19_sauber"
   },
   {
    "op": "set",
@@ -7109,7 +7109,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_17",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_sauber_antonio_giovinazzi"
   },
   {
    "op": "set",
@@ -7127,7 +7127,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_18",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs19_haas"
   },
   {
    "op": "set",
@@ -7169,7 +7169,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_18",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_haas_romain_grosjean"
   },
   {
    "op": "set",
@@ -7187,7 +7187,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_19",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs19_haas"
   },
   {
    "op": "set",
@@ -7229,7 +7229,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2019].entrant_19",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2019-cs_haas_kevin_magnussen"
   },
   {
    "op": "set",
@@ -7264,7 +7264,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_0",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs20_mercedes"
   },
   {
    "op": "set",
@@ -7306,7 +7306,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_0",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_mercedes_lewis_hamilton"
   },
   {
    "op": "set",
@@ -7324,7 +7324,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_1",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs20_mercedes"
   },
   {
    "op": "set",
@@ -7366,7 +7366,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_1",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_mercedes_valtteri_bottas"
   },
   {
    "op": "set",
@@ -7384,7 +7384,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_2",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs20_ferrari"
   },
   {
    "op": "set",
@@ -7426,7 +7426,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_2",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_ferrari_sebastian_vettel"
   },
   {
    "op": "set",
@@ -7444,7 +7444,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_3",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs20_ferrari"
   },
   {
    "op": "set",
@@ -7486,7 +7486,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_3",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_ferrari_charles_leclerc"
   },
   {
    "op": "set",
@@ -7504,7 +7504,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_4",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs20_redbull"
   },
   {
    "op": "set",
@@ -7546,7 +7546,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_4",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_redbull_max_verstappen"
   },
   {
    "op": "set",
@@ -7564,7 +7564,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_5",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs20_redbull"
   },
   {
    "op": "set",
@@ -7606,7 +7606,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_5",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_redbull_alex_albon"
   },
   {
    "op": "set",
@@ -7624,7 +7624,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_6",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs20_mclaren"
   },
   {
    "op": "set",
@@ -7666,7 +7666,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_6",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_mclaren_carlos_sainz-jr"
   },
   {
    "op": "set",
@@ -7684,7 +7684,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_7",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs20_mclaren"
   },
   {
    "op": "set",
@@ -7726,7 +7726,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_7",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_mclaren_lando_norris"
   },
   {
    "op": "set",
@@ -7744,7 +7744,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_8",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs20_force_india"
   },
   {
    "op": "set",
@@ -7786,7 +7786,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_8",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_force_india_sergio_perez"
   },
   {
    "op": "set",
@@ -7804,7 +7804,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_9",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs20_force_india"
   },
   {
    "op": "set",
@@ -7846,7 +7846,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_9",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_force_india_lance_stroll"
   },
   {
    "op": "set",
@@ -7864,7 +7864,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_10",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs20_lotus"
   },
   {
    "op": "set",
@@ -7906,7 +7906,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_10",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_lotus_daniel_ricciardo"
   },
   {
    "op": "set",
@@ -7924,7 +7924,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_11",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs20_lotus"
   },
   {
    "op": "set",
@@ -7966,7 +7966,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_11",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_lotus_esteban_ocon"
   },
   {
    "op": "set",
@@ -7984,7 +7984,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_12",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs20_williams"
   },
   {
    "op": "set",
@@ -8026,7 +8026,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_12",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_williams_george_russell"
   },
   {
    "op": "set",
@@ -8044,7 +8044,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_13",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs20_williams"
   },
   {
    "op": "set",
@@ -8086,7 +8086,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_13",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_williams_nicholas_latifi"
   },
   {
    "op": "set",
@@ -8104,7 +8104,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_14",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs20_toro_rosso"
   },
   {
    "op": "set",
@@ -8146,7 +8146,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_14",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_toro_rosso_pierre_gasly"
   },
   {
    "op": "set",
@@ -8164,7 +8164,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_15",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs20_toro_rosso"
   },
   {
    "op": "set",
@@ -8206,7 +8206,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_15",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_toro_rosso_daniil_kvyat"
   },
   {
    "op": "set",
@@ -8224,7 +8224,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_16",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs20_sauber"
   },
   {
    "op": "set",
@@ -8266,7 +8266,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_16",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_sauber_kimi_raikkonen"
   },
   {
    "op": "set",
@@ -8284,7 +8284,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_17",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs20_sauber"
   },
   {
    "op": "set",
@@ -8326,7 +8326,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_17",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_sauber_antonio_giovinazzi"
   },
   {
    "op": "set",
@@ -8344,7 +8344,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_18",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs20_haas"
   },
   {
    "op": "set",
@@ -8386,7 +8386,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_18",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_haas_romain_grosjean"
   },
   {
    "op": "set",
@@ -8404,7 +8404,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_19",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs20_haas"
   },
   {
    "op": "set",
@@ -8446,7 +8446,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2020].entrant_19",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2020-cs_haas_kevin_magnussen"
   },
   {
    "op": "set",
@@ -8481,7 +8481,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_0",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs21_mercedes"
   },
   {
    "op": "set",
@@ -8523,7 +8523,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_0",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_mercedes_lewis_hamilton"
   },
   {
    "op": "set",
@@ -8541,7 +8541,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_1",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs21_mercedes"
   },
   {
    "op": "set",
@@ -8583,7 +8583,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_1",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_mercedes_valtteri_bottas"
   },
   {
    "op": "set",
@@ -8601,7 +8601,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_2",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs21_ferrari"
   },
   {
    "op": "set",
@@ -8643,7 +8643,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_2",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_ferrari_charles_leclerc"
   },
   {
    "op": "set",
@@ -8661,7 +8661,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_3",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs21_ferrari"
   },
   {
    "op": "set",
@@ -8703,7 +8703,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_3",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_ferrari_carlos_sainz-jr"
   },
   {
    "op": "set",
@@ -8721,7 +8721,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_4",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs21_redbull"
   },
   {
    "op": "set",
@@ -8763,7 +8763,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_4",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_redbull_max_verstappen"
   },
   {
    "op": "set",
@@ -8781,7 +8781,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_5",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs21_redbull"
   },
   {
    "op": "set",
@@ -8823,7 +8823,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_5",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_redbull_sergio_perez"
   },
   {
    "op": "set",
@@ -8841,7 +8841,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_6",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs21_mclaren"
   },
   {
    "op": "set",
@@ -8883,7 +8883,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_6",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_mclaren_lando_norris"
   },
   {
    "op": "set",
@@ -8901,7 +8901,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_7",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs21_mclaren"
   },
   {
    "op": "set",
@@ -8943,7 +8943,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_7",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_mclaren_daniel_ricciardo"
   },
   {
    "op": "set",
@@ -8961,7 +8961,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_8",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs21_force_india"
   },
   {
    "op": "set",
@@ -9003,7 +9003,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_8",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_force_india_sebastian_vettel"
   },
   {
    "op": "set",
@@ -9021,7 +9021,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_9",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs21_force_india"
   },
   {
    "op": "set",
@@ -9063,7 +9063,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_9",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_force_india_lance_stroll"
   },
   {
    "op": "set",
@@ -9081,7 +9081,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_10",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs21_lotus"
   },
   {
    "op": "set",
@@ -9123,7 +9123,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_10",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_lotus_fernando_alonso"
   },
   {
    "op": "set",
@@ -9141,7 +9141,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_11",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs21_lotus"
   },
   {
    "op": "set",
@@ -9183,7 +9183,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_11",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_lotus_esteban_ocon"
   },
   {
    "op": "set",
@@ -9201,7 +9201,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_12",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs21_williams"
   },
   {
    "op": "set",
@@ -9243,7 +9243,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_12",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_williams_george_russell"
   },
   {
    "op": "set",
@@ -9261,7 +9261,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_13",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs21_williams"
   },
   {
    "op": "set",
@@ -9303,7 +9303,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_13",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_williams_nicholas_latifi"
   },
   {
    "op": "set",
@@ -9321,7 +9321,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_14",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs21_toro_rosso"
   },
   {
    "op": "set",
@@ -9363,7 +9363,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_14",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_toro_rosso_pierre_gasly"
   },
   {
    "op": "set",
@@ -9381,7 +9381,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_15",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs21_toro_rosso"
   },
   {
    "op": "set",
@@ -9423,7 +9423,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_15",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_toro_rosso_yuki_tsunoda"
   },
   {
    "op": "set",
@@ -9441,7 +9441,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_16",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs21_sauber"
   },
   {
    "op": "set",
@@ -9483,7 +9483,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_16",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_sauber_kimi_raikkonen"
   },
   {
    "op": "set",
@@ -9501,7 +9501,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_17",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs21_sauber"
   },
   {
    "op": "set",
@@ -9543,7 +9543,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_17",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_sauber_antonio_giovinazzi"
   },
   {
    "op": "set",
@@ -9561,7 +9561,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_18",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs21_haas"
   },
   {
    "op": "set",
@@ -9603,7 +9603,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_18",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_haas_mick_schumacher"
   },
   {
    "op": "set",
@@ -9621,7 +9621,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_19",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs21_haas"
   },
   {
    "op": "set",
@@ -9663,7 +9663,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2021].entrant_19",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2021-cs_haas_nikita_mazepin"
   },
   {
    "op": "set",
@@ -9698,7 +9698,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_0",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs22_mercedes"
   },
   {
    "op": "set",
@@ -9740,7 +9740,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_0",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_mercedes_lewis_hamilton"
   },
   {
    "op": "set",
@@ -9758,7 +9758,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_1",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs22_mercedes"
   },
   {
    "op": "set",
@@ -9800,7 +9800,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_1",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_mercedes_george_russell"
   },
   {
    "op": "set",
@@ -9818,7 +9818,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_2",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs22_ferrari"
   },
   {
    "op": "set",
@@ -9860,7 +9860,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_2",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_ferrari_charles_leclerc"
   },
   {
    "op": "set",
@@ -9878,7 +9878,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_3",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs22_ferrari"
   },
   {
    "op": "set",
@@ -9920,7 +9920,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_3",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_ferrari_carlos_sainz-jr"
   },
   {
    "op": "set",
@@ -9938,7 +9938,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_4",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs22_redbull"
   },
   {
    "op": "set",
@@ -9980,7 +9980,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_4",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_redbull_max_verstappen"
   },
   {
    "op": "set",
@@ -9998,7 +9998,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_5",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs22_redbull"
   },
   {
    "op": "set",
@@ -10040,7 +10040,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_5",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_redbull_sergio_perez"
   },
   {
    "op": "set",
@@ -10058,7 +10058,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_6",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs22_mclaren"
   },
   {
    "op": "set",
@@ -10100,7 +10100,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_6",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_mclaren_lando_norris"
   },
   {
    "op": "set",
@@ -10118,7 +10118,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_7",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs22_mclaren"
   },
   {
    "op": "set",
@@ -10160,7 +10160,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_7",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_mclaren_daniel_ricciardo"
   },
   {
    "op": "set",
@@ -10178,7 +10178,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_8",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs22_force_india"
   },
   {
    "op": "set",
@@ -10220,7 +10220,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_8",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_force_india_sebastian_vettel"
   },
   {
    "op": "set",
@@ -10238,7 +10238,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_9",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs22_force_india"
   },
   {
    "op": "set",
@@ -10280,7 +10280,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_9",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_force_india_lance_stroll"
   },
   {
    "op": "set",
@@ -10298,7 +10298,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_10",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs22_lotus"
   },
   {
    "op": "set",
@@ -10340,7 +10340,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_10",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_lotus_fernando_alonso"
   },
   {
    "op": "set",
@@ -10358,7 +10358,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_11",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs22_lotus"
   },
   {
    "op": "set",
@@ -10400,7 +10400,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_11",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_lotus_esteban_ocon"
   },
   {
    "op": "set",
@@ -10418,7 +10418,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_12",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs22_williams"
   },
   {
    "op": "set",
@@ -10460,7 +10460,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_12",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_williams_alex_albon"
   },
   {
    "op": "set",
@@ -10478,7 +10478,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_13",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs22_williams"
   },
   {
    "op": "set",
@@ -10520,7 +10520,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_13",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_williams_nicholas_latifi"
   },
   {
    "op": "set",
@@ -10538,7 +10538,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_14",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs22_toro_rosso"
   },
   {
    "op": "set",
@@ -10580,7 +10580,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_14",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_toro_rosso_pierre_gasly"
   },
   {
    "op": "set",
@@ -10598,7 +10598,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_15",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs22_toro_rosso"
   },
   {
    "op": "set",
@@ -10640,7 +10640,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_15",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_toro_rosso_yuki_tsunoda"
   },
   {
    "op": "set",
@@ -10658,7 +10658,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_16",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs22_sauber"
   },
   {
    "op": "set",
@@ -10700,7 +10700,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_16",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_sauber_valtteri_bottas"
   },
   {
    "op": "set",
@@ -10718,7 +10718,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_17",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs22_sauber"
   },
   {
    "op": "set",
@@ -10760,7 +10760,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_17",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_sauber_guanyu_zhou"
   },
   {
    "op": "set",
@@ -10778,7 +10778,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_18",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs22_haas"
   },
   {
    "op": "set",
@@ -10820,7 +10820,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_18",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_haas_kevin_magnussen"
   },
   {
    "op": "set",
@@ -10838,7 +10838,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_19",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs22_haas"
   },
   {
    "op": "set",
@@ -10880,7 +10880,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2022].entrant_19",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2022-cs_haas_mick_schumacher"
   },
   {
    "op": "set",
@@ -10915,7 +10915,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_0",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs23_mercedes"
   },
   {
    "op": "set",
@@ -10957,7 +10957,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_0",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_mercedes_lewis_hamilton"
   },
   {
    "op": "set",
@@ -10975,7 +10975,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_1",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs23_mercedes"
   },
   {
    "op": "set",
@@ -11017,7 +11017,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_1",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_mercedes_george_russell"
   },
   {
    "op": "set",
@@ -11035,7 +11035,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_2",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs23_ferrari"
   },
   {
    "op": "set",
@@ -11077,7 +11077,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_2",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_ferrari_charles_leclerc"
   },
   {
    "op": "set",
@@ -11095,7 +11095,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_3",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs23_ferrari"
   },
   {
    "op": "set",
@@ -11137,7 +11137,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_3",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_ferrari_carlos_sainz-jr"
   },
   {
    "op": "set",
@@ -11155,7 +11155,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_4",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs23_redbull"
   },
   {
    "op": "set",
@@ -11197,7 +11197,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_4",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_redbull_max_verstappen"
   },
   {
    "op": "set",
@@ -11215,7 +11215,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_5",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs23_redbull"
   },
   {
    "op": "set",
@@ -11257,7 +11257,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_5",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_redbull_sergio_perez"
   },
   {
    "op": "set",
@@ -11275,7 +11275,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_6",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs23_mclaren"
   },
   {
    "op": "set",
@@ -11317,7 +11317,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_6",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_mclaren_lando_norris"
   },
   {
    "op": "set",
@@ -11335,7 +11335,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_7",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs23_mclaren"
   },
   {
    "op": "set",
@@ -11377,7 +11377,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_7",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_mclaren_oscar_piastri"
   },
   {
    "op": "set",
@@ -11395,7 +11395,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_8",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs23_force_india"
   },
   {
    "op": "set",
@@ -11437,7 +11437,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_8",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_force_india_fernando_alonso"
   },
   {
    "op": "set",
@@ -11455,7 +11455,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_9",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs23_force_india"
   },
   {
    "op": "set",
@@ -11497,7 +11497,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_9",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_force_india_lance_stroll"
   },
   {
    "op": "set",
@@ -11515,7 +11515,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_10",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs23_lotus"
   },
   {
    "op": "set",
@@ -11557,7 +11557,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_10",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_lotus_pierre_gasly"
   },
   {
    "op": "set",
@@ -11575,7 +11575,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_11",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs23_lotus"
   },
   {
    "op": "set",
@@ -11617,7 +11617,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_11",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_lotus_esteban_ocon"
   },
   {
    "op": "set",
@@ -11635,7 +11635,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_12",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs23_williams"
   },
   {
    "op": "set",
@@ -11677,7 +11677,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_12",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_williams_alex_albon"
   },
   {
    "op": "set",
@@ -11695,7 +11695,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_13",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs23_williams"
   },
   {
    "op": "set",
@@ -11737,7 +11737,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_13",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_williams_logan_sargeant"
   },
   {
    "op": "set",
@@ -11755,7 +11755,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_14",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs23_toro_rosso"
   },
   {
    "op": "set",
@@ -11797,7 +11797,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_14",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_toro_rosso_yuki_tsunoda"
   },
   {
    "op": "set",
@@ -11815,7 +11815,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_15",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs23_toro_rosso"
   },
   {
    "op": "set",
@@ -11857,7 +11857,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_15",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_toro_rosso_nyck_de-vries"
   },
   {
    "op": "set",
@@ -11875,7 +11875,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_16",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs23_sauber"
   },
   {
    "op": "set",
@@ -11917,7 +11917,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_16",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_sauber_valtteri_bottas"
   },
   {
    "op": "set",
@@ -11935,7 +11935,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_17",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs23_sauber"
   },
   {
    "op": "set",
@@ -11977,7 +11977,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_17",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_sauber_guanyu_zhou"
   },
   {
    "op": "set",
@@ -11995,7 +11995,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_18",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs23_haas"
   },
   {
    "op": "set",
@@ -12037,7 +12037,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_18",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_haas_nico_hulkenberg"
   },
   {
    "op": "set",
@@ -12055,7 +12055,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_19",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs23_haas"
   },
   {
    "op": "set",
@@ -12097,7 +12097,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2023].entrant_19",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2023-cs_haas_kevin_magnussen"
   },
   {
    "op": "set",
@@ -12132,7 +12132,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_0",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs24_mercedes"
   },
   {
    "op": "set",
@@ -12174,7 +12174,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_0",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_mercedes_lewis_hamilton"
   },
   {
    "op": "set",
@@ -12192,7 +12192,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_1",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "cs24_mercedes"
   },
   {
    "op": "set",
@@ -12234,7 +12234,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_1",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_mercedes_george_russell"
   },
   {
    "op": "set",
@@ -12252,7 +12252,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_2",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs24_ferrari"
   },
   {
    "op": "set",
@@ -12294,7 +12294,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_2",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_ferrari_charles_leclerc"
   },
   {
    "op": "set",
@@ -12312,7 +12312,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_3",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "cs24_ferrari"
   },
   {
    "op": "set",
@@ -12354,7 +12354,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_3",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_ferrari_carlos_sainz-jr"
   },
   {
    "op": "set",
@@ -12372,7 +12372,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_4",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs24_redbull"
   },
   {
    "op": "set",
@@ -12414,7 +12414,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_4",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_redbull_max_verstappen"
   },
   {
    "op": "set",
@@ -12432,7 +12432,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_5",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "cs24_redbull"
   },
   {
    "op": "set",
@@ -12474,7 +12474,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_5",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_redbull_sergio_perez"
   },
   {
    "op": "set",
@@ -12492,7 +12492,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_6",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs24_mclaren"
   },
   {
    "op": "set",
@@ -12534,7 +12534,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_6",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_mclaren_lando_norris"
   },
   {
    "op": "set",
@@ -12552,7 +12552,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_7",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "cs24_mclaren"
   },
   {
    "op": "set",
@@ -12594,7 +12594,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_7",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_mclaren_oscar_piastri"
   },
   {
    "op": "set",
@@ -12612,7 +12612,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_8",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs24_force_india"
   },
   {
    "op": "set",
@@ -12654,7 +12654,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_8",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_force_india_fernando_alonso"
   },
   {
    "op": "set",
@@ -12672,7 +12672,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_9",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "cs24_force_india"
   },
   {
    "op": "set",
@@ -12714,7 +12714,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_9",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_force_india_lance_stroll"
   },
   {
    "op": "set",
@@ -12732,7 +12732,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_10",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs24_lotus"
   },
   {
    "op": "set",
@@ -12774,7 +12774,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_10",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_lotus_pierre_gasly"
   },
   {
    "op": "set",
@@ -12792,7 +12792,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_11",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "cs24_lotus"
   },
   {
    "op": "set",
@@ -12834,7 +12834,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_11",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_lotus_esteban_ocon"
   },
   {
    "op": "set",
@@ -12852,7 +12852,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_12",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs24_williams"
   },
   {
    "op": "set",
@@ -12894,7 +12894,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_12",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_williams_alex_albon"
   },
   {
    "op": "set",
@@ -12912,7 +12912,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_13",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "cs24_williams"
   },
   {
    "op": "set",
@@ -12954,7 +12954,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_13",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_williams_logan_sargeant"
   },
   {
    "op": "set",
@@ -12972,7 +12972,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_14",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs24_toro_rosso"
   },
   {
    "op": "set",
@@ -13014,7 +13014,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_14",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_toro_rosso_yuki_tsunoda"
   },
   {
    "op": "set",
@@ -13032,7 +13032,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_15",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "cs24_toro_rosso"
   },
   {
    "op": "set",
@@ -13074,7 +13074,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_15",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_toro_rosso_daniel_ricciardo"
   },
   {
    "op": "set",
@@ -13092,7 +13092,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_16",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs24_sauber"
   },
   {
    "op": "set",
@@ -13134,7 +13134,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_16",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_sauber_valtteri_bottas"
   },
   {
    "op": "set",
@@ -13152,7 +13152,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_17",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "cs24_sauber"
   },
   {
    "op": "set",
@@ -13194,7 +13194,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_17",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_sauber_guanyu_zhou"
   },
   {
    "op": "set",
@@ -13212,7 +13212,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_18",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs24_haas"
   },
   {
    "op": "set",
@@ -13254,7 +13254,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_18",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_haas_nico_hulkenberg"
   },
   {
    "op": "set",
@@ -13272,7 +13272,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_19",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "cs24_haas"
   },
   {
    "op": "set",
@@ -13314,7 +13314,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2024].entrant_19",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2024-cs_haas_kevin_magnussen"
   },
   {
    "op": "set",
@@ -13349,7 +13349,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_0",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "mercedes_2025"
   },
   {
    "op": "set",
@@ -13391,7 +13391,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_0",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-mercedes_george_russell"
   },
   {
    "op": "set",
@@ -13409,7 +13409,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_1",
    "field": "vehicle",
-   "value": "mercedes_2026"
+   "value": "mercedes_2025"
   },
   {
    "op": "set",
@@ -13451,7 +13451,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_1",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-mercedes_andrea-kimi_antonelli"
   },
   {
    "op": "set",
@@ -13469,7 +13469,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_2",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "ferrari_2025"
   },
   {
    "op": "set",
@@ -13511,7 +13511,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_2",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-ferrari_charles_leclerc"
   },
   {
    "op": "set",
@@ -13529,7 +13529,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_3",
    "field": "vehicle",
-   "value": "ferrari_2026"
+   "value": "ferrari_2025"
   },
   {
    "op": "set",
@@ -13571,7 +13571,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_3",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-ferrari_lewis_hamilton"
   },
   {
    "op": "set",
@@ -13589,7 +13589,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_4",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "redbull_2025"
   },
   {
    "op": "set",
@@ -13631,7 +13631,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_4",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-redbull_max_verstappen"
   },
   {
    "op": "set",
@@ -13649,7 +13649,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_5",
    "field": "vehicle",
-   "value": "redbull_2026"
+   "value": "redbull_2025"
   },
   {
    "op": "set",
@@ -13691,7 +13691,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_5",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-redbull_yuki_tsunoda"
   },
   {
    "op": "set",
@@ -13709,7 +13709,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_6",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "mclaren_2025"
   },
   {
    "op": "set",
@@ -13751,7 +13751,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_6",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-mclaren_oscar_piastri"
   },
   {
    "op": "set",
@@ -13769,7 +13769,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_7",
    "field": "vehicle",
-   "value": "mclaren_2026"
+   "value": "mclaren_2025"
   },
   {
    "op": "set",
@@ -13811,7 +13811,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_7",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-mclaren_lando_norris"
   },
   {
    "op": "set",
@@ -13829,7 +13829,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_8",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "force_india_2025"
   },
   {
    "op": "set",
@@ -13871,7 +13871,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_8",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-forceindia_lance_stroll"
   },
   {
    "op": "set",
@@ -13889,7 +13889,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_9",
    "field": "vehicle",
-   "value": "force_india_2026"
+   "value": "force_india_2025"
   },
   {
    "op": "set",
@@ -13931,7 +13931,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_9",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-forceindia_fernando_alonso"
   },
   {
    "op": "set",
@@ -13949,7 +13949,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_10",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "lotus_2025"
   },
   {
    "op": "set",
@@ -13991,7 +13991,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_10",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-renault_pierre_gasly"
   },
   {
    "op": "set",
@@ -14009,7 +14009,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_11",
    "field": "vehicle",
-   "value": "lotus_2026"
+   "value": "lotus_2025"
   },
   {
    "op": "set",
@@ -14051,7 +14051,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_11",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-renault_franco_colapinto"
   },
   {
    "op": "set",
@@ -14069,7 +14069,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_12",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "williams_2025"
   },
   {
    "op": "set",
@@ -14111,7 +14111,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_12",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-williams_alex_albon"
   },
   {
    "op": "set",
@@ -14129,7 +14129,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_13",
    "field": "vehicle",
-   "value": "williams_2026"
+   "value": "williams_2025"
   },
   {
    "op": "set",
@@ -14171,7 +14171,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_13",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-williams_carlos_sainz-jr"
   },
   {
    "op": "set",
@@ -14189,7 +14189,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_14",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "toro_rosso_2025"
   },
   {
    "op": "set",
@@ -14231,7 +14231,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_14",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-tororosso_isack_hadjar"
   },
   {
    "op": "set",
@@ -14249,7 +14249,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_15",
    "field": "vehicle",
-   "value": "toro_rosso_2026"
+   "value": "toro_rosso_2025"
   },
   {
    "op": "set",
@@ -14291,7 +14291,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_15",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-tororosso_liam_lawson"
   },
   {
    "op": "set",
@@ -14309,7 +14309,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_16",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "sauber_2025"
   },
   {
    "op": "set",
@@ -14351,7 +14351,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_16",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-sauber_nico_hulkenberg"
   },
   {
    "op": "set",
@@ -14369,7 +14369,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_17",
    "field": "vehicle",
-   "value": "sauber_2026"
+   "value": "sauber_2025"
   },
   {
    "op": "set",
@@ -14411,7 +14411,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_17",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-sauber_gabriel_bortoleto"
   },
   {
    "op": "set",
@@ -14429,7 +14429,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_18",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "haas_2025"
   },
   {
    "op": "set",
@@ -14471,7 +14471,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_18",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-haas_esteban_ocon"
   },
   {
    "op": "set",
@@ -14489,7 +14489,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_19",
    "field": "vehicle",
-   "value": "haas_2026"
+   "value": "haas_2025"
   },
   {
    "op": "set",
@@ -14531,7 +14531,7 @@
    "op": "set",
    "select": "entrants.entrant_lists.entrant_list[_metadata_=pg_f1_2025].entrant_19",
    "field": "driver_customisation",
-   "value": ""
+   "value": "2025-haas_oliver_bearman"
   },
   {
    "op": "set",

@@ -559,8 +559,9 @@ def grid_ops(stock, years, pool):
             s = SLOTS[t["slot"] - 1]
             for d in t["drivers"]:
                 rows.append({"_metadata_": f"pg{year % 100:02d}_{s['key']}_driver_0{d['position'] + 1}",
-                             "team": s["team"], "vehicle": s["vehicle"], "entrant_reference": entrant_of[d["driver"]],
-                             "team_position": d["position"], "car_number": 255, **blank})
+                             "team": s["team"], "vehicle": t["vehicle"]["label"],
+                             "entrant_reference": entrant_of[d["driver"]], "team_position": d["position"],
+                             "car_number": 255, **blank, "driver_customisation": d["look"]["label"]})
         fill(f"{LISTS}.entrant_list[_metadata_={label}]", rows)
 
     # The game loads an entrant list when its row has available = True (the per-year lists above) or when something
