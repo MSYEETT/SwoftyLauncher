@@ -59,6 +59,8 @@ impl fmt::Display for Category {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
     Status,
+    Configure { self_member: u8, base: u16 },
+    Clear,
     Host { category: Category },
     Join { ip: Ipv4Addr },
     Leave,
@@ -68,6 +70,8 @@ impl Command {
     pub fn op(&self) -> &'static str {
         match self {
             Command::Status => "status",
+            Command::Configure { .. } => "configure",
+            Command::Clear => "clear",
             Command::Host { .. } => "host",
             Command::Join { .. } => "join",
             Command::Leave => "leave",
@@ -78,7 +82,8 @@ impl Command {
         let args = match self {
             Command::Host { category } => json!({ "category": category.as_str() }),
             Command::Join { ip } => json!({ "ip": ip.to_string() }),
-            Command::Status | Command::Leave => json!({}),
+            Command::Configure { self_member, base } => json!({ "self": self_member, "base": base }),
+            Command::Status | Command::Clear | Command::Leave => json!({}),
         };
         json!({ "seq": seq, "op": self.op(), "args": args })
     }
@@ -107,6 +112,10 @@ pub struct GameStatus {
     pub role: Role,
     #[serde(default)]
     pub configured: bool,
+    #[serde(default, rename = "self")]
+    pub self_member: u8,
+    #[serde(default)]
+    pub base: u16,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -225,6 +234,14 @@ pub fn join(game_dir: &Path, ip: Ipv4Addr) -> Result<GameStatus, Error> {
     send(game_dir, &Command::Join { ip }, REPLY_TIMEOUT).map(|r| r.status)
 }
 
+pub fn configure(game_dir: &Path, self_member: u8, base: u16) -> Result<GameStatus, Error> {
+    send(game_dir, &Command::Configure { self_member, base }, REPLY_TIMEOUT).map(|r| r.status)
+}
+
+pub fn clear(game_dir: &Path) -> Result<GameStatus, Error> {
+    send(game_dir, &Command::Clear, REPLY_TIMEOUT).map(|r| r.status)
+}
+
 pub fn leave(game_dir: &Path) -> Result<GameStatus, Error> {
     send(game_dir, &Command::Leave, REPLY_TIMEOUT).map(|r| r.status)
 }
@@ -284,7 +301,7 @@ mod tests {
     }
 
     fn status_value(screen: &str) -> Value {
-        json!({ "screen": screen, "in_session": screen == "lan_lobby", "role": "none", "configured": true })
+        json!({ "screen": screen, "in_session": screen == "lan_lobby", "role": "none", "configured": true, "self": 1, "base": 40000 })
     }
 
     #[test]
@@ -304,6 +321,15 @@ mod tests {
             json!({ "seq": 8, "op": "join", "args": { "ip": "10.77.0.1" } })
         );
         assert_eq!(Command::Leave.to_json(9)["op"], "leave");
+        assert_eq!(
+            Command::Configure {
+                self_member: 2,
+                base: 40000
+            }
+            .to_json(11),
+            json!({ "seq": 11, "op": "configure", "args": { "self": 2, "base": 40000 } })
+        );
+        assert_eq!(Command::Clear.to_json(12)["op"], "clear");
         assert_eq!(Command::Status.to_json(10)["args"], json!({}));
     }
 
@@ -332,6 +358,7 @@ mod tests {
         t.join().unwrap();
         assert_eq!(s.screen, Screen::MainMenu);
         assert!(!s.in_session);
+        assert_eq!((s.self_member, s.base), (1, 40000));
         assert_eq!(s.role, Role::None);
         let left = std::fs::read_dir(mailbox(&game).join("outbox")).unwrap().count();
         assert_eq!(left, 0, "the reply is deleted once read");
