@@ -73513,6 +73513,270 @@
    ]
   },
   {
+   "id": "game.career_continue_driver_slot_title",
+   "section": ".xtls",
+   "pattern": "4C 69 EE 40 05 00 00 F6 82 71 01 00 00 20 4A 8D 8C 29 B8 03 00 00 44 88 44 24 37 0F 85 ?? ?? ?? ?? 48 8D 15 ?? ?? ?? ?? E8 ?? ?? ?? ?? C6 84 24 08 04 00 00 01",
+   "match": "0x141a0f784",
+   "anchor": "0x28",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a0f7ac",
+   "kind": "mid",
+   "names": [
+    "site_Game_CareerContinue_DriverSlotTitle"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "resume-card",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/resume.cpp"
+   ],
+   "expect": "E8 0F 19 DA FE"
+  },
+  {
+   "id": "game.team_select_team_logo_format",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 48 8D 8F 58 FF FF FF",
+   "match": "0x1418798a5",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1418798a5",
+   "kind": "mid",
+   "expect": "E8 46 98 8E 02",
+   "names": [
+    "site_Game_TeamSelect_TeamLogoFormat"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "progressive-wizvis",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/cards.cpp"
+   ]
+  },
+  {
+   "id": "game.driver_select_badge_format",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 48 8D 8E 58 FF FF FF",
+   "match": "0x1416a5820",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1416a5820",
+   "kind": "mid",
+   "expect": "E8 CB D8 AB 02",
+   "names": [
+    "site_Game_DriverSelect_BadgeFormat"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "progressive-wizvis",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/cards.cpp"
+   ]
+  },
+  {
+   "id": "game.driver_select_team_logo_format",
+   "section": ".xtls",
+   "pattern": "48 8D 4C 24 60 E8 ?? ?? ?? ?? 48 8B 97 B0 00 00 00",
+   "match": "0x1416a3ae9",
+   "anchor": "0x5",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1416a3aee",
+   "kind": "mid",
+   "expect": "E8 FD F5 AB 02",
+   "names": [
+    "site_Game_DriverSelect_TeamLogoFormat"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "progressive-wizvis",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/cards.cpp"
+   ]
+  },
+  {
+   "id": "game.driver_contracts_offer_secret_meeting",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC C8 00 00 00 48 89 CF 48 8B 81 A8 03 00 00",
+   "match": "0x140d7f530",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140d7f530",
+   "kind": "func_start",
+   "names": [
+    "Game_DriverContracts_OfferSecretMeeting"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "laneS",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/follow.cpp"
+   ]
+  },
+  {
+   "id": "game.driver_contracts_advance_secret_meeting",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC D8 00 00 00 48 89 CF",
+   "match": "0x140d80190",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140d80190",
+   "kind": "func_start",
+   "names": [
+    "Game_DriverContracts_AdvanceSecretMeeting"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "laneS",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/follow.cpp"
+   ]
+  },
+  {
+   "id": "game.contract_team_select_on_enter",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC A8 00 00 00 C5 F8 29 B4 24 90 00 00 00 48 89 CE 48 8B 81 80 0C 00 00",
+   "match": "0x1436c46d0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c46d0",
+   "kind": "func_start",
+   "names": [
+    "Game_ContractTeamSelect_OnEnter"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "laneS",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/follow.cpp"
+   ]
+  },
+  {
+   "id": "game.contract_team_select_on_update",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 55 53 48 83 EC 30 48 89 D6 48 89 CF 80 B9 69 0D 00 00 00",
+   "match": "0x1436c56a0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c56a0",
+   "kind": "func_start",
+   "names": [
+    "Game_ContractTeamSelect_OnUpdate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "laneS",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/follow.cpp"
+   ]
+  },
+  {
+   "id": "game.contract_team_select_on_exit",
+   "section": ".xtls",
+   "pattern": "56 57 48 83 EC 38 48 89 CE 80 B9 9C 0C 00 00 00",
+   "match": "0x1436c57e0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c57e0",
+   "kind": "func_start",
+   "names": [
+    "Game_ContractTeamSelect_OnExit"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "laneS",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/follow.cpp"
+   ]
+  },
+  {
+   "id": "game.refresh_performance_comparison",
+   "section": ".xtls",
+   "pattern": "56 57 48 81 EC C8 01 00 00 C5 F8 29 B4 24 B0 01 00 00",
+   "match": "0x141890990",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141890990",
+   "kind": "func_start",
+   "names": [
+    "Game_Refresh_PerformanceComparison"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "laneU",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/rnd.cpp"
+   ]
+  },
+  {
    "id": "game.save_data_root_container",
    "section": ".xtls",
    "pattern": "48 8D 05 ?? ?? ?? ?? 48 89 46 20 48 8D 8E 58 02 00 00",

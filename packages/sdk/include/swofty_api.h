@@ -355,6 +355,25 @@ typedef struct SwoftyHud {
     int (*set)(const char *path, uint32_t type, const void *value);
 } SwoftyHud;
 
+/* Team HQ hub tabs (swofty/hub.hpp). Present on cores that export SwoftyCoreHub; the table is read through
+   GetProcAddress, so an addon built against this header also loads on an older core and sees it absent.
+   An addon's manifest `hub_tab` {name, title, options, data_group} makes the core add a Team HQ laptop tab
+   for careers of data_group (after STANDINGS), whose page template is swofty_hub_<name> and whose data the
+   core publishes at view_model_data.swofty_hub_<name> (title, count, o<k>.label/value/description).
+   Version 1: available; hide_rnd(on) hides the R&D tab of Team HQ while on is set: Team HQ builds it
+   hidden, and an open Team HQ hides or shows it on the next frame (cores before the live path leave it out
+   from the next Team HQ entry instead); set_option(addon, option, value) picks the option state whose
+   value is `value` (a choice value, "true"/"false", or a number) through the same command ADDON SETTINGS
+   runs. */
+#define SWOFTY_API_HUB 1
+#define SWOFTY_HUB_VERSION 1
+typedef struct SwoftyHub {
+    uint32_t version;
+    int (*available)(void);
+    int (*hide_rnd)(int on);
+    int (*set_option)(const char *addon, const char *option, const char *value);
+} SwoftyHub;
+
 /* Runtime string overrides (API v8): the localised text a lng_* key resolves to, changed while the
    game runs. language NULL or "*" means every language; otherwise a language code (eng, fre, ...)
    that applies while it is the game's current language and wins over "*". The text is UTF-8 and is

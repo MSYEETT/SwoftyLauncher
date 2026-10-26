@@ -382,7 +382,7 @@ jobs:
       - name: Socket trace Wine test
         run: native/test/run_net_trace_test.sh
 
-      - name: Netplay bridge Wine test
+      - name: Socket hooks Wine test
         run: native/test/run_netplay_test.sh
 
       # Saved after the Wine tests, which compile their fixtures into the same cache.

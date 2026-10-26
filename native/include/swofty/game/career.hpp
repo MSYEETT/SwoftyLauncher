@@ -298,12 +298,17 @@ struct DriverCareerContractsManagerComponent {
     CareerTimeComponent *career_time; // L2 experimental
     uint8_t _pad_0x360[0x8];
     CarNumberComponent *car_numbers; // L2 experimental
+    uint8_t _pad_0x370[0x38];
+    void *secret_meetings_begin; // L2 experimental
+    void *secret_meetings_end; // L2 experimental
 };
 static_assert(offsetof(DriverCareerContractsManagerComponent, weekend_source) == 0x270);
 static_assert(offsetof(DriverCareerContractsManagerComponent, entity) == 0x278);
 static_assert(offsetof(DriverCareerContractsManagerComponent, contract_owner) == 0x350);
 static_assert(offsetof(DriverCareerContractsManagerComponent, career_time) == 0x358);
 static_assert(offsetof(DriverCareerContractsManagerComponent, car_numbers) == 0x368);
+static_assert(offsetof(DriverCareerContractsManagerComponent, secret_meetings_begin) == 0x3a8);
+static_assert(offsetof(DriverCareerContractsManagerComponent, secret_meetings_end) == 0x3b0);
 
 struct DriverContract {
     uint32_t team; // L2 experimental
@@ -706,15 +711,19 @@ struct Session {
     uint32_t session_id; // L2 experimental
     uint8_t _pad_0xc[0x4];
     uint32_t completion; // L2 experimental
-    uint8_t _pad_0x14[0xc];
+    uint8_t _pad_0x14[0x4];
+    NeAllocator *participants_allocator; // L2 experimental
     EntrantRecord *participants_begin; // L2 experimental
     EntrantRecord *participants_end; // L2 experimental
-    uint8_t _pad_0x30[0x70];
+    uint64_t participants_capacity; // L2 experimental
+    uint8_t _pad_0x38[0x68];
 };
 static_assert(offsetof(Session, session_id) == 0x8);
 static_assert(offsetof(Session, completion) == 0x10);
+static_assert(offsetof(Session, participants_allocator) == 0x18);
 static_assert(offsetof(Session, participants_begin) == 0x20);
 static_assert(offsetof(Session, participants_end) == 0x28);
+static_assert(offsetof(Session, participants_capacity) == 0x30);
 static_assert(sizeof(Session) == 0xa0);
 
 struct SponsorEntry {
@@ -953,7 +962,8 @@ struct Weekend {
     uint8_t _pad_0x30[0x1f0];
     Session *sessions_begin; // L2 experimental
     Session *sessions_end; // L2 experimental
-    uint8_t _pad_0x230[0xc];
+    uint8_t _pad_0x230[0x8];
+    uint32_t current_session; // L2 experimental
     uint32_t progress_state; // L2 experimental
     uint8_t _pad_0x240[0x38];
     uint8_t track_stat_id; // L2 experimental
@@ -963,6 +973,7 @@ static_assert(offsetof(Weekend, vtable) == 0x0);
 static_assert(offsetof(Weekend, name) == 0x28);
 static_assert(offsetof(Weekend, sessions_begin) == 0x220);
 static_assert(offsetof(Weekend, sessions_end) == 0x228);
+static_assert(offsetof(Weekend, current_session) == 0x238);
 static_assert(offsetof(Weekend, progress_state) == 0x23c);
 static_assert(offsetof(Weekend, track_stat_id) == 0x278);
 static_assert(sizeof(Weekend) == 0x4f0);

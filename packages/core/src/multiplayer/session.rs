@@ -2042,8 +2042,8 @@ mod tests {
 
         fn host(&self, category: Category) -> Result<GameStatus, game::Error> {
             self.host_attempts.fetch_add(1, Ordering::Relaxed);
-            let until = Instant::now() + *lock(&self.host_delay);
-            while Instant::now() < until {
+            let started = Instant::now();
+            while started.elapsed() < *lock(&self.host_delay) {
                 if self.cancelled.swap(false, Ordering::Relaxed) {
                     return Err(self.refuse("host", "cancelled by the launcher"));
                 }
@@ -2501,7 +2501,7 @@ mod tests {
     fn the_session_keeps_up_while_the_game_opens_its_lobby() {
         let server = server();
         let (host_game, guest_game) = (FakeGame::new("host-slow"), FakeGame::new("guest-slow"));
-        *lock(&host_game.host_delay) = Duration::from_millis(1500);
+        *lock(&host_game.host_delay) = Duration::from_secs(60);
         let host = create(
             setup(&server.url, "host-token", &host_game, print(&[])),
             RoomSettings::default(),
@@ -2515,6 +2515,7 @@ mod tests {
         let guest = join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
         let during = wait_until(&host, "the guest's relay while hosting", both_relays_ready);
         assert!(matches!(during.phase, Phase::WaitingForGame(_)));
+        *lock(&host_game.host_delay) = Duration::ZERO;
         wait_until(&host, "the host's lobby", in_lobby);
         wait_until(&guest, "the guest's lobby", in_lobby);
     }

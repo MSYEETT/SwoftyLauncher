@@ -37,6 +37,8 @@ Your addon needs a `swofty.json` at its root. This is where you give it a name, 
 | `experimental_features` | string[]? | Experimental engines of the in-game core the addon uses: `overlay` ([Overlay](/reference/std/overlay)) `shaders` ([Shader packs](./shader-packs)) and `postfx` ([Post-process passes](./postfx)). While the addon is on, the build turns each one on, and the Addons page tags the addon **Uses experimental features**. Needs launcher 1.3.7 or later, and 1.4.0 or later for `shaders`; an earlier launcher rejects the manifest. |
 | `origin` | object? | The tool and file the addon was made from ([origin](#origin)). |
 | `shader` | object? | A colour look for the game's picture ([shader](#shader)). |
+| `career_setup` | object? | A settings page in game between a Driver Career tile and the new-career wizard ([career_setup](#career-setup)). |
+| `hub_tab` | object? | A settings page for one tab of the career hub's laptop, Team HQ ([hub_tab](#hub-tab)). |
 
 ## category
 
@@ -190,6 +192,54 @@ To give players settings they can change, declare them in `options`. They'll app
 | `min`, `max`, `step` | number | Set all three to define a slider's range. `max - min` must be a whole number of steps, at most 100. |
 | `values` | array | Supply 1 to 16 values for a choice. Each is a string; use `{ "value", "label" }` to show a different name. |
 | `binds` | string | `native` — the [engine plugin](./native-plugins#settings) reads the value while the game runs; `db` — the value is built into the game files, so a change needs a rebuild. |
+| `hidden` | boolean? | `true` keeps the option off your addon's page in ADDON SETTINGS in game, such as a developer option or a per-career setting. The launcher's **Addons** page still lists it, and [`career_setup`](#career-setup) and [`hub_tab`](#hub-tab) may list it. Defaults to `false`. A launcher before 1.5.13 rejects the field. |
+
+## career_setup
+
+`career_setup` adds a page in game, in the CUSTOM SETTINGS look, that shows some of your addon's options before the new-career wizard. [Add a career setup page](./in-game-ui#add-a-career-setup-page) covers the page and its routes.
+
+```json
+"options": [
+  { "id": "start_season", "type": "choice", "label": "Starting season", "default": "2016",
+    "values": ["2016", "2017", "2018"], "binds": "native" }
+],
+"career_setup": {
+  "route": "career_wizard_driver_career_progressive",
+  "title": "Progressive Career",
+  "options": ["start_season"]
+}
+```
+
+| Field | Type | Value |
+|---|---|---|
+| `route` | string | `[a-z0-9_]`, at most 48 characters. The route in the career content select's route group that opens the page; a career content tile opens it through `tile_route`. |
+| `title` | string? | The page's title and its category tile's title, shown in capitals as written. Defaults to the addon's `name`. |
+| `options` | string[] | Ids from your `options`, in the order the rows show them. At least one, each once. `hidden` options may be listed. |
+| `next` | string? | The new-career wizard screen CONFIRM opens. Defaults to `career_wizard_season_length_select`. |
+
+The page needs your addon on in the profile. An addon has at most one `career_setup`. A launcher before 1.5.13 rejects the field; set `"compat": { "launcher": ">=1.5.13" }` when you use it.
+
+## hub_tab
+
+`hub_tab` has the launcher build the page of a Team HQ laptop tab that shows some of your addon's options. [Add a Team HQ tab](./in-game-ui#add-a-team-hq-tab) covers the page and what your plugin adds.
+
+```json
+"hub_tab": {
+  "name": "progressive",
+  "title": "Progressive Settings",
+  "options": ["rnd_mode"],
+  "data_group": "f1_career_progressive"
+}
+```
+
+| Field | Type | Value |
+|---|---|---|
+| `name` | string | `[a-z0-9_]`, at most 40 characters. The page template is `swofty_hub_<name>` and its data `view_model_data.hud_swofty_hub_<name>`. |
+| `title` | string | The tab's title. |
+| `options` | string[] | 1 to 6 ids from your `options`, in the order the page shows them, each once. `hidden` options may be listed. |
+| `data_group` | string | `[a-z0-9_]`. The career data group whose careers show the tab. |
+
+The page needs your addon on in the profile. An addon has at most one `hub_tab`. A launcher before 1.5.13 rejects the field.
 
 ## operations
 

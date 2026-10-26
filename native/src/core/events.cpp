@@ -70,6 +70,7 @@ void flow_mid(safetyhook::Context &)
     runtime::popup_tick();
     runtime::netplay_tick();
     runtime::career_content_tick();
+    runtime::hub_tick();
     if (!perf::frame_claim())
         return;
     double dt = disp.tick(now_seconds());

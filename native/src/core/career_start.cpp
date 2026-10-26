@@ -102,8 +102,11 @@ void run_route_hook(void *ui, void *node, void *name, void *group, int32_t flags
     const cs::Route *r = nullptr;
     {
         perf::Scope p(probe);
-        if (route_name(name, text))
+        if (route_name(name, text)) {
+            if (runtime::wizard_route_running(text, name))
+                route_name(name, text);
             r = cs::classify(text);
+        }
         if (!r && diag)
             swofty::log("[career] route '%s' (not a career start)", text.c_str());
         if (r && gate(*r))

@@ -447,12 +447,19 @@ pub struct DriverCareerContractsManagerComponent {
     pub career_time: *mut CareerTimeComponent,
     _pad_0x360: [u8; 0x8],
     pub car_numbers: *mut CarNumberComponent,
+    _pad_0x370: [u8; 0x38],
+    pub secret_meetings_begin: *mut c_void,
+    pub secret_meetings_end: *mut c_void,
 }
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, weekend_source) == 0x270);
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, entity) == 0x278);
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, contract_owner) == 0x350);
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, career_time) == 0x358);
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, car_numbers) == 0x368);
+const _: () =
+    assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, secret_meetings_begin) == 0x3a8);
+const _: () =
+    assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, secret_meetings_end) == 0x3b0);
 
 #[repr(C)]
 pub struct DriverContract {
@@ -583,6 +590,25 @@ const _: () = assert!(core::mem::offset_of!(DriverMovesFinalisedMessage, reserve
 const _: () = assert!(core::mem::offset_of!(DriverMovesFinalisedMessage, changes) == 0x10);
 const _: () = assert!(core::mem::offset_of!(DriverMovesFinalisedMessage, count) == 0x290);
 const _: () = assert!(core::mem::size_of::<DriverMovesFinalisedMessage>() == 0x298);
+
+#[repr(C)]
+pub struct DriverSecretMeetings {
+    _pad_0x0: [u8; 0x10],
+    pub current_allocator: *mut c_void,
+    pub current: *mut SecretMeeting,
+    _pad_0x20: [u8; 0x8],
+    pub previous_begin: *mut c_void,
+    pub previous_end: *mut c_void,
+    _pad_0x38: [u8; 0x8],
+    pub driver: u32,
+    _pad_0x44: [u8; 0x4],
+}
+const _: () = assert!(core::mem::offset_of!(DriverSecretMeetings, current_allocator) == 0x10);
+const _: () = assert!(core::mem::offset_of!(DriverSecretMeetings, current) == 0x18);
+const _: () = assert!(core::mem::offset_of!(DriverSecretMeetings, previous_begin) == 0x28);
+const _: () = assert!(core::mem::offset_of!(DriverSecretMeetings, previous_end) == 0x30);
+const _: () = assert!(core::mem::offset_of!(DriverSecretMeetings, driver) == 0x40);
+const _: () = assert!(core::mem::size_of::<DriverSecretMeetings>() == 0x48);
 
 #[repr(C)]
 pub struct EvolutionCurve {
@@ -1112,20 +1138,37 @@ const _: () = assert!(core::mem::offset_of!(Season, completion_state) == 0x538);
 const _: () = assert!(core::mem::size_of::<Season>() == 0x550);
 
 #[repr(C)]
+pub struct SecretMeeting {
+    pub id: u32,
+    _pad_0x4: [u8; 0x10],
+    pub reason: u8,
+    _pad_0x15: [u8; 0xb],
+    pub team: u32,
+}
+const _: () = assert!(core::mem::offset_of!(SecretMeeting, id) == 0x0);
+const _: () = assert!(core::mem::offset_of!(SecretMeeting, reason) == 0x14);
+const _: () = assert!(core::mem::offset_of!(SecretMeeting, team) == 0x20);
+const _: () = assert!(core::mem::size_of::<SecretMeeting>() == 0x24);
+
+#[repr(C)]
 pub struct Session {
     _pad_0x0: [u8; 0x8],
     pub session_id: u32,
     _pad_0xc: [u8; 0x4],
     pub completion: u32,
-    _pad_0x14: [u8; 0xc],
+    _pad_0x14: [u8; 0x4],
+    pub participants_allocator: *mut NeAllocator,
     pub participants_begin: *mut EntrantRecord,
     pub participants_end: *mut EntrantRecord,
-    _pad_0x30: [u8; 0x70],
+    pub participants_capacity: u64,
+    _pad_0x38: [u8; 0x68],
 }
 const _: () = assert!(core::mem::offset_of!(Session, session_id) == 0x8);
 const _: () = assert!(core::mem::offset_of!(Session, completion) == 0x10);
+const _: () = assert!(core::mem::offset_of!(Session, participants_allocator) == 0x18);
 const _: () = assert!(core::mem::offset_of!(Session, participants_begin) == 0x20);
 const _: () = assert!(core::mem::offset_of!(Session, participants_end) == 0x28);
+const _: () = assert!(core::mem::offset_of!(Session, participants_capacity) == 0x30);
 const _: () = assert!(core::mem::size_of::<Session>() == 0xa0);
 
 #[repr(C)]
@@ -1528,7 +1571,8 @@ pub struct Weekend {
     _pad_0x30: [u8; 0x1f0],
     pub sessions_begin: *mut Session,
     pub sessions_end: *mut Session,
-    _pad_0x230: [u8; 0xc],
+    _pad_0x230: [u8; 0x8],
+    pub current_session: u32,
     pub progress_state: u32,
     _pad_0x240: [u8; 0x38],
     pub track_stat_id: u8,
@@ -1538,6 +1582,7 @@ const _: () = assert!(core::mem::offset_of!(Weekend, vtable) == 0x0);
 const _: () = assert!(core::mem::offset_of!(Weekend, name) == 0x28);
 const _: () = assert!(core::mem::offset_of!(Weekend, sessions_begin) == 0x220);
 const _: () = assert!(core::mem::offset_of!(Weekend, sessions_end) == 0x228);
+const _: () = assert!(core::mem::offset_of!(Weekend, current_session) == 0x238);
 const _: () = assert!(core::mem::offset_of!(Weekend, progress_state) == 0x23c);
 const _: () = assert!(core::mem::offset_of!(Weekend, track_stat_id) == 0x278);
 const _: () = assert!(core::mem::size_of::<Weekend>() == 0x4f0);
@@ -1702,6 +1747,21 @@ pub type Game_CareerWizard_StartsInF1_t = unsafe extern "C" fn(
     entrant_list: *const c_char,
 ) -> bool;
 pub type Game_Career_IsDriverCareerMode_t = unsafe extern "C" fn(championship: *const c_void) -> bool;
+pub type Game_ContractTeamSelect_OnEnter_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
+pub type Game_ContractTeamSelect_OnExit_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
+pub type Game_ContractTeamSelect_OnUpdate_t =
+    unsafe extern "C" fn(state: *mut c_void, link: *mut u32) -> *mut u32;
+pub type Game_DriverContracts_AdvanceSecretMeeting_t =
+    unsafe extern "C" fn(contracts: *mut c_void, driver: u32, notify: u8);
+pub type Game_DriverContracts_BuildOffers_t = unsafe extern "C" fn(contracts: *mut c_void, driver: u32);
+pub type Game_DriverContracts_OfferSecretMeeting_t = unsafe extern "C" fn(
+    contracts: *mut c_void,
+    meeting: *const c_void,
+    team: u32,
+    driver: u32,
+    reason: u8,
+    notify: u8,
+);
 pub type Game_DriverSelectHeader_SetTabState_t =
     unsafe extern "C" fn(header: *mut c_void, tab: u64, content_visible: u8, enabled: u8);
 pub type Game_EngineMgmt_AddGridPenalty_t =
@@ -1714,6 +1774,7 @@ pub type Game_EntrantsUi_OnCharacterListLoaded_t =
     unsafe extern "C" fn(ctx: *mut c_void, message: *const c_void) -> i64;
 pub type Game_F1WorldActivityContainer_SelectEntrantList_t =
     unsafe extern "C" fn(container: *mut c_void, entrant_list: *const c_char);
+pub type Game_Refresh_PerformanceComparison_t = unsafe extern "C" fn(comparison: *mut c_void);
 pub type Game_Rnd_CalcUpgradeTypeProgress_t =
     unsafe extern "C" fn(instances: *mut *mut c_void, r#type: u8, state: u8, meta: *const c_void) -> f32;
 pub type Game_Rnd_FillVehicleUpgrades_t =
@@ -1789,6 +1850,8 @@ pub type Sess_Tyres_ClosestAvailableCompound_t = unsafe extern "C" fn(
     wear_scale: f32,
 ) -> u32;
 pub type Sess_WeatherComponent_SetSystemRandomSeed_t = unsafe extern "C" fn(component: *mut c_void);
+pub type Sess_Weekend_Start_t =
+    unsafe extern "C" fn(weekend: *mut c_void, entrants: *const c_void, begin: bool);
 pub type Vm_GetOrCreate_ListChild_t =
     unsafe extern "C" fn(registry: *mut c_void, parent: *mut c_void, hash: *const u32) -> *mut *mut c_void;
 pub type Vm_Set_Bool_t = unsafe extern "C" fn(
@@ -2106,6 +2169,36 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_ContractTeamSelect_OnEnter: Binding = Binding {
+        id: "Game_ContractTeamSelect_OnEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_ContractTeamSelect_OnExit: Binding = Binding {
+        id: "Game_ContractTeamSelect_OnExit",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_ContractTeamSelect_OnUpdate: Binding = Binding {
+        id: "Game_ContractTeamSelect_OnUpdate",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_DriverContracts_AdvanceSecretMeeting: Binding = Binding {
+        id: "Game_DriverContracts_AdvanceSecretMeeting",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_DriverContracts_BuildOffers: Binding = Binding {
+        id: "Game_DriverContracts_BuildOffers",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_DriverContracts_OfferSecretMeeting: Binding = Binding {
+        id: "Game_DriverContracts_OfferSecretMeeting",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_DriverSelectHeader_SetTabState: Binding = Binding {
         id: "Game_DriverSelectHeader_SetTabState",
         kind: "func",
@@ -2133,6 +2226,11 @@ pub mod bindings {
     };
     pub const Game_F1WorldActivityContainer_SelectEntrantList: Binding = Binding {
         id: "Game_F1WorldActivityContainer_SelectEntrantList",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_Refresh_PerformanceComparison: Binding = Binding {
+        id: "Game_Refresh_PerformanceComparison",
         kind: "func",
         status: Status::Experimental,
     };
@@ -2278,6 +2376,11 @@ pub mod bindings {
     };
     pub const Sess_WeatherComponent_SetSystemRandomSeed: Binding = Binding {
         id: "Sess_WeatherComponent_SetSystemRandomSeed",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Weekend_Start: Binding = Binding {
+        id: "Sess_Weekend_Start",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3301,6 +3404,11 @@ pub mod bindings {
         kind: "site",
         status: Status::Experimental,
     };
+    pub const site_Game_CareerContinue_DriverSlotTitle: Binding = Binding {
+        id: "site_Game_CareerContinue_DriverSlotTitle",
+        kind: "call",
+        status: Status::Experimental,
+    };
     pub const site_Game_CareerWizardConfirm_NextRoute: Binding = Binding {
         id: "site_Game_CareerWizardConfirm_NextRoute",
         kind: "site",
@@ -3319,6 +3427,21 @@ pub mod bindings {
     pub const site_Game_DriverSelect_BackRoute: Binding = Binding {
         id: "site_Game_DriverSelect_BackRoute",
         kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Game_DriverSelect_BadgeFormat: Binding = Binding {
+        id: "site_Game_DriverSelect_BadgeFormat",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Game_DriverSelect_TeamLogoFormat: Binding = Binding {
+        id: "site_Game_DriverSelect_TeamLogoFormat",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Game_TeamSelect_TeamLogoFormat: Binding = Binding {
+        id: "site_Game_TeamSelect_TeamLogoFormat",
+        kind: "call",
         status: Status::Experimental,
     };
     pub const site_Gdb_DeptCountStore: Binding = Binding {
@@ -3568,6 +3691,11 @@ pub mod bindings {
     };
     pub const vt_Game_CareerWizardSettingsSelectViewModel: Binding = Binding {
         id: "vt_Game_CareerWizardSettingsSelectViewModel",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Game_DriverCareerDriverSelectViewModel: Binding = Binding {
+        id: "vt_Game_DriverCareerDriverSelectViewModel",
         kind: "vtable",
         status: Status::Experimental,
     };

@@ -167,6 +167,8 @@ using Sess_Tyres_ClosestAvailableCompound_t = uint32_t(void *tyre_rules, uint8_t
 inline constexpr fn<"Sess_Tyres_ClosestAvailableCompound", Sess_Tyres_ClosestAvailableCompound_t> Sess_Tyres_ClosestAvailableCompound{}; // L2 experimental
 using Sess_WeatherComponent_SetSystemRandomSeed_t = void(void *component);
 inline constexpr fn<"Sess_WeatherComponent_SetSystemRandomSeed", Sess_WeatherComponent_SetSystemRandomSeed_t> Sess_WeatherComponent_SetSystemRandomSeed{}; // L2 experimental, WeatherAndTimeOfDayComponent::setWeatherSystemRandomSeed
+using Sess_Weekend_Start_t = void(void *weekend, const void *entrants, bool begin);
+inline constexpr fn<"Sess_Weekend_Start", Sess_Weekend_Start_t> Sess_Weekend_Start{}; // L2 experimental, game::championship::Weekend::start(const
 inline constexpr data<"g_Sess_TyreRulesActive", uint8_t> g_Sess_TyreRulesActive{}; // L2 experimental
 inline constexpr data<"g_Sess_TyreRulesMode", uint8_t> g_Sess_TyreRulesMode{}; // L2 experimental
 inline constexpr data<"g_Sess_TyreRulesSessionType", uint32_t> g_Sess_TyreRulesSessionType{}; // L2 experimental

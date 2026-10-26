@@ -448,9 +448,14 @@ int main(void)
     ATOM(WINAPI * rc)(const WNDCLASSEXW *) = (void *)__imp_RegisterClassExW;
     rc(&wc);
     expect(GetModuleHandleW(L"swofty_core.dll") != NULL, "the window trigger loaded the core");
-    expect(wait_log(log_path, hooked ? "[netplay] bridge armed" : "[netplay] session patches off"),
-           hooked ? "the bridge logged that it is armed" : "netplay setup ran with the session patches off");
+    expect(wait_log(log_path, hooked ? "[netplay] bridge armed" : "[core] LAN Game entry in Local Multiplayer"),
+           hooked ? "the bridge logged that it is armed" : "netplay setup ran");
     Sleep(hooked ? 0 : 200);
+    if (!hooked) {
+        static char text[1 << 20];
+        expect(read_file(log_path, text, sizeof text) > 0 && !strstr(text, "[netplay]"),
+               "without SWOFTY_NETPLAY the log has no [netplay] lines");
+    }
 
     int bad = 0, changes = 0;
     for (int i = 0; i < nslots; i++) {
