@@ -1368,11 +1368,11 @@ void season_hub(const swofty::career::State &state)
             at = midseason::at_round(g_data, year, cal.tracks, cal.next, is_player);
             midseason::At opening = midseason::at_round(g_data, year, cal.tracks, 1, is_player);
             log_schedule(*c, at, res, false);
-            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, &opening.line_up);
+            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, &opening.line_up, !new_season);
         } else if (c->mid_year == year) {
             at = midseason::at_ids(g_data, year, c->mid_round, midseason::split_ids(c->mid_applied));
             log_schedule(*c, at, res, true);
-            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up);
+            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, nullptr, !new_season);
         } else {
             mid = false;
             static std::string warned;
@@ -1382,12 +1382,12 @@ void season_hub(const swofty::career::State &state)
                             "the season's line-up stands",
                             year);
             }
-            p = season::plan(g_data, year, view(rows), res, move_player);
+            p = season::plan(g_data, year, view(rows), res, move_player, nullptr, nullptr, !new_season);
         }
         for (auto &n : at.notes)
             p.notes.push_back("mid-season: " + n);
     } else {
-        p = season::plan(g_data, year, view(rows), res, move_player);
+        p = season::plan(g_data, year, view(rows), res, move_player, nullptr, nullptr, !new_season);
     }
     std::string mid_ids = mid ? midseason::ids_text(g_data.years[year], at.active) : std::string();
     auto record_mid = [&]() {

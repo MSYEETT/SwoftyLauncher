@@ -468,6 +468,10 @@ inline VehicleSet vehicle_for(const Data &d, const Resolve &r, int year, int slo
 // move_player (follow mode): when the player raced in the year (at the career's round, with `at`)
 // for another slot, he moves to his real seat and the real line-ups stand around him.
 // at: the year's line-up at the career's round (midseason_logic.hpp); the season's own otherwise.
+// The drivers of the year's mid-season changes never fill a seat (the filler slot of a 10-team
+// year, a seat the player's move left empty): a driver a change takes out sits out, and the one it
+// brings in comes from the free agents, so the fillers do not change with the changes. settled (the
+// season already applied): an empty seat keeps its present filler while he is still free.
 // opening: the line-up at the season's first race. The player's seat in his slot is fixed for the
 // year: his own seat when the season's line-up has him there, else the one the opening's fit takes
 // (the seat he holds in the career, lineup_logic.hpp rule 2).
@@ -475,7 +479,7 @@ inline VehicleSet vehicle_for(const Data &d, const Resolve &r, int year, int slo
 // D7 rule); when the player has no real seat it is skipped, along with the change that filled the
 // newcomer's old seat with the driver the player displaced.
 inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, const Resolve &r, bool move_player = false,
-                 const Year *at = nullptr, const Year *opening = nullptr)
+                 const Year *at = nullptr, const Year *opening = nullptr, bool settled = false)
 {
     Plan p;
     p.year = clamp_year(year);
@@ -583,10 +587,24 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
         p.notes.push_back("follow mode: the player moves to his real " + std::to_string(p.year) + " team (" +
                           d.slots[real_slot].team + ")");
     }
+    std::vector<uint32_t> barred;
+    for (auto &c : base->changes)
+        for (const std::string *label : {&c.in, &c.out})
+            if (int s = r.driver_stat(*label); s >= 0)
+                barred.push_back(static_cast<uint32_t>(s));
     for (auto &pd : d.pool) {
         int s = r.driver_stat(pd.driver);
-        if (s >= 0 && usable(static_cast<uint32_t>(s)) && static_cast<uint32_t>(s) != p.player)
+        if (s >= 0 && usable(static_cast<uint32_t>(s)) && static_cast<uint32_t>(s) != p.player &&
+            std::find(barred.begin(), barred.end(), static_cast<uint32_t>(s)) == barred.end())
             in.pool.push_back(static_cast<uint32_t>(s));
+    }
+    lineup::Grid current = lineup::empty_grid();
+    if (settled) {
+        for (int i = 0; i < kSlots; ++i)
+            for (int k = 0; k < lineup::kSeats; ++k)
+                if (p.holder[i][k] >= 0)
+                    current[i][k] = rows[p.holder[i][k]].driver;
+        in.current = &current;
     }
     std::vector<uint32_t> rated(in.pool);
     for (const Year *yy : {y, base})
