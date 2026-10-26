@@ -73511,6 +73511,34 @@
    "used_by": [
     "native/src/core/career_content.cpp"
    ]
+  },
+  {
+   "id": "game.save_data_root_container",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 48 89 46 20 48 8D 8E 58 02 00 00",
+   "match": "0x1436548f7",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x145855f80",
+   "kind": "data",
+   "names": [
+    "vt_Game_SaveDataRootContainer"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "keepsaves",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/save_keep.cpp"
+   ]
   }
  ]
 }
