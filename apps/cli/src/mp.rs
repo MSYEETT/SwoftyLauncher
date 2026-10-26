@@ -162,6 +162,8 @@ pub enum GameCmd {
     },
     #[command(about = "Forget the room settings")]
     Clear,
+    #[command(about = "End a running host or join at its next step")]
+    Cancel,
     #[command(
         about = "Host a LAN game with a car category; the game must be on its main menu with a room set"
     )]
@@ -511,6 +513,7 @@ fn run_game(store: &Store, game: Option<PathBuf>, cmd: GameCmd) -> Result<ExitCo
         GameCmd::Status => GameCommand::Status,
         GameCmd::Configure { self_member, base } => GameCommand::Configure { self_member, base },
         GameCmd::Clear => GameCommand::Clear,
+        GameCmd::Cancel => GameCommand::Cancel,
         GameCmd::Host { category } => GameCommand::Host { category },
         GameCmd::Join { ip } => GameCommand::Join { ip },
         GameCmd::Leave => GameCommand::Leave,
