@@ -35,6 +35,13 @@
    "version": null,
    "author": null
   },
+  "pascal_wehrlein_face_mod": {
+   "zip": "Pascal_Wehrlein.zip",
+   "root": "F1 25",
+   "title": "Pascal Wehrlein face mod",
+   "version": null,
+   "author": null
+  },
   "f1_2016_career": {
    "zip": "tails.f1-2016.swoftyaddon",
    "root": "",
@@ -65,6 +72,7 @@
   "rio_haryanto": "rio_haryanto_face_mod",
   "brendon_hartley": "brendon_hartley_face_mod",
   "sergey_sirotkin": "sergey_sirotkin_face_mod",
+  "pascal_wehrlein": "pascal_wehrlein_face_mod",
   "nico_rosberg": "f1_2012_season"
  },
  "repair_from": {

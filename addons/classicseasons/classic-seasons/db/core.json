@@ -287,6 +287,14 @@
   {
    "op": "add-row",
    "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=pascal_wehrlein]",
+   "set": {
+    "_metadata_": "cs_pascal_wehrlein"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
    "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
    "set": {
     "_metadata_": "cs_nico_rosberg",
@@ -504,7 +512,7 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=pascal_wehrlein]",
    "field": "head",
-   "value": "male_ls487"
+   "value": "cs_pascal_wehrlein"
   },
   {
    "op": "set",

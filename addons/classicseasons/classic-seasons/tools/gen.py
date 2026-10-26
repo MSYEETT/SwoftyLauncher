@@ -95,6 +95,7 @@ SETUP_ROW = "entrants.entrant_setup_modes.entrant_setup_mode"
 SETUP_PRESETS = "car_setup.presets.vehicle_package_setups"
 SEASON_LAUNCHER = ">=1.5.1"
 SEASON_VERSION = "0.6.0"
+SEASON_CORE = "0.6.0"
 DIRECT_SUITS = [e for e in suit_sources.REAL["suits"] if "transfer" not in suit_sources.REAL["mods"][e["mod"]]]
 TRANSFERRED_SUITS = [e for e in suit_sources.REAL["suits"] if "transfer" in suit_sources.REAL["mods"][e["mod"]]]
 REAL_SUIT_IDS = range(974, 974 + len(DIRECT_SUITS))
@@ -293,7 +294,7 @@ def season_manifest(core, year, assets):
         "category": "seasons",
         "kind": ["database", "files"],
         "compat": {**core["compat"], "launcher": SEASON_LAUNCHER},
-        "requires": core["requires"] + [{"id": core["id"], "version": f">={core['version']}"}],
+        "requires": core["requires"] + [{"id": core["id"], "version": f">={SEASON_CORE}"}],
         "operations": {"database": ["db/season.json"], "assets": ["lang/season.json", *assets]},
     }
 
