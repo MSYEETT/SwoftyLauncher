@@ -1452,8 +1452,7 @@ void season_hub(const swofty::career::State &state)
     note_card(c, rows, s.index);
     if (g_current != c->key) {
         publish(true, c->rnd);
-        if (rnd_option() != c->rnd)
-            hub_sync(c->rnd, "Team HQ");
+        hub_sync(c->rnd, "career loaded");
     }
     g_current = c->key;
     if (g_rnd.exchange(rnd_code(c->rnd)) != rnd_code(c->rnd))
