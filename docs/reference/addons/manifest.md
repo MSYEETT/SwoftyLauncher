@@ -130,6 +130,8 @@ The **Addons** page shows the source as Built in, DB Editor, Imported or Install
 | `affects` | boolean | `true` makes the launcher ask before the addon is turned off in a profile or removed: "This addon has affected your saves. Careers you played with it may not load without it." Defaults to `false`. |
 | `message` | string? | Shown under the warning, such as what to do instead. |
 
+Before a session whose profile leaves this addon out, the launcher backs up the Steam profile save; see [`swofty saves`](/reference/cli#swofty-saves).
+
 Leave `saves` out for an addon that doesn't affect saves. The launcher shows the warning in a dialog; `swofty addons disable` and `swofty addons remove` ask on a terminal and need `--yes` otherwise. Turning the addon on is never asked about. A launcher before 1.0.12 rejects the field; set `"compat": { "launcher": ">=1.0.12" }` when you use it.
 
 ## compat
