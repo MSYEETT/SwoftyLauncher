@@ -18,6 +18,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use ring::aead::{Aad, CHACHA20_POLY1305, LessSafeKey, NONCE_LEN, Nonce, UnboundKey};
 use ring::hkdf;
+use zeroize::Zeroize;
 
 pub const VERSION: u8 = 2;
 pub const HEADER_LEN: usize = 18;
@@ -149,7 +150,8 @@ impl Sealer {
     }
 }
 
-/// Opens the datagrams sealed for member `me`, keeping each remote member's session.
+/// Opens the datagrams sealed for member `me`, keeping each remote member's session. Wipes the
+/// lobby key when dropped.
 pub struct Opener {
     lobby_key: [u8; 32],
     me: u8,
@@ -176,6 +178,14 @@ struct Attempt {
     key: LessSafeKey,
     at: Instant,
 }
+
+impl Drop for Opener {
+    fn drop(&mut self) {
+        self.lobby_key.zeroize();
+    }
+}
+
+impl zeroize::ZeroizeOnDrop for Opener {}
 
 impl Opener {
     pub fn new(lobby_key: &[u8; 32], me: u8, members: impl IntoIterator<Item = u8>) -> Self {

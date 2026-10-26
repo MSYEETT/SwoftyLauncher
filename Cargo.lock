@@ -7152,6 +7152,7 @@ dependencies = [
  "tungstenite",
  "ureq",
  "webpki-roots",
+ "zeroize",
  "zip",
 ]
 

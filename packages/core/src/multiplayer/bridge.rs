@@ -26,6 +26,7 @@ use std::time::{Duration, SystemTime};
 
 use ring::rand::{SecureRandom, SystemRandom};
 use serde::{Deserialize, Serialize};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use super::direct::timed_out;
 use super::seal::{Opener, Reject, Sealer, new_session_id};
@@ -48,7 +49,8 @@ const BASE_MAX: u16 = 60000;
 const BIND_ATTEMPTS: usize = 64;
 const BUF: usize = 65536;
 
-#[derive(Debug, Clone)]
+/// Wipes its key when dropped.
+#[derive(Clone)]
 pub struct BridgeConfig {
     /// This player's lobby number.
     pub self_member: u8,
@@ -60,6 +62,24 @@ pub struct BridgeConfig {
     /// go until the game has sent from it.
     pub game_port: u16,
 }
+
+impl std::fmt::Debug for BridgeConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BridgeConfig")
+            .field("self_member", &self.self_member)
+            .field("members", &self.members)
+            .field("game_port", &self.game_port)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Drop for BridgeConfig {
+    fn drop(&mut self) {
+        self.key.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for BridgeConfig {}
 
 impl BridgeConfig {
     fn remotes(&self, allow_empty: bool) -> io::Result<Vec<u8>> {

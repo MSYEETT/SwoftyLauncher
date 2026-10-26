@@ -19,6 +19,7 @@ use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use serde_json::{Value, json};
+use zeroize::Zeroize;
 
 use super::bridge::{self, Bridge, BridgeConfig, MemberStats, Stats};
 use super::direct::DirectUdp;
@@ -1136,7 +1137,7 @@ impl Worker {
     }
 
     fn take_key(&mut self, key: &RoomKey) {
-        let Some(bytes) = key.bytes() else {
+        let Some(mut bytes) = key.bytes() else {
             self.last_error = Some("the server sent a room key that isn't 32 bytes".into());
             return;
         };
@@ -1146,6 +1147,7 @@ impl Worker {
             }
             _ => self.key = Some(bytes),
         }
+        bytes.zeroize();
     }
 
     fn apply_lobby(&mut self, lobby: Lobby) {
@@ -1331,6 +1333,12 @@ impl Worker {
             last_error: self.last_error.clone(),
         };
         *lock(&self.inner.state) = state;
+    }
+}
+
+impl Drop for Worker {
+    fn drop(&mut self) {
+        self.key.zeroize();
     }
 }
 

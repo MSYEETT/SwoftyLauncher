@@ -9,6 +9,8 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 use super::game::Category;
 
 const TIMEOUT: Duration = Duration::from_secs(20);
@@ -228,10 +230,18 @@ pub fn member_number(ip: &str) -> Option<u8> {
     ((a, b, c) == (10, 77, 0) && (1..=254).contains(&n)).then_some(n)
 }
 
-/// The room key as the server sends it.
+/// The room key as the server sends it; wiped from memory when dropped.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct RoomKey(String);
+
+impl Drop for RoomKey {
+    fn drop(&mut self) {
+        self.0.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for RoomKey {}
 
 impl fmt::Debug for RoomKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -257,7 +267,8 @@ fn decode_key(text: &str) -> Option<[u8; 32]> {
     if text.len() != 43 {
         return None;
     }
-    let mut out = Vec::with_capacity(33);
+    let mut out = [0u8; 32];
+    let mut len = 0;
     let mut acc = 0u32;
     let mut bits = 0;
     for ch in text.bytes() {
@@ -267,17 +278,22 @@ fn decode_key(text: &str) -> Option<[u8; 32]> {
             b'0'..=b'9' => ch - b'0' + 52,
             b'-' | b'+' => 62,
             b'_' | b'/' => 63,
-            _ => return None,
+            _ => {
+                out.zeroize();
+                return None;
+            }
         };
         acc = (acc << 6) | u32::from(v);
         bits += 6;
         if bits >= 8 {
             bits -= 8;
-            out.push((acc >> bits) as u8);
+            out[len] = (acc >> bits) as u8;
+            len += 1;
             acc &= (1 << bits) - 1;
         }
     }
-    out.try_into().ok()
+    acc.zeroize();
+    Some(out)
 }
 
 /// One TURN allocation's credentials from `POST /v1/mp/turn`.
@@ -541,6 +557,21 @@ mod tests {
         assert_eq!(RoomKey::from("short").bytes(), None);
         assert_eq!(RoomKey::from(&*format!("{}!", &key[..42])).bytes(), None);
         assert_eq!(format!("{:?}", RoomKey::from(key)), "RoomKey(..)");
+    }
+
+    #[test]
+    fn the_key_is_wiped_on_drop() {
+        fn wiped<T: ZeroizeOnDrop>() {}
+        wiped::<RoomKey>();
+        wiped::<crate::multiplayer::bridge::BridgeConfig>();
+        wiped::<crate::multiplayer::seal::Opener>();
+        let cfg = crate::multiplayer::bridge::BridgeConfig {
+            self_member: 1,
+            members: vec![1],
+            key: [0xab; 32],
+            game_port: 21414,
+        };
+        assert!(!format!("{cfg:?}").to_ascii_lowercase().contains("ab, "));
     }
 
     #[test]

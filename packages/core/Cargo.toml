@@ -27,6 +27,7 @@ thiserror.workspace = true
 tungstenite.workspace = true
 ureq.workspace = true
 webpki-roots.workspace = true
+zeroize.workspace = true
 zip.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
