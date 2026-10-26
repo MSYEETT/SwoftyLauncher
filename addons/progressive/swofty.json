@@ -105,6 +105,14 @@
       "description": "Experimental: each season also brings that year's cars, liveries and helmets.",
       "default": false,
       "binds": "native"
+    },
+    {
+      "id": "setup_page",
+      "type": "toggle",
+      "label": "Career setup page",
+      "description": "The Progressive Career tile opens the career setup page first (needs a launcher with career setup pages).",
+      "default": false,
+      "binds": "native"
     }
   ],
   "operations": {
@@ -116,6 +124,12 @@
       "lang/career.json"
     ],
     "native": [
+      {
+        "dll": "native/progressive_ui.dll"
+      },
+      {
+        "dll": "native/progressive_suffix.dll"
+      },
       {
         "dll": "native/progressive.dll",
         "files": [
