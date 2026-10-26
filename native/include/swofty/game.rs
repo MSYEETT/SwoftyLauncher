@@ -1102,15 +1102,19 @@ pub struct Session {
     pub session_id: u32,
     _pad_0xc: [u8; 0x4],
     pub completion: u32,
-    _pad_0x14: [u8; 0xc],
+    _pad_0x14: [u8; 0x4],
+    pub participants_allocator: *mut NeAllocator,
     pub participants_begin: *mut EntrantRecord,
     pub participants_end: *mut EntrantRecord,
-    _pad_0x30: [u8; 0x70],
+    pub participants_capacity: u64,
+    _pad_0x38: [u8; 0x68],
 }
 const _: () = assert!(core::mem::offset_of!(Session, session_id) == 0x8);
 const _: () = assert!(core::mem::offset_of!(Session, completion) == 0x10);
+const _: () = assert!(core::mem::offset_of!(Session, participants_allocator) == 0x18);
 const _: () = assert!(core::mem::offset_of!(Session, participants_begin) == 0x20);
 const _: () = assert!(core::mem::offset_of!(Session, participants_end) == 0x28);
+const _: () = assert!(core::mem::offset_of!(Session, participants_capacity) == 0x30);
 const _: () = assert!(core::mem::size_of::<Session>() == 0xa0);
 
 #[repr(C)]

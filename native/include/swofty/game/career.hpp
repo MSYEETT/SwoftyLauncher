@@ -706,15 +706,19 @@ struct Session {
     uint32_t session_id; // L2 experimental
     uint8_t _pad_0xc[0x4];
     uint32_t completion; // L2 experimental
-    uint8_t _pad_0x14[0xc];
+    uint8_t _pad_0x14[0x4];
+    NeAllocator *participants_allocator; // L2 experimental
     EntrantRecord *participants_begin; // L2 experimental
     EntrantRecord *participants_end; // L2 experimental
-    uint8_t _pad_0x30[0x70];
+    uint64_t participants_capacity; // L2 experimental
+    uint8_t _pad_0x38[0x68];
 };
 static_assert(offsetof(Session, session_id) == 0x8);
 static_assert(offsetof(Session, completion) == 0x10);
+static_assert(offsetof(Session, participants_allocator) == 0x18);
 static_assert(offsetof(Session, participants_begin) == 0x20);
 static_assert(offsetof(Session, participants_end) == 0x28);
+static_assert(offsetof(Session, participants_capacity) == 0x30);
 static_assert(sizeof(Session) == 0xa0);
 
 struct SponsorEntry {
