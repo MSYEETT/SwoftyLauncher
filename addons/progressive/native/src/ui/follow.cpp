@@ -8,7 +8,9 @@
 // Career_Needs_DriverContract true, the player signs a one-season contract with the game's own
 // Career_Build_DriverContract + Career_Sign_DriverContract (type 0, the screen's recommended target)
 // and the negotiation scene passes straight through (Intro and Outro skip, Update leaves at once):
-//   - no active contract (a new career): his current team, the start season's real team;
+//   - no active contract (a new career, or a save from before its first contract): his real team of
+//     the career's current year (ProgressiveRealTeam: start + season index), whatever seat the
+//     save still shows; his current team when he did not race that year;
 //   - a contract that ends this season: his real team of the next year, from progressive.dll
 //     (ProgressiveFollowTeam, data/years.json pool). For another team the signing caches the
 //     contract and the game's season processor (0x140d766b0) moves him at the season change.
@@ -132,18 +134,30 @@ int follow_mode()
     return r >= 0 ? r : std::string(team_moves.get()) == "follow_driver" ? 1 : 0;
 }
 
-int follow_team(uint32_t driver_stat, uint32_t *team_stat, int *year)
+using TeamFn = int (*)(uint32_t, uint32_t *, int *);
+
+int team_call(const char *name, TeamFn &fn, bool &looked, uint32_t driver_stat, uint32_t *team_stat, int *year)
 {
-    static int (*fn)(uint32_t, uint32_t *, int *) = nullptr;
-    static bool looked = false;
     if (!looked) {
         HMODULE m = GetModuleHandleW(L"progressive.dll");
-        fn = m ? reinterpret_cast<int (*)(uint32_t, uint32_t *, int *)>(
-                     reinterpret_cast<void *>(GetProcAddress(m, "ProgressiveFollowTeam")))
-               : nullptr;
+        fn = m ? reinterpret_cast<TeamFn>(reinterpret_cast<void *>(GetProcAddress(m, name))) : nullptr;
         looked = m != nullptr;
     }
     return fn ? fn(driver_stat, team_stat, year) : -1;
+}
+
+int follow_team(uint32_t driver_stat, uint32_t *team_stat, int *year)
+{
+    static TeamFn fn = nullptr;
+    static bool looked = false;
+    return team_call("ProgressiveFollowTeam", fn, looked, driver_stat, team_stat, year);
+}
+
+int real_team(uint32_t driver_stat, uint32_t *team_stat, int *year)
+{
+    static TeamFn fn = nullptr;
+    static bool looked = false;
+    return team_call("ProgressiveRealTeam", fn, looked, driver_stat, team_stat, year);
 }
 
 bool sign(uintptr_t contracts)
@@ -163,8 +177,18 @@ bool sign(uintptr_t contracts)
     bool active = rdv<uint8_t>(rec + offsetof(DriverContract, active)) != 0;
     uint32_t team = human.team_stat_id;
     int year = 0;
-    const char *why = "his current team (new career)";
-    if (active) {
+    const char *why = "his current team (no contract yet; he did not race this year)";
+    if (!active) {
+        uint32_t real = 0;
+        int r = real_team(driver >> 16, &real, &year);
+        if (r < 0)
+            why = "his current team (no contract yet; progressive.dll is not loaded)";
+        else if (r > 0) {
+            team = real << 16;
+            why = same_key(team, human.team_stat_id) ? "his real team this year (no contract yet)"
+                                                     : "his real team this year (no contract yet; his seat is another team's)";
+        }
+    } else {
         uint32_t next = 0;
         int r = follow_team(driver >> 16, &next, &year);
         if (r <= 0) {

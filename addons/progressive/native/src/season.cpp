@@ -747,6 +747,7 @@ void hybrid_budgets(uintptr_t e, int year)
 std::atomic<int> g_rnd{0};
 std::atomic<bool> g_test_armed{false};
 std::string g_current;
+std::string g_entry;
 std::map<std::string, int> g_applies;
 
 int rnd_code(const std::string &m)
@@ -785,6 +786,22 @@ bool progressive_career()
 // The Team HQ tab (manifest hub_tab, built by the core) shows rnd_mode, which is a profile option:
 // on load the career's own mode is pushed into it, and a Real-life career keeps the R&D tab out of the
 // laptop (the core's hide_rnd, applied when the laptop is built at Team HQ entry).
+store::Career *live_entry()
+{
+    const std::string &k = g_current.empty() ? g_entry : g_current;
+    return k.empty() ? nullptr : store::find(k);
+}
+
+int live_year(const store::Career *c)
+{
+    SeasonInfo s;
+    uintptr_t e = entity();
+    uint32_t index = e && season(e, s) ? s.index : 0;
+    if (c)
+        index += static_cast<uint32_t>(std::max(0, c->test_seasons));
+    return season::year_for(c ? c->start : setting_year(), index);
+}
+
 void new_career()
 {
     if (!g_new_career.exchange(true))
@@ -825,6 +842,7 @@ void season_loaded(const swofty::career::State &state)
     store::Career *c = career_entry(state, s.index, player, rows);
     if (!c)
         return;
+    g_entry = c->key;
     hub_sync(c->rnd, "career load");
 }
 
@@ -874,6 +892,7 @@ void season_unloaded()
     swofty::hub::hide_rnd(false);
     g_rnd = 0;
     g_current.clear();
+    g_entry.clear();
     g_applies.clear();
     g_standings_pending.clear();
     g_refreshed_for.clear();
@@ -1020,18 +1039,17 @@ SWOFTY_ON_LOAD
 
 extern "C" __declspec(dllexport) int ProgressiveFollowMode()
 {
-    pg::store::Career *c = pg::g_current.empty() ? nullptr : pg::store::find(pg::g_current);
+    pg::store::Career *c = pg::live_entry();
     return !c ? -1 : c->moves == "follow_driver" ? 1 : 0;
 }
 
 extern "C" __declspec(dllexport) int ProgressiveFollowTeam(uint32_t driver_stat, uint32_t *team_stat, int *year)
 {
     using namespace progressive;
-    pg::store::Career *c = pg::g_current.empty() ? nullptr : pg::store::find(pg::g_current);
+    pg::store::Career *c = pg::live_entry();
     if (!c || c->moves != "follow_driver" || !pg::data())
         return 0;
-    int now = c->applied_season >= 0 && c->applied_year ? c->applied_year : season::clamp_year(c->start);
-    int next = now + 1;
+    int next = pg::live_year(c) + 1;
     if (year)
         *year = next;
     if (next > season::kLastYear)
@@ -1077,6 +1095,34 @@ SWOFTY_ON_LOAD
     if (r != swofty::events::Result::ok)
         swofty::log("[progressive] R&D: no frame callback (%s); an R&D mode change applies at the next Team HQ",
                     swofty::events::name(r));
+}
+
+extern "C" __declspec(dllexport) int ProgressiveRealTeam(uint32_t driver_stat, uint32_t *team_stat, int *year)
+{
+    using namespace progressive;
+    if (!pg::data())
+        return 0;
+    int now = pg::live_year(pg::live_entry());
+    if (year)
+        *year = now;
+    for (auto &p : pg::g_data.pool) {
+        uint32_t st = 0;
+        int stat = pg::names::stat(pg::names::Kind::driver, p.driver, st) ? static_cast<int>(st) : p.stat;
+        if (stat < 0 || static_cast<uint32_t>(stat) != driver_stat)
+            continue;
+        auto it = p.slot_by_year.find(now);
+        if (it == p.slot_by_year.end() || it->second < 1 || it->second > season::kSlots)
+            return 0;
+        int team = pg::g_data.slots[it->second - 1].team_stat;
+        if (team < 0)
+            return 0;
+        if (team_stat)
+            *team_stat = static_cast<uint32_t>(team);
+        swofty::log("[progressive] follow: driver %u raced for %s in %d", driver_stat,
+                    pg::g_data.slots[it->second - 1].team.c_str(), now);
+        return 1;
+    }
+    return 0;
 }
 
 extern "C" __declspec(dllexport) void ProgressiveNewCareer()
