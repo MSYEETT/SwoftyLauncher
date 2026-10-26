@@ -102,8 +102,8 @@
       "id": "season_visuals",
       "type": "toggle",
       "label": "Season cars and helmets",
-      "description": "Experimental: each season also brings that year's cars, liveries and helmets.",
-      "default": false,
+      "description": "Each season also brings that year's cars, liveries and helmets.",
+      "default": true,
       "binds": "native"
     },
     {
@@ -111,6 +111,14 @@
       "type": "toggle",
       "label": "Career setup page",
       "description": "The Progressive Career tile opens the career setup page first (needs a launcher with career setup pages).",
+      "default": false,
+      "binds": "native"
+    },
+    {
+      "id": "dev_probe",
+      "type": "toggle",
+      "label": "Developer: seat probe",
+      "description": "Developer test: applies data/probe.json seat writes at Team HQ in any Driver Career. Leave off.",
       "default": false,
       "binds": "native"
     }

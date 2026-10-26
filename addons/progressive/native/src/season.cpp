@@ -12,7 +12,8 @@
 //      mismatch); the new seats' contracts signed; numbers for seated rows without one; one
 //      finalise against the line-up from before the batch;
 //   4. the team names of the year through swofty::lang (also on every career load).
-// The cars and looks are written only while the option season_visuals is on (experiment E1).
+// The cars and looks are written while the option season_visuals is on (the default; experiment E1
+// showed a Team HQ rewrite of vehicle_ref and look in the next session).
 
 #include <algorithm>
 #include <atomic>
@@ -39,7 +40,7 @@
 SWOFTY_SETTING(std::string_view, start_season, "2026");
 SWOFTY_SETTING(std::string_view, rnd_mode, "real_life");
 SWOFTY_SETTING(std::string_view, team_moves, "follow_driver");
-SWOFTY_SETTING(bool, season_visuals, false);
+SWOFTY_SETTING(bool, season_visuals, true);
 
 namespace pg {
 

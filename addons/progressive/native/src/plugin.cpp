@@ -39,6 +39,8 @@ void on_career(const SwoftyEvent *ev, void *)
         swofty::log("[progressive] career loaded: mode %s, career %s",
                     swofty::career::name(static_cast<swofty::career::Mode>(ev->a)), state.key[0] ? state.key : "(no key yet)");
         pg::season_loaded(state);
+        if (static_cast<swofty::career::Mode>(ev->a) == swofty::career::Mode::driver_career)
+            pg::probe(state);
         return;
     }
     if (ev->a != 1)

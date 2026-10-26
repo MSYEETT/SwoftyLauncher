@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Progressive Career: experiment E1 (DESIGN.md). On a Team HQ of any Driver Career, the seat
-// writes in swofty/addons/swofty.progressive/data/probe.json are applied once per career:
+// Progressive Career: experiment E1 (DESIGN.md), a developer tool. Only with the option dev_probe on
+// (off by default), on a Team HQ or career load of any Driver Career, the seat writes in
+// swofty/addons/swofty.progressive/data/probe.json are applied once per career:
 //   {
 //     "finalise": "auto" | "always" | "never",   default auto: only when a driver changed team or seat
 //     "patch_weekend": true,                       also patch the current weekend's copy of each row
@@ -34,6 +35,8 @@
 #include "names.hpp"
 #include "progressive.hpp"
 #include "seats.hpp"
+
+SWOFTY_SETTING(bool, dev_probe, false);
 
 namespace pg {
 
@@ -359,7 +362,7 @@ void forget_career()
 
 void probe(const swofty::career::State &state)
 {
-    if (swofty::career::mode(state) != swofty::career::Mode::driver_career)
+    if (!dev_probe || swofty::career::mode(state) != swofty::career::Mode::driver_career)
         return;
     if (!swofty::storage::available()) {
         skip_once("the core's storage library is unavailable; no probe");
