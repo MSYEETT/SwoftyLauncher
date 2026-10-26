@@ -275,6 +275,80 @@
   },
   {
    "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/brendon_hartley.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_brendon_hartley.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/brendon_hartley.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_brendon_hartley.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/character_package/heads/male_driver/brendon_hartley/textures/brendon_hartley_head_d.tif.2025.mipmaps",
+   "target": "character_package/heads/male_driver/brendon_hartley/textures/brendon_hartley_head_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/character_package/heads/male_driver/brendon_hartley/textures/brendon_hartley_head_n.tif.2025.mipmaps",
+   "target": "character_package/heads/male_driver/brendon_hartley/textures/brendon_hartley_head_n.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/character_package/heads/male_driver/brendon_hartley/textures/brendon_hartley_head_s.tif.2025.mipmaps",
+   "target": "character_package/heads/male_driver/brendon_hartley/textures/brendon_hartley_head_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_brendon_hartley.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_brendon_hartley.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_brendon_hartley.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_brendon_hartley.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/sergey_sirotkin.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_sergey_sirotkin.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/sergey_sirotkin.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_sergey_sirotkin.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/character_package/heads/male_driver/sergey_sirotkin/textures/sergey_sirotkin_head_d.tif.2025.mipmaps",
+   "target": "character_package/heads/male_driver/sergey_sirotkin/textures/sergey_sirotkin_head_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/character_package/heads/male_driver/sergey_sirotkin/textures/sergey_sirotkin_head_n.tif.2025.mipmaps",
+   "target": "character_package/heads/male_driver/sergey_sirotkin/textures/sergey_sirotkin_head_n.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/character_package/heads/male_driver/sergey_sirotkin/textures/sergey_sirotkin_head_s.tif.2025.mipmaps",
+   "target": "character_package/heads/male_driver/sergey_sirotkin/textures/sergey_sirotkin_head_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_sergey_sirotkin.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_sergey_sirotkin.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_sergey_sirotkin.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_sergey_sirotkin.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
+  },
+  {
+   "op": "file.put",
    "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_jolyon_palmer.erp",
    "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_jolyon_palmer.erp"
   },

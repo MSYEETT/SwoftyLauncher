@@ -108,16 +108,18 @@ At load it registers one box per season with `swofty::era::add_box` (`swofty/era
 | Nyck de Vries | `nyck_de-vries` | 2023 | More Driver Models |
 | Robert Kubica | `robert_kubica` | 2019 | F1 25 Kubica Face Mod (Cap On) |
 | Rio Haryanto | `rio_haryanto` | 2016 | Rio Haryanto face mod |
+| Brendon Hartley | `brendon_hartley` | 2018 | Brendon Hartley face mod |
+| Sergey Sirotkin | `sergey_sirotkin` | 2018 | Sergey Sirotkin face mod |
 
-The stock database has an `entrants.animation.driver_heads.driver_head` row for each of these heads but Rio Haryanto's (see `row_from` below). The row's `model_path` is `eaid://[CHARACTER_PACKAGE]/heads/male_driver/<head>/idf/<head>_rig_head_morph_v1`, and its asset group path formats give two groups named after the row's label. The stock manifest lists the groups of the stock labels, so the core never registers an addon's group under them, and a player's game folder can hold other files at their archive paths. Each head ships under its own label `cs_<head>`:
+The stock database has an `entrants.animation.driver_heads.driver_head` row for each of these heads but Haryanto's, Hartley's and Sirotkin's (see `row_from` below). The row's `model_path` is `eaid://[CHARACTER_PACKAGE]/heads/male_driver/<head>/idf/<head>_rig_head_morph_v1`, and its asset group path formats give two groups named after the row's label. The stock manifest lists the groups of the stock labels, so the core never registers an addon's group under them, and a player's game folder can hold other files at their archive paths. Each head ships under its own label `cs_<head>`:
 
 - `db/core.json` adds a `cs_<head>` row copied from the stock `<head>` row and sets the driver's `head` to it.
 - `2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_<head>.erp`: the model, materials and textures.
 - `2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_<head>.erp`: the facial morph clips.
 
-Kubica's head also has three `.2025.mipmaps` textures in `character_package/heads/male_driver/robert_kubica/textures/`, and Haryanto's three `.2024.mipmaps` in `character_package/heads/male_driver/rio_haryanto/textures/`. The More Driver Models heads hold their textures in the heads archive.
+Kubica's head also has three `.2025.mipmaps` textures in `character_package/heads/male_driver/robert_kubica/textures/`, Haryanto's three `.2024.mipmaps` in `character_package/heads/male_driver/rio_haryanto/textures/`, and Hartley's and Sirotkin's three `.2025.mipmaps` each in `character_package/heads/male_driver/<head>/textures/`. The More Driver Models heads hold their textures in the heads archive.
 
-A head with `row_from` in `data/heads.json` (Haryanto's) has no stock row of its own label: its `cs_<head>` row is a copy of the named stock head's (`male_ls222`) with the `model_path` of its heads archive, `has_morph_data` `True` and `available_for_customisation` `False`.
+A head with `row_from` in `data/heads.json` (Haryanto's, Hartley's and Sirotkin's) has no stock row of its own label: its `cs_<head>` row is a copy of the named stock head's (`male_ls222`) with the `model_path` of its heads archive, `has_morph_data` `True` and `available_for_customisation` `False`.
 
 `assets/heads.json` adds each file with `file.put` and registers both `cs_<head>` groups with `group.register`, with `lando_norris`'s groups as templates. `tools/heads.py` reads the archives named in `data/heads.json` from the `--downloads` folders. It fails when `--game` is not the F1 25 folder, when a target exists in it that the launcher's `placed.json` does not list, or when no driver in `data/seasons.json` has the head.
 
@@ -157,8 +159,6 @@ The addon's `heads/male_ls204.erp`, a face for Stoffel Vandoorne built from a ph
 | Nico Rosberg | `male_ls192` | 2016 | Fair, light ash-brown short hair |
 | Pascal Wehrlein | `male_ls487` | 2016, 2017 | Olive, dark brown short hair |
 | Stoffel Vandoorne | `male_ls343` | 2017, 2018 | Fair, dark brown short hair |
-| Brendon Hartley | `male_ls265` | 2018 | Fair, mid-brown short hair |
-| Sergey Sirotkin | `male_ls355` | 2018 | Fair, dark brown short hair |
 
 The game's fictional drivers wear some of these heads too; the drivers keep them. `tools/test_heads.py` checks that no two drivers of a season wear the same generic head or a copy of it. `tools/head_sheet.py --generic` draws every stock male generic head with its hair texture set and colour swatch.
 
@@ -176,6 +176,8 @@ python3 tools/head_sheet.py --out <png> [--generic] --game <F1 25>
 | `More Driver Models.zip` | The More Driver Models heads |
 | `F1 25 Kubica Face Mod.zip` | Robert Kubica |
 | `Rio_Haryanto_facemod.zip` | Rio Haryanto |
+| `Brendon Hartley.zip` | Brendon Hartley |
+| `Sergey Sirotkin.zip` | Sergey Sirotkin |
 | `tails.f1-2016.swoftyaddon` | The face maps of Palmer, Ericsson, Nasr and Gutiérrez |
 | `F1_2012_Season_v1.0.1_ByDaniX(1).zip`, `F1 2012 Temporada.zip` inside it (`inner`) | Nico Rosberg (off) |
 

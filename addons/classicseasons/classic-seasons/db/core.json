@@ -265,6 +265,28 @@
   {
    "op": "add-row",
    "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
+   "set": {
+    "_metadata_": "cs_brendon_hartley",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/brendon_hartley/idf/brendon_hartley_rig_head_morph_v1",
+    "has_morph_data": "True",
+    "available_for_customisation": "False"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
+   "set": {
+    "_metadata_": "cs_sergey_sirotkin",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/sergey_sirotkin/idf/sergey_sirotkin_rig_head_morph_v1",
+    "has_morph_data": "True",
+    "available_for_customisation": "False"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
    "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls265]",
    "set": {
     "_metadata_": "cs_jolyon_palmer",
@@ -372,7 +394,7 @@
     "last_name_standard": "",
     "initials": "HAR",
     "nationality": "new_zealand",
-    "head": "male_ls265",
+    "head": "cs_brendon_hartley",
     "audio_name": "DefaultName",
     "expression_label": "",
     "stat_id": "228"
@@ -390,7 +412,7 @@
     "last_name_standard": "",
     "initials": "SIR",
     "nationality": "default",
-    "head": "male_ls355",
+    "head": "cs_sergey_sirotkin",
     "audio_name": "DefaultName",
     "expression_label": "",
     "stat_id": "229"
