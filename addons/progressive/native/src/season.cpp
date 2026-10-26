@@ -16,6 +16,9 @@
 //      finalise against the line-up from before the batch;
 //   4. the team names of the year through swofty::lang (also on every career load);
 //   5. in a hybrid R&D career, each team's resource points for the season.
+// Every career load and Team HQ also records the player's team and the season index in the store
+// entry, for the year on the career's Resume Career card (ProgressiveCardYear,
+// progressive_resume.dll).
 // The cars and looks are written while the option season_visuals is on (the default; experiment E1
 // showed a Team HQ rewrite of vehicle_ref and look in the next session).
 
@@ -40,6 +43,7 @@
 
 #include "names.hpp"
 #include "progressive.hpp"
+#include "resume_logic.hpp"
 #include "season_logic.hpp"
 #include "seats.hpp"
 #include "store.hpp"
@@ -802,6 +806,34 @@ int live_year(const store::Career *c)
     return season::year_for(c ? c->start : setting_year(), index);
 }
 
+void note_card(store::Career *c, const std::vector<Row> &rows, uint32_t season_index)
+{
+    int team = -1;
+    for (auto &r : rows)
+        if (human(r.rec))
+            team = teamless(r.rec) ? -1 : static_cast<int>(stat_of(r.rec.team_stat_id));
+    if (c->team == team && c->season == static_cast<int>(season_index))
+        return;
+    c->team = team;
+    c->season = static_cast<int>(season_index);
+    store::save();
+}
+
+int real_team(uint32_t driver, int year)
+{
+    for (auto &p : g_data.pool) {
+        uint32_t st = 0;
+        int stat = names::stat(Kind::driver, p.driver, st) ? static_cast<int>(st) : p.stat;
+        if (stat < 0 || static_cast<uint32_t>(stat) != driver)
+            continue;
+        auto it = p.slot_by_year.find(year);
+        if (it == p.slot_by_year.end() || it->second < 1 || it->second > season::kSlots)
+            return -1;
+        return g_data.slots[it->second - 1].team_stat;
+    }
+    return -1;
+}
+
 void new_career()
 {
     if (!g_new_career.exchange(true))
@@ -842,6 +874,7 @@ void season_loaded(const swofty::career::State &state)
     store::Career *c = career_entry(state, s.index, player, rows);
     if (!c)
         return;
+    note_card(c, rows, s.index);
     g_entry = c->key;
     hub_sync(c->rnd, "career load");
 }
@@ -922,6 +955,7 @@ void season_hub(const swofty::career::State &state)
     store::Career *c = career_entry(state, s.index, player, rows);
     if (!c)
         return;
+    note_card(c, rows, s.index);
     if (g_current != c->key) {
         publish(true, c->rnd);
         if (rnd_option() != c->rnd)
@@ -1072,6 +1106,35 @@ extern "C" __declspec(dllexport) int ProgressiveFollowTeam(uint32_t driver_stat,
         return 1;
     }
     return 0;
+}
+
+// The year a Resume Career card of a Progressive career shows (progressive_resume.dll). The card's
+// save slot gives the player's driver and team stat ids and the game's season index; each entry of
+// the driver gets the year its career is in at that season index, as live_year works it out for a
+// loaded career, and resume_logic.hpp picks among them. 0 when no entry has the driver.
+extern "C" __declspec(dllexport) int ProgressiveCardYear(uint32_t driver, int team, int season_index)
+{
+    using namespace progressive;
+    if (!pg::store::load())
+        return 0;
+    bool data = pg::data();
+    if (data)
+        pg::names::load();
+    bool index_ok = season_index >= 0 && season_index < 64;
+    std::vector<resume::Entry> entries;
+    for (pg::store::Career *c : pg::store::by_driver(driver)) {
+        resume::Entry e;
+        e.driver = c->driver;
+        e.team = c->team;
+        e.season = c->season;
+        e.used = c->used;
+        e.year = index_ok ? season::year_for(c->start, static_cast<uint32_t>(season_index + std::max(0, c->test_seasons)))
+                 : c->applied_season >= 0 && c->applied_year ? c->applied_year
+                                                             : season::clamp_year(c->start);
+        e.real_team = data && team >= 0 && pg::real_team(driver, e.year) == team;
+        entries.push_back(e);
+    }
+    return resume::card_year(entries, driver, team, index_ok ? season_index : -1);
 }
 
 extern "C" __declspec(dllexport) void ProgressiveWizardNames(int year)

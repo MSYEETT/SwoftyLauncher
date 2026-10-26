@@ -8,7 +8,9 @@
 // driver). The profile options are copied in when the entry is made, so later option changes
 // leave running careers alone; the last applied season sits next to them (an optimisation, the
 // seats decide), and the seasons the developer option test_next_season added on top of the game's
-// season index.
+// season index. Each load and Team HQ also records the player's team and the game's season index,
+// which the Resume Career cards (save slots carry the driver, team and season index but no seed)
+// use to tell careers of one driver apart (resume_logic.hpp).
 
 #pragma once
 #include <cstdint>
@@ -29,6 +31,8 @@ struct Career {
     int applied_year = 0;
     int test_seasons = 0;
     uint64_t used = 0;
+    int team = -1;
+    int season = -1;
 };
 
 bool load();

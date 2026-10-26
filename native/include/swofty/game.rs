@@ -3263,6 +3263,11 @@ pub mod bindings {
         kind: "site",
         status: Status::Experimental,
     };
+    pub const site_Game_CareerContinue_DriverSlotTitle: Binding = Binding {
+        id: "site_Game_CareerContinue_DriverSlotTitle",
+        kind: "call",
+        status: Status::Experimental,
+    };
     pub const site_Game_CareerWizardConfirm_NextRoute: Binding = Binding {
         id: "site_Game_CareerWizardConfirm_NextRoute",
         kind: "site",
