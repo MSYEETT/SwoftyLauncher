@@ -1121,10 +1121,7 @@ fn note_refused(fallback: &Path) {
             fallback.display()
         ),
     );
-    say(
-        "warning",
-        &quarantine::refused_text(swofty_core::compat::elevated()),
-    );
+    say("warning", quarantine::refused_text());
 }
 
 /// The session's loader.log: the game folder's when the loader wrote it,

@@ -25,17 +25,13 @@ pub(crate) fn text(dir: &Path, source: Source, windows: bool) -> String {
     if !windows {
         return format!("{}.", compat::write_blocked_text_for(dir, false));
     }
-    let mut text = format!(
+    format!(
         "F1 25 is installed in {}, a folder Windows lets only administrators change, so Swofty can't \
          add your mods there.\n\nRestart Swofty Launcher as administrator to play with mods, or move \
          F1 25 to a folder outside Program Files{}.",
         dir.display(),
         move_hint(source)
-    );
-    if source == Source::EaApp {
-        text.push_str(" Close the EA app before you restart, so it opens as administrator too.");
-    }
-    text
+    )
 }
 
 impl Shell {
@@ -93,8 +89,7 @@ mod tests {
             "{ea}"
         );
         assert!(ea.contains("Restart Swofty Launcher as administrator"), "{ea}");
-        assert!(ea.contains("outside Program Files in the EA app."), "{ea}");
-        assert!(ea.ends_with("Close the EA app before you restart, so it opens as administrator too."));
+        assert!(ea.ends_with("outside Program Files in the EA app."), "{ea}");
         let steam = text(
             Path::new(r"C:\Program Files\Steam\steamapps\common\F1 25"),
             Source::Steam,

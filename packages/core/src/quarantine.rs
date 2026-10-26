@@ -372,20 +372,13 @@ pub fn refused(fallback: &str) -> Option<String> {
     Some(format!("{log}{rights}"))
 }
 
-/// What the session says when the loader attached but logs to its fallback,
-/// for a launcher that runs as administrator or not.
-pub fn refused_text(elevated: bool) -> String {
-    let fix = if elevated {
-        "close F1 25 and the EA app, then press Play again: Swofty Launcher then starts the EA app as \
-         administrator too"
-    } else {
-        "close F1 25 and the EA app, run Swofty Launcher as administrator, then press Play again, or move F1 25 \
-         to a folder outside Program Files"
-    };
-    format!(
-        "F1 25 can't change files in its folder, so addons that save files there, such as the Career Mode \
-         Editor, don't work. To fix it, {fix}."
-    )
+/// What the session says when the loader attached but logs to its fallback.
+/// The EA app can start F1 25 without administrator rights even when an
+/// elevated launcher started the EA app, so it names no restart as the fix.
+pub fn refused_text() -> &'static str {
+    "F1 25 can't create files in its folder, so this session the loader logs to the data folder and addons keep \
+     their files in addon-storage in the data folder. An addon that writes in the game folder by itself can't save \
+     there; moving F1 25 to a folder outside Program Files fixes that."
 }
 
 /// Follows the game folder's loader.log after the game starts. The stub
@@ -641,8 +634,8 @@ mod tests {
         );
         assert_eq!(refused(LOADED), None);
         assert_eq!(refused(STUB), None);
-        assert!(refused_text(true).ends_with("starts the EA app as administrator too."));
-        assert!(refused_text(false).contains("run Swofty Launcher as administrator"));
+        assert!(refused_text().contains("addon-storage"));
+        assert!(!refused_text().contains("administrator"));
     }
 
     #[test]
