@@ -419,6 +419,22 @@ bool release_contract(uintptr_t e, uintptr_t manager, uint32_t driver, bool &fou
     return true;
 }
 
+uint32_t cached_contract_team(uintptr_t manager, uint32_t driver)
+{
+    constexpr uintptr_t kCachedBegin = 0x408;
+    constexpr size_t kCachedEntry = 0x38;
+    constexpr uintptr_t kCachedKind = 0x2c;
+    constexpr uintptr_t kCachedStat = 0x2e;
+    uintptr_t b = manager ? rdv<uintptr_t>(manager + kCachedBegin) : 0;
+    uintptr_t en = manager ? rdv<uintptr_t>(manager + kCachedBegin + sizeof(void *)) : 0;
+    if (!b || en <= b || (en - b) % kCachedEntry || (en - b) / kCachedEntry > 256 || !swofty::mem::readable(b, en - b))
+        return kNoKey;
+    for (uintptr_t p = b; p < en; p += kCachedEntry)
+        if (rdv<uint8_t>(p + kCachedKind) == (driver & 0xff) && rdv<uint16_t>(p + kCachedStat) == (driver >> 16))
+            return rdv<uint32_t>(p + offsetof(DriverContract, team));
+    return kNoKey;
+}
+
 uintptr_t car_numbers(uintptr_t e, uintptr_t manager)
 {
     uintptr_t c = manager ? rdv<uintptr_t>(manager + offsetof(DriverCareerContractsManagerComponent, car_numbers)) : 0;

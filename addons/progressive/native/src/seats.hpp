@@ -141,6 +141,12 @@ const char *plan_signing(uintptr_t manager, const std::vector<uintptr_t> &object
 bool sign_contract(uintptr_t entity, uintptr_t manager, const Signing &s);
 bool release_contract(uintptr_t entity, uintptr_t manager, uint32_t driver, bool &found);
 
+// The contract the game cached for a driver's next season (manager +0x408..+0x410, 0x38-byte
+// entries: the 0x2c contract record with its team at +0x00, the driver key's kind at +0x2c and stat
+// at +0x2e), which the Driver Career season processor 0x140d766b0 applies at the season change. Read
+// only; the team key, or kNoKey when the driver has none.
+uint32_t cached_contract_team(uintptr_t manager, uint32_t driver);
+
 // Career_DriverNumbers_CheckExisting(CarNumberComponent, driver): the game's signings give a seated
 // row without a number a free one after its entrant write.
 uintptr_t car_numbers(uintptr_t entity, uintptr_t manager);
