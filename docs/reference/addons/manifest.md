@@ -144,11 +144,11 @@ Leave `saves` out for an addon that doesn't affect saves. The launcher shows the
 | `gameplay` | Have the addon on at the host's version, as the same copy, with the host's settings and the host's load order among the addons that change game data. |
 | `cosmetic` | May each have the addon on or off, at any version, with any settings. |
 
-An addon without `multiplayer` is `cosmetic` when its `category` is `helmets` or `shaders`, or when it ships only a `shader` look or `postfx` passes, with no `operations` and no `launcher.build`. Every other addon is `gameplay`. A `multiplayer` value in the manifest takes precedence over these defaults.
+An addon without `multiplayer` is `cosmetic` when its `category` is `helmets`, `shaders` or `performance`, or when it ships only a `shader` look or `postfx` passes, with no `operations` and no `launcher.build`. Every other addon is `gameplay`. A `multiplayer` value in the manifest takes precedence over these defaults.
 
 An option takes `"multiplayer": "cosmetic"` as well ([options](#options)): players may set that option differently. The options of a `cosmetic` addon never have to match.
 
-`multiplayer` needs launcher 1.5.13 or later; an earlier launcher rejects the manifest. Set `"compat": { "launcher": ">=1.5.13" }` when you use it.
+`multiplayer` needs launcher 1.5.13 or later; an earlier launcher rejects the manifest. Set `"compat": { "launcher": ">=1.5.13" }` in the same manifest. With it, the Addon Browser of an earlier launcher offers only the addon's versions whose `compat.launcher` that launcher meets, and launchers 1.5.2 to 1.5.12 list an installed copy as unusable with "needs Swofty Launcher >=1.5.13" rather than "unknown field `multiplayer`".
 
 ## compat
 

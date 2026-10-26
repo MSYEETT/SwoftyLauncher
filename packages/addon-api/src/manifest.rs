@@ -555,8 +555,9 @@ impl AddonManifest {
         self.id == crate::CORE_ID
     }
 
-    /// `multiplayer` when set; otherwise cosmetic for a `helmets` or `shaders` addon and for one
-    /// that ships only a `shader` look or `postfx` passes, and gameplay for the rest.
+    /// `multiplayer` when set; otherwise cosmetic for a `helmets`, `shaders` or `performance`
+    /// addon and for one that ships only a `shader` look or `postfx` passes, and gameplay for the
+    /// rest.
     pub fn multiplayer(&self) -> Multiplayer {
         if let Some(m) = self.multiplayer {
             return m;
@@ -564,7 +565,11 @@ impl AddonManifest {
         let look_only = (self.shader.is_some() || !self.postfx.is_empty())
             && self.operations == Operations::default()
             && !self.launcher.as_ref().is_some_and(|l| l.build);
-        if look_only || matches!(self.category, Some(Category::Helmets | Category::Shaders)) {
+        let cosmetic = matches!(
+            self.category,
+            Some(Category::Helmets | Category::Shaders | Category::Performance)
+        );
+        if look_only || cosmetic {
             Multiplayer::Cosmetic
         } else {
             Multiplayer::Gameplay
