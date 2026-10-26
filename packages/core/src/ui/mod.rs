@@ -1041,13 +1041,13 @@ mod tests {
                 "swofty_prev:t.progressive:rnd_mode",
                 "swofty_next:t.progressive:team_moves",
                 "About rnd_mode.",
-                "driver_details_panel",
+                "swofty_adjust",
             ] {
                 assert!(page.contains(want), "{rel}: {want}");
             }
             assert!(!page.contains("o2.label"), "{rel}");
             assert!(!page.contains("dataContext"), "{rel}");
-            assert!(!page.contains("tab_content_driver_details_panel"), "{rel}");
+            assert!(!page.contains("tab_content_emails_panel"), "{rel}");
         }
         settings.addons[0].hub_tab = None;
         let none = hub_tabs(

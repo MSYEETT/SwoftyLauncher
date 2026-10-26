@@ -5,16 +5,28 @@ use crate::Result;
 use crate::manifest::HubTab;
 
 pub const ARCHIVES: [&str; 2] = ["flow_career_hub.erp", "flow_team_hq.erp"];
-/// The laptop's DRIVER DETAILS page file; the hub tab templates join its templates.
-pub const UI: &str = "eaid://ui_package/screens/laptop_my_driver.ui";
+/// The laptop's OVERVIEW page file; the hub tab templates join its templates.
+pub const UI: &str = "eaid://ui_package/screens/laptop_overview.ui";
 pub const UI_FRAGMENT: usize = 0;
-/// The stock page each hub tab is built from: the driver statistics sub-tab.
-pub const BASE: &str = "tab_content_driver_details_panel";
-const ROWS: &str = "left_stats";
-/// The grid cells of `block_l` in the order the rows fill them: down the first column, then the next.
-const SLOTS: [&str; 6] = ["1", "3", "2", "4", "5", "6"];
-const DETAIL_TITLE: &str = "details.driver_number.title";
-const DETAIL_BODY: &str = "details.driver_number.label";
+/// The stock page each hub tab is built from: the laptop's inbox, a list of six entries beside a reading pane.
+pub const BASE: &str = "tab_content_emails_panel";
+const LIST: &str = "email_list";
+const ENTRIES: usize = 6;
+const PANE_TITLE: &str = "reading_pane.subject";
+const PANE_BODY: &str = "reading_pane.message_body";
+const HEADER: &str = "num_unread.num_unread";
+const HIDDEN: [&str; 6] = [
+    "scrollbar",
+    "no_emails_display",
+    "emails_display",
+    "reading_pane.from",
+    "reading_pane.from_image",
+    "tool_tip_interface.tutorial_tooltip",
+];
+/// The inbox's attachment widgets under the reading pane, which the page leaves out.
+const ATTACHMENTS: &str = "attachments";
+const TOOLTIPS: &str = "tool_tip_interface";
+const TOOLTIP_SOURCE: &str = "exit_laptop";
 
 pub struct Row<'a> {
     pub id: &'a str,
@@ -60,11 +72,33 @@ fn hide(n: &mut Node) -> Result<()> {
     set_bool(n, "visible", false)
 }
 
-fn slot_of(n: &Node) -> Option<String> {
-    let lay = n.slot(LAYOUT).ok()?;
-    let grp = lay.first()?.as_arr()?;
-    let step = grp.items.first()?.as_obj()?;
-    step.get("debugName")?.as_val()?.as_str().map(str::to_owned)
+fn retype(n: &mut Node, code: &str) -> Result<()> {
+    n.props_mut()?.at_mut("type")?.v_mut()?.set_u32(fourcc(code));
+    Ok(())
+}
+
+fn adjust_tooltip(t: &mut Node, name: &str) -> Result<()> {
+    let tips = t.child_mut(TOOLTIPS)?;
+    let mut tip = tips.child(TOOLTIP_SOURCE)?.clone();
+    rename_refs(
+        &mut tip,
+        &format!("{name}.{TOOLTIPS}.{TOOLTIP_SOURCE}"),
+        &format!("{name}.{TOOLTIPS}.adjust"),
+    );
+    rename(&mut tip, "adjust")?;
+    set_prop_value(
+        &mut tip,
+        "tooltipsName",
+        swofty_formats::pkg::Val::str(super::pages::ADJUST_TOOLTIP),
+    )?;
+    set_bool(&mut tip, "visible", true)?;
+    set_prop_value(
+        tip.child_mut("text")?,
+        "localise",
+        swofty_formats::pkg::Val::bool(false),
+    )?;
+    tips.slot_mut(CHILDREN)?.push(tip);
+    Ok(())
 }
 
 fn page(base: &Node, p: &Page) -> Result<Node> {
@@ -76,56 +110,47 @@ fn page(base: &Node, p: &Page) -> Result<Node> {
     strip_data(&mut t)?;
     drop_contexts(&mut t)?;
     set_prop(&mut t, "allowVMBinding", prop(boolv(true), None))?;
-
-    let details = t.child_mut("details")?;
-    set_bool(details, "visible", true)?;
-    for c in details.slot_mut(CHILDREN)? {
-        if c.is_node() && !matches!(c.name(), "driver_name" | "driver_number") {
-            hide(c)?;
-        }
+    if p.rows.is_empty() || p.rows.len() > ENTRIES {
+        return Err(err(format!(
+            "hub tab {}: {} rows, not 1 to {ENTRIES}",
+            p.tab.name,
+            p.rows.len()
+        )));
     }
-    let first = p
-        .rows
-        .first()
-        .ok_or_else(|| err(format!("hub tab {}: no rows", p.tab.name)))?;
-    literal(t.find_mut("details.driver_name.title")?, "")?;
-    bind_text(t.find_mut("details.driver_name.label")?, &format!("{vm}.title"))?;
-    literal(t.find_mut(DETAIL_TITLE)?, first.label)?;
-    literal(t.find_mut(DETAIL_BODY)?, first.description)?;
-    hide(t.child_mut("right_stats")?)?;
-
-    let rows = t.child_mut(ROWS)?;
-    set_bool(rows, "visible", true)?;
-    set_bool(rows, "enabled", true)?;
-    let cells: Vec<(String, String)> = rows
-        .slot(CHILDREN)?
-        .iter()
-        .filter(|c| c.is_node())
-        .filter_map(|c| Some((slot_of(c)?, c.name().to_owned())))
-        .collect();
-    let mut order = Vec::new();
-    for slot in SLOTS {
-        let cell = cells
-            .iter()
-            .find(|(s, _)| s == slot)
-            .ok_or_else(|| err(format!("{BASE}.{ROWS} has no cell in slot {slot}")))?;
-        order.push(cell.1.clone());
+    for path in HIDDEN {
+        hide(t.find_mut(path)?)?;
     }
-    let at = |i: usize| format!("{name}.{ROWS}.{}", order[i]);
-    for c in rows.slot_mut(CHILDREN)?.iter_mut().filter(|c| c.is_node()) {
-        let Some(i) = order.iter().position(|o| o == c.name()) else {
-            continue;
-        };
+    let header = t.find_mut(HEADER)?;
+    bind_text(header, &format!("{vm}.title"))?;
+    set_bool(header, "enabled", true)?;
+    set_bool(t.child_mut("num_unread")?, "visible", true)?;
+    let pane = t.child_mut("reading_pane")?;
+    set_bool(pane, "visible", true)?;
+    pane.slot_mut(CHILDREN)?
+        .retain(|c| !(c.is_node() && c.name() == ATTACHMENTS));
+    literal(t.find_mut(PANE_TITLE)?, p.rows[0].label)?;
+    literal(t.find_mut(PANE_BODY)?, p.rows[0].description)?;
+    adjust_tooltip(&mut t, &name)?;
+
+    let list = t.child_mut(LIST)?;
+    super::pages::as_group(list)?;
+    list.slot_mut(EVENTS)?.clear();
+    set_bool(list, "visible", true)?;
+    set_bool(list, "enabled", true)?;
+    let at = |i: usize| format!("{name}.{LIST}.entry_{i}");
+    for i in 0..ENTRIES {
+        let entry = list.child_mut(&format!("entry_{i}"))?;
+        retype(entry, "UIGP")?;
         let Some(row) = p.rows.get(i) else {
-            hide(c)?;
+            hide(entry)?;
+            set_bool(entry, "enabled", false)?;
             continue;
         };
-        set_bool(c, "enabled", true)?;
-        bind_text(c.child_mut("title")?, &format!("{vm}.o{i}.label"))?;
-        bind_text(c.child_mut("value")?, &format!("{vm}.o{i}.value"))?;
-        for icon in ["left_icon", "right_icon"] {
-            hide(c.child_mut(icon)?)?;
-        }
+        set_bool(entry, "enabled", true)?;
+        set_bool(entry, "visible", true)?;
+        bind_text(entry.child_mut("from")?, &format!("{vm}.o{i}.label"))?;
+        bind_text(entry.child_mut("subject")?, &format!("{vm}.o{i}.value"))?;
+        hide(entry.child_mut("unread_icon")?)?;
         let command = |verb: &str| format!("swofty_{verb}:{}:{}", p.addon, row.id);
         let (next, prev) = (command("next"), command("prev"));
         let mut evs = vec![
@@ -133,13 +158,13 @@ fn page(base: &Node, p: &Page) -> Result<Node> {
                 "focused",
                 vec![
                     sig_with(
-                        &format!("{name}.{DETAIL_TITLE}"),
+                        &format!("{name}.{PANE_TITLE}"),
                         "setText",
                         "focused",
                         &[("text", row.label.into())],
                     ),
                     sig_with(
-                        &format!("{name}.{DETAIL_BODY}"),
+                        &format!("{name}.{PANE_BODY}"),
                         "setText",
                         "focused",
                         &[("text", row.description.into())],
@@ -155,7 +180,7 @@ fn page(base: &Node, p: &Page) -> Result<Node> {
         if i + 1 < p.rows.len() {
             evs.push(event("navDown", vec![sig(&at(i + 1), "focus", "navDown")]));
         }
-        add_events(c, evs)?;
+        add_events(entry, evs)?;
     }
     add_events(
         &mut t,
@@ -168,8 +193,9 @@ fn page(base: &Node, p: &Page) -> Result<Node> {
     Ok(t)
 }
 
-/// Adds each page's template to the laptop page file `data`, built from [`BASE`]: the details panel shows the
-/// page title and the focused row's label and description, and the grid cells are the rows.
+/// Adds each page's template to the laptop page file `data`, built from [`BASE`]: the inbox header shows the page
+/// title, its entries are the rows (label over value), and the reading pane shows the focused row's label and
+/// description.
 pub fn build_ui(data: &[u8], pages: &[Page]) -> Result<Vec<u8>> {
     edit(data, |pkg| {
         let list = templates(pkg)?;

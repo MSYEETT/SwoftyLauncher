@@ -136,15 +136,16 @@ Team HQ is the career hub's laptop, the screen `laptop_container` in `career_hub
 
 ### What the build makes
 
-The template `swofty_hub_<name>`, added to the templates of `screens/laptop_my_driver.ui` in `flow_career_hub.erp` and `flow_team_hq.erp`. It is a copy of the laptop's driver statistics page, `tab_content_driver_details_panel`, on its scene `driver_details_panel.idf`:
+The template `swofty_hub_<name>`, added to the templates of `screens/laptop_overview.ui` in `flow_career_hub.erp` and `flow_team_hq.erp`. It is a copy of the laptop's inbox page, `tab_content_emails_panel`, on its scene, with its list entries as plain groups and the attachment widgets left out:
 
 | Part | Shows |
 |---|---|
-| Grid cells of the stats block, one per option: down the first column, then the next | label `#view_model_data.hud_swofty_hub_<name>.o<i>.label` and value `….o<i>.value`, for option `i` in `options` order |
-| Details panel, top | `#view_model_data.hud_swofty_hub_<name>.title` |
-| Details panel, below | the focused option's `label` and `description` from the manifest |
+| Inbox header | `#view_model_data.hud_swofty_hub_<name>.title` |
+| One inbox entry per option, in `options` order (at most 6) | the option's label `….o<i>.label` on the sender line and its value `….o<i>.value` on the subject line; the focused entry is highlighted as an email is |
+| Reading pane | the focused option's `label` as the heading and its `description` from the manifest as the body |
+| Button prompts | **Adjust** for Left and Right |
 
-Up and Down move between the options. Right on option `i` raises the command `swofty_next:<addon id>:<option id>` on the template, and Left raises `swofty_prev:<addon id>:<option id>`, as on ADDON SETTINGS pages. The template's `shown` and `enabled` events focus the first option. The build checks the template against the game's UI loader rules. The build log has a line for each page: `ui: <addon> has a hub tab template swofty_hub_<name> for <data_group> careers in 2 archive(s); …`.
+Up and Down move between the options. Right on option `i` raises the command `swofty_next:<addon id>:<option id>` on the template, and Left raises `swofty_prev:<addon id>:<option id>`, as on ADDON SETTINGS pages. The template's `shown` and `enabled` events focus the first option. Unused entries, the scroll bar, the empty-inbox text, the sender portrait and the tutorial prompt are hidden. The build checks the template against the game's UI loader rules. The build log has a line for each page: `ui: <addon> has a hub tab template swofty_hub_<name> for <data_group> careers in 2 archive(s); …`.
 
 ### What your plugin does
 

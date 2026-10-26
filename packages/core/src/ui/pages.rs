@@ -287,7 +287,7 @@ impl Sources {
     }
 }
 
-fn as_group(n: &mut Node) -> Result<()> {
+pub(super) fn as_group(n: &mut Node) -> Result<()> {
     let keep = [
         "id", "version", "type", "nameId", "name", "animData", "enabled", "visible",
     ];
