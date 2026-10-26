@@ -133,6 +133,7 @@ void grade_setup();
 void postfx_setup();
 void telemetry_setup();
 void netplay_setup();
+void net_trace_setup();
 int group_add(const json::Value &entry);
 int db_add(const json::Value &entry);
 int lang_add(const json::Value &entry);
