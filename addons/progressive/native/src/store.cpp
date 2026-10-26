@@ -117,9 +117,9 @@ bool load()
             if (i == j || !progressive::match::split_of(g_careers[i], g_careers[j]))
                 continue;
             swofty::log("[progressive] store: folding %s into %s (made at season %d of the same career: driver %u, "
-                        "start %d; applied season %d -> %d)",
+                        "start %d, the split inferred %d; applied season %d -> %d)",
                         g_careers[j].key.c_str(), g_careers[i].key.c_str(), g_careers[j].created_season,
-                        g_careers[i].driver, g_careers[i].start, g_careers[i].applied_season,
+                        g_careers[i].driver, g_careers[i].start, g_careers[j].start, g_careers[i].applied_season,
                         std::max(g_careers[i].applied_season, g_careers[j].applied_season));
             progressive::match::fold(g_careers[i], g_careers[j]);
             g_careers.erase(g_careers.begin() + static_cast<std::ptrdiff_t>(j));

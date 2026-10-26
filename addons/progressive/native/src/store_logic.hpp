@@ -8,14 +8,15 @@
 // season apply of the new one runs at the first idle Team HQ.
 //
 // pick(): a new career from the Progressive wizard (its seats show no past year) gets a new entry;
-// otherwise the entry with the career's seed whose year the seats show (or any year while the
-// seats show none), else the last used entry of the driver whose year the seats show, else (seats
+// otherwise the entry with the career's seed unless the seats show a year two or more seasons off
+// its year (a mid-season line-up can look like a neighbouring year; a seed match is kept through
+// that), else the last used entry of the driver whose year the seats show, else (seats
 // still on the stock grid) the driver's last used entry; no entry: a new one, its start taken from
 // the seats when they show a past year.
 //
 // split_of() / fold(): an entry a load made because no entry fitted (created at a season index
-// above 0, its key the original's key base with a "-N" suffix or the original's seed, same driver
-// and start) is the same career. fold() keeps the original's options and its dev and mid-season
+// above 0, its key the original's key base with a "-N" suffix or the original's seed, same driver)
+// is the same career, whatever start it inferred from the seats. fold() keeps the original's options and its dev and mid-season
 // fields unless the split one has a later year for them, and takes the later applied season, seed,
 // use, team and season index.
 
@@ -46,6 +47,15 @@ inline bool shows(const Career &c, uint32_t season_index, const std::vector<int>
     uint32_t i = season_index + static_cast<uint32_t>(std::max(0, c.test_seasons));
     auto has = [&](int y) { return std::find(seen.begin(), seen.end(), y) != seen.end(); };
     return has(year_for(c.start, i)) || (i > 0 && has(year_for(c.start, i - 1)));
+}
+
+inline bool within_a_season(const Career &c, uint32_t season_index, const std::vector<int> &seen)
+{
+    int y = year_for(c.start, season_index + static_cast<uint32_t>(std::max(0, c.test_seasons)));
+    for (int s : seen)
+        if (s - y <= 1 && y - s <= 1)
+            return true;
+    return false;
 }
 
 inline int past_year(const std::vector<int> &seen)
@@ -84,7 +94,7 @@ Pick pick(const Entries &all, uint32_t seed, uint32_t driver, uint32_t season_in
             bool ok = past && shows(all[i], season_index, seen);
             if (ok)
                 fit.push_back(static_cast<int>(i));
-            if (all[i].seed == seed && (!past || ok))
+            if (all[i].seed == seed && (!past || ok || within_a_season(all[i], season_index, seen)))
                 seeded.push_back(static_cast<int>(i));
         }
         if (!seeded.empty()) {
@@ -124,8 +134,8 @@ inline std::string seed_base(uint32_t seed, uint32_t driver)
 
 inline bool split_of(const Career &original, const Career &split)
 {
-    if (original.key == split.key || original.driver != split.driver || original.start != split.start ||
-        split.created_season <= 0 || split.created_season < original.created_season)
+    if (original.key == split.key || original.driver != split.driver || split.created_season <= 0 ||
+        split.created_season < original.created_season)
         return false;
     std::string base = key_base(split.key);
     bool suffixed = split.key != base;

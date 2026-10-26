@@ -100,7 +100,7 @@ int main()
     EXPECT(!split_of(original, wizard_twin));
     Career other_start = split;
     other_start.start = 2018;
-    EXPECT(!split_of(original, other_start));
+    EXPECT(split_of(original, other_start));
     Career other_driver = split;
     other_driver.driver = 7;
     EXPECT(!split_of(original, other_driver));
@@ -118,6 +118,22 @@ int main()
     EXPECT(original.mid_year == 2016 && original.mid_round == 1);
     EXPECT(original.mid_tracks == "0,13,3");
     EXPECT(original.team == 476 && original.season == 1 && original.seed == 0x053ea9cd && original.used == 9);
+
+    std::vector<Career> midseason = {entry("pg-0598d453-15", 15, 0x05ad54f9, 2016, 1, 56)};
+    Pick shuffle = pick(midseason, 0x05ad54f9, 15, 1, {2018}, false, 2026);
+    EXPECT(shuffle.index == 0);
+    EXPECT(shuffle.how == "seed");
+    Pick far = pick(midseason, 0x05ad54f9, 15, 1, {2020}, false, 2026);
+    EXPECT(far.index == -1);
+
+    Career older = entry("pg-0598d453-15", 15, 0x05ad54f9, 2016, 1, 56);
+    Career from_seats = entry("pg-05ad54f9-15", 15, 0x05ad54f9, 2017, 1, 59, 1);
+    from_seats.applied_year = 2018;
+    EXPECT(split_of(older, from_seats));
+    fold(older, from_seats);
+    EXPECT(older.key == "pg-0598d453-15" && older.start == 2016);
+    EXPECT(older.applied_season == 1 && older.applied_year == 2017);
+    EXPECT(older.used == 59);
 
     if (failures) {
         std::printf("store_logic_test: %d failure(s)\n", failures);
