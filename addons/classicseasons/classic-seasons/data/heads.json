@@ -101,6 +101,13 @@
    "face": "male_ls533",
    "base": "male_ls533",
    "code": "cs_gut_533"
+  },
+  "stoffel_vandoorne": {
+   "source": "f1_2016_career",
+   "archive": "heads/male_ls204.erp",
+   "face": "male_ls204",
+   "base": "male_ls204",
+   "code": "cs_van_204"
   }
  },
  "row_from": {
@@ -109,7 +116,5 @@
   "sergey_sirotkin": "male_ls222",
   "nico_rosberg": "male_ls222"
  },
- "off": {
-  "nico_rosberg": "male_ls192"
- }
+ "off": {}
 }

@@ -14,7 +14,7 @@
   "new_drivers": {
     "felipe_nasr":       { "first": "Felipe",    "last": "Nasr",       "initials": "NAS", "nationality": "brazil",      "head": "felipe_nasr" },
     "esteban_gutierrez": { "first": "Esteban",   "last": "Gutiérrez",  "initials": "GUT", "nationality": "mexico",      "head": "esteban_gutierrez" },
-    "stoffel_vandoorne": { "first": "Stoffel",   "last": "Vandoorne",  "initials": "VAN", "nationality": "belgium",     "head": "male_ls343" },
+    "stoffel_vandoorne": { "first": "Stoffel",   "last": "Vandoorne",  "initials": "VAN", "nationality": "belgium",     "head": "stoffel_vandoorne" },
     "brendon_hartley":   { "first": "Brendon",   "last": "Hartley",    "initials": "HAR", "nationality": "new_zealand", "head": "brendon_hartley" },
     "sergey_sirotkin":   { "first": "Sergey",    "last": "Sirotkin",   "initials": "SIR", "nationality": "default",     "head": "sergey_sirotkin" },
     "rio_haryanto":      { "first": "Rio",       "last": "Haryanto",   "initials": "HAR", "nationality": "indonesia",   "head": "rio_haryanto" }
