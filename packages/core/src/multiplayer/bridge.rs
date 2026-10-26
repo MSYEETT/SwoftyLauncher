@@ -6,8 +6,7 @@
 //! transport: what the game sends is kept for inspection, and [`Bridge::inject`] plays a datagram
 //! in as if a member had sent it.
 //!
-//! A bridge numbers its datagrams from the microseconds since the Unix epoch at start, so a
-//! restarted launcher keeps counting above what its peers have seen and never reuses a nonce.
+//! Each start seals under a new random session id (see [`super::seal`]).
 
 use std::collections::{BTreeMap, VecDeque};
 use std::io;
@@ -16,7 +15,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime};
 
 use ring::rand::{SecureRandom, SystemRandom};
 use serde::{Deserialize, Serialize};
@@ -94,6 +93,7 @@ pub struct Drops {
     pub bad_tag: u64,
     pub replay: u64,
     pub too_old: u64,
+    pub old_session: u64,
     /// The transport couldn't send a sealed datagram.
     pub send_failed: u64,
     /// An opened or injected datagram couldn't be sent to the game's port.
@@ -109,6 +109,7 @@ impl Drops {
             Reject::BadTag => &mut self.bad_tag,
             Reject::Replay => &mut self.replay,
             Reject::TooOld => &mut self.too_old,
+            Reject::OldSession => &mut self.old_session,
         } += 1;
     }
 
@@ -121,6 +122,7 @@ impl Drops {
             ("bad_tag", self.bad_tag),
             ("replay", self.replay),
             ("too_old", self.too_old),
+            ("old_session", self.old_session),
             ("send_failed", self.send_failed),
             ("deliver_failed", self.deliver_failed),
         ]
@@ -193,8 +195,8 @@ impl Bridge {
     /// Bind a loopback port for each remote member and relay between them and `transport`.
     pub fn start(cfg: BridgeConfig, transport: Arc<dyn Transport>) -> io::Result<Bridge> {
         let remotes = cfg.remotes()?;
-        let sealer = Arc::new(Sealer::new(&cfg.key, cfg.self_member, first_counter()));
-        let opener = Opener::new(&cfg.key, remotes.iter().copied());
+        let sealer = Arc::new(Sealer::new(&cfg.key, cfg.self_member, random_u64()?));
+        let opener = Opener::new(&cfg.key, cfg.self_member, remotes.iter().copied());
         let mut bridge = Self::bind(&cfg, &remotes, false)?;
         for &m in &remotes {
             let (shared, transport, sealer) = (bridge.shared.clone(), transport.clone(), sealer.clone());
@@ -421,7 +423,7 @@ fn outbound(shared: &Shared, member: u8, link: Option<(&dyn Transport, &Sealer)>
         shared.check_size(member, n, "to");
         match link {
             Some((transport, sealer)) => {
-                sealer.seal(payload, &mut wire);
+                sealer.seal(member, payload, &mut wire);
                 if transport.send(member, &wire).is_err() {
                     shared.stats().drops.send_failed += 1;
                     continue;
@@ -454,13 +456,9 @@ fn inbound(shared: &Shared, transport: &dyn Transport, mut opener: Opener) {
 }
 
 fn bind_ports(remotes: &[u8], game_port: u16) -> io::Result<(u16, BTreeMap<u8, UdpSocket>)> {
-    let rng = SystemRandom::new();
     let mut last = io::Error::new(io::ErrorKind::AddrInUse, "no free loopback port range");
     for _ in 0..BIND_ATTEMPTS {
-        let mut raw = [0u8; 2];
-        rng.fill(&mut raw)
-            .map_err(|_| io::Error::other("no system randomness"))?;
-        let base = BASE_MIN + u16::from_le_bytes(raw) % (BASE_MAX - BASE_MIN);
+        let base = BASE_MIN + (random_u64()? % u64::from(BASE_MAX - BASE_MIN)) as u16;
         if remotes.iter().any(|&m| base + u16::from(m) == game_port) {
             continue;
         }
@@ -476,10 +474,12 @@ fn bind_ports(remotes: &[u8], game_port: u16) -> io::Result<(u16, BTreeMap<u8, U
     Err(last)
 }
 
-fn first_counter() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |d| d.as_micros() as u64)
+fn random_u64() -> io::Result<u64> {
+    let mut raw = [0u8; 8];
+    SystemRandom::new()
+        .fill(&mut raw)
+        .map_err(|_| io::Error::other("no system randomness"))?;
+    Ok(u64::from_le_bytes(raw))
 }
 
 fn invalid(msg: &str) -> io::Error {
@@ -598,8 +598,19 @@ mod tests {
         lobby.into_iter().for_each(|p| p.bridge.stop());
     }
 
+    fn wait_for(bridge: &Bridge, done: impl Fn(&Stats) -> bool) -> Stats {
+        let deadline = Instant::now() + WAIT;
+        loop {
+            let stats = bridge.stats();
+            if done(&stats) || Instant::now() > deadline {
+                return stats;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+
     #[test]
-    fn drops_forged_replayed_and_misattributed_datagrams() {
+    fn drops_forged_replayed_misaddressed_and_stale_datagrams() {
         let attacker = Arc::new(DirectUdp::bind("127.0.0.1:0").unwrap());
         let transport = Arc::new(DirectUdp::bind("127.0.0.1:0").unwrap());
         transport
@@ -617,45 +628,85 @@ mod tests {
         };
         let bridge = Bridge::start(cfg, transport).unwrap();
 
+        let one = Sealer::new(&KEY, 1, 7);
         let mut good = Vec::new();
-        Sealer::new(&KEY, 1, 7).seal(b"genuine", &mut good);
+        one.seal(2, b"genuine", &mut good);
+        let mut for_three = Vec::new();
+        one.seal(3, b"for three", &mut for_three);
+        one.seal(3, b"for three, past our window top", &mut for_three);
         let mut foreign = Vec::new();
-        Sealer::new(&[1; 32], 1, 8).seal(b"foreign", &mut foreign);
+        Sealer::new(&[1; 32], 1, 8).seal(2, b"foreign", &mut foreign);
         let mut as_three = Vec::new();
-        Sealer::new(&KEY, 3, 9).seal(b"spoofed", &mut as_three);
+        Sealer::new(&KEY, 3, 9).seal(2, b"spoofed", &mut as_three);
         let mut tampered = good.clone();
         tampered[HEADER_LEN - 1] = 20;
-        for wire in [&good, &good, &foreign, &as_three, &tampered, &good[..5].to_vec()] {
+        for wire in [
+            &good,
+            &good,
+            &for_three,
+            &foreign,
+            &as_three,
+            &tampered,
+            &good[..5].to_vec(),
+        ] {
             attacker.send(2, wire).unwrap();
         }
         let mut late = Vec::new();
-        let sealer = Sealer::new(&KEY, 1, 100);
-        sealer.seal(b"newest", &mut late);
+        one.seal_with_counter(2, 2000, b"newest", &mut late);
         attacker.send(2, &late).unwrap();
 
         assert_eq!(recv(&game).0, b"genuine");
         assert_eq!(recv(&game).0, b"newest");
-        let deadline = Instant::now() + WAIT;
         let want = Drops {
             malformed: 1,
             wrong_sender: 1,
-            bad_tag: 2,
+            bad_tag: 3,
             replay: 1,
             ..Drops::default()
         };
-        while bridge.stats().drops != want && Instant::now() < deadline {
-            thread::sleep(Duration::from_millis(10));
-        }
-        assert_eq!(bridge.stats().drops, want);
+        assert_eq!(wait_for(&bridge, |s| s.drops == want).drops, want);
+
         let mut old = Vec::new();
-        Sealer::new(&KEY, 1, 100 - 64).seal(b"stale", &mut old);
+        one.seal_with_counter(2, 2000 - 1024, b"stale", &mut old);
         attacker.send(2, &old).unwrap();
-        while bridge.stats().drops.too_old == 0 && Instant::now() < deadline {
-            thread::sleep(Duration::from_millis(10));
-        }
-        assert_eq!(bridge.stats().drops.too_old, 1);
-        assert_eq!(bridge.stats().members[&1].packets_in, 2);
+        assert_eq!(wait_for(&bridge, |s| s.drops.too_old > 0).drops.too_old, 1);
+
+        let mut restarted = Vec::new();
+        Sealer::new(&KEY, 1, 8).seal(2, b"restarted", &mut restarted);
+        attacker.send(2, &restarted).unwrap();
+        assert_eq!(recv(&game).0, b"restarted");
+        let mut earlier = Vec::new();
+        one.seal(2, b"earlier session", &mut earlier);
+        attacker.send(2, &earlier).unwrap();
+        assert_eq!(
+            wait_for(&bridge, |s| s.drops.old_session > 0).drops.old_session,
+            1
+        );
+        assert_eq!(bridge.stats().members[&1].packets_in, 3);
         bridge.stop();
+    }
+
+    #[test]
+    fn a_datagram_for_another_member_is_not_replayed_to_us() {
+        let lobby = lobby(&[1, 2, 3]);
+        let (one, three) = (&lobby[0], &lobby[2]);
+        let spy = UdpSocket::bind("127.0.0.1:0").unwrap();
+        spy.set_read_timeout(Some(WAIT)).unwrap();
+        let peers = HashMap::from([(1, one.transport.local_addr()), (2, spy.local_addr().unwrap())]);
+        three.transport.set_peers(&peers).unwrap();
+        three
+            .game
+            .send_to(b"for two only", loopback(three.bridge.port(2).unwrap()))
+            .unwrap();
+        let mut wire = [0u8; 256];
+        let n = spy.recv(&mut wire).unwrap();
+        three.transport.send(1, &wire[..n]).unwrap();
+        assert_eq!(wait_for(&one.bridge, |s| s.drops.bad_tag > 0).drops.bad_tag, 1);
+        assert_eq!(one.bridge.stats().members[&3].packets_in, 0);
+        one.game
+            .set_read_timeout(Some(Duration::from_millis(200)))
+            .unwrap();
+        assert!(one.game.recv_from(&mut wire).is_err());
     }
 
     fn wait_echoed(bridge: &Bridge, count: usize) -> Vec<Echoed> {
