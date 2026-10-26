@@ -11,6 +11,7 @@ You can use your addon to change the game's menus in three ways:
 |---|---|
 | Settings for your addon | [`options`](/reference/addons/settings). swofty_core builds the addon's page in ADDON SETTINGS |
 | A new screen | `operations.screens`. swofty_core registers it with the game's UI system |
+| Settings before the new-career wizard | [`career_setup`](#add-a-career-setup-page). The launcher builds a page in the CUSTOM SETTINGS look |
 | A tile on the home screen | A [site mixin](/reference/addons/hooking#run-code-at-an-instruction) on the home-tile builder |
 | A change to an existing screen | [UI patches](/reference/ops/ui-patches) |
 | A change to a screen's layout | An edited [scene](/reference/ui/editing-menus), made in [Swofty UI](/reference/ui/swofty-ui) |
@@ -67,7 +68,7 @@ settings_container.Action.route { key: open_ai_liveries }
 Back on the page returns to the anchor. The screen needs your addon on in the profile and works only in `flow_options`.
 
 ::: warning Reserved names
-`swofty_settings`, `swofty_addon_<n>`, `swofty_map_<n>` and `swofty_mod_<n>` belong to ADDON SETTINGS.
+`swofty_settings`, `swofty_addon_<n>`, `swofty_map_<n>` and `swofty_mod_<n>` belong to ADDON SETTINGS, and `swofty_setup_<route>` to [career setup pages](#add-a-career-setup-page).
 :::
 
 ### View models
@@ -81,6 +82,52 @@ Set `"view_model": true` to request a native view model. Your screen gets one if
 | `swofty_set:<addon>:<option>:<index>` | Value number `index` |
 
 You'll find every view-model property and command in the [UI reference](/reference/std/ui).
+
+## Add a career setup page
+
+A career setup page shows some of your addon's options between a career content tile and the new-career wizard, in the look of the game's CUSTOM SETTINGS. Its home has a CONFIRM tile on the left and a category tile with the page's title. The category tile opens the rows page: one row per option, **Left** and **Right** change the value, and the panel on the right shows the focused option's description. Back on the rows page returns to the home. CONFIRM opens the wizard's season length step, and Back on the home returns to the career content select.
+
+### 1. Declare it
+
+List the options in `career_setup` ([manifest](./manifest#career-setup)):
+
+```json [swofty.json]
+"options": [
+  { "id": "start_season", "type": "choice", "label": "Starting season", "default": "2016",
+    "values": ["2016", "2017", "2018"], "binds": "native" },
+  { "id": "rnd_mode", "type": "choice", "label": "R&D", "default": "real_life",
+    "values": [{ "value": "real_life", "label": "Real life" }, "base", "hybrid"], "binds": "native" }
+],
+"career_setup": {
+  "route": "career_wizard_driver_career_progressive",
+  "title": "Progressive Career",
+  "options": ["start_season", "rnd_mode"]
+}
+```
+
+### 2. Point the tile at it
+
+The build adds `route` to the career content select's route group, `fe_career_dlc_select`. The route is a copy of `career_wizard_driver_career_to_f1`, the route a Driver Career tile takes to the season length step, and opens the page instead. Point your career content tile at it with the [career wizard library](/reference/std/career-wizard):
+
+```cpp
+wz::tile_route(group, "career_wizard_driver_career_progressive");
+```
+
+### What the build makes
+
+| Name | Does |
+|---|---|
+| `swofty_setup_<route>` | The home, a screen in `flow_options` |
+| `swofty_addon_<route>_<n>` | The rows page, a screen in `flow_options` with the `swofty_addon_` [view model](#view-models). `<n>` is the addon's index, as in `swofty_addon_<n>` |
+| `fe_career_dlc_select.<route>` | Closes the content select, moves to `options_flow` and opens the home |
+| `swofty_setup_<route>.confirm` | CONFIRM: closes the home, moves to `career_season_setup_flow` and opens `next` |
+| `swofty_setup_<route>.back` | Back: closes the home, moves to `frontend_flow` and opens the content select with the `driver_career` message, as the career menu opens it for Driver Career |
+| `swofty_setup_<route>.open_options` | The category tile: closes the home and opens the rows page |
+| `<next>.back_<route>` | Closes `next`, moves to `options_flow` and opens the home |
+
+Back on `next` takes the game's own back route for that step. Fire `back_<route>` there to return to the page, for example from your plugin's wizard back-route site for your data group. The build log has a line for each page: `ui: <addon> has a career setup page swofty_setup_<route>: ...`. The build stops when the content select already has a route named `route`, or when `next` is not a screen in `flow_career_season_setup.erp`.
+
+The rows change the options live, as ADDON SETTINGS does: a `native` option's value reaches your plugin through [settings](/reference/std/settings), and the launcher stores it in the profile. The options also show on your addon's page in ADDON SETTINGS. Their values belong to the profile, not to a career; copy them into the career's [storage](/reference/std/storage) when the career is created. The description panel shows the option's `description`; a choice has no description per value.
 
 ## Add a home tile
 

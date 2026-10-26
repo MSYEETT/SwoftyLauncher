@@ -37,6 +37,7 @@ Your addon needs a `swofty.json` at its root. This is where you give it a name, 
 | `experimental_features` | string[]? | Experimental engines of the in-game core the addon uses: `overlay` ([Overlay](/reference/std/overlay)) `shaders` ([Shader packs](./shader-packs)) and `postfx` ([Post-process passes](./postfx)). While the addon is on, the build turns each one on, and the Addons page tags the addon **Uses experimental features**. Needs launcher 1.3.7 or later, and 1.4.0 or later for `shaders`; an earlier launcher rejects the manifest. |
 | `origin` | object? | The tool and file the addon was made from ([origin](#origin)). |
 | `shader` | object? | A colour look for the game's picture ([shader](#shader)). |
+| `career_setup` | object? | A settings page in game between a Driver Career tile and the new-career wizard ([career_setup](#career-setup)). |
 
 ## category
 
@@ -190,6 +191,31 @@ To give players settings they can change, declare them in `options`. They'll app
 | `min`, `max`, `step` | number | Set all three to define a slider's range. `max - min` must be a whole number of steps, at most 100. |
 | `values` | array | Supply 1 to 16 values for a choice. Each is a string; use `{ "value", "label" }` to show a different name. |
 | `binds` | string | `native` — the [engine plugin](./native-plugins#settings) reads the value while the game runs; `db` — the value is built into the game files, so a change needs a rebuild. |
+
+## career_setup
+
+`career_setup` adds a page in game, in the CUSTOM SETTINGS look, that shows some of your addon's options before the new-career wizard. [Add a career setup page](./in-game-ui#add-a-career-setup-page) covers the page and its routes.
+
+```json
+"options": [
+  { "id": "start_season", "type": "choice", "label": "Starting season", "default": "2016",
+    "values": ["2016", "2017", "2018"], "binds": "native" }
+],
+"career_setup": {
+  "route": "career_wizard_driver_career_progressive",
+  "title": "Progressive Career",
+  "options": ["start_season"]
+}
+```
+
+| Field | Type | Value |
+|---|---|---|
+| `route` | string | `[a-z0-9_]`, at most 48 characters. The route in the career content select's route group that opens the page; a career content tile opens it through `tile_route`. |
+| `title` | string? | The page's title and its category tile's title, shown in capitals as written. Defaults to the addon's `name`. |
+| `options` | string[] | Ids from your `options`, in the order the rows show them. At least one, each once. |
+| `next` | string? | The new-career wizard screen CONFIRM opens. Defaults to `career_wizard_season_length_select`. |
+
+The page needs your addon on in the profile. An addon has at most one `career_setup`. A launcher before 1.5.12 rejects the field; set `"compat": { "launcher": ">=1.5.12" }` when you use it.
 
 ## operations
 
