@@ -136,16 +136,18 @@ Team HQ is the career hub's laptop, the screen `laptop_container` in `career_hub
 
 ### What the build makes
 
-The template `swofty_hub_<name>`, added to the templates of `screens/laptop_overview.ui` in `flow_career_hub.erp` and `flow_team_hq.erp`. It is a copy of the laptop's inbox page, `tab_content_emails_panel`, on its scene, with its list entries as plain groups and the attachment widgets left out:
+The template `swofty_hub_<name>`, added to the templates of `screens/laptop_overview.ui` in `flow_career_hub.erp` and `flow_team_hq.erp`. It is the game's settings rows page on the laptop: its scene is the settings page scene `art/screens/options/options_edit_screen.idf`, and its parts are the settings screen templates from `flow_options.erp` (`screens/settings_container.ui`). Its root, with the fade-in and the button prompts, comes from the inbox page `tab_content_emails_panel`; none of the inbox's parts are kept.
 
 | Part | Shows |
 |---|---|
-| Inbox header | `#view_model_data.hud_swofty_hub_<name>.title` |
-| One inbox entry per option, in `options` order (at most 6) | the option's label `….o<i>.label` on the sender line and its value `….o<i>.value` on the subject line; the focused entry is highlighted as an email is |
-| Reading pane | the focused option's `label` as the heading and its `description` from the manifest as the body |
+| One settings row per option, in `options` order (at most 6), on the left | the option's label `#view_model_data.hud_swofty_hub_<name>.o<i>.label`, and its value `….o<i>.value` between left and right arrows; the focused row is highlighted as on the game's settings pages |
+| Category box, top right | the page title `….title` |
+| Description panel, under it | the focused option's `label` in capitals as the heading and its `description` from the manifest as the body |
 | Button prompts | **Adjust** for Left and Right |
 
-Up and Down move between the options. Right on option `i` raises the command `swofty_next:<addon id>:<option id>` on the template, and Left raises `swofty_prev:<addon id>:<option id>`, as on ADDON SETTINGS pages. The template's `shown` and `enabled` events focus the first option. Unused entries, the scroll bar, the empty-inbox text, the sender portrait and the tutorial prompt are hidden. The build checks the template against the game's UI loader rules. The build log has a line for each page: `ui: <addon> has a hub tab template swofty_hub_<name> for <data_group> careers in 2 archive(s); …`.
+The settings screen title, category filter and scroll bar are hidden. The scenes the page uses, with their animations, meshes, material bindings, materials and textures, are copied from `flow_options.erp` into each archive that lacks them, byte for byte and under their own names; no stock resource changes. The build fails when a copied resource refers to a resource that the archive, the copies and the shared archives (`persistent.erp`, `flow_persistent.erp`) all lack, but `flow_options.erp` has. The build log has a line for each archive: `ui: hub tabs copy <n> settings screen resources from flow_options.erp into <archive>`.
+
+Up and Down move between the options. Right on option `i` raises the command `swofty_next:<addon id>:<option id>` on the template, and Left raises `swofty_prev:<addon id>:<option id>`, as on ADDON SETTINGS pages. The template's `shown` and `enabled` events focus the first option. The build checks the template against the game's UI loader rules. The build log has a line for each page: `ui: <addon> has a hub tab template swofty_hub_<name> for <data_group> careers in 2 archive(s); …`.
 
 ### What your plugin does
 
