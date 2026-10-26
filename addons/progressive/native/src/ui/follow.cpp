@@ -14,7 +14,12 @@
 // (no contract yet, or one that runs on) starts at the agent intro, 0xd2985448 (his contract ends
 // this season) at the team select. A scene step entered with no decision before it (team select,
 // agent intro, contract terms or outro, whichever comes first) signs and skips the same way, once per
-// scene; Team HQ, the stock outro's end and career.unloaded reset that. The team signed:
+// scene; Team HQ, the stock outro's end and career.unloaded reset that. Before any of that, the
+// contract event itself (the Team HQ card 'CONTRACT EVENT', a career calendar activity of type 0x0f
+// NCSContractRenewal) is never added to the player's own driver calendar: the
+// Game_CareerActivities_AddActivity wrap signs there instead, so there is no card and no scene, and
+// the season goes on with the contract cached for the season change. When that signing fails the
+// event is added as in the stock game and its scene is skipped as above. The team signed:
 //   - no active contract (a new career, or a save from before its first contract): his real team of
 //     the career's current year (ProgressiveRealTeam: start + season index), whatever seat the
 //     save still shows; his current team when he did not race that year;
@@ -447,6 +452,24 @@ bool scene_step(sc::Step step, const char *name)
     return true;
 }
 
+bool own_calendar(uintptr_t contracts, uintptr_t calendar, uint32_t &driver)
+{
+    EntrantRecord human{};
+    if (!human_row(contracts, human))
+        return false;
+    std::memcpy(&driver, &human.id_lo, sizeof driver);
+    if (!same_key(rdv<uint32_t>(calendar + offsetof(DriverCalendar, driver)), driver))
+        return false;
+    sc::CalendarLayout l{offsetof(ScheduleComponent, seasons_begin),
+                         offsetof(ScheduleComponent, seasons_end),
+                         sizeof(ScheduleSeason),
+                         offsetof(ScheduleSeason, driver_calendars_begin),
+                         offsetof(ScheduleSeason, driver_calendars_end),
+                         sizeof(DriverCalendar)};
+    uintptr_t schedule = rdv<uintptr_t>(contracts + offsetof(DriverCareerContractsManagerComponent, schedule));
+    return sc::driver_calendar(GameMem{}, schedule, calendar, l);
+}
+
 void on_career(const SwoftyEvent *ev, void *)
 {
     if (!std::strcmp(ev->name, SWOFTY_EVENT_CAREER_UNLOADED)) {
@@ -555,6 +578,40 @@ SWOFTY_WRAP(Career_ContractOutro_OnUpdate, uint32_t *, void *state, uint32_t *li
     swofty::log("[progressive] follow: %s", g_scene.summary().c_str());
     g_scene.clear();
     return link;
+}
+
+SWOFTY_WRAP(Game_CareerActivities_AddActivity, void, void *calendar, const void *activity, uint32_t day)
+{
+    auto def = reinterpret_cast<uintptr_t>(activity);
+    if (!def || rdv<uint8_t>(def + offsetof(ActivityDef, type)) != sc::kContractEvent || !swofty::career::is(kGroup))
+        return orig(calendar, activity, day);
+    auto cal = reinterpret_cast<uintptr_t>(calendar);
+    auto contracts = reinterpret_cast<uintptr_t>(
+        swofty::career::component_by_desc(k_Career_DriverCareerContractsManagerComponentDesc.get()));
+    uint32_t driver = 0;
+    if (!contracts || !own_calendar(contracts, cal, driver))
+        return orig(calendar, activity, day);
+    if (follow_mode() != 1) {
+        swofty::log("[progressive] follow: contract event on day %u: this career chooses its team; the event stays", day);
+        return orig(calendar, activity, day);
+    }
+    if (uint32_t h = humans(); h > 1) {
+        swofty::log("[progressive] follow: contract event on day %u: %u human players; the event stays", day, h);
+        return orig(calendar, activity, day);
+    }
+    if (!sign(contracts)) {
+        g_scene.clear();
+        swofty::log("[progressive] follow: contract event on day %u for driver %u: nothing signed; the event stays (its "
+                    "contract scene is skipped when he opens it, if a later signing works)",
+                    day, driver >> 16);
+        return orig(calendar, activity, day);
+    }
+    sc::Skip signed_now = g_scene;
+    g_scene.clear();
+    swofty::log("[progressive] follow: contract event on day %u not added to driver %u's calendar (%s): signed team %u%s%s "
+                "(one season, target %d); no Team HQ card, no contract scene",
+                day, driver >> 16, signed_now.where().c_str(), signed_now.team >> 16, signed_now.year > 0 ? " for " : "",
+                signed_now.year > 0 ? std::to_string(signed_now.year).c_str() : "", signed_now.target);
 }
 
 SWOFTY_WRAP(Game_DriverContracts_OfferSecretMeeting, void, void *contracts, const void *meeting, uint32_t team,

@@ -14,8 +14,13 @@
 //             component) no scene.
 //   tried     a scene is signed for at most once: the decision, or the first scene step entered
 //             without it (team select, agent intro), whichever comes first.
+//   event     the contract event that leads to the scene is a career calendar activity of type 0x0f
+//             (NCSContractRenewal), the Team HQ card 'CONTRACT EVENT'; a follow career signs when it
+//             is about to be added to the player's own driver calendar (one of a ScheduleSeason's
+//             driver calendars whose driver is his) and does not add it.
 
 #pragma once
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <string>
@@ -24,6 +29,9 @@ namespace progressive::scene {
 
 constexpr uint32_t kLinkNoContract = 0x5e3c3c2d;
 constexpr uint32_t kLinkContractEnds = 0xd2985448;
+
+constexpr uint8_t kContractEvent = 0x0f;
+constexpr size_t kMaxSeasons = 64;
 
 enum class Route { none, no_contract, contract_ends };
 
@@ -113,5 +121,29 @@ struct Skip {
         return "contract scene skipped (" + where() + ": " + passed() + b;
     }
 };
+
+struct CalendarLayout {
+    size_t seasons_begin, seasons_end, season_size;
+    size_t drivers_begin, drivers_end, calendar_size;
+};
+
+template <class Mem>
+bool driver_calendar(const Mem &m, uintptr_t schedule, uintptr_t calendar, const CalendarLayout &l)
+{
+    uintptr_t b = 0, e = 0;
+    if (!schedule || !calendar || !l.season_size || !l.calendar_size || !m.read(schedule + l.seasons_begin, b) ||
+        !m.read(schedule + l.seasons_end, e))
+        return false;
+    if (!b || e < b || (e - b) % l.season_size || (e - b) / l.season_size > kMaxSeasons)
+        return false;
+    for (uintptr_t season = b; season < e; season += l.season_size) {
+        uintptr_t db = 0, de = 0;
+        if (!m.read(season + l.drivers_begin, db) || !m.read(season + l.drivers_end, de) || !db || de < db)
+            continue;
+        if (calendar >= db && calendar < de && (calendar - db) % l.calendar_size == 0)
+            return true;
+    }
+    return false;
+}
 
 }

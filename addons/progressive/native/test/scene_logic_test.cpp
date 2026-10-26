@@ -6,6 +6,8 @@
 #include "scene_logic.hpp"
 
 #include <cstdio>
+#include <cstring>
+#include <map>
 
 using namespace progressive::scene;
 
@@ -22,6 +24,21 @@ void expect(bool ok, const char *what, int line)
 }
 
 #define EXPECT(x) expect((x), #x, __LINE__)
+
+struct Heap {
+    std::map<uintptr_t, uintptr_t> words;
+
+    template <class T> bool read(uintptr_t a, T &out) const
+    {
+        auto it = words.find(a);
+        if (it == words.end())
+            return false;
+        out = static_cast<T>(it->second);
+        return true;
+    }
+};
+
+constexpr CalendarLayout kCal{0x410, 0x418, 0x80, 0x40, 0x48, 0xc8};
 
 } // namespace
 
@@ -71,6 +88,32 @@ int main()
     EXPECT(std::string(route_name(Route::contract_ends)) == "his contract ends: the scene starts at the team select");
     EXPECT(std::string(route_name(Route::no_contract)) == "no contract yet: the scene starts at the agent intro");
     EXPECT(std::string(route_name(Route::none)) == "no contract scene follows");
+
+    {
+        Heap h;
+        constexpr uintptr_t sched = 0x1000, seasons = 0x2000, drivers0 = 0x10000, drivers1 = 0x20000;
+        h.words[sched + 0x410] = seasons;
+        h.words[sched + 0x418] = seasons + 2 * 0x80;
+        h.words[seasons + 0x40] = drivers0;
+        h.words[seasons + 0x48] = drivers0 + 22 * 0xc8;
+        h.words[seasons + 0x80 + 0x40] = drivers1;
+        h.words[seasons + 0x80 + 0x48] = drivers1 + 22 * 0xc8;
+        EXPECT(driver_calendar(h, sched, drivers0, kCal));
+        EXPECT(driver_calendar(h, sched, drivers0 + 21 * 0xc8, kCal));
+        EXPECT(!driver_calendar(h, sched, drivers0 + 22 * 0xc8, kCal));
+        EXPECT(!driver_calendar(h, sched, drivers0 + 0x10, kCal));
+        EXPECT(driver_calendar(h, sched, drivers1 + 5 * 0xc8, kCal));
+        EXPECT(!driver_calendar(h, sched, 0x30000, kCal));
+        EXPECT(!driver_calendar(h, 0, drivers0, kCal));
+        EXPECT(!driver_calendar(h, sched, 0, kCal));
+        h.words[sched + 0x418] = seasons + 0x81;
+        EXPECT(!driver_calendar(h, sched, drivers0, kCal));
+        h.words[sched + 0x418] = seasons + (kMaxSeasons + 1) * 0x80;
+        EXPECT(!driver_calendar(h, sched, drivers0, kCal));
+        h.words.erase(sched + 0x418);
+        EXPECT(!driver_calendar(h, sched, drivers0, kCal));
+    }
+    EXPECT(kContractEvent == 0x0f);
 
     if (failures) {
         std::printf("scene_logic_test: %d failure(s)\n", failures);
