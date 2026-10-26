@@ -19,6 +19,9 @@
 //      their seat (D), then drivers who raced in Y-1 or Y+1, then everyone else in the pool, each
 //      tier by rating (higher first), then by id.
 // A displaced driver who is not refitted ends up in `reserve`.
+// Mid-season (Input.take >= 0): the player keeps the seat index of his slot he took at the season's
+// start (take_seat on the season's opening line-up), so a change of that seat's real driver moves
+// the newcomer to the player's real seat (or out), and a change elsewhere leaves the player's slot.
 
 #pragma once
 #include <algorithm>
@@ -57,6 +60,7 @@ struct Input {
     std::vector<Driver> pool;
     const Grid *prev = nullptr;
     const Grid *next = nullptr;
+    int take = -1;
 };
 
 enum class Why { real, player, displaced, filler };
@@ -119,6 +123,19 @@ inline Grid dedupe(const Grid &in, std::vector<std::string> &notes)
     return out;
 }
 
+inline int take_seat(const Grid &real, Driver player, int slot, const std::vector<Rating> &ratings)
+{
+    if (player == kNone || slot < 0 || slot >= kSlots)
+        return -1;
+    for (int p = 0; p < kSeats; ++p)
+        if (real[slot][p] == player)
+            return p;
+    for (int p = 0; p < kSeats; ++p)
+        if (real[slot][p] == kNone)
+            return p;
+    return rating_of(ratings, real[slot][0]) < rating_of(ratings, real[slot][1]) ? 0 : 1;
+}
+
 inline Output fit(const Input &in)
 {
     Output out;
@@ -139,18 +156,18 @@ inline Output fit(const Input &in)
         }
     } else if (in.player != kNone && !(raced && rs == in.player_slot)) {
         int S = in.player_slot;
-        int take = -1;
-        for (int p = 0; p < kSeats; ++p)
-            if (g[S][p] == kNone) {
-                take = p;
-                break;
-            }
-        Driver d = kNone;
+        int take = in.take >= 0 && in.take < kSeats ? in.take : -1;
+        if (take < 0)
+            for (int p = 0; p < kSeats; ++p)
+                if (g[S][p] == kNone) {
+                    take = p;
+                    break;
+                }
         if (take < 0) {
             float r0 = rating_of(in.ratings, g[S][0]), r1 = rating_of(in.ratings, g[S][1]);
             take = r0 < r1 ? 0 : 1;
-            d = g[S][take];
         }
+        Driver d = g[S][take];
         if (raced)
             g[rs][rp] = kNone;
         g[S][take] = in.player;
