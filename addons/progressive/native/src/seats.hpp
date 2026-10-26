@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// Progressive Career: the career's entrant rows and the game's own writer for them. The write
+// sequence is the Career Mode Editor's Driver Career one (addons/career-editor/native/src/
+// drivers.cpp, protocol/drivers.md), copied so this addon stands alone:
+//   rows       CareerEntity +0x2e0..+0x2e8, 0x88-byte EntrantRecords (swofty/game/entrants.hpp)
+//   writer     Career_Set_EntrantData_Thunk(entity, identity, EntrantWriteData, position, number).
+//              It finds the row by identity (AI rows by ordinal_flags, the human row by its bit),
+//              posts the entity's entrant-change begin message before it searches and the end
+//              message only on a match, so a miss leaves CareerEntity::entrant_update_busy set:
+//              the identity must match exactly one row before the call.
+//   moves      MessageDriverMoveConfirmed before each write that moves a driver (the Driver Career
+//              signing 0x140d766b0 does it), so UpgradesComponent reassigns per-driver state.
+//   finalise   Career_Build_LineupChanges against the line-up from before the batch, then
+//              MessageDriverMovesFinalised_upgrades, _recognition and the plain one. Mandatory after
+//              a driver move: the _upgrades handler makes the new driver's team modifiers
+//              (without it Career_Calc_UpgradeCost crashed, 2026-10-20).
+// Flow thread only (career.hub, career.loaded).
+
+#pragma once
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <vector>
+
+#include <swofty/game.hpp>
+
+namespace pg {
+
+using swofty::game::EntrantRecord;
+using swofty::game::EntrantWriteData;
+
+constexpr uint32_t kNoKey = 0x3fff0000u;
+constexpr uint32_t kHumanBit = 0x10000000u;
+constexpr uint8_t kNoNumber = 0xff;
+constexpr size_t kMaxEntrants = 256;
+constexpr size_t kIdentitySize = offsetof(EntrantRecord, id_lo);
+constexpr uint8_t kReasonSigned = 0;
+constexpr uint8_t kReasonReleased = 1;
+constexpr uint8_t kReasonBenched = 3;
+static_assert(sizeof(EntrantRecord) == 0x88 && sizeof(EntrantWriteData) == 0x2c);
+
+struct Row {
+    uintptr_t at = 0;
+    EntrantRecord rec{};
+};
+
+uintptr_t entity();
+uintptr_t contracts_manager();
+uintptr_t championship(uintptr_t entity);
+
+struct SeasonInfo {
+    uint32_t index = 0;
+    size_t seasons = 0;
+    uint32_t completion = 0;
+};
+bool season(uintptr_t entity, SeasonInfo &out);
+
+bool entrant_rows(uintptr_t entity, std::vector<Row> &out);
+uint32_t driver_of(const EntrantRecord &r);
+inline uint32_t stat_of(uint32_t key)
+{
+    return key >> 16;
+}
+inline bool none(uint32_t key)
+{
+    return (key & 0xffff0000u) == kNoKey;
+}
+inline bool has_car(const EntrantRecord &r)
+{
+    return !none(r.vehicle_ref);
+}
+inline bool teamless(const EntrantRecord &r)
+{
+    return none(r.team_stat_id);
+}
+inline bool human(const EntrantRecord &r)
+{
+    return (r.ordinal_flags & kHumanBit) != 0;
+}
+inline int position_of(const EntrantRecord &r)
+{
+    return (r.team_position >> 8) ? (r.team_position & 0xff) : -1;
+}
+
+const Row *row_of(const std::vector<Row> &rows, uint32_t driver);
+bool entity_busy(uintptr_t entity);
+bool unique_identity(uintptr_t entity, const Row &id_row);
+EntrantWriteData own_data(const Row &r);
+EntrantWriteData seat_data(const Row &driver_row, const Row &seat_row);
+EntrantWriteData released_data(const Row &r);
+
+bool announce(uintptr_t manager, uint32_t driver, uint32_t old_team, uint32_t new_team, uint8_t reason);
+bool write_row(uintptr_t entity, const Row &id_row, const EntrantWriteData &data, uint16_t position, uint8_t number);
+
+uintptr_t weekend_row(uintptr_t entity, const EntrantRecord &row);
+bool patch(uintptr_t at, size_t offset, uint32_t value);
+bool patch_u8(uintptr_t at, size_t offset, uint8_t value);
+
+class Baseline {
+  public:
+    explicit Baseline(const std::vector<Row> &rows);
+    Baseline(const Baseline &) = delete;
+    Baseline &operator=(const Baseline &) = delete;
+    const void *vector() const { return &vec_; }
+    const std::vector<EntrantRecord> &rows() const { return rows_; }
+
+  private:
+    struct Vec {
+        void *allocator = nullptr;
+        const EntrantRecord *begin = nullptr;
+        const EntrantRecord *end = nullptr;
+        const EntrantRecord *capacity = nullptr;
+    };
+    std::vector<EntrantRecord> rows_;
+    Vec vec_;
+};
+
+uint64_t lineup_changes(uintptr_t entity, const Baseline &baseline);
+bool finalise(uintptr_t entity, const Baseline &baseline, uint64_t &changes);
+
+} // namespace pg

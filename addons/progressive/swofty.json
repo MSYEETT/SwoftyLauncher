@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "swofty.progressive",
+  "name": "Progressive Career",
+  "version": "0.1.0",
+  "author": "Swofty",
+  "description": "A Driver Career that moves through the real seasons from your starting year: each season brings that year's cars, liveries, helmets and line-ups. Development build: rewrites career seats from data/probe.json at Team HQ.",
+  "license": "AGPL-3.0-or-later",
+  "kind": [
+    "native"
+  ],
+  "compat": {
+    "game": "f1_25",
+    "game_builds": [
+      ">=25251167"
+    ],
+    "launcher": ">=1.5.10",
+    "seasons": [
+      "f1_2026"
+    ]
+  },
+  "requires": [
+    {
+      "id": "swofty.core",
+      "version": ">=0.2.13"
+    }
+  ],
+  "saves": {
+    "affects": true,
+    "message": "Careers it rewrote keep the Classic Seasons cars and looks it gave them; keep Classic Seasons installed to load them."
+  },
+  "operations": {
+    "native": [
+      {
+        "dll": "native/progressive.dll",
+        "files": [
+          "data/"
+        ]
+      }
+    ]
+  }
+}
