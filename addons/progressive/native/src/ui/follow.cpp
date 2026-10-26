@@ -4,8 +4,8 @@
 //
 // The F1 1990 contract skip (f1-1990 native/src/contract_skip.cpp), aimed at the real calendar. When
 // Career_Decide_ContractNegotiation picks the negotiation (link 0x5e3c3c2d: no contract, or it ends
-// this season) in a Progressive career whose team moves are follow_driver, with one human and
-// Career_Needs_DriverContract true, the player signs a one-season contract with the game's own
+// this season) in a Progressive career whose team moves are follow_driver, with one human, the
+// player signs a one-season contract with the game's own
 // Career_Build_DriverContract + Career_Sign_DriverContract (type 0, the screen's recommended target)
 // and the negotiation scene passes straight through (Intro and Outro skip, Update leaves at once):
 //   - no active contract (a new career, or a save from before its first contract): his real team of
@@ -53,6 +53,11 @@ struct RatingRange {
     int32_t recommended;
 };
 static_assert(sizeof(RatingRange) == 20);
+
+constexpr uintptr_t kCachedBegin = 0x408; // manager: next season's cached contracts, 0x38 entries
+constexpr size_t kCachedEntry = 0x38;
+constexpr uintptr_t kCachedKind = 0x2c;
+constexpr uintptr_t kCachedStat = 0x2e;
 
 bool g_skip = false;
 bool g_update_skipped = false;
@@ -119,6 +124,17 @@ uintptr_t contract_record(uintptr_t contracts, uint32_t driver)
         if (uintptr_t rec = rdv<uintptr_t>(p + 8); rec && same_key(rdv<uint32_t>(rec + offsetof(DriverContract, driver)), driver))
             return rec;
     return 0;
+}
+
+uint32_t cached_team(uintptr_t contracts, uint32_t driver)
+{
+    uintptr_t b = rdv<uintptr_t>(contracts + kCachedBegin), e = rdv<uintptr_t>(contracts + kCachedBegin + 8);
+    if (!b || e <= b || (e - b) % kCachedEntry || (e - b) / kCachedEntry > 256 || !swofty::mem::readable(b, e - b))
+        return kNoKey;
+    for (uintptr_t p = b; p < e; p += kCachedEntry)
+        if (rdv<uint8_t>(p + kCachedKind) == (driver & 0xff) && rdv<uint16_t>(p + kCachedStat) == (driver >> 16))
+            return rdv<uint32_t>(p + offsetof(DriverContract, team));
+    return kNoKey;
 }
 
 int follow_mode()
@@ -209,9 +225,17 @@ bool sign(uintptr_t contracts)
     int32_t target = recommended_target(base, contracts);
     std::memset(buf, 0, sizeof buf);
     Career_Build_DriverContract(reinterpret_cast<void *>(contracts), buf, driver, team, 0, target, 1);
+    uint32_t cached_before = cached_team(contracts, driver);
     Career_Sign_DriverContract(reinterpret_cast<void *>(contracts), buf, driver, kNoKey, 1);
-    bool ok = !Career_Needs_DriverContract(reinterpret_cast<void *>(contracts)) ||
-              rdv<uint8_t>(contract_record(contracts, driver) + offsetof(DriverContract, active)) != 0;
+    uintptr_t now = contract_record(contracts, driver);
+    bool now_active = now && rdv<uint8_t>(now + offsetof(DriverContract, active)) != 0;
+    uint32_t now_team = now ? rdv<uint32_t>(now + offsetof(DriverContract, team)) : kNoKey;
+    uint32_t cached = cached_team(contracts, driver);
+    bool ok = active ? same_key(cached, team) || (same_key(now_team, team) && now_active)
+                     : !Career_Needs_DriverContract(reinterpret_cast<void *>(contracts)) || now_active;
+    swofty::log("[progressive] follow: after the signing: contract team %u (%s), next season cached team %u (before: "
+                "%u)",
+                now_team >> 16, now_active ? "active" : "not active", cached >> 16, cached_before >> 16);
     swofty::log("[progressive] follow: signed driver %u with team %u (%s%s%s), rating %d, target %d, %d season(s), ends "
                 "%d: %s",
                 driver >> 16, team >> 16, why, year ? ", " : "", year ? std::to_string(year).c_str() : "", base, target,
@@ -238,7 +262,7 @@ SWOFTY_WRAP(Career_Decide_ContractNegotiation, uint32_t *, void *state, uint32_t
         return r;
     auto contracts = reinterpret_cast<uintptr_t>(
         swofty::career::component_by_desc(k_Career_DriverCareerContractsManagerComponentDesc.get()));
-    if (!contracts || !Career_Needs_DriverContract(reinterpret_cast<void *>(contracts)))
+    if (!contracts)
         return r;
     g_skip = sign(contracts);
     if (g_skip)
