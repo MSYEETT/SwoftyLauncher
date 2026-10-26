@@ -788,8 +788,8 @@ bool progressive_career()
 }
 
 // The Team HQ tab (manifest hub_tab, built by the core) shows rnd_mode, which is a profile option:
-// on load the career's own mode is pushed into it, and a Real-life career keeps the R&D tab out of the
-// laptop (the core's hide_rnd, applied when the laptop is built at Team HQ entry).
+// on load the career's own mode is pushed into it, and a Real-life career hides the R&D tab of Team HQ
+// (the core's hide_rnd: applied when Team HQ is built, and to an open Team HQ on the next frame).
 store::Career *live_entry()
 {
     const std::string &k = g_current.empty() ? g_entry : g_current;
@@ -892,7 +892,7 @@ void rnd_option_changed()
     store::save();
     g_rnd = rnd_code(now);
     publish(true, now);
-    hub_sync(now, "R&D changed; the laptop follows at the next Team HQ entry");
+    hub_sync(now, "R&D changed; an open Team HQ follows on the next frame");
     uintptr_t e = entity();
     SeasonInfo s;
     if (now == "hybrid" && e && season(e, s) && data()) {
