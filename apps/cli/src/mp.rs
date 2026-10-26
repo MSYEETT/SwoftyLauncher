@@ -272,7 +272,7 @@ fn run_echo(args: EchoArgs) -> Result<ExitCode> {
                         "injected {} bytes as member {m}: 127.0.0.1:{} -> 127.0.0.1:{}",
                         bytes.len(),
                         bridge.port(*m).unwrap_or_default(),
-                        bridge.game_port()
+                        bridge.delivery_port()
                     ),
                     Err(e) => eprintln!("swofty: injecting as member {m}: {e}"),
                 }
@@ -313,8 +313,9 @@ fn print_echoed(e: &Echoed, started: SystemTime) {
     let shown = e.payload.len().min(32);
     let hex: String = e.payload[..shown].iter().map(|b| format!("{b:02x}")).collect();
     let more = if e.payload.len() > shown { "..." } else { "" };
+    let foreign = if e.foreign { " (not the game's socket)" } else { "" };
     println!(
-        "[+{at:.3}s] to member {} from {}, {} bytes: {hex}{more}",
+        "[+{at:.3}s] to member {} from {}{foreign}, {} bytes: {hex}{more}",
         e.member,
         e.from,
         e.payload.len()

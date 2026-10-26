@@ -6,7 +6,10 @@
 //! transport: what the game sends is kept for inspection, and [`Bridge::inject`] plays a datagram
 //! in as if a member had sent it.
 //!
-//! Each start seals under a new random session id (see [`super::seal`]).
+//! Only datagrams from the game's socket, `127.0.0.1:game_port`, are relayed. Opened datagrams go
+//! to the port the game was last seen sending from, and until it has sent, to the configured
+//! port; a port read from `netplay.json` is used once the game sends from it. Each start seals
+//! under a new random session id (see [`super::seal`]).
 
 use std::collections::{BTreeMap, VecDeque};
 use std::io;
@@ -49,7 +52,8 @@ pub struct BridgeConfig {
     pub members: Vec<u8>,
     /// The lobby key the server hands out.
     pub key: [u8; 32],
-    /// The game's socket port on loopback.
+    /// The game's socket port on loopback: the only source relayed, and where opened datagrams
+    /// go until the game has sent from it.
     pub game_port: u16,
 }
 
@@ -94,6 +98,9 @@ pub struct Drops {
     pub replay: u64,
     pub too_old: u64,
     pub old_session: u64,
+    /// A datagram reached a member port from a socket other than the game's. Echo mode keeps it
+    /// and flags it.
+    pub foreign_source: u64,
     /// The transport couldn't send a sealed datagram.
     pub send_failed: u64,
     /// An opened or injected datagram couldn't be sent to the game's port.
@@ -123,6 +130,7 @@ impl Drops {
             ("replay", self.replay),
             ("too_old", self.too_old),
             ("old_session", self.old_session),
+            ("foreign_source", self.foreign_source),
             ("send_failed", self.send_failed),
             ("deliver_failed", self.deliver_failed),
         ]
@@ -148,8 +156,10 @@ pub struct Echoed {
     pub seq: u64,
     pub member: u8,
     pub at: SystemTime,
-    /// The game socket it came from.
+    /// The socket it came from.
     pub from: SocketAddr,
+    /// Whether `from` isn't the game's socket.
+    pub foreign: bool,
     pub payload: Vec<u8>,
 }
 
@@ -179,7 +189,9 @@ struct Shared {
     self_member: u8,
     base: u16,
     sockets: BTreeMap<u8, UdpSocket>,
+    configured_port: u16,
     game_port: AtomicU16,
+    seen_port: AtomicU16,
     stop: AtomicBool,
     stats: Mutex<Stats>,
     echo: Option<Mutex<Echo>>,
@@ -235,7 +247,9 @@ impl Bridge {
                 self_member: cfg.self_member,
                 base,
                 sockets,
+                configured_port: cfg.game_port,
                 game_port: AtomicU16::new(cfg.game_port),
+                seen_port: AtomicU16::new(0),
                 stop: AtomicBool::new(false),
                 stats: Mutex::new(stats),
                 echo: echo.then(Mutex::default),
@@ -275,15 +289,23 @@ impl Bridge {
         format!("self={};base={}", self.shared.self_member, self.shared.base)
     }
 
+    /// The port the game's socket is expected on; datagrams from any other are dropped.
     pub fn game_port(&self) -> u16 {
         self.shared.game_port.load(Ordering::Relaxed)
     }
 
+    /// Expect the game's socket on `port`. Opened datagrams go there once the game sends from it.
     pub fn set_game_port(&self, port: u16) {
         self.shared.game_port.store(port, Ordering::Relaxed);
     }
 
-    /// Take the game port from `<game_dir>/swofty/netplay.json` when the core wrote it for this
+    /// Where opened and injected datagrams go: the port the game was last seen sending from,
+    /// else the configured one.
+    pub fn delivery_port(&self) -> u16 {
+        self.shared.delivery_port()
+    }
+
+    /// Expect the game port from `<game_dir>/swofty/netplay.json` when the core wrote it for this
     /// bridge's member and base, and return it.
     pub fn sync_game_port(&self, game_dir: &Path) -> Option<u16> {
         let status = NetplayStatus::read(game_dir)?;
@@ -350,6 +372,22 @@ impl Shared {
         m.bytes_out += len as u64;
     }
 
+    fn delivery_port(&self) -> u16 {
+        match self.seen_port.load(Ordering::Relaxed) {
+            0 => self.configured_port,
+            port => port,
+        }
+    }
+
+    /// Whether `from` is the game's socket, remembering its port for delivery when it is.
+    fn is_game(&self, from: SocketAddr) -> bool {
+        let game = from.ip() == Ipv4Addr::LOCALHOST && from.port() == self.game_port.load(Ordering::Relaxed);
+        if game {
+            self.seen_port.store(from.port(), Ordering::Relaxed);
+        }
+        game
+    }
+
     fn deliver(&self, from: u8, payload: &[u8]) -> io::Result<()> {
         let socket = self.sockets.get(&from).ok_or_else(|| {
             io::Error::new(
@@ -358,8 +396,7 @@ impl Shared {
             )
         })?;
         self.check_size(from, payload.len(), "from");
-        let port = self.game_port.load(Ordering::Relaxed);
-        if let Err(e) = socket.send_to(payload, (Ipv4Addr::LOCALHOST, port)) {
+        if let Err(e) = socket.send_to(payload, (Ipv4Addr::LOCALHOST, self.delivery_port())) {
             self.stats().drops.deliver_failed += 1;
             return Err(e);
         }
@@ -387,7 +424,7 @@ impl Shared {
         }
     }
 
-    fn keep(&self, member: u8, from: SocketAddr, payload: &[u8]) {
+    fn keep(&self, member: u8, from: SocketAddr, foreign: bool, payload: &[u8]) {
         let Some(echo) = &self.echo else { return };
         let mut echo = echo.lock().unwrap_or_else(|e| e.into_inner());
         let seq = echo.next;
@@ -401,6 +438,7 @@ impl Shared {
             member,
             at: SystemTime::now(),
             from,
+            foreign,
             payload: payload.to_vec(),
         });
     }
@@ -420,6 +458,13 @@ fn outbound(shared: &Shared, member: u8, link: Option<(&dyn Transport, &Sealer)>
             }
         };
         let payload = &buf[..n];
+        let game = shared.is_game(from);
+        if !game {
+            shared.stats().drops.foreign_source += 1;
+            if link.is_some() {
+                continue;
+            }
+        }
         shared.check_size(member, n, "to");
         match link {
             Some((transport, sealer)) => {
@@ -429,9 +474,11 @@ fn outbound(shared: &Shared, member: u8, link: Option<(&dyn Transport, &Sealer)>
                     continue;
                 }
             }
-            None => shared.keep(member, from, payload),
+            None => shared.keep(member, from, !game, payload),
         }
-        shared.sent(member, n);
+        if game {
+            shared.sent(member, n);
+        }
     }
 }
 
@@ -709,6 +756,46 @@ mod tests {
         assert!(one.game.recv_from(&mut wire).is_err());
     }
 
+    #[test]
+    fn relays_only_what_the_game_socket_sends() {
+        let lobby = lobby(&[1, 2]);
+        let (a, b) = (&lobby[0], &lobby[1]);
+        let to_b = loopback(a.bridge.port(2).unwrap());
+        let stranger = UdpSocket::bind("127.0.0.1:0").unwrap();
+        stranger.send_to(b"from a stranger", to_b).unwrap();
+        a.game.send_to(b"from the game", to_b).unwrap();
+        assert_eq!(recv(&b.game).0, b"from the game");
+        let stats = a.bridge.stats();
+        assert_eq!(stats.drops.foreign_source, 1);
+        assert_eq!(stats.members[&2].packets_out, 1);
+        b.game.set_read_timeout(Some(Duration::from_millis(200))).unwrap();
+        assert!(b.game.recv_from(&mut [0u8; 64]).is_err());
+    }
+
+    #[test]
+    fn delivers_to_a_new_game_port_only_once_the_game_sends_from_it() {
+        let lobby = lobby(&[1, 2]);
+        let (a, b) = (&lobby[0], &lobby[1]);
+        let moved = fake_game();
+        b.bridge.set_game_port(port(&moved));
+        a.game
+            .send_to(b"before", loopback(a.bridge.port(2).unwrap()))
+            .unwrap();
+        assert_eq!(recv(&b.game).0, b"before");
+        assert_eq!(b.bridge.delivery_port(), port(&b.game));
+
+        let to_a = loopback(b.bridge.port(1).unwrap());
+        b.game.send_to(b"old socket", to_a).unwrap();
+        moved.send_to(b"moved socket", to_a).unwrap();
+        assert_eq!(recv(&a.game).0, b"moved socket");
+        assert_eq!(b.bridge.stats().drops.foreign_source, 1);
+        assert_eq!(b.bridge.delivery_port(), port(&moved));
+        a.game
+            .send_to(b"after", loopback(a.bridge.port(2).unwrap()))
+            .unwrap();
+        assert_eq!(recv(&moved).0, b"after");
+    }
+
     fn wait_echoed(bridge: &Bridge, count: usize) -> Vec<Echoed> {
         let deadline = Instant::now() + WAIT;
         loop {
@@ -742,6 +829,7 @@ mod tests {
         assert_eq!((echoed[0].seq, echoed[0].member), (0, 1));
         assert_eq!(echoed[0].payload, b"to host");
         assert_eq!(echoed[0].from, game.local_addr().unwrap());
+        assert!(!echoed[0].foreign && !echoed[1].foreign);
         assert_eq!((echoed[1].seq, echoed[1].member), (1, 3));
         assert_eq!(echoed[1].payload, b"to three");
 
@@ -750,6 +838,16 @@ mod tests {
         assert_eq!(payload, b"from three");
         assert_eq!(src, loopback(bridge.base() + 3));
         assert!(bridge.inject(2, b"self").is_err());
+
+        let stranger = UdpSocket::bind("127.0.0.1:0").unwrap();
+        stranger
+            .send_to(b"stranger", loopback(bridge.port(1).unwrap()))
+            .unwrap();
+        let echoed = wait_echoed(&bridge, 3);
+        assert_eq!(echoed[2].payload, b"stranger");
+        assert!(echoed[2].foreign);
+        assert_eq!(echoed[2].from, stranger.local_addr().unwrap());
+        assert_eq!(bridge.stats().drops.foreign_source, 1);
 
         let stats = bridge.stats();
         assert_eq!(stats.members[&1].packets_out, 1);
