@@ -14544,6 +14544,72 @@
    "select": "content_sets.content_set[_metadata_=2026].available_entrant_lists_0",
    "field": "entrant_lists",
    "value": "f1_career_progressive,f1_career_progressive_driver_pool"
+  },
+  {
+   "op": "list-append",
+   "select": "entrants.team_customisation.team_customisation_for_year[_metadata_=2026].team_customisation[_metadata_=2026-mercedes]",
+   "field": "official_driver_customisations",
+   "value": "2016-cs_mercedes_lewis_hamilton,2016-cs_mercedes_nico_rosberg,2017-cs_mercedes_lewis_hamilton,2017-cs_mercedes_valtteri_bottas,2018-cs_mercedes_lewis_hamilton,2018-cs_mercedes_valtteri_bottas,2019-cs_mercedes_lewis_hamilton,2019-cs_mercedes_valtteri_bottas,2020-cs_mercedes_lewis_hamilton,2020-cs_mercedes_valtteri_bottas,2021-cs_mercedes_lewis_hamilton,2021-cs_mercedes_valtteri_bottas,2022-cs_mercedes_lewis_hamilton,2022-cs_mercedes_george_russell,2023-cs_mercedes_lewis_hamilton,2023-cs_mercedes_george_russell,2024-cs_mercedes_lewis_hamilton,2024-cs_mercedes_george_russell,2025-mercedes_george_russell,2025-mercedes_andrea-kimi_antonelli,2026-ferrari_lewis_hamilton,pg-nico_rosberg,2026-cadillac_valtteri_bottas"
+  },
+  {
+   "op": "list-append",
+   "select": "entrants.team_customisation.team_customisation_for_year[_metadata_=2026].team_customisation[_metadata_=2026-ferrari]",
+   "field": "official_driver_customisations",
+   "value": "2016-cs_ferrari_sebastian_vettel,2016-cs_ferrari_kimi_raikkonen,2017-cs_ferrari_sebastian_vettel,2017-cs_ferrari_kimi_raikkonen,2018-cs_ferrari_sebastian_vettel,2018-cs_ferrari_kimi_raikkonen,2019-cs_ferrari_sebastian_vettel,2019-cs_ferrari_charles_leclerc,2020-cs_ferrari_sebastian_vettel,2020-cs_ferrari_charles_leclerc,2021-cs_ferrari_charles_leclerc,2021-cs_ferrari_carlos_sainz-jr,2022-cs_ferrari_charles_leclerc,2022-cs_ferrari_carlos_sainz-jr,2023-cs_ferrari_charles_leclerc,2023-cs_ferrari_carlos_sainz-jr,2024-cs_ferrari_charles_leclerc,2024-cs_ferrari_carlos_sainz-jr,2025-ferrari_charles_leclerc,2025-ferrari_lewis_hamilton,2026-williams_carlos_sainz-jr,pg-kimi_raikkonen,pg-sebastian_vettel,2026-haas_oliver_bearman"
+  },
+  {
+   "op": "list-append",
+   "select": "entrants.team_customisation.team_customisation_for_year[_metadata_=2026].team_customisation[_metadata_=2026-redbull]",
+   "field": "official_driver_customisations",
+   "value": "2016-cs_redbull_daniel_ricciardo,2016-cs_redbull_max_verstappen,2017-cs_redbull_daniel_ricciardo,2017-cs_redbull_max_verstappen,2018-cs_redbull_daniel_ricciardo,2018-cs_redbull_max_verstappen,2019-cs_redbull_max_verstappen,2019-cs_redbull_pierre_gasly,2020-cs_redbull_max_verstappen,2020-cs_redbull_alex_albon,2021-cs_redbull_max_verstappen,2021-cs_redbull_sergio_perez,2022-cs_redbull_max_verstappen,2022-cs_redbull_sergio_perez,2023-cs_redbull_max_verstappen,2023-cs_redbull_sergio_perez,2024-cs_redbull_max_verstappen,2024-cs_redbull_sergio_perez,2025-redbull_max_verstappen,2025-redbull_yuki_tsunoda,2024-tororosso_daniel_ricciardo,2026-cadillac_sergio_perez,2026-renault_pierre_gasly,2026-williams_alex_albon"
+  },
+  {
+   "op": "list-append",
+   "select": "entrants.team_customisation.team_customisation_for_year[_metadata_=2026].team_customisation[_metadata_=2026-mclaren]",
+   "field": "official_driver_customisations",
+   "value": "2016-cs_mclaren_fernando_alonso,2016-cs_mclaren_jenson_button,2017-cs_mclaren_fernando_alonso,2017-cs_mclaren_stoffel_vandoorne,2018-cs_mclaren_fernando_alonso,2018-cs_mclaren_stoffel_vandoorne,2019-cs_mclaren_carlos_sainz-jr,2019-cs_mclaren_lando_norris,2020-cs_mclaren_carlos_sainz-jr,2020-cs_mclaren_lando_norris,2021-cs_mclaren_lando_norris,2021-cs_mclaren_daniel_ricciardo,2022-cs_mclaren_lando_norris,2022-cs_mclaren_daniel_ricciardo,2023-cs_mclaren_lando_norris,2023-cs_mclaren_oscar_piastri,2024-cs_mclaren_lando_norris,2024-cs_mclaren_oscar_piastri,2025-mclaren_oscar_piastri,2025-mclaren_lando_norris,2026-williams_carlos_sainz-jr,2024-tororosso_daniel_ricciardo,2026-forceindia_fernando_alonso,classic-button01,pg-stoffel_vandoorne"
+  },
+  {
+   "op": "list-append",
+   "select": "entrants.team_customisation.team_customisation_for_year[_metadata_=2026].team_customisation[_metadata_=2026-forceindia]",
+   "field": "official_driver_customisations",
+   "value": "2016-cs_force_india_sergio_perez,2016-cs_force_india_nico_hulkenberg,2017-cs_force_india_sergio_perez,2017-cs_force_india_esteban_ocon,2018-cs_force_india_sergio_perez,2018-cs_force_india_esteban_ocon,2019-cs_force_india_sergio_perez,2019-cs_force_india_lance_stroll,2020-cs_force_india_sergio_perez,2020-cs_force_india_lance_stroll,2021-cs_force_india_sebastian_vettel,2021-cs_force_india_lance_stroll,2022-cs_force_india_sebastian_vettel,2022-cs_force_india_lance_stroll,2023-cs_force_india_fernando_alonso,2023-cs_force_india_lance_stroll,2024-cs_force_india_fernando_alonso,2024-cs_force_india_lance_stroll,2025-forceindia_lance_stroll,2025-forceindia_fernando_alonso,2026-haas_esteban_ocon,2026-sauber_nico_hulkenberg,pg-sebastian_vettel,2026-cadillac_sergio_perez"
+  },
+  {
+   "op": "list-append",
+   "select": "entrants.team_customisation.team_customisation_for_year[_metadata_=2026].team_customisation[_metadata_=2026-renault]",
+   "field": "official_driver_customisations",
+   "value": "2016-cs_lotus_kevin_magnussen,2016-cs_lotus_jolyon_palmer,2017-cs_lotus_nico_hulkenberg,2017-cs_lotus_jolyon_palmer,2018-cs_lotus_nico_hulkenberg,2018-cs_lotus_carlos_sainz-jr,2019-cs_lotus_daniel_ricciardo,2019-cs_lotus_nico_hulkenberg,2020-cs_lotus_daniel_ricciardo,2020-cs_lotus_esteban_ocon,2021-cs_lotus_fernando_alonso,2021-cs_lotus_esteban_ocon,2022-cs_lotus_fernando_alonso,2022-cs_lotus_esteban_ocon,2023-cs_lotus_pierre_gasly,2023-cs_lotus_esteban_ocon,2024-cs_lotus_pierre_gasly,2024-cs_lotus_esteban_ocon,2025-renault_pierre_gasly,2025-renault_franco_colapinto,2026-williams_carlos_sainz-jr,2024-tororosso_daniel_ricciardo,2026-haas_esteban_ocon,2026-forceindia_fernando_alonso,pg-jolyon_palmer,2024-haas_kevin_magnussen,2026-sauber_nico_hulkenberg,2025-renault_jack_doohan"
+  },
+  {
+   "op": "list-append",
+   "select": "entrants.team_customisation.team_customisation_for_year[_metadata_=2026].team_customisation[_metadata_=2026-williams]",
+   "field": "official_driver_customisations",
+   "value": "2016-cs_williams_felipe_massa,2016-cs_williams_valtteri_bottas,2017-cs_williams_felipe_massa,2017-cs_williams_lance_stroll,2018-cs_williams_lance_stroll,2018-cs_williams_sergey_sirotkin,2019-cs_williams_george_russell,2019-cs_williams_robert_kubica,2020-cs_williams_george_russell,2020-cs_williams_nicholas_latifi,2021-cs_williams_george_russell,2021-cs_williams_nicholas_latifi,2022-cs_williams_alex_albon,2022-cs_williams_nicholas_latifi,2023-cs_williams_alex_albon,2023-cs_williams_logan_sargeant,2024-cs_williams_alex_albon,2024-cs_williams_logan_sargeant,2025-williams_alex_albon,2025-williams_carlos_sainz-jr,classic-massa01,2026-cadillac_valtteri_bottas,2026-forceindia_lance_stroll,pg-sergey_sirotkin,2026-mercedes_george_russell,pg-robert_kubica,pg-jack_aitken,pg-nicholas_latifi,pg-nyck_de-vries,2024-williams_logan_sargeant,2026-renault_franco_colapinto"
+  },
+  {
+   "op": "list-append",
+   "select": "entrants.team_customisation.team_customisation_for_year[_metadata_=2026].team_customisation[_metadata_=2026-tororosso]",
+   "field": "official_driver_customisations",
+   "value": "2016-cs_toro_rosso_carlos_sainz-jr,2016-cs_toro_rosso_daniil_kvyat,2017-cs_toro_rosso_carlos_sainz-jr,2017-cs_toro_rosso_daniil_kvyat,2018-cs_toro_rosso_pierre_gasly,2018-cs_toro_rosso_brendon_hartley,2019-cs_toro_rosso_daniil_kvyat,2019-cs_toro_rosso_alex_albon,2020-cs_toro_rosso_pierre_gasly,2020-cs_toro_rosso_daniil_kvyat,2021-cs_toro_rosso_pierre_gasly,2021-cs_toro_rosso_yuki_tsunoda,2022-cs_toro_rosso_pierre_gasly,2022-cs_toro_rosso_yuki_tsunoda,2023-cs_toro_rosso_yuki_tsunoda,2023-cs_toro_rosso_nyck_de-vries,2024-cs_toro_rosso_yuki_tsunoda,2024-cs_toro_rosso_daniel_ricciardo,2025-tororosso_isack_hadjar,2025-tororosso_liam_lawson,2026-williams_carlos_sainz-jr,2024-tororosso_daniel_ricciardo,pg-daniil_kvyat,pg-brendon_hartley,2026-renault_pierre_gasly,2026-williams_alex_albon,2025-redbull_yuki_tsunoda,pg-nyck_de-vries,2026-redbull_isack_hadjar"
+  },
+  {
+   "op": "list-append",
+   "select": "entrants.team_customisation.team_customisation_for_year[_metadata_=2026].team_customisation[_metadata_=2026-sauber]",
+   "field": "official_driver_customisations",
+   "value": "2016-cs_sauber_marcus_ericsson,2016-cs_sauber_felipe_nasr,2017-cs_sauber_marcus_ericsson,2017-cs_sauber_pascal_wehrlein,2018-cs_sauber_marcus_ericsson,2018-cs_sauber_charles_leclerc,2019-cs_sauber_kimi_raikkonen,2019-cs_sauber_antonio_giovinazzi,2020-cs_sauber_kimi_raikkonen,2020-cs_sauber_antonio_giovinazzi,2021-cs_sauber_kimi_raikkonen,2021-cs_sauber_antonio_giovinazzi,2022-cs_sauber_valtteri_bottas,2022-cs_sauber_guanyu_zhou,2023-cs_sauber_valtteri_bottas,2023-cs_sauber_guanyu_zhou,2024-cs_sauber_valtteri_bottas,2024-cs_sauber_guanyu_zhou,2025-sauber_nico_hulkenberg,2025-sauber_gabriel_bortoleto,pg-felipe_nasr,pg-kimi_raikkonen,pg-marcus_ericsson,pg-pascal_wehrlein,2026-cadillac_valtteri_bottas,pg-antonio_giovinazzi,2026-ferrari_charles_leclerc,pg-robert_kubica,2024-sauber_guanyu_zhou"
+  },
+  {
+   "op": "list-append",
+   "select": "entrants.team_customisation.team_customisation_for_year[_metadata_=2026].team_customisation[_metadata_=2026-haas]",
+   "field": "official_driver_customisations",
+   "value": "2016-cs_haas_romain_grosjean,2016-cs_haas_esteban_gutierrez,2017-cs_haas_romain_grosjean,2017-cs_haas_kevin_magnussen,2018-cs_haas_romain_grosjean,2018-cs_haas_kevin_magnussen,2019-cs_haas_romain_grosjean,2019-cs_haas_kevin_magnussen,2020-cs_haas_romain_grosjean,2020-cs_haas_kevin_magnussen,2021-cs_haas_mick_schumacher,2021-cs_haas_nikita_mazepin,2022-cs_haas_kevin_magnussen,2022-cs_haas_mick_schumacher,2023-cs_haas_nico_hulkenberg,2023-cs_haas_kevin_magnussen,2024-cs_haas_nico_hulkenberg,2024-cs_haas_kevin_magnussen,2025-haas_esteban_ocon,2025-haas_oliver_bearman,pg-esteban_gutierrez,2024-haas_kevin_magnussen,2026-sauber_nico_hulkenberg,pg-romain_grosjean,pg-mick_schumacher,pg-nikita_mazepin"
+  },
+  {
+   "op": "list-append",
+   "select": "entrants.team_customisation.team_customisation_for_year[_metadata_=2026].team_customisation[_metadata_=2026-cadillac]",
+   "field": "official_driver_customisations",
+   "value": "2016-cs_manor_pascal_wehrlein,2016-cs_manor_rio_haryanto,2018-cs_toro_rosso_brendon_hartley,2018-cs_sauber_charles_leclerc,2016-cs_haas_esteban_gutierrez,2016-cs_sauber_felipe_nasr,2016-cs_mclaren_jenson_button,2016-cs_mercedes_nico_rosberg,2018-cs_toro_rosso_pierre_gasly,2018-cs_williams_sergey_sirotkin,2019-cs_toro_rosso_alex_albon,2019-cs_sauber_antonio_giovinazzi,2017-cs_toro_rosso_daniil_kvyat,2017-cs_williams_felipe_massa,2019-cs_williams_george_russell,2017-cs_lotus_jolyon_palmer,2019-cs_mclaren_lando_norris,2017-cs_sauber_pascal_wehrlein,2019-cs_williams_robert_kubica,2018-cs_force_india_esteban_ocon,2018-cs_mclaren_fernando_alonso,2018-cs_sauber_marcus_ericsson,2020-cs_williams_nicholas_latifi,2018-cs_mclaren_stoffel_vandoorne,2021-cs_lotus_fernando_alonso,2021-cs_haas_mick_schumacher,2019-cs_lotus_nico_hulkenberg,2021-cs_haas_nikita_mazepin,2021-cs_toro_rosso_yuki_tsunoda,2020-cs_redbull_alex_albon,2020-cs_toro_rosso_daniil_kvyat,2022-cs_sauber_guanyu_zhou,2020-cs_haas_kevin_magnussen,2020-cs_haas_romain_grosjean,2021-cs_sauber_antonio_giovinazzi,2021-cs_sauber_kimi_raikkonen,2023-cs_williams_logan_sargeant,2023-cs_haas_nico_hulkenberg,2023-cs_toro_rosso_nyck_de-vries,2023-cs_mclaren_oscar_piastri,2022-cs_mclaren_daniel_ricciardo,2022-cs_haas_mick_schumacher,2022-cs_williams_nicholas_latifi,2022-cs_force_india_sebastian_vettel,2025-mercedes_andrea-kimi_antonelli,2025-renault_franco_colapinto,2025-sauber_gabriel_bortoleto,2025-tororosso_isack_hadjar,2025-tororosso_liam_lawson,2025-haas_oliver_bearman,2026-tororosso_arvid_lindblad,2024-cs_toro_rosso_daniel_ricciardo,2024-cs_sauber_guanyu_zhou,2024-cs_haas_kevin_magnussen,2024-cs_williams_logan_sargeant,2024-cs_redbull_sergio_perez,2024-cs_sauber_valtteri_bottas,2026-haas_esteban_ocon,pg-pascal_wehrlein,pg-rio_haryanto"
   }
  ]
 }

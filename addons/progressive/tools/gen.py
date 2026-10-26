@@ -37,6 +37,8 @@ SHARED = "championships.shared_components"
 SHARED_ROW = "shared_driver_career_progressive_components"
 POOL_LIST = "f1_career_progressive_driver_pool"
 YEAR_LIST = "pg_f1_{year}"
+KIT_YEARS = "entrants.team_customisation"
+KITS = f"{KIT_YEARS}.team_customisation_for_year[_metadata_=2026]"
 CONTENT_SET = "2026"
 
 MODE_STAT_ID = 82
@@ -570,6 +572,63 @@ def grid_ops(stock, years, pool):
     return {"schema_version": 1, "fields": o.fields, "ops": o.ops}, ids
 
 
+def look_of(pool_by_driver, years, year, driver):
+    for t in years[str(year)]["teams"]:
+        for d in t["drivers"]:
+            if d["driver"] == driver:
+                return d["look"]["label"]
+    looks = {int(y): v for y, v in pool_by_driver[driver]["looks"].items()}
+    if year in looks:
+        return looks[year]["label"]
+    for dist in range(1, YEARS.stop - YEARS.start):
+        for y in (year - dist, year + dist):
+            if y in looks:
+                return looks[y]["label"]
+    return pool_by_driver[driver]["default_look"]["label"]
+
+
+def kit_looks(years, pool):
+    by_driver = {p["driver"]: p for p in pool}
+    out = {s["slot"]: [] for s in SLOTS}
+
+    def add(slot, label):
+        if label not in out[slot]:
+            out[slot].append(label)
+
+    for year in YEARS:
+        if year == 2026:
+            continue
+        teams = years[str(year)]["teams"]
+        seated = {d["driver"] for t in teams for d in t["drivers"]}
+        for t in teams:
+            for d in t["drivers"]:
+                add(t["slot"], d["look"]["label"])
+            if t["kind"] == "filler":
+                near = {d["driver"] for y in (year - 1, year + 1) if str(y) in years
+                        for tt in years[str(y)]["teams"] for d in tt["drivers"]}
+                for driver in sorted(near - seated):
+                    add(t["slot"], look_of(by_driver, years, year, driver))
+    for p in pool:
+        for slot in sorted(set(p["years"].values())):
+            add(slot, p["default_look"]["label"])
+    return out
+
+
+def kit_ops(stock, years, pool):
+    db = stock.db
+    folder = db.row(KIT_YEARS, "team_customisation_for_year", "2026")
+    kit_of = {db.get(f"{r}.linked_team"): db.get(f"{r}._metadata_") for r in db.rows(folder, "team_customisation")}
+    o = Ops(stock)
+    for slot, labels in kit_looks(years, pool).items():
+        kit = kit_of[SLOTS[slot - 1]["team"]]
+        row = db.row(folder, "team_customisation", kit)
+        stock_list = (db.get(f"{row}.official_driver_customisations") or "").split(",")
+        new = [lab for lab in labels if lab not in stock_list]
+        if new:
+            o.append(f"{KITS}.team_customisation[_metadata_={kit}]", "official_driver_customisations", ",".join(new))
+    return o.ops
+
+
 def lang_ops():
     ops = [
         ("lng_pg_career_content", "Progressive Career"),
@@ -594,6 +653,7 @@ def main():
     years, raced, new_drivers = build_years(stock, participants)
     pool = pool_rows(stock, years, raced, new_drivers)
     grid, ids = grid_ops(stock, years, pool)
+    grid["ops"] += kit_ops(stock, years, pool)
     reserved = {
         "mode_statId": MODE_STAT_ID, "championship_statId": CHAMPIONSHIP_STAT_ID,
         "entrant_list_stat_ids": {**{DATA_GROUP: ids["career"], POOL_LIST: ids["pool"]},
