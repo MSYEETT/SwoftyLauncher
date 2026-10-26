@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Progressive Career: the season apply (DESIGN.md D6). On the first idle Team HQ of a season the
-// store has not applied yet, in a career filed under f1_career_progressive:
+// Progressive Career: the season apply (DESIGN.md D6). At every idle Team HQ of a career filed
+// under f1_career_progressive the live seats are planned against the career's year and written
+// where they differ, whatever the store's applied season says (that marker only gates the
+// once-a-season steps, the hybrid budgets):
 //   1. year = min(start + Championship.season_index, 2026) (season_logic.hpp);
 //   2. the plan: the year's line-up fitted around the player, its moves, releases and numbers, each
 //      slot's car and each seated driver's look (season_logic.hpp, data/years.json); in follow mode
@@ -265,12 +267,12 @@ std::string seat_name(const season::Seat &s)
     return g_data.slots[s.slot].team + " seat " + std::to_string(s.index + 1);
 }
 
-bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, bool visuals)
+int apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, bool visuals, const std::string &why)
 {
     uintptr_t manager = contracts_manager();
     if (!manager) {
         swofty::log("[progressive] season %d REFUSED: no DriverCareerContractsManagerComponent", p.year);
-        return false;
+        return -1;
     }
     std::map<int, Write> writes;
     auto write_for = [&](int idx) -> Write & {
@@ -287,14 +289,14 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
     std::vector<uintptr_t> objects;
     if (!contract_objects(manager, objects)) {
         swofty::log("[progressive] season %d REFUSED: the contract list is unreadable", p.year);
-        return false;
+        return -1;
     }
     for (auto &m : p.moves) {
         int idx = row_index(rows, m.driver);
         if (idx < 0) {
             swofty::log("[progressive] season %d REFUSED: driver %s has no single row", p.year,
                         label_or(Kind::driver, m.driver).c_str());
-            return false;
+            return -1;
         }
         const Row &seat = rows[p.holder[m.to.slot][m.to.index]];
         Write &w = write_for(idx);
@@ -347,16 +349,6 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
         auto rank = [&](int i) { return writes[i].move ? 0 : writes[i].release ? 1 : 2; };
         return rank(a) < rank(b);
     });
-    swofty::log("[progressive] season %d plan: %zu move(s), %zu release(s), %zu number change(s), cars and looks %s; "
-                "%zu row(s) to write",
-                p.year, p.moves.size(), p.releases.size(), p.numbers.size(), visuals ? "on" : "off (season_visuals)",
-                order.size());
-    for (int idx : order) {
-        const Write &w = writes[idx];
-        swofty::log("[progressive]   %s %s: %s", w.move ? "move" : w.release ? "release" : "update",
-                    label_or(Kind::driver, stat_of(driver_of(rows[idx].rec))).c_str(),
-                    w.why.empty() ? "number, car or look" : w.why.c_str());
-    }
     auto sign_seats = [&]() {
         std::vector<Row> now;
         std::vector<uintptr_t> live;
@@ -387,13 +379,31 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
             else
                 ++done;
         }
-        swofty::log("[progressive] season %d contracts: %zu/%zu seated driver(s) without a contract for their team "
-                    "signed (terms from Career_Build_DriverContract, one season)",
-                    p.year, done, need);
+        if (need)
+            swofty::log("[progressive] season %d contracts: %zu/%zu seated driver(s) without a contract for their team "
+                        "signed (terms from Career_Build_DriverContract, one season)",
+                        p.year, done, need);
     };
     if (order.empty()) {
         sign_seats();
-        return true;
+        return 0;
+    }
+    swofty::log("[progressive] season %d: applying (%s)", p.year, why.c_str());
+    for (auto &n : p.notes)
+        swofty::log("[progressive]   note: %s", n.c_str());
+    for (int i = 0; i < season::kSlots; ++i)
+        swofty::log("[progressive]   %s: %s + %s, car %s", g_data.slots[i].team.c_str(),
+                    label_or(Kind::driver, p.target[i][0]).c_str(), label_or(Kind::driver, p.target[i][1]).c_str(),
+                    p.vehicles[i].stat < 0 ? "unchanged" : p.vehicles[i].label.c_str());
+    swofty::log("[progressive] season %d plan: %zu move(s), %zu release(s), %zu number change(s), cars and looks %s; "
+                "%zu row(s) to write",
+                p.year, p.moves.size(), p.releases.size(), p.numbers.size(), visuals ? "on" : "off (season_visuals)",
+                order.size());
+    for (int idx : order) {
+        const Write &w = writes[idx];
+        swofty::log("[progressive]   %s %s: %s", w.move ? "move" : w.release ? "release" : "update",
+                    label_or(Kind::driver, stat_of(driver_of(rows[idx].rec))).c_str(),
+                    w.why.empty() ? "number, car or look" : w.why.c_str());
     }
 
     Baseline baseline(rows);
@@ -415,7 +425,7 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
         if (!entrant_rows(e, now) || now.size() != rows.size() || now[idx].at != rows[idx].at) {
             swofty::log("[progressive] season %d FAILED: the line-up changed during the batch", p.year);
             back();
-            return false;
+            return -1;
         }
         bool found = false;
         if (w.release && !release_contract(e, manager, driver_of(rows[idx].rec), found))
@@ -430,7 +440,7 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
             swofty::log("[progressive] season %d FAILED writing %s", p.year,
                         label_or(Kind::driver, stat_of(driver_of(rows[idx].rec))).c_str());
             back();
-            return false;
+            return -1;
         }
         written.push_back(idx);
     }
@@ -459,7 +469,7 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
     }
     if (!ok) {
         back();
-        return false;
+        return -1;
     }
     sign_seats();
     size_t numbered = 0;
@@ -481,7 +491,7 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
                 p.year, written.size(), numbered,
                 p.moves.empty() && p.releases.empty() ? "not needed" : fin ? "posted" : "FAILED",
                 static_cast<unsigned long long>(changes));
-    return true;
+    return static_cast<int>(written.size());
 }
 
 std::string g_standings_pending;
@@ -651,6 +661,7 @@ void hybrid_budgets(uintptr_t e, int year)
 std::atomic<int> g_rnd{0};
 std::atomic<bool> g_test_armed{false};
 std::string g_current;
+std::map<std::string, int> g_applies;
 
 int rnd_code(const std::string &m)
 {
@@ -762,6 +773,7 @@ void season_unloaded()
     swofty::hub::hide_rnd(false);
     g_rnd = 0;
     g_current.clear();
+    g_applies.clear();
     g_standings_pending.clear();
     g_refreshed_for.clear();
     clear_names();
@@ -804,7 +816,7 @@ void season_hub(const swofty::career::State &state)
     }
     uint32_t index = s.index + static_cast<uint32_t>(std::max(0, c->test_seasons));
     int year = season::year_for(c->start, index);
-    int shown = c->applied_season >= 0 && c->applied_year ? c->applied_year : season::kLastYear;
+    int shown = year;
     if (g_names_for != c->key || g_names_year != shown) {
         g_names_for = c->key;
         set_names(shown, "career");
@@ -817,35 +829,54 @@ void season_hub(const swofty::career::State &state)
     }
     if (g_standings_pending == c->key && standings_rebuild(e, "first Team HQ with round 1 sessions"))
         g_standings_pending.clear();
-    if (c->applied_season >= static_cast<int>(index))
-        return;
     if (entity_busy(e) || g_failures >= 3)
         return;
-    swofty::log("[progressive] season %u of career %s: year %d (start %d%s), applying", index, c->key.c_str(), year,
-                c->start, c->test_seasons ? ", includes test seasons" : "");
-    bool move_player = c->moves == "follow_driver" && c->applied_season < 0;
+    bool new_season = c->applied_season != static_cast<int>(index);
+    bool move_player = c->moves == "follow_driver";
     season::Plan p = season::plan(g_data, year, view(rows), resolver(), move_player);
-    for (auto &n : p.notes)
-        swofty::log("[progressive]   note: %s", n.c_str());
     if (!p.error.empty()) {
-        swofty::log("[progressive] season %d REFUSED: %s", year, p.error.c_str());
+        static std::string last;
+        std::string what = c->key + " " + std::to_string(year) + " " + p.error;
+        if (what != last) {
+            last = what;
+            swofty::log("[progressive] season %d REFUSED: %s", year, p.error.c_str());
+            ++g_failures;
+        }
+        return;
+    }
+    char why[160];
+    if (new_season)
+        std::snprintf(why, sizeof why, "season %u of career %s, start %d%s: not applied yet", index, c->key.c_str(),
+                      c->start, c->test_seasons ? ", includes test seasons" : "");
+    else
+        std::snprintf(why, sizeof why, "season %u of career %s: the seats differ from the %d plan although season %d is "
+                      "marked applied", index, c->key.c_str(), year, c->applied_season);
+    std::string tries = c->key + ":" + std::to_string(year);
+    if (g_applies[tries] >= 2) {
+        if (g_applies[tries]++ == 2)
+            swofty::log("[progressive] season %d: the seats differ from the plan after two applies this session; "
+                        "leaving them until the next load",
+                        year);
+        return;
+    }
+    int wrote = apply(e, p, rows, season_visuals, why);
+    if (wrote < 0) {
         ++g_failures;
         return;
     }
-    for (int i = 0; i < season::kSlots; ++i)
-        swofty::log("[progressive]   %s: %s + %s, car %s", g_data.slots[i].team.c_str(),
-                    label_or(Kind::driver, p.target[i][0]).c_str(), label_or(Kind::driver, p.target[i][1]).c_str(),
-                    p.vehicles[i].stat < 0 ? "unchanged" : p.vehicles[i].label.c_str());
-    if (!apply(e, p, rows, season_visuals)) {
-        ++g_failures;
+    if (wrote)
+        ++g_applies[tries];
+    if (!wrote && !new_season)
         return;
-    }
     c->applied_season = static_cast<int>(index);
     c->applied_year = year;
     store::save();
-    set_names(year, "season applied");
-    if (c->rnd == "hybrid")
+    if (g_names_year != year)
+        set_names(year, "season applied");
+    if (new_season && c->rnd == "hybrid")
         hybrid_budgets(e, year);
+    if (!wrote)
+        return;
     refresh_weekends(e, year);
     if (standings_rebuild(e, "season applied"))
         g_standings_pending.clear();
