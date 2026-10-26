@@ -16,12 +16,18 @@ A mod's textures come from a zip in --downloads ("zip", "root") or an extracted 
 - An archive ("archive", "textures": the prefix of its helmet_ surfaces) of F1 22 (surface version 8) or F1 23
   (version 9): each texture's archive levels and the levels of a `.mipmaps` sidecar the mod folder holds. F1 23
   helmet shells are byte for byte F1 25's.
+- A game folder ("game", under --games) of F1 2016 to F1 22 and an entry's "look", the game's driver look folder
+  (old_helmets.py): helmet_d's largest level resized to the base's full size, and helmet_n's levels, the top half of
+  each when square, from the largest the base's helmet_n size holds; helmet_s the same with "spec": "own" (F1 2020
+  and later, whose helmet_s has F1 25's channels), else generic. A square helmet_d holds the helmet in its top half
+  ("square": "top", F1 2016 to F1 2018) or stretched over the whole square ("whole").
 
 "generic" for normal is GENERIC's helmet_n; for spec, the per-texel median at 1024 by 512 of the helmet_s of the
 F1 25 looks in data/stock_looks.json "looks" (the 2024 grid's), encoded as BC1. A texture an archive holds only in part
 (its sidecar is not in the mod) is generic too. An entry with "off" is not built.
 
-    python3 tools/build_helmets.py [--downloads ~/Downloads] [--mods <folder holding the extracted mods>] [--game <F1 25>]
+    python3 tools/build_helmets.py [--downloads ~/Downloads] [--mods <folder holding the extracted mods>]
+        [--games <folder holding the old game folders>] [--game <F1 25>] [--jobs <n>]
 """
 
 import argparse
@@ -32,6 +38,7 @@ import shutil
 import struct
 import sys
 import zipfile
+from concurrent.futures import ProcessPoolExecutor
 from functools import lru_cache
 from pathlib import Path
 
@@ -45,6 +52,7 @@ sys.path[:0] = [str(HERE), str(ROOT.parents[2] / "tools")]
 import bcn
 import erpw
 import f1_23_suits
+import old_helmets
 import suit_sources
 from build_real_suits import relabel
 from build_suits import put_texture
@@ -175,6 +183,21 @@ def dds_part(src, mod, key, driver, downloads, game):
     return "chain", (fmt, w, h, levels)
 
 
+def game_textures(entry, mod, games, downloads, game, sizes):
+    tx = old_helmets.textures(Path(games) / mod["game"], int(mod["game"][-4:]), entry["look"])
+    fmt, w, h, levels = tx["d"]
+    img = top_half(fmt, w, h, levels) if mod.get("square", "top") == "top" else bcn.decode(fmt, levels[0], w, h)
+    out = {"d": ("image", (np.asarray(Image.fromarray(img).resize(sizes["d"][1:], Image.LANCZOS)), None)),
+           "s": generic("spec", downloads, game)}
+    if mod.get("spec") == "own" and "s" in tx:
+        out["s"] = ("chain", old_helmets.capped(*old_helmets.top_half(*tx["s"]), sizes["s"][1]))
+    if "n" in tx:
+        out["n"] = ("chain", old_helmets.capped(*old_helmets.top_half(*tx["n"]), sizes["n"][1]))
+    else:
+        out["n"] = generic("normal", downloads, game)
+    return out
+
+
 def textures(entry, src, downloads, game, size):
     mod = DATA["mods"][entry["mod"]]
     if "archive" in mod:
@@ -206,46 +229,57 @@ def put(e, r, how, value, base_fmt):
     put_texture(e, r.name, head, data, n, fmt)
 
 
-def build(game, downloads, mods, only=None):
-    report, made = [], {}
+def build_one(entry, p, game, downloads, mods, games):
+    report = []
+    mod = DATA["mods"][entry["mod"]]
+    base_erp = Path(game) / p["base_erp"]
+    e, _ = relabel(base_erp, base_erp, entry["base"], p["label"], None, {}, game, report)
+    prefix = f"eaid://{DRIVERS}/{p['label']}/textures/{p['stem']}_helmet_"
+    surfaces = f1_23_suits.surfaces(e)
+    fmt25, w25, h25 = f1_23_suits.full_size(e, surfaces[prefix + "d.tif.image"])
+    if "game" in mod:
+        sizes = {part: f1_23_suits.full_size(e, surfaces[prefix + f"{part}.tif.image"]) for part in "dns"}
+        parts = game_textures(entry, mod, games, downloads, game, sizes)
+    else:
+        parts = textures(entry, Source(mod, downloads, mods), downloads, game, (w25, h25))
+    for part, (how, value) in parts.items():
+        put(e, surfaces[prefix + f"{part}.tif.image"], how, value, fmt25)
+    missing = f1_23_suits.unresolved(e, erpw.Erp(str(base_erp)))
+    if missing:
+        raise SystemExit(f"{p['label']}: names {len(missing)} resource(s) neither archive holds: {missing[:4]}")
+    source = f"helmets/{p['label']}/{p['stem']}_helmet.erp"
+    (ROOT / source).parent.mkdir(parents=True, exist_ok=True)
+    e.to_file(str(ROOT / source))
+    print(f"{p['label']}: {entry['season']} {entry['driver']} from {mod['name']} on {entry['base']}", flush=True)
+    return source, report
+
+
+def build(game, downloads, mods, only=None, games=None, jobs=1):
+    made = {}
     suit_labels = {e["label"] for e in suit_sources.real()}
     db = f1_23_suits.Db(game)
     if OUT.exists() and not only:
         shutil.rmtree(OUT)
-    built = []
-    sources = {}
+    todo = []
     for entry in DATA["helmets"]:
         if entry.get("off") and not only:
             continue
         if only and f"{entry['season']}-{entry['driver']}" not in only:
             continue
-        mod = DATA["mods"][entry["mod"]]
         p = paths(entry)
         if p["label"] in made or p["label"] in suit_labels:
             raise SystemExit(f"{p['label']}: the helmet of {entry['driver']} and of {made.get(p['label'], 'a suit')}")
         made[p["label"]] = entry["driver"]
-        if entry["mod"] not in sources:
-            sources[entry["mod"]] = Source(mod, downloads, mods)
-        base_erp = Path(game) / p["base_erp"]
-        e, _ = relabel(base_erp, base_erp, entry["base"], p["label"], None, {}, game, report)
-        prefix = f"eaid://{DRIVERS}/{p['label']}/textures/{p['stem']}_helmet_"
-        surfaces = f1_23_suits.surfaces(e)
-        r = surfaces[prefix + "d.tif.image"]
-        fmt25, w25, h25 = f1_23_suits.full_size(e, r)
-        for part, (how, value) in textures(entry, sources[entry["mod"]], downloads, game, (w25, h25)).items():
-            put(e, surfaces[prefix + f"{part}.tif.image"], how, value, fmt25)
-        missing = f1_23_suits.unresolved(e, erpw.Erp(str(base_erp)))
-        if missing:
-            raise SystemExit(f"{p['label']}: names {len(missing)} resource(s) neither archive holds: {missing[:4]}")
-        source = f"helmets/{p['label']}/{p['stem']}_helmet.erp"
-        (ROOT / source).parent.mkdir(parents=True, exist_ok=True)
-        e.to_file(str(ROOT / source))
-        built.append({**entry, **p, "source": source, "helmet_colours": db.helmet_colours(entry["base"])})
-        print(f"{p['label']}: {entry['season']} {entry['driver']} from {mod['name']} on {entry['base']}", flush=True)
+        todo.append((entry, p))
+    with ProcessPoolExecutor(jobs) as pool:
+        done = list(pool.map(build_one, *zip(*todo), *([x] * len(todo) for x in (game, downloads, mods, games))))
+    built = [{**entry, **p, "source": source, "helmet_colours": db.helmet_colours(entry["base"])}
+             for (entry, p), (source, _) in zip(todo, done)]
     if not only:
         (OUT / "meta.json").write_text(json.dumps({"helmets": built}, indent=1) + "\n")
-    for line in report:
-        print(line)
+    for _, report in done:
+        for line in report:
+            print(line)
     return built
 
 
@@ -254,11 +288,13 @@ def main():
     ap.add_argument("--downloads", default=os.path.expanduser("~/Downloads"))
     ap.add_argument("--mods", default=os.path.expanduser("~/Downloads"))
     ap.add_argument("--game", default="/mnt/gaming/SteamLibrary/steamapps/common/F1 25")
+    ap.add_argument("--games", help="the folder holding the F1 2016 to F1 22 game folders")
+    ap.add_argument("--jobs", type=int, default=1)
     ap.add_argument("--only", help="<season>-<driver>,...: build these entries, \"off\" ones too, without meta.json")
     args = ap.parse_args()
     if not (Path(args.game) / "F1_25.exe").is_file():
         sys.exit(f"--game {args.game} is not the F1 25 folder")
-    build(args.game, args.downloads, args.mods, set(args.only.split(",")) if args.only else None)
+    build(args.game, args.downloads, args.mods, set(args.only.split(",")) if args.only else None, args.games, args.jobs)
 
 
 if __name__ == "__main__":
