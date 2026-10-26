@@ -20,11 +20,6 @@
    "op": "file.put",
    "source": "sounds/cs19_renault.bdl",
    "target": "audio/2025/bundles/cs19_renault.bdl"
-  },
-  {
-   "op": "file.put",
-   "source": "sounds/cs19_renault_.bdl",
-   "target": "audio/2025/bundles/cs19_renault_.bdl"
   }
  ]
 }

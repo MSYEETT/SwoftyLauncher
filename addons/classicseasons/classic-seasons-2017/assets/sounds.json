@@ -8,18 +8,13 @@
   },
   {
    "op": "file.put",
-   "source": "sounds/cs17_honda___.bdl",
-   "target": "audio/2025/bundles/cs17_honda___.bdl"
+   "source": "sounds/cs17_honda.bdl",
+   "target": "audio/2025/bundles/cs17_honda.bdl"
   },
   {
    "op": "file.put",
    "source": "sounds/cs17_mercedes.bdl",
    "target": "audio/2025/bundles/cs17_mercedes.bdl"
-  },
-  {
-   "op": "file.put",
-   "source": "sounds/cs17_renau.bdl",
-   "target": "audio/2025/bundles/cs17_renau.bdl"
   },
   {
    "op": "file.put",

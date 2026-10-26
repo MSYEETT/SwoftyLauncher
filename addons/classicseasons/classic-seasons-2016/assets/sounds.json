@@ -3,33 +3,18 @@
  "ops": [
   {
    "op": "file.put",
-   "source": "sounds/cs16_ferra.bdl",
-   "target": "audio/2025/bundles/cs16_ferra.bdl"
-  },
-  {
-   "op": "file.put",
    "source": "sounds/cs16_ferrari.bdl",
    "target": "audio/2025/bundles/cs16_ferrari.bdl"
   },
   {
    "op": "file.put",
-   "source": "sounds/cs16_honda___.bdl",
-   "target": "audio/2025/bundles/cs16_honda___.bdl"
-  },
-  {
-   "op": "file.put",
-   "source": "sounds/cs16_mercede.bdl",
-   "target": "audio/2025/bundles/cs16_mercede.bdl"
+   "source": "sounds/cs16_honda.bdl",
+   "target": "audio/2025/bundles/cs16_honda.bdl"
   },
   {
    "op": "file.put",
    "source": "sounds/cs16_mercedes.bdl",
    "target": "audio/2025/bundles/cs16_mercedes.bdl"
-  },
-  {
-   "op": "file.put",
-   "source": "sounds/cs16_renau.bdl",
-   "target": "audio/2025/bundles/cs16_renau.bdl"
   },
   {
    "op": "file.put",

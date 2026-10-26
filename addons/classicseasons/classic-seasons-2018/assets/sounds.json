@@ -18,18 +18,8 @@
   },
   {
    "op": "file.put",
-   "source": "sounds/cs18_renau.bdl",
-   "target": "audio/2025/bundles/cs18_renau.bdl"
-  },
-  {
-   "op": "file.put",
    "source": "sounds/cs18_renault.bdl",
    "target": "audio/2025/bundles/cs18_renault.bdl"
-  },
-  {
-   "op": "file.put",
-   "source": "sounds/cs18_renault_.bdl",
-   "target": "audio/2025/bundles/cs18_renault_.bdl"
   }
  ]
 }
