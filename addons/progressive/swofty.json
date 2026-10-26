@@ -156,6 +156,9 @@
         "dll": "native/progressive_rnd.dll"
       },
       {
+        "dll": "native/progressive_rnd_block.dll"
+      },
+      {
         "dll": "native/progressive_follow.dll"
       },
       {

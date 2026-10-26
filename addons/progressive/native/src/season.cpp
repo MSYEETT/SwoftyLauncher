@@ -584,6 +584,7 @@ void hybrid_budgets(uintptr_t e, int year)
 }
 
 std::atomic<int> g_rnd{0};
+std::atomic<uint32_t> g_player_team{0};
 std::atomic<bool> g_test_armed{false};
 std::string g_current;
 
@@ -611,6 +612,7 @@ void season_loaded(const swofty::career::State &)
 void season_unloaded()
 {
     g_rnd = 0;
+    g_player_team = 0;
     g_current.clear();
     g_standings_pending.clear();
     clear_names();
@@ -635,6 +637,9 @@ void season_hub(const swofty::career::State &state)
     if (!c)
         return;
     g_current = c->key;
+    for (auto &r : rows)
+        if (human(r.rec))
+            g_player_team = r.rec.team_stat_id;
     if (g_rnd.exchange(rnd_code(c->rnd)) != rnd_code(c->rnd))
         swofty::log("[progressive] R&D mode of this career: %s", c->rnd.c_str());
     if (g_test_armed.exchange(false)) {
@@ -687,6 +692,13 @@ void season_hub(const swofty::career::State &state)
     else {
         g_standings_pending = c->key;
         swofty::log("[progressive] standings: round 1 has no sessions yet; the rebuild waits for a later Team HQ");
+    }
+    {
+        std::vector<Row> now;
+        if (entrant_rows(e, now))
+            for (auto &r : now)
+                if (human(r.rec))
+                    g_player_team = r.rec.team_stat_id;
     }
     report("after season apply", state);
 }
@@ -752,4 +764,9 @@ extern "C" __declspec(dllexport) int ProgressiveFollowTeam(uint32_t driver_stat,
         return 1;
     }
     return 0;
+}
+
+extern "C" __declspec(dllexport) uint32_t ProgressivePlayerTeam()
+{
+    return pg::g_player_team.load();
 }

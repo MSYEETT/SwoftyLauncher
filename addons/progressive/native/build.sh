@@ -35,5 +35,8 @@ CXX=("${ZIG[@]}" c++ -target x86_64-windows-gnu -std=c++23)
 "${CXX[@]}" -O2 -Wall -Wextra -Wno-nullability-completeness -I"$GAME" -I$SDK -D__USE_MINGW_ANSI_STDIO=1 -shared -s \
     -o progressive_follow.dll src/ui/follow.cpp
 
+"${CXX[@]}" -O2 -Wall -Wextra -Wno-nullability-completeness -I"$GAME" -I$SDK -D__USE_MINGW_ANSI_STDIO=1 -shared -s \
+    -o progressive_rnd_block.dll src/ui/rnd_block.cpp
+
 rm -f ./*.lib
-echo "built $(pwd)/progressive.dll progressive_ui.dll progressive_suffix.dll progressive_back.dll progressive_rnd.dll progressive_follow.dll"
+echo "built $(pwd)/progressive.dll progressive_ui.dll progressive_suffix.dll progressive_back.dll progressive_rnd.dll progressive_follow.dll progressive_rnd_block.dll"
