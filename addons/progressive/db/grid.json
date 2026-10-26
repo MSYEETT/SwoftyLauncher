@@ -1,5 +1,6 @@
 {
  "schema_version": 1,
+ "fields": {},
  "ops": [
   {
    "op": "add-row",
@@ -2261,7 +2262,8 @@
    "set": {
     "_metadata_": "pg_f1_2016",
     "stat_id": "122",
-    "display_name": "lng_pg_f1_2016"
+    "display_name": "lng_pg_f1_2016",
+    "available": "True"
    }
   },
   {
@@ -3591,7 +3593,8 @@
    "set": {
     "_metadata_": "pg_f1_2017",
     "stat_id": "123",
-    "display_name": "lng_pg_f1_2017"
+    "display_name": "lng_pg_f1_2017",
+    "available": "True"
    }
   },
   {
@@ -4807,7 +4810,8 @@
    "set": {
     "_metadata_": "pg_f1_2018",
     "stat_id": "124",
-    "display_name": "lng_pg_f1_2018"
+    "display_name": "lng_pg_f1_2018",
+    "available": "True"
    }
   },
   {
@@ -6023,7 +6027,8 @@
    "set": {
     "_metadata_": "pg_f1_2019",
     "stat_id": "125",
-    "display_name": "lng_pg_f1_2019"
+    "display_name": "lng_pg_f1_2019",
+    "available": "True"
    }
   },
   {
@@ -7239,7 +7244,8 @@
    "set": {
     "_metadata_": "pg_f1_2020",
     "stat_id": "126",
-    "display_name": "lng_pg_f1_2020"
+    "display_name": "lng_pg_f1_2020",
+    "available": "True"
    }
   },
   {
@@ -8455,7 +8461,8 @@
    "set": {
     "_metadata_": "pg_f1_2021",
     "stat_id": "127",
-    "display_name": "lng_pg_f1_2021"
+    "display_name": "lng_pg_f1_2021",
+    "available": "True"
    }
   },
   {
@@ -9671,7 +9678,8 @@
    "set": {
     "_metadata_": "pg_f1_2022",
     "stat_id": "128",
-    "display_name": "lng_pg_f1_2022"
+    "display_name": "lng_pg_f1_2022",
+    "available": "True"
    }
   },
   {
@@ -10887,7 +10895,8 @@
    "set": {
     "_metadata_": "pg_f1_2023",
     "stat_id": "129",
-    "display_name": "lng_pg_f1_2023"
+    "display_name": "lng_pg_f1_2023",
+    "available": "True"
    }
   },
   {
@@ -12103,7 +12112,8 @@
    "set": {
     "_metadata_": "pg_f1_2024",
     "stat_id": "130",
-    "display_name": "lng_pg_f1_2024"
+    "display_name": "lng_pg_f1_2024",
+    "available": "True"
    }
   },
   {
@@ -13319,7 +13329,8 @@
    "set": {
     "_metadata_": "pg_f1_2025",
     "stat_id": "131",
-    "display_name": "lng_pg_f1_2025"
+    "display_name": "lng_pg_f1_2025",
+    "available": "True"
    }
   },
   {
@@ -14532,7 +14543,7 @@
    "op": "list-append",
    "select": "content_sets.content_set[_metadata_=2026].available_entrant_lists_0",
    "field": "entrant_lists",
-   "value": "f1_career_progressive,f1_career_progressive_driver_pool,pg_f1_2016,pg_f1_2017,pg_f1_2018,pg_f1_2019,pg_f1_2020,pg_f1_2021,pg_f1_2022,pg_f1_2023,pg_f1_2024,pg_f1_2025"
+   "value": "f1_career_progressive,f1_career_progressive_driver_pool"
   }
  ]
 }

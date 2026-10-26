@@ -548,7 +548,8 @@ def grid_ops(stock, years, pool):
         if year == 2026:
             continue
         label = YEAR_LIST.format(year=year)
-        o.add(LISTS, list_from, {"_metadata_": label, "stat_id": ids[str(year)], "display_name": f"lng_pg_f1_{year}"})
+        o.add(LISTS, list_from, {"_metadata_": label, "stat_id": ids[str(year)], "display_name": f"lng_pg_f1_{year}",
+                                 "available": "True"})
         rows = []
         for t in years[str(year)]["teams"]:
             if t["kind"] != "real":
@@ -560,10 +561,13 @@ def grid_ops(stock, years, pool):
                              "team_position": d["position"], "car_number": 255, **blank})
         fill(f"{LISTS}.entrant_list[_metadata_={label}]", rows)
 
+    # The game loads an entrant list when its row has available = True (the per-year lists above) or when something
+    # references it. The career list is referenced by the championship's ComCareerSetup, which must also pass the
+    # content set's whitelist, row 0 of available_entrant_lists (the only row read); the pool comes through the
+    # career list's references.
     cs = f"content_sets.content_set[_metadata_={CONTENT_SET}].available_entrant_lists_0"
-    o.append(cs, "entrant_lists", ",".join([DATA_GROUP, POOL_LIST] + [YEAR_LIST.format(year=y) for y in YEARS
-                                                                      if y != 2026]))
-    return {"schema_version": 1, "ops": o.ops}, ids
+    o.append(cs, "entrant_lists", f"{DATA_GROUP},{POOL_LIST}")
+    return {"schema_version": 1, "fields": o.fields, "ops": o.ops}, ids
 
 
 def lang_ops():
