@@ -79,6 +79,41 @@ const runtime::Sig S_PAGE_CTOR{"tab view model constructor",
 const runtime::Sig S_PAGE_ADD{"laptop tab add page", "48 89 DA E8 ?? ?? ?? ?? 4C 8B BE 68 02 00 00", 0x14c13e0,
                               runtime::Sig::rel32, 3, 4, 5};
 
+// Driver Career Team HQ (screen team_hq_container): its tabs are built by the Team HQ container's own
+// builder (0x1422cf7a0..0x1422d5e43), not the laptop's. Its primary tabs are 0xc08-byte Team HQ tabs:
+// allocated through container +0x2c0, constructed by 0x1414bf8c0 (tab, container+0x28,
+// container+0x268, container, "team_hq_tab_secondary_controller", "team_hq_secondary_tab", lng name,
+// "", 1), given the class vtables (0x145787460, +0x260 0x145787540, +0x268 0x145787570) and the
+// 0x80-byte field block from 0x14577c048 at +0xb78 (+0xbf8 and +0xc00 zero), then pushed onto
+// container +0x2c8 (begin +0x2d0, end +0x2d8) by 0x1423ac4d0. A page is allocated through the tab's
+// allocator +0x668 (0x660 bytes, align 0x10), constructed by the same tab view model constructor, and
+// appended to the tab's page vector object +0x670 {allocator, begin +0x678, end +0x680, capacity}
+// ({0, allocator, page} entries, the shape Career_Push_HubLaptopTab pushes); then bit 0x8 of page
+// +0x628 is cleared and, when bit 0x4 is set, it is cleared and the page's vt+0xc8 runs. STANDINGS
+// (0x1422d4d3e..) is the pattern, and the new tab is added at 0x1422d5cce, where the builder joins and
+// starts registering every tab (container at [rsp+0x50]). The R&D tab block (0x1422d23e5..0x1422d2ce0,
+// key 0xf4482186) has no gate in this builder: while hide_rnd is on, execution resumes at the VEHICLE
+// block (0x1422d2ce1), which reloads everything it reads from the container. The other users of the
+// R&D key (0x1422d6132 search, 0x1422d65f1 availability, 0x1422d6822 / 0x1422d6fce tab jumps) are the
+// same null-tolerant lookups as the laptop's.
+const runtime::Sig S_TQ_END{"team HQ tabs end", "4C 8B A6 D0 02 00 00 4C 8B AE D8 02 00 00", 0x22d5cce};
+const runtime::Sig S_TQ_RND{"team HQ R&D block", "E8 ?? ?? ?? ?? 4C 8B BE 68 02 00 00 4C 8B 66 28", 0x22d23e5,
+                            runtime::Sig::addr, 0, 5, 0};
+const runtime::Sig S_TQ_VEHICLE{"team HQ VEHICLE block",
+                                "4C 8B BE 68 02 00 00 4C 8B 66 28 C7 84 24 E0 00 00 00 01 A7 73 B0", 0x22d2ce1};
+constexpr const char *P_TQ_STANDINGS = "E8 ?? ?? ?? ?? 48 8D 05 ?? ?? ?? ?? 49 89 07 48 8D 05 ?? ?? ?? ?? 49 89 87 60 02 00 "
+                                       "00 48 8D 05 ?? ?? ?? ?? 49 89 87 68 02 00 00 C5 F8 10 05 ?? ?? ?? ?? C4 C1 78 11 87 "
+                                       "88 0B 00 00";
+const runtime::Sig S_TQ_CTOR{"team HQ tab constructor", P_TQ_STANDINGS, 0x14bf8c0, runtime::Sig::rel32, 0, 1, 5};
+const runtime::Sig S_TQ_VT0{"team HQ tab vtable", P_TQ_STANDINGS, 0x5787460, runtime::Sig::riprel, 5, 8, 7};
+const runtime::Sig S_TQ_VT260{"team HQ tab vtable +0x260", P_TQ_STANDINGS, 0x5787540, runtime::Sig::riprel, 0xf, 0x12, 7};
+const runtime::Sig S_TQ_VT268{"team HQ tab vtable +0x268", P_TQ_STANDINGS, 0x5787570, runtime::Sig::riprel, 0x1d, 0x20, 7};
+const runtime::Sig S_TQ_INIT{"team HQ tab field block", P_TQ_STANDINGS, 0x577c058, runtime::Sig::riprel, 0x2b, 0x2f, 8};
+const runtime::Sig S_TQ_PUSH{"team HQ tab push",
+                             "4C 89 7C 24 60 48 8D 94 24 E0 00 00 00 4C 8D 44 24 58 48 8B 8C 24 D8 00 00 00 E8 ?? ?? ?? "
+                             "?? 48 8B 86 D8 02 00 00 4C 8B 68 F8",
+                             0x23ac4d0, runtime::Sig::rel32, 0x1a, 0x1b, 5};
+
 using Alloc_t = void *(void *allocator, size_t size, size_t align);
 using TabCtor_t = void(void *tab, void *a2, void *a3, void *laptop, const char *content, const char *header,
                        const char *name, const char *icon, uint8_t flag);
@@ -92,7 +127,8 @@ std::vector<HubTab> tabs;
 std::atomic<bool> hide{false}, live{false};
 const uint8_t zero_byte = 0;
 uintptr_t a_tab_ctor, a_push, a_page_ctor, a_add_page;
-safetyhook::MidHook h_end, h_rnd;
+uintptr_t a_tq_ctor, a_tq_vt0, a_tq_vt260, a_tq_vt268, a_tq_init, a_tq_push, a_tq_vehicle;
+safetyhook::MidHook h_end, h_rnd, h_tq_end, h_tq_rnd;
 void **page_vt, **page_vt_src;
 Command_t *page_cmd;
 std::atomic<uint32_t> told{0};
@@ -241,6 +277,88 @@ void add_tab(uintptr_t laptop, HubTab &t)
                 t.data.c_str());
 }
 
+void add_team_hq_tab(uintptr_t hq, HubTab &t)
+{
+    constexpr uintptr_t HQ_ARG2 = 0x28, HQ_ALLOC = 0x2c0, HQ_ARG3 = 0x268, HQ_TABS = 0x2c8, HQ_TABS_END = 0x2d8,
+                        TQ_PAGE_ALLOC = 0x668, TQ_PAGES = 0x670, TQ_FIELDS = 0xb78, TQ_FIELDS_END = 0xbf8, TQ_FLAG = 0xc00,
+                        PAGE_FLAGS = 0x628, PAGE_VT_REFRESH = 0xc8;
+    constexpr size_t TQ_SIZE = 0xc08;
+    void *allocator = alloc_through(hq + HQ_ALLOC);
+    if (!allocator) {
+        note("[hub] %s: the Team HQ container has no allocator; tab not added", t.name.c_str());
+        return;
+    }
+    auto *tab = static_cast<uint8_t *>(allocate(allocator, TQ_SIZE, TAB_ALIGN));
+    if (!tab)
+        return;
+    void *a2 = at<void *>(hq + HQ_ARG2), *a3 = at<void *>(hq + HQ_ARG3);
+    reinterpret_cast<TabCtor_t *>(a_tq_ctor)(tab, a2, a3, reinterpret_cast<void *>(hq), "team_hq_tab_secondary_controller",
+                                             "team_hq_secondary_tab", t.lng.c_str(), "", 1);
+    *reinterpret_cast<uintptr_t *>(tab) = a_tq_vt0;
+    *reinterpret_cast<uintptr_t *>(tab + 0x260) = a_tq_vt260;
+    *reinterpret_cast<uintptr_t *>(tab + 0x268) = a_tq_vt268;
+    std::memcpy(tab + TQ_FIELDS, reinterpret_cast<const void *>(a_tq_init - 0x10), TQ_FIELDS_END - TQ_FIELDS);
+    *reinterpret_cast<uint64_t *>(tab + TQ_FIELDS_END) = 0;
+    tab[TQ_FLAG] = 0;
+    struct {
+        void *allocator, *obj;
+    } owned{allocator, tab};
+    uint32_t key = t.key;
+    reinterpret_cast<Push_t *>(a_tq_push)(reinterpret_cast<void *>(hq + HQ_TABS), &key, &owned);
+    uintptr_t end = at<uintptr_t>(hq + HQ_TABS_END);
+    if (!end || at<void *>(end - 8) != tab) {
+        note("[hub] %s: the tab is not Team HQ's last tab after the push; no page added", t.name.c_str());
+        return;
+    }
+    void *page_alloc = alloc_through(reinterpret_cast<uintptr_t>(tab) + TQ_PAGE_ALLOC);
+    auto *page = static_cast<uint8_t *>(page_alloc ? allocate(page_alloc, PAGE_SIZE, TAB_ALIGN) : nullptr);
+    if (!page) {
+        note("[hub] %s: no page allocated", t.name.c_str());
+        return;
+    }
+    reinterpret_cast<PageCtor_t *>(a_page_ctor)(page, a2, a3, reinterpret_cast<void *>(hq), t.content.c_str(),
+                                                t.lng.c_str(), nullptr, "", PAGE_TYPE, 0);
+    bool mine = own_vtable(page);
+    struct {
+        void *allocator, *obj;
+    } page_owned{page_alloc, page};
+    uint32_t zero_key = 0;
+    reinterpret_cast<Push_t *>(a_push)(tab + TQ_PAGES, &zero_key, &page_owned);
+    uint8_t flags = page[PAGE_FLAGS];
+    page[PAGE_FLAGS] = flags & ~0x8;
+    if (flags & 0x4) {
+        page[PAGE_FLAGS] &= ~0x4;
+        using Refresh_t = void(void *);
+        reinterpret_cast<Refresh_t *>(at<uintptr_t>(at<uintptr_t>(reinterpret_cast<uintptr_t>(page)) + PAGE_VT_REFRESH))(page);
+    }
+    publish(t);
+    swofty::log("[hub] %s: Team HQ tab '%s' added after STANDINGS (key 0x%08x, page %s%s, data %s)", t.name.c_str(),
+                t.title.c_str(), t.key, t.content.c_str(), mine ? "" : ", its commands stay the game's", t.data.c_str());
+}
+
+void team_hq_end(safetyhook::Context &c)
+{
+    uintptr_t hq = at<uintptr_t>(c.rsp + 0x50);
+    if (!hq || hq != c.rsi || !swofty::mem::object_like(hq)) {
+        note("[hub] Team HQ: the container is not where the builder keeps it; no tab");
+        return;
+    }
+    char group[64] = {};
+    if (runtime::career_content_table()->data_group(nullptr, group, sizeof group) != SWOFTY_ASSET_OK)
+        return;
+    for (auto &t : tabs)
+        if (t.group == group)
+            add_team_hq_tab(hq, t);
+}
+
+void team_hq_rnd(safetyhook::Context &c)
+{
+    if (!hide.load())
+        return;
+    c.rip = a_tq_vehicle;
+    note("[hub] Team HQ: the R&D tab is left out (hide_rnd)");
+}
+
 void tabs_end(safetyhook::Context &c)
 {
     uintptr_t laptop = c.rsi;
@@ -308,18 +426,39 @@ void setup()
     a_page_ctor = runtime::find(S_PAGE_CTOR, "hub tabs", "hub");
     a_add_page = runtime::find(S_PAGE_ADD, "hub tabs", "hub");
     uintptr_t end = runtime::find(S_TABS_END, "hub tabs", "hub"), gate = runtime::find(S_RND_GATE, "hub tabs", "hub");
-    if (!a_tab_ctor || !a_push || !a_page_ctor || !a_add_page || !end || !gate) {
-        swofty::log("[hub] a laptop target did not resolve; no hub tab");
-        return;
+    a_tq_ctor = runtime::find(S_TQ_CTOR, "hub tabs", "hub");
+    a_tq_vt0 = runtime::find(S_TQ_VT0, "hub tabs", "hub");
+    a_tq_vt260 = runtime::find(S_TQ_VT260, "hub tabs", "hub");
+    a_tq_vt268 = runtime::find(S_TQ_VT268, "hub tabs", "hub");
+    a_tq_init = runtime::find(S_TQ_INIT, "hub tabs", "hub");
+    a_tq_push = runtime::find(S_TQ_PUSH, "hub tabs", "hub");
+    a_tq_vehicle = runtime::find(S_TQ_VEHICLE, "hub tabs", "hub");
+    uintptr_t tq_end = runtime::find(S_TQ_END, "hub tabs", "hub"), tq_rnd = runtime::find(S_TQ_RND, "hub tabs", "hub");
+    bool laptop = a_tab_ctor && a_push && a_page_ctor && a_add_page && end && gate;
+    bool team_hq = a_push && a_page_ctor && a_tq_ctor && a_tq_vt0 && a_tq_vt260 && a_tq_vt268 && a_tq_init && a_tq_push &&
+                   a_tq_vehicle && tq_end && tq_rnd;
+    if (laptop) {
+        auto e = safetyhook::MidHook::create(reinterpret_cast<void *>(end), tabs_end);
+        auto g = safetyhook::MidHook::create(reinterpret_cast<void *>(gate), rnd_gate);
+        if (e && g) {
+            h_end = std::move(*e);
+            h_rnd = std::move(*g);
+        } else
+            laptop = false;
     }
-    auto e = safetyhook::MidHook::create(reinterpret_cast<void *>(end), tabs_end);
-    auto g = safetyhook::MidHook::create(reinterpret_cast<void *>(gate), rnd_gate);
-    if (!e || !g) {
-        swofty::log("[hub] hooking the laptop builder failed; no hub tab");
-        return;
+    if (team_hq) {
+        auto e = safetyhook::MidHook::create(reinterpret_cast<void *>(tq_end), team_hq_end);
+        auto g = safetyhook::MidHook::create(reinterpret_cast<void *>(tq_rnd), team_hq_rnd);
+        if (e && g) {
+            h_tq_end = std::move(*e);
+            h_tq_rnd = std::move(*g);
+        } else
+            team_hq = false;
     }
-    h_end = std::move(*e);
-    h_rnd = std::move(*g);
+    swofty::log("[hub] builders: Driver Career Team HQ (team_hq_container) %s, laptop (laptop_container) %s",
+                team_hq ? "hooked" : "NOT hooked", laptop ? "hooked" : "NOT hooked");
+    if (!laptop && !team_hq)
+        return;
     if (const SwoftyLang *l = runtime::lang_table())
         for (auto &t : tabs)
             l->override_set("*", t.lng.c_str(), upper(t.title).c_str());
