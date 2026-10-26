@@ -408,6 +408,41 @@ void follow_player_left_on_his_2026_team_with_another_car()
     EXPECT(albon_out);
 }
 
+void season_start_standings_follow_the_previous_year()
+{
+    const season::Year *y17 = g_data.year(2017);
+    EXPECT(y17 && y17->previous_year == 2016);
+    std::vector<int> order = season::start_slot_order(*y17);
+    std::vector<std::string> teams;
+    for (int s : order)
+        teams.push_back(g_data.slots[s].team);
+    std::vector<std::string> want = {"mercedes_26", "redbull_26", "ferrari_26", "forceindia_26", "williams_26",
+                                     "mclaren_26", "tororosso_26", "haas_26", "renault_26", "sauber_26",
+                                     "gm_cadillac_26"};
+    EXPECT(teams == want);
+
+    const season::Year *y16 = g_data.year(2016);
+    std::vector<int> o16 = season::start_slot_order(*y16);
+    EXPECT(o16.size() == static_cast<size_t>(season::kSlots));
+    EXPECT(g_data.slots[o16[0]].team == "mercedes_26" && g_data.slots[o16[2]].team == "williams_26");
+    EXPECT(g_data.slots[o16.back()].team == "haas_26");
+
+    auto rows = career("valtteri_bottas");
+    season::Plan p = season::plan(g_data, 2017, rows, resolver(), true);
+    std::vector<uint32_t> seated;
+    for (auto &s : p.target)
+        for (uint32_t d : s)
+            seated.push_back(d);
+    std::vector<uint32_t> drivers = season::start_driver_order(*y17, resolver(), seated);
+    EXPECT(drivers.size() == seated.size());
+    EXPECT(!drivers.empty() && drivers[0] == id("lewis_hamilton"));
+    EXPECT(drivers.size() > 2 && drivers[1] == id("daniel_ricciardo"));
+    uint32_t stroll = id("lance_stroll");
+    auto at_ = [&](uint32_t d) { return std::find(drivers.begin(), drivers.end(), d) - drivers.begin(); };
+    EXPECT(at_(stroll) > at_(id("sergio_perez")));
+    EXPECT(at_(stroll) >= 18);
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -435,6 +470,7 @@ int main(int argc, char **argv)
     player_added_as_a_third_race_seat();
     empty_team_filled_from_free_agents();
     follow_player_left_on_his_2026_team_with_another_car();
+    season_start_standings_follow_the_previous_year();
     if (failures) {
         std::printf("season_logic_test: %d failure(s)\n", failures);
         return EXIT_FAILURE;

@@ -241,7 +241,8 @@
   "rating": "Classic Seasons performance.json pace (2016-2024), stock_pace.json (2025-2026); null if none",
   "development": "in-season pace of a real team relative to the year's car: checkpoints {at: 0..1 of the season, delta_pct: qualifying gap % minus the team's season mean, > 0 slower}; null without data (2026, the filler)",
   "changes": "per year 2016-2025, the real mid-season line-up changes from the Jolpica race entries (data/rounds.json): from real round `round` (of `real_round_count`, at `circuit`, game track `track`) `in` races `seat` (team position) of career `slot` in place of `out`, with his real `number` and `look` (that team and year, else that team's nearest year, else his look that year); `until_round` when `out` gets the seat back, else `permanent`. kind: stand_in (`out` did not race meanwhile), move (`out` raced for another team), replace (`out` left). The season's line-up (`teams`) is the start; `calendar` lists the real rounds",
-  "changes_skipped": "real changes whose incoming driver is not in the game; the seat keeps its driver"
+  "changes_skipped": "real changes whose incoming driver is not in the game; the seat keeps its driver",
+  "previous_standings": "the previous year's final standings (data/standings.json, Jolpica): `slots` the career team slots in constructors' order, `drivers` the drivers in game labels; the season-start order of the career's standings"
  },
  "seasons": {
   "2016": {
@@ -1080,6 +1081,41 @@
      "number": 31
     }
    ],
+   "previous_standings": {
+    "year": 2015,
+    "slots": [
+     1,
+     2,
+     7,
+     3,
+     5,
+     6,
+     8,
+     9,
+     4,
+     11
+    ],
+    "drivers": [
+     "lewis_hamilton",
+     "nico_rosberg",
+     "sebastian_vettel",
+     "kimi_raikkonen",
+     "valtteri_bottas",
+     "felipe_massa",
+     "daniil_kvyat",
+     "daniel_ricciardo",
+     "sergio_perez",
+     "nico_hulkenberg",
+     "romain_grosjean",
+     "max_verstappen",
+     "felipe_nasr",
+     "carlos_sainz-jr",
+     "jenson_button",
+     "fernando_alonso",
+     "marcus_ericsson",
+     "kevin_magnussen"
+    ]
+   },
    "calendar": [
     {
      "round": 1,
@@ -2069,6 +2105,48 @@
      "number": 36
     }
    ],
+   "previous_standings": {
+    "year": 2016,
+    "slots": [
+     1,
+     3,
+     2,
+     5,
+     7,
+     4,
+     8,
+     10,
+     6,
+     9,
+     11
+    ],
+    "drivers": [
+     "nico_rosberg",
+     "lewis_hamilton",
+     "daniel_ricciardo",
+     "sebastian_vettel",
+     "max_verstappen",
+     "kimi_raikkonen",
+     "sergio_perez",
+     "valtteri_bottas",
+     "nico_hulkenberg",
+     "fernando_alonso",
+     "felipe_massa",
+     "carlos_sainz-jr",
+     "romain_grosjean",
+     "daniil_kvyat",
+     "jenson_button",
+     "kevin_magnussen",
+     "felipe_nasr",
+     "jolyon_palmer",
+     "pascal_wehrlein",
+     "stoffel_vandoorne",
+     "esteban_gutierrez",
+     "marcus_ericsson",
+     "esteban_ocon",
+     "rio_haryanto"
+    ]
+   },
    "calendar": [
     {
      "round": 1,
@@ -3058,6 +3136,47 @@
     }
    ],
    "stand_ins": [],
+   "previous_standings": {
+    "year": 2017,
+    "slots": [
+     1,
+     2,
+     3,
+     5,
+     7,
+     6,
+     8,
+     10,
+     4,
+     9
+    ],
+    "drivers": [
+     "lewis_hamilton",
+     "sebastian_vettel",
+     "valtteri_bottas",
+     "kimi_raikkonen",
+     "daniel_ricciardo",
+     "max_verstappen",
+     "sergio_perez",
+     "esteban_ocon",
+     "carlos_sainz-jr",
+     "nico_hulkenberg",
+     "felipe_massa",
+     "lance_stroll",
+     "romain_grosjean",
+     "kevin_magnussen",
+     "fernando_alonso",
+     "stoffel_vandoorne",
+     "jolyon_palmer",
+     "pascal_wehrlein",
+     "daniil_kvyat",
+     "marcus_ericsson",
+     "pierre_gasly",
+     "antonio_giovinazzi",
+     "brendon_hartley",
+     "jenson_button"
+    ]
+   },
    "calendar": [
     {
      "round": 1,
@@ -3936,6 +4055,43 @@
      "number": 10
     }
    ],
+   "previous_standings": {
+    "year": 2018,
+    "slots": [
+     1,
+     2,
+     3,
+     6,
+     5,
+     10,
+     4,
+     9,
+     8,
+     7
+    ],
+    "drivers": [
+     "lewis_hamilton",
+     "sebastian_vettel",
+     "kimi_raikkonen",
+     "max_verstappen",
+     "valtteri_bottas",
+     "daniel_ricciardo",
+     "nico_hulkenberg",
+     "sergio_perez",
+     "kevin_magnussen",
+     "carlos_sainz-jr",
+     "fernando_alonso",
+     "esteban_ocon",
+     "charles_leclerc",
+     "romain_grosjean",
+     "pierre_gasly",
+     "stoffel_vandoorne",
+     "marcus_ericsson",
+     "lance_stroll",
+     "brendon_hartley",
+     "sergey_sirotkin"
+    ]
+   },
    "calendar": [
     {
      "round": 1,
@@ -4867,6 +5023,43 @@
      "number": 51
     }
    ],
+   "previous_standings": {
+    "year": 2019,
+    "slots": [
+     1,
+     2,
+     3,
+     4,
+     6,
+     8,
+     5,
+     9,
+     10,
+     7
+    ],
+    "drivers": [
+     "lewis_hamilton",
+     "valtteri_bottas",
+     "max_verstappen",
+     "charles_leclerc",
+     "sebastian_vettel",
+     "carlos_sainz-jr",
+     "pierre_gasly",
+     "alex_albon",
+     "daniel_ricciardo",
+     "sergio_perez",
+     "lando_norris",
+     "kimi_raikkonen",
+     "daniil_kvyat",
+     "nico_hulkenberg",
+     "lance_stroll",
+     "kevin_magnussen",
+     "antonio_giovinazzi",
+     "romain_grosjean",
+     "robert_kubica",
+     "george_russell"
+    ]
+   },
    "calendar": [
     {
      "round": 1,
@@ -5822,6 +6015,45 @@
      "number": 88
     }
    ],
+   "previous_standings": {
+    "year": 2020,
+    "slots": [
+     1,
+     3,
+     4,
+     5,
+     6,
+     2,
+     8,
+     9,
+     10,
+     7
+    ],
+    "drivers": [
+     "lewis_hamilton",
+     "valtteri_bottas",
+     "max_verstappen",
+     "sergio_perez",
+     "daniel_ricciardo",
+     "carlos_sainz-jr",
+     "alex_albon",
+     "charles_leclerc",
+     "lando_norris",
+     "pierre_gasly",
+     "lance_stroll",
+     "esteban_ocon",
+     "sebastian_vettel",
+     "daniil_kvyat",
+     "nico_hulkenberg",
+     "kimi_raikkonen",
+     "antonio_giovinazzi",
+     "george_russell",
+     "romain_grosjean",
+     "kevin_magnussen",
+     "nicholas_latifi",
+     "jack_aitken"
+    ]
+   },
    "calendar": [
     {
      "round": 1,
@@ -6727,6 +6959,44 @@
      "number": 45
     }
    ],
+   "previous_standings": {
+    "year": 2021,
+    "slots": [
+     1,
+     3,
+     2,
+     4,
+     6,
+     8,
+     5,
+     7,
+     9,
+     10
+    ],
+    "drivers": [
+     "max_verstappen",
+     "lewis_hamilton",
+     "valtteri_bottas",
+     "sergio_perez",
+     "carlos_sainz-jr",
+     "lando_norris",
+     "charles_leclerc",
+     "daniel_ricciardo",
+     "pierre_gasly",
+     "fernando_alonso",
+     "esteban_ocon",
+     "sebastian_vettel",
+     "lance_stroll",
+     "yuki_tsunoda",
+     "george_russell",
+     "kimi_raikkonen",
+     "nicholas_latifi",
+     "antonio_giovinazzi",
+     "mick_schumacher",
+     "robert_kubica",
+     "nikita_mazepin"
+    ]
+   },
    "calendar": [
     {
      "round": 1,
@@ -7653,6 +7923,45 @@
      "number": 40
     }
    ],
+   "previous_standings": {
+    "year": 2022,
+    "slots": [
+     3,
+     2,
+     1,
+     6,
+     4,
+     9,
+     5,
+     10,
+     8,
+     7
+    ],
+    "drivers": [
+     "max_verstappen",
+     "charles_leclerc",
+     "sergio_perez",
+     "george_russell",
+     "carlos_sainz-jr",
+     "lewis_hamilton",
+     "lando_norris",
+     "esteban_ocon",
+     "fernando_alonso",
+     "valtteri_bottas",
+     "daniel_ricciardo",
+     "sebastian_vettel",
+     "kevin_magnussen",
+     "pierre_gasly",
+     "lance_stroll",
+     "mick_schumacher",
+     "yuki_tsunoda",
+     "guanyu_zhou",
+     "alex_albon",
+     "nicholas_latifi",
+     "nyck_de-vries",
+     "nico_hulkenberg"
+    ]
+   },
    "calendar": [
     {
      "round": 1,
@@ -8598,6 +8907,45 @@
      "number": 50
     }
    ],
+   "previous_standings": {
+    "year": 2023,
+    "slots": [
+     3,
+     1,
+     2,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10
+    ],
+    "drivers": [
+     "max_verstappen",
+     "sergio_perez",
+     "lewis_hamilton",
+     "fernando_alonso",
+     "charles_leclerc",
+     "lando_norris",
+     "carlos_sainz-jr",
+     "george_russell",
+     "oscar_piastri",
+     "lance_stroll",
+     "pierre_gasly",
+     "esteban_ocon",
+     "alex_albon",
+     "yuki_tsunoda",
+     "valtteri_bottas",
+     "nico_hulkenberg",
+     "daniel_ricciardo",
+     "guanyu_zhou",
+     "kevin_magnussen",
+     "liam_lawson",
+     "logan_sargeant",
+     "nyck_de-vries"
+    ]
+   },
    "calendar": [
     {
      "round": 1,
@@ -9629,6 +9977,47 @@
      "number": 22
     }
    ],
+   "previous_standings": {
+    "year": 2024,
+    "slots": [
+     4,
+     2,
+     3,
+     1,
+     5,
+     6,
+     10,
+     8,
+     7,
+     9
+    ],
+    "drivers": [
+     "max_verstappen",
+     "lando_norris",
+     "charles_leclerc",
+     "oscar_piastri",
+     "carlos_sainz-jr",
+     "george_russell",
+     "lewis_hamilton",
+     "sergio_perez",
+     "fernando_alonso",
+     "pierre_gasly",
+     "nico_hulkenberg",
+     "yuki_tsunoda",
+     "lance_stroll",
+     "esteban_ocon",
+     "kevin_magnussen",
+     "alex_albon",
+     "daniel_ricciardo",
+     "oliver_bearman",
+     "franco_colapinto",
+     "guanyu_zhou",
+     "liam_lawson",
+     "valtteri_bottas",
+     "logan_sargeant",
+     "jack_doohan"
+    ]
+   },
    "calendar": [
     {
      "round": 1,
@@ -10349,7 +10738,45 @@
      "development": null
     }
    ],
-   "stand_ins": []
+   "stand_ins": [],
+   "previous_standings": {
+    "year": 2025,
+    "slots": [
+     4,
+     1,
+     3,
+     2,
+     7,
+     8,
+     5,
+     10,
+     9,
+     6
+    ],
+    "drivers": [
+     "lando_norris",
+     "max_verstappen",
+     "oscar_piastri",
+     "george_russell",
+     "charles_leclerc",
+     "lewis_hamilton",
+     "andrea-kimi_antonelli",
+     "alex_albon",
+     "carlos_sainz-jr",
+     "fernando_alonso",
+     "nico_hulkenberg",
+     "isack_hadjar",
+     "oliver_bearman",
+     "liam_lawson",
+     "esteban_ocon",
+     "lance_stroll",
+     "yuki_tsunoda",
+     "pierre_gasly",
+     "gabriel_bortoleto",
+     "franco_colapinto",
+     "jack_doohan"
+    ]
+   }
   }
  },
  "pool": [

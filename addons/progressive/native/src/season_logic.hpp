@@ -95,6 +95,9 @@ struct Year {
     std::vector<int> real_tracks;
     std::vector<std::string> circuits;
     std::vector<Change> changes;
+    int previous_year = 0;
+    std::vector<int> previous_slots;
+    std::vector<std::string> previous_drivers;
 };
 
 struct Slot {
@@ -210,6 +213,16 @@ inline bool parse(const std::string &text, Data &out, std::string &err)
                 if (!sd.driver.empty())
                     o.drivers.push_back(sd);
             }
+        }
+        const json::Value &prev = y["previous_standings"];
+        if (prev.type == json::Value::Obj) {
+            yr.previous_year = num(prev["year"], 0);
+            for (auto &v : prev["slots"].a)
+                if (int sl = num(v); sl >= 1 && sl <= kSlots)
+                    yr.previous_slots.push_back(sl - 1);
+            for (auto &v : prev["drivers"].a)
+                if (!v.str().empty())
+                    yr.previous_drivers.push_back(v.str());
         }
         for (auto &c : y["calendar"].a) {
             yr.real_tracks.push_back(num(c["track"]));
@@ -780,6 +793,40 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
             p.looks.push_back(l);
     }
     return p;
+}
+
+// The season-start order of the career's standings (all on 0 points): the constructors as the
+// previous year finished (data/years.json previous_standings, Jolpica), slots it does not list after
+// them in slot order; the drivers as the previous year finished, the season's other drivers after
+// them in the order given (the plan's seat order).
+inline std::vector<int> start_slot_order(const Year &y)
+{
+    std::vector<int> out;
+    for (int s : y.previous_slots)
+        if (s >= 0 && s < kSlots && std::find(out.begin(), out.end(), s) == out.end())
+            out.push_back(s);
+    for (int s = 0; s < kSlots; ++s)
+        if (std::find(out.begin(), out.end(), s) == out.end())
+            out.push_back(s);
+    return out;
+}
+
+inline std::vector<uint32_t> start_driver_order(const Year &y, const Resolve &r, const std::vector<uint32_t> &season)
+{
+    std::vector<uint32_t> out;
+    for (auto &label : y.previous_drivers) {
+        int s = r.driver_stat(label);
+        if (s < 0)
+            continue;
+        auto d = static_cast<uint32_t>(s);
+        if (std::find(season.begin(), season.end(), d) != season.end() &&
+            std::find(out.begin(), out.end(), d) == out.end())
+            out.push_back(d);
+    }
+    for (uint32_t d : season)
+        if (std::find(out.begin(), out.end(), d) == out.end())
+            out.push_back(d);
+    return out;
 }
 
 } // namespace progressive::season
