@@ -4,13 +4,17 @@
 
 #include "runtime.hpp"
 
+#include <tlhelp32.h>
+
 #include <safetyhook.hpp>
 #include <swofty/mixin.hpp>
 
+#include <atomic>
 #include <cstdarg>
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
 #include <unordered_map>
+#include <vector>
 
 // Log-only socket trace for the LAN netplay work, on with SWOFTY_NET_TRACE=1. The exe imports ws2_32
 // through two import descriptors: the clear code's table, and a second one that the .data1 bodies
@@ -77,19 +81,38 @@ struct Post {
     bool recvfrom;
 };
 
+struct Mod {
+    uintptr_t lo, hi;
+    std::string name;
+};
+
+using NameFn = int(WSAAPI *)(SOCKET, sockaddr *, int *);
+using OptFn = int(WSAAPI *)(SOCKET, int, int, char *, int *);
+
 SRWLOCK lock = SRWLOCK_INIT;
 HANDLE file = INVALID_HANDLE_VALUE;
 std::unordered_map<uint64_t, uint32_t> counts;
 std::unordered_map<SOCKET, SockInfo> socks;
 std::unordered_map<void *, Post> posts;
-uintptr_t exe_lo, exe_hi;
+std::vector<Mod> mods;
+uintptr_t exe_lo, exe_hi, ws_lo, ws_hi;
+NameFn p_getsockname, p_getpeername;
+OptFn p_getsockopt;
 LARGE_INTEGER qpf, qpc0;
 thread_local int busy;
 long long hex_max = 16;
+uint64_t written, cap = 64ull << 20;
+std::atomic<bool> capped;
+
+bool off()
+{
+    return busy || capped.load(std::memory_order_relaxed);
+}
 
 struct Guard {
-    DWORD err = GetLastError();
+    DWORD err = 0;
     Guard() { busy++; }
+    void done() { err = GetLastError(); }
     ~Guard()
     {
         busy--;
@@ -100,8 +123,17 @@ struct Guard {
 void write_line(const char *s, size_t n)
 {
     DWORD w;
-    if (file != INVALID_HANDLE_VALUE)
-        WriteFile(file, s, DWORD(n), &w, nullptr);
+    if (file == INVALID_HANDLE_VALUE || capped.load(std::memory_order_relaxed))
+        return;
+    if (written + n > cap) {
+        char last[96];
+        int k = snprintf(last, sizeof last, "# log cap of %llu bytes reached; trace stopped\n", (unsigned long long)cap);
+        WriteFile(file, last, DWORD(k), &w, nullptr);
+        capped.store(true, std::memory_order_relaxed);
+        return;
+    }
+    WriteFile(file, s, DWORD(n), &w, nullptr);
+    written += n;
 }
 
 void raw(const char *fmt, ...)
@@ -130,6 +162,16 @@ bool readable(int r, DWORD err)
     return r != SOCKET_ERROR || err != WSAEFAULT;
 }
 
+bool pending(int r, DWORD err)
+{
+    return r == 0 || err == WSA_IO_PENDING;
+}
+
+bool can_read(const void *p, size_t n)
+{
+    return p && n && !IsBadReadPtr(p, n);
+}
+
 std::string addr(const sockaddr *a, int len = -1)
 {
     char b[96];
@@ -156,6 +198,13 @@ std::string addr(const sockaddr *a, int len = -1)
     return b;
 }
 
+std::string addr_safe(const sockaddr *a, int len)
+{
+    if (!a)
+        return "-";
+    return can_read(a, len > 0 ? size_t(len) : sizeof(sockaddr)) ? addr(a, len) : "?";
+}
+
 std::string hexdump(const void *p, long long n)
 {
     if (!p || n <= 0)
@@ -170,6 +219,13 @@ std::string hexdump(const void *p, long long n)
     return s;
 }
 
+std::string hexdump_safe(const void *p, long long n)
+{
+    if (!p || n <= 0)
+        return "-";
+    return can_read(p, size_t(std::min(n, hex_max))) ? hexdump(p, n) : "?";
+}
+
 std::string caller(void *ra)
 {
     char b[160];
@@ -178,44 +234,28 @@ std::string caller(void *ra)
         snprintf(b, sizeof b, "exe+0x%llx", (unsigned long long)(a - exe_lo));
         return b;
     }
-    HMODULE m = nullptr;
-    wchar_t path[MAX_PATH];
-    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                           reinterpret_cast<LPCWSTR>(ra), &m) &&
-        GetModuleFileNameW(m, path, MAX_PATH)) {
-        const wchar_t *base = wcsrchr(path, L'\\');
-        snprintf(b, sizeof b, "%ls+0x%llx", base ? base + 1 : path,
-                 (unsigned long long)(a - reinterpret_cast<uintptr_t>(m)));
-        return b;
-    }
-    snprintf(b, sizeof b, "%p", ra);
+    for (auto &m : mods)
+        if (a >= m.lo && a < m.hi) {
+            snprintf(b, sizeof b, "%s+0x%llx", m.name.c_str(), (unsigned long long)(a - m.lo));
+            return b;
+        }
+    snprintf(b, sizeof b, "0x%llx", (unsigned long long)a);
     return b;
 }
 
 void probe(SOCKET s, SockInfo &k)
 {
-    if (s == INVALID_SOCKET || (k.probed && k.local.ss_family))
-        return;
     bool first = !k.probed;
     k.probed = true;
-    HMODULE ws = GetModuleHandleW(L"ws2_32.dll");
-    if (!ws)
-        return;
-    using NameFn = int(WSAAPI *)(SOCKET, sockaddr *, int *);
-    using OptFn = int(WSAAPI *)(SOCKET, int, int, char *, int *);
-    auto local = orig<NameFn>(C_GETSOCKNAME) ? orig<NameFn>(C_GETSOCKNAME)
-                                              : reinterpret_cast<NameFn>(GetProcAddress(ws, "getsockname"));
-    auto peer = reinterpret_cast<NameFn>(GetProcAddress(ws, "getpeername"));
-    auto opt = reinterpret_cast<OptFn>(GetProcAddress(ws, "getsockopt"));
     int n = sizeof k.local;
-    if (local)
-        local(s, reinterpret_cast<sockaddr *>(&k.local), &n);
+    if (p_getsockname)
+        p_getsockname(s, reinterpret_cast<sockaddr *>(&k.local), &n);
     n = sizeof k.peer;
-    if (peer && first)
-        peer(s, reinterpret_cast<sockaddr *>(&k.peer), &n);
-    if (opt && first && !k.type) {
+    if (p_getpeername && first)
+        p_getpeername(s, reinterpret_cast<sockaddr *>(&k.peer), &n);
+    if (p_getsockopt && first && !k.type) {
         n = sizeof k.type;
-        opt(s, SOL_SOCKET, SO_TYPE, reinterpret_cast<char *>(&k.type), &n);
+        p_getsockopt(s, SOL_SOCKET, SO_TYPE, reinterpret_cast<char *>(&k.type), &n);
         k.family = k.local.ss_family;
     }
 }
@@ -225,35 +265,68 @@ std::string sock_desc(SOCKET s)
     char b[256];
     if (s == INVALID_SOCKET)
         return "-";
-    auto &k = socks[s];
-    probe(s, k);
+    SockInfo k;
+    AcquireSRWLockExclusive(&lock);
+    auto it = socks.find(s);
+    if (it != socks.end())
+        k = it->second;
+    ReleaseSRWLockExclusive(&lock);
+    if (!k.probed || !k.local.ss_family) {
+        probe(s, k);
+        AcquireSRWLockExclusive(&lock);
+        auto &e = socks[s];
+        if (!e.probed || !e.local.ss_family)
+            e = k;
+        ReleaseSRWLockExclusive(&lock);
+    }
     snprintf(b, sizeof b, "sock=0x%llx af=%d type=%d proto=%d local=%s peer=%s", (unsigned long long)s, k.family,
              k.type, k.proto, addr(reinterpret_cast<sockaddr *>(&k.local)).c_str(),
              addr(reinterpret_cast<sockaddr *>(&k.peer)).c_str());
     return b;
 }
 
+uint64_t key(Call c, SOCKET s)
+{
+    return (uint64_t(c) << 56) ^ uint64_t(s);
+}
+
+void trace_as(Call c, SOCKET s, const std::string *desc, void *ra, int ret, DWORD err, const char *fmt, va_list ap)
+{
+    AcquireSRWLockExclusive(&lock);
+    uint32_t n = ++counts[key(c, s)];
+    ReleaseSRWLockExclusive(&lock);
+    if (n > 200 && n % 100)
+        return;
+    char body[1536];
+    vsnprintf(body, sizeof body, fmt, ap);
+    std::string sd = desc ? *desc : sock_desc(s), who = caller(ra);
+    LARGE_INTEGER q;
+    QueryPerformanceCounter(&q);
+    double ms = double(q.QuadPart - qpc0.QuadPart) * 1000.0 / double(qpf.QuadPart);
+    char line[2048];
+    int len = snprintf(line, sizeof line, "%10.3f t%05lu %s #%u %s %s ret=%d err=%lu from=%s\n", ms, GetCurrentThreadId(),
+                       hooks[c].name, n, sd.c_str(), body, ret, err, who.c_str());
+    if (len <= 0)
+        return;
+    AcquireSRWLockExclusive(&lock);
+    write_line(line, std::min<size_t>(size_t(len), sizeof line - 1));
+    ReleaseSRWLockExclusive(&lock);
+}
+
 void trace(Call c, SOCKET s, void *ra, int ret, DWORD err, const char *fmt, ...)
 {
-    char body[1536];
     va_list ap;
     va_start(ap, fmt);
-    vsnprintf(body, sizeof body, fmt, ap);
+    trace_as(c, s, nullptr, ra, ret, err, fmt, ap);
     va_end(ap);
-    AcquireSRWLockExclusive(&lock);
-    uint32_t n = ++counts[(uint64_t(c) << 56) ^ uint64_t(s)];
-    if (n <= 200 || n % 100 == 0) {
-        LARGE_INTEGER q;
-        QueryPerformanceCounter(&q);
-        double ms = double(q.QuadPart - qpc0.QuadPart) * 1000.0 / double(qpf.QuadPart);
-        std::string sd = sock_desc(s);
-        char line[2048];
-        int len = snprintf(line, sizeof line, "%10.3f t%05lu %s #%u %s %s ret=%d err=%lu from=%s\n", ms,
-                           GetCurrentThreadId(), hooks[c].name, n, sd.c_str(), body, ret, err, caller(ra).c_str());
-        if (len > 0)
-            write_line(line, std::min<size_t>(size_t(len), sizeof line - 1));
-    }
-    ReleaseSRWLockExclusive(&lock);
+}
+
+void trace_desc(Call c, SOCKET s, const std::string &desc, void *ra, int ret, DWORD err, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    trace_as(c, s, &desc, ra, ret, err, fmt, ap);
+    va_end(ap);
 }
 
 void note_socket(SOCKET s, int af, int type, int proto)
@@ -264,6 +337,8 @@ void note_socket(SOCKET s, int af, int type, int proto)
     SockInfo k;
     k.family = af, k.type = type, k.proto = proto, k.probed = true;
     socks[s] = k;
+    for (int c = 0; c < C_COUNT; c++)
+        counts.erase(key(Call(c), s));
     ReleaseSRWLockExclusive(&lock);
 }
 
@@ -287,20 +362,44 @@ void note_post(void *ov, const Post &p)
     ReleaseSRWLockExclusive(&lock);
 }
 
-bool take_post(void *ov, Post &p)
+bool take_post(void *ov, Post &p, bool erase)
 {
     AcquireSRWLockExclusive(&lock);
     auto it = posts.find(ov);
     bool ok = it != posts.end();
-    if (ok)
+    if (ok) {
         p = it->second;
+        if (erase)
+            posts.erase(it);
+    }
     ReleaseSRWLockExclusive(&lock);
     return ok;
 }
 
+void drop_socket(SOCKET s)
+{
+    AcquireSRWLockExclusive(&lock);
+    socks.erase(s);
+    for (int c = 0; c < C_COUNT; c++)
+        counts.erase(key(Call(c), s));
+    for (auto it = posts.begin(); it != posts.end();)
+        it = it->second.s == s ? posts.erase(it) : std::next(it);
+    ReleaseSRWLockExclusive(&lock);
+}
+
 void *event_of(const WSAOVERLAPPED *ov)
 {
-    return ov ? ov->hEvent : nullptr;
+    return can_read(ov, sizeof *ov) ? ov->hEvent : nullptr;
+}
+
+WSABUF first_buf(const WSABUF *bufs, DWORD n)
+{
+    return n && can_read(bufs, sizeof *bufs) ? bufs[0] : WSABUF{0, nullptr};
+}
+
+int read_int(const int *p)
+{
+    return can_read(p, sizeof *p) ? *p : -1;
 }
 
 #define RA __builtin_return_address(0)
@@ -309,10 +408,11 @@ void *event_of(const WSAOVERLAPPED *ov)
 SOCKET WSAAPI h_socket(int af, int type, int proto)
 {
     using F = SOCKET(WSAAPI *)(int, int, int);
-    if (busy)
+    if (off())
         return orig<F>(C_SOCKET)(af, type, proto);
-    SOCKET r = orig<F>(C_SOCKET)(af, type, proto);
     Guard g;
+    SOCKET r = orig<F>(C_SOCKET)(af, type, proto);
+    g.done();
     note_socket(r, af, type, proto);
     trace(C_SOCKET, r, RA, int(r == INVALID_SOCKET ? -1 : 0), r == INVALID_SOCKET ? g.err : 0, "af=%d type=%d proto=%d",
           af, type, proto);
@@ -322,10 +422,11 @@ SOCKET WSAAPI h_socket(int af, int type, int proto)
 SOCKET WSAAPI h_WSASocketW(int af, int type, int proto, LPWSAPROTOCOL_INFOW info, GROUP group, DWORD flags)
 {
     using F = SOCKET(WSAAPI *)(int, int, int, LPWSAPROTOCOL_INFOW, GROUP, DWORD);
-    if (busy)
+    if (off())
         return orig<F>(C_WSASOCKETW)(af, type, proto, info, group, flags);
-    SOCKET r = orig<F>(C_WSASOCKETW)(af, type, proto, info, group, flags);
     Guard g;
+    SOCKET r = orig<F>(C_WSASOCKETW)(af, type, proto, info, group, flags);
+    g.done();
     note_socket(r, af, type, proto);
     trace(C_WSASOCKETW, r, RA, int(r == INVALID_SOCKET ? -1 : 0), r == INVALID_SOCKET ? g.err : 0,
           "af=%d type=%d proto=%d flags=0x%lx", af, type, proto, flags);
@@ -335,10 +436,11 @@ SOCKET WSAAPI h_WSASocketW(int af, int type, int proto, LPWSAPROTOCOL_INFOW info
 int WSAAPI h_bind(SOCKET s, const sockaddr *a, int len)
 {
     using F = int(WSAAPI *)(SOCKET, const sockaddr *, int);
-    if (busy)
+    if (off())
         return orig<F>(C_BIND)(s, a, len);
-    int r = orig<F>(C_BIND)(s, a, len);
     Guard g;
+    int r = orig<F>(C_BIND)(s, a, len);
+    g.done();
     if (!r)
         note_addr(s, a, len, true);
     trace(C_BIND, s, RA, r, r ? g.err : 0, "addr=%s len=%d", readable(r, g.err) ? addr(a, len).c_str() : "?", len);
@@ -348,10 +450,11 @@ int WSAAPI h_bind(SOCKET s, const sockaddr *a, int len)
 int WSAAPI h_connect(SOCKET s, const sockaddr *a, int len)
 {
     using F = int(WSAAPI *)(SOCKET, const sockaddr *, int);
-    if (busy)
+    if (off())
         return orig<F>(C_CONNECT)(s, a, len);
-    int r = orig<F>(C_CONNECT)(s, a, len);
     Guard g;
+    int r = orig<F>(C_CONNECT)(s, a, len);
+    g.done();
     if (readable(r, g.err))
         note_addr(s, a, len, false);
     trace(C_CONNECT, s, RA, r, r ? g.err : 0, "addr=%s len=%d", readable(r, g.err) ? addr(a, len).c_str() : "?", len);
@@ -361,10 +464,11 @@ int WSAAPI h_connect(SOCKET s, const sockaddr *a, int len)
 int WSAAPI h_setsockopt(SOCKET s, int level, int name, const char *val, int len)
 {
     using F = int(WSAAPI *)(SOCKET, int, int, const char *, int);
-    if (busy)
+    if (off())
         return orig<F>(C_SETSOCKOPT)(s, level, name, val, len);
-    int r = orig<F>(C_SETSOCKOPT)(s, level, name, val, len);
     Guard g;
+    int r = orig<F>(C_SETSOCKOPT)(s, level, name, val, len);
+    g.done();
     trace(C_SETSOCKOPT, s, RA, r, r ? g.err : 0, "level=0x%x name=0x%x len=%d val=%s", level, name, len,
           readable(r, g.err) ? hexdump(val, len).c_str() : "?");
     return r;
@@ -373,10 +477,11 @@ int WSAAPI h_setsockopt(SOCKET s, int level, int name, const char *val, int len)
 int WSAAPI h_ioctlsocket(SOCKET s, long cmd, u_long *arg)
 {
     using F = int(WSAAPI *)(SOCKET, long, u_long *);
-    if (busy)
+    if (off())
         return orig<F>(C_IOCTLSOCKET)(s, cmd, arg);
-    int r = orig<F>(C_IOCTLSOCKET)(s, cmd, arg);
     Guard g;
+    int r = orig<F>(C_IOCTLSOCKET)(s, cmd, arg);
+    g.done();
     trace(C_IOCTLSOCKET, s, RA, r, r ? g.err : 0, "cmd=0x%lx arg=%lu", (unsigned long)cmd,
           arg && readable(r, g.err) ? *arg : 0);
     return r;
@@ -385,10 +490,11 @@ int WSAAPI h_ioctlsocket(SOCKET s, long cmd, u_long *arg)
 int WSAAPI h_getsockname(SOCKET s, sockaddr *a, int *len)
 {
     using F = int(WSAAPI *)(SOCKET, sockaddr *, int *);
-    if (busy)
+    if (off())
         return orig<F>(C_GETSOCKNAME)(s, a, len);
-    int r = orig<F>(C_GETSOCKNAME)(s, a, len);
     Guard g;
+    int r = orig<F>(C_GETSOCKNAME)(s, a, len);
+    g.done();
     if (!r && len)
         note_addr(s, a, *len, true);
     trace(C_GETSOCKNAME, s, RA, r, r ? g.err : 0, "addr=%s", r ? "-" : addr(a, len ? *len : -1).c_str());
@@ -398,10 +504,11 @@ int WSAAPI h_getsockname(SOCKET s, sockaddr *a, int *len)
 int WSAAPI h_sendto(SOCKET s, const char *buf, int len, int flags, const sockaddr *to, int tolen)
 {
     using F = int(WSAAPI *)(SOCKET, const char *, int, int, const sockaddr *, int);
-    if (busy)
+    if (off())
         return orig<F>(C_SENDTO)(s, buf, len, flags, to, tolen);
-    int r = orig<F>(C_SENDTO)(s, buf, len, flags, to, tolen);
     Guard g;
+    int r = orig<F>(C_SENDTO)(s, buf, len, flags, to, tolen);
+    g.done();
     bool ok = readable(r, g.err);
     trace(C_SENDTO, s, RA, r, r < 0 ? g.err : 0, "to=%s len=%d flags=0x%x data=%s", ok ? addr(to, tolen).c_str() : "?",
           len, flags, ok ? hexdump(buf, len).c_str() : "?");
@@ -411,10 +518,11 @@ int WSAAPI h_sendto(SOCKET s, const char *buf, int len, int flags, const sockadd
 int WSAAPI h_send(SOCKET s, const char *buf, int len, int flags)
 {
     using F = int(WSAAPI *)(SOCKET, const char *, int, int);
-    if (busy)
+    if (off())
         return orig<F>(C_SEND)(s, buf, len, flags);
-    int r = orig<F>(C_SEND)(s, buf, len, flags);
     Guard g;
+    int r = orig<F>(C_SEND)(s, buf, len, flags);
+    g.done();
     trace(C_SEND, s, RA, r, r < 0 ? g.err : 0, "len=%d flags=0x%x data=%s", len, flags,
           readable(r, g.err) ? hexdump(buf, len).c_str() : "?");
     return r;
@@ -425,24 +533,27 @@ int WSAAPI h_WSASendTo(SOCKET s, LPWSABUF bufs, DWORD n, LPDWORD sent, DWORD fla
 {
     using F = int(WSAAPI *)(SOCKET, LPWSABUF, DWORD, LPDWORD, DWORD, const sockaddr *, int, LPWSAOVERLAPPED,
                             LPWSAOVERLAPPED_COMPLETION_ROUTINE);
-    if (busy)
+    if (off())
         return orig<F>(C_WSASENDTO)(s, bufs, n, sent, flags, to, tolen, ov, cr);
-    int r = orig<F>(C_WSASENDTO)(s, bufs, n, sent, flags, to, tolen, ov, cr);
     Guard g;
-    bool ok = readable(r, g.err) && bufs && n;
+    WSABUF b0 = first_buf(bufs, n);
+    std::string data = hexdump_safe(b0.buf, b0.len), dest = addr_safe(to, tolen);
+    void *ev = event_of(ov);
+    int r = orig<F>(C_WSASENDTO)(s, bufs, n, sent, flags, to, tolen, ov, cr);
+    g.done();
     trace(C_WSASENDTO, s, RA, r, r ? g.err : 0, "to=%s nbufs=%lu len0=%lu sent=%ld data=%s ov=0x%llx ev=0x%llx",
-          ok ? addr(to, tolen).c_str() : "?", n, ok ? bufs[0].len : 0, !r && sent ? long(*sent) : -1L,
-          ok ? hexdump(bufs[0].buf, bufs[0].len).c_str() : "?", PTR(ov), PTR(event_of(ov)));
+          dest.c_str(), n, b0.len, !r && sent ? long(*sent) : -1L, data.c_str(), PTR(ov), PTR(ev));
     return r;
 }
 
 int WSAAPI h_recvfrom(SOCKET s, char *buf, int len, int flags, sockaddr *from, int *fromlen)
 {
     using F = int(WSAAPI *)(SOCKET, char *, int, int, sockaddr *, int *);
-    if (busy)
+    if (off())
         return orig<F>(C_RECVFROM)(s, buf, len, flags, from, fromlen);
-    int r = orig<F>(C_RECVFROM)(s, buf, len, flags, from, fromlen);
     Guard g;
+    int r = orig<F>(C_RECVFROM)(s, buf, len, flags, from, fromlen);
+    g.done();
     if (r >= 0)
         trace(C_RECVFROM, s, RA, r, 0, "cap=%d flags=0x%x from=%s data=%s", len, flags,
               addr(from, fromlen ? *fromlen : -1).c_str(), hexdump(buf, r).c_str());
@@ -454,10 +565,11 @@ int WSAAPI h_recvfrom(SOCKET s, char *buf, int len, int flags, sockaddr *from, i
 int WSAAPI h_recv(SOCKET s, char *buf, int len, int flags)
 {
     using F = int(WSAAPI *)(SOCKET, char *, int, int);
-    if (busy)
+    if (off())
         return orig<F>(C_RECV)(s, buf, len, flags);
-    int r = orig<F>(C_RECV)(s, buf, len, flags);
     Guard g;
+    int r = orig<F>(C_RECV)(s, buf, len, flags);
+    g.done();
     trace(C_RECV, s, RA, r, r < 0 ? g.err : 0, "cap=%d flags=0x%x data=%s", len, flags,
           r > 0 ? hexdump(buf, r).c_str() : "-");
     return r;
@@ -468,19 +580,19 @@ int WSAAPI h_WSARecvFrom(SOCKET s, LPWSABUF bufs, DWORD n, LPDWORD got, LPDWORD 
 {
     using F = int(WSAAPI *)(SOCKET, LPWSABUF, DWORD, LPDWORD, LPDWORD, sockaddr *, LPINT, LPWSAOVERLAPPED,
                             LPWSAOVERLAPPED_COMPLETION_ROUTINE);
-    if (busy)
+    if (off())
         return orig<F>(C_WSARECVFROM)(s, bufs, n, got, flags, from, fromlen, ov, cr);
-    int r = orig<F>(C_WSARECVFROM)(s, bufs, n, got, flags, from, fromlen, ov, cr);
     Guard g;
-    bool ok = readable(r, g.err) && bufs && n;
-    Post p{s, ok ? bufs[0].buf : nullptr, ok ? bufs[0].len : 0, from, fromlen, true};
-    int fl_in = ok && fromlen ? *fromlen : -1;
-    if (ok)
-        note_post(ov, p);
+    WSABUF b0 = first_buf(bufs, n);
+    int fl_in = fromlen ? read_int(fromlen) : -1;
+    void *ev = event_of(ov);
+    int r = orig<F>(C_WSARECVFROM)(s, bufs, n, got, flags, from, fromlen, ov, cr);
+    g.done();
+    if (ov && pending(r, g.err))
+        note_post(ov, Post{s, b0.buf, b0.len, from, fromlen, true});
     trace(C_WSARECVFROM, s, RA, r, r ? g.err : 0,
-          "nbufs=%lu buf=0x%llx cap=%lu from_buf=0x%llx fromlen=%d flags_ptr=0x%llx ov=0x%llx ev=0x%llx cr=0x%llx got=%ld", n,
-          PTR(p.buf), p.len, PTR(from), fl_in, PTR(flags), PTR(ov), PTR(event_of(ov)), PTR(cr),
-          !r && got ? long(*got) : -1L);
+          "nbufs=%lu buf=0x%llx cap=%lu from_buf=0x%llx fromlen=%d flags_ptr=0x%llx ov=0x%llx ev=0x%llx cr=0x%llx got=%ld",
+          n, PTR(b0.buf), b0.len, PTR(from), fl_in, PTR(flags), PTR(ov), PTR(ev), PTR(cr), !r && got ? long(*got) : -1L);
     return r;
 }
 
@@ -489,50 +601,55 @@ int WSAAPI h_WSARecv(SOCKET s, LPWSABUF bufs, DWORD n, LPDWORD got, LPDWORD flag
 {
     using F = int(WSAAPI *)(SOCKET, LPWSABUF, DWORD, LPDWORD, LPDWORD, LPWSAOVERLAPPED,
                             LPWSAOVERLAPPED_COMPLETION_ROUTINE);
-    if (busy)
+    if (off())
         return orig<F>(C_WSARECV)(s, bufs, n, got, flags, ov, cr);
-    int r = orig<F>(C_WSARECV)(s, bufs, n, got, flags, ov, cr);
     Guard g;
-    bool ok = readable(r, g.err) && bufs && n;
-    Post p{s, ok ? bufs[0].buf : nullptr, ok ? bufs[0].len : 0, nullptr, nullptr, false};
-    if (ok)
-        note_post(ov, p);
-    trace(C_WSARECV, s, RA, r, r ? g.err : 0, "nbufs=%lu buf=0x%llx cap=%lu ov=0x%llx ev=0x%llx got=%ld", n, PTR(p.buf), p.len,
-          PTR(ov), PTR(event_of(ov)), !r && got ? long(*got) : -1L);
+    WSABUF b0 = first_buf(bufs, n);
+    void *ev = event_of(ov);
+    int r = orig<F>(C_WSARECV)(s, bufs, n, got, flags, ov, cr);
+    g.done();
+    if (ov && pending(r, g.err))
+        note_post(ov, Post{s, b0.buf, b0.len, nullptr, nullptr, false});
+    trace(C_WSARECV, s, RA, r, r ? g.err : 0, "nbufs=%lu buf=0x%llx cap=%lu ov=0x%llx ev=0x%llx got=%ld", n,
+          PTR(b0.buf), b0.len, PTR(ov), PTR(ev), !r && got ? long(*got) : -1L);
     return r;
 }
 
 BOOL WSAAPI h_WSAGetOverlappedResult(SOCKET s, LPWSAOVERLAPPED ov, LPDWORD bytes, BOOL wait, LPDWORD flags)
 {
     using F = BOOL(WSAAPI *)(SOCKET, LPWSAOVERLAPPED, LPDWORD, BOOL, LPDWORD);
-    if (busy)
+    if (off())
         return orig<F>(C_WSAGETOVERLAPPEDRESULT)(s, ov, bytes, wait, flags);
-    BOOL r = orig<F>(C_WSAGETOVERLAPPEDRESULT)(s, ov, bytes, wait, flags);
     Guard g;
+    void *ev = event_of(ov);
+    BOOL r = orig<F>(C_WSAGETOVERLAPPEDRESULT)(s, ov, bytes, wait, flags);
+    g.done();
     Post p{};
-    bool known = take_post(ov, p);
+    bool known = take_post(ov, p, r || g.err != WSA_IO_INCOMPLETE);
+    DWORD got = r && bytes ? *bytes : 0;
+    long long shown = std::min<long long>(got, p.len);
     if (r && known && p.recvfrom)
-        trace(C_WSAGETOVERLAPPEDRESULT, s, RA, r, 0, "ov=0x%llx ev=0x%llx bytes=%lu flags=0x%lx buf=0x%llx data=%s from_buf=0x%llx from=%s",
-              PTR(ov), PTR(event_of(ov)), bytes ? *bytes : 0, flags ? *flags : 0, PTR(p.buf),
-              hexdump(p.buf, bytes ? *bytes : 0).c_str(), PTR(p.from),
+        trace(C_WSAGETOVERLAPPEDRESULT, s, RA, r, 0,
+              "ov=0x%llx ev=0x%llx bytes=%lu flags=0x%lx buf=0x%llx data=%s from_buf=0x%llx from=%s", PTR(ov), PTR(ev),
+              got, flags ? *flags : 0, PTR(p.buf), hexdump(p.buf, shown).c_str(), PTR(p.from),
               addr(p.from, p.fromlen ? *p.fromlen : -1).c_str());
     else if (r && known)
-        trace(C_WSAGETOVERLAPPEDRESULT, s, RA, r, 0, "ov=0x%llx ev=0x%llx bytes=%lu flags=0x%lx buf=0x%llx data=%s", PTR(ov),
-              PTR(event_of(ov)), bytes ? *bytes : 0, flags ? *flags : 0, PTR(p.buf),
-              hexdump(p.buf, bytes ? *bytes : 0).c_str());
+        trace(C_WSAGETOVERLAPPEDRESULT, s, RA, r, 0, "ov=0x%llx ev=0x%llx bytes=%lu flags=0x%lx buf=0x%llx data=%s",
+              PTR(ov), PTR(ev), got, flags ? *flags : 0, PTR(p.buf), hexdump(p.buf, shown).c_str());
     else
-        trace(C_WSAGETOVERLAPPEDRESULT, s, RA, r, r ? 0 : g.err, "ov=0x%llx ev=0x%llx wait=%d bytes=%lu post=%s", PTR(ov),
-              PTR(event_of(ov)), wait, r && bytes ? *bytes : 0, known ? "seen" : "unseen");
+        trace(C_WSAGETOVERLAPPEDRESULT, s, RA, r, r ? 0 : g.err, "ov=0x%llx ev=0x%llx wait=%d bytes=%lu post=%s",
+              PTR(ov), PTR(ev), wait, got, known ? "seen" : "unseen");
     return r;
 }
 
 DWORD WSAAPI h_WSAWaitForMultipleEvents(DWORD n, const WSAEVENT *ev, BOOL all, DWORD timeout, BOOL alertable)
 {
     using F = DWORD(WSAAPI *)(DWORD, const WSAEVENT *, BOOL, DWORD, BOOL);
-    if (busy)
+    if (off())
         return orig<F>(C_WSAWAITFORMULTIPLEEVENTS)(n, ev, all, timeout, alertable);
-    DWORD r = orig<F>(C_WSAWAITFORMULTIPLEEVENTS)(n, ev, all, timeout, alertable);
     Guard g;
+    DWORD r = orig<F>(C_WSAWAITFORMULTIPLEEVENTS)(n, ev, all, timeout, alertable);
+    g.done();
     char list[160] = "";
     for (DWORD i = 0, k = 0; ev && i < n && i < 6; i++)
         k += snprintf(list + k, sizeof list - k, "%s0x%llx", i ? "," : "", PTR(ev[i]));
@@ -545,10 +662,11 @@ DWORD WSAAPI h_WSAWaitForMultipleEvents(DWORD n, const WSAEVENT *ev, BOOL all, D
 int WSAAPI h_WSAEventSelect(SOCKET s, WSAEVENT e, long mask)
 {
     using F = int(WSAAPI *)(SOCKET, WSAEVENT, long);
-    if (busy)
+    if (off())
         return orig<F>(C_WSAEVENTSELECT)(s, e, mask);
-    int r = orig<F>(C_WSAEVENTSELECT)(s, e, mask);
     Guard g;
+    int r = orig<F>(C_WSAEVENTSELECT)(s, e, mask);
+    g.done();
     trace(C_WSAEVENTSELECT, s, RA, r, r ? g.err : 0, "event=0x%llx mask=0x%lx", PTR(e), (unsigned long)mask);
     return r;
 }
@@ -556,10 +674,11 @@ int WSAAPI h_WSAEventSelect(SOCKET s, WSAEVENT e, long mask)
 WSAEVENT WSAAPI h_WSACreateEvent()
 {
     using F = WSAEVENT(WSAAPI *)();
-    if (busy)
+    if (off())
         return orig<F>(C_WSACREATEEVENT)();
-    WSAEVENT r = orig<F>(C_WSACREATEEVENT)();
     Guard g;
+    WSAEVENT r = orig<F>(C_WSACREATEEVENT)();
+    g.done();
     trace(C_WSACREATEEVENT, INVALID_SOCKET, RA, r ? 0 : -1, r ? 0 : g.err, "event=0x%llx", PTR(r));
     return r;
 }
@@ -569,35 +688,29 @@ int WSAAPI h_WSAIoctl(SOCKET s, DWORD code, LPVOID in, DWORD inlen, LPVOID out, 
 {
     using F = int(WSAAPI *)(SOCKET, DWORD, LPVOID, DWORD, LPVOID, DWORD, LPDWORD, LPWSAOVERLAPPED,
                             LPWSAOVERLAPPED_COMPLETION_ROUTINE);
-    if (busy)
+    if (off())
         return orig<F>(C_WSAIOCTL)(s, code, in, inlen, out, outlen, got, ov, cr);
-    int r = orig<F>(C_WSAIOCTL)(s, code, in, inlen, out, outlen, got, ov, cr);
     Guard g;
+    std::string data = hexdump_safe(in, inlen);
+    int r = orig<F>(C_WSAIOCTL)(s, code, in, inlen, out, outlen, got, ov, cr);
+    g.done();
     trace(C_WSAIOCTL, s, RA, r, r ? g.err : 0, "code=0x%lx in=%s inlen=%lu outlen=%lu got=%ld ov=0x%llx", code,
-          readable(r, g.err) ? hexdump(in, inlen).c_str() : "?", inlen, outlen, !r && got ? long(*got) : -1L,
-          PTR(ov));
+          data.c_str(), inlen, outlen, !r && got ? long(*got) : -1L, PTR(ov));
     return r;
 }
 
 int WSAAPI h_closesocket(SOCKET s)
 {
     using F = int(WSAAPI *)(SOCKET);
-    if (busy)
+    if (off())
         return orig<F>(C_CLOSESOCKET)(s);
-    std::string before;
-    {
-        Guard g;
-        AcquireSRWLockExclusive(&lock);
-        before = sock_desc(s);
-        ReleaseSRWLockExclusive(&lock);
-    }
-    int r = orig<F>(C_CLOSESOCKET)(s);
     Guard g;
-    trace(C_CLOSESOCKET, INVALID_SOCKET, RA, r, r ? g.err : 0, "%s", before.c_str());
-    AcquireSRWLockExclusive(&lock);
-    if (!r)
-        socks.erase(s);
-    ReleaseSRWLockExclusive(&lock);
+    std::string before = sock_desc(s);
+    int r = orig<F>(C_CLOSESOCKET)(s);
+    g.done();
+    trace_desc(C_CLOSESOCKET, s, before, RA, r, r ? g.err : 0, "closed");
+    if (!r || g.err == WSAENOTSOCK)
+        drop_socket(s);
     return r;
 }
 
@@ -664,9 +777,9 @@ int hook_iat(HMODULE ws, uint8_t *base)
                     continue;
                 void *cur = reinterpret_cast<void *>(iat->u1.Function);
                 if (h.orig && h.orig != cur) {
-                    raw("# iat table %d slot exe+0x%llx (%s) %s holds %p, not %p; left alone", table_no,
-                        (unsigned long long)(reinterpret_cast<uint8_t *>(&iat->u1.Function) - base), label, h.name, cur,
-                        h.orig);
+                    raw("# iat table %d slot exe+0x%llx (%s) %s holds 0x%llx, not 0x%llx; left alone", table_no,
+                        (unsigned long long)(reinterpret_cast<uint8_t *>(&iat->u1.Function) - base), label, h.name,
+                        PTR(cur), PTR(h.orig));
                     break;
                 }
                 DWORD old;
@@ -687,19 +800,68 @@ int hook_iat(HMODULE ws, uint8_t *base)
     return total;
 }
 
+bool inside_ws2(void *p)
+{
+    auto a = reinterpret_cast<uintptr_t>(p);
+    return a >= ws_lo && a < ws_hi;
+}
+
+std::string where(void *p)
+{
+    HMODULE m = nullptr;
+    wchar_t path[MAX_PATH];
+    char b[160];
+    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           reinterpret_cast<LPCWSTR>(p), &m) &&
+        GetModuleFileNameW(m, path, MAX_PATH)) {
+        const wchar_t *base = wcsrchr(path, L'\\');
+        snprintf(b, sizeof b, "%ls+0x%llx", base ? base + 1 : path,
+                 (unsigned long long)(reinterpret_cast<uintptr_t>(p) - reinterpret_cast<uintptr_t>(m)));
+        return b;
+    }
+    snprintf(b, sizeof b, "0x%llx", PTR(p));
+    return b;
+}
+
 bool hook_inline(Hook &h)
 {
     if (!h.target)
         return false;
-    auto made = safetyhook::InlineHook::create(h.target, h.detour);
-    if (!made) {
-        raw("# inline hook on ws2_32!%s at %p failed", h.name, h.target);
+    if (!inside_ws2(h.target)) {
+        raw("# ws2_32!%s forwards to %s, outside ws2_32; not hooked inline", h.name, where(h.target).c_str());
         return false;
     }
+    auto made = safetyhook::InlineHook::create(h.target, h.detour, safetyhook::InlineHook::StartDisabled);
+    if (!made) {
+        raw("# inline hook on ws2_32!%s at 0x%llx failed", h.name, PTR(h.target));
+        return false;
+    }
+    h.orig = made->original<void *>();
     h.inl = std::move(*made);
-    h.orig = h.inl.trampoline().data();
-    raw("# inline hook on ws2_32!%s at %p", h.name, h.target);
+    if (auto on = h.inl.enable(); !on) {
+        raw("# inline hook on ws2_32!%s at 0x%llx could not be enabled", h.name, PTR(h.target));
+        h.inl = {};
+        h.orig = nullptr;
+        return false;
+    }
+    raw("# inline hook on ws2_32!%s at %s", h.name, where(h.target).c_str());
     return true;
+}
+
+void snapshot_modules()
+{
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, GetCurrentProcessId());
+    if (snap == INVALID_HANDLE_VALUE)
+        return;
+    MODULEENTRY32W me{};
+    me.dwSize = sizeof me;
+    for (BOOL ok = Module32FirstW(snap, &me); ok; ok = Module32NextW(snap, &me)) {
+        char name[MAX_PATH];
+        snprintf(name, sizeof name, "%ls", me.szModule);
+        auto lo = reinterpret_cast<uintptr_t>(me.modBaseAddr);
+        mods.push_back({lo, lo + me.modBaseSize, name});
+    }
+    CloseHandle(snap);
 }
 
 void setup()
@@ -709,10 +871,13 @@ void setup()
     if (!n || n >= sizeof v || !strcmp(v, "0"))
         return;
     bool all_inline = !_stricmp(v, "inline");
-    char bytes[16] = {};
-    n = GetEnvironmentVariableA("SWOFTY_NET_TRACE_BYTES", bytes, sizeof bytes);
-    if (n && n < sizeof bytes)
-        hex_max = std::clamp(atoll(bytes), 1ll, 512ll);
+    char num[24] = {};
+    n = GetEnvironmentVariableA("SWOFTY_NET_TRACE_BYTES", num, sizeof num);
+    if (n && n < sizeof num)
+        hex_max = std::clamp(atoll(num), 1ll, 512ll);
+    n = GetEnvironmentVariableA("SWOFTY_NET_TRACE_CAP_KB", num, sizeof num);
+    if (n && n < sizeof num)
+        cap = uint64_t(std::clamp(atoll(num), 4ll, 1ll << 22)) << 10;
     HMODULE ws = LoadLibraryW(L"ws2_32.dll");
     if (!ws) {
         swofty::log("[net-trace] ws2_32.dll did not load (%lu); socket trace off", GetLastError());
@@ -731,12 +896,21 @@ void setup()
     auto nt = reinterpret_cast<IMAGE_NT_HEADERS *>(base + reinterpret_cast<IMAGE_DOS_HEADER *>(base)->e_lfanew);
     exe_lo = reinterpret_cast<uintptr_t>(base);
     exe_hi = exe_lo + nt->OptionalHeader.SizeOfImage;
+    auto wsb = reinterpret_cast<uint8_t *>(ws);
+    ws_lo = reinterpret_cast<uintptr_t>(ws);
+    ws_hi = ws_lo + reinterpret_cast<IMAGE_NT_HEADERS *>(wsb + reinterpret_cast<IMAGE_DOS_HEADER *>(wsb)->e_lfanew)
+                        ->OptionalHeader.SizeOfImage;
+    snapshot_modules();
     table();
     for (auto &h : hooks)
         h.target = reinterpret_cast<void *>(GetProcAddress(ws, h.name));
-    raw("# swofty net trace: exe timestamp 0x%08lx size 0x%lx, mode %s, first %lld data bytes; per (call, socket) the "
-        "first 200 calls are logged, then every 100th",
-        nt->FileHeader.TimeDateStamp, nt->OptionalHeader.SizeOfImage, all_inline ? "inline" : "iat", hex_max);
+    p_getsockname = reinterpret_cast<NameFn>(hooks[C_GETSOCKNAME].target);
+    p_getpeername = reinterpret_cast<NameFn>(GetProcAddress(ws, "getpeername"));
+    p_getsockopt = reinterpret_cast<OptFn>(GetProcAddress(ws, "getsockopt"));
+    raw("# swofty net trace: exe timestamp 0x%08lx size 0x%lx, mode %s, first %lld data bytes, cap %llu bytes; per "
+        "(call, socket) the first 200 calls are logged, then every 100th",
+        nt->FileHeader.TimeDateStamp, nt->OptionalHeader.SizeOfImage, all_inline ? "inline" : "iat", hex_max,
+        (unsigned long long)cap);
     raw("# columns: ms thread call #count sock=... <call fields> ret err from=<caller>");
     int slots = all_inline ? 0 : hook_iat(ws, base);
     std::string inl;
