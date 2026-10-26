@@ -209,6 +209,9 @@
         "dll": "native/progressive_cards.dll"
       },
       {
+        "dll": "native/progressive_resume.dll"
+      },
+      {
         "dll": "native/progressive.dll",
         "files": [
           "data/"

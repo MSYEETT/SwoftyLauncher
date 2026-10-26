@@ -638,7 +638,7 @@ def lang_ops():
          "liveries, helmets and line-ups; after 2026 the grid stays 2026."),
         ("lng_pg_career", "Progressive Career"),
         ("lng_pg_driver_pool", "Progressive Career drivers"),
-    ] + [(f"lng_pg_f1_{y}", f"F1 {y}") for y in YEARS]
+    ] + [(f"lng_pg_f1_{y}", f"F1 {y}") for y in YEARS] + [(f"lng_pg_resume_{y}", f"Progressive \u00b7 {y}") for y in YEARS]
     return {"schema_version": 1, "ops": [{"op": "lang.set", "language": "*", "key": k, "value": v} for k, v in ops]}
 
 
