@@ -29,6 +29,7 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <functional>
 #include <string>
 #include <vector>
@@ -362,6 +363,79 @@ inline std::vector<std::string> split_ids(const std::string &text)
         at = comma + 1;
     }
     return out;
+}
+
+inline std::vector<int> split_tracks(const std::string &text)
+{
+    std::vector<int> out;
+    for (auto &t : split_ids(text))
+        out.push_back(std::atoi(t.c_str()));
+    return out;
+}
+
+inline std::string tracks_text(const std::vector<int> &tracks)
+{
+    std::string out;
+    for (int t : tracks)
+        out += (out.empty() ? "" : ",") + std::to_string(t);
+    return out;
+}
+
+// Where the career's calendar and next race come from at a Team HQ.
+//   calendar      the season's weekends and current weekend read: as they are;
+//   season break  (the season's first apply, or no weekend of the season started) without a current
+//                 weekend: the next race is career round 1, scaled on this season's weekends when
+//                 they read, else on the career calendar recorded earlier (the same schedule every
+//                 season), else on the year's real calendar;
+//   record        mid-season with an unreadable calendar: the changes recorded for this year;
+//   none          nothing to go on: the season's line-up stands.
+struct Timing {
+    enum class From { calendar, this_season, recorded, real, record, none };
+    From from = From::none;
+    std::vector<int> tracks;
+    int next = 1;
+    std::string how;
+};
+
+inline Timing timing(const Year &y, bool read, const std::vector<int> &tracks, bool current_ok, int next,
+                     bool season_break, const std::vector<int> &recorded, bool recorded_this_year)
+{
+    Timing t;
+    if (read && !tracks.empty() && current_ok) {
+        t.from = Timing::From::calendar;
+        t.tracks = tracks;
+        t.next = next;
+        t.how = "the career calendar";
+        return t;
+    }
+    if (season_break) {
+        t.next = 1;
+        if (read && !tracks.empty()) {
+            t.from = Timing::From::this_season;
+            t.tracks = tracks;
+            t.how = "season break: this season's " + std::to_string(tracks.size()) +
+                    " weekends have no current weekend yet; the next race is career round 1";
+        } else if (!recorded.empty()) {
+            t.from = Timing::From::recorded;
+            t.tracks = recorded;
+            t.how = "season break: the calendar is unreadable; the career calendar recorded earlier (" +
+                    std::to_string(recorded.size()) + " races, tracks " + tracks_text(recorded) +
+                    ", the same every season) scales it; the next race is career round 1";
+        } else {
+            t.from = Timing::From::real;
+            t.tracks = y.real_tracks;
+            t.how = "season break: the calendar is unreadable and none is recorded; the year's real " +
+                    std::to_string(y.real_tracks.size()) + "-round calendar scales it; the next race is career round 1";
+        }
+        return t;
+    }
+    if (recorded_this_year) {
+        t.from = Timing::From::record;
+        t.how = "the calendar is unreadable; the changes recorded for this season stand";
+        return t;
+    }
+    t.how = "the calendar is unreadable and nothing is recorded; the season's line-up stands";
+    return t;
 }
 
 } // namespace progressive::midseason

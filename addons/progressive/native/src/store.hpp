@@ -15,7 +15,8 @@
 // and each curved slot's delta ("<slot>:<delta %>,..."), so a load or Team HQ only logs a change.
 // The mid-season changes in force at the last applied Team HQ (year, career race, change ids) are
 // kept too: the seats follow the round the save is at, the record names what changed since and
-// stands in when the calendar can't be read.
+// stands in when the calendar can't be read; the career calendar's tracks (the same every season)
+// scale a season break's first apply when the new season's calendar can't be read yet.
 
 #pragma once
 #include <cstdint>
@@ -46,6 +47,7 @@ struct Career {
     int mid_year = 0;
     int mid_round = 0;
     std::string mid_applied;
+    std::string mid_tracks;
 };
 
 bool load();

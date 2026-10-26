@@ -661,6 +661,34 @@ void button_at_monaco_only()
     }
 }
 
+// swofty's 2017 rollover: the first Team HQ of the season could not read the calendar, so the apply
+// used the plain season line-up and the round-1 changes came a Team HQ later.
+void season_break_timing()
+{
+    using From = midseason::Timing::From;
+    const season::Year &y17 = *g_data.year(2017);
+    auto t = midseason::timing(y17, true, kTest, true, 2, false, {}, false);
+    EXPECT(t.from == From::calendar && t.next == 2 && t.tracks == kTest);
+    t = midseason::timing(y17, true, kTest, false, 1, true, {}, false);
+    EXPECT(t.from == From::this_season && t.next == 1 && t.tracks == kTest);
+    t = midseason::timing(y17, false, {}, false, 1, true, midseason::split_tracks("0,13,3"), false);
+    EXPECT(t.from == From::recorded && t.next == 1 && t.tracks == kTest);
+    auto a = midseason::at_round(g_data, 2017, t.tracks, t.next, player_is(""));
+    EXPECT(seat(a, 9, 1) == "antonio_giovinazzi" && seat(a, 4, 0) == "jenson_button");
+    t = midseason::timing(y17, false, {}, false, 1, true, {}, false);
+    EXPECT(t.from == From::real && t.next == 1 && t.tracks.size() == 20);
+    a = midseason::at_round(g_data, 2017, t.tracks, t.next, player_is(""));
+    EXPECT(seat(a, 9, 1) == "antonio_giovinazzi" && seat(a, 4, 0) == "fernando_alonso");
+    t = midseason::timing(y17, false, {}, false, 1, false, midseason::split_tracks("0,13,3"), true);
+    EXPECT(t.from == From::record);
+    t = midseason::timing(y17, false, {}, false, 1, false, midseason::split_tracks("0,13,3"), false);
+    EXPECT(t.from == From::none);
+    t = midseason::timing(y17, true, kTest, false, 1, false, {}, false);
+    EXPECT(t.from == From::none);
+    EXPECT(midseason::tracks_text(kTest) == "0,13,3");
+    EXPECT(midseason::split_tracks("").empty());
+}
+
 void recorded_ids_round_trip()
 {
     auto a = midseason::at_round(g_data, 2016, kLong, 4, player_is(""));
@@ -697,6 +725,7 @@ int main(int argc, char **argv)
     changes_leave_the_fillers_alone();
     button_at_monaco_only();
     fillers_ignore_rating_drift();
+    season_break_timing();
     recorded_ids_round_trip();
     if (failures) {
         std::printf("midseason_logic_test: %d failure(s)\n", failures);

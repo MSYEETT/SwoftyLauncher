@@ -121,8 +121,7 @@ bool calendar(uintptr_t e, Calendar &out)
     if (!swofty::mem::read(season_at, s))
         return false;
     auto wb = reinterpret_cast<uintptr_t>(s.weekends_begin), we = reinterpret_cast<uintptr_t>(s.weekends_end);
-    if (!wb || we <= wb || (we - wb) % sizeof(Weekend *) || (we - wb) / sizeof(Weekend *) > 64 ||
-        s.current_weekend >= (we - wb) / sizeof(Weekend *))
+    if (!wb || we <= wb || (we - wb) % sizeof(Weekend *) || (we - wb) / sizeof(Weekend *) > 64)
         return false;
     size_t n = (we - wb) / sizeof(Weekend *);
     uintptr_t want = reinterpret_cast<uintptr_t>(vt_Career_Weekend.get());
@@ -136,11 +135,13 @@ bool calendar(uintptr_t e, Calendar &out)
             !swofty::mem::read(w + offsetof(Weekend, progress_state), progress))
             return false;
         out.tracks.push_back(track == 0xff ? -1 : track);
+        out.started = out.started || progress != 0;
         if (i == s.current_weekend)
             out.progress = progress;
     }
     out.current = s.current_weekend;
-    out.next = static_cast<int>(s.current_weekend) + (out.progress == 0 ? 1 : 2);
+    out.current_ok = s.current_weekend < n;
+    out.next = out.current_ok ? static_cast<int>(s.current_weekend) + (out.progress == 0 ? 1 : 2) : 1;
     return true;
 }
 

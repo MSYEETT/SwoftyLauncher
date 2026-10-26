@@ -1354,6 +1354,14 @@ void season_hub(const swofty::career::State &state)
     bool new_season = c->applied_season != static_cast<int>(index);
     bool move_player = c->moves == "follow_driver";
     season::Resolve res = resolver();
+    Calendar cal;
+    bool read = calendar(e, cal);
+    if (read && !cal.tracks.empty() && midseason::tracks_text(cal.tracks) != c->mid_tracks) {
+        c->mid_tracks = midseason::tracks_text(cal.tracks);
+        store::save();
+        swofty::log("[progressive] mid-season: career calendar recorded (%zu races, tracks %s)", cal.tracks.size(),
+                    c->mid_tracks.c_str());
+    }
     const season::Year *yr = g_data.year(year);
     bool mid = yr && !yr->changes.empty();
     midseason::At at;
@@ -1363,26 +1371,29 @@ void season_hub(const swofty::career::State &state)
             int st = res.driver_stat(label);
             return st >= 0 && static_cast<uint32_t>(st) == player;
         };
-        Calendar cal;
-        if (calendar(e, cal) && !cal.tracks.empty()) {
-            at = midseason::at_round(g_data, year, cal.tracks, cal.next, is_player);
-            midseason::At opening = midseason::at_round(g_data, year, cal.tracks, 1, is_player);
-            log_schedule(*c, at, res, false);
-            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, &opening.line_up, !new_season);
-        } else if (c->mid_year == year) {
+        midseason::Timing t = midseason::timing(*yr, read, cal.tracks, cal.current_ok, cal.next,
+                                                 new_season || (read && !cal.started),
+                                                 midseason::split_tracks(c->mid_tracks), c->mid_year == year);
+        if (t.from != midseason::Timing::From::calendar) {
+            static std::string said;
+            std::string now = c->key + "|" + std::to_string(year) + "|" + t.how;
+            if (said != now) {
+                said = now;
+                swofty::log("[progressive] mid-season %d: %s", year, t.how.c_str());
+            }
+        }
+        if (t.from == midseason::Timing::From::record) {
             at = midseason::at_ids(g_data, year, c->mid_round, midseason::split_ids(c->mid_applied));
             log_schedule(*c, at, res, true);
             p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, nullptr, !new_season);
-        } else {
+        } else if (t.from == midseason::Timing::From::none) {
             mid = false;
-            static std::string warned;
-            if (warned != c->key + std::to_string(year)) {
-                warned = c->key + std::to_string(year);
-                swofty::log("[progressive] mid-season %d: the career calendar is unreadable and nothing is recorded; "
-                            "the season's line-up stands",
-                            year);
-            }
             p = season::plan(g_data, year, view(rows), res, move_player, nullptr, nullptr, !new_season);
+        } else {
+            at = midseason::at_round(g_data, year, t.tracks, t.next, is_player);
+            midseason::At opening = midseason::at_round(g_data, year, t.tracks, 1, is_player);
+            log_schedule(*c, at, res, false);
+            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, &opening.line_up, !new_season);
         }
         for (auto &n : at.notes)
             p.notes.push_back("mid-season: " + n);

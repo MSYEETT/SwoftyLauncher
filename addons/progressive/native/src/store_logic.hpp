@@ -150,10 +150,14 @@ inline void fold(Career &original, const Career &split)
         original.dev_rounds = split.dev_rounds;
         original.dev_applied = split.dev_applied;
     }
+    if (original.mid_tracks.empty())
+        original.mid_tracks = split.mid_tracks;
     if (split.mid_year > original.mid_year) {
         original.mid_year = split.mid_year;
         original.mid_round = split.mid_round;
         original.mid_applied = split.mid_applied;
+        if (!split.mid_tracks.empty())
+            original.mid_tracks = split.mid_tracks;
     }
 }
 

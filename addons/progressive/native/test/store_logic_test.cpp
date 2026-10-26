@@ -93,6 +93,7 @@ int main()
     split.moves = "choose";
     split.team = 476;
     split.season = 1;
+    split.mid_tracks = "0,13,3";
     EXPECT(split_of(original, split));
     EXPECT(!split_of(split, original));
     Career wizard_twin = entry("pg-051bc27c-15-2", 15, 0x051bc27c, 2016, 0, 9, 0);
@@ -115,6 +116,7 @@ int main()
     EXPECT(original.rnd == "real_life" && original.moves == "follow_driver");
     EXPECT(original.dev_year == 2016 && original.dev_round == 2);
     EXPECT(original.mid_year == 2016 && original.mid_round == 1);
+    EXPECT(original.mid_tracks == "0,13,3");
     EXPECT(original.team == 476 && original.season == 1 && original.seed == 0x053ea9cd && original.used == 9);
 
     if (failures) {
