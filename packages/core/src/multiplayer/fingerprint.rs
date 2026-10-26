@@ -66,8 +66,8 @@ pub struct AddonPrint {
 pub enum Source {
     /// Its installed files: each one's path and SHA-256, in path order.
     Content(String),
-    /// A DB Editor addon: its edits without their display names and origins, its copied rows
-    /// and its game build.
+    /// A DB Editor addon: the database operations and Driver Manager picks the build makes of
+    /// its edits.
     Edits(String),
     /// Built into the launcher: its version and manifest, and for the core its database
     /// operations and DLL.
@@ -214,19 +214,11 @@ fn source(store: &Store, m: &AddonManifest, hashes: &mut Hashes) -> Result<Sourc
     if crate::dbedit::package::is_package(store, &m.id)
         && let Ok(p) = crate::dbedit::package::Package::open(store, &m.id)
     {
-        let mut edits = serde_json::to_value(&p.edits.edits).expect("serialisable");
-        for e in edits.as_array_mut().into_iter().flatten() {
-            if let Some(e) = e.as_object_mut() {
-                e.remove("path");
-                e.remove("origin");
-            }
-        }
-        let edits = serde_json::json!({
-            "game_build": p.game_build,
-            "edits": edits,
-            "rows": p.edits.rows,
+        let built = serde_json::json!({
+            "ops": p.edits.to_ops(),
+            "picks": crate::dbedit::driver_manager::picks(&p.edits),
         });
-        let text = serde_json::to_vec(&sorted(edits)).expect("serialisable");
+        let text = serde_json::to_vec(&sorted(built)).expect("serialisable");
         return Ok(Source::Edits(sha256_bytes(&text)));
     }
     content_hash(&store.addons_dir().join(&m.id), hashes).map(Source::Content)
@@ -1353,20 +1345,16 @@ mod tests {
     }
 
     #[test]
-    fn db_editor_addons_print_their_edits_rather_than_their_files() {
-        let marker = |value: &str, path: &str| {
-            json!({
-                "format": "swofty-db-package", "format_version": 1, "game_build": "25251167",
-                "edits": [{ "key": "0x0000000000000001", "type": 0, "value": value, "stock": "1", "path": path }],
-            })
-            .to_string()
-        };
-        let package = |name: &str, tool: &str, value: &str, path: &str| {
+    fn db_editor_addons_print_the_operations_their_edits_build() {
+        let package = |name: &str, tool: &str, edit: Value| {
             let s = store(name);
             let mut m = data("dbedit.grid");
             m["origin"] = json!({ "tool": "db-editor", "tool_version": tool });
+            let marker = json!({
+                "format": "swofty-db-package", "format_version": 1, "game_build": "25251167", "edits": [edit],
+            })
+            .to_string();
             let readme = format!("made with {tool}");
-            let marker = marker(value, path);
             put(
                 &s,
                 m,
@@ -1380,33 +1368,43 @@ mod tests {
             std::fs::remove_dir_all(&s.root).ok();
             f
         };
+        let edit = |value: &str, stock: &str, path: &str| json!({ "key": "0x0000000000000001", "type": 0, "value": value, "stock": stock, "path": path });
         let older = package(
             "dbedit-older",
             "1.5.10",
-            "33",
-            "entrants.drivers.driver_1.car_number",
+            edit("33", "1", "entrants.drivers.driver_1.car_number"),
         );
-        let newer = package("dbedit-newer", "1.5.12", "33", "Car number");
+        let newer = package("dbedit-newer", "1.5.12", edit("33", "2", "Car number"));
         assert_eq!(older.addons[0].id, "dbedit.grid");
         assert!(matches!(older.addons[0].source, Source::Edits(_)));
         assert_eq!(older.digest, newer.digest);
         assert!(compare(&older, &newer, &[]).is_empty());
-        let other = package("dbedit-other", "1.5.12", "34", "Car number");
+        let other = package("dbedit-other", "1.5.12", edit("34", "1", "Car number"));
         assert_eq!(
             kinds(&compare(&older, &other, &[])),
             [("source_differs".into(), false)]
         );
+
+        let copied = "entrants.drivers.driver[driver=x].car_number";
+        let key = format!("0x{:016x}", swofty_formats::hash::fnv1a64(copied));
+        let in_row = json!({ "key": key, "type": 0, "value": "33", "stock": null, "path": copied });
+        let mut loose = in_row.clone();
+        loose["path"] = Value::Null;
+        let in_row = package("dbedit-in-row", "1.5.12", in_row);
+        let loose = package("dbedit-loose", "1.5.12", loose);
+        assert_ne!(in_row.digest, loose.digest);
     }
 
     #[test]
-    fn build_hook_inputs_ignore_id_counters_and_empty_data() {
+    fn driver_manager_inputs_ignore_id_counters_and_empty_files() {
+        use crate::dbedit::driver_manager::ID as DM;
         let store = store("settled");
         let hook = json!({
-            "id": "t.dm", "kind": ["database"],
+            "id": DM, "kind": ["database"],
             "launcher": { "program": { "linux": "bin/hook", "windows": "bin/hook.exe" }, "build": true },
         });
         put(&store, hook, &[]);
-        let mut p = profile(&["t.dm"]);
+        let mut p = profile(&[DM]);
         let inputs = |p: &Profile| {
             fingerprint(&store, p, &game()).unwrap().addons[1]
                 .inputs
