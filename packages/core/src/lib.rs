@@ -1,6 +1,7 @@
 pub use swofty_addon::{GAME_ID, asset, builder, launcher, manifest, ops, view};
 
 pub mod activation;
+pub mod addon_storage;
 pub mod app_control;
 pub mod baseline;
 pub mod build;
@@ -16,6 +17,8 @@ pub mod disk;
 pub mod ea_app;
 pub mod erpbuild;
 pub mod exe_version;
+pub mod folders;
+pub mod heads;
 pub mod helper;
 pub mod import;
 pub mod install;
@@ -24,6 +27,8 @@ pub mod launch;
 pub mod loader_check;
 pub mod managed;
 pub mod map;
+pub mod mpauth;
+pub mod multiplayer;
 pub mod offline;
 pub mod overlay_guard;
 pub mod owned;
