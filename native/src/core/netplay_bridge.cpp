@@ -69,9 +69,7 @@ struct Room {
 
 bool room(Room &r)
 {
-    r.self = runtime::netplay_session::self_member.load(std::memory_order_acquire);
-    r.base = runtime::netplay_session::base_port.load(std::memory_order_acquire);
-    return r.self >= 1 && r.self <= 254 && r.base > 0 && r.base + 254 <= 65535;
+    return runtime::netplay_session::snapshot(r.self, r.base);
 }
 
 uint16_t be16(uint16_t v)
