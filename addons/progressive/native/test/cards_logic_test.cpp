@@ -247,6 +247,10 @@ void take_back_policy()
     EXPECT(takes_back("career.starting", 1));
     for (std::string_view e : kEvents)
         EXPECT(e != "career.loaded");
+    EXPECT(!restores_rows("career.hub"));
+    EXPECT(!restores_rows("career.loaded"));
+    EXPECT(restores_rows("career.content.pressed"));
+    EXPECT(restores_rows("career.starting"));
 }
 
 void hidden_lists()

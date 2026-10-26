@@ -27,10 +27,10 @@
 // career.loaded, so the rows are dressed right after every Choose Driver command once the career
 // component exists (the pick makes it), and again at career.loaded: each line-up row wears its
 // team's start season car from the view. The R&D team models were made from the career's cars
-// before Choose Driver. The rows
-// get the career's cars back at the next Choose Driver populate and at every take-back (Team HQ,
-// a tile press); the career's own line-up copy when the career is built replaces them anyway, and
-// the take-back logs how many rows still wore a start season car.
+// before Choose Driver. The rows get the career's cars back at the next Choose Driver populate and
+// when the wizard is left (a tile press, career.starting). Once the career exists (Team HQ, a
+// saved career's career.loaded) the rows are the career's own and keep what the game built from
+// them; only the bookkeeping is dropped.
 //
 // Team logos: the three Ne_Format_String calls that build Team Select's logo key
 // (site_Game_TeamSelect_TeamLogoFormat), Choose Driver's badge key (site_Game_DriverSelect_BadgeFormat)
@@ -205,12 +205,22 @@ uintptr_t list_at(uintptr_t entrants, unsigned stat)
     return swofty::mem::readable(list, kListHeader) ? list : 0;
 }
 
-void restore_cars(const char *why)
+// apply false: the career now owns the line-up rows (it was built from them), so the changes stay
+// and only the bookkeeping is dropped.
+void restore_cars(const char *why, bool apply = true)
 {
     std::lock_guard<std::mutex> g(g_swap_lock);
     g_gated_driver = pc::kNoKey;
     if (g_swaps.empty() && g_team_swaps.empty())
         return;
+    if (!apply) {
+        swofty::log("[progressive] cards: Team Select: %zu car change(s) and %zu team change(s) left on the line-up: the "
+                    "career owns those rows now (%s)",
+                    g_swaps.size(), g_team_swaps.size(), why);
+        g_swaps.clear();
+        g_team_swaps.clear();
+        return;
+    }
     size_t back = 0;
     for (const Swap &w : g_swaps) {
         EntrantRecord r{};
@@ -232,9 +242,9 @@ void restore_cars(const char *why)
     g_team_swaps.clear();
 }
 
-void take_back(const char *why)
+void take_back(const char *why, bool restore_rows)
 {
-    restore_cars(why);
+    restore_cars(why, restore_rows);
     g_live = false;
     if (!g_mode)
         return;
@@ -508,11 +518,11 @@ void gate_team(uintptr_t vm)
 void on_event(const SwoftyEvent *ev, void *)
 {
     if (pc::takes_back(ev->name, ev->a)) {
-        take_back(ev->name);
+        take_back(ev->name, pc::restores_rows(ev->name));
     } else if (ev->name == pc::kEventLoaded && g_mode) {
         auto *st = static_cast<const SwoftyCareerState *>(ev->data);
         if (st && st->key[0]) {
-            take_back("career.loaded of a saved career");
+            take_back("career.loaded of a saved career", false);
             return;
         }
         g_live = true;
@@ -536,7 +546,7 @@ SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 13, void *, void *vm)
 {
     auto at = reinterpret_cast<uintptr_t>(vm);
     if (!progressive_wizard(at)) {
-        take_back("another wizard's Choose Driver");
+        take_back("another wizard's Choose Driver", true);
         return orig(vm);
     }
     uintptr_t wizard = rd<uintptr_t>(at + kVmWizard);
@@ -548,7 +558,7 @@ SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 13, void *, void *vm)
     int year = suffix_year(wizard);
     restore_cars("Choose Driver");
     if (g_mode && g_mode != mode)
-        take_back("Choose Driver of another game mode");
+        take_back("Choose Driver of another game mode", true);
     bool live = g_live && g_mode == mode;
     bool ours = career_list && (setup == career_list || setup == view());
     if (setup == view() && career_list)

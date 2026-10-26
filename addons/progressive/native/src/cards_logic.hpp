@@ -68,6 +68,14 @@ inline bool takes_back(std::string_view event, int64_t a)
     return event == kEventContentPressed || event == kEventStarting;
 }
 
+// Whether a take-back also puts the line-up rows back (cars, the picked driver's team). Only when
+// the wizard is left (a tile press, career.starting): at Team HQ the career was built from those
+// rows and owns them.
+inline bool restores_rows(std::string_view event)
+{
+    return event == kEventContentPressed || event == kEventStarting;
+}
+
 inline bool none(uint32_t key)
 {
     return (key & 0xffff0000u) == kNoKey;
