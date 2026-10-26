@@ -187,6 +187,13 @@ impl Opener {
         }
     }
 
+    /// Accept datagrams from `member`, who joined after this opener was made.
+    pub fn add_member(&mut self, member: u8) {
+        if member != self.me {
+            self.peers.entry(member).or_default();
+        }
+    }
+
     /// How many session subkeys this opener has derived.
     pub fn subkeys_derived(&self) -> u64 {
         self.derived
