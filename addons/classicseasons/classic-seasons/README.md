@@ -66,7 +66,7 @@ Each season:
 - A `car_setup.presets` row for each vehicle package (`cs_<year>_vehicle_package`, `cx_<year>_vehicle_package`, `cs_<year>_<key>_vehicle_package`), copied from `f1_2025_vehicle_package`: the game looks up the AI and player car setups by package name.
 - A `pit_lane.pit_times` row per team, copied from its stock team.
 - Driver looks `<year>-cs_<key>_<driver>` (stat ids from 420, numbered across every season) and pool entrants `cs<year>-<driver>`.
-- 2016 to 2021: each driver look wears the suit and gloves of [Suits](#suits). A season copies the suit and gloves rows of each generated suit it ships, and the shared addon those of each real suit from a mod, with its helmet row. The copies are labelled with the suit's label and take the base suit's rows with the suit's asset group, models and `material_override`. Item ids (`tools/gen.py`): `REAL_SUIT_IDS` for the real suits, 974 up in `data/real_suits.json` order; `SUIT_IDS` for the generated ones, the next ids, one per team-season of 2016 to 2021 in season and team order; `TRANSFER_SUIT_IDS` for the real suits of converted F1 2020 mods, the ids after `SUIT_IDS`, in `data/real_suits.json` order; `HELMET_IDS`, 868 up, for the real suits' helmets, then the season helmets of [Helmets](#helmets) in `data/helmets.json` order. The stock ids are 448 to 973 for suits and gloves and 315 to 867 for helmets. Each suit and gloves copy sets `colour_1_default` to `colour_4_default` to `0`, a helmet copy the base helmet's values, and the file's `fields` map lists the four keys for suit, gloves and helmet rows.
+- 2016 to 2021: each driver look wears the suit and gloves of [Suits](#suits). A season copies the suit and gloves rows of each generated suit it ships, and the shared addon those of each real suit from a mod, with its helmet row. The copies are labelled with the suit's label and take the base suit's rows with the suit's asset group, models and `material_override`. Item ids (`tools/gen.py`): `REAL_SUIT_IDS` for the real suits, 974 up in `data/real_suits.json` order; `SUIT_IDS` for the generated ones, the next ids, one per team-season of 2016 to 2021 in season and team order; `TRANSFER_SUIT_IDS` for the real suits of converted F1 2020 mods, the ids after `SUIT_IDS`, in `data/real_suits.json` order; `HELMET_IDS`, 868 up, for the real suits' helmets, then the season helmets of [Helmets](#helmets) in `data/helmets.json` order and the helmet designs. The stock ids are 448 to 973 for suits and gloves and 315 to 867 for helmets. Each suit and gloves copy sets `colour_1_default` to `colour_4_default` to `0`, a helmet copy the base helmet's values, and the file's `fields` map lists the four keys for suit, gloves and helmet rows.
 
 New drivers (Nasr, Gutiérrez, Vandoorne, Hartley, Sirotkin, Haryanto) use driver stat ids 225 to 230.
 
@@ -134,9 +134,19 @@ A driver's look of a season wears, first found:
 1. his period helmet of that season;
 2. his period helmet of the nearest season that has one, the earlier season on a tie;
 3. his own stock F1 25 helmet (`driver_looks` in `data/stock_looks.json`: a 2024 or 2025 design, `classic-massa01` or `classic-button01`);
-4. his seat's stock helmet.
+4. his design in `data/helmets.json` `designs`.
 
-A period helmet is one of the driver's own from one season: a stock look of the season (`<year>-<stock team>_<driver>`, the 2024 grid), the helmet of a built mod or F1 23 driver suit of `data/real_suits.json` (its season and driver), or a built season helmet of `data/helmets.json`, which wins over the other two. Brendon Hartley, Stoffel Vandoorne, Antonio Giovinazzi, Robert Kubica and Nikita Mazepin have none and wear their seat's.
+A period helmet is one of the driver's own from one season: a stock look of the season (`<year>-<stock team>_<driver>`, the 2024 grid), the helmet of a built mod or F1 23 driver suit of `data/real_suits.json` (its season and driver), or a built season helmet of `data/helmets.json`, which wins over the other two. The build fails for a driver with none of the four.
+
+A design is a copy `cs-<driver>` of a stock customisable helmet design (`livery_package/<tier>/<design>/<design>_helmet.erp`, the player helmet designs, which have no diffuse: the game paints their `helmet_m` masks with the item's colours). The row takes the design's row with its own label and id, `colour_1_default` to `colour_3_default` set to the driver's colours and `colour_4_default` `0`. The colours approximate the driver's helmet of the period:
+
+| Driver | Seasons | Design | Colours 1, 2, 3 |
+|---|---|---|---|
+| Stoffel Vandoorne | 2017, 2018 | `tier01_livery76` | black, white, yellow |
+| Brendon Hartley | 2018 | `tier01_livery79` | black, silver, red |
+| Antonio Giovinazzi | 2019 to 2021 | `tier01_livery75` | white, blue, red |
+| Robert Kubica | 2019 | `tier01_livery77` | white, red, dark grey |
+| Nikita Mazepin | 2021 | `tier01_livery86` | white, blue, red |
 
 `data/helmets.json` gives a driver his helmet of one season from a mod's textures:
 
@@ -157,7 +167,7 @@ F1 25's helmet shells share one texture layout, and each entry's base is an F1 2
 - An F1 22 (surface version 8) or F1 23 (version 9) archive gives each texture its archive levels and the levels of a `.mipmaps` sidecar the mod folder holds, in the F1 25 surface header with the source's format, size and level count. F1 23 helmet shells are byte for byte F1 25's.
 - A mod without a `helmet_n`, or whose `helmet_n` or `helmet_s` sidecar is not in the mod, takes the generic one (`"generic"`): the 2016 Helmets `HELMET N.dds`, and for `helmet_s` the per-texel median at 1024 by 512 of the `helmet_s` of the 2024 grid's stock looks, as BC1.
 
-It writes the shared addon's `helmets/` and `helmets/meta.json`. `gen.py` adds each helmet row to `db/core.json` and its file and group to `assets/helmets.json`, whose groups list the base helmet archive first, and sets each look's helmet as above. Every season helmet ships in the shared addon.
+It writes the shared addon's `helmets/` and `helmets/meta.json`. `gen.py` adds each helmet row to `db/core.json` and its file and group to `assets/helmets.json`, whose groups list the base helmet archive first, then the design rows, and sets each look's helmet as above. Item ids: the season helmets take the ids after the real suits' helmets in `data/helmets.json` order, an `"off"` entry too, and the designs the ids after those. Every season helmet ships in the shared addon.
 
 ```sh
 python3 tools/build_helmets.py --downloads ~/Downloads --mods <folder holding the extracted mods> --game <F1 25>
@@ -165,7 +175,7 @@ python3 tools/gen.py
 python3 tools/helmet_sheet.py --game <F1 25> --out <png>
 ```
 
-`--only <season>-<driver>,...` builds just those entries, `"off"` ones too, without `meta.json`. `helmet_sheet.py` draws each season's looks with the driver and helmet label over the `helmet_d` decoded from the archive the helmet loads, and `--extra <label>=<archive>,...` adds a row of other helmets.
+`--only <season>-<driver>,...` builds just those entries, `"off"` ones too, without `meta.json`. `helmet_sheet.py` draws each season's looks with the driver and helmet label over the `helmet_d` decoded from the archive the helmet loads (a design: its `helmet_m` masks painted with its colours on white, colour 1 by red, 2 by green and 3 by blue), and `--extra <label>=<archive>,...` adds a row of other helmets.
 
 ## Car archives
 
