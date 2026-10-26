@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "swofty.progressive",
+  "name": "Progressive Career",
+  "version": "0.1.0",
+  "author": "Swofty",
+  "description": "A Driver Career that starts in any season from 2016 to 2026 as a real driver and moves through the real seasons: each year's cars, liveries, helmets and line-ups, then 2026 from there on.",
+  "license": "AGPL-3.0-or-later",
+  "category": "seasons",
+  "kind": ["database", "text"],
+  "compat": { "game": "f1_25", "game_builds": [">=25251167"], "seasons": ["f1_2026"], "launcher": ">=1.5.10" },
+  "requires": [
+    { "id": "swofty.core", "version": ">=0.2.13" },
+    { "id": "swofty.classic-seasons", "version": ">=0.5.1" }
+  ],
+  "saves": { "affects": true, "message": "Progressive careers won't load without it." },
+  "operations": {
+    "database": ["db/career.json", "db/grid.json"],
+    "assets": ["lang/career.json"]
+  }
+}
