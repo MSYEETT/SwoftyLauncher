@@ -92,7 +92,7 @@ for mode in off 1 inline cap; do
             check "every call is hooked" '^# ready: .*not hooked: none$'
         fi
     fi
-    exact socket 5
+    exact socket 6
     exact WSASocketW 1
     exact bind 4
     exact connect 1
@@ -109,7 +109,7 @@ for mode in off 1 inline cap; do
     exact WSAWaitForMultipleEvents $WAITS
     exact WSAEventSelect 1
     exact WSACreateEvent 2
-    exact closesocket 7
+    exact closesocket 8
     count "recvfrom logged each of its two datagrams once" 2 ' recvfrom #[0-9]+ .* ret=16 '
     count "recv logged its datagram once" 1 ' recv #[0-9]+ .* ret=16 '
     check "WSASocketW logged with family, type and overlapped flag" ' WSASocketW #1 sock=0x[0-9a-f]+ af=2 type=2 proto=17 .*af=2 type=2 proto=17 flags=0x1 ret=0 err=0 from=exe\+0x'

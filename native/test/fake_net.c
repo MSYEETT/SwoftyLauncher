@@ -292,6 +292,11 @@ int main(void)
         okn += sendto(flood, "rate", 4, 0, (struct sockaddr *)&sink, sizeof sink) == 4;
     expect(okn == 450, "450 sendto calls on one socket");
 
+    SOCKET unbound = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    SetLastError(0x1234);
+    int ur = closesocket(unbound);
+    DWORD ue = GetLastError();
+    expect(ur == 0 && ue == 0x1234, "closing an unbound socket leaves the caller's last error as it was");
     expect(closesocket(es) == 0 && closesocket(flood) == 0 && closesocket(dup) == 0, "closesocket");
     expect(closesocket(ss) == 0 && closesocket(rs) == 0, "closesocket the pump sockets");
     int cr = closesocket(rs);
