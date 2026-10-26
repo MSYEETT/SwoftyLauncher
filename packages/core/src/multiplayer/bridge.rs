@@ -150,6 +150,8 @@ pub struct Stats {
     pub drops: Drops,
     /// Payloads over [`LARGE_PAYLOAD`] bytes, either way.
     pub large: u64,
+    /// The first socket other than the game's that sent to a member port.
+    pub foreign_from: Option<SocketAddr>,
 }
 
 /// A datagram the game sent to a member in echo mode.
@@ -467,7 +469,10 @@ fn outbound(shared: &Shared, member: u8, link: Option<(&dyn Transport, &Sealer)>
         let payload = &buf[..n];
         let game = shared.is_game(from);
         if !game {
-            shared.stats().drops.foreign_source += 1;
+            let mut stats = shared.stats();
+            stats.drops.foreign_source += 1;
+            stats.foreign_from.get_or_insert(from);
+            drop(stats);
             if link.is_some() {
                 continue;
             }
@@ -774,6 +779,7 @@ mod tests {
         assert_eq!(recv(&b.game).0, b"from the game");
         let stats = a.bridge.stats();
         assert_eq!(stats.drops.foreign_source, 1);
+        assert_eq!(stats.foreign_from, Some(stranger.local_addr().unwrap()));
         assert_eq!(stats.members[&2].packets_out, 1);
         b.game.set_read_timeout(Some(Duration::from_millis(200))).unwrap();
         assert!(b.game.recv_from(&mut [0u8; 64]).is_err());

@@ -190,9 +190,11 @@ fn run_bridge(args: BridgeArgs) -> Result<ExitCode> {
     let started = Instant::now();
     let mut next = started + interval;
     let mut game_port = None;
+    let mut hinted = false;
     while !crate::run::ending() {
         std::thread::sleep(Duration::from_millis(100));
         sync_game_port(&bridge, args.lobby.game.as_deref(), &mut game_port);
+        hint_foreign(&bridge, &mut hinted);
         if Instant::now() >= next {
             print_stats(
                 &bridge.stats(),
@@ -306,6 +308,22 @@ fn sync_game_port(bridge: &Bridge, game: Option<&Path>, last: &mut Option<u16>) 
         println!("the core reports game port {port} (swofty/netplay.json)");
         *last = Some(port);
     }
+}
+
+fn hint_foreign(bridge: &Bridge, hinted: &mut bool) {
+    if *hinted {
+        return;
+    }
+    let Some(from) = bridge.stats().foreign_from else {
+        return;
+    };
+    *hinted = true;
+    eprintln!(
+        "swofty: dropping datagrams from {from}, which isn't the game's socket 127.0.0.1:{}; if it is \
+         the game, rerun with --game-port {} or --game <game folder>",
+        bridge.game_port(),
+        from.port()
+    );
 }
 
 fn print_echoed(e: &Echoed, started: SystemTime) {
