@@ -20,7 +20,7 @@
     "seasons": [
       "f1_2026"
     ],
-    "launcher": ">=1.5.10"
+    "launcher": ">=1.5.12"
   },
   "requires": [
     {
@@ -107,14 +107,6 @@
       "binds": "native"
     },
     {
-      "id": "setup_page",
-      "type": "toggle",
-      "label": "Career setup page",
-      "description": "The Progressive Career tile opens the career setup page first (needs a launcher with career setup pages).",
-      "default": false,
-      "binds": "native"
-    },
-    {
       "id": "dev_probe",
       "type": "toggle",
       "label": "Developer: seat probe",
@@ -123,6 +115,15 @@
       "binds": "native"
     }
   ],
+  "career_setup": {
+    "route": "career_wizard_driver_career_progressive",
+    "title": "Progressive Career",
+    "options": [
+      "start_season",
+      "rnd_mode",
+      "team_moves"
+    ]
+  },
   "operations": {
     "database": [
       "db/career.json",
@@ -137,6 +138,9 @@
       },
       {
         "dll": "native/progressive_suffix.dll"
+      },
+      {
+        "dll": "native/progressive_back.dll"
       },
       {
         "dll": "native/progressive_rnd.dll"
