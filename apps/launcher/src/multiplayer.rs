@@ -1,4 +1,6 @@
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use gpui_kit::assets::IconName;
@@ -31,6 +33,7 @@ const STATUS_TIMEOUT: Duration = Duration::from_secs(3);
 const MIN_PLAYERS: u8 = 2;
 const MAX_PLAYERS: u8 = 20;
 const TRACKS_SHOWN: usize = 3;
+const AVATARS_DIR: &str = "avatars";
 
 /// Where the game is, as the page's status pill names it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -242,7 +245,6 @@ pub(crate) fn fixable(steps: &[FixStep]) -> (usize, Vec<String>) {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub(crate) struct Fixed {
-    pub(crate) code: String,
     pub(crate) done: Vec<String>,
     pub(crate) failed: Vec<String>,
 }
@@ -386,8 +388,12 @@ pub(crate) struct Multiplayer {
     leaving: bool,
     fixing: bool,
     fixed: Option<Fixed>,
+    refreshing: bool,
+    refreshed: bool,
     error: Option<String>,
     copied: Option<Instant>,
+    faces: HashMap<String, Arc<Image>>,
+    faces_asked: HashSet<String>,
     _inputs: [Subscription; 2],
 }
 
@@ -427,14 +433,31 @@ impl Multiplayer {
             leaving: false,
             fixing: false,
             fixed: None,
+            refreshing: false,
+            refreshed: false,
             error: None,
             copied: None,
+            faces: HashMap::new(),
+            faces_asked: HashSet::new(),
             _inputs: inputs,
         }
     }
 
     fn busy(&self) -> bool {
-        self.starting.is_some() || self.leaving || self.fixing || self.session.is_some()
+        self.starting.is_some() || self.session.is_some()
+    }
+
+    fn finish_leaving(&mut self) {
+        self.session = None;
+        self.state = None;
+        self.leaving = false;
+        self.fixing = false;
+        self.fixed = None;
+        self.refreshing = false;
+        self.refreshed = false;
+        self.rooms_at = None;
+        self.game_at = None;
+        self.digest = None;
     }
 }
 
@@ -460,6 +483,11 @@ impl Shell {
     }
 
     fn mp_tick(&mut self, cx: &mut Context<Self>) {
+        let m = &mut self.mp_page;
+        if m.leaving && m.session.as_ref().is_none_or(Session::is_finished) {
+            m.finish_leaving();
+            cx.notify();
+        }
         if self.page != Page::Multiplayer || !self.mp_allowed() {
             self.mp_page.visible = false;
             return;
@@ -474,6 +502,10 @@ impl Shell {
         }
         if let Some(session) = &m.session {
             let state = session.state();
+            if m.refreshed && state.mismatches.is_empty() {
+                m.fixed = None;
+                m.refreshed = false;
+            }
             if m.state.as_ref() != Some(&state) {
                 m.state = Some(state);
                 cx.notify();
@@ -495,6 +527,58 @@ impl Shell {
         let m = &self.mp_page;
         if m.digest.is_none() && !m.digest_busy && m.session.is_none() {
             self.mp_read_digest(cx);
+        }
+        self.mp_load_faces(cx);
+    }
+
+    fn mp_load_faces(&mut self, cx: &mut Context<Self>) {
+        let m = &mut self.mp_page;
+        let members = m
+            .state
+            .iter()
+            .flat_map(|s| &s.members)
+            .filter_map(|x| x.avatar.as_ref());
+        let hosts = m.rooms.iter().filter_map(|r| r.host.avatar.as_ref());
+        let wanted: Vec<String> = members
+            .chain(hosts)
+            .filter(|u| u.starts_with("http") && !m.faces_asked.contains(*u))
+            .cloned()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+        if wanted.is_empty() {
+            return;
+        }
+        m.faces_asked.extend(wanted.iter().cloned());
+        let dir = self.store.root.join(catalog::CACHE_DIR).join(AVATARS_DIR);
+        cx.spawn(async move |this, cx| {
+            let faces: Vec<(String, Arc<Image>)> = cx
+                .background_executor()
+                .spawn(async move {
+                    wanted
+                        .into_iter()
+                        .filter_map(|url| crate::news::image(&dir, &url).map(|i| (url, i)))
+                        .collect()
+                })
+                .await;
+            this.update(cx, |s, cx| {
+                s.mp_page.faces.extend(faces);
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    fn face(&self, name: &str, url: Option<&str>, size: f32, p: Palette) -> Div {
+        match url.and_then(|u| self.mp_page.faces.get(u)) {
+            Some(image) => div()
+                .size(px(size))
+                .flex_shrink_0()
+                .rounded_full()
+                .overflow_hidden()
+                .child(img(image.clone()).size_full()),
+            None => monogram(name, size, p).rounded_full(),
         }
     }
 
@@ -605,7 +689,6 @@ impl Shell {
             Start::Join(code) => code.clone(),
         });
         m.error = None;
-        m.fixed = None;
         cx.spawn(async move |this, cx| {
             let result = cx
                 .background_executor()
@@ -677,39 +760,18 @@ impl Shell {
     }
 
     pub(crate) fn mp_leave(&mut self, cx: &mut Context<Self>) {
-        let Some(session) = self.mp_page.session.take() else {
+        let Some(session) = &self.mp_page.session else {
             return;
         };
+        session.leave();
         self.mp_page.leaving = true;
-        cx.spawn(async move |this, cx| {
-            cx.background_executor()
-                .spawn(async move { session.leave() })
-                .await;
-            this.update(cx, |s, cx| {
-                let m = &mut s.mp_page;
-                m.leaving = false;
-                m.state = None;
-                m.rooms_at = None;
-                m.game_at = None;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
         cx.notify();
     }
 
     fn mp_fix(&mut self, cx: &mut Context<Self>) {
-        let Some(session) = self.mp_page.session.take() else {
+        let Some(session) = &self.mp_page.session else {
             return;
         };
-        let code = self
-            .mp_page
-            .state
-            .as_ref()
-            .and_then(|s| s.room.as_ref())
-            .map(|r| r.code.clone())
-            .unwrap_or_default();
         let steps = session.fix_plan();
         let (store, profile) = (self.store.clone(), self.library.profile.name.clone());
         let listing = self.browser.addons.clone();
@@ -719,7 +781,6 @@ impl Shell {
             let (done, failed) = cx
                 .background_executor()
                 .spawn(async move {
-                    session.leave();
                     let listing = if listing.is_empty() {
                         catalog::cached(&store.root).unwrap_or_default()
                     } else {
@@ -731,11 +792,49 @@ impl Shell {
             this.update(cx, |s, cx| {
                 let m = &mut s.mp_page;
                 m.fixing = false;
-                m.state = None;
-                m.digest = None;
-                m.rooms_at = None;
-                m.fixed = Some(Fixed { code, done, failed });
+                m.refreshed = false;
+                m.fixed = Some(Fixed { done, failed });
                 s.reload(cx);
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        cx.notify();
+    }
+
+    /// Drives the game again; after a fix, with this profile's fingerprint read afresh first.
+    fn mp_retry(&mut self, cx: &mut Context<Self>) {
+        let Some(session) = &self.mp_page.session else {
+            return;
+        };
+        let dir = self.install.as_ref().map(|i| i.dir.clone());
+        let Some(dir) = dir.filter(|_| self.mp_page.fixed.is_some()) else {
+            session.retry();
+            cx.notify();
+            return;
+        };
+        let (store, profile) = (self.store.clone(), self.library.profile.name.clone());
+        self.mp_page.refreshing = true;
+        self.mp_page.error = None;
+        cx.spawn(async move |this, cx| {
+            let local = cx
+                .background_executor()
+                .spawn(async move { read_local(&store, &profile, &dir) })
+                .await;
+            this.update(cx, |s, cx| {
+                let m = &mut s.mp_page;
+                m.refreshing = false;
+                if let Some(session) = &m.session {
+                    match local {
+                        Ok(local) => {
+                            session.update_local(local);
+                            m.refreshed = true;
+                        }
+                        Err(e) => m.error = Some(format!("Couldn't read your addons: {e}")),
+                    }
+                    session.retry();
+                }
                 cx.notify();
             })
             .ok();
@@ -751,7 +850,7 @@ impl Shell {
     }
 
     pub(crate) fn multiplayer_page(&mut self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
-        let in_room = self.mp_page.session.is_some() || self.mp_page.leaving || self.mp_page.fixing;
+        let in_room = self.mp_page.session.is_some();
         match self.mp_page.state.clone() {
             Some(state) if in_room => self.mp_room(&state, p, cx),
             _ => self.mp_lobby(p, cx),
@@ -824,7 +923,6 @@ impl Shell {
         v_flex()
             .size_full()
             .child(self.header(Page::Multiplayer.label(), subtitle, actions, p))
-            .children(self.mp_page.fixed.clone().map(|f| self.fixed_card(&f, p, cx)))
             .when(self.mp_page.form, |d| d.child(self.create_form(p, cx)))
             .child(self.rooms_bar(p, cx))
             .child(body)
@@ -915,7 +1013,7 @@ impl Shell {
                     .h(px(58.))
                     .px(px(14.))
                     .gap(px(12.))
-                    .child(monogram(&room.host.name, 32., p))
+                    .child(self.face(&room.host.name, room.host.avatar.as_deref(), 32., p))
                     .child(
                         v_flex()
                             .flex_1()
@@ -1114,86 +1212,68 @@ impl Shell {
         )
     }
 
-    fn fixed_card(&self, f: &Fixed, p: Palette, cx: &mut Context<Self>) -> AnyElement {
+    fn fixed_card(&self, f: &Fixed, p: Palette, cx: &mut Context<Self>) -> Div {
         let blocked = self.mp_game_state().not_ready();
-        let code = f.code.clone();
-        let ok = f.failed.is_empty();
-        let (title, icon, color) = if ok {
+        let m = &self.mp_page;
+        let (title, icon, color) = if f.failed.is_empty() {
             ("Addons updated", IconName::CircleCheck, p.success)
         } else {
             ("Some changes failed", IconName::TriangleAlert, p.warning)
         };
-        div()
-            .px(px(GUTTER))
-            .pb(px(16.))
-            .flex_shrink_0()
+        h_flex()
+            .max_w(px(760.))
+            .p(px(14.))
+            .gap(px(10.))
+            .items_start()
+            .rounded(px(6.))
+            .bg(p.elevated)
+            .border_1()
+            .border_color(p.border)
+            .child(Icon::new(icon).size(px(15.)).mt(px(1.)).text_color(color))
             .child(
-                h_flex()
-                    .max_w(px(760.))
-                    .p(px(12.))
-                    .gap(px(10.))
-                    .items_start()
-                    .rounded(px(6.))
-                    .bg(p.elevated)
-                    .border_1()
-                    .border_color(p.border)
-                    .child(Icon::new(icon).size(px(15.)).text_color(color))
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(4.))
                     .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .gap(px(4.))
-                            .child(
-                                div()
-                                    .text_size(px(13.))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .child(title),
-                            )
-                            .children(f.done.iter().chain(&f.failed).map(|l| {
-                                div()
-                                    .text_size(px(13.))
-                                    .text_color(p.text_muted)
-                                    .child(l.clone())
-                            }))
-                            .child(div().text_size(px(13.)).child(
-                                "Close F1 25 and press Play so the game loads the new addons, then join again.",
-                            )),
+                        div()
+                            .text_size(px(13.))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(title),
                     )
-                    .when(!code.is_empty(), |d| {
-                        d.child(
-                            v_flex()
-                                .items_end()
-                                .gap(px(4.))
-                                .child(
-                                    Button::new("mp-rejoin")
-                                        .small()
-                                        .primary()
-                                        .label("Join again")
-                                        .disabled(blocked.is_some() || self.mp_page.busy())
-                                        .on_click(cx.listener(move |this, _, _, cx| {
-                                            this.mp_start(Start::Join(code.clone()), cx)
-                                        })),
-                                )
-                                .children(blocked.map(|why| {
-                                    div()
-                                        .text_size(px(12.))
-                                        .text_color(p.text_placeholder)
-                                        .child(why)
-                                })),
-                        )
-                    })
+                    .children(
+                        f.done
+                            .iter()
+                            .map(|l| div().text_size(px(13.)).text_color(p.text_muted).child(l.clone())),
+                    )
+                    .children(
+                        f.failed
+                            .iter()
+                            .map(|l| div().text_size(px(13.)).text_color(p.error).child(capitalised(l))),
+                    )
                     .child(
-                        Button::new("mp-fixed-close")
-                            .ghost()
-                            .small()
-                            .icon(IconName::X)
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.mp_page.fixed = None;
-                                cx.notify();
-                            })),
+                        div().pt(px(4.)).text_size(px(13.)).child(
+                            "Close F1 25 and press Play so the game loads them, then press Join again.",
+                        ),
                     ),
             )
-            .into_any_element()
+            .child(
+                v_flex()
+                    .items_end()
+                    .gap(px(4.))
+                    .child(
+                        Button::new("mp-rejoin")
+                            .small()
+                            .primary()
+                            .label("Join again")
+                            .loading(m.refreshing)
+                            .disabled(blocked.is_some() || m.refreshing || m.leaving)
+                            .on_click(cx.listener(|this, _, _, cx| this.mp_retry(cx))),
+                    )
+                    .children(
+                        blocked.map(|why| div().text_size(px(12.)).text_color(p.text_placeholder).child(why)),
+                    ),
+            )
     }
 
     fn mp_room(&mut self, state: &SessionState, p: Palette, cx: &mut Context<Self>) -> AnyElement {
@@ -1248,11 +1328,11 @@ impl Shell {
                     } else {
                         "Leave"
                     })
-                    .disabled(m.leaving || m.fixing || m.session.is_none())
+                    .disabled(m.leaving || m.fixing)
                     .on_click(cx.listener(|this, _, _, cx| this.mp_leave(cx))),
             );
         let started = room.as_ref().is_some_and(|r| r.started);
-        let race = (state.host && !over && m.session.is_some()).then(|| {
+        let race = (state.host && !over && !m.leaving).then(|| {
             h_flex()
                 .gap(px(8.))
                 .child(
@@ -1285,10 +1365,17 @@ impl Shell {
                 )
         });
         let (icon, color) = match &state.phase {
+            _ if m.leaving && !over => (IconName::LoaderCircle, p.accent),
+            Phase::Connecting(_) => (IconName::LoaderCircle, p.accent),
+            Phase::WaitingForGame(_) => (IconName::TriangleAlert, p.warning),
             Phase::InLobby | Phase::Racing => (IconName::CircleCheck, p.success),
             Phase::Failed(_) => (IconName::CircleAlert, p.error),
             Phase::Ended(_) => (IconName::Info, p.text_muted),
-            _ => (IconName::LoaderCircle, p.accent),
+        };
+        let headline = if m.leaving && !over {
+            "Leaving the room\u{2026}".to_owned()
+        } else {
+            phase_text(&state.phase)
         };
         let status = v_flex()
             .max_w(px(760.))
@@ -1311,10 +1398,11 @@ impl Shell {
                                 div()
                                     .text_size(px(14.))
                                     .font_weight(FontWeight::SEMIBOLD)
-                                    .child(phase_text(&state.phase)),
+                                    .child(headline),
                             )
                             .children(
                                 phase_hint(&state.phase, state.host)
+                                    .filter(|_| !m.leaving)
                                     .map(|h| div().text_size(px(13.)).text_color(p.text_muted).child(h)),
                             )
                             .children(state.last_error.clone().filter(|_| !over).map(|e| {
@@ -1324,29 +1412,33 @@ impl Shell {
                                     .child(capitalised(&e))
                             })),
                     )
-                    .when(retry_offered(state) && m.session.is_some(), |d| {
+                    .when(retry_offered(state) && !m.leaving, |d| {
                         d.child(
                             Button::new("mp-retry")
                                 .outline()
                                 .small()
                                 .icon(IconName::RefreshCw)
                                 .label("Retry")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    if let Some(s) = &this.mp_page.session {
-                                        s.retry();
-                                    }
-                                    cx.notify();
-                                })),
+                                .loading(m.refreshing)
+                                .disabled(m.refreshing)
+                                .on_click(cx.listener(|this, _, _, cx| this.mp_retry(cx))),
                         )
                     }),
             )
             .children(race);
-        let mismatches = (!state.mismatches.is_empty()).then(|| self.mismatch_card(state, p, cx));
+        let mismatches = match &m.fixed {
+            Some(f) => Some(self.fixed_card(f, p, cx)),
+            None if !state.mismatches.is_empty() && !m.leaving => Some(self.mismatch_card(state, p, cx)),
+            None => None,
+        };
         let members: Vec<AnyElement> = state
             .members
             .iter()
             .enumerate()
-            .map(|(i, member)| member_row(member, i == 0, p))
+            .map(|(i, member)| {
+                let face = self.face(&member.name, member.avatar.as_deref(), 28., p);
+                member_row(member, face, i == 0, p)
+            })
             .collect();
         v_flex()
             .size_full()
@@ -1505,7 +1597,7 @@ fn members_head(p: Palette) -> Div {
         .child(col(140., "TRAFFIC"))
 }
 
-fn member_row(m: &MemberState, first: bool, p: Palette) -> AnyElement {
+fn member_row(m: &MemberState, face: Div, first: bool, p: Palette) -> AnyElement {
     let cell = |w: f32| {
         div()
             .w(px(w))
@@ -1535,7 +1627,7 @@ fn member_row(m: &MemberState, first: bool, p: Palette) -> AnyElement {
         .px(px(14.))
         .gap(px(12.))
         .when(!first, |d| d.border_t_1().border_color(p.border_variant))
-        .child(monogram(&m.name, 28., p))
+        .child(face)
         .child(
             h_flex()
                 .flex_1()
@@ -1568,12 +1660,12 @@ mod tests {
     use swofty_core::multiplayer::bridge::MemberStats;
     use swofty_core::multiplayer::game::{GameStatus, Role, Screen};
     use swofty_core::multiplayer::rooms::{RoomAddons, RoomSummary, User};
-    use swofty_core::multiplayer::session::{FixStep, Phase};
+    use swofty_core::multiplayer::session::{FixStep, Phase, SessionState};
     use swofty_core::profile::ProfileAddon;
 
     use super::{
         Addons, GameState, addons_against, addons_text, category_label, fixable, join_blocked, phase_hint,
-        phase_text, players_text, reorder, room_meta, traffic_text,
+        phase_text, players_text, reorder, retry_offered, room_meta, traffic_text,
     };
 
     fn status(screen: Screen) -> GameStatus {
@@ -1735,5 +1827,32 @@ mod tests {
         reorder(&["a".into(), "b".into()], &mut addons);
         let ids: Vec<&str> = addons.iter().map(|a| a.id.as_str()).collect();
         assert_eq!(ids, ["core", "a", "x", "b"]);
+    }
+
+    #[test]
+    fn offers_retry_when_the_game_refused_but_not_for_addons() {
+        let state = |phase: Phase| SessionState {
+            phase,
+            host: false,
+            room: None,
+            self_member: None,
+            members: Vec::new(),
+            mismatches: Vec::new(),
+            lobby_connected: true,
+            relay: None,
+            base: None,
+            bridge: None,
+            game: None,
+            last_error: None,
+        };
+        let refused = state(Phase::WaitingForGame(
+            "the game didn't join the LAN session: busy; retry or leave the room".into(),
+        ));
+        assert!(retry_offered(&refused));
+        assert!(!retry_offered(&state(Phase::InLobby)));
+        assert!(!retry_offered(&state(Phase::Ended("you left the room".into()))));
+        let mut failing = state(Phase::Connecting("opening the relay".into()));
+        failing.last_error = Some("the relay refused".into());
+        assert!(retry_offered(&failing));
     }
 }
