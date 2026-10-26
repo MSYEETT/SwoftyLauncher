@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Contact sheet of the helmet_d every season driver's look wears, decoded from the archive the look's helmet loads:
-the core's helmets/ (build_helmets.py) and suits/ (build_real_suits.py), else the stock F1 25 archive. Run after
+the core's helmets/ (build_helmets.py) and suits/ (build_real_suits.py), else the stock F1 25 archive. A design copy
+of data/helmets.json "designs" has no diffuse: its tile is the design's helmet_m masks painted with its colours on white,
+colour 1 by red, colour 2 by green and colour 3 by blue. Run after
 gen.py; each tile names the driver and the helmet label.
 
     python3 tools/helmet_sheet.py --game <F1 25> --out <png> [--extra <label>=<archive>,...]
@@ -11,6 +13,7 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageDraw
 
 HERE = Path(__file__).resolve().parent
@@ -26,6 +29,7 @@ from layout import helmets, real_suits, year_dir
 LOOKS = "entrants.driver_customisations.folder[_metadata_=official_driver_customisations]"
 DRIVERS = "character_package/drivers/male"
 TILE = (384, 192)
+DESIGNS = json.loads((ROOT / "data" / "helmets.json").read_text())["designs"]
 
 
 def archives(game):
@@ -36,7 +40,22 @@ def archives(game):
     return out
 
 
+def design_image(driver, game):
+    d = DESIGNS[driver]
+    design = d["design"]
+    e = erpw.Erp(str(Path(game) / f"2025_asset_groups/livery_package/{design.split('_')[0]}/{design}/{design}_helmet.erp"))
+    hits = [r for n, r in f1_23_suits.surfaces(e).items() if n.endswith("_helmet_m.tif.image")]
+    m = bcn.top_level([e.frag_data(hits[0], i) for i in range(len(hits[0].frags))], game).astype(np.float32) / 255
+    out = np.full(m.shape[:2] + (3,), 255, np.float32)
+    for k, c in enumerate(d["colours"][:3]):
+        rgb = np.array([int(c[i:i + 2], 16) for i in (1, 3, 5)], np.float32)
+        out = out * (1 - m[..., k:k + 1]) + rgb * m[..., k:k + 1]
+    return out.astype(np.uint8)
+
+
 def archive_of(label, known, game):
+    if label.startswith("cs-") and label[3:] in DESIGNS:
+        return label
     if label in known:
         return known[label]
     root = Path(game) / "2025_asset_groups" / DRIVERS
@@ -109,7 +128,8 @@ def main():
                 y += ch
             x = 120 + (i % per) * cw
             if path not in cache:
-                cache[path] = tile(helmet_d(path, args.game))
+                design = isinstance(path, str) and path[3:] in DESIGNS
+                cache[path] = tile(design_image(path[3:], args.game) if design else helmet_d(path, args.game))
             sheet.paste(cache[path], (x, y + 40))
             d.text((x, y + 2), driver, fill=(235, 235, 235), font=font(16))
             d.text((x, y + 21), label, fill=(150, 190, 255), font=font(14))
