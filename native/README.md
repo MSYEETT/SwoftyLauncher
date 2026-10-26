@@ -85,6 +85,12 @@ native/test/run_log_fallback_test.sh
 Runs a stand-in `F1_25.exe` under Wine with `native/dist/version.dll`, first with a writable `swofty/` and then with one the game can't create files in. It checks that the loader logs in the game folder when it can, and otherwise writes `%LOCALAPPDATA%\Swofty\state\loader-fallback.log` with its attach line, the refused path and error, and the game's user, integrity level, elevation, UAC virtualization and `__COMPAT_LAYER`. CI runs it on every push.
 
 ```sh
+native/test/run_net_trace_test.sh
+```
+
+Runs a stand-in `F1_25.exe` under Wine that does what the game's UDP receive pump does: an overlapped `WSARecvFrom` waited on with `WSAWaitForMultipleEvents` and completed with `WSAGetOverlappedResult` against another socket's `sendto`, plus the other traced calls. Without `SWOFTY_NET_TRACE` it checks that no trace log is written and the import table is untouched. With `SWOFTY_NET_TRACE=1` (import table hooks, inline hooks for `WSASendTo` and `WSAEventSelect`) and with `SWOFTY_NET_TRACE=inline` it checks that every call still returns what plain ws2_32 returns, with the same buffers and last error, that `swofty/net-trace.log` has one line per call with the socket, addresses, length, first bytes, overlapped and event, return value, error and caller, and that a socket's 450 `sendto` calls log the first 200, then the 300th and 400th.
+
+```sh
 native/test/run_runtime_assets_test.sh
 ```
 
