@@ -10,6 +10,7 @@
   "kind": [
     "native",
     "database",
+    "erp",
     "text"
   ],
   "compat": {
@@ -138,6 +139,9 @@
     "database": [
       "db/career.json",
       "db/grid.json"
+    ],
+    "erp": [
+      "erp/wizard.json"
     ],
     "assets": [
       "lang/career.json"
