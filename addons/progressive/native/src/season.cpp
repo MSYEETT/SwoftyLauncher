@@ -12,7 +12,8 @@
 //      number-only and car/look rows; every row read back against the plan (written back on a
 //      mismatch); the new seats' contracts signed; numbers for seated rows without one; one
 //      finalise against the line-up from before the batch;
-//   4. the team names of the year through swofty::lang (also on every career load).
+//   4. the team names of the year through swofty::lang (also on every career load);
+//   5. in a hybrid R&D career, each team's resource points for the season.
 // The cars and looks are written while the option season_visuals is on (the default; experiment E1
 // showed a Team HQ rewrite of vehicle_ref and look in the next session).
 
@@ -514,6 +515,74 @@ bool standings_rebuild(uintptr_t e, const char *when)
     return true;
 }
 
+// Hybrid R&D (DESIGN.md D9): at each season apply a team's spendable resource points become the
+// season's budget (season_logic.hpp hybrid_budget). The game's RP generation (0x141229e00) credits
+// a team's award to one wallet: the team's human driver, else its last race seat in line-up order;
+// Career_Adjust_RpDriverWallet (0x1434fefe0) changes only an existing entry and leaves a locked
+// (unlimited) one alone, so the budget goes to that same driver's wallet (per-driver mode) or to
+// the team wallet (per-team mode), and a missing entry is logged. How the AI spends RP is not
+// mapped.
+constexpr int kHybridBase = 1000;
+
+void hybrid_budgets(uintptr_t e, int year)
+{
+    auto *rp = static_cast<ResourcePointsComponent *>(
+        swofty::career::component_by_desc(k_Career_ResourcePointsComponentDesc.get()));
+    ResourcePointsComponent view{};
+    std::vector<Row> rows;
+    if (!rp || !swofty::mem::read(rp, view) || !entrant_rows(e, rows)) {
+        swofty::log("[progressive] hybrid R&D %d: no ResourcePointsComponent or line-up; budgets unchanged", year);
+        return;
+    }
+    bool per_team = view.wallet_mode == 1;
+    if (view.wallet_mode > 1) {
+        swofty::log("[progressive] hybrid R&D %d: wallet mode %u unknown; budgets unchanged", year, view.wallet_mode);
+        return;
+    }
+    size_t set = 0, missing = 0;
+    for (int i = 0; i < season::kSlots; ++i) {
+        uint32_t team = static_cast<uint32_t>(g_data.slots[i].team_stat) << 16;
+        const Row *earner = nullptr;
+        for (auto &r : rows)
+            if (((r.rec.team_stat_id ^ team) & 0xffff00ffu) == 0) {
+                if (human(r.rec)) {
+                    earner = &r;
+                    break;
+                }
+                if (has_car(r.rec) && position_of(r.rec) >= 0 && position_of(r.rec) < 2)
+                    earner = &r;
+            }
+        if (!earner)
+            continue;
+        uint32_t driver = driver_of(earner->rec);
+        int budget = season::hybrid_budget(g_data, year, i, kHybridBase);
+        uint64_t before = 0, after = 0;
+        Career_Get_RpWallet(&rp->wallet_entity, &before, driver);
+        int32_t value = static_cast<int32_t>(before & 0xffffffffu);
+        bool locked = ((before >> 32) & 0xff) != 0;
+        if (locked) {
+            swofty::log("[progressive] hybrid R&D %d: %s (%s) wallet is unlimited; left alone", year,
+                        g_data.slots[i].team.c_str(), label_or(Kind::driver, stat_of(driver)).c_str());
+            continue;
+        }
+        int32_t delta = budget - value;
+        if (per_team)
+            Career_Adjust_RpTeamWallet(&rp->team_wallets, earner->rec.team_stat_id, delta);
+        else
+            Career_Adjust_RpDriverWallet(&rp->driver_wallets, driver, delta);
+        Career_Get_RpWallet(&rp->wallet_entity, &after, driver);
+        int32_t now = static_cast<int32_t>(after & 0xffffffffu);
+        bool ok = now == budget;
+        ok ? ++set : ++missing;
+        swofty::log("[progressive] hybrid R&D %d: %s %s wallet %d -> %d (budget %d)%s", year,
+                    g_data.slots[i].team.c_str(),
+                    per_team ? "team" : label_or(Kind::driver, stat_of(driver)).c_str(), value, now, budget,
+                    ok ? "" : delta && now == value ? ": NO WALLET ENTRY, nothing changed" : ": did not read back");
+    }
+    swofty::log("[progressive] hybrid R&D %d: %zu/%zu team budget(s) set (%s wallets)", year, set, set + missing,
+                per_team ? "per-team" : "per-driver");
+}
+
 std::atomic<int> g_rnd{0};
 std::atomic<bool> g_test_armed{false};
 std::string g_current;
@@ -611,6 +680,8 @@ void season_hub(const swofty::career::State &state)
     c->applied_year = year;
     store::save();
     set_names(year, "season applied");
+    if (c->rnd == "hybrid")
+        hybrid_budgets(e, year);
     if (standings_rebuild(e, "season applied"))
         g_standings_pending.clear();
     else {

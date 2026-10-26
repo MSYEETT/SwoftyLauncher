@@ -213,6 +213,20 @@ void missing_year_addon_falls_back()
         EXPECT(l.stat >= 0 && (l.stat < 420 || l.stat >= 700));
 }
 
+void hybrid_budgets_follow_pace()
+{
+    EXPECT(season::hybrid_budget(g_data, 2016, 0, 1000) == 1000);
+    int ferrari = season::hybrid_budget(g_data, 2016, 1, 1000);
+    EXPECT(ferrari == 1466);
+    int manor16 = season::hybrid_budget(g_data, 2016, 10, 1000);
+    int manor17 = season::hybrid_budget(g_data, 2017, 10, 1000);
+    EXPECT(manor16 > ferrari);
+    int slowest17 = 1000;
+    for (int i = 0; i < 10; ++i)
+        slowest17 = std::max(slowest17, season::hybrid_budget(g_data, 2017, i, 1000));
+    EXPECT(manor17 == slowest17);
+}
+
 void numbers_never_collide()
 {
     auto rows = career("lando_norris");
@@ -253,6 +267,7 @@ int main(int argc, char **argv)
     ten_team_year_fills_manor();
     missing_year_addon_falls_back();
     numbers_never_collide();
+    hybrid_budgets_follow_pace();
     if (failures) {
         std::printf("season_logic_test: %d failure(s)\n", failures);
         return EXIT_FAILURE;

@@ -62,6 +62,7 @@ struct Team {
     int slot = 0;
     std::string kind, name, lang, vehicle;
     int vehicle_stat = -1;
+    double gap_pct = -1;
     std::vector<SeatDriver> drivers;
 };
 
@@ -166,6 +167,8 @@ inline bool parse(const std::string &text, Data &out, std::string &err)
             o.lang = t["lang"].str();
             o.vehicle = t["vehicle"]["label"].str();
             o.vehicle_stat = num(t["vehicle"]["stat_id"]);
+            const json::Value &pace = t["pace"];
+            o.gap_pct = pace.type == json::Value::Obj && pace["gap_pct"].type == json::Value::Num ? pace["gap_pct"].n : -1;
             for (auto &d : t["drivers"].a) {
                 SeatDriver sd;
                 sd.driver = d["driver"].str();
@@ -198,6 +201,25 @@ inline bool parse(const std::string &text, Data &out, std::string &err)
         return false;
     }
     return true;
+}
+
+// Hybrid R&D (DESIGN.md D9): a team's resource points for the season, base x (1 + gap / 2) with gap
+// the team's median qualifying gap to the fastest team that year in percent, so the real
+// season's slower teams get more to develop with. A slot without pace data (the 10-team years'
+// filler) counts as the year's slowest team.
+inline int hybrid_budget(const Data &d, int year, int slot, int base)
+{
+    const Year *y = d.year(year);
+    if (!y || slot < 0 || slot >= kSlots)
+        return base;
+    double gap = y->teams[slot].gap_pct;
+    if (gap < 0)
+        for (auto &t : y->teams)
+            gap = std::max(gap, t.gap_pct);
+    if (gap < 0)
+        gap = 0;
+    double v = base * (1.0 + gap / 2.0);
+    return v > 999999 ? 999999 : static_cast<int>(v + 0.5);
 }
 
 // One entrant row of the career, as the planner needs it.
