@@ -498,6 +498,13 @@ impl Drop for Session<'_> {
                 for d in done.iter().flat_map(|r| &r.drift) {
                     info(&format!("rollback: {d}"));
                 }
+                let kept = done.iter().map(|r| r.kept.len()).sum::<usize>();
+                if kept > 0 {
+                    info(&format!(
+                        "kept {kept} file(s) addons wrote in {}",
+                        swofty_core::addon_storage::dir(&self.store.root).display()
+                    ));
+                }
             }
             Err(e) => info(&format!(
                 "rollback failed{}; the next swofty run or launcher start retries it, or run swofty restore: {e:#}",
