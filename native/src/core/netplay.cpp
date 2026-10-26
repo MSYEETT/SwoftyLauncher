@@ -31,8 +31,21 @@ const Target T_GATE{"host gate (CustomCreate privilege jne)",
 const Target T_SSL{"null-ssl (socket encryption select)",
                    "0F 84 ?? ?? ?? ?? 44 0F B6 7F 58 0F B7 6F 50", 0x405fa67, 0x06};
 
+// Lobby-enter privilege re-check. While a session is active (session object +0x1a8 set, i.e. the
+// lobby has been entered), the session-update tick (base+0x30e0560) re-queries the same privilege
+// provider as the host gate above (session+0x4a8, vtbl+0x130); offline it answers "not granted",
+// so the tick hands reason 10 to the session error setter (base+0x30670c0), which surfaces as
+// network_error_kicked_for_cheating and leaves the lobby. The anchored je is the provider-granted
+// skip; making it an unconditional jmp turns the re-check off while the provider query itself, the
+// remote-kick reasons and the content reconciliation stay untouched.
+//   call [rax+0x130]; movzx eax,[rsp+0x2e0]; mov rcx,[rsp+0x2e8]; and ecx,1; cmp rcx,rax; je <ok>
+const Target T_LOBBY{"lobby privilege re-check (kick-for-cheating je)",
+                     "FF 90 30 01 00 00 0F B6 84 24 E0 02 00 00 48 8B 8C 24 E8 02 00 00"
+                     " 83 E1 01 48 39 C1 74 ??", 0x30e6106, 0x1C};
+
 const uint8_t GATE_PATCH[] = {0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
 const uint8_t SSL_PATCH[] = {0x45, 0x31, 0xFF, 0x90, 0x90};
+const uint8_t LOBBY_PATCH[] = {0xEB};
 
 uintptr_t base;
 
@@ -89,7 +102,9 @@ void netplay_load()
     }
     bool gate = apply(T_GATE, GATE_PATCH, sizeof GATE_PATCH);
     bool ssl = apply(T_SSL, SSL_PATCH, sizeof SSL_PATCH);
-    swofty::log("[netplay] setup: LAN host gate %s, null-ssl %s", gate ? "on" : "off", ssl ? "on" : "off");
+    bool lobby = apply(T_LOBBY, LOBBY_PATCH, sizeof LOBBY_PATCH);
+    swofty::log("[netplay] setup: LAN host gate %s, null-ssl %s, lobby kick-check %s", gate ? "on" : "off",
+                ssl ? "on" : "off", lobby ? "off" : "on");
 }
 
 }
