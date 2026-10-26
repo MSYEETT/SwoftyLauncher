@@ -19,6 +19,7 @@ use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use serde_json::{Value, json};
+use zeroize::Zeroize;
 
 use super::bridge::{self, Bridge, BridgeConfig, MemberStats, Stats};
 use super::direct::DirectUdp;
@@ -39,8 +40,11 @@ pub const HOST_IP: Ipv4Addr = Ipv4Addr::new(10, 77, 0, 1);
 const TICK: Duration = Duration::from_millis(25);
 const HOUSEKEEPING: Duration = Duration::from_secs(1);
 const GAME_RETRY: Duration = Duration::from_secs(1);
-const STATUS_TIMEOUT: Duration = Duration::from_secs(3);
-const QUICK_TIMEOUT: Duration = Duration::from_secs(5);
+/// The longest a status round trip, `leave`, `clear` or `cancel` may take, so leaving a room
+/// never hangs on a game that stopped answering.
+const QUICK_TIMEOUT: Duration = Duration::from_secs(2);
+/// How long leaving waits for the lobby connection's thread before leaving it behind.
+const SOCKET_STOP: Duration = Duration::from_secs(1);
 const WS_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const WS_BACKOFF_MAX: Duration = Duration::from_secs(10);
 const RELAY_BACKOFF: Duration = Duration::from_secs(5);
@@ -55,6 +59,8 @@ pub trait GameControl: Send + Sync {
     fn join(&self, ip: Ipv4Addr) -> Result<GameStatus, game::Error>;
     fn leave(&self) -> Result<GameStatus, game::Error>;
     fn clear(&self) -> Result<GameStatus, game::Error>;
+    /// End a running host or join at its next step; it then answers with an error.
+    fn cancel(&self) -> Result<GameStatus, game::Error>;
 }
 
 /// The running game's file mailbox (`<game>/swofty/netplay`).
@@ -74,7 +80,7 @@ impl GameControl for Mailbox {
     fn status(&self) -> Result<GameStatus, game::Error> {
         match game::last_status(&self.dir) {
             Some(status) => Ok(status),
-            None => game::send(&self.dir, &Command::Status, STATUS_TIMEOUT).map(|r| r.status),
+            None => game::send(&self.dir, &Command::Status, QUICK_TIMEOUT).map(|r| r.status),
         }
     }
 
@@ -96,6 +102,10 @@ impl GameControl for Mailbox {
 
     fn clear(&self) -> Result<GameStatus, game::Error> {
         game::send(&self.dir, &Command::Clear, QUICK_TIMEOUT).map(|r| r.status)
+    }
+
+    fn cancel(&self) -> Result<GameStatus, game::Error> {
+        game::send(&self.dir, &Command::Cancel, QUICK_TIMEOUT).map(|r| r.status)
     }
 }
 
@@ -421,6 +431,7 @@ enum Action {
     Race(bool),
     Retry,
     Reconnect,
+    Local(Box<Local>),
 }
 
 struct Inner {
@@ -481,7 +492,8 @@ impl Session {
         let _ = self.actions.send(Action::Race(started));
     }
 
-    /// Drive the game again: after it left the LAN session, or after fixing a mismatch.
+    /// Drive the game again: after it left the LAN session, or after the game refused or failed
+    /// to host or join.
     pub fn retry(&self) {
         let _ = self.actions.send(Action::Retry);
     }
@@ -491,29 +503,35 @@ impl Session {
         let _ = self.actions.send(Action::Reconnect);
     }
 
+    /// Use a fresh fingerprint, as after Fix & join and a game restart: the lobby gets it, the
+    /// comparison with the host's runs again, and a joiner that now matches goes on to join.
+    pub fn update_local(&self, local: Local) {
+        let _ = self.actions.send(Action::Local(Box::new(local)));
+    }
+
     /// The steps that would make this player match the host.
     pub fn fix_plan(&self) -> Vec<FixStep> {
         fix_plan(&self.state().mismatches)
     }
 
-    /// Leave the game's LAN session, clear its room settings, stop the bridge and the relay and
-    /// leave the room on the server. Blocks until done.
-    pub fn leave(mut self) -> SessionState {
-        self.shutdown();
-        self.state()
+    /// Start leaving and return at once: the worker cancels a running host or join, takes the
+    /// game out of its LAN session, clears its room settings, stops the bridge and the relay and
+    /// leaves the room on the server, each step giving up after a few seconds. When it is done
+    /// the phase is [`Phase::Ended`] (or [`Phase::Failed`]) and [`Session::is_finished`] is true.
+    pub fn leave(&self) {
+        self.inner.stop.store(true, Ordering::Relaxed);
     }
 
-    fn shutdown(&mut self) {
-        self.inner.stop.store(true, Ordering::Relaxed);
-        if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
-        }
+    /// The worker has stopped: everything is torn down.
+    pub fn is_finished(&self) -> bool {
+        self.worker.as_ref().is_none_or(JoinHandle::is_finished)
     }
 }
 
 impl Drop for Session {
+    /// Starts leaving like [`Session::leave`] and lets the worker finish on its own.
     fn drop(&mut self) {
-        self.shutdown();
+        self.leave();
     }
 }
 
@@ -566,7 +584,6 @@ struct Worker {
     relay_retry: Instant,
     relay_backoff: Duration,
     peers: HashMap<u8, SocketAddr>,
-    refused_peers: String,
     key: Option<[u8; 32]>,
     bridge: Option<Bridge>,
     stats: Option<Stats>,
@@ -609,7 +626,6 @@ impl Worker {
             relay_retry: now,
             relay_backoff: RELAY_BACKOFF,
             peers: HashMap::new(),
-            refused_peers: String::new(),
             key: None,
             bridge: None,
             stats: None,
@@ -830,26 +846,35 @@ impl Worker {
     /// Use `link` from now on: give it the members, hand it to the bridge, and announce it.
     fn install_relay(&mut self, link: RelayLink) {
         let transport = link.transport();
-        self.refused_peers = match transport.set_peers(&self.peers) {
-            Ok(()) => String::new(),
-            Err(e) => e.to_string(),
-        };
+        if let Err(e) = transport.set_peers(&self.peers) {
+            self.last_error = Some(e.to_string());
+        }
         if let Some(bridge) = &self.bridge {
             bridge.replace_transport(transport);
         }
         self.relay = Some(link);
         if let Some(msg) = self.relay_message() {
-            self.send_hello_and(msg);
+            self.announce(&msg);
         }
     }
 
-    fn send_hello_and(&self, msg: Value) {
+    /// Send `msg` now, and keep the fingerprint and relay messages for every reconnect.
+    fn announce(&self, msg: &Value) {
         if let Some(socket) = &self.socket {
             let mut hello = vec![self.fingerprint_message().to_string()];
-            hello.push(msg.to_string());
+            hello.extend(self.relay_message().map(|r| r.to_string()));
             socket.set_hello(hello);
-            socket.send(&msg);
+            socket.send(msg);
         }
+    }
+
+    fn update_local(&mut self, local: Local) {
+        self.setup.local = local;
+        self.announce(&self.fingerprint_message());
+        if !self.hosting() {
+            self.compare_with_host();
+        }
+        self.next_step = Instant::now();
     }
 
     fn self_number(&self) -> Option<u8> {
@@ -921,9 +946,10 @@ impl Worker {
                 Err(e) => {
                     let (why, status) = refused(e);
                     self.game_status = status.or(self.game_status.take());
-                    Err(Halt::Game(format!(
-                        "the game didn't {what} the LAN session: {why}"
-                    )))
+                    let why =
+                        format!("the game didn't {what} the LAN session: {why}; retry or leave the room");
+                    self.paused = Some(why.clone());
+                    Err(Halt::Game(why))
                 }
             };
         }
@@ -933,6 +959,7 @@ impl Worker {
         self.require_main_menu()?;
         let me = self.self_number().expect("bridge started");
         let base = self.bridge.as_ref().map(Bridge::base).expect("bridge started");
+        self.configured = true;
         match self.setup.game.configure(me, base) {
             Ok(status) => self.game_status = Some(status),
             Err(e) => {
@@ -943,7 +970,6 @@ impl Worker {
                 )));
             }
         }
-        self.configured = true;
         let (tx, rx) = mpsc::channel();
         let game = self.setup.game.clone();
         let command = if self.hosting() { None } else { Some(HOST_IP) };
@@ -993,9 +1019,7 @@ impl Worker {
             }
             Some(_) => self.mismatches.clear(),
         }
-        let ready = host
-            .number()
-            .is_some_and(|n| self.peers.contains_key(&n) && !self.refused(n));
+        let ready = host.number().is_some_and(|n| self.permitted(n));
         if !ready {
             return Err(Halt::Step(
                 "waiting for the host's relay".into(),
@@ -1005,8 +1029,14 @@ impl Worker {
         Ok(())
     }
 
-    fn refused(&self, member: u8) -> bool {
-        self.refused_peers.contains(&format!("member {member} ("))
+    /// The relay currently lets datagrams through to `member`; asked each time, since TURN
+    /// retries refused permissions in the background.
+    fn permitted(&self, member: u8) -> bool {
+        self.peers.contains_key(&member)
+            && self
+                .relay
+                .as_ref()
+                .is_some_and(|r| r.transport().permitted(member))
     }
 
     fn compare_with_host(&mut self) {
@@ -1045,6 +1075,7 @@ impl Worker {
                     self.next_step = Instant::now();
                 }
                 Action::Reconnect => self.reconnect_relay(),
+                Action::Local(local) => self.update_local(*local),
             }
         }
     }
@@ -1136,7 +1167,7 @@ impl Worker {
     }
 
     fn take_key(&mut self, key: &RoomKey) {
-        let Some(bytes) = key.bytes() else {
+        let Some(mut bytes) = key.bytes() else {
             self.last_error = Some("the server sent a room key that isn't 32 bytes".into());
             return;
         };
@@ -1146,6 +1177,7 @@ impl Worker {
             }
             _ => self.key = Some(bytes),
         }
+        bytes.zeroize();
     }
 
     fn apply_lobby(&mut self, lobby: Lobby) {
@@ -1165,11 +1197,10 @@ impl Worker {
         self.lobby = Some(lobby);
         if peers != self.peers {
             self.peers = peers;
-            if let Some(link) = &self.relay {
-                self.refused_peers = match link.transport().set_peers(&self.peers) {
-                    Ok(()) => String::new(),
-                    Err(e) => e.to_string(),
-                };
+            if let Some(link) = &self.relay
+                && let Err(e) = link.transport().set_peers(&self.peers)
+            {
+                self.last_error = Some(e.to_string());
             }
         }
         if let Some(bridge) = &self.bridge {
@@ -1233,7 +1264,17 @@ impl Worker {
         }
     }
 
+    /// Every game command here gives up after [`QUICK_TIMEOUT`] and the server call after a few
+    /// seconds, so leaving finishes even with the game or the network gone.
     fn cleanup(&mut self) {
+        if let Some(pending) = self.entering.take() {
+            if let Err(e) = self.setup.game.cancel() {
+                self.last_error = Some(format!("the game didn't cancel its host or join: {e}"));
+            }
+            if let Ok(Ok(status)) = pending.recv_timeout(QUICK_TIMEOUT) {
+                self.game_status = Some(status);
+            }
+        }
         if self.configured || self.driven.is_some() {
             let in_session = self.setup.game.status().is_ok_and(|s| s.in_session);
             if in_session && let Err(e) = self.setup.game.leave() {
@@ -1252,9 +1293,7 @@ impl Worker {
             bridge.stop();
         }
         self.relay = None;
-        if let Some(socket) = self.socket.take() {
-            socket.stop();
-        }
+        drop(self.socket.take());
         self.lobby_connected = false;
         if !self.server_gone
             && let Some(code) = &self.code
@@ -1283,9 +1322,7 @@ impl Worker {
                         let relay = match (&m.relay, is_me) {
                             (None, _) => RelayStatus::None,
                             (Some(_), true) => RelayStatus::Ready,
-                            (Some(_), false) if self.peers.contains_key(&number) && !self.refused(number) => {
-                                RelayStatus::Ready
-                            }
+                            (Some(_), false) if self.permitted(number) => RelayStatus::Ready,
                             (Some(_), false) => RelayStatus::Pending,
                         };
                         Some(MemberState {
@@ -1331,6 +1368,12 @@ impl Worker {
             last_error: self.last_error.clone(),
         };
         *lock(&self.inner.state) = state;
+    }
+}
+
+impl Drop for Worker {
+    fn drop(&mut self) {
+        self.key.zeroize();
     }
 }
 
@@ -1382,19 +1425,19 @@ impl LobbySocket {
     fn set_hello(&self, hello: Vec<String>) {
         *lock(&self.hello) = hello;
     }
-
-    fn stop(mut self) {
-        self.stop.store(true, Ordering::Relaxed);
-        if let Some(t) = self.thread.take() {
-            let _ = t.join();
-        }
-    }
 }
 
 impl Drop for LobbySocket {
+    /// Waits up to [`SOCKET_STOP`] for the thread, which may be stuck connecting, then leaves
+    /// it to finish on its own.
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
-        if let Some(t) = self.thread.take() {
+        let Some(t) = self.thread.take() else { return };
+        let deadline = Instant::now() + SOCKET_STOP;
+        while !t.is_finished() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(10));
+        }
+        if t.is_finished() {
             let _ = t.join();
         }
     }
@@ -1521,6 +1564,10 @@ mod tests {
         status: Mutex<GameStatus>,
         log: Mutex<Vec<String>>,
         host_delay: Mutex<Duration>,
+        refuse_host: AtomicBool,
+        configure_fails: AtomicBool,
+        cancelled: AtomicBool,
+        host_attempts: std::sync::atomic::AtomicU32,
     }
 
     impl FakeGame {
@@ -1543,6 +1590,10 @@ mod tests {
                 }),
                 log: Mutex::new(Vec::new()),
                 host_delay: Mutex::new(Duration::ZERO),
+                refuse_host: AtomicBool::new(false),
+                configure_fails: AtomicBool::new(false),
+                cancelled: AtomicBool::new(false),
+                host_attempts: std::sync::atomic::AtomicU32::new(0),
             })
         }
 
@@ -1590,12 +1641,24 @@ mod tests {
             let netplay = json!({"pid": 1, "self": self_member, "base": base, "game_port": port});
             std::fs::write(self.dir.join(bridge::STATUS_FILE), netplay.to_string()).unwrap();
             lock(&self.log).push(format!("configure {self_member} {base}"));
+            if self.configure_fails.load(Ordering::Relaxed) {
+                return Err(game::Error::Timeout(Duration::from_secs(10)));
+            }
             Ok(s.clone())
         }
 
         fn host(&self, category: Category) -> Result<GameStatus, game::Error> {
-            let delay = *lock(&self.host_delay);
-            thread::sleep(delay);
+            self.host_attempts.fetch_add(1, Ordering::Relaxed);
+            let until = Instant::now() + *lock(&self.host_delay);
+            while Instant::now() < until {
+                if self.cancelled.swap(false, Ordering::Relaxed) {
+                    return Err(self.refuse("host", "cancelled by the launcher"));
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+            if self.refuse_host.load(Ordering::Relaxed) {
+                return Err(self.refuse("host", "the player backed out of Car Category"));
+            }
             self.enter(format!("host {category}"), Role::Host)
         }
 
@@ -1619,6 +1682,12 @@ mod tests {
             s.base = 0;
             lock(&self.log).push("clear".into());
             Ok(s.clone())
+        }
+
+        fn cancel(&self) -> Result<GameStatus, game::Error> {
+            self.cancelled.store(true, Ordering::Relaxed);
+            lock(&self.log).push("cancel".into());
+            Ok(lock(&self.status).clone())
         }
     }
 
@@ -1675,6 +1744,49 @@ mod tests {
         }
     }
 
+    /// A session that leaves and waits for its worker when the test lets go of it, so no worker
+    /// outlives its test and sends to ports another test has taken.
+    struct Finished(Session);
+
+    impl std::ops::Deref for Finished {
+        type Target = Session;
+
+        fn deref(&self) -> &Session {
+            &self.0
+        }
+    }
+
+    impl Drop for Finished {
+        fn drop(&mut self) {
+            self.0.leave();
+            let deadline = Instant::now() + WAIT;
+            while !self.0.is_finished() && Instant::now() < deadline {
+                thread::sleep(Duration::from_millis(10));
+            }
+        }
+    }
+
+    fn create(setup: Setup, settings: RoomSettings) -> Finished {
+        Finished(Session::create(setup, settings))
+    }
+
+    fn join(setup: Setup, code: &str) -> Finished {
+        Finished(Session::join(setup, code))
+    }
+
+    /// Leave and wait for the worker to finish; `leave` itself returns at once.
+    fn leave(session: &Session) -> SessionState {
+        let asked = Instant::now();
+        session.leave();
+        assert!(asked.elapsed() < Duration::from_millis(50), "leave doesn't block");
+        let deadline = Instant::now() + WAIT;
+        while !session.is_finished() {
+            assert!(Instant::now() < deadline, "the session never finished leaving");
+            thread::sleep(Duration::from_millis(10));
+        }
+        session.state()
+    }
+
     fn in_lobby(s: &SessionState) -> bool {
         s.phase == Phase::InLobby
     }
@@ -1725,7 +1837,7 @@ mod tests {
             name: Some("Sunday league".into()),
             ..RoomSettings::default()
         };
-        let host = Session::create(setup(&server.url, "host-token", &host_game, print(&[])), settings);
+        let host = create(setup(&server.url, "host-token", &host_game, print(&[])), settings);
         let state = wait_until(&host, "the host's lobby", in_lobby);
         let room = state.room.clone().unwrap();
         assert_eq!(
@@ -1741,7 +1853,7 @@ mod tests {
             ]
         );
 
-        let guest = Session::join(
+        let guest = join(
             setup(&server.url, "guest-token", &guest_game, print(&[])),
             &room.code,
         );
@@ -1784,14 +1896,14 @@ mod tests {
         });
         assert!(traffic.bridge.is_some());
 
-        let left = guest.leave();
+        let left = leave(&guest);
         assert_eq!(left.phase, Phase::Ended("you left the room".into()));
         let log = guest_game.log();
         assert_eq!(&log[log.len() - 2..], ["leave", "clear"]);
         wait_until(&host, "the guest gone at the host", |s| s.members.len() == 1);
         assert_eq!(server.member_count(), 1);
 
-        host.leave();
+        leave(&host);
         assert!(!server.has_room());
         assert_eq!(host_game.log().last().unwrap(), "clear");
     }
@@ -1800,17 +1912,19 @@ mod tests {
     fn a_joiner_whose_addons_differ_waits_with_the_differences() {
         let server = server();
         let (host_game, guest_game) = (FakeGame::new("host-mm"), FakeGame::new("guest-mm"));
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &host_game, print(&[])),
             RoomSettings::default(),
         );
         let code = wait_until(&host, "the host's lobby", in_lobby).room.unwrap().code;
-        let guest = Session::join(
+        let guest = join(
             setup(&server.url, "guest-token", &guest_game, print(&["extra"])),
             &code,
         );
-        let state = wait_until(&guest, "the mismatch", |s| !s.mismatches.is_empty());
-        assert!(matches!(&state.phase, Phase::WaitingForGame(why) if why.contains("match")));
+        let state = wait_until(&guest, "the mismatch", |s| {
+            !s.mismatches.is_empty()
+                && matches!(&s.phase, Phase::WaitingForGame(why) if why.contains("match"))
+        });
         assert!(matches!(&state.mismatches[0].kind, MismatchKind::ExtraAddon { id, .. } if id == "extra"));
         assert_eq!(
             guest.fix_plan(),
@@ -1826,8 +1940,145 @@ mod tests {
         });
         assert_eq!(host_view.members.len(), 2);
         assert!(!guest_game.log().iter().any(|l| l.starts_with("join")));
-        guest.leave();
+        leave(&guest);
         assert!(!guest_game.log().iter().any(|l| l == "leave"));
+    }
+
+    #[test]
+    fn a_fresh_fingerprint_after_a_fix_lets_the_joiner_in() {
+        let server = server();
+        let (host_game, guest_game) = (FakeGame::new("host-fix"), FakeGame::new("guest-fix"));
+        let host = create(
+            setup(&server.url, "host-token", &host_game, print(&[])),
+            RoomSettings::default(),
+        );
+        let code = wait_until(&host, "the host's lobby", in_lobby).room.unwrap().code;
+        let guest = join(
+            setup(&server.url, "guest-token", &guest_game, print(&["extra"])),
+            &code,
+        );
+        wait_until(&guest, "the mismatch", |s| !s.mismatches.is_empty());
+        guest.retry();
+        thread::sleep(Duration::from_millis(300));
+        assert!(
+            !guest.state().mismatches.is_empty(),
+            "retry alone can't clear a mismatch"
+        );
+        let categories = BTreeMap::from([("okayama".to_owned(), "tracks".to_owned())]);
+        guest.update_local(Local::new(print(&[]), &categories, Vec::new()));
+        let state = wait_until(&guest, "the guest's lobby", in_lobby);
+        assert!(state.mismatches.is_empty());
+        wait_until(&host, "the guest's new digest at the host", |s| {
+            s.members.len() == 2 && s.members.iter().all(|m| m.fingerprint == PrintMatch::Matches)
+        });
+        assert_eq!(guest_game.log().last().unwrap(), "join 10.77.0.1");
+    }
+
+    #[test]
+    fn leave_returns_at_once_and_finishes_with_the_server_stalled() {
+        let server = server();
+        let game = FakeGame::new("stall");
+        let host = create(
+            setup(&server.url, "host-token", &game, print(&[])),
+            RoomSettings::default(),
+        );
+        wait_until(&host, "the lobby", in_lobby);
+        server.stall_leave(Duration::from_secs(30));
+        let started = Instant::now();
+        let state = leave(&host);
+        assert!(
+            started.elapsed() < Duration::from_secs(8),
+            "{:?}",
+            started.elapsed()
+        );
+        assert_eq!(state.phase, Phase::Ended("you left the room".into()));
+        assert!(
+            state
+                .last_error
+                .unwrap_or_default()
+                .contains("couldn't leave the room on the server")
+        );
+        assert_eq!(&game.log()[2..], ["leave", "clear"]);
+
+        let other = Session::create(
+            setup(&server.url, "guest-token", &FakeGame::new("drop"), print(&[])),
+            RoomSettings::default(),
+        );
+        thread::sleep(Duration::from_millis(200));
+        let dropped = Instant::now();
+        drop(other);
+        assert!(
+            dropped.elapsed() < Duration::from_millis(50),
+            "drop doesn't block"
+        );
+    }
+
+    #[test]
+    fn leaving_while_the_game_opens_its_lobby_cancels_and_clears() {
+        let server = server();
+        let game = FakeGame::new("cancel");
+        *lock(&game.host_delay) = Duration::from_secs(30);
+        let host = create(
+            setup(&server.url, "host-token", &game, print(&[])),
+            RoomSettings::default(),
+        );
+        wait_until(
+            &host,
+            "the category pick",
+            |s| matches!(&s.phase, Phase::WaitingForGame(why) if why.contains("car category")),
+        );
+        let state = leave(&host);
+        assert_eq!(state.phase, Phase::Ended("you left the room".into()));
+        let log = game.log();
+        assert!(log[0].starts_with("configure 1 "), "{log:?}");
+        assert_eq!(&log[1..], ["cancel", "clear"]);
+        assert!(!server.has_room());
+    }
+
+    #[test]
+    fn a_configure_that_fails_late_is_still_cleared() {
+        let server = server();
+        let game = FakeGame::new("late-configure");
+        game.configure_fails.store(true, Ordering::Relaxed);
+        let host = create(
+            setup(&server.url, "host-token", &game, print(&[])),
+            RoomSettings::default(),
+        );
+        wait_until(
+            &host,
+            "the refused room settings",
+            |s| matches!(&s.phase, Phase::WaitingForGame(why) if why.contains("room settings")),
+        );
+        leave(&host);
+        assert_eq!(game.log().last().unwrap(), "clear");
+        assert!(!lock(&game.status).configured);
+    }
+
+    #[test]
+    fn a_refused_host_waits_for_retry() {
+        let server = server();
+        let game = FakeGame::new("refused");
+        game.refuse_host.store(true, Ordering::Relaxed);
+        let host = create(
+            setup(&server.url, "host-token", &game, print(&[])),
+            RoomSettings::default(),
+        );
+        let state = wait_until(
+            &host,
+            "the refusal",
+            |s| matches!(&s.phase, Phase::WaitingForGame(why) if why.contains("backed out")),
+        );
+        assert!(matches!(&state.phase, Phase::WaitingForGame(why) if why.contains("retry")));
+        thread::sleep(GAME_RETRY * 2 + Duration::from_millis(500));
+        assert_eq!(
+            game.host_attempts.load(Ordering::Relaxed),
+            1,
+            "a refusal is not re-sent on its own"
+        );
+        game.refuse_host.store(false, Ordering::Relaxed);
+        host.retry();
+        wait_until(&host, "the lobby after retry", in_lobby);
+        assert_eq!(game.host_attempts.load(Ordering::Relaxed), 2);
     }
 
     #[test]
@@ -1835,7 +2086,7 @@ mod tests {
         let server = server();
         let game = FakeGame::new("menu");
         game.set_screen(Screen::Other);
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &game, print(&[])),
             RoomSettings::default(),
         );
@@ -1858,7 +2109,7 @@ mod tests {
         let server = server();
         let (host_game, guest_game) = (FakeGame::new("host-slow"), FakeGame::new("guest-slow"));
         *lock(&host_game.host_delay) = Duration::from_millis(1500);
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &host_game, print(&[])),
             RoomSettings::default(),
         );
@@ -1868,7 +2119,7 @@ mod tests {
             |s| matches!(&s.phase, Phase::WaitingForGame(why) if why.contains("car category")),
         );
         let code = state.room.unwrap().code;
-        let guest = Session::join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
+        let guest = join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
         let during = wait_until(&host, "the guest's relay while hosting", both_relays_ready);
         assert!(matches!(during.phase, Phase::WaitingForGame(_)));
         wait_until(&host, "the host's lobby", in_lobby);
@@ -1879,17 +2130,17 @@ mod tests {
     fn the_host_closing_the_room_ends_the_joiner_session() {
         let server = server();
         let (host_game, guest_game) = (FakeGame::new("host-close"), FakeGame::new("guest-close"));
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &host_game, print(&[])),
             RoomSettings::default(),
         );
         let code = wait_until(&host, "the host's lobby", in_lobby).room.unwrap().code;
-        let guest = Session::join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
+        let guest = join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
         wait_until(&guest, "the guest's lobby", in_lobby);
-        host.leave();
+        leave(&host);
         let state = wait_until(&guest, "the end", |s| s.phase.is_over());
         assert_eq!(state.phase, Phase::Ended("the host closed the room".into()));
-        guest.leave();
+        leave(&guest);
         let log = guest_game.log();
         assert_eq!(&log[log.len() - 2..], ["leave", "clear"]);
     }
@@ -1898,12 +2149,12 @@ mod tests {
     fn a_new_relay_takes_over_under_the_bridge() {
         let server = server();
         let (host_game, guest_game) = (FakeGame::new("host-relay"), FakeGame::new("guest-relay"));
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &host_game, print(&[])),
             RoomSettings::default(),
         );
         let code = wait_until(&host, "the host's lobby", in_lobby).room.unwrap().code;
-        let guest = Session::join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
+        let guest = join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
         let before = wait_until(&guest, "the guest's lobby", in_lobby);
         wait_until(&host, "the relays", both_relays_ready);
         let old_relay = before.relay.clone().unwrap();
@@ -1936,7 +2187,7 @@ mod tests {
         let tokens = std::env::var("SWOFTY_MP_E2E_TOKENS").expect("SWOFTY_MP_E2E_TOKENS");
         let (host_token, guest_token) = tokens.split_once(',').expect("host,guest");
         let (host_game, guest_game) = (FakeGame::new("host-e2e"), FakeGame::new("guest-e2e"));
-        let host = Session::create(
+        let host = create(
             setup(&url, host_token, &host_game, print(&[])),
             RoomSettings::default(),
         );
@@ -1950,7 +2201,7 @@ mod tests {
             room.addons.as_ref().map(|a| a.tracks.clone()),
             Some(vec!["okayama name".to_owned()])
         );
-        let guest = Session::join(setup(&url, guest_token, &guest_game, print(&[])), &code);
+        let guest = join(setup(&url, guest_token, &guest_game, print(&[])), &code);
         wait_until(&guest, "the guest's lobby", in_lobby);
         wait_until(&host, "the relays at the host", both_relays_ready);
         wait_until(&guest, "the relays at the guest", both_relays_ready);
@@ -1961,9 +2212,9 @@ mod tests {
         wait_until(&guest, "the race at the guest", |s| s.phase == Phase::Racing);
         host.mark_race(false);
         wait_until(&guest, "the race's end at the guest", in_lobby);
-        guest.leave();
+        leave(&guest);
         wait_until(&host, "the guest gone at the host", |s| s.members.len() == 1);
-        assert_eq!(host.leave().phase, Phase::Ended("you left the room".into()));
+        assert_eq!(leave(&host).phase, Phase::Ended("you left the room".into()));
     }
 
     fn server_relay_is(server: &FakeServer, relay: &str) -> bool {

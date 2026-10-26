@@ -9,9 +9,13 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 use super::game::Category;
 
 const TIMEOUT: Duration = Duration::from_secs(20);
+/// Leaving runs while the launcher tears a room down, on networks that may be gone.
+const LEAVE_TIMEOUT: Duration = Duration::from_secs(3);
 
 /// The server and the session token every call carries.
 #[derive(Clone)]
@@ -226,10 +230,18 @@ pub fn member_number(ip: &str) -> Option<u8> {
     ((a, b, c) == (10, 77, 0) && (1..=254).contains(&n)).then_some(n)
 }
 
-/// The room key as the server sends it.
+/// The room key as the server sends it; wiped from memory when dropped.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct RoomKey(String);
+
+impl Drop for RoomKey {
+    fn drop(&mut self) {
+        self.0.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for RoomKey {}
 
 impl fmt::Debug for RoomKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -255,7 +267,8 @@ fn decode_key(text: &str) -> Option<[u8; 32]> {
     if text.len() != 43 {
         return None;
     }
-    let mut out = Vec::with_capacity(33);
+    let mut out = [0u8; 32];
+    let mut len = 0;
     let mut acc = 0u32;
     let mut bits = 0;
     for ch in text.bytes() {
@@ -265,17 +278,22 @@ fn decode_key(text: &str) -> Option<[u8; 32]> {
             b'0'..=b'9' => ch - b'0' + 52,
             b'-' | b'+' => 62,
             b'_' | b'/' => 63,
-            _ => return None,
+            _ => {
+                out.zeroize();
+                return None;
+            }
         };
         acc = (acc << 6) | u32::from(v);
         bits += 6;
         if bits >= 8 {
             bits -= 8;
-            out.push((acc >> bits) as u8);
+            out[len] = (acc >> bits) as u8;
+            len += 1;
             acc &= (1 << bits) - 1;
         }
     }
-    out.try_into().ok()
+    acc.zeroize();
+    Some(out)
 }
 
 /// One TURN allocation's credentials from `POST /v1/mp/turn`.
@@ -370,9 +388,11 @@ impl Api {
         Ok(self.call::<Wrapped>("POST", &path, Some(String::new()))?.lobby)
     }
 
+    /// Gives up after a few seconds.
     pub fn leave(&self, code: &str) -> Result<(), ApiError> {
         let path = format!("/v1/mp/lobbies/{}/leave", path_code(code)?);
-        self.call::<Value>("POST", &path, Some(String::new())).map(|_| ())
+        self.call_within::<Value>("POST", &path, Some(String::new()), LEAVE_TIMEOUT)
+            .map(|_| ())
     }
 
     pub fn lobby(&self, code: &str) -> Result<Lobby, ApiError> {
@@ -409,6 +429,31 @@ impl Api {
         path: &str,
         body: Option<String>,
     ) -> Result<T, ApiError> {
+        self.call_within(method, path, body, TIMEOUT)
+    }
+
+    fn call_within<T: serde::de::DeserializeOwned>(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<String>,
+        timeout: Duration,
+    ) -> Result<T, ApiError> {
+        if let Some(rest) = self.server.strip_prefix("http://") {
+            let authority = rest.split('/').next().unwrap_or("");
+            if !super::ws::loopback(host_of(authority)) {
+                return Err(ApiError {
+                    status: 0,
+                    reason: "insecure".into(),
+                    message: format!(
+                        "refusing to send the session token to {} over plain http; use https",
+                        self.server
+                    ),
+                    lobby: None,
+                    retry_after: None,
+                });
+            }
+        }
         let url = format!("{}{path}", self.server);
         let auth = format!("Bearer {}", self.token);
         let sent = match body {
@@ -417,7 +462,8 @@ impl Api {
                 .header("User-Agent", "swofty-launcher")
                 .header("Content-Type", "application/json")
                 .config()
-                .timeout_global(Some(TIMEOUT))
+                .timeout_global(Some(timeout))
+                .max_redirects(0)
                 .http_status_as_error(false)
                 .build()
                 .send(body),
@@ -427,7 +473,8 @@ impl Api {
                     .header("Authorization", &auth)
                     .header("User-Agent", "swofty-launcher")
                     .config()
-                    .timeout_global(Some(TIMEOUT))
+                    .timeout_global(Some(timeout))
+                    .max_redirects(0)
                     .http_status_as_error(false)
                     .build()
                     .call()
@@ -452,6 +499,15 @@ impl Api {
             retry_after: None,
         })
     }
+}
+
+/// The host of `host[:port]` or `[v6]:port`, without brackets.
+fn host_of(authority: &str) -> &str {
+    let authority = authority.rsplit('@').next().unwrap_or(authority);
+    if let Some(v6) = authority.strip_prefix('[') {
+        return v6.split(']').next().unwrap_or("");
+    }
+    authority.split(':').next().unwrap_or("")
 }
 
 #[derive(Deserialize)]
@@ -501,6 +557,21 @@ mod tests {
         assert_eq!(RoomKey::from("short").bytes(), None);
         assert_eq!(RoomKey::from(&*format!("{}!", &key[..42])).bytes(), None);
         assert_eq!(format!("{:?}", RoomKey::from(key)), "RoomKey(..)");
+    }
+
+    #[test]
+    fn the_key_is_wiped_on_drop() {
+        fn wiped<T: ZeroizeOnDrop>() {}
+        wiped::<RoomKey>();
+        wiped::<crate::multiplayer::bridge::BridgeConfig>();
+        wiped::<crate::multiplayer::seal::Opener>();
+        let cfg = crate::multiplayer::bridge::BridgeConfig {
+            self_member: 1,
+            members: vec![1],
+            key: [0xab; 32],
+            game_port: 21414,
+        };
+        assert!(!format!("{cfg:?}").to_ascii_lowercase().contains("ab, "));
     }
 
     #[test]
@@ -576,6 +647,24 @@ mod tests {
         );
         assert_eq!(api.ws_url("../admin").unwrap_err().reason, "bad_code");
         assert!(!format!("{api:?}").contains("\"t\""));
+    }
+
+    #[test]
+    fn sends_the_token_over_plain_http_only_to_this_machine() {
+        for server in [
+            "http://example.com",
+            "http://10.0.0.5:8471",
+            "http://127.0.0.1.example.com",
+        ] {
+            let e = Api::with_server(server, "t").rooms().unwrap_err();
+            assert_eq!(e.reason, "insecure", "{server}");
+        }
+        for server in ["http://127.0.0.1:1", "http://localhost:1", "http://[::1]:1"] {
+            let e = Api::with_server(server, "t").rooms().unwrap_err();
+            assert_eq!(e.reason, "network", "{server}");
+        }
+        assert_eq!(host_of("[::1]:8471"), "::1");
+        assert_eq!(host_of("user@127.0.0.1:80"), "127.0.0.1");
     }
 
     #[test]

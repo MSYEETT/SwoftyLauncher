@@ -20,6 +20,13 @@ pub trait Transport: Send + Sync {
     /// Replace the member → address map. Members missing from `peers` are dropped.
     fn set_peers(&self, peers: &HashMap<u8, SocketAddr>) -> io::Result<()>;
 
+    /// Whether datagrams to and from `member` can pass now: for TURN, the server holds a
+    /// permission for its relayed address.
+    fn permitted(&self, member: u8) -> bool {
+        let _ = member;
+        true
+    }
+
     /// Send one datagram to member `to`.
     fn send(&self, to: u8, payload: &[u8]) -> io::Result<()>;
 

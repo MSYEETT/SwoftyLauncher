@@ -28,7 +28,7 @@ constexpr int GAME_PORT = 21414;
 static_assert(STATE_FRONTEND == 0x957880c6u, "state name hashing drifted");
 static_assert(STATE_ONLINE_LOBBY == 0x5e31bae3u, "state name hashing drifted");
 
-enum class Op { none, status, configure, clear, host, join, leave };
+enum class Op { none, status, configure, clear, host, join, leave, cancel };
 enum class Category { none, f1_2026, f1_2025 };
 enum class Screen { main_menu, lan_lobby, other };
 enum class Role { none, host, client };
@@ -51,6 +51,7 @@ inline const char *op_name(Op o)
     case Op::host: return "host";
     case Op::join: return "join";
     case Op::leave: return "leave";
+    case Op::cancel: return "cancel";
     default: return "none";
     }
 }
@@ -126,6 +127,8 @@ inline Command parse(const std::string &text)
         c.op = Op::join;
     else if (op == "leave")
         c.op = Op::leave;
+    else if (op == "cancel")
+        c.op = Op::cancel;
     else {
         c.error = op.empty() ? "no op" : "unknown op '" + op + "'";
         return c;
@@ -177,12 +180,13 @@ struct State {
     bool in_session() const { return lobby; }
 };
 
-// Empty when the command may run now, else the reason it is refused. status always runs.
+// Empty when the command may run now, else the reason it is refused. status, clear and cancel always
+// run, also while a host or join is running.
 inline std::string refuse(const Command &c, const State &s)
 {
     if (!c.error.empty())
         return c.error;
-    if (c.op == Op::status || c.op == Op::clear)
+    if (c.op == Op::status || c.op == Op::clear || c.op == Op::cancel)
         return {};
     if (!s.armed)
         return "netplay is not armed for this game session (SWOFTY_NETPLAY is unset)";
@@ -306,6 +310,16 @@ public:
     {
         error = why;
         step = Step::finished;
+    }
+
+    // Abort a running host or join: it ends at its next tick and answers with this error. False when
+    // nothing was running.
+    bool cancel()
+    {
+        if (!active())
+            return false;
+        fail("cancelled by the launcher");
+        return true;
     }
 
     // A popup the game is about to show; true when the job answers it instead.

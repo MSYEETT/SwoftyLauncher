@@ -45,6 +45,7 @@ struct Room {
 
 #[derive(Default)]
 struct State {
+    stall_leave: Duration,
     users: HashMap<String, FakeUser>,
     room: Option<Room>,
     sockets: HashMap<String, mpsc::Sender<Out>>,
@@ -97,6 +98,11 @@ impl FakeServer {
             });
         }
         FakeServer { url, state, stop }
+    }
+
+    /// Answer leave requests only after `delay`, as a server on a dead network would.
+    pub fn stall_leave(&self, delay: Duration) {
+        lock(&self.state).stall_leave = delay;
     }
 
     pub fn has_room(&self) -> bool {
@@ -216,6 +222,10 @@ fn serve(mut tcp: TcpStream, state: &Mutex<State>) {
             &json!({"error": "sign in", "reason": "signed_out"}),
         );
     };
+    if path.ends_with("/leave") {
+        let stall = lock(state).stall_leave;
+        thread::sleep(stall);
+    }
     let (status, answer) = route(state, &method, &path, &body, &user);
     respond(&mut tcp, status, &answer);
 }

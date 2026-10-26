@@ -519,6 +519,15 @@ void netplay_tick()
             return;
         }
         case drive::Op::leave: error = run_leave(c); break;
+        case drive::Op::cancel: {
+            bool cancelled;
+            {
+                std::lock_guard<std::mutex> g(job_lock);
+                cancelled = job.cancel();
+            }
+            reply(c, error, cancelled ? "the running host or join ends at its next step" : "nothing was running");
+            return;
+        }
         default: break;
         }
     }

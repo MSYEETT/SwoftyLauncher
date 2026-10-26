@@ -185,9 +185,23 @@ int main()
         k.start(join, 0);
         k.fail("no home view model");
         expect(k.finished() && k.error == "no home view model", "an executor failure ends the job");
+        drive::Job m;
+        expect(!m.cancel() && !m.active() && !m.finished(), "cancel with nothing running changes nothing");
+        m.start(host, 0);
+        m.tick(f, 0);
+        expect(m.cancel() && m.finished() && m.error == "cancelled by the launcher", "cancel ends a running host");
+        expect(m.tick(f, 1) == drive::Do::nothing, "a cancelled job takes no more steps");
     }
     expect(drive::reply_json(host, main_menu(), "", 1, "picked by hand").find(R"("detail":"picked by hand")") != std::string::npos,
            "a reply carries its detail");
+
+    auto cancel = drive::parse(R"({"seq":9,"op":"cancel","args":{}})");
+    expect(cancel.error.empty() && cancel.op == drive::Op::cancel, "cancel parses");
+    drive::State running = main_menu();
+    running.busy = true;
+    expect(drive::refuse(cancel, running).empty(), "cancel runs while a host or join is running");
+    expect(drive::refuse(cancel, main_menu(false, false)).empty(), "cancel runs unarmed and without a room");
+    expect(!drive::refuse(drive::parse(R"({"seq":9,"op":"leave"})"), running).empty(), "leave waits for a running job");
 
     uint64_t seq = 0;
     expect(drive::inbox_name("1792467946485.json", &seq) && seq == 1792467946485ull, "a numeric inbox name is read");

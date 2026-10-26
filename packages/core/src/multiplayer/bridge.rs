@@ -26,6 +26,7 @@ use std::time::{Duration, SystemTime};
 
 use ring::rand::{SecureRandom, SystemRandom};
 use serde::{Deserialize, Serialize};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use super::direct::timed_out;
 use super::seal::{Opener, Reject, Sealer, new_session_id};
@@ -50,7 +51,8 @@ const BASE_MAX: u16 = 60000;
 const BIND_ATTEMPTS: usize = 64;
 const BUF: usize = 65536;
 
-#[derive(Debug, Clone)]
+/// Wipes its key when dropped.
+#[derive(Clone)]
 pub struct BridgeConfig {
     /// This player's lobby number.
     pub self_member: u8,
@@ -62,6 +64,24 @@ pub struct BridgeConfig {
     /// go until the game has sent from it.
     pub game_port: u16,
 }
+
+impl std::fmt::Debug for BridgeConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BridgeConfig")
+            .field("self_member", &self.self_member)
+            .field("members", &self.members)
+            .field("game_port", &self.game_port)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Drop for BridgeConfig {
+    fn drop(&mut self) {
+        self.key.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for BridgeConfig {}
 
 impl BridgeConfig {
     fn remotes(&self, allow_empty: bool) -> io::Result<Vec<u8>> {
@@ -462,6 +482,15 @@ impl Shared {
         m.bytes_out += len as u64;
     }
 
+    /// Take back a [`Shared::sent`] whose send failed.
+    fn unsent(&self, member: u8, len: usize) {
+        let mut stats = self.stats();
+        let m = stats.members.entry(member).or_default();
+        m.packets_out = m.packets_out.saturating_sub(1);
+        m.bytes_out = m.bytes_out.saturating_sub(len as u64);
+        stats.drops.send_failed += 1;
+    }
+
     fn delivery_port(&self) -> u16 {
         match self.seen_port.load(Ordering::Relaxed) {
             0 => self.configured_port,
@@ -486,14 +515,21 @@ impl Shared {
             )
         })?;
         self.check_size(from, payload.len(), "from");
+        let len = payload.len() as u64;
+        {
+            let mut stats = self.stats();
+            let m = stats.members.entry(from).or_default();
+            m.packets_in += 1;
+            m.bytes_in += len;
+        }
         if let Err(e) = socket.send_to(payload, (Ipv4Addr::LOCALHOST, self.delivery_port())) {
-            self.stats().drops.deliver_failed += 1;
+            let mut stats = self.stats();
+            let m = stats.members.entry(from).or_default();
+            m.packets_in = m.packets_in.saturating_sub(1);
+            m.bytes_in = m.bytes_in.saturating_sub(len);
+            stats.drops.deliver_failed += 1;
             return Err(e);
         }
-        let mut stats = self.stats();
-        let m = stats.members.entry(from).or_default();
-        m.packets_in += 1;
-        m.bytes_in += payload.len() as u64;
         Ok(())
     }
 
@@ -562,18 +598,17 @@ fn outbound(shared: &Shared, member: u8) {
             }
         }
         shared.check_size(member, n, "to");
+        if game {
+            shared.sent(member, n);
+        }
         match link {
             Some(link) => {
                 link.sealer.seal(member, payload, &mut wire);
                 if link.transport().send(member, &wire).is_err() {
-                    shared.stats().drops.send_failed += 1;
-                    continue;
+                    shared.unsent(member, n);
                 }
             }
             None => shared.keep(member, from, !game, payload),
-        }
-        if game {
-            shared.sent(member, n);
         }
     }
 }

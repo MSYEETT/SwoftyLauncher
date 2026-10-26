@@ -1,9 +1,10 @@
 //! Commands to the running game's netplay driver over core's file mailbox.
 //!
 //! Core reads `<game>/swofty/netplay/inbox/<seq>.json` (written as `.tmp`, then renamed), answers
-//! each command in `outbox/<seq>.json` and keeps `status.json` current. `status` always answers;
-//! `host`, `join` and `leave` need `SWOFTY_NETPLAY` in the game's environment and the game on its
-//! main menu (`host`, `join`) or in a LAN lobby (`leave`).
+//! each command in `outbox/<seq>.json` and keeps `status.json` current. `status`, `clear` and
+//! `cancel` always answer, `cancel` ending a running `host` or `join` at its next step; `host`,
+//! `join` and `leave` need `SWOFTY_NETPLAY` in the game's environment and the game on its main menu
+//! (`host`, `join`) or in a LAN lobby (`leave`).
 
 use std::fmt;
 use std::net::Ipv4Addr;
@@ -65,6 +66,7 @@ pub enum Command {
     Status,
     Configure { self_member: u8, base: u16 },
     Clear,
+    Cancel,
     Host { category: Category },
     Join { ip: Ipv4Addr },
     Leave,
@@ -76,6 +78,7 @@ impl Command {
             Command::Status => "status",
             Command::Configure { .. } => "configure",
             Command::Clear => "clear",
+            Command::Cancel => "cancel",
             Command::Host { .. } => "host",
             Command::Join { .. } => "join",
             Command::Leave => "leave",
@@ -96,7 +99,7 @@ impl Command {
             Command::Host { category } => json!({ "category": category.as_str() }),
             Command::Join { ip } => json!({ "ip": ip.to_string() }),
             Command::Configure { self_member, base } => json!({ "self": self_member, "base": base }),
-            Command::Status | Command::Clear | Command::Leave => json!({}),
+            Command::Status | Command::Clear | Command::Cancel | Command::Leave => json!({}),
         };
         json!({ "seq": seq, "op": self.op(), "args": args })
     }
@@ -269,6 +272,11 @@ pub fn configure(game_dir: &Path, self_member: u8, base: u16) -> Result<GameStat
     .map(|r| r.status)
 }
 
+/// End a running `host` or `join`; it answers "cancelled by the launcher". Nothing running is fine.
+pub fn cancel(game_dir: &Path) -> Result<GameStatus, Error> {
+    send(game_dir, &Command::Cancel, Command::Cancel.timeout()).map(|r| r.status)
+}
+
 pub fn clear(game_dir: &Path) -> Result<GameStatus, Error> {
     {
         let cmd = Command::Clear;
@@ -369,6 +377,10 @@ mod tests {
             json!({ "seq": 11, "op": "configure", "args": { "self": 2, "base": 40000 } })
         );
         assert_eq!(Command::Clear.to_json(12)["op"], "clear");
+        assert_eq!(
+            Command::Cancel.to_json(13),
+            json!({ "seq": 13, "op": "cancel", "args": {} })
+        );
         assert_eq!(
             Command::Host {
                 category: Category::F12026

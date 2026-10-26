@@ -34,6 +34,8 @@ const RETRY_FORBIDDEN: Duration = Duration::from_secs(60);
 /// A channel may not be rebound to another address until this long after its binding expired.
 const CHANNEL_QUARANTINE: Duration = Duration::from_secs(300);
 const DEFAULT_LIFETIME: u32 = 600;
+/// How long a TURN permission lasts once installed (RFC 8656 §9).
+const PERMISSION_LIFETIME: Duration = Duration::from_secs(300);
 /// MD5 in PASSWORD-ALGORITHM: algorithm 1, no parameters.
 const ALGORITHM_MD5: [u8; 4] = [0, 1, 0, 0];
 
@@ -172,6 +174,8 @@ struct Routes {
     members: HashMap<u8, SocketAddr>,
     by_addr: HashMap<SocketAddr, u8>,
     next_permission: HashMap<IpAddr, Instant>,
+    /// When the server last accepted a permission (or a channel binding) for each peer IP.
+    granted: HashMap<IpAddr, Instant>,
     channels: HashMap<u16, Channel>,
 }
 
@@ -525,10 +529,13 @@ impl Shared {
             Err(Fail::Code(403, _)) => now + RETRY_FORBIDDEN,
             Err(_) => now + RETRY_SOON,
         };
-        lock(&self.routes).next_permission.insert(peer.ip(), next);
+        let mut routes = lock(&self.routes);
+        routes.next_permission.insert(peer.ip(), next);
         if result.is_ok() {
+            routes.granted.insert(peer.ip(), now);
             self.counters.permissions.fetch_add(1, Ordering::Relaxed);
         }
+        drop(routes);
         result.map(|_| ())
     }
 
@@ -636,6 +643,7 @@ impl Shared {
             }
             if result.is_ok() {
                 routes.next_permission.insert(addr.ip(), now + t.permission_every);
+                routes.granted.insert(addr.ip(), now);
                 self.counters.bindings.fetch_add(1, Ordering::Relaxed);
             }
             drop(routes);
@@ -870,6 +878,19 @@ impl TurnTransport {
         }
     }
 
+    /// Whether the server currently permits datagrams to and from `member`'s relayed address. A
+    /// permission refused at [`Transport::set_peers`] is retried in the background; this turns
+    /// true once a retry succeeds.
+    pub fn permitted(&self, member: u8) -> bool {
+        let routes = lock(&self.shared.routes);
+        routes.members.get(&member).is_some_and(|a| {
+            routes
+                .granted
+                .get(&a.ip())
+                .is_some_and(|at| at.elapsed() < PERMISSION_LIFETIME)
+        })
+    }
+
     /// Whether datagrams to `member` currently go over a bound channel.
     pub fn channel_bound(&self, member: u8) -> bool {
         let routes = lock(&self.shared.routes);
@@ -886,6 +907,10 @@ impl Transport for TurnTransport {
         self.relayed
     }
 
+    fn permitted(&self, member: u8) -> bool {
+        TurnTransport::permitted(self, member)
+    }
+
     /// Installs every peer it can; an `AddrNotAvailable` error names the members whose
     /// permission the server refused (they are retried in the background), while the others
     /// work. A credential or allocation failure is fatal instead.
@@ -897,6 +922,9 @@ impl Transport for TurnTransport {
             routes.by_addr = peers.iter().map(|(m, a)| (*a, *m)).collect();
             routes
                 .next_permission
+                .retain(|ip, _| peers.values().any(|a| a.ip() == *ip));
+            routes
+                .granted
                 .retain(|ip, _| peers.values().any(|a| a.ip() == *ip));
             let mut due: Vec<SocketAddr> = Vec::new();
             for a in peers.values() {
@@ -1209,6 +1237,29 @@ mod tests {
     }
 
     #[test]
+    fn a_member_is_permitted_only_while_its_permission_lives() {
+        let t = offline();
+        let x: SocketAddr = "198.51.100.1:5000".parse().unwrap();
+        let y: SocketAddr = "198.51.100.2:6000".parse().unwrap();
+        let far = Instant::now() + Duration::from_secs(3600);
+        for a in [x, y] {
+            lock(&t.shared.routes).next_permission.insert(a.ip(), far);
+        }
+        t.set_peers(&HashMap::from([(2, x), (3, y)])).unwrap();
+        assert!(!t.permitted(2) && !t.permitted(3) && !t.permitted(4));
+        lock(&t.shared.routes).granted.insert(x.ip(), Instant::now());
+        assert!(t.permitted(2), "a background retry that succeeds shows at once");
+        assert!(!t.permitted(3));
+        if let Some(old) = Instant::now().checked_sub(PERMISSION_LIFETIME + Duration::from_secs(1)) {
+            lock(&t.shared.routes).granted.insert(y.ip(), old);
+            assert!(!t.permitted(3), "an expired permission doesn't count");
+        }
+        t.set_peers(&HashMap::from([(3, y)])).unwrap();
+        assert!(!t.permitted(2));
+        assert!(!lock(&t.shared.routes).granted.contains_key(&x.ip()));
+    }
+
+    #[test]
     fn answers_need_integrity_and_the_right_method() {
         let key = stun::long_term_key("u", "test", "p");
         let tid = [9u8; 12];
@@ -1400,6 +1451,7 @@ mod tests {
         assert_eq!(err.kind(), io::ErrorKind::AddrNotAvailable, "{err}");
         assert!(err.to_string().contains("member 3"), "{err}");
         assert!(!err.to_string().contains("member 2"), "{err}");
+        assert!(a.permitted(2) && !a.permitted(3));
         b.set_peers(&HashMap::from([(1, a.local_addr())])).unwrap();
         ping_pong(&a, &b, Duration::from_secs(14));
         assert!(a.stats().permissions >= 4, "{:?}", a.stats());
