@@ -1,8 +1,10 @@
 #include "runtime.hpp"
 
+#include <safetyhook.hpp>
 #include <swofty/mixin.hpp>
 
 #include <atomic>
+#include <cstring>
 #include <deque>
 #include <mutex>
 #include <set>
@@ -20,14 +22,89 @@
 //
 // State comes from what core already sees: flow states (StateFrontend for the front end,
 // StateOnlineLobby for a LAN lobby) and the screens the UI opens (fe_home for the main menu).
-// status and clear always answer; configure (the room: member number and bridge base port, shared
+// status and clear always answer. configure (the room: member number and bridge base port, shared
 // with the bridge hooks through netplay_session.hpp), host, join and leave need SWOFTY_NETPLAY in
-// the game's environment, host and join also a configured room, and each a game state that allows it, and report unavailable until their game entry points are bound
+// the game's environment, host and join also a configured room, and each a game state that allows
+// it. host, join and leave report unavailable until their game entry points are bound
 // (research/multiplayer/lan-netplay-design.md, "Driving host/join").
+
+namespace runtime {
+std::string hook_error(const safetyhook::MidHook::Error &e);
+}
 
 namespace {
 
 namespace drive = runtime::drive;
+
+// The systems the LAN tile's getAction switches with (base+0x172c840: game mode "online_custom",
+// then NetworkSubsystem::changeMPMode to eLan) come from its init (base+0x172c5a0), which looks
+// them up in the tile builder's context: the game mode manager into item+0x148, the network
+// subsystem into item+0x150. With the LAN tile no longer built, a probe at the builder's populate
+// loop (site_FeTile_PopulateLoop, where rbx and rdi are the init arguments of every tile) runs that
+// init on a private LAN item while armed, so the mode switch can later run on it without the tile.
+// The probe only reads; it logs what it reached.
+const runtime::Sig S_LAN_VT{"vt_FeTile_LanItem",
+                            "48 8D 05 ?? ?? ?? ?? 49 89 04 24 C4 C1 78 11 B4 24 48 01 00 00 41 C6 84 24 58 01 00 00 00",
+                            0x5704740, runtime::Sig::riprel, 0, 3, 7};
+const runtime::Sig S_POPULATE_LOOP{"site_FeTile_PopulateLoop",
+                                   "49 8B 76 78 4D 8B B6 80 00 00 00 4C 39 F6 8B AC 24 00 03 00 00", 0x1745016};
+constexpr size_t LAN_ITEM_SIZE = 0x160, LAN_GAME_MODES = 0x148, LAN_NETWORK = 0x150, LAN_ACTIVE = 0x158;
+constexpr unsigned MAX_PROBES = 8;
+
+using LanInit_t = uint64_t(void *item, void *registry, void *ctx);
+
+alignas(16) uint8_t lan_item[LAN_ITEM_SIZE];
+void **lan_vt;
+safetyhook::MidHook h_populate;
+unsigned probes;
+std::atomic<bool> lan_systems;
+
+template <class T> T lan_field(size_t off)
+{
+    T v;
+    std::memcpy(&v, lan_item + off, sizeof v);
+    return v;
+}
+
+void populate_mid(safetyhook::Context &c)
+{
+    if (lan_systems.load() || probes >= MAX_PROBES)
+        return;
+    auto *registry = reinterpret_cast<void *>(c.rbx), *ctx = reinterpret_cast<void *>(c.rdi);
+    if (!runtime::readable(registry, 8) || !runtime::readable(ctx, 0x28))
+        return;
+    ++probes;
+    std::memset(lan_item, 0, sizeof lan_item);
+    std::memcpy(lan_item, &lan_vt, sizeof lan_vt);
+    uint64_t rc = reinterpret_cast<LanInit_t *>(lan_vt[3])(lan_item, registry, ctx);
+    auto *modes = lan_field<void *>(LAN_GAME_MODES), *network = lan_field<void *>(LAN_NETWORK);
+    bool ok = rc == 0 && modes && network;
+    lan_systems = ok;
+    swofty::log("[netplay] LAN systems probe %u: init returned 0x%llx, game modes %p, network %p, Network.LAN.active %u%s",
+                probes, (unsigned long long)rc, modes, network, unsigned(lan_item[LAN_ACTIVE]),
+                ok ? "; the mode switch can run without the LAN tile" : "");
+}
+
+void probe_setup()
+{
+    uintptr_t vt = runtime::find(S_LAN_VT, "netplay", "netplay"), loop = runtime::find(S_POPULATE_LOOP, "netplay", "netplay");
+    if (!vt || !loop || !runtime::readable(reinterpret_cast<void *>(vt), 6 * sizeof(void *))) {
+        swofty::log("[netplay] LAN systems probe not installed (LAN item vtable %s, populate loop %s)",
+                    vt ? "found" : "missing", loop ? "found" : "missing");
+        return;
+    }
+    lan_vt = reinterpret_cast<void **>(vt);
+    auto h = safetyhook::MidHook::create(reinterpret_cast<void *>(loop), populate_mid);
+    if (!h) {
+        swofty::log("[netplay] LAN systems probe: the hook failed: %s", runtime::hook_error(h.error()).c_str());
+        return;
+    }
+    h_populate = std::move(*h);
+    swofty::log("[netplay] LAN systems probe at base+0x%llx (LAN item init base+0x%llx, getAction base+0x%llx)",
+                (unsigned long long)(loop - swofty::api->module_base()),
+                (unsigned long long)(reinterpret_cast<uintptr_t>(lan_vt[3]) - swofty::api->module_base()),
+                (unsigned long long)(reinterpret_cast<uintptr_t>(lan_vt[5]) - swofty::api->module_base()));
+}
 
 constexpr DWORD POLL_MS = 250;
 constexpr uint64_t HEARTBEAT_MS = 5000;
@@ -152,6 +229,8 @@ void netplay_drive_setup()
     armed = n > 0 && n < sizeof v;
     swofty::log("[netplay] launcher commands on (<game>/swofty/netplay); configure, host, join and leave %s",
                 armed ? "accepted (SWOFTY_NETPLAY set)" : "refused (SWOFTY_NETPLAY unset), status and clear only");
+    if (armed)
+        probe_setup();
     if (!started.exchange(true))
         std::thread(watch).detach();
 }
