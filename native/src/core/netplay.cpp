@@ -43,15 +43,15 @@ void setup()
     static const uint8_t open_gate[] = {0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
     static const uint8_t force_null_ssl[] = {0x45, 0x31, 0xFF, 0x90, 0x90};
 
-    bool gate = patch(runtime::find(S_HOST_GATE, "netplay"), open_gate, sizeof open_gate);
+    bool gate = patch(runtime::find(S_HOST_GATE, "netplay", "netplay"), open_gate, sizeof open_gate);
     swofty::log("[netplay] host-session gate %s", gate ? "opened" : "not patched (signature did not resolve)");
 
-    bool enc = patch(runtime::find(S_ENCRYPT_SELECT, "netplay"), force_null_ssl, sizeof force_null_ssl);
+    bool enc = patch(runtime::find(S_ENCRYPT_SELECT, "netplay", "netplay"), force_null_ssl, sizeof force_null_ssl);
     swofty::log("[netplay] transport encryption %s",
                 enc ? "forced to the null-SSL provider" : "left unchanged (signature did not resolve)");
 
     static const uint8_t skip_lobby_kick[] = {0xEB};
-    bool lobby = patch(runtime::find(S_LOBBY_KICK, "netplay"), skip_lobby_kick, sizeof skip_lobby_kick);
+    bool lobby = patch(runtime::find(S_LOBBY_KICK, "netplay", "netplay"), skip_lobby_kick, sizeof skip_lobby_kick);
     swofty::log("[netplay] lobby privilege re-check %s",
                 lobby ? "neutralised (no kicked-for-cheating at lobby enter)"
                       : "left unchanged (signature did not resolve)");
