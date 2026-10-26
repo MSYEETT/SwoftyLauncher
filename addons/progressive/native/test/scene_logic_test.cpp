@@ -56,7 +56,21 @@ int main()
                           "(one season, target 80)");
 
     s.clear();
-    EXPECT(!s.on && s.steps == 0 && s.team == 0);
+    EXPECT(!s.on && !s.tried && s.steps == 0 && s.team == 0);
+
+    s.arm(true, 0x01dc0000, 2017, 92);
+    EXPECT(s.on && s.tried);
+    s.clear();
+    s.tried = true;
+    EXPECT(!s.on && s.tried);
+
+    EXPECT(route(0x5e3c3c2d) == Route::no_contract);
+    EXPECT(route(0xd2985448) == Route::contract_ends);
+    EXPECT(route(0x7c9b1ec4) == Route::none);
+    EXPECT(route(0) == Route::none);
+    EXPECT(std::string(route_name(Route::contract_ends)) == "his contract ends: the scene starts at the team select");
+    EXPECT(std::string(route_name(Route::no_contract)) == "no contract yet: the scene starts at the agent intro");
+    EXPECT(std::string(route_name(Route::none)) == "no contract scene follows");
 
     if (failures) {
         std::printf("scene_logic_test: %d failure(s)\n", failures);

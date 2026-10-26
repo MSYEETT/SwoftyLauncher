@@ -3,15 +3,18 @@
 // Progressive Career - Follow your driver's real career (progressive_follow.dll, DESIGN.md D8).
 //
 // The F1 1990 contract skip (f1-1990 native/src/contract_skip.cpp), aimed at the real calendar. When
-// Career_Decide_ContractNegotiation picks the negotiation (link 0x5e3c3c2d: no contract, or it ends
-// this season) in a Progressive career whose team moves are follow_driver, with one human, the
-// player signs a one-season contract with the game's own
+// Career_Decide_ContractNegotiation routes to the contract scene in a Progressive career whose team
+// moves are follow_driver, with one human, the player signs a one-season contract with the game's own
 // Career_Build_DriverContract + Career_Sign_DriverContract (type 0, the screen's recommended target)
 // and the whole contract scene passes straight through (scene_logic.hpp): at the end of his contract
 // the team select (Game_ContractTeamSelect_*, entered first then) returns the continue link without
 // its screen, the agent intro cutscene (Intro) and the outro skip, and the contract terms screen
 // (Update) enters idle and leaves at once. The outro logs where it was skipped, the steps that passed
-// through and the contract signed. The team signed:
+// through and the contract signed. The decision's link names the route (scene_logic.hpp): 0x5e3c3c2d
+// (no contract yet, or one that runs on) starts at the agent intro, 0xd2985448 (his contract ends
+// this season) at the team select. A scene step entered with no decision before it (team select,
+// agent intro, contract terms or outro, whichever comes first) signs and skips the same way, once per
+// scene; Team HQ, the stock outro's end and career.unloaded reset that. The team signed:
 //   - no active contract (a new career, or a save from before its first contract): his real team of
 //     the career's current year (ProgressiveRealTeam: start + season index), whatever seat the
 //     save still shows; his current team when he did not race that year;
@@ -62,7 +65,6 @@ namespace {
 using namespace swofty::game;
 
 constexpr const char *kGroup = "f1_career_progressive";
-constexpr uint32_t kLinkNegotiate = 0x5e3c3c2d;
 constexpr uint32_t kLinkContinueFallback = 0x7c9b1ec4;
 constexpr uint32_t kNoKey = 0x3fff0000u;
 constexpr uint32_t kHumanBit = 0x10000000u;
@@ -405,6 +407,46 @@ void meetings_hub()
                 n, g_meetings.total.load(), c.declined, c.past);
 }
 
+bool arm_scene(const char *where)
+{
+    g_scene.tried = true;
+    int mode = follow_mode();
+    if (mode != 1) {
+        swofty::log("[progressive] follow: contract scene (%s): this career chooses its team; the stock scene stays", where);
+        return false;
+    }
+    uint32_t h = humans();
+    if (h > 1) {
+        swofty::log("[progressive] follow: contract scene (%s): %u human players; the stock scene stays", where, h);
+        return false;
+    }
+    auto contracts = reinterpret_cast<uintptr_t>(
+        swofty::career::component_by_desc(k_Career_DriverCareerContractsManagerComponentDesc.get()));
+    if (!contracts) {
+        swofty::log("[progressive] follow: contract scene (%s): no contracts component; the stock scene stays", where);
+        return false;
+    }
+    if (!sign(contracts)) {
+        swofty::log("[progressive] follow: contract scene (%s): nothing signed; the stock scene stays", where);
+        return false;
+    }
+    swofty::log("[progressive] follow: skipping the contract scene (%s; %s; continue link 0x%08x)", where,
+                g_scene.where().c_str(), continue_link());
+    return true;
+}
+
+bool scene_step(sc::Step step, const char *name)
+{
+    if (!g_scene.on && !g_scene.tried && swofty::career::is(kGroup)) {
+        std::string where = std::string(name) + " entered without the negotiation decision";
+        arm_scene(where.c_str());
+    }
+    if (!g_scene.on)
+        return false;
+    g_scene.mark(step);
+    return true;
+}
+
 void on_career(const SwoftyEvent *ev, void *)
 {
     if (!std::strcmp(ev->name, SWOFTY_EVENT_CAREER_UNLOADED)) {
@@ -412,8 +454,10 @@ void on_career(const SwoftyEvent *ev, void *)
         g_scene.clear();
         return;
     }
-    if (ev->a == 1 && static_cast<swofty::career::Mode>(ev->b) == swofty::career::Mode::driver_career)
+    if (ev->a == 1 && static_cast<swofty::career::Mode>(ev->b) == swofty::career::Mode::driver_career) {
+        g_scene.clear();
         meetings_hub();
+    }
 }
 
 } // namespace
@@ -422,31 +466,21 @@ SWOFTY_WRAP(Career_Decide_ContractNegotiation, uint32_t *, void *state, uint32_t
 {
     uint32_t *r = orig(state, link);
     g_scene.clear();
-    if (!link || *link != kLinkNegotiate || !swofty::career::is(kGroup))
+    if (!link || !swofty::career::is(kGroup))
         return r;
-    if (follow_mode() != 1) {
-        swofty::log("[progressive] follow: this career chooses its team; the stock negotiation stays");
+    sc::Route route = sc::route(*link);
+    if (route == sc::Route::none) {
+        swofty::log("[progressive] follow: contract decision link 0x%08x: %s", *link, sc::route_name(route));
         return r;
     }
-    swofty::career::State cs{};
-    if (swofty::career::state(&cs) == swofty::career::Result::ok && cs.humans > 1)
-        return r;
-    auto contracts = reinterpret_cast<uintptr_t>(
-        swofty::career::component_by_desc(k_Career_DriverCareerContractsManagerComponentDesc.get()));
-    if (!contracts)
-        return r;
-    if (sign(contracts))
-        swofty::log("[progressive] follow: skipping the contract scene (%s; continue link 0x%08x)", g_scene.where().c_str(),
-                    continue_link());
+    std::string where = std::string("the negotiation decision, ") + sc::route_name(route);
+    arm_scene(where.c_str());
     return r;
 }
 
 SWOFTY_WRAP(Game_ContractTeamSelect_OnEnter, uint64_t, void *state)
 {
-    if (!g_scene.on)
-        return orig(state);
-    g_scene.mark(sc::kTeamSelect);
-    return 1;
+    return scene_step(sc::kTeamSelect, "team select") ? 1 : orig(state);
 }
 
 SWOFTY_WRAP(Game_ContractTeamSelect_OnUpdate, uint32_t *, void *state, uint32_t *link)
@@ -464,10 +498,7 @@ SWOFTY_WRAP(Game_ContractTeamSelect_OnExit, uint64_t, void *state)
 
 SWOFTY_WRAP(Career_ContractIntro_OnEnter, uint64_t, void *state)
 {
-    if (!g_scene.on)
-        return orig(state);
-    g_scene.mark(sc::kIntro);
-    return 1;
+    return scene_step(sc::kIntro, "agent intro") ? 1 : orig(state);
 }
 
 SWOFTY_WRAP(Career_ContractIntro_OnUpdate, uint32_t *, void *state, uint32_t *link)
@@ -480,7 +511,7 @@ SWOFTY_WRAP(Career_ContractIntro_OnUpdate, uint32_t *, void *state, uint32_t *li
 
 SWOFTY_WRAP(Career_ContractUpdate_OnEnter, uint64_t, void *state)
 {
-    if (!g_scene.on)
+    if (!scene_step(sc::kTerms, "contract terms"))
         return orig(state);
     auto *s = static_cast<uint8_t *>(state);
     s[0xd58] = 1;
@@ -488,7 +519,6 @@ SWOFTY_WRAP(Career_ContractUpdate_OnEnter, uint64_t, void *state)
     s[0xd5b] = 0;
     std::memset(s + 0xd60, 0, 0x10);
     g_scene.update_skipped = true;
-    g_scene.mark(sc::kTerms);
     return 1;
 }
 
@@ -510,16 +540,17 @@ SWOFTY_WRAP(Career_ContractUpdate_OnExit, uint64_t, void *state)
 
 SWOFTY_WRAP(Career_ContractOutro_OnEnter, uint64_t, void *state)
 {
-    if (!g_scene.on)
-        return orig(state);
-    g_scene.mark(sc::kOutro);
-    return 1;
+    return scene_step(sc::kOutro, "outro") ? 1 : orig(state);
 }
 
 SWOFTY_WRAP(Career_ContractOutro_OnUpdate, uint32_t *, void *state, uint32_t *link)
 {
-    if (!g_scene.on)
-        return orig(state, link);
+    if (!g_scene.on) {
+        uint32_t *r = orig(state, link);
+        if (r && *r == continue_link())
+            g_scene.clear();
+        return r;
+    }
     *link = continue_link();
     swofty::log("[progressive] follow: %s", g_scene.summary().c_str());
     g_scene.clear();

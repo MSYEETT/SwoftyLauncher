@@ -8,6 +8,12 @@
 //             team, year and target signed, and which steps of the scene passed through (team
 //             select, the agent intro, the contract terms, the outro).
 //   summary   the text of the log line the outro writes.
+//   route     what ContractNegotiationsDecision's link leads to: 0x5e3c3c2d when he has no contract
+//             yet (or it runs past this season), the scene from the agent intro; 0xd2985448 when his
+//             contract ends this season, the scene from the team select; 0x7c9b1ec4 (no contracts
+//             component) no scene.
+//   tried     a scene is signed for at most once: the decision, or the first scene step entered
+//             without it (team select, agent intro), whichever comes first.
 
 #pragma once
 #include <cstdint>
@@ -15,6 +21,28 @@
 #include <string>
 
 namespace progressive::scene {
+
+constexpr uint32_t kLinkNoContract = 0x5e3c3c2d;
+constexpr uint32_t kLinkContractEnds = 0xd2985448;
+
+enum class Route { none, no_contract, contract_ends };
+
+inline Route route(uint32_t link)
+{
+    return link == kLinkNoContract ? Route::no_contract : link == kLinkContractEnds ? Route::contract_ends : Route::none;
+}
+
+inline const char *route_name(Route r)
+{
+    switch (r) {
+    case Route::no_contract:
+        return "no contract yet: the scene starts at the agent intro";
+    case Route::contract_ends:
+        return "his contract ends: the scene starts at the team select";
+    default:
+        return "no contract scene follows";
+    }
+}
 
 enum Step : unsigned {
     kTeamSelect = 1u << 0,
@@ -25,6 +53,7 @@ enum Step : unsigned {
 
 struct Skip {
     bool on = false;
+    bool tried = false;
     bool update_skipped = false;
     bool contract_end = false;
     uint32_t team = 0;
@@ -36,6 +65,7 @@ struct Skip {
     {
         *this = Skip{};
         on = true;
+        tried = true;
         contract_end = end;
         team = team_key;
         year = season_year;
