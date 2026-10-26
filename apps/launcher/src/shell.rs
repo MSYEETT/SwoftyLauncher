@@ -5,12 +5,12 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
 use gpui_kit::assets::IconName;
-use gpui_kit::component::button::{Button, ButtonVariant};
+use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants};
 use gpui_kit::component::dialog::AlertDialog;
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::slider::SliderState;
-use gpui_kit::component::{Icon, TitleBar, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{Disableable, Icon, Sizable, TitleBar, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::crash::StartFailure;
@@ -40,6 +40,7 @@ pub enum Page {
     Tools,
     Profiles,
     Database,
+    Multiplayer,
     Section(usize),
 }
 
@@ -53,6 +54,7 @@ impl Page {
             Self::Tools => "Tools",
             Self::Profiles => "Profiles",
             Self::Database => "DB Editor",
+            Self::Multiplayer => "Multiplayer",
             Self::Section(_) => "",
         }
     }
@@ -74,6 +76,7 @@ impl Page {
             Self::Tools => IconName::Wrench,
             Self::Profiles => IconName::Layers,
             Self::Database => IconName::Database,
+            Self::Multiplayer => IconName::Users,
             Self::Section(_) => IconName::Package,
         }
     }
@@ -104,6 +107,10 @@ pub struct Shell {
     pub(crate) processes: Vec<GameProcess>,
     pub(crate) owners: Vec<Owner>,
     pub(crate) session: Option<SessionRecord>,
+    pub(crate) mp: Option<swofty_core::mpauth::Session>,
+    pub(crate) mp_busy: bool,
+    pub(crate) mp_toasts: Vec<Notification>,
+    pub(crate) mp_page: crate::multiplayer::Multiplayer,
     pub(crate) crash: Option<(PathBuf, Result<String, StartFailure>)>,
     pub(crate) dismissed: Option<PathBuf>,
     pub(crate) launch: Option<Launch>,
@@ -179,6 +186,7 @@ impl Prepared {
     pub(crate) fn load() -> Self {
         let store = Store::open_default().with_builtins(swofty_builtins::all());
         let migrated = store.migrate();
+        swofty_core::multiplayer::diag::open(&store.root);
         swofty_core::usage::launcher_heartbeats(store.root.clone());
         let recovered_seen = Notice::read(&store.root).map_or(0.0, |n| n.at);
         let mods_blocked_seen = quarantine::Report::read(&store.root).map_or(0.0, |r| r.at);
@@ -385,6 +393,48 @@ impl Shell {
         });
         let browser = crate::browser::Browser::new(&store.root, window, cx);
         let catalog = Self::watch_catalog(cx);
+        let mp = swofty_core::mpauth::load(&store.root);
+        if let Some(current) = mp.clone() {
+            let dir = store.root.clone();
+            cx.spawn(async move |this, cx| {
+                let refreshed = cx
+                    .background_executor()
+                    .spawn(async move { swofty_core::mpauth::refresh(&dir, &current) })
+                    .await;
+                this.update(cx, |s, cx| {
+                    s.mp = refreshed;
+                    cx.notify();
+                })
+                .ok();
+            })
+            .detach();
+        }
+        let mp_poll = cx.spawn(async move |this, cx| {
+            loop {
+                cx.background_executor().timer(Duration::from_secs(30)).await;
+                let current =
+                    match this.update(cx, |s, _| s.mp.clone().map(|sess| (s.store.root.clone(), sess))) {
+                        Ok(c) => c,
+                        Err(_) => break,
+                    };
+                let Some((dir, session)) = current else {
+                    continue;
+                };
+                let was_allowed = session.allowed;
+                let refreshed = cx
+                    .background_executor()
+                    .spawn(async move { swofty_core::mpauth::refresh(&dir, &session) })
+                    .await;
+                if this
+                    .update(cx, |s, cx| s.mp_apply_refresh(refreshed, was_allowed, cx))
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        });
+        mp_poll.detach();
+        Self::watch_multiplayer(cx);
         let mut shell = Self {
             library,
             store,
@@ -398,6 +448,10 @@ impl Shell {
             processes: Vec::new(),
             owners: Vec::new(),
             session: None,
+            mp,
+            mp_busy: false,
+            mp_toasts: Vec::new(),
+            mp_page: crate::multiplayer::Multiplayer::new(window, cx),
             crash: None,
             dismissed: None,
             launch: None,
@@ -753,6 +807,7 @@ impl Shell {
             &self.library.profile.name,
             &install,
             self.launch_mode(),
+            self.mp_allowed(),
         ) {
             Ok(l) => self.launch = Some(l),
             Err(e) => {
@@ -1107,14 +1162,133 @@ impl Shell {
         });
     }
 
-    fn title_bar(&self, p: Palette) -> impl IntoElement {
+    fn mp_sign_in(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        if self.mp_busy || self.mp.is_some() {
+            return;
+        }
+        let (pending, url) = match swofty_core::mpauth::begin() {
+            Ok(v) => v,
+            Err(e) => {
+                self.mp_toasts
+                    .push(Notification::error(format!("Sign-in failed: {e}")));
+                cx.notify();
+                return;
+            }
+        };
+        self.mp_busy = true;
+        cx.open_url(&url);
+        let dir = self.store.root.clone();
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { pending.wait(&dir) })
+                .await;
+            this.update(cx, |s, cx| {
+                s.mp_busy = false;
+                match result {
+                    Ok(session) => {
+                        s.mp_toasts
+                            .push(Notification::success(format!("Signed in as {}", session.name)));
+                        if session.allowed {
+                            s.mp_toasts.push(Notification::success(
+                                "Your account has been granted access to: Multiplayer",
+                            ));
+                        }
+                        s.mp = Some(session);
+                    }
+                    Err(e) => s
+                        .mp_toasts
+                        .push(Notification::error(format!("Sign-in failed: {e}"))),
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn mp_sign_out(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        let Some(session) = self.mp.take() else {
+            return;
+        };
+        self.mp_leave(cx);
+        let name = session.name.clone();
+        let dir = self.store.root.clone();
+        cx.background_executor()
+            .spawn(async move { swofty_core::mpauth::sign_out(&dir, &session) })
+            .detach();
+        self.mp_toasts
+            .push(Notification::info(format!("Signed out {name}")));
+        cx.notify();
+    }
+
+    fn mp_apply_refresh(
+        &mut self,
+        refreshed: Option<swofty_core::mpauth::Session>,
+        was_allowed: bool,
+        cx: &mut Context<Self>,
+    ) {
+        match refreshed {
+            Some(session) => {
+                let gained = session.allowed && !was_allowed;
+                self.mp = Some(session);
+                if gained {
+                    self.mp_toasts.push(Notification::success(
+                        "Your account has been granted access to: Multiplayer",
+                    ));
+                }
+            }
+            None => self.mp = None,
+        }
+        cx.notify();
+    }
+
+    fn title_bar(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+        let control: AnyElement = match &self.mp {
+            Some(sess) => h_flex()
+                .items_center()
+                .gap(px(8.))
+                .child(
+                    div()
+                        .text_size(px(12.))
+                        .text_color(p.text)
+                        .child(sess.name.clone()),
+                )
+                .child(
+                    Button::new("mp-logout")
+                        .ghost()
+                        .small()
+                        .label("Log out")
+                        .disabled(self.mp_busy)
+                        .on_click(cx.listener(|this, _, window, cx| this.mp_sign_out(window, cx))),
+                )
+                .into_any_element(),
+            None => Button::new("mp-login")
+                .small()
+                .label(if self.mp_busy {
+                    "Signing in\u{2026}"
+                } else {
+                    "Log in"
+                })
+                .disabled(self.mp_busy)
+                .on_click(cx.listener(|this, _, window, cx| this.mp_sign_in(window, cx)))
+                .into_any_element(),
+        };
         TitleBar::new().bg(p.chrome).child(
-            h_flex().flex_1().justify_end().pr(px(8.)).child(
-                div()
-                    .text_size(px(12.))
-                    .text_color(p.text_placeholder)
-                    .child(concat!("v", env!("CARGO_PKG_VERSION"))),
-            ),
+            h_flex()
+                .flex_1()
+                .justify_end()
+                .items_center()
+                .gap(px(12.))
+                .pr(px(8.))
+                .child(control)
+                .child(
+                    div()
+                        .text_size(px(12.))
+                        .text_color(p.text_placeholder)
+                        .child(concat!("v", env!("CARGO_PKG_VERSION"))),
+                ),
         )
     }
 
@@ -1301,13 +1475,16 @@ impl Shell {
     }
 
     fn sidebar(&self, p: Palette, short: bool, cx: &mut Context<Self>) -> impl IntoElement {
-        let big = [
+        let mut big = vec![
             (Page::News, None),
             (Page::Addons, Some(self.library.listed().count())),
             (Page::Browser, None),
             (Page::Tools, None),
             (Page::Profiles, Some(self.library.profiles.len())),
         ];
+        if self.mp_allowed() {
+            big.push((Page::Multiplayer, None));
+        }
         v_flex()
             .w(px(220.))
             .h_full()
@@ -1326,10 +1503,10 @@ impl Shell {
                     .child(crate::pages::wordmark(if short { 112. } else { 148. })),
             )
             .child(
-                v_flex()
-                    .flex_shrink_0()
-                    .gap(px(2.))
-                    .children(big.map(|(page, count)| self.big_nav(page, count, p, cx))),
+                v_flex().flex_shrink_0().gap(px(2.)).children(
+                    big.into_iter()
+                        .map(|(page, count)| self.big_nav(page, count, p, cx)),
+                ),
             )
             .child(
                 v_flex()
@@ -1435,6 +1612,9 @@ impl Render for Shell {
         for note in std::mem::take(&mut self.browser.toasts) {
             window.push_notification(note, cx);
         }
+        for note in std::mem::take(&mut self.mp_toasts) {
+            window.push_notification(note, cx);
+        }
         let content = match self.page {
             Page::News => self.news_page(p, short, cx),
             Page::Importer => self.importer_page(p, cx),
@@ -1443,6 +1623,7 @@ impl Render for Shell {
             Page::Browser => self.browser_page(p, cx),
             Page::Database => self.db_page(p, cx),
             Page::Profiles => self.profiles_page(p, wide, cx),
+            Page::Multiplayer => self.multiplayer_page(p, cx),
             Page::Section(i) => self.section_page(i, p, cx),
         };
         if self.dropping && !cx.has_active_drag() {
@@ -1464,7 +1645,7 @@ impl Render for Shell {
             .bg(p.background)
             .text_color(p.text)
             .text_size(px(14.))
-            .child(self.title_bar(p))
+            .child(self.title_bar(p, cx))
             .child(
                 h_flex()
                     .flex_1()

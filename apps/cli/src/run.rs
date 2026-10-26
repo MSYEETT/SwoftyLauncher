@@ -11,6 +11,7 @@ use swofty_core::crash::{Event, LogScan, Symbols, fatal_name};
 use swofty_core::install::{Game, Installer, PROXY, Source};
 use swofty_core::launch;
 use swofty_core::loader_check;
+use swofty_core::multiplayer::bridge::{ENV as NETPLAY_ENV, armed_env};
 use swofty_core::process::{
     descends_from, game_processes, game_running_in, games_in, steamvr_running, stop_game_in, stop_process,
 };
@@ -138,6 +139,7 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
         winedebug: Some(args.winedebug.clone()),
         profile: Some(profile.into()),
         apply: args.apply,
+        netplay: std::env::var(NETPLAY_ENV).ok().filter(|v| !v.is_empty()),
     };
     write_json(&store.root.join("state/launch.json"), &request)?;
     let mode = if args.vr {
@@ -377,10 +379,15 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
         .ok()
         .and_then(|d| serde_json::from_slice(&d).ok())
         .unwrap_or_default();
-    let request: LaunchRequest = std::fs::read(store.root.join("state/launch.json"))
+    let launch_path = store.root.join("state/launch.json");
+    let mut request: LaunchRequest = std::fs::read(&launch_path)
         .ok()
         .and_then(|d| serde_json::from_slice(&d).ok())
         .unwrap_or_default();
+    // A wrapper Steam starts later on its own must not inherit an earlier launch's arming.
+    if request.netplay.is_some() && !written_within(&launch_path, NETPLAY_REQUEST_LIFE) {
+        request.netplay = None;
+    }
     let profile = request.profile.clone().unwrap_or_else(|| profile.to_owned());
     if let Some(cpus) = config.launch.cpu_affinity.as_deref().and_then(parse_cpu_list) {
         set_affinity(&cpus);
@@ -594,6 +601,16 @@ fn rebuild_if_needed(store: &Store, profile: &str, game: &Path) {
     }
 }
 
+const NETPLAY_REQUEST_LIFE: Duration = Duration::from_secs(600);
+
+fn written_within(path: &Path, max: Duration) -> bool {
+    std::fs::metadata(path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok())
+        .is_some_and(|age| age <= max)
+}
+
 fn play(
     store: &Store,
     args: &RunArgs,
@@ -725,6 +742,11 @@ fn play(
         .chain(library_path.map(|p| ("LD_LIBRARY_PATH", p)))
         .map(|(k, v)| (k.to_owned(), v)),
     );
+    if let Some(armed) = &request.netplay {
+        for (name, value) in armed_env(armed) {
+            game_env.entry(name.to_owned()).or_insert(value);
+        }
+    }
     // The prefix's registry override is not always what Wine reads at start,
     // so the session also names version.dll in WINEDLLOVERRIDES, which wins
     // over the registry.
@@ -1925,6 +1947,22 @@ fn link(_: &Path, _: &Path) {}
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_old_launch_request_loses_its_arming() {
+        let path = std::env::temp_dir().join(format!("swofty-launch-age-{}", std::process::id()));
+        std::fs::write(&path, "{}").unwrap();
+        assert!(written_within(&path, NETPLAY_REQUEST_LIFE));
+        let file = std::fs::File::options().write(true).open(&path).unwrap();
+        file.set_modified(SystemTime::now() - Duration::from_secs(3600))
+            .unwrap();
+        assert!(!written_within(&path, NETPLAY_REQUEST_LIFE));
+        assert!(!written_within(
+            &path.with_extension("missing"),
+            NETPLAY_REQUEST_LIFE
+        ));
+        std::fs::remove_file(&path).ok();
+    }
 
     fn temp_log(name: &str) -> PathBuf {
         std::env::temp_dir()
