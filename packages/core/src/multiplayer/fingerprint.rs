@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 
 use crate::Result;
 use crate::baseline::{Hashes, Identity, hex, sha256_bytes};
-use crate::builtin::{CORE_DLL, CORE_ID, loader_dir, loader_files};
+use crate::builtin::{CORE_DB, CORE_DLL, CORE_ID, CORE_MANIFEST, loader_dir, loader_files};
 use crate::catalog::{self, Addon};
 use crate::manifest::{AddonManifest, Kind, Multiplayer};
 use crate::profile::Profile;
@@ -25,6 +25,9 @@ pub const HASHES_FILE: &str = "state/fingerprint-hashes.json";
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Fingerprint {
     pub version: u32,
+    /// The launcher that made it, for showing; the core's `builtin` source covers it.
+    pub launcher: String,
+    /// The digest covers only `exe_sha256`; `build_id` is for showing.
     pub game_build: Identity,
     /// Sorted by id.
     pub addons: Vec<AddonPrint>,
@@ -63,7 +66,11 @@ pub struct AddonPrint {
 pub enum Source {
     /// Its installed files: each one's path and SHA-256, in path order.
     Content(String),
-    /// Built into the launcher: the core's DLL, or the manifest of another built-in addon.
+    /// A DB Editor addon: its edits without their display names and origins, its copied rows
+    /// and its game build.
+    Edits(String),
+    /// Built into the launcher: its version and manifest, and for the core its database
+    /// operations and DLL.
     Builtin(String),
 }
 
@@ -77,6 +84,7 @@ impl Fingerprint {
         addons.sort_by(|a, b| a.id.cmp(&b.id));
         let mut f = Self {
             version: VERSION,
+            launcher: env!("CARGO_PKG_VERSION").into(),
             game_build,
             addons,
             options,
@@ -87,9 +95,17 @@ impl Fingerprint {
         f
     }
 
-    /// SHA-256 of the fingerprint as JSON with sorted keys and addons, without `name`,
-    /// `registry` or `digest`.
+    /// SHA-256 of the fingerprint as JSON with sorted keys and addons, each `order` as its rank
+    /// among the placed addons, without `launcher`, `game_build.build_id`, `name`, `registry`
+    /// or `digest`.
     pub fn canonical_digest(&self) -> String {
+        let mut placed: Vec<(usize, &str)> = self
+            .addons
+            .iter()
+            .filter_map(|a| Some((a.order?, a.id.as_str())))
+            .collect();
+        placed.sort();
+        let rank = |id: &str| placed.iter().position(|(_, p)| *p == id);
         let mut addons: Vec<&AddonPrint> = self.addons.iter().collect();
         addons.sort_by(|a, b| a.id.cmp(&b.id));
         let addons: Vec<Value> = addons
@@ -100,13 +116,13 @@ impl Fingerprint {
                     "version": a.version.to_string(),
                     "source": a.source,
                     "inputs": a.inputs,
-                    "order": a.order,
+                    "order": rank(&a.id),
                 })
             })
             .collect();
         let doc = serde_json::json!({
             "version": self.version,
-            "game_build": self.game_build,
+            "game_build": { "exe_sha256": self.game_build.exe_sha256.to_ascii_lowercase() },
             "addons": addons,
             "options": self.options,
             "dlc": self.dlc,
@@ -182,13 +198,36 @@ fn changes_data(m: &AddonManifest) -> bool {
 
 fn source(store: &Store, m: &AddonManifest, hashes: &mut Hashes) -> Result<Source> {
     if store.is_builtin(&m.id) {
-        let dll = loader_dir()
-            .map(|d| d.join(CORE_DLL))
-            .filter(|p| m.id == CORE_ID && p.is_file());
-        return Ok(Source::Builtin(match dll {
-            Some(dll) => hashes.sha256(&dll)?,
-            None => sha256_bytes(&serde_json::to_vec(m).expect("serialisable")),
-        }));
+        let mut h = Sha256::new();
+        h.update(format!("launcher {}\0", env!("CARGO_PKG_VERSION")));
+        if m.id == CORE_ID {
+            let dll = loader_dir().map(|d| d.join(CORE_DLL)).filter(|p| p.is_file());
+            let dll = dll.map(|p| hashes.sha256(&p)).transpose()?;
+            h.update(format!("dll {}\0", dll.as_deref().unwrap_or("none")));
+            h.update(CORE_MANIFEST);
+            h.update(CORE_DB);
+        } else {
+            h.update(serde_json::to_vec(m).expect("serialisable"));
+        }
+        return Ok(Source::Builtin(hex(&h.finalize())));
+    }
+    if crate::dbedit::package::is_package(store, &m.id)
+        && let Ok(p) = crate::dbedit::package::Package::open(store, &m.id)
+    {
+        let mut edits = serde_json::to_value(&p.edits.edits).expect("serialisable");
+        for e in edits.as_array_mut().into_iter().flatten() {
+            if let Some(e) = e.as_object_mut() {
+                e.remove("path");
+                e.remove("origin");
+            }
+        }
+        let edits = serde_json::json!({
+            "game_build": p.game_build,
+            "edits": edits,
+            "rows": p.edits.rows,
+        });
+        let text = serde_json::to_vec(&sorted(edits)).expect("serialisable");
+        return Ok(Source::Edits(sha256_bytes(&text)));
     }
     content_hash(&store.addons_dir().join(&m.id), hashes).map(Source::Content)
 }
@@ -196,19 +235,15 @@ fn source(store: &Store, m: &AddonManifest, hashes: &mut Hashes) -> Result<Sourc
 /// SHA-256 over each file under `dir` as `path\0sha256\n`, paths relative with `/`, in order.
 pub fn content_hash(dir: &Path, hashes: &mut Hashes) -> Result<String> {
     let mut h = Sha256::new();
-    hash_files(&mut h, dir, hashes, |_| false)?;
+    for (rel, path) in loader_files(dir)? {
+        h.update(format!("{rel}\0{}\n", hashes.sha256(&path)?));
+    }
     Ok(hex(&h.finalize()))
 }
 
-fn hash_files(h: &mut Sha256, dir: &Path, hashes: &mut Hashes, skip: impl Fn(&str) -> bool) -> Result<()> {
-    for (rel, path) in loader_files(dir)?.into_iter().filter(|(rel, _)| !skip(rel)) {
-        h.update(format!("{rel}\0{}\n", hashes.sha256(&path)?));
-    }
-    Ok(())
-}
-
 /// The addon data files and profile state a build hook reads, leaving out hidden entries, `logs`
-/// folders and `.log` and `.tmp` files.
+/// folders and `.log` and `.tmp` files. A JSON file or the state counts as [`settled`] JSON,
+/// and one with nothing in it counts as absent.
 fn hook_inputs(
     store: &Store,
     m: &AddonManifest,
@@ -221,19 +256,69 @@ fn hook_inputs(
     }
     let mut h = Sha256::new();
     let dir = store.addon_data_dir(&m.id);
+    let volatile = |rel: &str| {
+        rel.split('/').any(|c| c.starts_with('.') || c == "logs")
+            || rel.ends_with(".log")
+            || rel.ends_with(".tmp")
+    };
     if dir.is_dir() {
-        hash_files(&mut h, &dir, hashes, |rel| {
-            rel.split('/').any(|c| c.starts_with('.') || c == "logs")
-                || rel.ends_with(".log")
-                || rel.ends_with(".tmp")
-        })?;
+        for (rel, path) in loader_files(&dir)?.into_iter().filter(|(rel, _)| !volatile(rel)) {
+            let json = rel.ends_with(".json")
+                && std::fs::metadata(&path).is_ok_and(|meta| meta.len() <= JSON_INPUT_LIMIT);
+            let parsed = json
+                .then(|| std::fs::read(&path).ok())
+                .flatten()
+                .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
+            let sha = match parsed {
+                Some(v) => match settled(v) {
+                    Some(v) => sha256_bytes(&serde_json::to_vec(&v).expect("serialisable")),
+                    None => continue,
+                },
+                None => hashes.sha256(&path)?,
+            };
+            h.update(format!("{rel}\0{sha}\n"));
+        }
     }
-    let state = profile.state.get(&m.id).cloned().map(sorted);
+    let state = profile.state.get(&m.id).cloned().and_then(settled);
     h.update(format!(
         "\0state\0{}",
         serde_json::to_string(&state).expect("serialisable")
     ));
     Ok(Some(hex(&h.finalize())))
+}
+
+/// JSON addon data bigger than this is hashed as bytes.
+const JSON_INPUT_LIMIT: u64 = 4 * 1024 * 1024;
+
+/// `v` with sorted keys and without its top-level `next_*` id counters, or `None` when nothing
+/// but a `schema` or `schema_version` is set: every value null, false, zero, empty or such an
+/// object.
+fn settled(v: Value) -> Option<Value> {
+    fn empty(v: &Value) -> bool {
+        match v {
+            Value::Null => true,
+            Value::Bool(b) => !b,
+            Value::Number(n) => n.as_f64() == Some(0.0),
+            Value::String(s) => s.is_empty(),
+            Value::Array(a) => a.is_empty(),
+            Value::Object(o) => o.values().all(empty),
+        }
+    }
+    let v = match v {
+        Value::Object(mut o) => {
+            o.retain(|k, _| !k.starts_with("next_"));
+            let bare = o
+                .iter()
+                .all(|(k, v)| k == "schema" || k == "schema_version" || empty(v));
+            if bare {
+                return None;
+            }
+            Value::Object(o)
+        }
+        v if empty(&v) => return None,
+        v => v,
+    };
+    Some(sorted(v))
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -254,8 +339,13 @@ pub enum MismatchKind {
         host: Identity,
     },
     Dlc {
-        local: bool,
-        host: bool,
+        local: Option<bool>,
+        host: Option<bool>,
+    },
+    /// A built-in addon differs, so the launchers differ: players need the same launcher.
+    Launcher {
+        local: String,
+        host: String,
     },
     /// `registry` in these is the host's download, the one a fix installs.
     MissingAddon {
@@ -313,6 +403,14 @@ impl Mismatch {
             MismatchKind::Dlc { local, host } => {
                 format!("DLC is {}; the host's is {}", owned(*local), owned(*host))
             }
+            MismatchKind::Launcher { local, host } if local == host => {
+                format!("this Swofty Launcher {local} is a different build from the host's {host}")
+            }
+            MismatchKind::Launcher { local, host } => {
+                format!(
+                    "Swofty Launcher {local} is not the host's {host}; play with the same launcher version"
+                )
+            }
             MismatchKind::MissingAddon {
                 id, name, version, ..
             } => format!("{name} ({id}) {version} is missing"),
@@ -364,14 +462,12 @@ fn build(i: &Identity) -> String {
     )
 }
 
-fn owned(on: bool) -> &'static str {
-    if on { "owned" } else { "not owned" }
-}
-
-fn same_game(a: &Identity, b: &Identity) -> bool {
-    let steam = |i: &Identity| i.build_id.parse::<u64>().ok();
-    a.exe_sha256.eq_ignore_ascii_case(&b.exe_sha256)
-        && !matches!((steam(a), steam(b)), (Some(x), Some(y)) if x != y)
+fn owned(on: Option<bool>) -> &'static str {
+    match on {
+        Some(true) => "owned",
+        Some(false) => "not owned",
+        None => "unknown",
+    }
 }
 
 /// What `local` must change to match `host`, the game build and DLC first, then addons,
@@ -389,7 +485,11 @@ pub fn compare(local: &Fingerprint, host: &Fingerprint, catalog: &[Addon]) -> Ve
     };
     let mut out = Vec::new();
     let mut push = |kind, fixable| out.push(Mismatch { kind, fixable });
-    if !same_game(&local.game_build, &host.game_build) {
+    if !local
+        .game_build
+        .exe_sha256
+        .eq_ignore_ascii_case(&host.game_build.exe_sha256)
+    {
         push(
             MismatchKind::GameBuild {
                 local: local.game_build.clone(),
@@ -398,16 +498,34 @@ pub fn compare(local: &Fingerprint, host: &Fingerprint, catalog: &[Addon]) -> Ve
             false,
         );
     }
-    if let (Some(l), Some(h)) = (local.dlc, host.dlc)
-        && l != h
-    {
-        push(MismatchKind::Dlc { local: l, host: h }, false);
+    if local.dlc != host.dlc {
+        push(
+            MismatchKind::Dlc {
+                local: local.dlc,
+                host: host.dlc,
+            },
+            false,
+        );
     }
     let mine: BTreeMap<&str, &AddonPrint> = local.addons.iter().map(|a| (a.id.as_str(), a)).collect();
     let theirs: BTreeMap<&str, &AddonPrint> = host.addons.iter().map(|a| (a.id.as_str(), a)).collect();
     for h in theirs.values() {
         let (id, name) = (h.id.clone(), h.name.clone());
         match mine.get(h.id.as_str()) {
+            Some(l)
+                if (l.version != h.version || l.source != h.source)
+                    && [&l.source, &h.source]
+                        .iter()
+                        .any(|s| matches!(s, Source::Builtin(_))) =>
+            {
+                push(
+                    MismatchKind::Launcher {
+                        local: local.launcher.clone(),
+                        host: host.launcher.clone(),
+                    },
+                    false,
+                )
+            }
             None => push(
                 MismatchKind::MissingAddon {
                     id,
@@ -474,7 +592,12 @@ pub fn compare(local: &Fingerprint, host: &Fingerprint, catalog: &[Addon]) -> Ve
         placed.into_iter().map(|(_, id)| id.to_owned()).collect()
     };
     let (mine_order, their_order) = (shared_order(local, &theirs), shared_order(host, &mine));
-    if mine_order != their_order {
+    let placed_alike = mine.iter().all(|(id, l)| {
+        theirs
+            .get(id)
+            .is_none_or(|h| l.order.is_some() == h.order.is_some())
+    });
+    if mine_order != their_order || !placed_alike {
         push(
             MismatchKind::LoadOrder {
                 local: mine_order,
@@ -502,6 +625,27 @@ pub fn compare(local: &Fingerprint, host: &Fingerprint, catalog: &[Addon]) -> Ve
                     true,
                 );
             }
+        }
+    }
+    for (addon, values) in local
+        .options
+        .iter()
+        .filter(|(id, _)| theirs.contains_key(id.as_str()))
+    {
+        let hosts = host.options.get(addon);
+        for (option, l) in values
+            .iter()
+            .filter(|(o, _)| hosts.is_none_or(|h| !h.contains_key(*o)))
+        {
+            push(
+                MismatchKind::OptionDiffers {
+                    addon: addon.clone(),
+                    option: option.clone(),
+                    local: Some(l.clone()),
+                    host: None,
+                },
+                false,
+            );
         }
     }
     out
@@ -638,7 +782,7 @@ mod tests {
         let f = host();
         assert_eq!(
             f.digest,
-            "cc9f627c838ee70a4e8a8e13b4f7a29bf53f36660a5f9e10bb004d8f8c6a920f"
+            "9547802c5a3ed7f1f2ea3d12b22a21b6f96dbf61fe0f29b65f61fb860a96bbd9"
         );
         let mut shuffled = f.addons.clone();
         shuffled.reverse();
@@ -661,7 +805,7 @@ mod tests {
             changed(&|c| c.addons[0].version = Version::new(1, 0, 1)),
             changed(&|c| c.addons[1].source = content("d")),
             changed(&|c| c.addons[1].inputs = Some("d".repeat(64))),
-            changed(&|c| c.addons[0].order = Some(1)),
+            changed(&|c| c.addons[0].order = Some(2)),
             changed(&|c| {
                 c.options.get_mut("t.a").unwrap().insert("laps".into(), json!(6));
             }),
@@ -956,19 +1100,75 @@ mod tests {
         );
 
         let mut local = host();
-        local.game_build.build_id = "25300000".into();
-        assert_eq!(
-            kinds(&compare(&local, &host(), &[])),
-            [("game_build".into(), false)]
-        );
         local.game_build.build_id = format!("exe-{}", "a".repeat(12));
         assert!(compare(&local, &host(), &[]).is_empty());
+        assert_eq!(local.canonical_digest(), host().digest);
+        local.game_build.build_id = "25300000".into();
+        local.game_build.exe_sha256 = "A".repeat(64);
+        assert!(compare(&local, &host(), &[]).is_empty());
+        assert_eq!(local.canonical_digest(), host().digest);
 
         let (mut local, mut h) = (host(), host());
         local.dlc = Some(false);
+        assert_eq!(kinds(&compare(&local, &h, &[])), [("dlc".into(), false)]);
+        assert_eq!(
+            compare(&local, &h, &[])[0].line(),
+            "DLC is not owned; the host's is unknown"
+        );
+        h.dlc = Some(false);
         assert!(compare(&local, &h, &[]).is_empty());
         h.dlc = Some(true);
         assert_eq!(kinds(&compare(&local, &h, &[])), [("dlc".into(), false)]);
+    }
+
+    #[test]
+    fn a_different_launcher_is_reported_as_one() {
+        let core = |f: &mut Fingerprint, sha: &str| {
+            f.addons
+                .push(print(CORE_ID, "0.2.13", Source::Builtin(sha.repeat(64)), Some(0)));
+            f.addons.sort_by(|a, b| a.id.cmp(&b.id));
+        };
+        let (mut local, mut h) = (host(), host());
+        core(&mut local, "1");
+        core(&mut h, "2");
+        local.launcher = "1.5.12".into();
+        h.launcher = "1.5.13".into();
+        let found = compare(&local, &h, &[]);
+        assert_eq!(kinds(&found), [("launcher".into(), false)]);
+        assert_eq!(
+            found[0].line(),
+            "Swofty Launcher 1.5.12 is not the host's 1.5.13; play with the same launcher version"
+        );
+        h.launcher = "1.5.12".into();
+        assert_eq!(
+            compare(&local, &h, &[])[0].line(),
+            "this Swofty Launcher 1.5.12 is a different build from the host's 1.5.12"
+        );
+        let mut newer_core = local.clone();
+        newer_core.addons[0].version = Version::new(0, 2, 14);
+        assert_eq!(
+            kinds(&compare(&local, &newer_core, &[])),
+            [("launcher".into(), false)]
+        );
+    }
+
+    #[test]
+    fn the_core_print_covers_the_launcher_and_its_database_operations() {
+        let store = store("core");
+        let f = fingerprint(&store, &profile(&[]), &game()).unwrap();
+        let Source::Builtin(sha) = &f.addons[0].source else {
+            panic!("{:?}", f.addons[0].source);
+        };
+        let mut h = Sha256::new();
+        h.update(format!("launcher {}\0", env!("CARGO_PKG_VERSION")));
+        let dll = loader_dir().map(|d| d.join(CORE_DLL)).filter(|p| p.is_file());
+        let dll = dll.map(|p| crate::baseline::sha256_file(&p).unwrap());
+        h.update(format!("dll {}\0", dll.as_deref().unwrap_or("none")));
+        h.update(CORE_MANIFEST);
+        h.update(CORE_DB);
+        assert_eq!(*sha, hex(&h.finalize()));
+        assert_eq!(f.launcher, env!("CARGO_PKG_VERSION"));
+        std::fs::remove_dir_all(&store.root).ok();
     }
 
     #[test]
@@ -1150,5 +1350,167 @@ mod tests {
             kinds(&compare(&local, &host(), &[])),
             [("extra_addon".into(), true)]
         );
+    }
+
+    #[test]
+    fn db_editor_addons_print_their_edits_rather_than_their_files() {
+        let marker = |value: &str, path: &str| {
+            json!({
+                "format": "swofty-db-package", "format_version": 1, "game_build": "25251167",
+                "edits": [{ "key": "0x0000000000000001", "type": 0, "value": value, "stock": "1", "path": path }],
+            })
+            .to_string()
+        };
+        let package = |name: &str, tool: &str, value: &str, path: &str| {
+            let s = store(name);
+            let mut m = data("dbedit.grid");
+            m["origin"] = json!({ "tool": "db-editor", "tool_version": tool });
+            let readme = format!("made with {tool}");
+            let marker = marker(value, path);
+            put(
+                &s,
+                m,
+                &[
+                    ("dbedit.json", &marker),
+                    ("database.json", tool),
+                    ("README.txt", &readme),
+                ],
+            );
+            let f = fingerprint(&s, &profile(&["dbedit.grid"]), &game()).unwrap();
+            std::fs::remove_dir_all(&s.root).ok();
+            f
+        };
+        let older = package(
+            "dbedit-older",
+            "1.5.10",
+            "33",
+            "entrants.drivers.driver_1.car_number",
+        );
+        let newer = package("dbedit-newer", "1.5.12", "33", "Car number");
+        assert_eq!(older.addons[0].id, "dbedit.grid");
+        assert!(matches!(older.addons[0].source, Source::Edits(_)));
+        assert_eq!(older.digest, newer.digest);
+        assert!(compare(&older, &newer, &[]).is_empty());
+        let other = package("dbedit-other", "1.5.12", "34", "Car number");
+        assert_eq!(
+            kinds(&compare(&older, &other, &[])),
+            [("source_differs".into(), false)]
+        );
+    }
+
+    #[test]
+    fn build_hook_inputs_ignore_id_counters_and_empty_data() {
+        let store = store("settled");
+        let hook = json!({
+            "id": "t.dm", "kind": ["database"],
+            "launcher": { "program": { "linux": "bin/hook", "windows": "bin/hook.exe" }, "build": true },
+        });
+        put(&store, hook, &[]);
+        let mut p = profile(&["t.dm"]);
+        let inputs = |p: &Profile| {
+            fingerprint(&store, p, &game()).unwrap().addons[1]
+                .inputs
+                .clone()
+                .unwrap()
+        };
+        let none = inputs(&p);
+        let data_dir = store.addon_data_dir("t.dm");
+        std::fs::create_dir_all(&data_dir).unwrap();
+        let roster = |next: u32, drivers: Value| {
+            json!({ "schema": 1, "next_driver": next, "next_preset": next + 158, "drivers": drivers })
+                .to_string()
+        };
+        std::fs::write(data_dir.join("drivers.json"), roster(209, json!([]))).unwrap();
+        std::fs::write(data_dir.join("stock.json"), r#"{"schema":1,"drivers":{}}"#).unwrap();
+        p.set_state("t.dm", json!({ "mods": [] })).unwrap();
+        assert_eq!(inputs(&p), none);
+
+        std::fs::write(
+            data_dir.join("drivers.json"),
+            roster(210, json!([{ "stat_id": 209 }])),
+        )
+        .unwrap();
+        let one = inputs(&p);
+        assert_ne!(one, none);
+        std::fs::write(
+            data_dir.join("drivers.json"),
+            roster(300, json!([{ "stat_id": 209 }])),
+        )
+        .unwrap();
+        assert_eq!(inputs(&p), one);
+        std::fs::write(
+            data_dir.join("stock.json"),
+            r#"{"schema":1,"drivers":{"max":{"head":"h"}}}"#,
+        )
+        .unwrap();
+        assert_ne!(inputs(&p), one);
+        std::fs::remove_dir_all(&store.root).ok();
+    }
+
+    #[test]
+    fn equal_digests_and_an_empty_comparison_always_agree() {
+        type Edit = Box<dyn Fn(&mut Fingerprint)>;
+        let core = |sha: &'static str| -> Edit {
+            Box::new(move |c| {
+                c.addons
+                    .push(print(CORE_ID, "0.2.13", Source::Builtin(sha.repeat(64)), None))
+            })
+        };
+        let edits: Vec<Edit> = vec![
+            Box::new(|c| c.addons[0].name = "Renamed".into()),
+            Box::new(|c| c.addons[0].registry = None),
+            Box::new(|c| c.launcher = "0.0.1".into()),
+            Box::new(|c| c.game_build.build_id = format!("exe-{}", "a".repeat(12))),
+            Box::new(|c| c.game_build.exe_sha256 = "A".repeat(64)),
+            Box::new(|c| c.game_build.exe_sha256 = "b".repeat(64)),
+            Box::new(|c| c.dlc = Some(true)),
+            Box::new(|c| c.dlc = Some(false)),
+            Box::new(|c| c.addons[0].version = Version::new(1, 0, 1)),
+            Box::new(|c| c.addons[1].source = content("d")),
+            Box::new(|c| c.addons[1].source = Source::Edits("b".repeat(64))),
+            Box::new(|c| c.addons[1].inputs = Some("d".repeat(64))),
+            Box::new(|c| {
+                c.addons[0].order = Some(1);
+                c.addons[1].order = Some(0);
+            }),
+            Box::new(|c| {
+                c.addons[0].order = Some(5);
+                c.addons[1].order = Some(9);
+            }),
+            Box::new(|c| c.addons[2].order = Some(2)),
+            Box::new(|c| c.addons.retain(|a| a.id != "t.b")),
+            Box::new(|c| c.addons.push(print("t.extra", "1.0.0", content("e"), None))),
+            Box::new(|c| {
+                c.options.get_mut("t.a").unwrap().insert("laps".into(), json!(6));
+            }),
+            Box::new(|c| {
+                c.options
+                    .get_mut("t.a")
+                    .unwrap()
+                    .insert("extra".into(), json!(true));
+            }),
+            Box::new(|c| {
+                c.options.remove("t.a");
+            }),
+            core("1"),
+            core("2"),
+            Box::new(move |c| {
+                core("1")(c);
+                c.launcher = "1.5.13".into();
+            }),
+        ];
+        let mut fixtures = vec![host()];
+        for edit in &edits {
+            let mut f = host();
+            edit(&mut f);
+            f.digest = f.canonical_digest();
+            fixtures.push(f);
+        }
+        for a in &fixtures {
+            for b in &fixtures {
+                let found = compare(a, b, &[]);
+                assert_eq!(a.digest == b.digest, found.is_empty(), "{a:?}\n{b:?}\n{found:?}");
+            }
+        }
     }
 }
