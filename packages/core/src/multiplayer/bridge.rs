@@ -10,18 +10,23 @@
 //! to the port the game was last seen sending from, and until it has sent, to the configured
 //! port; a port read from `netplay.json` is used once the game sends from it. Each start seals
 //! under a new session id (see [`super::seal`]).
+//!
+//! A room grows while it is open: [`Bridge::add_member`] binds `BASE+N` for a member who joined
+//! after the start, and [`Bridge::replace_transport`] moves the relay to a new transport (a fresh
+//! TURN allocation) without touching the ports, so the game keeps its `BASE`.
 
 use std::collections::{BTreeMap, VecDeque};
 use std::io;
 use std::net::{Ipv4Addr, SocketAddr, UdpSocket};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, SystemTime};
 
 use ring::rand::{SecureRandom, SystemRandom};
 use serde::{Deserialize, Serialize};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use super::direct::timed_out;
 use super::seal::{Opener, Reject, Sealer, new_session_id};
@@ -29,6 +34,8 @@ use super::transport::{MAX_DATAGRAM, Transport};
 
 /// The environment variable the launcher sets for the game, to [`Bridge::env_value`].
 pub const ENV: &str = "SWOFTY_NETPLAY";
+/// [`ENV`] for a game started before any room: the hooks go in and pass traffic through.
+pub const ARMED: &str = "armed";
 /// The game's `Network.Transport.SocketPort`.
 pub const DEFAULT_GAME_PORT: u16 = 21414;
 /// Where, under the game folder, the core reports the bridge once the game socket is bound.
@@ -44,7 +51,8 @@ const BASE_MAX: u16 = 60000;
 const BIND_ATTEMPTS: usize = 64;
 const BUF: usize = 65536;
 
-#[derive(Debug, Clone)]
+/// Wipes its key when dropped.
+#[derive(Clone)]
 pub struct BridgeConfig {
     /// This player's lobby number.
     pub self_member: u8,
@@ -57,8 +65,26 @@ pub struct BridgeConfig {
     pub game_port: u16,
 }
 
+impl std::fmt::Debug for BridgeConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BridgeConfig")
+            .field("self_member", &self.self_member)
+            .field("members", &self.members)
+            .field("game_port", &self.game_port)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Drop for BridgeConfig {
+    fn drop(&mut self) {
+        self.key.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for BridgeConfig {}
+
 impl BridgeConfig {
-    fn remotes(&self) -> io::Result<Vec<u8>> {
+    fn remotes(&self, allow_empty: bool) -> io::Result<Vec<u8>> {
         let valid = |m: u8| (1..=254).contains(&m);
         if !valid(self.self_member) || !self.members.iter().all(|&m| valid(m)) {
             return Err(invalid("lobby members are numbered 1 to 254"));
@@ -71,7 +97,7 @@ impl BridgeConfig {
             .collect();
         remotes.sort_unstable();
         remotes.dedup();
-        if remotes.is_empty() {
+        if remotes.is_empty() && !allow_empty {
             return Err(invalid("there are no other lobby members to bridge"));
         }
         Ok(remotes)
@@ -187,19 +213,33 @@ impl NetplayStatus {
 
 pub struct Bridge {
     shared: Arc<Shared>,
-    threads: Vec<JoinHandle<()>>,
+    threads: Mutex<Vec<JoinHandle<()>>>,
 }
 
 struct Shared {
     self_member: u8,
     base: u16,
-    sockets: BTreeMap<u8, UdpSocket>,
+    sockets: RwLock<BTreeMap<u8, Arc<UdpSocket>>>,
     configured_port: u16,
     game_port: AtomicU16,
     seen_port: AtomicU16,
     stop: AtomicBool,
     stats: Mutex<Stats>,
     echo: Option<Mutex<Echo>>,
+    link: Option<Link>,
+}
+
+/// The relay side: absent in echo mode.
+struct Link {
+    transport: RwLock<Arc<dyn Transport>>,
+    sealer: Sealer,
+    opener: Mutex<Opener>,
+}
+
+impl Link {
+    fn transport(&self) -> Arc<dyn Transport> {
+        self.transport.read().unwrap_or_else(|e| e.into_inner()).clone()
+    }
 }
 
 #[derive(Default)]
@@ -209,40 +249,40 @@ struct Echo {
 }
 
 impl Bridge {
-    /// Bind a loopback port for each remote member and relay between them and `transport`.
+    /// Bind a loopback port for each remote member and relay between them and `transport`. A
+    /// room of one starts with no ports; [`Bridge::add_member`] adds them as members join.
     pub fn start(cfg: BridgeConfig, transport: Arc<dyn Transport>) -> io::Result<Bridge> {
-        let remotes = cfg.remotes()?;
-        let sealer = Arc::new(Sealer::new(
-            &cfg.key,
-            cfg.self_member,
-            new_session_id(SystemTime::now(), random_u64()?),
-        ));
-        let opener = Opener::new(&cfg.key, cfg.self_member, remotes.iter().copied());
-        let mut bridge = Self::bind(&cfg, &remotes, false)?;
+        let remotes = cfg.remotes(true)?;
+        let link = Link {
+            transport: RwLock::new(transport),
+            sealer: Sealer::new(
+                &cfg.key,
+                cfg.self_member,
+                new_session_id(SystemTime::now(), random_u64()?),
+            ),
+            opener: Mutex::new(Opener::new(&cfg.key, cfg.self_member, remotes.iter().copied())),
+        };
+        let bridge = Self::bind(&cfg, &remotes, Some(link))?;
         for &m in &remotes {
-            let (shared, transport, sealer) = (bridge.shared.clone(), transport.clone(), sealer.clone());
-            bridge.spawn(format!("netplay-out-{m}"), move || {
-                outbound(&shared, m, Some((&*transport, &*sealer)))
-            })?;
+            bridge.spawn_member(m)?;
         }
         let shared = bridge.shared.clone();
-        bridge.spawn("netplay-in".into(), move || inbound(&shared, &*transport, opener))?;
+        bridge.spawn("netplay-in".into(), move || inbound(&shared))?;
         Ok(bridge)
     }
 
     /// Bind the loopback ports with no transport: keep what the game sends, and send it only
     /// what [`Bridge::inject`] is given.
     pub fn start_echo(cfg: BridgeConfig) -> io::Result<Bridge> {
-        let remotes = cfg.remotes()?;
-        let mut bridge = Self::bind(&cfg, &remotes, true)?;
+        let remotes = cfg.remotes(false)?;
+        let bridge = Self::bind(&cfg, &remotes, None)?;
         for &m in &remotes {
-            let shared = bridge.shared.clone();
-            bridge.spawn(format!("netplay-echo-{m}"), move || outbound(&shared, m, None))?;
+            bridge.spawn_member(m)?;
         }
         Ok(bridge)
     }
 
-    fn bind(cfg: &BridgeConfig, remotes: &[u8], echo: bool) -> io::Result<Bridge> {
+    fn bind(cfg: &BridgeConfig, remotes: &[u8], link: Option<Link>) -> io::Result<Bridge> {
         let (base, sockets) = bind_ports(remotes, cfg.game_port)?;
         for socket in sockets.values() {
             socket.set_read_timeout(Some(POLL))?;
@@ -251,25 +291,76 @@ impl Bridge {
             members: remotes.iter().map(|&m| (m, MemberStats::default())).collect(),
             ..Stats::default()
         };
+        let echo = link.is_none();
         Ok(Bridge {
             shared: Arc::new(Shared {
                 self_member: cfg.self_member,
                 base,
-                sockets,
+                sockets: RwLock::new(sockets.into_iter().map(|(m, s)| (m, Arc::new(s))).collect()),
                 configured_port: cfg.game_port,
                 game_port: AtomicU16::new(cfg.game_port),
                 seen_port: AtomicU16::new(0),
                 stop: AtomicBool::new(false),
                 stats: Mutex::new(stats),
                 echo: echo.then(Mutex::default),
+                link,
             }),
-            threads: Vec::new(),
+            threads: Mutex::default(),
         })
     }
 
-    fn spawn(&mut self, name: String, f: impl FnOnce() + Send + 'static) -> io::Result<()> {
-        self.threads.push(thread::Builder::new().name(name).spawn(f)?);
+    fn spawn(&self, name: String, f: impl FnOnce() + Send + 'static) -> io::Result<()> {
+        let handle = thread::Builder::new().name(name).spawn(f)?;
+        self.threads
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(handle);
         Ok(())
+    }
+
+    fn spawn_member(&self, member: u8) -> io::Result<()> {
+        let shared = self.shared.clone();
+        let name = match shared.link {
+            Some(_) => format!("netplay-out-{member}"),
+            None => format!("netplay-echo-{member}"),
+        };
+        self.spawn(name, move || outbound(&shared, member))
+    }
+
+    /// Bind `127.0.0.1:BASE+member` for a member who joined after the start and relay it like
+    /// the others. False when `member` is this player or already bridged.
+    pub fn add_member(&self, member: u8) -> io::Result<bool> {
+        if !(1..=254).contains(&member) {
+            return Err(invalid("lobby members are numbered 1 to 254"));
+        }
+        if member == self.shared.self_member || self.shared.sockets().contains_key(&member) {
+            return Ok(false);
+        }
+        let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, self.shared.base + u16::from(member)))?;
+        socket.set_read_timeout(Some(POLL))?;
+        if let Some(link) = &self.shared.link {
+            link.opener
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .add_member(member);
+        }
+        self.shared.stats().members.entry(member).or_default();
+        self.shared
+            .sockets
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(member, Arc::new(socket));
+        self.spawn_member(member)?;
+        Ok(true)
+    }
+
+    /// Relay over `transport` from now on, keeping the ports, the session id and its counters,
+    /// so the game notices nothing. Give it the members' addresses first. Does nothing in echo
+    /// mode.
+    pub fn replace_transport(&self, transport: Arc<dyn Transport>) {
+        if let Some(link) = &self.shared.link {
+            *link.transport.write().unwrap_or_else(|e| e.into_inner()) = transport;
+        }
     }
 
     pub fn base(&self) -> u16 {
@@ -282,13 +373,13 @@ impl Bridge {
 
     /// The remote members, in order.
     pub fn members(&self) -> Vec<u8> {
-        self.shared.sockets.keys().copied().collect()
+        self.shared.sockets().keys().copied().collect()
     }
 
     /// The loopback port the game sends to for `member`.
     pub fn port(&self, member: u8) -> Option<u16> {
         self.shared
-            .sockets
+            .sockets()
             .contains_key(&member)
             .then(|| self.shared.base + u16::from(member))
     }
@@ -347,13 +438,19 @@ impl Bridge {
     }
 
     /// Stop relaying, wait for the threads, and close the ports.
-    pub fn stop(mut self) {
+    pub fn stop(self) {
         self.shutdown();
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&self) {
         self.shared.stop.store(true, Ordering::Relaxed);
-        for t in self.threads.drain(..) {
+        let threads: Vec<JoinHandle<()>> = self
+            .threads
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .drain(..)
+            .collect();
+        for t in threads {
             let _ = t.join();
         }
     }
@@ -374,11 +471,24 @@ impl Shared {
         self.stop.load(Ordering::Relaxed)
     }
 
+    fn sockets(&self) -> RwLockReadGuard<'_, BTreeMap<u8, Arc<UdpSocket>>> {
+        self.sockets.read().unwrap_or_else(|e| e.into_inner())
+    }
+
     fn sent(&self, member: u8, len: usize) {
         let mut stats = self.stats();
         let m = stats.members.entry(member).or_default();
         m.packets_out += 1;
         m.bytes_out += len as u64;
+    }
+
+    /// Take back a [`Shared::sent`] whose send failed.
+    fn unsent(&self, member: u8, len: usize) {
+        let mut stats = self.stats();
+        let m = stats.members.entry(member).or_default();
+        m.packets_out = m.packets_out.saturating_sub(1);
+        m.bytes_out = m.bytes_out.saturating_sub(len as u64);
+        stats.drops.send_failed += 1;
     }
 
     fn delivery_port(&self) -> u16 {
@@ -398,21 +508,28 @@ impl Shared {
     }
 
     fn deliver(&self, from: u8, payload: &[u8]) -> io::Result<()> {
-        let socket = self.sockets.get(&from).ok_or_else(|| {
+        let socket = self.sockets().get(&from).cloned().ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::NotFound,
                 format!("member {from} has no loopback port"),
             )
         })?;
         self.check_size(from, payload.len(), "from");
+        let len = payload.len() as u64;
+        {
+            let mut stats = self.stats();
+            let m = stats.members.entry(from).or_default();
+            m.packets_in += 1;
+            m.bytes_in += len;
+        }
         if let Err(e) = socket.send_to(payload, (Ipv4Addr::LOCALHOST, self.delivery_port())) {
-            self.stats().drops.deliver_failed += 1;
+            let mut stats = self.stats();
+            let m = stats.members.entry(from).or_default();
+            m.packets_in = m.packets_in.saturating_sub(1);
+            m.bytes_in = m.bytes_in.saturating_sub(len);
+            stats.drops.deliver_failed += 1;
             return Err(e);
         }
-        let mut stats = self.stats();
-        let m = stats.members.entry(from).or_default();
-        m.packets_in += 1;
-        m.bytes_in += payload.len() as u64;
         Ok(())
     }
 
@@ -453,8 +570,11 @@ impl Shared {
     }
 }
 
-fn outbound(shared: &Shared, member: u8, link: Option<(&dyn Transport, &Sealer)>) {
-    let socket = &shared.sockets[&member];
+fn outbound(shared: &Shared, member: u8) {
+    let Some(socket) = shared.sockets().get(&member).cloned() else {
+        return;
+    };
+    let link = shared.link.as_ref();
     let mut buf = vec![0u8; BUF];
     let mut wire = Vec::with_capacity(MAX_DATAGRAM);
     while !shared.stopping() {
@@ -478,26 +598,28 @@ fn outbound(shared: &Shared, member: u8, link: Option<(&dyn Transport, &Sealer)>
             }
         }
         shared.check_size(member, n, "to");
+        if game {
+            shared.sent(member, n);
+        }
         match link {
-            Some((transport, sealer)) => {
-                sealer.seal(member, payload, &mut wire);
-                if transport.send(member, &wire).is_err() {
-                    shared.stats().drops.send_failed += 1;
-                    continue;
+            Some(link) => {
+                link.sealer.seal(member, payload, &mut wire);
+                if link.transport().send(member, &wire).is_err() {
+                    shared.unsent(member, n);
                 }
             }
             None => shared.keep(member, from, !game, payload),
         }
-        if game {
-            shared.sent(member, n);
-        }
     }
 }
 
-fn inbound(shared: &Shared, transport: &dyn Transport, mut opener: Opener) {
+fn inbound(shared: &Shared) {
+    let Some(link) = shared.link.as_ref() else {
+        return;
+    };
     let mut buf = vec![0u8; BUF];
     while !shared.stopping() {
-        let (sender, n) = match transport.recv(&mut buf, POLL) {
+        let (sender, n) = match link.transport().recv(&mut buf, POLL) {
             Ok(Some(got)) => got,
             Ok(None) => continue,
             Err(_) => {
@@ -505,6 +627,7 @@ fn inbound(shared: &Shared, transport: &dyn Transport, mut opener: Opener) {
                 continue;
             }
         };
+        let mut opener = link.opener.lock().unwrap_or_else(|e| e.into_inner());
         match opener.open(sender, &mut buf[..n]) {
             Ok(plain) => {
                 let _ = shared.deliver(sender, plain);
@@ -655,6 +778,83 @@ mod tests {
             assert_eq!(p.transport.unknown_dropped(), 0);
         }
         lobby.into_iter().for_each(|p| p.bridge.stop());
+    }
+
+    #[test]
+    fn a_member_who_joins_after_the_start_gets_a_port_on_the_same_base() {
+        let (host_link, guest_link) = (
+            Arc::new(DirectUdp::bind("127.0.0.1:0").unwrap()),
+            Arc::new(DirectUdp::bind("127.0.0.1:0").unwrap()),
+        );
+        let (host_game, guest_game) = (fake_game(), fake_game());
+        let cfg = |me: u8, members: &[u8], game: &UdpSocket| BridgeConfig {
+            self_member: me,
+            members: members.to_vec(),
+            key: KEY,
+            game_port: port(game),
+        };
+        let host = Bridge::start(cfg(1, &[1], &host_game), host_link.clone()).unwrap();
+        assert!(host.members().is_empty());
+        let base = host.base();
+        let guest = Bridge::start(cfg(2, &[1, 2], &guest_game), guest_link.clone()).unwrap();
+        host_link
+            .set_peers(&HashMap::from([(2, guest_link.local_addr())]))
+            .unwrap();
+        guest_link
+            .set_peers(&HashMap::from([(1, host_link.local_addr())]))
+            .unwrap();
+        assert!(host.add_member(2).unwrap());
+        assert!(!host.add_member(2).unwrap());
+        assert!(!host.add_member(1).unwrap());
+        assert!(host.add_member(0).is_err());
+        assert_eq!((host.base(), host.port(2)), (base, Some(base + 2)));
+
+        guest_game
+            .send_to(b"hello host", loopback(guest.port(1).unwrap()))
+            .unwrap();
+        assert_eq!(recv(&host_game), (b"hello host".to_vec(), loopback(base + 2)));
+        host_game.send_to(b"welcome", loopback(base + 2)).unwrap();
+        assert_eq!(
+            recv(&guest_game),
+            (b"welcome".to_vec(), loopback(guest.base() + 1))
+        );
+        assert_eq!(host.stats().members[&2].packets_in, 1);
+        host.stop();
+        guest.stop();
+    }
+
+    #[test]
+    fn a_new_transport_takes_over_without_moving_the_ports() {
+        let lobby = lobby(&[1, 2]);
+        let (one, two) = (&lobby[0], &lobby[1]);
+        let to_two = loopback(one.bridge.port(2).unwrap());
+        one.game.send_to(b"before", to_two).unwrap();
+        assert_eq!(recv(&two.game).0, b"before");
+
+        let fresh: Vec<Arc<DirectUdp>> = (0..2)
+            .map(|_| Arc::new(DirectUdp::bind("127.0.0.1:0").unwrap()))
+            .collect();
+        fresh[0]
+            .set_peers(&HashMap::from([(2, fresh[1].local_addr())]))
+            .unwrap();
+        fresh[1]
+            .set_peers(&HashMap::from([(1, fresh[0].local_addr())]))
+            .unwrap();
+        let base = one.bridge.base();
+        one.bridge.replace_transport(fresh[0].clone());
+        two.bridge.replace_transport(fresh[1].clone());
+        one.transport.set_peers(&HashMap::new()).unwrap();
+        two.transport.set_peers(&HashMap::new()).unwrap();
+
+        one.game.send_to(b"after", to_two).unwrap();
+        assert_eq!(recv(&two.game).0, b"after");
+        two.game
+            .send_to(b"back", loopback(two.bridge.port(1).unwrap()))
+            .unwrap();
+        assert_eq!(recv(&one.game), (b"back".to_vec(), loopback(base + 2)));
+        assert_eq!(one.bridge.base(), base);
+        assert_eq!(one.bridge.stats().drops, Drops::default());
+        assert_eq!(two.bridge.stats().drops, Drops::default());
     }
 
     fn wait_for(bridge: &Bridge, done: impl Fn(&Stats) -> bool) -> Stats {

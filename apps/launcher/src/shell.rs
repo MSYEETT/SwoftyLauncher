@@ -110,6 +110,7 @@ pub struct Shell {
     pub(crate) mp: Option<swofty_core::mpauth::Session>,
     pub(crate) mp_busy: bool,
     pub(crate) mp_toasts: Vec<Notification>,
+    pub(crate) mp_page: crate::multiplayer::Multiplayer,
     pub(crate) crash: Option<(PathBuf, Result<String, StartFailure>)>,
     pub(crate) dismissed: Option<PathBuf>,
     pub(crate) launch: Option<Launch>,
@@ -432,6 +433,7 @@ impl Shell {
             }
         });
         mp_poll.detach();
+        Self::watch_multiplayer(cx);
         let mut shell = Self {
             library,
             store,
@@ -448,6 +450,7 @@ impl Shell {
             mp,
             mp_busy: false,
             mp_toasts: Vec::new(),
+            mp_page: crate::multiplayer::Multiplayer::new(window, cx),
             crash: None,
             dismissed: None,
             launch: None,
@@ -803,6 +806,7 @@ impl Shell {
             &self.library.profile.name,
             &install,
             self.launch_mode(),
+            self.mp_allowed(),
         ) {
             Ok(l) => self.launch = Some(l),
             Err(e) => {
@@ -1207,6 +1211,7 @@ impl Shell {
         let Some(session) = self.mp.take() else {
             return;
         };
+        self.mp_leave(cx);
         let name = session.name.clone();
         let dir = self.store.root.clone();
         cx.background_executor()
@@ -1236,23 +1241,6 @@ impl Shell {
             None => self.mp = None,
         }
         cx.notify();
-    }
-
-    fn multiplayer_page(&self, p: Palette, _cx: &mut Context<Self>) -> AnyElement {
-        let who = match &self.mp {
-            Some(m) => format!("Signed in as {} \u{00b7} Multiplayer Access", m.name),
-            None => "Not signed in".to_string(),
-        };
-        v_flex()
-            .size_full()
-            .p(px(crate::pages::GUTTER))
-            .gap(px(14.))
-            .child(div().text_size(px(24.)).text_color(p.text).child("Multiplayer"))
-            .child(div().text_size(px(13.)).text_color(p.text_muted).child(who))
-            .child(div().text_size(px(13.)).text_color(p.text_muted).child(
-                "Private lobbies are coming soon \u{2014} create a lobby, invite friends with a code, and race on the same addons. This is where it will live.",
-            ))
-            .into_any_element()
     }
 
     fn title_bar(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
@@ -1493,7 +1481,7 @@ impl Shell {
             (Page::Tools, None),
             (Page::Profiles, Some(self.library.profiles.len())),
         ];
-        if self.mp.as_ref().is_some_and(|m| m.allowed) {
+        if self.mp_allowed() {
             big.push((Page::Multiplayer, None));
         }
         v_flex()
