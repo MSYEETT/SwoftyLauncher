@@ -143,6 +143,25 @@
       "binds": "native"
     },
     {
+      "id": "test_calendar",
+      "type": "choice",
+      "label": "Developer: test calendar",
+      "description": "Developer test: makes the Short season length 3 races for every 2026 season, so a season can be simmed to its end quickly. Start a new career after changing it. Leave off.",
+      "values": [
+        {
+          "value": "10",
+          "label": "Off"
+        },
+        {
+          "value": "3",
+          "label": "On (3 races)"
+        }
+      ],
+      "default": "10",
+      "binds": "db",
+      "hidden": true
+    },
+    {
       "id": "test_next_season",
       "type": "toggle",
       "label": "Developer: next season now",
@@ -181,7 +200,8 @@
   "operations": {
     "database": [
       "db/career.json",
-      "db/grid.json"
+      "db/grid.json",
+      "db/test.json"
     ],
     "erp": [
       "erp/wizard.json"
