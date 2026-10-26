@@ -2,6 +2,7 @@ pub mod career_select;
 pub mod catalog;
 pub mod check;
 pub mod era;
+pub mod hub;
 pub mod idf;
 pub mod node;
 pub mod pages;
@@ -464,6 +465,14 @@ pub fn build(
     build.lines.extend(career_lines);
     build.warnings.extend(career_warnings);
     let eras = era_rows(input, writer, out, &mut build.lines, &mut build.warnings)?;
+    let hubs = hub_tabs(
+        settings,
+        input,
+        writer,
+        out,
+        &mut build.lines,
+        &mut build.warnings,
+    )?;
     if lang {
         build.strings = popup.strings();
     }
@@ -471,6 +480,9 @@ pub fn build(
         .iter()
         .filter(|r| !era::ARCHIVES.contains(r) || eras.contains(r))
     {
+        build.erps.insert(ui_file(rel), out.join(ui_file(rel)));
+    }
+    for rel in hubs {
         build.erps.insert(ui_file(rel), out.join(ui_file(rel)));
     }
     for (name, data) in &built.order {
@@ -547,6 +559,100 @@ fn career_row(
             Ok(None)
         }
     }
+}
+
+fn hub_tabs(
+    settings: &SessionSettings,
+    input: &dyn Fn(&str) -> PathBuf,
+    writer: &Writer,
+    out: &Path,
+    lines: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+) -> Result<Vec<&'static str>> {
+    let mut pages = Vec::new();
+    for m in settings.addons.iter().filter(|m| m.enabled) {
+        let Some(tab) = &m.hub_tab else { continue };
+        let rows = tab
+            .options
+            .iter()
+            .map(|id| {
+                let o = m
+                    .options
+                    .iter()
+                    .find(|o| &o.id == id && !o.hidden)
+                    .ok_or_else(|| {
+                        err(format!(
+                            "{}: hub tab {} names option {id}, which it doesn't show",
+                            m.id, tab.name
+                        ))
+                    })?;
+                Ok(hub::Row {
+                    id,
+                    label: &o.label,
+                    description: &o.description,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        pages.push(hub::Page {
+            addon: &m.id,
+            tab,
+            rows,
+        });
+    }
+    if pages.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut written = Vec::new();
+    for rel in hub::ARCHIVES {
+        let (src, dst) = (input(&ui_file(rel)), out.join(ui_file(rel)));
+        let ui = match read_frag(&src, hub::UI, hub::UI_FRAGMENT).and_then(|d| hub::build_ui(&d, &pages)) {
+            Ok(ui) => ui,
+            Err(e) => {
+                let Some(addon) = writer(&ui_file(rel), hub::UI) else {
+                    return Err(e);
+                };
+                warnings.push(format!(
+                    "ui: {addon} has its own copy of the laptop's driver details page in {rel}, which Swofty can't \
+                     edit; hub tabs are off there while it's on ({e})"
+                ));
+                continue;
+            }
+        };
+        write_archive(
+            &src,
+            &dst,
+            vec![(hub::UI, hub::UI_FRAGMENT, Box::new(move |_| Ok(ui)))],
+            Vec::new(),
+        )?;
+        written.push(rel);
+    }
+    let files: Vec<(String, PathBuf, PathBuf)> = written
+        .iter()
+        .map(|rel| (ui_file(rel), input(&ui_file(rel)), out.join(ui_file(rel))))
+        .collect();
+    let pairs: Vec<(&str, &Path, &Path)> = files
+        .iter()
+        .map(|(name, src, dst)| (name.as_str(), src.as_path(), dst.as_path()))
+        .collect();
+    let report = check::archive_files(&pairs)?;
+    if !report.hard.is_empty() {
+        let found: Vec<String> = report.hard.iter().map(ToString::to_string).collect();
+        return Err(Error::Other(format!(
+            "the hub tab pages break the game's UI loader rules: {}",
+            found.join("; ")
+        )));
+    }
+    for p in &pages {
+        lines.push(format!(
+            "ui: {} has a hub tab template {} for {} careers in {} archive(s); its rows read {}",
+            p.addon,
+            p.tab.template(),
+            p.tab.data_group,
+            written.len(),
+            p.tab.view_model()
+        ));
+    }
+    Ok(written)
 }
 
 fn era_rows(
@@ -868,6 +974,85 @@ mod tests {
             read_frag(&src_p, WIZARD_ROUTES, 0).unwrap(),
             read_frag(&out.join(ui_file("persistent.erp")), WIZARD_ROUTES, 0).unwrap()
         );
+        std::fs::remove_dir_all(&out).ok();
+    }
+
+    #[test]
+    #[ignore = "needs SWOFTY_STOCK_DATA, the launcher data folder that holds the game's baseline"]
+    fn a_hub_tab_page_builds_within_the_loader_rules() {
+        let input = stock_input();
+        let mut settings = setup_settings();
+        settings.addons[0].hub_tab = Some(crate::manifest::HubTab {
+            name: "progressive".into(),
+            title: "Progressive Settings".into(),
+            options: vec!["rnd_mode".into(), "team_moves".into()],
+            data_group: "f1_career_progressive".into(),
+        });
+        let out = std::env::temp_dir().join(format!("swofty-hub-tab-{}", std::process::id()));
+        std::fs::remove_dir_all(&out).ok();
+        let (mut lines, mut warnings) = (Vec::new(), Vec::new());
+        let written = hub_tabs(&settings, &input, &|_, _| None, &out, &mut lines, &mut warnings).unwrap();
+        assert_eq!(written, hub::ARCHIVES);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert_eq!(
+            lines,
+            [
+                "ui: t.progressive has a hub tab template swofty_hub_progressive for f1_career_progressive careers in \
+              2 archive(s); its rows read view_model_data.swofty_hub_progressive"
+            ]
+        );
+        let templates = |path: &Path| -> BTreeMap<String, String> {
+            let p = swofty_formats::pkg::Pkg::parse(&read_frag(path, hub::UI, hub::UI_FRAGMENT).unwrap())
+                .unwrap();
+            p.root
+                .o()
+                .unwrap()
+                .at("Templates")
+                .unwrap()
+                .a()
+                .unwrap()
+                .iter()
+                .map(|t| (t.name().to_owned(), node::canonical(t)))
+                .collect()
+        };
+        for rel in hub::ARCHIVES {
+            let (before, after) = (
+                templates(&input(&ui_file(rel))),
+                templates(&out.join(ui_file(rel))),
+            );
+            for (name, t) in &before {
+                assert_eq!(after.get(name), Some(t), "{rel}: {name} changed");
+            }
+            assert_eq!(after.len(), before.len() + 1, "{rel}");
+            let page = &after["swofty_hub_progressive"];
+            for want in [
+                "#view_model_data.swofty_hub_progressive.title",
+                "#view_model_data.swofty_hub_progressive.o0.label",
+                "#view_model_data.swofty_hub_progressive.o0.value",
+                "#view_model_data.swofty_hub_progressive.o1.label",
+                "swofty_next:t.progressive:rnd_mode",
+                "swofty_prev:t.progressive:rnd_mode",
+                "swofty_next:t.progressive:team_moves",
+                "About rnd_mode.",
+                "driver_details_panel",
+            ] {
+                assert!(page.contains(want), "{rel}: {want}");
+            }
+            assert!(!page.contains("o2.label"), "{rel}");
+            assert!(!page.contains("dataContext"), "{rel}");
+            assert!(!page.contains("tab_content_driver_details_panel"), "{rel}");
+        }
+        settings.addons[0].hub_tab = None;
+        let none = hub_tabs(
+            &settings,
+            &input,
+            &|_, _| None,
+            &out,
+            &mut Vec::new(),
+            &mut Vec::new(),
+        )
+        .unwrap();
+        assert!(none.is_empty());
         std::fs::remove_dir_all(&out).ok();
     }
 
