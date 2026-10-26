@@ -318,7 +318,7 @@ pub fn build(
     let game_routes_out = std::cell::RefCell::new(Vec::new());
     let wizard_routes_out = std::cell::RefCell::new(Vec::new());
     let flows_out = std::cell::RefCell::new(Vec::new());
-    let placed = std::cell::RefCell::new(Vec::new());
+    let placed = std::cell::RefCell::new(patch::Placed::default());
     let mut persistent: Vec<(&str, Patch)> = vec![
         (
             ROUTES,
@@ -366,7 +366,7 @@ pub fn build(
             format!("{}.{}", s.back, s.route),
             format!("{}.{}", s.next, s.back_route),
         ] {
-            if !placed.borrow().contains(&id) {
+            if !placed.borrow().routes.contains(&id) {
                 return Err(Error::Other(format!(
                     "career setup {}: the game's routes have no route group {} for {id}",
                     s.route,
@@ -379,6 +379,7 @@ pub fn build(
     let stock_screens: std::collections::BTreeSet<String> = setups
         .iter()
         .flat_map(|s| [s.back.clone(), s.next.clone()])
+        .chain(placed.borrow().screens.iter().cloned())
         .collect();
     let (r, g, w) = (
         routes_out.borrow(),
@@ -822,6 +823,7 @@ mod tests {
             assert!(entry.contains(want), "{entry}");
         }
         assert!(!entry.contains("career_wizard_season_length_select"), "{entry}");
+        assert!(entry.contains("Customisation"), "{entry}");
         let ids: Vec<&str> = after[&home].keys().map(String::as_str).collect();
         assert_eq!(
             ids,
@@ -838,7 +840,17 @@ mod tests {
         assert!(after[&home]["confirm"].contains("career_season_setup_flow"));
         let wizard = groupings(&dst_p, WIZARD_ROUTES);
         let back = &wizard["career_wizard_season_length_select"][&format!("back_{SETUP_ROUTE}")];
-        assert!(back.contains(&home) && back.contains("options_flow"), "{back}");
+        for want in [
+            home.as_str(),
+            "options_flow",
+            "career_wizard_summary",
+            "slice_gen_screen_title",
+            "Customisation",
+            "AutoFocus",
+        ] {
+            assert!(back.contains(want), "{want}: {back}");
+        }
+        assert!(after[&home]["back"].contains("AutoFocus"));
 
         let stock_built = build(&setup_settings_without(), &input, &|_, _| None, &out, false).unwrap();
         assert!(!stock_built.lines.iter().any(|l| l.contains("career setup")));

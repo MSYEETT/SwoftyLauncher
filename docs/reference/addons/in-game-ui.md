@@ -119,13 +119,13 @@ wz::tile_route(group, "career_wizard_driver_career_progressive");
 |---|---|
 | `swofty_setup_<route>` | The home, a screen in `flow_options` |
 | `swofty_addon_<route>_<n>` | The rows page, a screen in `flow_options` with the `swofty_addon_` [view model](#view-models). `<n>` is the addon's index, as in `swofty_addon_<n>` |
-| `fe_career_dlc_select.<route>` | Closes the content select, moves to `options_flow` and opens the home |
+| `fe_career_dlc_select.<route>` | Closes the content select, moves to `options_flow`, opens the home and switches the backdrop to the CUSTOM settings scene (`Customisation`, `Generic`, `Main`) |
 | `swofty_setup_<route>.confirm` | CONFIRM: closes the home, moves to `career_season_setup_flow` and opens `next` |
-| `swofty_setup_<route>.back` | Back: closes the home, moves to `frontend_flow` and opens the content select with the `driver_career` message, as the career menu opens it for Driver Career |
+| `swofty_setup_<route>.back` | Back: closes the home, moves to `frontend_flow` and opens the content select with the `driver_career` message, as the career menu opens it for Driver Career. `AutoFocus` is `false`: the content select focuses its own tiles |
 | `swofty_setup_<route>.open_options` | The category tile: closes the home and opens the rows page |
-| `<next>.back_<route>` | Closes `next`, moves to `options_flow` and opens the home |
+| `<next>.back_<route>` | As the wizard's own routes leave its flow: `next` and the slices of its route group (`career_wizard_summary`, `slice_gen_screen_title`) transition out and the slices close. Then it moves to `options_flow`, opens the home and switches the backdrop as the entry route does. `AutoFocus` is `false` |
 
-Back on `next` takes the game's own back route for that step. Fire `back_<route>` there to return to the page, for example from your plugin's wizard back-route site for your data group. The build log has a line for each page: `ui: <addon> has a career setup page swofty_setup_<route>: ...`. The build stops when the content select already has a route named `route`, or when `next` is not a screen in `flow_career_season_setup.erp`.
+The home focuses its category tile each time it opens. Back on `next` takes the game's own back route for that step. Fire `back_<route>` there to return to the page, for example from your plugin's wizard back-route site for your data group. The build log has a line for each page: `ui: <addon> has a career setup page swofty_setup_<route>: ...`. The build stops when the content select already has a route named `route`, or when `next` is not a screen in `flow_career_season_setup.erp`.
 
 The rows change the options live, as ADDON SETTINGS does: a `native` option's value reaches your plugin through [settings](/reference/std/settings), and the launcher stores it in the profile. The options also show on your addon's page in ADDON SETTINGS. Their values belong to the profile, not to a career; copy them into the career's [storage](/reference/std/storage) when the career is created. The description panel shows the option's `description`; a choice has no description per value.
 
