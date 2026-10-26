@@ -11,8 +11,8 @@
 //                 1 is always career round 1. Over the changes in real order the rounds never go back.
 //   window        a change is due from its career round; a change with `until` ends at the career
 //                 round of the real round the regular driver came back, or, when that is not later,
-//                 after as many career races as it lasted in real life (a one-off stand-in: the next
-//                 race brings the regular back).
+//                 after as many career races as it lasted in real life. A stand-in never lasts more
+//                 career races than real ones (a one-off: the next race brings the regular back).
 //   keep          the player is never swapped out: a stand-in involving his driver (in or out) is
 //                 skipped, and so is a change taking his driver out of a seat unless the same round
 //                 moves his driver into another seat (follow mode moves the player with it; in
@@ -161,7 +161,8 @@ inline std::vector<Window> windows(const Year &y, const std::vector<int> &career
         w[i].from = from;
         if (c.until > c.round) {
             int back = career_round(y.real_tracks, c.until, career);
-            w[i].to = back > from ? back : from + (c.until - c.round);
+            int races = c.until - c.round;
+            w[i].to = back <= from ? from + races : c.kind == "stand_in" ? std::min(back, from + races) : back;
         }
     }
     return w;

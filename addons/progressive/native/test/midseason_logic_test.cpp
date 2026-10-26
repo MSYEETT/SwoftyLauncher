@@ -223,7 +223,14 @@ void windows()
     EXPECT(w20[r].from == 23 && w20[r].to == 24);
     int h = change(2020, "2020-r4-s5a-nico_hulkenberg");
     EXPECT(w20[h].from == 11 && w20[h].to == 13);
+    const season::Year *y22 = g_data.year(2022);
+    auto w22 = midseason::windows(*y22, kLong, std::vector<bool>(y22->changes.size(), true));
+    int dv = change(2022, "2022-r16-s7a-nyck_de-vries");
+    EXPECT(w22[dv].from == 15 && w22[dv].to == 16);
     const season::Year *y17 = g_data.year(2017);
+    auto w17 = midseason::windows(*y17, kLong, std::vector<bool>(y17->changes.size(), true));
+    int gio = change(2017, "2017-r1-s9b-antonio_giovinazzi");
+    EXPECT(w17[gio].from == 1 && w17[gio].to == 3);
     auto ws = midseason::windows(*y17, kShort, std::vector<bool>(y17->changes.size(), true));
     for (size_t i = 0; i + 1 < y17->changes.size(); ++i)
         EXPECT(ws[i].from <= ws[i + 1].from);
