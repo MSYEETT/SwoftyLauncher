@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Contact sheet of the face map (head_d) of every driver whose head data/seasons.json sets: a shipped head from
-heads/ (tools/heads.py), or a stock generic head from the game folder.
+heads/ (tools/heads.py), or a stock generic head from the game folder. With --generic, every stock male generic head
+(male_ls<n>) instead, with its hair texture set and its hair colour swatch.
 
-usage: head_sheet.py --out <png> [--game <F1 25>] [--baseline <launcher baseline>/<build>]
+usage: head_sheet.py --out <png> [--generic] [--game <F1 25>] [--baseline <launcher baseline>/<build>]
 """
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -57,6 +59,45 @@ def face(path, game):
     return best
 
 
+def hair(path, game):
+    e = erpw.Erp(str(path))
+    res = {r.name: r for r in e.res}
+    mat = [r for r in e.res if re.search(r"/heads/male_ea/[^/]+/materials/hair\.material$", r.name)]
+    if not mat:
+        return "-", "-", None
+    refs = re.findall(rb"eaid://[\x21-\x7e]+", heads.frag(mat[0], 0))
+    names = [r.decode() for r in refs]
+    style = next((n.rsplit("/", 1)[-1][:-6] for n in names if n.endswith("_d.tif") and "hair" in n), "-")
+    swatch = next((n for n in names if "et_swatches" in n), None)
+    if swatch is None or swatch + ".image" not in res:
+        return style, "-", None
+    r = res[swatch + ".image"]
+    img = bcn.top_level([heads.frag(r, i) for i in range(len(r.frags))], game)
+    return style, swatch.rsplit("/", 1)[-1][len("hair_swatch_"):-len("_et.tif")], img
+
+
+def generic_sheet(out, game, stock):
+    folder = Path(game) / f"2025_asset_groups/{heads.SCENES}/heads"
+    labels = sorted((p.stem for p in folder.glob("male_ls*.erp")), key=lambda h: int(h[7:]))
+    rows = (len(labels) + COLS - 1) // COLS
+    sheet = Image.new("RGB", (TILE * COLS, (TILE + 34) * rows), (24, 24, 24))
+    draw = ImageDraw.Draw(sheet)
+    for n, head in enumerate(labels):
+        src = stock.path(f"2025_asset_groups/{heads.SCENES}/heads/{head}.erp")
+        _, img = face(src, game)
+        style, colour, swatch = hair(src, game)
+        x, y = TILE * (n % COLS), (TILE + 34) * (n // COLS)
+        sheet.paste(Image.fromarray(np.asarray(img)[..., :3]).resize((TILE, TILE), Image.LANCZOS), (x, y + 34))
+        if swatch is not None:
+            chip = Image.fromarray(np.asarray(swatch)[..., :3]).resize((64, 28))
+            sheet.paste(chip, (x + TILE - 68, y + 3))
+        draw.text((x + 4, y + 3), f"{head}  hair {style}", fill=(255, 255, 255))
+        draw.text((x + 4, y + 18), f"swatch {colour}", fill=(200, 200, 120))
+        print(f"{head:11} {style:26} {colour}")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(out)
+
+
 def span(years):
     if not years:
         return "-"
@@ -69,9 +110,12 @@ def main():
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--game", default="/mnt/gaming/SteamLibrary/steamapps/common/F1 25")
     ap.add_argument("--baseline", default=heads.BASELINE)
+    ap.add_argument("--generic", action="store_true", help="every stock male generic head instead")
     a = ap.parse_args()
     baseline = Path(a.baseline).expanduser()
     stock = Stock(a.game, baseline if (baseline / "baseline.json").is_file() else None)
+    if a.generic:
+        return generic_sheet(a.out, a.game, stock)
     rows = drivers()
     sheet = Image.new("RGB", (TILE * COLS, (TILE + 34) * ((len(rows) + COLS - 1) // COLS)), (24, 24, 24))
     draw = ImageDraw.Draw(sheet)
