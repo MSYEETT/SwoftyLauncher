@@ -900,6 +900,34 @@ mod tests {
     }
 
     #[test]
+    fn import_records_that_differ_only_in_their_hidden_sidecar_print_the_same() {
+        let hook = json!({
+            "id": "t.importer", "kind": ["database"],
+            "launcher": { "program": { "linux": "bin/hook", "windows": "bin/hook.exe" }, "build": true },
+        });
+        let record = r#"{"mods":{"one":{"name":"One","converter":3,"made":{"id":"mod.one","name":"One"}}}}"#;
+        let p = profile(&["t.importer"]);
+        let prints: Vec<Fingerprint> = [(1792000000, "C:/Mods/one.zip"), (1795000000, "/home/b/one.zip")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, (at, file))| {
+                let store = store(&format!("importer{i}"));
+                put(&store, hook.clone(), &[]);
+                let data = store.addon_data_dir("t.importer");
+                std::fs::create_dir_all(&data).unwrap();
+                std::fs::write(data.join("importer.json"), record).unwrap();
+                let local = json!({ "mods": { "one": { "at": at } }, "last": { "at": at, "files": [file], "mods": ["one"] } });
+                std::fs::write(data.join(".importer-local.json"), local.to_string()).unwrap();
+                let f = fingerprint(&store, &p, &game()).unwrap();
+                std::fs::remove_dir_all(&store.root).ok();
+                f
+            })
+            .collect();
+        assert!(prints[0].addons[1].inputs.is_some());
+        assert_eq!(prints[0].digest, prints[1].digest);
+    }
+
+    #[test]
     fn different_build_hook_inputs_are_not_fixable() {
         let mut local = host();
         local.addons[1].inputs = Some("1".repeat(64));
