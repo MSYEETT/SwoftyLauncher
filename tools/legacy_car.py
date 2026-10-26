@@ -1,0 +1,471 @@
+"""Car archives of older F1 games (F1 2017 to F1 23) converted to F1 25, onto a stock F1 25 car slot.
+
+Format notes: re/db/subsystems/legacy_cars.md.
+
+  python3 tools/legacy_car.py convert <old car.erp> <F1 25 slot.erp> <out.erp> [--sidecars <old game folder>]...
+  python3 tools/legacy_car.py check <car.erp>
+"""
+import argparse
+import hashlib
+import os
+import re
+import struct
+import sys
+import zlib
+
+import numpy as np
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import erpw
+import gfx_material as gm
+
+ZSTD, ZLIB = 0x11, 1
+OLD_HEADER, HEADER, RECORD = 36, 76, 88
+POSITION, NORMAL, TANGENT, TEXCOORD, BLEND = 1, 2, 3, 5, 7
+ROLES = {
+    6: [(POSITION, 0), (NORMAL, 0), (TANGENT, 0), (TEXCOORD, 0), (TEXCOORD, 1), (BLEND, 0)],
+    5: [(POSITION, 0), (NORMAL, 0), (TANGENT, 0), (TEXCOORD, 0), (BLEND, 0)],
+    4: [(POSITION, 0), (NORMAL, 0), (TANGENT, 0), (TEXCOORD, 0)],
+    2: [(POSITION, 0), (BLEND, 0)],
+}
+DECL_FORMAT = {(12, 0x27): 0x2f, (8, 0x23): 0x23, (4, 0x1d): 0x1d, (4, 0xd): 0xd, (8, 0x21): 0x1f}
+INTERLEAVED = [(0, 12, 0x27), (12, 8, 0x23), (20, 8, 0x23), (28, 8, 0x23), (36, 4, 0xd)]
+GEOMETRY = {'GfxModelRes', 'ModelProxyRes', 'GfxMeshRes', 'GfxBufferRes', 'GfxMatBindRes'}
+SCENE = {'World', 'WOInstances', 'EventGraph'}
+SOURCE_DROP = SCENE | {'VTF', 'GfxSampleState'}
+SHADER_FALLBACK = {
+    'eaid://shader_package/tyre_sidewall/tyre_sidewall_no_logo.nefx2':
+        'eaid://shader_package/tyre_sidewall/tyre_sidewall.nefx2',
+}
+VERSIONS = {'GfxBufferRes': 4, 'GfxMeshRes': 0x60000, 'GfxMaterialRes': 2, 'GfxSurfaceRes': 9}
+CHECKED = {(1, 0x2f, 12, 0x27), (2, 0x23, 8, 0x23), (3, 0x23, 8, 0x23), (5, 0x23, 8, 0x23), (5, 0x1d, 4, 0x1d),
+           (5, 0x1d, 8, 0x21), (7, 0xd, 4, 0xd), (7, 0xd, 4, 0x1d), (7, 0xd, 8, 0x21), (7, 0xd, 12, 0x27),
+           (7, 0x1f, 4, 0x1d), (7, 0x1f, 8, 0x21), (7, 0x1f, 8, 0x23), (7, 0x1f, 12, 0x27)}
+
+
+def kind(r):
+    return r.type.rstrip(b'\0').decode()
+
+
+def version(r):
+    return struct.unpack_from('<I', r.unk)[0]
+
+
+def set_version(r, v):
+    r.unk = struct.pack('<I', v) + r.unk[4:]
+
+
+def cstr(d, at):
+    return d[at:d.index(b'\0', at)].decode()
+
+
+def data(r, i):
+    fr = r.frags[i]
+    if fr.comp == ZSTD:
+        return erpw.zstd_d(fr.raw)
+    if fr.comp == ZLIB:
+        return zlib.decompress(fr.raw)
+    return fr.raw
+
+
+def put(r, i, payload):
+    fr = r.frags[i]
+    fr.raw = erpw.zstd_c(payload)
+    fr.comp = ZSTD
+    fr.size = len(payload)
+    fr.packed = len(fr.raw)
+
+
+def copy_res(r, name):
+    g = erpw.Res()
+    g.name, g.type, g.unk, g.hash = name, r.type, r.unk, r.hash
+    g.frags = []
+    for fr in r.frags:
+        c = erpw.Frag()
+        for a in erpw.Frag.__slots__:
+            setattr(c, a, getattr(fr, a))
+        g.frags.append(c)
+    return g
+
+
+def lz4_block(src, off, out_size):
+    out = bytearray()
+    i, n = off, len(src)
+    while len(out) < out_size and i < n:
+        tok = src[i]
+        i += 1
+        lit = tok >> 4
+        if lit == 15:
+            while True:
+                b = src[i]
+                i += 1
+                lit += b
+                if b != 255:
+                    break
+        out += src[i:i + lit]
+        i += lit
+        if len(out) >= out_size or i >= n:
+            break
+        mo = src[i] | (src[i + 1] << 8)
+        i += 2
+        ml = tok & 15
+        if ml == 15:
+            while True:
+                b = src[i]
+                i += 1
+                ml += b
+                if b != 255:
+                    break
+        ml += 4
+        start = len(out) - mo
+        if mo >= ml:
+            out += out[start:start + ml]
+        else:
+            for k in range(ml):
+                out.append(out[start + k])
+    return bytes(out[:out_size])
+
+
+def sidecar_levels(desc, surface_version):
+    n = desc[0]
+    path = desc[1:1 + n].decode().rstrip('\0')
+    pad, entry, lead = (0, 25, 0) if surface_version == 8 else (1, 26, 1)
+    count = struct.unpack_from('<I', desc, 1 + n + pad)[0]
+    levels, o = [], 5 + n + pad
+    for _ in range(count):
+        comp = desc[o + lead]
+        off, packed, size = struct.unpack_from('<QQQ', desc, o + lead + 1)
+        levels.append((comp, off, packed, size))
+        o += entry
+    return path, levels
+
+
+class Sidecars:
+    def __init__(self, roots):
+        self.roots = roots
+        self.by_leaf = None
+
+    def find(self, path):
+        for root in self.roots:
+            f = os.path.join(root, path)
+            if os.path.isfile(f):
+                return f
+        if self.by_leaf is None:
+            self.by_leaf = {}
+            for root in self.roots:
+                for d, _, files in os.walk(root):
+                    for x in files:
+                        if x.endswith('.mipmaps'):
+                            self.by_leaf.setdefault(x, []).append(os.path.join(d, x))
+        hits = self.by_leaf.get(path.rsplit('/', 1)[-1], [])
+        parent = path.rsplit('/', 3)[-3] if path.count('/') >= 3 else None
+        hits = [h for h in hits if parent is None or f'/{parent}/' in h] or hits
+        return hits[0] if len(hits) == 1 else None
+
+
+def embed_sidecar(head, tail, desc, sidecars, surface_version):
+    path, levels = sidecar_levels(desc, surface_version)
+    f = sidecars.find(path) if sidecars else None
+    if not f:
+        return None, f'{path}: no sidecar, archive levels only'
+    with open(f, 'rb') as fh:
+        buf = fh.read()
+    raw, skipped = [], []
+    for comp, off, packed, size in sorted(levels, key=lambda m: m[3]):
+        if comp == 0:
+            level = buf[off:off + size]
+        elif comp == 3:
+            level = lz4_block(buf, off, size)
+        else:
+            skipped.append(comp)
+            break
+        if len(level) != size:
+            skipped.append('short')
+            break
+        raw.insert(0, level)
+    if not raw:
+        return None, f'{path}: sidecar levels not decodable {skipped}, archive levels only'
+    h = list(struct.unpack('<10I', head))
+    k = len(raw)
+    h[3], h[4], h[6] = h[3] << k, h[4] << k, h[6] + k
+    note = f' ({len(levels) - k} top level(s) skipped: compression {skipped[0]})' if skipped else ''
+    return (struct.pack('<10I', *h), b''.join(raw) + tail, k), f'{path}: {k} sidecar level(s) embedded, {h[3]}x{h[4]}{note}'
+
+
+def split_interleaved(src, heads, report):
+    split, made, pending = {}, [], {}
+    names = [r.name for r in src.res if kind(r) == 'GfxBufferRes']
+    nxt = 1 + max(int(n.rsplit('vb=', 1)[1]) for n in names if 'vb=' in n)
+    for r in list(src.res):
+        if kind(r) != 'GfxBufferRes' or heads[r.name][1] != 40:
+            continue
+        raw = data(r, 1)
+        count = heads[r.name][2]
+        prefix = r.name.rsplit('vb=', 1)[0] + 'vb='
+        split[r.name] = []
+        for off, size, fmt in INTERLEAVED:
+            g = copy_res(r, f'{prefix}{nxt}')
+            head = (heads[r.name][0], size, count, fmt)
+            heads[g.name] = head
+            pending[g.name] = (head, b''.join(raw[i * 40 + off:i * 40 + off + size] for i in range(count)))
+            made.append(g)
+            split[r.name].append(g.name)
+            nxt += 1
+        report.append(f'{r.name}: interleaved 40-byte stream split into {split[r.name][0]}..{split[r.name][-1]}')
+    return split, made, pending
+
+
+def mesh(name, d, heads, report, split):
+    h = struct.unpack_from('<9I', d, 0)
+    n, nvb, nib = h[0], h[1], h[2]
+    if n == 0:
+        return bytes(HEADER)
+    pool = OLD_HEADER + h[5]
+    refs, at = [], pool
+    for _ in range(nvb + nib):
+        s = cstr(d, at)
+        refs.append((at - pool, s))
+        at += len(s) + 1
+    by_off = dict(refs)
+    names = d[OLD_HEADER + h[7]:OLD_HEADER + h[8]]
+    trail = d[OLD_HEADER + h[8]:]
+    kept, roles = [], {}
+    for i in range(n):
+        f = list(struct.unpack_from('<22I', d, OLD_HEADER + i * RECORD))
+        streams = [by_off[f[14 + k]] for k in range(f[0])]
+        if f[0] == 1 and streams[0] in split:
+            streams = split[streams[0]]
+            f[0] = len(streams)
+        if f[0] not in ROLES:
+            report.append(f'dropped submesh {cstr(names, f[12])!r}: {f[0]} stream(s) of strides {[heads[s][1] for s in streams]}')
+            continue
+        for k, s in enumerate(streams):
+            role = (k,) + ROLES[f[0]][k]
+            if roles.setdefault(s, role) != role:
+                raise ValueError(f'{s} used as {roles[s]} and {role}')
+        kept.append((f, streams, trail[f[10]:f[10] + 8]))
+    if not kept:
+        return bytes(HEADER)
+    vbs = [s for _, s in refs[:nvb] if s in roles]
+    vbs += [s for parts in split.values() for s in parts if s in roles and s not in vbs]
+    ibs = [s for _, s in refs[nvb:]]
+    index = {s: k for k, s in enumerate(vbs)}
+    pool25, offs = bytearray(), {}
+    for s in vbs + ibs:
+        offs[s] = len(pool25)
+        pool25 += s.encode() + b'\0'
+    n25 = len(kept)
+    recs, trail25 = bytearray(), bytearray()
+    for i, (f, streams, tr) in enumerate(kept):
+        g = f[:14] + [0] * 8
+        for k, s in enumerate(streams):
+            g[14 + k] = index[s]
+        g[10] = 8 * i
+        recs += struct.pack('<22I', *g)
+        trail25 += tr
+    decl = bytearray()
+    for s in vbs:
+        slot, sem, idx = roles[s]
+        decl += struct.pack('<5I', slot, 0, sem, idx, DECL_FORMAT[(heads[s][1], heads[s][3])])
+    tail = b''.join(struct.pack('<II', 1, k) for k in range(len(vbs)))
+    o_pool = n25 * RECORD
+    o_ib = o_pool + offs[ibs[0]]
+    o_names = o_pool + len(pool25)
+    o_trail = o_names + len(names)
+    o_decl = o_trail + len(trail25)
+    o_tail = o_decl + len(decl)
+    root = re.search(r'\?lod=(\d+)&mesh$', name)
+    head = struct.pack('<19I', n25, len(vbs), len(ibs), n25, n25, o_pool, o_ib, o_names, o_trail, len(vbs),
+                       o_decl, o_tail, 0, o_pool, 0, o_pool, 0, 0, int(root.group(1)) if root else 0)
+    return head + recs + pool25 + names + trail25 + decl + tail
+
+
+def base(e):
+    stem = os.path.basename(e.path)[:-len('.erp')]
+    hits = [r.name for r in e.res if kind(r) == 'ModelProxyRes' and r.name.endswith(f'/{stem}.idf?render')]
+    if len(hits) != 1:
+        raise ValueError(f'{e.path}: {len(hits)} model proxies named {stem}.idf?render')
+    return hits[0][:-len('.idf?render')]
+
+
+def refs_of(r):
+    d = b''.join(data(r, j) for j in range(len(r.frags)))
+    return {m.decode() for m in re.findall(rb'eaid://[\x21-\x7e]+', d)}
+
+
+def convert(src_path, donor_path, out_path, sidecars=None):
+    src, don = erpw.Erp(src_path), erpw.Erp(donor_path)
+    sb, db = base(src), base(don)
+    report = [f'source {src_path}', f'donor {donor_path}', f'base {sb} -> {db}']
+    heads = {r.name: struct.unpack('<4I', data(r, 0)) for r in src.res if kind(r) == 'GfxBufferRes'}
+    split, made, pending = split_interleaved(src, heads, report)
+    grown, out = {}, []
+    for r in src.res + made:
+        k = kind(r)
+        if k in SOURCE_DROP or k == 'GfxBufferRes' and r.name in split:
+            continue
+        v = version(r)
+        if k == 'GfxBufferRes' and r.name in pending:
+            h = list(pending[r.name][0])
+            h[0] |= 0x1000
+            put(r, 0, struct.pack('<4I', *h))
+            put(r, 1, pending[r.name][1])
+        elif k == 'GfxBufferRes' and v == 3:
+            h = list(heads[r.name])
+            h[0] |= 0x1000
+            put(r, 0, struct.pack('<4I', *h))
+            put(r, 1, data(r, 1))
+        elif k == 'GfxMeshRes' and v == 0x10000:
+            put(r, 0, mesh(r.name, data(r, 0), heads, report, split))
+        elif k == 'GfxMaterialRes' and v == 1:
+            m23 = gm.parse23(data(r, 0))
+            if m23.shader not in gm.catalog() and m23.shader in SHADER_FALLBACK:
+                report.append(f'{r.name}: shader {m23.shader} -> {SHADER_FALLBACK[m23.shader]}')
+                m23.shader = SHADER_FALLBACK[m23.shader]
+            m25, notes = gm.plan23to25(m23)
+            put(r, 0, gm.write25(m25))
+            if notes['defaulted'] or notes['dropped']:
+                report.append(f"{r.name}: defaulted {notes['defaulted']} dropped {notes['dropped']}")
+        elif k == 'GfxSurfaceRes':
+            head, tail = data(r, 0), data(r, 1)
+            if len(r.frags) == 3:
+                full, note = embed_sidecar(head, tail, data(r, 2), sidecars, v)
+                r.frags = r.frags[:2]
+                if full:
+                    head, tail, extra = full
+                    grown[r.name[:-len('.image')]] = extra
+                report.append(note)
+            put(r, 0, head)
+            put(r, 1, tail)
+        else:
+            for i in range(len(r.frags)):
+                put(r, i, data(r, i))
+        if k in VERSIONS:
+            set_version(r, VERSIONS[k])
+        if r.name.startswith((sb + '.idf&', sb + '.idf?render', sb + '.emb')):
+            r.name = db + r.name[len(sb):]
+        out.append(r)
+    for r in out:
+        if kind(r) == 'GfxSRVResource' and r.name in grown:
+            v = bytearray(data(r, 0))
+            struct.pack_into('<I', v, 12, struct.unpack_from('<I', v, 12)[0] + grown[r.name])
+            put(r, 0, bytes(v))
+    for r in out:
+        r.hash = hashlib.md5(b''.join(data(r, j) for j in range(len(r.frags)))).digest()
+
+    have = {r.name for r in out}
+    keep = [r for r in don.res if kind(r) in SCENE]
+    named = {r.name: r for r in don.res}
+    todo = list(keep)
+    while todo:
+        r = todo.pop()
+        for n in refs_of(r):
+            if n in named and n not in have and named[n] not in keep and kind(named[n]) not in GEOMETRY:
+                keep.append(named[n])
+                todo.append(named[n])
+    contexts = sorted({n for r in keep for n in refs_of(r) if n.startswith(db + '.emb?context=')}
+                      | {r.name for r in don.res if r.name.startswith(db + '.emb?context=')})
+    default = next(r for r in out if r.name == db + '.emb?context=default')
+    for c in contexts:
+        if c not in have:
+            out.append(copy_res(default, c))
+            report.append(f'{c}: copy of the source default context')
+    kept = {r.name for r in keep}
+    missing = sorted({n for r in keep for n in refs_of(r) if n in named and n not in have and n not in kept})
+    report += [f'donor kept: {r.name}' for r in keep] + [f'donor reference not in the output: {n}' for n in missing]
+    don.res = out + keep
+    don.to_file(out_path)
+    report.append(f'wrote {out_path}: {len(out)} source + {len(keep)} donor resources')
+    return report
+
+
+def check(path):
+    e = erpw.Erp(path)
+    errs = {}
+
+    def err(what):
+        errs[what] = errs.get(what, 0) + 1
+
+    bufs = {r.name: r for r in e.res if kind(r) == 'GfxBufferRes'}
+    heads = {n: struct.unpack('<4I', data(r, 0)) for n, r in bufs.items()}
+    indices, submeshes = {}, 0
+    for n, r in bufs.items():
+        if version(r) != 4:
+            err('buffer version')
+        if not heads[n][0] & 0x1000:
+            err('buffer flag')
+    for r in e.res:
+        k = kind(r)
+        if k == 'GfxMaterialRes' and version(r) != 2:
+            err('material version')
+        elif k == 'GfxSurfaceRes' and version(r) != 9:
+            err('surface version')
+        elif k == 'GfxSampleState':
+            err('sampler state')
+        if k != 'GfxMeshRes':
+            continue
+        if version(r) != 0x60000:
+            err('mesh version')
+            continue
+        d = data(r, 0)
+        h = struct.unpack_from('<19I', d, 0)
+        if h[0] == 0:
+            continue
+        refs, at = [], HEADER + h[5]
+        for _ in range(h[1] + h[2]):
+            s = cstr(d, at)
+            refs.append(s)
+            at += len(s) + 1
+        decl = [struct.unpack_from('<5I', d, HEADER + h[10] + 20 * i) for i in range(h[9])]
+        ib = refs[h[1]]
+        if ib not in bufs:
+            err('missing index buffer')
+            continue
+        if ib not in indices:
+            indices[ib] = np.frombuffer(data(bufs[ib], 1), dtype=np.uint16 if heads[ib][1] == 2 else np.uint32)
+        for i in range(h[0]):
+            f = struct.unpack_from('<22I', d, HEADER + i * RECORD)
+            submeshes += 1
+            if f[3] + f[4] > heads[ib][2]:
+                err('index range')
+            idx = indices[ib][f[3]:f[3] + f[4]]
+            top = int(idx.max()) + f[5] if len(idx) else -1
+            for k in range(f[0]):
+                slot, _, sem, _, fmt = decl[f[14 + k]]
+                vb = refs[f[14 + k]]
+                if slot != k:
+                    err('declaration slot')
+                if vb not in heads:
+                    err('missing vertex buffer')
+                    continue
+                if (sem, fmt, heads[vb][1], heads[vb][3]) not in CHECKED:
+                    err(f'semantic {sem} format {fmt:#x} on stride {heads[vb][1]} format {heads[vb][3]:#x}')
+                if top >= heads[vb][2]:
+                    err('vertex range')
+    return submeshes, errs
+
+
+def _main(argv):
+    ap = argparse.ArgumentParser(prog='legacy_car.py')
+    sub = ap.add_subparsers(dest='cmd', required=True)
+    c = sub.add_parser('convert')
+    c.add_argument('src')
+    c.add_argument('donor')
+    c.add_argument('out')
+    c.add_argument('--sidecars', action='append', default=[])
+    k = sub.add_parser('check')
+    k.add_argument('erp', nargs='+')
+    a = ap.parse_args(argv)
+    if a.cmd == 'convert':
+        print('\n'.join(convert(a.src, a.donor, a.out, Sidecars(a.sidecars) if a.sidecars else None)))
+        return 0
+    bad = 0
+    for path in a.erp:
+        n, errs = check(path)
+        print(f'{path}: {n} submeshes, {"no errors" if not errs else errs}')
+        bad += bool(errs)
+    return 1 if bad else 0
+
+
+if __name__ == '__main__':
+    sys.exit(_main(sys.argv[1:]))
