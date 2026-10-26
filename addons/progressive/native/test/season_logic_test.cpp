@@ -435,12 +435,24 @@ void season_start_standings_follow_the_previous_year()
             seated.push_back(d);
     std::vector<uint32_t> drivers = season::start_driver_order(*y17, resolver(), seated);
     EXPECT(drivers.size() == seated.size());
-    EXPECT(!drivers.empty() && drivers[0] == id("lewis_hamilton"));
-    EXPECT(drivers.size() > 2 && drivers[1] == id("daniel_ricciardo"));
-    uint32_t stroll = id("lance_stroll");
+    std::vector<uint32_t> want_first;
+    for (auto &label : y17->previous_drivers)
+        if (std::find(seated.begin(), seated.end(), id(label)) != seated.end())
+            want_first.push_back(id(label));
+    EXPECT(want_first.size() >= 18);
+    EXPECT(std::equal(want_first.begin(), want_first.end(), drivers.begin()));
+    for (size_t i = want_first.size(), k = 0; i < drivers.size(); ++i) {
+        while (k < seated.size() && std::find(want_first.begin(), want_first.end(), seated[k]) != want_first.end())
+            ++k;
+        EXPECT(k < seated.size() && drivers[i] == seated[k]);
+        ++k;
+    }
     auto at_ = [&](uint32_t d) { return std::find(drivers.begin(), drivers.end(), d) - drivers.begin(); };
+    EXPECT(at_(id("lewis_hamilton")) < at_(id("daniel_ricciardo")));
+    EXPECT(at_(id("daniel_ricciardo")) < at_(id("sebastian_vettel")));
+    uint32_t stroll = id("lance_stroll");
     EXPECT(at_(stroll) > at_(id("sergio_perez")));
-    EXPECT(at_(stroll) >= 18);
+    EXPECT(at_(stroll) >= static_cast<long>(want_first.size()));
 }
 
 } // namespace
