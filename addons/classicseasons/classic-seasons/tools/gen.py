@@ -49,9 +49,11 @@ Each driver's look of a season wears his period helmet of the nearest season tha
 tie, else his own stock F1 25 helmet (data/stock_looks.json driver_looks), else his design of data/helmets.json
 "designs": a copy cs-<driver> of a stock customisable helmet design (a livery_package tier design, no diffuse; its
 nb_colours masks paint it) with colour_1_default to colour_3_default set to his helmet's colours and colour_4_default
-"0". The build fails for a driver with none of these. The core addon holds the season helmets' rows (item ids from
-HELMET_IDS.stop, in data/helmets.json order) and archives (assets/helmets.json), then the design rows (the next ids,
-in "designs" order).
+"0". The build fails for a driver with none of these. Season helmets come from mods and from the F1 2016 to F1 22
+game folders (build_helmets.py, old_helmets.py). The core addon holds the season helmets' rows and archives
+(assets/helmets.json), then the rows of the designs a look wears. Item ids, in data/helmets.json order, an "off"
+entry's id unused: the first FIRST_SEASON_HELMETS season helmets from HELMET_IDS.stop, then the designs, then the later
+season helmets.
 """
 
 import json
@@ -105,9 +107,11 @@ TRANSFER_SUIT_IDS = range(SUIT_IDS.stop, SUIT_IDS.stop + len(TRANSFERRED_SUITS))
 HELMET_IDS = range(868, 868 + sum(1 for e in suit_sources.REAL["suits"] if e.get("helmet")))
 HELMETS = "customisation.custom_avatar.helmets"
 SEASON_HELMETS = json.loads((ROOT / "data" / "helmets.json").read_text())["helmets"]
-SEASON_HELMET_IDS = {(h["season"], h["driver"]): n for n, h in enumerate(SEASON_HELMETS, HELMET_IDS.stop)}
+FIRST_SEASON_HELMETS = 26
 DESIGNS = json.loads((ROOT / "data" / "helmets.json").read_text())["designs"]
-DESIGN_HELMET_IDS = {d: n for n, d in enumerate(DESIGNS, HELMET_IDS.stop + len(SEASON_HELMETS))}
+DESIGN_HELMET_IDS = {d: n for n, d in enumerate(DESIGNS, HELMET_IDS.stop + FIRST_SEASON_HELMETS)}
+SEASON_HELMET_IDS = {(h["season"], h["driver"]): n + (len(DESIGNS) if i >= FIRST_SEASON_HELMETS else 0)
+                     for i, (n, h) in enumerate(enumerate(SEASON_HELMETS, HELMET_IDS.stop)) if not h.get("off")}
 STOCK_ITEM_IDS = {"suits": range(448, 974), "gloves": range(448, 974), "helmets": range(315, 868)}
 COLOUR_FIELDS = [f"colour_{n}_default" for n in range(1, 5)]
 SUITS = "customisation.custom_avatar.suits"
@@ -348,8 +352,8 @@ def build():
             ops += real_rows(m, item_id, helmet_id)
     season_helmets = helmets()
     ops += [helmet_row(m) for m in season_helmets.values()]
-    ops += [design_row(driver) for driver in DESIGNS]
     period = period_helmets(made, season_helmets)
+    designs = set()
 
     core_ops, core_text = ops, text
     for index, season in enumerate(DATA["seasons"]):
@@ -442,6 +446,8 @@ def build():
                     elif suit:
                         suit_look = gloves = suit["label"]
                 helmet = nearest_helmet(period, year, driver) or own_helmet(driver)
+                if helmet == design_label(driver):
+                    designs.add(driver)
                 look = look_label(year, key, driver)
                 ops.append({"op": "add-row", "table": LOOKS, "from": f"{LOOK_ROW}[_metadata_={seat}]",
                             "set": {"_metadata_": look, "helmet": helmet, "suit": suit_look, "gloves": gloves,
@@ -502,6 +508,7 @@ def build():
 
     fields = {"game_setup.scenarios.scenario": SCENARIO_FIELDS, "entrants.drivers.driver": DRIVER_FIELDS,
               CATEGORY + ".value": CATEGORY_FIELDS}
+    core_ops += [design_row(driver) for driver in DESIGNS if driver in designs]
     items = check_item_ids([("core", core_ops)] + [(str(year), ops) for year, ops, _ in seasons])
     write_json(ROOT / "db" / "core.json",
                {"schema_version": 1, "fields": {**fields, **(ITEM_FIELDS if made or season_helmets or DESIGNS else {})},

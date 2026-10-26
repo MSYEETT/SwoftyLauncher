@@ -1132,7 +1132,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-mclaren_lando_norris]",
    "set": {
     "_metadata_": "2022-cs_mclaren_daniel_ricciardo",
-    "helmet": "2024-tororosso_daniel_ricciardo",
+    "helmet": "cs22-redbulljapan_yuki_tsunoda",
     "suit": "cs22-mclaren_oscar_piastri",
     "gloves": "cs22-mclaren_oscar_piastri",
     "linked_driver_stat_id": "daniel_ricciardo",

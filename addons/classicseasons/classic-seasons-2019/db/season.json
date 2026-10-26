@@ -690,7 +690,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-mercedes_george_russell]",
    "set": {
     "_metadata_": "2019-cs_mercedes_lewis_hamilton",
-    "helmet": "cs16-mercedes_lewis_hamilton",
+    "helmet": "cs19-mercedes_lewis_hamilton",
     "suit": "cs19-mercedes_andrea-kimi_antonelli",
     "gloves": "cs19-mercedes_andrea-kimi_antonelli",
     "linked_driver_stat_id": "lewis_hamilton",
@@ -715,7 +715,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-mercedes_andrea-kimi_antonelli]",
    "set": {
     "_metadata_": "2019-cs_mercedes_valtteri_bottas",
-    "helmet": "cs16-sauber_valtteri_bottas",
+    "helmet": "cs19-sauber_valtteri_bottas",
     "suit": "cs19-mercedes_george_russell",
     "gloves": "cs19-mercedes_george_russell",
     "linked_driver_stat_id": "valtteri_bottas",
@@ -801,7 +801,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-ferrari_charles_leclerc]",
    "set": {
     "_metadata_": "2019-cs_ferrari_sebastian_vettel",
-    "helmet": "cs17-f2-artgp_zak_osullivan",
+    "helmet": "cs19-f2-artgp_zak_osullivan",
     "suit": "cs17-ferrari",
     "gloves": "cs17-ferrari",
     "linked_driver_stat_id": "sebastian_vettel",
@@ -826,7 +826,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-ferrari_lewis_hamilton]",
    "set": {
     "_metadata_": "2019-cs_ferrari_charles_leclerc",
-    "helmet": "cs22-ferrari_charles_leclerc",
+    "helmet": "cs19-ferrari_charles_leclerc",
     "suit": "cs17-ferrari",
     "gloves": "cs17-ferrari",
     "linked_driver_stat_id": "charles_leclerc",
@@ -912,7 +912,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-redbull_max_verstappen]",
    "set": {
     "_metadata_": "2019-cs_redbull_max_verstappen",
-    "helmet": "cs18-redbull_max_verstappen",
+    "helmet": "cs19-redbull_yuki_tsunoda",
     "suit": "cs18-redbull_max_verstappen",
     "gloves": "cs18-redbull_max_verstappen",
     "linked_driver_stat_id": "max_verstappen",
@@ -937,7 +937,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-redbull_yuki_tsunoda]",
    "set": {
     "_metadata_": "2019-cs_redbull_pierre_gasly",
-    "helmet": "cs22-tororosso_liam_lawson",
+    "helmet": "cs19-tororosso_liam_lawson",
     "suit": "cs18-redbull",
     "gloves": "cs18-redbull",
     "linked_driver_stat_id": "pierre_gasly",
@@ -1023,7 +1023,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-mclaren_oscar_piastri]",
    "set": {
     "_metadata_": "2019-cs_mclaren_carlos_sainz-jr",
-    "helmet": "cs16-renault_jack_doohan",
+    "helmet": "cs19-renault_jack_doohan",
     "suit": "cs17-mclaren",
     "gloves": "cs17-mclaren",
     "linked_driver_stat_id": "carlos_sainz-jr",
@@ -1048,7 +1048,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-mclaren_lando_norris]",
    "set": {
     "_metadata_": "2019-cs_mclaren_lando_norris",
-    "helmet": "cs22-mclaren_lando_norris",
+    "helmet": "cs19-mclaren_lando_norris",
     "suit": "cs17-mclaren",
     "gloves": "cs17-mclaren",
     "linked_driver_stat_id": "lando_norris",
@@ -1134,7 +1134,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-renault_pierre_gasly]",
    "set": {
     "_metadata_": "2019-cs_lotus_daniel_ricciardo",
-    "helmet": "cs18-redbull_yuki_tsunoda",
+    "helmet": "cs19-redbulljapan_yuki_tsunoda",
     "suit": "cs17-renault",
     "gloves": "cs17-renault",
     "linked_driver_stat_id": "daniel_ricciardo",
@@ -1159,7 +1159,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-renault_franco_colapinto]",
    "set": {
     "_metadata_": "2019-cs_lotus_nico_hulkenberg",
-    "helmet": "cs16-sauber_nico_hulkenberg",
+    "helmet": "cs19-sauber_nico_hulkenberg",
     "suit": "cs17-renault",
     "gloves": "cs17-renault",
     "linked_driver_stat_id": "nico_hulkenberg",
@@ -1245,7 +1245,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-tororosso_isack_hadjar]",
    "set": {
     "_metadata_": "2019-cs_toro_rosso_daniil_kvyat",
-    "helmet": "cs16-tororosso_yuki_tsunoda",
+    "helmet": "cs19-tororosso_yuki_tsunoda",
     "suit": "cs17-tororosso",
     "gloves": "cs17-tororosso",
     "linked_driver_stat_id": "daniil_kvyat",
@@ -1270,7 +1270,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-tororosso_liam_lawson]",
    "set": {
     "_metadata_": "2019-cs_toro_rosso_alex_albon",
-    "helmet": "cs22-williams_alex_albon",
+    "helmet": "cs19-williams_alex_albon",
     "suit": "cs17-tororosso",
     "gloves": "cs17-tororosso",
     "linked_driver_stat_id": "alex_albon",
@@ -1389,7 +1389,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-forceindia_lance_stroll]",
    "set": {
     "_metadata_": "2019-cs_force_india_sergio_perez",
-    "helmet": "cs16-redbull_sergio_perez",
+    "helmet": "cs19-redbull_sergio_perez",
     "suit": "cg19-forceindia",
     "gloves": "cg19-forceindia",
     "linked_driver_stat_id": "sergio_perez",
@@ -1414,7 +1414,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-forceindia_fernando_alonso]",
    "set": {
     "_metadata_": "2019-cs_force_india_lance_stroll",
-    "helmet": "cs22-forceindia_lance_stroll",
+    "helmet": "cs19-forceindia_lance_stroll",
     "suit": "cg19-forceindia",
     "gloves": "cg19-forceindia",
     "linked_driver_stat_id": "lance_stroll",
@@ -1533,7 +1533,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-sauber_nico_hulkenberg]",
    "set": {
     "_metadata_": "2019-cs_sauber_kimi_raikkonen",
-    "helmet": "cs16-ferrari_charles_leclerc",
+    "helmet": "cs19-f2-artgp_victor_martins",
     "suit": "cg19-sauber",
     "gloves": "cg19-sauber",
     "linked_driver_stat_id": "kimi_raikkonen",
@@ -1558,7 +1558,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-sauber_gabriel_bortoleto]",
    "set": {
     "_metadata_": "2019-cs_sauber_antonio_giovinazzi",
-    "helmet": "cs-antonio_giovinazzi",
+    "helmet": "cs19-f2-camposracing_pepe_marti",
     "suit": "cg19-sauber",
     "gloves": "cg19-sauber",
     "linked_driver_stat_id": "antonio_giovinazzi",
@@ -1644,7 +1644,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-haas_esteban_ocon]",
    "set": {
     "_metadata_": "2019-cs_haas_romain_grosjean",
-    "helmet": "cs16-haas_esteban_ocon",
+    "helmet": "cs19-haas_esteban_ocon",
     "suit": "cs17-haas",
     "gloves": "cs17-haas",
     "linked_driver_stat_id": "romain_grosjean",
@@ -1669,7 +1669,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-haas_oliver_bearman]",
    "set": {
     "_metadata_": "2019-cs_haas_kevin_magnussen",
-    "helmet": "cs16-haas_oliver_bearman",
+    "helmet": "cs19-haas_oliver_bearman",
     "suit": "cs17-haas",
     "gloves": "cs17-haas",
     "linked_driver_stat_id": "kevin_magnussen",
@@ -1755,7 +1755,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-williams_alex_albon]",
    "set": {
     "_metadata_": "2019-cs_williams_george_russell",
-    "helmet": "cs22-mercedes_george_russell",
+    "helmet": "cs19-f2-dams_jak_crawford",
     "suit": "cs17-williams",
     "gloves": "cs17-williams",
     "linked_driver_stat_id": "george_russell",
@@ -1780,7 +1780,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-williams_carlos_sainz-jr]",
    "set": {
     "_metadata_": "2019-cs_williams_robert_kubica",
-    "helmet": "cs-robert_kubica",
+    "helmet": "cs19-f2-dams_juan-manuel_correa",
     "suit": "cs17-williams",
     "gloves": "cs17-williams",
     "linked_driver_stat_id": "robert_kubica",

@@ -1556,7 +1556,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-mclaren_oscar_piastri]",
    "set": {
     "_metadata_": "2016-cs_mclaren_fernando_alonso",
-    "helmet": "cs22-renault_pierre_gasly",
+    "helmet": "cs16-renault_pierre_gasly",
     "suit": "cs16-mclaren",
     "gloves": "cs16-mclaren",
     "linked_driver_stat_id": "fernando_alonso",
