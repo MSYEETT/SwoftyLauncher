@@ -73775,6 +73775,32 @@
    "used_by": [
     "addons/progressive/native/src/ui/rnd.cpp"
    ]
+  },
+  {
+   "id": "game.career_activities_add_activity",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 50 44 89 C7 48 89 D3",
+   "match": "0x141267cf0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141267cf0",
+   "kind": "func_start",
+   "names": [
+    "Game_CareerActivities_AddActivity"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "laneS",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/follow.cpp"
+   ]
   }
  ]
 }
