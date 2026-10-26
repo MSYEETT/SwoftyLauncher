@@ -1865,7 +1865,7 @@ fn stop_requested() -> bool {
     STOP.swap(false, std::sync::atomic::Ordering::Relaxed)
 }
 
-fn end_on_signals() {
+pub(crate) fn end_on_signals() {
     #[cfg(target_os = "linux")]
     unsafe {
         extern "C" fn on_end(_: libc::c_int) {
