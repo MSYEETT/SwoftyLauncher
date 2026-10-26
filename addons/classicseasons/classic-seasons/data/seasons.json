@@ -12,23 +12,23 @@
     "haas":        { "team": "haas",       "vehicle": "haas_2025" }
   },
   "new_drivers": {
-    "felipe_nasr":       { "first": "Felipe",    "last": "Nasr",       "initials": "NAS", "nationality": "brazil",      "head": "male_ls487" },
-    "esteban_gutierrez": { "first": "Esteban",   "last": "Gutiérrez",  "initials": "GUT", "nationality": "mexico",      "head": "male_ls212" },
-    "stoffel_vandoorne": { "first": "Stoffel",   "last": "Vandoorne",  "initials": "VAN", "nationality": "belgium",     "head": "male_ls343" },
-    "brendon_hartley":   { "first": "Brendon",   "last": "Hartley",    "initials": "HAR", "nationality": "new_zealand", "head": "male_ls265" },
-    "sergey_sirotkin":   { "first": "Sergey",    "last": "Sirotkin",   "initials": "SIR", "nationality": "default",     "head": "male_ls790" },
-    "rio_haryanto":      { "first": "Rio",       "last": "Haryanto",   "initials": "HAR", "nationality": "indonesia",   "head": "male_ls161" }
+    "felipe_nasr":       { "first": "Felipe",    "last": "Nasr",       "initials": "NAS", "nationality": "brazil",      "head": "felipe_nasr" },
+    "esteban_gutierrez": { "first": "Esteban",   "last": "Gutiérrez",  "initials": "GUT", "nationality": "mexico",      "head": "esteban_gutierrez" },
+    "stoffel_vandoorne": { "first": "Stoffel",   "last": "Vandoorne",  "initials": "VAN", "nationality": "belgium",     "head": "male_ls526" },
+    "brendon_hartley":   { "first": "Brendon",   "last": "Hartley",    "initials": "HAR", "nationality": "new_zealand", "head": "male_ls356" },
+    "sergey_sirotkin":   { "first": "Sergey",    "last": "Sirotkin",   "initials": "SIR", "nationality": "default",     "head": "male_ls204" },
+    "rio_haryanto":      { "first": "Rio",       "last": "Haryanto",   "initials": "HAR", "nationality": "indonesia",   "head": "rio_haryanto" }
   },
   "holders_for": ["antonio_giovinazzi", "daniil_kvyat", "jolyon_palmer", "marcus_ericsson", "mick_schumacher", "nicholas_latifi", "nico_rosberg", "nikita_mazepin", "pascal_wehrlein", "robert_kubica", "romain_grosjean"],
   "head_overrides": {
-    "nico_rosberg":       "male_ls265",
+    "nico_rosberg":       "nico_rosberg",
     "sebastian_vettel":   "sebastian_vettel",
     "kimi_raikkonen":     "kimi_raikkonen",
     "daniil_kvyat":       "daniil_kvyat",
     "romain_grosjean":    "romain_grosjean",
-    "marcus_ericsson":    "male_ls192",
-    "jolyon_palmer":      "male_ls204",
-    "pascal_wehrlein":    "male_ls487",
+    "marcus_ericsson":    "marcus_ericsson",
+    "jolyon_palmer":      "jolyon_palmer",
+    "pascal_wehrlein":    "male_ls758",
     "antonio_giovinazzi": "antonio_giovinazzi",
     "robert_kubica":      "robert_kubica",
     "nicholas_latifi":    "nicholas_latifi",

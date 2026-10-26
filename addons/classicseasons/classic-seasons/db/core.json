@@ -253,6 +253,61 @@
   },
   {
    "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
+   "set": {
+    "_metadata_": "cs_rio_haryanto",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/rio_haryanto/idf/rio_haryanto_rig_head_morph_v1",
+    "has_morph_data": "True",
+    "available_for_customisation": "False"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls356]",
+   "set": {
+    "_metadata_": "cs_jolyon_palmer",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_ea/cs_pal_356/idf/cs_pal_356_rig_head_morph_v1",
+    "has_morph_data": "True",
+    "available_for_customisation": "False"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls197]",
+   "set": {
+    "_metadata_": "cs_marcus_ericsson",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_ea/cs_eri_197/idf/cs_eri_197_rig_head_morph_v1",
+    "has_morph_data": "True",
+    "available_for_customisation": "False"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls526]",
+   "set": {
+    "_metadata_": "cs_felipe_nasr",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_ea/cs_nas_526/idf/cs_nas_526_rig_head_morph_v1",
+    "has_morph_data": "True",
+    "available_for_customisation": "False"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls533]",
+   "set": {
+    "_metadata_": "cs_esteban_gutierrez",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_ea/cs_gut_533/idf/cs_gut_533_rig_head_morph_v1",
+    "has_morph_data": "True",
+    "available_for_customisation": "False"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.drivers",
    "from": "entrants.drivers.driver[_metadata_=lando_norris]",
    "set": {
@@ -263,7 +318,7 @@
     "last_name_standard": "",
     "initials": "NAS",
     "nationality": "brazil",
-    "head": "male_ls487",
+    "head": "cs_felipe_nasr",
     "audio_name": "DefaultName",
     "expression_label": "",
     "stat_id": "225"
@@ -281,7 +336,7 @@
     "last_name_standard": "",
     "initials": "GUT",
     "nationality": "mexico",
-    "head": "male_ls212",
+    "head": "cs_esteban_gutierrez",
     "audio_name": "DefaultName",
     "expression_label": "",
     "stat_id": "226"
@@ -299,7 +354,7 @@
     "last_name_standard": "",
     "initials": "VAN",
     "nationality": "belgium",
-    "head": "male_ls343",
+    "head": "male_ls526",
     "audio_name": "DefaultName",
     "expression_label": "",
     "stat_id": "227"
@@ -317,7 +372,7 @@
     "last_name_standard": "",
     "initials": "HAR",
     "nationality": "new_zealand",
-    "head": "male_ls265",
+    "head": "male_ls356",
     "audio_name": "DefaultName",
     "expression_label": "",
     "stat_id": "228"
@@ -335,7 +390,7 @@
     "last_name_standard": "",
     "initials": "SIR",
     "nationality": "default",
-    "head": "male_ls790",
+    "head": "male_ls204",
     "audio_name": "DefaultName",
     "expression_label": "",
     "stat_id": "229"
@@ -353,7 +408,7 @@
     "last_name_standard": "",
     "initials": "HAR",
     "nationality": "indonesia",
-    "head": "male_ls161",
+    "head": "cs_rio_haryanto",
     "audio_name": "DefaultName",
     "expression_label": "",
     "stat_id": "230"
@@ -363,7 +418,7 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=nico_rosberg]",
    "field": "head",
-   "value": "male_ls265"
+   "value": "male_ls204"
   },
   {
    "op": "set",
@@ -393,19 +448,19 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=marcus_ericsson]",
    "field": "head",
-   "value": "male_ls192"
+   "value": "cs_marcus_ericsson"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=jolyon_palmer]",
    "field": "head",
-   "value": "male_ls204"
+   "value": "cs_jolyon_palmer"
   },
   {
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=pascal_wehrlein]",
    "field": "head",
-   "value": "male_ls487"
+   "value": "male_ls758"
   },
   {
    "op": "set",

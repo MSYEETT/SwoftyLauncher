@@ -72,7 +72,7 @@ STOCK = json.loads((ROOT / "data" / "stock_looks.json").read_text())
 DRIVER_FIELDS = json.loads((ROOT / "data" / "driver_fields.json").read_text())
 SETUP_PRESET_FIELDS = json.loads((ROOT / "data" / "setup_preset_fields.json").read_text())
 TEAM_COLOURS = json.loads((ROOT / "data" / "team_colours.json").read_text())
-REAL_HEADS = json.loads((ROOT / "data" / "heads.json").read_text())["heads"]
+REAL_HEADS = heads.shipped()
 HEAD_ROWS = "entrants.animation.driver_heads"
 
 CATEGORY = "options_system.options.multiplayer.options_folder_2.option[_metadata_=category]"
@@ -136,6 +136,7 @@ def placeholder_look(folder, position, driver, year):
 
 
 def head_label(head):
+    head = heads.worn(head)
     return heads.label(head) if head in REAL_HEADS else head
 
 
@@ -305,8 +306,7 @@ def build():
     seasons = []
 
     for head in REAL_HEADS:
-        ops.append({"op": "add-row", "table": HEAD_ROWS, "from": f"{HEAD_ROWS}.driver_head[_metadata_={head}]",
-                    "set": {"_metadata_": heads.label(head)}})
+        ops.append(heads.row_op(HEAD_ROWS, head))
 
     for driver_stat, (label, d) in enumerate(DATA["new_drivers"].items(), DRIVER_STAT_BASE):
         base = f"lng_cs_driver_{label}"

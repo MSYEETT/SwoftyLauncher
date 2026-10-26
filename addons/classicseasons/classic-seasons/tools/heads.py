@@ -24,19 +24,33 @@ F1_25.exe+0x53784bb, called from the material parser 0x143c0dc80). The relabel c
 game decompresses every fragment of compression code 3 to 0x3f as zstd, More Driver Models writes code 0x10, and
 erpw.set_frag stores a 0x10 fragment uncompressed, on which the game's decompressor spins and the session load never ends.
 
-The tool fails when --game is not the F1 25 folder or a target exists in it, and when a head's archives name a
-.sampler resource (an older format F1 25 1.0.141 has none of) or a resource under heads/male_driver/ they do not hold:
-the team picker's head preview crashes in Ne_LinkResolver_ResolveLinks on such a link. A head must be the head of a
+The tool fails when --game is not the F1 25 folder or a target exists in it that the launcher's placed.json does not
+list, and when a head's archives name a .sampler resource (an older format F1 25 1.0.141 has none of) or a resource
+under heads/male_driver/ or heads/male_ea/cs_ they do not hold: the team picker's head preview crashes in
+Ne_LinkResolver_ResolveLinks on such a link. A head must be the head of a
 driver in data/seasons.json (head_overrides or new_drivers).
+
+A head with no stock row of its own label (`row_from` in data/heads.json) gets its row from the named stock head, with
+the model_path of its heads archive, has_morph_data True and available_for_customisation False.
+
+A head of `faces` is a stock generic head (`base`, male_ea) with a face map from another archive: both of the base's
+archives, read from the game folder (the baseline's copy of a file the launcher changed), with `base` renamed byte
+for byte to `code` (the same length) in every resource name and fragment. A surface's sidecar description (fragment 2)
+keeps naming the stock .mipmaps file. The face archive's head_d surface, 2048 px with all 10 levels in the archive,
+replaces the copy's, and the head_d view lists 10 levels. gen.py copies the row from the base row.
+
+A head of `off` ships nothing; its drivers wear the head it names.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import shutil
 import struct
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 
@@ -45,6 +59,7 @@ sys.path.insert(0, str(ROOT.parents[2] / "tools"))
 
 import erpw
 import gfx_material
+from stock import Stock
 
 EAID = re.compile(rb"eaid://[\x21-\x7e]+")
 CODE = re.compile(rb"/heads/male_driver/(serps_[A-Za-z0-9]+)/textures/")
@@ -54,10 +69,43 @@ SCENES = "animation_package/scenes/cinematics/drivers"
 TEMPLATE = "lando_norris"
 VERSION_25 = struct.pack("<I", 2)
 ZSTD_CODES = range(3, 0x40)
+DATA = json.loads((ROOT / "data" / "heads.json").read_text())
+FACES = DATA.get("faces", {})
+OFF = DATA.get("off", {})
+SURFACE = b"GfxSurfaceRes"
+SRV = b"GfxSRVResource"
+FACE_LEVELS = 10
+BASELINE = "~/.local/share/swofty/baseline/25251167-d873a1c8d204"
+PLACED = "~/.local/share/swofty/state/placed.json"
 
 
 def label(head):
     return f"cs_{head}"
+
+
+def shipped():
+    return [h for h in [*DATA["heads"], *FACES] if h not in OFF]
+
+
+def worn(head):
+    return OFF.get(head, head)
+
+
+def model_path(head):
+    if head in FACES:
+        code = FACES[head]["code"]
+        return f"eaid://[CHARACTER_PACKAGE]/heads/male_ea/{code}/idf/{code}_rig_head_morph_v1"
+    return f"eaid://[CHARACTER_PACKAGE]/heads/male_driver/{head}/idf/{head}_rig_head_morph_v1"
+
+
+def row_op(table, head):
+    base = FACES[head]["base"] if head in FACES else DATA.get("row_from", {}).get(head, head)
+    op = {"op": "add-row", "table": table, "from": f"{table}.driver_head[_metadata_={base}]",
+          "set": {"_metadata_": label(head)}}
+    if base != head:
+        op["set"].update({"model_path": model_path(head), "has_morph_data": "True",
+                          "available_for_customisation": "False"})
+    return op
 
 
 def archives(head):
@@ -65,6 +113,8 @@ def archives(head):
 
 
 def target(rel, head):
+    if head in FACES:
+        return rel
     return rel if rel not in archives(head) else rel.replace(f"/{head}.erp", f"/{label(head)}.erp")
 
 
@@ -80,13 +130,20 @@ def used_heads():
     return set(seasons["head_overrides"].values()) | {d["head"] for d in seasons["new_drivers"].values()}
 
 
+def open_zip(downloads, source, head):
+    found = [Path(d).expanduser() / source["zip"] for d in downloads]
+    found = [p for p in found if p.exists()]
+    if not found:
+        sys.exit(f"{head}: {source['zip']} is in none of {', '.join(map(str, downloads))}")
+    z = zipfile.ZipFile(found[0])
+    return zipfile.ZipFile(z.open(source["inner"])) if source.get("inner") else z
+
+
 def extract(downloads, source, head):
-    path = Path(downloads) / source["zip"]
-    if not path.exists():
-        sys.exit(f"{head}: {path} is missing")
-    root = source["root"].rstrip("/") + "/"
+    root = source["root"].rstrip("/") + "/" if source["root"] else ""
     files = []
-    with zipfile.ZipFile(path) as z:
+    with open_zip(downloads, source, head) as z:
+        path = Path(z.filename or source["inner"])
         for info in z.infolist():
             if info.is_dir() or not info.filename.startswith(root):
                 continue
@@ -122,7 +179,8 @@ def bad_refs(e, r, held):
     for i in range(len(r.frags)):
         for m in EAID.finditer(e.frag_data(r, i)):
             ref = m.group(0).decode()
-            if ref.endswith(".sampler") or ("/heads/male_driver/" in ref and ref.split("?")[0] not in held):
+            own = "/heads/male_driver/" in ref or "/heads/male_ea/cs_" in ref
+            if ref.endswith(".sampler") or (own and ref.split("?")[0] not in held):
                 out.add(ref)
     return out
 
@@ -175,6 +233,90 @@ def relabel(path):
     return [r.name.rsplit("/", 1)[-1] for r in wrong]
 
 
+def put_frag(r, i, data):
+    f = r.frags[i]
+    f.raw = erpw.zstd_c(data) if f.comp in ZSTD_CODES else data
+    f.size, f.packed = len(data), len(f.raw)
+    r.hash = hashlib.md5(b"".join(frag(r, j) for j in range(len(r.frags)))).digest()
+
+
+def rename(e, old, new):
+    for r in e.res:
+        r.name = r.name.replace(old.decode(), new.decode())
+        surface = r.type.rstrip(b"\0") == SURFACE
+        for i in range(len(r.frags)):
+            if surface and i == 2:
+                continue
+            data = frag(r, i)
+            if old in data:
+                put_frag(r, i, data.replace(old, new))
+
+
+def face_surface(downloads, face, head):
+    with open_zip(downloads, DATA["sources"][face["source"]], head) as z, tempfile.TemporaryDirectory() as d:
+        path = Path(d) / "face.erp"
+        path.write_bytes(z.read(face["archive"]))
+        e = erpw.Erp(str(path))
+    images = [r for r in e.res if r.name.endswith(f"/{face['base']}_head_d.tif.image")]
+    if len(images) != 1:
+        sys.exit(f"{head}: {face['archive']} holds {len(images)} {face['base']} head_d surfaces")
+    r = images[0]
+    header = struct.unpack_from("<10I", frag(r, 0))
+    w, h, levels = header[3], header[4], header[6]
+    if (w, h, levels) != (2048, 2048, FACE_LEVELS) or len(r.frags) != 2:
+        sys.exit(f"{head}: {face['archive']} head_d is {w}x{h}, {levels} levels, {len(r.frags)} fragments")
+    r.hash = hashlib.md5(b"".join(frag(r, i) for i in range(len(r.frags)))).digest()
+    return r
+
+
+def build_face(stock, downloads, head):
+    face = FACES[head]
+    base, code = face["base"].encode(), face["code"].encode()
+    if len(base) != len(code):
+        sys.exit(f"{head}: {face['code']} is not as long as {face['base']}")
+    image = face_surface(downloads, face, head)
+    image.name = image.name.replace(face["base"], face["code"])
+    view = image.name[:-len(".image")]
+    files = []
+    for kind in ("heads", "morph_poses"):
+        src = f"2025_asset_groups/{SCENES}/{kind}/{face['base']}.erp"
+        e = erpw.Erp(str(stock.path(src)))
+        if any(code in r.name.encode() for r in e.res):
+            sys.exit(f"{head}: {src} already names {face['code']}")
+        rename(e, base, code)
+        for i, r in enumerate(e.res):
+            if r.name == image.name:
+                e.res[i] = image
+            elif r.name == view and r.type.rstrip(b"\0") == SRV:
+                srv = bytearray(frag(r, 0))
+                struct.pack_into("<I", srv, 12, FACE_LEVELS)
+                put_frag(r, 0, bytes(srv))
+        rel = f"2025_asset_groups/{SCENES}/{kind}/{label(head)}.erp"
+        (OUT / rel).parent.mkdir(parents=True, exist_ok=True)
+        e.to_file(str(OUT / rel))
+        files.append(rel)
+    return files
+
+
+def face_leftovers(head, game=None):
+    face = FACES[head]
+    base = face["base"].encode()
+    out = []
+    for kind in ("heads", "morph_poses"):
+        e = erpw.Erp(str(OUT / f"2025_asset_groups/{SCENES}/{kind}/{label(head)}.erp"))
+        for r in e.res:
+            surface = r.type.rstrip(b"\0") == SURFACE
+            for i in range(len(r.frags)):
+                data = frag(r, i)
+                if surface and i == 2 and data and data[0]:
+                    side = data[1:1 + data[0]].rstrip(b"\0").decode()
+                    if game and face["base"] in side and not (Path(game) / side).is_file():
+                        out.append(side)
+                elif base in data or base in r.name.encode():
+                    out.append(r.name)
+    return sorted(set(out))
+
+
 def asset_ops(heads):
     ops = []
     for head, files in heads.items():
@@ -186,33 +328,52 @@ def asset_ops(heads):
     return {"schema_version": 1, "ops": ops}
 
 
+def placed_files(path):
+    path = Path(path).expanduser()
+    return set(json.loads(path.read_text())["files"]) if path.is_file() else set()
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--downloads", default=os.path.expanduser("~/Downloads"))
+    ap.add_argument("--downloads", action="append", help="folder holding the mod zips; repeat for more (default ~/Downloads)")
     ap.add_argument("--game", default="/mnt/gaming/SteamLibrary/steamapps/common/F1 25")
+    ap.add_argument("--baseline", default=BASELINE, help="launcher baseline folder holding baseline.json")
+    ap.add_argument("--placed", default=PLACED, help="the launcher's placed.json: files it put in the game folder")
     args = ap.parse_args()
-    data = json.loads((ROOT / "data" / "heads.json").read_text())
-    unused = sorted(set(data["heads"]) - used_heads())
+    downloads = args.downloads or [os.path.expanduser("~/Downloads")]
+    game = Path(args.game)
+    if not (game / "F1_25.exe").is_file():
+        sys.exit(f"--game {game} is not the F1 25 folder")
+    baseline = Path(args.baseline).expanduser()
+    stock = Stock(game, baseline if (baseline / "baseline.json").is_file() else None)
+    unused = sorted(set(shipped()) - used_heads())
     if unused:
         sys.exit(f"no driver in data/seasons.json has the head {', '.join(unused)}")
     if OUT.exists():
         shutil.rmtree(OUT)
-    heads = {head: extract(args.downloads, data["sources"][key], head) for head, key in data["heads"].items()}
-    for head, donor in data.get("repair_from", {}).items():
+    heads = {head: extract(downloads, DATA["sources"][DATA["heads"][head]], head)
+             for head in shipped() if head not in FACES}
+    for head, donor in DATA.get("repair_from", {}).items():
         print(f"{head}: materials from {donor}: {', '.join(repair(head, donor))}")
-    for head in heads:
-        relabelled = [name for rel in archives(head) for name in relabel(OUT / rel)]
+    for head in shipped():
+        if head in FACES:
+            heads[head] = build_face(stock, downloads, head)
+            left = face_leftovers(head, game)
+            if left:
+                sys.exit(f"{head}: {FACES[head]['base']} is still named in {', '.join(left[:3])}")
+            print(f"{head}: {FACES[head]['base']} as {FACES[head]['code']}, face from {FACES[head]['archive']}")
+        paths = [OUT / rel for rel in heads[head] if rel.endswith(".erp")]
+        relabelled = [name for path in paths for name in relabel(path)]
         if relabelled:
             print(f"{head}: resource version 2 for {', '.join(relabelled)}")
-        bad = [ref for rel in archives(head) for ref in broken_links(OUT / rel)]
+        bad = [ref for path in paths for ref in broken_links(path)]
         if bad:
             sys.exit(f"{head}: its archives name {len(bad)} resource(s) F1 25 does not have: {', '.join(bad[:3])}")
-    game = Path(args.game)
-    if not (game / "F1_25.exe").is_file():
-        sys.exit(f"--game {game} is not the F1 25 folder")
-    stock = [target(rel, head) for head, files in heads.items() for rel in files if (game / target(rel, head)).exists()]
-    if stock:
-        sys.exit(f"these replace game files: {', '.join(stock)}")
+    placed = placed_files(args.placed)
+    clash = [target(rel, head) for head, files in heads.items() for rel in files
+             if (game / target(rel, head)).exists() and target(rel, head) not in placed]
+    if clash:
+        sys.exit(f"these replace game files: {', '.join(clash)}")
     OPS.parent.mkdir(parents=True, exist_ok=True)
     OPS.write_text(json.dumps(asset_ops(heads), indent=1) + "\n")
     size = sum((OUT / rel).stat().st_size for files in heads.values() for rel in files)
