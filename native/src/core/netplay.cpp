@@ -40,9 +40,6 @@ bool patch(uintptr_t at, const uint8_t *bytes, size_t n)
 
 void setup()
 {
-    if (!runtime::enabled("netplay", "netplay"))
-        return;
-
     static const uint8_t open_gate[] = {0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
     static const uint8_t force_null_ssl[] = {0x45, 0x31, 0xFF, 0x90, 0x90};
 
