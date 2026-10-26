@@ -246,6 +246,168 @@ void numbers_never_collide()
                 EXPECT(seen[num[d]] == 1);
 }
 
+int slot_of(const std::string &team)
+{
+    for (int i = 0; i < season::kSlots; ++i)
+        if (g_data.slots[i].team == team)
+            return i;
+    return -1;
+}
+
+CareerRow &row(std::vector<CareerRow> &rows, const std::string &driver)
+{
+    for (auto &r : rows)
+        if (r.driver == static_cast<uint32_t>(stat(driver)))
+            return r;
+    std::printf("no row for %s\n", driver.c_str());
+    std::abort();
+}
+
+void free_agent(CareerRow &r)
+{
+    r.team = -1;
+    r.position = -1;
+    r.car = false;
+}
+
+uint32_t id(const std::string &driver)
+{
+    return static_cast<uint32_t>(stat(driver));
+}
+
+bool moved_to(const season::Plan &p, const std::string &driver, int slot, int seat = -1)
+{
+    for (auto &m : p.moves)
+        if (m.driver == id(driver) && m.to.slot == slot && (seat < 0 || m.to.index == seat))
+            return true;
+    return false;
+}
+
+void chosen_team_leaves_his_2026_seat_empty()
+{
+    auto rows = career("sergio_perez");
+    int williams = slot_of("williams_26"), cadillac = slot_of("gm_cadillac_26"), force_india = slot_of("forceindia_26");
+    EXPECT(williams >= 0 && cadillac >= 0 && force_india >= 0);
+    CareerRow &perez = row(rows, "sergio_perez");
+    perez.team = g_data.slots[williams].team_stat;
+    perez.position = row(rows, "carlos_sainz-jr").position;
+    EXPECT(perez.position == 1);
+    free_agent(row(rows, "carlos_sainz-jr"));
+    season::Plan p = season::plan(g_data, 2016, rows, resolver());
+    EXPECT(p.error.empty());
+    if (!p.error.empty())
+        std::printf("  plan error: %s\n", p.error.c_str());
+    EXPECT(seated_once(p));
+    EXPECT(p.player_slot == williams);
+    EXPECT(p.holder[cadillac][0] < 0 && p.holder[cadillac][1] >= 0);
+    EXPECT(at(p, williams + 1, 0) == id("felipe_massa"));
+    EXPECT(at(p, williams + 1, 1) == id("sergio_perez"));
+    EXPECT(p.fit.displaced == id("valtteri_bottas"));
+    EXPECT(at(p, force_india + 1, 0) == id("valtteri_bottas"));
+    EXPECT(moved_to(p, "pascal_wehrlein", cadillac, 0));
+    EXPECT(moved_to(p, "rio_haryanto", cadillac, 1));
+    EXPECT(moved_to(p, "valtteri_bottas", force_india, 0));
+    for (auto &m : p.moves)
+        EXPECT(m.driver != id("sergio_perez"));
+}
+
+void chosen_teammate_stays_on_either_seat()
+{
+    auto rows = career("sergio_perez");
+    int williams = slot_of("williams_26");
+    CareerRow &perez = row(rows, "sergio_perez");
+    perez.team = g_data.slots[williams].team_stat;
+    perez.position = row(rows, "alex_albon").position;
+    EXPECT(perez.position == 0);
+    free_agent(row(rows, "alex_albon"));
+    season::Plan p = season::plan(g_data, 2016, rows, resolver());
+    EXPECT(p.error.empty());
+    EXPECT(seated_once(p));
+    EXPECT(at(p, williams + 1, 0) == id("sergio_perez"));
+    EXPECT(at(p, williams + 1, 1) == id("valtteri_bottas"));
+    EXPECT(p.fit.displaced == id("felipe_massa"));
+}
+
+void player_added_as_a_third_race_seat()
+{
+    auto rows = career("sergio_perez");
+    int williams = slot_of("williams_26");
+    CareerRow &perez = row(rows, "sergio_perez");
+    perez.team = g_data.slots[williams].team_stat;
+    perez.position = 1;
+    season::Plan p = season::plan(g_data, 2016, rows, resolver());
+    EXPECT(p.error.empty());
+    EXPECT(seated_once(p));
+    EXPECT(p.extras.size() == 1);
+    EXPECT(!p.extras.empty() && rows[p.extras[0]].driver == id("carlos_sainz-jr"));
+    EXPECT(p.holder[williams][1] >= 0 && rows[p.holder[williams][1]].human);
+    EXPECT(moved_to(p, "carlos_sainz-jr", slot_of("tororosso_26")));
+    EXPECT(at(p, williams + 1, 1) == id("sergio_perez"));
+    EXPECT(at(p, williams + 1, 0) == id("felipe_massa"));
+
+    auto off = career("sergio_perez");
+    CareerRow &h = row(off, "sergio_perez");
+    h.team = g_data.slots[williams].team_stat;
+    h.position = 2;
+    season::Plan q = season::plan(g_data, 2016, off, resolver());
+    EXPECT(q.error.empty());
+    EXPECT(seated_once(q));
+    EXPECT(q.holder[williams][1] >= 0 && off[q.holder[williams][1]].human);
+    bool repositioned = false;
+    for (auto &m : q.repositions)
+        repositioned = repositioned || (m.driver == id("sergio_perez") && m.to.index == 1);
+    EXPECT(repositioned);
+    EXPECT(q.extras.size() == 1 && off[q.extras[0]].driver == id("carlos_sainz-jr"));
+}
+
+void empty_team_filled_from_free_agents()
+{
+    auto rows = career("lando_norris");
+    int cadillac = slot_of("gm_cadillac_26");
+    free_agent(row(rows, "sergio_perez"));
+    free_agent(row(rows, "valtteri_bottas"));
+    season::Plan p = season::plan(g_data, 2016, rows, resolver());
+    EXPECT(p.error.empty());
+    EXPECT(seated_once(p));
+    EXPECT(p.holder[cadillac][0] < 0 && p.holder[cadillac][1] < 0);
+    EXPECT(moved_to(p, "pascal_wehrlein", cadillac, 0));
+    EXPECT(moved_to(p, "rio_haryanto", cadillac, 1));
+
+    season::Plan same = season::plan(g_data, 2026, rows, resolver());
+    EXPECT(same.error.empty());
+    EXPECT(seated_once(same));
+    EXPECT(moved_to(same, "sergio_perez", cadillac) && moved_to(same, "valtteri_bottas", cadillac));
+}
+
+void follow_player_left_on_his_2026_team_with_another_car()
+{
+    auto rows = career("valtteri_bottas");
+    int williams = slot_of("williams_26"), cadillac = slot_of("gm_cadillac_26"), force_india = slot_of("forceindia_26");
+    CareerRow &bottas = row(rows, "valtteri_bottas");
+    EXPECT(bottas.team == g_data.slots[cadillac].team_stat && bottas.position == 1 && bottas.human);
+    EXPECT(row(rows, "sergio_perez").team == g_data.slots[cadillac].team_stat);
+    free_agent(row(rows, "carlos_sainz-jr"));
+    season::Plan p = season::plan(g_data, 2016, rows, resolver(), true);
+    EXPECT(p.error.empty());
+    if (!p.error.empty())
+        std::printf("  plan error: %s\n", p.error.c_str());
+    EXPECT(seated_once(p));
+    EXPECT(p.player_moves);
+    EXPECT(p.holder[williams][1] < 0);
+    EXPECT(at(p, williams + 1, 0) == id("felipe_massa"));
+    EXPECT(at(p, williams + 1, 1) == id("valtteri_bottas"));
+    EXPECT(moved_to(p, "valtteri_bottas", williams, 1));
+    EXPECT(at(p, cadillac + 1, 0) == id("pascal_wehrlein"));
+    EXPECT(at(p, cadillac + 1, 1) == id("rio_haryanto"));
+    EXPECT(at(p, force_india + 1, 0) == id("sergio_perez"));
+    EXPECT(moved_to(p, "sergio_perez", force_india, 0));
+    EXPECT(moved_to(p, "carlos_sainz-jr", slot_of("tororosso_26")));
+    bool albon_out = false;
+    for (uint32_t d : p.releases)
+        albon_out = albon_out || d == id("alex_albon");
+    EXPECT(albon_out);
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -268,6 +430,11 @@ int main(int argc, char **argv)
     missing_year_addon_falls_back();
     numbers_never_collide();
     hybrid_budgets_follow_pace();
+    chosen_team_leaves_his_2026_seat_empty();
+    chosen_teammate_stays_on_either_seat();
+    player_added_as_a_third_race_seat();
+    empty_team_filled_from_free_agents();
+    follow_player_left_on_his_2026_team_with_another_car();
     if (failures) {
         std::printf("season_logic_test: %d failure(s)\n", failures);
         return EXIT_FAILURE;

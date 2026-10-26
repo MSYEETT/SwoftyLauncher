@@ -358,6 +358,40 @@ EntrantRecord expected(const Row &r, const Write &w)
     return x;
 }
 
+// The seat a move writes: the row holding it (its team, car, registry value, livery, badge, seat
+// value and position), or for an empty seat its teammate's row, else a row of the slot's team,
+// with the slot's car when that row has none and the seat's position.
+bool seat_template(const season::Plan &p, const std::vector<Row> &rows, const Row &driver, const season::Seat &to,
+                   EntrantWriteData &data, uint16_t &position, std::string &why)
+{
+    int h = p.holder[to.slot][to.index];
+    if (h >= 0) {
+        data = seat_data(driver, rows[h]);
+        position = rows[h].rec.team_position;
+        return true;
+    }
+    const Row *tpl = nullptr;
+    int mate = p.holder[to.slot][1 - to.index];
+    if (mate >= 0)
+        tpl = &rows[mate];
+    uint32_t team = static_cast<uint32_t>(g_data.slots[to.slot].team_stat) << 16;
+    for (size_t i = 0; !tpl && i < rows.size(); ++i)
+        if (!teamless(rows[i].rec) && stat_of(rows[i].rec.team_stat_id) == stat_of(team))
+            tpl = &rows[i];
+    data = tpl ? seat_data(driver, *tpl) : released_data(driver);
+    if (!tpl)
+        data.team_stat_id = team;
+    if (!tpl || !has_car(tpl->rec)) {
+        if (p.vehicles[to.slot].stat < 0) {
+            why = "no row of its team has a car and no vehicle row resolves for the slot";
+            return false;
+        }
+        data.vehicle_ref = static_cast<uint32_t>(p.vehicles[to.slot].stat) << 16;
+    }
+    position = static_cast<uint16_t>(0x100 | to.index);
+    return true;
+}
+
 std::string seat_name(const season::Seat &s)
 {
     if (s.slot < 0)
@@ -396,14 +430,30 @@ int apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, bool
                         label_or(Kind::driver, m.driver).c_str());
             return -1;
         }
-        const Row &seat = rows[p.holder[m.to.slot][m.to.index]];
+        EntrantWriteData data{};
+        uint16_t position = 0;
+        std::string bad;
+        if (!seat_template(p, rows, rows[idx], m.to, data, position, bad)) {
+            swofty::log("[progressive] season %d REFUSED: %s is empty and cannot be written: %s", p.year,
+                        seat_name(m.to).c_str(), bad.c_str());
+            return -1;
+        }
         Write &w = write_for(idx);
-        w.data = seat_data(rows[idx], seat);
-        w.position = seat.rec.team_position;
+        w.data = data;
+        w.position = position;
         w.move = true;
         w.old_team = rows[idx].rec.team_stat_id;
-        w.new_team = seat.rec.team_stat_id;
-        w.why = seat_name(m.from) + " -> " + seat_name(m.to);
+        w.new_team = data.team_stat_id;
+        w.why = seat_name(m.from) + " -> " + seat_name(m.to) +
+                (p.holder[m.to.slot][m.to.index] < 0 ? " (an empty seat)" : "");
+    }
+    for (auto &m : p.repositions) {
+        int idx = row_index(rows, m.driver);
+        if (idx < 0)
+            continue;
+        Write &w = write_for(idx);
+        w.position = static_cast<uint16_t>(0x100 | m.to.index);
+        w.why = "race seat position " + std::to_string(m.from.index) + " -> " + seat_name(m.to);
     }
     for (uint32_t d : p.releases) {
         int idx = row_index(rows, d);
@@ -447,6 +497,11 @@ int apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, bool
         auto rank = [&](int i) { return writes[i].move ? 0 : writes[i].release ? 1 : 2; };
         return rank(a) < rank(b);
     });
+    int plan_team = -1;
+    for (int i = 0; i < season::kSlots; ++i)
+        for (int k = 0; k < lineup::kSeats; ++k)
+            if (p.player != lineup::kNone && p.target[i][k] == p.player)
+                plan_team = g_data.slots[i].team_stat;
     auto sign_seats = [&]() {
         std::vector<Row> now;
         std::vector<uintptr_t> live;
@@ -469,6 +524,14 @@ int apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, bool
                 bool stale = own && swofty::mem::read(own, k) && k.active;
                 if (!moved_player && !stale)
                     continue;
+                if (plan_team < 0 || static_cast<int>(stat_of(r.rec.team_stat_id)) != plan_team) {
+                    swofty::log("[progressive] season %d player contract left alone: %s sits at %s, which is not the "
+                                "seat the plan gives him (%s)",
+                                p.year, label_or(Kind::driver, stat_of(d)).c_str(),
+                                label_or(Kind::team, stat_of(r.rec.team_stat_id)).c_str(),
+                                plan_team < 0 ? "no seat" : label_or(Kind::team, static_cast<uint32_t>(plan_team)).c_str());
+                    continue;
+                }
                 swofty::log("[progressive] season %d player contract: %s sits at %s, his contract names %s (%s); signing "
                             "his seat's team",
                             p.year, label_or(Kind::driver, stat_of(d)).c_str(),
@@ -875,19 +938,19 @@ std::map<std::string, std::string> g_player_seen;
 // Compares the copies of the player's team (player_logic.hpp) and logs them when they change; the
 // store's recorded team (the Resume Career card) follows the seat. The stale-contract repair itself
 // is the season apply's contract step (sign_seats), which runs at every idle Team HQ.
-void player_check(uintptr_t e, store::Career *c, const char *when)
+player::Verdict player_check(uintptr_t e, store::Career *c, const char *when)
 {
     uintptr_t manager = contracts_manager();
     std::vector<Row> rows;
     std::vector<uintptr_t> live;
     if (!c || !manager || !entrant_rows(e, rows) || !contract_objects(manager, live))
-        return;
+        return {};
     const Row *h = nullptr;
     for (auto &r : rows)
         if (human(r.rec))
             h = &r;
     if (!h)
-        return;
+        return {};
     player::Teams t;
     t.row = teamless(h->rec) ? player::kNone : static_cast<int>(stat_of(h->rec.team_stat_id));
     uint32_t d = driver_of(h->rec);
@@ -914,6 +977,21 @@ void player_check(uintptr_t e, store::Career *c, const char *when)
         c->team = t.row;
         store::save();
     }
+    return v;
+}
+
+void contract_left_alone(const player::Verdict &v, store::Career *c, int year, const char *why)
+{
+    if (v.fix != player::Fix::sign_row_team)
+        return;
+    std::string &seen = g_player_seen["left alone"];
+    std::string now = c->key + "|" + std::to_string(year) + "|" + why;
+    if (seen == now)
+        return;
+    seen = now;
+    swofty::log("[progressive] season %d player contract left alone: %s; the plan decides his team before any contract "
+                "is signed",
+                year, why);
 }
 
 std::atomic<int> g_rnd{0};
@@ -1174,7 +1252,7 @@ void season_hub(const swofty::career::State &state)
         g_standings_pending.clear();
     if (entity_busy(e) || g_failures >= 3)
         return;
-    player_check(e, c, "Team HQ, before the season apply");
+    player::Verdict before = player_check(e, c, "Team HQ, before the season apply");
     bool new_season = c->applied_season != static_cast<int>(index);
     bool move_player = c->moves == "follow_driver";
     season::Plan p = season::plan(g_data, year, view(rows), resolver(), move_player);
@@ -1186,6 +1264,7 @@ void season_hub(const swofty::career::State &state)
             swofty::log("[progressive] season %d REFUSED: %s", year, p.error.c_str());
             ++g_failures;
         }
+        contract_left_alone(before, c, year, "the season plan was refused");
         return;
     }
     char why[160];
@@ -1201,6 +1280,7 @@ void season_hub(const swofty::career::State &state)
             swofty::log("[progressive] season %d: the seats differ from the plan after two applies this session; "
                         "leaving them until the next load",
                         year);
+        contract_left_alone(before, c, year, "the season apply already ran twice this session");
         return;
     }
     int wrote = apply(e, p, rows, season_visuals, why);

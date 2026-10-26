@@ -12,7 +12,9 @@
 // a contract the game cached for next season (manager +0x408..+0x410, 0x38 entries, team +0x00,
 // driver kind +0x2c, stat +0x2e), which the season processor 0x140d766b0 applies when it names
 // another team than the active contract. judge() compares them with the row:
-//   - an active contract for another team is stale (the row moved without it): sign the row's team;
+//   - an active contract for another team than the seat: the season apply signs the seat's team, but
+//     only after it has written the plan and only when the seat is the one the plan gives him (the
+//     plan decides the player's team; a refused or skipped apply leaves the contract alone);
 //   - no active contract: the game's negotiation signs one (follow mode: progressive_follow.dll);
 //   - a cached contract for another team is a planned move at the season change, reported only;
 //   - the store's recorded team (the Resume Career card's year) is refreshed from the row.
@@ -71,7 +73,7 @@ inline Verdict judge(const Teams &t)
         v.text += "contract agrees";
         break;
     case Fix::sign_row_team:
-        v.text += "STALE contract, signing the row's team";
+        v.text += "contract for another team than his seat";
         break;
     case Fix::negotiation:
         v.text += "no active contract, the game's negotiation signs one";
