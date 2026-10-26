@@ -35,10 +35,9 @@
 // takes its entrants from the career rows with a car when it is (re)built (0x140af7680 ->
 // Weekend::start 0x140af0460, at a load and on entering a session not yet past session 1), so it
 // races 20 cars; the constructors' standings, the Team Select list and the AI market list the
-// unique team keys of their rows and skip a teamless one, so they leave the slot out. Session
-// participant copies built before the apply keep their row count: the mirror writes the released
-// rows teamless in place (rows are never moved, the weekend keeps pointers into them), so until
-// the weekend is rebuilt the drivers' standings still list those two drivers.
+// unique team keys of their rows and skip a teamless one, so they leave the slot out. A weekend
+// built before the apply is rebuilt by the game's Weekend::start when its first session's
+// entrants differ from the career rows with a car (rebuild_entrants, weekend_logic.hpp).
 
 #include <algorithm>
 #include <atomic>
@@ -70,6 +69,7 @@
 #include "season_logic.hpp"
 #include "seats.hpp"
 #include "store.hpp"
+#include "weekend_logic.hpp"
 #include "store_logic.hpp"
 
 SWOFTY_SETTING(std::string_view, start_season, "2026");
@@ -700,6 +700,98 @@ std::string g_refreshed_for;
 // Mirrors the career rows into every weekend of the current season that has not started (its own
 // line-up copy and each session's participants), so the round 1 sessions the career already built
 // and the standings initialised from them show the season's seats.
+// The game's Weekend::start entrant list: {allocator, begin, end, capacity} of EntrantRecord
+// pointers, only read by the callee (0x140af7680 builds it from the career rows with a car).
+struct EntrantPointers {
+    void *allocator = nullptr;
+    const EntrantRecord *const *begin = nullptr;
+    const EntrantRecord *const *end = nullptr;
+    size_t capacity = 0;
+};
+
+std::vector<uint32_t> participant_drivers(uintptr_t session)
+{
+    std::vector<uint32_t> out;
+    Session s{};
+    if (!swofty::mem::read(session, s))
+        return out;
+    auto b = reinterpret_cast<uintptr_t>(s.participants_begin), en = reinterpret_cast<uintptr_t>(s.participants_end);
+    if (!b || en < b || (en - b) % sizeof(EntrantRecord) || (en - b) / sizeof(EntrantRecord) > kMaxEntrants)
+        return out;
+    for (uintptr_t p = b; p < en; p += sizeof(EntrantRecord)) {
+        EntrantRecord r{};
+        if (swofty::mem::read(p, r))
+            out.push_back(driver_of(r));
+    }
+    return out;
+}
+
+// A not-started weekend whose first session's entrants are not the career rows with a car (the
+// filter of the game's builder 0x140af7680) gets them again from the game: Weekend::start with
+// begin false refills the session through its own pushes and rebuilds the weekend's entrant
+// pointer list, the way the game builds a weekend (weekend_logic.hpp). Returns true when rebuilt.
+bool rebuild_entrants(uintptr_t e, uintptr_t w, int year, const char *tag)
+{
+    Weekend wk{};
+    if (!swofty::mem::read(w, wk))
+        return false;
+    auto sb = reinterpret_cast<uintptr_t>(wk.sessions_begin), se = reinterpret_cast<uintptr_t>(wk.sessions_end);
+    weekend::State st;
+    st.progress = wk.progress_state;
+    st.current = wk.current_session;
+    st.sessions = sb && se > sb && (se - sb) % sizeof(Session) == 0 ? (se - sb) / sizeof(Session) : 0;
+    Session first{};
+    if (st.sessions && swofty::mem::read(sb, first))
+        st.first_completion = first.completion;
+    std::vector<uint32_t> copy = st.sessions ? participant_drivers(sb) : std::vector<uint32_t>{};
+    st.first_rows = copy.size();
+    if (weekend::not_rebuildable(st))
+        return false;
+    std::vector<Row> rows;
+    if (!entrant_rows(e, rows))
+        return false;
+    std::vector<uint32_t> career;
+    std::vector<const EntrantRecord *> list;
+    for (auto &r : rows)
+        if (has_car(r.rec)) {
+            career.push_back(driver_of(r.rec));
+            list.push_back(reinterpret_cast<const EntrantRecord *>(r.at));
+        }
+    if (weekend::same_entrants(copy, career))
+        return false;
+    CareerEntity ent{};
+    if (!swofty::mem::read(e, ent))
+        return false;
+    auto cb = reinterpret_cast<uintptr_t>(ent.championships_begin), ce = reinterpret_cast<uintptr_t>(ent.championships_end);
+    if (ce > cb && ce - cb >= 0x20) {
+        swofty::log("[progressive] season %d %s: weekend entrants differ from the career (%zu -> %zu rows) but the career "
+                    "has more than one championship; left to the game",
+                    year, tag, copy.size(), career.size());
+        return false;
+    }
+    if (!Sess_Weekend_Start.address() || entity_busy(e)) {
+        swofty::log("[progressive] season %d %s: weekend entrants differ from the career (%zu -> %zu rows); %s", year, tag,
+                    copy.size(), career.size(),
+                    Sess_Weekend_Start.address() ? "the line-up is mid-update, left for the next Team HQ"
+                                                 : "Sess_Weekend_Start is not bound, left as they are");
+        return false;
+    }
+    EntrantPointers ptrs;
+    ptrs.begin = list.data();
+    ptrs.end = list.data() + list.size();
+    ptrs.capacity = list.size();
+    Sess_Weekend_Start(reinterpret_cast<void *>(w), &ptrs, false);
+    std::vector<uint32_t> now = participant_drivers(sb);
+    Weekend after{};
+    bool still = swofty::mem::read(w, after) && after.progress_state == 0 && after.current_session == 0;
+    swofty::log("[progressive] season %d %s: weekend entrants rebuilt by the game: %zu -> %zu rows%s", year, tag,
+                copy.size(), now.size(),
+                !weekend::same_entrants(now, career) ? " (WARNING: they still differ from the career rows with a car)"
+                : !still                             ? " (WARNING: the weekend no longer reads as not started)"
+                                                     : "");
+    return true;
+}
+
 void refresh_weekends(uintptr_t e, int year)
 {
     auto ptr = [](uintptr_t a) {
@@ -719,7 +811,7 @@ void refresh_weekends(uintptr_t e, int year)
         !swofty::mem::read(entry.season, season))
         return;
     auto wb = reinterpret_cast<uintptr_t>(season.weekends_begin), we = reinterpret_cast<uintptr_t>(season.weekends_end);
-    size_t weekends = 0, copies = 0, refused = 0;
+    size_t weekends = 0, copies = 0, refused = 0, rebuilt = 0;
     for (uintptr_t at = wb; at && at < we && weekends < 64; at += sizeof(Weekend *)) {
         uintptr_t w = 0;
         Weekend wk{};
@@ -752,9 +844,12 @@ void refresh_weekends(uintptr_t e, int year)
                         year, tag, static_cast<size_t>((s - sb) / sizeof(Session)) + 1, m.rows, m.matched, m.changed,
                         m.replaced, m.race_before, m.race_after);
         }
+        rebuilt += rebuild_entrants(e, w, year, tag);
     }
-    swofty::log("[progressive] season %d: %zu weekend(s) not started, %zu line-up copies refreshed%s", year, weekends,
-                copies, refused ? " (some vectors did not look like line-up copies and were left)" : "");
+    swofty::log("[progressive] season %d: %zu weekend(s) not started, %zu line-up copies refreshed, %zu rebuilt by the "
+                "game%s",
+                year, weekends, copies, rebuilt,
+                refused ? " (some vectors did not look like line-up copies and were left)" : "");
 }
 
 bool standings_rebuild(uintptr_t e, const char *when)
