@@ -13,6 +13,13 @@
 //      share of "the seats show its year");
 //   3. the driver's last used entry.
 // The result is 0 only when no entry has the card's driver.
+//
+// card_team: the team a card shows. The game copies the slot's team (info_team) from the player's
+// seat at each save, and a follow-mode career whose season apply moved him has not been saved since
+// shows the seat of its last save; loading it applies the move again. So when no entry of the
+// driver recorded the card's team at the card's season index, and the follow-mode entries recorded
+// at that season index all name one other team, the card shows that team; otherwise (or when
+// nothing differs) -1, the card's own team.
 
 #pragma once
 #include <cstdint>
@@ -27,6 +34,7 @@ struct Entry {
     int year = 0;
     bool real_team = false;
     uint64_t used = 0;
+    bool follow = false;
 };
 
 inline int agreed_year(const std::vector<const Entry *> &es)
@@ -71,6 +79,25 @@ inline int card_year(const std::vector<Entry> &entries, uint32_t driver, int tea
         if (e->used >= last->used)
             last = e;
     return last->year;
+}
+
+inline int card_team(const std::vector<Entry> &entries, uint32_t driver, int team, int season)
+{
+    if (season < 0)
+        return -1;
+    int other = -1;
+    for (const Entry &e : entries) {
+        if (e.driver != driver || e.season != season || e.team < 0)
+            continue;
+        if (e.team == team)
+            return -1;
+        if (!e.follow)
+            continue;
+        if (other >= 0 && other != e.team)
+            return -1;
+        other = e.team;
+    }
+    return other;
 }
 
 } // namespace progressive::resume
