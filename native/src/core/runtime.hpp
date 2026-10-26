@@ -139,6 +139,7 @@ void netplay_exit();
 void netplay_drive_setup();
 void netplay_flow(uint32_t hash, uint32_t to);
 void netplay_screen(const char *name);
+bool netplay_popup(const char *id, void *fn, void *ctx);
 void netplay_tick();
 void net_trace_setup();
 int group_add(const json::Value &entry);
