@@ -9,7 +9,7 @@
 //! Only datagrams from the game's socket, `127.0.0.1:game_port`, are relayed. Opened datagrams go
 //! to the port the game was last seen sending from, and until it has sent, to the configured
 //! port; a port read from `netplay.json` is used once the game sends from it. Each start seals
-//! under a new random session id (see [`super::seal`]).
+//! under a new session id (see [`super::seal`]).
 
 use std::collections::{BTreeMap, VecDeque};
 use std::io;
@@ -24,7 +24,7 @@ use ring::rand::{SecureRandom, SystemRandom};
 use serde::{Deserialize, Serialize};
 
 use super::direct::timed_out;
-use super::seal::{Opener, Reject, Sealer};
+use super::seal::{Opener, Reject, Sealer, new_session_id};
 use super::transport::{MAX_DATAGRAM, Transport};
 
 /// The environment variable the launcher sets for the game, to [`Bridge::env_value`].
@@ -98,6 +98,7 @@ pub struct Drops {
     pub replay: u64,
     pub too_old: u64,
     pub old_session: u64,
+    pub throttled: u64,
     /// A datagram reached a member port from a socket other than the game's. Echo mode keeps it
     /// and flags it.
     pub foreign_source: u64,
@@ -117,6 +118,7 @@ impl Drops {
             Reject::Replay => &mut self.replay,
             Reject::TooOld => &mut self.too_old,
             Reject::OldSession => &mut self.old_session,
+            Reject::Throttled => &mut self.throttled,
         } += 1;
     }
 
@@ -130,6 +132,7 @@ impl Drops {
             ("replay", self.replay),
             ("too_old", self.too_old),
             ("old_session", self.old_session),
+            ("throttled", self.throttled),
             ("foreign_source", self.foreign_source),
             ("send_failed", self.send_failed),
             ("deliver_failed", self.deliver_failed),
@@ -207,7 +210,11 @@ impl Bridge {
     /// Bind a loopback port for each remote member and relay between them and `transport`.
     pub fn start(cfg: BridgeConfig, transport: Arc<dyn Transport>) -> io::Result<Bridge> {
         let remotes = cfg.remotes()?;
-        let sealer = Arc::new(Sealer::new(&cfg.key, cfg.self_member, random_u64()?));
+        let sealer = Arc::new(Sealer::new(
+            &cfg.key,
+            cfg.self_member,
+            new_session_id(SystemTime::now(), random_u64()?),
+        ));
         let opener = Opener::new(&cfg.key, cfg.self_member, remotes.iter().copied());
         let mut bridge = Self::bind(&cfg, &remotes, false)?;
         for &m in &remotes {

@@ -1,18 +1,20 @@
 //! The bridge's wire format: each game datagram sealed end to end between launchers.
 //!
 //! `ver:u8 (2), from:u8, session:u64, counter:u64` big-endian, then the ChaCha20-Poly1305
-//! ciphertext and its 16-byte tag. A sender picks a random session id when its bridge starts and
-//! seals under the subkey HKDF-SHA256(lobby key, empty salt, info = `swofty-netplay-v1` ‖
+//! ciphertext and its 16-byte tag. A sender picks a session id when its bridge starts (see
+//! [`new_session_id`]) and seals under the subkey HKDF-SHA256(lobby key, empty salt, info = `swofty-netplay-v1` ‖
 //! session ‖ from), counting from 0 for each destination. The AAD is the 18-byte header followed
 //! by the receiver's lobby number, and the nonce is `from`, `to`, two zero bytes, then the
 //! counter, so a datagram opens only at the member it was sealed for.
 //!
-//! A receiver keeps a [`WINDOW`]-counter sliding window for each sender's current session. A new
-//! session from a sender replaces the old one once a datagram of it verifies, and the sessions it
-//! replaced are rejected from then on.
+//! A receiver keeps a [`WINDOW`]-counter sliding window for each sender's current session. A
+//! datagram of a larger session id takes over once it verifies; a smaller one only once the
+//! current session has been silent for [`TAKEOVER_SILENCE`], for a sender whose clock stepped back.
+//! A receiver derives a subkey for at most one new session id per sender every [`ATTEMPT_GAP`].
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use ring::aead::{Aad, CHACHA20_POLY1305, LessSafeKey, NONCE_LEN, Nonce, UnboundKey};
 use ring::hkdf;
@@ -25,7 +27,12 @@ pub const OVERHEAD: usize = HEADER_LEN + TAG_LEN;
 /// How many counters behind the newest one a datagram may arrive and still be accepted.
 pub const WINDOW: u64 = 1024;
 const WORDS: usize = (WINDOW / 64) as usize;
+/// How long a sender's current session must be silent before a smaller session id may replace it.
+pub const TAKEOVER_SILENCE: Duration = Duration::from_secs(10);
+/// How soon after trying one new session id a receiver tries another from the same sender.
+pub const ATTEMPT_GAP: Duration = Duration::from_millis(50);
 const INFO: &[u8] = b"swofty-netplay-v1";
+const RANDOM_BITS: u32 = 22;
 
 /// Why a sealed datagram was dropped.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -42,8 +49,17 @@ pub enum Reject {
     Replay,
     /// A counter older than the session's window.
     TooOld,
-    /// A session the sender has since replaced.
+    /// A smaller session id than the sender's current one, which isn't silent yet.
     OldSession,
+    /// Another new session id from this sender within [`ATTEMPT_GAP`] of the last one tried.
+    Throttled,
+}
+
+/// A session id that orders by start time: the milliseconds since the Unix epoch in the high 42
+/// bits, and 22 bits of `random` below them.
+pub fn new_session_id(now: SystemTime, random: u64) -> u64 {
+    let ms = now.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    (ms << RANDOM_BITS) | (random & ((1 << RANDOM_BITS) - 1))
 }
 
 pub fn header(from: u8, session: u64, counter: u64) -> [u8; HEADER_LEN] {
@@ -138,18 +154,27 @@ pub struct Opener {
     lobby_key: [u8; 32],
     me: u8,
     peers: HashMap<u8, Peer>,
+    derived: u64,
 }
 
 #[derive(Default)]
 struct Peer {
     current: Option<Session>,
-    retired: HashSet<u64>,
+    attempt: Option<Attempt>,
 }
 
 struct Session {
     id: u64,
     key: LessSafeKey,
     window: ReplayWindow,
+    last: Instant,
+}
+
+/// The last new session id tried for a sender, with its subkey.
+struct Attempt {
+    id: u64,
+    key: LessSafeKey,
+    at: Instant,
 }
 
 impl Opener {
@@ -158,12 +183,22 @@ impl Opener {
             lobby_key: *lobby_key,
             me,
             peers: members.into_iter().map(|m| (m, Peer::default())).collect(),
+            derived: 0,
         }
+    }
+
+    /// How many session subkeys this opener has derived.
+    pub fn subkeys_derived(&self) -> u64 {
+        self.derived
     }
 
     /// Open `wire`, which the transport received from member `sender`, in place and return its
     /// plaintext.
     pub fn open<'a>(&mut self, sender: u8, wire: &'a mut [u8]) -> Result<&'a [u8], Reject> {
+        self.open_at(sender, wire, Instant::now())
+    }
+
+    pub fn open_at<'a>(&mut self, sender: u8, wire: &'a mut [u8], now: Instant) -> Result<&'a [u8], Reject> {
         if wire.len() < OVERHEAD || wire[0] != VERSION {
             return Err(Reject::Malformed);
         }
@@ -174,36 +209,55 @@ impl Opener {
         }
         let session = u64::from_be_bytes(wire[2..10].try_into().expect("8 bytes"));
         let counter = u64::from_be_bytes(wire[10..HEADER_LEN].try_into().expect("8 bytes"));
-        if peer.retired.contains(&session) {
-            return Err(Reject::OldSession);
-        }
         let aad = Aad::from(aad(wire, self.me));
         let nonce = Nonce::assume_unique_for_key(nonce(from, self.me, counter));
         let body = &mut wire[HEADER_LEN..];
-        match &mut peer.current {
-            Some(current) if current.id == session => {
-                current.window.check(counter)?;
-                let plain = current
-                    .key
-                    .open_in_place(nonce, aad, body)
-                    .map_err(|_| Reject::BadTag)?;
-                current.window.accept(counter);
-                Ok(plain)
+        if let Some(current) = peer.current.as_mut().filter(|c| c.id == session) {
+            current.window.check(counter)?;
+            let plain = current
+                .key
+                .open_in_place(nonce, aad, body)
+                .map_err(|_| Reject::BadTag)?;
+            current.window.accept(counter);
+            current.last = now;
+            return Ok(plain);
+        }
+        if let Some(current) = &peer.current
+            && session < current.id
+            && now.saturating_duration_since(current.last) < TAKEOVER_SILENCE
+        {
+            return Err(Reject::OldSession);
+        }
+        let attempt = match peer.attempt.take() {
+            Some(a) if a.id == session => a,
+            Some(a) if now.saturating_duration_since(a.at) < ATTEMPT_GAP => {
+                peer.attempt = Some(a);
+                return Err(Reject::Throttled);
             }
             _ => {
-                let key = subkey(&self.lobby_key, session, from);
-                let plain = key.open_in_place(nonce, aad, body).map_err(|_| Reject::BadTag)?;
+                self.derived += 1;
+                Attempt {
+                    id: session,
+                    key: subkey(&self.lobby_key, session, from),
+                    at: now,
+                }
+            }
+        };
+        match attempt.key.open_in_place(nonce, aad, body) {
+            Ok(plain) => {
                 let mut window = ReplayWindow::default();
                 window.accept(counter);
-                let next = Session {
+                peer.current = Some(Session {
                     id: session,
-                    key,
+                    key: attempt.key,
                     window,
-                };
-                if let Some(old) = peer.current.replace(next) {
-                    peer.retired.insert(old.id);
-                }
+                    last: now,
+                });
                 Ok(plain)
+            }
+            Err(_) => {
+                peer.attempt = Some(attempt);
+                Err(Reject::BadTag)
             }
         }
     }
@@ -395,7 +449,7 @@ mod tests {
     }
 
     #[test]
-    fn a_new_session_replaces_the_old_one_for_good() {
+    fn a_delayed_datagram_from_the_previous_session_is_dropped() {
         let (old, new) = (Sealer::new(&KEY, 2, 10), Sealer::new(&KEY, 2, 11));
         let mut opener = Opener::new(&KEY, 1, [2]);
         let (mut old_wires, mut wire) = (Vec::new(), Vec::new());
@@ -426,6 +480,103 @@ mod tests {
         assert_eq!(opener.open(2, &mut forged), Err(Reject::BadTag));
         real.seal(1, b"second", &mut wire);
         assert_eq!(opener.open(2, &mut wire).unwrap(), b"second");
+    }
+
+    #[test]
+    fn session_ids_order_by_start_time() {
+        let at = |ms| UNIX_EPOCH + Duration::from_millis(ms);
+        assert_eq!(new_session_id(at(1000), u64::MAX), (1000 << 22) | 0x3f_ffff);
+        assert_eq!(new_session_id(at(1000), 5), (1000 << 22) | 5);
+        assert!(new_session_id(at(1001), 0) > new_session_id(at(1000), u64::MAX));
+        let now = SystemTime::now();
+        assert!(new_session_id(now + Duration::from_millis(1), 0) > new_session_id(now, u64::MAX));
+    }
+
+    #[test]
+    fn a_late_datagram_from_a_skipped_session_never_takes_over() {
+        let (a, b, c) = (
+            Sealer::new(&KEY, 2, 100),
+            Sealer::new(&KEY, 2, 200),
+            Sealer::new(&KEY, 2, 300),
+        );
+        let mut opener = Opener::new(&KEY, 1, [2]);
+        let t = Instant::now();
+        let secs = |n| t + Duration::from_secs(n);
+        let (mut wire, mut late_b) = (Vec::new(), Vec::new());
+        a.seal(1, b"a", &mut wire);
+        assert_eq!(opener.open_at(2, &mut wire, t).unwrap(), b"a");
+        b.seal(1, b"late b", &mut late_b);
+        c.seal(1, b"c", &mut wire);
+        assert_eq!(opener.open_at(2, &mut wire, secs(1)).unwrap(), b"c");
+        assert_eq!(opener.open_at(2, &mut late_b, secs(2)), Err(Reject::OldSession));
+        c.seal(1, b"c again", &mut wire);
+        assert_eq!(opener.open_at(2, &mut wire, secs(3)).unwrap(), b"c again");
+    }
+
+    #[test]
+    fn a_smaller_session_takes_over_after_ten_seconds_of_silence() {
+        let (current, stepped_back) = (Sealer::new(&KEY, 2, 500), Sealer::new(&KEY, 2, 400));
+        let mut opener = Opener::new(&KEY, 1, [2]);
+        let t = Instant::now();
+        let mut wire = Vec::new();
+        current.seal(1, b"before", &mut wire);
+        opener.open_at(2, &mut wire, t).unwrap();
+        stepped_back.seal(1, b"too soon", &mut wire);
+        let soon = t + TAKEOVER_SILENCE - Duration::from_millis(1);
+        assert_eq!(opener.open_at(2, &mut wire, soon), Err(Reject::OldSession));
+        stepped_back.seal(1, b"after", &mut wire);
+        assert_eq!(
+            opener.open_at(2, &mut wire, t + TAKEOVER_SILENCE).unwrap(),
+            b"after"
+        );
+        stepped_back.seal(1, b"next", &mut wire);
+        assert_eq!(
+            opener.open_at(2, &mut wire, t + TAKEOVER_SILENCE).unwrap(),
+            b"next"
+        );
+    }
+
+    #[test]
+    fn a_flood_of_fresh_session_ids_derives_a_bounded_number_of_keys() {
+        let live = Sealer::new(&KEY, 2, 1000);
+        let mut opener = Opener::new(&KEY, 1, [2]);
+        let t = Instant::now();
+        let mut wire = Vec::new();
+        live.seal(1, b"live", &mut wire);
+        opener.open_at(2, &mut wire, t).unwrap();
+        let mut bad_tags = 0;
+        for i in 0..10_000u64 {
+            let mut fake = wire.clone();
+            fake[2..10].copy_from_slice(&(2000 + i).to_be_bytes());
+            match opener.open_at(2, &mut fake, t) {
+                Err(Reject::BadTag) => bad_tags += 1,
+                other => assert_eq!(other, Err(Reject::Throttled)),
+            }
+        }
+        assert_eq!((bad_tags, opener.subkeys_derived()), (1, 2));
+        live.seal(1, b"still live", &mut wire);
+        assert_eq!(opener.open_at(2, &mut wire, t).unwrap(), b"still live");
+        let mut fake = wire.clone();
+        fake[2..10].copy_from_slice(&99_999u64.to_be_bytes());
+        assert_eq!(opener.open_at(2, &mut fake, t + ATTEMPT_GAP), Err(Reject::BadTag));
+        assert_eq!(opener.subkeys_derived(), 3);
+    }
+
+    #[test]
+    fn a_new_session_retried_while_throttled_opens_from_the_cached_key() {
+        let mut opener = Opener::new(&KEY, 1, [2]);
+        let t = Instant::now();
+        let mut wire = Vec::new();
+        Sealer::new(&KEY, 2, 10).seal(1, b"x", &mut wire);
+        opener.open_at(2, &mut wire, t).unwrap();
+        let next = Sealer::new(&KEY, 2, 20);
+        let mut first = Vec::new();
+        next.seal(1, b"first", &mut first);
+        let mut corrupt = first.clone();
+        *corrupt.last_mut().unwrap() ^= 1;
+        assert_eq!(opener.open_at(2, &mut corrupt, t), Err(Reject::BadTag));
+        assert_eq!(opener.open_at(2, &mut first, t).unwrap(), b"first");
+        assert_eq!(opener.subkeys_derived(), 2);
     }
 
     fn feed(w: &mut ReplayWindow, counter: u64) -> Result<(), Reject> {
