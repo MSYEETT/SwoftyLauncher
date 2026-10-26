@@ -1,0 +1,961 @@
+//! What a profile plays, for a lobby to check that every player runs the same gameplay
+//! content: the game build, each gameplay addon with its version and source, and the
+//! values of their gameplay options. Cosmetic addons and options are left out.
+
+use std::collections::BTreeMap;
+use std::path::Path;
+
+use semver::Version;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use sha2::{Digest, Sha256};
+
+use crate::Result;
+use crate::baseline::{Hashes, Identity, hex, sha256_bytes};
+use crate::builtin::{CORE_DLL, CORE_ID, loader_dir, loader_files};
+use crate::catalog::{self, Addon};
+use crate::manifest::{AddonManifest, Kind, Multiplayer};
+use crate::profile::Profile;
+use crate::store::Store;
+
+pub const VERSION: u32 = 1;
+/// Digests of the addon files [`fingerprint`] hashed, kept apart from the launch-time ones.
+pub const HASHES_FILE: &str = "state/fingerprint-hashes.json";
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Fingerprint {
+    pub version: u32,
+    pub game_build: Identity,
+    /// Sorted by id.
+    pub addons: Vec<AddonPrint>,
+    /// Addon id to option id to value.
+    pub options: BTreeMap<String, BTreeMap<String, Value>>,
+    /// Whether the player owns the game's DLC; `None` while the launcher can't tell.
+    pub dlc: Option<bool>,
+    /// [`Fingerprint::canonical_digest`] when the fingerprint was made.
+    pub digest: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AddonPrint {
+    pub id: String,
+    /// For showing; the digest leaves it out.
+    pub name: String,
+    pub version: Version,
+    pub source: Source,
+    /// Its place in the load order among the gameplay addons that change game data, where
+    /// a later one can override an earlier one; `None` for one that only loads code.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub order: Option<usize>,
+}
+
+/// What the installed copy of an addon is, as a SHA-256 in hex.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Source {
+    /// The Addon Browser download it was installed from.
+    Registry(String),
+    /// Its installed files: each one's path and SHA-256, in path order.
+    Content(String),
+    /// Built into the launcher: the core's DLL, or the manifest of another built-in addon.
+    Builtin(String),
+}
+
+impl Fingerprint {
+    pub fn new(
+        game_build: Identity,
+        mut addons: Vec<AddonPrint>,
+        options: BTreeMap<String, BTreeMap<String, Value>>,
+        dlc: Option<bool>,
+    ) -> Self {
+        addons.sort_by(|a, b| a.id.cmp(&b.id));
+        let mut f = Self {
+            version: VERSION,
+            game_build,
+            addons,
+            options,
+            dlc,
+            digest: String::new(),
+        };
+        f.digest = f.canonical_digest();
+        f
+    }
+
+    /// SHA-256 of the fingerprint as JSON with sorted keys and addons, without names or
+    /// `digest`.
+    pub fn canonical_digest(&self) -> String {
+        let mut addons: Vec<&AddonPrint> = self.addons.iter().collect();
+        addons.sort_by(|a, b| a.id.cmp(&b.id));
+        let addons: Vec<Value> = addons
+            .into_iter()
+            .map(|a| {
+                serde_json::json!({
+                    "id": a.id,
+                    "version": a.version.to_string(),
+                    "source": a.source,
+                    "order": a.order,
+                })
+            })
+            .collect();
+        let doc = serde_json::json!({
+            "version": self.version,
+            "game_build": self.game_build,
+            "addons": addons,
+            "options": self.options,
+            "dlc": self.dlc,
+        });
+        sha256_bytes(&serde_json::to_vec(&sorted(doc)).expect("serialisable"))
+    }
+}
+
+fn sorted(v: Value) -> Value {
+    match v {
+        Value::Object(map) => {
+            let mut entries: Vec<(String, Value)> = map.into_iter().collect();
+            entries.sort_by(|a, b| a.0.cmp(&b.0));
+            Value::Object(entries.into_iter().map(|(k, v)| (k, sorted(v))).collect())
+        }
+        Value::Array(items) => Value::Array(items.into_iter().map(sorted).collect()),
+        v => v,
+    }
+}
+
+/// The fingerprint of `profile` as its build would load it, on the game `game_build`.
+pub fn fingerprint(store: &Store, profile: &Profile, game_build: &Identity) -> Result<Fingerprint> {
+    let installed = store.addons()?;
+    let load = crate::resolver::resolve(profile, &installed)?.order;
+    let mut hashes = Hashes::open(store.root.join(HASHES_FILE));
+    let mut addons = Vec::new();
+    let mut options = BTreeMap::new();
+    let mut place = 0;
+    for m in load.iter().map(|id| &installed[id]) {
+        if m.multiplayer() == Multiplayer::Cosmetic {
+            continue;
+        }
+        let order = changes_data(m).then(|| {
+            place += 1;
+            place - 1
+        });
+        addons.push(AddonPrint {
+            id: m.id.clone(),
+            name: m.name.clone(),
+            version: m.version.clone(),
+            source: source(store, m, &mut hashes)?,
+            order,
+        });
+        let values: BTreeMap<String, Value> = m
+            .options
+            .iter()
+            .filter(|o| o.multiplayer != Some(Multiplayer::Cosmetic))
+            .map(|o| {
+                let v = profile.option(m, o);
+                (o.id.clone(), o.normalise(&v).unwrap_or(v))
+            })
+            .collect();
+        if !values.is_empty() {
+            options.insert(m.id.clone(), values);
+        }
+    }
+    hashes.save();
+    Ok(Fingerprint::new(game_build.clone(), addons, options, None))
+}
+
+fn changes_data(m: &AddonManifest) -> bool {
+    let o = &m.operations;
+    let ops = [&o.database, &o.erp, &o.ui, &o.assets]
+        .iter()
+        .any(|l| !l.is_empty())
+        || !o.files.is_empty();
+    ops || m.launcher.as_ref().is_some_and(|l| l.build) || m.kind.iter().any(|k| *k != Kind::Native)
+}
+
+fn source(store: &Store, m: &AddonManifest, hashes: &mut Hashes) -> Result<Source> {
+    if store.is_builtin(&m.id) {
+        let dll = loader_dir()
+            .map(|d| d.join(CORE_DLL))
+            .filter(|p| m.id == CORE_ID && p.is_file());
+        return Ok(Source::Builtin(match dll {
+            Some(dll) => hashes.sha256(&dll)?,
+            None => sha256_bytes(&serde_json::to_vec(m).expect("serialisable")),
+        }));
+    }
+    if !crate::dbedit::package::is_package(store, &m.id)
+        && let Some(sha) = catalog::installed_from(store, m)
+    {
+        return Ok(Source::Registry(sha));
+    }
+    content_hash(&store.addons_dir().join(&m.id), hashes).map(Source::Content)
+}
+
+/// SHA-256 over each file under `dir` as `path\0sha256\n`, paths relative with `/`, in order.
+pub fn content_hash(dir: &Path, hashes: &mut Hashes) -> Result<String> {
+    let mut h = Sha256::new();
+    for (rel, path) in loader_files(dir)? {
+        h.update(format!("{rel}\0{}\n", hashes.sha256(&path)?));
+    }
+    Ok(hex(&h.finalize()))
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Mismatch {
+    #[serde(flatten)]
+    pub kind: MismatchKind,
+    /// The launcher can fix it on its own: turn an addon off, set an option, reorder, or
+    /// install the host's exact version from the Addon Browser.
+    pub fixable: bool,
+}
+
+/// How the local fingerprint differs from the host's; `local` is this player's side.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum MismatchKind {
+    GameBuild {
+        local: Identity,
+        host: Identity,
+    },
+    Dlc {
+        local: bool,
+        host: bool,
+    },
+    MissingAddon {
+        id: String,
+        name: String,
+        version: Version,
+        source: Source,
+    },
+    ExtraAddon {
+        id: String,
+        name: String,
+        version: Version,
+    },
+    VersionDiffers {
+        id: String,
+        name: String,
+        local: Version,
+        host: Version,
+    },
+    SourceDiffers {
+        id: String,
+        name: String,
+        version: Version,
+        local: Source,
+        host: Source,
+    },
+    /// The data addons both sides have, in each side's load order.
+    LoadOrder {
+        local: Vec<String>,
+        host: Vec<String>,
+    },
+    OptionDiffers {
+        addon: String,
+        option: String,
+        local: Option<Value>,
+        host: Option<Value>,
+    },
+}
+
+impl Mismatch {
+    pub fn line(&self) -> String {
+        let value = |v: &Option<Value>| v.as_ref().map_or_else(|| "unset".to_owned(), Value::to_string);
+        let text = match &self.kind {
+            MismatchKind::GameBuild { local, host } => {
+                format!("game build {} is not the host's {}", build(local), build(host))
+            }
+            MismatchKind::Dlc { local, host } => {
+                format!("DLC is {}; the host's is {}", owned(*local), owned(*host))
+            }
+            MismatchKind::MissingAddon {
+                id, name, version, ..
+            } => format!("{name} ({id}) {version} is missing"),
+            MismatchKind::ExtraAddon { id, name, version } => {
+                format!("{name} ({id}) {version} is on; the host doesn't have it")
+            }
+            MismatchKind::VersionDiffers {
+                id,
+                name,
+                local,
+                host,
+            } => format!("{name} ({id}) is {local}; the host has {host}"),
+            MismatchKind::SourceDiffers {
+                id, name, version, ..
+            } => format!("{name} ({id}) {version} is not the same copy as the host's"),
+            MismatchKind::LoadOrder { local, host } => format!(
+                "load order {} is not the host's {}",
+                local.join(", "),
+                host.join(", ")
+            ),
+            MismatchKind::OptionDiffers {
+                addon,
+                option,
+                local,
+                host,
+            } => format!(
+                "{addon}.{option} is {}; the host has {}",
+                value(local),
+                value(host)
+            ),
+        };
+        if self.fixable {
+            format!("{text} (fixable)")
+        } else {
+            text
+        }
+    }
+}
+
+fn build(i: &Identity) -> String {
+    format!(
+        "{} (exe {})",
+        i.build_id,
+        i.exe_sha256.get(..12).unwrap_or(&i.exe_sha256)
+    )
+}
+
+fn owned(on: bool) -> &'static str {
+    if on { "owned" } else { "not owned" }
+}
+
+fn same_game(a: &Identity, b: &Identity) -> bool {
+    let steam = |i: &Identity| i.build_id.parse::<u64>().ok();
+    a.exe_sha256.eq_ignore_ascii_case(&b.exe_sha256)
+        && !matches!((steam(a), steam(b)), (Some(x), Some(y)) if x != y)
+}
+
+/// What `local` must change to match `host`, the game build and DLC first, then addons,
+/// the load order and options. `catalog` is the Addon Browser's listing.
+pub fn compare(local: &Fingerprint, host: &Fingerprint, catalog: &[Addon]) -> Vec<Mismatch> {
+    let launcher = crate::update::current_version();
+    let listed = |a: &AddonPrint| match &a.source {
+        Source::Registry(sha) => catalog
+            .iter()
+            .find(|c| c.id == a.id)
+            .and_then(|c| c.listed().into_iter().find(|v| v.version == a.version))
+            .is_some_and(|v| v.sha256.trim().eq_ignore_ascii_case(sha) && v.accepts(&launcher)),
+        _ => false,
+    };
+    let mut out = Vec::new();
+    let mut push = |kind, fixable| out.push(Mismatch { kind, fixable });
+    if !same_game(&local.game_build, &host.game_build) {
+        push(
+            MismatchKind::GameBuild {
+                local: local.game_build.clone(),
+                host: host.game_build.clone(),
+            },
+            false,
+        );
+    }
+    if let (Some(l), Some(h)) = (local.dlc, host.dlc)
+        && l != h
+    {
+        push(MismatchKind::Dlc { local: l, host: h }, false);
+    }
+    let mine: BTreeMap<&str, &AddonPrint> = local.addons.iter().map(|a| (a.id.as_str(), a)).collect();
+    let theirs: BTreeMap<&str, &AddonPrint> = host.addons.iter().map(|a| (a.id.as_str(), a)).collect();
+    for h in theirs.values() {
+        let (id, name) = (h.id.clone(), h.name.clone());
+        match mine.get(h.id.as_str()) {
+            None => push(
+                MismatchKind::MissingAddon {
+                    id,
+                    name,
+                    version: h.version.clone(),
+                    source: h.source.clone(),
+                },
+                listed(h),
+            ),
+            Some(l) if l.version != h.version => push(
+                MismatchKind::VersionDiffers {
+                    id,
+                    name,
+                    local: l.version.clone(),
+                    host: h.version.clone(),
+                },
+                listed(h),
+            ),
+            Some(l) if l.source != h.source => push(
+                MismatchKind::SourceDiffers {
+                    id,
+                    name,
+                    version: h.version.clone(),
+                    local: l.source.clone(),
+                    host: h.source.clone(),
+                },
+                listed(h),
+            ),
+            Some(_) => {}
+        }
+    }
+    for l in mine.values().filter(|l| !theirs.contains_key(l.id.as_str())) {
+        push(
+            MismatchKind::ExtraAddon {
+                id: l.id.clone(),
+                name: l.name.clone(),
+                version: l.version.clone(),
+            },
+            !matches!(l.source, Source::Builtin(_)),
+        );
+    }
+    let shared_order = |f: &Fingerprint, other: &BTreeMap<&str, &AddonPrint>| -> Vec<String> {
+        let mut placed: Vec<(usize, &str)> = f
+            .addons
+            .iter()
+            .filter(|a| other.get(a.id.as_str()).is_some_and(|o| o.order.is_some()))
+            .filter_map(|a| Some((a.order?, a.id.as_str())))
+            .collect();
+        placed.sort();
+        placed.into_iter().map(|(_, id)| id.to_owned()).collect()
+    };
+    let (mine_order, their_order) = (shared_order(local, &theirs), shared_order(host, &mine));
+    if mine_order != their_order {
+        push(
+            MismatchKind::LoadOrder {
+                local: mine_order,
+                host: their_order,
+            },
+            true,
+        );
+    }
+    for (addon, values) in host
+        .options
+        .iter()
+        .filter(|(id, _)| mine.contains_key(id.as_str()))
+    {
+        let ours = local.options.get(addon);
+        for (option, h) in values {
+            let l = ours.and_then(|o| o.get(option));
+            if l != Some(h) {
+                push(
+                    MismatchKind::OptionDiffers {
+                        addon: addon.clone(),
+                        option: option.clone(),
+                        local: l.cloned(),
+                        host: Some(h.clone()),
+                    },
+                    true,
+                );
+            }
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    fn store(name: &str) -> Store {
+        let root = std::env::temp_dir().join(format!("swofty-fingerprint-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        Store::new(root)
+    }
+
+    fn put(store: &Store, manifest: Value, files: &[(&str, &str)]) {
+        let dir = store.addons_dir().join(manifest["id"].as_str().unwrap());
+        write(&dir, manifest, files);
+    }
+
+    fn write(dir: &Path, manifest: Value, files: &[(&str, &str)]) {
+        std::fs::create_dir_all(dir).unwrap();
+        let mut m = json!({
+            "schema_version": 1,
+            "name": manifest["id"],
+            "version": "1.0.0",
+            "author": "a",
+            "compat": { "game": "f1_25" },
+        });
+        m.as_object_mut()
+            .unwrap()
+            .extend(manifest.as_object().unwrap().clone());
+        std::fs::write(dir.join("swofty.json"), m.to_string()).unwrap();
+        for (rel, text) in files {
+            let path = dir.join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        }
+    }
+
+    fn data(id: &str) -> Value {
+        json!({ "id": id, "kind": ["database"], "operations": { "database": ["db/ops.json"] } })
+    }
+
+    fn code(id: &str) -> Value {
+        json!({ "id": id, "kind": ["native"], "operations": { "native": [{ "dll": "native/x.dll" }] } })
+    }
+
+    fn profile(ids: &[&str]) -> Profile {
+        let mut p = Profile::new("mp");
+        for id in ids {
+            p.set_enabled(id, true).unwrap();
+        }
+        p
+    }
+
+    fn game() -> Identity {
+        Identity {
+            build_id: "25251167".into(),
+            exe_sha256: "a".repeat(64),
+        }
+    }
+
+    fn ids(f: &Fingerprint) -> Vec<&str> {
+        f.addons.iter().map(|a| a.id.as_str()).collect()
+    }
+
+    fn print(id: &str, version: &str, source: Source, order: Option<usize>) -> AddonPrint {
+        AddonPrint {
+            id: id.into(),
+            name: format!("{id} name"),
+            version: Version::parse(version).unwrap(),
+            source,
+            order,
+        }
+    }
+
+    fn registry(sha: &str) -> Source {
+        Source::Registry(sha.repeat(64))
+    }
+
+    fn options(entries: &[(&str, &str, Value)]) -> BTreeMap<String, BTreeMap<String, Value>> {
+        let mut out: BTreeMap<String, BTreeMap<String, Value>> = BTreeMap::new();
+        for (addon, option, v) in entries {
+            out.entry((*addon).into())
+                .or_default()
+                .insert((*option).into(), v.clone());
+        }
+        out
+    }
+
+    fn host() -> Fingerprint {
+        Fingerprint::new(
+            game(),
+            vec![
+                print("t.a", "1.0.0", registry("a"), Some(0)),
+                print("t.b", "2.0.0", registry("b"), Some(1)),
+                print("t.code", "1.0.0", Source::Content("c".repeat(64)), None),
+            ],
+            options(&[("t.a", "laps", json!(5)), ("t.a", "mode", json!("full"))]),
+            None,
+        )
+    }
+
+    fn listing(id: &str, versions: &[(&str, &str)]) -> Addon {
+        let versions: Vec<Value> = versions
+            .iter()
+            .map(|(v, sha)| json!({ "version": v, "size": 1, "sha256": sha.repeat(64), "url": "u" }))
+            .collect();
+        serde_json::from_value(json!({ "id": id, "name": id, "versions": versions })).unwrap()
+    }
+
+    fn kinds(found: &[Mismatch]) -> Vec<(String, bool)> {
+        found
+            .iter()
+            .map(|m| {
+                let v = serde_json::to_value(m).unwrap();
+                (v["kind"].as_str().unwrap().to_owned(), m.fixable)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn digest_is_stable_and_ignores_names_and_listing_order() {
+        let f = host();
+        assert_eq!(
+            f.digest,
+            "28a1f9d010613f642b92b16e6bb9dd430b9de2ab9e1d0e52c965993049607730"
+        );
+        let mut shuffled = f.addons.clone();
+        shuffled.reverse();
+        shuffled[0].name = "Another name".into();
+        let again = Fingerprint::new(game(), shuffled, f.options.clone(), None);
+        assert_eq!(again.digest, f.digest);
+        assert_eq!(ids(&again), ["t.a", "t.b", "t.code"]);
+
+        let text = serde_json::to_string(&f).unwrap();
+        let read: Fingerprint = serde_json::from_str(&text).unwrap();
+        assert_eq!(read, f);
+        assert_eq!(read.canonical_digest(), f.digest);
+
+        let changed = |edit: &dyn Fn(&mut Fingerprint)| {
+            let mut c = host();
+            edit(&mut c);
+            c.canonical_digest()
+        };
+        for d in [
+            changed(&|c| c.addons[0].version = Version::new(1, 0, 1)),
+            changed(&|c| c.addons[1].source = registry("d")),
+            changed(&|c| c.addons[0].order = Some(1)),
+            changed(&|c| {
+                c.options.get_mut("t.a").unwrap().insert("laps".into(), json!(6));
+            }),
+            changed(&|c| c.game_build.exe_sha256 = "b".repeat(64)),
+            changed(&|c| c.dlc = Some(true)),
+        ] {
+            assert_ne!(d, f.digest);
+        }
+    }
+
+    #[test]
+    fn fingerprints_a_profile_the_same_way_twice() {
+        let store = store("stable");
+        put(&store, data("t.data1"), &[("db/ops.json", "1")]);
+        put(&store, data("t.data2"), &[("db/ops.json", "2")]);
+        put(&store, code("t.code1"), &[("native/x.dll", "c1")]);
+        put(&store, code("t.code2"), &[("native/x.dll", "c2")]);
+        let p = profile(&["t.data1", "t.code1", "t.data2", "t.code2"]);
+        let first = fingerprint(&store, &p, &game()).unwrap();
+        assert_eq!(
+            ids(&first),
+            ["swofty.core", "t.code1", "t.code2", "t.data1", "t.data2"]
+        );
+        let order: Vec<(&str, Option<usize>)> =
+            first.addons.iter().map(|a| (a.id.as_str(), a.order)).collect();
+        assert_eq!(
+            order,
+            [
+                ("swofty.core", Some(0)),
+                ("t.code1", None),
+                ("t.code2", None),
+                ("t.data1", Some(1)),
+                ("t.data2", Some(2)),
+            ]
+        );
+        assert!(store.root.join(HASHES_FILE).is_file());
+        assert_eq!(fingerprint(&store, &p, &game()).unwrap(), first);
+
+        let code_swapped = profile(&["t.data1", "t.code2", "t.data2", "t.code1"]);
+        assert_eq!(
+            fingerprint(&store, &code_swapped, &game()).unwrap().digest,
+            first.digest
+        );
+        let data_swapped = profile(&["t.data2", "t.code1", "t.data1", "t.code2"]);
+        assert_ne!(
+            fingerprint(&store, &data_swapped, &game()).unwrap().digest,
+            first.digest
+        );
+
+        std::fs::write(store.addons_dir().join("t.code1/native/x.dll"), "c1 changed").unwrap();
+        let edited = fingerprint(&store, &p, &game()).unwrap();
+        assert_ne!(edited.addons[1].source, first.addons[1].source);
+        assert_eq!(edited.addons[2].source, first.addons[2].source);
+        std::fs::remove_dir_all(&store.root).ok();
+    }
+
+    #[test]
+    fn leaves_out_cosmetic_addons_and_options() {
+        let store = store("cosmetic");
+        let look = json!({
+            "id": "t.look", "experimental_features": ["shaders"], "shader": { "lut": "look.cube" },
+        });
+        let passes = json!({
+            "id": "t.passes", "experimental_features": ["postfx"], "postfx": [{ "shader": "fx/a.hlsl" }],
+        });
+        let mut helmets = data("t.helmets");
+        helmets["category"] = json!("helmets");
+        let mut shaders = data("t.shaders");
+        shaders["category"] = json!("shaders");
+        let mut kept_helmets = data("t.kept-helmets");
+        kept_helmets["category"] = json!("helmets");
+        kept_helmets["multiplayer"] = json!("gameplay");
+        let mut quiet = data("t.quiet");
+        quiet["multiplayer"] = json!("cosmetic");
+        let mut cars = data("t.cars");
+        cars["category"] = json!("cars");
+        cars["options"] = json!([
+            { "id": "laps", "type": "slider", "min": 1, "max": 10, "step": 1, "default": 5, "binds": "db" },
+            { "id": "hud", "type": "toggle", "default": true, "binds": "native", "multiplayer": "cosmetic" },
+        ]);
+        for m in [look, passes, helmets, shaders, kept_helmets, quiet, cars] {
+            put(&store, m, &[]);
+        }
+        let all = [
+            "t.look",
+            "t.passes",
+            "t.helmets",
+            "t.shaders",
+            "t.kept-helmets",
+            "t.quiet",
+            "t.cars",
+        ];
+        let mut p = profile(&all);
+        let installed = store.addons().unwrap();
+        p.set_option(&installed["t.cars"], "laps", json!(7)).unwrap();
+        let f = fingerprint(&store, &p, &game()).unwrap();
+        assert_eq!(ids(&f), ["swofty.core", "t.cars", "t.kept-helmets"]);
+        assert_eq!(f.options, options(&[("t.cars", "laps", json!(7))]));
+
+        let without = fingerprint(&store, &profile(&["t.kept-helmets", "t.cars"]), &game()).unwrap();
+        let mut seven = profile(&["t.kept-helmets", "t.cars"]);
+        seven.set_option(&installed["t.cars"], "laps", json!(7)).unwrap();
+        assert_ne!(without.digest, f.digest);
+        assert_eq!(fingerprint(&store, &seven, &game()).unwrap().digest, f.digest);
+        std::fs::remove_dir_all(&store.root).ok();
+    }
+
+    #[test]
+    fn manifest_multiplayer_defaults() {
+        let m = |extra: Value| {
+            let mut doc = json!({
+                "schema_version": 1, "id": "t.m", "name": "m", "version": "1.0.0", "author": "a",
+                "compat": { "game": "f1_25" },
+            });
+            doc.as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
+            AddonManifest::parse(&doc.to_string()).unwrap().multiplayer()
+        };
+        use Multiplayer::{Cosmetic, Gameplay};
+        assert_eq!(m(json!({})), Gameplay);
+        assert_eq!(m(json!({ "category": "helmets" })), Cosmetic);
+        assert_eq!(m(json!({ "category": "shaders" })), Cosmetic);
+        assert_eq!(m(json!({ "category": "cars" })), Gameplay);
+        assert_eq!(
+            m(json!({ "category": "helmets", "multiplayer": "gameplay" })),
+            Gameplay
+        );
+        assert_eq!(m(json!({ "multiplayer": "cosmetic" })), Cosmetic);
+        let look = json!({ "experimental_features": ["shaders"], "shader": { "lut": "l.cube" } });
+        assert_eq!(m(look.clone()), Cosmetic);
+        let mut with_data = look;
+        with_data["operations"] = json!({ "database": ["db/x.json"] });
+        assert_eq!(m(with_data), Gameplay);
+        assert!(AddonManifest::parse(r#"{"schema_version":1,"id":"t.m","name":"m","version":"1.0.0","author":"a","compat":{"game":"f1_25"},"multiplayer":"sometimes"}"#).is_err());
+    }
+
+    #[test]
+    fn a_registry_install_prints_its_download_until_installed_otherwise() {
+        let store = store("registry");
+        put(&store, data("t.a"), &[("db/ops.json", "1")]);
+        let p = profile(&["t.a"]);
+        let source = |store: &Store| fingerprint(store, &p, &game()).unwrap().addons[1].source.clone();
+        assert!(matches!(source(&store), Source::Content(_)));
+
+        let mut v: catalog::Version = serde_json::from_value(json!({
+            "version": "1.0.0", "size": 1, "sha256": "AB".repeat(32), "url": "u",
+        }))
+        .unwrap();
+        catalog::record_install(&store, "t.a", &v).unwrap();
+        assert_eq!(source(&store), Source::Registry("ab".repeat(32)));
+
+        v.version = Version::new(0, 9, 0);
+        catalog::record_install(&store, "t.a", &v).unwrap();
+        assert!(matches!(source(&store), Source::Content(_)));
+
+        v.version = Version::new(1, 0, 0);
+        catalog::record_install(&store, "t.a", &v).unwrap();
+        let copy = store.root.join("copy");
+        write(&copy, data("t.a"), &[("db/ops.json", "1")]);
+        store.install_addon(&copy).unwrap();
+        assert!(!store.registry_install_path("t.a").exists());
+        assert!(matches!(source(&store), Source::Content(_)));
+        std::fs::remove_dir_all(&store.root).ok();
+    }
+
+    #[test]
+    fn matching_fingerprints_have_nothing_to_fix() {
+        assert!(compare(&host(), &host(), &[]).is_empty());
+    }
+
+    #[test]
+    fn game_build_and_dlc_differences_are_not_fixable() {
+        let mut local = host();
+        local.game_build.exe_sha256 = "b".repeat(64);
+        assert_eq!(
+            kinds(&compare(&local, &host(), &[])),
+            [("game_build".into(), false)]
+        );
+
+        let mut local = host();
+        local.game_build.build_id = "25300000".into();
+        assert_eq!(
+            kinds(&compare(&local, &host(), &[])),
+            [("game_build".into(), false)]
+        );
+        local.game_build.build_id = format!("exe-{}", "a".repeat(12));
+        assert!(compare(&local, &host(), &[]).is_empty());
+
+        let (mut local, mut h) = (host(), host());
+        local.dlc = Some(false);
+        assert!(compare(&local, &h, &[]).is_empty());
+        h.dlc = Some(true);
+        assert_eq!(kinds(&compare(&local, &h, &[])), [("dlc".into(), false)]);
+    }
+
+    #[test]
+    fn a_missing_addon_is_fixable_when_the_registry_lists_that_download() {
+        let mut local = host();
+        local.addons.retain(|a| a.id != "t.b");
+        let listed = [listing("t.b", &[("2.0.0", "b"), ("1.0.0", "e")])];
+        let found = compare(&local, &host(), &listed);
+        assert_eq!(
+            found[0].kind,
+            MismatchKind::MissingAddon {
+                id: "t.b".into(),
+                name: "t.b name".into(),
+                version: Version::new(2, 0, 0),
+                source: registry("b"),
+            }
+        );
+        assert!(found[0].fixable);
+        assert_eq!(found[0].line(), "t.b name (t.b) 2.0.0 is missing (fixable)");
+        assert!(!compare(&local, &host(), &[listing("t.b", &[("2.0.0", "f")])])[0].fixable);
+        assert!(!compare(&local, &host(), &[listing("t.b", &[("1.0.0", "b")])])[0].fixable);
+        assert!(!compare(&local, &host(), &[])[0].fixable);
+
+        let mut code_host = host();
+        let mut code_local = host();
+        code_local.addons.retain(|a| a.id != "t.code");
+        let missing = compare(&code_local, &code_host, &[listing("t.code", &[("1.0.0", "c")])]);
+        assert_eq!(kinds(&missing)[0], ("missing_addon".into(), false));
+        code_host.addons.clear();
+        assert!(
+            kinds(&compare(&code_local, &code_host, &[]))
+                .iter()
+                .all(|(k, _)| k == "extra_addon")
+        );
+    }
+
+    #[test]
+    fn an_extra_addon_is_fixable_by_turning_it_off() {
+        let mut local = host();
+        local.addons.push(print(
+            "t.extra",
+            "1.0.0",
+            Source::Content("e".repeat(64)),
+            Some(2),
+        ));
+        local
+            .options
+            .insert("t.extra".into(), BTreeMap::from([("x".into(), json!(true))]));
+        let found = compare(&local, &host(), &[]);
+        assert_eq!(kinds(&found), [("extra_addon".into(), true)]);
+        assert_eq!(
+            found[0].line(),
+            "t.extra name (t.extra) 1.0.0 is on; the host doesn't have it (fixable)"
+        );
+        let core = |f: &mut Fingerprint| {
+            f.addons
+                .push(print(CORE_ID, "0.2.13", Source::Builtin("1".repeat(64)), None))
+        };
+        let mut local = host();
+        core(&mut local);
+        assert_eq!(
+            kinds(&compare(&local, &host(), &[])),
+            [("extra_addon".into(), false)]
+        );
+    }
+
+    #[test]
+    fn a_version_difference_is_fixable_when_the_registry_has_the_hosts_version() {
+        let mut local = host();
+        local.addons[1].version = Version::new(1, 0, 0);
+        local.addons[1].source = registry("e");
+        let found = compare(
+            &local,
+            &host(),
+            &[listing("t.b", &[("2.0.0", "b"), ("1.0.0", "e")])],
+        );
+        assert_eq!(
+            found[0].kind,
+            MismatchKind::VersionDiffers {
+                id: "t.b".into(),
+                name: "t.b name".into(),
+                local: Version::new(1, 0, 0),
+                host: Version::new(2, 0, 0),
+            }
+        );
+        assert_eq!(kinds(&found), [("version_differs".into(), true)]);
+        assert_eq!(
+            kinds(&compare(&local, &host(), &[])),
+            [("version_differs".into(), false)]
+        );
+    }
+
+    #[test]
+    fn a_source_difference_is_fixable_by_installing_the_hosts_download() {
+        let mut local = host();
+        local.addons[0].source = Source::Content("9".repeat(64));
+        let found = compare(&local, &host(), &[listing("t.a", &[("1.0.0", "a")])]);
+        assert_eq!(
+            found[0].kind,
+            MismatchKind::SourceDiffers {
+                id: "t.a".into(),
+                name: "t.a name".into(),
+                version: Version::new(1, 0, 0),
+                local: Source::Content("9".repeat(64)),
+                host: registry("a"),
+            }
+        );
+        assert_eq!(kinds(&found), [("source_differs".into(), true)]);
+        let mut h = host();
+        h.addons[0].source = Source::Content("8".repeat(64));
+        assert_eq!(
+            kinds(&compare(&local, &h, &[])),
+            [("source_differs".into(), false)]
+        );
+    }
+
+    #[test]
+    fn option_differences_are_fixable() {
+        let mut local = host();
+        local.options = options(&[("t.a", "laps", json!(3))]);
+        let found = compare(&local, &host(), &[]);
+        assert_eq!(
+            kinds(&found),
+            [("option_differs".into(), true), ("option_differs".into(), true)]
+        );
+        assert_eq!(
+            found[0].kind,
+            MismatchKind::OptionDiffers {
+                addon: "t.a".into(),
+                option: "laps".into(),
+                local: Some(json!(3)),
+                host: Some(json!(5)),
+            }
+        );
+        assert_eq!(found[0].line(), "t.a.laps is 3; the host has 5 (fixable)");
+        assert_eq!(
+            found[1].line(),
+            "t.a.mode is unset; the host has \"full\" (fixable)"
+        );
+
+        let mut local = host();
+        local.addons.retain(|a| a.id != "t.a");
+        local.options.clear();
+        assert_eq!(
+            kinds(&compare(&local, &host(), &[])),
+            [("missing_addon".into(), false)]
+        );
+    }
+
+    #[test]
+    fn a_load_order_difference_among_shared_data_addons_is_fixable() {
+        let mut local = host();
+        local.addons[0].order = Some(1);
+        local.addons[1].order = Some(0);
+        let found = compare(&local, &host(), &[]);
+        assert_eq!(
+            found[0].kind,
+            MismatchKind::LoadOrder {
+                local: vec!["t.b".into(), "t.a".into()],
+                host: vec!["t.a".into(), "t.b".into()],
+            }
+        );
+        assert_eq!(kinds(&found), [("load_order".into(), true)]);
+
+        let mut local = host();
+        local.addons.push(print(
+            "t.extra",
+            "1.0.0",
+            Source::Content("e".repeat(64)),
+            Some(0),
+        ));
+        local.addons[0].order = Some(1);
+        local.addons[1].order = Some(2);
+        assert_eq!(
+            kinds(&compare(&local, &host(), &[])),
+            [("extra_addon".into(), true)]
+        );
+    }
+}
