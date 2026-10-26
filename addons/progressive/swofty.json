@@ -2,12 +2,12 @@
   "schema_version": 1,
   "id": "swofty.progressive",
   "name": "Progressive Career",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Swofty",
   "description": "A Driver Career that starts in any season from 2016 to 2026 as a real driver and moves through the real seasons: each year's cars, liveries, helmets and line-ups, then 2026 from there on.",
   "license": "AGPL-3.0-or-later",
   "icon": "icon.png",
-  "category": "seasons",
+  "category": "career",
   "kind": [
     "native",
     "database",
@@ -255,6 +255,9 @@
       },
       {
         "dll": "native/progressive_cards.dll"
+      },
+      {
+        "dll": "native/progressive_logos.dll"
       },
       {
         "dll": "native/progressive_resume.dll"
