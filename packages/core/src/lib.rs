@@ -26,6 +26,7 @@ pub mod launch;
 pub mod loader_check;
 pub mod managed;
 pub mod map;
+pub mod mpauth;
 pub mod offline;
 pub mod overlay_guard;
 pub mod owned;
