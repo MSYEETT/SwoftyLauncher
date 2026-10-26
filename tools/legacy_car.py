@@ -363,7 +363,7 @@ def convert(src_path, donor_path, out_path, sidecars=None):
                 put(r, i, data(r, i))
         if k in VERSIONS:
             set_version(r, VERSIONS[k])
-        if r.name.startswith((sb + '.idf&', sb + '.idf?render', sb + '.emb')):
+        if r.name.startswith((sb + '.idf&', sb + '.idf?render', sb + '.idf?model', sb + '.emb')):
             r.name = db + r.name[len(sb):]
         out.append(r)
     for r in out:
@@ -410,6 +410,7 @@ def check(path):
     bufs = {r.name: r for r in e.res if kind(r) == 'GfxBufferRes'}
     heads = {n: struct.unpack('<4I', data(r, 0)) for n, r in bufs.items()}
     srvs = {r.name: r for r in e.res if kind(r) == 'GfxSRVResource'}
+    names = {r.name for r in e.res}
     shaders = gm.catalog()
     indices, submeshes = {}, 0
     for n, r in bufs.items():
@@ -439,6 +440,15 @@ def check(path):
                 err('SRV level count')
         elif k == 'GfxSampleState':
             err('sampler state')
+        elif k == 'ModelProxyRes' and r.name.endswith('?render') and r.name[:-len('render')] + 'model' not in names:
+            err('proxy without its model')
+        elif k == 'GfxModelRes':
+            if any(n not in names for n in refs_of(r) if n.endswith('&mesh')):
+                err('model mesh missing')
+        elif k == 'WOInstances':
+            for n in refs_of(r):
+                if n.endswith('.idf?context=render') and n[:-len('context=render')] + 'render' not in names:
+                    err('layer model proxy missing')
         if k != 'GfxMeshRes':
             continue
         if version(r) != 0x60000:
@@ -542,6 +552,16 @@ def selftest():
             results.append(check(out))
     assert results[0] == (1, {}), results[0]
     assert results[1] == (1, {'vertex range': 5}), results[1]
+    e = erpw.Erp.__new__(erpw.Erp)
+    e.hdr, e.ver = b'ERPK' + struct.pack('<I', 3) + bytes(0x28), 3
+    e.res = [_res('eaid://t/idf/t.idf?render', 'ModelProxyRes', 2, [bytes(8)]),
+             _res('eaid://t/idf/t.idf&wing?render', 'ModelProxyRes', 2, [bytes(8)]),
+             _res('eaid://t/idf/t.idf&wing?model', 'GfxModelRes', 0x20001, [b'eaid://t/idf/t.idf?lod=0&wing&mesh\0'])]
+    with tempfile.TemporaryDirectory() as d:
+        out = os.path.join(d, 't.erp')
+        e.to_file(out)
+        links = check(out)
+    assert links == (0, {'proxy without its model': 1, 'model mesh missing': 1}), links
     return 'selftest: ok'
 
 
