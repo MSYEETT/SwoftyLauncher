@@ -73671,6 +73671,84 @@
    "used_by": [
     "addons/progressive/native/src/ui/follow.cpp"
    ]
+  },
+  {
+   "id": "game.contract_team_select_on_enter",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC A8 00 00 00 C5 F8 29 B4 24 90 00 00 00 48 89 CE 48 8B 81 80 0C 00 00",
+   "match": "0x1436c46d0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c46d0",
+   "kind": "func_start",
+   "names": [
+    "Game_ContractTeamSelect_OnEnter"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "laneS",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/follow.cpp"
+   ]
+  },
+  {
+   "id": "game.contract_team_select_on_update",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 55 53 48 83 EC 30 48 89 D6 48 89 CF 80 B9 69 0D 00 00 00",
+   "match": "0x1436c56a0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c56a0",
+   "kind": "func_start",
+   "names": [
+    "Game_ContractTeamSelect_OnUpdate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "laneS",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/follow.cpp"
+   ]
+  },
+  {
+   "id": "game.contract_team_select_on_exit",
+   "section": ".xtls",
+   "pattern": "56 57 48 83 EC 38 48 89 CE 80 B9 9C 0C 00 00 00",
+   "match": "0x1436c57e0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436c57e0",
+   "kind": "func_start",
+   "names": [
+    "Game_ContractTeamSelect_OnExit"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "laneS",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/follow.cpp"
+   ]
   }
  ]
 }
