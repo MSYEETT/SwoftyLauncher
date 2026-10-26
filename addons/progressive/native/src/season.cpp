@@ -61,6 +61,7 @@
 #include "season_logic.hpp"
 #include "seats.hpp"
 #include "store.hpp"
+#include "store_logic.hpp"
 
 SWOFTY_SETTING(std::string_view, start_season, "2026");
 SWOFTY_SETTING(std::string_view, rnd_mode, "real_life");
@@ -182,44 +183,11 @@ store::Career *career_entry(const swofty::career::State &state, uint32_t season_
     bool fresh = g_new_career.exchange(false);
     int count = 0;
     std::vector<int> seen = seats_years(rows, count);
-    int past = 0;
-    for (int y : seen)
-        if (y < season::kLastYear && !past)
-            past = y;
-    auto shows = [&](const store::Career *c) {
-        int y = season::year_for(c->start, season_index + static_cast<uint32_t>(std::max(0, c->test_seasons)));
-        return std::find(seen.begin(), seen.end(), y) != seen.end();
-    };
-    auto latest = [](std::vector<store::Career *> cs) -> store::Career * {
-        store::Career *b = nullptr;
-        for (auto *c : cs)
-            if (!b || c->used >= b->used)
-                b = c;
-        return b;
-    };
-    store::Career *pick = nullptr;
-    std::string how;
-    if (fresh && !past) {
-        how = "new career from the Progressive wizard";
-    } else {
-        store::Career *s = store::by_seed(seed, driver);
-        if (s && (!past || shows(s))) {
-            pick = s;
-            how = "seed";
-        }
-        std::vector<store::Career *> same = store::by_driver(driver), fit;
-        for (auto *c : same)
-            if (past && shows(c))
-                fit.push_back(c);
-        if (!pick && !fit.empty()) {
-            pick = latest(fit);
-            how = "the seats show its year";
-        }
-        if (!pick && !past && !same.empty()) {
-            pick = latest(same);
-            how = "the driver's last used entry (the seats show no past year yet)";
-        }
-    }
+    int past = progressive::match::past_year(seen);
+    progressive::match::Pick m =
+        progressive::match::pick(store::all(), seed, driver, season_index, seen, fresh, setting_year());
+    store::Career *pick = m.index >= 0 ? &store::all()[static_cast<size_t>(m.index)] : nullptr;
+    std::string how = m.how;
     if (pick) {
         if (pick->seed != seed || how != "seed")
             swofty::log("[progressive] store: career %s (driver %u, season %u, seats %s, %d seats matched) is %s by "
@@ -235,7 +203,7 @@ store::Career *career_entry(const swofty::career::State &state, uint32_t season_
     c.key = store::free_key(seed, driver);
     c.driver = driver;
     c.seed = seed;
-    c.start = past ? std::max(season::kFirstYear, past - static_cast<int>(season_index)) : setting_year();
+    c.start = m.new_start;
     c.rnd = std::string(rnd_mode.get()) == "real_life" ? "real_life" : "hybrid";
     c.moves = std::string(team_moves.get());
     c.created_season = static_cast<int>(season_index);
@@ -244,7 +212,7 @@ store::Career *career_entry(const swofty::career::State &state, uint32_t season_
     store::save();
     swofty::log("[progressive] store: new entry %s for career %s (%s) at season %u: start %d (%s), R&D %s, team moves %s; "
                 "seats %s",
-                c.key.c_str(), state.key[0] ? state.key : "-", fresh ? how.c_str() : "no entry of this driver fits",
+                c.key.c_str(), state.key[0] ? state.key : "-", how.c_str(),
                 season_index, c.start, past ? "from the seats, which show a past year" : "the start season option",
                 c.rnd.c_str(), c.moves.c_str(), years_text(seen).c_str());
     return &added;

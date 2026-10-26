@@ -19,6 +19,7 @@
 
 #pragma once
 #include <cstdint>
+#include <deque>
 #include <string>
 #include <vector>
 
@@ -51,6 +52,7 @@ bool load();
 bool save();
 Career *find(const std::string &key);
 std::vector<Career *> by_driver(uint32_t driver);
+std::deque<Career> &all();
 Career *by_seed(uint32_t seed, uint32_t driver);
 Career &add(const Career &c);
 std::string free_key(uint32_t seed, uint32_t driver);

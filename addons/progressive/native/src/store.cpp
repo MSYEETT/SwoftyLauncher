@@ -11,6 +11,7 @@
 
 #include "../../../../native/src/core/json.hpp"
 #include "store.hpp"
+#include "store_logic.hpp"
 
 namespace pg::store {
 
@@ -109,6 +110,22 @@ bool load()
         }
         g_careers.push_back(x);
     }
+    for (size_t i = 0; i < g_careers.size(); ++i)
+        for (size_t j = 0; j < g_careers.size(); ++j) {
+            if (i == j || !progressive::match::split_of(g_careers[i], g_careers[j]))
+                continue;
+            swofty::log("[progressive] store: folding %s into %s (made at season %d of the same career: driver %u, "
+                        "start %d; applied season %d -> %d)",
+                        g_careers[j].key.c_str(), g_careers[i].key.c_str(), g_careers[j].created_season,
+                        g_careers[i].driver, g_careers[i].start, g_careers[i].applied_season,
+                        std::max(g_careers[i].applied_season, g_careers[j].applied_season));
+            progressive::match::fold(g_careers[i], g_careers[j]);
+            g_careers.erase(g_careers.begin() + static_cast<std::ptrdiff_t>(j));
+            if (j < i)
+                --i;
+            j = static_cast<size_t>(-1);
+            ++cleaned;
+        }
     g_loaded = true;
     swofty::log("[progressive] store: %zu career(s) in %s", g_careers.size(), kPath);
     if (cleaned)
@@ -147,6 +164,11 @@ Career *find(const std::string &key)
         if (c.key == key)
             return &c;
     return nullptr;
+}
+
+std::deque<Career> &all()
+{
+    return g_careers;
 }
 
 std::vector<Career *> by_driver(uint32_t driver)
