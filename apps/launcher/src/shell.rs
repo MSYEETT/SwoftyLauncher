@@ -1260,6 +1260,7 @@ impl Shell {
                         .ghost()
                         .small()
                         .label("Log out")
+                        .occlude()
                         .disabled(self.mp_busy)
                         .on_click(cx.listener(|this, _, window, cx| this.mp_sign_out(window, cx))),
                 )
@@ -1271,6 +1272,7 @@ impl Shell {
                 } else {
                     "Log in"
                 })
+                .occlude()
                 .disabled(self.mp_busy)
                 .on_click(cx.listener(|this, _, window, cx| this.mp_sign_in(window, cx)))
                 .into_any_element(),
