@@ -26,7 +26,7 @@ constexpr uint32_t STATE_READY_MONITOR = djb2("StateReadyMonitor");
 static_assert(STATE_FRONTEND == 0x957880c6u, "state name hashing drifted");
 static_assert(STATE_ONLINE_LOBBY == 0x5e31bae3u, "state name hashing drifted");
 
-enum class Op { none, status, host, join, leave };
+enum class Op { none, status, configure, clear, host, join, leave };
 enum class Category { none, f1_2026, f1_2025 };
 enum class Screen { main_menu, lan_lobby, other };
 enum class Role { none, host, client };
@@ -36,6 +36,7 @@ struct Command {
     Op op = Op::none;
     Category category = Category::none;
     std::string ip;
+    int self = 0, base = 0;
     std::string error;
 };
 
@@ -43,6 +44,8 @@ inline const char *op_name(Op o)
 {
     switch (o) {
     case Op::status: return "status";
+    case Op::configure: return "configure";
+    case Op::clear: return "clear";
     case Op::host: return "host";
     case Op::join: return "join";
     case Op::leave: return "leave";
@@ -111,6 +114,10 @@ inline Command parse(const std::string &text)
     std::string op = doc["op"].str();
     if (op == "status")
         c.op = Op::status;
+    else if (op == "configure")
+        c.op = Op::configure;
+    else if (op == "clear")
+        c.op = Op::clear;
     else if (op == "host")
         c.op = Op::host;
     else if (op == "join")
@@ -128,6 +135,14 @@ inline Command parse(const std::string &text)
         if (c.category == Category::none)
             c.error = cat.empty() ? "host needs args.category (f1-2026 or f1-2025)"
                                   : "unknown category '" + cat + "' (f1-2026 or f1-2025)";
+    } else if (c.op == Op::configure) {
+        const json::Value &self = args["self"], &base = args["base"];
+        c.self = self.type == json::Value::Num && self.n == double(int(self.n)) ? int(self.n) : -1;
+        c.base = base.type == json::Value::Num && base.n == double(int(base.n)) ? int(base.n) : -1;
+        if (c.self < 1 || c.self > 254)
+            c.error = "configure needs args.self, a member number from 1 to 254";
+        else if (c.base < 1 || c.base > 65281)
+            c.error = "configure needs args.base, a port from 1 to 65281";
     } else if (c.op == Op::join) {
         c.ip = args["ip"].str();
         if (!valid_ipv4(c.ip))
@@ -137,7 +152,9 @@ inline Command parse(const std::string &text)
 }
 
 struct State {
+    bool armed = false;
     bool configured = false;
+    int self = 0, base = 0;
     bool frontend = false;
     bool lobby = false;
     bool home_screen = false;
@@ -161,15 +178,21 @@ inline std::string refuse(const Command &c, const State &s)
 {
     if (!c.error.empty())
         return c.error;
-    if (c.op == Op::status)
+    if (c.op == Op::status || c.op == Op::clear)
         return {};
-    if (!s.configured)
-        return "netplay is not configured for this game session (SWOFTY_NETPLAY is unset)";
+    if (!s.armed)
+        return "netplay is not armed for this game session (SWOFTY_NETPLAY is unset)";
     if (s.busy)
         return "a netplay command is still running";
     switch (c.op) {
+    case Op::configure:
+        if (s.screen() != Screen::main_menu && s.screen() != Screen::lan_lobby)
+            return "the room can be set only on the main menu or in a LAN lobby";
+        return {};
     case Op::host:
     case Op::join:
+        if (!s.configured)
+            return "no room is set; send configure first";
         if (s.in_session())
             return "already in a LAN session; leave it first";
         if (s.screen() != Screen::main_menu)
@@ -210,8 +233,12 @@ inline std::string status_json(const State &s)
     out += s.in_session() ? "true" : "false";
     out += ",\"role\":\"";
     out += role_name(s.in_session() ? s.role : Role::none);
-    out += "\",\"configured\":";
+    out += "\",\"armed\":";
+    out += s.armed ? "true" : "false";
+    out += ",\"configured\":";
     out += s.configured ? "true" : "false";
+    out += ",\"self\":" + std::to_string(s.configured ? s.self : 0);
+    out += ",\"base\":" + std::to_string(s.configured ? s.base : 0);
     out += '}';
     return out;
 }

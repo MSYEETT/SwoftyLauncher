@@ -15,10 +15,13 @@ static void expect(bool ok, const std::string &what)
     fails += !ok;
 }
 
-static drive::State main_menu(bool configured = true)
+static drive::State main_menu(bool armed = true, bool configured = true)
 {
     drive::State s;
+    s.armed = armed;
     s.configured = configured;
+    s.self = configured ? 2 : 0;
+    s.base = configured ? 40000 : 0;
     s.frontend = true;
     s.home_screen = true;
     return s;
@@ -60,15 +63,17 @@ int main()
     auto status = drive::parse(R"({"seq":4,"op":"status"})");
     expect(drive::refuse(host, main_menu()).empty(), "host runs from the main menu");
     expect(drive::refuse(join, main_menu()).empty(), "join runs from the main menu");
-    expect(drive::refuse(host, main_menu(false)).find("not configured") != std::string::npos,
+    expect(drive::refuse(host, main_menu(false)).find("not armed") != std::string::npos,
            "host is refused without SWOFTY_NETPLAY");
+    expect(drive::refuse(join, main_menu(true, false)) == "no room is set; send configure first",
+           "join is refused before configure");
     expect(drive::refuse(status, main_menu(false)).empty(), "status runs without SWOFTY_NETPLAY");
     drive::State sub = main_menu();
     sub.home_screen = false;
     expect(sub.screen() == drive::Screen::other, "a front end sub-screen is other");
     expect(drive::refuse(host, sub) == "the game is not on its main menu", "host is refused off the main menu");
     drive::State in_game;
-    in_game.configured = true;
+    in_game.armed = true;
     in_game.home_screen = true;
     expect(in_game.screen() == drive::Screen::other, "fe_home without StateFrontend is other");
     drive::State lobby = main_menu();
@@ -82,13 +87,35 @@ int main()
     busy.busy = true;
     expect(drive::refuse(host, busy) == "a netplay command is still running", "a running command blocks the next");
 
-    expect(drive::status_json(lobby) == R"({"screen":"lan_lobby","in_session":true,"role":"host","configured":true})",
+    expect(drive::status_json(lobby) ==
+               R"({"screen":"lan_lobby","in_session":true,"role":"host","armed":true,"configured":true,"self":2,"base":40000})",
            "status JSON in a hosted lobby");
-    expect(drive::status_json(main_menu(false)) ==
-               R"({"screen":"main_menu","in_session":false,"role":"none","configured":false})",
+    expect(drive::status_json(main_menu(false, false)) ==
+               R"({"screen":"main_menu","in_session":false,"role":"none","armed":false,"configured":false,"self":0,"base":0})",
            "status JSON on the main menu");
+
+    auto conf = drive::parse(R"({"seq":20,"op":"configure","args":{"self":3,"base":40000}})");
+    expect(conf.error.empty() && conf.op == drive::Op::configure && conf.self == 3 && conf.base == 40000,
+           "configure parses");
+    expect(!drive::parse(R"({"seq":20,"op":"configure","args":{"self":0,"base":40000}})").error.empty(), "self 0 is refused");
+    expect(!drive::parse(R"({"seq":20,"op":"configure","args":{"self":255,"base":40000}})").error.empty(), "self 255 is refused");
+    expect(!drive::parse(R"({"seq":20,"op":"configure","args":{"self":2,"base":65282}})").error.empty(),
+           "a base that leaves no room for 254 members is refused");
+    expect(drive::parse(R"({"seq":20,"op":"configure","args":{"self":254,"base":65281}})").error.empty(), "the top values parse");
+    expect(!drive::parse(R"({"seq":20,"op":"configure","args":{"self":2.5,"base":40000}})").error.empty(), "a fraction is refused");
+    expect(!drive::parse(R"({"seq":20,"op":"configure","args":{"self":2}})").error.empty(), "configure needs a base");
+    auto clear = drive::parse(R"({"seq":21,"op":"clear"})");
+    expect(clear.op == drive::Op::clear && clear.error.empty(), "clear parses");
+    expect(drive::refuse(conf, main_menu(true, false)).empty(), "configure runs on the main menu");
+    expect(drive::refuse(conf, lobby).empty(), "configure runs in a LAN lobby");
+    expect(drive::refuse(conf, sub) == "the room can be set only on the main menu or in a LAN lobby",
+           "configure is refused elsewhere");
+    expect(drive::refuse(conf, main_menu(false, false)).find("not armed") != std::string::npos,
+           "configure needs SWOFTY_NETPLAY");
+    expect(drive::refuse(clear, sub).empty() && drive::refuse(clear, main_menu(false, false)).empty(),
+           "clear runs anywhere");
     std::string r = drive::reply_json(join, lobby, "already in a \"LAN\" session", 7);
-    expect(r == R"({"seq":2,"op":"join","ok":false,"error":"already in a \"LAN\" session","status":{"screen":"lan_lobby","in_session":true,"role":"host","configured":true},"t":7})",
+    expect(r == R"({"seq":2,"op":"join","ok":false,"error":"already in a \"LAN\" session","status":{"screen":"lan_lobby","in_session":true,"role":"host","armed":true,"configured":true,"self":2,"base":40000},"t":7})",
            "a refused reply carries the escaped error and the status");
     json::Value v;
     expect(json::parse(drive::reply_json(status, main_menu(), "", 9), v) && v["ok"].type == json::Value::Bool && v["ok"].b,

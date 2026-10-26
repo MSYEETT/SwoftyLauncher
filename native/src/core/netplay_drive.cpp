@@ -10,6 +10,7 @@
 #include <thread>
 
 #include "netplay_drive_logic.hpp"
+#include "netplay_session.hpp"
 
 // Launcher commands for LAN netplay, over the same kind of file mailbox the Career Editor uses
 // (protocol/bridge.md there): <game>/swofty/netplay/inbox/<seq>.json from the launcher (written as
@@ -19,8 +20,9 @@
 //
 // State comes from what core already sees: flow states (StateFrontend for the front end,
 // StateOnlineLobby for a LAN lobby) and the screens the UI opens (fe_home for the main menu).
-// status always answers; host, join and leave need SWOFTY_NETPLAY in the game's environment and a
-// game state that allows them, and report unavailable until their game entry points are bound
+// status and clear always answer; configure (the room: member number and bridge base port, shared
+// with the bridge hooks through netplay_session.hpp), host, join and leave need SWOFTY_NETPLAY in
+// the game's environment, host and join also a configured room, and each a game state that allows it, and report unavailable until their game entry points are bound
 // (research/multiplayer/lan-netplay-design.md, "Driving host/join").
 
 namespace {
@@ -30,7 +32,7 @@ namespace drive = runtime::drive;
 constexpr DWORD POLL_MS = 250;
 constexpr uint64_t HEARTBEAT_MS = 5000;
 
-std::atomic<bool> configured, frontend, lobby, home_screen;
+std::atomic<bool> armed, frontend, lobby, home_screen;
 std::atomic<int> role{int(drive::Role::none)};
 
 std::mutex queue_lock;
@@ -41,7 +43,10 @@ std::atomic<bool> started;
 drive::State state()
 {
     drive::State s;
-    s.configured = configured.load();
+    s.armed = armed.load();
+    s.configured = runtime::netplay_session::configured();
+    s.self = runtime::netplay_session::self_member.load();
+    s.base = runtime::netplay_session::base_port.load();
     s.frontend = frontend.load();
     s.lobby = lobby.load();
     s.home_screen = home_screen.load();
@@ -144,9 +149,9 @@ void netplay_drive_setup()
 {
     char v[256] = {};
     DWORD n = GetEnvironmentVariableA("SWOFTY_NETPLAY", v, sizeof v);
-    configured = n > 0 && n < sizeof v;
-    swofty::log("[netplay] launcher commands on (<game>/swofty/netplay); host, join and leave %s",
-                configured ? "accepted (SWOFTY_NETPLAY set)" : "refused (SWOFTY_NETPLAY unset), status only");
+    armed = n > 0 && n < sizeof v;
+    swofty::log("[netplay] launcher commands on (<game>/swofty/netplay); configure, host, join and leave %s",
+                armed ? "accepted (SWOFTY_NETPLAY set)" : "refused (SWOFTY_NETPLAY unset), status and clear only");
     if (!started.exchange(true))
         std::thread(watch).detach();
 }
@@ -194,6 +199,8 @@ void netplay_tick()
     std::string error = drive::refuse(c, s);
     if (error.empty()) {
         switch (c.op) {
+        case drive::Op::configure: runtime::netplay_session::configure(c.self, c.base); break;
+        case drive::Op::clear: runtime::netplay_session::clear(); break;
         case drive::Op::host: error = run_host(c); break;
         case drive::Op::join: error = run_join(c); break;
         case drive::Op::leave: error = run_leave(c); break;
