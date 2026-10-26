@@ -5,12 +5,12 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
 use gpui_kit::assets::IconName;
-use gpui_kit::component::button::{Button, ButtonVariant};
+use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants};
 use gpui_kit::component::dialog::AlertDialog;
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::slider::SliderState;
-use gpui_kit::component::{Icon, TitleBar, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{Disableable, Icon, Sizable, TitleBar, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::crash::StartFailure;
@@ -40,6 +40,7 @@ pub enum Page {
     Tools,
     Profiles,
     Database,
+    Multiplayer,
     Section(usize),
 }
 
@@ -53,6 +54,7 @@ impl Page {
             Self::Tools => "Tools",
             Self::Profiles => "Profiles",
             Self::Database => "DB Editor",
+            Self::Multiplayer => "Multiplayer",
             Self::Section(_) => "",
         }
     }
@@ -74,6 +76,7 @@ impl Page {
             Self::Tools => IconName::Wrench,
             Self::Profiles => IconName::Layers,
             Self::Database => IconName::Database,
+            Self::Multiplayer => IconName::Users,
             Self::Section(_) => IconName::Package,
         }
     }
@@ -106,6 +109,7 @@ pub struct Shell {
     pub(crate) session: Option<SessionRecord>,
     pub(crate) mp: Option<swofty_core::mpauth::Session>,
     pub(crate) mp_busy: bool,
+    pub(crate) mp_toasts: Vec<Notification>,
     pub(crate) crash: Option<(PathBuf, Result<String, StartFailure>)>,
     pub(crate) dismissed: Option<PathBuf>,
     pub(crate) launch: Option<Launch>,
@@ -403,6 +407,31 @@ impl Shell {
             })
             .detach();
         }
+        let mp_poll = cx.spawn(async move |this, cx| {
+            loop {
+                cx.background_executor().timer(Duration::from_secs(30)).await;
+                let current =
+                    match this.update(cx, |s, _| s.mp.clone().map(|sess| (s.store.root.clone(), sess))) {
+                        Ok(c) => c,
+                        Err(_) => break,
+                    };
+                let Some((dir, session)) = current else {
+                    continue;
+                };
+                let was_allowed = session.allowed;
+                let refreshed = cx
+                    .background_executor()
+                    .spawn(async move { swofty_core::mpauth::refresh(&dir, &session) })
+                    .await;
+                if this
+                    .update(cx, |s, cx| s.mp_apply_refresh(refreshed, was_allowed, cx))
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        });
+        mp_poll.detach();
         let mut shell = Self {
             library,
             store,
@@ -418,6 +447,7 @@ impl Shell {
             session: None,
             mp,
             mp_busy: false,
+            mp_toasts: Vec::new(),
             crash: None,
             dismissed: None,
             launch: None,
@@ -1127,27 +1157,20 @@ impl Shell {
         });
     }
 
-    fn mp_hotkey(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.mp_busy {
+    fn mp_sign_in(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        if self.mp_busy || self.mp.is_some() {
             return;
         }
-        if self.mp.is_some() {
-            self.mp_sign_out(window, cx);
-        } else {
-            self.mp_sign_in(window, cx);
-        }
-    }
-
-    fn mp_sign_in(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let (pending, url) = match swofty_core::mpauth::begin() {
             Ok(v) => v,
             Err(e) => {
-                window.push_notification(Notification::error(format!("Sign-in failed: {e}")), cx);
+                self.mp_toasts
+                    .push(Notification::error(format!("Sign-in failed: {e}")));
+                cx.notify();
                 return;
             }
         };
         self.mp_busy = true;
-        window.push_notification(Notification::info("Opening Discord to sign in\u{2026}"), cx);
         cx.open_url(&url);
         let dir = self.store.root.clone();
         cx.spawn(async move |this, cx| {
@@ -1155,27 +1178,22 @@ impl Shell {
                 .background_executor()
                 .spawn(async move { pending.wait(&dir) })
                 .await;
-            this.update_in(cx, |s, window, cx| {
+            this.update(cx, |s, cx| {
                 s.mp_busy = false;
                 match result {
                     Ok(session) => {
-                        let note = if session.allowed {
-                            Notification::success(format!(
-                                "Signed in as {} \u{2014} multiplayer unlocked",
-                                session.name
-                            ))
-                        } else {
-                            Notification::warning(format!(
-                                "Signed in as {} \u{2014} you don't have the Multiplayer Access role yet",
-                                session.name
-                            ))
-                        };
-                        window.push_notification(note, cx);
+                        s.mp_toasts
+                            .push(Notification::success(format!("Signed in as {}", session.name)));
+                        if session.allowed {
+                            s.mp_toasts.push(Notification::success(
+                                "Your account has been granted access to: Multiplayer",
+                            ));
+                        }
                         s.mp = Some(session);
                     }
-                    Err(e) => {
-                        window.push_notification(Notification::error(format!("Sign-in failed: {e}")), cx);
-                    }
+                    Err(e) => s
+                        .mp_toasts
+                        .push(Notification::error(format!("Sign-in failed: {e}"))),
                 }
                 cx.notify();
             })
@@ -1185,7 +1203,7 @@ impl Shell {
         cx.notify();
     }
 
-    fn mp_sign_out(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    fn mp_sign_out(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
         let Some(session) = self.mp.take() else {
             return;
         };
@@ -1194,23 +1212,80 @@ impl Shell {
         cx.background_executor()
             .spawn(async move { swofty_core::mpauth::sign_out(&dir, &session) })
             .detach();
-        window.push_notification(Notification::info(format!("Signed out {name}")), cx);
+        self.mp_toasts
+            .push(Notification::info(format!("Signed out {name}")));
         cx.notify();
     }
 
-    fn title_bar(&self, p: Palette) -> impl IntoElement {
-        let badge = self.mp.as_ref().map(|sess| {
-            let (mark, color) = if sess.allowed {
-                ("\u{25c6} ", p.text)
-            } else {
-                ("\u{25c7} ", p.text_placeholder)
-            };
-            let suffix = if sess.allowed { "" } else { " \u{00b7} no access" };
-            div()
-                .text_size(px(12.))
-                .text_color(color)
-                .child(format!("{mark}{}{suffix}", sess.name))
-        });
+    fn mp_apply_refresh(
+        &mut self,
+        refreshed: Option<swofty_core::mpauth::Session>,
+        was_allowed: bool,
+        cx: &mut Context<Self>,
+    ) {
+        match refreshed {
+            Some(session) => {
+                let gained = session.allowed && !was_allowed;
+                self.mp = Some(session);
+                if gained {
+                    self.mp_toasts.push(Notification::success(
+                        "Your account has been granted access to: Multiplayer",
+                    ));
+                }
+            }
+            None => self.mp = None,
+        }
+        cx.notify();
+    }
+
+    fn multiplayer_page(&self, p: Palette, _cx: &mut Context<Self>) -> AnyElement {
+        let who = match &self.mp {
+            Some(m) => format!("Signed in as {} \u{00b7} Multiplayer Access", m.name),
+            None => "Not signed in".to_string(),
+        };
+        v_flex()
+            .size_full()
+            .p(px(crate::pages::GUTTER))
+            .gap(px(14.))
+            .child(div().text_size(px(24.)).text_color(p.text).child("Multiplayer"))
+            .child(div().text_size(px(13.)).text_color(p.text_muted).child(who))
+            .child(div().text_size(px(13.)).text_color(p.text_muted).child(
+                "Private lobbies are coming soon \u{2014} create a lobby, invite friends with a code, and race on the same addons. This is where it will live.",
+            ))
+            .into_any_element()
+    }
+
+    fn title_bar(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+        let control: AnyElement = match &self.mp {
+            Some(sess) => h_flex()
+                .items_center()
+                .gap(px(8.))
+                .child(
+                    div()
+                        .text_size(px(12.))
+                        .text_color(p.text)
+                        .child(sess.name.clone()),
+                )
+                .child(
+                    Button::new("mp-logout")
+                        .ghost()
+                        .small()
+                        .label("Log out")
+                        .disabled(self.mp_busy)
+                        .on_click(cx.listener(|this, _, window, cx| this.mp_sign_out(window, cx))),
+                )
+                .into_any_element(),
+            None => Button::new("mp-login")
+                .small()
+                .label(if self.mp_busy {
+                    "Signing in\u{2026}"
+                } else {
+                    "Log in"
+                })
+                .disabled(self.mp_busy)
+                .on_click(cx.listener(|this, _, window, cx| this.mp_sign_in(window, cx)))
+                .into_any_element(),
+        };
         TitleBar::new().bg(p.chrome).child(
             h_flex()
                 .flex_1()
@@ -1218,7 +1293,7 @@ impl Shell {
                 .items_center()
                 .gap(px(12.))
                 .pr(px(8.))
-                .when_some(badge, |el, b| el.child(b))
+                .child(control)
                 .child(
                     div()
                         .text_size(px(12.))
@@ -1411,13 +1486,16 @@ impl Shell {
     }
 
     fn sidebar(&self, p: Palette, short: bool, cx: &mut Context<Self>) -> impl IntoElement {
-        let big = [
+        let mut big = vec![
             (Page::News, None),
             (Page::Addons, Some(self.library.listed().count())),
             (Page::Browser, None),
             (Page::Tools, None),
             (Page::Profiles, Some(self.library.profiles.len())),
         ];
+        if self.mp.as_ref().is_some_and(|m| m.allowed) {
+            big.push((Page::Multiplayer, None));
+        }
         v_flex()
             .w(px(220.))
             .h_full()
@@ -1436,10 +1514,10 @@ impl Shell {
                     .child(crate::pages::wordmark(if short { 112. } else { 148. })),
             )
             .child(
-                v_flex()
-                    .flex_shrink_0()
-                    .gap(px(2.))
-                    .children(big.map(|(page, count)| self.big_nav(page, count, p, cx))),
+                v_flex().flex_shrink_0().gap(px(2.)).children(
+                    big.into_iter()
+                        .map(|(page, count)| self.big_nav(page, count, p, cx)),
+                ),
             )
             .child(
                 v_flex()
@@ -1545,6 +1623,9 @@ impl Render for Shell {
         for note in std::mem::take(&mut self.browser.toasts) {
             window.push_notification(note, cx);
         }
+        for note in std::mem::take(&mut self.mp_toasts) {
+            window.push_notification(note, cx);
+        }
         let content = match self.page {
             Page::News => self.news_page(p, short, cx),
             Page::Importer => self.importer_page(p, cx),
@@ -1553,6 +1634,7 @@ impl Render for Shell {
             Page::Browser => self.browser_page(p, cx),
             Page::Database => self.db_page(p, cx),
             Page::Profiles => self.profiles_page(p, wide, cx),
+            Page::Multiplayer => self.multiplayer_page(p, cx),
             Page::Section(i) => self.section_page(i, p, cx),
         };
         if self.dropping && !cx.has_active_drag() {
@@ -1562,11 +1644,6 @@ impl Render for Shell {
             .id("shell")
             .relative()
             .size_full()
-            .capture_key_down(cx.listener(|this, ev: &KeyDownEvent, window, cx| {
-                if ev.keystroke.modifiers.shift && ev.keystroke.key == "8" {
-                    this.mp_hotkey(window, cx);
-                }
-            }))
             .on_drag_move::<ExternalPaths>(cx.listener(|this, _, _, cx| {
                 if !this.dropping {
                     this.dropping = true;
@@ -1579,7 +1656,7 @@ impl Render for Shell {
             .bg(p.background)
             .text_color(p.text)
             .text_size(px(14.))
-            .child(self.title_bar(p))
+            .child(self.title_bar(p, cx))
             .child(
                 h_flex()
                     .flex_1()
