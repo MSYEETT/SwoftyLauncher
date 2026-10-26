@@ -165,44 +165,6 @@ swofty postfx compile <addon dir> [--out <dir>]
 
 Compiles the addon's [post-process passes](./addons/postfx) with dxc the way the build does, without installing the addon. Each pass prints `ok` with its DXIL size, or `FAIL` with dxc's whole output. `--out` also writes each pass's DXIL as `<name>.dxil`. The exit code is 1 when a pass fails or dxc is missing.
 
-## `swofty mp`
-
-```sh
-swofty mp fingerprint [--profile <name>] [--game <dir>]
-swofty mp compare <local.json> <host.json> [--json]
-```
-
-`fingerprint` prints the profile's multiplayer fingerprint as JSON: the game build, each [`gameplay`](./addons/manifest#multiplayer) addon the profile turns on, and the values of their gameplay options.
-
-```json
-{
-  "version": 1,
-  "launcher": "1.5.13",
-  "game_build": { "build_id": "25251167", "exe_sha256": "d873a1c8…" },
-  "addons": [
-    { "id": "swofty.core", "name": "SwoftyMod", "version": "0.2.13", "source": { "builtin": "41c0…" }, "order": 0 },
-    { "id": "author.grid", "name": "Grid", "version": "1.2.0", "source": { "content": "5b1e…" }, "registry": "9f2c…", "order": 1 },
-    { "id": "swofty.driver-manager", "name": "Driver Manager", "version": "0.1.3", "source": { "content": "c07a…" }, "inputs": "e4d2…", "order": 2 }
-  ],
-  "options": { "author.grid": { "laps": 5 } },
-  "dlc": null,
-  "digest": "9547…"
-}
-```
-
-| Field | Value |
-|---|---|
-| `launcher` | The launcher version that made the fingerprint. |
-| `game_build` | Steam's build id, or `exe-` and the first 12 hex digits of `F1_25.exe`'s SHA-256 for a copy Steam didn't install, and the SHA-256 of `F1_25.exe`. Copies of the game match on `exe_sha256` alone. |
-| `addons` | Sorted by id. `source` is one of: `content`, a SHA-256 of the addon's installed files (each file's path and SHA-256, in path order); `edits`, for a DB Editor addon, a SHA-256 of the database operations and Driver Manager picks the build makes of its edits; `builtin`, for SwoftyMod, a SHA-256 of the launcher version, its `swofty.json`, its database operations and its DLL. `registry` is the SHA-256 of the Addon Browser download the installed copy came from, absent for an addon installed another way and for a DB Editor addon. `inputs`, for an addon with a build hook, is a SHA-256 of its files in `$DATA/addon-data/<id>/` (without hidden entries, `logs` folders and `.log` and `.tmp` files) and its state in the profile. A JSON file and the state count with sorted keys, and one that holds nothing but empty arrays and objects, `schema` and `schema_version` aside, counts as absent. Driver Manager's files and state also count without their top-level `next_*` id counters. `order` is the addon's place in the load order among the gameplay addons that change game data; an addon that only loads code has none. |
-| `options` | Addon id to option id to value. |
-| `dlc` | `null`. |
-| `digest` | The SHA-256 of the fingerprint as compact JSON with sorted keys, with each `order` as its rank among the placed addons, and without `launcher`, `game_build.build_id`, `name`, `registry` and `digest`. Two fingerprints have the same digest exactly when `compare` finds nothing. |
-
-The first run hashes each addon's files; `$DATA/state/fingerprint-hashes.json` keeps the digests, and a file is hashed again once its size or times change.
-
-`compare` lists what the first fingerprint must change to match the second, the host's: a different game build or DLC, a different launcher (a different SwoftyMod, from another launcher version or build), a missing addon, an extra addon to turn off, a different version or copy of an addon, different build hook inputs, a different load order and different option values. Copies match on `source`, so the same files installed from the Addon Browser and from a file match. `(fixable)` marks the ones the launcher can fix itself: turning an addon off, setting an option, reordering, and installing the host's version of an addon when the host's copy has a `registry` download that the Addon Browser lists for that version. `compare` reads the Addon Browser listing the launcher last saved. `--json` prints the list as JSON, each entry with a `kind` and `fixable`. The exit code is 1 when the fingerprints differ.
-
 ## `swofty db`
 
 These commands work on DB Editor addons. A DB Editor addon is a data addon of game database changes in `$DATA/addons/<id>/`, with its changes in `dbedit.json`. Its id starts with `dbedit.`.

@@ -98,7 +98,6 @@ These environment variables change what swofty_core and the loader log. Set them
 | `SWOFTY_POSTFX=0` | Turns every post-process pass off for the session |
 | `SWOFTY_PERF_HITCH_MS=<ms>` | The frame time the performance report counts as a hitch. Default 50 |
 | `SWOFTY_PERF_SLOW_CALL_MS=<ms>` | The time a single hook or callback takes before the performance report lists it as a slow call. Default 8 |
-| `SWOFTY_NET_TRACE=1` | Writes every socket call the game makes to `swofty/net-trace.log` in the game folder: the socket, its family, type and protocol, local and peer addresses, length, first 16 bytes, overlapped and event, return value, error and the calling address in the exe. Each call kind logs the first 200 calls per socket, then every 100th. `SWOFTY_NET_TRACE=inline` hooks the ws2_32 functions themselves instead of the game's import table, and `SWOFTY_NET_TRACE_BYTES=<n>` logs up to n payload bytes (at most 512) instead of 16. The log stops at 64 MB, or at `SWOFTY_NET_TRACE_CAP_KB=<kb>`. Exports that ws2_32 forwards to another DLL are not hooked inline. It changes no call. For netplay development |
 
 ## Performance report
 

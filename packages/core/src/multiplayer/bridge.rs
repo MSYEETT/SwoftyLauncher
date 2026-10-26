@@ -36,6 +36,10 @@ use super::transport::{MAX_DATAGRAM, Transport};
 pub const ENV: &str = "SWOFTY_NETPLAY";
 /// [`ENV`] for a game started before any room: the hooks go in and pass traffic through.
 pub const ARMED: &str = "armed";
+/// Whether a game started with [`ENV`] also gets the core's socket trace ([`TRACE_ENV`]).
+pub const TRACE_WHEN_ARMED: bool = true;
+/// The socket trace, capped at 16 MB, written to `<game>/swofty/net-trace.log`.
+pub const TRACE_ENV: [(&str, &str); 2] = [("SWOFTY_NET_TRACE", "1"), ("SWOFTY_NET_TRACE_CAP_KB", "16384")];
 /// The game's `Network.Transport.SocketPort`.
 pub const DEFAULT_GAME_PORT: u16 = 21414;
 /// Where, under the game folder, the core reports the bridge once the game socket is bound.
@@ -50,6 +54,15 @@ const BASE_MIN: u16 = 30000;
 const BASE_MAX: u16 = 60000;
 const BIND_ATTEMPTS: usize = 64;
 const BUF: usize = 65536;
+
+/// The game's environment for [`ENV`] set to `value`: the trace too while [`TRACE_WHEN_ARMED`].
+pub fn armed_env(value: &str) -> Vec<(&'static str, String)> {
+    let mut env = vec![(ENV, value.to_owned())];
+    if TRACE_WHEN_ARMED {
+        env.extend(TRACE_ENV.iter().map(|(k, v)| (*k, (*v).to_owned())));
+    }
+    env
+}
 
 /// Wipes its key when dropped.
 #[derive(Clone)]
@@ -543,10 +556,11 @@ impl Shared {
             stats.large
         };
         if count <= 10 || count.is_multiple_of(100) {
-            eprintln!(
-                "swofty-launcher: netplay: {len}-byte datagram {direction} member {member} is over \
-                 {LARGE_PAYLOAD} bytes ({count} so far)"
+            let text = format!(
+                "{len}-byte datagram {direction} member {member} is over {LARGE_PAYLOAD} bytes ({count} so far)"
             );
+            super::diag::line(format!("bridge: {text}"));
+            eprintln!("swofty-launcher: netplay: {text}");
         }
     }
 
@@ -740,6 +754,20 @@ mod tests {
                 }
             })
             .collect()
+    }
+
+    #[test]
+    fn an_armed_game_also_gets_the_socket_trace() {
+        let env = armed_env(ARMED);
+        assert_eq!(env[0], (ENV, ARMED.to_owned()));
+        assert_eq!(
+            env.contains(&("SWOFTY_NET_TRACE", "1".to_owned())),
+            TRACE_WHEN_ARMED
+        );
+        assert_eq!(
+            env.contains(&("SWOFTY_NET_TRACE_CAP_KB", "16384".to_owned())),
+            TRACE_WHEN_ARMED
+        );
     }
 
     #[test]
@@ -1110,11 +1138,17 @@ mod tests {
         assert_eq!(bridge.members(), vec![1, 2]);
         assert_eq!(bridge.port(1), Some(base + 1));
         assert!(UdpSocket::bind(loopback(base + 1)).is_err());
+        let sockets: Vec<std::sync::Weak<UdpSocket>> =
+            bridge.shared.sockets().values().map(Arc::downgrade).collect();
+        assert_eq!(sockets.len(), 2);
         let started = Instant::now();
         bridge.stop();
         assert!(started.elapsed() < Duration::from_secs(2));
-        UdpSocket::bind(loopback(base + 1)).unwrap();
-        UdpSocket::bind(loopback(base + 2)).unwrap();
+        assert!(
+            sockets.iter().all(|s| s.upgrade().is_none()),
+            "stop closes every member socket, which frees its port; re-binding the port could race \
+             another test's socket"
+        );
     }
 
     #[test]

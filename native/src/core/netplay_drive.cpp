@@ -405,8 +405,9 @@ bool netplay_popup(const char *id, void *fn, void *ctx)
 void reply(const drive::Command &c, const std::string &error, const std::string &detail = {})
 {
     if (c.op != drive::Op::status || !error.empty())
-        swofty::log("[netplay] command %llu %s: %s", (unsigned long long)c.seq, drive::op_name(c.op),
-                    error.empty() ? "ok" : error.c_str());
+        swofty::log("[netplay] command %llu %s: %s%s%s%s", (unsigned long long)c.seq, drive::op_name(c.op),
+                    error.empty() ? "ok" : error.c_str(), detail.empty() ? "" : " (", detail.c_str(),
+                    detail.empty() ? "" : ")");
     std::string body = drive::reply_json(c, state(), error, wall_ms(), detail);
     std::lock_guard<std::mutex> g(queue_lock);
     outgoing.emplace_back(c.seq, std::move(body));
@@ -455,8 +456,8 @@ void run_job()
         break;
     }
     if (d != drive::Do::nothing)
-        swofty::log("[netplay] %s: step %d%s%s", drive::op_name(job.cmd.op), int(d), err.empty() ? "" : " failed: ",
-                    err.c_str());
+        swofty::log("[netplay] %s: step %d (%s)%s%s", drive::op_name(job.cmd.op), int(d), drive::do_name(d),
+                    err.empty() ? "" : " failed: ", err.c_str());
     drive::Command c;
     std::string error, detail;
     {
