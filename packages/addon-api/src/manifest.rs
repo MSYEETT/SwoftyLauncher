@@ -89,7 +89,7 @@ impl HubTab {
     }
 
     pub fn view_model(&self) -> String {
-        format!("view_model_data.swofty_hub_{}", self.name)
+        format!("view_model_data.hud_swofty_hub_{}", self.name)
     }
 
     fn validate(&self, options: &[AddonOption]) -> std::result::Result<(), String> {
@@ -1374,7 +1374,7 @@ mod tests {
         .unwrap();
         let h = m.hub_tab.as_ref().unwrap();
         assert_eq!(h.template(), "swofty_hub_progressive");
-        assert_eq!(h.view_model(), "view_model_data.swofty_hub_progressive");
+        assert_eq!(h.view_model(), "view_model_data.hud_swofty_hub_progressive");
         assert_eq!(
             serde_json::to_value(&m).unwrap()["hub_tab"]["data_group"],
             "f1_career_progressive"

@@ -998,7 +998,7 @@ mod tests {
             lines,
             [
                 "ui: t.progressive has a hub tab template swofty_hub_progressive for f1_career_progressive careers in \
-              2 archive(s); its rows read view_model_data.swofty_hub_progressive"
+              2 archive(s); its rows read view_model_data.hud_swofty_hub_progressive"
             ]
         );
         let templates = |path: &Path| -> BTreeMap<String, String> {
@@ -1026,10 +1026,10 @@ mod tests {
             assert_eq!(after.len(), before.len() + 1, "{rel}");
             let page = &after["swofty_hub_progressive"];
             for want in [
-                "#view_model_data.swofty_hub_progressive.title",
-                "#view_model_data.swofty_hub_progressive.o0.label",
-                "#view_model_data.swofty_hub_progressive.o0.value",
-                "#view_model_data.swofty_hub_progressive.o1.label",
+                "#view_model_data.hud_swofty_hub_progressive.title",
+                "#view_model_data.hud_swofty_hub_progressive.o0.label",
+                "#view_model_data.hud_swofty_hub_progressive.o0.value",
+                "#view_model_data.hud_swofty_hub_progressive.o1.label",
                 "swofty_next:t.progressive:rnd_mode",
                 "swofty_prev:t.progressive:rnd_mode",
                 "swofty_next:t.progressive:team_moves",

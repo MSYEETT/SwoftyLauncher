@@ -234,7 +234,7 @@ The page needs your addon on in the profile. An addon has at most one `career_se
 
 | Field | Type | Value |
 |---|---|---|
-| `name` | string | `[a-z0-9_]`, at most 40 characters. The page template is `swofty_hub_<name>` and its data `view_model_data.swofty_hub_<name>`. |
+| `name` | string | `[a-z0-9_]`, at most 40 characters. The page template is `swofty_hub_<name>` and its data `view_model_data.hud_swofty_hub_<name>`. |
 | `title` | string | The tab's title. |
 | `options` | string[] | 1 to 6 ids from your `options`, in the order the page shows them, each once, none `hidden`. |
 | `data_group` | string | `[a-z0-9_]`. The career data group whose careers show the tab. |

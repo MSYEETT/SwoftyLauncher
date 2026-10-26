@@ -140,8 +140,8 @@ The template `swofty_hub_<name>`, added to the templates of `screens/laptop_my_d
 
 | Part | Shows |
 |---|---|
-| Grid cells of the stats block, one per option: down the first column, then the next | label `#view_model_data.swofty_hub_<name>.o<i>.label` and value `….o<i>.value`, for option `i` in `options` order |
-| Details panel, top | `#view_model_data.swofty_hub_<name>.title` |
+| Grid cells of the stats block, one per option: down the first column, then the next | label `#view_model_data.hud_swofty_hub_<name>.o<i>.label` and value `….o<i>.value`, for option `i` in `options` order |
+| Details panel, top | `#view_model_data.hud_swofty_hub_<name>.title` |
 | Details panel, below | the focused option's `label` and `description` from the manifest |
 
 Up and Down move between the options. Right on option `i` raises the command `swofty_next:<addon id>:<option id>` on the template, and Left raises `swofty_prev:<addon id>:<option id>`, as on ADDON SETTINGS pages. The template's `shown` and `enabled` events focus the first option. The build checks the template against the game's UI loader rules. The build log has a line for each page: `ui: <addon> has a hub tab template swofty_hub_<name> for <data_group> careers in 2 archive(s); …`.
@@ -149,7 +149,7 @@ Up and Down move between the options. Right on option `i` raises the command `sw
 ### What your plugin does
 
 - Add a primary tab to the laptop for careers of `data_group`, with a sub-tab whose content template is `swofty_hub_<name>`. The laptop builder adds each of its own tabs the same way (STANDINGS: content `tabbing_secondary_controller`, header `tabbing_secondary_tab`).
-- Publish `title`, and `label` and `value` for each option, under `view_model_data.swofty_hub_<name>`.
+- Publish `title`, and `label` and `value` for each option, under `view_model_data.hud_swofty_hub_<name>`.
 - Handle `swofty_next` and `swofty_prev` raised on the sub-tab and change the option.
 
 ## Add a home tile
