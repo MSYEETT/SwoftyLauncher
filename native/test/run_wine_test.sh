@@ -104,7 +104,7 @@ count() {
     if [[ $n == "$2" ]]; then echo "ok  : $1"; else echo "FAIL: $1 (logged $n times, want $2)"; status=1; fi
 }
 CACHE=$OUT/game/swofty/cache/scan-cache.tsv
-for mode in trigger fallback vm settings settings_local session gamelog_off assets nearfull nopool; do
+for mode in trigger fallback vm settings settings_local session gamelog_off assets assets_ro nearfull nopool; do
     echo "==== $mode"
     stale=
     [[ $mode == vm ]] && stale=$(python3 - "$CACHE" <<'EOF'
@@ -137,11 +137,14 @@ else:
         item['mod'] = item.pop('addon')
 json.dump(doc, open(sys.argv[2], 'w'), indent=1)
 EOF
-    [[ $mode == assets ]] && python3 - "$OUT/game/swofty" <<'EOF'
+    [[ $mode == assets* ]] && python3 - "$OUT/game/swofty" "$mode" <<'EOF'
 import json, os, shutil, sys
 root = sys.argv[1]
 addon = os.path.join(root, 'addons', 'example.sample-mod')
-for rel, data in (('erp/frag.bin', b'frag'), ('lang/extra.lng', b'LNGT'), ('files/sponsor.dds', b'DDS ')):
+files = [('erp/frag.bin', b'frag'), ('lang/extra.lng', b'LNGT'), ('files/sponsor.dds', b'DDS '), ('seeded.txt', b'from the install')]
+if sys.argv[2] == 'assets_ro':
+    files.append(('save/log.txt', b'zero;'))
+for rel, data in files:
     os.makedirs(os.path.dirname(os.path.join(addon, rel)), exist_ok=True)
     open(os.path.join(addon, rel), 'wb').write(data)
 os.makedirs(os.path.join(addon, 'native'))
@@ -152,13 +155,28 @@ json.dump({'schema': 1, 'profile': 'wine-test',
           open(os.path.join(root, 'settings.json'), 'w'))
 json.dump({'features': ['file', 'telemetry']}, open(os.path.join(root, 'assets.json'), 'w'))
 EOF
+    ro_skip=
+    if [[ $mode == assets_ro ]]; then
+        LOCAL=$(winepath -u "$(wine cmd /c 'echo %LOCALAPPDATA%' | tr -d '\r')")
+        KEPT=$LOCAL/Swofty/addon-storage/example.sample-mod
+        rm -rf "$KEPT"
+        chmod -R a-w "$OUT/game/swofty/addons/example.sample-mod"
+        [[ -w $OUT/game/swofty/addons/example.sample-mod ]] && ro_skip=1
+    fi
     gl_level=; gl_rate=
     [[ $mode == gamelog_off ]] && gl_level=off
     gl_channels=
     [[ $mode == trigger ]] && gl_rate=0
     [[ $mode == trigger || $mode == vm ]] && gl_channels=default,verbose
-    SWOFTY_RESOLVE=$resolve SWOFTY_TEST_ASSETS=$([[ $mode == assets ]] && echo 1) SWOFTY_GAME_LOG=$gl_level SWOFTY_GAME_LOG_RATE=$gl_rate SWOFTY_GAME_LOG_CHANNELS=$gl_channels SWOFTY_TEST_REQUESTS=${req:+Z:${req//\//\\}} SWOFTY_TEST_ITEMS=$ITEMS \
+    SWOFTY_RESOLVE=$resolve SWOFTY_TEST_ASSETS=$([[ $mode == assets* ]] && echo 1) SWOFTY_GAME_LOG=$gl_level SWOFTY_GAME_LOG_RATE=$gl_rate SWOFTY_GAME_LOG_CHANNELS=$gl_channels SWOFTY_TEST_REQUESTS=${req:+Z:${req//\//\\}} SWOFTY_TEST_ITEMS=$ITEMS \
         "${PIN[@]}" xvfb-run -a wine "$OUT/game/F1_25.exe" $mode || status=1
+    if [[ $mode == assets_ro ]]; then
+        GAME_ADDON=$OUT/game/swofty/addons/example.sample-mod
+        ro_files="data log=$(cat "$KEPT/save/log.txt" 2>/dev/null) state=$([[ -e $KEPT/save/state.txt ]] && echo yes || echo no)"
+        ro_files+=" game log=$(cat "$GAME_ADDON/save/log.txt" 2>/dev/null) state=$([[ -e $GAME_ADDON/save/state.txt ]] && echo yes || echo no)"
+        ro_files+=" seeded=$(cat "$GAME_ADDON/seeded.txt" 2>/dev/null) mark=$(tr -d '\r' <"$KEPT/.swofty-data-folder" 2>/dev/null)"
+        chmod -R u+w "$GAME_ADDON"
+    fi
     rm -rf "$OUT/game/swofty/session.json" "$OUT/game/swofty/settings.json" "$OUT/game/swofty/assets.json" \
         "$OUT/game/swofty/addons/example.sample-mod"
     echo "---- $LOG ($mode)"
@@ -290,7 +308,11 @@ EOF
         count "gamelog: off writes no game lines" 0 '\[game\] '
         ;;
     esac
-    if [[ $mode == assets ]]; then
+    if [[ $mode == assets_ro && $ro_skip ]]; then
+        echo "skip: this user writes in read-only folders (root?), so the read-only addon folder cannot be staged"
+        continue
+    fi
+    if [[ $mode == assets* ]]; then
         api='\[assets\] api: example\.sample-mod \(t_assets\.dll\)'
         once "plugins: settings.json lists the addon's plugin" 'addons: settings\.json lists 1 plugin\(s\) in addon folders'
         once "plugins: the plugin loads from its addon folder" 'addon t_assets\.dll: loading .*[\]swofty[\]addons[\]example\.sample-mod[\]native[\]t_assets\.dll[[:space:]]*$'
@@ -323,10 +345,32 @@ EOF
         check "storage: both appends succeed" '\[t_assets\] storage append ok ok'
         once "storage: a path climbing above the folder is invalid" "$sapi write \.\./escape\.txt \(4 byte\(s\)\) -> invalid: '\.\./escape\.txt' is not a relative path"
         check "storage: climb, absolute, drive and back-climb paths are all rejected" '\[t_assets\] storage escapes invalid invalid invalid invalid'
-        once "storage: size of a missing file is invalid" "$sapi size missing\.txt -> invalid: swofty/addons/example\.sample-mod/missing\.txt is missing"
+        if [[ $mode == assets ]]; then
+            missing='swofty/addons/example\.sample-mod/missing\.txt is missing'
+            gone='swofty/addons/example\.sample-mod/save/state\.txt is missing'
+        else
+            neither='in neither .*[\]Swofty[\]addon-storage[\]example\.sample-mod[\] nor swofty/addons/example\.sample-mod/'
+            missing="missing\\.txt is $neither"
+            gone="save/state\\.txt is $neither"
+        fi
+        once "storage: size of a missing file is invalid" "$sapi size missing\.txt -> invalid: $missing[[:space:]]*\$"
         once "storage: remove deletes the file" "$sapi remove save/state\.txt -> ok[[:space:]]*\$"
-        once "storage: remove of a gone file is invalid" "$sapi remove save/state\.txt -> invalid: swofty/addons/example\.sample-mod/save/state\.txt is missing"
+        once "storage: remove of a gone file is invalid" "$sapi remove save/state\.txt -> invalid: $gone[[:space:]]*\$"
         check "storage: the plugin sees remove then missing" '\[t_assets\] storage remove-again invalid'
+        if [[ $mode == assets ]]; then
+            once "storage: the addon folder takes the files" '\[storage\] example\.sample-mod: files in swofty/addons/example\.sample-mod/[[:space:]]*$'
+            check "storage: a file the install placed reads and removes" "\[t_assets\] storage seeded ok 'from the install' remove ok"
+        else
+            once "storage: an addon folder the game can't change moves the files to the data folder" \
+                "\[storage\] example\.sample-mod: the game can't create files in swofty/addons/example\.sample-mod/ \(error 5\), so this session its files are in .*[\]Swofty[\]addon-storage[\]example\.sample-mod[\], and a file not there is read from swofty/addons/example\.sample-mod/[[:space:]]*\$"
+            check "storage: a file only in the addon folder reads through, and can't be removed" \
+                "\[t_assets\] storage seeded ok 'from the install' remove invalid"
+            once "storage: remove names the addon folder's copy that stays" \
+                "$sapi remove seeded\.txt -> invalid: swofty/addons/example\.sample-mod/seeded\.txt stays: the game can't remove files there \(error 5\)"
+            [[ $ro_files == "data log=zero;one;two; state=no game log=zero; state=no seeded=from the install mark=The game can't create files in swofty/addons/example.sample-mod/ (error 5), so the core keeps example.sample-mod's files here this session." ]] &&
+                echo "ok  : storage: writes land in the data folder with its mark, an append starts from the addon folder's copy, the addon folder is untouched" ||
+                { echo "FAIL: storage: files after the read-only run: $ro_files"; status=1; }
+        fi
         once "telemetry: setup wired through ready() when the feature is on" '\[telemetry\] on; frame tick '
         once "telemetry: reads are gated off outside a session" '\[t_assets\] telemetry: available 0, session unavailable, car0 unavailable, car99 invalid'
         once "telemetry: an addon opens the shared feed" '\[t_assets\] telemetry: shared_memory ok name=Local.SwoftyTelemetry'

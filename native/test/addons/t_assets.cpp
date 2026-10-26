@@ -85,6 +85,11 @@ SWOFTY_ON_LOAD
     swofty::log("[t_assets] storage missing %s", storage::name(sm));
     swofty::log("[t_assets] storage remove %s", storage::name(srm));
     swofty::log("[t_assets] storage remove-again %s", storage::name(srm2));
+    std::string seeded;
+    storage::Result sseed = storage::read("seeded.txt", seeded);
+    storage::Result srmseed = storage::remove("seeded.txt");
+    swofty::log("[t_assets] storage seeded %s '%s' remove %s", storage::name(sseed), seeded.c_str(),
+                storage::name(srmseed));
 
     uint32_t etok = 0;
     events::Result esub = events::subscribe(SWOFTY_EVENT_SESSION_START, on_session, nullptr, &etok);
