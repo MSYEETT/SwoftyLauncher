@@ -63,6 +63,72 @@ pub struct AddonManifest {
     /// Post-process passes run on the game's picture after its tonemap and before the HUD.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub postfx: Vec<PostFx>,
+    /// A settings page in game between a Driver Career tile and the new-career wizard.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub career_setup: Option<CareerSetup>,
+}
+
+/// The wizard screen a career setup page's CONFIRM opens unless `next` names another.
+pub const CAREER_SETUP_NEXT: &str = "career_wizard_season_length_select";
+/// The screen a career setup page's Back opens.
+pub const CAREER_SETUP_BACK: &str = "fe_career_dlc_select";
+/// Longest `career_setup.route`.
+pub const CAREER_SETUP_ROUTE_LEN: usize = 48;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CareerSetup {
+    pub route: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    pub options: Vec<String>,
+    #[serde(default = "career_setup_next", skip_serializing_if = "is_career_setup_next")]
+    pub next: String,
+}
+
+fn career_setup_next() -> String {
+    CAREER_SETUP_NEXT.into()
+}
+
+fn is_career_setup_next(next: &String) -> bool {
+    next == CAREER_SETUP_NEXT
+}
+
+impl CareerSetup {
+    pub fn screen(&self) -> String {
+        format!("swofty_setup_{}", self.route)
+    }
+
+    pub fn back_route(&self) -> String {
+        format!("back_{}", self.route)
+    }
+
+    fn validate(&self, options: &[AddonOption]) -> std::result::Result<(), String> {
+        if !valid_screen_name(&self.route) || self.route.len() > CAREER_SETUP_ROUTE_LEN {
+            return Err(format!(
+                "route {:?} must be [a-z0-9_], at most {CAREER_SETUP_ROUTE_LEN} characters",
+                self.route
+            ));
+        }
+        if !valid_screen_name(&self.next) {
+            return Err(format!("next {:?} must be [a-z0-9_]", self.next));
+        }
+        if self.title.as_deref().is_some_and(|t| t.trim().is_empty()) {
+            return Err("title is empty".into());
+        }
+        if self.options.is_empty() {
+            return Err("options names no option".into());
+        }
+        for (i, id) in self.options.iter().enumerate() {
+            if !options.iter().any(|o| &o.id == id) {
+                return Err(format!("option {id} is not one of the addon's options"));
+            }
+            if self.options[..i].contains(id) {
+                return Err(format!("option {id} is listed twice"));
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -610,6 +676,10 @@ impl AddonManifest {
         if let Some(p) = paths.into_iter().find(|p| !relative_inside(p)) {
             return fail(format!("{p} must be a relative path inside the addon"));
         }
+        if let Some(c) = &self.career_setup {
+            c.validate(&self.options)
+                .or_else(|e| fail(format!("career_setup: {e}")))?;
+        }
         if let Some(s) = &self.shader {
             self.validate_shader(s)
                 .or_else(|e| fail(format!("shader: {e}")))?;
@@ -1144,5 +1214,85 @@ mod tests {
     fn rejects_unknown_fields() {
         let bad = GRID24.replace("\"kind\"", "\"kinds\"");
         assert!(AddonManifest::parse(&bad).is_err());
+    }
+
+    #[test]
+    fn a_career_setup_names_a_route_and_options_of_its_addon() {
+        let with = |setup: &str| {
+            GRID24.replace(
+                r#""operations": { "database": ["db/grid24.json"] }"#,
+                &format!(r#""operations": {{ "database": ["db/grid24.json"] }}, "career_setup": {setup}"#),
+            )
+        };
+        let m = AddonManifest::parse(&with(
+            r#"{ "route": "career_wizard_driver_career_grid", "title": "Grid Career", "options": ["team_livery"] }"#,
+        ))
+        .unwrap();
+        let c = m.career_setup.as_ref().unwrap();
+        assert_eq!(c.next, CAREER_SETUP_NEXT);
+        assert_eq!(c.screen(), "swofty_setup_career_wizard_driver_career_grid");
+        assert_eq!(c.back_route(), "back_career_wizard_driver_career_grid");
+        let json = serde_json::to_value(&m).unwrap();
+        assert!(json["career_setup"].get("next").is_none());
+        assert_eq!(json["career_setup"]["options"][0], "team_livery");
+        let m = AddonManifest::parse(&with(
+            r#"{ "route": "grid", "options": ["team_livery"], "next": "career_wizard_settings_select" }"#,
+        ))
+        .unwrap();
+        let c = m.career_setup.unwrap();
+        assert_eq!(
+            (c.title, c.next.as_str()),
+            (None, "career_wizard_settings_select")
+        );
+
+        let at = |m: &str| format!("invalid manifest: swofty.f1-2026-grid24: career_setup: {m}");
+        for (setup, why) in [
+            (
+                r#"{ "route": "Grid", "options": ["team_livery"] }"#,
+                r#"route "Grid" must be [a-z0-9_], at most 48 characters"#.to_owned(),
+            ),
+            (
+                &format!(
+                    r#"{{ "route": "{}", "options": ["team_livery"] }}"#,
+                    "r".repeat(49)
+                ),
+                format!(
+                    r#"route "{}" must be [a-z0-9_], at most 48 characters"#,
+                    "r".repeat(49)
+                ),
+            ),
+            (
+                r#"{ "route": "grid", "options": [] }"#,
+                "options names no option".to_owned(),
+            ),
+            (
+                r#"{ "route": "grid", "options": ["nope"] }"#,
+                "option nope is not one of the addon's options".to_owned(),
+            ),
+            (
+                r#"{ "route": "grid", "options": ["team_livery", "team_livery"] }"#,
+                "option team_livery is listed twice".to_owned(),
+            ),
+            (
+                r#"{ "route": "grid", "title": " ", "options": ["team_livery"] }"#,
+                "title is empty".to_owned(),
+            ),
+            (
+                r#"{ "route": "grid", "options": ["team_livery"], "next": "a-b" }"#,
+                r#"next "a-b" must be [a-z0-9_]"#.to_owned(),
+            ),
+        ] {
+            assert_eq!(
+                AddonManifest::parse(&with(setup)).unwrap_err().to_string(),
+                at(&why),
+                "{setup}"
+            );
+        }
+        assert!(
+            AddonManifest::parse(&with(
+                r#"{ "route": "grid", "options": ["team_livery"], "back": "fe_career" }"#
+            ))
+            .is_err()
+        );
     }
 }
