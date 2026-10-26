@@ -33,6 +33,8 @@
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 
+// bindgen exports the site as a call binding (its expect bytes are the E8), and SWOFTY_SITE takes
+// only site bindings; the core installs a site mixin on either kind, so it is declared here as one.
 namespace swofty::game {
 inline constexpr site<"site_Game_CareerContinue_DriverSlotTitle"> pg_resume_title_site{};
 }
