@@ -21,7 +21,7 @@ The car, suit and head archives are not in the repository. The built packages, e
 | `tools/helmet_sheet.py` | Contact sheet of the `helmet_d` every season driver's look wears |
 | `data/heads.json` | The real heads, each with its mod zip; the face maps on copies of generic heads (`faces`); heads that are off (`off`) |
 | `tools/heads.py` | Copies and builds the heads into `heads/` (not committed) and writes `assets/heads.json` |
-| `tools/head_sheet.py` | Contact sheet of the face map of every driver whose head `data/seasons.json` sets |
+| `tools/head_sheet.py` | Contact sheet of the face map of every driver whose head `data/seasons.json` sets, or of every stock male generic head |
 | `tools/gen.py` | Writes the core's `db/core.json`, `lang/core.json` and `native/src/seasons.hpp`, and each season addon's `swofty.json`, `db/season.json`, `lang/season.json` and `assets/cars.json` |
 | `tools/layout.py` | Season addon folders and the asset ops that ship a season's cars |
 | `tools/build_cars.py` | Builds a season addon's `cars/` from the season zips, and an extra team's car (`car` in `data/seasons.json`) into `cars/extra/` |
@@ -131,11 +131,11 @@ A suit entry in `data/real_suits.json` with `"off": true` is left out. The 18 co
 
 ### Face maps on generic heads
 
-Four drivers wear their F1 2016 face map on a copy of a stock generic head with short straight hair (`faces` in `data/heads.json`). The face maps come from the F1 2016 Driver Career addon (AGPL-3.0), `heads/male_ls<n>.erp`: F1 2016's colour map, 2048 px BC1 with all 10 levels in the archive.
+Four drivers wear their F1 2016 face map on a copy of a stock generic head with short straight hair (`faces` in `data/heads.json`). The face maps come from the F1 2016 Driver Career addon (AGPL-3.0), the `<face>_head_d` surface of `heads/<face>.erp` (`archive` and `face`): F1 2016's colour map, 2048 px BC1 with all 10 levels in the archive. F1 25's heads share one face UV layout. The bases' hair swatches: `hair_swatch_brown_03`, the lightest, on `male_ls197` (Ericsson), `brown_02` on `male_ls265` (Palmer) and `brown_01` on `male_ls526` and `male_ls533` (Nasr, Gutiérrez).
 
 | Driver | Head | Seasons | Copy of | Resource name |
 |---|---|---|---|---|
-| Jolyon Palmer | `cs_jolyon_palmer` | 2016, 2017 | `male_ls356` | `cs_pal_356` |
+| Jolyon Palmer | `cs_jolyon_palmer` | 2016, 2017 | `male_ls265` | `cs_pal_265` |
 | Marcus Ericsson | `cs_marcus_ericsson` | 2016 to 2018 | `male_ls197` | `cs_eri_197` |
 | Felipe Nasr | `cs_felipe_nasr` | 2016 | `male_ls526` | `cs_nas_526` |
 | Esteban Gutiérrez | `cs_esteban_gutierrez` | 2016 | `male_ls533` | `cs_gut_533` |
@@ -143,7 +143,7 @@ Four drivers wear their F1 2016 face map on a copy of a stock generic head with 
 `tools/heads.py` reads the generic head's heads and morph poses archives from the game folder (the launcher baseline's copy of a file it changed) and:
 
 - Renames the generic head's label to the resource name, which has the same length, byte for byte in every resource name and fragment. A surface's sidecar description (fragment 2) keeps naming the stock `.mipmaps` file.
-- Puts the face archive's `head_d` surface in place of the copy's, and sets the `head_d` view to 10 levels.
+- Puts the face archive's `head_d` surface, renamed to the code, in place of the copy's, and sets the `head_d` view to 10 levels.
 - Writes `heads/cs_<driver>` and `morph_poses/cs_<driver>` archives, and fails when the base label is left in any other place.
 
 `db/core.json` adds a `cs_<driver>` row copied from the generic head's row with the copy's `model_path`, `has_morph_data` `True` and `available_for_customisation` `False`. The stock generic heads are unchanged.
@@ -152,15 +152,15 @@ The addon's `heads/male_ls204.erp`, a face for Stoffel Vandoorne built from a ph
 
 ### Generic heads
 
-| Driver | Head | Seasons |
-|---|---|---|
-| Nico Rosberg | `male_ls204` | 2016 |
-| Pascal Wehrlein | `male_ls758` | 2016, 2017 |
-| Stoffel Vandoorne | `male_ls526` | 2017, 2018 |
-| Brendon Hartley | `male_ls356` | 2018 |
-| Sergey Sirotkin | `male_ls204` | 2018 |
+| Driver | Head | Seasons | Face map and hair |
+|---|---|---|---|
+| Nico Rosberg | `male_ls192` | 2016 | Fair, light ash-brown short hair |
+| Pascal Wehrlein | `male_ls487` | 2016, 2017 | Olive, dark brown short hair |
+| Stoffel Vandoorne | `male_ls343` | 2017, 2018 | Fair, dark brown short hair |
+| Brendon Hartley | `male_ls265` | 2018 | Fair, mid-brown short hair |
+| Sergey Sirotkin | `male_ls355` | 2018 | Fair, dark brown short hair |
 
-No stock driver or character row wears these heads. `tools/test_heads.py` checks that no two drivers of a season wear the same generic head or a copy of it.
+The game's fictional drivers wear some of these heads too; the drivers keep them. `tools/test_heads.py` checks that no two drivers of a season wear the same generic head or a copy of it. `tools/head_sheet.py --generic` draws every stock male generic head with its hair texture set and colour swatch.
 
 ### Heads that are off
 
@@ -168,7 +168,7 @@ A head in `off` in `data/heads.json` ships nothing, and its drivers wear the hea
 
 ```sh
 python3 tools/heads.py --downloads ~/Downloads [--downloads <folder>] --game <F1 25> [--baseline <launcher baseline>/<build>] [--placed <launcher state>/placed.json]
-python3 tools/head_sheet.py --out <png> --game <F1 25>
+python3 tools/head_sheet.py --out <png> [--generic] --game <F1 25>
 ```
 
 | Archive | Heads |
