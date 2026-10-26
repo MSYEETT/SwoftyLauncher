@@ -73801,6 +73801,306 @@
     }
    ],
    "used_by": []
+  },
+  {
+   "id": "game.save_data_unclaimed_child",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 0F B6 8F 00 01 00 00",
+   "match": "0x14364feeb",
+   "anchor": "0x5",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14364fef0",
+   "kind": "mid",
+   "expect": "0F B6 8F 00 01 00 00",
+   "names": [
+    "site_Game_SaveData_UnclaimedChild"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "splicesaves",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/save_splice.cpp"
+   ]
+  },
+  {
+   "id": "game.save_data_containers_count",
+   "section": ".xtls",
+   "pattern": "48 C1 F8 03 48 89 84 24 90 00 00 00 48 8B 4C 24 50 48 8B 01",
+   "match": "0x143651bb3",
+   "anchor": "0xc",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143651bbf",
+   "kind": "mid",
+   "expect": "48 8B 4C 24 50",
+   "names": [
+    "site_Game_SaveData_ContainersCount"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "splicesaves",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/save_splice.cpp"
+   ]
+  },
+  {
+   "id": "game.save_data_containers_children",
+   "section": ".xtls",
+   "pattern": "41 89 04 24 85 C0 0F 85 ?? ?? ?? ?? 48 8D 2D",
+   "match": "0x143651bd8",
+   "anchor": "0xc",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143651be4",
+   "kind": "mid",
+   "expect": "48 8D 2D 6D 7E AD 02",
+   "names": [
+    "site_Game_SaveData_ContainersChildren"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "splicesaves",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/save_splice.cpp"
+   ]
+  },
+  {
+   "id": "game.save_data_containers_done",
+   "section": ".xtls",
+   "pattern": "80 3D ?? ?? ?? ?? 01 4C 8B 4C 24 30",
+   "match": "0x143651cbc",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143651cbc",
+   "kind": "mid",
+   "expect": "80 3D 01 9E 9F 02 01",
+   "names": [
+    "site_Game_SaveData_ContainersDone"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "splicesaves",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/save_splice.cpp"
+   ]
+  },
+  {
+   "id": "game.save_data_write_bag",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 98 00 00 00 48 89 D6 48 89 CF 48 8B 01",
+   "match": "0x1439340c0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1439340c0",
+   "kind": "func_start",
+   "names": [
+    "Game_SaveData_WriteBag"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "splicesaves",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/save_splice.cpp"
+   ]
+  },
+  {
+   "id": "core.string_table_lookup",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 55 53 48 83 EC 28 48 85 D2 0F 84 ?? ?? ?? ?? 48 89 D7",
+   "match": "0x14392a8b0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14392a8b0",
+   "kind": "func_start",
+   "names": [
+    "Ne_StringTable_Lookup"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "splicesaves",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/save_splice.cpp"
+   ]
+  },
+  {
+   "id": "core.bag_codec_vtbl",
+   "section": ".xtls",
+   "pattern": "48 C7 84 24 A0 01 00 00 00 00 00 00 4C 8D 2D",
+   "match": "0x1429ce709",
+   "anchor": "0xf",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xc",
+    "len": 7
+   },
+   "target": "0x14568e060",
+   "kind": "data",
+   "names": [
+    "k_Ne_BagCodecVtbl"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "splicesaves",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/save_splice.cpp"
+   ]
+  },
+  {
+   "id": "core.counting_stream_vtbl",
+   "section": ".xtls",
+   "pattern": "C5 F8 11 84 24 90 01 00 00 C5 F8 11 84 24 80 01 00 00 48 8D 05",
+   "match": "0x1429ce6e8",
+   "anchor": "0x15",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x12",
+    "len": 7
+   },
+   "target": "0x1458561b0",
+   "kind": "data",
+   "names": [
+    "k_Ne_CountingStreamVtbl"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "splicesaves",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/save_splice.cpp"
+   ]
+  },
+  {
+   "id": "core.mem_write_stream_vtbl",
+   "section": ".xtls",
+   "pattern": "49 89 C6 48 8D 05 ?? ?? ?? ?? 48 89 44 24 68",
+   "match": "0x1429ce7bd",
+   "anchor": "0x6",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x3",
+    "len": 7
+   },
+   "target": "0x145bf0f20",
+   "kind": "data",
+   "names": [
+    "k_Ne_MemWriteStreamVtbl"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "splicesaves",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/save_splice.cpp"
+   ]
+  },
+  {
+   "id": "core.string_table",
+   "section": ".xtls",
+   "pattern": "48 8B 0D ?? ?? ?? ?? 48 89 DA E8 ?? ?? ?? ?? 48 89 C3",
+   "match": "0x14364ff82",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x146129740",
+   "kind": "data",
+   "names": [
+    "g_Ne_StringTable"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "splicesaves",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/save_splice.cpp"
+   ]
+  },
+  {
+   "id": "core.property_type_bag",
+   "section": ".xtls",
+   "pattern": "48 8D 2D ?? ?? ?? ?? 48 89 E9 FF 50 10 39 C3 75 48",
+   "match": "0x1439342bc",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x146129de0",
+   "kind": "data",
+   "names": [
+    "k_Ne_PropertyType_Bag"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "splicesaves",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/save_splice.cpp"
+   ]
   }
  ]
 }
