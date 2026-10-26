@@ -425,6 +425,80 @@ uintptr_t car_numbers(uintptr_t e, uintptr_t manager)
     return c && swofty::mem::object_like(c) && rdv<uintptr_t>(c + offsetof(CarNumberComponent, entity)) == e ? c : 0;
 }
 
+bool mirror_rows(uintptr_t begin_field, const std::vector<Row> &career, Mirror &out)
+{
+    out = {};
+    uintptr_t b = rdv<uintptr_t>(begin_field), e = rdv<uintptr_t>(begin_field + 8);
+    if (!b || e <= b || (e - b) % sizeof(EntrantRecord) || (e - b) / sizeof(EntrantRecord) > kMaxEntrants ||
+        !swofty::mem::readable(b, e - b) || career.empty() || !writable(b, e - b))
+        return false;
+    auto vt = reinterpret_cast<uintptr_t>(career.front().rec.vtable);
+    for (uintptr_t p = b; p < e; p += sizeof(EntrantRecord)) {
+        EntrantRecord copy = rdv<EntrantRecord>(p);
+        if (reinterpret_cast<uintptr_t>(copy.vtable) != vt)
+            return false;
+    }
+    for (uintptr_t p = b; p < e; p += sizeof(EntrantRecord)) {
+        EntrantRecord copy = rdv<EntrantRecord>(p);
+        ++out.rows;
+        out.race_before += has_car(copy) && !teamless(copy);
+        const Row *src = nullptr;
+        for (auto &r : career) {
+            bool same = human(copy) ? human(r.rec) : !human(r.rec) && r.rec.ordinal_flags == copy.ordinal_flags;
+            if (same && driver_of(r.rec) == driver_of(copy)) {
+                src = &r;
+                break;
+            }
+        }
+        if (!src) {
+            out.race_after += has_car(copy) && !teamless(copy);
+            continue;
+        }
+        ++out.matched;
+        EntrantRecord want = copy;
+        want.driver_customisation = src->rec.driver_customisation;
+        want.team_stat_id = src->rec.team_stat_id;
+        want.vehicle_ref = src->rec.vehicle_ref;
+        want.driver_reg_value = src->rec.driver_reg_value;
+        want.vehicle_customisation = src->rec.vehicle_customisation;
+        want.badge_stat_id = src->rec.badge_stat_id;
+        want.const_ffff0012 = src->rec.const_ffff0012;
+        want.team_position = src->rec.team_position;
+        want.car_number = src->rec.car_number;
+        if (std::memcmp(&want, &copy, sizeof want) != 0) {
+            std::memcpy(reinterpret_cast<void *>(p), &want, sizeof want);
+            ++out.changed;
+        }
+        out.race_after += has_car(want) && !teamless(want);
+    }
+    for (auto &r : career) {
+        if (!has_car(r.rec) || teamless(r.rec))
+            continue;
+        bool present = false;
+        for (uintptr_t p = b; p < e && !present; p += sizeof(EntrantRecord)) {
+            EntrantRecord copy = rdv<EntrantRecord>(p);
+            present = driver_of(copy) == driver_of(r.rec);
+        }
+        if (present)
+            continue;
+        for (uintptr_t p = b; p < e; p += sizeof(EntrantRecord)) {
+            EntrantRecord copy = rdv<EntrantRecord>(p);
+            if (human(copy) || !teamless(copy))
+                continue;
+            bool still = false;
+            for (auto &o : career)
+                still = still || (!teamless(o.rec) && driver_of(o.rec) == driver_of(copy));
+            if (still)
+                continue;
+            std::memcpy(reinterpret_cast<void *>(p), &r.rec, sizeof r.rec);
+            ++out.replaced;
+            ++out.race_after;
+            break;
+        }
+    }
+    return true;
+}
+
 Baseline::Baseline(const std::vector<Row> &rows)
 {
     for (auto &r : rows)

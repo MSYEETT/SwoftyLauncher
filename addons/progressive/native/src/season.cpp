@@ -481,6 +481,7 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
 }
 
 std::string g_standings_pending;
+std::string g_refreshed_for;
 
 // The driver and constructor standings rows come from the line-up when the game initialises a
 // season's standings (Career_Rebuild_SeasonStandings 0x140ae8040, from the season start and
@@ -489,6 +490,66 @@ std::string g_standings_pending;
 // one only when its first weekend has sessions; before that it would leave them empty. So it runs
 // once the current season's first weekend has sessions: right after the apply, or at a later Team
 // HQ (the first one after round 1 starts), and the re-init re-applies every session result.
+// Mirrors the career rows into every weekend of the current season that has not started (its own
+// line-up copy and each session's participants), so the round 1 sessions the career already built
+// and the standings initialised from them show the season's seats.
+void refresh_weekends(uintptr_t e, int year)
+{
+    auto ptr = [](uintptr_t a) {
+        uintptr_t v = 0;
+        return swofty::mem::read(a, v) ? v : uintptr_t{0};
+    };
+    uintptr_t champ = championship(e);
+    Championship ch{};
+    std::vector<Row> rows;
+    if (!champ || !swofty::mem::read(champ, ch) || !entrant_rows(e, rows))
+        return;
+    auto b = reinterpret_cast<uintptr_t>(ch.seasons_begin), en = reinterpret_cast<uintptr_t>(ch.seasons_end);
+    size_t n = en > b ? (en - b) / sizeof(ChampionshipSeasonEntry) : 0;
+    ChampionshipSeasonEntry entry{};
+    Season season{};
+    if (ch.season_index >= n || !swofty::mem::read(b + ch.season_index * sizeof entry, entry) || !entry.season ||
+        !swofty::mem::read(entry.season, season))
+        return;
+    auto wb = reinterpret_cast<uintptr_t>(season.weekends_begin), we = reinterpret_cast<uintptr_t>(season.weekends_end);
+    size_t weekends = 0, copies = 0, refused = 0;
+    for (uintptr_t at = wb; at && at < we && weekends < 64; at += sizeof(Weekend *)) {
+        uintptr_t w = 0;
+        Weekend wk{};
+        if (!swofty::mem::read(at, w) || !w || !swofty::mem::read(w, wk) || wk.progress_state != 0)
+            continue;
+        ++weekends;
+        char tag[64];
+        std::snprintf(tag, sizeof tag, "round %zu", static_cast<size_t>((at - wb) / sizeof(Weekend *)) + 1);
+        Mirror m;
+        constexpr uintptr_t kWeekendRows = 0x20;
+        if (mirror_rows(w + kWeekendRows, rows, m)) {
+            ++copies;
+            if (m.changed || m.replaced)
+                swofty::log("[progressive] season %d %s line-up copy: %zu rows, %zu matched, %zu rewritten, %zu replaced; "
+                            "race seats %zu -> %zu",
+                            year, tag, m.rows, m.matched, m.changed, m.replaced, m.race_before, m.race_after);
+        } else if (ptr(w + kWeekendRows)) {
+            ++refused;
+        }
+        auto sb = reinterpret_cast<uintptr_t>(wk.sessions_begin), se = reinterpret_cast<uintptr_t>(wk.sessions_end);
+        for (uintptr_t s = sb; s && s < se && (s - sb) / sizeof(Session) < 16; s += sizeof(Session)) {
+            if (!mirror_rows(s + offsetof(Session, participants_begin), rows, m)) {
+                if (ptr(s + offsetof(Session, participants_begin)))
+                    ++refused;
+                continue;
+            }
+            ++copies;
+            swofty::log("[progressive] season %d %s session %zu participants: %zu rows, %zu matched, %zu rewritten, %zu "
+                        "replaced; race seats %zu -> %zu",
+                        year, tag, static_cast<size_t>((s - sb) / sizeof(Session)) + 1, m.rows, m.matched, m.changed,
+                        m.replaced, m.race_before, m.race_after);
+        }
+    }
+    swofty::log("[progressive] season %d: %zu weekend(s) not started, %zu line-up copies refreshed%s", year, weekends,
+                copies, refused ? " (some vectors did not look like line-up copies and were left)" : "");
+}
+
 bool standings_rebuild(uintptr_t e, const char *when)
 {
     uintptr_t champ = championship(e);
@@ -615,6 +676,7 @@ void season_unloaded()
     g_player_team = 0;
     g_current.clear();
     g_standings_pending.clear();
+    g_refreshed_for.clear();
     clear_names();
     g_names_for.clear();
     g_failures = 0;
@@ -656,6 +718,12 @@ void season_hub(const swofty::career::State &state)
         g_names_for = c->key;
         set_names(shown, "career");
     }
+    if (c->applied_season >= 0 && g_refreshed_for != c->key) {
+        g_refreshed_for = c->key;
+        refresh_weekends(e, shown);
+        if (standings_rebuild(e, "first Team HQ of this session"))
+            g_standings_pending.clear();
+    }
     if (g_standings_pending == c->key && standings_rebuild(e, "first Team HQ with round 1 sessions"))
         g_standings_pending.clear();
     if (c->applied_season >= static_cast<int>(index))
@@ -687,6 +755,7 @@ void season_hub(const swofty::career::State &state)
     set_names(year, "season applied");
     if (c->rnd == "hybrid")
         hybrid_budgets(e, year);
+    refresh_weekends(e, year);
     if (standings_rebuild(e, "season applied"))
         g_standings_pending.clear();
     else {

@@ -145,6 +145,20 @@ bool release_contract(uintptr_t entity, uintptr_t manager, uint32_t driver, bool
 // row without a number a free one after its entrant write.
 uintptr_t car_numbers(uintptr_t entity, uintptr_t manager);
 
+// The game copies the line-up into each weekend (+0x18 vector object, rows +0x20..+0x28) and each of
+// its sessions (Session participants +0x20..+0x28) when it builds them, and a season's standings
+// are initialised from its first session's participants (Career_Rebuild_SeasonStandings passes
+// &weekend[0].sessions[0] + 0x18). Copies made before a season apply hold the old seats: mirror
+// writes each career row's seat fields (look, team, car keys, seat value, position, number) into the
+// copy row of the same driver (matched as the game matches rows: the human bit, else ordinal_flags,
+// and the same driver key). A copy that holds only the race seats has no row for a driver the apply
+// seated: his career row is copied over the row of a driver who left the grid. Returns false when
+// the vector does not look like a line-up copy.
+struct Mirror {
+    size_t rows = 0, matched = 0, changed = 0, replaced = 0, race_before = 0, race_after = 0;
+};
+bool mirror_rows(uintptr_t begin_field, const std::vector<Row> &career, Mirror &out);
+
 uint64_t lineup_changes(uintptr_t entity, const Baseline &baseline);
 bool finalise(uintptr_t entity, const Baseline &baseline, uint64_t &changes);
 
