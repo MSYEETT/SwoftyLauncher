@@ -73749,6 +73749,32 @@
    "used_by": [
     "addons/progressive/native/src/ui/follow.cpp"
    ]
+  },
+  {
+   "id": "game.refresh_performance_comparison",
+   "section": ".xtls",
+   "pattern": "56 57 48 81 EC C8 01 00 00 C5 F8 29 B4 24 B0 01 00 00",
+   "match": "0x141890990",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141890990",
+   "kind": "func_start",
+   "names": [
+    "Game_Refresh_PerformanceComparison"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "laneU",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/rnd.cpp"
+   ]
   }
  ]
 }

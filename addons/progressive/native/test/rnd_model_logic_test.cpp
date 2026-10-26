@@ -50,25 +50,26 @@ void rewrite()
     EXPECT(near(rnd_model::target(-50, 0), rnd_model::kMax));
 
     std::vector<Meta> m = stock();
-    double room = rnd_model::gain_room(m);
-    EXPECT(rnd_model::apply(m, 500, false));
+    EXPECT(rnd_model::apply(m, 500, rnd_model::kGainRoom));
     EXPECT(near(rnd_model::base_sum(m), 500));
-    EXPECT(near(rnd_model::gain_room(m), room));
+    EXPECT(near(rnd_model::gain_room(m), rnd_model::kGainRoom));
     for (size_t i = 0; i < m.size(); ++i)
-        EXPECT(m[i].type == i);
-    EXPECT(!rnd_model::apply(m, 500, false));
-
-    std::vector<float> first;
-    for (auto &e : stock())
-        first.push_back(e.full - e.base);
-    EXPECT(rnd_model::apply(m, 420, true));
+        EXPECT(m[i].type == i && m[i].department == i % 4);
+    EXPECT(!rnd_model::apply(m, 500, rnd_model::kGainRoom));
+    EXPECT(rnd_model::apply(m, 420, 0));
     EXPECT(near(rnd_model::base_sum(m), 420) && near(rnd_model::gain_room(m), 0));
-    EXPECT(!rnd_model::apply(m, 420, true));
-    EXPECT(rnd_model::apply(m, 420, false, &first));
-    EXPECT(near(rnd_model::base_sum(m), 420) && near(rnd_model::gain_room(m), room));
+    EXPECT(!rnd_model::apply(m, 420, 0));
+
+    std::vector<Meta> a = stock(), b = stock();
+    b[0].base = 90;
+    b[1].base = 5;
+    rnd_model::apply(a, 500, 0);
+    rnd_model::apply(b, 480, 0);
+    for (uint8_t d = 0; d < 4; ++d)
+        EXPECT(rnd_model::department_sum(a, d) > rnd_model::department_sum(b, d));
 
     std::vector<Meta> none;
-    EXPECT(!rnd_model::apply(none, 500, true));
+    EXPECT(!rnd_model::apply(none, 500, 0));
 }
 
 void real(const season::Data &d)
