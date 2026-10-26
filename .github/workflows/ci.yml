@@ -388,3 +388,13 @@ jobs:
             native/build/zig-cache
             addons/re-optimization/native/build/zig-cache
           key: ${{ steps.zig-cache.outputs.cache-primary-key }}
+
+  # Every push to main also builds the release binaries: the run keeps the release cache warm, and a tag on
+  # this commit takes its binaries from here (release.yml) instead of building again.
+  release-binaries:
+    name: Release binaries
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/release-binaries.yml
+    with:
+      ref: ${{ github.sha }}
+      retention-days: 7
