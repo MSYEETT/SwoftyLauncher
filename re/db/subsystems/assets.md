@@ -8,6 +8,7 @@ Owner: see `subsystems.tsv`. Mostly unexplored (research/exe.md §5).
 - UI component ids are `md5(eaid path without extension)[:8]` big-endian (ui.md).
 - Stock constant values of the vehicle and track shaders, and which ones were checked in game: [`gfx_material_constants.md`](gfx_material_constants.md).
 - GfxMaterialRes (`.material`): F1 25 and F1 23 layouts and the F1 23 to F1 25 conversion rules are in [`gfx_material.md`](gfx_material.md). Tool: `tools/gfx_material.py`. Textures, SRVs, material bindings, meshes and models use the same byte format in both games. Materials differ: F1 25 has bindless `me_*HeapIndex` constants and no sampler records, while F1 23 has `<texture>.sampler` GfxSampleState references.
+- Car archives of F1 2017 to F1 2020 (mesh 0x10000, buffer 3, surface 8) and F1 23, and their conversion onto an F1 25 car slot: [`legacy_cars.md`](legacy_cars.md). Tool: `tools/legacy_car.py`.
 
 ## Open
 - Does the resolver support loose-file overrides? (Would remove the need to rewrite ERPs.)
