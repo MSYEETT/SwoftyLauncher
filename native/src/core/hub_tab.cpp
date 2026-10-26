@@ -37,10 +37,28 @@
 //
 // The R&D tab block is skipped by the builder when the laptop's r_and_d_visible property (laptop
 // +0x920, read through [rsp+0x168]) does not hold a true bool: `cmp byte [rax], 0; je 0x141c41cf2`
-// at 0x141c41bac. While an addon holds hide_rnd, rax points at a zero byte there, so the builder takes
-// its own skip. The laptop's other R&D lookups by the tab key 0xb88a669 (0x141c43aa5 availability,
+// at 0x141c41bac. The laptop's other R&D lookups by the tab key 0xb88a669 (0x141c43aa5 availability,
 // 0x141c44d79 / 0x141c44dd9 / 0x141c44df0 the tab jump) already handle the tab being absent, which is
 // the stock state when r_and_d_visible is false.
+//
+// hide_rnd hides the R&D tab through the tab model's own visibility flag, so it follows live. The builders
+// register every tab with a tab model (laptop +0x2d0, Team HQ container +0x2e8) through 0x14431d720, which
+// gives each tab a VM entry whose header_states byte holds bit 0x1 (disabled) and bit 0x2 (hidden).
+// Vm_Set_TabEnabled (0x14431f470, body .data1 0x153c60e40; despite the KB name it writes the hidden bit)
+// rewrites bit 0x2 of one tab's entry; the UI tab controller watches header_states (Vm_UiTabs_OnMessage
+// 0x144264d50 subscribes, 0x144267740 applies: hidden -> header invisible, disabled -> header disabled)
+// and, when a header's visibility changes, recounts the visible headers and lays the bar out again
+// (0x144266490). Tab selection goes by the entry node (current_tab), not by index, and refuses a hidden or
+// disabled tab (0x14431f6b0), so hiding the R&D tab, which sits before the hub tab, keeps the selected tab
+// and its content, and the stock R&D jumps (0x141871390 -> 0x14431f6b0) refuse a hidden tab. Stock Team HQ
+// hides and shows all its tabs the same way (0x1422d7bb0 / 0x1422d7a20, onboarding), and the laptop hides
+// single tabs (0x141c45340). So each builder now builds the R&D tab as stock does and, right after the
+// registration loop (site_Game_HubLaptopTabsRegistered 0x141c42689, site_Game_TeamHqTabsRegistered
+// 0x1422d5d3b), hides it while hide_rnd is on; the container and its R&D tab are recorded there, and a
+// later hide_rnd change is applied on the next flow tick to the recorded container, when its vtable and its
+// R&D tab entry are still the ones recorded. Without the visibility signatures the builders fall back to
+// leaving the R&D tab out (laptop: rax points at a zero byte at the gate; Team HQ: resume at the VEHICLE
+// block), which only changes at the next Team HQ entry.
 
 bool settings_command(uint32_t hash);
 bool settings_state(const std::string &addon, const std::string &option, size_t &current,
@@ -109,6 +127,13 @@ const runtime::Sig S_TQ_VT0{"team HQ tab vtable", P_TQ_STANDINGS, 0x5787460, run
 const runtime::Sig S_TQ_VT260{"team HQ tab vtable +0x260", P_TQ_STANDINGS, 0x5787540, runtime::Sig::riprel, 0xf, 0x12, 7};
 const runtime::Sig S_TQ_VT268{"team HQ tab vtable +0x268", P_TQ_STANDINGS, 0x5787570, runtime::Sig::riprel, 0x1d, 0x20, 7};
 const runtime::Sig S_TQ_INIT{"team HQ tab field block", P_TQ_STANDINGS, 0x577c058, runtime::Sig::riprel, 0x2b, 0x2f, 8};
+const runtime::Sig S_TQ_REGISTERED{"team HQ tabs registered", "48 8B 74 24 50 48 8D BE E8 02 00 00 31 DB EB", 0x22d5d3b};
+const runtime::Sig S_LAPTOP_REGISTERED{"laptop tabs registered", "49 83 C5 18 49 39 ED 75 C7 80 BE 98 09 00 00 00",
+                                       0x1c42689, runtime::Sig::addr, 0, 9, 0};
+const runtime::Sig S_TAB_VISIBLE{"Vm_Set_TabEnabled (tab visibility)",
+                                 "48 8D 9E E8 02 00 00 EB 27 0F 1F 00 31 C0 48 8D 90 68 02 00 00 48 85 C0 48 0F 44 D0 48 "
+                                 "89 D9 45 31 C0 E8 ?? ?? ?? ??",
+                                 0x431f470, runtime::Sig::rel32, 0x22, 0x23, 5};
 const runtime::Sig S_TQ_PUSH{"team HQ tab push",
                              "4C 89 7C 24 60 48 8D 94 24 E0 00 00 00 4C 8D 44 24 58 48 8B 8C 24 D8 00 00 00 E8 ?? ?? ?? "
                              "?? 48 8B 86 D8 02 00 00 4C 8B 68 F8",
@@ -122,13 +147,23 @@ using PageCtor_t = void(void *page, void *a2, void *a3, void *owner, const char 
                         const char *a8, uint32_t page_type, uint8_t flag);
 using AddPage_t = void(void *tab, void *page);
 using Command_t = uint64_t(void *vm, swofty::game::NeStr **name, const void *data);
+using SetVisible_t = void(void *model, void *tab, uint8_t visible);
+
+struct Bar {
+    const char *name;
+    uintptr_t begin, end, model;
+    uint32_t rnd_key;
+    uintptr_t owner = 0, owner_vt = 0, rnd = 0, rnd_vt = 0;
+};
 
 std::vector<HubTab> tabs;
-std::atomic<bool> hide{false}, live{false};
+std::atomic<bool> hide{false}, live{false}, pending{false}, laptop_flag{false}, team_hq_flag{false};
 const uint8_t zero_byte = 0;
-uintptr_t a_tab_ctor, a_push, a_page_ctor, a_add_page;
+uintptr_t a_tab_ctor, a_push, a_page_ctor, a_add_page, a_set_visible;
 uintptr_t a_tq_ctor, a_tq_vt0, a_tq_vt260, a_tq_vt268, a_tq_init, a_tq_push, a_tq_vehicle;
-safetyhook::MidHook h_end, h_rnd, h_tq_end, h_tq_rnd;
+safetyhook::MidHook h_end, h_rnd, h_tq_end, h_tq_rnd, h_tq_registered, h_laptop_registered;
+SRWLOCK bars_lock = SRWLOCK_INIT;
+Bar laptop_bar{"laptop", 0x2b8, 0x2c0, 0x2d0, 0xb88a669}, team_hq_bar{"Team HQ", 0x2d0, 0x2d8, 0x2e8, 0xf4482186};
 void **page_vt, **page_vt_src;
 Command_t *page_cmd;
 std::atomic<uint32_t> told{0};
@@ -353,10 +388,72 @@ void team_hq_end(safetyhook::Context &c)
 
 void team_hq_rnd(safetyhook::Context &c)
 {
-    if (!hide.load())
+    if (!hide.load() || team_hq_flag.load())
         return;
     c.rip = a_tq_vehicle;
     note("[hub] Team HQ: the R&D tab is left out (hide_rnd)");
+}
+
+uintptr_t rnd_tab(const Bar &b, uintptr_t owner)
+{
+    uintptr_t p = at<uintptr_t>(owner + b.begin), e = at<uintptr_t>(owner + b.end);
+    if (!p || e < p || (e - p) % 0x18 || (e - p) / 0x18 > 64)
+        return 0;
+    for (; p != e; p += 0x18)
+        if (at<uint32_t>(p) == b.rnd_key)
+            return at<uintptr_t>(p + 0x10);
+    return 0;
+}
+
+void set_visible(Bar &b, bool visible)
+{
+    reinterpret_cast<SetVisible_t *>(a_set_visible)(reinterpret_cast<void *>(b.owner + b.model),
+                                                    reinterpret_cast<void *>(b.rnd + 0x268), visible ? 1 : 0);
+}
+
+void registered(Bar &b, uintptr_t owner)
+{
+    if (!owner || !swofty::mem::object_like(owner))
+        return;
+    uintptr_t rnd = rnd_tab(b, owner);
+    AcquireSRWLockExclusive(&bars_lock);
+    b.owner = 0;
+    if (rnd && swofty::mem::object_like(rnd)) {
+        b.owner = owner;
+        b.owner_vt = at<uintptr_t>(owner);
+        b.rnd = rnd;
+        b.rnd_vt = at<uintptr_t>(rnd);
+        if (hide.load()) {
+            set_visible(b, false);
+            swofty::log("[hub] %s: the R&D tab is built hidden (hide_rnd); it follows live from here", b.name);
+        }
+    }
+    ReleaseSRWLockExclusive(&bars_lock);
+}
+
+void team_hq_registered(safetyhook::Context &c)
+{
+    registered(team_hq_bar, at<uintptr_t>(c.rsp + 0x50));
+}
+
+void laptop_registered(safetyhook::Context &c)
+{
+    registered(laptop_bar, c.rsi);
+}
+
+void follow(Bar &b, bool on)
+{
+    if (!b.owner)
+        return;
+    bool same = swofty::mem::object_like(b.owner) && at<uintptr_t>(b.owner) == b.owner_vt &&
+                rnd_tab(b, b.owner) == b.rnd && swofty::mem::object_like(b.rnd) && at<uintptr_t>(b.rnd) == b.rnd_vt;
+    if (!same) {
+        b.owner = 0;
+        swofty::log("[hub] %s: no longer open; its R&D tab follows at the next build", b.name);
+        return;
+    }
+    set_visible(b, !on);
+    swofty::log("[hub] %s: R&D tab %s live", b.name, on ? "hidden" : "shown");
 }
 
 void tabs_end(safetyhook::Context &c)
@@ -374,7 +471,7 @@ void tabs_end(safetyhook::Context &c)
 
 void rnd_gate(safetyhook::Context &c)
 {
-    if (!hide.load())
+    if (!hide.load() || laptop_flag.load())
         return;
     c.rax = reinterpret_cast<uintptr_t>(&zero_byte);
     note("[hub] laptop: the R&D tab is left out (hide_rnd)");
@@ -434,6 +531,9 @@ void setup()
     a_tq_push = runtime::find(S_TQ_PUSH, "hub tabs", "hub");
     a_tq_vehicle = runtime::find(S_TQ_VEHICLE, "hub tabs", "hub");
     uintptr_t tq_end = runtime::find(S_TQ_END, "hub tabs", "hub"), tq_rnd = runtime::find(S_TQ_RND, "hub tabs", "hub");
+    a_set_visible = runtime::find(S_TAB_VISIBLE, "hub tabs", "hub");
+    uintptr_t tq_registered = runtime::find(S_TQ_REGISTERED, "hub tabs", "hub"),
+              laptop_reg = runtime::find(S_LAPTOP_REGISTERED, "hub tabs", "hub");
     bool laptop = a_tab_ctor && a_push && a_page_ctor && a_add_page && end && gate;
     bool team_hq = a_push && a_page_ctor && a_tq_ctor && a_tq_vt0 && a_tq_vt260 && a_tq_vt268 && a_tq_init && a_tq_push &&
                    a_tq_vehicle && tq_end && tq_rnd;
@@ -455,8 +555,24 @@ void setup()
         } else
             team_hq = false;
     }
+    if (laptop && a_set_visible && laptop_reg) {
+        auto r = safetyhook::MidHook::create(reinterpret_cast<void *>(laptop_reg), laptop_registered);
+        if (r) {
+            h_laptop_registered = std::move(*r);
+            laptop_flag = true;
+        }
+    }
+    if (team_hq && a_set_visible && tq_registered) {
+        auto r = safetyhook::MidHook::create(reinterpret_cast<void *>(tq_registered), team_hq_registered);
+        if (r) {
+            h_tq_registered = std::move(*r);
+            team_hq_flag = true;
+        }
+    }
     swofty::log("[hub] builders: Driver Career Team HQ (team_hq_container) %s, laptop (laptop_container) %s",
                 team_hq ? "hooked" : "NOT hooked", laptop ? "hooked" : "NOT hooked");
+    swofty::log("[hub] R&D tab: Team HQ %s, laptop %s", team_hq_flag ? "follows hide_rnd live" : "left out at the next entry",
+                laptop_flag ? "follows hide_rnd live" : "left out at the next entry");
     if (!laptop && !team_hq)
         return;
     if (const SwoftyLang *l = runtime::lang_table())
@@ -475,8 +591,12 @@ int api_available()
 
 int api_hide_rnd(int on)
 {
-    if (hide.exchange(on != 0) != (on != 0))
-        swofty::log("[hub] R&D tab %s from the next Team HQ entry", on ? "hidden" : "shown");
+    if (hide.exchange(on != 0) != (on != 0)) {
+        pending = true;
+        swofty::log("[hub] R&D tab %s (hide_rnd %s)%s", on ? "hidden" : "shown", on ? "on" : "off",
+                    team_hq_flag || laptop_flag ? "; an open Team HQ follows on the next frame"
+                                                : " from the next Team HQ entry");
+    }
     return SWOFTY_ASSET_OK;
 }
 
@@ -517,6 +637,23 @@ void hub_option_changed(const std::string &addon, const std::string &option)
                 break;
             }
     }
+}
+
+namespace runtime {
+
+void hub_tick()
+{
+    if (!pending.load() || !pending.exchange(false))
+        return;
+    bool on = hide.load();
+    AcquireSRWLockExclusive(&bars_lock);
+    if (team_hq_flag.load())
+        follow(team_hq_bar, on);
+    if (laptop_flag.load())
+        follow(laptop_bar, on);
+    ReleaseSRWLockExclusive(&bars_lock);
+}
+
 }
 
 extern "C" __declspec(dllexport) const SwoftyHub *SwoftyCoreHub(void)

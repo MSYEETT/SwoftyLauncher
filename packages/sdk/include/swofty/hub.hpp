@@ -8,8 +8,9 @@
 
 // Team HQ hub tabs. An addon's manifest `hub_tab` gives careers of one data group a Team HQ laptop tab
 // with some of the addon's options (the core builds it; see swofty_api.h SwoftyHub). From the plugin:
-// hide_rnd() keeps the R&D tab out of the laptop while it is on (the laptop is built at Team HQ entry),
-// set_option() moves one of the addon's options to a value, as if the player picked it.
+// hide_rnd() hides the R&D tab of Team HQ while it is on (from the build at Team HQ entry, and in an
+// open Team HQ from the next frame), set_option() moves one of the addon's options to a value, as if the
+// player picked it.
 //
 // Feature detection: the table is read only when the running swofty_core.dll exports SwoftyCoreHub.
 
