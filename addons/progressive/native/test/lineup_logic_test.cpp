@@ -226,6 +226,21 @@ void player_without_career_seat_is_removed()
     EXPECT(check(o).empty());
 }
 
+void closed_slot_stays_empty()
+{
+    Input in;
+    in.real = ten_team_grid();
+    in.player = 104;
+    in.player_slot = 2;
+    in.ratings = {{172, 99}, {173, 98}};
+    in.pool = {172, 173, 104};
+    in.closed[10] = true;
+    Output o = fit(in);
+    EXPECT(o.at(10, 0) == kNone && o.at(10, 1) == kNone);
+    EXPECT(o.at(2, 0) == 104 || o.at(2, 1) == 104);
+    EXPECT(check(o).empty());
+}
+
 } // namespace
 
 int main()
@@ -241,6 +256,7 @@ int main()
     repeated_driver_sits_once();
     empty_pool_leaves_seat_empty();
     player_without_career_seat_is_removed();
+    closed_slot_stays_empty();
     if (failures) {
         std::printf("lineup_logic_test: %d failure(s)\n", failures);
         return EXIT_FAILURE;

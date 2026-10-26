@@ -408,6 +408,89 @@ void follow_player_left_on_his_2026_team_with_another_car()
     EXPECT(albon_out);
 }
 
+size_t seated_unique(const season::Plan &p)
+{
+    std::vector<uint32_t> all;
+    for (auto &s : p.target)
+        for (uint32_t d : s)
+            if (d != lineup::kNone) {
+                if (std::find(all.begin(), all.end(), d) != all.end())
+                    return 0;
+                all.push_back(d);
+            }
+    return all.size();
+}
+
+bool released(const season::Plan &p, const std::string &driver)
+{
+    return std::find(p.releases.begin(), p.releases.end(), id(driver)) != p.releases.end();
+}
+
+void ten_team_years_close_slot_11()
+{
+    auto rows = career("lando_norris");
+    int cadillac = slot_of("gm_cadillac_26");
+    rows.push_back({902, g_data.slots[cadillac].team_stat, 2, true, false, season::kNoNumber});
+    season::Plan p = season::plan(g_data, 2017, rows, resolver(), false, nullptr, nullptr, true);
+    EXPECT(p.error.empty());
+    EXPECT(p.closed[cadillac]);
+    EXPECT(season::closed_slots(p) == 1);
+    EXPECT(at(p, cadillac + 1, 0) == lineup::kNone && at(p, cadillac + 1, 1) == lineup::kNone);
+    EXPECT(seated_unique(p) == 20);
+    for (auto &m : p.moves)
+        EXPECT(m.to.slot != cadillac && m.driver != lineup::kNone);
+    EXPECT(moved_to(p, "valtteri_bottas", slot_of("mercedes_26")));
+    EXPECT(moved_to(p, "sergio_perez", slot_of("forceindia_26")));
+    EXPECT(std::find(p.releases.begin(), p.releases.end(), 902u) != p.releases.end());
+    for (auto &l : p.looks)
+        EXPECT(l.driver != lineup::kNone);
+    for (int y = 2018; y <= 2025; ++y) {
+        season::Plan q = season::plan(g_data, y, rows, resolver(), false, nullptr, nullptr, true);
+        EXPECT(q.error.empty() && q.closed[cadillac] && seated_unique(q) == 20);
+    }
+    for (int y : {2016, 2026}) {
+        season::Plan q = season::plan(g_data, y, rows, resolver(), false, nullptr, nullptr, true);
+        EXPECT(q.error.empty() && !q.closed[cadillac] && seated_unique(q) == 22);
+    }
+}
+
+void ten_team_years_keep_the_players_slot()
+{
+    int cadillac = slot_of("gm_cadillac_26");
+    auto rows = career("valtteri_bottas");
+    season::Plan stay = season::plan(g_data, 2017, rows, resolver(), false, nullptr, nullptr, true);
+    EXPECT(stay.error.empty());
+    EXPECT(!stay.closed[cadillac]);
+    EXPECT(seated_unique(stay) == 22);
+    EXPECT(at(stay, cadillac + 1, 0) == id("valtteri_bottas") || at(stay, cadillac + 1, 1) == id("valtteri_bottas"));
+    season::Plan follow = season::plan(g_data, 2017, rows, resolver(), true, nullptr, nullptr, true);
+    EXPECT(follow.error.empty());
+    EXPECT(follow.player_moves);
+    EXPECT(follow.closed[cadillac]);
+    EXPECT(seated_unique(follow) == 20);
+    EXPECT(moved_to(follow, "valtteri_bottas", slot_of("mercedes_26")));
+}
+
+void ten_team_years_bring_cadillac_back_in_2026()
+{
+    int cadillac = slot_of("gm_cadillac_26");
+    auto rows = career("lando_norris");
+    for (auto &r : rows)
+        if (r.team == g_data.slots[cadillac].team_stat)
+            free_agent(r);
+    season::Plan p = season::plan(g_data, 2026, rows, resolver(), false, nullptr, nullptr, true);
+    EXPECT(p.error.empty());
+    EXPECT(!p.closed[cadillac]);
+    EXPECT(seated_unique(p) == 22);
+    EXPECT(p.holder[cadillac][0] < 0 && p.holder[cadillac][1] < 0);
+    EXPECT(moved_to(p, "sergio_perez", cadillac));
+    EXPECT(moved_to(p, "valtteri_bottas", cadillac));
+    for (auto &m : p.moves)
+        if (m.to.slot == cadillac)
+            EXPECT(m.from.slot < 0);
+    EXPECT(!released(p, "sergio_perez") && !released(p, "valtteri_bottas"));
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -435,6 +518,9 @@ int main(int argc, char **argv)
     player_added_as_a_third_race_seat();
     empty_team_filled_from_free_agents();
     follow_player_left_on_his_2026_team_with_another_car();
+    ten_team_years_close_slot_11();
+    ten_team_years_keep_the_players_slot();
+    ten_team_years_bring_cadillac_back_in_2026();
     if (failures) {
         std::printf("season_logic_test: %d failure(s)\n", failures);
         return EXIT_FAILURE;

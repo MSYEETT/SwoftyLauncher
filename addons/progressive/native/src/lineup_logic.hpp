@@ -18,7 +18,8 @@
 //   4. Every seat still empty (slot 10 in the 10-team years, a seat the player's move left
 //      empty, a repeat) gets a driver without a seat, best first: drivers who raced in Y but lost
 //      their seat (D), then drivers who raced in Y-1 or Y+1, then everyone else in the pool, each
-//      tier by rating (higher first), then by id.
+//      tier by rating (higher first), then by id. A closed slot (Input.closed: slot 10 in the
+//      10-team years with ten_team_years on) gets no driver and stays empty.
 // A displaced driver who is not refitted ends up in `reserve`.
 // Mid-season (Input.take >= 0): the player keeps the seat index of his slot he took at the season's
 // start (take_seat on the season's opening line-up), so a change of that seat's real driver moves
@@ -63,6 +64,7 @@ struct Input {
     const Grid *prev = nullptr;
     const Grid *next = nullptr;
     int take = -1;
+    std::array<bool, kSlots> closed{};
 };
 
 enum class Why { real, player, displaced, filler };
@@ -223,6 +225,8 @@ inline Output fit(const Input &in)
     for (int s = 0; s < kSlots; ++s)
         for (int p = 0; p < kSeats; ++p) {
             if (g[s][p] != kNone)
+                continue;
+            if (in.closed[s])
                 continue;
             if (next >= pool.size()) {
                 out.notes.push_back("slot " + std::to_string(s) + " seat " + std::to_string(p) +

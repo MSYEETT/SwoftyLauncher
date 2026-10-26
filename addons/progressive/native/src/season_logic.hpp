@@ -21,6 +21,10 @@
 //   Mid-season (midseason_logic.hpp): plan takes the year's line-up at the career's round in place
 //   of the season's line-up (`at`), with the player's seat in his slot pinned to the one he took at
 //   the season's start.
+//   ten_teams (option ten_team_years): a slot the year has no team for (kind "filler", no drivers:
+//   slot 11 in 2017-2025) is closed. It gets no driver, its race rows are released (teamless, like
+//   a driver who leaves F1), so the year races 10 teams and 20 cars; a slot the player sits at stays
+//   open. A closed slot that has a team again (2026) is refilled from the free agents.
 
 #pragma once
 #include <algorithm>
@@ -339,7 +343,22 @@ struct Plan {
     uint32_t player = lineup::kNone;
     int player_slot = -1;
     bool player_moves = false;
+    std::array<bool, kSlots> closed{};
 };
+
+inline bool no_team(const Data &d, int year, int slot)
+{
+    const Year *y = d.year(clamp_year(year));
+    return y && slot >= 0 && slot < kSlots && y->teams[slot].kind == "filler" && y->teams[slot].drivers.empty();
+}
+
+inline int closed_slots(const Plan &p)
+{
+    int n = 0;
+    for (bool c : p.closed)
+        n += c;
+    return n;
+}
 
 inline int slot_of_team(const Data &d, int team_stat)
 {
@@ -475,7 +494,7 @@ inline VehicleSet vehicle_for(const Data &d, const Resolve &r, int year, int slo
 // D7 rule); when the player has no real seat it is skipped, along with the change that filled the
 // newcomer's old seat with the driver the player displaced.
 inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, const Resolve &r, bool move_player = false,
-                 const Year *at = nullptr, const Year *opening = nullptr)
+                 const Year *at = nullptr, const Year *opening = nullptr, bool ten_teams = false)
 {
     Plan p;
     p.year = clamp_year(year);
@@ -489,6 +508,8 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
         p.error = "years.json has no " + std::to_string(p.year);
         return p;
     }
+    for (int i = 0; ten_teams && i < kSlots; ++i)
+        p.closed[i] = no_team(d, p.year, i);
 
     std::map<uint32_t, int> count;
     for (auto &row : rows)
@@ -528,7 +549,7 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
         for (int k = 0; k < lineup::kSeats; ++k)
             if (p.holder[i][k] >= 0)
                 seat_of[rows[p.holder[i][k]].driver] = {i, k};
-        if (race.size() != lineup::kSeats)
+        if (race.size() != lineup::kSeats && !(p.closed[i] && race.empty()))
             p.notes.push_back("career slot " + std::to_string(i + 1) + " (" + d.slots[i].team + ") has " +
                               std::to_string(race.size()) + " race seat(s): " +
                               (race.size() < lineup::kSeats ? "the empty seat is filled"
@@ -583,6 +604,19 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
         p.notes.push_back("follow mode: the player moves to his real " + std::to_string(p.year) + " team (" +
                           d.slots[real_slot].team + ")");
     }
+    int stays = p.player_moves ? -1 : p.player_slot;
+    if (stays >= 0 && p.closed[stays]) {
+        p.closed[stays] = false;
+        p.notes.push_back("ten_team_years: the player races for career slot " + std::to_string(stays + 1) + " (" +
+                          d.slots[stays].team + "), which has no team in " + std::to_string(p.year) +
+                          "; it keeps its two cars this season");
+    }
+    for (int i = 0; i < kSlots; ++i)
+        if (p.closed[i])
+            p.notes.push_back("ten_team_years: career slot " + std::to_string(i + 1) + " (" + d.slots[i].team +
+                              ") has no team in " + std::to_string(p.year) + "; it does not race and its drivers are "
+                              "released");
+    in.closed = p.closed;
     for (auto &pd : d.pool) {
         int s = r.driver_stat(pd.driver);
         if (s >= 0 && usable(static_cast<uint32_t>(s)) && static_cast<uint32_t>(s) != p.player)
@@ -646,6 +680,10 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
     for (int i = 0; i < kSlots; ++i)
         for (int k = 0; k < lineup::kSeats; ++k) {
             uint32_t want = p.target[i][k];
+            if (p.closed[i]) {
+                p.target[i][k] = lineup::kNone;
+                continue;
+            }
             if (want == lineup::kNone) {
                 if (p.holder[i][k] < 0) {
                     p.error = "slot " + std::to_string(i + 1) + " (" + d.slots[i].team + ") seat " +
@@ -672,7 +710,7 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
     for (int i = 0; i < kSlots; ++i)
         for (int k = 0; k < lineup::kSeats; ++k) {
             uint32_t dr = p.target[i][k];
-            if (dr == p.player && !p.player_moves)
+            if (dr == lineup::kNone || (dr == p.player && !p.player_moves))
                 continue;
             auto it = seat_of.find(dr);
             Seat from = it == seat_of.end() ? Seat{} : it->second;
