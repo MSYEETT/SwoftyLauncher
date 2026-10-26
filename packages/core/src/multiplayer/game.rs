@@ -16,6 +16,10 @@ use serde_json::{Value, json};
 
 /// How long [`send`] waits for core's reply by default.
 pub const REPLY_TIMEOUT: Duration = Duration::from_secs(10);
+/// Host waits for the player's car category pick and the lobby.
+pub const HOST_TIMEOUT: Duration = Duration::from_secs(150);
+/// Join waits for the host's lobby.
+pub const JOIN_TIMEOUT: Duration = Duration::from_secs(45);
 /// `status.json` older than this means core is not running its netplay driver.
 pub const STATUS_STALE: Duration = Duration::from_secs(20);
 
@@ -78,6 +82,15 @@ impl Command {
         }
     }
 
+    /// How long the game may take to answer: host and join wait for the LAN lobby.
+    pub fn timeout(&self) -> Duration {
+        match self {
+            Command::Host { .. } => HOST_TIMEOUT,
+            Command::Join { .. } => JOIN_TIMEOUT,
+            _ => REPLY_TIMEOUT,
+        }
+    }
+
     pub fn to_json(&self, seq: u64) -> Value {
         let args = match self {
             Command::Host { category } => json!({ "category": category.as_str() }),
@@ -124,6 +137,8 @@ pub struct Reply {
     pub op: String,
     pub ok: bool,
     pub error: Option<String>,
+    #[serde(default)]
+    pub detail: Option<String>,
     pub status: GameStatus,
     #[serde(default)]
     pub t: u64,
@@ -223,27 +238,51 @@ pub fn send(game_dir: &Path, cmd: &Command, timeout: Duration) -> Result<Reply, 
 }
 
 pub fn status(game_dir: &Path) -> Result<GameStatus, Error> {
-    send(game_dir, &Command::Status, REPLY_TIMEOUT).map(|r| r.status)
+    {
+        let cmd = Command::Status;
+        send(game_dir, &cmd, cmd.timeout())
+    }
+    .map(|r| r.status)
 }
 
 pub fn host(game_dir: &Path, category: Category) -> Result<GameStatus, Error> {
-    send(game_dir, &Command::Host { category }, REPLY_TIMEOUT).map(|r| r.status)
+    {
+        let cmd = Command::Host { category };
+        send(game_dir, &cmd, cmd.timeout())
+    }
+    .map(|r| r.status)
 }
 
 pub fn join(game_dir: &Path, ip: Ipv4Addr) -> Result<GameStatus, Error> {
-    send(game_dir, &Command::Join { ip }, REPLY_TIMEOUT).map(|r| r.status)
+    {
+        let cmd = Command::Join { ip };
+        send(game_dir, &cmd, cmd.timeout())
+    }
+    .map(|r| r.status)
 }
 
 pub fn configure(game_dir: &Path, self_member: u8, base: u16) -> Result<GameStatus, Error> {
-    send(game_dir, &Command::Configure { self_member, base }, REPLY_TIMEOUT).map(|r| r.status)
+    {
+        let cmd = Command::Configure { self_member, base };
+        send(game_dir, &cmd, cmd.timeout())
+    }
+    .map(|r| r.status)
 }
 
 pub fn clear(game_dir: &Path) -> Result<GameStatus, Error> {
-    send(game_dir, &Command::Clear, REPLY_TIMEOUT).map(|r| r.status)
+    {
+        let cmd = Command::Clear;
+        send(game_dir, &cmd, cmd.timeout())
+    }
+    .map(|r| r.status)
 }
 
 pub fn leave(game_dir: &Path) -> Result<GameStatus, Error> {
-    send(game_dir, &Command::Leave, REPLY_TIMEOUT).map(|r| r.status)
+    {
+        let cmd = Command::Leave;
+        send(game_dir, &cmd, cmd.timeout())
+    }
+    .map(|r| r.status)
 }
 
 /// The last `status.json` core wrote, when it is fresh: no command round trip.
@@ -330,6 +369,21 @@ mod tests {
             json!({ "seq": 11, "op": "configure", "args": { "self": 2, "base": 40000 } })
         );
         assert_eq!(Command::Clear.to_json(12)["op"], "clear");
+        assert_eq!(
+            Command::Host {
+                category: Category::F12026
+            }
+            .timeout(),
+            HOST_TIMEOUT
+        );
+        assert_eq!(
+            Command::Join {
+                ip: Ipv4Addr::LOCALHOST
+            }
+            .timeout(),
+            JOIN_TIMEOUT
+        );
+        assert_eq!(Command::Status.timeout(), REPLY_TIMEOUT);
         assert_eq!(Command::Status.to_json(10)["args"], json!({}));
     }
 

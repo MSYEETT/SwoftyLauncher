@@ -251,8 +251,11 @@ fn run_game(store: &Store, game: Option<PathBuf>, cmd: GameCmd) -> Result<ExitCo
         GameCmd::Join { ip } => GameCommand::Join { ip },
         GameCmd::Leave => GameCommand::Leave,
     };
-    match mp_game::send(&dir, &cmd, mp_game::REPLY_TIMEOUT) {
+    match mp_game::send(&dir, &cmd, cmd.timeout()) {
         Ok(reply) => {
+            if let Some(detail) = &reply.detail {
+                eprintln!("swofty: {detail}");
+            }
             println!("{}", serde_json::to_string_pretty(&reply.status)?);
             Ok(ExitCode::SUCCESS)
         }
