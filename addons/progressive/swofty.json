@@ -152,6 +152,15 @@
       "hidden": true
     },
     {
+      "id": "season_rnd_models",
+      "type": "toggle",
+      "label": "Real team performance",
+      "description": "Every team's R&D performance (Team HQ's vehicle performance comparison, the game's team rankings) follows the season's real order.",
+      "default": true,
+      "binds": "native",
+      "hidden": true
+    },
+    {
       "id": "test_calendar",
       "type": "choice",
       "label": "Developer: test calendar",

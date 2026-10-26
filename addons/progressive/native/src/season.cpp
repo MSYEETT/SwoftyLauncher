@@ -18,7 +18,9 @@
 //   5. in a hybrid R&D career, each team's resource points for the season.
 // In a Real life R&D career every load and Team HQ also works out the in-season development of the
 // year at the season's current round (development_logic.hpp) for progressive_rnd.dll
-// (ProgressiveDevelopmentProgress), while the option season_development is on (the default).
+// (ProgressiveDevelopmentProgress), while the option season_development is on (the default), and
+// every team's R&D model performance (Team HQ's vehicle performance comparison, the game's team
+// rankings) follows the year's real order, while season_rnd_models is on (rnd_model_logic.hpp).
 // Mid-season (midseason_logic.hpp): the year's real line-up changes are placed on the career's own
 // calendar (Season.weekends' tracks, the next race), and the plan is made from the line-up at the
 // next race, so each change is written at the first idle Team HQ before its career race and a
@@ -62,6 +64,7 @@
 #include <swofty/storage.hpp>
 
 #include "development_logic.hpp"
+#include "rnd_model_logic.hpp"
 #include "midseason_logic.hpp"
 #include "names.hpp"
 #include "player_logic.hpp"
@@ -77,6 +80,7 @@ SWOFTY_SETTING(std::string_view, rnd_mode, "real_life");
 SWOFTY_SETTING(std::string_view, team_moves, "follow_driver");
 SWOFTY_SETTING(bool, season_visuals, true);
 SWOFTY_SETTING(bool, season_development, true);
+SWOFTY_SETTING(bool, season_rnd_models, true);
 SWOFTY_SETTING(bool, test_next_season, false);
 SWOFTY_SETTING(bool, ten_team_years, true);
 
@@ -948,6 +952,126 @@ void development_apply(uintptr_t e, store::Career *c, int year, const char *when
                 clamped ? "; some clamped to 0..1" : "", same ? "" : "; recorded in careers.json");
 }
 
+// The R&D models' type metadata (rnd_model_logic.hpp): model +0x1a38..+0x1a40, 0x20-byte entries
+// with the rating base at +0xc and the fully upgraded rating at +0x10 (decomps 0x141890e60 and
+// 0x143518350 read them; the vehicle fill 0x141238cb0 reads the same entries' +0, +4, +8).
+constexpr uintptr_t kModelTypeMeta = 0x1a38;
+constexpr uintptr_t kMetaStride = 0x20, kMetaDept = 0x1, kMetaBase = 0xc, kMetaFull = 0x10;
+std::map<uintptr_t, std::vector<float>> g_model_room;
+std::string g_models_logged;
+
+bool read_meta(uintptr_t model, uintptr_t &begin, std::vector<rnd_model::Meta> &out)
+{
+    uintptr_t end = 0;
+    begin = 0;
+    out.clear();
+    if (!swofty::mem::read(model + kModelTypeMeta, begin) || !swofty::mem::read(model + kModelTypeMeta + 8, end) ||
+        !begin || end <= begin || (end - begin) % kMetaStride || (end - begin) / kMetaStride > 64 ||
+        !swofty::mem::readable(begin, end - begin))
+        return false;
+    for (uintptr_t at = begin; at < end; at += kMetaStride) {
+        rnd_model::Meta m;
+        swofty::mem::read(at, m.type);
+        swofty::mem::read(at + kMetaDept, m.department);
+        swofty::mem::read(at + kMetaBase, m.base);
+        swofty::mem::read(at + kMetaFull, m.full);
+        out.push_back(m);
+    }
+    return true;
+}
+
+// Every team's R&D model gets the year's performance (rnd_model_logic.hpp): Real life the season's
+// fixed level plus the in-season development at the current round, upgrades worth nothing; Hybrid
+// the season's baseline with R&D gains on top. Runs at every load, Team HQ and R&D change from the
+// year alone, so a new season takes the new year's order and reloads agree; logged with a read-back.
+void rnd_models(uintptr_t e, store::Career *c, int year, const char *when)
+{
+    if (!c || !season_rnd_models)
+        return;
+    bool real = c->rnd == "real_life";
+    development::Plan dev;
+    bool have_dev = false;
+    uint32_t current = 0, rounds = 0;
+    if (real && season_development && e && season_rounds(e, current, rounds)) {
+        dev = development::plan(g_data, year, current, rounds);
+        have_dev = development::any_curve(dev);
+    }
+    auto *comp = static_cast<UpgradesComponent *>(
+        swofty::career::component_by_desc(k_Career_UpgradesComponentDesc.get()));
+    UpgradesComponent view{};
+    if (!comp || !swofty::mem::read(comp, view)) {
+        swofty::log("[progressive] R&D models %d (%s): no UpgradesComponent; left alone", year, when);
+        return;
+    }
+    auto ub = reinterpret_cast<uintptr_t>(view.upgrades_begin), ue = reinterpret_cast<uintptr_t>(view.upgrades_end);
+    if (ue <= ub || (ue - ub) % sizeof(void *) || (ue - ub) / sizeof(void *) > 64) {
+        swofty::log("[progressive] R&D models %d (%s): no team models; left alone", year, when);
+        return;
+    }
+    const season::Year *y = g_data.year(year);
+    std::string teams;
+    size_t models = 0, changed = 0, failed = 0, skipped = 0;
+    for (uintptr_t at = ub; at < ue; at += sizeof(void *)) {
+        uintptr_t model = 0;
+        uint32_t key = 0;
+        if (!swofty::mem::read(at, model) || !model || !swofty::mem::read(model + offsetof(Upgrades, team_key), key))
+            continue;
+        int slot = season::slot_of_team(g_data, static_cast<int>(key >> 16));
+        uintptr_t begin = 0;
+        std::vector<rnd_model::Meta> m;
+        if (slot < 0 || !read_meta(model, begin, m) || m.empty()) {
+            ++skipped;
+            continue;
+        }
+        ++models;
+        std::vector<float> &room = g_model_room[model];
+        if (room.size() != m.size()) {
+            room.clear();
+            for (auto &x : m)
+                room.push_back(x.full - x.base);
+        }
+        double delta = have_dev ? dev.teams[slot].delta : 0.0;
+        double goal = rnd_model::target(rnd_model::year_gap(g_data, year, slot), delta);
+        double was = rnd_model::base_sum(m);
+        if (rnd_model::apply(m, goal, real, real ? nullptr : &room)) {
+            ++changed;
+            for (size_t i = 0; i < m.size(); ++i) {
+                *reinterpret_cast<float *>(begin + i * kMetaStride + kMetaBase) = m[i].base;
+                *reinterpret_cast<float *>(begin + i * kMetaStride + kMetaFull) = m[i].full;
+            }
+        }
+        std::vector<rnd_model::Meta> back;
+        uintptr_t begin2 = 0;
+        bool ok = read_meta(model, begin2, back) && begin2 == begin && back.size() == m.size() &&
+                  std::fabs(rnd_model::base_sum(back) - goal) < 0.5 &&
+                  (!real || std::fabs(rnd_model::gain_room(back)) < 0.5);
+        if (!ok)
+            ++failed;
+        char b[160];
+        std::snprintf(b, sizeof b, "%s%s %.0f (was %.0f%s%s)", teams.empty() ? "" : ", ",
+                      y && !y->teams[slot].name.empty() ? y->teams[slot].name.c_str() : g_data.slots[slot].team.c_str(),
+                      ok ? rnd_model::base_sum(back) : goal, was, real ? "" : ", upgrades +",
+                      ok ? (real ? "" : std::to_string(static_cast<int>(rnd_model::gain_room(back) + 0.5)).c_str())
+                         : "; READ-BACK FAILED");
+        teams += b;
+    }
+    std::string logged = c->key + ":" + std::to_string(year) + ":" + teams;
+    if (!changed && !failed && g_models_logged == logged)
+        return;
+    g_models_logged = logged;
+    swofty::log("[progressive] R&D models %d: %s [%s; %s; rating = %.0f - %.0f x (gap %%%s); %zu model(s), %zu "
+                "rewritten, %zu skipped, read-back %s]",
+                year, teams.c_str(), when, real ? "Real life: upgrades add nothing" : "Hybrid: R&D gains on top",
+                rnd_model::kTop, rnd_model::kPerPct, have_dev ? " + development delta %" : "", models, changed,
+                skipped, failed ? "FAILED" : "ok");
+}
+
+void season_performance(uintptr_t e, store::Career *c, int year, const char *when)
+{
+    development_apply(e, c, year, when);
+    rnd_models(e, c, year, when);
+}
+
 std::map<std::string, std::string> g_player_seen;
 std::map<std::string, std::string> g_mid_logged;
 
@@ -1260,8 +1384,8 @@ void season_loaded(const swofty::career::State &state)
     note_card(c, rows, s.index);
     g_entry = c->key;
     hub_sync(c->rnd, "career load");
-    development_apply(e, c, season::year_for(c->start, s.index + static_cast<uint32_t>(std::max(0, c->test_seasons))),
-                      "career load");
+    season_performance(e, c, season::year_for(c->start, s.index + static_cast<uint32_t>(std::max(0, c->test_seasons))),
+                       "career load");
 }
 
 void rnd_option_changed()
@@ -1285,9 +1409,9 @@ void rnd_option_changed()
         hybrid_budgets(e, year);
     }
     if (e && season(e, s) && data())
-        development_apply(e, c,
-                          season::year_for(c->start, s.index + static_cast<uint32_t>(std::max(0, c->test_seasons))),
-                          "R&D changed");
+        season_performance(e, c,
+                           season::year_for(c->start, s.index + static_cast<uint32_t>(std::max(0, c->test_seasons))),
+                           "R&D changed");
 }
 
 void rnd_frame(double, void *)
@@ -1321,6 +1445,8 @@ void season_unloaded()
     g_rnd = 0;
     dev_publish(nullptr);
     g_dev_logged.clear();
+    g_model_room.clear();
+    g_models_logged.clear();
     g_current.clear();
     g_entry.clear();
     g_applies.clear();
@@ -1379,7 +1505,7 @@ void season_hub(const swofty::career::State &state)
         g_names_for = c->key;
         set_names(shown, "career");
     }
-    development_apply(e, c, year, "Team HQ");
+    season_performance(e, c, year, "Team HQ");
     if (c->applied_season >= 0 && g_refreshed_for != c->key) {
         g_refreshed_for = c->key;
         refresh_weekends(e, shown);
