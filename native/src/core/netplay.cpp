@@ -89,13 +89,11 @@ void setup()
         memcpy(skip_lan + 1, &rel, sizeof rel);
         hidden = patch(lan, skip_lan, sizeof skip_lan);
     }
-    swofty::log("[netplay] LAN Game entry in Local Multiplayer %s",
+    swofty::log("[core] LAN Game entry in Local Multiplayer %s",
                 hidden ? "hidden (Splitscreen only)" : "left in place (signature did not resolve)");
 
     if (armed())
         session_patches();
-    else
-        swofty::log("[netplay] session patches off (SWOFTY_NETPLAY unset)");
 
     runtime::netplay_bridge_setup();
 }
