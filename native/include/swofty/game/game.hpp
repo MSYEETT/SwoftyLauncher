@@ -62,6 +62,7 @@ inline constexpr data<"g_Game_Manager", void *> g_Game_Manager{}; // L2 experime
 inline constexpr data<"g_Game_MessageBus", void *> g_Game_MessageBus{}; // L2 experimental
 inline constexpr data<"g_Game_Root", void *> g_Game_Root{}; // L2 experimental
 inline constexpr data<"k_Game_TrackListComponentDesc", void *> k_Game_TrackListComponentDesc{}; // L2 experimental, TrackListComponent
+inline constexpr call<"site_Game_CareerContinue_DriverSlotTitle"> site_Game_CareerContinue_DriverSlotTitle{}; // L2 experimental
 inline constexpr site<"site_Game_CareerWizardConfirm_NextRoute"> site_Game_CareerWizardConfirm_NextRoute{}; // L2 experimental
 inline constexpr site<"site_Game_CareerWizard_BackRoute"> site_Game_CareerWizard_BackRoute{}; // L2 experimental
 inline constexpr call<"site_Game_DriverSelectHeader_BuildTabs"> site_Game_DriverSelectHeader_BuildTabs{}; // L2 experimental
