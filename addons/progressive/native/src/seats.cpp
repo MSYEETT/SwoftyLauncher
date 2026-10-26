@@ -6,6 +6,7 @@
 #define NOMINMAX
 #include <windows.h>
 
+#include <algorithm>
 #include <cstring>
 
 #include <swofty/career.hpp>
@@ -323,29 +324,53 @@ bool contract_fits(uintptr_t contract, uint32_t team)
            same_key(rdv<uint32_t>(contract + offsetof(DriverContract, team)), team);
 }
 
-const char *plan_signing(const std::vector<uintptr_t> &objects, uint32_t human, uint32_t driver, uint32_t outgoing,
-                         uint32_t team, Signing &s)
+int32_t recommended_target(uintptr_t manager, int32_t base)
 {
+    struct Range {
+        uint32_t min, max, minus, plus;
+        int32_t recommended;
+    };
+    static_assert(sizeof(Range) == 20);
+    constexpr uintptr_t kRatingRanges = 0x318;
+    if (base < 0)
+        base = 0;
+    uintptr_t b = rdv<uintptr_t>(manager + kRatingRanges), e = rdv<uintptr_t>(manager + kRatingRanges + 8);
+    if (b && e > b && (e - b) % sizeof(Range) == 0 && (e - b) / sizeof(Range) < 64 && swofty::mem::readable(b, e - b))
+        for (uintptr_t p = b; p < e; p += sizeof(Range)) {
+            Range r = rdv<Range>(p);
+            if (uint32_t(base) < r.min || uint32_t(base) > r.max)
+                continue;
+            int64_t lo = std::max<int64_t>(0, int64_t(base) - r.minus);
+            int64_t hi = std::min<int64_t>(100, int64_t(base) + r.plus);
+            return int32_t(std::clamp<int64_t>(int64_t(base) + r.recommended, std::min(lo, hi), hi));
+        }
+    return std::min(base, 100);
+}
+
+const char *plan_signing(uintptr_t manager, const std::vector<uintptr_t> &objects, uint32_t driver, uint32_t team,
+                         Signing &s)
+{
+    constexpr uintptr_t kBuiltRating = 0x18;
     s.driver = driver;
     s.contract = contract_of(objects, driver);
     if (!s.contract)
         return "the game keeps no contract for him";
     if (!writable(s.contract, offsetof(DriverContract, active) + 1))
         return "his contract is not writable";
-    uintptr_t terms = 0;
-    for (uintptr_t c : objects) {
-        uint32_t d = rdv<uint32_t>(c + offsetof(DriverContract, driver));
-        if (!contract_fits(c, team))
-            continue;
-        if (same_key(d, outgoing)) {
-            terms = c;
-            break;
-        }
-        if (!terms && !same_key(d, human))
-            terms = c;
-    }
-    if (!terms || !swofty::mem::read(terms, s.offer))
-        return "no driver holds an active contract with that team to copy the terms from";
+    if (!manager || !Career_Build_DriverContract.address())
+        return "no contracts manager to build the terms";
+    alignas(16) uint8_t buf[0x80] = {};
+    Career_Build_DriverContract(reinterpret_cast<void *>(manager), buf, driver, team, 0, 0, 1);
+    int32_t base;
+    std::memcpy(&base, buf + kBuiltRating, sizeof base);
+    int32_t target = recommended_target(manager, base);
+    std::memset(buf, 0, sizeof buf);
+    Career_Build_DriverContract(reinterpret_cast<void *>(manager), buf, driver, team, 0, target, 1);
+    uint32_t built;
+    std::memcpy(&built, buf + offsetof(DriverContract, team), sizeof built);
+    if (!same_key(built, team))
+        return "the built terms name another team";
+    std::memcpy(s.offer, buf, sizeof s.offer);
     return nullptr;
 }
 

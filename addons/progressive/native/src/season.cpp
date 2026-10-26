@@ -283,8 +283,6 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
         swofty::log("[progressive] season %d REFUSED: the contract list is unreadable", p.year);
         return false;
     }
-    uint32_t human_key = p.player == lineup::kNone ? kNoKey : p.player << 16;
-    std::vector<Signing> signings;
     for (auto &m : p.moves) {
         int idx = row_index(rows, m.driver);
         if (idx < 0) {
@@ -300,15 +298,6 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
         w.old_team = rows[idx].rec.team_stat_id;
         w.new_team = seat.rec.team_stat_id;
         w.why = seat_name(m.from) + " -> " + seat_name(m.to);
-        if (!contract_fits(contract_of(objects, driver_of(rows[idx].rec)), seat.rec.team_stat_id)) {
-            Signing s;
-            if (const char *why = plan_signing(objects, human_key, driver_of(rows[idx].rec), driver_of(seat.rec),
-                                               seat.rec.team_stat_id, s))
-                swofty::log("[progressive] season %d WARNING %s can't sign for %s: %s", p.year,
-                            label_or(Kind::driver, m.driver).c_str(), g_data.slots[m.to.slot].team.c_str(), why);
-            else
-                signings.push_back(s);
-        }
     }
     for (uint32_t d : p.releases) {
         int idx = row_index(rows, d);
@@ -353,17 +342,53 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
         return rank(a) < rank(b);
     });
     swofty::log("[progressive] season %d plan: %zu move(s), %zu release(s), %zu number change(s), cars and looks %s; "
-                "%zu row(s) to write, %zu contract(s) to sign",
+                "%zu row(s) to write",
                 p.year, p.moves.size(), p.releases.size(), p.numbers.size(), visuals ? "on" : "off (season_visuals)",
-                order.size(), signings.size());
+                order.size());
     for (int idx : order) {
         const Write &w = writes[idx];
         swofty::log("[progressive]   %s %s: %s", w.move ? "move" : w.release ? "release" : "update",
                     label_or(Kind::driver, stat_of(driver_of(rows[idx].rec))).c_str(),
                     w.why.empty() ? "number, car or look" : w.why.c_str());
     }
-    if (order.empty())
+    auto sign_seats = [&]() {
+        std::vector<Row> now;
+        std::vector<uintptr_t> live;
+        size_t need = 0, done = 0;
+        if (!entrant_rows(e, now) || !contract_objects(manager, live)) {
+            swofty::log("[progressive] season %d WARNING contracts: the line-up or contract list is unreadable", p.year);
+            return;
+        }
+        for (auto &r : now) {
+            if (!has_car(r.rec) || teamless(r.rec))
+                continue;
+            bool moved_player = human(r.rec) && writes.count(static_cast<int>(&r - now.data())) &&
+                                writes[static_cast<int>(&r - now.data())].move;
+            if (human(r.rec) && !moved_player)
+                continue;
+            uint32_t d = driver_of(r.rec);
+            if (contract_fits(contract_of(live, d), r.rec.team_stat_id))
+                continue;
+            ++need;
+            Signing s;
+            if (const char *why = plan_signing(manager, live, d, r.rec.team_stat_id, s))
+                swofty::log("[progressive] season %d WARNING %s has no contract with %s: %s", p.year,
+                            label_or(Kind::driver, stat_of(d)).c_str(), label_or(Kind::team, stat_of(r.rec.team_stat_id)).c_str(),
+                            why);
+            else if (!sign_contract(e, manager, s))
+                swofty::log("[progressive] season %d WARNING %s's contract with %s was not signed", p.year,
+                            label_or(Kind::driver, stat_of(d)).c_str(), label_or(Kind::team, stat_of(r.rec.team_stat_id)).c_str());
+            else
+                ++done;
+        }
+        swofty::log("[progressive] season %d contracts: %zu/%zu seated driver(s) without a contract for their team "
+                    "signed (terms from Career_Build_DriverContract, one season)",
+                    p.year, done, need);
+    };
+    if (order.empty()) {
+        sign_seats();
         return true;
+    }
 
     Baseline baseline(rows);
     std::vector<int> written;
@@ -430,13 +455,7 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
         back();
         return false;
     }
-    size_t signed_now = 0;
-    for (auto &s : signings)
-        if (sign_contract(e, manager, s))
-            ++signed_now;
-        else
-            swofty::log("[progressive] season %d WARNING %s's contract for his new seat was not signed", p.year,
-                        label_or(Kind::driver, stat_of(s.driver)).c_str());
+    sign_seats();
     size_t numbered = 0;
     if (uintptr_t cn = car_numbers(e, manager)) {
         std::vector<Row> now;
@@ -451,9 +470,9 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
     bool fin = true;
     if (!p.moves.empty() || !p.releases.empty())
         fin = finalise(e, baseline, changes);
-    swofty::log("[progressive] season %d applied: %zu row(s) written, %zu/%zu contract(s) signed, %zu racing number(s) "
-                "drawn, finalise %s (%llu line-up change(s))",
-                p.year, written.size(), signed_now, signings.size(), numbered,
+    swofty::log("[progressive] season %d applied: %zu row(s) written, %zu racing number(s) drawn, finalise %s (%llu "
+                "line-up change(s))",
+                p.year, written.size(), numbered,
                 p.moves.empty() && p.releases.empty() ? "not needed" : fin ? "posted" : "FAILED",
                 static_cast<unsigned long long>(changes));
     return true;
