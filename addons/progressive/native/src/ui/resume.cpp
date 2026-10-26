@@ -14,7 +14,7 @@
 // state the view model's DriverCareerSlotPredicate lookup reads) holds the data group
 // f1_career_progressive at +0x128, and the career content tile last pressed (the core's
 // career.content.pressed) was Progressive. Then the title key becomes lng_pg_resume_<year>
-// ("Progressive · <year>", lang/career.json) with the year progressive.dll's ProgressiveCardYear
+// ("Progressive - <year>", lang/career.json) with the year progressive.dll's ProgressiveCardYear
 // gives for the slot's player driver (slot info +0xc0, low 14 bits), team (+0xbe, low 14 bits)
 // and season index (+0xac); with no year it becomes lng_pg_career ("Progressive Career"). Stock
 // Driver Career lists, My Team lists (their title is the other call) and every other card line
