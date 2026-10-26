@@ -13,15 +13,29 @@
 // the start season's team names are set (progressive.dll ProgressiveWizardNames, the season apply's
 // overrides), so Team Select and the rest of the wizard show them; pressing another career tile
 // puts the 2026 names back.
+//
+// The three cars behind the season length, settings and confirm steps are the data group's
+// career.career_setup.CareerSetupDataGroup SpawnedF1 car_1..car_3. The wizard state is the game's
+// CareerUISetupManager: at database load it reads every CareerSetupDataGroup row into an entry
+// (0x1438705b0), and the router points +0xd0 at the pressed tile's entry (0x14387d100). The
+// season length step spawns the entry's cars (0x143879900, from its view model 0x141a29400) and
+// shows the F1 set (0x143875010). An entry's SpawnedF1 cars are a map at +0x20 (node +0x1a slot,
+// +0x1c vehicle ref, stat id in the high word) and their scene handles a map at +0x50 (+0x1c, 0xffff
+// until spawned). At the same points as the suffix, and when the start season changes on the setup
+// page, the f1_career_progressive entry's three refs are set to the start season's Haas, Ferrari
+// and Williams (2016-2025) or the stock 2026 cars. A car already spawned keeps its vehicle until
+// the next tile press despawns it.
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 
+#include <swofty/db.hpp>
 #include <swofty/game.hpp>
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
@@ -37,8 +51,23 @@ constexpr uintptr_t kWizardGroup = 0x128;    // wizard state: data group chars
 constexpr uintptr_t kWizardSuffixCap = 0x148; // wizard state: suffix buffer capacity
 constexpr uintptr_t kWizardSuffix = 0x150;   // wizard state: suffix buffer chars
 constexpr uintptr_t kNeStrChars = 0x09;
+constexpr uintptr_t kWizardSetup = 0xd0;     // wizard state: the data group's CareerSetupDataGroup entry
+constexpr uintptr_t kSetupCars = 0x20;       // entry: SpawnedF1 car map head
+constexpr uintptr_t kSetupHandles = 0x50;    // entry: the F1 cars' scene handle map head
+constexpr uintptr_t kNodeLeft = 0x00;
+constexpr uintptr_t kNodeRoot = 0x08;        // head node: the root
+constexpr uintptr_t kNodeRight = 0x10;
+constexpr uintptr_t kNodeNil = 0x19;
+constexpr uintptr_t kNodeSlot = 0x1a;
+constexpr uintptr_t kNodeValue = 0x1c;
+constexpr uint16_t kNoHandle = 0xffff;
+constexpr int kBackdropCars = 3;
+constexpr const char *kBackdropTeams[kBackdropCars] = {"haas", "ferrari", "williams"};
+constexpr const char *kBackdrop2026[kBackdropCars] = {"gm_cadillac_2026", "ferrari_2026", "sauber_2026"};
 
 int g_logged = 0;
+int g_backdrop_logged = 0;
+uintptr_t g_wizard = 0;
 
 bool writable(uintptr_t p, size_t n)
 {
@@ -57,11 +86,106 @@ std::string text_at(uintptr_t p)
     return s;
 }
 
-int start_year()
+int season_year(std::string_view text)
 {
-    std::string v(start_season.get());
+    std::string v(text);
     int y = std::atoi(v.c_str());
     return y < 2016 ? 2016 : y > 2026 ? 2026 : y;
+}
+
+int start_year()
+{
+    return season_year(start_season.get());
+}
+
+bool progressive_wizard(uintptr_t wizard)
+{
+    uintptr_t group = 0;
+    return wizard && swofty::mem::read(wizard + kWizardGroup, group) && text_at(group) == kGroup;
+}
+
+uintptr_t find_node(uintptr_t head, uint8_t slot)
+{
+    uintptr_t node = 0, best = 0;
+    if (!head || !swofty::mem::read(head + kNodeRoot, node))
+        return 0;
+    for (int depth = 0; depth < 32; ++depth) {
+        uint8_t nil = 1, key = 0;
+        if (!node || !swofty::mem::read(node + kNodeNil, nil))
+            return 0;
+        if (nil)
+            break;
+        if (!swofty::mem::read(node + kNodeSlot, key))
+            return 0;
+        if (key >= slot)
+            best = node;
+        if (!swofty::mem::read(node + (key < slot ? kNodeRight : kNodeLeft), node))
+            return 0;
+    }
+    uint8_t key = 0xff;
+    return best && swofty::mem::read(best + kNodeSlot, key) && key == slot ? best : 0;
+}
+
+int vehicle_stat(const std::string &label)
+{
+    swofty::db::Cursor c{};
+    swofty::db::Value v{};
+    if (swofty::db::row("entrants.vehicles", label, &c) != swofty::db::Result::ok ||
+        swofty::db::cell(&c, "stat_id", &v) != swofty::db::Result::ok || v.i < 0 || v.i >= 0x3fff)
+        return -1;
+    return static_cast<int>(v.i);
+}
+
+std::string backdrop_label(int year, int car)
+{
+    char label[48];
+    if (year >= 2026)
+        return kBackdrop2026[car];
+    if (year <= 2024)
+        std::snprintf(label, sizeof label, "cs%02d_%s", year % 100, kBackdropTeams[car]);
+    else
+        std::snprintf(label, sizeof label, "%s_%d", kBackdropTeams[car], year);
+    return label;
+}
+
+void backdrop(uintptr_t wizard, int year, const char *when)
+{
+    uintptr_t entry = 0, cars = 0, handles = 0;
+    if (!swofty::mem::read(wizard + kWizardSetup, entry) || !entry || !swofty::mem::read(entry + kSetupCars, cars) ||
+        !cars || !swofty::mem::read(entry + kSetupHandles, handles)) {
+        if (g_backdrop_logged++ < 8)
+            swofty::log("[progressive] backdrop: %s: the wizard has no career setup entry; the cars stay", when);
+        return;
+    }
+    std::string changed, kept;
+    for (int car = 0; car < kBackdropCars; ++car) {
+        std::string label = backdrop_label(year, car);
+        int stat = vehicle_stat(label);
+        if (stat < 0) {
+            label = kBackdrop2026[car];
+            stat = vehicle_stat(label);
+        }
+        uintptr_t node = find_node(cars, static_cast<uint8_t>(car));
+        uint32_t ref = 0;
+        if (stat < 0 || !node || !swofty::mem::read(node + kNodeValue, ref) || !writable(node + kNodeValue, sizeof ref)) {
+            if (g_backdrop_logged++ < 8)
+                swofty::log("[progressive] backdrop: %s: car_%d (%s) left alone (vehicle stat id %d, map node %s)", when,
+                            car + 1, label.c_str(), stat, node ? "found" : "missing");
+            continue;
+        }
+        uint32_t want = (static_cast<uint32_t>(stat) << 16) | (ref & 0xffffu);
+        if (want == ref)
+            continue;
+        uint16_t handle = kNoHandle;
+        uintptr_t shown = find_node(handles, static_cast<uint8_t>(car));
+        if (shown && swofty::mem::read(shown + kNodeValue, handle) && handle != kNoHandle)
+            kept += (kept.empty() ? "" : ", ") + std::string("car_") + std::to_string(car + 1);
+        std::memcpy(reinterpret_cast<void *>(node + kNodeValue), &want, sizeof want);
+        changed += (changed.empty() ? "" : ", ") + label;
+    }
+    if (!changed.empty())
+        swofty::log("[progressive] backdrop: %s: start season %d cars %s%s%s", when, year, changed.c_str(),
+                    kept.empty() ? "" : "; already spawned until the next tile press: ", kept.c_str());
 }
 
 void wizard_names(int year)
@@ -94,14 +218,16 @@ void new_career()
 
 void rewrite(uintptr_t wizard, const char *when, bool step)
 {
-    uintptr_t group = 0, chars = 0;
+    uintptr_t chars = 0;
     uint64_t cap = 0;
-    if (!wizard || !swofty::mem::read(wizard + kWizardGroup, group) || text_at(group) != kGroup)
+    if (!progressive_wizard(wizard))
         return;
+    g_wizard = wizard;
     if (step)
         new_career();
     int year = start_year();
     wizard_names(year);
+    backdrop(wizard, year, when);
     if (!swofty::mem::read(wizard + kWizardSuffixCap, cap) || !swofty::mem::read(wizard + kWizardSuffix, chars))
         return;
     std::string now = text_at(chars);
@@ -139,6 +265,12 @@ SWOFTY_WRAP(Game_CareerWizard_PushNextStep, void, void *wizard)
 {
     orig(wizard);
     rewrite(reinterpret_cast<uintptr_t>(wizard), "wizard step", true);
+}
+
+SWOFTY_ON_CHANGE(start_season, std::string_view value)
+{
+    if (progressive_wizard(g_wizard))
+        backdrop(g_wizard, season_year(value), "start season changed");
 }
 
 SWOFTY_ON_LOAD
