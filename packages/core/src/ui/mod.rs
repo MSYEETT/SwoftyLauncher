@@ -1071,8 +1071,57 @@ mod tests {
             for shown in ["emails_display", "email_list", "reading_pane", "num_unread"] {
                 assert_eq!(visible(shown), on, "{rel}: {shown}");
             }
-            for hidden in ["no_emails_display", "emails_display.no_mail_label", "scrollbar"] {
+            for hidden in [
+                "no_emails_display",
+                "emails_display.no_mail_label",
+                "scrollbar",
+                "divider",
+                "reading_pane.attachments",
+            ] {
                 assert_ne!(visible(hidden), on, "{rel}: {hidden}");
+            }
+            let attachments = tab.child("reading_pane").unwrap().child("attachments").unwrap();
+            assert!(attachments.slot(node::CHILDREN).unwrap().is_empty(), "{rel}");
+            let entry = tab.child("email_list").unwrap().child("entry_0").unwrap();
+            assert_eq!(entry.type_code(), "UIGP", "{rel}");
+            assert_eq!(
+                node::canonical(&entry.a().unwrap()[node::BEHAVIOURS]),
+                node::canonical(&node::behaviours(node::GROUP_BEHAVIOURS)),
+                "{rel}"
+            );
+            let scene = Pkg::parse(
+                &read_frag(
+                    &input(&ui_file(rel)),
+                    "eaid://ui_package/art/components/career/laptop/messages_panel.idf",
+                    0,
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            let scene = idf::scenes(&scene).unwrap()[0].o().unwrap().at("scene").unwrap();
+            let parts: Vec<(&str, bool, &Node)> = tab
+                .slot(node::CHILDREN)
+                .unwrap()
+                .iter()
+                .filter(|c| c.is_node())
+                .filter_map(|c| {
+                    let step = c.slot(node::LAYOUT).ok()?.first()?.a().ok()?.last()?.o().ok()?;
+                    let at = idf::find(scene, step.str_at("debugName").ok()?)?;
+                    let shown = c
+                        .props()
+                        .ok()?
+                        .get("visible")
+                        .is_none_or(|v| node::canonical(v) == on);
+                    Some((c.name(), shown, at))
+                })
+                .collect();
+            for (shown, _, at) in parts.iter().filter(|p| p.1) {
+                for (hidden, _, over) in parts.iter().filter(|p| !p.1) {
+                    assert!(
+                        idf::find(over, idf::elem_name(at)).is_none(),
+                        "{rel}: hidden {hidden} covers {shown}"
+                    );
+                }
             }
             assert!(!page.contains("o2.label"), "{rel}");
             assert!(!page.contains("dataContext"), "{rel}");

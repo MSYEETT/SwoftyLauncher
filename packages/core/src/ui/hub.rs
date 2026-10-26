@@ -18,16 +18,18 @@ const HEADER: &str = "num_unread.num_unread";
 /// The group on the scene's `mail` branch, which holds the list, the reading pane and the header. Stock shows it
 /// through a negated binding (visible unless the inbox is empty), so the page sets it visible.
 const MAIL: &str = "emails_display";
-const HIDDEN: [&str; 6] = [
+const HIDDEN: [&str; 7] = [
     "scrollbar",
     "no_emails_display",
     "emails_display.no_mail_label",
+    "divider",
     "reading_pane.from",
     "reading_pane.from_image",
     "tool_tip_interface.tutorial_tooltip",
 ];
-/// The inbox's attachment widgets under the reading pane, which the page leaves out.
-const ATTACHMENTS: &str = "attachments";
+/// The group on the reading pane's attachment branch. The page keeps it empty and hidden, which hides the branch's
+/// attachment layouts.
+const ATTACHMENTS: &str = "reading_pane.attachments";
 const TOOLTIPS: &str = "tool_tip_interface";
 const TOOLTIP_SOURCE: &str = "exit_laptop";
 
@@ -73,11 +75,6 @@ fn drop_contexts(n: &mut Node) -> Result<()> {
 
 fn hide(n: &mut Node) -> Result<()> {
     set_bool(n, "visible", false)
-}
-
-fn retype(n: &mut Node, code: &str) -> Result<()> {
-    n.props_mut()?.at_mut("type")?.v_mut()?.set_u32(fourcc(code));
-    Ok(())
 }
 
 fn adjust_tooltip(t: &mut Node, name: &str) -> Result<()> {
@@ -128,10 +125,11 @@ fn page(base: &Node, p: &Page) -> Result<Node> {
     bind_text(header, &format!("{vm}.title"))?;
     set_bool(header, "enabled", true)?;
     set_bool(t.child_mut("num_unread")?, "visible", true)?;
-    let pane = t.child_mut("reading_pane")?;
-    set_bool(pane, "visible", true)?;
-    pane.slot_mut(CHILDREN)?
-        .retain(|c| !(c.is_node() && c.name() == ATTACHMENTS));
+    set_bool(t.child_mut("reading_pane")?, "visible", true)?;
+    let attachments = t.find_mut(ATTACHMENTS)?;
+    attachments.slot_mut(CHILDREN)?.clear();
+    attachments.slot_mut(EVENTS)?.clear();
+    hide(attachments)?;
     literal(t.find_mut(PANE_TITLE)?, p.rows[0].label)?;
     literal(t.find_mut(PANE_BODY)?, p.rows[0].description)?;
     adjust_tooltip(&mut t, &name)?;
@@ -144,7 +142,7 @@ fn page(base: &Node, p: &Page) -> Result<Node> {
     let at = |i: usize| format!("{name}.{LIST}.entry_{i}");
     for i in 0..ENTRIES {
         let entry = list.child_mut(&format!("entry_{i}"))?;
-        retype(entry, "UIGP")?;
+        super::pages::as_group(entry)?;
         let Some(row) = p.rows.get(i) else {
             hide(entry)?;
             set_bool(entry, "enabled", false)?;
