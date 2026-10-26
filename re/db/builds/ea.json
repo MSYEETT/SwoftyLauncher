@@ -27,6 +27,14 @@
    "pattern": "03 8B 42 04 89 05 ?? ?? ?? ?? 48 89 F2 E8 ?? ?? ?? ?? 48 89 F0 48 83 C4 20 5E C3 CC CC CC CC CC 56 57 53 48 83 EC 50",
    "note": "The base pattern fixes the low bytes of the previous function's disp32 (D8 05), which differ on EA. They are wildcarded and anchor 32 is unchanged. This pattern also matches Steam once."
   },
+  "Game_SeasonLength_ApplyPreset": {
+   "pattern": "E9 ?? ?? ?? ?? 78 19 18 8F CC CC 6E F2 7A",
+   "note": "The bytes after the protector thunk's jmp are Steam-only filler. EA's thunk is the target that all 6 Steam callers (4 in .xtls, 2 in .data1 bodies) reach once mapped; the filler is from the EA dump."
+  },
+  "Game_SeasonLength_PushCalendarEntry": {
+   "pattern": "E9 ?? ?? ?? ?? 04 C4 5C E9 28 C5 A5 FC 63",
+   "note": "The bytes after the protector thunk's jmp are Steam-only filler. EA's thunk is the target that all 4 Steam callers (2 in .xtls, 2 in .data1 bodies) reach once mapped; the filler is from the EA dump."
+  },
   "Ne_Detach_ChildNode": {
    "pattern": "E9 ?? ?? ?? ?? 0F 87 B1 E0 9A 01 65 ED E9",
    "note": "The bytes after the protector thunk's jmp are Steam-only filler. EA's thunk is the target that 7 mapped Steam callers reach; the filler is from the EA dump."
@@ -328,10 +336,40 @@
    "expect": "8B 15 DE 9E D2 02",
    "note": "expect holds a Steam rel32/disp32. It is the same instruction on EA with EA's displacement, read from the dump. The base pattern matches EA once."
   },
+  "site_Game_CareerContinue_DriverSlotTitle": {
+   "pattern": "4C 69 EE 40 05 00 00 F6 82 71 01 00 00 20 4A 8D 8C 29 B8 03 00 00 44 88 44 24 37 0F 85 ?? ?? ?? ?? 48 8D 15 ?? ?? ?? ?? E8 ?? ?? ?? ?? C6 84 24 08 04 00 00 01",
+   "expect": "E8 2F 65 DA FE",
+   "note": "expect holds a Steam rel32/disp32. It is the same instruction on EA with EA's displacement, read from the dump. The base pattern matches EA once. The call is Vm_Holder_SetCStr (EA 0x1407b01d0) with rdx \"lng_homescreen_driver_career\". Game_CareerContinue_FillSlot (EA 0x141a09c50) has the same instructions, registers and frame as Steam's, so rcx, rdx, rbx, rdi and sil hold the same values at the site."
+  },
   "site_Game_DriverSelectHeader_BuildTabs": {
    "pattern": "E8 ?? ?? ?? ?? C6 86 10 03 00 00 01 48 8B 86 C0 02 00 00",
    "expect": "E8 09 29 7F 02",
    "note": "expect holds a Steam rel32/disp32. It is the same instruction on EA with EA's displacement, read from the dump. The base pattern matches EA once."
+  },
+  "site_Game_DriverSelect_BadgeFormat": {
+   "pattern": "E8 ?? ?? ?? ?? 48 8D 8E 58 FF FF FF",
+   "expect": "E8 EB 76 AB 02",
+   "note": "expect holds a Steam rel32/disp32. It is the same instruction on EA with EA's displacement, read from the dump. The base pattern matches EA once. The call is Ne_Format_String (EA 0x1441572e0) with the same format string and the same rcx, rdx, r8 setup; the containing function (EA 0x14169f810) has the same instructions as Steam's."
+  },
+  "site_Game_DriverSelect_TeamLogoFormat": {
+   "pattern": "48 8D 4C 24 60 E8 ?? ?? ?? ?? 48 8B 97 B0 00 00 00",
+   "expect": "E8 1D 94 AB 02",
+   "note": "expect holds a Steam rel32/disp32. It is the same instruction on EA with EA's displacement, read from the dump. The base pattern matches EA once. The call is Ne_Format_String (EA 0x1441572e0) with the same format string and the same rcx, rdx, r8 setup; the containing function (EA 0x14169da00) has the same instructions as Steam's."
+  },
+  "site_Game_SaveData_ContainersChildren": {
+   "pattern": "41 89 04 24 85 C0 0F 85 ?? ?? ?? ?? 48 8D 2D",
+   "expect": "48 8D 2D DD D8 C1 02",
+   "note": "expect holds a Steam rel32/disp32. It is the same instruction on EA with EA's displacement, read from the dump. The base pattern matches EA once. Game_SaveData_SerialiseContainer_2 (EA 0x143641230) has the same instructions, registers and frame as Steam's, so r12, r15 and the [rsp+0x30/0x38/0x50/0x58/0x90] slots the save splice reads hold the same values. The lea rbp target is the string64 type record, at the same 0x135c70 data shift as g_Ne_StringTable and k_Ne_PropertyType_Bag."
+  },
+  "site_Game_SaveData_ContainersDone": {
+   "pattern": "80 3D ?? ?? ?? ?? 01 4C 8B 4C 24 30",
+   "expect": "80 3D 41 F9 B3 02 01",
+   "note": "expect holds a Steam rel32/disp32. It is the same instruction on EA with EA's displacement, read from the dump. The base pattern matches EA once. Same function and frame as Steam's (EA 0x143641230), so the splice's redirect here after a failed write finds [rsp+0x30], [rsp+0x38] and r12 as on Steam. The cmp reads the flag at the same 0x135d40 data shift as g_Ne_LogGate."
+  },
+  "site_Game_TeamSelect_TeamLogoFormat": {
+   "pattern": "E8 ?? ?? ?? ?? 48 8D 8F 58 FF FF FF",
+   "expect": "E8 E6 34 8E 02",
+   "note": "expect holds a Steam rel32/disp32. It is the same instruction on EA with EA's displacement, read from the dump. The base pattern matches EA once. The call is Ne_Format_String (EA 0x1441572e0) with the same format string and the same rcx, rdx, r8 setup; the containing function (EA 0x141873860) has the same instructions as Steam's."
   },
   "site_Ne_HwBool_CrowdInShadows": {
    "pattern": "49 8B 4C 24 50 48 8D 15 ?? ?? ?? ?? E8 ?? ?? ?? ?? 85 C0 40 0F 94 D7",
@@ -482,6 +520,12 @@
   },
   "Game_EntrantsUi_OnCharacterListLoaded": {
    "match": "0x24b4040"
+  },
+  "Game_SeasonLength_ApplyPreset": {
+   "match": "0xbc8930"
+  },
+  "Game_SeasonLength_PushCalendarEntry": {
+   "match": "0xbc86f0"
   },
   "Game_SpeechSystem_PostLine": {
    "match": "0xa2f4d0"
@@ -1107,11 +1151,29 @@
   "site_FeTile_CareerContentEnd": {
    "match": "0x173bbf7"
   },
+  "site_Game_CareerContinue_DriverSlotTitle": {
+   "match": "0x1a09c74"
+  },
   "site_Game_CareerWizardConfirm_NextRoute": {
    "match": "0x1a1e15d"
   },
   "site_Game_DriverSelectHeader_BuildTabs": {
    "match": "0x1a536e2"
+  },
+  "site_Game_DriverSelect_BadgeFormat": {
+   "match": "0x169fbf0"
+  },
+  "site_Game_DriverSelect_TeamLogoFormat": {
+   "match": "0x169deb9"
+  },
+  "site_Game_SaveData_ContainersChildren": {
+   "match": "0x3641dd8"
+  },
+  "site_Game_SaveData_ContainersDone": {
+   "match": "0x3641ebc"
+  },
+  "site_Game_TeamSelect_TeamLogoFormat": {
+   "match": "0x1873df5"
   },
   "site_Gdb_DeptCountStore": {
    "match": "0x4598b6f"
